@@ -1,6 +1,9 @@
 import Konva from "konva";
 
+import ImagesManager from "./ImagesManager";
 import ShapesManager from "./ShapesManager";
+
+import getStagePositionAndScaleFromImageSize from "../utils/getStagePositionAndScaleFromImageSize";
 
 export default class MapEditor {
   constructor({container, width, height, onMapEditorIsReady}) {
@@ -8,9 +11,15 @@ export default class MapEditor {
 
     this.scaleBy = 1.1;
 
+    this.layerImages = new Konva.Layer();
     this.layerShapes = new Konva.Layer();
 
+    this.stage.add(this.layerImages);
     this.stage.add(this.layerShapes);
+
+    this.imagesManager = new ImagesManager({
+      mapEditor: this,
+    });
 
     this.shapesManager = new ShapesManager({
       mapEditor: this,
@@ -48,6 +57,27 @@ export default class MapEditor {
     this.stage.batchDraw();
   };
 
+  // control
+
+  refresh() {
+    const width = this.imagesManager.mainImageNode.width();
+    const height = this.imagesManager.mainImageNode.height();
+    const imageSize = {width, height};
+    const {x, y, scale} = getStagePositionAndScaleFromImageSize(
+      this.stage,
+      imageSize
+    );
+    console.log("[MapEditor] refresh", {x, y, scale});
+    this.stage.position({x, y});
+    this.stage.scale({x: scale, y: scale});
+  }
+
+  // main image
+
+  loadMainImage(image) {
+    console.log("[MapEditor] loadMainImage", image);
+    this.imagesManager.createImageNodeAsync(image, {isMainImage: true});
+  }
   // shapes
 
   loadShapes(shapes) {
