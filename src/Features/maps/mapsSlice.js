@@ -7,7 +7,7 @@ const mapsInitialState = {
   mapsMap: {demo: demoMap},
   mapsUpdatedAt: null,
   //
-  selectedMapId: null,
+  selectedMapClientId: "demo",
   //
 };
 
@@ -15,14 +15,14 @@ export const mapsSlice = createSlice({
   name: "maps",
   initialState: mapsInitialState,
   reducers: {
-    setSelectedMapId: (state, action) => {
-      state.selectedMapId = action.payload;
+    setSelectedMapClientId: (state, action) => {
+      state.selectedMapClientId = action.payload;
     },
   },
 });
 
 export const {
-  setSelectedMapId,
+  setSelectedMapClientId,
   //
 } = mapsSlice.actions;
 

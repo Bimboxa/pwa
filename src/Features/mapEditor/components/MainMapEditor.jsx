@@ -5,10 +5,14 @@ import {useDispatch} from "react-redux";
 import {triggerShapesUpdate} from "Features/shapes/shapesSlice";
 
 import useAutoLoadShapesInMapEditor from "../hooks/useAutoLoadShapesInMapEditor";
+import useAutoLoadMainImageInMapEditor from "../hooks/useAutoLoadMainImageInMapEditor";
 
 import {Box} from "@mui/material";
 
 import MapEditor from "Features/mapEditor/js/MapEditor";
+import LayerMapEditor from "./LayerMapEditor";
+
+import editor from "App/editor";
 
 export default function MainMapEditor() {
   const dispatch = useDispatch();
@@ -43,10 +47,11 @@ export default function MainMapEditor() {
         onMapEditorIsReady: () => setMapEditorIsReady(true),
       });
       mapEditorRef.current = mapEditor;
+      editor.mapEditor = mapEditor;
     }
   }, [containerElExists]);
 
-  // effect - load shapes
+  // effect - load data in map
 
   useEffect(() => {
     if (mapEditorIsReady) {
@@ -54,6 +59,13 @@ export default function MainMapEditor() {
     }
   }, [mapEditorIsReady]);
 
+  // -- main image
+  useAutoLoadMainImageInMapEditor({
+    mapEditor: mapEditorRef.current,
+    mapEditorIsReady,
+  });
+
+  // -- shapes
   useAutoLoadShapesInMapEditor({
     mapEditor: mapEditorRef.current,
     mapEditorIsReady,
@@ -67,8 +79,10 @@ export default function MainMapEditor() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        position: "relative",
       }}
     >
+      <LayerMapEditor />
       <div
         id="container"
         ref={containerRef}
