@@ -1,9 +1,11 @@
 import createImageNodeAsync from "./utilsImagesManager.js/createImageNodeAsync";
+import getStagePositionAndScaleFromImageSize from "../utils/getStagePositionAndScaleFromImageSize";
 
 export default class ImagesManager {
   constructor({mapEditor}) {
     this.mapEditor = mapEditor;
 
+    this.stage = mapEditor.stage;
     this.layerImages = mapEditor.layerImages;
 
     this.mainImageNode = null;
@@ -23,9 +25,22 @@ export default class ImagesManager {
       // post process
       if (isMainImage) {
         this.mainImageNode = imageNode;
+        this.centerStageOnImageNode(imageNode);
       }
     } catch (error) {
       console.error(error);
     }
+  };
+
+  centerStageOnImageNode = (imageNode) => {
+    const width = imageNode.width();
+    const height = imageNode.height();
+    const imageSize = {width, height};
+    const {x, y, scale} = getStagePositionAndScaleFromImageSize(
+      this.stage,
+      imageSize
+    );
+    this.stage.position({x, y});
+    this.stage.scale({x: scale, y: scale});
   };
 }
