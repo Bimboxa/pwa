@@ -57,6 +57,12 @@ export default class MapEditor {
     this.stage.batchDraw();
   };
 
+  resizeStage() {
+    const bbox = this.stage.container().getBoundingClientRect();
+    this.stage.width(bbox.width);
+    this.stage.height(bbox.height);
+  }
+
   // control
 
   refresh() {
@@ -75,7 +81,6 @@ export default class MapEditor {
   // main image
 
   loadMainImage(image) {
-    console.log("[MapEditor] loadMainImage", image);
     this.imagesManager.createImageNodeAsync(image, {isMainImage: true});
   }
   // shapes

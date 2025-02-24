@@ -59,6 +59,22 @@ export default function MainMapEditor() {
     }
   }, [mapEditorIsReady]);
 
+  // effect - resize observer
+
+  useEffect(() => {
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapEditorRef.current) {
+        mapEditorRef.current.resizeStage();
+      }
+    });
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  });
   // -- main image
   useAutoLoadMainImageInMapEditor({
     mapEditor: mapEditorRef.current,
