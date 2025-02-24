@@ -1,29 +1,29 @@
 import {createSlice} from "@reduxjs/toolkit";
 
-import demoProject from "./data/demoProject";
+import demoMap from "./data/demoMap";
 
-const projectsInitialState = {
+const mapsInitialState = {
   //
-  projectsMap: {demo: demoProject},
-  projectsUpdatedAt: null,
+  mapsMap: {demo: demoMap},
+  mapsUpdatedAt: null,
   //
-  selectedProjectId: null,
+  selectedMapId: null,
   //
 };
 
-export const projectsSlice = createSlice({
-  name: "projects",
-  initialState: projectsInitialState,
+export const mapsSlice = createSlice({
+  name: "maps",
+  initialState: mapsInitialState,
   reducers: {
-    setSelectedProjectId: (state, action) => {
-      state.selectedProjectId = action.payload;
+    setSelectedMapId: (state, action) => {
+      state.selectedMapId = action.payload;
     },
   },
 });
 
 export const {
-  setSelectedProjectId,
+  setSelectedMapId,
   //
-} = projectsSlice.actions;
+} = mapsSlice.actions;
 
-export default projectsSlice.reducer;
+export default mapsSlice.reducer;

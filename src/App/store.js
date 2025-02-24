@@ -5,6 +5,7 @@ import webrtcReducer from "Features/webrtc/webrtcSlice";
 import layoutReducer from "Features/layout/layoutSlice";
 import projectsReducer from "Features/projects/projectsSlice";
 import viewersReducer from "Features/viewers/viewersSlice";
+import mapsReducer from "Features/maps/mapsSlice";
 import shapesReducer from "Features/shapes/shapesSlice";
 import threedEditorReducer from "Features/threedEditor/threedEditorSlice";
 import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
@@ -18,6 +19,7 @@ export default configureStore({
     layout: layoutReducer,
     projects: projectsReducer,
     viewers: viewersReducer,
+    maps: mapsReducer,
     shapes: shapesReducer,
     mapEditor: mapEditorReducer,
     threedEditor: threedEditorReducer,

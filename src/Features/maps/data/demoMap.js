@@ -3,4 +3,4 @@ const demoMap = {
   name: "Plan démo",
 };
 
-export default demoProject;
+export default demoMap;
