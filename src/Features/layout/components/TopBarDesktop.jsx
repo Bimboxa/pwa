@@ -1,11 +1,8 @@
 import {Box} from "@mui/material";
-import BoxAlignH from "./BoxAlignH";
-
-import BlockProjectName from "Features/projects/components/BlockProjectName";
 
 import IconButtonInitiateConnection from "Features/webrtc/components/IconButtonInitiateConnection";
-import IconButtonPopperSettings from "Features/settings/components/IconButtonPopperSettings";
 import SelectorViewer from "Features/viewers/components/SelectorViewer";
+import BlockProjectInTopBar from "Features/projects/components/BlockProjectInTopBar";
 
 export default function TopBarDesktop() {
   return (
@@ -17,10 +14,7 @@ export default function TopBarDesktop() {
         alignItems: "center",
       }}
     >
-      <BoxAlignH gap={1}>
-        <BlockProjectName />
-        <IconButtonPopperSettings />
-      </BoxAlignH>
+      <BlockProjectInTopBar />
 
       <SelectorViewer />
 

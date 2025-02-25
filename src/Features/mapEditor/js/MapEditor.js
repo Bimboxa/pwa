@@ -5,6 +5,13 @@ import ShapesManager from "./ShapesManager";
 
 import getStagePositionAndScaleFromImageSize from "../utils/getStagePositionAndScaleFromImageSize";
 
+import store from "App/store";
+import {
+  setEnabledDrawingMode,
+  setLoadedMainMapId,
+} from "Features/mapEditor/mapEditorSlice";
+import fromMapPropsToImageProps from "./utilsImagesManager/fromMapPropsToImageProps";
+
 export default class MapEditor {
   constructor({container, width, height, onMapEditorIsReady}) {
     this.stage = new Konva.Stage({container, draggable: true, width, height});
@@ -13,9 +20,11 @@ export default class MapEditor {
 
     this.layerImages = new Konva.Layer();
     this.layerShapes = new Konva.Layer();
+    this.layerEditedShape = new Konva.Layer();
 
     this.stage.add(this.layerImages);
     this.stage.add(this.layerShapes);
+    this.stage.add(this.layerEditedShape);
 
     this.imagesManager = new ImagesManager({
       mapEditor: this,
@@ -27,11 +36,30 @@ export default class MapEditor {
     });
 
     this.stage.on("wheel", (e) => this.handleWheelEvent(e));
+
+    this.stageCursorMemo = null;
+
+    this.enabledDrawingMode = null;
+
+    window.addEventListener("keydown", this.handleKeyDown);
   }
 
   /*
    * listeners
    */
+
+  handleKeyDown = (e) => {
+    if (e.key === "Escape") {
+      if (this.enabledDrawingMode && !this.shapesManager.getIsDrawing()) {
+        this.disableDrawingMode({updateRedux: true});
+        if (this.stageCursorMemo) {
+          this.stage.container().style.cursor = this.stageCursorMemo;
+        }
+      } else if (!this.enableDrawingMode) {
+        this.stage.container().style.cursor = "default";
+      }
+    }
+  };
 
   handleWheelEvent = (e) => {
     e.evt.preventDefault();
@@ -80,12 +108,52 @@ export default class MapEditor {
 
   // main image
 
-  loadMainImage(image) {
-    this.imagesManager.createImageNodeAsync(image, {isMainImage: true});
+  async loadMainMap(map) {
+    const imageProps = fromMapPropsToImageProps(map);
+    await this.imagesManager.createImageNodeAsync(imageProps, {
+      isMainImage: true,
+    });
+    store.dispatch(setLoadedMainMapId(map.id));
   }
   // shapes
 
   loadShapes(shapes) {
     this.shapesManager.createShapesNodes(shapes);
+  }
+
+  // ------ draw ------
+
+  enableDrawingMode(mode, options) {
+    console.log("[MapEditor] enableDrawingMode", mode);
+    this.stageCursorMemo = this.stage.container().style.cursor;
+    this.stage.container().style.cursor = "crosshair";
+    this.enabledDrawingMode = mode;
+
+    // options
+    const updateRedux = options?.updateRedux ?? false;
+
+    // main
+    this.shapesManager.enableDrawingMode(mode, options);
+
+    // redux
+    if (updateRedux) {
+      store.dispatch(setEnabledDrawingMode(mode));
+    }
+  }
+
+  disableDrawingMode(options) {
+    // options
+    const updateRedux = options?.updateRedux ?? false;
+
+    // main
+    if (this.enabledDrawingMode === "POYGON") {
+      this.shapesManager.polygonDrawer.disableDrawing();
+    }
+
+    // post process
+    this.enabledDrawingMode = null;
+    if (updateRedux) {
+      store.dispatch(setEnabledDrawingMode(null));
+    }
   }
 }

@@ -9,6 +9,7 @@ export default function parseMapForMapEditor(map, options) {
 
   // main
   const image = {
+    id: map.id,
     url: map.imageUrl,
     width: map.imageWidth,
     height: map.imageHeight,

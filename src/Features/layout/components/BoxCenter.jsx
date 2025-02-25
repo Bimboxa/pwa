@@ -6,6 +6,8 @@ export default function BoxCenter({children, sx}) {
       sx={{
         height: 1,
         width: 1,
+        minWidth: 0,
+        minHeight: 0,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

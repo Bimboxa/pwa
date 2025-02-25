@@ -1,7 +1,7 @@
 export default function createImageNodeAsync(image) {
   // image
 
-  const {clientId, url, width, height, nodeType, x, y} = image;
+  const {id, url, width, height, nodeType, x, y} = image;
 
   // main
   const imageObj = new Image();
@@ -9,7 +9,7 @@ export default function createImageNodeAsync(image) {
   return new Promise((resolve, reject) => {
     imageObj.onload = () => {
       const imageNode = new Konva.Image({
-        id: clientId,
+        id,
         image: imageObj,
         x,
         y,

@@ -1,5 +1,5 @@
 import {createTheme} from "@mui/material/styles";
-import {blueGrey, green, blue, pink} from "@mui/material/colors";
+import {blueGrey, green, blue, pink, grey, red} from "@mui/material/colors";
 
 let theme = createTheme({
   components: {
@@ -8,6 +8,15 @@ let theme = createTheme({
         root: {
           textTransform: "none",
           borderRadius: 0,
+        },
+      },
+    },
+    MuiInputBase: {
+      styleOverrides: {
+        input: {
+          "&.MuiOutlinedInput-input": {
+            padding: "8px 8px",
+          },
         },
       },
     },
@@ -27,6 +36,17 @@ let theme = createTheme({
     viewers: {
       map: blue[600],
       threed: pink[600],
+    },
+    anchor: {
+      default: red[500],
+      selected: red[800],
+    },
+    button: {
+      dark: grey[800],
+    },
+    entities: {
+      article: green[500],
+      shape: blueGrey[500],
     },
   },
 });

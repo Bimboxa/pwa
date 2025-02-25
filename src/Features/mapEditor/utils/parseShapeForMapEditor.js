@@ -1,9 +1,12 @@
-export default function parseShapeForMapEditor(shape) {
+import parsePointsFromStateToNode from "Features/mapEditor/js/utilsShapesManager/parsePointsFromStateToNode";
+
+export default function parseShapeForMapEditor(shape, mapEditor) {
+  const imageNode = mapEditor.imagesManager.mainImageNode;
+  const imageSize = {width: imageNode.width(), height: imageNode.height()};
+  const imagePosition = {x: imageNode.x(), y: imageNode.y()};
+
   return {
     ...shape,
-    points: shape.points.map((point) => ({
-      x: point.x * 5,
-      y: point.y * 5,
-    })),
+    points: parsePointsFromStateToNode(shape.points, imageSize, imagePosition),
   };
 }

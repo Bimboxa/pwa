@@ -5,12 +5,13 @@ import {useDispatch} from "react-redux";
 import {triggerShapesUpdate} from "Features/shapes/shapesSlice";
 
 import useAutoLoadShapesInMapEditor from "../hooks/useAutoLoadShapesInMapEditor";
-import useAutoLoadMainImageInMapEditor from "../hooks/useAutoLoadMainImageInMapEditor";
+import useAutoLoadMainMapInMapEditor from "../hooks/useAutoLoadMainMapInMapEditor";
 
 import {Box} from "@mui/material";
 
 import MapEditor from "Features/mapEditor/js/MapEditor";
 import LayerMapEditor from "./LayerMapEditor";
+import PopperEditScale from "./PopperEditScale";
 
 import editor from "App/editor";
 
@@ -75,8 +76,9 @@ export default function MainMapEditor() {
       resizeObserver.disconnect();
     };
   });
+
   // -- main image
-  useAutoLoadMainImageInMapEditor({
+  useAutoLoadMainMapInMapEditor({
     mapEditor: mapEditorRef.current,
     mapEditorIsReady,
   });
@@ -98,6 +100,7 @@ export default function MainMapEditor() {
         position: "relative",
       }}
     >
+      <PopperEditScale />
       <LayerMapEditor />
       <div
         id="container"

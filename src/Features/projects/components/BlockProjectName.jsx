@@ -7,7 +7,7 @@ export default function BlockProjectName() {
 
   return (
     <Box sx={{p: 1}}>
-      <Typography>{project?.name}</Typography>
+      <Typography variant="h6">{project?.name}</Typography>
     </Box>
   );
 }

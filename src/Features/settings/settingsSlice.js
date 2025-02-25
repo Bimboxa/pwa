@@ -2,7 +2,12 @@ import {createSlice} from "@reduxjs/toolkit";
 
 const settingsInitialState = {
   //
-  servicesConfig: null,
+  servicesConfig: {
+    fromInitialState: true,
+    autoSegmentation: {ngrokId: "xxx-xxxx-xxx"},
+    firebaseConfig: null,
+    googleConfig: null,
+  },
   servicesConfigQrCode: null,
   //
 };
