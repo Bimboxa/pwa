@@ -118,12 +118,13 @@ export default class MapEditor {
   // shapes
 
   loadShapes(shapes) {
+    this.shapesManager.deleteAllShapesNodes();
     this.shapesManager.createShapesNodes(shapes);
   }
 
   // ------ draw ------
 
-  enableDrawingMode(mode, options) {
+  enableDrawingMode(mode, shapeProps, options) {
     console.log("[MapEditor] enableDrawingMode", mode);
     this.stageCursorMemo = this.stage.container().style.cursor;
     this.stage.container().style.cursor = "crosshair";
@@ -133,7 +134,7 @@ export default class MapEditor {
     const updateRedux = options?.updateRedux ?? false;
 
     // main
-    this.shapesManager.enableDrawingMode(mode, options);
+    this.shapesManager.enableDrawingMode(mode, shapeProps);
 
     // redux
     if (updateRedux) {

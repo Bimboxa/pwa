@@ -12,6 +12,7 @@ export default function TopBarDesktop() {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
+        bgcolor: "white",
       }}
     >
       <BlockProjectInTopBar />

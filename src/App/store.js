@@ -10,6 +10,7 @@ import mapsReducer from "Features/maps/mapsSlice";
 import shapesReducer from "Features/shapes/shapesSlice";
 import threedEditorReducer from "Features/threedEditor/threedEditorSlice";
 import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
+import gapiReducer from "Features/gapi/gapiSlice";
 
 import webrtcMiddleware from "Features/webrtc/webrtcMiddleware";
 
@@ -25,6 +26,7 @@ export default configureStore({
     shapes: shapesReducer,
     mapEditor: mapEditorReducer,
     threedEditor: threedEditorReducer,
+    gapi: gapiReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

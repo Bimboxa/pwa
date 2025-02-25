@@ -6,10 +6,9 @@ const settingsInitialState = {
     fromInitialState: true,
     autoSegmentation: {ngrokId: "xxx-xxxx-xxx"},
     firebaseConfig: null,
-    googleConfig: null,
+    gapiConfig: null,
   },
   servicesConfigQrCode: null,
-  //
 };
 
 export const settingsSlice = createSlice({

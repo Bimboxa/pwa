@@ -76,11 +76,15 @@ export default class LineDrawer {
   // handlers
 
   _testEnd() {
-    if (!this.node) return false;
-    if (this.variant === "SEGMENT") {
-      return this.node.points().length === 4;
-    } else {
-      return this.endNode.isVisible() && this.endNodeIsActive;
+    try {
+      if (!this.node) return false;
+      if (this.variant === "SEGMENT") {
+        return this.node.points().length === 4;
+      } else {
+        return this.endNode && this.endNode.isVisible() && this.endNodeIsActive;
+      }
+    } catch (error) {
+      console.log(error);
     }
   }
 
@@ -178,7 +182,7 @@ export default class LineDrawer {
 
   updateEndNode(x, y) {
     //
-    if (!this.endNode) return;
+    //if (!this.endNode) return; // comment: we need to create it !
     //
     const stageScale = this.mapEditor.stage.scaleX();
     const endNodePosition = this.testShowEndNode(x, y);

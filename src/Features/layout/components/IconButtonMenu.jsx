@@ -22,16 +22,18 @@ export default function IconButtonMenu({icon, actions}) {
     <>
       <IconButton onClick={handleClick}>{icon}</IconButton>
       <Menu open={open} anchorEl={anchorEl} onClose={handleClose}>
-        {actions?.map((action) => {
-          return (
-            <ListItemButton
-              key={action.label}
-              onClick={() => handleActionClick(action)}
-            >
-              {action.label}
-            </ListItemButton>
-          );
-        })}
+        {actions
+          ?.filter((action) => !action.hide)
+          .map((action) => {
+            return (
+              <ListItemButton
+                key={action.label}
+                onClick={() => handleActionClick(action)}
+              >
+                {action.label}
+              </ListItemButton>
+            );
+          })}
       </Menu>
     </>
   );
