@@ -1,8 +1,9 @@
-import store from "App/store";
+import LineDrawer from "./LineDrawer";
 
+import store from "App/store";
 import {setSelectedShapeId} from "Features/shapes/shapesSlice";
 
-import createShapeNode from "./utilsShapesManager.js/createShapeNode";
+import createShapeNode from "./utilsShapesManager/createShapeNode";
 
 import theme from "Styles/theme";
 
@@ -10,6 +11,8 @@ export default class ShapesManager {
   constructor({mapEditor, onMapEditorIsReady}) {
     this.mapEditor = mapEditor;
     this.onMapEditorIsReady = onMapEditorIsReady;
+
+    this.lineDrawer = new LineDrawer({mapEditor});
 
     this.stage = null;
 
@@ -122,5 +125,25 @@ export default class ShapesManager {
 
   cleanup() {
     if (this.unsubscribe) this.unsubscribe();
+  }
+
+  // ------------ draw shape ------------
+
+  enableDrawingMode(mode, options) {
+    if (mode === "POLYGON") {
+      this.lineDrawer.startDrawing("POLYGON");
+    } else if (mode === "POLYLINE") {
+      this.lineDrawer.startDrawing("POLYLINE");
+    } else if (mode === "SEGMENT") {
+      this.lineDrawer.startDrawing("SEGMENT", {isScale: true});
+    }
+  }
+
+  disableDrawingMode() {
+    this.lineDrawer.stopDrawing();
+  }
+
+  getIsDrawing() {
+    return this.lineDrawer.node !== null;
   }
 }

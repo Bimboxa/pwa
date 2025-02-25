@@ -3,6 +3,7 @@ import {configureStore} from "@reduxjs/toolkit";
 import settingsReducer from "Features/settings/settingsSlice";
 import webrtcReducer from "Features/webrtc/webrtcSlice";
 import layoutReducer from "Features/layout/layoutSlice";
+import listPanelReducer from "Features/listPanel/listPanelSlice";
 import projectsReducer from "Features/projects/projectsSlice";
 import viewersReducer from "Features/viewers/viewersSlice";
 import mapsReducer from "Features/maps/mapsSlice";
@@ -17,6 +18,7 @@ export default configureStore({
     settings: settingsReducer,
     webrtc: webrtcReducer,
     layout: layoutReducer,
+    listPanel: listPanelReducer,
     projects: projectsReducer,
     viewers: viewersReducer,
     maps: mapsReducer,

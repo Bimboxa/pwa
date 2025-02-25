@@ -1,4 +1,4 @@
-import createImageNodeAsync from "./utilsImagesManager.js/createImageNodeAsync";
+import createImageNodeAsync from "./utilsImagesManager/createImageNodeAsync";
 import getStagePositionAndScaleFromImageSize from "../utils/getStagePositionAndScaleFromImageSize";
 
 export default class ImagesManager {

@@ -1,5 +1,7 @@
 import {useEffect} from "react";
 
+import {useSelector} from "react-redux";
+
 import useShapes from "Features/shapes/hooks/useShapes";
 import parseShapeForMapEditor from "../utils/parseShapeForMapEditor";
 
@@ -7,13 +9,18 @@ export default function useAutoLoadShapesInMapEditor({
   mapEditor,
   mapEditorIsReady,
 }) {
-  const shapes = useShapes({widthSelected: true});
-
-  const items = shapes.map(parseShapeForMapEditor);
+  const loadedMainMapId = useSelector((s) => s.mapEditor.loadedMainMapId);
+  const shapes = useShapes({
+    withSelected: true,
+    filterByMapId: loadedMainMapId,
+  });
 
   useEffect(() => {
-    if (mapEditorIsReady) {
+    if (mapEditorIsReady && loadedMainMapId) {
+      const items = shapes.map((shape) =>
+        parseShapeForMapEditor(shape, mapEditor)
+      );
       mapEditor.loadShapes(items);
     }
-  }, [mapEditorIsReady, items.length]);
+  }, [mapEditorIsReady, shapes.length, loadedMainMapId]);
 }

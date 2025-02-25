@@ -1,7 +1,7 @@
 import demoBlueprint from "../assets/demoBlueprint.png";
 
 const demoMap = {
-  clientId: "demo",
+  id: "demo",
   name: "Plan démo",
   imageUrl: demoBlueprint,
   imageWidth: 2216,
