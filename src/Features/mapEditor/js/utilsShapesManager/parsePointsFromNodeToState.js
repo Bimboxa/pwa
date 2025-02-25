@@ -12,7 +12,7 @@ export default function parsePointsFromNodeToState(
   for (let i = 0; i < nodePoints.length - 1; i += 2) {
     const x = (nodePoints[i] - dx) / width;
     const y = (nodePoints[i + 1] - dy) / height;
-    points.push({x: nodePoints[i], y: nodePoints[i + 1]});
+    points.push({x, y});
   }
   return points;
 }

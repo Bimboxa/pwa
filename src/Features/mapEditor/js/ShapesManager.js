@@ -83,6 +83,7 @@ export default class ShapesManager {
       const node = createShapeNode({
         shape,
         stageScale: this.stage.scaleX(),
+        imageNode: this.mapEditor.imagesManager.mainImageNode,
         onClick: this.handleShapeClick,
       });
 
@@ -129,13 +130,13 @@ export default class ShapesManager {
 
   // ------------ draw shape ------------
 
-  enableDrawingMode(mode, options) {
+  enableDrawingMode(mode, shapeProps) {
     if (mode === "POLYGON") {
-      this.lineDrawer.startDrawing("POLYGON");
+      this.lineDrawer.startDrawing("POLYGON", shapeProps);
     } else if (mode === "POLYLINE") {
-      this.lineDrawer.startDrawing("POLYLINE");
+      this.lineDrawer.startDrawing("POLYLINE", shapeProps);
     } else if (mode === "SEGMENT") {
-      this.lineDrawer.startDrawing("SEGMENT", {isScale: true});
+      this.lineDrawer.startDrawing("SEGMENT", shapeProps);
     }
   }
 

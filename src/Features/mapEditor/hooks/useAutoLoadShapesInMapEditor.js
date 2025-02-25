@@ -17,10 +17,8 @@ export default function useAutoLoadShapesInMapEditor({
 
   useEffect(() => {
     if (mapEditorIsReady && loadedMainMapId) {
-      const items = shapes.map((shape) =>
-        parseShapeForMapEditor(shape, mapEditor)
-      );
-      mapEditor.loadShapes(items);
+      console.log("useAutoLoadShapesInMapEditor", shapes);
+      mapEditor.loadShapes(shapes);
     }
   }, [mapEditorIsReady, shapes.length, loadedMainMapId]);
 }
