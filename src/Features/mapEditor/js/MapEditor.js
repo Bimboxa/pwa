@@ -11,12 +11,16 @@ import {
   setLoadedMainMapId,
 } from "Features/mapEditor/mapEditorSlice";
 import fromMapPropsToImageProps from "./utilsImagesManager/fromMapPropsToImageProps";
+import testPinchEvent from "./utilsMapEditor/testPinchEvent";
+import {get} from "firebase/database";
+import getPointerPositionInStage from "../utils/getPointerPositionInStage";
 
 export default class MapEditor {
   constructor({container, width, height, onMapEditorIsReady}) {
     this.stage = new Konva.Stage({container, draggable: true, width, height});
 
     this.scaleBy = 1.1;
+    this.scaleByTouch = 1.05;
 
     this.layerImages = new Konva.Layer();
     this.layerShapes = new Konva.Layer();
@@ -40,6 +44,9 @@ export default class MapEditor {
     this.stageCursorMemo = null;
 
     this.enabledDrawingMode = null;
+
+    this.lastPinchCenter = null;
+    this.lastPinchDistance = null;
 
     window.addEventListener("keydown", this.handleKeyDown);
   }
@@ -83,6 +90,43 @@ export default class MapEditor {
     };
     this.stage.position(newPos);
     this.stage.batchDraw();
+  };
+
+  handleTouchMove = (e) => {
+    const evt = e.evt;
+    const oldScale = this.stage.scaleX();
+    if (testPinchEvent(evt)) {
+      const pinchCenterInStage = getPointerPositionInStage(
+        this.lastPinchCenter,
+        this.stage
+      );
+      const pinchDistance = getPinchDistance(evt.touches);
+      if (!this.lastPinchDistance) {
+        this.lastPinchDistance = pinchDistance;
+      }
+      const delta = pinchDistance - this.lastPinchDistance;
+      const newScale =
+        delta > 0 ? oldScale * this.scaleByTouch : oldScale / this.scaleByTouch;
+      this.stage.scale({x: newScale, y: newScale});
+      const newPos = {
+        x: pinchCenterInStage.x - pinchCenterInStage.x * newScale,
+        y: pinchCenterInStage.y - pinchCenterInStage.y * newScale,
+      };
+      this.stage.position(newPos);
+      this.stage.batchDraw();
+      this.lastPinchDistance = pinchDistance;
+    }
+  };
+
+  handleTouchStart = (e) => {
+    if (testPinchEvent(e.evt)) {
+      this.lastPinchCenter = getPinchCenter(e.evt.touches);
+    }
+  };
+
+  handleTouchEnd = (e) => {
+    this.lastPinchCenter = null;
+    this.lastPinchDistance = null;
   };
 
   resizeStage() {
