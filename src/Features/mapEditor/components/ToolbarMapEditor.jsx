@@ -2,12 +2,8 @@ import {useSelector} from "react-redux";
 
 import {Box} from "@mui/material";
 
-import Toolbar from "Features/layout/components/Toolbar";
-import ButtonRefreshMap from "./ButtonRefreshMap";
-import ButtonDrawPolygon from "./ButtonDrawPolygon";
-import ButtonEditScale from "./ButtonEditScale";
-import ButtonDrawPolyline from "./ButtonDrawPolyline";
-import ButtonAutoSegmentation from "./ButtonAutoSegmentation";
+import ToolbarMapEditorMain from "./ToolbarMapEditorMain";
+import ToolbarShapeProps from "Features/shapes/components/ToolbarShapeProps";
 
 export default function ToolbarMapEditor() {
   // data
@@ -16,17 +12,13 @@ export default function ToolbarMapEditor() {
 
   // helper
 
-  const hide = Boolean(enabledDrawingMode);
+  const showMain = !Boolean(enabledDrawingMode);
+  const showShapeProps = Boolean(enabledDrawingMode);
 
   return (
-    <Box sx={{display: hide ? "none" : "flex"}}>
-      <Toolbar>
-        <ButtonRefreshMap />
-        <ButtonEditScale />
-        <ButtonDrawPolyline />
-        <ButtonDrawPolygon />
-        <ButtonAutoSegmentation />
-      </Toolbar>
+    <Box sx={{}}>
+      {showMain && <ToolbarMapEditorMain />}
+      {showShapeProps && <ToolbarShapeProps />}
     </Box>
   );
 }

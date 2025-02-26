@@ -2,12 +2,21 @@ import {createSlice} from "@reduxjs/toolkit";
 
 import randomShapesMap from "./data/randomShapesMap";
 
+import theme from "Styles/theme";
+
 const shapesInitialState = {
   //
   shapesMap: randomShapesMap,
   shapesUpdatedAt: null,
   //
-  selectedShapeId: [],
+  selectedShapeId: null,
+  //
+  newShape: {
+    color: theme.palette.shape.default,
+    label: "XXX",
+  },
+  editedShape: null,
+  isEditingShape: false,
 };
 
 export const shapeEditorSlice = createSlice({
@@ -19,6 +28,16 @@ export const shapeEditorSlice = createSlice({
     },
     triggerShapesUpdate: (state) => {
       state.shapesUpdatedAt = Date.now();
+    },
+    //
+    setNewShape: (state, action) => {
+      state.newShape = action.payload;
+    },
+    setEditedShape: (state, action) => {
+      state.editedShape = action.payload;
+    },
+    setIsEditingShape: (state, action) => {
+      state.isEditingShape = action.payload;
     },
     //
     createShape: (state, action) => {
@@ -36,6 +55,10 @@ export const shapeEditorSlice = createSlice({
 export const {
   setSelectedShapeId,
   triggerShapesUpdate,
+  //
+  setNewShape,
+  setEditedShape,
+  setIsEditingShape,
   //
   createShape,
   updateShape,

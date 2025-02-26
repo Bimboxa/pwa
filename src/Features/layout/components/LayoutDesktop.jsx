@@ -10,7 +10,7 @@ import MainListPanel from "Features/listPanel/components/MainListPanel";
 
 export default function LayoutDesktop() {
   return (
-    <BoxFlexV>
+    <BoxFlexV sx={{position: "relative"}}>
       <TopBarDesktop />
       <BoxFlexHStretch>
         <MainListPanel />

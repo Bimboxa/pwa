@@ -10,6 +10,7 @@ export default function useAutoLoadShapesInMapEditor({
   mapEditorIsReady,
 }) {
   const loadedMainMapId = useSelector((s) => s.mapEditor.loadedMainMapId);
+
   const shapes = useShapes({
     withSelected: true,
     filterByMapId: loadedMainMapId,

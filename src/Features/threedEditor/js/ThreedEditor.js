@@ -1,5 +1,7 @@
 import SceneManager from "./SceneManager";
 
+import getEditorImageFromMap from "./utilsImagesManager/getEditorImageFromMap";
+
 export default class ThreedEditor {
   constructor({containerEl, onRendererIsReady}) {
     this.containerEl = containerEl;
@@ -20,6 +22,18 @@ export default class ThreedEditor {
   renderScene = () => {
     if (this.sceneIsInitialized) {
       this.sceneManager.renderScene();
+    }
+  };
+
+  // images
+
+  loadMaps = (maps) => {
+    try {
+      const images = maps.map(getEditorImageFromMap);
+      this.sceneManager.imagesManager.createImagesObjects(images);
+      this.renderScene();
+    } catch (e) {
+      console.log("Error", e);
     }
   };
 

@@ -33,6 +33,13 @@ export default class LineDrawer {
     this.endNodeRadiusCore = 10;
     this.thresholdEndNode = 0.05;
     this.endNodeIsActive = false;
+
+    this.newShape = null;
+
+    this.unsubsribe = store.subscribe(() => {
+      const newShape = store.getState().shapes.newShape;
+      this.newShape = newShape;
+    });
   }
 
   // reset
@@ -53,7 +60,6 @@ export default class LineDrawer {
     this.shapeProps = shapeProps;
     if (this.variant) this.stopDrawing();
     this.variant = variant;
-    this.color = shapeProps?.color;
     //
     this.stage.on("click", this.handlerPointerClick);
     this.stage.on("mousemove", this.handlerPointerMove);
@@ -219,7 +225,7 @@ export default class LineDrawer {
     console.log("[LineDrawer] _initNode", x, y);
     this.node = new Konva.Line({
       points: [x, y],
-      stroke: this.color ?? "black",
+      stroke: this.newShape.color ?? "black",
       strokeWidth: 2 / this.stageScale,
     });
     this.lastPoint = {x, y};
@@ -267,7 +273,7 @@ export default class LineDrawer {
       imageSize,
       imagePosition
     );
-    const shape = {...this.shapeProps, points};
+    const shape = {...this.shapeProps, ...this.newShape, points};
     if (!shape.id) shape.id = nanoid();
     return shape;
   }

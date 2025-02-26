@@ -1,6 +1,7 @@
 import React, {useRef, useState, useEffect} from "react";
 
 import useAutoLoadShapesInThreedEditor from "Features/threedEditor/hooks/useAutoLoadShapesInThreedEditor";
+import useAutoLoadMapsInThreedEditor from "../hooks/useAutoLoadMapsInThreedEditor";
 
 import {Box} from "@mui/material";
 
@@ -49,7 +50,13 @@ export default function MainThreedEditor() {
   }, [containerElExists]);
 
   // effect - load shapes
+
   useAutoLoadShapesInThreedEditor({
+    threedEditor: threedEditorRef.current,
+    rendererIsReady,
+  });
+
+  useAutoLoadMapsInThreedEditor({
     threedEditor: threedEditorRef.current,
     rendererIsReady,
   });
