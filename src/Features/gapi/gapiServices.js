@@ -1,6 +1,8 @@
 import store from "App/store";
 import {setGapiIsLoaded} from "./gapiSlice";
 
+const getStoreState = () => store.getState();
+
 export const loadGapiPromise = new Promise((resolve, reject) => {
   if (window.gapi?.client) {
     resolve(window.gapi);
@@ -43,12 +45,12 @@ export const gapiPromise = new Promise(async (resolve, reject) => {
 });
 
 export const gapiConfigPromise = new Promise((resolve) => {
-  const servicesConfig = store.getState().settings.servicesConfig;
+  const servicesConfig = getStoreState().settings.servicesConfig;
   if (servicesConfig.gapiConfig) {
     resolve(servicesConfig.gapiConfig);
   } else {
     const unsubscribe = store.subscribe(() => {
-      const servicesConfig = store.getState().settings.servicesConfig;
+      const servicesConfig = getStoreState().settings.servicesConfig;
       const gapiConfig = servicesConfig?.gapiConfig;
       if (gapiConfig) {
         resolve(gapiConfig);

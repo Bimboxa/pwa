@@ -14,15 +14,20 @@ export default class ShapesManager {
   }
 
   createShapesObjects(shapes) {
+    console.log("[ShapesManager] Creating shapes", shapes);
     try {
+      if (!shapes) throw new Error("No shapes provided");
+
       shapes.forEach((shape, index) => {
         const shapeObject = createShapeObject(shape, {
-          applyMaterial: this.defaultMaterial,
+          map: shape.map,
+          applyMaterial: null,
         });
 
         this.shapesObjectsMap[shape.id] = shapeObject;
         this.shapesMap[shape.id] = shape;
 
+        console.log("[ShapesManager] Shape created", shape);
         this.scene.add(shapeObject);
       });
     } catch (e) {

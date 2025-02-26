@@ -4,6 +4,7 @@ import {Pentagon as Polygon} from "@mui/icons-material";
 import {IconButton} from "@mui/material";
 
 import editor from "App/editor";
+import useLoadedMainMap from "../hooks/useLoadedMainMap";
 
 export default function ButtonDrawPolygon() {
   // data

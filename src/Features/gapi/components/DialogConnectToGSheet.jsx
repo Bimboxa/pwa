@@ -1,7 +1,7 @@
 import {useState} from "react";
 import {useDispatch, useSelector} from "react-redux";
 
-import {setBimboxFolderId} from "../gapiSlice";
+import {setGSheetId} from "../gapiSlice";
 
 import {
   Box,
@@ -14,25 +14,29 @@ import {
   TextField,
 } from "@mui/material";
 
+import {batchUpdateGSheet} from "../gapiServicesGSheet";
+import changeFirstRowColor from "../requests/changeFirstRowColor";
+
 //import {listFiles} from "../gapiServicesFiles";
 
-export default function DialogConnectBimboxToDriveFolder({open, onClose}) {
+export default function DialogConnectToGSheet({open, onClose}) {
   const dispatch = useDispatch();
 
   // strings
 
-  const title = "Connecter la bimbox à un dossier Google Drive";
+  const title = "Connecter la liste à une Google Sheet";
 
-  const description =
-    "Saisissez l'id du dossier, visible dans l'url de Google Drive";
+  const description = "Saisissez l'url de la Google Sheet";
 
   const saveS = "Connecter";
 
   const label = "Id du dossier";
 
+  const testS = "Tester la connexion";
+
   // state
 
-  const [folderId, setFolderId] = useState("");
+  const [sheetId, setFolderId] = useState("");
 
   // data
 
@@ -50,13 +54,22 @@ export default function DialogConnectBimboxToDriveFolder({open, onClose}) {
     setFolderId(event.target.value);
   }
 
+  async function handleBlur() {
+    const id = sheetId.trim();
+    //const files = await listFiles(id);
+  }
+
   function handleSave() {
-    dispatch(setBimboxFolderId(folderId));
+    dispatch(setGSheetId(sheetId));
     onClose();
   }
 
   function handleClose() {
     onClose();
+  }
+
+  function handleTestClick() {
+    batchUpdateGSheet({sheetId, requests: changeFirstRowColor()});
   }
 
   return (
@@ -69,9 +82,13 @@ export default function DialogConnectBimboxToDriveFolder({open, onClose}) {
           <TextField
             label={label}
             fullWidth
-            value={folderId}
+            value={sheetId}
             onChange={handleChange}
+            onBlur={handleBlur}
           />
+          <Button onClick={handleTestClick} size="small">
+            {testS}
+          </Button>
         </Box>
       </DialogContent>
       <DialogActions>

@@ -1,12 +1,13 @@
-import {createSlice} from "@reduxjs/toolkit";
+import {createSlice, createAsyncThunk} from "@reduxjs/toolkit";
 
-import randomShapesMap from "./data/randomShapesMap";
+// import randomShapesMap from "./data/randomShapesMap";
+import demoShape from "./data/demoShape";
 
 import theme from "Styles/theme";
 
 const shapesInitialState = {
   //
-  shapesMap: randomShapesMap,
+  shapesMap: {demo: demoShape},
   shapesUpdatedAt: null,
   //
   selectedShapeId: null,
@@ -39,7 +40,6 @@ export const shapeEditorSlice = createSlice({
     setIsEditingShape: (state, action) => {
       state.isEditingShape = action.payload;
     },
-    //
     createShape: (state, action) => {
       const shape = action.payload;
       state.shapesMap[shape.id] = shape;

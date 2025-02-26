@@ -12,9 +12,10 @@ import threedEditorReducer from "Features/threedEditor/threedEditorSlice";
 import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
 import gapiReducer from "Features/gapi/gapiSlice";
 
+import syncTabsMiddleware from "./syncTabsMiddleware";
 import webrtcMiddleware from "Features/webrtc/webrtcMiddleware";
 
-export default configureStore({
+const store = configureStore({
   reducer: {
     settings: settingsReducer,
     webrtc: webrtcReducer,
@@ -28,8 +29,14 @@ export default configureStore({
     threedEditor: threedEditorReducer,
     gapi: gapiReducer,
   },
+  // middleware: (getDefaultMiddleware) =>
+  //   getDefaultMiddleware({
+  //     serializableCheck: false,
+  //   }),
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,
-    }).concat(webrtcMiddleware),
+    }).concat(syncTabsMiddleware),
 });
+
+export default store;
