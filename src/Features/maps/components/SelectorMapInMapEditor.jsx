@@ -1,12 +1,20 @@
 import useLoadedMainMap from "Features/mapEditor/hooks/useLoadedMainMap";
 
+import {useDispatch} from "react-redux";
+
+import {createMap, setSelectedMapId} from "Features/maps/mapsSlice";
+
 import {Paper} from "@mui/material";
 import ButtonPopper from "Features/layout/components/ButtonPopper";
+import ListMapsFromGDrive from "Features/gapi/components/ListMapsFromGDrive";
 
 export default function SelectorMapInMapEditor() {
+  const dispatch = useDispatch();
+
   // string
 
   const selectS = "+ fond de plan";
+
   // data
 
   const loadedMainMap = useLoadedMainMap();
@@ -14,6 +22,15 @@ export default function SelectorMapInMapEditor() {
   // helper
 
   const buttonLabel = loadedMainMap ? loadedMainMap.name : selectS;
+
+  // handler
+
+  function handleClick(map) {
+    console.log("SelectorMapInMapEditor handleClick", map);
+    dispatch(createMap(map));
+    dispatch(setSelectedMapId(map.id));
+  }
+
   return (
     <Paper
       sx={{
@@ -24,7 +41,7 @@ export default function SelectorMapInMapEditor() {
       }}
     >
       <ButtonPopper buttonLabel={buttonLabel} sx={{color: "white"}}>
-        <div>TODO: list of maps</div>
+        <ListMapsFromGDrive onClick={handleClick} />
       </ButtonPopper>
     </Paper>
   );

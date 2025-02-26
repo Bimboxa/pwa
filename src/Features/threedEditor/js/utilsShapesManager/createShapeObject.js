@@ -1,45 +1,44 @@
-import * as THREE from "three";
+import {Shape, ExtrudeGeometry, MeshPhongMaterial, Mesh, Color} from "three";
 
-export default function createShapeObject(shape, options) {
-  try {
-    // options
+import getPointsIn3dFromPointsInMap from "./getPointsIn3dFromPointsInMap";
 
-    const applyMaterial = options?.applyMaterial;
+export default function createShapeObjectFromImageObject(shape, options) {
+  // options
 
-    // main
+  const applyMaterial = options?.applyMaterial;
+  const map = options?.map;
 
-    const coords2d = shape.points;
-    const zInf = shape.zInf;
-    const height = shape.height;
-    const shapeId = shape.id;
-    //const color = new THREE.Color(shape.color);
+  // edge case
+  if (!map || !shape) return null;
 
-    // Ensure coords2d is an array of objects with x and y properties
-    if (
-      !Array.isArray(coords2d) ||
-      coords2d.length === 0 ||
-      !coords2d[0].hasOwnProperty("x") ||
-      !coords2d[0].hasOwnProperty("y")
-    ) {
-      throw new Error("Invalid shape points");
-    }
+  // color
+  const color = new Color(shape.color);
 
-    const _shape = new THREE.Shape(
-      coords2d.map((point) => new THREE.Vector2(point.x, point.y))
-    );
+  // points in 3d (with image in 0, with no rotation)
+  const pointsIn3d = getPointsIn3dFromPointsInMap(shape.points, map);
 
-    const extrudeSettings = {depth: height, bevelEnabled: false};
-    const geometry = new THREE.ExtrudeGeometry(_shape, extrudeSettings);
+  // draw shape
+  const shapePoints = pointsIn3d.map((point) => ({x: point.x, y: point.y}));
+  const shapeThree = new Shape(shapePoints);
+  shapeThree.closePath();
 
-    let material = applyMaterial;
-    if (!material) material = new THREE.MeshPhongMaterial({color: 0xff0000});
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.z = zInf;
+  // extrusion
+  const extrudeSettings = {
+    depth: shape.height ?? 1,
+    bevelEnabled: false,
+  };
 
-    mesh.userData.shapeId = shapeId;
+  const extrudeGeometry = new ExtrudeGeometry(shapeThree, extrudeSettings);
+  const extrudeMaterial = applyMaterial ?? new MeshPhongMaterial({color});
+  const extrudeMesh = new Mesh(extrudeGeometry, extrudeMaterial);
 
-    return mesh;
-  } catch (error) {
-    console.error("createShapeObject", error);
-  }
+  // position & rotation
+  const pos = map.position ?? {x: 0, y: 0, z: 0};
+  const rot = map.rotation ?? {x: -Math.PI / 2, y: 0, z: 0};
+
+  extrudeMesh.position.set(pos.x, pos.y, pos.z);
+  extrudeMesh.rotation.set(rot.x, rot.y, rot.z);
+
+  // return
+  return extrudeMesh;
 }

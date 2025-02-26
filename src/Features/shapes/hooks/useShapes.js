@@ -4,12 +4,14 @@ export default function useShapes(options) {
   // options
 
   const filterByMapId = options?.filterByMapId;
+  const withMap = options?.withMap;
   const withSelected = options?.withSelected;
 
   // data
 
   const shapesMap = useSelector((state) => state.shapes.shapesMap);
   const selectedShapeId = useSelector((s) => s.shapes.selectedShapeId);
+  const mapsMap = useSelector((state) => state.maps.mapsMap);
 
   // helpers
 
@@ -19,6 +21,13 @@ export default function useShapes(options) {
 
   if (filterByMapId) {
     shapes = shapes.filter((shape) => shape.mapId === filterByMapId);
+  }
+
+  if (withMap) {
+    shapes = shapes.map((shape) => ({
+      ...shape,
+      map: mapsMap[shape.mapId],
+    }));
   }
 
   if (withSelected) {

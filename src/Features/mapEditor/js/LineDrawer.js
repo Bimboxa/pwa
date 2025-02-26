@@ -8,10 +8,14 @@ import getMapEditorBboxInStage from "./utilsMapEditor/getMapEditorBboxInStage";
 import parsePointsFromNodeToState from "./utilsShapesManager/parsePointsFromNodeToState";
 
 import store from "App/store";
+
 import {createShape} from "Features/shapes/shapesSlice";
 import {nanoid} from "@reduxjs/toolkit";
 import {setAnchorPositionScale, setScaleInPx} from "../mapEditorSlice";
 import getSegmentNodeDistance from "./utilsShapesManager/getSegmentNodeDistance";
+import computeShapeSurface from "Features/shapes/utils/computeShapeSurface";
+import computeShapeLength from "Features/shapes/utils/computeShapeLength";
+import addShapeRowService from "Features/gapi/gapiServicesGSheetMisc/addShapeRowService";
 
 export default class LineDrawer {
   constructor({mapEditor}) {
@@ -113,6 +117,15 @@ export default class LineDrawer {
       //
       const shape = this._getShape();
       store.dispatch(createShape(shape));
+
+      // gapi
+      try {
+        const gSheetId = store.getState().gapi.gSheetId;
+        addShapeRowService(shape, gSheetId);
+      } catch (e) {
+        console(e);
+      }
+
       //
       this._resetDrawer();
       // stop drawing
@@ -265,6 +278,7 @@ export default class LineDrawer {
   }
 
   _getShape() {
+    //
     const nodePoints = this.node.points();
     const imageSize = this.mapEditor.imagesManager.mainImageNode.size();
     const imagePosition = this.mapEditor.imagesManager.mainImageNode.position();
@@ -275,6 +289,22 @@ export default class LineDrawer {
     );
     const shape = {...this.shapeProps, ...this.newShape, points};
     if (!shape.id) shape.id = nanoid();
+
+    // map to compute qties
+    const mapsMap = store.getState().maps.mapsMap;
+    const mapId = store.getState().mapEditor.loadedMainMapId;
+    const map = mapsMap[mapId];
+
+    // compute qties
+    const length = computeShapeLength(shape, map);
+    const surface = computeShapeSurface(shape, map);
+    const volume = surface * shape * 0.1;
+
+    shape.length = length;
+    shape.surface = surface;
+    shape.volume = volume;
+
+    //
     return shape;
   }
 }

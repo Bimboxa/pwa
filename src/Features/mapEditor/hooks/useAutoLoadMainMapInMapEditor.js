@@ -7,6 +7,7 @@ export default function useAutoLoadMainMapInMapEditor({
   mapEditorIsReady,
 }) {
   const map = useSelectedMap();
+  console.log("[AutoLoad] map", map);
 
   useEffect(() => {
     if (mapEditorIsReady && map?.imageUrl) {

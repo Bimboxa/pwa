@@ -6,7 +6,7 @@ export default function useAutoLoadShapesInThreedEditor({
   threedEditor,
   rendererIsReady,
 }) {
-  const shapes = useShapes({widthSelected: true});
+  const shapes = useShapes({widthSelected: true, withMap: true});
 
   useEffect(() => {
     if (threedEditor?.loadShapes) {

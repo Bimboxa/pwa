@@ -4,6 +4,8 @@ const gapiInitialState = {
   accessToken: null,
   isSignedIn: false,
   gapiIsLoaded: false,
+  bimboxFolderId: null,
+  gSheetId: null,
 };
 
 export const gapiSlice = createSlice({
@@ -22,6 +24,9 @@ export const gapiSlice = createSlice({
     setBimboxFolderId: (state, action) => {
       state.bimboxFolderId = action.payload;
     },
+    setGSheetId: (state, action) => {
+      state.gSheetId = action.payload;
+    },
   },
 });
 
@@ -31,6 +36,7 @@ export const {
   setGapiIsLoaded,
   //
   setBimboxFolderId,
+  setGSheetId,
 } = gapiSlice.actions;
 
 export default gapiSlice.reducer;
