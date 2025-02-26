@@ -17,7 +17,11 @@ const syncTabsMiddleware = (store) => (next) => (action) => {
 broadcastChannel.onmessage = (event) => {
   const action = event.data;
   console.log("[broadcastChannel]", action);
-  if (action.type.startsWith("shapes/") || action.type.startsWith("maps/")) {
+  if (
+    action.type.startsWith("markers/") ||
+    action.type.startsWith("shapes/") ||
+    action.type.startsWith("maps/")
+  ) {
     store.dispatch({...action, meta: {fromBroadcast: true}}); // Prevent rebroadcast
   }
 };

@@ -1,10 +1,10 @@
 import {createSlice} from "@reduxjs/toolkit";
 
-import demoMarker from "./data/demoMarker";
+//import demoMarker from "./data/demoMarker";
 
 const markersInitialState = {
   //
-  markersMap: {demo: demoMarker},
+  markersMap: {},
   markersUpdatedAt: null,
   //
   selectedMarkerId: null,

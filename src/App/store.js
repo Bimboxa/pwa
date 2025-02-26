@@ -8,6 +8,7 @@ import projectsReducer from "Features/projects/projectsSlice";
 import viewersReducer from "Features/viewers/viewersSlice";
 import mapsReducer from "Features/maps/mapsSlice";
 import shapesReducer from "Features/shapes/shapesSlice";
+import markersReducer from "Features/markers/markersSlice";
 import threedEditorReducer from "Features/threedEditor/threedEditorSlice";
 import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
 import gapiReducer from "Features/gapi/gapiSlice";
@@ -25,6 +26,7 @@ const store = configureStore({
     viewers: viewersReducer,
     maps: mapsReducer,
     shapes: shapesReducer,
+    markers: markersReducer,
     mapEditor: mapEditorReducer,
     threedEditor: threedEditorReducer,
     gapi: gapiReducer,

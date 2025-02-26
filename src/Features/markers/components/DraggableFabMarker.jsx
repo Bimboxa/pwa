@@ -1,9 +1,23 @@
 import {useDndMonitor, useDraggable} from "@dnd-kit/core";
 
+import {useDispatch} from "react-redux";
+import {nanoid} from "@reduxjs/toolkit";
+
+import {createMarker} from "../markersSlice";
+
 import {Box} from "@mui/material";
 import FabMarker from "./FabMarker";
+import useLoadedMainMap from "Features/mapEditor/hooks/useLoadedMainMap";
+import getPointerPositionInStage from "Features/mapEditor/utils/getPointerPositionInStage";
+
+import editor from "App/editor";
 
 export default function DraggableFabMarker() {
+  const dispatch = useDispatch();
+  // data
+
+  const loadedMainMap = useLoadedMainMap();
+
   // data - dnd
 
   const {attributes, listeners, setNodeRef, transform, isDragging} =
@@ -39,7 +53,20 @@ export default function DraggableFabMarker() {
     }
 
     const stage = editor.mapEditor.stage;
-    const point = getPointerCoordsInStage(pointer, stage);
+    const pointInStage = getPointerPositionInStage(pointer, stage, {
+      coordsInWindow: true,
+    });
+    const x = pointInStage.x / loadedMainMap.imageWidth;
+    const y = pointInStage.y / loadedMainMap.imageHeight;
+
+    const newMarker = {
+      id: nanoid(),
+      x,
+      y,
+      mapId: loadedMainMap.id,
+    };
+
+    dispatch(createMarker(newMarker));
   }
 
   return (

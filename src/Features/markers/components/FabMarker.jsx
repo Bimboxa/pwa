@@ -1,6 +1,8 @@
 import {Paper} from "@mui/material";
 import {Add} from "@mui/icons-material";
 
+import theme from "Styles/theme";
+
 export default function FabMarker({marker, onClick}) {
   return (
     <Paper
@@ -13,9 +15,10 @@ export default function FabMarker({marker, onClick}) {
         backgroundColor: "white",
         borderRadius: "50%",
         cursor: "pointer",
+        bgcolor: theme.palette.marker.default,
       }}
     >
-      <Add />
+      <Add sx={{color: "white"}} />
     </Paper>
   );
 }

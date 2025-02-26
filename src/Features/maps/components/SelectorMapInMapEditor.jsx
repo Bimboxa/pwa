@@ -41,7 +41,9 @@ export default function SelectorMapInMapEditor() {
       }}
     >
       <ButtonPopper buttonLabel={buttonLabel} sx={{color: "white"}}>
-        <ListMapsFromGDrive onClick={handleClick} />
+        <Paper>
+          <ListMapsFromGDrive onClick={handleClick} />
+        </Paper>
       </ButtonPopper>
     </Paper>
   );

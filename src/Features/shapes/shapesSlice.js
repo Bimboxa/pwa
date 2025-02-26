@@ -1,13 +1,13 @@
 import {createSlice, createAsyncThunk} from "@reduxjs/toolkit";
 
 // import randomShapesMap from "./data/randomShapesMap";
-import demoShape from "./data/demoShape";
+//import demoShape from "./data/demoShape";
 
 import theme from "Styles/theme";
 
 const shapesInitialState = {
   //
-  shapesMap: {demo: demoShape},
+  shapesMap: {},
   shapesUpdatedAt: null,
   //
   selectedShapeId: null,

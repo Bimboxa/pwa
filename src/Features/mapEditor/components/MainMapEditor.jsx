@@ -6,6 +6,7 @@ import {triggerShapesUpdate} from "Features/shapes/shapesSlice";
 
 import useAutoLoadShapesInMapEditor from "../hooks/useAutoLoadShapesInMapEditor";
 import useAutoLoadMainMapInMapEditor from "../hooks/useAutoLoadMainMapInMapEditor";
+import useAutoLoadMarkersInMapEditor from "../hooks/useAutoLoadMarkersInMapEditor";
 
 import {Box} from "@mui/material";
 
@@ -86,6 +87,12 @@ export default function MainMapEditor() {
 
   // -- shapes
   useAutoLoadShapesInMapEditor({
+    mapEditor: mapEditorRef.current,
+    mapEditorIsReady,
+  });
+
+  // -- markers
+  useAutoLoadMarkersInMapEditor({
     mapEditor: mapEditorRef.current,
     mapEditorIsReady,
   });
