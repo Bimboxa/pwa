@@ -2,6 +2,7 @@ import Konva from "konva";
 
 import ImagesManager from "./ImagesManager";
 import ShapesManager from "./ShapesManager";
+import MarkersManager from "./MarkersManager";
 
 import getStagePositionAndScaleFromImageSize from "../utils/getStagePositionAndScaleFromImageSize";
 
@@ -24,10 +25,12 @@ export default class MapEditor {
 
     this.layerImages = new Konva.Layer();
     this.layerShapes = new Konva.Layer();
+    this.layerMarkers = new Konva.Layer();
     this.layerEditedShape = new Konva.Layer();
 
     this.stage.add(this.layerImages);
     this.stage.add(this.layerShapes);
+    this.stage.add(this.layerMarkers);
     this.stage.add(this.layerEditedShape);
 
     this.imagesManager = new ImagesManager({
@@ -37,6 +40,10 @@ export default class MapEditor {
     this.shapesManager = new ShapesManager({
       mapEditor: this,
       onMapEditorIsReady,
+    });
+
+    this.markersManager = new MarkersManager({
+      mapEditor: this,
     });
 
     this.stage.on("wheel", (e) => this.handleWheelEvent(e));
@@ -90,6 +97,8 @@ export default class MapEditor {
     };
     this.stage.position(newPos);
     this.stage.batchDraw();
+
+    this.resizeNodes();
   };
 
   handleTouchMove = (e) => {
@@ -166,6 +175,13 @@ export default class MapEditor {
     this.shapesManager.createShapesNodes(shapes);
   }
 
+  // markers
+
+  loadMarkers(markers) {
+    this.markersManager.deleteAllMarkersNodes();
+    this.markersManager.createMarkersNodes(markers);
+  }
+
   // ------ draw ------
 
   enableDrawingMode(mode, shapeProps, options) {
@@ -200,5 +216,11 @@ export default class MapEditor {
     if (updateRedux) {
       store.dispatch(setEnabledDrawingMode(null));
     }
+  }
+
+  // ------ resize ------
+
+  resizeNodes() {
+    this.markersManager.resizeMarkersNodes();
   }
 }

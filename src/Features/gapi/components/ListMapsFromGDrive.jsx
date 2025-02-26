@@ -67,8 +67,7 @@ export default function ListMapsFromGDrive({onClick}) {
   }
 
   return (
-    <Box sx={{p: 1}}>
-      <Typography>{title}</Typography>
+    <Box>
       <ListMaps maps={maps} onClick={handleClick} />
     </Box>
   );
