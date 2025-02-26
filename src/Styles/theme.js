@@ -1,5 +1,13 @@
 import {createTheme} from "@mui/material/styles";
-import {blueGrey, green, blue, pink, grey, red} from "@mui/material/colors";
+import {
+  blueGrey,
+  green,
+  blue,
+  pink,
+  grey,
+  red,
+  orange,
+} from "@mui/material/colors";
 
 let theme = createTheme({
   components: {
@@ -55,6 +63,9 @@ let theme = createTheme({
     shape: {
       default: blueGrey[500],
       selected: green[500],
+    },
+    marker: {
+      default: orange[600],
     },
     viewers: {
       map: blue[600],

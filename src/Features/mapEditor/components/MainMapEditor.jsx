@@ -14,6 +14,7 @@ import LayerMapEditor from "./LayerMapEditor";
 import PopperEditScale from "./PopperEditScale";
 
 import editor from "App/editor";
+import DraggableFabMarker from "Features/markers/components/DraggableFabMarker";
 
 export default function MainMapEditor() {
   const dispatch = useDispatch();
@@ -102,6 +103,7 @@ export default function MainMapEditor() {
     >
       <PopperEditScale />
       <LayerMapEditor />
+      <DraggableFabMarker />
       <div
         id="container"
         ref={containerRef}
