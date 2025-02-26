@@ -13,7 +13,11 @@ export default function SectionShapesInListPanel() {
 
   // data
 
-  const shapes = useShapes({widthSelected: true});
+  const mapId = useSelector((s) => s.maps.selectedMapId);
+  const shapes = useShapes({
+    widthSelected: true,
+    filterByMapId: mapId,
+  });
 
   const selectedShapeId = useSelector((s) => s.shapes.selectedShapeId);
 
@@ -34,7 +38,7 @@ export default function SectionShapesInListPanel() {
             onClick={() => handleClick(shape)}
             divider
           >
-            <Typography>{shape.name}</Typography>
+            <Typography>{shape.label}</Typography>
           </ListItemButton>
         ))}
       </List>

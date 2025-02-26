@@ -9,6 +9,7 @@ import {
 
 import ControlsManager from "./ControlsManager";
 import ShapesManager from "./ShapesManager";
+import ImagesManager from "./ImagesManager";
 
 import createRandomObjects from "./utilsShapesManager/createRandomObjects";
 
@@ -30,6 +31,7 @@ export default class SceneManager {
     this.camera = null;
     this.addGrid = null;
 
+    this.imagesManager = new ImagesManager({sceneManager: this});
     this.shapesManager = new ShapesManager({sceneManager: this});
     this.controlsManager = new ControlsManager({sceneManager: this});
 

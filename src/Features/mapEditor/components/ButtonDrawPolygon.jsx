@@ -9,11 +9,16 @@ export default function ButtonDrawPolygon() {
   // data
 
   const mapId = useSelector((s) => s.mapEditor.loadedMainMapId);
+  const newShape = useSelector((s) => s.shapes.newShape);
 
   // handler
 
   function handleClick() {
-    editor.mapEditor.enableDrawingMode("POLYGON", {mapId}, {updateRedux: true});
+    editor.mapEditor.enableDrawingMode(
+      "POLYGON",
+      {mapId, ...newShape},
+      {updateRedux: true}
+    );
   }
 
   return (

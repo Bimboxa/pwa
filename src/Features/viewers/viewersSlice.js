@@ -2,7 +2,7 @@ import {createSlice} from "@reduxjs/toolkit";
 
 const viewersInitialState = {
   //
-  selectedViewerKey: "MAP", // "THREED"
+  selectedViewerKey: "MAP", // "MAP", "THREED"
 };
 
 export const viewersSlice = createSlice({

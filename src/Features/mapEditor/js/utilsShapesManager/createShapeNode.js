@@ -28,6 +28,7 @@ export default function createShapeNode({shape, stageScale, imageNode}) {
     points,
     stroke: color,
     fill: color,
+    opacity: 0.8,
     strokeWidth: 2 / stageScale,
     closed: true,
   });

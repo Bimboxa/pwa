@@ -58,6 +58,11 @@ export default function ButtonPopper({children, buttonLabel, sx}) {
                   padding: 0,
                 },
               },
+              {
+                name: "zIndex",
+                enabled: true,
+                phase: "write",
+              },
             ]}
           >
             {children}
