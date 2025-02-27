@@ -1,4 +1,5 @@
 import {gapiPromise} from "../gapiServices";
+import hexToRgb from "Features/colors/utils/hexToRgb";
 
 export default async function addShapeRowService(shape, gSheetId) {
   const gapi = await gapiPromise;
@@ -31,4 +32,42 @@ export default async function addShapeRowService(shape, gSheetId) {
       values: [row],
     },
   });
+
+  // Step 3: Extract row index from the response
+  const updatedRange = appendResponse.result.updates.updatedRange; // Example: "Sheet1!A5:F5"
+  const rowIndex = parseInt(updatedRange.match(/\d+/)[0], 10) - 1; // Convert to zero-based index
+
+  // Step 4: Convert HEX color to Google Sheets RGB format
+  const rgbColor = hexToRgb(color, {variant: "gapi"});
+
+  // Step 5: Update the background color of the "label" column (Column B = index 1)
+  const colorRequest = {
+    spreadsheetId: gSheetId,
+    resource: {
+      requests: [
+        {
+          repeatCell: {
+            range: {
+              sheetId: sheetId, // Use dynamically fetched sheet ID
+              startRowIndex: rowIndex,
+              endRowIndex: rowIndex + 1,
+              startColumnIndex: 1, // Column B (zero-based index)
+              endColumnIndex: 2,
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: rgbColor,
+              },
+            },
+            fields: "userEnteredFormat.backgroundColor",
+          },
+        },
+      ],
+    },
+  };
+
+  const colorResponse = await gapi.client.sheets.spreadsheets.batchUpdate(
+    colorRequest
+  );
+  console.log("Cell color updated:", colorResponse);
 }

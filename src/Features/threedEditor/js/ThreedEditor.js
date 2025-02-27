@@ -30,6 +30,7 @@ export default class ThreedEditor {
   loadMaps = (maps) => {
     try {
       const images = maps.map(getEditorImageFromMap);
+      this.sceneManager.imagesManager.deleteAllImagesObjects();
       this.sceneManager.imagesManager.createImagesObjects(images);
       this.renderScene();
     } catch (e) {

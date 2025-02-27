@@ -19,10 +19,13 @@ export const mapsSlice = createSlice({
       state.selectedMapId = action.payload;
     },
     //
+    triggerMapsUpdate: (state) => {
+      state.mapsUpdatedAt = Date.now();
+    },
+    //
     createMap: (state, action) => {
       const map = action.payload;
       state.mapsMap[map.id] = map;
-      state.mapsUpdatedAt = Date.now();
     },
     updateMap: (state, action) => {
       const updates = action.payload;
@@ -34,6 +37,7 @@ export const mapsSlice = createSlice({
 
 export const {
   setSelectedMapId,
+  triggerMapsUpdate,
   //
   createMap,
   updateMap,

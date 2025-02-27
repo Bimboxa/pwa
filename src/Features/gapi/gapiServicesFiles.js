@@ -67,3 +67,30 @@ export const getMapsFolderService = async (folderId) => {
     return null;
   }
 };
+
+export const getQtyTakeoffFileService = async (folderId) => {
+  const accessToken = store.getState().gapi.accessToken;
+  const gapi = await gapiPromise;
+
+  const response = await gapi.client.drive.files.list({
+    q: `'${folderId}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet'`,
+    fields: "files(id, name)",
+    headers: {Authorization: `Bearer ${accessToken}`},
+  });
+
+  const gSheets = response.result.files;
+
+  if (!gSheets || gSheets.length === 0) {
+    console.log("No gSheets found in the specified folder.");
+    return null;
+  }
+
+  const qtyTakeoffFile = gSheets.find((file) => file.name === "Métré");
+
+  if (qtyTakeoffFile) {
+    return qtyTakeoffFile;
+  } else {
+    console.log('Spreadsheet "Métré" not found.');
+    return null;
+  }
+};
