@@ -20,7 +20,6 @@ import addShapeRowService from "Features/gapi/gapiServicesGSheetMisc/addShapeRow
 export default class LineDrawer {
   constructor({mapEditor}) {
     this.mapEditor = mapEditor;
-    this.shapeProps = null;
 
     this.layerEditedShape = mapEditor.layerEditedShape;
     this.stage = mapEditor.stage;
@@ -38,6 +37,7 @@ export default class LineDrawer {
     this.thresholdEndNode = 0.05;
     this.endNodeIsActive = false;
 
+    this.shapeProps = null;
     this.newShape = null;
 
     this.unsubsribe = store.subscribe(() => {
@@ -116,12 +116,14 @@ export default class LineDrawer {
       }
       //
       const shape = this._getShape();
-      store.dispatch(createShape(shape));
+      if (!shape.isScale) store.dispatch(createShape(shape));
 
       // gapi
       try {
-        const gSheetId = store.getState().gapi.gSheetId;
-        addShapeRowService(shape, gSheetId);
+        if (!shape.isScale) {
+          const gSheetId = store.getState().gapi.gSheetId;
+          addShapeRowService(shape, gSheetId);
+        }
       } catch (e) {
         console(e);
       }
@@ -212,16 +214,16 @@ export default class LineDrawer {
         this.endNode.position(endNodePosition);
         this.endNode.radius(this.endNodeRadiusCore / stageScale);
       }
-      this.endNode.show();
+      if (this.endNode) this.endNode.show();
     } else {
-      this.endNode.hide();
+      if (this.endNode) this.endNode.hide();
     }
 
     // color
     if (this.endNodeIsActive) {
       this.endNode.stroke("red");
     } else {
-      this.endNode.stroke("black");
+      if (this.endNode) this.endNode.stroke("black");
     }
   }
 

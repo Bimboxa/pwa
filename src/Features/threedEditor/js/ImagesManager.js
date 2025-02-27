@@ -16,4 +16,18 @@ export default class ImagesManager {
       this.scene.add(object);
     });
   }
+
+  deleteAllImagesObjects() {
+    try {
+      console.log("[ImagesManager] deleteAllImagesObjects");
+      Object.values(this.imagesMap).forEach((object) => {
+        this.scene.remove(object);
+        object.geometry.dispose();
+        object.material.dispose();
+      });
+      this.imagesMap = {};
+    } catch (e) {
+      console.log("Error", e);
+    }
+  }
 }

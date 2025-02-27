@@ -2,11 +2,12 @@ import {useState} from "react";
 
 import {useSelector, useDispatch} from "react-redux";
 
-import {updateMap} from "Features/maps/mapsSlice";
+import {triggerMapsUpdate, updateMap} from "Features/maps/mapsSlice";
 
 import useLoadedMainMap from "../hooks/useLoadedMainMap";
 
 import {Paper, TextField, Button} from "@mui/material";
+import {setAnchorPositionScale} from "../mapEditorSlice";
 
 export default function SectionEditScale() {
   const dispatch = useDispatch();
@@ -56,6 +57,8 @@ export default function SectionEditScale() {
       meterByPx: targetDistance / scaleInPx,
     };
     dispatch(updateMap(updates));
+    dispatch(triggerMapsUpdate());
+    dispatch(setAnchorPositionScale(null));
   }
 
   return (

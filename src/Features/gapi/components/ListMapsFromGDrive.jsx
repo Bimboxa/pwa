@@ -51,15 +51,16 @@ export default function ListMapsFromGDrive({onClick}) {
   async function handleClick(map) {
     try {
       const file = await getFile(map.id);
-      console.log("imageSize", file);
+      console.log("file", file);
       const imageUrl = URL.createObjectURL(file);
       const imageSize = await getImageSizeAsync(imageUrl);
       console.log("imageSize", imageSize);
       onClick({
         ...map,
         imageUrl,
-        width: imageSize.height,
-        height: imageSize.height,
+        imageWidth: imageSize.width,
+        imageHeight: imageSize.height,
+        meterByPx: 0.01,
       });
     } catch (e) {
       console.log(e);

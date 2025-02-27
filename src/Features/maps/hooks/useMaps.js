@@ -4,6 +4,7 @@ export default function useMaps(options) {
   // options
 
   const filterByProjectId = options?.filterByProjectId;
+  const filterByMapId = options?.filterByMapId;
 
   // data
 
@@ -15,6 +16,10 @@ export default function useMaps(options) {
 
   if (filterByProjectId) {
     maps = maps.filter((m) => m.projectId === filterByProjectId);
+  }
+
+  if (filterByMapId) {
+    maps = maps.filter((m) => m.id === filterByMapId);
   }
 
   // return

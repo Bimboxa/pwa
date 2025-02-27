@@ -6,6 +6,12 @@ import theme from "Styles/theme";
 import parsePointsFromStateToNode from "./parsePointsFromStateToNode";
 
 export default function createShapeNode({shape, stageScale, imageNode}) {
+  // edgecase
+
+  if (imageNode === undefined) {
+    console.log("createShapeNode: imageNode is undefined");
+    return;
+  }
   // helper - color
 
   let color = shape.color ?? theme.palette.shape.default;

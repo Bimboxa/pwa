@@ -1,4 +1,4 @@
-export default function hexToRgb(hex) {
+export default function hexToRgb(hex, options) {
   // Remove the hash at the start if it's there
   hex = hex.replace(/^#/, "");
 
@@ -8,5 +8,15 @@ export default function hexToRgb(hex) {
   let g = (bigint >> 8) & 255;
   let b = bigint & 255;
 
-  return [r, g, b];
+  if (options?.variant === "string") {
+    return `rgb(${r}, ${g}, ${b})`;
+  } else if (options?.variant === "gapi") {
+    return {
+      red: r / 255,
+      green: g / 255,
+      blue: b / 255,
+    };
+  } else {
+    return [r, g, b];
+  }
 }

@@ -1,7 +1,7 @@
 import {useState} from "react";
 import {useDispatch, useSelector} from "react-redux";
 
-import {setBimboxFolderId} from "../gapiSlice";
+import {setBimboxFolderId, setGSheetId} from "../gapiSlice";
 
 import {
   Box,
@@ -13,6 +13,7 @@ import {
   Typography,
   TextField,
 } from "@mui/material";
+import {getQtyTakeoffFileService} from "../gapiServicesFiles";
 
 //import {listFiles} from "../gapiServicesFiles";
 
@@ -28,11 +29,14 @@ export default function DialogConnectBimboxToDriveFolder({open, onClose}) {
 
   const saveS = "Connecter";
 
+  const testS = "Test";
+
   const label = "Id du dossier";
 
   // state
 
   const [folderId, setFolderId] = useState("");
+  const [qtyTakeoffFile, setQtyTakeoffFile] = useState(null);
 
   // data
 
@@ -43,6 +47,8 @@ export default function DialogConnectBimboxToDriveFolder({open, onClose}) {
   const connectedS = gapiIsLoaded
     ? "Google Drive disponible"
     : "Google Drive non disponible";
+
+  const testLabel = `GSheet "Métré" connectée`;
 
   // handlers
 
@@ -59,6 +65,12 @@ export default function DialogConnectBimboxToDriveFolder({open, onClose}) {
     onClose();
   }
 
+  async function handleTestClick() {
+    const file = await getQtyTakeoffFileService(folderId);
+    setQtyTakeoffFile(file);
+    dispatch(setGSheetId(file.id));
+  }
+
   return (
     <Dialog open={open} onClose={handleClose}>
       <DialogTitle>{title}</DialogTitle>
@@ -72,10 +84,20 @@ export default function DialogConnectBimboxToDriveFolder({open, onClose}) {
             value={folderId}
             onChange={handleChange}
           />
+          <Box sx={{display: "flex", alignItems: "center"}}>
+            <Button onClick={handleTestClick}>{testS}</Button>
+            {qtyTakeoffFile && (
+              <Typography variant="body2" color="text.secondary">
+                {testLabel}
+              </Typography>
+            )}
+          </Box>
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleSave}>{saveS}</Button>
+        <Button variant="contained" onClick={handleSave}>
+          {saveS}
+        </Button>
       </DialogActions>
     </Dialog>
   );

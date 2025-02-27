@@ -31,16 +31,35 @@ export default function SectionShapesInListPanel() {
   return (
     <Box sx={{height: 1, overflowY: "auto"}}>
       <List>
-        {shapes.map((shape) => (
-          <ListItemButton
-            key={shape.id}
-            selected={shape.selected}
-            onClick={() => handleClick(shape)}
-            divider
-          >
-            <Typography>{shape.label}</Typography>
-          </ListItemButton>
-        ))}
+        {shapes.map((shape) => {
+          const surfaceS = shape.surface
+            ? ` Surface: ${shape.surface.toFixed(1)} m²`
+            : "";
+          const lengthS = shape.surface
+            ? ` Périmètre: ${shape.length.toFixed(2)} m`
+            : "";
+
+          return (
+            <ListItemButton
+              key={shape.id}
+              selected={shape.selected}
+              onClick={() => handleClick(shape)}
+              divider
+            >
+              <Box>
+                <Typography>{shape.label}</Typography>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    {lengthS}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {surfaceS}
+                  </Typography>
+                </Box>
+              </Box>
+            </ListItemButton>
+          );
+        })}
       </List>
     </Box>
   );
