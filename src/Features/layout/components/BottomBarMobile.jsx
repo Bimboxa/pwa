@@ -2,7 +2,7 @@ import {useSelector, useDispatch} from "react-redux";
 
 import {setViewModeInMobile} from "../layoutSlice";
 
-import {BottomNavigation, BottomNavigationAction} from "@mui/material";
+import {BottomNavigation, BottomNavigationAction, Paper} from "@mui/material";
 import {ListAlt as List, Map} from "@mui/icons-material";
 
 export default function BottomBarMobile() {
@@ -26,13 +26,19 @@ export default function BottomBarMobile() {
   }
 
   return (
-    <BottomNavigation
-      value={viewModeInMobile}
-      onChange={handleChange}
-      showLabels
-    >
-      <BottomNavigationAction label={listLabel} value="LIST" icon={<List />} />
-      <BottomNavigationAction label={mapLabel} value="MAP" icon={<Map />} />
-    </BottomNavigation>
+    <Paper sx={{pb: 2}}>
+      <BottomNavigation
+        value={viewModeInMobile}
+        onChange={handleChange}
+        showLabels
+      >
+        <BottomNavigationAction
+          label={listLabel}
+          value="LIST"
+          icon={<List />}
+        />
+        <BottomNavigationAction label={mapLabel} value="MAP" icon={<Map />} />
+      </BottomNavigation>
+    </Paper>
   );
 }
