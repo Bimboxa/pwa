@@ -1,6 +1,8 @@
 import BoxFlexV from "./BoxFlexV";
 import TopBar from "./TopBar";
 import SectionViewer from "./SectionViewer";
+import BottomBarMobile from "./BottomBarMobile";
+
 export default function LayoutMobile() {
   return (
     <BoxFlexV>
@@ -8,6 +10,7 @@ export default function LayoutMobile() {
       <BoxFlexV>
         <SectionViewer />
       </BoxFlexV>
+      <BottomBarMobile />
     </BoxFlexV>
   );
 }
