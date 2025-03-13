@@ -31,10 +31,10 @@ export default function MainAppLayout() {
       <Box
         sx={{
           position: "fixed",
-          width: 1,
-          height: 1,
           top: 0,
+          bottom: 0,
           left: 0,
+          right: 0,
           display: "flex",
         }}
       >
