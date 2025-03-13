@@ -47,6 +47,9 @@ export default class MapEditor {
     });
 
     this.stage.on("wheel", (e) => this.handleWheelEvent(e));
+    this.stage.on("touchstart", (e) => this.handleTouchStart(e));
+    this.stage.on("touchmove", (e) => this.handleTouchMove(e));
+    this.stage.on("touchend", (e) => this.handleTouchEnd(e));
 
     this.stageCursorMemo = null;
 
