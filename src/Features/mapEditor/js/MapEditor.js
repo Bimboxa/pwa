@@ -46,17 +46,20 @@ export default class MapEditor {
       mapEditor: this,
     });
 
-    this.stage.on("wheel", (e) => this.handleWheelEvent(e));
-    this.stage.on("touchstart", (e) => this.handleTouchStart(e));
-    this.stage.on("touchmove", (e) => this.handleTouchMove(e));
-    this.stage.on("touchend", (e) => this.handleTouchEnd(e));
-
     this.stageCursorMemo = null;
 
     this.enabledDrawingMode = null;
 
+    this.isDraggingStage = false;
     this.lastPinchCenter = null;
     this.lastPinchDistance = null;
+
+    this.stage.on("wheel", (e) => this.handleWheelEvent(e));
+    this.stage.on("touchstart", (e) => this.handleTouchStart(e));
+    this.stage.on("touchmove", (e) => this.handleTouchMove(e));
+    this.stage.on("touchend", (e) => this.handleTouchEnd(e));
+    this.stage.on("dragstart", () => (this.isDraggingStage = true));
+    this.stage.on("dragend", () => (this.isDraggingStage = false));
 
     window.addEventListener("keydown", this.handleKeyDown);
   }
@@ -133,12 +136,17 @@ export default class MapEditor {
   handleTouchStart = (e) => {
     if (testPinchEvent(e.evt)) {
       this.lastPinchCenter = getPinchCenter(e.evt.touches);
+      this.stage.draggable(false);
     }
   };
 
   handleTouchEnd = (e) => {
-    this.lastPinchCenter = null;
-    this.lastPinchDistance = null;
+    if (!this.isDraggingStage) {
+      this.lastPinchCenter = null;
+      this.lastPinchDistance = null;
+      this.stage.draggable(true);
+      this.resizeNodes();
+    }
   };
 
   resizeStage() {
