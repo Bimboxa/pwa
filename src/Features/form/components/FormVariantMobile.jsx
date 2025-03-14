@@ -7,17 +7,22 @@ import FieldTextVariantMobile from "./FieldTextVariantMobile";
 //import FieldColorVariantMobile from "./FieldColorVariantMobile";
 
 import FormVariantMobileActions from "./FormVariantMobileActions";
+import FormVariantMobileOverview from "./FormVariantMobileOverview";
 
 import getTemplateFields from "../utils/getTemplateFields";
 
 export default function FormVariantMobile({template, item, onItemChange}) {
   // state
 
-  const templateFields = getTemplateFields(template);
+  let templateFields = getTemplateFields(template);
+  templateFields = [...templateFields, {key: "_overview"}];
 
   const [fieldIndex, setFieldIndex] = useState(0);
 
+  // helpers
+
   const field = templateFields[fieldIndex];
+  const showOverview = field?.key === "_overview";
 
   // handlers - actions
 
@@ -28,6 +33,11 @@ export default function FormVariantMobile({template, item, onItemChange}) {
   function handleForwardClick() {
     if (fieldIndex < templateFields.length - 1)
       setFieldIndex((index) => index + 1);
+  }
+
+  function handleFieldClick(field) {
+    const index = templateFields.findIndex((f) => f.key === field.key);
+    if (index !== -1) setFieldIndex(index);
   }
 
   // handler
@@ -48,10 +58,20 @@ export default function FormVariantMobile({template, item, onItemChange}) {
           options={field.options}
         />
       )}
-      <FormVariantMobileActions
-        onBackClick={handleBackClick}
-        onForwardClick={handleForwardClick}
-      />
+      {!showOverview && (
+        <FormVariantMobileActions
+          onBackClick={handleBackClick}
+          onForwardClick={handleForwardClick}
+        />
+      )}
+
+      {showOverview && (
+        <FormVariantMobileOverview
+          template={template}
+          item={item}
+          onFieldClick={handleFieldClick}
+        />
+      )}
     </Box>
   );
 }

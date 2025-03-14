@@ -2,6 +2,7 @@ import {useDispatch} from "react-redux";
 
 import {
   setEditedLocatedEntity,
+  setIsEditingLocatedEntity,
   setNewLocatedEntity,
 } from "../locatedEntitiesSlice";
 
@@ -26,7 +27,12 @@ export default function FormLocatedEntity() {
 
   function handleChange(updatedEntity) {
     console.log("[FormLocatedEntity] updatedEntity", updatedEntity);
-    dispatch(setEditedLocatedEntity(updatedEntity));
+    if (updatedEntity?.id) {
+      dispatch(setEditedLocatedEntity(updatedEntity));
+      dispatch(setIsEditingLocatedEntity(true));
+    } else {
+      dispatch(setNewLocatedEntity(updatedEntity));
+    }
   }
 
   return (

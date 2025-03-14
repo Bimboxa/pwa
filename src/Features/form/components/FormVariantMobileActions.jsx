@@ -7,7 +7,9 @@ export default function FormVariantMobileActions({
 }) {
   return (
     <Box sx={{width: 1}}>
-      <Box sx={{display: "flex", width: 1}}>
+      <Box
+        sx={{display: "flex", width: 1, p: 1, "&>*:not(:last-child)": {mr: 1}}}
+      >
         <Button
           fullWidth
           variant="outlined"
