@@ -36,7 +36,7 @@ export default function ButtonCreateListingItem({listing}) {
   return (
     <>
       <Paper sx={{width: 1, bgcolor: listing?.color, color: "common.white"}}>
-        <Button fullWidth color="inherit" onClick={handleClick}>
+        <Button fullWidth color="inherit" onClick={handleClick} size="large">
           {newButtonLabel}
         </Button>
       </Paper>

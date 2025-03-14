@@ -14,6 +14,7 @@ const exampleAppConfig = {
         text: {
           key: "text",
           type: "text",
+          label: "Description",
         },
       },
     },
