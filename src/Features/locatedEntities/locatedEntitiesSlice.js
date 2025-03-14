@@ -7,13 +7,12 @@ import theme from "Styles/theme";
 
 const locatedEntitiesInitialState = {
   //
-  locatedEntitiesMap: {},
+  locatedEntitiesMap: new Map(),
   locatedEntitiesUpdatedAt: null,
   //
   selectedLocatedEntityId: null,
   //
   newLocatedEntity: {
-    color: theme.palette.locatedEntity.default,
     label: "XXX",
   },
   editedLocatedEntity: null,

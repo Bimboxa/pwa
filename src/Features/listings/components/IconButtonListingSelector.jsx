@@ -1,12 +1,18 @@
+import {useState} from "react";
 import {useDispatch} from "react-redux";
 
 import useSelectedListing from "../hooks/useSelectedListing";
 
-import IconListingVariantClickabe from "./IconListingVariantClickable";
-import {Icon} from "@mui/material";
+import IconListingVariantClickable from "./IconListingVariantClickable";
+
+import DialogFsSelectorListing from "./DialogFsSelectorListing";
 
 export default function IconButtonListingSelector() {
   const dispatch = useDispatch();
+
+  // state
+
+  const [open, setOpen] = useState(false);
 
   // data
 
@@ -14,11 +20,18 @@ export default function IconButtonListingSelector() {
 
   // handlers
 
-  function handleIconButtonClick() {}
+  function handleIconButtonClick() {
+    setOpen(true);
+  }
+
   return (
-    <IconListingVariantClickabe
-      listing={selectedListing}
-      onClick={handleIconButtonClick}
-    />
+    <>
+      <IconListingVariantClickable
+        listing={selectedListing}
+        onClick={handleIconButtonClick}
+        open={open}
+      />
+      <DialogFsSelectorListing open={open} onClose={() => setOpen(false)} />
+    </>
   );
 }

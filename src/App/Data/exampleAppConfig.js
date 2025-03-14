@@ -1,5 +1,22 @@
 const exampleAppConfig = {
-  entityModelsMap: {
+  entityModelsObject: {
+    zone: {
+      key: "zone",
+      type: "zoneEntityModel",
+    },
+    comment: {
+      key: "comment",
+      type: "locatedEntityModel",
+      strings: {
+        newButtonLabel: "Nouveau commentaire",
+      },
+      fieldsObject: {
+        text: {
+          key: "text",
+          type: "text",
+        },
+      },
+    },
     sample: {
       type: "locatedEntityModel",
       key: "sample",
