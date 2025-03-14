@@ -6,14 +6,14 @@ import BoxFlexHStretch from "./BoxFlexHStretch";
 
 import TopBarDesktop from "./TopBarDesktop";
 import SectionViewer from "./SectionViewer";
-import MainListPanel from "Features/listPanel/components/MainListPanel";
+import ListPanel from "Features/listPanel/components/ListPanel";
 
 export default function LayoutDesktop() {
   return (
     <BoxFlexV sx={{position: "relative"}}>
       <TopBarDesktop />
       <BoxFlexHStretch>
-        <MainListPanel />
+        <ListPanel />
         <SectionViewer />
       </BoxFlexHStretch>
     </BoxFlexV>

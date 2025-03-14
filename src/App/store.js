@@ -6,6 +6,7 @@ import layoutReducer from "Features/layout/layoutSlice";
 import listPanelReducer from "Features/listPanel/listPanelSlice";
 import projectsReducer from "Features/projects/projectsSlice";
 import viewersReducer from "Features/viewers/viewersSlice";
+import listingsReducer from "Features/listings/listingsSlice";
 import mapsReducer from "Features/maps/mapsSlice";
 import shapesReducer from "Features/shapes/shapesSlice";
 import markersReducer from "Features/markers/markersSlice";
@@ -23,6 +24,7 @@ const store = configureStore({
     layout: layoutReducer,
     listPanel: listPanelReducer,
     projects: projectsReducer,
+    listings: listingsReducer,
     viewers: viewersReducer,
     maps: mapsReducer,
     shapes: shapesReducer,

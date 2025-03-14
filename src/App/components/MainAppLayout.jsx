@@ -2,6 +2,7 @@ import React from "react";
 
 import {useSelector} from "react-redux";
 
+import useInit from "App/hooks/useInit";
 import useInitDeviceType from "Features/layout/hooks/useInitDeviceType";
 import useInitSelectProject from "Features/projects/hooks/useInitSelectProject";
 import useInitServicesConfig from "Features/settings/hooks/useInitServicesConfig";
@@ -16,6 +17,8 @@ import useDndSensors from "App/hooks/useDndSensors";
 
 export default function MainAppLayout() {
   // init
+
+  useInit();
 
   useInitServicesConfig();
   useInitDeviceType();
