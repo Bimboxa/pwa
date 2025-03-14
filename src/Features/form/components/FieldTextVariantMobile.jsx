@@ -6,7 +6,6 @@ export default function FieldTextVariantMobile({
   options,
   label,
 }) {
-  console.log("[FieldText] value", value);
   // handlers
 
   function handleChange(event) {
@@ -20,7 +19,7 @@ export default function FieldTextVariantMobile({
         autoFocus
         label={label}
         fullWidth
-        value={value}
+        value={value ?? ""}
         onChange={handleChange}
       />
     </Box>

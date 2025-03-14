@@ -1,11 +1,18 @@
-import {List, ListItemButton} from "@mui/material";
+import {Box, List, ListItemButton, Button} from "@mui/material";
 import FieldTextVariantMobileOverview from "./FieldTextVariantMobileOverview";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import ButtonBasicMobile from "Features/layout/components/ButtonBasicMobile";
 
 export default function FormVariantMobileOverview({
   item,
   template,
   onFieldClick,
+  onSaveClick,
 }) {
+  // string
+
+  const saveS = "Save";
+
   // handlers
 
   function handleFieldClick(field) {
@@ -13,22 +20,36 @@ export default function FormVariantMobileOverview({
   }
 
   return (
-    <List>
-      {template.fields.map((field) => {
-        const value = item[field.key];
-        const type = field.type;
-        const label = field.label;
-        return (
-          <ListItemButton
-            key={field.key}
-            onClick={() => handleFieldClick(field)}
-          >
-            {type === "text" && (
-              <FieldTextVariantMobileOverview value={value} label={label} />
-            )}
-          </ListItemButton>
-        );
-      })}
-    </List>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        width: 1,
+        height: 1,
+        bgcolor: "background.default",
+        pb: 2,
+      }}
+    >
+      <BoxFlexVStretch>
+        <List>
+          {template.fields.map((field) => {
+            const value = item[field.key];
+            const type = field.type;
+            const label = field.label;
+            return (
+              <ListItemButton
+                key={field.key}
+                onClick={() => handleFieldClick(field)}
+              >
+                {type === "text" && (
+                  <FieldTextVariantMobileOverview value={value} label={label} />
+                )}
+              </ListItemButton>
+            );
+          })}
+        </List>
+      </BoxFlexVStretch>
+      <ButtonBasicMobile label={saveS} onClick={onSaveClick} />
+    </Box>
   );
 }

@@ -2,6 +2,11 @@ import {Typography, Box} from "@mui/material";
 
 export default function FieldTextVariantMobileOverview({label, value}) {
   console.log("[FieldText] value text", value);
+
+  // helpers
+
+  const text = value ?? "-";
+
   // handlers
 
   function handleChange(event) {
@@ -14,7 +19,7 @@ export default function FieldTextVariantMobileOverview({label, value}) {
       <Typography variant="body2" color="text.secondary">
         {label}
       </Typography>
-      <Typography sx={{whiteSpace: "pre"}}>{value}</Typography>
+      <Typography sx={{whiteSpace: "pre"}}>{text}</Typography>
     </Box>
   );
 }
