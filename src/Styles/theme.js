@@ -1,4 +1,4 @@
-import {createTheme, responsiveFontSizes} from "@mui/material/styles";
+import {createTheme} from "@mui/material/styles";
 import {
   blueGrey,
   green,
@@ -81,10 +81,38 @@ let theme = createTheme({
     },
   },
   typography: {
-    fontSize: 11,
+    fontSize: 12,
+    h1: {
+      fontSize: "2rem", // Default for larger screens
+      "@media (max-width:600px)": {
+        fontSize: "2.5rem", // 🔥 Bigger font on small screens
+      },
+    },
+    h2: {
+      fontSize: "1.5rem", // Default for large screens
+      "@media (max-width:600px)": {
+        fontSize: "2rem", // 🔥 Bigger font on small screens
+      },
+    },
+    body1: {
+      fontSize: "1rem", // Default for large screens
+      "@media (max-width:600px)": {
+        fontSize: "1.25rem", // 🔥 Bigger font on small screens
+      },
+    },
+    body2: {
+      fontSize: "0.875rem", // Default
+      "@media (max-width:600px)": {
+        fontSize: "1rem", // 🔥 Larger on small screens
+      },
+    },
+    caption: {
+      fontSize: "0.75rem", // Default
+      "@media (max-width:600px)": {
+        fontSize: "0.875rem", // 🔥 Larger on small screens
+      },
+    },
   },
 });
-
-theme = responsiveFontSizes(theme);
 
 export default theme;
