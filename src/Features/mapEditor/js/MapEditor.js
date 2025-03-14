@@ -4,16 +4,17 @@ import ImagesManager from "./ImagesManager";
 import ShapesManager from "./ShapesManager";
 import MarkersManager from "./MarkersManager";
 
-import getStagePositionAndScaleFromImageSize from "../utils/getStagePositionAndScaleFromImageSize";
-
 import store from "App/store";
 import {
   setEnabledDrawingMode,
   setLoadedMainMapId,
 } from "Features/mapEditor/mapEditorSlice";
+
+import getStagePositionAndScaleFromImageSize from "../utils/getStagePositionAndScaleFromImageSize";
 import fromMapPropsToImageProps from "./utilsImagesManager/fromMapPropsToImageProps";
+import getPinchCenter from "./utilsMapEditor/getPinchCenter";
+import getPinchDistance from "./utilsMapEditor/getPinchDistance";
 import testPinchEvent from "./utilsMapEditor/testPinchEvent";
-import {get} from "firebase/database";
 import getPointerPositionInStage from "../utils/getPointerPositionInStage";
 
 export default class MapEditor {
@@ -107,36 +108,43 @@ export default class MapEditor {
     this.resizeNodes();
   };
 
+  handleTouchStart = (e) => {
+    if (testPinchEvent(e.evt)) {
+      this.lastPinchCenter = getPinchCenter(e.evt.touches);
+      this.lastPinchDistance = getPinchDistance(e.evt.touches);
+      this.stage.draggable(false);
+    }
+  };
+
   handleTouchMove = (e) => {
     const evt = e.evt;
     const oldScale = this.stage.scaleX();
     if (testPinchEvent(evt)) {
-      const pinchCenterInStage = getPointerPositionInStage(
+      // last pinchCenter
+      const lastPinchCenterInStage = getPointerPositionInStage(
         this.lastPinchCenter,
         this.stage
+        //{coordsInWindow: true}
       );
+
+      // scale
       const pinchDistance = getPinchDistance(evt.touches);
-      if (!this.lastPinchDistance) {
-        this.lastPinchDistance = pinchDistance;
-      }
       const delta = pinchDistance - this.lastPinchDistance;
       const newScale =
         delta > 0 ? oldScale * this.scaleByTouch : oldScale / this.scaleByTouch;
+
       this.stage.scale({x: newScale, y: newScale});
+
+      // position
+
       const newPos = {
-        x: pinchCenterInStage.x - pinchCenterInStage.x * newScale,
-        y: pinchCenterInStage.y - pinchCenterInStage.y * newScale,
+        x: this.lastPinchCenter.x - lastPinchCenterInStage.x * newScale,
+        y: this.lastPinchCenter.y - lastPinchCenterInStage.y * newScale,
       };
+
       this.stage.position(newPos);
       this.stage.batchDraw();
       this.lastPinchDistance = pinchDistance;
-    }
-  };
-
-  handleTouchStart = (e) => {
-    if (testPinchEvent(e.evt)) {
-      this.lastPinchCenter = getPinchCenter(e.evt.touches);
-      this.stage.draggable(false);
     }
   };
 

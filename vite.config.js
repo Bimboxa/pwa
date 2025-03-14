@@ -47,4 +47,7 @@ export default defineConfig({
       Styles: "/src/Styles",
     },
   },
+  server: {
+    host: true,
+  },
 });
