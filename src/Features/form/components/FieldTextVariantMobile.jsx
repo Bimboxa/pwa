@@ -9,20 +9,19 @@ export default function FieldTextVariantMobile({
   console.log("[FieldText] value", value);
   // handlers
 
-  function handleChange(event, newValue) {
-    console.log("[FieldText] newValue", newValue);
+  function handleChange(event) {
+    const newValue = event.target.value;
     onChange(newValue);
   }
 
   return (
     <Box sx={{width: 1, p: 2}}>
-      <Autocomplete
-        freeSolo
+      <TextField
+        autoFocus
+        label={label}
         fullWidth
-        inputValue={value}
-        onInputChange={handleChange}
-        options={options ?? []}
-        renderInput={(params) => <TextField {...params} label={label} />}
+        value={value}
+        onChange={handleChange}
       />
     </Box>
   );
