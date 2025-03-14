@@ -4,7 +4,7 @@ const layoutInitialState = {
   //
   deviceType: null, // "MOBILE" | "DESKTOP"
   //
-  viewModeInMobile: "MAP", // "MAP" | "LIST"
+  viewModeInMobile: "LIST", // "MAP" | "LIST"
 };
 
 export const layoutSlice = createSlice({
