@@ -18,12 +18,9 @@ export default function IconListingVariantClickabe({listing, onClick}) {
     <Paper
       sx={{
         borderRadius: 2,
-        //width: 30,
-        //height: 30,
         bgcolor,
         display: "flex",
         color: "white",
-        display: "flex",
         alignItems: "center",
         justifyContent: "center",
       }}
