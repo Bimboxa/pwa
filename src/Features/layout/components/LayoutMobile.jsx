@@ -4,7 +4,7 @@ import BoxFlexV from "./BoxFlexV";
 import TopBar from "./TopBar";
 import SectionViewer from "./SectionViewer";
 import BottomBarMobile from "./BottomBarMobile";
-import MainListPanel from "Features/listPanel/components/MainListPanel";
+import ListPanel from "Features/listPanel/components/ListPanel";
 
 export default function LayoutMobile() {
   // data
@@ -16,7 +16,7 @@ export default function LayoutMobile() {
       <TopBar />
       <BoxFlexV>
         {viewModeInMobile === "MAP" && <SectionViewer />}
-        {viewModeInMobile === "LIST" && <MainListPanel />}
+        {viewModeInMobile === "LIST" && <ListPanel />}
       </BoxFlexV>
       <BottomBarMobile />
     </BoxFlexV>

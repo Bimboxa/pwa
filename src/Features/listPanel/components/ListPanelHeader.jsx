@@ -1,13 +1,17 @@
+import {useSelector} from "react-redux";
 import useSelectedList from "../hooks/useSelectedList";
 import {Box, Icon, Paper, Typography} from "@mui/material";
 import ButtonCloseListPanel from "./ButtonCloseListPanel";
 import IconList from "./IconList";
+
+import IconButtonListingSelector from "Features/listings/components/IconButtonListingSelector";
 import IconButtonMoreInHeader from "./IconButtonMoreInHeader";
 
-export default function MainListPanelHeader({open}) {
+export default function ListPanelHeader({open}) {
   // data
 
   const selectedList = useSelectedList();
+  const deviceType = useSelector((s) => s.layout.deviceType);
 
   // helper
 
@@ -25,11 +29,11 @@ export default function MainListPanelHeader({open}) {
           flex: 1,
         }}
       >
-        <IconList type={type} />
+        <IconButtonListingSelector />
         <Typography>{name}</Typography>
         <IconButtonMoreInHeader />
       </Paper>
-      <ButtonCloseListPanel />
+      {deviceType !== "MOBILE" && <ButtonCloseListPanel />}
     </Box>
   );
 }

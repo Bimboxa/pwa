@@ -4,17 +4,19 @@ import {Box} from "@mui/material";
 
 import SectionShapesInListPanel from "Features/shapes/components/SectionShapesInListPanel";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import MainListPanelHeader from "./MainListPanelHeader";
+import ListPanelHeader from "./ListPanelHeader";
 
-export default function MainListPanel() {
+export default function ListPanel() {
   // data
 
   const width = useSelector((s) => s.listPanel.width);
   const open = useSelector((s) => s.listPanel.open);
+  const deviceType = useSelector((s) => s.layout.deviceType);
 
   // helper
 
-  const computedWidth = open ? width : 0;
+  let computedWidth = open ? width : 0;
+  if (deviceType === "MOBILE") computedWidth = 1;
 
   return (
     <Box
@@ -26,7 +28,7 @@ export default function MainListPanel() {
         bgcolor: "background.main",
       }}
     >
-      <MainListPanelHeader open={open} />
+      <ListPanelHeader open={open} />
       <BoxFlexVStretch>
         <SectionShapesInListPanel />
       </BoxFlexVStretch>
