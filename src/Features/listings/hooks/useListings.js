@@ -8,7 +8,6 @@ export default function useListings(options) {
   // data
 
   const listingsMap = useSelector((s) => s.listings.listingsMap);
-
   //
 
   let listings = Array.from(listingsMap.values());

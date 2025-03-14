@@ -1,7 +1,7 @@
-import exampleAppConfig from "./Data/exampleAppConfig";
+import exampleAppConfig from "./data/exampleAppConfig";
 
 const appConfigAsync = new Promise((resolve) => {
   resolve(exampleAppConfig);
 });
 
-return appConfigAsync;
+export default appConfigAsync;

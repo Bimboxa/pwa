@@ -1,8 +1,7 @@
 import {useSelector} from "react-redux";
-import useSelectedList from "../hooks/useSelectedList";
-import {Box, Icon, Paper, Typography} from "@mui/material";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import {Box, Paper, Typography} from "@mui/material";
 import ButtonCloseListPanel from "./ButtonCloseListPanel";
-import IconList from "./IconList";
 
 import IconButtonListingSelector from "Features/listings/components/IconButtonListingSelector";
 import IconButtonMoreInHeader from "./IconButtonMoreInHeader";
@@ -10,13 +9,12 @@ import IconButtonMoreInHeader from "./IconButtonMoreInHeader";
 export default function ListPanelHeader({open}) {
   // data
 
-  const selectedList = useSelectedList();
+  const selectedListing = useSelectedListing();
   const deviceType = useSelector((s) => s.layout.deviceType);
 
   // helper
 
-  const name = selectedList?.name ?? "";
-  const type = selectedList?.type ?? "DEFAULT";
+  const name = selectedListing?.name ?? "-?-";
 
   return (
     <Box sx={{p: 2, width: 1, display: "flex", alignItems: "center"}}>

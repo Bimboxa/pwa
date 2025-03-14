@@ -1,4 +1,4 @@
-import {createTheme} from "@mui/material/styles";
+import {createTheme, responsiveFontSizes} from "@mui/material/styles";
 import {
   blueGrey,
   green,
@@ -10,6 +10,9 @@ import {
 } from "@mui/material/colors";
 
 let theme = createTheme({
+  typography: {
+    fontSize: 11,
+  },
   components: {
     MuiButton: {
       styleOverrides: {
@@ -52,9 +55,6 @@ let theme = createTheme({
       },
     },
   },
-  typography: {
-    fontSize: 11,
-  },
   palette: {
     background: {
       default: "#F4F4F8",
@@ -84,5 +84,7 @@ let theme = createTheme({
     },
   },
 });
+
+theme = responsiveFontSizes(theme);
 
 export default theme;

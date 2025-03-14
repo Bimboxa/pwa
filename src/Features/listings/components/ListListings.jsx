@@ -1,4 +1,14 @@
-import {List, ListItemButton, ListItemText} from "@mui/material";
+import {createElement} from "react";
+import {
+  List,
+  ListItemButton,
+  ListItemAvatar,
+  ListItemText,
+  Avatar,
+  Icon,
+} from "@mui/material";
+
+import iconsMap from "../data/iconsMap";
 
 export default function ListListings({listings, selection, onClick}) {
   return (
@@ -6,9 +16,17 @@ export default function ListListings({listings, selection, onClick}) {
       {listings.map((listing) => (
         <ListItemButton
           key={listing.id}
-          selected={selection.includes(listing.id)}
+          selected={selection?.includes(listing.id)}
           onClick={() => onClick(listing)}
+          divider
         >
+          <ListItemAvatar>
+            <Avatar sx={{backgroundColor: listing.color}}>
+              {createElement(iconsMap.get(listing.iconKey), {
+                sx: {color: "inherit"},
+              })}
+            </Avatar>
+          </ListItemAvatar>
           <ListItemText primary={listing.name} />
         </ListItemButton>
       ))}

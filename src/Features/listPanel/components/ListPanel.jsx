@@ -5,6 +5,7 @@ import {Box} from "@mui/material";
 import SectionShapesInListPanel from "Features/shapes/components/SectionShapesInListPanel";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ListPanelHeader from "./ListPanelHeader";
+import ListPanelBottom from "./ListPanelBottom";
 
 export default function ListPanel() {
   // data
@@ -32,6 +33,7 @@ export default function ListPanel() {
       <BoxFlexVStretch>
         <SectionShapesInListPanel />
       </BoxFlexVStretch>
+      <ListPanelBottom />
     </Box>
   );
 }
