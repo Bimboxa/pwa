@@ -3,6 +3,7 @@ import {useState} from "react";
 import {Box} from "@mui/material";
 
 import FieldTextVariantMobile from "./FieldTextVariantMobile";
+import FieldImageVariantMobile from "./FieldImageVariantMobile";
 //import FieldNumberVariantMobile from "./FieldNumberVariantMobile";
 //import FieldColorVariantMobile from "./FieldColorVariantMobile";
 
@@ -47,9 +48,27 @@ export default function FormVariantMobile({template, item, onItemChange}) {
   }
 
   return (
-    <Box sx={{display: "flex", width: 1, height: 1, flexDirection: "column"}}>
+    <Box
+      sx={{
+        display: "flex",
+        width: 1,
+        height: 1,
+        flexDirection: "column",
+        overflow: "auto",
+      }}
+    >
       {field?.type === "text" && (
         <FieldTextVariantMobile
+          key={field.key}
+          label={field.label}
+          width={field.width}
+          value={item[field.key]}
+          onChange={(newValue) => handleFieldValueChange(field.key, newValue)}
+          options={field.options}
+        />
+      )}
+      {field?.type === "image" && (
+        <FieldImageVariantMobile
           key={field.key}
           label={field.label}
           width={field.width}

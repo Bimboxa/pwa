@@ -1,5 +1,8 @@
 import {Box, List, ListItemButton, Button} from "@mui/material";
+
 import FieldTextVariantMobileOverview from "./FieldTextVariantMobileOverview";
+import FieldImageVariantMobileOverview from "./FieldImageVariantMobileOverview";
+
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonBasicMobile from "Features/layout/components/ButtonBasicMobile";
 
@@ -30,7 +33,7 @@ export default function FormVariantMobileOverview({
         pb: 2,
       }}
     >
-      <BoxFlexVStretch>
+      <BoxFlexVStretch sx={{overflow: "auto"}}>
         <List>
           {template.fields.map((field) => {
             const value = item[field.key];
@@ -40,9 +43,16 @@ export default function FormVariantMobileOverview({
               <ListItemButton
                 key={field.key}
                 onClick={() => handleFieldClick(field)}
+                divider
               >
                 {type === "text" && (
                   <FieldTextVariantMobileOverview value={value} label={label} />
+                )}
+                {type === "image" && (
+                  <FieldImageVariantMobileOverview
+                    value={value}
+                    label={label}
+                  />
                 )}
               </ListItemButton>
             );

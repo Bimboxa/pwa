@@ -15,6 +15,14 @@ const exampleAppConfig = {
           key: "text",
           type: "text",
           label: "Description",
+          options: {
+            multiline: true,
+          },
+        },
+        image: {
+          key: "image",
+          type: "image",
+          label: "Image",
         },
       },
     },
