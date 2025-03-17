@@ -14,8 +14,9 @@ export default function FieldTextVariantMobile({
   }
 
   return (
-    <Box sx={{width: 1, p: 2}}>
+    <Box sx={{width: 1, p: 2, overflow: "auto"}}>
       <TextField
+        multiline={options?.multiline}
         autoFocus
         label={label}
         fullWidth

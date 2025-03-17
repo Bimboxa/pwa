@@ -7,16 +7,13 @@ export default function FieldTextVariantMobileOverview({label, value}) {
 
   const text = value ?? "-";
 
-  // handlers
-
-  function handleChange(event) {
-    const newValue = event.target.value;
-    onChange(newValue);
-  }
-
   return (
     <Box sx={{width: 1}}>
-      <Typography variant="body2" color="text.secondary">
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{whiteSpace: "pre"}}
+      >
         {label}
       </Typography>
       <Typography sx={{whiteSpace: "pre"}}>{text}</Typography>
