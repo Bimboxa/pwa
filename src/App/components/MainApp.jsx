@@ -1,3 +1,7 @@
+// auth
+import {ClerkProvider} from "@clerk/clerk-react";
+import {frFR} from "@clerk/localizations";
+
 // styles
 import {ThemeProvider} from "@mui/material/styles";
 
@@ -12,15 +16,21 @@ import {Provider} from "react-redux";
 import MainAppLayout from "./MainAppLayout";
 
 function App({pca, runningIn}) {
+  // auth
+
+  const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
   // render
 
   return (
-    <Provider store={store}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <MainAppLayout />
-      </ThemeProvider>
-    </Provider>
+    <ClerkProvider publishableKey={clerkPublishableKey} localization={frFR}>
+      <Provider store={store}>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <MainAppLayout />
+        </ThemeProvider>
+      </Provider>
+    </ClerkProvider>
   );
 }
 
