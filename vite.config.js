@@ -39,7 +39,7 @@ export default defineConfig({
       },
     }),
   ],
-  base: "/pwa/",
+  base: "/",
   resolve: {
     alias: {
       App: "/src/App",
