@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Env variables
+.env
+.env.local
+
 # Services
 services.config.yml
 

@@ -40,7 +40,6 @@ export default function ButtonSelectorScopeInTopBar() {
         <Box
           sx={{display: "flex", flexDirection: "column", alignItems: "start"}}
         >
-          <Typography variant="caption">{projectName}</Typography>
           <Typography variant="body2">{scopeName}</Typography>
         </Box>
       </Button>
