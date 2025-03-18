@@ -5,6 +5,7 @@ import webrtcReducer from "Features/webrtc/webrtcSlice";
 import layoutReducer from "Features/layout/layoutSlice";
 import listPanelReducer from "Features/listPanel/listPanelSlice";
 import projectsReducer from "Features/projects/projectsSlice";
+import scopesReducer from "Features/scopes/scopesSlice";
 import viewersReducer from "Features/viewers/viewersSlice";
 import listingsReducer from "Features/listings/listingsSlice";
 import locatedEntitiesReducer from "Features/locatedEntities/locatedEntitiesSlice";
@@ -25,6 +26,7 @@ const store = configureStore({
     layout: layoutReducer,
     listPanel: listPanelReducer,
     projects: projectsReducer,
+    scopes: scopesReducer,
     listings: listingsReducer,
     locatedEntities: locatedEntitiesReducer,
     viewers: viewersReducer,
