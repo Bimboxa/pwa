@@ -4,10 +4,10 @@ import demoProject from "./data/demoProject";
 
 const projectsInitialState = {
   //
-  projectsMap: {demo: demoProject},
+  projectsMap: new Map([["demo", demoProject]]),
   projectsUpdatedAt: null,
   //
-  selectedProjectId: null,
+  selectedProjectId: "demo",
   //
 };
 

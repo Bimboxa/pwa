@@ -1,5 +1,4 @@
 import {Typography, Box} from "@mui/material";
-import ImageIcon from "@mui/icons-material/Image";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
 

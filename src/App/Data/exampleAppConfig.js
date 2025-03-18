@@ -1,4 +1,15 @@
 const exampleAppConfig = {
+  syncServices: {
+    dropbox: {
+      serviceLabel: "Dropbox",
+      apiKey: "xxx",
+    },
+  },
+  strings: {
+    project: {
+      createLabel: "Créer un dossier",
+    },
+  },
   entityModelsObject: {
     zone: {
       key: "zone",
