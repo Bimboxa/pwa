@@ -2,7 +2,7 @@ const API_URL = import.meta.env.VITE_WORKER_URL_SERVICES_CREDENTIALS;
 
 export async function fetchServicesCredentials(token) {
   try {
-    console.log("[fetchServicesCredentials] data0:", response);
+    console.log("[fetchServicesCredentials] data0:");
     const response = await fetch(API_URL, {
       method: "GET",
       mode: "cors",
