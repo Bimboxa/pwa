@@ -6,6 +6,7 @@ import {
 } from "@clerk/clerk-react";
 
 import {Box} from "@mui/material";
+import ButtonSignIn from "./ButtonSignIn";
 
 export function AuthButtons() {
   return (
@@ -21,7 +22,7 @@ export function AuthButtons() {
         <UserButton />
       </SignedIn>
       <SignedOut>
-        <SignInButton />
+        <ButtonSignIn />
       </SignedOut>
     </Box>
   );
