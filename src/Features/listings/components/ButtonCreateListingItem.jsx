@@ -12,7 +12,6 @@ export default function ButtonCreateListingItem({listing}) {
   // data
 
   const entityModel = useListingEntityModel(listing);
-  console.log("entityModel", listing, entityModel);
 
   // state
 
