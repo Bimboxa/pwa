@@ -3,7 +3,6 @@ import {createSlice} from "@reduxjs/toolkit";
 import demoProject from "./data/demoProject";
 
 const projectsInitialState = {
-  //
   projectsMap: new Map([["demo", demoProject]]),
   projectsUpdatedAt: null,
   //

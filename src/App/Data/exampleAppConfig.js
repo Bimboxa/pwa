@@ -1,10 +1,12 @@
 const exampleAppConfig = {
-  syncServices: {
-    dropbox: {
-      serviceLabel: "Dropbox",
-      apiKey: "xxx",
+  remoteProjectsContainers: [
+    {
+      service: "DROPBOX",
+      name: "Dropbox",
+      path: "/1%20%3D%20Client%20DB/LEI/1%20%3D%20Dossiers",
     },
-  },
+  ],
+
   strings: {
     project: {
       createLabel: "Créer un dossier",
