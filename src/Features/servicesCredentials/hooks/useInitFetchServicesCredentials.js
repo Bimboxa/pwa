@@ -2,7 +2,7 @@ import {useEffect} from "react";
 
 import {useDispatch, useSelector} from "react-redux";
 
-import {fetchServicesCredentials} from "Features/servicesCredentials/services";
+import {fetchServicesCredentials} from "../servicesCredentialsSlice";
 
 import useToken from "Features/auth/hooks/useToken";
 
@@ -12,7 +12,7 @@ export default function useInitFetchServicesCredentials() {
 
   useEffect(() => {
     if (token) {
-      fetchServicesCredentials(token);
+      dispatch(fetchServicesCredentials(token));
     }
   }, [token]);
 }

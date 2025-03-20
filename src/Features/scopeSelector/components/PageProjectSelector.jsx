@@ -4,8 +4,12 @@ import useProject from "Features/projects/hooks/useSelectedProject";
 import {Box, List, Typography} from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ListProjects from "Features/projects/components/ListProjects";
+import SectionRemoteProjectsContainers from "./SectionRemoteProjectsContainers";
 
-export default function PageProjectSelector({onProjectClick}) {
+export default function PageProjectSelector({
+  onProjectClick,
+  onRemoteContainerClick,
+}) {
   // strings
 
   const onDeviceS = "Sur l'appareil";
@@ -49,6 +53,11 @@ export default function PageProjectSelector({onProjectClick}) {
         <Typography variant="caption" color="text.secondary">
           {onCloudS}
         </Typography>
+      </Box>
+      <Box sx={{bgcolor: "white"}}>
+        <SectionRemoteProjectsContainers
+          onRemoteContainerClick={onRemoteContainerClick}
+        />
       </Box>
     </BoxFlexVStretch>
   );

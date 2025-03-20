@@ -4,11 +4,15 @@ import PageProjectAndScope from "./PageProjectAndScope";
 
 import PageProjectSelector from "./PageProjectSelector";
 import PageScopeSelector from "./PageScopeSelector";
+import PageProjectsFromRemoteContainer from "./PageProjectsFromRemoteContainer";
 
 export default function ScopeSelector() {
   // state
 
-  const [page, setPage] = useState("PROJECT_AND_SCOPE");
+  let [page, setPage] = useState("PROJECT_AND_SCOPE");
+  const [remoteContainer, setRemoteContainer] = useState(null);
+
+  if (remoteContainer) page = "PROJECTS_FROM_REMOTE_CONTAINER";
 
   // handlers
 
@@ -29,8 +33,13 @@ export default function ScopeSelector() {
           onSeeScopesClick={handleSeeScopesClick}
         />
       )}
-      {page === "PROJECTS" && <PageProjectSelector />}
+      {page === "PROJECTS" && (
+        <PageProjectSelector onRemoteContainerClick={setRemoteContainer} />
+      )}
       {page === "SCOPES" && <PageScopeSelector />}
+      {page === "PROJECTS_FROM_REMOTE_CONTAINER" && (
+        <PageProjectsFromRemoteContainer remoteContainer={remoteContainer} />
+      )}
     </>
   );
 }

@@ -7,6 +7,8 @@ import {
 
 import {Box} from "@mui/material";
 import ButtonSignIn from "./ButtonSignIn";
+import CredentialsIcon from "Features/servicesCredentials/components/CredentialsIcon";
+import PageServicesCredentials from "Features/servicesCredentials/components/PageServicesCredentials";
 
 export function AuthButtons() {
   return (
@@ -19,7 +21,15 @@ export function AuthButtons() {
       }}
     >
       <SignedIn>
-        <UserButton />
+        <UserButton>
+          <UserButton.UserProfilePage
+            label="Secrets"
+            url="custom-services-credentials"
+            labelIcon={<CredentialsIcon />}
+          >
+            <PageServicesCredentials />
+          </UserButton.UserProfilePage>
+        </UserButton>
       </SignedIn>
       <SignedOut>
         <ButtonSignIn />

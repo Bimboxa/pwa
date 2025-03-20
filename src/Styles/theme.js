@@ -7,7 +7,6 @@ import {
   grey,
   red,
   orange,
-
 } from "@mui/material/colors";
 
 let theme = createTheme({
@@ -88,7 +87,7 @@ let theme = createTheme({
     },
   },
   typography: {
-    fontSize: 12,
+    fontSize: 11,
     h1: {
       fontSize: "2rem", // Default for larger screens
       "@media (max-width:600px)": {
