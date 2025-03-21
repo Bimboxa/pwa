@@ -1,15 +1,29 @@
 import {createSlice, createAsyncThunk} from "@reduxjs/toolkit";
 
-import {fetchServicesCredentialsService} from "./services";
+import {
+  createOrUpdateServiceCredentialService,
+  fetchServiceCredentialService,
+  deleteServiceCredentialService,
+} from "./services";
 
-export const fetchServicesCredentials = createAsyncThunk(
-  "servicesCredentials/fetchServicesCredentials",
-  fetchServicesCredentialsService
+export const createOrUpdateServiceCredential = createAsyncThunk(
+  "servicesCredentials/createOrUpdateServiceCredential",
+  createOrUpdateServiceCredentialService
+);
+
+export const fetchServiceCredential = createAsyncThunk(
+  "servicesCredentials/fetchServiceCredential",
+  fetchServiceCredentialService
+);
+
+export const deleteServiceCredential = createAsyncThunk(
+  "servicesCredentials/deleteServiceCredential",
+  deleteServiceCredentialService
 );
 
 const servicesCredentialsInitialState = {
   //
-  data: null,
+  servicesCredentialsMap: {},
   //
 };
 
@@ -17,8 +31,22 @@ export const servicesCredentialsSlice = createSlice({
   name: "servicesCredentials",
   initialState: servicesCredentialsInitialState,
   extraReducers: (builder) => {
-    builder.addCase(fetchServicesCredentials.fulfilled, (state, action) => {
-      state.data = action.payload;
+    builder.addCase(fetchServiceCredential.fulfilled, (state, action) => {
+      const serviceCredential = action.payload;
+      if (!serviceCredential) return;
+      state.servicesCredentialsMap[serviceCredential.key] = serviceCredential;
+    });
+    builder.addCase(
+      createOrUpdateServiceCredential.fulfilled,
+      (state, action) => {
+        const serviceCredential = action.payload;
+        if (!serviceCredential) return;
+        state.servicesCredentialsMap[serviceCredential.key] = serviceCredential;
+      }
+    );
+    builder.addCase(deleteServiceCredential.fulfilled, (state, action) => {
+      const key = action.payload;
+      delete state.servicesCredentialsMap[key];
     });
   },
 });

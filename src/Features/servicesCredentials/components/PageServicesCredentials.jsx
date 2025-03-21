@@ -1,3 +1,4 @@
+import {useSelector} from "react-redux";
 import useCredentialsMetadata from "../hooks/useCredentialsMetadata";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -12,13 +13,16 @@ export default function PageServicesCredentials() {
   // data
 
   const credentialsMetadata = useCredentialsMetadata();
-  console.log("credentialsMetadata", credentialsMetadata);
+  const servicesCredentialsMap = useSelector(
+    (state) => state.servicesCredentials.servicesCredentialsMap
+  );
 
   // helpers
 
   const servicesCredentials = credentialsMetadata?.map((metadata) => {
     return {
       ...metadata,
+      value: servicesCredentialsMap[metadata.key]?.value,
     };
   });
 

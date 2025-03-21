@@ -18,6 +18,7 @@ export default function useCredentialsMetadata() {
 
     service.credentialsMetadata.forEach((metadataItem) => {
       metadata.push({
+        serviceName: service.serviceName,
         ...metadataItem,
         container,
       });

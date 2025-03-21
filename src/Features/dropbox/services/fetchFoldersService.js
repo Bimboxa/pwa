@@ -23,7 +23,7 @@ export default async function fetchFoldersService({path, token}) {
       throw new Error("Network response was not ok");
     }
 
-    const data = await response.json();
+    const data = await response?.json();
 
     const folders = data.entries.filter((entry) => entry[".tag"] === "folder");
 
