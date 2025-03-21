@@ -1,11 +1,12 @@
 const servicesMap = new Map();
 
 const dropboxService = {
-  name: "Dropbox",
+  serviceName: "Dropbox",
   credentialsMetadata: [
     {
-      label: "App secret",
       key: "dropboxAppSecret",
+      label: "App secret",
+      prefix: "userEmailDomain",
     },
   ],
 };
