@@ -1,23 +1,34 @@
+import {useDispatch} from "react-redux";
+
+import {useAccessToken} from "../AccessTokenDropboxContext";
+
 import ButtonBasicMobile from "Features/layout/components/ButtonBasicMobile";
 
+import exchangeCodeForToken from "../services/exchangeCodeForToken";
+import openDropboxAuthPopup from "../services/openDropboxAuthPopup";
+import useToken from "Features/auth/hooks/useToken";
+
 export default function ButtonLoginDropbox() {
+  const dispatch = useDispatch();
+  const token = useToken();
+
+  // data
+
+  const {setAccessToken} = useAccessToken();
+
   // string
 
   const loginS = "Se connecter";
 
-  // helpers
-
-  const CLIENT_ID = import.meta.env.VITE_DROPBOX_CLIENT_ID;
-  const REDIRECT_URI = import.meta.env.VITE_DROPBOX_REDIRECT_URI;
-
   // handlers
 
-  function handleClick() {
-    const dropboxAuthUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&token_access_type=offline&redirect_uri=${encodeURIComponent(
-      REDIRECT_URI
-    )}`;
-
-    window.location.href = dropboxAuthUrl;
+  async function handleClick() {
+    const code = await openDropboxAuthPopup();
+    const accessTokenData = await exchangeCodeForToken({code, token});
+    //
+    const expiresAt = Date.now() + accessTokenData?.expiresIn * 1000;
+    setAccessToken({...accessTokenData, expiresAt});
   }
+
   return <ButtonBasicMobile label={loginS} onClick={handleClick} />;
 }

@@ -1,18 +1,16 @@
-import {useEffect} from "react";
-
-import {useSelector, useDispatch} from "react-redux";
+import {useDispatch} from "react-redux";
 
 import {fetchProjectsFolders} from "../dropboxSlice";
 
 import appConfigAsync from "App/appConfigAsync";
+import useAccessTokenDropbox from "./useAccessTokenDropbox";
 
-export default function useInitFetchProjectsFolders() {
+export default function useFetchProjectsFolders() {
   const dispatch = useDispatch();
 
   // data
 
-  const data = useSelector((s) => s.servicesCredentials.data);
-  const token = data?.dropbox?.accessToken;
+  const token = useAccessTokenDropbox();
 
   // helpers
 
@@ -23,7 +21,6 @@ export default function useInitFetchProjectsFolders() {
         (c) => c.service === "DROPBOX"
       );
       const path = container.path;
-      console.log("path", path, appConfig);
 
       if (path) {
         dispatch(fetchProjectsFolders({path, token}));
@@ -33,7 +30,9 @@ export default function useInitFetchProjectsFolders() {
     }
   };
 
-  useEffect(() => {
-    if (token) fetchAsync();
-  }, [token]);
+  if (token) {
+    return fetchAsync;
+  } else {
+    return null;
+  }
 }

@@ -20,6 +20,8 @@ export default async function fetchFoldersService({path, token}) {
     });
 
     if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Error response from Dropbox API:", errorData);
       throw new Error("Network response was not ok");
     }
 
