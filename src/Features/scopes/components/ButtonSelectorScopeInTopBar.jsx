@@ -1,6 +1,8 @@
 import {useState} from "react";
 
-import {useSelector} from "react-redux";
+import {useSelector, useDispatch} from "react-redux";
+
+import {setOpen} from "Features/scopeSelector/scopeSelectorSlice";
 
 import useScope from "../hooks/useScope";
 
@@ -10,11 +12,16 @@ import {ArrowDropDown as Down} from "@mui/icons-material";
 import ScopeSelector from "Features/scopeSelector/components/ScopeSelector";
 
 export default function ButtonSelectorScopeInTopBar() {
+  const dispatch = useDispatch();
+
+  // data
+
+  const open = useSelector((s) => s.scopeSelector.open);
+
   // state
 
   //const [open, setOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
 
   // data
 
@@ -30,8 +37,14 @@ export default function ButtonSelectorScopeInTopBar() {
 
   // handlers - dialog
 
+  function handleDialogClose() {
+    setAnchorEl(null);
+    dispatch(setOpen(false));
+  }
+
   function handleClick(e) {
     setAnchorEl(e.currentTarget);
+    dispatch(setOpen(true));
   }
 
   return (
@@ -46,7 +59,7 @@ export default function ButtonSelectorScopeInTopBar() {
       {isMobile && (
         <Dialog
           open={open}
-          onClose={() => setAnchorEl(null)}
+          onClose={handleDialogClose}
           fullScreen={true}
           fullWidth
           maxWidth="sm"
@@ -56,7 +69,7 @@ export default function ButtonSelectorScopeInTopBar() {
         </Dialog>
       )}
       {!isMobile && (
-        <Menu open={open} onClose={() => setAnchorEl(null)} anchorEl={anchorEl}>
+        <Menu open={open} onClose={handleDialogClose} anchorEl={anchorEl}>
           <Box sx={{width: 300}}>
             <ScopeSelector />
           </Box>

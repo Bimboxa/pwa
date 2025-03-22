@@ -28,11 +28,11 @@ export default function SectionRemoteProjectsContainers({
               <Forward />
             </BoxCenter>
           }
-          key={container.id}
+          key={container.service}
           disablePadding
         >
           <ListItemButton
-            key={container.id}
+            key={container.service}
             onClick={() => onRemoteContainerClick(container)}
           >
             <ListItemText primary={container.name} />

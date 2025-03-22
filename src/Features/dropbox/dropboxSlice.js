@@ -8,8 +8,11 @@ export const fetchProjectsFolders = createAsyncThunk(
 );
 
 const dropboxInitialState = {
+  //
+  accessTokenDropbox: null,
+  //
   projectsFolderId: null,
-  projectsFoldersMap: new Map(),
+  projectsFoldersMap: {},
   //
   selectedProjectFolderId: null,
 };
@@ -18,20 +21,24 @@ export const dropboxSlice = createSlice({
   name: "dropbox",
   initialState: dropboxInitialState,
   reducers: {
+    setAccessTokenDropbox: (state, action) => {
+      state.accessTokenDropbox = action.payload;
+    },
     setProjectsFolderId: (state, action) => {
       state.projectsFolderId = action.payload;
     },
-    setProjectsFoldersMap: (state, action) => {
+  },
+  extraReducers: (builder) => {
+    builder.addCase(fetchProjectsFolders.fulfilled, (state, action) => {
       const folders = action.payload;
-      console.log("[STATE] [dropbox] projectsFolders", folders);
       folders.forEach((folder) => {
-        state.projectsFoldersMap.set(folder.id, folder);
+        state.projectsFoldersMap[folder.id] = folder;
       });
-    },
+    });
   },
 });
 
-export const {setProjectsFolderId, setProjectsFoldersMap} =
+export const {setAccessTokenDropbox, setProjectsFolderId} =
   dropboxSlice.actions;
 
 export default dropboxSlice.reducer;

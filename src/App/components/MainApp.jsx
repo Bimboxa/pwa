@@ -2,6 +2,9 @@
 import {ClerkProvider} from "@clerk/clerk-react";
 import {frFR} from "@clerk/localizations";
 
+// remote containers
+import {AccessTokenDropboxProvider} from "Features/dropbox/AccessTokenDropboxContext";
+
 // styles
 import {ThemeProvider} from "@mui/material/styles";
 
@@ -24,12 +27,14 @@ function App({pca, runningIn}) {
 
   return (
     <ClerkProvider publishableKey={clerkPublishableKey} localization={frFR}>
-      <Provider store={store}>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <MainAppLayout />
-        </ThemeProvider>
-      </Provider>
+      <AccessTokenDropboxProvider>
+        <Provider store={store}>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <MainAppLayout />
+          </ThemeProvider>
+        </Provider>
+      </AccessTokenDropboxProvider>
     </ClerkProvider>
   );
 }

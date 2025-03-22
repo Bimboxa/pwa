@@ -3,7 +3,7 @@ const exampleAppConfig = {
     {
       service: "DROPBOX",
       name: "Dropbox",
-      path: "/1%20%3D%20Client%20DB/LEI/1%20%3D%20Dossiers",
+      path: "/1 = Client DB/LEI/1 = Dossiers",
     },
   ],
 
