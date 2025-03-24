@@ -3,9 +3,15 @@ import {Box, Dialog} from "@mui/material";
 import HeaderTitleClose from "./HeaderTitleClose";
 import BoxFlexV from "./BoxFlexV";
 
-export default function DialogFs({title, open, onClose, children}) {
+export default function DialogFs({
+  title,
+  open,
+  onClose,
+  children,
+  fullScreen = true,
+}) {
   return (
-    <Dialog open={open} onClose={onClose} fullScreen>
+    <Dialog open={open} onClose={onClose} fullScreen={fullScreen}>
       <BoxFlexV>
         <HeaderTitleClose title={title} onClose={onClose} />
         <Box

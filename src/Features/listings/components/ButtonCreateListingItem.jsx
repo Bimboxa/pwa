@@ -1,6 +1,7 @@
 import {useState} from "react";
 
 import useListingEntityModel from "../hooks/useListingEntityModel";
+import useIsMobile from "Features/layout/hooks/useIsMobile";
 
 import {Button, Paper} from "@mui/material";
 
@@ -12,6 +13,7 @@ export default function ButtonCreateListingItem({listing}) {
   // data
 
   const entityModel = useListingEntityModel(listing);
+  const isMobile = useIsMobile();
 
   // state
 
@@ -39,7 +41,7 @@ export default function ButtonCreateListingItem({listing}) {
           {newButtonLabel}
         </Button>
       </Paper>
-      <DialogFs open={open} onClose={handleClose}>
+      <DialogFs fullScreen={isMobile} open={open} onClose={handleClose}>
         {entityModel?.type === "locatedEntityModel" && <FormLocatedEntity />}
       </DialogFs>
     </>

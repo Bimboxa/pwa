@@ -5,7 +5,8 @@ import useSelectedListing from "../hooks/useSelectedListing";
 
 import IconListingVariantClickable from "./IconListingVariantClickable";
 
-import DialogFsSelectorListing from "./DialogFsSelectorListing";
+import DialogFsOrMenu from "Features/layout/components/DialogFsOrMenu";
+import PanelSelectorListing from "./PanelSelectorListing";
 
 export default function IconButtonListingSelector() {
   const dispatch = useDispatch();
@@ -13,6 +14,7 @@ export default function IconButtonListingSelector() {
   // state
 
   const [open, setOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
 
   // data
 
@@ -20,8 +22,18 @@ export default function IconButtonListingSelector() {
 
   // handlers
 
-  function handleIconButtonClick() {
+  function handleIconButtonClick(anchorEl) {
     setOpen(true);
+    setAnchorEl(anchorEl);
+  }
+
+  function handleCloseMenu() {
+    setOpen(false);
+    setAnchorEl(null);
+  }
+
+  function handleListingSelected() {
+    setOpen(false);
   }
 
   return (
@@ -31,7 +43,9 @@ export default function IconButtonListingSelector() {
         onClick={handleIconButtonClick}
         open={open}
       />
-      <DialogFsSelectorListing open={open} onClose={() => setOpen(false)} />
+      <DialogFsOrMenu open={open} onClose={handleCloseMenu} anchorEl={anchorEl}>
+        <PanelSelectorListing onListingSelected={handleListingSelected} />
+      </DialogFsOrMenu>
     </>
   );
 }

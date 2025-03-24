@@ -21,8 +21,9 @@ const exampleAppConfig = {
       key: "comment",
       type: "locatedEntityModel",
       strings: {
-        newButtonLabel: "Nouveau commentaire",
+        labelNew: "Nouveau commentaire",
       },
+      labelKey: "text",
       fieldsObject: {
         text: {
           key: "text",

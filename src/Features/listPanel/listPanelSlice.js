@@ -4,6 +4,8 @@ const listPanelInitialState = {
   width: 400,
   open: true,
   //
+  openPanelListItem: false,
+  //
   selectedListId: null,
 };
 
@@ -18,6 +20,10 @@ export const listPanelSlice = createSlice({
       state.width = action.payload;
     },
     //
+    setOpenPanelListItem: (state, action) => {
+      state.openPanelListItem = action.payload;
+    },
+    //
     setSelectedListId: (state, action) => {
       state.selectedListId = action.payload;
     },
@@ -27,6 +33,8 @@ export const listPanelSlice = createSlice({
 export const {
   setOpen,
   setWidth,
+  //
+  setOpenPanelListItem,
   //
   setSelectedListId,
 } = listPanelSlice.actions;

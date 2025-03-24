@@ -11,14 +11,14 @@ const listing1 = {
 };
 
 const listing2 = {
-  id: "listing2",
+  id: "comments",
   entityModelKey: "comment",
   name: "Commentaires",
   color: orange[500],
   iconKey: "comment",
 };
 
-exampleListingsMap.set(listing1.id, listing1);
 exampleListingsMap.set(listing2.id, listing2);
+exampleListingsMap.set(listing1.id, listing1);
 
 export default exampleListingsMap;

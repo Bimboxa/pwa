@@ -1,46 +1,62 @@
 import {createSlice} from "@reduxjs/toolkit";
 
-import exampleListingsMap from "./data/exampleListingsMap";
+import exampleEntity from "./data/exampleEntity";
 
-const listingsInitialState = {
+const entitiesInitialState = {
   //
-  listingsMap: exampleListingsMap,
-  listingsUpdatedAt: null,
+  entitiesMap: {[exampleEntity.id]: exampleEntity},
+  entitiesUpdatedAt: null,
   //
-  selectedListingId: null,
+  selectedEntityId: null,
+  newEntity: null,
+  isEditingEntity: false,
+  editedEntity: null,
   //
 };
 
-export const listingsSlice = createSlice({
-  name: "listings",
-  initialState: listingsInitialState,
+export const entitiesSlice = createSlice({
+  name: "entities",
+  initialState: entitiesInitialState,
   reducers: {
-    setSelectedListingId: (state, action) => {
-      state.selectedListingId = action.payload;
+    setSelectedEntityId: (state, action) => {
+      state.selectedEntityId = action.payload;
+    },
+    setNewEntity: (state, action) => {
+      state.newEntity = action.payload;
+    },
+    setIsEditingEntity: (state, action) => {
+      state.isEditingEntity = action.payload;
+    },
+    setEditedEntity: (state, action) => {
+      state.editedEntity = action.payload;
     },
     //
-    triggerListingsUpdate: (state) => {
-      state.listingsUpdatedAt = Date.now();
+    triggerEntitiesUpdate: (state) => {
+      state.entitiesUpdatedAt = Date.now();
     },
     //
-    createListing: (state, action) => {
-      const listing = action.payload;
-      state.listingsListing[listing.id] = listing;
+    createEntity: (state, action) => {
+      const entity = action.payload;
+      state.entitiesEntity[entity.id] = entity;
     },
-    updateListing: (state, action) => {
+    updateEntity: (state, action) => {
       const updates = action.payload;
-      const listing = state.listingsListing[updates.id];
-      state.listingsListing[updates.id] = {...listing, ...updates};
+      const entity = state.entitiesEntity[updates.id];
+      state.entitiesEntity[updates.id] = {...entity, ...updates};
     },
   },
 });
 
 export const {
-  setSelectedListingId,
-  triggerListingsUpdate,
+  setSelectedEntityId,
+  triggerEntitiesUpdate,
   //
-  createListing,
-  updateListing,
-} = listingsSlice.actions;
+  setNewEntity,
+  setIsEditingEntity,
+  setEditedEntity,
+  //
+  createEntity,
+  updateEntity,
+} = entitiesSlice.actions;
 
-export default listingsSlice.reducer;
+export default entitiesSlice.reducer;

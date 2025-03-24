@@ -6,8 +6,9 @@ import useListings from "../hooks/useListings";
 
 import DialogFs from "Features/layout/components/DialogFs";
 import ListListings from "./ListListings";
+import {Box} from "@mui/material";
 
-export default function DialogFsSelectorListing({open, onClose}) {
+export default function PanelSelectorListing({onListingSelected}) {
   const dispatch = useDispatch();
 
   // data
@@ -18,16 +19,13 @@ export default function DialogFsSelectorListing({open, onClose}) {
 
   function handleListingClick(listing) {
     dispatch(setSelectedListingId(listing.id));
-    onClose();
-  }
-
-  function handleClose() {
+    if (onListingSelected) onListingSelected();
     onClose();
   }
 
   return (
-    <DialogFs open={open} onClose={handleClose}>
+    <Box sx={{width: 1}}>
       <ListListings listings={listings} onClick={handleListingClick} />
-    </DialogFs>
+    </Box>
   );
 }
