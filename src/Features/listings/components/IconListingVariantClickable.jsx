@@ -25,7 +25,11 @@ export default function IconListingVariantClickabe({listing, onClick}) {
         justifyContent: "center",
       }}
     >
-      <Button onClick={onClick} endIcon={<Down />} color="inherit">
+      <Button
+        onClick={(e) => onClick(e.currentTarget)}
+        endIcon={<Down />}
+        color="inherit"
+      >
         {iconElement}
       </Button>
     </Paper>

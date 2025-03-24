@@ -1,12 +1,11 @@
-import useListingEntityModel from "Features/listings/hooks/useListingEntityModel";
-import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import {Box} from "@mui/material";
+import SectionListEntitiesInListPanel from "Features/entities/components/SectionListEntitiesInListPanel";
 
 export default function ListPanelListItems() {
-  // data
-
-  const selectedListing = useSelectedListing();
-  const entityModel = useListingEntityModel(selectedListing);
-
   //
-  return <Box></Box>;
+  return (
+    <Box>
+      <SectionListEntitiesInListPanel />
+    </Box>
+  );
 }

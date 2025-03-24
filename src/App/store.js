@@ -10,6 +10,7 @@ import scopesReducer from "Features/scopes/scopesSlice";
 import scopeSelectorReducer from "Features/scopeSelector/scopeSelectorSlice";
 import viewersReducer from "Features/viewers/viewersSlice";
 import listingsReducer from "Features/listings/listingsSlice";
+import entitiesReducer from "Features/entities/entitiesSlice";
 import locatedEntitiesReducer from "Features/locatedEntities/locatedEntitiesSlice";
 import mapsReducer from "Features/maps/mapsSlice";
 import shapesReducer from "Features/shapes/shapesSlice";
@@ -34,6 +35,7 @@ const store = configureStore({
     scopes: scopesReducer,
     scopeSelector: scopeSelectorReducer,
     listings: listingsReducer,
+    entities: entitiesReducer,
     locatedEntities: locatedEntitiesReducer,
     viewers: viewersReducer,
     maps: mapsReducer,

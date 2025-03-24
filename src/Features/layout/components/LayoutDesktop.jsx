@@ -14,6 +14,7 @@ export default function LayoutDesktop() {
       <TopBarDesktop />
       <BoxFlexHStretch>
         <ListPanel />
+
         <SectionViewer />
       </BoxFlexHStretch>
     </BoxFlexV>

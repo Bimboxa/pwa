@@ -1,8 +1,7 @@
 import {Box} from "@mui/material";
 
-import BlockProjectInTopBar from "Features/projects/components/BlockProjectInTopBar";
-import SelectorViewer from "Features/viewers/components/SelectorViewer";
-import IconButtonReceivingConnection from "Features/webrtc/components/IconButtonReceivingConnection";
+import ButtonSelectorScopeInTopBar from "Features/scopes/components/ButtonSelectorScopeInTopBar";
+import {AuthButtons} from "Features/auth/components/AuthButtons";
 
 export default function TopBarMobile() {
   return (
@@ -14,11 +13,9 @@ export default function TopBarMobile() {
         alignItems: "center",
       }}
     >
-      <BlockProjectInTopBar />
+      <ButtonSelectorScopeInTopBar />
 
-      <SelectorViewer />
-
-      <IconButtonReceivingConnection />
+      <AuthButtons />
     </Box>
   );
 }
