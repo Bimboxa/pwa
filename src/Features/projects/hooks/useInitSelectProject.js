@@ -2,6 +2,8 @@ import {useEffect} from "react";
 
 import {useSelector, useDispatch} from "react-redux";
 
+import useProjects from "./useProjects";
+
 import {setSelectedProjectId} from "../projectsSlice";
 
 export default function useInitSelectProject() {
@@ -9,12 +11,10 @@ export default function useInitSelectProject() {
 
   const id = useSelector((s) => s.projects.selectedProjectId);
 
-  const projectsMap = useSelector((s) => s.projects.projectsMap);
+  const {value: projects, loading} = useProjects();
 
-  const projects = Object.values(projectsMap);
-
-  const projectsLength = projects.length;
-  const project0 = projects[0];
+  const projectsLength = loading ? 0 : projects?.length;
+  const project0 = loading ? null : projects[0];
 
   useEffect(() => {
     if (id === null && projectsLength > 0) {

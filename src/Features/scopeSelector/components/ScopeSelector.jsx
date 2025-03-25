@@ -1,4 +1,12 @@
-import {useState} from "react";
+import {useState, useEffect} from "react";
+
+import {useDispatch, useSelector} from "react-redux";
+
+import {setProject, setScope} from "Features/scopeSelector/scopeSelectorSlice";
+import {setSelectedProjectId} from "Features/projects/projectsSlice";
+
+import useSelectedProject from "Features/projects/hooks/useSelectedProject";
+import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 
 import PageProjectAndScope from "./PageProjectAndScope";
 
@@ -7,32 +15,33 @@ import PageScopeSelector from "./PageScopeSelector";
 import PageProjectsFromRemoteContainer from "./PageProjectsFromRemoteContainer";
 
 export default function ScopeSelector() {
-  // state
+  const dispatch = useDispatch();
 
-  let [page, setPage] = useState("PROJECT_AND_SCOPE");
+  // data
+
+  const page = useSelector((s) => s.scopeSelector.page);
+
+  const {value: selectedProject} = useSelectedProject();
+  const {value: selectedScope} = useSelectedScope();
+
+  useEffect(() => {
+    dispatch(setProject(selectedProject));
+  }, [selectedProject?.id]);
+
+  useEffect(() => {
+    dispatch(setScope(selectedScope));
+  }, [selectedScope?.id]);
+
   const [remoteContainer, setRemoteContainer] = useState(null);
 
+  // helpers
+
   if (remoteContainer) page = "PROJECTS_FROM_REMOTE_CONTAINER";
-
-  // handlers
-
-  function handleSeeProjectsClick() {
-    setPage("PROJECTS");
-  }
-
-  function handleSeeScopesClick() {
-    setPage("SCOPES");
-  }
 
   // return
   return (
     <>
-      {page === "PROJECT_AND_SCOPE" && (
-        <PageProjectAndScope
-          onSeeProjectsClick={handleSeeProjectsClick}
-          onSeeScopesClick={handleSeeScopesClick}
-        />
-      )}
+      {page === "PROJECT_AND_SCOPE" && <PageProjectAndScope />}
       {page === "PROJECTS" && (
         <PageProjectSelector onRemoteContainerClick={setRemoteContainer} />
       )}

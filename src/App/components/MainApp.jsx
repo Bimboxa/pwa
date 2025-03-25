@@ -7,7 +7,6 @@ import {AccessTokenDropboxProvider} from "Features/dropbox/AccessTokenDropboxCon
 
 // styles
 import {ThemeProvider} from "@mui/material/styles";
-
 import {CssBaseline} from "@mui/material";
 import theme from "Styles/theme";
 

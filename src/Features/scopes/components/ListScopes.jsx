@@ -9,7 +9,7 @@ export default function ListScopes({scopes, selection, onClick, onNewClick}) {
 
   return (
     <List dense>
-      {scopes.map((scope) => {
+      {scopes?.map((scope) => {
         const selected = selection.includes(scope.id);
         const refLabel = scope?.clientRef
           ? `${refLabelS} ${scope.clientRef}`

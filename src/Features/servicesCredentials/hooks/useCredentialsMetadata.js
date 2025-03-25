@@ -3,7 +3,6 @@ import servicesMap from "../data/servicesMap";
 
 export default function useCredentialsMetadata() {
   const appConfig = useAppConfig();
-  console.log("appConfig", appConfig);
 
   if (!appConfig) {
     return [];

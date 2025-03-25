@@ -1,1 +1,1 @@
-const exampleProjectConfig = {};
+const demoProjectConfig = {};

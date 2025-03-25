@@ -1,28 +1,34 @@
 import {useSelector} from "react-redux";
 
+import useSelectedScope from "./useSelectedScope";
+
 export default function useScope(options) {
   // options
 
-  const withProject = options?.withProject;
+  const forceNew = options?.forceNew;
 
-  // data
+  // main
 
-  const selectedScopeId = useSelector((state) => state.scopes.selectedScopeId);
-  const scopesMap = useSelector((state) => state.scopes.scopesMap);
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const newScope = useSelector((s) => s.scopes.newScope);
+  const editedScope = useSelector((s) => s.scopes.editedScope);
+  const isEditingScope = useSelector((s) => s.scopes.isEditingScope);
 
-  const projectsMap = useSelector((s) => s.projects.projectsMap);
+  const {value: selectedScope, loading} = useSelectedScope();
 
-  // helpers
+  let scope = loading ? null : selectedScope;
 
-  let selectedScope = scopesMap.get(selectedScopeId);
-
-  // join
-
-  if (withProject) {
-    selectedScope.project = projectsMap.get(selectedScope.projectId);
+  if (!selectedScopeId) {
+    if (isEditingScope) {
+      scope = editedScope;
+    } else {
+      scope = newScope;
+    }
   }
 
-  // return
+  if (forceNew) {
+    scope = newScope;
+  }
 
-  return selectedScope;
+  return {value: scope, loading};
 }
