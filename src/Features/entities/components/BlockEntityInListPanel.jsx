@@ -8,6 +8,9 @@ import {Box} from "@mui/material";
 
 import BlockEntityInListPanelVariantBottom from "./BlockEntityInListPanelVariantBottom";
 import BlockEntityInListPanelVariantHeader from "./BlockEntityInListPanelVariantHeader";
+import useEntityModel from "../hooks/useEntityModel";
+
+import theme from "Styles/theme";
 
 export default function BlockEntityInListPanel() {
   const dispatch = useDispatch();
@@ -15,11 +18,15 @@ export default function BlockEntityInListPanel() {
   // data
 
   const entity = useEntity();
+  const entityModel = useEntityModel();
   const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
 
-  // helpers - label
+  console.log("entityModel", entityModel);
+
+  // helpers
 
   const label = entity?.label ?? entity?.id;
+  const bgcolor = entityModel?.color ?? theme.palette.primary.main;
 
   // handlers
 
@@ -33,11 +40,13 @@ export default function BlockEntityInListPanel() {
         <BlockEntityInListPanelVariantHeader
           label={label}
           onClose={handleClick}
+          bgcolor={bgcolor}
         />
       ) : (
         <BlockEntityInListPanelVariantBottom
           label={label}
           onClick={handleClick}
+          bgcolor={bgcolor}
         />
       )}
     </Box>

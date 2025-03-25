@@ -3,6 +3,7 @@ import useUserEmail from "Features/auth/hooks/useUserEmail";
 
 import db from "App/db/db";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import getEntityPureDataAndFilesDataByKey from "../utils/getEntityPureDataAndFilesDataByKey";
 
 export default function useCreateEntity() {
   // data
@@ -13,12 +14,35 @@ export default function useCreateEntity() {
   // helper
 
   const create = async (data) => {
+    // ids
+    const entityId = nanoid();
+
+    // data
+    const {pureData, filesDataByKey} = getEntityPureDataAndFilesDataByKey(
+      data,
+      {
+        entityId,
+        listingId: listing.id,
+      }
+    );
+
+    // store files
+    if (filesDataByKey) {
+      await Promise.all(
+        Object.values(filesDataByKey).map(async (fileData) => {
+          await db.files.put(fileData);
+        })
+      );
+    }
+
+    // store entity
+
     const entity = {
-      id: nanoid(),
+      id: entityId,
       createdBy: userEmail,
       createdAt: new Date().toISOString(),
       listingId: listing.id,
-      ...data,
+      ...pureData,
     };
     try {
       console.log("[db] adding entity ...", entity);

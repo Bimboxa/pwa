@@ -1,4 +1,12 @@
-import {ListItem, ListItemButton, ListItemText} from "@mui/material";
+import {
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  ListItemAvatar,
+  Avatar,
+} from "@mui/material";
+
+import getEntityMainImage from "../utils/getEntityMainImage";
 
 export default function ListItemEntityVariantDefault({
   entity,
@@ -9,6 +17,7 @@ export default function ListItemEntityVariantDefault({
 
   const label = entity.label;
   const isSelected = selection?.includes(entity.id);
+  const mainImage = getEntityMainImage(entity);
 
   // handlers
 
@@ -18,6 +27,11 @@ export default function ListItemEntityVariantDefault({
   return (
     <ListItem divider disablePadding>
       <ListItemButton onClick={handleClick} selected={isSelected}>
+        {mainImage && (
+          <ListItemAvatar>
+            <Avatar src={mainImage.url} />
+          </ListItemAvatar>
+        )}
         <ListItemText>{label}</ListItemText>
       </ListItemButton>
     </ListItem>

@@ -1,3 +1,5 @@
+import {orange, red} from "@mui/material/colors";
+
 const exampleAppConfig = {
   remoteProjectsContainers: [
     {
@@ -19,6 +21,7 @@ const exampleAppConfig = {
     },
     comment: {
       key: "comment",
+      color: red[500],
       type: "locatedEntityModel",
       strings: {
         labelNew: "Nouveau commentaire",

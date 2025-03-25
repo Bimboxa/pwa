@@ -15,9 +15,14 @@ export default function FieldTextVariantGrid({
   }
 
   return (
-    <Grid2 sx={{border: "1px solid #ccc", p: 1}} container>
-      <Grid2 size={12 - size}>
-        <Typography>{label}</Typography>
+    <Grid2
+      container
+      sx={{border: (theme) => `1px solid ${theme.palette.divider}`}}
+    >
+      <Grid2 size={12 - size} sx={{p: 1, bgcolor: "background.default"}}>
+        <Typography variant="body2" color="text.secondary">
+          {label}
+        </Typography>
       </Grid2>
       <Grid2 size={size}>
         <TextField
