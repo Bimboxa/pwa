@@ -5,7 +5,11 @@ import useListingEntityModel from "./useListingEntityModel";
 import {useLiveQuery} from "dexie-react-hooks";
 import db from "App/db/db";
 
-export default function useEntities() {
+export default function useEntities(options) {
+  // options
+
+  const withImages = options?.withImages;
+
   // state
 
   const [loading, setLoading] = useState(true);
@@ -29,6 +33,28 @@ export default function useEntities() {
         .where("listingId")
         .equals(listingId)
         .toArray();
+
+      // add images
+      if (withImages) {
+        entities = await Promise.all(
+          entities.map(async (entity) => {
+            const entityWithImages = {...entity};
+            const entriesWithImages = Object.entries(entity).filter(
+              ([key, value]) => value?.isImage
+            );
+            await Promise.all(
+              entriesWithImages.map(async ([key, value]) => {
+                const file = await db.files.get(value.fileId);
+                entityWithImages[key] = {
+                  ...value,
+                  file,
+                  imageUrlClient: URL.createObjectURL(file.file),
+                };
+              })
+            );
+          })
+        );
+      }
 
       // add label
       entities = entities.map((entity) => {

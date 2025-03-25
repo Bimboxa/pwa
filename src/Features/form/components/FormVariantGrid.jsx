@@ -3,6 +3,7 @@ import {useState} from "react";
 import {Box} from "@mui/material";
 
 import FieldTextVariantGrid from "./FieldTextVariantGrid";
+import FieldImageVariantGrid from "./FieldImageVariantGrid";
 
 import getTemplateFields from "../utils/getTemplateFields";
 
@@ -40,6 +41,20 @@ export default function FormVariantGrid({template, item, onItemChange}) {
                 handleFieldValueChange(field.key, newValue)
               }
               options={field.options}
+            />
+          );
+        }
+
+        if (field?.type === "image") {
+          return (
+            <FieldImageVariantGrid
+              key={field.key}
+              label={field.label}
+              width={field.width}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
             />
           );
         }
