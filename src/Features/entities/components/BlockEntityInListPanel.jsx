@@ -21,8 +21,6 @@ export default function BlockEntityInListPanel() {
   const entityModel = useEntityModel();
   const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
 
-  console.log("entityModel", entityModel);
-
   // helpers
 
   const label = entity?.label ?? entity?.id;

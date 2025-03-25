@@ -1,15 +1,25 @@
-import {useSelector} from "react-redux";
+import {useState, useEffect} from "react";
+import {useLiveQuery} from "dexie-react-hooks";
+import db from "App/db/db";
+
+import demoProject from "../data/demoProject";
 
 export default function useProjects() {
-  // data
+  // main
+  const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState([]);
 
-  const projectsMap = useSelector((s) => s.projects.projectsMap);
+  const fetchedProjects = useLiveQuery(async () => {
+    const pro = await db.projects.toArray();
+    return pro;
+  });
 
-  // helpers
+  useEffect(() => {
+    if (fetchedProjects) {
+      setProjects([...fetchedProjects, demoProject]);
+      setLoading(false);
+    }
+  }, [fetchedProjects]);
 
-  let projects = Array.from(projectsMap.values());
-
-  // return
-
-  return projects;
+  return {value: projects, loading};
 }

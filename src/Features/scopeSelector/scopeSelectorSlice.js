@@ -4,6 +4,9 @@ const scopeSelectorInitialState = {
   open: false,
   page: "PROJECT_AND_SCOPE",
   remoteProjectsContainer: null,
+  //
+  project: null,
+  scope: null,
 };
 
 export const scopeSelectorSlice = createSlice({
@@ -19,6 +22,12 @@ export const scopeSelectorSlice = createSlice({
     setRemoteProjectsContainer: (state, action) => {
       state.remoteProjectsContainer = action.payload;
     },
+    setProject: (state, action) => {
+      state.project = action.payload;
+    },
+    setScope: (state, action) => {
+      state.scope = action.payload;
+    },
   },
 });
 
@@ -26,6 +35,8 @@ export const {
   setOpen,
   setPage,
   setRemoteProjectsContainer,
+  setProject,
+  setScope,
   //
 } = scopeSelectorSlice.actions;
 

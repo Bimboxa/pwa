@@ -17,6 +17,8 @@
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^6.4.5",
     "@mui/material": "^6.4.5",
+    "@mui/x-license": "^7.28.0",
+    "@mui/x-tree-view-pro": "^7.28.1",
     "@reduxjs/toolkit": "^2.5.1",
     "dexie": "^4.0.11",
     "dexie-react-hooks": "^1.1.7",

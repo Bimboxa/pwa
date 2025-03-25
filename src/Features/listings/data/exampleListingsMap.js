@@ -4,7 +4,7 @@ const exampleListingsMap = new Map();
 
 const listing1 = {
   id: "listing1",
-  entityModelKey: "zone",
+  entityModelKey: "location",
   name: "Locaux",
   color: blue[500],
   iconKey: "room",
@@ -18,7 +18,7 @@ const listing2 = {
   iconKey: "comment",
 };
 
-exampleListingsMap.set(listing2.id, listing2);
-exampleListingsMap.set(listing1.id, listing1);
+exampleListingsMap.set(listing1.id, listing2);
+exampleListingsMap.set(listing2.id, listing1);
 
 export default exampleListingsMap;

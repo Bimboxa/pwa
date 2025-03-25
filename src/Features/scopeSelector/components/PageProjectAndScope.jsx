@@ -1,27 +1,29 @@
-import useScope from "Features/scopes/hooks/useScope";
-import useScopes from "Features/scopes/hooks/useScopes";
+import {useDispatch} from "react-redux";
+
+import {setPage} from "../scopeSelectorSlice";
+
+import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 
 import {Box, Typography, Button} from "@mui/material";
 import {ArrowForwardIos as Forward} from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
-export default function PageProjectAndScope({
-  onSeeProjectsClick,
-  onSeeScopesClick,
-}) {
+export default function PageProjectAndScope() {
+  const dispatch = useDispatch();
+
   // strings
 
   const onClientS = "Sur cet appareil";
   const projectS = "Dossier";
   const scopeS = "Lot";
-  const seeProjectsS = "Voir tous les dossiers";
-  const seeScopesS = "Voir les lots du dossier";
+  const seeProjectsS = "Tous les dossiers";
+  const seeScopesS = "Tous les lots";
   const clientRefS = "Réf.";
 
   // data
 
-  const scope = useScope({withProject: true});
+  const {value: scope} = useSelectedScope({withProject: true});
 
   // helpers
 
@@ -36,11 +38,11 @@ export default function PageProjectAndScope({
   // handlers
 
   function handleSeeProjectsClick() {
-    if (onSeeProjectsClick) onSeeProjectsClick();
+    dispatch(setPage("PROJECTS"));
   }
 
   function handleSeeScopesClick() {
-    if (onSeeScopesClick) onSeeScopesClick();
+    dispatch(setPage("SCOPES"));
   }
 
   return (

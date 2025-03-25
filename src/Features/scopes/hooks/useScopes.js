@@ -1,23 +1,46 @@
-import {useSelector} from "react-redux";
+import {useState, useEffect} from "react";
+import {useLiveQuery} from "dexie-react-hooks";
+
+import db from "App/db/db";
+import demoScope from "../data/demoScope";
 
 export default function useScopes(options) {
+  const [loading, setLoading] = useState(true);
+  const [scopes, setScopes] = useState([]);
+
   // options
 
   const filterByProjectId = options?.filterByProjectId;
 
+  // helpers
+
+  const isDemoProject = filterByProjectId === "demo";
+
   // data
 
-  const scopesMap = useSelector((state) => state.scopes.scopesMap);
+  const fetchedScopes = useLiveQuery(async () => {
+    let scopes;
+    if (filterByProjectId) {
+      scopes = await db.scopes
+        .where("projectId")
+        .equals(filterByProjectId)
+        .toArray();
+    } else {
+      scopes = await db.scopes.toArray();
+    }
+    setLoading(false);
+    return scopes;
+  });
 
-  let scopes = Array.from(scopesMap.values());
+  // demoScope
 
-  // filter
-
-  if (filterByProjectId) {
-    scopes = scopes.filter((scope) => scope.projectId === filterByProjectId);
-  }
+  useEffect(() => {
+    if (fetchedScopes && isDemoProject) {
+      setScopes([...fetchedScopes, demoScope]);
+    }
+  }, [fetchedScopes]);
 
   // return
 
-  return scopes;
+  return {value: scopes, loading};
 }

@@ -16,7 +16,7 @@ const syncTabsMiddleware = (store) => (next) => (action) => {
 
 broadcastChannel.onmessage = (event) => {
   const action = event.data;
-  console.log("[broadcastChannel]", action);
+  //console.log("[broadcastChannel]", action);
   if (
     action.type.startsWith("markers/") ||
     action.type.startsWith("shapes/") ||

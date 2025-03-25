@@ -4,7 +4,7 @@ import {useSelector, useDispatch} from "react-redux";
 
 import {setOpen} from "Features/scopeSelector/scopeSelectorSlice";
 
-import useScope from "../hooks/useScope";
+import useSelectedScope from "../hooks/useSelectedScope";
 
 import {Box, Typography, Button, Dialog, Menu} from "@mui/material";
 import {ArrowDropDown as Down} from "@mui/icons-material";
@@ -26,7 +26,7 @@ export default function ButtonSelectorScopeInTopBar() {
   // data
 
   const deviceType = useSelector((state) => state.layout.deviceType);
-  const scope = useScope({withProject: true});
+  const {value: scope} = useSelectedScope({withProject: true});
 
   // helpers
 
