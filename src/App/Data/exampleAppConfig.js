@@ -92,10 +92,10 @@ const exampleAppConfig = {
       },
     },
   },
-  presetListings: {
-    locations: {
+  presetListingsMap: {
+    zones: {
       name: "Pièces",
-      entityModelKey: "location",
+      entityModelKey: "zone",
       color: red[300],
       iconKey: "room",
     },
@@ -126,6 +126,7 @@ const exampleAppConfig = {
   },
   presetScopesObject: {
     preset1: {
+      key: "preset1",
       name: "Diagnostic amiante",
       description: "Enregistrer vos prélèvements et sondages",
       listings: [
@@ -138,9 +139,15 @@ const exampleAppConfig = {
       ],
     },
     preset2: {
+      key: "preset2",
       name: "Notes libres",
       description: "Enregistrer vos commentaires",
       listings: ["comments"],
+    },
+    preset3: {
+      key: "DEFAULT",
+      name: "Lot vide",
+      listings: [],
     },
   },
 };

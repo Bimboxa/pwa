@@ -5,6 +5,7 @@ import {useSelector} from "react-redux";
 import useInit from "App/hooks/useInit";
 import useInitDeviceType from "Features/layout/hooks/useInitDeviceType";
 import useInitSelectProject from "Features/projects/hooks/useInitSelectProject";
+import useInitSelectScope from "Features/scopes/hooks/useInitSelectScope";
 import useInitServicesConfig from "Features/settings/hooks/useInitServicesConfig";
 
 import {Box} from "@mui/material";
@@ -22,7 +23,9 @@ export default function MainAppLayout() {
 
   useInitServicesConfig();
   useInitDeviceType();
+
   useInitSelectProject();
+  useInitSelectScope();
 
   // data
 

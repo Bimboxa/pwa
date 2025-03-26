@@ -8,7 +8,7 @@ import SectionTreeZonesInListPanel from "Features/zones/components/SectionTreeZo
 
 export default function ListPanelListItems() {
   // data
-  const listing = useSelectedListing();
+  const {value: listing} = useSelectedListing();
   const entityModel = useListingEntityModel(listing);
 
   // helpers

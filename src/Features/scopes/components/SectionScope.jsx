@@ -1,3 +1,4 @@
+import {useState} from "react";
 import {useDispatch} from "react-redux";
 
 import {setNewScope, setEditedScope, setIsEditingScope} from "../scopesSlice";
@@ -9,9 +10,14 @@ import {Box} from "@mui/material";
 
 import FormScope from "./FormScope";
 import SectionScopeBottomActions from "./SectionScopeBottomActions";
+import SectionNewScopePresetConfigs from "./SectionNewScopePresetConfigs";
 
-export default function SectionScope({forceNew, onSaved}) {
+export default function SectionScope({forceNew, onSaved, newScopeProjectId}) {
   const dispatch = useDispatch();
+
+  // state
+
+  const [presetConfigKey, setPresetConfigKey] = useState("DEFAULT");
 
   // data
 
@@ -33,10 +39,24 @@ export default function SectionScope({forceNew, onSaved}) {
     }
   }
 
+  function handleSaved(scope) {
+    console.log("[SectionScope] new scope saved", scope);
+    if (onSaved) onSaved(scope);
+  }
+
   return (
     <Box sx={{width}}>
       {!loading && <FormScope scope={scope} onChange={handleChange} />}
-      <SectionScopeBottomActions forceNew={forceNew} onSaved={onSaved} />
+      <SectionNewScopePresetConfigs
+        presetConfigKey={presetConfigKey}
+        onChange={setPresetConfigKey}
+      />
+      <SectionScopeBottomActions
+        forceNew={forceNew}
+        newScopeProjectId={newScopeProjectId}
+        presetConfigKey={presetConfigKey}
+        onSaved={handleSaved}
+      />
     </Box>
   );
 }

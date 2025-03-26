@@ -20,6 +20,7 @@ export default function useScopes(options) {
 
   const fetchedScopes = useLiveQuery(async () => {
     let scopes;
+    setLoading(true);
     if (filterByProjectId) {
       scopes = await db.scopes
         .where("projectId")
@@ -30,15 +31,17 @@ export default function useScopes(options) {
     }
     setLoading(false);
     return scopes;
-  });
+  }, [filterByProjectId]);
 
   // demoScope
 
   useEffect(() => {
     if (fetchedScopes && isDemoProject) {
       setScopes([...fetchedScopes, demoScope]);
+    } else if (fetchedScopes) {
+      setScopes(fetchedScopes);
     }
-  }, [fetchedScopes]);
+  }, [fetchedScopes, isDemoProject]);
 
   // return
 

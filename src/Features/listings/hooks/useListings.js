@@ -1,16 +1,30 @@
+import {useState} from "react";
+
 import {useSelector} from "react-redux";
+
+import {useLiveQuery} from "dexie-react-hooks";
+import db from "App/db/db";
 
 export default function useListings(options) {
   // options
 
   const filterByProjectId = options?.filterByProjectId;
+  const filterBySelectedProject = options?.filterBySelectedProject;
+  const filterBySelectedScope = options?.filterBySelectedScope;
+
+  // state
+
+  const [loading, setLoading] = useState(true);
 
   // data
 
-  const listingsMap = useSelector((s) => s.listings.listingsMap);
-  //
+  let listings = useLiveQuery(async (params) => {
+    let listings = await db.listings.toArray();
 
-  let listings = Array.from(listingsMap.values());
+    setLoading(false);
+
+    return listings;
+  });
 
   // filters
 

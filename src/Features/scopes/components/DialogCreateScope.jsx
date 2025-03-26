@@ -2,7 +2,7 @@ import {Dialog, DialogTitle} from "@mui/material";
 
 import SectionScope from "./SectionScope";
 
-export default function DialogCreateScope({open, onClose}) {
+export default function DialogCreateScope({project, open, onClose}) {
   // strings
 
   const newScopeS = "Nouveau lot";
@@ -10,7 +10,11 @@ export default function DialogCreateScope({open, onClose}) {
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>{newScopeS}</DialogTitle>
-      <SectionScope forceNew={true} />
+      <SectionScope
+        newScopeProjectId={project?.id}
+        forceNew={true}
+        onSaved={onClose}
+      />
     </Dialog>
   );
 }

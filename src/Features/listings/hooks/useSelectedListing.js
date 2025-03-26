@@ -1,14 +1,12 @@
 import {useSelector} from "react-redux";
+import useListingsByScope from "./useListingsByScope";
 
 export default function useSelectedListing() {
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
-  const listingsMap = useSelector((s) => s.listings.listingsMap);
+  const {value: listings, loading} = useListingsByScope();
 
-  // helpers
+  const listing = listings?.find((l) => l.id === selectedListingId);
 
-  const listing = listingsMap.get(selectedListingId);
-
-  //
-
-  return listing;
+  console.log("[useSelectedListing] selectedI", selectedListingId);
+  return {value: listing, loading};
 }

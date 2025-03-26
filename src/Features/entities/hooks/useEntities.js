@@ -16,7 +16,7 @@ export default function useEntities(options) {
 
   // data
 
-  const selectedListing = useSelectedListing();
+  const {value: selectedListing} = useSelectedListing();
   const entityModel = useListingEntityModel(selectedListing);
 
   // helpers
@@ -29,6 +29,13 @@ export default function useEntities(options) {
 
   const value = useLiveQuery(async () => {
     try {
+      // edge case
+      if (!listingId) {
+        setLoading(false);
+        return [];
+      }
+      // fetch entities
+
       let entities = await db.entities
         .where("listingId")
         .equals(listingId)

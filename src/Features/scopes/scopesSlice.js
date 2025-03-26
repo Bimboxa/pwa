@@ -1,6 +1,6 @@
 import {createSlice} from "@reduxjs/toolkit";
 
-import demoScope from "./data/demoScope";
+import setInitScopeId from "Features/init/services/setInitScopeId";
 
 const scopesInitialState = {
   //
@@ -19,6 +19,7 @@ export const scopesSlice = createSlice({
   reducers: {
     setSelectedScopeId: (state, action) => {
       state.selectedScopeId = action.payload;
+      setInitScopeId(action.payload);
     },
     //
     setNewScope: (state, action) => {

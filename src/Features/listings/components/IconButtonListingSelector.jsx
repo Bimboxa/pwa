@@ -18,7 +18,7 @@ export default function IconButtonListingSelector() {
 
   // data
 
-  const selectedListing = useSelectedListing();
+  const {value: selectedListing} = useSelectedListing();
 
   // handlers
 
