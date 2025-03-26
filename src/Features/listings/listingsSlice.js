@@ -2,6 +2,8 @@ import {createSlice} from "@reduxjs/toolkit";
 
 import exampleListingsMap from "./data/exampleListingsMap";
 
+import setInitListingId from "Features/init/services/setInitListingId";
+
 const listingsInitialState = {
   //
   listingsMap: exampleListingsMap,
@@ -17,6 +19,7 @@ export const listingsSlice = createSlice({
   reducers: {
     setSelectedListingId: (state, action) => {
       state.selectedListingId = action.payload;
+      setInitListingId(action.payload);
     },
     //
     triggerListingsUpdate: (state) => {

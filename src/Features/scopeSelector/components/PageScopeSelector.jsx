@@ -2,7 +2,9 @@ import {useState} from "react";
 
 import {useSelector, useDispatch} from "react-redux";
 
-import {setPage} from "../scopeSelectorSlice";
+import {setPage, setOpen} from "../scopeSelectorSlice";
+import {setSelectedScopeId} from "Features/scopes/scopesSlice";
+import {setSelectedProjectId} from "Features/projects/projectsSlice";
 
 import useScopes from "Features/scopes/hooks/useScopes";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
@@ -44,7 +46,9 @@ export default function PageScopeSelector() {
   }
 
   function handleScopeClick(scope) {
-    if (onScopeClick) onScopeClick(scope);
+    dispatch(setSelectedScopeId(scope.id));
+    dispatch(setSelectedProjectId(scope.projectId));
+    dispatch(setOpen(false));
   }
 
   function handleNewScopeClick() {
@@ -96,6 +100,7 @@ export default function PageScopeSelector() {
       </BoxFlexVStretch>
 
       <DialogCreateScope
+        project={project}
         open={openCreateScope}
         onClose={() => setOpenCreateScope(false)}
       />

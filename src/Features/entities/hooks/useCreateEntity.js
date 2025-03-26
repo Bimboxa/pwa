@@ -9,7 +9,7 @@ export default function useCreateEntity() {
   // data
 
   const {value: userEmail} = useUserEmail();
-  const listing = useSelectedListing();
+  const {value: listing} = useSelectedListing();
 
   // helper
 

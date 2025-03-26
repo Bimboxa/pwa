@@ -2,7 +2,7 @@ import {useDispatch} from "react-redux";
 
 import {setSelectedListingId} from "../listingsSlice";
 
-import useListings from "../hooks/useListings";
+import useListingsByScope from "../hooks/useListingsByScope";
 
 import DialogFs from "Features/layout/components/DialogFs";
 import ListListings from "./ListListings";
@@ -13,19 +13,22 @@ export default function PanelSelectorListing({onListingSelected}) {
 
   // data
 
-  const listings = useListings();
+  const {value: listings, loading} = useListingsByScope();
 
   // handlers
 
   function handleListingClick(listing) {
     dispatch(setSelectedListingId(listing.id));
     if (onListingSelected) onListingSelected();
-    onClose();
   }
 
   return (
     <Box sx={{width: 1}}>
-      <ListListings listings={listings} onClick={handleListingClick} />
+      <ListListings
+        loading={loading}
+        listings={listings}
+        onClick={handleListingClick}
+      />
     </Box>
   );
 }

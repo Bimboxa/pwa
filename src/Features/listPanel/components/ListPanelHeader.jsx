@@ -9,7 +9,7 @@ import IconButtonMoreInHeader from "./IconButtonMoreInHeader";
 export default function ListPanelHeader({open}) {
   // data
 
-  const selectedListing = useSelectedListing();
+  const {value: selectedListing} = useSelectedListing();
   const deviceType = useSelector((s) => s.layout.deviceType);
 
   // helper

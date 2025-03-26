@@ -1,5 +1,5 @@
 import {createSlice} from "@reduxjs/toolkit";
-import {setIsEditingEntity} from "Features/entities/entitiesSlice";
+import setInitProjectId from "Features/init/services/setInitProjectId";
 
 const projectsInitialState = {
   projectsMap: {},
@@ -18,6 +18,7 @@ export const projectsSlice = createSlice({
   reducers: {
     setSelectedProjectId: (state, action) => {
       state.selectedProjectId = action.payload;
+      setInitProjectId(action.payload);
     },
     //
     setNewProject: (state, action) => {

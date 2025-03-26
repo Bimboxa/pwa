@@ -6,7 +6,7 @@ import ButtonCreateListingItem from "Features/listings/components/ButtonCreateLi
 export default function ListPanelBottom() {
   // data
 
-  const listing = useSelectedListing();
+  const {value: listing} = useSelectedListing();
 
   return (
     <Box sx={{width: 1, p: 1}}>
