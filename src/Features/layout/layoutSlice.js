@@ -3,6 +3,7 @@ import {createSlice} from "@reduxjs/toolkit";
 const layoutInitialState = {
   //
   deviceType: null, // "MOBILE" | "DESKTOP"
+
   //
   viewModeInMobile: "LIST", // "MAP" | "LIST"
 };
