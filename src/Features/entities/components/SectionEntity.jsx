@@ -9,14 +9,14 @@ import {
 import useEntity from "../hooks/useEntity";
 import useEntityFormTemplate from "../hooks/useEntityFormTemplate";
 
-import {Box} from "@mui/material";
+import {Box, Paper} from "@mui/material";
 
 import FormEntity from "./FormEntity";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import BlockBottomActionsInListPanel from "./BlockBottomActionsInListPanel";
 import {setOpenPanelListItem} from "Features/listPanel/listPanelSlice";
 
-export default function SectionEntity() {
+export default function SectionEntity({selectorContainerRef}) {
   const dispatch = useDispatch();
   // data
 
@@ -39,16 +39,24 @@ export default function SectionEntity() {
   }
 
   return (
-    <BoxFlexVStretch>
+    <Paper
+      sx={{
+        width: 1,
+        display: "flex",
+        flexDirection: "column",
+        flexGrow: 1,
+      }}
+    >
       <Box sx={{flexGrow: 1}}>
         <FormEntity
           template={template}
           entity={entity}
           onEntityChange={handleEntityChange}
+          selectorContainerRef={selectorContainerRef}
         />
       </Box>
 
       <BlockBottomActionsInListPanel onSaved={handleSaved} />
-    </BoxFlexVStretch>
+    </Paper>
   );
 }

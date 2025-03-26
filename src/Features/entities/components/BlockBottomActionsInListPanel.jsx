@@ -1,11 +1,17 @@
 import {useState} from "react";
 
+import {useDispatch} from "react-redux";
+import {setIsEditingEntity} from "../entitiesSlice";
+
 import useEntity from "../hooks/useEntity";
 import useCreateEntity from "../hooks/useCreateEntity";
 import useUpdateEntity from "../hooks/useUpdateEntity";
 
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
+
 export default function BlockBottomActionsInListPanel({onSaved}) {
+  const dispatch = useDispatch();
+
   // strings
 
   const saveS = "Enregistrer";
@@ -31,6 +37,7 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
       await create(entity);
     } else {
       await update(entity.id, entity);
+      dispatch(setIsEditingEntity(false));
     }
     //
     setLoading(false);

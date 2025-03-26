@@ -1,24 +1,44 @@
-import {nanoid} from "@reduxjs/toolkit";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import db from "App/db/db";
-import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import getEntityPureDataAndFilesDataByKey from "../utils/getEntityPureDataAndFilesDataByKey";
 
 export default function useUpdateEntity() {
   // data
 
   const {value: userEmail} = useUserEmail();
+  const {value: listing} = useSelectedListing();
 
   // helper
 
   const update = async (entityId, updates) => {
-    const changes = {
+    let changes = {
       ...updates,
       updatedBy: userEmail,
       updatedAt: new Date().toISOString(),
     };
+
+    // data
+    const {pureData, filesDataByKey} = getEntityPureDataAndFilesDataByKey(
+      changes,
+      {
+        entityId,
+        listingId: listing?.id,
+      }
+    );
+
+    // store files
+    if (filesDataByKey) {
+      await Promise.all(
+        Object.values(filesDataByKey).map(async (fileData) => {
+          await db.files.put(fileData);
+        })
+      );
+    }
+
     try {
-      await db.entities.update(entityId, changes);
+      await db.entities.update(entityId, pureData);
     } catch (e) {
       console.log("[db] error updating the entity", e);
     }

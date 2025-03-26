@@ -12,7 +12,7 @@ export default function SectionListEntitiesInListPanel() {
 
   // data
 
-  const {value: entities, loading} = useEntities();
+  const {value: entities, loading} = useEntities({withImages: true});
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
 
   // helpers

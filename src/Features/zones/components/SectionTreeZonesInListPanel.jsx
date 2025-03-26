@@ -1,9 +1,11 @@
-import useZones from "../hooks/useZones";
+import useZonesTree from "../hooks/useZonesTree";
+
+import {Box} from "@mui/material";
 
 import TreeZones from "./TreeZones";
 
 export default function SectionTreeZonesInListPanel() {
-  const zones = useZones();
+  const {value: zonesTree, loading} = useZonesTree();
 
-  return <TreeZones items={zones} />;
+  return loading ? <Box /> : <TreeZones items={zonesTree} />;
 }

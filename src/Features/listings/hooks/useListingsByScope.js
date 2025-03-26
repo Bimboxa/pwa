@@ -25,6 +25,7 @@ export default function useListingsByScope() {
 
     // listings
     let listings = await db.listings.bulkGet(listingsIds);
+    listings = listings.filter(Boolean);
     setLoading(false);
     return listings;
   });

@@ -62,7 +62,7 @@ export default function FieldImageVariantGrid({
         </Typography>
       </Grid2>
       <Grid2 size={size}>
-        <BoxCenter sx={{position: "relative", width: 1}}>
+        <BoxCenter sx={{position: "relative", width: 1, minHeight: 100}}>
           {imageSrc ? (
             <img
               src={imageSrc}

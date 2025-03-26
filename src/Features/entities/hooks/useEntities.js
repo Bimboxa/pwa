@@ -41,6 +41,8 @@ export default function useEntities(options) {
         .equals(listingId)
         .toArray();
 
+      entities = entities.filter(Boolean);
+
       // add images
       if (withImages) {
         entities = await Promise.all(
@@ -59,6 +61,7 @@ export default function useEntities(options) {
                 };
               })
             );
+            return entityWithImages;
           })
         );
       }

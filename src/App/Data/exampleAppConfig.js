@@ -15,19 +15,39 @@ const exampleAppConfig = {
     },
   },
   entityModelsObject: {
-    location: {
-      key: "location",
-      type: "LOCATION_ENTITY_MODEL",
-      color: red[300],
-      iconKey: "room",
+    zone: {
+      key: "zone",
+      type: "ZONE_ENTITY_MODEL",
       strings: {
         labelNew: "Nouvelle pièce",
       },
     },
+    material: {
+      key: "material",
+      strings: {
+        labelNew: "Nouveau matériau",
+      },
+      labelKey: "description",
+      fieldsObject: {
+        description: {
+          key: "description",
+          type: "text",
+          label: "Description",
+        },
+        photo: {
+          key: "photo",
+          type: "image",
+          label: "Image",
+        },
+        zones: {
+          key: "zones",
+          type: "zones",
+          label: "Pièces",
+        },
+      },
+    },
     comment: {
       key: "comment",
-      color: red[500],
-      iconKey: "comment",
       type: "locatedEntityModel",
       strings: {
         labelNew: "Nouveau commentaire",
@@ -94,6 +114,7 @@ const exampleAppConfig = {
   },
   presetListingsMap: {
     zones: {
+      key: "zones",
       name: "Pièces",
       entityModelKey: "zone",
       color: red[300],
@@ -104,6 +125,7 @@ const exampleAppConfig = {
       entityModelKey: "material",
       color: orange[300],
       iconKey: "material",
+      zoningKey: "zones", // we don't know yet the listingId of the zones.
     },
     samples: {
       name: "Prélèvements",
@@ -119,9 +141,15 @@ const exampleAppConfig = {
     },
     locations: {
       name: "Localisations",
-      entityModelKey: "locations",
+      entityModelKey: "location",
       color: blue[300],
       iconKey: "location",
+    },
+    comments: {
+      name: "Commentaires",
+      entityModelKey: "comment",
+      color: red[800],
+      iconKey: "comment",
     },
   },
   presetScopesObject: {

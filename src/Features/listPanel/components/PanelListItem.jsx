@@ -1,3 +1,4 @@
+import {useRef} from "react";
 import {useSelector, useDispatch} from "react-redux";
 
 import {setOpenPanelListItem} from "../listPanelSlice";
@@ -9,6 +10,7 @@ import BlockEntityInListPanel from "Features/entities/components/BlockEntityInLi
 
 export default function PanelListItem() {
   const dispatch = useDispatch();
+  const selectorContainerRef = useRef(null);
 
   // data
 
@@ -35,6 +37,7 @@ export default function PanelListItem() {
       }}
     >
       <Paper
+        ref={selectorContainerRef}
         sx={{
           width: listPanelWidth,
           bgcolor: "common.white",
@@ -54,7 +57,7 @@ export default function PanelListItem() {
               flexDirection: "column",
             }}
           >
-            <SectionEntity />
+            <SectionEntity selectorContainerRef={selectorContainerRef} />
           </Box>
         )}
       </Paper>

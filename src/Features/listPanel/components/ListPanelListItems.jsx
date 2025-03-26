@@ -12,7 +12,7 @@ export default function ListPanelListItems() {
   const entityModel = useListingEntityModel(listing);
 
   // helpers
-  const isZones = entityModel?.type === "LOCATION_ENTITY_MODEL";
+  const isZones = entityModel?.type === "ZONE_ENTITY_MODEL";
 
   return (
     <Box

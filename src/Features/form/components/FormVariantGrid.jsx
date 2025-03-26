@@ -4,10 +4,16 @@ import {Box} from "@mui/material";
 
 import FieldTextVariantGrid from "./FieldTextVariantGrid";
 import FieldImageVariantGrid from "./FieldImageVariantGrid";
+import FieldZonesVariantGrid from "./FieldZonesVariantGrid";
 
 import getTemplateFields from "../utils/getTemplateFields";
 
-export default function FormVariantGrid({template, item, onItemChange}) {
+export default function FormVariantGrid({
+  template,
+  item,
+  onItemChange,
+  selectorContainerRef,
+}) {
   // state
 
   let templateFields = getTemplateFields(template);
@@ -55,6 +61,22 @@ export default function FormVariantGrid({template, item, onItemChange}) {
               onChange={(newValue) =>
                 handleFieldValueChange(field.key, newValue)
               }
+            />
+          );
+        }
+
+        if (field?.type === "zones") {
+          return (
+            <FieldZonesVariantGrid
+              key={field.key}
+              label={field.label}
+              width={field.width}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              zonesTree={field.zonesTree}
+              selectorContainerRef={selectorContainerRef}
             />
           );
         }

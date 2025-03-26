@@ -26,6 +26,8 @@ export default function useCreateEntity() {
       }
     );
 
+    console.log("[useCreateEntity] pureData", pureData, filesDataByKey);
+
     // store files
     if (filesDataByKey) {
       await Promise.all(

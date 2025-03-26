@@ -3,7 +3,12 @@ import useIsMobile from "Features/layout/hooks/useIsMobile";
 import FormVariantMobile from "Features/form/components/FormVariantMobile";
 import FormVariantGrid from "Features/form/components/FormVariantGrid";
 
-export default function FormEntity({template, entity, onEntityChange}) {
+export default function FormEntity({
+  template,
+  entity,
+  onEntityChange,
+  selectorContainerRef,
+}) {
   // data
 
   const isMobile = useIsMobile();
@@ -28,6 +33,7 @@ export default function FormEntity({template, entity, onEntityChange}) {
           template={template}
           item={entity}
           onItemChange={handleItemChange}
+          selectorContainerRef={selectorContainerRef}
         />
       )}
     </>
