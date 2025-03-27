@@ -39,7 +39,7 @@ export default function FieldOptionSelector({value, onChange, options}) {
       >
         {options.map((option) => (
           <MenuItem
-            key={option.value}
+            key={option.id}
             onClick={() => {
               handleChange(option);
               setAnchorEl(null);

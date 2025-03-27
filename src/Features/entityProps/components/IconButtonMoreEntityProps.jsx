@@ -23,7 +23,10 @@ export default function IconButtonMoreEntityProps() {
         open={openCreateOption}
         onClose={() => setOpenCreateOption(false)}
       >
-        <PanelCreateOption />
+        <PanelCreateOption
+          onSaved={() => setOpenCreateOption(false)}
+          onCancelled={() => setOpenCreateOption(false)}
+        />
       </DialogGeneric>
       <IconButtonMenu
         icon={<MoreHoriz />}

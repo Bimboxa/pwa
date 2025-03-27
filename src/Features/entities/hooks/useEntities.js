@@ -29,17 +29,24 @@ export default function useEntities(options) {
   // helpers
 
   let labelKeyByListingId = {};
-  if (!loadingSelection && !loadingList) {
-    labelKeyByListingId = [...(listings ?? []), selectedListing].reduce(
-      (acc, listing) => {
-        if (listing?.id) {
-          acc[listing.id] = listing.entityModel?.labelKey;
-        }
+  let listingKeyByListingId = {};
 
-        return acc;
-      },
-      {}
-    );
+  if (!loadingSelection && !loadingList) {
+    const allListings = [...(listings ?? []), selectedListing];
+    labelKeyByListingId = allListings.reduce((acc, listing) => {
+      if (listing?.id) {
+        acc[listing.id] = listing.entityModel?.labelKey;
+      }
+
+      return acc;
+    }, {});
+    listingKeyByListingId = allListings.reduce((acc, listing) => {
+      if (listing?.id) {
+        acc[listing.id] = listing.key;
+      }
+
+      return acc;
+    }, {});
   }
   // helpers
 
@@ -98,11 +105,12 @@ export default function useEntities(options) {
         );
       }
 
-      // add label
+      // add label && listingKey
       entities = entities.map((entity) => {
         const labelKey = labelKeyByListingId[entity.listingId];
         const label = entity[labelKey];
-        return {...entity, label};
+        const listingKey = listingKeyByListingId[entity.listingId];
+        return {...entity, label, listingKey};
       });
       // end
       setLoading(false);
