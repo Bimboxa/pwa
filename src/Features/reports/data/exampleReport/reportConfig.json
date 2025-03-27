@@ -1,0 +1,54 @@
+{
+  "reportType": "excel",
+  "dataSrc": [
+    {
+      "user": ["appData", "user"],
+      "organisation": ["datasetOrganisation"],
+      "project": ["datasetProject"],
+      "samples": ["datasetSamples"]
+    }
+  ],
+  "tagFusion": [
+    {
+      "tab": 1,
+      "tags": [
+        {
+          "label": "Nom / Raison sociale",
+          "cell": "C3",
+          "value": "organisation.name"
+        },
+        {
+          "label": "Addesse mail d'envoi du rapport",
+          "cell": "C6",
+          "value": "user.emailLaboAddress"
+        },
+        {
+          "label": "Addresse du chantier",
+          "cell": "C7",
+          "value": "project.address"
+        },
+        {
+          "label": "Date de prélèvement des échantillons",
+          "cell": "I6",
+          "value": "samples[0].createdAtDay"
+        }
+      ]
+    }
+  ],
+  "tableFusion": [
+    {
+      "tab": 2,
+      "tables": [
+        {
+          "label": "Tableau des échantillons",
+          "table": "samples",
+          "fusion": [
+            ["AA", "number"],
+            ["B4", "material"],
+            ["C4", "zone"]
+          ]
+        }
+      ]
+    }
+  ]
+}

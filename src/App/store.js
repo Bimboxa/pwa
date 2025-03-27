@@ -11,6 +11,7 @@ import scopeSelectorReducer from "Features/scopeSelector/scopeSelectorSlice";
 import viewersReducer from "Features/viewers/viewersSlice";
 import listingsReducer from "Features/listings/listingsSlice";
 import entitiesReducer from "Features/entities/entitiesSlice";
+import entityPropsReducer from "Features/entityProps/entityPropsSlice";
 import zonesReducer from "Features/zones/zonesSlice";
 import locatedEntitiesReducer from "Features/locatedEntities/locatedEntitiesSlice";
 import mapsReducer from "Features/maps/mapsSlice";
@@ -18,6 +19,7 @@ import shapesReducer from "Features/shapes/shapesSlice";
 import markersReducer from "Features/markers/markersSlice";
 import threedEditorReducer from "Features/threedEditor/threedEditorSlice";
 import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
+import reportsReducer from "Features/reports/reportsSlice";
 //
 import gapiReducer from "Features/gapi/gapiSlice";
 import dropboxReducer from "Features/dropbox/dropboxSlice";
@@ -37,6 +39,7 @@ const store = configureStore({
     scopeSelector: scopeSelectorReducer,
     listings: listingsReducer,
     entities: entitiesReducer,
+    entityProps: entityPropsReducer,
     zones: zonesReducer,
     locatedEntities: locatedEntitiesReducer,
     viewers: viewersReducer,
@@ -45,6 +48,7 @@ const store = configureStore({
     markers: markersReducer,
     mapEditor: mapEditorReducer,
     threedEditor: threedEditorReducer,
+    reports: reportsReducer,
     //
     gapi: gapiReducer,
     dropbox: dropboxReducer,

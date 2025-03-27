@@ -7,6 +7,7 @@ import {
   Info,
   LocationOn,
   OfflineBolt,
+  ShoppingCart,
 } from "@mui/icons-material";
 
 const iconsMap = new Map();
@@ -17,5 +18,6 @@ iconsMap.set("material", FormatColorFill);
 iconsMap.set("sample", Troubleshoot);
 iconsMap.set("info", Info);
 iconsMap.set("location", LocationOn);
+iconsMap.set("shoppingCart", ShoppingCart);
 
 export default iconsMap;

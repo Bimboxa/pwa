@@ -1,4 +1,4 @@
-import {orange, red, blue} from "@mui/material/colors";
+import {orange, red, blue, green} from "@mui/material/colors";
 
 const exampleAppConfig = {
   remoteProjectsContainers: [
@@ -70,12 +70,17 @@ const exampleAppConfig = {
       },
     },
     sample: {
-      type: "locatedEntityModel",
+      type: "LOCATED_ENTITY",
       key: "sample",
       label: "Prélèvement",
-      fields: {
+      strings: {
+        labelNew: "Nouveau prélèvement",
+      },
+      labelKey: "num",
+      fieldsObject: {
         num: {
           key: "num",
+          label: "Numéro",
           type: "text",
           options: {
             increment: "auto",
@@ -83,6 +88,7 @@ const exampleAppConfig = {
         },
         photo: {
           key: "photo",
+          label: "Photo",
           type: "image",
           options: {
             variant: "auto",
@@ -111,6 +117,21 @@ const exampleAppConfig = {
         },
       },
     },
+    laboOrder: {
+      label: "Commande labo",
+      type: "ENTITY_PROPS",
+      labelKey: "order",
+      actionsTemplate: {
+        type: "SELECT_OPTIONS",
+        optionKey: "order",
+      },
+      props: {
+        order: {
+          key: "order",
+          type: "options",
+        },
+      },
+    },
   },
   presetListingsMap: {
     zones: {
@@ -128,6 +149,7 @@ const exampleAppConfig = {
       zoningKey: "zones", // we don't know yet the listingId of the zones.
     },
     samples: {
+      key: "samples",
       name: "Prélèvements",
       entityModelKey: "sample",
       color: blue[700],
@@ -151,8 +173,20 @@ const exampleAppConfig = {
       color: red[800],
       iconKey: "comment",
     },
+    laboOrders: {
+      name: "Commandes labo",
+      entityModelKey: "laboOrder",
+      color: green[900],
+      iconKey: "shoppingCart",
+      targetKeys: ["samples"],
+    },
   },
   presetScopesObject: {
+    presetDebug: {
+      key: "presetDebug",
+      name: "Debug",
+      listings: ["zones", "materials", "samples", "laboOrders"],
+    },
     preset1: {
       key: "preset1",
       name: "Diagnostic amiante",

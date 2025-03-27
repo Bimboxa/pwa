@@ -6,6 +6,7 @@ import {Box} from "@mui/material";
 //import IconButtonMenuMoreShapes from "Features/shapes/components/IconButtonMenuMoreShapes";
 import IconButtonMoreZones from "Features/zones/components/IconButtonMoreZones";
 import IconButtonMoreListing from "Features/listings/components/IconButtonMoreListing";
+import IconButtonMoreEntityProps from "Features/entityProps/components/IconButtonMoreEntityProps";
 
 export default function IconButtonMoreInHeader() {
   // data
@@ -19,11 +20,16 @@ export default function IconButtonMoreInHeader() {
 
   const isZones = entityModel?.type === "ZONE_ENTITY_MODEL";
 
-  return (
-    <>
-      {/* {type === "SHAPES" && <IconButtonMenuMoreShapes />} */}
-      {isZones && <IconButtonMoreZones />}
-      {!isZones && <IconButtonMoreListing />}
-    </>
+  // helpers
+
+  const componentByEntityModel = {
+    ZONE_ENTITY_MODEL: <IconButtonMoreZones />,
+    ENTITY_PROPS: <IconButtonMoreEntityProps />,
+  };
+
+  const component = componentByEntityModel[entityModel?.type] ?? (
+    <IconButtonMoreListing />
   );
+
+  return component;
 }
