@@ -9,6 +9,7 @@ db.version(1).stores({
   relsScopeItem:
     "id,[scopeId+itemTable],[itemTable+itemId],scopeId,itemTable,itemId",
   entities: "id,listingId",
+  entitiesProps: "id,targetListingKey,targetEntityId", // entityProps = {id,tarketListingKey,targetEntityId,props}
   files: "id,listingId,entityId",
 });
 

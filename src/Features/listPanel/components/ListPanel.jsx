@@ -40,7 +40,7 @@ export default function ListPanel() {
         {/* <SectionShapesInListPanel /> */}
         <ListPanelListItems />
       </BoxFlexVStretch>
-      <ListPanelBottom />
+      {/* <ListPanelBottom /> */}
       <PanelListItem />
     </Box>
   );

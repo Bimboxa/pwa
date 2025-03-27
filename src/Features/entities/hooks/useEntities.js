@@ -1,6 +1,7 @@
 import {useState} from "react";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useListingEntityModel from "./useListingEntityModel";
+import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
 import {useLiveQuery} from "dexie-react-hooks";
 import db from "App/db/db";
@@ -9,6 +10,7 @@ export default function useEntities(options) {
   // options
 
   const withImages = options?.withImages;
+  const filterByListingsKeys = options?.filterByListingsKeys;
 
   // state
 
@@ -16,30 +18,60 @@ export default function useEntities(options) {
 
   // data
 
-  const {value: selectedListing} = useSelectedListing();
-  const entityModel = useListingEntityModel(selectedListing);
+  const {value: selectedListing, loading: loadingSelection} =
+    useSelectedListing({withEntityModel: true});
+
+  const {value: listings, loading: loadingList} = useListingsByScope({
+    withEntityModel: true,
+    filterByKeys: filterByListingsKeys ?? [],
+  });
 
   // helpers
 
-  const labelKey = entityModel?.labelKey;
+  let labelKeyByListingId = {};
+  if (!loadingSelection && !loadingList) {
+    labelKeyByListingId = [...(listings ?? []), selectedListing].reduce(
+      (acc, listing) => {
+        if (listing?.id) {
+          acc[listing.id] = listing.entityModel?.labelKey;
+        }
 
+        return acc;
+      },
+      {}
+    );
+  }
   // helpers
 
-  const listingId = selectedListing?.id;
+  const listingsIds = filterByListingsKeys
+    ? listings?.map((l) => l.id)
+    : selectedListing?.id
+    ? [selectedListing?.id]
+    : [];
+
+  const listingsIdsHash = listingsIds?.sort().join(",");
 
   const value = useLiveQuery(async () => {
     try {
       // edge case
-      if (!listingId) {
+      if (listingsIds.length === 0) {
         setLoading(false);
         return [];
       }
       // fetch entities
 
-      let entities = await db.entities
-        .where("listingId")
-        .equals(listingId)
-        .toArray();
+      let entities = [];
+      if (listingsIds.length > 1) {
+        entities = await db.entities
+          .where("listingId")
+          .anyOf(listingsIds)
+          .toArray();
+      } else if (listingsIds.length === 1) {
+        entities = await db.entities
+          .where("listingId")
+          .equals(listingsIds[0])
+          .toArray();
+      }
 
       entities = entities.filter(Boolean);
 
@@ -68,6 +100,7 @@ export default function useEntities(options) {
 
       // add label
       entities = entities.map((entity) => {
+        const labelKey = labelKeyByListingId[entity.listingId];
         const label = entity[labelKey];
         return {...entity, label};
       });
@@ -79,7 +112,7 @@ export default function useEntities(options) {
       setLoading(false);
       return [];
     }
-  }, [listingId, labelKey]);
+  }, [listingsIdsHash]);
 
   return {value, loading};
 }

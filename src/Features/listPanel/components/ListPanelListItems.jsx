@@ -5,6 +5,7 @@ import {Box} from "@mui/material";
 
 import SectionListEntitiesInListPanel from "Features/entities/components/SectionListEntitiesInListPanel";
 import SectionTreeZonesInListPanel from "Features/zones/components/SectionTreeZonesInListPanel";
+import SectionListEntityPropsInListPanel from "Features/entityProps/components/SectionListEntityPropsInListPanel";
 
 export default function ListPanelListItems() {
   // data
@@ -12,7 +13,15 @@ export default function ListPanelListItems() {
   const entityModel = useListingEntityModel(listing);
 
   // helpers
-  const isZones = entityModel?.type === "ZONE_ENTITY_MODEL";
+
+  const componentByType = {
+    ZONE_ENTITY_MODEL: <SectionTreeZonesInListPanel />,
+    ENTITY_PROPS: <SectionListEntityPropsInListPanel />,
+  };
+
+  const component = componentByType[entityModel?.type] ?? (
+    <SectionListEntitiesInListPanel />
+  );
 
   return (
     <Box
@@ -25,8 +34,7 @@ export default function ListPanelListItems() {
         overflow: "auto",
       }}
     >
-      {!isZones && <SectionListEntitiesInListPanel />}
-      {isZones && <SectionTreeZonesInListPanel />}
+      {component}
     </Box>
   );
 }
