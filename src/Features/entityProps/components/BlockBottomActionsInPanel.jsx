@@ -1,35 +1,16 @@
-import {Box, Paper} from "@mui/material";
+import {Box, Paper, Typography} from "@mui/material";
 import useSelectedEntity from "Features/entities/hooks/useSelectedEntity";
 import FieldOptionSelector from "Features/form/components/FieldOptionSelector";
 import BottomBarCancelSave from "Features/layout/components/BottomBarCancelSave";
 import SwitchMultiSelect from "./SwitchMultiSelect";
 import SectionActionsEntityProps from "./SectionActionsEntityProps";
+import {useSelector} from "react-redux";
 
 export default function BlockBottomActionsInPanel() {
-  const actions = [
-    {
-      type: "options",
-      options: [
-        {id: 1, label: "commande 1", color: "red"},
-        {id: 2, label: "commande 2", color: "blue"},
-      ],
-    },
-  ];
+  const selection = useSelector((s) => s.entityProps.selection);
+  const multiSelect = useSelector((s) => s.entityProps.multiSelect);
 
-  // helpers
-
-  const option = {id: 1, label: "command1"};
-  const options = actions[0].options;
-
-  // handlers
-
-  function handleOptionChange(option) {
-    console.log(option);
-  }
-
-  function handleSave() {}
-
-  function handleCancel() {}
+  const countLabel = `(x${selection.length})`;
 
   return (
     <Paper elevation={6} sx={{width: 1, p: 1}}>
@@ -42,7 +23,10 @@ export default function BlockBottomActionsInPanel() {
       </BottomBarCancelSave> */}
 
       <SectionActionsEntityProps />
-      <SwitchMultiSelect />
+      <Box sx={{display: "flex", alignItems: "center"}}>
+        <SwitchMultiSelect />
+        {multiSelect && <Typography variant="caption">{countLabel}</Typography>}
+      </Box>
     </Paper>
   );
 }

@@ -174,6 +174,7 @@ const exampleAppConfig = {
       iconKey: "comment",
     },
     laboOrders: {
+      key: "laboOrders",
       name: "Commandes labo",
       entityModelKey: "laboOrder",
       color: green[900],

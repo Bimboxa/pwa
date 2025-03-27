@@ -23,6 +23,7 @@ export default function useEntitiesWithProps() {
     return {
       ...entity,
       props: entityProps.props,
+      propsLabel: entityProps.propsLabel,
       entityPropsId: entityProps.id,
     };
   });
@@ -33,10 +34,11 @@ export default function useEntitiesWithProps() {
       .where("targetListingKey")
       .anyOf(targetKeys)
       .toArray();
-    const propsByEntityId = props.reduce((acc, prop) => {
-      acc[prop.entityId] = {
-        ...prop,
-        label: getPropsLabel(prop.props, listing.entityModel),
+    const propsByEntityId = props.reduce((acc, propsItem) => {
+      const props = propsItem.props;
+      acc[propsItem.targetEntityId] = {
+        ...propsItem,
+        propsLabel: getPropsLabel(props, listing.entityModel),
       };
       return acc;
     }, {});

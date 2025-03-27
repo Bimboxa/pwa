@@ -17,8 +17,11 @@ export default function BlockEntityPropsActions({listing, props, onChange}) {
   function handleOptionChange(option) {
     if (type === "SELECT_OPTIONS") {
       const optionKey = actionsTemplate?.optionKey;
-      const newEntityProps = {...props, [optionKey]: option};
-      onChange(newEntityProps);
+      const newEntityProps = {
+        ...props,
+        [optionKey]: {value: option, type: "option"},
+      };
+      onChange({changedKeys: [optionKey], props: newEntityProps});
     }
   }
 

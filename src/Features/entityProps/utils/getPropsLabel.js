@@ -12,4 +12,6 @@ export default function getPropsLabel(props, entityModel) {
   } else if (prop.type === "option") {
     propsLabel = prop.value.label;
   }
+
+  return propsLabel;
 }

@@ -18,6 +18,7 @@ export default function SectionListEntityPropsInListPanel() {
   const {value: entities, loading} = useEntitiesWithProps();
   //const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
 
+  console.log("entities", entities);
   // helpers
 
   // handlers

@@ -1,4 +1,8 @@
+import {nanoid} from "@reduxjs/toolkit";
 import {useState} from "react";
+
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import useUpdateListing from "Features/listings/hooks/useUpdateListing";
 
 import {blue} from "@mui/material/colors";
 
@@ -11,6 +15,11 @@ export default function PanelCreateOption({onSaved, onCancelled}) {
 
   const createOptionLabel = "Créer une commande";
 
+  // data
+
+  const {value: listing} = useSelectedListing();
+  const updateListing = useUpdateListing();
+
   // state
 
   const [option, setOption] = useState({color: blue[800]});
@@ -19,7 +28,7 @@ export default function PanelCreateOption({onSaved, onCancelled}) {
 
   const template = {
     fields: [
-      {key: "name", label: "Nom", type: "text"},
+      {key: "label", label: "Nom", type: "text"},
       {
         key: "description",
         label: "Description",
@@ -35,7 +44,11 @@ export default function PanelCreateOption({onSaved, onCancelled}) {
 
   // handlers
 
-  function handleSave() {
+  async function handleSave() {
+    const options = listing.options ?? [];
+    const newOption = {...option, id: nanoid()};
+    const newOptions = [...options, newOption];
+    await updateListing({id: listing.id, options: newOptions});
     if (onSaved) onSaved();
   }
 
@@ -45,7 +58,11 @@ export default function PanelCreateOption({onSaved, onCancelled}) {
   return (
     <Panel>
       <FormGeneric template={template} item={option} onItemChange={setOption} />
-      <BottomBarCancelSave sx={{mt: 1}} />
+      <BottomBarCancelSave
+        sx={{mt: 1}}
+        onCancel={handleCancel}
+        onSave={handleSave}
+      />
     </Panel>
   );
 }
