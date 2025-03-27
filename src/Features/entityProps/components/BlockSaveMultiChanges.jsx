@@ -1,8 +1,6 @@
-import {useState, useEffect} from "react";
-
 import {useSelector, useDispatch} from "react-redux";
 
-import {setTempPropsObject} from "../entityPropsSlice";
+import {setTempPropsObject, setSelection} from "../entityPropsSlice";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useEntitiesWithProps from "../hooks/useEntitiesWithProps";
@@ -10,12 +8,9 @@ import useEntitiesWithProps from "../hooks/useEntitiesWithProps";
 import useCreateOrUpdateEntityProps from "../hooks/useCreateOrUpdateEntityProps";
 import useDeleteEntityProps from "../hooks/useDeleteEntityProps";
 
-import {Box, Typography} from "@mui/material";
 import BlockButtonsCancelSave from "Features/layout/components/BlockButtonsCancelSave";
-import BlockEntityPropsActions from "./BlockEntityPropsActions";
-import getMergedProps from "../utils/getMergedProps";
 
-export default function SectionActionsEntityPropsVariantMulti() {
+export default function BlockSaveMultiChanges() {
   const dispatch = useDispatch();
 
   const tempPropsObject = useSelector((s) => s.entityProps.tempPropsObject);
@@ -37,28 +32,9 @@ export default function SectionActionsEntityPropsVariantMulti() {
     selection.includes(entity.id)
   );
 
-  const selectionS = `Sélection: x${selection.length}`;
-
-  // effects -update tempPropsObject
-  useEffect(() => {
-    if (!selectedEntitiesWithProps) return;
-    if (selectedEntitiesWithProps.length === 0) {
-      dispatch(setTempPropsObject(null));
-    } else {
-      const props = getMergedProps(selectedEntitiesWithProps);
-      dispatch(setTempPropsObject({props}));
-    }
-  }, [selection]);
-
-  // handlers
-
-  function handleChange(newPropsObject) {
-    console.log("newPropsObject", newPropsObject);
-    dispatch(setTempPropsObject(newPropsObject));
-  }
-
   function handleCancel() {
     dispatch(setTempPropsObject(null));
+    dispatch(setSelection([]));
   }
 
   async function handleSave() {
@@ -71,6 +47,7 @@ export default function SectionActionsEntityPropsVariantMulti() {
         })
       );
       dispatch(setTempPropsObject(null));
+      dispatch(setSelection([]));
       return;
     }
 
@@ -91,25 +68,5 @@ export default function SectionActionsEntityPropsVariantMulti() {
     dispatch(setTempPropsObject(null));
   }
 
-  return (
-    <Box
-      sx={{
-        width: 1,
-        p: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}
-    >
-      {/* <BlockButtonsCancelSave onCancel={handleCancel} onSave={handleSave} /> */}
-      <Typography variant="body2" color="text.secondary">
-        {selectionS}
-      </Typography>
-      <BlockEntityPropsActions
-        listing={listing}
-        propsObject={tempPropsObject}
-        onChange={handleChange}
-      />
-    </Box>
-  );
+  return <BlockButtonsCancelSave onSave={handleSave} onCancel={handleCancel} />;
 }

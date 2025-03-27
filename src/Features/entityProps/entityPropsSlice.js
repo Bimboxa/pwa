@@ -5,6 +5,8 @@ const entityPropsInitialState = {
   multiSelect: false,
   //
   selection: [], // ids of the selected entitiesWithProps (/!\ not the entitiesProps ids)
+  //
+  tempPropsObject: null, // {props,delete,changedKeys,selectionCount} used for multi-selection before saving
 };
 
 export const entityPropsSlice = createSlice({
@@ -18,9 +20,13 @@ export const entityPropsSlice = createSlice({
       state.selection = action.payload;
     },
     //
+    setTempPropsObject: (state, action) => {
+      state.tempPropsObject = action.payload;
+    },
   },
 });
 
-export const {setMultiSelect, setSelection} = entityPropsSlice.actions;
+export const {setMultiSelect, setSelection, setTempPropsObject} =
+  entityPropsSlice.actions;
 
 export default entityPropsSlice.reducer;

@@ -6,6 +6,7 @@ import {
   Checkbox,
   ListItemIcon,
   ListItemText,
+  Typography,
 } from "@mui/material";
 
 export default function ListItemEntityWithProps({
@@ -29,7 +30,11 @@ export default function ListItemEntityWithProps({
   }
 
   return (
-    <ListItem disablePadding divider>
+    <ListItem
+      disablePadding
+      divider
+      secondaryAction={<Typography variant="caption">{propsLabel}</Typography>}
+    >
       <ListItemButton onClick={handleClick} selected={selected}>
         {multiSelect && (
           <ListItemIcon>
@@ -42,7 +47,7 @@ export default function ListItemEntityWithProps({
             />
           </ListItemIcon>
         )}
-        <ListItemText primary={entityLabel} secondary={propsLabel} />
+        <ListItemText primary={entityLabel} />
       </ListItemButton>
     </ListItem>
   );
