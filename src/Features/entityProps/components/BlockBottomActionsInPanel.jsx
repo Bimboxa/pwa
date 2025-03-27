@@ -5,12 +5,17 @@ import BottomBarCancelSave from "Features/layout/components/BottomBarCancelSave"
 import SwitchMultiSelect from "./SwitchMultiSelect";
 import SectionActionsEntityProps from "./SectionActionsEntityProps";
 import {useSelector} from "react-redux";
+import BlockSaveMultiChanges from "./BlockSaveMultiChanges";
 
 export default function BlockBottomActionsInPanel() {
-  const selection = useSelector((s) => s.entityProps.selection);
-  const multiSelect = useSelector((s) => s.entityProps.multiSelect);
+  // data
 
-  const countLabel = `(x${selection.length})`;
+  const multiSelect = useSelector((s) => s.entityProps.multiSelect);
+  const tempPropsObject = useSelector((s) => s.entityProps.tempPropsObject);
+
+  // helpers
+
+  const showButtons = multiSelect && tempPropsObject;
 
   return (
     <Paper elevation={6} sx={{width: 1, p: 1}}>
@@ -23,9 +28,18 @@ export default function BlockBottomActionsInPanel() {
       </BottomBarCancelSave> */}
 
       <SectionActionsEntityProps />
-      <Box sx={{display: "flex", alignItems: "center"}}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          mt: 1,
+          justifyContent: "space-between",
+        }}
+      >
         <SwitchMultiSelect />
-        {multiSelect && <Typography variant="caption">{countLabel}</Typography>}
+        <Box sx={{visibility: showButtons ? "visible" : "hidden"}}>
+          <BlockSaveMultiChanges />
+        </Box>
       </Box>
     </Paper>
   );

@@ -1,6 +1,6 @@
 import {useSelector, useDispatch} from "react-redux";
 
-import {setMultiSelect} from "../entityPropsSlice";
+import {setMultiSelect, setSelection} from "../entityPropsSlice";
 
 import {FormControlLabel, Switch, Typography, Box} from "@mui/material";
 
@@ -14,11 +14,17 @@ export default function SwitchMultiSelect() {
   // data
 
   const multiSelect = useSelector((s) => s.entityProps.multiSelect);
+  const selection = useSelector((s) => s.entityProps.selection);
 
   // handlers
 
   function handleChange(e, checked) {
     dispatch(setMultiSelect(checked));
+    if (!checked) {
+      if (selection?.length > 1) {
+        dispatch(setSelection([selection[0]]));
+      }
+    }
   }
 
   return (

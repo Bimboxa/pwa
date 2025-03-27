@@ -5,6 +5,7 @@ import useCreateOrUpdateEntityProps from "../hooks/useCreateOrUpdateEntityProps"
 import {Typography, Box} from "@mui/material";
 
 import BlockEntityPropsActions from "./BlockEntityPropsActions";
+import useDeleteEntityProps from "../hooks/useDeleteEntityProps";
 
 export default function SectionActionsEntityPropsVariantSingle() {
   // data
@@ -13,6 +14,7 @@ export default function SectionActionsEntityPropsVariantSingle() {
   const entityWithProps = useSelectedEntityWithProps();
 
   const createOrUpdate = useCreateOrUpdateEntityProps();
+  const deleteEntityProps = useDeleteEntityProps();
 
   // helpers
 
@@ -21,6 +23,13 @@ export default function SectionActionsEntityPropsVariantSingle() {
   // handlers
 
   async function handleChange(newPropsObject) {
+    // edge case: delete
+    if (newPropsObject?.delete) {
+      const entityPropsId = entityWithProps?.entityPropsId;
+      await deleteEntityProps(entityPropsId);
+      return;
+    }
+
     const newProps = newPropsObject.props;
     console.log("newProps", newProps);
     const listingKey = listing?.key;
@@ -48,7 +57,7 @@ export default function SectionActionsEntityPropsVariantSingle() {
       <Typography>{entityWithProps?.label}</Typography>
       <BlockEntityPropsActions
         listing={listing}
-        props={props}
+        propsObject={{props}}
         onChange={handleChange}
       />
     </Box>
