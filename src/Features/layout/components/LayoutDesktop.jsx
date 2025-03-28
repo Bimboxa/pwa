@@ -7,6 +7,7 @@ import BoxFlexHStretch from "./BoxFlexHStretch";
 import TopBarDesktop from "./TopBarDesktop";
 import SectionViewer from "./SectionViewer";
 import ListPanel from "Features/listPanel/components/ListPanel";
+import PanelChatContainer from "./PanelChatContainer";
 
 export default function LayoutDesktop() {
   return (
@@ -17,6 +18,7 @@ export default function LayoutDesktop() {
 
         <SectionViewer />
       </BoxFlexHStretch>
+      <PanelChatContainer />
     </BoxFlexV>
   );
 }
