@@ -11,6 +11,7 @@ export default function PanelChat() {
   const messages = useSelector((state) => state.chat.messages);
   const isThinking = useSelector((state) => state.chat.isThinking);
 
+  console.log("messages", messages);
   return (
     <Box
       sx={{

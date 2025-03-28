@@ -7,7 +7,7 @@ import {
 } from "./nodesManagementUtils";
 
 export default function manageTree(tree, args) {
-  const {action, targetId, label, children} = args;
+  const {action, targetId, label, children, newParentId, position} = args;
 
   switch (action) {
     case "create_tree":
@@ -50,6 +50,9 @@ export default function manageTree(tree, args) {
       if (!targetId || !newParentId) {
         throw new Error("move_node requires `targetId` and `newParentId`");
       }
+      //
+      console.log("move_node", targetId, newParentId, position);
+      //
       const [nodeToMove, treeAfterRemoval] = removeNodeById(tree, targetId);
       if (!nodeToMove) throw new Error(`Node with id "${targetId}" not found`);
       if (

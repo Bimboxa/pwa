@@ -52,3 +52,12 @@ export function insertNodeUnderParent(
   }
   return false;
 }
+
+export function countNodes(tree) {
+  let count = 0;
+  for (const node of tree) {
+    count++;
+    count += countNodes(node.children || []);
+  }
+  return count;
+}

@@ -7,16 +7,16 @@ const chatSlice = createSlice({
     isThinking: false,
   },
   reducers: {
-    sendMessage(state, action) {
+    sendMessageContent(state, action) {
       state.messages.push({role: "user", content: action.payload});
       state.isThinking = true;
     },
-    receiveMessage(state, action) {
+    receiveMessageContent(state, action) {
       state.messages.push({role: "assistant", content: action.payload});
       state.isThinking = false;
     },
   },
 });
 
-export const {sendMessage, receiveMessage} = chatSlice.actions;
+export const {sendMessageContent, receiveMessageContent} = chatSlice.actions;
 export default chatSlice.reducer;
