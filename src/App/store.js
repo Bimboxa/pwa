@@ -21,6 +21,8 @@ import threedEditorReducer from "Features/threedEditor/threedEditorSlice";
 import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
 import reportsReducer from "Features/reports/reportsSlice";
 //
+import chatReducer from "Features/chat/chatSlice";
+//
 import gapiReducer from "Features/gapi/gapiSlice";
 import dropboxReducer from "Features/dropbox/dropboxSlice";
 
@@ -49,6 +51,8 @@ const store = configureStore({
     mapEditor: mapEditorReducer,
     threedEditor: threedEditorReducer,
     reports: reportsReducer,
+    //
+    chat: chatReducer,
     //
     gapi: gapiReducer,
     dropbox: dropboxReducer,
