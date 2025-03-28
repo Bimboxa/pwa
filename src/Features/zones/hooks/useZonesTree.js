@@ -1,5 +1,7 @@
 import {useState, useEffect} from "react";
 
+import {useSelector} from "react-redux";
+
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
 import {useLiveQuery} from "dexie-react-hooks";
@@ -11,6 +13,8 @@ export default function useZonesTree() {
   const [loading, setLoading] = useState(true);
 
   const [zonesListing, setZonesListing] = useState(null);
+
+  const zonesUpdatedAt = useSelector((s) => s.zones.zonesUpdatedAt);
 
   async function getZonesListing(listings) {
     const listingsWithEntityModel = await Promise.all(
@@ -34,6 +38,7 @@ export default function useZonesTree() {
   }, [listings]);
 
   const zonesTree = useLiveQuery(async () => {
+    console.log("[useZonesTree] new fetch");
     let tree = [];
     if (zonesListing?.id) {
       setLoading(true);
@@ -42,11 +47,10 @@ export default function useZonesTree() {
         .equals(zonesListing?.id)
         .first();
       tree = item?.zonesTree ?? [];
-      console.log("item", item);
     }
     setLoading(false);
     return tree;
-  }, [zonesListing?.id]);
+  }, [zonesListing?.id, zonesUpdatedAt]);
 
   return {value: zonesTree, loading};
 }

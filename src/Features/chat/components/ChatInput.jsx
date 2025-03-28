@@ -1,22 +1,28 @@
 import {useState} from "react";
-import {useDispatch} from "react-redux";
-
-import {sendMessage} from "../chatSlice";
 
 import {Box, IconButton} from "@mui/material";
 import {Send as SendIcon} from "@mui/icons-material";
 
 import FieldText from "Features/form/components/FieldText";
+import useSendMessage from "../hooks/useSendMessage";
+import useProcessAnswer from "../hooks/useProcessAnswer";
 
 export default function ChatInput() {
   const [input, setInput] = useState("");
-  const dispatch = useDispatch();
 
-  const handleSend = () => {
+  const sendMessage = useSendMessage();
+  const processAnswer = useProcessAnswer();
+
+  const handleSend = async () => {
     if (!input.trim()) return;
-    dispatch(sendMessage(input));
+    const answer = await sendMessage(input);
+
+    // answer
+    console.log("answer", answer);
+    processAnswer(answer);
     setInput("");
   };
+
   return (
     <Box
       display="flex"
