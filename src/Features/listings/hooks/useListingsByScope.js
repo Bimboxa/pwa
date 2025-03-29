@@ -1,23 +1,30 @@
 import {useState} from "react";
 
 import {useSelector} from "react-redux";
+import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 
 import {useLiveQuery} from "dexie-react-hooks";
 import db from "App/db/db";
 
 import getEntityModelAsync from "App/services/getEntityModel";
+import getSortedListings from "../utils/getSortedListings";
 
 export default function useListingsByScope(options) {
   // options
 
   const withEntityModel = options?.withEntityModel;
   const filterByKeys = options?.filterByKeys;
+  const sortFromScope = options?.sortFromScope;
 
   // state
   const [loading, setLoading] = useState(true);
 
   // data
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const {value: selectedScope} = useSelectedScope();
+
+  // helpers
+  const sortedListingsIds = selectedScope?.sortedListingsIds || [];
 
   // listings
 
@@ -54,6 +61,10 @@ export default function useListingsByScope(options) {
     },
     [filterByKeys, selectedScopeId]
   );
+
+  if (sortFromScope) {
+    listings = getSortedListings(listings, sortedListingsIds);
+  }
 
   return {value: listings, loading};
 }

@@ -7,11 +7,17 @@ import db from "App/db/db";
 
 export default function useCreateScope() {
   const {value: createdBy} = useUserEmail();
-  const createdAt = Date.now();
+  const createdAt = new Date(Date.now()).toISOString();
 
   const createListings = useCreateListings();
 
   const create = async ({name, clientRef, projectId, newListings}) => {
+    const listingsWithIds = newListings.map((listing) => {
+      return {
+        ...listing,
+        id: listing?.id ?? nanoid(),
+      };
+    });
     const scope = {
       id: nanoid(),
       createdBy,
@@ -19,13 +25,14 @@ export default function useCreateScope() {
       name,
       clientRef,
       projectId,
+      sortedListingsIds: listingsWithIds.map((listing) => listing.id),
     };
     await db.scopes.add(scope);
     console.log("[db] added scope", scope);
 
     // add listings
     if (newListings?.length > 0) {
-      await createListings({listings: newListings, scope});
+      await createListings({listings: listingsWithIds, scope});
     }
   };
 
