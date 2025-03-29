@@ -6,6 +6,7 @@ import {Box} from "@mui/material";
 import SectionListEntitiesInListPanel from "Features/entities/components/SectionListEntitiesInListPanel";
 import SectionTreeZonesInListPanel from "Features/zones/components/SectionTreeZonesInListPanel";
 import SectionListEntityPropsInListPanel from "Features/entityProps/components/SectionListEntityPropsInListPanel";
+import SectionDataObjectInListPanel from "Features/dataObjects/components/SectionDataObjectInListPanel";
 
 export default function ListPanelListItems() {
   // data
@@ -17,6 +18,7 @@ export default function ListPanelListItems() {
   const componentByType = {
     ZONE_ENTITY_MODEL: <SectionTreeZonesInListPanel />,
     ENTITY_PROPS: <SectionListEntityPropsInListPanel />,
+    KEY_VALUE: <SectionDataObjectInListPanel />,
   };
 
   const component = componentByType[entityModel?.type] ?? (

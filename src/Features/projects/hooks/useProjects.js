@@ -12,7 +12,7 @@ export default function useProjects() {
   const fetchedProjects = useLiveQuery(async () => {
     const pro = await db.projects.toArray();
     return pro;
-  });
+  }, []);
 
   useEffect(() => {
     if (fetchedProjects) {

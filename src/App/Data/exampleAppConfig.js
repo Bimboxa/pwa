@@ -144,6 +144,23 @@ const exampleAppConfig = {
       entityModelKey: "projectData",
       color: grey[900],
       iconKey: "dataObject",
+      formTemplate: {
+        fields: [
+          {
+            key: "name",
+            label: "Nom de l'affaire",
+            type: "text",
+          },
+          {
+            key: "address",
+            label: "Adresse",
+            type: "text",
+            options: {
+              multiline: true,
+            },
+          },
+        ],
+      },
     },
     zones: {
       key: "zones",
