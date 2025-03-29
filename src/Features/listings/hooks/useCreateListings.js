@@ -6,7 +6,7 @@ import useUserEmail from "Features/auth/hooks/useUserEmail";
 export default function useCreateListings() {
   const createRelsScopeItem = useCreateRelsScopeItem();
   const createdBy = useUserEmail();
-  const createdAt = Date.now();
+  const createdAt = new Date(Date.now()).toISOString();
 
   const create = async ({listings, scope}) => {
     const listingsClean = listings.map((listing) => {

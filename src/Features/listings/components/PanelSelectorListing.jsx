@@ -13,7 +13,7 @@ export default function PanelSelectorListing({onListingSelected}) {
 
   // data
 
-  const {value: listings, loading} = useListingsByScope();
+  const {value: listings, loading} = useListingsByScope({sortFromScope: true});
 
   // handlers
 

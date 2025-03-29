@@ -1,4 +1,4 @@
-import {orange, red, blue, green} from "@mui/material/colors";
+import {orange, red, blue, green, grey} from "@mui/material/colors";
 
 const exampleAppConfig = {
   remoteProjectsContainers: [
@@ -15,6 +15,10 @@ const exampleAppConfig = {
     },
   },
   entityModelsObject: {
+    projectData: {
+      key: "projectData",
+      type: "KEY_VALUE",
+    },
     zone: {
       key: "zone",
       type: "ZONE_ENTITY_MODEL",
@@ -134,6 +138,13 @@ const exampleAppConfig = {
     },
   },
   presetListingsMap: {
+    projectDataset: {
+      key: "projectDataset",
+      name: "Affaire",
+      entityModelKey: "projectData",
+      color: grey[900],
+      iconKey: "dataObject",
+    },
     zones: {
       key: "zones",
       name: "Pièces",
@@ -186,7 +197,13 @@ const exampleAppConfig = {
     presetDebug: {
       key: "presetDebug",
       name: "Debug",
-      listings: ["zones", "materials", "samples", "laboOrders"],
+      listings: [
+        "projectDataset",
+        "zones",
+        "materials",
+        "samples",
+        "laboOrders",
+      ],
     },
     preset1: {
       key: "preset1",
