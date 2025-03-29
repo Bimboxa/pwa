@@ -1,6 +1,6 @@
 import {useState} from "react";
-import useSelectedListing from "Features/listings/hooks/useSelectedListing";
-import useListingEntityModel from "./useListingEntityModel";
+import {useSelector} from "react-redux";
+
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
 import {useLiveQuery} from "dexie-react-hooks";
@@ -18,20 +18,19 @@ export default function useEntities(options) {
 
   // data
 
-  const {value: selectedListing, loading: loadingSelection} =
-    useSelectedListing({withEntityModel: true});
-
   const {value: listings, loading: loadingList} = useListingsByScope({
     withEntityModel: true,
     filterByKeys: filterByListingsKeys ?? [],
   });
+  const selectedListingId = useSelector((s) => s.listings.selectedListingId);
+  const selectedListing = listings?.find((l) => l?.id === selectedListingId);
 
   // helpers
 
   let labelKeyByListingId = {};
   let listingKeyByListingId = {};
 
-  if (!loadingSelection && !loadingList) {
+  if (!loadingList) {
     const allListings = [...(listings ?? []), selectedListing];
     labelKeyByListingId = allListings.reduce((acc, listing) => {
       if (listing?.id) {
@@ -59,6 +58,7 @@ export default function useEntities(options) {
   const listingsIdsHash = listingsIds?.sort().join(",");
 
   const value = useLiveQuery(async () => {
+    console.log("[db] fetching entities");
     try {
       // edge case
       if (listingsIds.length === 0) {

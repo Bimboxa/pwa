@@ -28,8 +28,10 @@ export default function useListingsByScope(options) {
 
   // listings
 
+  const keysHash = (filterByKeys ?? []).sort().join(",");
   let listings = useLiveQuery(
     async (params) => {
+      console.log("[db] fetching listings 44", filterByKeys);
       // listingsIds
       const rels = await db.relsScopeItem
         .where("[scopeId+itemTable]")
@@ -59,7 +61,7 @@ export default function useListingsByScope(options) {
       setLoading(false);
       return listings;
     },
-    [filterByKeys, selectedScopeId]
+    [keysHash, selectedScopeId]
   );
 
   if (sortFromScope) {

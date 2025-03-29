@@ -61,10 +61,14 @@ const store = configureStore({
   //   getDefaultMiddleware({
   //     serializableCheck: false,
   //   }),
+  // middleware: (getDefaultMiddleware) =>
+  //   getDefaultMiddleware({
+  //     serializableCheck: false,
+  //   }).concat(syncTabsMiddleware),
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,
-    }).concat(syncTabsMiddleware),
+    }),
 });
 
 export default store;
