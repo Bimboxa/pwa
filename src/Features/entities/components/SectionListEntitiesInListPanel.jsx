@@ -7,14 +7,19 @@ import ListEntities from "./ListEntities";
 import {Box} from "@mui/material";
 import {setSelectedEntityId} from "../entitiesSlice";
 
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+
 export default function SectionListEntitiesInListPanel() {
   const dispatch = useDispatch();
 
   // data
 
+  const {value: listing} = useSelectedListing();
+  const sortBy = listing?.sortBy;
+
   const {value: entities, loading} = useEntities({
     withImages: true,
-    sortByCreatedAtInverse: true,
+    sortBy,
   });
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
 

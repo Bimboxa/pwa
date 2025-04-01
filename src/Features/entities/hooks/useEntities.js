@@ -11,7 +11,7 @@ export default function useEntities(options) {
 
   const withImages = options?.withImages;
   const filterByListingsKeys = options?.filterByListingsKeys;
-  const sortByCreatedAtInverse = options.sortByCreatedAtInverse;
+  const sortBy = options?.sortBy;
 
   // state
 
@@ -108,8 +108,14 @@ export default function useEntities(options) {
       }
 
       // sort
-      if (sortByCreatedAtInverse) {
-        entities = entities.sort((a, b) => b.createdAt - a.createdAt);
+      if (sortBy?.key) {
+        entities = entities.sort((a, b) => {
+          if (sortBy?.order === "desc") {
+            return b[sortBy.key] - a[sortBy.key];
+          } else {
+            return a[sortBy.key] - b[sortBy.key];
+          }
+        });
       }
 
       // add label && listingKey

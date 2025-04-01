@@ -18,8 +18,9 @@ export default function getEntityPureDataAndFilesDataByKey(entity, options) {
 
   // loop
 
+  console.log("[getPureData] entity", entity);
   Object.entries(entity).forEach(([key, value]) => {
-    if (value.file instanceof File) {
+    if (value && value.file instanceof File) {
       // test
       testHasFiles = true;
 

@@ -2,13 +2,14 @@ import {useSelector} from "react-redux";
 
 import useEntityModel from "./useEntityModel";
 import useSelectedEntity from "./useSelectedEntity";
+import useNewEntity from "./useNewEntity";
 
 export default function useEntity() {
   // data
 
   const {value: selectedEntity} = useSelectedEntity();
 
-  const newEntity = useSelector((s) => s.entities.newEntity);
+  const newEntity = useNewEntity();
   const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);
   const editedEntity = useSelector((s) => s.entities.editedEntity);
 

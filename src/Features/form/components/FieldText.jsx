@@ -12,31 +12,19 @@ import {
 import {Stop, Mic as MicIcon} from "@mui/icons-material";
 import useRecognition from "../hooks/useRecognition";
 
-export default function FieldText({
-  value,
-  lastValue,
-  onChange,
-  options,
-  label,
-}) {
+export default function FieldText({value, onChange, options, label}) {
   const fullWidth = options?.fullWidth;
   const multiline = options?.multiline;
   const showLabel = options?.showLabel;
   const hideMic = options?.hideMic;
-  const autoIncrement = options?.increment === "auto";
+  const autoFocus = options?.autoFocus;
 
   const [recording, setRecording] = useState(false);
 
   const [tempValue, setTempValue] = useState(value ?? "");
-  const [autoIncrementDone, setAutoIncrementDone] = useState(false);
 
   useEffect(() => {
-    if (!value && autoIncrement && !autoIncrementDone) {
-      setTempValue(parseInt(lastValue ?? 0) + 1);
-      setAutoIncrementDone(true);
-    } else {
-      setTempValue(value ?? "");
-    }
+    setTempValue(value ?? "");
   }, [value]);
 
   const {recognitionRef, recordingRef} = useRecognition(
@@ -64,13 +52,16 @@ export default function FieldText({
   }
 
   function handleOnBlur() {
-    const newValue = tempValue.trim();
+    console.log("handleOnBlur", tempValue);
+
+    const newValue = tempValue.toString().trim();
     onChange(newValue);
   }
 
   return (
     <TextField
       size="small"
+      autoFocus={autoFocus}
       label={showLabel ? label : null}
       fullWidth={fullWidth}
       multiline={multiline}

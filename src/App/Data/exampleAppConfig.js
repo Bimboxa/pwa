@@ -87,6 +87,7 @@ const exampleAppConfig = {
           label: "Numéro",
           type: "text",
           options: {
+            autoFocus: true,
             increment: "auto",
           },
         },
@@ -95,6 +96,7 @@ const exampleAppConfig = {
           label: "Photo",
           type: "image",
           options: {
+            autoFocus: true,
             variant: "auto",
           },
         },

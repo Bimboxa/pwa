@@ -26,6 +26,7 @@ export default function BlockEntityInListPanel() {
   // helpers
 
   const label = entity?.label ?? entity?.id;
+  const id = entity?.id;
   const bgcolor = listing?.color ?? theme.palette.primary.main;
 
   // handlers
@@ -48,6 +49,7 @@ export default function BlockEntityInListPanel() {
           label={label}
           onClick={handleClick}
           bgcolor={bgcolor}
+          id={id}
         />
       )}
     </Box>

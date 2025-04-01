@@ -14,7 +14,8 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
 
   // strings
 
-  const saveS = "Enregistrer";
+  const createS = "Enregistrer";
+  const updateS = "Mettre à jour";
 
   // state
 
@@ -26,6 +27,10 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
 
   const create = useCreateEntity();
   const update = useUpdateEntity();
+
+  // helper
+
+  const saveS = entity.id ? updateS : createS;
 
   // handlers
 
@@ -45,5 +50,5 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
     if (onSaved) onSaved();
   }
 
-  return <ButtonInPanel label={saveS} onClick={handleSave} />;
+  return <ButtonInPanel label={saveS} onClick={handleSave} loading={loading} />;
 }

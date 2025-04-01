@@ -21,13 +21,23 @@ export default function FormVariantMobileActions({
           alignItems: "center",
         }}
       >
-        <IconButton onClick={onBackClick}>
+        <IconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            onBackClick();
+          }}
+        >
           <Back />
         </IconButton>
 
         <Button onClick={onShowOverviewClick}>{showS}</Button>
 
-        <IconButton onClick={onForwardClick}>
+        <IconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            onForwardClick();
+          }}
+        >
           <Forward />
         </IconButton>
       </Box>
