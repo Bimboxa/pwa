@@ -1,6 +1,7 @@
 import {useSelector, useDispatch} from "react-redux";
 
 import {setOpenPanelListItem} from "Features/listPanel/listPanelSlice";
+import {setSelectedEntityId} from "../entitiesSlice";
 
 import useEntity from "../hooks/useEntity";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
@@ -9,7 +10,6 @@ import {Box} from "@mui/material";
 
 import BlockEntityInListPanelVariantBottom from "./BlockEntityInListPanelVariantBottom";
 import BlockEntityInListPanelVariantHeader from "./BlockEntityInListPanelVariantHeader";
-import useEntityModel from "../hooks/useEntityModel";
 
 import theme from "Styles/theme";
 
@@ -47,6 +47,7 @@ export default function BlockEntityInListPanel() {
         <BlockEntityInListPanelVariantBottom
           label={label}
           onClick={handleClick}
+          onClose={() => dispatch(setSelectedEntityId(null))}
           bgcolor={bgcolor}
           id={id}
         />

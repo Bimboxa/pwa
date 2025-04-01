@@ -32,7 +32,7 @@ export default function BlockEntityInListPanelVariantBottom({
           disablePadding
           secondaryAction={
             id ? (
-              <IconButton edge="end">
+              <IconButton edge="end" onClick={onClose}>
                 <Close />
               </IconButton>
             ) : null

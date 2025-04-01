@@ -14,15 +14,23 @@ export default function SectionListEntitiesInListPanel() {
 
   // data
 
-  const {value: listing} = useSelectedListing();
+  const {value: listing} = useSelectedListing({withEntityModel: true});
   const sortBy = listing?.sortBy;
+  const entityModel = listing?.entityModel;
 
   const {value: entities, loading} = useEntities({
     withImages: true,
     sortBy,
+    withMarkers: entityModel?.type === "LOCATED_ENTITY",
   });
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
 
+  // debug
+
+  console.log(
+    "[SectionListEntitiesInListPanel] markers",
+    entities?.filter((e) => e.markers?.length > 0).length
+  );
   // helpers
 
   const selection = selectedEntityId ? [selectedEntityId] : [];

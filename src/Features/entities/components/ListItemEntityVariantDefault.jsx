@@ -4,7 +4,9 @@ import {
   ListItemText,
   ListItemAvatar,
   Avatar,
+  IconButton,
 } from "@mui/material";
+import {NearMe as Focus} from "@mui/icons-material";
 
 import getEntityMainImage from "../utils/getEntityMainImage";
 
@@ -18,6 +20,7 @@ export default function ListItemEntityVariantDefault({
   const label = entity.label;
   const isSelected = selection?.includes(entity.id);
   const mainImage = getEntityMainImage(entity);
+  const hasMarker = entity.marker;
 
   // handlers
 
@@ -25,7 +28,17 @@ export default function ListItemEntityVariantDefault({
     if (onClick) onClick(entity);
   }
   return (
-    <ListItem divider disablePadding>
+    <ListItem
+      divider
+      disablePadding
+      secondaryAction={
+        hasMarker && (
+          <IconButton>
+            <Focus />
+          </IconButton>
+        )
+      }
+    >
       <ListItemButton onClick={handleClick} selected={isSelected}>
         {mainImage && (
           <ListItemAvatar>

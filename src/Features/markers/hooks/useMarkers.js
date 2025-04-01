@@ -19,7 +19,6 @@ export default function useMarkers(options) {
     ? filterByListingsIds.sort().join(",")
     : "";
   const hash = `${hash1}-${hash2}`;
-  console.log("hash", hash, filterByMapId, filterByListingsIds);
 
   // state
 
@@ -28,7 +27,7 @@ export default function useMarkers(options) {
   // data
 
   const markersUpdatedAt = useSelector((s) => s.markers.markersUpdatedAt);
-  const {value: listings, loading: loadingList} = useListingsByScope();
+  const {value: listings, loading: loadingListings} = useListingsByScope();
 
   // helpers
 
@@ -44,6 +43,10 @@ export default function useMarkers(options) {
   // helpers
 
   const markers = useLiveQuery(async () => {
+    // edge case
+    if (loadingListings) return [];
+
+    // main
     setLoading(true);
     if (filterByMapId && filterByListingsIds) {
       let markers = await db.markers
@@ -69,7 +72,7 @@ export default function useMarkers(options) {
     } else {
       return [];
     }
-  }, [markersUpdatedAt, hash, listings?.length]);
+  }, [markersUpdatedAt, hash, loadingListings]);
 
   // const markersMap = useSelector((s) => s.markers.markersMap);
 
