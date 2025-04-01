@@ -1,4 +1,4 @@
-import {useEffect, useRef} from "react";
+import {useEffect, useRef, useState} from "react";
 import {
   Autocomplete,
   TextField,
@@ -8,62 +8,67 @@ import {
   IconButton,
   InputAdornment,
 } from "@mui/material";
-import MicIcon from "@mui/icons-material/Mic";
+
+import {Stop, Mic as MicIcon} from "@mui/icons-material";
+import useRecognition from "../hooks/useRecognition";
 
 export default function FieldText({value, onChange, options, label}) {
   const fullWidth = options?.fullWidth;
   const multiline = options?.multiline;
+  const showLabel = options?.showLabel;
 
-  const recognitionRef = useRef(null);
+  const [recording, setRecording] = useState(false);
 
+  const [tempValue, setTempValue] = useState(value ?? "");
   useEffect(() => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      console.warn("Speech Recognition non supportée par ce navigateur.");
-      return;
-    }
+    setTempValue(value ?? "");
+  }, [value]);
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = "fr-FR";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
+  const {recognitionRef, recordingRef} = useRecognition(
+    handleRecognitionChange
+  );
 
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      onChange(transcript);
-    };
-
-    recognition.onerror = (event) => {
-      console.error("Erreur de reconnaissance vocale :", event.error);
-    };
-
-    recognitionRef.current = recognition;
-  }, [onChange]);
+  function handleRecognitionChange(newValue) {
+    setTempValue(newValue);
+  }
 
   const handleMicClick = () => {
-    recognitionRef.current?.start();
+    console.log("Was recording", recordingRef.current);
+    if (recordingRef.current) {
+      setRecording(false);
+      recognitionRef.current.stop();
+    } else {
+      setRecording(true);
+      recognitionRef.current.start();
+    }
   };
 
   function handleChange(event) {
     const newValue = event.target.value;
+    setTempValue(newValue);
+  }
+
+  function handleOnBlur() {
+    const newValue = tempValue.trim();
     onChange(newValue);
   }
 
   return (
     <TextField
-      label={label}
+      size="small"
+      label={showLabel ? label : null}
       fullWidth={fullWidth}
       multiline={multiline}
-      value={value ?? ""}
+      value={tempValue}
       onChange={handleChange}
+      onBlur={handleOnBlur}
       onKeyDown={(e) => e.stopPropagation()}
       slotProps={{
         input: {
           endAdornment: (
             <InputAdornment position="end">
-              <IconButton onClick={handleMicClick}>
-                <MicIcon />
+              <IconButton onClick={handleMicClick} size="small">
+                {recording ? <Stop sx={{color: "red"}} /> : <MicIcon />}
               </IconButton>
             </InputAdornment>
           ),

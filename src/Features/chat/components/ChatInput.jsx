@@ -30,6 +30,7 @@ export default function ChatInput() {
       gap={1}
       alignItems="center"
       borderTop="1px solid #ccc"
+      overflow="auto"
     >
       <FieldText
         options={{fullWidth: true, multiline: true}}

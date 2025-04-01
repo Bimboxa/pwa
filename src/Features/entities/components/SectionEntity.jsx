@@ -45,9 +45,18 @@ export default function SectionEntity({selectorContainerRef}) {
         display: "flex",
         flexDirection: "column",
         flexGrow: 1,
+        minHeight: 0,
       }}
     >
-      <Box sx={{flexGrow: 1}}>
+      <Box
+        sx={{
+          flexGrow: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "auto",
+        }}
+      >
         <FormEntity
           template={template}
           entity={entity}

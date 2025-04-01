@@ -14,7 +14,7 @@ export default function FormVariantMobileOverview({
 }) {
   // string
 
-  const saveS = "Save";
+  const saveS = "Enregistrer";
 
   // handlers
 
@@ -59,7 +59,7 @@ export default function FormVariantMobileOverview({
           })}
         </List>
       </BoxFlexVStretch>
-      <ButtonBasicMobile label={saveS} onClick={onSaveClick} />
+      {/* <ButtonBasicMobile label={saveS} onClick={onSaveClick} /> */}
     </Box>
   );
 }

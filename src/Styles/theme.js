@@ -21,19 +21,19 @@ let theme = createTheme({
     },
     MuiInputBase: {
       styleOverrides: {
-        input: {
-          // for TextField
-          "&.MuiOutlinedInput-input": {
-            padding: "8px 8px",
-            lineHeight: "1.5",
-          },
-        },
-        root: {
-          // for Autocomplete
-          "&.MuiOutlinedInput-root": {
-            padding: "0px 0px",
-          },
-        },
+        // input: {
+        //   // for TextField
+        //   "&.MuiOutlinedInput-input": {
+        //     padding: "8px 8px",
+        //     lineHeight: "1.5",
+        //   },
+        // },
+        // root: {
+        //   // for Autocomplete
+        //   "&.MuiOutlinedInput-root": {
+        //     padding: "0px 0px",
+        //   },
+        // },
       },
     },
     MuiMenu: {

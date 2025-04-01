@@ -55,8 +55,16 @@ export default function FormVariantMobile({template, item, onItemChange}) {
         height: 1,
         flexDirection: "column",
         overflow: "auto",
+        border: "1px solid red",
       }}
     >
+      {!showOverview && (
+        <FormVariantMobileActions
+          onBackClick={handleBackClick}
+          onForwardClick={handleForwardClick}
+          onShowOverviewClick={() => setFieldIndex(templateFields.length - 1)}
+        />
+      )}
       {field?.type === "text" && (
         <FieldTextVariantMobile
           key={field.key}
@@ -75,12 +83,6 @@ export default function FormVariantMobile({template, item, onItemChange}) {
           value={item[field.key]}
           onChange={(newValue) => handleFieldValueChange(field.key, newValue)}
           options={field.options}
-        />
-      )}
-      {!showOverview && (
-        <FormVariantMobileActions
-          onBackClick={handleBackClick}
-          onForwardClick={handleForwardClick}
         />
       )}
 
