@@ -15,6 +15,7 @@ export default function useListingsByScope(options) {
   const withEntityModel = options?.withEntityModel;
   const filterByKeys = options?.filterByKeys;
   const sortFromScope = options?.sortFromScope;
+  const mapsOnly = options?.mapsOnly;
 
   // state
   const [loading, setLoading] = useState(true);
@@ -59,6 +60,11 @@ export default function useListingsByScope(options) {
           })
         );
       }
+
+      if (mapsOnly) {
+        listings = listings.filter((l) => l?.entityModel?.type === "MAP");
+      }
+
       setLoading(false);
       return listings;
     },

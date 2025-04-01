@@ -1,11 +1,11 @@
-import {useSelector} from "react-redux";
-
+import useIsMobile from "Features/layout/hooks/useIsMobile";
 import LayerMapEditorDesktop from "./LayerMapEditorDesktop";
+import LayerMapEditorMobile from "./LayerMapEditorMobile";
 
 export default function LayerMapEditor() {
   // data
 
-  const deviceType = useSelector((s) => s.layout.deviceType);
+  const isMobile = useIsMobile();
 
-  return <>{deviceType === "DESKTOP" && <LayerMapEditorDesktop />}</>;
+  return <>{isMobile ? <LayerMapEditorMobile /> : <LayerMapEditorDesktop />}</>;
 }

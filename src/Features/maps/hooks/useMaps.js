@@ -1,28 +1,19 @@
-import {useSelector} from "react-redux";
+import {useState} from "react";
+import useListingsByScope from "Features/listings/hooks/useListingsByScope";
+import useEntities from "Features/entities/hooks/useEntities";
 
-export default function useMaps(options) {
-  // options
-
-  const filterByProjectId = options?.filterByProjectId;
-  const filterByMapId = options?.filterByMapId;
-
+export default function useMaps() {
   // data
 
-  const mapsMap = useSelector((s) => s.maps.mapsMap);
+  const {value: listings, loading: loadingListings} = useListingsByScope({
+    mapsOnly: true,
+  });
 
   // helpers
 
-  let maps = Object.values(mapsMap);
+  const listingsIds = listings?.map((l) => l.id);
 
-  if (filterByProjectId) {
-    maps = maps.filter((m) => m.projectId === filterByProjectId);
-  }
+  // data
 
-  if (filterByMapId) {
-    maps = maps.filter((m) => m.id === filterByMapId);
-  }
-
-  // return
-
-  return maps;
+  return useEntities({filterByListingsIds: listingsIds});
 }

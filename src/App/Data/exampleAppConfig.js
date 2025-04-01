@@ -1,4 +1,4 @@
-import {orange, red, blue, green, grey} from "@mui/material/colors";
+import {orange, red, blue, green, grey, purple} from "@mui/material/colors";
 
 const exampleAppConfig = {
   remoteProjectsContainers: [
@@ -18,6 +18,26 @@ const exampleAppConfig = {
     projectData: {
       key: "projectData",
       type: "KEY_VALUE",
+    },
+    map: {
+      key: "map",
+      type: "MAP",
+      strings: {
+        labelNew: "Nouveau fond de plan",
+      },
+      labelKey: "label",
+      fieldsObject: {
+        label: {
+          key: "label",
+          type: "text",
+          label: "Nom",
+        },
+        image: {
+          key: "image",
+          type: "image",
+          label: "Image",
+        },
+      },
     },
     zone: {
       key: "zone",
@@ -164,6 +184,20 @@ const exampleAppConfig = {
         ],
       },
     },
+    mapsFromPhotos: {
+      key: "mapsFromPhotos",
+      name: "Fonds de plan (photos)",
+      entityModelKey: "map",
+      color: purple[700],
+      iconKey: "map",
+    },
+    mapsFromPdf: {
+      key: "mapsFromPdf",
+      name: "Fonds de plan (pdf archi)",
+      entityModelKey: "map",
+      color: purple[900],
+      iconKey: "map",
+    },
     zones: {
       key: "zones",
       name: "Pièces",
@@ -222,6 +256,8 @@ const exampleAppConfig = {
       name: "Debug",
       listings: [
         "projectDataset",
+        "mapsFromPhotos",
+        "mapsFromPdf",
         "zones",
         "materials",
         "samples",

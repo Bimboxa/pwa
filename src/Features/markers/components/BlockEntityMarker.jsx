@@ -30,8 +30,6 @@ export default function BlockEntityMarker({top, right}) {
   //entity?.id &&
   //entity?.listingId === listing.id;
 
-  console.log("show", show, entity, listing);
-
   // helpers
 
   const color = listing?.color ?? theme.palette.primary.main;
