@@ -21,18 +21,20 @@ export default function useEntity() {
 
   // helpers
 
-  const label = entity ? entity[entityModel?.labelKey] : "-";
+  let label;
 
   // helpers - entity
 
   if (!entity?.id) {
     entity = {
       ...newEntity,
-      label: entityModel?.strings?.labelNew,
+      label: newEntity.label ?? entityModel?.strings?.labelNew,
     };
   } else if (isEditingEntity) {
+    label = editedEntity[entityModel?.labelKey];
     entity = {...editedEntity, label};
   } else {
+    label = entity[entityModel?.labelKey];
     entity = {...entity, label};
   }
 

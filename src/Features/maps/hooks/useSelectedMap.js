@@ -1,10 +1,12 @@
 import {useSelector} from "react-redux";
 
+import useMaps from "Features/maps/hooks/useMaps";
+
 export default function useSelectedMap() {
   const id = useSelector((s) => s.maps.selectedMapId);
-  const mapsMap = useSelector((s) => s.maps.mapsMap);
+  const {value: maps} = useMaps();
 
-  const selectedMap = mapsMap[id];
+  const selectedMap = maps?.find((map) => map.id === id);
 
   return selectedMap;
 }

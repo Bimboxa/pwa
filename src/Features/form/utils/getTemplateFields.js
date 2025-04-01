@@ -1,5 +1,5 @@
 export default function getTemplateFields(template, options) {
-  const fieldsKeys = template?.fields;
+  const fields = template?.fields ?? [];
 
-  return fieldsKeys;
+  return fields;
 }

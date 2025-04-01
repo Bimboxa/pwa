@@ -14,6 +14,8 @@ export default function useEntities(options) {
   const withMarkers = options?.withMarkers;
 
   const filterByListingsKeys = options?.filterByListingsKeys;
+  const filterByListingsIds = options?.filterByListingsIds;
+
   const sortBy = options?.sortBy;
 
   // state
@@ -25,6 +27,7 @@ export default function useEntities(options) {
   const {value: listings, loading: loadingList} = useListingsByScope({
     withEntityModel: true,
     filterByKeys: filterByListingsKeys ?? null,
+    filterByListingsIds: filterByListingsIds ?? null,
   });
   const mapId = useSelector((s) => s.mapEditor.loadedMainMapId);
 
@@ -56,11 +59,12 @@ export default function useEntities(options) {
   }
   // helpers
 
-  const listingsIds = filterByListingsKeys
-    ? listings?.map((l) => l.id)
-    : selectedListing?.id
-    ? [selectedListing?.id]
-    : [];
+  const listingsIds =
+    filterByListingsKeys || filterByListingsIds
+      ? listings?.map((l) => l.id)
+      : selectedListing?.id
+      ? [selectedListing?.id]
+      : [];
 
   const listingsIdsHash = listingsIds?.sort().join(",");
 

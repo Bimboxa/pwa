@@ -9,6 +9,7 @@ import {
   OfflineBolt,
   ShoppingCart,
   DataObject,
+  Map as MapIcon,
 } from "@mui/icons-material";
 
 const iconsMap = new Map();
@@ -21,5 +22,6 @@ iconsMap.set("info", Info);
 iconsMap.set("location", LocationOn);
 iconsMap.set("shoppingCart", ShoppingCart);
 iconsMap.set("dataObject", DataObject);
+iconsMap.set("map", MapIcon);
 
 export default iconsMap;

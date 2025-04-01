@@ -27,10 +27,6 @@ export default function SectionListEntitiesInListPanel() {
 
   // debug
 
-  console.log(
-    "[SectionListEntitiesInListPanel] markers",
-    entities?.filter((e) => e.markers?.length > 0).length
-  );
   // helpers
 
   const selection = selectedEntityId ? [selectedEntityId] : [];
