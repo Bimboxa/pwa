@@ -10,6 +10,8 @@ import {
 } from "@mui/material";
 import MicIcon from "@mui/icons-material/Mic";
 
+import FieldText from "./FieldText";
+
 export default function FieldTextVariantGrid({
   value,
   onChange,
@@ -64,23 +66,11 @@ export default function FieldTextVariantGrid({
         </Typography>
       </Grid2>
       <Grid2 size={size}>
-        <TextField
-          fullWidth
-          multiline={options?.multiline}
-          value={value ?? ""}
-          onChange={handleChange}
-          onKeyDown={(e) => e.stopPropagation()}
-          slotProps={{
-            input: {
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton onClick={handleMicClick}>
-                    <MicIcon />
-                  </IconButton>
-                </InputAdornment>
-              ),
-            },
-          }}
+        <FieldText
+          value={value}
+          onChange={onChange}
+          options={{fullWidth: true, ...options}}
+          label={label}
         />
       </Grid2>
     </Grid2>

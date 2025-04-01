@@ -1,27 +1,35 @@
-import {Button, Box} from "@mui/material";
+import {Button, Box, IconButton} from "@mui/material";
 import {ArrowBack as Back, ArrowForward as Forward} from "@mui/icons-material";
 
 export default function FormVariantMobileActions({
   onBackClick,
   onForwardClick,
+  onShowOverviewClick,
 }) {
+  // strings
+
+  const showS = "Voir le récap.";
+
   return (
     <Box sx={{width: 1}}>
       <Box
-        sx={{display: "flex", width: 1, p: 1, "&>*:not(:last-child)": {mr: 1}}}
+        sx={{
+          display: "flex",
+          width: 1,
+          p: 1,
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
       >
-        <Button
-          fullWidth
-          variant="outlined"
-          startIcon={<Back />}
-          onClick={onBackClick}
-        />
-        <Button
-          fullWidth
-          variant="outlined"
-          endIcon={<Forward />}
-          onClick={onForwardClick}
-        />
+        <IconButton onClick={onBackClick}>
+          <Back />
+        </IconButton>
+
+        <Button onClick={onShowOverviewClick}>{showS}</Button>
+
+        <IconButton>
+          <Forward />
+        </IconButton>
       </Box>
     </Box>
   );

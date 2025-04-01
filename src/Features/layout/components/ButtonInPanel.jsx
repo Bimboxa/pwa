@@ -1,3 +1,5 @@
+import useIsMobile from "Features/layout/hooks/useIsMobile";
+
 import {Box, Button, Paper} from "@mui/material";
 
 export default function ButtonInPanel({
@@ -7,12 +9,15 @@ export default function ButtonInPanel({
   color,
   loading,
 }) {
+  const isMobile = useIsMobile();
+  const size = isMobile ? "large" : "medium";
+
   return (
     <Box sx={{width: 1, p: 1}}>
       <Paper sx={{width: 1, bgcolor, color}}>
         <Button
           fullWidth
-          size="large"
+          size={size}
           variant="contained"
           onClick={onClick}
           loading={loading}

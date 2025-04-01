@@ -3,6 +3,7 @@ import {useSelector, useDispatch} from "react-redux";
 import {setOpenPanelListItem} from "Features/listPanel/listPanelSlice";
 
 import useEntity from "../hooks/useEntity";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import {Box} from "@mui/material";
 
@@ -19,12 +20,13 @@ export default function BlockEntityInListPanel() {
 
   const entity = useEntity();
   const entityModel = useEntityModel();
+  const {value: listing} = useSelectedListing();
   const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
 
   // helpers
 
   const label = entity?.label ?? entity?.id;
-  const bgcolor = entityModel?.color ?? theme.palette.primary.main;
+  const bgcolor = listing?.color ?? theme.palette.primary.main;
 
   // handlers
 

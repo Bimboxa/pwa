@@ -1,4 +1,5 @@
 import {Autocomplete, TextField, Box} from "@mui/material";
+import FieldText from "./FieldText";
 
 export default function FieldTextVariantMobile({
   value,
@@ -15,13 +16,11 @@ export default function FieldTextVariantMobile({
 
   return (
     <Box sx={{width: 1, p: 2, overflow: "auto"}}>
-      <TextField
-        multiline={options?.multiline}
-        autoFocus
+      <FieldText
+        value={value}
+        onChange={onChange}
+        options={{...options, fullWidth: true}}
         label={label}
-        fullWidth
-        value={value ?? ""}
-        onChange={handleChange}
       />
     </Box>
   );
