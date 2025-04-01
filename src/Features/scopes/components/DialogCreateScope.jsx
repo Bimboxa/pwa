@@ -1,4 +1,4 @@
-import {Dialog, DialogTitle} from "@mui/material";
+import DialogGeneric from "Features/layout/components/DialogGeneric";
 
 import SectionScope from "./SectionScope";
 
@@ -8,13 +8,12 @@ export default function DialogCreateScope({project, open, onClose}) {
   const newScopeS = "Nouveau lot";
 
   return (
-    <Dialog open={open} onClose={onClose}>
-      <DialogTitle>{newScopeS}</DialogTitle>
+    <DialogGeneric open={open} onClose={onClose} title={newScopeS}>
       <SectionScope
         newScopeProjectId={project?.id}
         forceNew={true}
         onSaved={onClose}
       />
-    </Dialog>
+    </DialogGeneric>
   );
 }

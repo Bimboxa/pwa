@@ -27,7 +27,7 @@ export default function FormVariantMobileActions({
 
         <Button onClick={onShowOverviewClick}>{showS}</Button>
 
-        <IconButton>
+        <IconButton onClick={onForwardClick}>
           <Forward />
         </IconButton>
       </Box>

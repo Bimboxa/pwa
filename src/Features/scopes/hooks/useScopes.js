@@ -11,6 +11,7 @@ export default function useScopes(options) {
   // options
 
   const filterByProjectId = options?.filterByProjectId;
+  const sortByClientRef = options?.sortByClientRef;
 
   // helpers
 
@@ -28,6 +29,14 @@ export default function useScopes(options) {
         .toArray();
     } else {
       scopes = await db.scopes.toArray();
+    }
+    // sort
+    if (sortByClientRef) {
+      scopes = scopes.sort((a, b) => {
+        const aClientRef = a.clientRef || "";
+        const bClientRef = b.clientRef || "";
+        return aClientRef.localeCompare(bClientRef);
+      });
     }
     setLoading(false);
     return scopes;

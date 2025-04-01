@@ -16,7 +16,7 @@ export default function FieldImageVariantMobileOverview({label, value}) {
         <img
           src={imageSrc}
           alt={label}
-          style={{width: "100%", height: "auto"}}
+          style={{width: "100%", maxHeight: "400px", objectFit: "contain"}}
         />
       ) : (
         <BoxCenter>

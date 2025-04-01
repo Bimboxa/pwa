@@ -29,10 +29,11 @@ export default function useListingsByScope(options) {
   // listings
 
   const keysHash = (filterByKeys ?? []).sort().join(",");
+
   let listings = useLiveQuery(
     async (params) => {
       console.log("[db] fetching listings 44", filterByKeys);
-      // listingsIds
+      // listingsIds from scope
       const rels = await db.relsScopeItem
         .where("[scopeId+itemTable]")
         .equals([selectedScopeId, "listings"])

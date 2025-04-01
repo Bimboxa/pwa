@@ -1,13 +1,6 @@
-import FormVariantGrid from "Features/form/components/FormVariantGrid";
-import FormVariantMobile from "Features/form/components/FormVariantMobile";
-
-import useIsMobile from "Features/layout/hooks/useIsMobile";
+import FormGeneric from "Features/form/components/FormGeneric";
 
 export default function FormScope({scope, onChange}) {
-  // data
-
-  const isMobile = useIsMobile();
-
   // const
 
   const template = {
@@ -32,21 +25,11 @@ export default function FormScope({scope, onChange}) {
   }
 
   return (
-    <>
-      {isMobile && (
-        <FormVariantMobile
-          template={template}
-          item={scope}
-          onItemChange={handleItemChange}
-        />
-      )}
-      {!isMobile && (
-        <FormVariantGrid
-          template={template}
-          item={scope}
-          onItemChange={handleItemChange}
-        />
-      )}
-    </>
+    <FormGeneric
+      template={template}
+      item={scope}
+      onItemChange={handleItemChange}
+      forceVariantGrid={true}
+    />
   );
 }

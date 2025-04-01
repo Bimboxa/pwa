@@ -1,7 +1,7 @@
 import {useState} from "react";
 
 import {useDispatch} from "react-redux";
-import {setIsEditingEntity} from "../entitiesSlice";
+import {setEditedEntity, setIsEditingEntity} from "../entitiesSlice";
 
 import useEntity from "../hooks/useEntity";
 import useCreateEntity from "../hooks/useCreateEntity";
@@ -38,6 +38,7 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
     } else {
       await update(entity.id, entity);
       dispatch(setIsEditingEntity(false));
+      dispatch(setEditedEntity({}));
     }
     //
     setLoading(false);

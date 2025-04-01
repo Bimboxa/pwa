@@ -12,7 +12,10 @@ export default function SectionListEntitiesInListPanel() {
 
   // data
 
-  const {value: entities, loading} = useEntities({withImages: true});
+  const {value: entities, loading} = useEntities({
+    withImages: true,
+    sortByCreatedAtInverse: true,
+  });
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
 
   // helpers

@@ -36,7 +36,7 @@ export default function FormVariantMobileOverview({
       <BoxFlexVStretch sx={{overflow: "auto"}}>
         <List>
           {template.fields.map((field) => {
-            const value = item[field.key];
+            const value = item?.[field.key];
             const type = field.type;
             const label = field.label;
             return (

@@ -3,22 +3,25 @@ import FieldText from "./FieldText";
 
 export default function FieldTextVariantMobile({
   value,
+  lastValue,
   onChange,
   options,
   label,
+  onNext,
 }) {
   // handlers
 
-  function handleChange(event) {
-    const newValue = event.target.value;
+  function handleChange(newValue) {
     onChange(newValue);
+    if (onNext) onNext();
   }
 
   return (
     <Box sx={{width: 1, p: 2, overflow: "auto"}}>
       <FieldText
         value={value}
-        onChange={onChange}
+        lastValue={lastValue}
+        onChange={handleChange}
         options={{...options, fullWidth: true}}
         label={label}
       />

@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useState, useEffect} from "react";
 
 import {Box} from "@mui/material";
 
@@ -12,13 +12,22 @@ import FormVariantMobileOverview from "./FormVariantMobileOverview";
 
 import getTemplateFields from "../utils/getTemplateFields";
 
-export default function FormVariantMobile({template, item, onItemChange}) {
+export default function FormVariantMobile({
+  template,
+  item,
+  onItemChange,
+  lastItem,
+}) {
   // state
 
   let templateFields = getTemplateFields(template);
   templateFields = [...templateFields, {key: "_overview"}];
 
   const [fieldIndex, setFieldIndex] = useState(0);
+
+  useEffect(() => {
+    setFieldIndex(0);
+  }, [item?.id]);
 
   // helpers
 
@@ -55,7 +64,6 @@ export default function FormVariantMobile({template, item, onItemChange}) {
         height: 1,
         flexDirection: "column",
         overflow: "auto",
-        border: "1px solid red",
       }}
     >
       {!showOverview && (
@@ -70,9 +78,11 @@ export default function FormVariantMobile({template, item, onItemChange}) {
           key={field.key}
           label={field.label}
           width={field.width}
-          value={item[field.key]}
+          value={item?.[field.key]}
+          lastValue={lastItem?.[field.key]}
           onChange={(newValue) => handleFieldValueChange(field.key, newValue)}
           options={field.options}
+          onNext={handleForwardClick}
         />
       )}
       {field?.type === "image" && (

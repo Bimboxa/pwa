@@ -1,20 +1,12 @@
-import useIsMobile from "Features/layout/hooks/useIsMobile";
-
-import {Box} from "@mui/material";
-
-import FormVariantMobile from "Features/form/components/FormVariantMobile";
-import FormVariantGrid from "Features/form/components/FormVariantGrid";
+import FormGeneric from "Features/form/components/FormGeneric";
 
 export default function FormEntity({
   template,
   entity,
+  lastEntity,
   onEntityChange,
   selectorContainerRef,
 }) {
-  // data
-
-  const isMobile = useIsMobile();
-
   // handlers
 
   function handleItemChange(item) {
@@ -23,23 +15,13 @@ export default function FormEntity({
 
   return (
     <>
-      {isMobile && (
-        <FormVariantMobile
-          template={template}
-          item={entity}
-          onItemChange={handleItemChange}
-        />
-      )}
-      {!isMobile && (
-        <Box sx={{bgcolor: "white"}}>
-          <FormVariantGrid
-            template={template}
-            item={entity}
-            onItemChange={handleItemChange}
-            selectorContainerRef={selectorContainerRef}
-          />
-        </Box>
-      )}
+      <FormGeneric
+        template={template}
+        item={entity}
+        lastItem={lastEntity}
+        onItemChange={handleItemChange}
+        selectorContainerRef={selectorContainerRef}
+      />
     </>
   );
 }

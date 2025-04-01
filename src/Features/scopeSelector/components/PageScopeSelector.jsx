@@ -31,7 +31,10 @@ export default function PageScopeSelector() {
   const project = useSelector((s) => s.scopeSelector.project);
 
   const {value: scope} = useSelectedScope();
-  const {value: scopes} = useScopes({filterByProjectId: project?.id});
+  const {value: scopes} = useScopes({
+    filterByProjectId: project?.id,
+    sortByClientRef: true,
+  });
 
   // state
 
