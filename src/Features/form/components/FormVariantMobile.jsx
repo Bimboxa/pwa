@@ -42,11 +42,13 @@ export default function FormVariantMobile({
 
   function handleForwardClick() {
     if (fieldIndex < templateFields.length - 1)
-      setFieldIndex((index) => index + 1);
+      console.log("[Forward] fieldIndex", fieldIndex + 1);
+    setFieldIndex((index) => index + 1);
   }
 
   function handleFieldClick(field) {
     const index = templateFields.findIndex((f) => f.key === field.key);
+    console.log("[handleFieldClick] field", index);
     if (index !== -1) setFieldIndex(index);
   }
 

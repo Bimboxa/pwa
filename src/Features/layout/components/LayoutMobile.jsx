@@ -41,24 +41,26 @@ export default function LayoutMobile() {
       <BottomBarMobile />
       <PanelChatContainer />
 
-      <Box
-        sx={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          left: 0,
-          width: 1,
-          transform,
-          zIndex: 100,
-          boxSizing: "border-box",
-          bgcolor: "background.default",
-          display: "flex",
-          flexDirection: "column",
-          pb: 2,
-        }}
-      >
-        <PanelListItem />
-      </Box>
+      {openPanelListItem && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            width: 1,
+            //transform,
+            zIndex: 100,
+            boxSizing: "border-box",
+            bgcolor: "background.default",
+            display: "flex",
+            flexDirection: "column",
+            pb: 2,
+          }}
+        >
+          <PanelListItem />
+        </Box>
+      )}
     </BoxFlexV>
   );
 }

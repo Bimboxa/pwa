@@ -9,11 +9,15 @@ export default function FieldTextVariantMobile({
   label,
   onNext,
 }) {
+  console.log("[FieldTextVariantMobile] autoFocus", options?.autoFocus);
+
   // handlers
 
   function handleChange(newValue) {
-    onChange(newValue);
-    if (onNext) onNext();
+    if (newValue !== value) {
+      onChange(newValue);
+      if (onNext) onNext();
+    }
   }
 
   return (
