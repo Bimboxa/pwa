@@ -11,6 +11,7 @@ const listingsInitialState = {
   //
   selectedListingId: null,
   //
+  openListingSyncDetail: false,
 };
 
 export const listingsSlice = createSlice({
@@ -35,6 +36,10 @@ export const listingsSlice = createSlice({
       const listing = state.listingsListing[updates.id];
       state.listingsListing[updates.id] = {...listing, ...updates};
     },
+    //
+    setOpenListingSyncDetail: (state, action) => {
+      state.openListingSyncDetail = action.payload;
+    },
   },
 });
 
@@ -44,6 +49,8 @@ export const {
   //
   createListing,
   updateListing,
+  //
+  setOpenListingSyncDetail,
 } = listingsSlice.actions;
 
 export default listingsSlice.reducer;

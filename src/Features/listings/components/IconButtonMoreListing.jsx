@@ -1,15 +1,22 @@
 import {useState} from "react";
 
-import {useSelector} from "react-redux";
+import {useSelector, useDispatch} from "react-redux";
+
+import {setOpenListingSyncDetail} from "../listingsSlice";
 
 import useDeleteListing from "../hooks/useDeleteListing";
 
+import {Box} from "@mui/material";
 import {MoreHoriz} from "@mui/icons-material";
 
 import IconButtonMenu from "Features/layout/components/IconButtonMenu";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 
+import DialogListingSyncDetail from "./DialogListingSyncDetail";
+
 export default function IconButtonMoreListing() {
+  const dispatch = useDispatch();
+
   // state
 
   const [openDelete, setOpenDelete] = useState(false);
@@ -17,11 +24,26 @@ export default function IconButtonMoreListing() {
   // data
 
   const listingId = useSelector((s) => s.listings.selectedListingId);
+  const openSync = useSelector((s) => s.listings.openListingSyncDetail);
+
   const deleteListing = useDeleteListing();
+
+  // helpers - handler
+
+  function handleOpenSync() {
+    dispatch(setOpenListingSyncDetail(true));
+  }
+  function handleCloseSync() {
+    dispatch(setOpenListingSyncDetail(false));
+  }
 
   // actions
 
   const actions = [
+    {
+      label: "Sync",
+      handler: handleOpenSync,
+    },
     {
       label: "Supprimer",
       handler: () => setOpenDelete(true),
@@ -29,14 +51,16 @@ export default function IconButtonMoreListing() {
   ];
 
   return (
-    <>
+    <Box>
       <IconButtonMenu actions={actions} icon={<MoreHoriz />} />
+
+      <DialogListingSyncDetail open={openSync} onClose={handleCloseSync} />
 
       <DialogDeleteRessource
         open={openDelete}
         onClose={() => setOpenDelete(false)}
         onConfirmAsync={() => deleteListing(listingId)}
       />
-    </>
+    </Box>
   );
 }

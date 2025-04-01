@@ -3,6 +3,7 @@ import {configureStore} from "@reduxjs/toolkit";
 import servicesCredentialsReducer from "Features/servicesCredentials/servicesCredentialsSlice";
 import settingsReducer from "Features/settings/settingsSlice";
 import webrtcReducer from "Features/webrtc/webrtcSlice";
+import syncReducer from "Features/sync/syncSlice";
 import layoutReducer from "Features/layout/layoutSlice";
 import listPanelReducer from "Features/listPanel/listPanelSlice";
 import projectsReducer from "Features/projects/projectsSlice";
@@ -34,6 +35,7 @@ const store = configureStore({
     servicesCredentials: servicesCredentialsReducer,
     settings: settingsReducer,
     webrtc: webrtcReducer,
+    sync: syncReducer,
     layout: layoutReducer,
     listPanel: listPanelReducer,
     projects: projectsReducer,

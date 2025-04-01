@@ -4,7 +4,8 @@ import {setOpen} from "Features/listPanel/listPanelSlice";
 const layoutInitialState = {
   //
   deviceType: null, // "MOBILE" | "DESKTOP"
-
+  //
+  topBarHeight: 48,
   //
   viewModeInMobile: "LIST", // "MAP" | "LIST"
   //

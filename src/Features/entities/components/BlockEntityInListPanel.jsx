@@ -29,6 +29,7 @@ export default function BlockEntityInListPanel() {
   // handlers
 
   function handleClick() {
+    console.log("[BlockEntityInListPanel] handleClick");
     dispatch(setOpenPanelListItem(!openPanelListItem));
   }
 

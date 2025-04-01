@@ -1,5 +1,7 @@
 import {useSelector} from "react-redux";
 
+import useIsMobile from "Features/layout/hooks/useIsMobile";
+
 import {Stack, Box} from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -11,7 +13,6 @@ export default function PanelChat() {
   const messages = useSelector((state) => state.chat.messages);
   const isThinking = useSelector((state) => state.chat.isThinking);
 
-  console.log("messages", messages);
   return (
     <Box
       sx={{
@@ -19,7 +20,7 @@ export default function PanelChat() {
         display: "flex",
         flexDirection: "column",
         borderLeft: "1px solid #ccc",
-        width: 400,
+        width: 1,
         backgroundColor: "#f9f9f9",
       }}
     >
@@ -29,6 +30,7 @@ export default function PanelChat() {
         ))}
         {isThinking && <ThinkingBubble />}
       </Stack>
+
       <ChatInput />
     </Box>
   );

@@ -1,6 +1,7 @@
 import {useRef, useState, useEffect} from "react";
 import {useSelector, useDispatch} from "react-redux";
 
+import useIsMobile from "Features/layout/hooks/useIsMobile";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useListingEntityModel from "Features/entities/hooks/useListingEntityModel";
 
@@ -11,11 +12,12 @@ import {Box, Paper} from "@mui/material";
 import SectionEntity from "Features/entities/components/SectionEntity";
 import BlockEntityInListPanel from "Features/entities/components/BlockEntityInListPanel";
 import BlockBottomActionsInPanel from "Features/entityProps/components/BlockBottomActionsInPanel";
+import BoxFlexV from "Features/layout/components/BoxFlexV";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 export default function PanelListItem() {
   const dispatch = useDispatch();
   const selectorContainerRef = useRef(null);
-  const listItemContainerRef = useRef(null);
 
   // state
 
@@ -24,27 +26,25 @@ export default function PanelListItem() {
   // data
 
   const listPanelWidth = useSelector((s) => s.listPanel.width);
+  const topBarHeight = useSelector((s) => s.layout.topBarHeight);
   const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
 
   const {value: listing} = useSelectedListing();
   const entityModel = useListingEntityModel(listing);
 
-  // effect - init height
-
-  useEffect(() => {
-    setListItemContainerHeight(listItemContainerRef.current.clientHeight);
-  }, [
-    listItemContainerRef.current?.clientHeight,
-    openPanelListItem,
-    listing?.id,
-  ]);
+  const isMobile = useIsMobile();
 
   // helpers
 
+  const width = isMobile ? 1 : listPanelWidth;
+  const top = isMobile ? 0 : topBarHeight;
+  const bottom = 0;
+
+  // helper - header
   const componentByEntityModel = {
     ENTITY_PROPS: <BlockBottomActionsInPanel />,
   };
-  const component = componentByEntityModel[entityModel?.type] ?? (
+  const header = componentByEntityModel[entityModel?.type] ?? (
     <BlockEntityInListPanel />
   );
 
@@ -55,45 +55,11 @@ export default function PanelListItem() {
   }
 
   return (
-    <Box
-      sx={{
-        position: "absolute",
-        bottom: 0,
-        zIndex: 1000,
-        transition: "transform 0.2s ease-in-out",
-        height: openPanelListItem ? 1 : `${listItemContainerHeight}px`,
-        transform: openPanelListItem
-          ? "translateY(0)"
-          : `translateY(calc(100% - ${listItemContainerHeight}px))`,
-      }}
-    >
-      <Paper
-        ref={selectorContainerRef}
-        sx={{
-          width: listPanelWidth,
-          bgcolor: "common.white",
-          height: 1,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: openPanelListItem ? "flex-start" : "flex-end",
-        }}
-      >
-        <Box sx={{width: 1}} ref={listItemContainerRef}>
-          {component}
-        </Box>
-        {openPanelListItem && (
-          <Box
-            sx={{
-              flex: 1,
-              overflow: "auto",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <SectionEntity selectorContainerRef={selectorContainerRef} />
-          </Box>
-        )}
-      </Paper>
-    </Box>
+    <BoxFlexVStretch>
+      {header}
+      <BoxFlexVStretch>
+        <SectionEntity />
+      </BoxFlexVStretch>
+    </BoxFlexVStretch>
   );
 }

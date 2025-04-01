@@ -64,16 +64,18 @@ export default function PageProjectAndScope() {
         </Box>
       </Box>
 
-      <Box sx={{px: 1, pl: 3}}>
-        <Typography variant="caption" color="text.secondary">
-          {scopeS}
-        </Typography>
-        <Typography>{scopeName}</Typography>
-        <Typography variant="caption">{scopeRefLabel}</Typography>
-        <Box sx={{display: "flex", width: 1, justifyContent: "flex-end"}}>
-          <Button endIcon={<Forward />} onClick={handleSeeScopesClick}>
-            {seeScopesS}
-          </Button>
+      <Box sx={{p: 2, bgcolor: "background.default"}}>
+        <Box sx={{p: 1, bgcolor: "common.white"}}>
+          <Typography variant="caption" color="text.secondary">
+            {scopeS}
+          </Typography>
+          <Typography>{scopeName}</Typography>
+          <Typography variant="caption">{scopeRefLabel}</Typography>
+          <Box sx={{display: "flex", width: 1, justifyContent: "flex-end"}}>
+            <Button endIcon={<Forward />} onClick={handleSeeScopesClick}>
+              {seeScopesS}
+            </Button>
+          </Box>
         </Box>
       </Box>
     </BoxFlexVStretch>
