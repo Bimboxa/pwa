@@ -39,7 +39,7 @@ export default function SectionEntity({selectorContainerRef}) {
   }
 
   return (
-    <Paper
+    <Box
       sx={{
         width: 1,
         display: "flex",
@@ -57,6 +57,6 @@ export default function SectionEntity({selectorContainerRef}) {
       </Box>
 
       <BlockBottomActionsInListPanel onSaved={handleSaved} />
-    </Paper>
+    </Box>
   );
 }

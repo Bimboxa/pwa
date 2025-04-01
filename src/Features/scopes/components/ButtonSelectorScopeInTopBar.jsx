@@ -10,6 +10,7 @@ import {Box, Typography, Button, Dialog, Menu} from "@mui/material";
 import {ArrowDropDown as Down} from "@mui/icons-material";
 
 import ScopeSelector from "Features/scopeSelector/components/ScopeSelector";
+import ButtonMenuSyncIndicator from "Features/sync/components/ButtonMenuSyncIndicator";
 
 export default function ButtonSelectorScopeInTopBar() {
   const dispatch = useDispatch();
@@ -49,13 +50,16 @@ export default function ButtonSelectorScopeInTopBar() {
 
   return (
     <>
-      <Button onClick={handleClick} endIcon={<Down />}>
-        <Box
-          sx={{display: "flex", flexDirection: "column", alignItems: "start"}}
-        >
-          <Typography variant="body2">{scopeName}</Typography>
-        </Box>
-      </Button>
+      <Box sx={{alignItems: "center", display: "flex"}}>
+        <Button onClick={handleClick} endIcon={<Down />}>
+          <Box
+            sx={{display: "flex", flexDirection: "column", alignItems: "start"}}
+          >
+            <Typography variant="body2">{scopeName}</Typography>
+          </Box>
+        </Button>
+        <ButtonMenuSyncIndicator />
+      </Box>
       {isMobile && (
         <Dialog
           open={open}

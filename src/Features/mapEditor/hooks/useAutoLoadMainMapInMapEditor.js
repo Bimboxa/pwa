@@ -10,6 +10,7 @@ export default function useAutoLoadMainMapInMapEditor({
 
   useEffect(() => {
     if (mapEditorIsReady && map?.imageUrl) {
+      console.log("[MapEditor] load main map");
       mapEditor.loadMainMap(map);
     }
   }, [mapEditorIsReady, map?.imageUrl]);
