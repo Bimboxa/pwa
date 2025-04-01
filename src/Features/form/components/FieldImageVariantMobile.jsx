@@ -1,6 +1,6 @@
 import {useRef, useEffect} from "react";
 
-import {Box} from "@mui/material";
+import {Box, IconButton, Button, Paper} from "@mui/material";
 import {Image as ImageIcon} from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -43,25 +43,36 @@ export default function FieldImageVariantMobile({label, value, onChange}) {
   return (
     <BoxFlexVStretch>
       <BoxCenter sx={{position: "relative", width: 1}}>
-        {imageSrc ? (
-          <img
-            src={imageSrc}
-            alt={label}
-            style={{width: "100%", height: "auto"}}
-          />
-        ) : (
-          <ImageIcon sx={{fontSize: 420, color: "text.secondary"}} />
-        )}
-        <Box
-          sx={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: 1,
-          }}
-        >
-          <ButtonBasicMobile label={takePictureS} onClick={handleClick} />
+        <Box sx={{width: 1, height: "70%", p: 2, position: "relative"}}>
+          <Paper sx={{height: 1, width: 1}}>
+            {imageSrc && (
+              <img
+                src={imageSrc}
+                alt={label}
+                style={{
+                  objectFit: "contain",
+                  width: "100%",
+                  maxHeight: "100%",
+                }}
+              />
+            )}
+          </Paper>
+          <Box
+            sx={{
+              position: "absolute",
+              bottom: "16px",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+            }}
+          >
+            <Button
+              onClick={handleClick}
+              startIcon={<ImageIcon />}
+              variant="contained"
+            >
+              {takePictureS}
+            </Button>
+          </Box>
         </Box>
       </BoxCenter>
 

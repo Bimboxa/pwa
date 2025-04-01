@@ -32,7 +32,7 @@ export const entitiesSlice = createSlice({
     },
     //
     triggerEntitiesUpdate: (state) => {
-      state.entitiesUpdatedAt = Date.now();
+      state.entitiesUpdatedAt = new Date(Date.now()).toISOString();
     },
     //
     createEntity: (state, action) => {

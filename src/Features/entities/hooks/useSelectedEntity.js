@@ -15,6 +15,10 @@ export default function useSelectedEntity() {
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
 
   const entity = useLiveQuery(async () => {
+    if (!selectedEntityId) {
+      setLoading(false);
+      return null;
+    }
     try {
       const entity = await db.entities.get(selectedEntityId);
       setLoading(false);

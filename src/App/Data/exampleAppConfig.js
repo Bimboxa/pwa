@@ -182,6 +182,10 @@ const exampleAppConfig = {
       entityModelKey: "sample",
       color: blue[700],
       iconKey: "sample",
+      sortBy: {
+        key: "num",
+        order: "desc",
+      },
     },
     observations: {
       name: "Sondages",

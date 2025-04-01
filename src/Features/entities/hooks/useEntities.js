@@ -11,6 +11,7 @@ export default function useEntities(options) {
 
   const withImages = options?.withImages;
   const filterByListingsKeys = options?.filterByListingsKeys;
+  const sortByCreatedAtInverse = options.sortByCreatedAtInverse;
 
   // state
 
@@ -20,10 +21,11 @@ export default function useEntities(options) {
 
   const {value: listings, loading: loadingList} = useListingsByScope({
     withEntityModel: true,
-    filterByKeys: filterByListingsKeys ?? [],
+    filterByKeys: filterByListingsKeys ?? null,
   });
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   const selectedListing = listings?.find((l) => l?.id === selectedListingId);
+  const entitiesUpdatedAt = useSelector((s) => s.entities.entitiesUpdatedAt);
 
   // helpers
 
@@ -58,7 +60,7 @@ export default function useEntities(options) {
   const listingsIdsHash = listingsIds?.sort().join(",");
 
   const value = useLiveQuery(async () => {
-    console.log("[db] fetching entities");
+    console.log("[db] fetching entities", listingsIds);
     try {
       // edge case
       if (listingsIds.length === 0) {
@@ -105,6 +107,11 @@ export default function useEntities(options) {
         );
       }
 
+      // sort
+      if (sortByCreatedAtInverse) {
+        entities = entities.sort((a, b) => b.createdAt - a.createdAt);
+      }
+
       // add label && listingKey
       entities = entities.map((entity) => {
         const labelKey = labelKeyByListingId[entity.listingId];
@@ -120,7 +127,7 @@ export default function useEntities(options) {
       setLoading(false);
       return [];
     }
-  }, [listingsIdsHash]);
+  }, [listingsIdsHash, entitiesUpdatedAt]);
 
   return {value, loading};
 }

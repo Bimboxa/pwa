@@ -8,6 +8,7 @@ export default function HeaderTitleClose({title, onClose}) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
+        p: 1,
       }}
     >
       <Box sx={{flexGrow: 1}}>

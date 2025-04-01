@@ -8,6 +8,7 @@ export default function ButtonInPanel({
   bgcolor,
   color,
   loading,
+  variant,
 }) {
   const isMobile = useIsMobile();
   const size = isMobile ? "large" : "medium";
@@ -18,7 +19,7 @@ export default function ButtonInPanel({
         <Button
           fullWidth
           size={size}
-          variant="contained"
+          variant={variant ?? "contained"}
           onClick={onClick}
           loading={loading}
         >

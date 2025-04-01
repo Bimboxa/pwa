@@ -12,16 +12,31 @@ import {
 import {Stop, Mic as MicIcon} from "@mui/icons-material";
 import useRecognition from "../hooks/useRecognition";
 
-export default function FieldText({value, onChange, options, label}) {
+export default function FieldText({
+  value,
+  lastValue,
+  onChange,
+  options,
+  label,
+}) {
   const fullWidth = options?.fullWidth;
   const multiline = options?.multiline;
   const showLabel = options?.showLabel;
+  const hideMic = options?.hideMic;
+  const autoIncrement = options?.increment === "auto";
 
   const [recording, setRecording] = useState(false);
 
   const [tempValue, setTempValue] = useState(value ?? "");
+  const [autoIncrementDone, setAutoIncrementDone] = useState(false);
+
   useEffect(() => {
-    setTempValue(value ?? "");
+    if (!value && autoIncrement && !autoIncrementDone) {
+      setTempValue(parseInt(lastValue ?? 0) + 1);
+      setAutoIncrementDone(true);
+    } else {
+      setTempValue(value ?? "");
+    }
   }, [value]);
 
   const {recognitionRef, recordingRef} = useRecognition(
@@ -65,13 +80,13 @@ export default function FieldText({value, onChange, options, label}) {
       onKeyDown={(e) => e.stopPropagation()}
       slotProps={{
         input: {
-          endAdornment: (
+          endAdornment: !hideMic ? (
             <InputAdornment position="end">
               <IconButton onClick={handleMicClick} size="small">
                 {recording ? <Stop sx={{color: "red"}} /> : <MicIcon />}
               </IconButton>
             </InputAdornment>
-          ),
+          ) : null,
         },
       }}
     />

@@ -13,6 +13,7 @@ import IconButtonMenu from "Features/layout/components/IconButtonMenu";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 
 import DialogListingSyncDetail from "./DialogListingSyncDetail";
+import {triggerEntitiesUpdate} from "Features/entities/entitiesSlice";
 
 export default function IconButtonMoreListing() {
   const dispatch = useDispatch();
@@ -36,10 +37,17 @@ export default function IconButtonMoreListing() {
   function handleCloseSync() {
     dispatch(setOpenListingSyncDetail(false));
   }
+  function handleRefresh() {
+    dispatch(triggerEntitiesUpdate());
+  }
 
   // actions
 
   const actions = [
+    {
+      label: "Mettre à jour",
+      handler: handleRefresh,
+    },
     {
       label: "Sync",
       handler: handleOpenSync,

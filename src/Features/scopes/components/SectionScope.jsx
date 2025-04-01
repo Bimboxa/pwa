@@ -45,7 +45,15 @@ export default function SectionScope({forceNew, onSaved, newScopeProjectId}) {
   }
 
   return (
-    <Box sx={{width}}>
+    <Box
+      sx={{
+        width,
+        height: 1,
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+      }}
+    >
       {!loading && <FormScope scope={scope} onChange={handleChange} />}
       <SectionNewScopePresetConfigs
         presetConfigKey={presetConfigKey}
