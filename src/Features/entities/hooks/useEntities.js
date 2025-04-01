@@ -5,11 +5,14 @@ import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
 import {useLiveQuery} from "dexie-react-hooks";
 import db from "App/db/db";
+import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 export default function useEntities(options) {
   // options
 
   const withImages = options?.withImages;
+  const withMarkers = options?.withMarkers;
+
   const filterByListingsKeys = options?.filterByListingsKeys;
   const sortBy = options?.sortBy;
 
@@ -23,6 +26,8 @@ export default function useEntities(options) {
     withEntityModel: true,
     filterByKeys: filterByListingsKeys ?? null,
   });
+  const mapId = useSelector((s) => s.mapEditor.loadedMainMapId);
+
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   const selectedListing = listings?.find((l) => l?.id === selectedListingId);
   const entitiesUpdatedAt = useSelector((s) => s.entities.entitiesUpdatedAt);
@@ -60,7 +65,6 @@ export default function useEntities(options) {
   const listingsIdsHash = listingsIds?.sort().join(",");
 
   const value = useLiveQuery(async () => {
-    console.log("[db] fetching entities", listingsIds);
     try {
       // edge case
       if (listingsIds.length === 0) {
@@ -68,7 +72,7 @@ export default function useEntities(options) {
         return [];
       }
       // fetch entities
-
+      console.log("[db] fetching entities", listingsIds);
       let entities = [];
       if (listingsIds.length > 1) {
         entities = await db.entities
@@ -107,6 +111,17 @@ export default function useEntities(options) {
         );
       }
 
+      // add markers
+      if (withMarkers) {
+        const markers = await db.markers.where("mapId").equals(mapId).toArray();
+        const markersByEntityId = getItemsByKey(markers, "targetEntityId");
+
+        entities = entities.map((entity) => {
+          const marker = markersByEntityId[entity.id];
+          return {...entity, marker};
+        });
+      }
+
       // sort
       if (sortBy?.key) {
         entities = entities.sort((a, b) => {
@@ -133,7 +148,7 @@ export default function useEntities(options) {
       setLoading(false);
       return [];
     }
-  }, [listingsIdsHash, entitiesUpdatedAt]);
+  }, [listingsIdsHash, entitiesUpdatedAt, mapId, withMarkers]);
 
   return {value, loading};
 }

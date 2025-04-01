@@ -9,6 +9,7 @@ const markersInitialState = {
   //
   selectedMarkerId: null,
   //
+  tempMarker: null,
 };
 
 export const markersSlice = createSlice({
@@ -28,6 +29,10 @@ export const markersSlice = createSlice({
     triggerMarkersUpdate: (state, action) => {
       state.markersUpdatedAt = Date.now();
     },
+    //
+    setTempMarker: (state, action) => {
+      state.tempMarker = action.payload;
+    },
   },
 });
 
@@ -36,6 +41,8 @@ export const {
   triggerMarkersUpdate,
   //
   createMarker,
+  //
+  setTempMarker,
 } = markersSlice.actions;
 
 export default markersSlice.reducer;

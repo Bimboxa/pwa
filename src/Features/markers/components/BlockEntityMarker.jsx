@@ -1,3 +1,8 @@
+import {useDispatch} from "react-redux";
+
+import {setOpenPanelListItem} from "Features/listPanel/listPanelSlice";
+import {setTempMarker} from "../markersSlice";
+
 import useEntity from "Features/entities/hooks/useEntity";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useCreateMarker from "Features/markers/hooks/useCreateMarker";
@@ -8,14 +13,24 @@ import theme from "Styles/theme";
 import {lighten} from "@mui/material";
 
 export default function BlockEntityMarker({top, right}) {
+  const dispatch = useDispatch();
+
   // data
 
   const entity = useEntity();
-  const {value: listing} = useSelectedListing();
+  const {value: listing} = useSelectedListing({withEntityModel: true});
 
   // data - func
 
   const createMarker = useCreateMarker();
+
+  // helper
+
+  const show = listing?.entityModel?.type === "LOCATED_ENTITY";
+  //entity?.id &&
+  //entity?.listingId === listing.id;
+
+  console.log("show", show, entity, listing);
 
   // helpers
 
@@ -25,6 +40,7 @@ export default function BlockEntityMarker({top, right}) {
   // handlers
 
   function handleCreateMarker({x, y, mapId}) {
+    console.log("[handleCreateMarker] entity", entity.label);
     if (entity.id) {
       createMarker({
         mapId,
@@ -33,13 +49,16 @@ export default function BlockEntityMarker({top, right}) {
         listingId: listing?.id,
         entityId: entity.id,
       });
+    } else {
+      dispatch(setTempMarker({x, y, mapId}));
+      dispatch(setOpenPanelListItem(true));
     }
   }
 
   return (
     <Box
       sx={{
-        display: "flex",
+        display: show ? "flex" : "none",
         alignItems: "center",
         position: "fixed",
         top: `${top}px`,

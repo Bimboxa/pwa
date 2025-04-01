@@ -49,6 +49,7 @@ export default function useCreateEntity() {
     try {
       console.log("[db] adding entity ...", entity);
       await db.entities.add(entity);
+      return entity;
     } catch (e) {
       console.log("[db] error adding entity", entity);
     }

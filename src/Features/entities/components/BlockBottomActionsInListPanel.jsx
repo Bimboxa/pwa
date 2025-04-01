@@ -1,11 +1,14 @@
 import {useState} from "react";
 
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
+
 import {setEditedEntity, setIsEditingEntity} from "../entitiesSlice";
+import {setTempMarker} from "Features/markers/markersSlice";
 
 import useEntity from "../hooks/useEntity";
 import useCreateEntity from "../hooks/useCreateEntity";
 import useUpdateEntity from "../hooks/useUpdateEntity";
+import useCreateMarker from "Features/markers/hooks/useCreateMarker";
 
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
@@ -28,6 +31,9 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
   const create = useCreateEntity();
   const update = useUpdateEntity();
 
+  const tempMarker = useSelector((s) => s.markers.tempMarker);
+  const createMarker = useCreateMarker();
+
   // helper
 
   const saveS = entity.id ? updateS : createS;
@@ -39,7 +45,12 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
     setLoading(true);
     //
     if (!entity.id) {
-      await create(entity);
+      const newEntity = await create(entity);
+      if (tempMarker) {
+        const {id: entityId, listingId: listingId} = newEntity;
+        await createMarker({...tempMarker, entityId, listingId});
+        dispatch(setTempMarker(null));
+      }
     } else {
       await update(entity.id, entity);
       dispatch(setIsEditingEntity(false));
