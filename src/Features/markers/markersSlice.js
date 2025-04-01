@@ -24,11 +24,16 @@ export const markersSlice = createSlice({
       state.markersMap[marker.id] = marker;
       state.markersUpdatedAt = Date.now();
     },
+    //
+    triggerMarkersUpdate: (state, action) => {
+      state.markersUpdatedAt = Date.now();
+    },
   },
 });
 
 export const {
   setSelectedMarkerId,
+  triggerMarkersUpdate,
   //
   createMarker,
 } = markersSlice.actions;

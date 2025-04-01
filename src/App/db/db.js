@@ -11,6 +11,7 @@ db.version(2).stores({
   entities: "id,listingId",
   entitiesProps:
     "id,[listingKey+targetEntityId],listingKey,targetListingKey,targetEntityId", // entityProps = {id,tarketListingKey,targetEntityId,props}
+  markers: "id,mapId,targetListingId,targetEntityId", // marker = {id,mapId,x,y,targetListingId,targetEntityId}
   files: "id,listingId,entityId",
 });
 

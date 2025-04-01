@@ -12,7 +12,7 @@ import getPointerPositionInStage from "Features/mapEditor/utils/getPointerPositi
 
 import editor from "App/editor";
 
-export default function DraggableFabMarker() {
+export default function DraggableFabMarker({bgcolor, onDropped}) {
   const dispatch = useDispatch();
   // data
 
@@ -38,6 +38,12 @@ export default function DraggableFabMarker() {
   function handleDragStart(event) {}
 
   function handleDragEnd(event) {
+    // edge case
+    if (!isCreating) {
+      return;
+    }
+
+    // main
     const {activatorEvent, delta} = event;
     let pointer = {x: 0, y: 0};
     if (activatorEvent.clientX || activatorEvent.clientY) {
@@ -66,11 +72,11 @@ export default function DraggableFabMarker() {
       mapId: loadedMainMap.id,
     };
 
-    dispatch(createMarker(newMarker));
+    if (onDropped) onDropped({x, y, mapId: newMarker.mapId});
   }
 
   return (
-    <Box sx={{position: "fixed", zIndex: 2, top: "64px", right: "16px"}}>
+    <Box>
       <Box
         ref={setNodeRef}
         {...attributes}
@@ -86,7 +92,7 @@ export default function DraggableFabMarker() {
           touchAction: "manipulation",
         }}
       >
-        <FabMarker />
+        <FabMarker bgcolor={bgcolor} isCreating={isCreating} />
       </Box>
     </Box>
   );
