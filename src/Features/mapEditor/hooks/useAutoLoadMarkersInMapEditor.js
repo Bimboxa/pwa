@@ -9,15 +9,24 @@ export default function useAutoLoadMarkersInMapEditor({
   mapEditorIsReady,
 }) {
   const loadedMainMapId = useSelector((s) => s.mapEditor.loadedMainMapId);
+  const selectedListingId = useSelector((s) => s.listings.selectedListingId);
 
-  const markers = useMarkers({
+  const {value: markers, loading} = useMarkers({
     filterByMapId: loadedMainMapId,
+    filterByListingsIds: [selectedListingId],
   });
+  console.log("markers", markers, loadedMainMapId, selectedListingId);
 
   useEffect(() => {
-    if (mapEditorIsReady && loadedMainMapId) {
+    if (mapEditorIsReady && loadedMainMapId && !loading) {
       console.log("useAutoLoadMarkersInMapEditor", markers);
       mapEditor.loadMarkers(markers);
     }
-  }, [mapEditorIsReady, markers.length, loadedMainMapId]);
+  }, [
+    mapEditorIsReady,
+    markers?.length,
+    loadedMainMapId,
+    selectedListingId,
+    loading,
+  ]);
 }

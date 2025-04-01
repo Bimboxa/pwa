@@ -13,8 +13,10 @@ import {Box} from "@mui/material";
 import MapEditor from "Features/mapEditor/js/MapEditor";
 import LayerMapEditor from "./LayerMapEditor";
 import PopperEditScale from "./PopperEditScale";
+import BlockEntityMarker from "Features/markers/components/BlockEntityMarker";
 
 import editor from "App/editor";
+
 import DraggableFabMarker from "Features/markers/components/DraggableFabMarker";
 
 export default function MainMapEditor() {
@@ -110,7 +112,8 @@ export default function MainMapEditor() {
     >
       <PopperEditScale />
       <LayerMapEditor />
-      <DraggableFabMarker />
+      {/* <DraggableFabMarker /> */}
+      <BlockEntityMarker top={16} right={16} />
       <div
         id="container"
         ref={containerRef}
