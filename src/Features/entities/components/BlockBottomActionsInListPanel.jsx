@@ -2,7 +2,11 @@ import {useState} from "react";
 
 import {useDispatch, useSelector} from "react-redux";
 
-import {setEditedEntity, setIsEditingEntity} from "../entitiesSlice";
+import {
+  setEditedEntity,
+  setIsEditingEntity,
+  setNewEntity,
+} from "../entitiesSlice";
 import {setTempMarker} from "Features/markers/markersSlice";
 
 import useEntity from "../hooks/useEntity";
@@ -51,6 +55,7 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
         await createMarker({...tempMarker, entityId, listingId});
         dispatch(setTempMarker(null));
       }
+      dispatch(setNewEntity({}));
     } else {
       await update(entity.id, entity);
       dispatch(setIsEditingEntity(false));
