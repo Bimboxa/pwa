@@ -20,7 +20,7 @@ export default function useSendMessage() {
       dispatch(sendMessageContent(content));
 
       // step 2
-
+      console.log("[sendMessage] sending message", contentWithContext);
       const response = await sendMessageService({
         messages: [{role: "user", content: contentWithContext}],
         tools,
