@@ -1,3 +1,5 @@
+import {nanoid} from "@reduxjs/toolkit";
+
 export function findNodeById(tree, id) {
   for (const node of tree) {
     if (node.id === id) return node;
@@ -60,4 +62,29 @@ export function countNodes(tree) {
     count += countNodes(node.children || []);
   }
   return count;
+}
+
+export function cleanNodesIds(tree) {
+  const seen = new Set();
+
+  function traverse(nodes) {
+    return nodes.map((node) => {
+      let newNode = {...node};
+
+      // If id is already seen, replace it
+      if (seen.has(newNode.id)) {
+        newNode.id = nanoid();
+      }
+      seen.add(newNode.id);
+
+      // Recurse on children if any
+      if (newNode.children && Array.isArray(newNode.children)) {
+        newNode.children = traverse(newNode.children);
+      }
+
+      return newNode;
+    });
+  }
+
+  return traverse(tree);
 }

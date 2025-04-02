@@ -1,6 +1,6 @@
 import {RichTreeViewPro} from "@mui/x-tree-view-pro";
 
-import {countNodes} from "Features/tree/utils/nodesManagementUtils";
+import {cleanNodesIds} from "Features/tree/utils/nodesManagementUtils";
 
 export default function TreeZones({
   items,
@@ -14,7 +14,7 @@ export default function TreeZones({
 }) {
   // helpers
 
-  const nodesCount = countNodes(items);
+  items = cleanNodesIds(items);
 
   // handlers
 
