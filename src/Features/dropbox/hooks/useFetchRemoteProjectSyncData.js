@@ -1,14 +1,14 @@
 import {useDispatch} from "react-redux";
 
 import appConfigAsync from "App/appConfigAsync";
-import useAccessTokenDropbox from "./useAccessTokenDropbox";
+import useRemoteToken from "Features/sync/hooks/useRemoteToken";
 
 export default function useFetchRemoteProjectSyncData() {
   const dispatch = useDispatch();
 
   // data
 
-  const token = useAccessTokenDropbox();
+  const token = useRemoteToken();
 
   // helpers
 
