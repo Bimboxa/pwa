@@ -72,7 +72,7 @@ const exampleAppConfig = {
     },
     comment: {
       key: "comment",
-      type: "locatedEntityModel",
+      type: "LOCATED_ENTITY",
       strings: {
         labelNew: "Nouveau commentaire",
       },
@@ -101,6 +101,7 @@ const exampleAppConfig = {
         labelNew: "Nouveau prélèvement",
       },
       labelKey: "num",
+      subLabelKey: "description",
       fieldsObject: {
         num: {
           key: "num",
@@ -109,6 +110,15 @@ const exampleAppConfig = {
           options: {
             autoFocus: true,
             increment: "auto",
+          },
+        },
+        description: {
+          key: "description",
+          label: "Description (pièce & matériau)",
+          type: "text",
+          options: {
+            autoFocus: true,
+            multiline: true,
           },
         },
         photo: {
@@ -123,21 +133,39 @@ const exampleAppConfig = {
       },
     },
     inspection: {
-      type: "locatedEntityModel",
+      type: "LOCATED_ENTITY",
       key: "inspection",
       label: "Sondage",
-      fields: {
+      strings: {
+        labelNew: "Nouveau sondage",
+      },
+      labelKey: "num",
+      subLabelKey: "description",
+      fieldsObject: {
         num: {
           key: "num",
+          label: "Numéro",
           type: "text",
           options: {
+            autoFocus: true,
             increment: "auto",
+          },
+        },
+        description: {
+          key: "description",
+          label: "Description (pièce & matériau)",
+          type: "text",
+          options: {
+            autoFocus: true,
+            multiline: true,
           },
         },
         photo: {
           key: "photo",
+          label: "Photo",
           type: "image",
           options: {
+            autoFocus: true,
             variant: "auto",
           },
         },
@@ -216,7 +244,7 @@ const exampleAppConfig = {
       key: "samples",
       name: "Prélèvements",
       entityModelKey: "sample",
-      color: blue[700],
+      color: blue[800],
       iconKey: "sample",
       sortBy: {
         key: "num",
@@ -225,9 +253,13 @@ const exampleAppConfig = {
     },
     observations: {
       name: "Sondages",
-      entityModelKey: "observation",
-      color: blue[500],
+      entityModelKey: "inspection",
+      color: blue[700],
       iconKey: "info",
+      sortBy: {
+        key: "num",
+        order: "desc",
+      },
     },
     locations: {
       name: "Localisations",
@@ -251,6 +283,28 @@ const exampleAppConfig = {
     },
   },
   presetScopesObject: {
+    preset1: {
+      key: "preset1",
+      name: "Diagnostic amiante",
+      description: "Enregistrer vos prélèvements et sondages",
+      listings: [
+        "projectDataset",
+        "mapsFromPhotos",
+        "mapsFromPdf",
+        "zones",
+        "materials",
+        "samples",
+        "observations",
+        "comments",
+        "laboOrders",
+      ],
+    },
+    preset2: {
+      key: "preset2",
+      name: "Notes libres",
+      description: "Enregistrer vos commentaires",
+      listings: ["comments"],
+    },
     presetDebug: {
       key: "presetDebug",
       name: "Debug",
@@ -263,25 +317,6 @@ const exampleAppConfig = {
         "samples",
         "laboOrders",
       ],
-    },
-    preset1: {
-      key: "preset1",
-      name: "Diagnostic amiante",
-      description: "Enregistrer vos prélèvements et sondages",
-      listings: [
-        "zones",
-        "materials",
-        "samples",
-        "observations",
-        "locations",
-        "comments",
-      ],
-    },
-    preset2: {
-      key: "preset2",
-      name: "Notes libres",
-      description: "Enregistrer vos commentaires",
-      listings: ["comments"],
     },
     preset3: {
       key: "DEFAULT",

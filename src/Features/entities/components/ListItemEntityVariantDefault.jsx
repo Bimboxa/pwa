@@ -18,6 +18,7 @@ export default function ListItemEntityVariantDefault({
   // helpers
 
   const label = entity.label;
+  const subLabel = entity.subLabel;
   const isSelected = selection?.includes(entity.id);
   const mainImage = getEntityMainImage(entity);
   const hasMarker = entity.marker;
@@ -29,6 +30,7 @@ export default function ListItemEntityVariantDefault({
   }
   return (
     <ListItem
+      dense
       divider
       disablePadding
       secondaryAction={
@@ -45,7 +47,7 @@ export default function ListItemEntityVariantDefault({
             <Avatar src={mainImage.url} />
           </ListItemAvatar>
         )}
-        <ListItemText>{label}</ListItemText>
+        <ListItemText primary={label} secondary={subLabel} />
       </ListItemButton>
     </ListItem>
   );

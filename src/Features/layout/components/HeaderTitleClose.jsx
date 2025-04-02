@@ -9,10 +9,13 @@ export default function HeaderTitleClose({title, onClose}) {
         alignItems: "center",
         justifyContent: "space-between",
         p: 1,
+        bgcolor: "background.default",
       }}
     >
       <Box sx={{flexGrow: 1}}>
-        <Typography>{title}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {title}
+        </Typography>
       </Box>
       <IconButton onClick={onClose}>
         <Close />

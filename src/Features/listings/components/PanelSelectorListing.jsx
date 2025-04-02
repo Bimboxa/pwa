@@ -8,12 +8,19 @@ import DialogFs from "Features/layout/components/DialogFs";
 import ListListings from "./ListListings";
 import {Box} from "@mui/material";
 
-export default function PanelSelectorListing({onListingSelected}) {
+export default function PanelSelectorListing({
+  onListingSelected,
+  selectedListingId,
+}) {
   const dispatch = useDispatch();
 
   // data
 
   const {value: listings, loading} = useListingsByScope({sortFromScope: true});
+
+  // helpers
+
+  const selection = selectedListingId ? [selectedListingId] : [];
 
   // handlers
 
@@ -28,6 +35,7 @@ export default function PanelSelectorListing({onListingSelected}) {
         loading={loading}
         listings={listings}
         onClick={handleListingClick}
+        selection={selection}
       />
     </Box>
   );

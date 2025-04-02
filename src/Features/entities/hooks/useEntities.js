@@ -42,10 +42,18 @@ export default function useEntities(options) {
   // helpers
 
   let labelKeyByListingId = {};
+  let subLabelKeyByListingId = {};
   let listingKeyByListingId = {};
 
   if (!loadingList) {
     const allListings = [...(listings ?? []), selectedListing];
+    subLabelKeyByListingId = allListings.reduce((acc, listing) => {
+      if (listing?.id) {
+        acc[listing.id] = listing.entityModel?.subLabelKey;
+      }
+
+      return acc;
+    }, {});
     labelKeyByListingId = allListings.reduce((acc, listing) => {
       if (listing?.id) {
         acc[listing.id] = listing.entityModel?.labelKey;
@@ -147,9 +155,11 @@ export default function useEntities(options) {
       // add label && listingKey
       entities = entities.map((entity) => {
         const labelKey = labelKeyByListingId[entity.listingId];
+        const subLabelKey = subLabelKeyByListingId[entity.listingId];
         const label = entity[labelKey];
+        const subLabel = entity[subLabelKey];
         const listingKey = listingKeyByListingId[entity.listingId];
-        return {...entity, label, listingKey};
+        return {...entity, label, subLabel, listingKey};
       });
       // end
       setLoading(false);

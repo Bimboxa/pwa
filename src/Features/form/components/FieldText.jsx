@@ -40,6 +40,7 @@ export default function FieldText({value, onChange, options, label}) {
     if (recordingRef.current) {
       setRecording(false);
       recognitionRef.current.stop();
+      onChange(tempValue);
     } else {
       setRecording(true);
       recognitionRef.current.start();
