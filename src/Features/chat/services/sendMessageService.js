@@ -7,7 +7,8 @@ export default async function sendMessageService({
   const url = import.meta.env.VITE_WORKER_URL_OPENAI;
 
   const body = {
-    model: "gpt-3.5-turbo-1106", //gpt-3.5-turbo-1106, gpt-4o
+    //model: "gpt-3.5-turbo-1106", //gpt-3.5-turbo-1106, gpt-4o
+    model: "gpt-4o",
     messages,
     tools,
     store,
