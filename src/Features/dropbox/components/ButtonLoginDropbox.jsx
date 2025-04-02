@@ -1,6 +1,7 @@
 import {useDispatch} from "react-redux";
 
-import {useAccessToken} from "../AccessTokenDropboxContext";
+//import {useAccessToken} from "../AccessTokenDropboxContext";
+import {useRemoteTokenData} from "Features/sync/RemoteTokenDataContext";
 
 import ButtonBasicMobile from "Features/layout/components/ButtonBasicMobile";
 
@@ -14,7 +15,7 @@ export default function ButtonLoginDropbox() {
 
   // data
 
-  const {setAccessToken} = useAccessToken();
+  const {setRemoteTokenData} = useRemoteTokenData();
 
   // string
 
@@ -27,7 +28,7 @@ export default function ButtonLoginDropbox() {
     const accessTokenData = await exchangeCodeForToken({code, token});
     //
     const expiresAt = Date.now() + accessTokenData?.expiresIn * 1000;
-    setAccessToken({...accessTokenData, expiresAt});
+    setRemoteTokenData({...accessTokenData, expiresAt});
   }
 
   return <ButtonBasicMobile label={loginS} onClick={handleClick} />;

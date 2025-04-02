@@ -1,4 +1,4 @@
-import useAccessTokenDropbox from "Features/dropbox/hooks/useAccessTokenDropbox";
+import useRemoteToken from "../hooks/useRemoteToken";
 
 import {Box, Typography, IconButton} from "@mui/material";
 import {
@@ -15,7 +15,7 @@ export default function PageProjectsFromRemoteContainersHeader({onBackClick}) {
 
   // data
 
-  const accessToken = useAccessTokenDropbox();
+  const accessToken = useRemoteToken();
 
   // handlers
 

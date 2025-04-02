@@ -1,4 +1,4 @@
-import {useAccessToken} from "../AccessTokenDropboxContext";
+import {useRemoteTokenData} from "Features/sync/RemoteTokenDataContext";
 
 import {Button} from "@mui/material";
 
@@ -9,12 +9,12 @@ export default function ButtonLogoutDropbox() {
 
   // data
 
-  const {accessToken, setAccessToken} = useAccessToken();
+  const {remoteTokenData, setRemoteTokenData} = useRemoteTokenData();
 
   // handlers
 
   function handleClick() {
-    setAccessToken(null);
+    setRemoteTokenData(null);
   }
 
   return <Button onClick={handleClick}>{label}</Button>;

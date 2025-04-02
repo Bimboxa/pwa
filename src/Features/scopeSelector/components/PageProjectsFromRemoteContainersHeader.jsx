@@ -1,4 +1,4 @@
-import useAccessTokenDropbox from "Features/dropbox/hooks/useAccessTokenDropbox";
+import useRemoteToken from "Features/sync/hooks/useRemoteToken";
 
 import {Box, Typography} from "@mui/material";
 import {CheckCircle as Checked} from "@mui/icons-material";
@@ -12,7 +12,7 @@ export default function PageProjectsFromRemoteContainersHeader() {
 
   // data
 
-  const accessToken = useAccessTokenDropbox();
+  const accessToken = useRemoteToken();
 
   // helpers
 
