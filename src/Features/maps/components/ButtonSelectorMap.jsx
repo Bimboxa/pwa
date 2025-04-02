@@ -1,4 +1,9 @@
 import {useState} from "react";
+
+import {useDispatch} from "react-redux";
+
+import {setSelectedMapId} from "Features/maps/mapsSlice";
+
 import useLoadedMainMap from "Features/mapEditor/hooks/useLoadedMainMap";
 
 import {Button, Box, Typography} from "@mui/material";
@@ -8,6 +13,8 @@ import DialogGeneric from "Features/layout/components/DialogGeneric";
 import PanelSelectorMap from "./PanelSelectorMap";
 
 export default function ButtonSelectorMap() {
+  const dispatch = useDispatch();
+
   // strings
 
   const seeMaps = "Ouvrir un plan";
@@ -23,7 +30,7 @@ export default function ButtonSelectorMap() {
 
   // helper
 
-  const buttonLabel = loadedMainMap ? loadedMainMap.name : seeMaps;
+  const buttonLabel = loadedMainMap ? loadedMainMap.label : seeMaps;
 
   // handlers
 
@@ -31,9 +38,20 @@ export default function ButtonSelectorMap() {
     setOpen(true);
   }
 
+  function handleMapSelectionChange(mapId) {
+    dispatch(setSelectedMapId(mapId));
+    setOpen(false);
+  }
+
   return (
     <Box>
-      <Button onClick={handleClick} endIcon={<Down />}>
+      <Button
+        onClick={handleClick}
+        endIcon={<Down />}
+        variant="contained"
+        size="small"
+        sx={{borderRadius: 2}}
+      >
         <Box
           sx={{display: "flex", flexDirection: "column", alignItems: "start"}}
         >
@@ -41,7 +59,10 @@ export default function ButtonSelectorMap() {
         </Box>
       </Button>
       <DialogGeneric open={open} onClose={() => setOpen(false)} title={selectS}>
-        <PanelSelectorMap />
+        <PanelSelectorMap
+          selection={loadedMainMap?.id}
+          onSelectionChange={handleMapSelectionChange}
+        />
       </DialogGeneric>
     </Box>
   );

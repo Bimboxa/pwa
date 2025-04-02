@@ -28,7 +28,9 @@ export default function ListPanelHeader({open}) {
         }}
       >
         <IconButtonListingSelector />
-        <Typography>{name}</Typography>
+        <Typography sx={{pl: 1}} variant="body2">
+          {name}
+        </Typography>
         <IconButtonMoreInHeader />
       </Paper>
       {deviceType !== "MOBILE" && <ButtonCloseListPanel />}

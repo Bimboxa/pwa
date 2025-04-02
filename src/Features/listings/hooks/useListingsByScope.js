@@ -14,6 +14,7 @@ export default function useListingsByScope(options) {
 
   const withEntityModel = options?.withEntityModel;
   const filterByKeys = options?.filterByKeys;
+  const filterByListingsIds = options?.filterByListingsIds;
   const sortFromScope = options?.sortFromScope;
   const mapsOnly = options?.mapsOnly;
 
@@ -30,46 +31,47 @@ export default function useListingsByScope(options) {
   // listings
 
   const keysHash = (filterByKeys ?? []).sort().join(",");
+  const idsHash = (filterByListingsIds ?? []).sort().join(",");
 
-  let listings = useLiveQuery(
-    async (params) => {
-      console.log("[db] fetching listings 44", filterByKeys);
-      // listingsIds from scope
-      const rels = await db.relsScopeItem
-        .where("[scopeId+itemTable]")
-        .equals([selectedScopeId, "listings"])
-        .toArray();
-      const listingsIds = rels.map((r) => r.itemId);
+  let listings = useLiveQuery(async () => {
+    console.log("[db] fetching listings 44", filterByKeys);
+    // listingsIds from scope
+    const rels = await db.relsScopeItem
+      .where("[scopeId+itemTable]")
+      .equals([selectedScopeId, "listings"])
+      .toArray();
+    const listingsIds = rels.map((r) => r.itemId);
 
-      // listings
-      let listings = await db.listings.bulkGet(listingsIds);
-      listings = listings.filter(Boolean);
+    // listings
+    let listings = await db.listings.bulkGet(listingsIds);
+    listings = listings.filter(Boolean);
 
-      // filter
-      if (filterByKeys) {
-        listings = listings.filter((l) => filterByKeys.includes(l?.key));
-      }
+    // filter
+    if (filterByKeys) {
+      listings = listings.filter((l) => filterByKeys.includes(l?.key));
+    }
+    if (filterByListingsIds) {
+      listings = listings.filter((l) => filterByListingsIds.includes(l?.id));
+    }
 
-      if (withEntityModel) {
-        listings = await Promise.all(
-          listings.map(async (listing) => {
-            return {
-              ...listing,
-              entityModel: await getEntityModelAsync(listing?.entityModelKey),
-            };
-          })
-        );
-      }
+    if (withEntityModel) {
+      listings = await Promise.all(
+        listings.map(async (listing) => {
+          return {
+            ...listing,
+            entityModel: await getEntityModelAsync(listing?.entityModelKey),
+          };
+        })
+      );
+    }
 
-      if (mapsOnly) {
-        listings = listings.filter((l) => l?.entityModel?.type === "MAP");
-      }
+    if (mapsOnly) {
+      listings = listings.filter((l) => l?.entityModel?.type === "MAP");
+    }
 
-      setLoading(false);
-      return listings;
-    },
-    [keysHash, selectedScopeId]
-  );
+    setLoading(false);
+    return listings;
+  }, [keysHash, idsHash, selectedScopeId]);
 
   if (sortFromScope) {
     listings = getSortedListings(listings, sortedListingsIds);

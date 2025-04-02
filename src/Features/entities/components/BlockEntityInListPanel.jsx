@@ -1,7 +1,11 @@
 import {useSelector, useDispatch} from "react-redux";
 
 import {setOpenPanelListItem} from "Features/listPanel/listPanelSlice";
-import {setSelectedEntityId} from "../entitiesSlice";
+import {
+  setSelectedEntityId,
+  setIsEditingEntity,
+  setNewEntity,
+} from "../entitiesSlice";
 
 import useEntity from "../hooks/useEntity";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
@@ -21,6 +25,7 @@ export default function BlockEntityInListPanel() {
   const entity = useEntity();
   const {value: listing} = useSelectedListing();
   const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
+  const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);
 
   // helpers
 
@@ -33,6 +38,8 @@ export default function BlockEntityInListPanel() {
   function handleClick() {
     console.log("[BlockEntityInListPanel] handleClick");
     dispatch(setOpenPanelListItem(!openPanelListItem));
+    if (isEditingEntity) dispatch(setIsEditingEntity(false));
+    if (!entity.id) dispatch(setNewEntity({}));
   }
 
   return (

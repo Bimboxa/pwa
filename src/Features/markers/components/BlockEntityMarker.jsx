@@ -6,7 +6,7 @@ import {setTempMarker} from "../markersSlice";
 import useEntity from "Features/entities/hooks/useEntity";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useCreateMarker from "Features/markers/hooks/useCreateMarker";
-import {Box, Typography} from "@mui/material";
+import {Box, Typography, Button} from "@mui/material";
 import DraggableFabMarker from "Features/markers/components/DraggableFabMarker";
 
 import theme from "Styles/theme";
@@ -53,6 +53,10 @@ export default function BlockEntityMarker({top, right}) {
     }
   }
 
+  function handleEntityClick() {
+    dispatch(setOpenPanelListItem(true));
+  }
+
   return (
     <Box
       sx={{
@@ -65,7 +69,8 @@ export default function BlockEntityMarker({top, right}) {
       }}
     >
       <Box sx={{position: "relative", display: "flex", alignItems: "center"}}>
-        <Box
+        <Button
+          onClick={handleEntityClick}
           sx={{
             bgcolor: lighten(color, 0.15),
             color: "common.white",
@@ -79,7 +84,7 @@ export default function BlockEntityMarker({top, right}) {
           <Typography variant="caption" sx={{mr: 2}}>
             {label}
           </Typography>
-        </Box>
+        </Button>
         <Box
           sx={{
             position: "absolute",

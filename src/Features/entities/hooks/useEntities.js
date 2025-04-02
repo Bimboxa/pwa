@@ -10,6 +10,8 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 export default function useEntities(options) {
   // options
 
+  const wait = options?.wait;
+
   const withImages = options?.withImages;
   const withMarkers = options?.withMarkers;
 
@@ -29,6 +31,8 @@ export default function useEntities(options) {
     filterByKeys: filterByListingsKeys ?? null,
     filterByListingsIds: filterByListingsIds ?? null,
   });
+  //console.log("[debug] listings", listings?.length, filterByListingsIds);
+
   const mapId = useSelector((s) => s.mapEditor.loadedMainMapId);
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
@@ -58,20 +62,23 @@ export default function useEntities(options) {
     }, {});
   }
   // helpers
+  const useListingsFilters =
+    filterByListingsKeys?.length > 0 || filterByListingsIds?.length > 0;
 
-  const listingsIds =
-    filterByListingsKeys || filterByListingsIds
-      ? listings?.map((l) => l.id)
-      : selectedListing?.id
-      ? [selectedListing?.id]
-      : [];
+  const listingsIds = useListingsFilters
+    ? listings?.map((l) => l.id)
+    : selectedListing?.id
+    ? [selectedListing?.id]
+    : [];
+
+  //console.log("[debug] listingsIds", listingsIds);
 
   const listingsIdsHash = listingsIds?.sort().join(",");
 
   const value = useLiveQuery(async () => {
     try {
       // edge case
-      if (listingsIds.length === 0) {
+      if (listingsIds.length === 0 || wait) {
         setLoading(false);
         return [];
       }
@@ -116,7 +123,7 @@ export default function useEntities(options) {
       }
 
       // add markers
-      if (withMarkers) {
+      if (withMarkers && mapId) {
         const markers = await db.markers.where("mapId").equals(mapId).toArray();
         const markersByEntityId = getItemsByKey(markers, "targetEntityId");
 

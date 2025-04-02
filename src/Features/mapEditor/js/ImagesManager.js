@@ -43,4 +43,9 @@ export default class ImagesManager {
     this.stage.position({x, y});
     this.stage.scale({x: scale, y: scale});
   };
+
+  deleteAllImagesNodes = () => {
+    this.layerImages.destroyChildren();
+    this.mainImageNode = null;
+  };
 }

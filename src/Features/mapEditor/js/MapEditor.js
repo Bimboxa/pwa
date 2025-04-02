@@ -182,6 +182,7 @@ export default class MapEditor {
 
   async loadMainMap(map) {
     const imageProps = fromMapPropsToImageProps(map);
+    this.imagesManager.deleteAllImagesNodes();
     await this.imagesManager.createImageNodeAsync(imageProps, {
       isMainImage: true,
     });

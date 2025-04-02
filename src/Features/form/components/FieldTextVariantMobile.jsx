@@ -1,5 +1,6 @@
-import {Autocomplete, TextField, Box} from "@mui/material";
+import {Typography, Box} from "@mui/material";
 import FieldText from "./FieldText";
+import BoxCenter from "Features/layout/components/BoxCenter";
 
 export default function FieldTextVariantMobile({
   value,
@@ -22,6 +23,10 @@ export default function FieldTextVariantMobile({
 
   return (
     <Box sx={{width: 1, p: 2, overflow: "auto"}}>
+      <BoxCenter sx={{py: 1}}>
+        <Typography>{label}</Typography>
+      </BoxCenter>
+
       <FieldText
         value={value}
         lastValue={lastValue}

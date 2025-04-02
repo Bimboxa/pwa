@@ -1,16 +1,17 @@
 import useMaps from "../hooks/useMaps";
 import ListMaps from "./ListMaps";
 
-export default function PanelSelectorMap() {
+export default function PanelSelectorMap({onSelectionChange, selection}) {
   // data
 
   const {value: items} = useMaps();
-  console.log("items", items);
+  console.log("[SelectorMap] maps", items);
 
   // handler
 
-  function handleClick() {
-    console.log("map");
+  function handleClick(map) {
+    console.log("map", map);
+    onSelectionChange(map.id);
   }
 
   function handleCreateClick() {
@@ -20,6 +21,7 @@ export default function PanelSelectorMap() {
   return (
     <ListMaps
       maps={items}
+      selection={selection ? [selection] : []}
       onClick={handleClick}
       onCreateClick={handleCreateClick}
     />
