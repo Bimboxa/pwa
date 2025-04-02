@@ -23,7 +23,7 @@ export default function PanelSelectorMap({onSelectionChange, selection}) {
       maps={items}
       selection={selection ? [selection] : []}
       onClick={handleClick}
-      onCreateClick={handleCreateClick}
+      //onCreateClick={handleCreateClick}
     />
   );
 }

@@ -11,6 +11,10 @@ import PanelSelectorListing from "./PanelSelectorListing";
 export default function IconButtonListingSelector() {
   const dispatch = useDispatch();
 
+  // strings
+
+  const title = "Sélectionnez une liste";
+
   // state
 
   const [open, setOpen] = useState(false);
@@ -19,6 +23,7 @@ export default function IconButtonListingSelector() {
   // data
 
   const {value: selectedListing} = useSelectedListing();
+  const selectedListingId = selectedListing?.id;
 
   // handlers
 
@@ -43,8 +48,16 @@ export default function IconButtonListingSelector() {
         onClick={handleIconButtonClick}
         open={open}
       />
-      <DialogFsOrMenu open={open} onClose={handleCloseMenu} anchorEl={anchorEl}>
-        <PanelSelectorListing onListingSelected={handleListingSelected} />
+      <DialogFsOrMenu
+        open={open}
+        onClose={handleCloseMenu}
+        anchorEl={anchorEl}
+        title={title}
+      >
+        <PanelSelectorListing
+          onListingSelected={handleListingSelected}
+          selectedListingId={selectedListingId}
+        />
       </DialogFsOrMenu>
     </>
   );

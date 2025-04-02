@@ -4,7 +4,13 @@ import DialogFs from "./DialogFs";
 
 import {Menu} from "@mui/material";
 
-export default function DialogFsOrMenu({open, onClose, anchorEl, children}) {
+export default function DialogFsOrMenu({
+  open,
+  onClose,
+  anchorEl,
+  children,
+  title,
+}) {
   // data
 
   const isMobile = useIsMobile();
@@ -18,7 +24,7 @@ export default function DialogFsOrMenu({open, onClose, anchorEl, children}) {
   return (
     <>
       {isMobile ? (
-        <DialogFs open={open} onClose={handleClose}>
+        <DialogFs open={open} onClose={handleClose} title={title}>
           {children}
         </DialogFs>
       ) : (

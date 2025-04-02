@@ -15,7 +15,7 @@ export default function useMarkers(options) {
   // hash
 
   const hash1 = filterByMapId ? filterByMapId : "";
-  const hash2 = Array(filterByListingsIds).isArray
+  const hash2 = Array.isArray(filterByListingsIds)
     ? filterByListingsIds.sort().join(",")
     : "";
   const hash = `${hash1}-${hash2}`;
