@@ -1,9 +1,18 @@
-import {useSelector} from "react-redux";
-
+import {useEffect} from "react";
+import {useSelector, useDispatch} from "react-redux";
+import {setNewEntity} from "../entitiesSlice";
 import useEntities from "./useEntities";
 import useEntityFormTemplate from "./useEntityFormTemplate";
 
 export default function useNewEntity() {
+  const dispatch = useDispatch();
+
+  // init
+  const selectedListingId = useSelector((s) => s.listings.selectedListingId);
+  useEffect(() => {
+    dispatch(setNewEntity({}));
+  }, [selectedListingId]);
+
   const newEntity = useSelector((s) => s.entities.newEntity);
   const template = useEntityFormTemplate();
 

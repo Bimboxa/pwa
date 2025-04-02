@@ -1,3 +1,5 @@
+// DEPRECATED
+
 import useLoadedMainMap from "Features/mapEditor/hooks/useLoadedMainMap";
 
 import {useDispatch} from "react-redux";

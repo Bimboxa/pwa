@@ -31,6 +31,7 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
   // data
 
   const entity = useEntity();
+  console.log("[Action] entity", entity);
 
   const create = useCreateEntity();
   const update = useUpdateEntity();

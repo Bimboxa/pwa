@@ -2,11 +2,12 @@ import {
   Box,
   IconButton,
   ListItem,
+  ListItemIcon,
   ListItemButton,
   ListItemText,
   Paper,
 } from "@mui/material";
-import {Close} from "@mui/icons-material";
+import {Close, Add} from "@mui/icons-material";
 
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
@@ -22,6 +23,8 @@ export default function BlockEntityInListPanelVariantBottom({
   bgcolor = !id ? bgcolor : "common.white";
   const color = !id ? "common.white" : "common.black";
   const p = !id ? 1 : 0;
+  const addIcon = Boolean(!id);
+
   return (
     <Box sx={{width: 1, p}}>
       {/* <ButtonInPanel label={label} onClick={onClick} variant="default" /> */}
@@ -39,6 +42,10 @@ export default function BlockEntityInListPanelVariantBottom({
           }
         >
           <ListItemButton onClick={onClick}>
+            <ListItemIcon color="inherit">
+              {addIcon ? <Add sx={{color: "white"}} /> : null}
+            </ListItemIcon>
+
             <ListItemText primary={label} />
           </ListItemButton>
         </ListItem>

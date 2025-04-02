@@ -6,6 +6,8 @@ import {Image as ImageIcon} from "@mui/icons-material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonBasicMobile from "Features/layout/components/ButtonBasicMobile";
 import BoxCenter from "Features/layout/components/BoxCenter";
+import testIsPngImage from "Features/files/utils/testIsPngImage";
+import getImageSizeAsync from "Features/misc/utils/getImageSize";
 
 export default function FieldImageVariantMobile({label, value, onChange}) {
   const inputRef = useRef(null);
@@ -31,11 +33,16 @@ export default function FieldImageVariantMobile({label, value, onChange}) {
     inputRef.current.click();
   }
 
-  function handleChange(event) {
+  async function handleChange(event) {
     const file = event.target.files[0];
     const imageUrlClient = URL.createObjectURL(file);
-    if (file) {
-      const imageObject = {imageUrlClient};
+    const isImage = testIsPngImage(file);
+    if (file && isImage) {
+      const imageObject = {
+        imageUrlClient,
+        file,
+        imageSize: await getImageSizeAsync({file}),
+      };
       onChange(imageObject);
     }
   }

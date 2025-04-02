@@ -1,4 +1,4 @@
-import {Typography, Box} from "@mui/material";
+import {Typography, Box, Paper} from "@mui/material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
 
@@ -12,17 +12,21 @@ export default function FieldImageVariantMobileOverview({label, value}) {
       <Typography variant="body2" color="text.secondary">
         {label}
       </Typography>
-      {imageSrc ? (
-        <img
-          src={imageSrc}
-          alt={label}
-          style={{width: "100%", maxHeight: "400px", objectFit: "contain"}}
-        />
-      ) : (
-        <BoxCenter>
-          <Typography>{"-"}</Typography>
-        </BoxCenter>
-      )}
+      <Box sx={{p: 1}}>
+        <Paper>
+          {imageSrc ? (
+            <img
+              src={imageSrc}
+              alt={label}
+              style={{width: "100%", maxHeight: "400px", objectFit: "contain"}}
+            />
+          ) : (
+            <BoxCenter>
+              <Typography>{"-"}</Typography>
+            </BoxCenter>
+          )}
+        </Paper>
+      </Box>
     </Box>
   );
 }

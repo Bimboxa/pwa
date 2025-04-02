@@ -7,6 +7,7 @@ export default function useMaps() {
 
   const {value: listings, loading: loadingListings} = useListingsByScope({
     mapsOnly: true,
+    withEntityModel: true,
   });
 
   // helpers
@@ -15,5 +16,24 @@ export default function useMaps() {
 
   // data
 
-  return useEntities({filterByListingsIds: listingsIds});
+  const {value: entities, loading: loadingEntities} = useEntities({
+    wait: loadingListings,
+    filterByListingsIds: listingsIds,
+    withImages: true,
+  });
+
+  const maps = entities?.map((entity) => {
+    return {
+      ...entity,
+      imageUrl: entity?.image?.imageUrlClient,
+      imageWidth: entity?.image?.imageSize.width,
+      imageHeight: entity?.image?.imageSize.height,
+      meterByPx: entity?.image?.meterByPx ?? 0.01,
+    };
+  });
+
+  return {
+    value: maps,
+    loading: loadingListings || loadingEntities,
+  };
 }

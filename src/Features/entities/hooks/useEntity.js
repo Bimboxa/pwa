@@ -7,7 +7,7 @@ import useNewEntity from "./useNewEntity";
 export default function useEntity() {
   // data
 
-  const {value: selectedEntity} = useSelectedEntity();
+  const {value: selectedEntity} = useSelectedEntity({withImages: true});
 
   const newEntity = useNewEntity();
   const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);

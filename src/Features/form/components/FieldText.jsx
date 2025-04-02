@@ -9,7 +9,7 @@ import {
   InputAdornment,
 } from "@mui/material";
 
-import {Stop, Mic as MicIcon} from "@mui/icons-material";
+import {Stop, Mic as MicIcon, Close} from "@mui/icons-material";
 import useRecognition from "../hooks/useRecognition";
 
 export default function FieldText({value, onChange, options, label}) {
@@ -71,6 +71,17 @@ export default function FieldText({value, onChange, options, label}) {
       onKeyDown={(e) => e.stopPropagation()}
       slotProps={{
         input: {
+          startAdornment: tempValue ? (
+            <InputAdornment position="start">
+              <IconButton
+                onClick={() => setTempValue("")}
+                edge="start"
+                size="small"
+              >
+                <Close fontSize="small" />
+              </IconButton>
+            </InputAdornment>
+          ) : null,
           endAdornment: !hideMic ? (
             <InputAdornment position="end">
               <IconButton onClick={handleMicClick} size="small">

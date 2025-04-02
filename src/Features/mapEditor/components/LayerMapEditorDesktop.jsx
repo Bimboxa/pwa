@@ -2,7 +2,8 @@ import {Box} from "@mui/material";
 
 import ButtonOpenListPanel from "Features/listPanel/components/ButtonOpenListPanel";
 import ToolbarMapEditor from "./ToolbarMapEditor";
-import SelectorMapInMapEditor from "Features/maps/components/SelectorMapInMapEditor";
+//import SelectorMapInMapEditor from "Features/maps/components/SelectorMapInMapEditor";
+import ButtonSelectorMap from "Features/maps/components/ButtonSelectorMap";
 
 export default function LayerMapEditorDesktop() {
   return (
@@ -28,7 +29,7 @@ export default function LayerMapEditorDesktop() {
           zIndex: 1,
         }}
       >
-        <SelectorMapInMapEditor />
+        <ButtonSelectorMap />
       </Box>
 
       <Box
