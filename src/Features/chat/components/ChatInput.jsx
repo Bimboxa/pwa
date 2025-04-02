@@ -41,7 +41,7 @@ export default function ChatInput() {
         onChange={setInput}
         onKeyDown={(e) => e.key === "Enter" && handleSend()}
       />
-      <IconButton onClick={handleSend}>
+      <IconButton onClick={handleSend} disabled={!input}>
         <SendIcon />
       </IconButton>
     </Box>
