@@ -14,7 +14,9 @@ export default function ChatMessage({role, content}) {
           borderRadius: 2,
         }}
       >
-        <Typography variant="body1">{content}</Typography>
+        <Typography variant="body1" sx={{whiteSpace: "pre-line"}}>
+          {content}
+        </Typography>
       </Paper>
     </Box>
   );
