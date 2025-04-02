@@ -1,6 +1,7 @@
-import {useSelector} from "react-redux";
+import {useEffect} from "react";
+import {useSelector, useDispatch} from "react-redux";
 
-import useIsMobile from "Features/layout/hooks/useIsMobile";
+import {setIsThinking} from "../chatSlice";
 
 import {Stack, Box} from "@mui/material";
 
@@ -10,8 +11,18 @@ import ChatMessage from "./ChatMessage";
 import ThinkingBubble from "./ThinkingBubble";
 
 export default function PanelChat() {
+  const dispatch = useDispatch();
+
   const messages = useSelector((state) => state.chat.messages);
   const isThinking = useSelector((state) => state.chat.isThinking);
+
+  const openChat = useSelector((s) => s.layout.openChat);
+
+  useEffect(() => {
+    if (!openChat) {
+      dispatch(setIsThinking(false));
+    }
+  }, [openChat]);
 
   return (
     <Box
