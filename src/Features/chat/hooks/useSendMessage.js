@@ -30,7 +30,7 @@ export default function useSendMessage() {
       console.log("[sendMessage] response", response);
 
       if (response.message?.content) {
-        console.log("message content", JSON.parse(response.message.content));
+        console.log("message content", response.message.content);
       }
 
       // step 3

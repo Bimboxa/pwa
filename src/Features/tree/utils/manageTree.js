@@ -47,7 +47,7 @@ export default function manageTree(tree, args) {
       return tree;
 
     case "move_node": // {action:"move_node", targetId, newParentId, position}
-      if (!targetId || !newParentId) {
+      if (!targetId) {
         throw new Error("move_node requires `targetId` and `newParentId`");
       }
       //
