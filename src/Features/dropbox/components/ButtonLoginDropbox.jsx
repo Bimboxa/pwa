@@ -1,21 +1,26 @@
-import {useDispatch} from "react-redux";
+import {useState} from "react";
 
 //import {useAccessToken} from "../AccessTokenDropboxContext";
 import {useRemoteTokenData} from "Features/sync/RemoteTokenDataContext";
 
-import ButtonBasicMobile from "Features/layout/components/ButtonBasicMobile";
+import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
 import exchangeCodeForToken from "../services/exchangeCodeForToken";
 import openDropboxAuthPopup from "../services/openDropboxAuthPopup";
 import useToken from "Features/auth/hooks/useToken";
+import useDropboxClientId from "../hooks/useDropboxClientId";
 
 export default function ButtonLoginDropbox() {
-  const dispatch = useDispatch();
   const token = useToken();
+
+  // state
+
+  const [loading, setLoading] = useState(false);
 
   // data
 
   const {setRemoteTokenData} = useRemoteTokenData();
+  const clientId = useDropboxClientId();
 
   // string
 
@@ -25,11 +30,21 @@ export default function ButtonLoginDropbox() {
 
   async function handleClick() {
     const code = await openDropboxAuthPopup();
-    const accessTokenData = await exchangeCodeForToken({code, token});
-    //
-    const expiresAt = Date.now() + accessTokenData?.expiresIn * 1000;
-    setRemoteTokenData({...accessTokenData, expiresAt});
+    try {
+      setLoading(true);
+      const accessTokenData = await exchangeCodeForToken({
+        code,
+        token,
+        clientId,
+      });
+      //
+      const expiresAt = Date.now() + accessTokenData?.expiresIn * 1000;
+      setRemoteTokenData({...accessTokenData, expiresAt});
+    } catch (e) {
+      console.error("[ButtonLoginDropbox] Error exchanging code for token", e);
+      setLoading(false);
+    }
   }
 
-  return <ButtonBasicMobile label={loginS} onClick={handleClick} />;
+  return <ButtonInPanel label={loginS} onClick={handleClick} />;
 }

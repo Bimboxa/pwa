@@ -11,7 +11,7 @@ export default function useRemoteListingContainerProps() {
 
   const {value: listing} = useSelectedListing();
   const remoteServiceKey = useRemoteServiceKey();
-  const accessToken = useRemoteToken();
+  const {value: accessToken} = useRemoteToken();
   const {value: projectProps} = useRemoteProjectContainerProps();
 
   // state

@@ -195,7 +195,6 @@ export default function PageProjectAndScope() {
             <ListItemButton
               divider
               dense
-              endIcon={<Forward />}
               color="inherit"
               onClick={handleSeeProjectsClick}
             >

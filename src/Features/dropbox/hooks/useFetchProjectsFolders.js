@@ -10,7 +10,7 @@ export default function useFetchProjectsFolders() {
 
   // data
 
-  const token = useRemoteToken();
+  const {value: token} = useRemoteToken();
 
   // helpers
 

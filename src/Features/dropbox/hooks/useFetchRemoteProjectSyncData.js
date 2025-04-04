@@ -8,7 +8,7 @@ export default function useFetchRemoteProjectSyncData() {
 
   // data
 
-  const token = useRemoteToken();
+  const {value: token} = useRemoteToken();
 
   // helpers
 
