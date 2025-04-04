@@ -1,6 +1,6 @@
-export default async function exchangeCodeForToken({code, token}) {
+export default async function exchangeCodeForToken({code, token, clientId}) {
   const codeVerifier = sessionStorage.getItem("dropbox_pkce_verifier");
-  const client_id = import.meta.env.VITE_DROPBOX_CLIENT_ID;
+
   const redirect_uri = import.meta.env.VITE_DROPBOX_REDIRECT_URI;
 
   const response = await fetch(
@@ -15,7 +15,7 @@ export default async function exchangeCodeForToken({code, token}) {
       body: JSON.stringify({
         code,
         grant_type: "authorization_code",
-        client_id,
+        client_id: clientId,
         redirect_uri,
         code_verifier: codeVerifier,
       }),

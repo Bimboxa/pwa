@@ -1,11 +1,13 @@
 import {useEffect, useRef} from "react";
 import useToken from "Features/auth/hooks/useToken";
+import useDropboxClientId from "./useDropboxClientId";
 
 import {useAccessToken} from "../AccessTokenDropboxContext";
 import getAccessTokenDropboxService from "../services/getAccessTokenDropboxService";
 
 export default function useAccessTokenDropbox() {
   const {accessToken, setAccessToken} = useAccessToken();
+  const clientId = useDropboxClientId();
   const token = useToken();
 
   const isRefreshing = useRef(false);
@@ -19,8 +21,11 @@ export default function useAccessTokenDropbox() {
       return;
     }
     console.log("[useAccessTokenDropbox] refreshing token...");
-    const accessTokenDropbox = await getAccessTokenDropboxService({token});
-    const expiresAt = Date.now() + accessTokenDropbox?.expireIn * 1000;
+    const accessTokenDropbox = await getAccessTokenDropboxService({
+      token,
+      clientId,
+    });
+    const expiresAt = Date.now() + accessTokenDropbox?.expiresIn * 1000;
     setAccessToken({...accessTokenDropbox, expiresAt});
 
     isRefreshing.current = false;

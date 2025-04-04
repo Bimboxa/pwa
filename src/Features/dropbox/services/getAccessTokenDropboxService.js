@@ -1,13 +1,16 @@
-export default async function getAccessTokenDropboxService({token}) {
+export default async function getAccessTokenDropboxService({token, clientId}) {
   const url = "https://services-tokens.bimboxa.com/accessToken";
   const res = await fetch(url, {
-    method: "GET",
+    method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
+    body: JSON.stringify({
+      client_id: clientId,
+    }),
   });
-  const {accessToken, expireIn} = await res.json();
+  const {accessToken, expiresIn} = await res.json();
 
-  return {accessToken, expireIn};
+  return {accessToken, expiresIn};
 }

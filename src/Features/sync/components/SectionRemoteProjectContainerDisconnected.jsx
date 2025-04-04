@@ -11,7 +11,7 @@ export default function SectionRemoteProjectContainerDisconnected() {
 
   // strings
 
-  const title = "Synchronisez vos donnez avec";
+  const title = "Synchronisez vos données avec";
 
   //data
 

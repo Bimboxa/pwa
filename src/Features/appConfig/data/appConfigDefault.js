@@ -23,6 +23,18 @@ const appConfigDefault = {
       select: "Sélectionnez une mission",
     },
   },
+  remoteContainers: [
+    {
+      service: "DROPBOX",
+      name: "Dropbox",
+      path: "/1 = Client DB/LEI/1 = Dossiers",
+      clientId: "t3in2phwzao0ph6",
+    },
+    {
+      service: "GOOGLE_DRIVE",
+      name: "Google Drive",
+    },
+  ],
   remoteProjectsContainers: [
     {
       service: "DROPBOX",

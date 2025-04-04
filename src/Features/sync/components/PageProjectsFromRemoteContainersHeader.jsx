@@ -15,7 +15,7 @@ export default function PageProjectsFromRemoteContainersHeader({onBackClick}) {
 
   // data
 
-  const accessToken = useRemoteToken();
+  const {value: accessToken} = useRemoteToken();
 
   // handlers
 

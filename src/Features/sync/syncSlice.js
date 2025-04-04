@@ -6,6 +6,8 @@ const syncInitialState = {
   isSyncing: false,
   openPanelSync: false,
   //
+  remoteContainer: null,
+  //
   // remoteProjectContainer
   remoteProjectsContainers: [],
   selectedRemoteProjectsContainer: null,
@@ -20,6 +22,10 @@ export const syncSlice = createSlice({
   name: "sync",
   initialState: syncInitialState,
   reducers: {
+    setRemoteContainer: (state, action) => {
+      console.log("[STATE] setRemoteContainer", action.payload?.service);
+      state.remoteContainer = action.payload;
+    },
     setOpenPanelSync: (state, action) => {
       state.openPanelSync = action.payload;
     },
@@ -41,6 +47,7 @@ export const syncSlice = createSlice({
 });
 
 export const {
+  setRemoteContainer,
   triggerRemoteProjectContainerPropsUpdate,
   setOpenPanelSync,
   setRemoteProjectsContainers,

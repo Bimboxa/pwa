@@ -1,13 +1,12 @@
-import {useSelector} from "react-redux";
-
 import {Box} from "@mui/material";
 
-import SectionRemoteProjectContainer from "./SectionRemoteProjectContainer";
+//import SectionRemoteProjectContainer from "./SectionRemoteProjectContainer";
+import SectionRemoteContainer from "./SectionRemoteContainer";
 
 export default function PanelSync() {
   return (
-    <Box sx={{bgcolor: "background.default"}}>
-      <SectionRemoteProjectContainer />
+    <Box>
+      <SectionRemoteContainer />
     </Box>
   );
 }

@@ -12,7 +12,7 @@ export default function PageProjectsFromRemoteContainersHeader() {
 
   // data
 
-  const accessToken = useRemoteToken();
+  const {value: accessToken} = useRemoteToken();
 
   // helpers
 

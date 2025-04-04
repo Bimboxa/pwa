@@ -3,6 +3,8 @@ import useInitDeviceType from "Features/layout/hooks/useInitDeviceType";
 import useInitSelectProject from "Features/projects/hooks/useInitSelectProject";
 import useInitSelectScope from "Features/scopes/hooks/useInitSelectScope";
 
+import useInitRemoteContainer from "Features/sync/hooks/useInitRemoteContainer";
+
 //import useInitSelectListing from "Features/listings/hooks/useInitSelectListing";
 //import useInitFetchServicesCredentials from "Features/servicesCredentials/hooks/useInitFetchServicesCredentials";
 
@@ -13,6 +15,8 @@ export default function useInit() {
 
   useInitSelectProject();
   useInitSelectScope();
+
+  useInitRemoteContainer();
 
   //useInitSelectListing();
   //useInitFetchServicesCredentials();
