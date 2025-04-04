@@ -1,3 +1,8 @@
+import {useDispatch} from "react-redux";
+
+import {setRemoteProjectsContainer} from "../scopeSelectorSlice";
+import useRemoteProjectsContainers from "../hooks/useRemoteProjectsContainers";
+
 import {
   List,
   ListItem,
@@ -6,15 +11,20 @@ import {
   ListItemIcon,
 } from "@mui/material";
 import {ArrowForwardIos as Forward} from "@mui/icons-material";
-import useRemoteProjectsContainers from "../hooks/useRemoteProjectsContainers";
+
 import BoxCenter from "Features/layout/components/BoxCenter";
 
-export default function SectionRemoteProjectsContainers({
-  onRemoteContainerClick,
-}) {
+export default function SectionRemoteProjectsContainers() {
+  const dispatch = useDispatch();
   // data
 
   const containers = useRemoteProjectsContainers();
+
+  // handlers
+
+  function handleContainerClick(container) {
+    dispatch(setRemoteProjectsContainer(container));
+  }
 
   // render
 
@@ -33,7 +43,7 @@ export default function SectionRemoteProjectsContainers({
         >
           <ListItemButton
             key={container.service}
-            onClick={() => onRemoteContainerClick(container)}
+            onClick={() => handleContainerClick(container)}
           >
             <ListItemText primary={container.name} />
           </ListItemButton>

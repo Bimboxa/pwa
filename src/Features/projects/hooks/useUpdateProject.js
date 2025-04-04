@@ -5,7 +5,7 @@ import useUserEmail from "Features/auth/hooks/useUserEmail";
 import db from "App/db/db";
 
 export default function useUpdateProject() {
-  const updatedAt = Date.now();
+  const updatedAt = new Date().toISOString();
 
   const update = async (updates) => {
     const coreUpdates = {...updates, updatedAt};

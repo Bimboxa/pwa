@@ -12,7 +12,7 @@ export default function DialogFs({
 }) {
   return (
     <Dialog open={open} onClose={onClose} fullScreen={fullScreen}>
-      <BoxFlexV>
+      <BoxFlexV sx={{pb: 2, bgcolor: "background.default"}}>
         <HeaderTitleClose title={title} onClose={onClose} />
         <Box
           sx={{

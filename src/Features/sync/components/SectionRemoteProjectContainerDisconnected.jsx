@@ -26,7 +26,7 @@ export default function SectionRemoteProjectContainerDisconnected() {
   return (
     <Box>
       <Box sx={{p: 1}}>
-        <Typography color="secondary" variant="body2" sx={{mr: 6}}>
+        <Typography color="text.secondary" variant="body2" sx={{mr: 6}}>
           {title}
         </Typography>
       </Box>

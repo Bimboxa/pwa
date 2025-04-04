@@ -7,6 +7,7 @@ import {
   grey,
   red,
   orange,
+  purple,
 } from "@mui/material/colors";
 
 let theme = createTheme({
@@ -57,7 +58,8 @@ let theme = createTheme({
       main: grey[800],
     },
     secondary: {
-      main: blueGrey[600],
+      //main: blueGrey[600],
+      main: purple[600],
     },
     background: {
       default: "#F4F4F8",

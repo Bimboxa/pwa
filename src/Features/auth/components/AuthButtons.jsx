@@ -1,12 +1,8 @@
-import {
-  SignedIn,
-  UserButton,
-  SignInButton,
-  SignedOut,
-} from "@clerk/clerk-react";
+import {SignedIn, UserButton, SignedOut} from "@clerk/clerk-react";
 
 import {Box} from "@mui/material";
 import ButtonSignIn from "./ButtonSignIn";
+
 import CredentialsIcon from "Features/servicesCredentials/components/CredentialsIcon";
 import PageServicesCredentials from "Features/servicesCredentials/components/PageServicesCredentials";
 

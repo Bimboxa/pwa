@@ -1,11 +1,10 @@
-import {useSelector, useDispatch} from "react-redux";
+import {useDispatch} from "react-redux";
 
 import {setSelectedViewerKey} from "../viewersSlice";
 
 import useViewers from "../hooks/useViewers";
 
 import ListViewers from "./ListViewers";
-import ButtonPopper from "Features/layout/components/ButtonPopper";
 import ButtonMenuContainer from "Features/layout/components/ButtonMenuContainer";
 
 import useSelectedViewer from "../hooks/useSelectedViewer";

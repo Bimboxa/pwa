@@ -2,6 +2,7 @@ import useIsMobile from "Features/layout/hooks/useIsMobile";
 
 import {Dialog, DialogTitle, Box} from "@mui/material";
 import HeaderTitleClose from "./HeaderTitleClose";
+import BoxFlexVStretch from "./BoxFlexVStretch";
 
 export default function DialogGeneric({title, open, onClose, children}) {
   // data
@@ -15,7 +16,7 @@ export default function DialogGeneric({title, open, onClose, children}) {
         <HeaderTitleClose title={title} onClose={onClose} />
       )}
 
-      {children}
+      <BoxFlexVStretch sx={{pb: isMobile ? 2 : 0}}>{children}</BoxFlexVStretch>
     </Dialog>
   ) : (
     <Box />

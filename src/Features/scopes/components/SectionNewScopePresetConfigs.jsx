@@ -7,15 +7,18 @@ import {
   ListItemIcon,
   Checkbox,
 } from "@mui/material";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useProjectPresetScopes from "Features/projects/hooks/useProjectPresetScopes";
 
 export default function SectionNewScopePresetConfigs({
   presetConfigKey,
   onChange,
 }) {
+  const appConfig = useAppConfig();
+
   // strings
 
-  const descriptionS = "Sélectionnez une configuration initiale";
+  const descriptionS = appConfig?.strings?.presetConfig?.select;
 
   // data
 

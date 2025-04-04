@@ -10,6 +10,7 @@ export default function HeaderTitleClose({title, onClose}) {
         justifyContent: "space-between",
         p: 1,
         bgcolor: "background.default",
+        borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
       }}
     >
       <Box sx={{flexGrow: 1}}>

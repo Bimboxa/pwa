@@ -15,14 +15,16 @@ import ListProjects from "Features/projects/components/ListProjects";
 import SectionRemoteProjectsContainers from "./SectionRemoteProjectsContainers";
 import SectionProject from "Features/projects/components/SectionProject";
 import ButtonMoreActionsProjects from "Features/projects/components/ButtonMoreActionsProjects";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-export default function PageProjectSelector({onRemoteContainerClick}) {
+export default function PageProjectSelector() {
   const dispatch = useDispatch();
+  const appConfig = useAppConfig();
 
   // strings
 
-  const title = "Nouveau dossier";
-  const projectsS = "Dossiers";
+  const title = appConfig?.strings?.project?.new;
+  const projectsS = appConfig?.strings?.project?.namePlural;
 
   const onDeviceS = "Sur l'appareil";
   const onCloudS = "Télécharger depuis";
@@ -70,9 +72,13 @@ export default function PageProjectSelector({onRemoteContainerClick}) {
             justifyContent: "space-between",
             alignItems: "center",
             width: 1,
+            py: 0.5,
           }}
         >
-          <Button onClick={handleBackClick} startIcon={<Back />} />
+          <Button
+            onClick={handleBackClick}
+            startIcon={<Back color="action" />}
+          />
           <Typography
             sx={{fontWeight: "bold"}}
             variant="body2"
@@ -112,9 +118,7 @@ export default function PageProjectSelector({onRemoteContainerClick}) {
           </Typography>
         </Box>
         <Box sx={{bgcolor: "white"}}>
-          <SectionRemoteProjectsContainers
-            onRemoteContainerClick={onRemoteContainerClick}
-          />
+          <SectionRemoteProjectsContainers />
         </Box>
       </BoxFlexVStretch>
 

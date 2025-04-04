@@ -5,7 +5,7 @@ const projectsInitialState = {
   projectsMap: {},
   projectsUpdatedAt: null,
   //
-  selectedProjectId: "demo",
+  selectedProjectId: null,
   editedProject: null,
   isEditingProject: false,
   newProject: null,

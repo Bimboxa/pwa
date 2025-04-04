@@ -8,7 +8,6 @@ const exampleAppConfig = {
       path: "/1 = Client DB/LEI/1 = Dossiers",
     },
   ],
-
   strings: {
     project: {
       createLabel: "Créer un dossier",

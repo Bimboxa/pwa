@@ -11,6 +11,7 @@ import {Box} from "@mui/material";
 import FormScope from "./FormScope";
 import SectionScopeBottomActions from "./SectionScopeBottomActions";
 import SectionNewScopePresetConfigs from "./SectionNewScopePresetConfigs";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 export default function SectionScope({forceNew, onSaved, newScopeProjectId}) {
   const dispatch = useDispatch();
@@ -54,11 +55,16 @@ export default function SectionScope({forceNew, onSaved, newScopeProjectId}) {
         minHeight: 0,
       }}
     >
-      {!loading && <FormScope scope={scope} onChange={handleChange} />}
-      <SectionNewScopePresetConfigs
-        presetConfigKey={presetConfigKey}
-        onChange={setPresetConfigKey}
-      />
+      <BoxFlexVStretch>
+        <Box sx={{width: 1, mb: 2}}>
+          {!loading && <FormScope scope={scope} onChange={handleChange} />}
+        </Box>
+
+        <SectionNewScopePresetConfigs
+          presetConfigKey={presetConfigKey}
+          onChange={setPresetConfigKey}
+        />
+      </BoxFlexVStretch>
       <SectionScopeBottomActions
         forceNew={forceNew}
         newScopeProjectId={newScopeProjectId}

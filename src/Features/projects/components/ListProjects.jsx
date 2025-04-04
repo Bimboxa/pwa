@@ -1,5 +1,6 @@
 import {List, ListItemButton, ListItemText, ListItemIcon} from "@mui/material";
 import {Add} from "@mui/icons-material";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function ListProjects({
   loading,
@@ -8,10 +9,12 @@ export default function ListProjects({
   onClick,
   onNewClick,
 }) {
+  const appConfig = useAppConfig();
+
   // strings
 
-  const addS = "Nouveau dossier";
-  const addDescriptionS = "Créer un nouveau dossier";
+  const addS = appConfig?.strings?.project?.new;
+  const addDescriptionS = appConfig?.strings?.project?.create;
   const clientRefS = "Réf.";
 
   // handlers
