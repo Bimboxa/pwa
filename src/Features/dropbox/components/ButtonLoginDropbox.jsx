@@ -27,6 +27,7 @@ export default function ButtonLoginDropbox({clientId}) {
   // handlers
 
   async function handleClick() {
+    console.log("[ButtonLoginDropbox] handleClick", clientId);
     const code = await openDropboxAuthPopup(clientId);
     try {
       setLoading(true);
