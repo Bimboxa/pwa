@@ -5,6 +5,6 @@ export default function ButtonLoginRemoteContainer({remoteContainer}) {
 
   // render
   if (service === "DROPBOX") {
-    return <ButtonLoginDropbox />;
+    return <ButtonLoginDropbox clientId={remoteContainer.clientId} />;
   }
 }
