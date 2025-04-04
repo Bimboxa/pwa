@@ -1,9 +1,9 @@
 import {generatePKCE} from "../utils/pkce";
 
-const CLIENT_ID = import.meta.env.VITE_DROPBOX_CLIENT_ID;
-const REDIRECT_URI = import.meta.env.VITE_DROPBOX_REDIRECT_URI;
+export default async function openDropboxAuthPopup(clientId) {
+  const CLIENT_ID = clientId;
+  const REDIRECT_URI = import.meta.env.VITE_DROPBOX_REDIRECT_URI;
 
-export default async function openDropboxAuthPopup() {
   const {codeVerifier, codeChallenge} = await generatePKCE();
 
   sessionStorage.setItem("dropbox_pkce_verifier", codeVerifier);

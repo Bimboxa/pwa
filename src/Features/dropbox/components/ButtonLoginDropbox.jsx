@@ -27,7 +27,7 @@ export default function ButtonLoginDropbox({clientId}) {
   // handlers
 
   async function handleClick() {
-    const code = await openDropboxAuthPopup();
+    const code = await openDropboxAuthPopup(clientId);
     try {
       setLoading(true);
       const accessTokenData = await exchangeCodeForToken({
