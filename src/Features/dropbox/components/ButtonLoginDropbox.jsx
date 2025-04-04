@@ -8,9 +8,8 @@ import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 import exchangeCodeForToken from "../services/exchangeCodeForToken";
 import openDropboxAuthPopup from "../services/openDropboxAuthPopup";
 import useToken from "Features/auth/hooks/useToken";
-import useDropboxClientId from "../hooks/useDropboxClientId";
 
-export default function ButtonLoginDropbox() {
+export default function ButtonLoginDropbox({clientId}) {
   const token = useToken();
 
   // state
@@ -20,7 +19,6 @@ export default function ButtonLoginDropbox() {
   // data
 
   const {setRemoteTokenData} = useRemoteTokenData();
-  const clientId = useDropboxClientId();
 
   // string
 
