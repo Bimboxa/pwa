@@ -11,6 +11,7 @@ import useToken from "Features/auth/hooks/useToken";
 
 export default function ButtonLoginDropbox({clientId}) {
   const token = useToken();
+  console.log("[ButtonLoginDropbox] clientId", clientId);
 
   // state
 
