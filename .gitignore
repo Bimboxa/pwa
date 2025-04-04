@@ -30,3 +30,6 @@ services.config.yml
 *.sln
 *.sw?
 
+# Config
+config
+

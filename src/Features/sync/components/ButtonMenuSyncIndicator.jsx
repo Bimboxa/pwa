@@ -4,6 +4,7 @@ import {useSelector, useDispatch} from "react-redux";
 
 import {setOpenPanelSync} from "../syncSlice";
 
+import useIsSignedIn from "Features/auth/hooks/useIsSignedIn";
 import useRemoteProjectContainerProps from "../hooks/useRemoteProjectContainerProps";
 
 import {Menu, IconButton, Tooltip} from "@mui/material";
@@ -12,12 +13,18 @@ import BlockSyncIndicator from "./BlockSyncIndicator";
 import PanelSync from "./PanelSync";
 
 import getRemoteProjectContainerGenericProps from "../utils/getRemoteProjectContainerGenericProps";
+import DialogFsOrMenu from "Features/layout/components/DialogFsOrMenu";
 
 export default function ButtonMenuSyncIndicator() {
   const dispatch = useDispatch();
 
+  // strings
+
+  const dialogTitle = "Sync";
+
   // data
 
+  const isSignedIn = useIsSignedIn();
   const open = useSelector((s) => s.sync.openPanelSync);
   const {value: props} = useRemoteProjectContainerProps();
 
@@ -49,18 +56,19 @@ export default function ButtonMenuSyncIndicator() {
   return (
     <>
       <Tooltip title={title}>
-        <IconButton onClick={handleClick}>
+        <IconButton onClick={handleClick} disabled={!isSignedIn}>
           <BlockSyncIndicator color={color} />
         </IconButton>
       </Tooltip>
-      <Menu
+      <DialogFsOrMenu
+        title={dialogTitle}
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
         //onClick={() => setAnchorEl(null)}
       >
         <PanelSync />
-      </Menu>
+      </DialogFsOrMenu>
     </>
   );
 }

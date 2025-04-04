@@ -1,9 +1,8 @@
-import {useState, useEffect} from "react";
+import {useEffect} from "react";
 
 import {useDispatch, useSelector} from "react-redux";
 
 import {setProject, setScope} from "Features/scopeSelector/scopeSelectorSlice";
-import {setSelectedProjectId} from "Features/projects/projectsSlice";
 
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
@@ -32,22 +31,14 @@ export default function ScopeSelector() {
     dispatch(setScope(selectedScope));
   }, [selectedScope?.id]);
 
-  const [remoteContainer, setRemoteContainer] = useState(null);
-
-  // helpers
-
-  if (remoteContainer) page = "PROJECTS_FROM_REMOTE_CONTAINER";
-
   // return
   return (
     <>
       {page === "PROJECT_AND_SCOPE" && <PageProjectAndScope />}
-      {page === "PROJECTS" && (
-        <PageProjectSelector onRemoteContainerClick={setRemoteContainer} />
-      )}
+      {page === "PROJECTS" && <PageProjectSelector />}
       {page === "SCOPES" && <PageScopeSelector />}
       {page === "PROJECTS_FROM_REMOTE_CONTAINER" && (
-        <PageProjectsFromRemoteContainer remoteContainer={remoteContainer} />
+        <PageProjectsFromRemoteContainer />
       )}
     </>
   );

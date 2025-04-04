@@ -27,8 +27,8 @@ import chatReducer from "Features/chat/chatSlice";
 import gapiReducer from "Features/gapi/gapiSlice";
 import dropboxReducer from "Features/dropbox/dropboxSlice";
 
-import syncTabsMiddleware from "./syncTabsMiddleware";
-import webrtcMiddleware from "Features/webrtc/webrtcMiddleware";
+//import syncTabsMiddleware from "./syncTabsMiddleware";
+//import webrtcMiddleware from "Features/webrtc/webrtcMiddleware";
 
 const store = configureStore({
   reducer: {

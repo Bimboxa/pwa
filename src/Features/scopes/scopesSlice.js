@@ -6,7 +6,7 @@ const scopesInitialState = {
   //
   scopesUpdatedAt: null,
   //
-  selectedScopeId: "demo",
+  selectedScopeId: null,
   //
   newScope: null,
   editedScope: null,

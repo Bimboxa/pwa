@@ -42,7 +42,7 @@ export default function PanelChat() {
         {isThinking && <ThinkingBubble />}
       </Stack>
 
-      <ChatInput />
+      {openChat && <ChatInput />}
     </Box>
   );
 }

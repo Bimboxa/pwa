@@ -10,6 +10,8 @@ export default function useSelectedScope(options) {
   // data
 
   const selectedScopeId = useSelector((state) => state.scopes.selectedScopeId);
+  console.log("[debug] selectedScopeId", selectedScopeId);
+
   const selectedProjectId = useSelector(
     (state) => state.projects.selectedProjectId
   );

@@ -1,9 +1,11 @@
 import {List, ListItemButton, ListItemText, ListItemIcon} from "@mui/material";
 import {Add} from "@mui/icons-material";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function ListScopes({scopes, selection, onClick, onNewClick}) {
-  const addS = "Nouveau lot";
-  const addDescriptionS = "Créer un nouveau lot";
+  const appConfig = useAppConfig();
+  const addS = appConfig?.strings?.scope?.new;
+  const addDescriptionS = appConfig?.strings?.scope?.create;
 
   const refLabelS = "Réf.";
 

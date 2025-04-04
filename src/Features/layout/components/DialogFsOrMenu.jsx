@@ -21,21 +21,30 @@ export default function DialogFsOrMenu({
     onClose();
   }
 
-  return (
-    <>
-      {isMobile ? (
-        <DialogFs open={open} onClose={handleClose} title={title}>
-          {children}
-        </DialogFs>
-      ) : (
-        <Menu
-          open={open}
-          onClose={handleClose}
-          anchorEl={open ? anchorEl : null}
-        >
-          {children}
-        </Menu>
-      )}
-    </>
-  );
+  // render
+  if (open && isMobile) {
+    return (
+      <DialogFs open={open} onClose={handleClose} title={title}>
+        {children}
+      </DialogFs>
+    );
+  } else if (open && !isMobile) {
+    return (
+      <Menu
+        sx={{
+          "& .MuiPaper-root": {
+            bgcolor: "background.default",
+            minWidth: 240,
+          },
+        }}
+        open={open}
+        onClose={handleClose}
+        anchorEl={open ? anchorEl : null}
+      >
+        {children}
+      </Menu>
+    );
+  } else {
+    return <></>;
+  }
 }

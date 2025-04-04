@@ -5,15 +5,21 @@ import {useSelector, useDispatch} from "react-redux";
 import {setOpen} from "Features/scopeSelector/scopeSelectorSlice";
 
 import useSelectedScope from "../hooks/useSelectedScope";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-import {Box, Typography, Button, Dialog, Menu} from "@mui/material";
+import {Box, Typography, Button} from "@mui/material";
 import {ArrowDropDown as Down} from "@mui/icons-material";
 
 import ScopeSelector from "Features/scopeSelector/components/ScopeSelector";
 import ButtonMenuSyncIndicator from "Features/sync/components/ButtonMenuSyncIndicator";
+import DialogFsOrMenu from "Features/layout/components/DialogFsOrMenu";
 
 export default function ButtonSelectorScopeInTopBar() {
   const dispatch = useDispatch();
+  // title
+
+  const appConfig = useAppConfig();
+  const title = appConfig?.strings?.general?.projectAndScope;
 
   // data
 
@@ -21,20 +27,16 @@ export default function ButtonSelectorScopeInTopBar() {
 
   // state
 
-  //const [open, setOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
 
   // data
 
-  const deviceType = useSelector((state) => state.layout.deviceType);
   const {value: scope} = useSelectedScope({withProject: true});
 
   // helpers
 
-  const projectName = scope?.project?.name;
+  //const projectName = scope?.project?.name;
   const scopeName = scope?.name ?? "-";
-
-  const isMobile = deviceType === "mobile";
 
   // handlers - dialog
 
@@ -60,25 +62,14 @@ export default function ButtonSelectorScopeInTopBar() {
         </Button>
         <ButtonMenuSyncIndicator />
       </Box>
-      {isMobile && (
-        <Dialog
-          open={open}
-          onClose={handleDialogClose}
-          fullScreen={true}
-          fullWidth
-          maxWidth="sm"
-          sx={{display: "flex", flexDirection: "column"}}
-        >
-          <ScopeSelector />
-        </Dialog>
-      )}
-      {!isMobile && (
-        <Menu open={open} onClose={handleDialogClose} anchorEl={anchorEl}>
-          <Box sx={{width: 300}}>
-            <ScopeSelector />
-          </Box>
-        </Menu>
-      )}
+      <DialogFsOrMenu
+        title={title}
+        open={open}
+        onClose={handleDialogClose}
+        anchorEl={anchorEl}
+      >
+        <ScopeSelector />
+      </DialogFsOrMenu>
     </>
   );
 }

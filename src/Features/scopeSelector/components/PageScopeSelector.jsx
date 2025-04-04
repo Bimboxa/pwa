@@ -15,16 +15,19 @@ import {ArrowBackIos as Back} from "@mui/icons-material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ListScopes from "Features/scopes/components/ListScopes";
 import DialogCreateScope from "Features/scopes/components/DialogCreateScope";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function PageScopeSelector() {
   const dispatch = useDispatch();
+  const appConfig = useAppConfig();
 
   // strings
 
-  const projectsS = "Dossiers";
-
   const onDeviceS = "Sur l'appareil";
   const onCloudS = "Télécharger depuis";
+
+  const title = appConfig?.strings?.scope?.new;
+  const scopesS = appConfig?.strings?.scope?.namePlural;
 
   // data
 
@@ -66,6 +69,7 @@ export default function PageScopeSelector() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            py: 0.5,
           }}
         >
           <IconButton onClick={handleBackClick}>
@@ -76,7 +80,7 @@ export default function PageScopeSelector() {
             variant="body2"
             sx={{fontWeight: "bold"}}
           >
-            {project?.name}
+            {scopesS}
           </Typography>
           <Box sx={{width: "24px"}} />
         </Box>

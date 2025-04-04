@@ -1,4 +1,4 @@
-import exampleAppConfig from "App/Data/exampleAppConfig";
+import appConfigDefault from "./data/appConfigDefault";
 
 let appConfig = null;
 
@@ -8,7 +8,7 @@ const appConfigAsync = (async () => {
     if (appConfigS) {
       appConfig = JSON.parse(appConfigS);
     } else {
-      appConfig = exampleAppConfig;
+      appConfig = appConfigDefault;
     }
   }
   return appConfig;

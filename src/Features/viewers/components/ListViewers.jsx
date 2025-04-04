@@ -20,7 +20,7 @@ export default function ListViewers({viewers, selectedKey, onClick}) {
     onClick(viewer);
   }
   return (
-    <List>
+    <List dense>
       {items.map((item) => {
         return (
           <ListItemButton

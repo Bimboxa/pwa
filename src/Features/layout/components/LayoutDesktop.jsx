@@ -30,9 +30,8 @@ export default function LayoutDesktop() {
     <BoxFlexV sx={{position: "relative"}}>
       <TopBarDesktop />
       <BoxFlexHStretch>
-        <ListPanel />
-
-        <SectionViewer />
+        {/* <ListPanel />
+        <SectionViewer /> */}
       </BoxFlexHStretch>
       <PanelChatContainer />
 
@@ -51,7 +50,7 @@ export default function LayoutDesktop() {
           flexDirection: "column",
         }}
       >
-        <PanelListItem />
+        {/* <PanelListItem /> */}
       </Box>
     </BoxFlexV>
   );
