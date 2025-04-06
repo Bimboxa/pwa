@@ -4,11 +4,6 @@ export default async function openDropboxAuthPopup(clientId) {
   const CLIENT_ID = clientId;
   const REDIRECT_URI = import.meta.env.VITE_DROPBOX_REDIRECT_URI;
 
-  console.log(
-    "[openDropboxAuthPopup] REDIRECT_URI & CLIENT_ID",
-    REDIRECT_URI,
-    CLIENT_ID
-  );
   const {codeVerifier, codeChallenge} = await generatePKCE();
 
   sessionStorage.setItem("dropbox_pkce_verifier", codeVerifier);
