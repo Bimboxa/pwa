@@ -13,22 +13,18 @@ export default function PageRemoteContainerRedirect() {
   // effects
 
   useEffect(() => {
-    if (code) {
-      window.opener.postMessage({code}, "*");
-
-      if (code && window.opener) {
-        window.opener.postMessage(
-          {
-            type: "DROPBOX_AUTH",
-            code,
-          },
-          window.location.origin
-        );
-      }
-
-      // Close popup after short delay
-      setTimeout(() => window.close(), 500);
+    if (code && window.opener) {
+      window.opener.postMessage(
+        {
+          type: "DROPBOX_AUTH",
+          code,
+        },
+        window.location.origin
+      );
     }
+
+    // Close popup after short delay
+    //setTimeout(() => window.close(), 500);
   }, [code]);
 
   return (
