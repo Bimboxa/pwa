@@ -1,6 +1,6 @@
 import {useState, useEffect} from "react";
 
-import {Box, Fade} from "@mui/material";
+import {Box, Typography} from "@mui/material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
 import LogoBimboxa from "Features/layout/components/LogoBimboxa";
@@ -8,6 +8,8 @@ import LogoBimboxa from "Features/layout/components/LogoBimboxa";
 export default function PageLanding() {
   const [fadeOut, setFadeOut] = useState(false);
   const [visible, setVisible] = useState(true);
+
+  const version = "v1.1";
 
   useEffect(() => {
     // Step 1: trigger fade out after delay
@@ -50,8 +52,9 @@ export default function PageLanding() {
           bgcolor: "background.default",
         }}
       >
-        <BoxCenter>
+        <BoxCenter sx={{display: "flex", flexDirection: "column"}}>
           <LogoBimboxa />
+          <Typography sx={{mt: 2}}>{version}</Typography>
         </BoxCenter>
       </Box>
     </Box>
