@@ -1,5 +1,8 @@
 import {createSlice} from "@reduxjs/toolkit";
-import {setRemoteProjectsContainer} from "Features/scopeSelector/scopeSelectorSlice";
+import {
+  setOpen,
+  setRemoteProjectsContainer,
+} from "Features/scopeSelector/scopeSelectorSlice";
 
 const syncInitialState = {
   //
