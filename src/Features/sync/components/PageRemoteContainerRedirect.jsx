@@ -1,0 +1,80 @@
+import {useEffect} from "react";
+
+import {useNavigate} from "react-router-dom";
+
+import useToken from "Features/auth/hooks/useToken";
+
+import useIsMobile from "Features/layout/hooks/useIsMobile";
+import {useRemoteTokenData} from "Features/sync/RemoteTokenDataContext";
+
+import PageGeneric from "Features/layout/components/PageGeneric";
+import BoxCenter from "Features/layout/components/BoxCenter";
+import CircularProgress from "@mui/material/CircularProgress";
+
+import exchangeCodeForToken from "Features/dropbox/services/exchangeCodeForToken";
+
+export default function PageRemoteContainerRedirect() {
+  const navigate = useNavigate();
+  const token = useToken();
+
+  // session
+
+  const remoteContainerS = sessionStorage.getItem("remote_container");
+  const remoteContainer = remoteContainerS
+    ? JSON.parse(remoteContainerS)
+    : null;
+
+  console.log("remoteContainer", remoteContainer);
+  // init
+
+  useEffect(() => {}, []);
+  // data
+
+  const queryParams = new URLSearchParams(window.location.search);
+  const code = queryParams.get("code");
+  const isMobile = useIsMobile();
+
+  const {setRemoteTokenData} = useRemoteTokenData();
+
+  // helpers
+
+  async function getDropboxToken() {
+    const accessTokenData = await exchangeCodeForToken({
+      code,
+      token,
+      clientId: remoteContainer.clientId,
+    });
+    //
+    const expiresAt = Date.now() + accessTokenData?.expiresIn * 1000;
+    setRemoteTokenData({...accessTokenData, expiresAt});
+    navigate("/");
+  }
+  // effects
+
+  useEffect(() => {
+    if (code && token) {
+      if (!isMobile && window.opener) {
+        window.opener.postMessage(
+          {
+            type: "DROPBOX_AUTH",
+            code,
+          },
+          window.location.origin
+        );
+      } else {
+        if (remoteContainer?.service === "DROPBOX") {
+          getDropboxToken();
+        }
+      }
+    }
+
+    // Close popup after short delay
+    //setTimeout(() => window.close(), 500);
+  }, [code, remoteContainer?.service, token]);
+
+  return (
+    <PageGeneric>
+      <BoxCenter>{<CircularProgress />}</BoxCenter>
+    </PageGeneric>
+  );
+}

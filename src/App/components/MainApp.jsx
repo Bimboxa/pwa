@@ -14,8 +14,12 @@ import theme from "Styles/theme";
 import store from "App/store";
 import {Provider} from "react-redux";
 
-// other
+// routes
+
+import {Routes, Route} from "react-router-dom";
 import MainAppLayout from "./MainAppLayout";
+import PageLanding from "Features/init/components/PageLanding";
+import PageRemoteContainerRedirect from "Features/sync/components/PageRemoteContainerRedirect";
 
 function App({pca, runningIn}) {
   // auth
@@ -30,7 +34,15 @@ function App({pca, runningIn}) {
         <Provider store={store}>
           <ThemeProvider theme={theme}>
             <CssBaseline />
-            <MainAppLayout />
+            <Routes>
+              <Route path="/" element={<MainAppLayout />} />
+              <Route
+                path="/remote-container-redirect"
+                element={<PageRemoteContainerRedirect />}
+              />
+
+              <Route path="/landing" element={<PageLanding />} />
+            </Routes>
           </ThemeProvider>
         </Provider>
       </RemoteTokenDataProvider>
