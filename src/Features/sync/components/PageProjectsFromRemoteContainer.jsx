@@ -56,7 +56,7 @@ export default function PageProjectsFromRemoteContainer({
 
   // helpers
 
-  const isDropbox = remoteContainer.service === "DROPBOX";
+  const isDropbox = remoteContainer?.service === "DROPBOX";
 
   return (
     <Box sx={{width: 1, bgcolor: "background.default"}}>

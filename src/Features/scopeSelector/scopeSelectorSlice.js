@@ -7,6 +7,8 @@ const scopeSelectorInitialState = {
   //
   project: null,
   scope: null,
+  //
+  remoteFolder: null,
 };
 
 export const scopeSelectorSlice = createSlice({
@@ -28,6 +30,9 @@ export const scopeSelectorSlice = createSlice({
     setScope: (state, action) => {
       state.scope = action.payload;
     },
+    setRemoteFolder: (state, action) => {
+      state.remoteFolder = action.payload;
+    },
   },
 });
 
@@ -37,6 +42,7 @@ export const {
   setRemoteProjectsContainer,
   setProject,
   setScope,
+  setRemoteFolder,
   //
 } = scopeSelectorSlice.actions;
 
