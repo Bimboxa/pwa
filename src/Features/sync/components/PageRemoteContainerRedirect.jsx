@@ -1,9 +1,13 @@
 import {useEffect} from "react";
-
 import {useNavigate} from "react-router-dom";
+
+import {useDispatch} from "react-redux";
+
+import {setRemoteContainer} from "../syncSlice";
 
 import useToken from "Features/auth/hooks/useToken";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 import {useRemoteTokenData} from "Features/sync/RemoteTokenDataContext";
 
@@ -12,10 +16,12 @@ import BoxCenter from "Features/layout/components/BoxCenter";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import exchangeCodeForToken from "Features/dropbox/services/exchangeCodeForToken";
+import setRemoteContainerInLocalStorage from "../services/setRemoteContainerInLocalStorage";
 
 export default function PageRemoteContainerRedirect() {
   const navigate = useNavigate();
   const token = useToken();
+  const dispatch = useDispatch();
 
   // session
 
@@ -33,6 +39,8 @@ export default function PageRemoteContainerRedirect() {
   const queryParams = new URLSearchParams(window.location.search);
   const code = queryParams.get("code");
   const isMobile = useIsMobile();
+  const appConfig = useAppConfig();
+  const remoteContainers = appConfig?.remoteContainers ?? [];
 
   const {setRemoteTokenData} = useRemoteTokenData();
 
@@ -47,6 +55,13 @@ export default function PageRemoteContainerRedirect() {
     //
     const expiresAt = Date.now() + accessTokenData?.expiresIn * 1000;
     setRemoteTokenData({...accessTokenData, expiresAt});
+
+    // remoteContainer
+    const rc = remoteContainers.find(
+      (r) => r.service === remoteContainer.service
+    );
+    dispatch(setRemoteContainer(rc));
+    setRemoteContainerInLocalStorage(rc);
     navigate("/");
   }
   // effects
