@@ -16,10 +16,15 @@ export default async function openDropboxAuthPopup(clientId) {
 
   return new Promise((resolve) => {
     const listener = (event) => {
+      console.log(
+        "[debug] event.origin && location",
+        event.origin,
+        window.location.origin
+      );
       if (event.origin !== window.location.origin) return;
       if (event.data.type === "DROPBOX_AUTH" && event.data.code) {
         window.removeEventListener("message", listener);
-        popup.close();
+        //popup.close();
         resolve(event.data.code);
       }
     };
