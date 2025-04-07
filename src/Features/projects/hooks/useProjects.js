@@ -16,7 +16,8 @@ export default function useProjects() {
 
   useEffect(() => {
     if (fetchedProjects) {
-      setProjects([...fetchedProjects, demoProject]);
+      //setProjects([...fetchedProjects, demoProject]);
+      setProjects(fetchedProjects);
       setLoading(false);
     }
   }, [fetchedProjects]);

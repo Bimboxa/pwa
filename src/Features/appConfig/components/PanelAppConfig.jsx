@@ -1,7 +1,8 @@
 import {Box, Typography} from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import BlockEditableAppConfigItem from "./BlockEditableAppConfigItem";
+//import BlockEditableAppConfigItem from "./BlockEditableAppConfigItem";
+import BlockRemoteAppConfigFile from "./BlockRemoteAppConfigFile";
 
 export default function PanelAppConfig() {
   // strings
@@ -19,9 +20,7 @@ export default function PanelAppConfig() {
   ];
   return (
     <BoxFlexVStretch>
-      {appConfigItems.map((item) => {
-        return <BlockEditableAppConfigItem key={item.key} item={item} />;
-      })}
+      <BlockRemoteAppConfigFile />
     </BoxFlexVStretch>
   );
 }

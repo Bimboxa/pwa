@@ -153,7 +153,7 @@ export default function PageProjectAndScope() {
                     <Edit fontSize="small" />
                   </IconButton>
                 </Box>
-                <Typography>{scopeName}</Typography>
+                <Typography color="secondary">{scopeName}</Typography>
                 <Typography variant="caption">{scopeRefLabel}</Typography>
                 {/* <Box sx={{display: "flex", width: 1, justifyContent: "flex-end"}}>
                 <Button endIcon={<Forward />} onClick={handleSeeScopesClick}>
