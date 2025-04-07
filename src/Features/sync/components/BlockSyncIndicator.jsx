@@ -1,21 +1,26 @@
 import useRemoteProjectContainerProps from "../hooks/useRemoteProjectContainerProps";
 
 import {Icon, Tooltip, Box} from "@mui/material";
-import {Circle} from "@mui/icons-material";
+import {Circle, Sync, SyncDisabled} from "@mui/icons-material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
+import useRemoteToken from "../hooks/useRemoteToken";
+import useRemoteContainer from "../hooks/useRemoteContainer";
 
 export default function BlockSyncIndicator({color}) {
   // data
 
-  const {value: props} = useRemoteProjectContainerProps();
+  const remoteToken = useRemoteToken();
+  const remoteContainer = useRemoteContainer();
 
   // helpers
+
+  const syncDisabled = !remoteToken || !remoteContainer;
 
   return (
     <BoxCenter>
       <Icon>
-        <Circle sx={{color}} />
+        {syncDisabled ? <SyncDisabled sx={{color}} /> : <Sync sx={{color}} />}
       </Icon>
     </BoxCenter>
   );
