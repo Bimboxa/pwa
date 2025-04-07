@@ -20,6 +20,7 @@ export default function ButtonSelectorScopeInTopBar() {
 
   const appConfig = useAppConfig();
   const title = appConfig?.strings?.general?.projectAndScope;
+  const selectS = appConfig?.strings?.general?.select;
 
   // data
 
@@ -36,7 +37,7 @@ export default function ButtonSelectorScopeInTopBar() {
   // helpers
 
   //const projectName = scope?.project?.name;
-  const scopeName = scope?.name ?? "-";
+  const scopeName = scope?.name ?? selectS;
 
   // handlers - dialog
 
@@ -53,12 +54,13 @@ export default function ButtonSelectorScopeInTopBar() {
   return (
     <>
       <Box sx={{alignItems: "center", display: "flex"}}>
-        <Button onClick={handleClick} endIcon={<Down />}>
-          <Box
-            sx={{display: "flex", flexDirection: "column", alignItems: "start"}}
-          >
-            <Typography variant="body2">{scopeName}</Typography>
-          </Box>
+        <Button
+          onClick={handleClick}
+          endIcon={<Down />}
+          variant={scope?.name ? "text" : "contained"}
+          color={scope?.name ? "secondary" : "secondary"}
+        >
+          <Typography variant="body2">{scopeName}</Typography>
         </Button>
         <ButtonMenuSyncIndicator />
       </Box>

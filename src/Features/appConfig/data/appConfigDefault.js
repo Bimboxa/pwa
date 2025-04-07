@@ -3,6 +3,7 @@ const appConfigDefault = {
   strings: {
     general: {
       projectAndScope: "Périmètre des données",
+      select: "Sélectionnez un projet",
     },
     project: {
       nameSingular: "Projet",
@@ -27,7 +28,7 @@ const appConfigDefault = {
     {
       service: "DROPBOX",
       name: "Dropbox",
-      path: "/1 = Client DB/LEI/1 = Dossiers",
+      path: "/1 = Client DB/LEI",
       clientId: "t3in2phwzao0ph6",
     },
     {

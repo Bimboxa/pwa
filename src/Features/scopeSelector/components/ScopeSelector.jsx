@@ -19,6 +19,7 @@ export default function ScopeSelector() {
   // data
 
   const page = useSelector((s) => s.scopeSelector.page);
+  const projectInSelector = useSelector((s) => s.scopeSelector.project);
 
   const {value: selectedProject} = useSelectedProject();
   const {value: selectedScope} = useSelectedScope();
@@ -31,11 +32,18 @@ export default function ScopeSelector() {
     dispatch(setScope(selectedScope));
   }, [selectedScope?.id]);
 
+  // helpers
+
+  const showProjectAndScope = page === "PROJECT_AND_SCOPE" && projectInSelector;
+  const showProjects =
+    page === "PROJECTS" || (page === "PROJECT_AND_SCOPE" && !projectInSelector);
+  const showScopes = page === "SCOPES";
+
   // return
   return (
     <>
-      {page === "PROJECT_AND_SCOPE" && <PageProjectAndScope />}
-      {page === "PROJECTS" && <PageProjectSelector />}
+      {showProjectAndScope && <PageProjectAndScope />}
+      {showProjects && <PageProjectSelector />}
       {page === "SCOPES" && <PageScopeSelector />}
       {page === "PROJECTS_FROM_REMOTE_CONTAINER" && (
         <PageProjectsFromRemoteContainer />

@@ -47,22 +47,27 @@ export default function PageRemoteContainerRedirect() {
   // helpers
 
   async function getDropboxToken() {
-    const accessTokenData = await exchangeCodeForToken({
-      code,
-      token,
-      clientId: remoteContainer.clientId,
-    });
-    //
-    const expiresAt = Date.now() + accessTokenData?.expiresIn * 1000;
-    setRemoteTokenData({...accessTokenData, expiresAt});
+    try {
+      const accessTokenData = await exchangeCodeForToken({
+        code,
+        token,
+        clientId: remoteContainer.clientId,
+      });
+      //
+      const expiresAt = Date.now() + accessTokenData?.expiresIn * 1000;
+      setRemoteTokenData({...accessTokenData, expiresAt});
 
-    // remoteContainer
-    const rc = remoteContainers.find(
-      (r) => r.service === remoteContainer.service
-    );
-    dispatch(setRemoteContainer(rc));
-    setRemoteContainerInLocalStorage(rc);
-    navigate("/");
+      // remoteContainer
+      const rc = remoteContainers.find(
+        (r) => r.service === remoteContainer.service
+      );
+      dispatch(setRemoteContainer(rc));
+      setRemoteContainerInLocalStorage(rc);
+      navigate("/");
+    } catch (e) {
+      console.log("error", e);
+      navigate("/");
+    }
   }
   // effects
 

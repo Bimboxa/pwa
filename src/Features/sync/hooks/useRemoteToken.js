@@ -8,13 +8,9 @@ import getAccessTokenDropboxService from "Features/dropbox/services/getAccessTok
 
 export default function useRemoteToken(remoteContainer) {
   const {remoteTokenData, setRemoteTokenData} = useRemoteTokenData();
-  console.log("[useRemoteToken] remoteContainer", remoteContainer?.service);
 
   const remoteContainerInState = useRemoteContainer();
-  console.log(
-    "[useRemoteToken] remoteContainerInState",
-    remoteContainerInState?.service
-  );
+
   if (!remoteContainer) remoteContainer = remoteContainerInState;
 
   const token = useToken();
