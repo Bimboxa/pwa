@@ -16,6 +16,8 @@ import SectionRemoteProjectsContainers from "./SectionRemoteProjectsContainers";
 import SectionProject from "Features/projects/components/SectionProject";
 import ButtonMoreActionsProjects from "Features/projects/components/ButtonMoreActionsProjects";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
+import ListItemButtonForward from "Features/layout/components/ListItemButtonForward";
 
 export default function PageProjectSelector() {
   const dispatch = useDispatch();
@@ -37,6 +39,7 @@ export default function PageProjectSelector() {
 
   const project = useProject();
   const {value: projects, loading} = useProjects();
+  const remoteContainer = useRemoteContainer();
 
   // helpers
 
@@ -60,6 +63,10 @@ export default function PageProjectSelector() {
   function handleProjectSaved(project) {
     console.log("saved project", project);
     setOpen(false);
+  }
+
+  function handleRemoteContainerClick(container) {
+    dispatch(setPage("PROJECTS_FROM_REMOTE_CONTAINER"));
   }
 
   return (
@@ -112,14 +119,21 @@ export default function PageProjectSelector() {
           />
         </Box>
 
-        <Box sx={{p: 1}}>
-          <Typography variant="caption" color="text.secondary">
-            {onCloudS}
-          </Typography>
-        </Box>
-        <Box sx={{bgcolor: "white"}}>
-          <SectionRemoteProjectsContainers />
-        </Box>
+        {remoteContainer && (
+          <Box sx={{width: 1}}>
+            <Box sx={{p: 1}}>
+              <Typography variant="caption" color="text.secondary">
+                {onCloudS}
+              </Typography>
+            </Box>
+            <Box sx={{bgcolor: "white"}}>
+              <ListItemButtonForward
+                label={remoteContainer.name}
+                onClick={handleRemoteContainerClick}
+              />
+            </Box>
+          </Box>
+        )}
       </BoxFlexVStretch>
 
       {open && (

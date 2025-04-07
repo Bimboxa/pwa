@@ -16,6 +16,7 @@ import BoxCenter from "Features/layout/components/BoxCenter";
 
 export default function SectionRemoteProjectsContainers() {
   const dispatch = useDispatch();
+
   // data
 
   const containers = useRemoteProjectsContainers();

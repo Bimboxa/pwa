@@ -11,7 +11,9 @@ import PageProjectAndScope from "./PageProjectAndScope";
 
 import PageProjectSelector from "./PageProjectSelector";
 import PageScopeSelector from "./PageScopeSelector";
+
 import PageProjectsFromRemoteContainer from "./PageProjectsFromRemoteContainer";
+import PageScopesFromRemoteContainer from "./PageScopesFromRemoteContainer";
 
 export default function ScopeSelector() {
   const dispatch = useDispatch();
@@ -39,6 +41,8 @@ export default function ScopeSelector() {
     page === "PROJECTS" || (page === "PROJECT_AND_SCOPE" && !projectInSelector);
   const showScopes = page === "SCOPES";
 
+  const showRemoteScopes = page === "SCOPES_FROM_REMOTE_CONTAINER";
+
   // return
   return (
     <>
@@ -48,6 +52,7 @@ export default function ScopeSelector() {
       {page === "PROJECTS_FROM_REMOTE_CONTAINER" && (
         <PageProjectsFromRemoteContainer />
       )}
+      {showRemoteScopes && <PageScopesFromRemoteContainer />}
     </>
   );
 }
