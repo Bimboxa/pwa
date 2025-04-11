@@ -23,6 +23,7 @@ export default function SectionNewScopePresetConfigs({
   // data
 
   const presetConfigs = useProjectPresetScopes();
+  console.log("[SectionNewScopePresetConfigs] presetConfigs", presetConfigs);
 
   // handlers
 

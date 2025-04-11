@@ -7,7 +7,7 @@ import {
 } from "../entitiesSlice";
 
 import useEntity from "../hooks/useEntity";
-import useEntities from "../hooks/useEntities";
+
 import useEntityFormTemplate from "../hooks/useEntityFormTemplate";
 
 import {Box, Paper} from "@mui/material";
@@ -22,15 +22,9 @@ export default function SectionEntity({selectorContainerRef}) {
   // data
 
   const entity = useEntity();
-  const {value: entities, loading} = useEntities({
-    sortByCreatedAtInverse: true,
-  });
+
   const template = useEntityFormTemplate();
-
-  // helpers
-
-  const lastEntity = entities?.[0];
-  console.log("lastEntity", lastEntity);
+  console.log("entityTemplate", template);
 
   // handlers
 
@@ -69,7 +63,6 @@ export default function SectionEntity({selectorContainerRef}) {
         <FormEntity
           template={template}
           entity={entity}
-          lastEntity={lastEntity}
           onEntityChange={handleEntityChange}
           selectorContainerRef={selectorContainerRef}
         />
