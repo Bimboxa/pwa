@@ -1,5 +1,7 @@
 import useInitDeviceType from "Features/layout/hooks/useInitDeviceType";
 
+import useInitAppConfig from "Features/appConfig/hooks/useInitAppConfig";
+
 import useInitSelectProject from "Features/projects/hooks/useInitSelectProject";
 import useInitSelectScope from "Features/scopes/hooks/useInitSelectScope";
 
@@ -12,6 +14,8 @@ import useInitSelectListing from "Features/listings/hooks/useInitSelectListing";
 
 export default function useInit() {
   useInitDeviceType();
+
+  useInitAppConfig();
 
   useInitSelectProject();
   useInitSelectScope();

@@ -1,11 +1,12 @@
 import {useState, useEffect} from "react";
 
-import useProjectPresetScopes from "Features/projects/hooks/useProjectPresetScopes";
 import useScope from "../hooks/useScope";
 import useCreateScope from "../hooks/useCreateScope";
 import useUpdateScope from "../hooks/useUpdateScope";
 
 import {Box, Button} from "@mui/material";
+import getListingsToCreateFromAppConfig from "Features/listings/utils/getListingsToCreateFromAppConfig";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function SectionScopeBottomActions({
   forceNew,
@@ -25,18 +26,21 @@ export default function SectionScopeBottomActions({
   }, []);
 
   // data
-  const presetConfigs = useProjectPresetScopes();
+
   const {value: scope, loading: loadingScope} = useScope({forceNew});
+  const appConfig = useAppConfig();
 
   const create = useCreateScope();
   const update = useUpdateScope();
 
   // helpers
 
-  const presetConfig = presetConfigs.find(
-    (presetConfig) => presetConfig.key === presetConfigKey
+  // const newListings = presetConfig?.listings || [];
+  const newListings = getListingsToCreateFromAppConfig(
+    appConfig,
+    presetConfigKey
   );
-  const newListings = presetConfig?.listings || [];
+  console.log("[debug] newListings", newListings);
 
   // handlers
 

@@ -8,42 +8,52 @@ import {
   Typography,
 } from "@mui/material";
 import {ArrowForwardIos as Forward} from "@mui/icons-material";
+import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
+import PanelSelectorEntity from "Features/entities/components/PanelSelectorEntity";
+import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
-export default function FieldZonesVariantGrid({
+export default function FieldEntityVariantGrid({
   value,
   onChange,
-  zonesTree,
+  entities,
   label,
   size = 8,
-  selectorContainerRef,
+  formContainerRef,
 }) {
-  zonesTree = zonesTree || [];
-  console.log("[FieldZones] zonesTree", zonesTree);
-
   // state
 
   const [open, setOpen] = useState(false);
 
+  // helpers - entities
+
+  const entityById = getItemsByKey(entities, "id");
+
   // helpers
 
-  const valueLabel = value ? `${value?.ids.length} pièce(s)` : "Aucune zone";
-  const bbox = selectorContainerRef?.current?.getBoundingClientRect();
+  const valueWithProps = entityById[value?.id];
+  const valueLabel = valueWithProps?.label ?? "-?-";
+  const bbox = formContainerRef?.current.getBoundingClientRect();
 
   // helpers
 
   const selection = value?.ids ?? [];
+  const selectedEntityId = value?.id;
 
   // handlers
 
-  function handleChange(zoneIds) {
-    const newZones = {ids: zoneIds};
-    onChange(newZones);
+  function handleSelectionChange(id) {
+    // const newZones = {ids: zoneIds};
+    onChange({id});
     setOpen(false);
   }
 
   function handleOpenSelector(e) {
     e.stopPropagation();
     setOpen(true);
+  }
+
+  function handlePanelClose() {
+    setOpen(false);
   }
 
   return (
@@ -56,15 +66,16 @@ export default function FieldZonesVariantGrid({
               top: 0,
               left: bbox.left,
               width: bbox.width,
-              height: bbox.height,
-              bgcolor: "background.paper",
+              bottom: 0,
               zIndex: 2000,
+              bgcolor: "background.default",
             }}
           >
-            <SelectorVariantTree
-              items={zonesTree}
-              selection={selection}
-              onChange={handleChange}
+            <PanelSelectorEntity
+              entities={entities}
+              selectedEntityId={selectedEntityId}
+              onSelectionChange={handleSelectionChange}
+              onClose={handlePanelClose}
             />
           </Box>
         </ClickAwayListener>

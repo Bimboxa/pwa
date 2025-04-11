@@ -186,7 +186,7 @@ const exampleAppConfig = {
       },
     },
   },
-  presetListingsMap: {
+  presetListingsObject: {
     projectDataset: {
       key: "projectDataset",
       name: "Affaire",

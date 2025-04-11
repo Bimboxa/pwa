@@ -10,7 +10,7 @@ export default function ListEntities({entities, onClick, selection}) {
   }
 
   return (
-    <List>
+    <List dense disablePadding>
       {entities?.map((entity) => (
         <ListItemEntityVariantDefault
           key={entity.id}
