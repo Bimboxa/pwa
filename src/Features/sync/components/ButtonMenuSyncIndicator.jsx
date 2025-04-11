@@ -7,7 +7,7 @@ import {setOpenPanelSync} from "../syncSlice";
 import useIsSignedIn from "Features/auth/hooks/useIsSignedIn";
 import useRemoteProjectContainerProps from "../hooks/useRemoteProjectContainerProps";
 
-import {Menu, IconButton, Tooltip} from "@mui/material";
+import {Box, IconButton, Tooltip} from "@mui/material";
 
 import BlockSyncIndicator from "./BlockSyncIndicator";
 import PanelSync from "./PanelSync";
@@ -56,9 +56,13 @@ export default function ButtonMenuSyncIndicator() {
   return (
     <>
       <Tooltip title={title}>
-        <IconButton onClick={handleClick} disabled={!isSignedIn}>
-          <BlockSyncIndicator color={color} />
-        </IconButton>
+        <Box
+          sx={{display: "flex", alignItems: "center", justifyContent: "center"}}
+        >
+          <IconButton onClick={handleClick} disabled={!isSignedIn}>
+            <BlockSyncIndicator color={color} />
+          </IconButton>
+        </Box>
       </Tooltip>
       <DialogFsOrMenu
         title={dialogTitle}

@@ -1,6 +1,13 @@
 import {useState} from "react";
 
-import {Button, Menu, ListItemButton} from "@mui/material";
+import {
+  Button,
+  Menu,
+  ListItemButton,
+  ListItemText,
+  ListItemIcon,
+  Typography,
+} from "@mui/material";
 import {ArrowDropDown as Down} from "@mui/icons-material";
 
 export default function ButtonMenu({buttonLabel, sx, actions}) {
@@ -21,8 +28,8 @@ export default function ButtonMenu({buttonLabel, sx, actions}) {
   }
   return (
     <>
-      <Button endIcon={<Down />} onClick={handleClick}>
-        {icon}
+      <Button endIcon={<Down />} onClick={handleClick} sx={{...sx}}>
+        <Typography variant="body2">{buttonLabel}</Typography>
       </Button>
       <Menu open={open} anchorEl={anchorEl} onClose={handleClose}>
         {actions
@@ -30,10 +37,12 @@ export default function ButtonMenu({buttonLabel, sx, actions}) {
           .map((action) => {
             return (
               <ListItemButton
+                dense
                 key={action.label}
                 onClick={() => handleActionClick(action)}
               >
-                {action.label}
+                {action.icon && <ListItemIcon>{action.icon}</ListItemIcon>}
+                <ListItemText>{action.label}</ListItemText>
               </ListItemButton>
             );
           })}

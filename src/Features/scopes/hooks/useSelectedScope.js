@@ -1,3 +1,4 @@
+import {useMemo} from "react";
 import {useSelector} from "react-redux";
 import useScopes from "./useScopes";
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
@@ -10,23 +11,30 @@ export default function useSelectedScope(options) {
   // data
 
   const selectedScopeId = useSelector((state) => state.scopes.selectedScopeId);
-  console.log("[debug] selectedScopeId", selectedScopeId);
+
+  const {value: project, updatedAt: projectUpdatedAt} = useSelectedProject();
 
   const selectedProjectId = useSelector(
     (state) => state.projects.selectedProjectId
   );
 
-  const {value: scopes, loading} = useScopes({
+  const {
+    value: scopes,
+    loading,
+    updatedAt: scopesUpdatedAt,
+  } = useScopes({
     filterByProjectId: selectedProjectId,
   });
-  const {value: project} = useSelectedProject();
 
   // helpers
 
-  let selectedScope = scopes?.find((s) => s.id === selectedScopeId);
-  if (withProject) selectedScope = {...selectedScope, project};
+  let selectedScope = useMemo(() => {
+    let scope = scopes?.find((s) => s.id === selectedScopeId);
+    if (withProject) scope = {...scope, project};
+    return scope;
+  }, [scopesUpdatedAt, selectedScopeId, withProject, projectUpdatedAt]); // Recompute only when scopes, selectedScopeId, withProject, or project changes
 
   // return
 
-  return {value: selectedScope, loading};
+  return {value: selectedScope, loading, updatedAt: scopesUpdatedAt};
 }

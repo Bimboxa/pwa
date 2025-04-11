@@ -11,6 +11,7 @@ import PanelChatContainer from "./PanelChatContainer";
 import PanelShowable from "./PanelShowable";
 
 export default function LayoutMobile() {
+  console.log("[debug] LayoutMobile");
   // data
 
   const viewModeInMobile = useSelector((s) => s.layout.viewModeInMobile);
@@ -31,12 +32,12 @@ export default function LayoutMobile() {
     <BoxFlexV>
       <TopBar />
       <BoxFlexV sx={{position: "relative"}}>
-        {/* <PanelShowable show={showViewer} sx={{position: "absolute", top: 0}}>
+        <PanelShowable show={showViewer} sx={{position: "absolute", top: 0}}>
           <SectionViewer />
         </PanelShowable>
         <PanelShowable show={showList} sx={{position: "absolute", top: 0}}>
           <ListPanel />
-        </PanelShowable> */}
+        </PanelShowable>
       </BoxFlexV>
       <BottomBarMobile />
       <PanelChatContainer />
@@ -58,7 +59,7 @@ export default function LayoutMobile() {
             pb: 2,
           }}
         >
-          {/* <PanelListItem /> */}
+          <PanelListItem />
         </Box>
       )}
     </BoxFlexV>

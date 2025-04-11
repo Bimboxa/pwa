@@ -23,10 +23,10 @@ export default function useListingsByScope(options) {
 
   // data
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
-  const {value: selectedScope} = useSelectedScope();
+  const {value: selectedScope, loading: loadingScope} = useSelectedScope();
 
   // helpers
-  const sortedListingsIds = selectedScope?.sortedListingsIds || [];
+  const sortedListingsIds = selectedScope?.sortedListingsIds || []; // ?
 
   // listings
 
@@ -34,12 +34,30 @@ export default function useListingsByScope(options) {
   const idsHash = (filterByListingsIds ?? []).sort().join(",");
 
   let listings = useLiveQuery(async () => {
+    // edge cases
+
+    if (!selectedScope && !loadingScope) {
+      setLoading(false);
+      return null;
+    } else if (!selectedScope) {
+      return null;
+    }
+
+    // edge case - 0 listingsIds
+
+    if (sortedListingsIds.length === 0) {
+      setLoading(false);
+      return [];
+    }
+
+    //main
     console.log("[db] fetching listings 44", filterByKeys);
     // listingsIds from scope
     const rels = await db.relsScopeItem
       .where("[scopeId+itemTable]")
       .equals([selectedScopeId, "listings"])
       .toArray();
+
     const listingsIds = rels.map((r) => r.itemId);
 
     // listings
@@ -53,7 +71,11 @@ export default function useListingsByScope(options) {
     if (filterByListingsIds) {
       listings = listings.filter((l) => filterByListingsIds.includes(l?.id));
     }
+    if (mapsOnly) {
+      listings = listings.filter((l) => l?.entityModel?.type === "MAP");
+    }
 
+    // relation
     if (withEntityModel) {
       listings = await Promise.all(
         listings.map(async (listing) => {
@@ -65,13 +87,9 @@ export default function useListingsByScope(options) {
       );
     }
 
-    if (mapsOnly) {
-      listings = listings.filter((l) => l?.entityModel?.type === "MAP");
-    }
-
     setLoading(false);
     return listings;
-  }, [keysHash, idsHash, selectedScopeId]);
+  }, [keysHash, idsHash, selectedScopeId, mapsOnly, loadingScope]);
 
   if (sortFromScope) {
     listings = getSortedListings(listings, sortedListingsIds);

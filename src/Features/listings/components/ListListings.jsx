@@ -13,7 +13,7 @@ import iconsMap from "../data/iconsMap";
 import SkeletonList from "Features/layout/components/SkeletonList";
 
 export default function ListListings({listings, selection, onClick, loading}) {
-  console.log("listings", listings);
+  console.log("listings", listings, loading);
   return (
     <>
       {loading && <SkeletonList />}
