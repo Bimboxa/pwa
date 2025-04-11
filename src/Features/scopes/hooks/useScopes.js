@@ -2,20 +2,15 @@ import {useState, useEffect} from "react";
 import {useLiveQuery} from "dexie-react-hooks";
 
 import db from "App/db/db";
-import demoScope from "../data/demoScope";
 
 export default function useScopes(options) {
   const [loading, setLoading] = useState(true);
-  const [scopes, setScopes] = useState([]);
+  const [updatedAt, setUpdatedAt] = useState(null);
 
   // options
 
   const filterByProjectId = options?.filterByProjectId;
   const sortByClientRef = options?.sortByClientRef;
-
-  // helpers
-
-  const isDemoProject = filterByProjectId === "demo";
 
   // data
 
@@ -39,20 +34,11 @@ export default function useScopes(options) {
       });
     }
     setLoading(false);
+    setUpdatedAt(Date.now());
     return scopes;
   }, [filterByProjectId]);
 
-  // demoScope
-
-  useEffect(() => {
-    if (fetchedScopes && isDemoProject) {
-      setScopes([...fetchedScopes, demoScope]);
-    } else if (fetchedScopes) {
-      setScopes(fetchedScopes);
-    }
-  }, [fetchedScopes, isDemoProject]);
-
   // return
 
-  return {value: scopes, loading};
+  return {value: fetchedScopes, loading, updatedAt};
 }

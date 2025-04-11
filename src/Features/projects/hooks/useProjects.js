@@ -1,26 +1,19 @@
-import {useState, useEffect} from "react";
+import {useState} from "react";
 import {useLiveQuery} from "dexie-react-hooks";
 import db from "App/db/db";
-
-import demoProject from "../data/demoProject";
 
 export default function useProjects() {
   // main
   const [loading, setLoading] = useState(true);
-  const [projects, setProjects] = useState([]);
+  const [updatedAt, setUpdatedAt] = useState(null);
 
-  const fetchedProjects = useLiveQuery(async () => {
+  const projects = useLiveQuery(async () => {
+    setLoading(true);
     const pro = await db.projects.toArray();
+    setUpdatedAt(Date.now());
+    setLoading(false);
     return pro;
   }, []);
 
-  useEffect(() => {
-    if (fetchedProjects) {
-      //setProjects([...fetchedProjects, demoProject]);
-      setProjects(fetchedProjects);
-      setLoading(false);
-    }
-  }, [fetchedProjects]);
-
-  return {value: projects, loading};
+  return {value: projects, loading, updatedAt};
 }

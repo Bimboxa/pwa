@@ -22,6 +22,7 @@ export default function TopBarDesktop() {
       }}
     >
       <ButtonSelectorScopeInTopBar />
+      <Box />
 
       <SelectorViewer />
 

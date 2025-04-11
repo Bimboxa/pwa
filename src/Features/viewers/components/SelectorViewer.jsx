@@ -4,8 +4,7 @@ import {setSelectedViewerKey} from "../viewersSlice";
 
 import useViewers from "../hooks/useViewers";
 
-import ListViewers from "./ListViewers";
-import ButtonMenuContainer from "Features/layout/components/ButtonMenuContainer";
+import ButtonMenu from "Features/layout/components/ButtonMenu";
 
 import useSelectedViewer from "../hooks/useSelectedViewer";
 
@@ -19,7 +18,14 @@ export default function SelectorViewer() {
 
   // helpers
 
-  const buttonLabel = viewer.label;
+  const buttonLabel = viewer?.label;
+
+  const actions = viewers.map((v) => ({
+    key: v.key,
+    label: v.label,
+    icon: v.icon,
+    handler: () => handleClick(v),
+  }));
 
   // handler
 
@@ -30,12 +36,13 @@ export default function SelectorViewer() {
   // return <BlockViewer viewer={viewer} />;
 
   return (
-    <ButtonMenuContainer buttonLabel={buttonLabel}>
-      <ListViewers
-        viewers={viewers}
-        selectedKey={viewer.key}
-        onClick={handleClick}
-      />
-    </ButtonMenuContainer>
+    <ButtonMenu sx={{width: 150}} buttonLabel={buttonLabel} actions={actions} />
+    // <ButtonMenuContainer buttonLabel={buttonLabel} sx={{width: 150}}>
+    //   <ListViewers
+    //     viewers={viewers}
+    //     selectedKey={viewer.key}
+    //     onClick={handleClick}
+    //   />
+    // </ButtonMenuContainer>
   );
 }

@@ -5,9 +5,9 @@ import useInitSelectScope from "Features/scopes/hooks/useInitSelectScope";
 
 import useInitRemoteContainer from "Features/sync/hooks/useInitRemoteContainer";
 
-//import useInitSelectListing from "Features/listings/hooks/useInitSelectListing";
-//import useInitFetchServicesCredentials from "Features/servicesCredentials/hooks/useInitFetchServicesCredentials";
+import useInitSelectListing from "Features/listings/hooks/useInitSelectListing";
 
+//import useInitFetchServicesCredentials from "Features/servicesCredentials/hooks/useInitFetchServicesCredentials";
 //import useInitServicesConfig from "Features/settings/hooks/useInitServicesConfig";
 
 export default function useInit() {
@@ -18,7 +18,7 @@ export default function useInit() {
 
   useInitRemoteContainer();
 
-  //useInitSelectListing();
+  useInitSelectListing();
   //useInitFetchServicesCredentials();
   //useInitServicesConfig();
 }

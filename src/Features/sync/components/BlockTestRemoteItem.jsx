@@ -27,7 +27,7 @@ export default function BlockTestRemoteItem({path}) {
     syncingRef.current = true;
     try {
       const metadata = await fetchRemoteItemMetadata(path);
-      setMetadata(metadata);
+      setMetadata(metadata?.value);
     } catch (error) {
       console.log(error);
     } finally {

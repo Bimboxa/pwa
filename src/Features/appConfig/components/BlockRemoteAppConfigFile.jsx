@@ -1,12 +1,13 @@
 import {useState} from "react";
 import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 
-import {Box, IconButton, Typography} from "@mui/material";
+import {Box, IconButton, Typography, Link} from "@mui/material";
 import {Refresh} from "@mui/icons-material";
 import useFetchRemoteFile from "Features/sync/hooks/useFetchRemoteFile";
 import yamlToJsonAsync from "Features/files/utils/yamlToJsonAsync";
 import setAppConfigInLocalStorage from "../services/setAppConfigInLocalStorage";
 import BlockTestRemoteItem from "Features/sync/components/BlockTestRemoteItem";
+import LinkRemoteItem from "Features/sync/components/LinkRemoteItem";
 
 export default function BlockRemoteAppConfigFile() {
   // strings
@@ -27,8 +28,9 @@ export default function BlockRemoteAppConfigFile() {
   const filePath = remoteContainer?.path + "/appConfig.yml";
 
   let subtitle = "Aucun fichier trouvé";
-  if (remoteContainer)
+  if (remoteContainer) {
     subtitle = `Fichier ${remoteContainer?.service}: ${remoteContainer?.path}`;
+  }
 
   // handlers
 
@@ -36,6 +38,7 @@ export default function BlockRemoteAppConfigFile() {
     try {
       const blob = await fetchRemoteFile(filePath);
       const appConfig = await yamlToJsonAsync(blob);
+      console.log("appConfig", appConfig);
       setAppConfigInLocalStorage(appConfig);
     } catch (e) {
       console.log("error", e);
@@ -46,15 +49,8 @@ export default function BlockRemoteAppConfigFile() {
 
   return (
     <Box sx={{display: "flex", alignItems: "center", p: 1}}>
-      <Box>
-        <Typography>{title}</Typography>
-        <Box sx={{display: "flex", alignItems: "center"}}>
-          <Typography variant="body2" color="text.secondary" sx={{mr: 1}}>
-            {subtitle}
-          </Typography>
-          <BlockTestRemoteItem path={filePath} />
-        </Box>
-      </Box>
+      <LinkRemoteItem label={subtitle} path={filePath} />
+
       <IconButton sx={{ml: 1}} onClick={handleClick} loading={loading}>
         <Refresh />
       </IconButton>

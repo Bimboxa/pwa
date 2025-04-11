@@ -9,6 +9,7 @@ export default function useAppConfig() {
     setAppConfig(appConfig);
   }
   useEffect(() => {
+    console.log("[EFFECT] getAppConfig");
     getAppConfig();
   }, []);
 

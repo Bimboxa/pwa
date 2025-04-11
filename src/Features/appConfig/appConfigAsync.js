@@ -1,15 +1,11 @@
 import appConfigDefault from "./data/appConfigDefault";
+import getAppConfigFromLocalStorage from "./services/getAppConfigFromLocalStorage";
 
 let appConfig = null;
 
 const appConfigAsync = (async () => {
   if (!appConfig) {
-    const appConfigS = localStorage.getItem("appConfig");
-    if (appConfigS) {
-      appConfig = JSON.parse(appConfigS);
-    } else {
-      appConfig = appConfigDefault;
-    }
+    appConfig = getAppConfigFromLocalStorage() || appConfigDefault;
   }
   return appConfig;
 })();

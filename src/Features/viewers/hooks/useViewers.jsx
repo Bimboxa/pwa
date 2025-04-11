@@ -1,5 +1,5 @@
 import {Typography} from "@mui/material";
-import {Map, PictureAsPdf as PdfIcon} from "@mui/icons-material";
+import {Map, PictureAsPdf as PdfIcon, Image} from "@mui/icons-material";
 
 import theme from "Styles/theme";
 
@@ -8,6 +8,12 @@ export default function useViewers() {
     {
       key: "MAP",
       label: "Fond de plan",
+      icon: <Image />,
+      bgcolor: theme.palette.viewers.map,
+    },
+    {
+      key: "LEAFLET",
+      label: "Carte",
       icon: <Map />,
       bgcolor: theme.palette.viewers.map,
     },

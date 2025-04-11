@@ -12,13 +12,22 @@ export default function useFetchRemoteItemMetadata() {
   if (!remoteContainer || !accessToken) {
     return null;
   }
+
   return async (path) => {
     if (!remoteContainer) {
       throw new Error("No remote container available");
     }
+
+    // helpers
+    if (!path.startsWith("/")) {
+      path = remoteContainer.path + "/" + path;
+    }
     switch (remoteContainer.service) {
       case "DROPBOX":
-        return getItemMetadataDropboxService({path, accessToken});
+        return {
+          service: "DROPBOX",
+          value: await getItemMetadataDropboxService({path, accessToken}),
+        };
       default:
         throw new Error(`Unknown service: ${remoteContainer.service}`);
     }
