@@ -13,6 +13,8 @@ db.version(2).stores({
     "id,[listingKey+targetEntityId],listingKey,targetListingKey,targetEntityId", // entityProps = {id,tarketListingKey,targetEntityId,props}
   markers: "id,mapId,targetListingId,targetEntityId", // marker = {id,mapId,x,y,targetListingId,targetEntityId}
   files: "id,listingId,entityId",
+  relationsEntities:
+    "id,sourceListingId,sourceEntityId,targetEntityId,relationType",
 });
 
 export default db;

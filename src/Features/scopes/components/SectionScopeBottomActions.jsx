@@ -49,14 +49,15 @@ export default function SectionScopeBottomActions({
     setLoading(true);
     if (scope.id) {
       await update(scope);
+      if (onSaved) onSaved(scope);
     } else {
       const name = scope.name;
       const clientRef = scope.clientRef;
       const projectId = newScopeProjectId;
-      await create({name, clientRef, projectId, newListings});
+      const newScope = await create({name, clientRef, projectId, newListings});
+      if (onSaved) onSaved(newScope);
     }
     setLoading(false);
-    if (onSaved) onSaved(scope);
   }
   return (
     <Box sx={{width: 1, p: 1}}>

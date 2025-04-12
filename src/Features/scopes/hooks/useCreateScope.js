@@ -34,6 +34,9 @@ export default function useCreateScope() {
     if (newListings?.length > 0) {
       await createListings({listings: listingsWithIds, scope});
     }
+
+    // return
+    return scope;
   };
 
   return create;
