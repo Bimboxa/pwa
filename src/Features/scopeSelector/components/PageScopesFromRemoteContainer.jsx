@@ -1,4 +1,5 @@
-import {useDispatch} from "react-redux";
+import {useState} from "react";
+import {useDispatch, useSelector} from "react-redux";
 
 import {setPage} from "../scopeSelectorSlice";
 
@@ -7,6 +8,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import {Box} from "@mui/material";
 import HeaderVariantBackTitle from "Features/layout/components/HeaderVariantBackTitle";
 import ListScopes from "Features/scopes/components/ListScopes";
+import DialogCreateScope from "Features/scopes/components/DialogCreateScope";
 
 export default function PageScopesFromRemoteContainer() {
   const dispatch = useDispatch();
@@ -15,6 +17,13 @@ export default function PageScopesFromRemoteContainer() {
 
   const appConfig = useAppConfig();
   const scopes = [];
+  const remoteProjectContainer = useSelector(
+    (s) => s.scopeSelector.remoteProjectContainer
+  );
+
+  // state
+
+  const [open, setOpen] = useState(false);
 
   // helpers
 
@@ -31,17 +40,25 @@ export default function PageScopesFromRemoteContainer() {
   }
 
   function handleNewScopeClick() {
-    console.log("new scope");
+    setOpen(true);
   }
 
   return (
-    <Box sx={{width: 1}}>
-      <HeaderVariantBackTitle title={title} onBackClick={handleBackClick} />
-      <ListScopes
-        scopes={scopes}
-        onClick={handleScopeClick}
-        onNewClick={handleNewScopeClick}
+    <>
+      <Box sx={{width: 1}}>
+        <HeaderVariantBackTitle title={title} onBackClick={handleBackClick} />
+        <ListScopes
+          scopes={scopes}
+          onClick={handleScopeClick}
+          onNewClick={handleNewScopeClick}
+        />
+      </Box>
+      <DialogCreateScope
+        open={open}
+        createRemote={true}
+        remoteProjectContainer={remoteProjectContainer}
+        onClose={() => setOpen(false)}
       />
-    </Box>
+    </>
   );
 }

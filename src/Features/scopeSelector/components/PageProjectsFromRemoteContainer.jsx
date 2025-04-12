@@ -1,10 +1,11 @@
 import {useEffect} from "react";
 import {useDispatch} from "react-redux";
 
-import {setPage} from "../scopeSelectorSlice";
+import {setPage, setRemoteProjectContainer} from "../scopeSelectorSlice";
 
 import useProjectsFoldersFromDropbox from "Features/dropbox/hooks/useProjectsFoldersFromDropbox";
 import useFetchProjectsFolders from "Features/dropbox/hooks/useFetchProjectsFolders";
+import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 
 import {Box, Typography} from "@mui/material";
 
@@ -12,7 +13,7 @@ import ListFolders from "Features/dropbox/components/ListFolders";
 import PageProjectsFromRemoteContainersHeader from "./PageProjectsFromRemoteContainersHeader";
 import HeaderVariantBackTitle from "Features/layout/components/HeaderVariantBackTitle";
 
-export default function PageProjectsFromRemoteContainer({remoteContainer}) {
+export default function PageProjectsFromRemoteContainer() {
   const dispatch = useDispatch();
 
   // strings
@@ -23,6 +24,7 @@ export default function PageProjectsFromRemoteContainer({remoteContainer}) {
 
   const projectsFolders = useProjectsFoldersFromDropbox();
   const fetchProjectsFolders = useFetchProjectsFolders();
+  const remoteContainer = useRemoteContainer();
 
   // effect
 
@@ -41,6 +43,12 @@ export default function PageProjectsFromRemoteContainer({remoteContainer}) {
   function handleRemoteProjectClick(folder) {
     console.log("folder", folder);
     dispatch(setPage("SCOPES_FROM_REMOTE_CONTAINER"));
+    dispatch(
+      setRemoteProjectContainer({
+        service: remoteContainer.service,
+        metadata: folder,
+      })
+    );
   }
 
   // helpers
