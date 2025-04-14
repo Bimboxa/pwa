@@ -1,5 +1,7 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {useDispatch, useSelector} from "react-redux";
+
+import useFetchRemoteProjectScopes from "Features/sync/hooks/useFetchRemoteProjectScopes";
 
 import {setPage} from "../scopeSelectorSlice";
 
@@ -9,6 +11,7 @@ import {Box} from "@mui/material";
 import HeaderVariantBackTitle from "Features/layout/components/HeaderVariantBackTitle";
 import ListScopes from "Features/scopes/components/ListScopes";
 import DialogCreateScope from "Features/scopes/components/DialogCreateScope";
+import BlockRemoteProjectContainer from "Features/sync/components/BlockRemoteProjectContainer";
 
 export default function PageScopesFromRemoteContainer() {
   const dispatch = useDispatch();
@@ -16,14 +19,31 @@ export default function PageScopesFromRemoteContainer() {
   // data
 
   const appConfig = useAppConfig();
-  const scopes = [];
-  const remoteProjectContainer = useSelector(
-    (s) => s.scopeSelector.remoteProjectContainer
-  );
+  const remoteProject = useSelector((s) => s.scopeSelector.remoteProject);
+
+  // data - func
+
+  const fetchRemoteProjectScopes = useFetchRemoteProjectScopes();
 
   // state
 
   const [open, setOpen] = useState(false);
+  const [scopes, setScopes] = useState([]);
+
+  console.log("[debug] scopes", scopes);
+
+  // effect - loading
+
+  const fetchAsync = async () => {
+    const scopes = await fetchRemoteProjectScopes({project: remoteProject});
+    setScopes(scopes);
+  };
+
+  useEffect(() => {
+    if (remoteProject) {
+      fetchAsync();
+    }
+  }, [remoteProject?.id]);
 
   // helpers
 
@@ -47,6 +67,7 @@ export default function PageScopesFromRemoteContainer() {
     <>
       <Box sx={{width: 1}}>
         <HeaderVariantBackTitle title={title} onBackClick={handleBackClick} />
+        <BlockRemoteProjectContainer remoteProject={remoteProject} />
         <ListScopes
           scopes={scopes}
           onClick={handleScopeClick}
@@ -54,10 +75,10 @@ export default function PageScopesFromRemoteContainer() {
         />
       </Box>
       <DialogCreateScope
+        project={remoteProject}
         open={open}
-        createRemote={true}
-        remoteProjectContainer={remoteProjectContainer}
         onClose={() => setOpen(false)}
+        createRemote={true}
       />
     </>
   );

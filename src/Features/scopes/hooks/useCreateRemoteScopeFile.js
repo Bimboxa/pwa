@@ -1,18 +1,23 @@
 import useCreateRemoteFile from "Features/sync/hooks/useCreateRemoteFile";
 import getScopeRemoteFile from "../utils/getScopeRemoteFile";
+import getRemoteItemPath from "Features/sync/utils/getRemoteItemPath";
+import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 
 export default function useCreateRemoteScopeFile() {
   const createFile = useCreateRemoteFile();
+  const remoteContainer = useRemoteContainer();
 
-  const create = async ({scope, remoteProjectContainer}) => {
+  const create = async ({project, scope}) => {
+    const remoteProjectContainerPath =
+      remoteContainer.projectsPath + "/" + project.clientRef;
+    const path = getRemoteItemPath({
+      type: "SCOPE",
+      remoteContainer,
+      item: scope,
+      options: {remoteProjectContainerPath},
+    });
+
     const file = getScopeRemoteFile(scope);
-    const fileName = file.name;
-
-    let path = null;
-    if (remoteProjectContainer?.service === "DROPBOX") {
-      const projectPath = remoteProjectContainer?.metadata?.path_display;
-      path = `${projectPath}/_data/${fileName}`;
-    }
 
     await createFile({path, blob: file});
   };

@@ -1,13 +1,13 @@
 import useRemoteToken from "./useRemoteToken";
 import useRemoteContainer from "./useRemoteContainer";
 
-import fetchFileDropboxService from "Features/dropbox/services/fetchFileDropboxService";
+import createFoldersDropboxService from "Features/dropbox/services/createFoldersDropboxService";
 
-export default function useFetchRemoteFile() {
+export default function useCreateRemoteFolders() {
   const remoteContainer = useRemoteContainer();
   const {value: remoteToken} = useRemoteToken();
 
-  const fetchFile = async (filePath) => {
+  const createFolders = async (pathList) => {
     if (!remoteContainer) {
       throw new Error("No remote container available");
     }
@@ -16,14 +16,14 @@ export default function useFetchRemoteFile() {
 
     switch (service) {
       case "DROPBOX":
-        return fetchFileDropboxService({
+        return createFoldersDropboxService({
           accessToken: remoteToken,
-          path: filePath,
+          pathList,
         });
       default:
         throw new Error(`Unknown service: ${service}`);
     }
   };
 
-  return fetchFile;
+  return createFolders;
 }

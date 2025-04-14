@@ -34,3 +34,6 @@ services.config.yml
 config
 appConfig.yml
 
+# Temp
+temp
+

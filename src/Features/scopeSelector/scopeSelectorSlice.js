@@ -11,6 +11,8 @@ const scopeSelectorInitialState = {
   remoteFolder: null,
   //
   remoteProjectContainer: null, // {service,metadata}
+  remoteOpenedProjects: null, // [{clientId,label,clientRef,createdAt}]
+  remoteProject: null, // selected remote project
 };
 
 export const scopeSelectorSlice = createSlice({
@@ -35,6 +37,12 @@ export const scopeSelectorSlice = createSlice({
     setRemoteFolder: (state, action) => {
       state.remoteFolder = action.payload;
     },
+    setRemoteOpenedProjects: (state, action) => {
+      state.remoteOpenedProjects = action.payload;
+    },
+    setRemoteProject: (state, action) => {
+      state.remoteProject = action.payload;
+    },
     setRemoteProjectContainer: (state, action) => {
       state.remoteProjectContainer = action.payload;
     },
@@ -49,6 +57,8 @@ export const {
   setScope,
   setRemoteFolder,
   setRemoteProjectContainer,
+  setRemoteOpenedProjects,
+  setRemoteProject,
   //
 } = scopeSelectorSlice.actions;
 

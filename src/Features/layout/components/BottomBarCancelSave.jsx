@@ -2,13 +2,14 @@ import {Box, Button} from "@mui/material";
 
 export default function BottomBarCancelSave({
   onSave,
+  saveLabel,
   onCancel,
   loading,
   sx,
   children,
 }) {
   const cancelS = "Annuler";
-  const saveS = "Enregistrer";
+  const saveS = saveLabel ?? "Enregistrer";
 
   return (
     <Box
@@ -31,7 +32,7 @@ export default function BottomBarCancelSave({
         <Button onClick={onCancel} variant="outlined" sx={{mr: 1}}>
           {cancelS}
         </Button>
-        <Button onClick={onSave} variant="contained">
+        <Button loading={loading} onClick={onSave} variant="contained">
           {saveS}
         </Button>
       </Box>
