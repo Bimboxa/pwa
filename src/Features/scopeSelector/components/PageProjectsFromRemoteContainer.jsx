@@ -1,17 +1,24 @@
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import {useDispatch} from "react-redux";
 
-import {setPage, setRemoteProjectContainer} from "../scopeSelectorSlice";
+import {
+  setPage,
+  setRemoteOpenedProjects,
+  setRemoteProject,
+} from "../scopeSelectorSlice";
 
 import useProjectsFoldersFromDropbox from "Features/dropbox/hooks/useProjectsFoldersFromDropbox";
-import useFetchProjectsFolders from "Features/dropbox/hooks/useFetchProjectsFolders";
 import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
+import useRemoteOpenedProjects from "../hooks/useRemoteOpenedProjects";
 
 import {Box, Typography} from "@mui/material";
 
 import ListFolders from "Features/dropbox/components/ListFolders";
 import PageProjectsFromRemoteContainersHeader from "./PageProjectsFromRemoteContainersHeader";
 import HeaderVariantBackTitle from "Features/layout/components/HeaderVariantBackTitle";
+import useFetchRemoteOpenedProjects from "Features/sync/hooks/useFetchRemoteOpenedProjects";
+import ListItemsGeneric from "Features/layout/components/ListItemsGeneric";
+import ListRemoteItems from "Features/sync/components/ListRemoteItems";
 
 export default function PageProjectsFromRemoteContainer() {
   const dispatch = useDispatch();
@@ -22,16 +29,29 @@ export default function PageProjectsFromRemoteContainer() {
 
   // data
 
-  const projectsFolders = useProjectsFoldersFromDropbox();
-  const fetchProjectsFolders = useFetchProjectsFolders();
+  const remoteProjects = useRemoteOpenedProjects();
   const remoteContainer = useRemoteContainer();
+  const fetchProjects = useFetchRemoteOpenedProjects();
 
+  console.log("remoteProjects", remoteProjects);
+
+  // state
+
+  const [loading, setLoading] = useState(false);
   // effect
 
-  const canFetch = Boolean(fetchProjectsFolders);
+  const canFetch = Boolean(fetchProjects);
+
+  const fetchAsync = async () => {
+    setLoading(true);
+    const projects = await fetchProjects();
+    console.log("[FETCH] remote projects", projects);
+    dispatch(setRemoteOpenedProjects(projects));
+    setLoading(false);
+  };
 
   useEffect(() => {
-    if (canFetch) fetchProjectsFolders();
+    if (canFetch) fetchAsync();
   }, [canFetch]);
 
   // handlers
@@ -40,15 +60,17 @@ export default function PageProjectsFromRemoteContainer() {
     dispatch(setPage("PROJECTS"));
   }
 
-  function handleRemoteProjectClick(folder) {
-    console.log("folder", folder);
+  function handleRemoteProjectClick(project) {
+    console.log("remoteProject", project);
     dispatch(setPage("SCOPES_FROM_REMOTE_CONTAINER"));
-    dispatch(
-      setRemoteProjectContainer({
-        service: remoteContainer.service,
-        metadata: folder,
-      })
-    );
+    dispatch(setRemoteProject(project));
+
+    // dispatch(
+    //   setRemoteProjectContainer({
+    //     service: remoteContainer.service,
+    //     metadata: folder,
+    //   })
+    // );
   }
 
   // helpers
@@ -59,14 +81,16 @@ export default function PageProjectsFromRemoteContainer() {
     <Box sx={{width: 1, bgcolor: "background.default"}}>
       <HeaderVariantBackTitle title={title} onBackClick={handleBackClick} />
       {isDropbox && <PageProjectsFromRemoteContainersHeader />}
-      <Box sx={{p: 1}}>
+      {/* <Box sx={{p: 1}}>
         <Typography variant="body2" color="text.secondary">
           {title}
         </Typography>
-      </Box>
+      </Box> */}
       <Box sx={{bgcolor: "common.white"}}>
-        <ListFolders
-          folders={projectsFolders}
+        <ListRemoteItems
+          loading={loading}
+          items={remoteProjects}
+          itemType="PROJECT"
           onClick={handleRemoteProjectClick}
         />
       </Box>

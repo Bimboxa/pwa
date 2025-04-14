@@ -26,7 +26,6 @@ export default function LinkRemoteItem({label, path, variant, color}) {
     metadata?.value,
     metadata?.service
   );
-  console.log("webUrl", webUrl, metadata);
 
   // helpers - func
 

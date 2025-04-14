@@ -1,25 +1,75 @@
+import {useEffect, useState} from "react";
+
 import useRemoteProjectContainerProps from "../hooks/useRemoteProjectContainerProps";
 
-import {Box} from "@mui/material";
-import BlockFolderDropbox from "Features/dropbox/components/BlockFolderDropbox";
+import useRemoteContainer from "../hooks/useRemoteContainer";
+import useFetchRemoteItemMetadata from "../hooks/useFetchRemoteItemMetadata";
 
-export default function BlockRemoteProjectContainer() {
+import {Box, Typography, Link} from "@mui/material";
+import BlockTestRemoteItem from "./BlockTestRemoteItem";
+import LinkRemoteItem from "./LinkRemoteItem";
+
+export default function BlockRemoteProjectContainer({remoteProject}) {
+  console.log("[remoteProjectContainer] remoteProject", remoteProject);
+
   // data
 
+  const remoteContainer = useRemoteContainer();
   const {value: props} = useRemoteProjectContainerProps();
-  console.log("props", props);
 
-  // helper
+  // data - func
 
-  const isDropbox = props?.type === "DROPBOX_FOLDER";
+  const fetchItemMetadata = useFetchRemoteItemMetadata();
 
-  // component
+  // state
 
-  const componentByType = {
-    DROPBOX_FOLDER: <BlockFolderDropbox folder={props?.dropboxFolder} />,
+  const [loading, setLoading] = useState(false);
+  const [metadata, setMetadata] = useState(null);
+  const [openCreate, setOpenCreate] = useState(false);
+
+  // helpers
+
+  const title = "-";
+  const path = remoteContainer.projectsPath + "/" + remoteProject.clientRef;
+
+  // init
+
+  const setMetadataAsync = async () => {
+    if (!remoteProject) {
+      return;
+    }
+    setLoading(true);
+
+    const metadata = await fetchItemMetadata(path);
+    setMetadata(metadata);
+    setLoading(false);
   };
 
-  const component = componentByType[props?.type] || <Box />;
+  // handlers
 
-  return component;
+  function handleFolderClick() {
+    if (!metadata) {
+      setOpenCreate(true);
+    }
+  }
+
+  return (
+    <Box sx={{p: 1}}>
+      <LinkRemoteItem path={path} label={remoteProject.label} />
+      <Typography variant="body2" color="text.secondary">
+        {title}
+      </Typography>
+      <Box sx={{display: "flex", alignItems: "center"}}>
+        <Link
+          sx={{
+            cursor: "pointer",
+          }}
+          onClick={handleFolderClick}
+        >
+          {remoteProject?.label}
+        </Link>
+        <BlockTestRemoteItem path={path} />
+      </Box>
+    </Box>
+  );
 }

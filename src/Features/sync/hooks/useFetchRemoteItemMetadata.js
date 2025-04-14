@@ -18,6 +18,10 @@ export default function useFetchRemoteItemMetadata() {
       throw new Error("No remote container available");
     }
 
+    if (!path) {
+      throw new Error("No path provided");
+    }
+
     // helpers
     if (!path.startsWith("/")) {
       path = remoteContainer.path + "/" + path;

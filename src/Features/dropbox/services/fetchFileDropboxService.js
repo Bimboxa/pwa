@@ -16,5 +16,7 @@ export default async function fetchFileDropboxService({accessToken, path}) {
   }
 
   const blob = await response.blob(); // or .arrayBuffer(), .text(), etc. depending on your needs
+
+  console.log("[FETCH] dropbox file:", blob);
   return blob;
 }
