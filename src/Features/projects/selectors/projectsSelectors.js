@@ -7,14 +7,21 @@ const createDeepEqualSelector = createSelectorCreator(lruMemoize, isEqual);
 export const makeGetProjectsByOptions = (options) =>
   createDeepEqualSelector(
     [
-      (state) => state.projectsById, // assume projects already synced from Dexie
+      (state) => state.projects.projectsUpdatedAt,
+      (state) => state.projects.projectsById,
     ],
-    (projectsById) => {
-      let projects = Object.values(projectsById ?? {});
-
+    (projectsUpdatedAt, projectsById) => {
       // options
 
       const sortBy = options?.sortBy || "createdAt";
+
+      // edge case
+
+      if (!projectsUpdatedAt) return [];
+
+      // main
+
+      let projects = Object.values(projectsById ?? {});
 
       // main
 
@@ -23,5 +30,41 @@ export const makeGetProjectsByOptions = (options) =>
       }
 
       return projects;
+    }
+  );
+
+export const makeGetProjectByOptions = (options) =>
+  createDeepEqualSelector(
+    [
+      (state) => state.projects.selectedProjectId,
+      (state) => state.projects.newProject,
+      (state) => state.projects.editedProject,
+      (state) => state.projects.isEditingProject,
+      (state) => state.projects.projectsUpdatedAt,
+      (state) => state.projects.projectsById,
+    ],
+    (
+      selectedProjectId,
+      newProject,
+      editedProject,
+      isEditingProject,
+      projectsUpdatedAt,
+      projectsById
+    ) => {
+      // edge case
+      if (!projectsUpdatedAt) return null;
+
+      // main
+      const forceNew = options?.forceNew;
+
+      if (!selectedProjectId) {
+        return isEditingProject ? editedProject : newProject;
+      }
+
+      if (forceNew) {
+        return newProject;
+      }
+
+      return projectsById[selectedProjectId] ?? null;
     }
   );

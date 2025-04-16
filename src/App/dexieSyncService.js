@@ -1,9 +1,13 @@
 // services/dexieSyncService.js
 import {liveQuery} from "dexie";
 import db from "../App/db/db";
-import {store} from "../App/store";
+import store from "../App/store";
 
 import {setProjectsById} from "../Features/projects/projectsSlice";
+import {
+  setScopesById,
+  setRelsScopeItemByScopeId,
+} from "../Features/scopes/scopesSlice";
 import {setListingsById} from "../Features/listings/listingsSlice";
 import {setEntitiesById} from "../Features/entities/entitiesSlice";
 
@@ -14,9 +18,19 @@ const syncConfigs = [
     action: setProjectsById,
   },
   {
+    table: "scopes",
+    query: () => db.scopes.toArray(),
+    action: setScopesById,
+  },
+  {
     table: "listings",
     query: () => db.listings.toArray(),
     action: setListingsById,
+  },
+  {
+    table: "relsScopeItem",
+    query: () => db.relsScopeItem.toArray(),
+    action: setRelsScopeItemByScopeId,
   },
   {
     table: "entities",

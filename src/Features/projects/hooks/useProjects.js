@@ -1,11 +1,11 @@
 import {useMemo} from "react";
 import {useSelector} from "react-redux";
-import {getProjectSelector} from "../services/projectSelectorCache";
+import {getProjectsSelector} from "../services/projectsSelectorCache";
 
 export default function useProjects(options) {
   // data
 
-  const selector = useMemo(() => getProjectSelector(options), [options]);
+  const selector = useMemo(() => getProjectsSelector(options), [options]);
 
   // main
 

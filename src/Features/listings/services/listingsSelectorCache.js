@@ -1,13 +1,13 @@
 import stableStringify from "fast-json-stable-stringify";
-import {makeGetProjectByOptions} from "../selectors/projectsSelectors";
+import {makeGetListingsByOptions} from "../selectors/listingsSelectors";
 
 const selectorCache = new Map();
 
-export function getProjectSelector(options) {
+export function getListingsSelector(options) {
   const key = stableStringify(options);
 
   if (!selectorCache.has(key)) {
-    const selector = makeGetProjectByOptions(options);
+    const selector = makeGetListingsByOptions(options);
     selectorCache.set(key, selector);
   }
 

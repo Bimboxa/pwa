@@ -1,14 +1,10 @@
-import {useMemo} from "react";
 import {useSelector} from "react-redux";
-import useProjects from "./useProjects";
 
 export default function useSelectedProject() {
   const id = useSelector((s) => s.projects.selectedProjectId);
-  const {value: projects, loading, updatedAt} = useProjects();
+  const projectsById = useSelector((s) => s.projects.projectsById);
 
-  const project = useMemo(() => {
-    return projects?.find((p) => p.id === id);
-  }, [id, updatedAt]); // Recompute only when projects, id, or updatedAt changes
+  const project = projectsById[id];
 
-  return {value: project, loading, updatedAt};
+  return {value: project, loading: false};
 }

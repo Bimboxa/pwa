@@ -1,6 +1,7 @@
 import {createSlice} from "@reduxjs/toolkit";
 
 import exampleEntity from "./data/exampleEntity";
+import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 const entitiesInitialState = {
   entitiesById: {},
