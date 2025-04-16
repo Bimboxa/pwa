@@ -31,7 +31,7 @@ export default function BlockRemoteAppConfigFile() {
 
   // helpers
 
-  const filePath = remoteContainer?.path + "/appConfig.yml";
+  const filePath = remoteContainer?.path + "/_data/_appConfig.yaml";
 
   let subtitle = "Aucun fichier trouvé";
   if (remoteContainer) {

@@ -2,7 +2,7 @@ import {useEffect, useState, useRef} from "react";
 
 import useFetchRemoteItemMetadata from "../hooks/useFetchRemoteItemMetadata";
 
-import {Box, CircularProgress, Link} from "@mui/material";
+import {Box, CircularProgress, Link, Tooltip} from "@mui/material";
 import BoxCenter from "Features/layout/components/BoxCenter";
 import {Circle} from "@mui/icons-material";
 import getRemoteItemWebUrlFromMetadata from "../services/getRemoteItemWebUrlFromMetadata";
@@ -54,15 +54,17 @@ export default function LinkRemoteItem({label, path, variant, color}) {
 
   return (
     <Box sx={{display: "flex", alignItems: "center", p: 1}}>
-      <Link
-        href={webUrl}
-        target="_blank"
-        rel="noopener"
-        variant={variant ?? "body2"}
-        color={color ?? "text.secondary"}
-      >
-        {label}
-      </Link>
+      <Tooltip title={webUrl ?? path} placement="top">
+        <Link
+          href={webUrl}
+          target="_blank"
+          rel="noopener"
+          variant={variant ?? "body2"}
+          color={color ?? "text.secondary"}
+        >
+          {label}
+        </Link>
+      </Tooltip>
       <Box
         sx={{
           width: 30,

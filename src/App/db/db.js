@@ -2,7 +2,7 @@ import Dexie from "dexie";
 
 const db = new Dexie("appDB");
 
-db.version(3).stores({
+db.version(4).stores({
   projects: "id,clientRef",
   scopes: "id,projectId",
   listings: "id,name",
@@ -15,7 +15,7 @@ db.version(3).stores({
   files: "id,listingId,entityId",
   relationsEntities:
     "id,sourceListingId,sourceEntityId,targetEntityId,relationType",
-  syncFiles: "id,syncFileType",
+  syncFiles: "path", // {path,updatedAt} // updatedAt = local updates when one table is updated.
 });
 
 export default db;

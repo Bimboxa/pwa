@@ -19,6 +19,10 @@ const syncInitialState = {
 
   remoteProjectContainerProps: {},
   remoteProjectContainerPropsUpdatedAt: null,
+
+  // syncFiles
+
+  syncFiles: [], // [path,updatedAt]
 };
 
 export const syncSlice = createSlice({
@@ -46,6 +50,10 @@ export const syncSlice = createSlice({
     setIsSyncing: (state, action) => {
       state.isSyncing = action.payload;
     },
+    //
+    setSyncFiles: (state, action) => {
+      state.syncFiles = action.payload;
+    },
   },
 });
 
@@ -56,6 +64,7 @@ export const {
   setRemoteProjectsContainers,
   setIsSyncing,
   setSelectedRemoteProjectsContainer,
+  setSyncFiles,
   //
 } = syncSlice.actions;
 

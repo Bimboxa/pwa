@@ -10,11 +10,11 @@ export default async function getItemMetadataDropboxService({
     if (result) {
       return result.result;
     } else {
-      console.error("No result returned from Dropbox API");
+      console.log("No result returned from Dropbox API");
       return null;
     }
-  } catch (error) {
-    console.error("Error getting folder metadata:", error);
+  } catch (err) {
+    console.log("[debug] error", err);
     return null;
   }
 }

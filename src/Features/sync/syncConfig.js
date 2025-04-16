@@ -1,31 +1,29 @@
-import {filter} from "jszip";
-
-export const syncConfig = {
-  orgaListings: {
-    description:
-      "Listings defined at the organisation level. Mainly nomenclatures or organisation datasets.",
-    syncDeps: ["REMOTE_CONTAINER"],
-    syncFileType: "ORGA_LISTING",
-    remoteFolder: "/_data",
-    remoteFile: "_listing_{{listing.id}}.json",
-    localTable: "orgaListings",
-    direction: "PULL",
-    remoteToLocal: {mode: "ISO"},
-  },
-  orgaEntities: {
-    description:
-      "Entities of the organisation listings. Categories (nomenclatures) or key value pairs for datasets",
-    syncDeps: ["REMOTE_CONTAINER"],
-    syncFileType: "ORGA_ENTITIES",
-    remoteFolder: "/_listings",
-    remoteFile: "_{{listing.key}}_{{listing.id}}.json",
-    localTable: "orgaEntities",
-    direction: "PULL",
-    remoteToLocal: {mode: "ITEMS_ITEM_TO_TABLE_ENTRY"},
-  },
+const syncConfig = {
+  // orgaListings: {
+  //   description:
+  //     "Listings defined at the organisation level. Mainly nomenclatures or organisation datasets.",
+  //   syncContext: ["remoteContainer"],
+  //   syncFileType: "ORGA_LISTING",
+  //   remoteFolder: "/_data",
+  //   remoteFile: "_listing_{{listing.id}}.json",
+  //   localTable: "orgaListings",
+  //   direction: "PULL",
+  //   remoteToLocal: {mode: "ISO"},
+  // },
+  // orgaEntities: {
+  //   description:
+  //     "Entities of the organisation listings. Categories (nomenclatures) or key value pairs for datasets",
+  //   syncContext: ["remoteContainer"],
+  //   syncFileType: "ORGA_ENTITIES",
+  //   remoteFolder: "/_listings",
+  //   remoteFile: "_{{listing.key}}_{{listing.id}}.json",
+  //   localTable: "orgaEntities",
+  //   direction: "PULL",
+  //   remoteToLocal: {mode: "ITEMS_ITEM_TO_TABLE_ENTRY"},
+  // },
   project: {
     description: "Project data",
-    syncDeps: ["PROJECT"],
+    syncContext: ["remoteContainer", "project"],
     syncFileType: "PROJECT",
     remoteFolder: "{{remoteContainer.projectsPath}}/{{project.clientRef}}",
     remoteFile: "/_data/project.json",
@@ -33,13 +31,14 @@ export const syncConfig = {
     direction: "BOTH",
     remoteToLocal: {mode: "DATA_TO_TABLE_ENTRY"},
     localToRemote: {
-      code: "TABLE_ENTRY_TO_DATA",
-      filterBy: "id",
+      mode: "TABLE_ENTRY_TO_DATA",
+      postMode: "SINGLE_FILE",
+      findEntry: [{key: "id", value: "project.id"}],
     },
   },
-  scopes: {
-    description: "List of scopes for a project",
-    syncDeps: ["PROJECT"],
+  scope: {
+    description: "Data of the selected scope",
+    syncContext: ["remoteContainer", "project", "scope"],
     syncFileType: "SCOPE",
     remoteFolder:
       "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_data",
@@ -48,12 +47,17 @@ export const syncConfig = {
     direction: "BOTH",
     remoteToLocal: {
       mode: "DATA_TO_TABLE_ENTRY",
+      fetchMode: "FILE",
     },
-    localToRemote: {mode: "TABLE_ENTRY_TO_DATA", filterBy: "id"},
+    localToRemote: {
+      postMode: "SINGLE_FILE",
+      mode: "TABLE_ENTRY_TO_DATA",
+      findEntry: [{key: "id", value: "scope.id"}],
+    },
   },
   listings: {
-    description: "List of listings for a project",
-    syncDeps: ["PROJECT"],
+    description: "List of listings for a scope",
+    syncContext: ["remoteContainer", "project", "listingsIds"],
     syncFileType: "LISTING",
     remoteFolder:
       "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_data",
@@ -62,12 +66,18 @@ export const syncConfig = {
     direction: "BOTH",
     remoteToLocal: {
       mode: "DATA_TO_TABLE_ENTRY",
+      fetchMode: "FOLDER",
+      filterFiles: [{value: "{{listing.id}}", in: "listingsIds"}],
     },
-    localToRemote: {mode: "TABLE_ENTRY_TO_DATA", filterBy: "id"},
+    localToRemote: {
+      mode: "TABLE_ENTRY_TO_DATA",
+      postMode: "MULTI_FILES",
+      filterEntries: [{key: "id", in: "listingsIds"}],
+    },
   },
   relsScopeItem: {
     description: "Listings for one scope",
-    syncDeps: ["SCOPE"],
+    syncContext: ["SCOPE"],
     syncFileType: "SCOPE_LISTINGS",
     remoteFolder:
       "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_data",
@@ -84,7 +94,7 @@ export const syncConfig = {
   },
   entities: {
     description: "Entities for one listing",
-    syncDeps: ["LISTING"],
+    syncContext: ["remoteContainer", "project", "listingsIds"],
     syncFileType: "LISTING_ENTITIES_BY_CREATOR",
     remoteFolder:
       "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_listings/_{{listing.key}}_{{listing.id}}",
@@ -92,11 +102,17 @@ export const syncConfig = {
     localTable: "entities",
     direction: "BOTH",
     remoteToLocal: {
+      fetchMode: "FOLDER",
+      filterFiles: null,
       mode: "ITEMS_TO_TABLE_ENTRIES",
     },
     localToRemote: {
+      postMode: "MULTI_FILES",
       mode: "TABLE_ENTRIES_TO_ITEMS",
-      filterBy: ["listingId", "createdBy"],
+      filterEntries: [{key: "listingId", in: "listingsIds"}],
+      groupEntriesBy: ["listingId", "createdBy"],
     },
   },
 };
+
+export default syncConfig;
