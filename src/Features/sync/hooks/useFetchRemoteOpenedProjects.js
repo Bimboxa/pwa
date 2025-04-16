@@ -25,7 +25,7 @@ export default function useFetchRemoteOpenedProjects() {
 
     switch (service) {
       case "DROPBOX":
-        const path = remoteContainer.path + "/_data/openedProjects.json";
+        const path = remoteContainer.path + "/_data/_openedProjects.json";
         console.log("[FETCH] file : path", path);
         const jsonFile = await fetchFileDropboxService({
           accessToken: accessToken,

@@ -10,6 +10,7 @@ import {
 } from "../Features/scopes/scopesSlice";
 import {setListingsById} from "../Features/listings/listingsSlice";
 import {setEntitiesById} from "../Features/entities/entitiesSlice";
+import {setSyncFiles} from "../Features/sync/syncSlice";
 
 const syncConfigs = [
   {
@@ -36,6 +37,11 @@ const syncConfigs = [
     table: "entities",
     query: () => db.entities.toArray(),
     action: setEntitiesById,
+  },
+  {
+    table: "syncFiles",
+    query: () => db.syncFiles.toArray(),
+    action: setSyncFiles,
   },
 ];
 
