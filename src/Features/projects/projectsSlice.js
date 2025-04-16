@@ -1,7 +1,10 @@
 import {createSlice} from "@reduxjs/toolkit";
 import setInitProjectId from "Features/init/services/setInitProjectId";
+import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 const projectsInitialState = {
+  projectsById: {},
+  //
   projectsMap: {},
   projectsUpdatedAt: null,
   //
@@ -16,6 +19,11 @@ export const projectsSlice = createSlice({
   name: "projects",
   initialState: projectsInitialState,
   reducers: {
+    setProjectsById: (state, action) => {
+      const projects = action.payload;
+      state.projectsById = getItemsByKey(projects, "id");
+      state.projectsUpdatedAt = Date.now();
+    },
     setSelectedProjectId: (state, action) => {
       state.selectedProjectId = action.payload;
       setInitProjectId(action.payload);
@@ -34,6 +42,8 @@ export const projectsSlice = createSlice({
 });
 
 export const {
+  setProjectsById,
+  //
   setSelectedProjectId,
   //
   setNewProject,

@@ -1,19 +1,15 @@
-import {useState} from "react";
-import {useLiveQuery} from "dexie-react-hooks";
-import db from "App/db/db";
+import {useMemo} from "react";
+import {useSelector} from "react-redux";
+import {getProjectSelector} from "../services/projectSelectorCache";
 
-export default function useProjects() {
+export default function useProjects(options) {
+  // data
+
+  const selector = useMemo(() => getProjectSelector(options), [options]);
+
   // main
-  const [loading, setLoading] = useState(true);
-  const [updatedAt, setUpdatedAt] = useState(null);
 
-  const projects = useLiveQuery(async () => {
-    setLoading(true);
-    const pro = await db.projects.toArray();
-    setUpdatedAt(Date.now());
-    setLoading(false);
-    return pro;
-  }, []);
+  const projects = useSelector((s) => selector(s));
 
-  return {value: projects, loading, updatedAt};
+  return {value: projects, loading: false};
 }

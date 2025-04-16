@@ -2,11 +2,11 @@ import {useState} from "react";
 
 import {useSelector} from "react-redux";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import {useLiveQuery} from "dexie-react-hooks";
 import db from "App/db/db";
 
-import getEntityModelAsync from "App/services/getEntityModel";
 import getSortedListings from "../utils/getSortedListings";
 
 export default function useListingsByScope(options) {
@@ -24,6 +24,7 @@ export default function useListingsByScope(options) {
   // data
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const {value: selectedScope, loading: loadingScope} = useSelectedScope();
+  const appConfig = useAppConfig();
 
   // helpers
   const sortedListingsIds = selectedScope?.sortedListingsIds || []; // ?
@@ -81,7 +82,8 @@ export default function useListingsByScope(options) {
         listings.map(async (listing) => {
           return {
             ...listing,
-            entityModel: await getEntityModelAsync(listing?.entityModelKey),
+            entityModel:
+              appConfig?.entityModelsObject?.[listing?.entityModelKey] ?? null,
           };
         })
       );

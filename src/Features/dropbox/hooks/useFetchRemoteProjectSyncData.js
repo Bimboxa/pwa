@@ -1,6 +1,5 @@
 import {useDispatch} from "react-redux";
 
-import appConfigAsync from "App/appConfigAsync";
 import useRemoteToken from "Features/sync/hooks/useRemoteToken";
 
 export default function useFetchRemoteProjectSyncData() {
@@ -14,15 +13,7 @@ export default function useFetchRemoteProjectSyncData() {
 
   const fetchAsync = async () => {
     try {
-      const appConfig = await appConfigAsync;
-      const container = appConfig.remoteProjectsContainers.find(
-        (c) => c.service === "DROPBOX"
-      );
-      const path = container.path;
-
-      if (path) {
-        //dispatch(fetchRemoteProjectSyncData({path, token}));
-      }
+      console.log("[ TO DELETE ]");
     } catch (err) {
       console.log("error", err);
     }

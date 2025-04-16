@@ -1,17 +1,8 @@
-import {useState, useEffect} from "react";
-
-import appConfigAsync from "App/appConfigAsync";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function useRemoteProjectsContainers() {
-  const [projectsContainers, setProjectsContainers] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const appConfig = useAppConfig();
+  const projectsContainer = appConfig?.remoteProjectsContainer;
 
-  useEffect(() => {
-    appConfigAsync.then((appConfig) => {
-      setLoading(false);
-      setProjectsContainers(appConfig.remoteProjectsContainers);
-    });
-  }, []);
-
-  return {value: projectsContainers, loading};
+  return {value: projectsContainer, loading: false};
 }

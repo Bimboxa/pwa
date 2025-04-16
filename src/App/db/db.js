@@ -15,6 +15,7 @@ db.version(2).stores({
   files: "id,listingId,entityId",
   relationsEntities:
     "id,sourceListingId,sourceEntityId,targetEntityId,relationType",
+  syncFiles: "id,syncFileType",
 });
 
 export default db;
