@@ -6,7 +6,7 @@ import db from "App/db/db";
 
 export default function useCreateProject() {
   const createdBy = useUserEmail();
-  const createdAt = Date.now();
+  const createdAt = new Date(Date.now()).toISOString();
 
   const create = async ({name, clientRef}) => {
     const project = {

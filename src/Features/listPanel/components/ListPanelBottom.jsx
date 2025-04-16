@@ -1,5 +1,5 @@
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
-import useListingEntityModel from "Features/entities/hooks/useListingEntityModel";
+import useListingEntityModel from "Features/listings/hooks/useListingEntityModel";
 
 import {Box} from "@mui/material";
 

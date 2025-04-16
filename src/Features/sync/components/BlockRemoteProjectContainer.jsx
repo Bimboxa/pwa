@@ -56,20 +56,6 @@ export default function BlockRemoteProjectContainer({remoteProject}) {
   return (
     <Box sx={{p: 1}}>
       <LinkRemoteItem path={path} label={remoteProject.label} />
-      <Typography variant="body2" color="text.secondary">
-        {title}
-      </Typography>
-      <Box sx={{display: "flex", alignItems: "center"}}>
-        <Link
-          sx={{
-            cursor: "pointer",
-          }}
-          onClick={handleFolderClick}
-        >
-          {remoteProject?.label}
-        </Link>
-        <BlockTestRemoteItem path={path} />
-      </Box>
     </Box>
   );
 }

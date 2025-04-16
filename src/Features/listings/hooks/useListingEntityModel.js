@@ -1,18 +1,9 @@
-import {useState, useEffect} from "react";
-import getEntityModelAsync from "App/services/getEntityModel";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function useListingEntityModel(listing) {
-  // state
+  // data
 
-  const [entityModel, setEntityModel] = useState(null);
+  const appConfig = useAppConfig();
 
-  // init
-
-  useEffect(() => {
-    getEntityModelAsync(listing?.entityModelKey).then(setEntityModel);
-  }, [listing?.id]);
-
-  // return
-
-  return entityModel;
+  return appConfig?.entityModelsObject?.[listing?.entityModelKey] ?? null;
 }

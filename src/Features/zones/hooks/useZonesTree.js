@@ -1,13 +1,12 @@
 import {useState, useEffect} from "react";
 
 import {useSelector} from "react-redux";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
 import {useLiveQuery} from "dexie-react-hooks";
 import db from "App/db/db";
-
-import getEntityModelAsync from "App/services/getEntityModel";
 
 export default function useZonesTree() {
   const [loading, setLoading] = useState(true);
@@ -15,14 +14,15 @@ export default function useZonesTree() {
   const [zonesListing, setZonesListing] = useState(null);
 
   const zonesUpdatedAt = useSelector((s) => s.zones.zonesUpdatedAt);
+  const appConfig = useAppConfig();
 
-  async function getZonesListing(listings) {
-    const listingsWithEntityModel = await Promise.all(
-      listings.map(async (listing) => {
-        const entityModel = await getEntityModelAsync(listing.entityModelKey);
-        return {...listing, entityModel};
-      })
-    );
+  function getZonesListing(listings) {
+    const listingsWithEntityModel = listings.map((listing) => {
+      const entityModel =
+        appConfig?.entityModelsObject?.[listing?.entityModelKey] ?? null;
+      return {...listing, entityModel};
+    });
+
     const listing = listingsWithEntityModel.find(
       (l) => l.entityModel?.type === "ZONE_ENTITY_MODEL"
     );

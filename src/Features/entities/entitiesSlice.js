@@ -3,6 +3,7 @@ import {createSlice} from "@reduxjs/toolkit";
 import exampleEntity from "./data/exampleEntity";
 
 const entitiesInitialState = {
+  entitiesById: {},
   //
   entitiesMap: {[exampleEntity.id]: exampleEntity},
   entitiesUpdatedAt: null,
@@ -18,6 +19,10 @@ export const entitiesSlice = createSlice({
   name: "entities",
   initialState: entitiesInitialState,
   reducers: {
+    setEntitiesById: (state, action) => {
+      const entities = action.payload;
+      state.entitiesById = getItemsByKey(entities, "id");
+    },
     setSelectedEntityId: (state, action) => {
       state.selectedEntityId = action.payload;
     },
@@ -48,6 +53,8 @@ export const entitiesSlice = createSlice({
 });
 
 export const {
+  setEntitiesById,
+  //
   setSelectedEntityId,
   triggerEntitiesUpdate,
   //

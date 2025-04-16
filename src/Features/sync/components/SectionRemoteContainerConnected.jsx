@@ -8,12 +8,14 @@ import setRemoteContainerInLocalStorage from "../services/setRemoteContainerInLo
 
 import useRemoteToken from "Features/sync/hooks/useRemoteToken";
 
-import {Box} from "@mui/material";
+import {Box, IconButton} from "@mui/material";
 
 import HeaderVariantTitle from "Features/layout/components/HeaderVariantTitle";
 import ButtonLoginRemoteContainer from "./ButtonLoginRemoteContainer";
 import SectionRemoteContainerConnexion from "./SectionRemoteContainerConnexion";
 import BlockLoading from "Features/layout/components/BlockLoading";
+import HeaderVariantTitleIconButton from "Features/layout/components/HeaderVariantTitleIconButton";
+import IconButtonSyncScope from "./IconButtonSyncScope";
 
 export default function SectionRemoteContainerConnected({
   remoteContainer,
@@ -48,7 +50,10 @@ export default function SectionRemoteContainerConnected({
 
   return (
     <Box>
-      <HeaderVariantTitle title={name} />
+      <HeaderVariantTitleIconButton
+        title={name}
+        iconButton={<IconButtonSyncScope />}
+      />
       <Box sx={{bgcolor: "white"}}>
         {loading && (
           <Box sx={{width: 1}}>

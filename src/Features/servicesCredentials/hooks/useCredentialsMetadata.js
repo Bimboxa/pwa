@@ -1,4 +1,4 @@
-import useAppConfig from "App/hooks/useAppConfig";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import servicesMap from "../data/servicesMap";
 
 export default function useCredentialsMetadata() {
@@ -8,7 +8,7 @@ export default function useCredentialsMetadata() {
     return [];
   }
 
-  const containers = appConfig.remoteProjectsContainers;
+  const containers = appConfig.remoteContainers;
 
   const metadata = [];
 

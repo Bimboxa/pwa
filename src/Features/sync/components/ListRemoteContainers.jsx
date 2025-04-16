@@ -6,7 +6,7 @@ import {
   ListItemIcon,
 } from "@mui/material";
 import {ArrowForwardIos as Forward} from "@mui/icons-material";
-import useRemoteProjectsContainers from "../hooks/useRemoteProjectsContainers";
+
 import BoxCenter from "Features/layout/components/BoxCenter";
 
 export default function ListRemoteContainers({containers, onClick}) {
