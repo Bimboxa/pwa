@@ -5,7 +5,7 @@ import useUserEmail from "Features/auth/hooks/useUserEmail";
 import db from "App/db/db";
 
 export default function useCreateProject() {
-  const createdBy = useUserEmail();
+  const {value: createdBy} = useUserEmail();
   const createdAt = new Date(Date.now()).toISOString();
 
   const create = async ({name, clientRef}) => {

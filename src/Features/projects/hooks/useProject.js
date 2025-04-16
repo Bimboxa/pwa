@@ -1,34 +1,15 @@
+import {useMemo} from "react";
 import {useSelector} from "react-redux";
-
-import useSelectedProject from "./useSelectedProject";
+import {getProjectSelector} from "../services/projectSelectorCache";
 
 export default function useProject(options) {
-  // options
+  // data
 
-  const forceNew = options?.forceNew;
+  const selector = useMemo(() => getProjectSelector(options), [options]);
 
   // main
 
-  const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
-  const newProject = useSelector((s) => s.projects.newProject);
-  const editedProject = useSelector((s) => s.projects.editedProject);
-  const isEditingProject = useSelector((s) => s.projects.isEditingProject);
+  const project = useSelector((s) => selector(s));
 
-  const {value: selectedProject, loading} = useSelectedProject();
-
-  let project = loading ? null : selectedProject;
-
-  if (!selectedProjectId) {
-    if (isEditingProject) {
-      project = editedProject;
-    } else {
-      project = newProject;
-    }
-  }
-
-  if (forceNew) {
-    project = newProject;
-  }
-
-  return {value: project, loading};
+  return {value: project, loading: false};
 }

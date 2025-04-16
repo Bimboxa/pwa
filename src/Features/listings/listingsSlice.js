@@ -23,6 +23,7 @@ export const listingsSlice = createSlice({
     setListingsById: (state, action) => {
       const listings = action.payload;
       state.listingsById = getItemsByKey(listings, "id");
+      state.listingsUpdatedAt = Date.now();
     },
     setSelectedListingId: (state, action) => {
       state.selectedListingId = action.payload;
@@ -50,7 +51,7 @@ export const listingsSlice = createSlice({
 });
 
 export const {
-  listingsById,
+  setListingsById,
   //
   setSelectedListingId,
   triggerListingsUpdate,

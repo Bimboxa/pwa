@@ -21,6 +21,12 @@ import MainAppLayout from "./MainAppLayout";
 import PageLanding from "Features/init/components/PageLanding";
 import PageRemoteContainerRedirect from "Features/sync/components/PageRemoteContainerRedirect";
 
+// dexie
+
+import {startDexieSync} from "App/dexieSyncService";
+
+startDexieSync();
+
 function App({pca, runningIn}) {
   // auth
 

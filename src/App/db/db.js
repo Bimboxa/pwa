@@ -2,8 +2,8 @@ import Dexie from "dexie";
 
 const db = new Dexie("appDB");
 
-db.version(2).stores({
-  projects: "id,name",
+db.version(3).stores({
+  projects: "id,clientRef",
   scopes: "id,projectId",
   listings: "id,name",
   relsScopeItem:
