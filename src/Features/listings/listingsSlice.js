@@ -9,7 +9,7 @@ const listingsInitialState = {
   //
   listingsMap: exampleListingsMap,
   listingsUpdatedAt: null,
-  listingsById: {},
+  listingsById: null,
   //
   selectedListingId: null,
   //

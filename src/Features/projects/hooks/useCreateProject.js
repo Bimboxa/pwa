@@ -8,15 +8,16 @@ export default function useCreateProject() {
   const {value: createdBy} = useUserEmail();
   const createdAt = new Date(Date.now()).toISOString();
 
-  const create = async ({name, clientRef}) => {
+  const create = async ({name, clientRef, id}) => {
     const project = {
-      id: nanoid(),
+      id: id ?? nanoid(),
       createdBy,
       createdAt,
       name,
       clientRef,
     };
     await db.projects.add(project);
+    return project;
   };
 
   return create;

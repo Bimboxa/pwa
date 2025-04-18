@@ -1,8 +1,4 @@
 import {createSlice} from "@reduxjs/toolkit";
-import {
-  setOpen,
-  setRemoteProjectsContainer,
-} from "Features/scopeSelector/scopeSelectorSlice";
 
 const syncInitialState = {
   //
@@ -23,6 +19,10 @@ const syncInitialState = {
   // syncFiles
 
   syncFiles: [], // [path,updatedAt]
+
+  // syncTasks
+
+  syncTasks: [], // {filePath, status, error}
 };
 
 export const syncSlice = createSlice({
@@ -54,6 +54,23 @@ export const syncSlice = createSlice({
     setSyncFiles: (state, action) => {
       state.syncFiles = action.payload;
     },
+    // syncTasks
+
+    setSyncTasks: (state, action) => {
+      const newTasks = action.payload;
+      const existingPaths = new Set(state.syncTasks.map((t) => t.filePath));
+      state.syncTasks.push(
+        ...newTasks.filter((t) => !existingPaths.has(t.filePath))
+      );
+    },
+    updateSyncTaskStatus: (state, action) => {
+      const {filePath, status} = action.payload;
+      const task = state.syncTasks.find((t) => t.filePath === filePath);
+      if (task) task.status = status;
+    },
+    clearSyncTasks: (state) => {
+      state.syncTasks = [];
+    },
   },
 });
 
@@ -65,6 +82,10 @@ export const {
   setIsSyncing,
   setSelectedRemoteProjectsContainer,
   setSyncFiles,
+  //
+  setSyncTasks,
+  updateSyncTaskStatus,
+  clearSyncTasks,
   //
 } = syncSlice.actions;
 

@@ -3,6 +3,8 @@ import {nanoid} from "@reduxjs/toolkit";
 import useCreateRelsScopeItem from "Features/scopes/hooks/useCreateRelsScopeItem";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 
+import updateSyncFile from "Features/sync/services/updateSyncFile";
+
 export default function useCreateListings() {
   const createRelsScopeItem = useCreateRelsScopeItem();
   const createdBy = useUserEmail();
@@ -21,6 +23,16 @@ export default function useCreateListings() {
 
     // create listings
     await db.listings.bulkAdd(listingsClean);
+
+    // update sync file
+    await Promise.all(
+      listingsClean.map((listing) => {
+        return updateSyncFile({
+          item: listing,
+          type: "LISTING",
+        });
+      })
+    );
 
     // relations with scope
 

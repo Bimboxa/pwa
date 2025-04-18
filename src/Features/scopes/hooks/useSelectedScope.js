@@ -36,5 +36,5 @@ export default function useSelectedScope(options) {
 
   // return
 
-  return {value: selectedScope, loading, updatedAt: scopesUpdatedAt};
+  return {value: selectedScope, loading: false, updatedAt: scopesUpdatedAt};
 }

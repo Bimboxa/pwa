@@ -4,11 +4,11 @@ import getFilesMetadataDropboxService from "../services/getFilesMetadataDropboxS
 import getItemMetadataDropboxService from "../services/getItemMetadataDropboxService";
 import fetchFileDropboxService from "../services/fetchFileDropboxService";
 import unzipFilesAsync from "Features/files/utils/unzipFilesAsync";
+import dropboxToGenericMetadata from "../utils/dropboxToGenericMetadata";
 
 export default class DropboxRemote {
-  constructor({accessToken, remoteContainer}) {
+  constructor({accessToken}) {
     this.accessToken = accessToken;
-    this.remoteContainer = remoteContainer;
   }
 
   // POST FILE
@@ -42,7 +42,7 @@ export default class DropboxRemote {
         path,
         accessToken: this.accessToken,
       });
-      return metadata;
+      return dropboxToGenericMetadata(metadata);
     } catch (err) {
       console.log("error fetching file metadata", err);
       return null;

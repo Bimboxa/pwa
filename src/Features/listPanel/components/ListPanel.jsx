@@ -10,6 +10,7 @@ import ListPanelHeader from "./ListPanelHeader";
 import ListPanelBottom from "./ListPanelBottom";
 import PanelListItem from "./PanelListItem";
 import ListPanelListItems from "./ListPanelListItems";
+import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
 export default function ListPanel() {
   // data
@@ -17,12 +18,24 @@ export default function ListPanel() {
   const width = useSelector((s) => s.listPanel.width);
   const open = useSelector((s) => s.listPanel.open);
   const isMobile = useIsMobile();
+  const {value: listings} = useListingsByScope();
+
+  // helpers - hasListings
+
+  const hasListings = listings && listings.length > 0;
 
   // helper
 
   let computedWidth = open ? width : 0;
   if (isMobile) computedWidth = 1;
 
+  // empty return
+
+  if (!hasListings) {
+    return <Box />;
+  }
+
+  // main return
   return (
     <Box
       sx={{

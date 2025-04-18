@@ -2,21 +2,25 @@ import {useState} from "react";
 
 import useFetchRemoteItemMetadata from "../hooks/useFetchRemoteItemMetadata";
 import useRemoteContainer from "../hooks/useRemoteContainer";
+import useDownloadFile from "../hooks/useDownloadFile";
 
 import {ListItemButton, ListItemText, List} from "@mui/material";
+
 import DialogCreateRemoteItem from "./DialogCreateRemoteItem";
+import BlockLoading from "Features/layout/components/BlockLoading";
 
 import getRemoteItemPath from "../utils/getRemoteItemPath";
+import jsonFileToObjectAsync from "Features/files/utils/jsonFileToObjectAsync";
 
-export default function ListRemoteItems({items, onClick, itemType}) {
+export default function ListRemoteItems({items, onClick, itemType, loading}) {
   // data
 
   const remoteContainer = useRemoteContainer();
-  console.log("[ListRemoteItems] remoteContainer", remoteContainer);
 
   // data - func
 
   const fetchRemoteItemMetadata = useFetchRemoteItemMetadata();
+  const downloadFile = useDownloadFile();
 
   // state
 
@@ -24,10 +28,15 @@ export default function ListRemoteItems({items, onClick, itemType}) {
   const [item, setItem] = useState(null);
   const [itemPath, setItemPath] = useState(null);
 
+  const [loadingRemoteItem, setLoadingRemoteItem] = useState(false);
+
   // handlers
 
   async function handleClick(item) {
     console.log("[click] item", item);
+    setLoadingRemoteItem(true);
+    // the item may not exist yet on dropbox.
+    // ex: projects come from _openedProjects, not directly the list of items.
     //
     const path = getRemoteItemPath({
       type: itemType,
@@ -39,12 +48,17 @@ export default function ListRemoteItems({items, onClick, itemType}) {
     setItemPath(path);
     //
     const result = await fetchRemoteItemMetadata(path);
+    setLoadingRemoteItem(false);
     const metadata = result?.value;
     //
     if (!metadata) {
       setOpen(true);
     } else {
-      onClick(item);
+      setLoadingRemoteItem(true);
+      const itemFile = await downloadFile(path);
+      const _item = await jsonFileToObjectAsync(itemFile);
+      setLoadingRemoteItem(false);
+      onClick(_item);
     }
   }
 
@@ -53,13 +67,18 @@ export default function ListRemoteItems({items, onClick, itemType}) {
     onClick(remoteItem);
   }
 
+  if (loading || loadingRemoteItem) {
+    return <BlockLoading />;
+  }
+
   return (
     <>
-      <List>
+      <List dense>
         {items?.map((item) => {
           const label = item.label || item.name;
           return (
             <ListItemButton
+              divider
               key={item.clientId}
               onClick={() => handleClick(item)}
             >

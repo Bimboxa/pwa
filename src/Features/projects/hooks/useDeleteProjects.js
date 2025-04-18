@@ -7,6 +7,7 @@ export default function useDeleteProjects() {
     await db.listings.clear();
     await db.entities.clear();
     await db.files.clear();
+    await db.syncFiles.clear();
   };
 
   return deleteProjects;

@@ -1,5 +1,5 @@
 import db from "App/db/db";
-import updateSyncFileProject from "../services/updateSyncFileProject";
+import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
 export default function useUpdateProject() {
   const updatedAt = new Date().toISOString();
@@ -13,7 +13,7 @@ export default function useUpdateProject() {
       //
       console.log("[debug] project updated", project);
       //
-      updateSyncFileProject({project});
+      updateItemSyncFile({item: project, type: "PROJECT"});
     } catch (e) {
       console.error("[debug] error", e);
     }
