@@ -38,12 +38,12 @@ export default function useFetchRemoteProjectScopes() {
         const files = await unzipFilesAsync(zipBlob);
         console.log("[debug] files", files);
         const scopesFiles = files?.filter((file) =>
-          file.name.startsWith("scope_")
+          file.name.startsWith("_scope_")
         );
         const scopes = await Promise.all(
           scopesFiles?.map(async (file) => {
-            const scope = await jsonFileToObjectAsync(file);
-            return scope;
+            const object = await jsonFileToObjectAsync(file);
+            return object.data;
           })
         );
         return scopes;

@@ -25,45 +25,34 @@ export default async function resolveSyncTasks(
   } = config;
 
   const filterBy = localToRemote?.filterBy || [];
-  const findEntry = localToRemote?.findEntry || [];
   const fetchMode = remoteToLocal?.fetchMode || "FILE";
-  const postMode = localToRemote?.postMode || "SINGLE_FILE";
+  const postMode = localToRemote?.postMode || "MULTI_FILES";
 
   const folderPath = resolveTemplate(remoteFolder, {
     ...context,
     remoteProvider,
   });
 
-  // SINGLE_FILE mode with findEntry
-  if (postMode === "SINGLE_FILE" && findEntry?.length) {
-    const localFilter = {};
-    for (const rule of findEntry) {
-      const val = resolveTemplate(`{{${rule.value}}}`, context);
-      localFilter[rule.key] = val;
-    }
-
+  // If SINGLE_FILE mode, resolve once with context only
+  if (postMode === "SINGLE_FILE") {
     const file = resolveTemplate(remoteFile, {...context, remoteProvider});
     const filePath = folderPath + file;
 
-    let remoteMeta = null;
-    try {
-      remoteMeta =
-        fetchMode === "FOLDER"
-          ? (
-              await remoteProvider.fetchFilesMetadataFromFolder(folderPath)
-            ).find((f) => f.path === filePath)
-          : await remoteProvider.fetchFileMetadata(filePath);
-    } catch (err) {
-      if (err?.error?.path?.[".tag"] !== "not_found") throw err;
-    }
+    const remoteMeta =
+      fetchMode === "FOLDER"
+        ? (await remoteProvider.fetchFilesMetadataFromFolder(folderPath)).find(
+            (f) => f.path === filePath
+          )
+        : await remoteProvider.fetchFileMetadata(filePath);
 
     return [
       {
         filePath,
         table: localTable,
         direction,
-        localFilter,
+        localFilter: {},
         updatedAtRemote: remoteMeta?.lastModifiedAt,
+        label: `${syncFileType}: ${file}`,
       },
     ];
   }
@@ -103,13 +92,10 @@ export default async function resolveSyncTasks(
       const filePath = folder + file;
 
       let remoteMeta = null;
-      try {
-        remoteMeta =
-          fetchMode === "FOLDER"
-            ? folderFilesMeta.find((f) => f.path === filePath)
-            : await remoteProvider.fetchFileMetadata(filePath);
-      } catch (err) {
-        console.log("error", err);
+      if (fetchMode === "FOLDER") {
+        remoteMeta = folderFilesMeta.find((f) => f.path === filePath);
+      } else {
+        remoteMeta = await remoteProvider.fetchFileMetadata(filePath);
       }
 
       return {
@@ -118,6 +104,7 @@ export default async function resolveSyncTasks(
         direction,
         localFilter,
         updatedAtRemote: remoteMeta?.lastModifiedAt,
+        label: `${syncFileType}: ${file}`,
       };
     })
   );

@@ -1,6 +1,6 @@
 import {useState} from "react";
 
-import {useSelector} from "react-redux";
+import {useSelector, useDispatch} from "react-redux";
 
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useRemoteToken from "Features/sync/hooks/useRemoteToken";
@@ -8,6 +8,9 @@ import useRemoteContainer from "../hooks/useRemoteContainer";
 
 import {IconButton} from "@mui/material";
 import {Refresh} from "@mui/icons-material";
+
+import SectionSyncTasks from "./SectionSyncTasks";
+import DialogGeneric from "Features/layout/components/DialogGeneric";
 
 import syncService from "../services/syncService";
 import {overrideSyncConfig} from "../utils/overrideSyncConfig";
@@ -18,6 +21,7 @@ import syncConfig from "../syncConfig";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 export default function IconButtonSyncScope() {
+  const dispatch = useDispatch();
   // data
 
   const {value: scope} = useSelectedScope({withProject: true});
@@ -31,9 +35,10 @@ export default function IconButtonSyncScope() {
 
   const fileList = [
     {key: "project", direction: "BOTH"},
-    //{key: "scope", direction: "BOTH"},
-    //{key: "listings", direction: "BOTH"},
-    //{key: "relsScopeItem", direction: "BOTH"},
+    {key: "scope", direction: "BOTH"},
+    {key: "relsScopeItem", direction: "BOTH"},
+    {key: "listings", direction: "BOTH"},
+
     //{key: "entities", direction: "BOTH"},
   ];
 
@@ -43,7 +48,7 @@ export default function IconButtonSyncScope() {
 
   // handlers
 
-  function handleClick() {
+  async function handleClick() {
     // syncFilesByPath
     const syncFilesByPath = getItemsByKey(syncFiles, "path");
 
@@ -59,14 +64,24 @@ export default function IconButtonSyncScope() {
       remoteProvider,
       syncConfig: overrideSyncConfig(syncConfig, fileList),
       syncFilesByPath,
+      dispatch,
     };
 
     // main
-    syncService(options);
+    setLoading(true);
+    await syncService(options);
+    //setLoading(false);
   }
   return (
-    <IconButton onClick={handleClick} loading={loading}>
-      <Refresh />
-    </IconButton>
+    <>
+      <IconButton onClick={handleClick} loading={loading}>
+        <Refresh />
+      </IconButton>
+      {loading && (
+        <DialogGeneric open={loading} onClose={() => setLoading(false)}>
+          <SectionSyncTasks />
+        </DialogGeneric>
+      )}
+    </>
   );
 }

@@ -33,6 +33,7 @@ export default function ButtonSelectorScopeInTopBar() {
   // data
 
   const {value: scope} = useSelectedScope({withProject: true});
+  console.log("[debug] scope", scope);
 
   // helpers
 

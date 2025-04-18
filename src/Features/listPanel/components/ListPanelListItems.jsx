@@ -1,5 +1,6 @@
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useListingEntityModel from "Features/listings/hooks/useListingEntityModel";
+import useAutoSelectListing from "Features/listings/hooks/useAutoSelectListing";
 
 import {Box} from "@mui/material";
 
@@ -12,6 +13,10 @@ export default function ListPanelListItems() {
   // data
   const {value: listing} = useSelectedListing();
   const entityModel = useListingEntityModel(listing);
+
+  // effect
+
+  useAutoSelectListing();
 
   // helpers
 

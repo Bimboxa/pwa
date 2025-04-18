@@ -24,6 +24,7 @@ export default function SectionScope({forceNew, onSaved, newScopeProjectId}) {
 
   const {value: scope, loading} = useScope({forceNew});
   const isMobile = useIsMobile();
+  console.log("scope", scope, loading);
 
   // helpers
 

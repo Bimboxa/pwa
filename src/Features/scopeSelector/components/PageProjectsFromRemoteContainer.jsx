@@ -19,21 +19,21 @@ import HeaderVariantBackTitle from "Features/layout/components/HeaderVariantBack
 import useFetchRemoteOpenedProjects from "Features/sync/hooks/useFetchRemoteOpenedProjects";
 import ListItemsGeneric from "Features/layout/components/ListItemsGeneric";
 import ListRemoteItems from "Features/sync/components/ListRemoteItems";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function PageProjectsFromRemoteContainer() {
   const dispatch = useDispatch();
+  const appConfig = useAppConfig();
 
   // strings
 
-  const title = "Dossiers depuis dropbox";
+  const title = appConfig?.strings?.project?.namePlural;
 
   // data
 
   const remoteProjects = useRemoteOpenedProjects();
   const remoteContainer = useRemoteContainer();
   const fetchProjects = useFetchRemoteOpenedProjects();
-
-  console.log("remoteProjects", remoteProjects);
 
   // state
 
@@ -60,10 +60,11 @@ export default function PageProjectsFromRemoteContainer() {
     dispatch(setPage("PROJECTS"));
   }
 
-  function handleRemoteProjectClick(project) {
-    console.log("remoteProject", project);
+  async function handleRemoteProjectClick(remoteItem) {
+    console.log("[PageProjects] remoteProject", remoteItem);
+    //
     dispatch(setPage("SCOPES_FROM_REMOTE_CONTAINER"));
-    dispatch(setRemoteProject(project));
+    dispatch(setRemoteProject(remoteItem.data));
 
     // dispatch(
     //   setRemoteProjectContainer({

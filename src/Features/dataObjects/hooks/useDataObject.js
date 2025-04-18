@@ -16,7 +16,7 @@ export default function useDataObject() {
   const dataObject = {};
 
   formTemplate?.fields?.forEach((field) => {
-    if (field?.key && keyValueByKey[field.key]) {
+    if (field?.key && keyValueByKey?.[field.key]) {
       dataObject[field.key] = keyValueByKey[field.key];
     }
   });

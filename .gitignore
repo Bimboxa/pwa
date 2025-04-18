@@ -32,7 +32,7 @@ services.config.yml
 
 # Config
 config
-appConfig.yml
+_appConfig.yaml
 
 # Temp
 temp

@@ -4,12 +4,8 @@ import SectionScope from "./SectionScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useCreateRemoteScopeFile from "../hooks/useCreateRemoteScopeFile";
 
-export default function DialogCreateScope({
-  project,
-  open,
-  onClose,
-  createRemote,
-}) {
+export default function DialogCreateScope({project, open, onClose, onCreated}) {
+  console.log("[DialogCreateScope] project", project);
   const appConfig = useAppConfig();
 
   // strings
@@ -18,16 +14,17 @@ export default function DialogCreateScope({
 
   // data
 
-  const createRemoteScopeFile = useCreateRemoteScopeFile();
+  //const createRemoteScopeFile = useCreateRemoteScopeFile();
 
   // handlers
 
   async function handleSaved(scope) {
     console.log("[DialogCreateScope] new scope saved", scope);
-    if (createRemote) {
-      const file = await createRemoteScopeFile({scope, project});
-      console.log("[DialogCreateScope] file created", file);
-    }
+    // if (createRemote) {
+    //   const file = await createRemoteScopeFile({scope, project});
+    //   console.log("[DialogCreateScope] file created", file);
+    // }
+    if (onCreated) onCreated(scope);
     onClose();
   }
 

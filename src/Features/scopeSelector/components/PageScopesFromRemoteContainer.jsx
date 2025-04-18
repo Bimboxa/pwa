@@ -2,8 +2,12 @@ import {useEffect, useState} from "react";
 import {useDispatch, useSelector} from "react-redux";
 
 import useFetchRemoteProjectScopes from "Features/sync/hooks/useFetchRemoteProjectScopes";
+import useSelectRemoteScope from "../hooks/useSelectRemoteScope";
+import useSelectRemoteProject from "../hooks/useSelectRemoteProject";
 
-import {setPage} from "../scopeSelectorSlice";
+import {setPage, setOpen as setOpenPanel} from "../scopeSelectorSlice";
+import {setSelectedScopeId} from "Features/scopes/scopesSlice";
+import {setSelectedProjectId} from "Features/projects/projectsSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -24,6 +28,8 @@ export default function PageScopesFromRemoteContainer() {
   // data - func
 
   const fetchRemoteProjectScopes = useFetchRemoteProjectScopes();
+  const selectRemoteScope = useSelectRemoteScope();
+  const selectRemoteProject = useSelectRemoteProject();
 
   // state
 
@@ -31,6 +37,7 @@ export default function PageScopesFromRemoteContainer() {
   const [scopes, setScopes] = useState([]);
 
   console.log("[debug] scopes", scopes);
+  console.log("[debug] remoteProject", remoteProject);
 
   // effect - loading
 
@@ -55,12 +62,27 @@ export default function PageScopesFromRemoteContainer() {
     dispatch(setPage("PROJECTS_FROM_REMOTE_CONTAINER"));
   }
 
-  function handleScopeClick(scope) {
-    console.log("scope", scope);
+  async function handleScopeClick(scope) {
+    try {
+      console.log("[click] remoteScope", scope);
+      await selectRemoteScope(scope);
+      dispatch(setPage("PROJECT_AND_SCOPE"));
+      dispatch(setOpenPanel(false));
+    } catch (error) {
+      console.log("error", error);
+    }
   }
 
   function handleNewScopeClick() {
     setOpen(true);
+  }
+
+  function handleScopeCreated(scope) {
+    dispatch(setPage("PROJECT_AND_SCOPE"));
+    setOpen(false);
+    selectRemoteProject(remoteProject);
+    dispatch(setSelectedScopeId(scope.id));
+    dispatch(setOpenPanel(false));
   }
 
   return (
@@ -68,18 +90,22 @@ export default function PageScopesFromRemoteContainer() {
       <Box sx={{width: 1}}>
         <HeaderVariantBackTitle title={title} onBackClick={handleBackClick} />
         <BlockRemoteProjectContainer remoteProject={remoteProject} />
-        <ListScopes
-          scopes={scopes}
-          onClick={handleScopeClick}
-          onNewClick={handleNewScopeClick}
-        />
+        <Box sx={{bgcolor: "white"}}>
+          <ListScopes
+            scopes={scopes}
+            onClick={handleScopeClick}
+            onNewClick={handleNewScopeClick}
+          />
+        </Box>
       </Box>
-      <DialogCreateScope
-        project={remoteProject}
-        open={open}
-        onClose={() => setOpen(false)}
-        createRemote={true}
-      />
+      {open && (
+        <DialogCreateScope
+          project={remoteProject}
+          open={open}
+          onClose={() => setOpen(false)}
+          onCreated={handleScopeCreated}
+        />
+      )}
     </>
   );
 }

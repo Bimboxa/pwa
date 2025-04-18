@@ -67,16 +67,25 @@ export default function LinkRemoteItem({label, path, variant, color}) {
       </Tooltip>
       <Box
         sx={{
-          width: 30,
-          height: 30,
-          borderRadius: "50%",
+          ml: 1,
           display: "flex",
           alignItems: "center",
         }}
       >
         <BoxCenter>
           {loading && <CircularProgress size={10} />}
-          {!loading && <Circle sx={{color: bgcolor}} fontSize="small" />}
+          {!loading && (
+            <Box
+              sx={{
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                bgcolor,
+              }}
+            />
+          )}
         </BoxCenter>
       </Box>
     </Box>

@@ -36,12 +36,12 @@ export default function ScopeSelector() {
 
   // helpers
 
-  // const showProjectAndScope = page === "PROJECT_AND_SCOPE" && projectInSelector;
-  // const showProjects =
-  //   page === "PROJECTS" || (page === "PROJECT_AND_SCOPE" && !projectInSelector);
+  const showProjectAndScope = page === "PROJECT_AND_SCOPE" && projectInSelector;
+  const showProjects =
+    page === "PROJECTS" || (page === "PROJECT_AND_SCOPE" && !projectInSelector);
 
-  const showProjectAndScope = page === "PROJECT_AND_SCOPE";
-  const showProjects = page === "PROJECTS";
+  // const showProjectAndScope = page === "PROJECT_AND_SCOPE";
+  // const showProjects = page === "PROJECTS";
 
   const showScopes = page === "SCOPES";
 

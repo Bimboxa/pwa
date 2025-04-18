@@ -33,7 +33,7 @@ export default function useFetchRemoteOpenedProjects() {
         });
         const response = await jsonFileToObjectAsync(jsonFile);
 
-        return response.projects;
+        return response.items;
       default:
         throw new Error(`Unknown service: ${service}`);
     }

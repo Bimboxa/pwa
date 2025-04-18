@@ -1,4 +1,5 @@
 import {Dropbox} from "dropbox";
+import dropboxToGenericMetadata from "../utils/dropboxToGenericMetadata";
 
 export default async function getFilesMetadataDropboxService({
   path,
@@ -15,7 +16,7 @@ export default async function getFilesMetadataDropboxService({
       (entry) => entry[".tag"] === "file"
     );
 
-    return targetFiles;
+    return dropboxToGenericMetadata(targetFiles);
 
     if (!listResult) {
       throw new Error("Files not found in folder.");

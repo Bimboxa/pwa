@@ -6,6 +6,8 @@ import {setPage, setProject} from "../scopeSelectorSlice";
 
 import useProjects from "Features/projects/hooks/useProjects";
 import useProject from "Features/projects/hooks/useSelectedProject";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 
 import {Box, Typography, Dialog, DialogTitle, Button} from "@mui/material";
 import {ArrowBackIos as Back} from "@mui/icons-material";
@@ -15,9 +17,9 @@ import ListProjects from "Features/projects/components/ListProjects";
 import SectionRemoteProjectsContainers from "./SectionRemoteProjectsContainers";
 import SectionProject from "Features/projects/components/SectionProject";
 import ButtonMoreActionsProjects from "Features/projects/components/ButtonMoreActionsProjects";
-import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
+
 import ListItemButtonForward from "Features/layout/components/ListItemButtonForward";
+import BarAppConfig from "Features/appConfig/components/BarAppConfig";
 
 export default function PageProjectSelector() {
   const dispatch = useDispatch();
@@ -134,6 +136,7 @@ export default function PageProjectSelector() {
             </Box>
           </Box>
         )}
+        <BarAppConfig />
       </BoxFlexVStretch>
 
       {open && (

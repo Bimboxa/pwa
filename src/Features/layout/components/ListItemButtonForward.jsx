@@ -1,9 +1,9 @@
-import BoxCenter from "./BoxCenter";
 import {
   ListItem,
   ListItemButton,
   ListItemText,
   Typography,
+  IconButton,
 } from "@mui/material";
 import {ArrowForwardIos as Forward} from "@mui/icons-material";
 
@@ -13,9 +13,9 @@ export default function ListItemButtonForward({label, onClick}) {
       disablePadding
       dense
       secondaryAction={
-        <BoxCenter>
+        <IconButton onClick={onClick}>
           <Forward color="action" />
-        </BoxCenter>
+        </IconButton>
       }
     >
       <ListItemButton
