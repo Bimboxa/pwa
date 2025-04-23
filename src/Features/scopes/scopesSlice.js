@@ -26,6 +26,18 @@ export const scopesSlice = createSlice({
       state.scopesById = getItemsByKey(scopes, "id");
       state.scopesUpdatedAt = Date.now();
     },
+    setRelsScopeItemByScopeId: (state, action) => {
+      const rels = action.payload;
+      const relsByScopeId = {};
+      rels.forEach((rel) => {
+        const scopeId = rel.scopeId;
+        if (!relsByScopeId[scopeId]) {
+          relsByScopeId[scopeId] = [];
+        }
+        relsByScopeId[scopeId].push(rel);
+      });
+      state.relsScopeItemByScopeId = relsByScopeId;
+    },
     //
     setSelectedScopeId: (state, action) => {
       state.selectedScopeId = action.payload;
@@ -40,19 +52,6 @@ export const scopesSlice = createSlice({
     },
     setIsEditingScope: (state, action) => {
       state.isEditingScope = action.payload;
-    },
-    //
-    setRelsScopeItemByScopeId: (state, action) => {
-      const rels = action.payload;
-      const relsByScopeId = {};
-      rels.forEach((rel) => {
-        const scopeId = rel.scopeId;
-        if (!relsByScopeId[scopeId]) {
-          relsByScopeId[scopeId] = [];
-        }
-        relsByScopeId[scopeId].push(rel);
-      });
-      state.relsScopeItemByScopeId = relsByScopeId;
     },
   },
 });

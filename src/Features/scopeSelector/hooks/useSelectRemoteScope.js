@@ -13,6 +13,7 @@ import RemoteProvider from "Features/sync/js/RemoteProvider";
 import getProjectByClientRef from "Features/projects/services/getProjectByClientRef";
 import jsonFileToObjectAsync from "Features/files/utils/jsonFileToObjectAsync";
 import getRemoteItemPath from "Features/sync/utils/getRemoteItemPath";
+import updateSyncFile from "Features/sync/services/updateSyncFile";
 
 export default function useSelectRemoteScope() {
   const dispatch = useDispatch();
@@ -31,7 +32,7 @@ export default function useSelectRemoteScope() {
 
   // main
 
-  const select = async (scope) => {
+  const select = async (remoteScope) => {
     try {
       // init
       const remoteProvider = new RemoteProvider({
@@ -47,7 +48,10 @@ export default function useSelectRemoteScope() {
 
       if (!localProject) {
         // step 2 - fetch project data
-        const path = getRemoteItemPath({item: remoteProject, type: "PROJECT"});
+        const {path} = getRemoteItemPath({
+          item: remoteProject,
+          type: "PROJECT",
+        });
         const projectFile = await remoteProvider.downloadFile(path);
         const result = await jsonFileToObjectAsync(projectFile);
         const _project = result.data;
@@ -61,25 +65,32 @@ export default function useSelectRemoteScope() {
           projectId = project.id;
         } else {
           // case 2 - no local - remote
-          await createProject({
-            clientRef,
-            name: remoteProject.name,
-            id: _project?.id,
-          });
+          await createProject(
+            {
+              clientRef,
+              name: remoteProject.name,
+              id: _project?.id,
+            },
+            {
+              updateSyncFile: true,
+              updatedAt: remoteProject.lastModifiedAt,
+              syncAt: remoteProject.lastModifiedAt,
+            }
+          );
           projectId = _project.id;
         }
       }
       dispatch(setSelectedProjectId(projectId));
 
       // step 2 - fetch local scope
-      const localScope = scopesById[scope.id];
+      const localScope = scopesById[remoteScope.id];
       if (!localScope) {
-        const name = scope.name;
-        const clientRef = scope.clientRef;
-        const sortedListingsIds = scope.sortedListingsIds ?? [];
-        const createdBy = scope.createdBy;
-        const createdAt = scope.createdAt;
-        const id = scope.id;
+        const name = remoteScope.name;
+        const clientRef = remoteScope.clientRef;
+        const sortedListingsIds = remoteScope.sortedListingsIds ?? [];
+        const createdBy = remoteScope.createdBy;
+        const createdAt = remoteScope.createdAt;
+        const id = remoteScope.id;
 
         await createScope({
           id,

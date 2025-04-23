@@ -37,7 +37,7 @@ export default function ButtonMenuSyncIndicator() {
 
   // helpers - color
 
-  const color = remoteContainer?.service ? "success.main" : "action.main";
+  const color = "action.main";
 
   // helpers
 

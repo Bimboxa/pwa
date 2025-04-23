@@ -16,33 +16,45 @@ export default function getRemoteItemPath({type, item}) {
     `${remoteContainer.projectsPath}/${clientRef}`;
   const dataPath = (clientRef) => `${basePath(clientRef)}/_data`;
 
+  let path;
+  let fileName;
+
   switch (type) {
     case "PROJECT": {
-      return `${dataPath(item.clientRef)}/_project.json`;
+      fileName = "_project.json";
+      path = `${dataPath(item.clientRef)}/_project.json`;
+      break;
     }
 
     case "SCOPE": {
       const project = getProject(item.projectId);
-      return `${dataPath(project.clientRef)}/_scope_${item.id}.json`;
+      fileName = `_scope_${item.id}.json`;
+      path = `${dataPath(project.clientRef)}/_scope_${item.id}.json`;
+      break;
     }
 
     case "LISTING": {
       const project = getProject(item.projectId);
-      return `${dataPath(project.clientRef)}/_listing_${item.id}.json`;
+      fileName = `_listing_${item.id}.json`;
+      path = `${dataPath(project.clientRef)}/_listing_${item.id}.json`;
+      break;
     }
 
     case "RELS_SCOPE_ITEM": {
       const scope = getScope(item.scopeId);
       const project = getProject(scope.projectId);
-      return `${dataPath(project.clientRef)}/_relsScopeItem_${
+      fileName = `_relsScopeItem_${item.scopeId}.json`;
+      path = `${dataPath(project.clientRef)}/_relsScopeItem_${
         item.scopeId
       }.json`;
+      break;
     }
 
     case "ENTITY": {
       const listing = getListing(item.listingId);
       const project = getProject(listing.projectId);
-      return `${basePath(project.clientRef)}/_listings/_${listing.key}_${
+      fileName = `_${item.createdBy}.json`;
+      path = `${basePath(project.clientRef)}/_listings/_data_${
         item.listingId
       }/_${item.createdBy}.json`;
     }
@@ -56,10 +68,14 @@ export default function getRemoteItemPath({type, item}) {
       const folder = item.isImage
         ? `_images_${item.createdBy}`
         : `_files_${item.createdBy}`;
-      return `${base}/${folder}/${item.name}`;
+
+      fileName = item.name;
+      path = `${base}/${folder}/${item.name}`;
     }
 
     default:
-      return null;
+      path = null;
   }
+
+  return {path, fileName};
 }

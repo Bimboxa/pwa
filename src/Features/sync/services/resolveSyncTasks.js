@@ -1,3 +1,5 @@
+// resolveSyncTasks.js
+
 import db from "App/db/db";
 import resolveTemplate from "../utils/resolveTemplate";
 
@@ -31,13 +33,33 @@ function buildFilter(filterEntries, entry, context) {
 }
 
 /**
- * Try to parse id from full path using a template like "_listing_{{id}}.json"
+ * Extract key from path using a template like "_listing_{{id}}.json"
  */
 function extractKeyFromTemplate(path, template, key) {
   if (!template.includes(`{{${key}}}`)) return null;
   const regex = template.replace(`{{${key}}}`, "(.*?)").replace(/\./g, "\\.");
   const match = path.match(new RegExp(regex));
   return match?.[1] || null;
+}
+
+/**
+ * Resolve values from context for rules like "listings.id" or "scope.sortedListingsIds"
+ */
+function getValuesFromContext(path, context) {
+  const segments = path.split(".");
+  const base = context[segments[0]];
+  if (!base) return [];
+
+  if (Array.isArray(base)) {
+    const key = segments[1];
+    return key ? base.map((o) => o[key]) : [];
+  }
+
+  if (segments.length === 2 && Array.isArray(base[segments[1]])) {
+    return base[segments[1]];
+  }
+
+  return [];
 }
 
 export default async function resolveSyncTasks(
@@ -71,7 +93,6 @@ export default async function resolveSyncTasks(
   const tasks = [];
 
   // === SINGLE FILE ===
-
   if (postMode === "SINGLE_FILE") {
     const fileName = resolveTemplate(fileTemplateR2L || fileTemplateL2R, {
       ...context,
@@ -105,7 +126,6 @@ export default async function resolveSyncTasks(
     };
 
     tasks.push(newTask);
-
     return tasks;
   }
 
@@ -115,15 +135,13 @@ export default async function resolveSyncTasks(
   const groupEntriesBy = localToRemote.groupEntriesBy || [];
 
   for (const rule of filterEntries) {
-    const values =
-      rule.in && context[rule.in.split(".")[0]]
-        ? context[rule.in.split(".")[0]].map((x) => x[rule.in.split(".")[1]])
-        : [];
-
     if (rule.value) {
-      const value = rule.value.split(".").reduce((acc, k) => acc?.[k], context);
-      entries = entries.filter((e) => e[rule.key] === value);
+      const expected = rule.value
+        .split(".")
+        .reduce((acc, k) => acc?.[k], context);
+      entries = entries.filter((e) => e[rule.key] === expected);
     } else if (rule.in) {
+      const values = getValuesFromContext(rule.in, context);
       entries = entries.filter((e) => values.includes(e[rule.key]));
     }
   }
@@ -165,10 +183,7 @@ export default async function resolveSyncTasks(
 
     const idsMap = {};
     for (const f of filterFiles) {
-      const values =
-        f.in && context[f.in.split(".")[0]]
-          ? context[f.in.split(".")[0]].map((x) => x[f.in.split(".")[1]])
-          : [];
+      const values = getValuesFromContext(f.in, context);
       idsMap[f.key] = new Set(values);
     }
 
