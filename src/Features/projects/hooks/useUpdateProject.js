@@ -1,10 +1,11 @@
 import db from "App/db/db";
+import getDateString from "Features/misc/utils/getDateString";
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
 export default function useUpdateProject() {
-  const updatedAt = new Date().toISOString();
+  const updatedAt = getDateString(new Date());
 
-  const update = async (updates) => {
+  const update = async (updates, options) => {
     try {
       const coreUpdates = {...updates, updatedAt};
       delete coreUpdates.id;
@@ -13,7 +14,9 @@ export default function useUpdateProject() {
       //
       console.log("[debug] project updated", project);
       //
-      updateItemSyncFile({item: project, type: "PROJECT"});
+      if (options?.updateSyncFile) {
+        updateItemSyncFile({item: project, type: "PROJECT"});
+      }
     } catch (e) {
       console.error("[debug] error", e);
     }

@@ -13,14 +13,14 @@ export default function useCreateScope() {
 
   const createListings = useCreateListings();
 
-  const create = async ({
-    id,
-    name,
-    clientRef,
-    projectId,
-    newListings,
-    sortedListingsIds,
-  }) => {
+  const create = async (
+    {id, name, clientRef, projectId, newListings, sortedListingsIds},
+    options
+  ) => {
+    // options
+
+    const updateSyncFile = options?.updateSyncFile;
+
     //
     const listingsWithIds = newListings?.map((listing) => {
       return {
@@ -45,11 +45,19 @@ export default function useCreateScope() {
     console.log("[db] added scope", scope);
 
     // update sync file
-    await updateItemSyncFile({item: scope, type: "SCOPE"});
+    if (updateSyncFile) {
+      await updateItemSyncFile(
+        {item: scope, type: "SCOPE"},
+        {updateSyncFile: options?.updateSyncFile}
+      );
+    }
 
     // add listings
     if (newListings?.length > 0) {
-      await createListings({listings: listingsWithIds, scope});
+      await createListings(
+        {listings: listingsWithIds, scope},
+        {updateSyncFile: options?.updateSyncFile}
+      );
     }
 
     // return

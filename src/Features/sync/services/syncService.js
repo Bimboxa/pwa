@@ -30,7 +30,7 @@ export async function prepareSyncTasks({
 
     const priority = config.priority ?? Infinity;
 
-    rawTasks.forEach((task) => {
+    rawTasks.forEach(async (task) => {
       const filePath = task.filePath;
       const updatedAtRemote = task.updatedAtRemote;
       const updatedAtLocal = syncFilesByPath?.[filePath]?.updatedAt;
@@ -42,6 +42,12 @@ export async function prepareSyncTasks({
         updatedAtRemote,
         updatedAtLocal
       );
+
+      // update syncFile with syncAt if updatedAtRemote === updatedAtLocal to reset syncFilesToPush
+      if (updatedAtRemote === updatedAtLocal) {
+        await updateSyncedAt(task, updatedAtRemote);
+        return;
+      }
 
       // Décider de l'action en fonction des dates
       if (
@@ -107,10 +113,16 @@ export default async function syncService({
         (cfg) => cfg.localTable === task.table
       );
 
+      // ---- PULL ----
+
       if (task.action === "PULL") {
         await remoteToLocal({task, config, remoteProvider, context});
+
+        // we update syncFile based one the updatedAtRemote;
         const updatedAt = task.updatedAtRemote;
         await updateSyncedAt(task, updatedAt);
+
+        // ---- PUSH ----
       } else if (task.action === "PUSH") {
         const file = await localToRemote({
           task,
@@ -118,6 +130,8 @@ export default async function syncService({
           remoteProvider,
           context,
         });
+
+        // we update syncFile based one the updatedAtClient (=file.lastModified);
         const updatedAt = getDateString(file.lastModified);
         await updateSyncedAt(task, updatedAt);
       }
@@ -286,7 +300,6 @@ async function localToRemote({task, config, remoteProvider, context}) {
 
 async function updateSyncedAt(task, updatedAt) {
   try {
-    console.log("[syncService] updateSyncedAt", task.filePath, updatedAt);
     const path = task.filePath;
     await updateSyncFile({path, updatedAt, syncAt: updatedAt});
   } catch (e) {

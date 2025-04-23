@@ -6,8 +6,6 @@ db.version(4).stores({
   projects: "id,clientRef",
   scopes: "id,projectId",
   listings: "id,name",
-  relsScopeItem:
-    "id,[scopeId+itemTable],[itemTable+itemId],scopeId,itemTable,itemId",
   entities: "id,listingId",
   entitiesProps:
     "id,[listingKey+targetEntityId],listingKey,targetListingKey,targetEntityId", // entityProps = {id,tarketListingKey,targetEntityId,props}

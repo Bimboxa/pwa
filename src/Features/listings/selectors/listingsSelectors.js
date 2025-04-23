@@ -11,23 +11,15 @@ export const makeGetListingsByOptions = (options) =>
       (state) => state.listings.listingsUpdatedAt,
       (state) => state.listings.listingsById,
       (state) => state.appConfig.value.entityModelsObject,
-      (state) => state.scopes.relsScopeItemByScopeId,
       (state) => state.scopes.scopesById[options?.filterByScopeId],
     ],
-    (
-      listingsUpdatedAt,
-      listingsById,
-      entityModelsObject,
-      relsScopeItemByScopeId,
-      scope
-    ) => {
+    (listingsUpdatedAt, listingsById, entityModelsObject, scope) => {
       // options
 
       const filterByScopeId = options?.filterByScopeId;
       const withEntityModel = options?.withEntityModel;
       const filterByKeys = options?.filterByKeys;
       const filterByListingsIds = options?.filterByListingsIds;
-      const sortFromScope = options?.sortFromScope;
       const mapsOnly = options?.mapsOnly;
 
       // edge case
@@ -38,14 +30,7 @@ export const makeGetListingsByOptions = (options) =>
 
       let listings = [];
       if (filterByScopeId) {
-        const rels = relsScopeItemByScopeId[filterByScopeId];
-        if (rels?.length > 0) {
-          const listingIds = rels
-            ?.filter((r) => r.itemTable === "listings")
-            .map((r) => r.itemId);
-
-          listings = listingIds?.map((id) => listingsById[id]).filter(Boolean);
-        }
+        listings = getSortedListings(listings, scope.sortedListingsIds);
       } else {
         listings = Object.values(listingsById ?? {}) ?? [];
       }
@@ -70,11 +55,6 @@ export const makeGetListingsByOptions = (options) =>
             entityModel: entityModelsObject?.[listing?.entityModelKey] ?? null,
           };
         });
-      }
-
-      // sort
-      if (filterByScopeId && sortFromScope) {
-        listings = getSortedListings(listings, scope.sortedListingsIds);
       }
 
       return listings;

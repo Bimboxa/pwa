@@ -2,17 +2,21 @@ import {useState} from "react";
 
 import {nanoid} from "@reduxjs/toolkit";
 
-import DialogGeneric from "Features/layout/components/DialogGeneric";
 import useCreateRemoteFolders from "../hooks/useCreateRemoteFolders";
 import useCreateRemoteFile from "../hooks/useCreateRemoteFile";
+import useRemoteContainer from "../hooks/useRemoteContainer";
+import useRemoteToken from "../hooks/useRemoteToken";
+
+import DialogGeneric from "Features/layout/components/DialogGeneric";
 import BottomBarCancelSave from "Features/layout/components/BottomBarCancelSave";
-import getRemoteItemPath from "../utils/getRemoteItemPath";
 
 import jsonObjectToFile from "Features/files/utils/jsonObjectToFile";
+import RemoteProvider from "../js/RemoteProvider";
 
 export default function DialogCreateRemoteItem({
-  itemPath,
   item,
+  itemPath,
+  itemFileName,
   type,
   open,
   onClose,
@@ -27,6 +31,8 @@ export default function DialogCreateRemoteItem({
 
   const createRemoteFolders = useCreateRemoteFolders();
   const createRemoteFile = useCreateRemoteFile();
+  const remoteContainer = useRemoteContainer();
+  const {value: accessToken} = useRemoteToken();
 
   // state
 
@@ -35,6 +41,13 @@ export default function DialogCreateRemoteItem({
   // handlers
 
   async function handleCreate() {
+    // init
+    const remoteProvider = new RemoteProvider({
+      accessToken,
+      provider: remoteContainer.service,
+    });
+
+    // main
     setLoading(true);
     let newItem = {
       ...item,
@@ -44,12 +57,13 @@ export default function DialogCreateRemoteItem({
       await createRemoteFolders([itemPath]);
       onCreated();
     } else if (type === "FILE") {
-      const blob = jsonObjectToFile(newItem);
-      await createRemoteFile({path: itemPath, blob});
+      const file = jsonObjectToFile(newItem, itemFileName);
+      await remoteProvider.postFile(itemPath, file);
+      //await createRemoteFile({path: itemPath, blob});
+      onCreated({...newItem, lastModifiedAt: file.lastModified});
     }
 
     setLoading(false);
-    onCreated(newItem);
   }
 
   // render

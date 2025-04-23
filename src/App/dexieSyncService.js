@@ -29,11 +29,6 @@ const syncConfigs = [
     action: setListingsById,
   },
   {
-    table: "relsScopeItem",
-    query: () => db.relsScopeItem.toArray(),
-    action: setRelsScopeItemByScopeId,
-  },
-  {
     table: "entities",
     query: () => db.entities.toArray(),
     action: setEntitiesById,

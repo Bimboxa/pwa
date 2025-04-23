@@ -30,12 +30,6 @@ const syncConfig = {
     syncFileType: syncFileTypeByItemType.PROJECT,
     direction: "BOTH",
     localTable: "projects",
-    fetchMetadata: {
-      fetchMode: "SINGLE_FILE",
-      remoteFolder:
-        "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_data",
-      remoteFile: "_project.json",
-    },
     remoteToLocal: {
       fetchMode: "SINGLE_FILE",
       mode: "DATA_TO_TABLE_ENTRY",
@@ -76,6 +70,29 @@ const syncConfig = {
       remoteFile: "_scope_{{scope.id}}.json",
     },
   },
+  // relsScopeItem: {
+  //   priority: 3,
+  //   description: "Listings for one scope",
+  //   syncContext: ["remoteContainer", "project", "scope"],
+  //   syncFileType: syncFileTypeByItemType.RELS_SCOPE_ITEM,
+  //   localTable: "relsScopeItem",
+  //   direction: " BOTH",
+  //   remoteToLocal: {
+  //     fetchMode: "SINGLE_FILE",
+  //     mode: "ITEMS_TO_TABLE_ENTRIES",
+  //     remoteFolder:
+  //       "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_data",
+  //     remoteFile: "_relsScopeItem_{{scope.id}}.json",
+  //   },
+  //   localToRemote: {
+  //     postMode: "SINGLE_FILE",
+  //     mode: "TABLE_ENTRIES_TO_ITEMS",
+  //     filterEntries: [{key: "scopeId", value: "scope.id"}],
+  //     remoteFolder:
+  //       "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_data",
+  //     remoteFile: "_relsScopeItem_{{scope.id}}.json",
+  //   },
+  // },
   listings: {
     priority: 3,
     description: "List of listings for a scope",
@@ -87,7 +104,7 @@ const syncConfig = {
       fetchMode: "FOLDER",
       mode: "DATA_TO_TABLE_ENTRY",
       remoteFolder:
-        "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_listings/{{id}}",
+        "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_data",
       filterFiles: [
         {
           remoteFiles: "_listing_{{id}}.json",
@@ -118,7 +135,7 @@ const syncConfig = {
       fetchMode: "MULTI_FOLDERS",
       mode: "ITEMS_TO_TABLE_ENTRIES",
       remoteFolder:
-        "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_listings/_items_{{id}}",
+        "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_listings/_data_{{id}}",
       filterFolders: [{key: "id", in: "listings.id"}],
       filterFiles: null,
     },
@@ -128,7 +145,7 @@ const syncConfig = {
       filterEntries: [{key: "listingId", in: "listings.id"}],
       groupEntriesBy: ["listingId", "createdBy"],
       remoteFolder:
-        "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_listings/_items_{{listingId}}",
+        "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_listings/_data_{{listingId}}",
       remoteFile: "_{{listingId}}_{{createdBy}}.json",
     },
   },

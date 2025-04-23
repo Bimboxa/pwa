@@ -11,6 +11,7 @@ import RemoteProvider from "Features/sync/js/RemoteProvider";
 import getProjectByClientRef from "Features/projects/services/getProjectByClientRef";
 import jsonFileToObjectAsync from "Features/files/utils/jsonFileToObjectAsync";
 import getRemoteItemPath from "Features/sync/utils/getRemoteItemPath";
+import updateSyncFile from "Features/sync/services/updateSyncFile";
 
 export default function useSelectRemoteProject() {
   const dispatch = useDispatch();
@@ -43,9 +44,13 @@ export default function useSelectRemoteProject() {
 
       if (!localProject) {
         // step 2 - fetch project data
-        const path = getRemoteItemPath({item: remoteProject, type: "PROJECT"});
+        const {path} = getRemoteItemPath({
+          item: remoteProject,
+          type: "PROJECT",
+        });
         const projectFile = await remoteProvider.downloadFile(path);
-        const _project = await jsonFileToObjectAsync(projectFile);
+        const result = await jsonFileToObjectAsync(projectFile);
+        const _project = result.data;
 
         // case 1 - no local - no remote
         if (!_project) {
@@ -56,11 +61,18 @@ export default function useSelectRemoteProject() {
           projectId = project.id;
         } else {
           // case 2 - no local - remote
-          await createProject({
-            clientRef,
-            name: remoteProject.name,
-            id: _project?.id,
-          });
+          await createProject(
+            {
+              clientRef,
+              name: remoteProject.name,
+              id: _project?.id,
+            },
+            {
+              updateSyncFile: true,
+              updatedAt: remoteProject.lastModifiedAt,
+              syncAt: remoteProject.lastModifiedAt,
+            }
+          );
           projectId = _project.id;
         }
       }
