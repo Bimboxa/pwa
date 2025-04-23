@@ -58,7 +58,7 @@ export default function ListRemoteItems({items, onClick, itemType, loading}) {
       const itemFile = await downloadFile(path);
       const _item = await jsonFileToObjectAsync(itemFile);
       setLoadingRemoteItem(false);
-      onClick(_item);
+      onClick(_item?.data);
     }
   }
 

@@ -2,7 +2,6 @@ import DialogGeneric from "Features/layout/components/DialogGeneric";
 
 import SectionScope from "./SectionScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import useCreateRemoteScopeFile from "../hooks/useCreateRemoteScopeFile";
 
 export default function DialogCreateScope({project, open, onClose, onCreated}) {
   console.log("[DialogCreateScope] project", project);
@@ -11,10 +10,6 @@ export default function DialogCreateScope({project, open, onClose, onCreated}) {
   // strings
 
   const newScopeS = appConfig?.strings?.scope?.new;
-
-  // data
-
-  //const createRemoteScopeFile = useCreateRemoteScopeFile();
 
   // handlers
 

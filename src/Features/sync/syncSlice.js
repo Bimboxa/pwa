@@ -22,6 +22,7 @@ const syncInitialState = {
 
   // syncTasks
 
+  preparingSyncTasks: false,
   syncTasks: [], // {filePath, status, error}
 };
 
@@ -55,17 +56,18 @@ export const syncSlice = createSlice({
       state.syncFiles = action.payload;
     },
     // syncTasks
+    setPreparingSyncTasks: (state, action) => {
+      state.preparingSyncTasks = action.payload;
+    },
 
     setSyncTasks: (state, action) => {
       const newTasks = action.payload;
-      const existingPaths = new Set(state.syncTasks.map((t) => t.filePath));
-      state.syncTasks.push(
-        ...newTasks.filter((t) => !existingPaths.has(t.filePath))
-      );
+      console.log("[STATE] setSyncTasks", newTasks);
+      state.syncTasks = newTasks;
     },
     updateSyncTaskStatus: (state, action) => {
-      const {filePath, status} = action.payload;
-      const task = state.syncTasks.find((t) => t.filePath === filePath);
+      const {id, status} = action.payload;
+      const task = state.syncTasks.find((t) => t.id === id);
       if (task) task.status = status;
     },
     clearSyncTasks: (state) => {
@@ -83,6 +85,7 @@ export const {
   setSelectedRemoteProjectsContainer,
   setSyncFiles,
   //
+  setPreparingSyncTasks,
   setSyncTasks,
   updateSyncTaskStatus,
   clearSyncTasks,

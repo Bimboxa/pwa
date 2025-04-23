@@ -12,11 +12,11 @@ export default function BlockRemoteProjectContainer({remoteProject}) {
 
   // helpers
 
-  const path = remoteContainer.projectsPath + "/" + remoteProject.clientRef;
+  const path = remoteContainer?.projectsPath + "/" + remoteProject?.clientRef;
 
   return (
     <Box>
-      <LinkRemoteItem path={path} label={remoteProject.name} />
+      <LinkRemoteItem path={path} label={remoteProject?.name} />
     </Box>
   );
 }

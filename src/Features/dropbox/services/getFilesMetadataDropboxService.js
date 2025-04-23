@@ -12,15 +12,14 @@ export default async function getFilesMetadataDropboxService({
 
     const listResult = await dbx.filesListFolder({path});
 
-    const targetFiles = listResult.result.entries.filters(
-      (entry) => entry[".tag"] === "file"
-    );
-
-    return dropboxToGenericMetadata(targetFiles);
-
     if (!listResult) {
       throw new Error("Files not found in folder.");
     }
+
+    const targetFiles = listResult.result.entries.filter(
+      (entry) => entry[".tag"] === "file"
+    );
+    return targetFiles.map(dropboxToGenericMetadata);
   } catch (e) {
     console.error("Error fetching file:", e);
     throw new Error("Error fetching file from Dropbox.");

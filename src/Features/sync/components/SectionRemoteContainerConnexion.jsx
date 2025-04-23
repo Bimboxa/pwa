@@ -1,5 +1,6 @@
 import {Box, Typography} from "@mui/material";
 import ButtonLogoutRemoteContainer from "./ButtonLogoutRemoteContainer";
+import SectionSyncFilesToPush from "./SectionSyncFilesToPush";
 
 export default function SectionRemoteContainerConnexion({
   remoteContainer,
@@ -17,6 +18,7 @@ export default function SectionRemoteContainerConnexion({
           {connectedS}
         </Typography>
       </Box>
+      <SectionSyncFilesToPush />
       <ButtonLogoutRemoteContainer onDisconnexion={onDisconnexion} />
     </Box>
   );

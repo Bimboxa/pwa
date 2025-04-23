@@ -13,8 +13,8 @@ export default class RemoteProvider {
 
   // POST
 
-  async postFile(path, blob) {
-    return await this.provider.postFile(path, blob);
+  async postFile(path, file) {
+    return await this.provider.postFile(path, file);
   }
 
   async postFiles(files) {
@@ -28,7 +28,7 @@ export default class RemoteProvider {
   }
 
   async fetchFilesMetadataFromFolder(path) {
-    return await this.provider.fetchFileMetadata(path);
+    return await this.provider.fetchFilesMetadataFromFolder(path);
   }
 
   // DOWNLOAD

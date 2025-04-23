@@ -1,4 +1,5 @@
 import testIsPngImage from "Features/files/utils/testIsPngImage";
+import getDateString from "Features/misc/utils/getDateString";
 
 export default function getEntityPureDataAndFilesDataByKey(entity, options) {
   // edge case
@@ -35,7 +36,7 @@ export default function getEntityPureDataAndFilesDataByKey(entity, options) {
         name: value.file.name,
         size: value.file.size,
         type: value.file.type,
-        lastModifiedAt: new Date(value.file.lastModified).toISOString(),
+        lastModifiedAt: getDateString(value.file.lastModified),
       };
 
       // pureData
