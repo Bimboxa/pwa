@@ -3,7 +3,7 @@ import {nanoid} from "@reduxjs/toolkit";
 import useCreateRelsScopeItem from "Features/scopes/hooks/useCreateRelsScopeItem";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 
-import updateSyncFile from "Features/sync/services/updateSyncFile";
+import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
 export default function useCreateListings() {
   const createRelsScopeItem = useCreateRelsScopeItem();
@@ -27,7 +27,7 @@ export default function useCreateListings() {
     // update sync file
     await Promise.all(
       listingsClean.map((listing) => {
-        return updateSyncFile({
+        return updateItemSyncFile({
           item: listing,
           type: "LISTING",
         });

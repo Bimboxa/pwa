@@ -6,7 +6,7 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useRemoteToken from "Features/sync/hooks/useRemoteToken";
 import useRemoteContainer from "../hooks/useRemoteContainer";
 
-import {IconButton} from "@mui/material";
+import {IconButton, Badge} from "@mui/material";
 import {Refresh} from "@mui/icons-material";
 
 import SectionSyncTasks from "./SectionSyncTasks";
@@ -19,6 +19,7 @@ import RemoteProvider from "../js/RemoteProvider";
 
 import syncConfig from "../syncConfig";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
 export default function IconButtonSyncScope() {
   const dispatch = useDispatch();
@@ -26,10 +27,13 @@ export default function IconButtonSyncScope() {
 
   const {value: scope} = useSelectedScope({withProject: true});
   const {value: accessToken} = useRemoteToken();
+  const {value: listings} = useListingsByScope();
+
+  // TODO : add listings & relScopItem ? to the context
+  // TODO : override syncFilesPath to add the items if they do not exists on dropbox.
+
   const remoteContainer = useRemoteContainer();
   const syncFiles = useSelector((s) => s.sync.syncFiles);
-
-  console.log("debug 42", syncFiles);
 
   // const
 
@@ -58,9 +62,18 @@ export default function IconButtonSyncScope() {
       provider: remoteContainer.service,
     });
 
+    // context
+    const context = {
+      remoteContainer,
+      project: scope.project,
+      scope,
+      listings,
+    };
+
+    console.log("sync context", context);
     // options
     const options = {
-      context: {remoteContainer, project: scope.project, scope},
+      context,
       remoteProvider,
       syncConfig: overrideSyncConfig(syncConfig, fileList),
       syncFilesByPath,
@@ -77,6 +90,7 @@ export default function IconButtonSyncScope() {
       <IconButton onClick={handleClick} loading={loading}>
         <Refresh />
       </IconButton>
+
       {loading && (
         <DialogGeneric open={loading} onClose={() => setLoading(false)}>
           <SectionSyncTasks />

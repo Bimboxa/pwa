@@ -6,6 +6,8 @@ import fetchFileDropboxService from "../services/fetchFileDropboxService";
 import unzipFilesAsync from "Features/files/utils/unzipFilesAsync";
 import dropboxToGenericMetadata from "../utils/dropboxToGenericMetadata";
 
+import getDateString from "Features/misc/utils/getDateString";
+
 export default class DropboxRemote {
   constructor({accessToken}) {
     this.accessToken = accessToken;
@@ -13,12 +15,14 @@ export default class DropboxRemote {
 
   // POST FILE
 
-  async postFile(path, blob) {
+  async postFile(path, file) {
+    const clientModifiedAt = getDateString(file.lastModified);
     return await createDropboxFileService({
       path,
-      blob,
+      blob: file,
       accessToken: this.accessToken,
       mode: "overwrite",
+      clientModifiedAt,
     });
   }
 

@@ -32,7 +32,7 @@ export default function useSelectedScope(options) {
     let scope = scopes?.find((s) => s.id === selectedScopeId);
     if (withProject) scope = {...scope, project};
     return scope;
-  }, [scopesUpdatedAt, selectedScopeId, withProject, projectUpdatedAt]); // Recompute only when scopes, selectedScopeId, withProject, or project changes
+  }, [scopesUpdatedAt, selectedScopeId, withProject, project?.updatedAt]); // Recompute only when scopes, selectedScopeId, withProject, or project changes
 
   // return
 

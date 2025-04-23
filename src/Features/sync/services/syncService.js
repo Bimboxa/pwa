@@ -1,32 +1,85 @@
-// syncService.js
-
 import db from "App/db/db";
 
 import resolveSyncTasks from "./resolveSyncTasks";
 import jsonFileToObjectAsync from "Features/files/utils/jsonFileToObjectAsync";
 import jsonObjectToFile from "Features/files/utils/jsonObjectToFile";
 import resolveTemplate from "../utils/resolveTemplate";
+import updateSyncFile from "./updateSyncFile";
 
-import {setSyncTasks, updateSyncTaskStatus} from "../syncSlice";
+import {
+  setPreparingSyncTasks,
+  setSyncTasks,
+  updateSyncTaskStatus,
+} from "../syncSlice";
+import getDateString from "Features/misc/utils/getDateString";
 
-/**
- * @typedef {Object} SyncTask
- * @property {string} filePath
- * @property {string} table
- * @property {"PULL" | "PUSH" | "BOTH"} direction
- * @property {Object} localFilter
- * @property {string} [updatedAtRemote]
- * @property {string} [updatedAtLocal]
- */
+let taskIdCounter = 0;
 
-/**
- * Main entry point to sync all files
- * @param {Object} options
- * @param {Object} options.remoteProvider
- * @param {Object} options.context - project, listing, etc.
- * @param {Object} options.syncConfig - syncConfig object
- * @param {Object} options.syncFilesByPath - Redux store syncFiles (filePath -> { updatedAt })
- */
+export async function prepareSyncTasks({
+  remoteProvider,
+  context,
+  syncConfig,
+  syncFilesByPath,
+  dispatch,
+}) {
+  const allTasks = [];
+  dispatch(setPreparingSyncTasks(true));
+
+  for (const [key, config] of Object.entries(syncConfig)) {
+    const rawTasks = await resolveSyncTasks(config, context, remoteProvider);
+
+    const priority = config.priority ?? Infinity;
+
+    rawTasks.forEach((task) => {
+      const filePath = task.filePath;
+      const updatedAtRemote = task.updatedAtRemote;
+      const updatedAtLocal = syncFilesByPath?.[filePath]?.updatedAt;
+
+      console.log(
+        "rawTask",
+        config.syncFileType,
+        task.fileName,
+        updatedAtRemote,
+        updatedAtLocal
+      );
+
+      // Décider de l'action en fonction des dates
+      if (
+        (task.direction === "PULL" || task.direction === "BOTH") &&
+        updatedAtRemote &&
+        (!updatedAtLocal || updatedAtRemote > updatedAtLocal)
+      ) {
+        allTasks.push({
+          ...task,
+          id: `task-${taskIdCounter++}`,
+          action: "PULL",
+          updatedAtLocal,
+          priority,
+        });
+      }
+
+      if (
+        (task.direction === "PUSH" || task.direction === "BOTH") &&
+        updatedAtLocal &&
+        (!updatedAtRemote || updatedAtLocal > updatedAtRemote)
+      ) {
+        allTasks.push({
+          ...task,
+          id: `task-${taskIdCounter++}`,
+          action: "PUSH",
+          updatedAtLocal,
+          priority,
+        });
+      }
+    });
+  }
+
+  dispatch(setPreparingSyncTasks(false));
+
+  // Tri par priorité
+  allTasks.sort((a, b) => a.priority - b.priority);
+  return allTasks;
+}
 
 export default async function syncService({
   remoteProvider,
@@ -35,54 +88,51 @@ export default async function syncService({
   syncFilesByPath,
   dispatch,
 }) {
-  console.log("[debug] syncService", context);
-  //
-  for (const [key, config] of Object.entries(syncConfig)) {
-    const tasks = await resolveSyncTasks(config, context, remoteProvider);
-    dispatch(setSyncTasks(tasks));
+  const tasks = await prepareSyncTasks({
+    remoteProvider,
+    context,
+    syncConfig,
+    syncFilesByPath,
+    dispatch,
+  });
 
-    for (const task of tasks) {
-      // state
-      dispatch(updateSyncTaskStatus({filePath: task.filePath, status: "WIP"}));
+  dispatch(setSyncTasks(tasks));
+  console.log("tasks v2", tasks);
 
-      try {
-        //
-        const {direction, updatedAtRemote, filePath, table} = task;
-        const updatedAtLocal = syncFilesByPath?.[filePath]?.updatedAt;
+  for (const task of tasks) {
+    dispatch(updateSyncTaskStatus({id: task.id, status: "SYNCING"}));
 
-        const shouldPull =
-          (direction === "PULL" || direction === "BOTH") &&
-          updatedAtRemote &&
-          (!updatedAtLocal || updatedAtRemote > updatedAtLocal);
+    try {
+      const config = Object.values(syncConfig).find(
+        (cfg) => cfg.localTable === task.table
+      );
 
-        const shouldPush =
-          (direction === "PUSH" || direction === "BOTH") &&
-          updatedAtLocal &&
-          (!updatedAtRemote || updatedAtLocal > updatedAtRemote);
-
-        if (shouldPull) {
-          await remoteToLocal({task, config, remoteProvider, context});
-          await updateSyncedAt(task);
-        } else if (shouldPush) {
-          await localToRemote({task, config, remoteProvider, context});
-          await updateSyncedAt(task);
-        }
-        dispatch(
-          updateSyncTaskStatus({filePath: task.filePath, status: "DONE"})
-        );
-      } catch (e) {
-        console.error("[syncService] Error in task:", task, e);
-        dispatch(
-          updateSyncTaskStatus({filePath: task.filePath, status: "ERROR"})
-        );
+      if (task.action === "PULL") {
+        await remoteToLocal({task, config, remoteProvider, context});
+        const updatedAt = task.updatedAtRemote;
+        await updateSyncedAt(task, updatedAt);
+      } else if (task.action === "PUSH") {
+        const file = await localToRemote({
+          task,
+          config,
+          remoteProvider,
+          context,
+        });
+        const updatedAt = getDateString(file.lastModified);
+        await updateSyncedAt(task, updatedAt);
       }
+
+      dispatch(updateSyncTaskStatus({id: task.id, status: "DONE"}));
+    } catch (e) {
+      console.error("[syncService] Error in task:", task, e);
+      dispatch(updateSyncTaskStatus({id: task.id, status: "ERROR"}));
     }
   }
 }
 
 async function remoteToLocal({task, config, remoteProvider, context}) {
   if (config.remoteToLocal?.mode === "FILES_REMOTE_TO_LOCAL") {
-    const folder = resolveTemplate(config.remoteFolder, {
+    const folder = resolveTemplate(config.remoteToLocal.remoteFolder, {
       ...context,
       remoteProvider,
     });
@@ -117,11 +167,31 @@ async function remoteToLocal({task, config, remoteProvider, context}) {
       }
       break;
 
-    case "ITEMS_TO_TABLE_ENTRIES":
-      if (Array.isArray(fileContent?.items)) {
-        await db[task.table].bulkPut(fileContent.items);
+    case "ITEMS_TO_TABLE_ENTRIES": {
+      let items = Array.isArray(fileContent?.items) ? fileContent.items : [];
+      const filterEntries = config.localToRemote?.filterEntries || [];
+
+      if (filterEntries.length > 0) {
+        items = items.filter((item) => {
+          return filterEntries.every((rule) => {
+            if (rule.in && Array.isArray(context[rule.in])) {
+              const ids = context[rule.in].map((o) => o.id);
+              return ids.includes(item[rule.key]);
+            }
+            if (rule.value) {
+              const expected = rule.value
+                .split(".")
+                .reduce((acc, k) => acc?.[k], context);
+              return item[rule.key] === expected;
+            }
+            return true;
+          });
+        });
       }
+
+      if (items.length > 0) await db[task.table].bulkPut(items);
       break;
+    }
 
     default:
       console.warn(
@@ -136,31 +206,44 @@ async function localToRemote({task, config, remoteProvider, context}) {
 
   switch (config.localToRemote?.mode) {
     case "TABLE_ENTRY_TO_DATA": {
-      const entry = await db[task.table].get(task.localFilter.id);
+      const id = task.localFilter.id;
+      if (!id) {
+        throw new Error(
+          `[localToRemote] Missing id in localFilter for table ${task.table}`
+        );
+      }
+      const entry = await db[task.table].get(id);
       payload = {data: entry};
-      const file = jsonObjectToFile(payload);
+      const file = jsonObjectToFile(payload, task.fileName);
       await remoteProvider.postFile(task.filePath, file);
-      break;
+      return file;
     }
     case "TABLE_ENTRIES_TO_ITEMS": {
-      const keys = Object.keys(task.localFilter);
-      if (keys.length === 1) {
-        const [key] = keys;
-        const entries = await db[task.table]
-          .where(key)
-          .equals(task.localFilter[key])
-          .toArray();
-        payload = {items: entries};
-      } else {
-        const all = await db[task.table].toArray();
-        const filtered = all.filter((item) =>
-          keys.every((k) => item[k] === task.localFilter[k])
-        );
-        payload = {items: filtered};
+      const filterEntries = config.localToRemote?.filterEntries || [];
+      let entries = await db[task.table].toArray();
+
+      if (filterEntries.length > 0) {
+        entries = entries.filter((item) => {
+          return filterEntries.every((rule) => {
+            if (rule.in && Array.isArray(context[rule.in])) {
+              const ids = context[rule.in].map((o) => o.id);
+              return ids.includes(item[rule.key]);
+            }
+            if (rule.value) {
+              const expected = rule.value
+                .split(".")
+                .reduce((acc, k) => acc?.[k], context);
+              return item[rule.key] === expected;
+            }
+            return true;
+          });
+        });
       }
-      const file = jsonObjectToFile(payload);
+
+      payload = {items: entries};
+      const file = jsonObjectToFile(payload, task.fileName);
       await remoteProvider.postFile(task.filePath, file);
-      break;
+      return file;
     }
     case "FILES_LOCAL_TO_REMOTE": {
       const filters = config.localToRemote.filterEntries || [];
@@ -179,7 +262,9 @@ async function localToRemote({task, config, remoteProvider, context}) {
 
       for (const entry of entries) {
         const filePath = resolveTemplate(
-          config.remoteFolder + "/" + config.remoteFile,
+          config.localToRemote.remoteFolder +
+            "/" +
+            config.localToRemote.remoteFile,
           {
             ...context,
             file: entry,
@@ -199,17 +284,11 @@ async function localToRemote({task, config, remoteProvider, context}) {
   }
 }
 
-async function updateSyncedAt(task) {
+async function updateSyncedAt(task, updatedAt) {
   try {
+    console.log("[syncService] updateSyncedAt", task.filePath, updatedAt);
     const path = task.filePath;
-    const updatedAt = new Date().toISOString();
-    const existing = await db.syncFiles.get(path);
-
-    if (existing) {
-      await db.syncFiles.update(path, {updatedAt});
-    } else {
-      await db.syncFiles.put({path, updatedAt});
-    }
+    await updateSyncFile({path, updatedAt, syncAt: updatedAt});
   } catch (e) {
     console.error("[updateSyncedAt] Error updating syncFiles:", e);
   }

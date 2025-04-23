@@ -5,15 +5,15 @@ import {useSelector, useDispatch} from "react-redux";
 import {setOpenPanelSync} from "../syncSlice";
 
 import useIsSignedIn from "Features/auth/hooks/useIsSignedIn";
-import useRemoteProjectContainerProps from "../hooks/useRemoteProjectContainerProps";
 
-import {Box, IconButton, Tooltip} from "@mui/material";
+import {Box, IconButton, Tooltip, Badge} from "@mui/material";
 
 import BlockSyncIndicator from "./BlockSyncIndicator";
 import PanelSync from "./PanelSync";
 
-import getRemoteProjectContainerGenericProps from "../utils/getRemoteProjectContainerGenericProps";
 import DialogFsOrMenu from "Features/layout/components/DialogFsOrMenu";
+import useSyncFilesToPush from "../hooks/useSyncFilesToPush";
+import useRemoteContainer from "../hooks/useRemoteContainer";
 
 export default function ButtonMenuSyncIndicator() {
   const dispatch = useDispatch();
@@ -26,7 +26,10 @@ export default function ButtonMenuSyncIndicator() {
 
   const isSignedIn = useIsSignedIn();
   const open = useSelector((s) => s.sync.openPanelSync);
-  const {value: props} = useRemoteProjectContainerProps();
+  const remoteContainer = useRemoteContainer();
+
+  const syncFilesToPush = useSyncFilesToPush();
+  console.log("[debug] syncFilesToPush", syncFilesToPush);
 
   // state
 
@@ -34,13 +37,12 @@ export default function ButtonMenuSyncIndicator() {
 
   // helpers - color
 
-  const color = props?.type ? "success.main" : "action.main";
+  const color = remoteContainer?.service ? "success.main" : "action.main";
 
   // helpers
 
-  const {name, serviceName} = getRemoteProjectContainerGenericProps(props);
-  let title = `[${serviceName}] ${name}`;
-  if (!props) title = "Sync off";
+  const title = remoteContainer?.name ?? "Sync off";
+  const syncCounter = syncFilesToPush?.length;
 
   // handlers
 
@@ -59,9 +61,15 @@ export default function ButtonMenuSyncIndicator() {
         <Box
           sx={{display: "flex", alignItems: "center", justifyContent: "center"}}
         >
-          <IconButton onClick={handleClick} disabled={!isSignedIn}>
-            <BlockSyncIndicator color={color} />
-          </IconButton>
+          <Badge badgeContent={syncCounter} color="warning">
+            <IconButton
+              onClick={handleClick}
+              disabled={!isSignedIn}
+              size="small"
+            >
+              <BlockSyncIndicator color={color} />
+            </IconButton>
+          </Badge>
         </Box>
       </Tooltip>
       <DialogFsOrMenu

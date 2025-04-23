@@ -44,13 +44,13 @@ export default function useCreateScope() {
     await db.scopes.add(scope);
     console.log("[db] added scope", scope);
 
+    // update sync file
+    await updateItemSyncFile({item: scope, type: "SCOPE"});
+
     // add listings
     if (newListings?.length > 0) {
       await createListings({listings: listingsWithIds, scope});
     }
-
-    // update sync file
-    await updateItemSyncFile({item: scope, type: "SCOPE"});
 
     // return
     return scope;

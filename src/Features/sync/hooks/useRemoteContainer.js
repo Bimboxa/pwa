@@ -18,7 +18,7 @@ export default function useRemoteContainer() {
     console.log("[EFFECT] useRemoteContainer", appConfig.version);
     if (appConfig.remoteContainers) {
       const remoteContainer = appConfig.remoteContainers.find((container) => {
-        return container.service === remoteContainerInRedux.service;
+        return container.service === remoteContainerInRedux?.service;
       });
 
       if (remoteContainer) {

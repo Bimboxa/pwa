@@ -64,7 +64,7 @@ export default function PageProjectsFromRemoteContainer() {
     console.log("[PageProjects] remoteProject", remoteItem);
     //
     dispatch(setPage("SCOPES_FROM_REMOTE_CONTAINER"));
-    dispatch(setRemoteProject(remoteItem.data));
+    dispatch(setRemoteProject(remoteItem));
 
     // dispatch(
     //   setRemoteProjectContainer({

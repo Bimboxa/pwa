@@ -13,8 +13,8 @@ export default function resolveTemplate(template, context) {
     try {
       return evalInContext(expression.trim(), context);
     } catch (err) {
-      console.warn("[resolveTemplate] Failed to resolve:", expression);
-      return "";
+      console.log("[resolveTemplate] Failed to resolve:", expression, context);
+      return null;
     }
   });
 }
