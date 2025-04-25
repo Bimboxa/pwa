@@ -28,13 +28,11 @@ export const makeGetListingsByOptions = (options) =>
 
       // main
 
-      let listings = [];
+      let listings = Object.values(listingsById ?? {}) ?? [];
       if (filterByScopeId) {
-        listings = getSortedListings(listings, scope.sortedListingsIds);
-      } else {
-        listings = Object.values(listingsById ?? {}) ?? [];
+        listings = getSortedListings(listings, scope?.sortedListings);
       }
-      console.log("listings1", listings);
+      console.log("listings1", filterByScopeId, listings);
 
       // filter
       if (filterByKeys) {

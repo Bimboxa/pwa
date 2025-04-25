@@ -1,8 +1,6 @@
 import {useState} from "react";
 
-import useFetchRemoteItemMetadata from "../hooks/useFetchRemoteItemMetadata";
 import useRemoteContainer from "../hooks/useRemoteContainer";
-import useDownloadFile from "../hooks/useDownloadFile";
 import useRemoteToken from "../hooks/useRemoteToken";
 
 import {ListItemButton, ListItemText, List} from "@mui/material";
@@ -21,11 +19,6 @@ export default function ListRemoteItems({items, onClick, itemType, loading}) {
   const remoteContainer = useRemoteContainer();
   const {value: accessToken} = useRemoteToken();
 
-  // data - func
-
-  const fetchRemoteItemMetadata = useFetchRemoteItemMetadata();
-  const downloadFile = useDownloadFile();
-
   // state
 
   const [open, setOpen] = useState(false);
@@ -33,7 +26,6 @@ export default function ListRemoteItems({items, onClick, itemType, loading}) {
   // state - props used in dialog to create the remoteFile for the item;
   const [item, setItem] = useState(null);
   const [itemPath, setItemPath] = useState(null);
-  const [itemFileName, setItemFileName] = useState(null);
 
   const [loadingRemoteItem, setLoadingRemoteItem] = useState(false);
 
@@ -52,7 +44,7 @@ export default function ListRemoteItems({items, onClick, itemType, loading}) {
     // the item may not exist yet on dropbox.
     // ex: projects come from _openedProjects, not directly the list of items.
     //
-    const {path, fileName} = getRemoteItemPath({
+    const {path} = await getRemoteItemPath({
       type: itemType,
       remoteContainer,
       item,
@@ -60,7 +52,6 @@ export default function ListRemoteItems({items, onClick, itemType, loading}) {
     //
     setItem(item);
     setItemPath(path);
-    setItemFileName(fileName);
     //
     const metadata = await remoteProvider.fetchFileMetadata(path);
     setLoadingRemoteItem(false);
@@ -72,7 +63,7 @@ export default function ListRemoteItems({items, onClick, itemType, loading}) {
       setOpen(true);
     } else {
       setLoadingRemoteItem(true);
-      const itemFile = await downloadFile(path);
+      const itemFile = await remoteProvider.downloadFile(path);
       const _item = await jsonFileToObjectAsync(itemFile);
       setLoadingRemoteItem(false);
       onClick({..._item?.data, lastModifiedAt});
@@ -108,8 +99,8 @@ export default function ListRemoteItems({items, onClick, itemType, loading}) {
         open={open}
         onClose={() => setOpen(false)}
         item={item}
+        itemType={itemType}
         itemPath={itemPath}
-        itemFileName={itemFileName}
         type="FILE"
         onCreated={handleRemoteItemCreated}
       />

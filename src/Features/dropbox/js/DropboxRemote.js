@@ -7,6 +7,7 @@ import unzipFilesAsync from "Features/files/utils/unzipFilesAsync";
 import dropboxToGenericMetadata from "../utils/dropboxToGenericMetadata";
 
 import getDateString from "Features/misc/utils/getDateString";
+import getFilesMetadataFromParentFolderDropboxService from "../services/getFilesMetadataFromParentFolderDropboxService";
 
 export default class DropboxRemote {
   constructor({accessToken}) {
@@ -56,11 +57,19 @@ export default class DropboxRemote {
   // FETCH FILES METADATA
 
   async fetchFilesMetadataFromFolder(path) {
-    const metadata = await getFilesMetadataDropboxService({
+    const metadatas = await getFilesMetadataDropboxService({
       path,
       accessToken: this.accessToken,
     });
-    return metadata;
+    return metadatas.map(dropboxToGenericMetadata);
+  }
+
+  async fetchFilesMetadataFromParentFolder(path) {
+    const metadatas = await getFilesMetadataFromParentFolderDropboxService({
+      path,
+      accessToken: this.accessToken,
+    });
+    return metadatas.map(dropboxToGenericMetadata);
   }
 
   // DOWNLOAD FILE

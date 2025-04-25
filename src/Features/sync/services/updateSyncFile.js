@@ -4,25 +4,28 @@ import getDateString from "Features/misc/utils/getDateString";
 export default async function updateSyncFile({
   path,
   updatedAt,
-  syncFileType,
+  itemType,
   syncAt,
 }) {
   try {
-    console.log("debug_2104 updateSyncFile path:", path);
     updatedAt = updatedAt ?? getDateString(new Date());
+
+    console.log("debug_2104 updateSyncFile", path, itemType, updatedAt, syncAt);
+
     const existing = await db.syncFiles.get(path);
 
     if (existing) {
       const updates = {};
       if (updatedAt) updates.updatedAt = updatedAt;
       if (syncAt) updates.syncAt = syncAt;
-      if (syncFileType) updates.syncFileType = syncFileType;
+      if (itemType) updates.itemType = itemType;
       await db.syncFiles.update(path, updates);
     } else {
       await db.syncFiles.put({
         path,
+        itemType,
         updatedAt,
-        syncFileType,
+        syncAt,
       });
     }
   } catch (e) {

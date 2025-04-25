@@ -19,7 +19,7 @@ export default async function getFilesMetadataDropboxService({
     const targetFiles = listResult.result.entries.filter(
       (entry) => entry[".tag"] === "file"
     );
-    return targetFiles.map(dropboxToGenericMetadata);
+    return targetFiles;
   } catch (e) {
     console.error("Error fetching file:", e);
     throw new Error("Error fetching file from Dropbox.");

@@ -6,17 +6,20 @@ import useCreateRemoteFolders from "../hooks/useCreateRemoteFolders";
 import useCreateRemoteFile from "../hooks/useCreateRemoteFile";
 import useRemoteContainer from "../hooks/useRemoteContainer";
 import useRemoteToken from "../hooks/useRemoteToken";
+import useCreateProject from "Features/projects/hooks/useCreateProject";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import BottomBarCancelSave from "Features/layout/components/BottomBarCancelSave";
 
 import jsonObjectToFile from "Features/files/utils/jsonObjectToFile";
+import getDateString from "Features/misc/utils/getDateString";
+
 import RemoteProvider from "../js/RemoteProvider";
 
 export default function DialogCreateRemoteItem({
   item,
   itemPath,
-  itemFileName,
+  itemType,
   type,
   open,
   onClose,
@@ -30,9 +33,9 @@ export default function DialogCreateRemoteItem({
   // data - func
 
   const createRemoteFolders = useCreateRemoteFolders();
-  const createRemoteFile = useCreateRemoteFile();
   const remoteContainer = useRemoteContainer();
   const {value: accessToken} = useRemoteToken();
+  const createProject = useCreateProject();
 
   // state
 
@@ -57,10 +60,20 @@ export default function DialogCreateRemoteItem({
       await createRemoteFolders([itemPath]);
       onCreated();
     } else if (type === "FILE") {
-      const file = jsonObjectToFile(newItem, itemFileName);
+      const itemFileName = itemPath.split("/").pop();
+      const file = jsonObjectToFile({data: newItem}, itemFileName);
       await remoteProvider.postFile(itemPath, file);
       //await createRemoteFile({path: itemPath, blob});
-      onCreated({...newItem, lastModifiedAt: file.lastModified});
+
+      // create local project
+      if (itemType === "PROJECT") {
+        await createProject(newItem, {
+          syncRemoteFile: true,
+          updatedAt: getDateString(file.lastModified),
+          syncAt: getDateString(file.lastModified),
+        });
+      }
+      onCreated({...newItem, lastModifiedAt: getDateString(file.lastModified)});
     }
 
     setLoading(false);

@@ -13,31 +13,36 @@ export default function useCreateProject() {
   // main
 
   const create = async ({name, clientRef, id}, options) => {
-    // options
+    try {
+      // options
 
-    const updateSyncFile = options?.updateSyncFile;
+      const updateSyncFile = options?.updateSyncFile;
 
-    // main
+      // main
 
-    const project = {
-      id: id ?? nanoid(),
-      createdBy,
-      createdAt,
-      name,
-      clientRef,
-    };
-    await db.projects.add(project);
+      const project = {
+        id: id ?? nanoid(),
+        createdBy,
+        createdAt,
+        name,
+        clientRef,
+      };
+      await db.projects.put(project);
+      console.log("debug_2504 [db] added project", project);
 
-    // sync file
+      // sync file
 
-    if (updateSyncFile) {
-      const props = {item: project, type: "PROJECT"};
-      if (options.updatedAt) props.updatedAt = options.updatedAt;
-      if (options.syncAt) props.syncAt = options.syncAt;
-      await updateItemSyncFile(props);
+      if (updateSyncFile) {
+        const props = {item: project, type: "PROJECT"};
+        if (options.updatedAt) props.updatedAt = options.updatedAt;
+        if (options.syncAt) props.syncAt = options.syncAt;
+        await updateItemSyncFile(props);
+      }
+
+      return project;
+    } catch (e) {
+      console.log("[debug] error", e);
     }
-
-    return project;
   };
 
   return create;

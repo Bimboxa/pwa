@@ -40,10 +40,8 @@ export default function IconButtonSyncScope() {
   const fileList = [
     {key: "project", direction: "BOTH"},
     {key: "scope", direction: "BOTH"},
-    {key: "relsScopeItem", direction: "BOTH"},
     {key: "listings", direction: "BOTH"},
-
-    //{key: "entities", direction: "BOTH"},
+    {key: "entities", direction: "BOTH"},
   ];
 
   // state
@@ -70,13 +68,11 @@ export default function IconButtonSyncScope() {
       listings,
     };
 
-    console.log("sync context", context);
     // options
     const options = {
       context,
       remoteProvider,
       syncConfig: overrideSyncConfig(syncConfig, fileList),
-      syncFilesByPath,
       dispatch,
     };
 

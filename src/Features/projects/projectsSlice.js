@@ -21,7 +21,7 @@ export const projectsSlice = createSlice({
   reducers: {
     setProjectsById: (state, action) => {
       const projects = action.payload;
-      console.log("[STATE] projects", projects);
+      console.log("debug_2504_1/2", projects);
       state.projectsById = getItemsByKey(projects, "id");
       state.projectsUpdatedAt = Date.now();
     },

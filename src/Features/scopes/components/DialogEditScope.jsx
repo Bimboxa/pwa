@@ -28,7 +28,7 @@ export default function DialogEditScope({open, onClose, scope}) {
 
   async function handleSave() {
     setLoading(true);
-    await update(tempScope);
+    await update(tempScope, {updateSyncFile: true});
     setLoading(false);
     onClose();
   }

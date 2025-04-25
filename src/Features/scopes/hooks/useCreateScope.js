@@ -14,7 +14,7 @@ export default function useCreateScope() {
   const createListings = useCreateListings();
 
   const create = async (
-    {id, name, clientRef, projectId, newListings, sortedListingsIds},
+    {id, name, clientRef, projectId, newListings, sortedListings},
     options
   ) => {
     // options
@@ -29,8 +29,12 @@ export default function useCreateScope() {
       };
     });
     //
-    sortedListingsIds =
-      sortedListingsIds ?? listingsWithIds?.map((listing) => listing.id);
+    sortedListings =
+      sortedListings ??
+      listingsWithIds?.map((listing) => ({
+        id: listing.id,
+        table: listing.table,
+      }));
     //
     const scope = {
       id: id ?? nanoid(),
@@ -39,17 +43,19 @@ export default function useCreateScope() {
       name,
       clientRef,
       projectId,
-      sortedListingsIds,
+      sortedListings,
     };
     await db.scopes.add(scope);
-    console.log("[db] added scope", scope);
+    console.log("debug_25_04 [db] added scope", scope);
 
     // update sync file
     if (updateSyncFile) {
-      await updateItemSyncFile(
-        {item: scope, type: "SCOPE"},
-        {updateSyncFile: options?.updateSyncFile}
-      );
+      await updateItemSyncFile({
+        item: scope,
+        type: "SCOPE",
+        updatedAt: options.updatedAt,
+        syncAt: options.syncAt,
+      });
     }
 
     // add listings

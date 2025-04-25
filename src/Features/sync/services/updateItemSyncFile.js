@@ -1,6 +1,5 @@
 import getRemoteItemPath from "Features/sync/utils/getRemoteItemPath";
 import updateSyncFile from "Features/sync/services/updateSyncFile";
-import syncFileTypeByItemType from "../data/syncFileTypeByItemType";
 
 export default async function updateItemSyncFile({
   item,
@@ -9,13 +8,11 @@ export default async function updateItemSyncFile({
   syncAt,
 }) {
   try {
-    const {path} = getRemoteItemPath({
+    const {path} = await getRemoteItemPath({
       type,
       item,
     });
-    console.log("[debug] updateSyncFile", path);
-    const syncFileType = syncFileTypeByItemType[type];
-    await updateSyncFile({path, syncFileType, updatedAt, syncAt});
+    await updateSyncFile({path, itemType: type, updatedAt, syncAt});
   } catch (e) {
     console.error("[debug] error", e);
   }

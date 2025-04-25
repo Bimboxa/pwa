@@ -77,10 +77,13 @@ export default function PageScopesFromRemoteContainer() {
     setOpen(true);
   }
 
-  function handleScopeCreated(scope) {
+  async function handleScopeCreated(scope) {
+    await selectRemoteScope(scope);
+    //
     dispatch(setPage("PROJECT_AND_SCOPE"));
     setOpen(false);
-    selectRemoteProject(remoteProject);
+    //selectRemoteProject(remoteProject);
+
     dispatch(setSelectedScopeId(scope.id));
     dispatch(setOpenPanel(false));
   }

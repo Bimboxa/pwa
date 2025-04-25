@@ -49,7 +49,7 @@ export default function SectionSyncTasks() {
                 <Upload sx={{color: iconColor}} />
               );
 
-            const label = syncTask.label;
+            const label = syncTask.syncFileKey;
             return (
               <Box
                 sx={{

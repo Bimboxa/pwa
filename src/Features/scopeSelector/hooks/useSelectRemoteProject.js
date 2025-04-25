@@ -44,7 +44,7 @@ export default function useSelectRemoteProject() {
 
       if (!localProject) {
         // step 2 - fetch project data
-        const {path} = getRemoteItemPath({
+        const {path} = await getRemoteItemPath({
           item: remoteProject,
           type: "PROJECT",
         });
