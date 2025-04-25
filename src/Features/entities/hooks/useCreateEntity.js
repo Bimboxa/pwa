@@ -5,6 +5,8 @@ import db from "App/db/db";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import getEntityPureDataAndFilesDataByKey from "../utils/getEntityPureDataAndFilesDataByKey";
 
+import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
+
 export default function useCreateEntity() {
   // data
 
@@ -13,7 +15,9 @@ export default function useCreateEntity() {
 
   // helper
 
-  const create = async (data) => {
+  const create = async (data, options) => {
+    console.log("[useCreateEntity] data", data, options);
+
     // ids
     const entityId = nanoid();
 
@@ -49,6 +53,15 @@ export default function useCreateEntity() {
     try {
       console.log("[db] adding entity ...", entity);
       await db.entities.add(entity);
+
+      if (options?.updateSyncFile) {
+        await updateItemSyncFile({
+          item: entity,
+          type: "ENTITY",
+          updatedAt: options.updatedAt,
+          syncAt: options.syncAt,
+        });
+      }
       return entity;
     } catch (e) {
       console.log("[db] error adding entity", entity);

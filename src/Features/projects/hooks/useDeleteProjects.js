@@ -4,7 +4,6 @@ export default function useDeleteProjects() {
   const deleteProjects = async () => {
     await db.projects.clear();
     await db.scopes.clear();
-    await db.relsScopeItem.clear();
     await db.listings.clear();
     await db.entities.clear();
     await db.files.clear();

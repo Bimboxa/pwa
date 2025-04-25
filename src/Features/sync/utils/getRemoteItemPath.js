@@ -1,81 +1,65 @@
 import store from "App/store";
+import db from "App/db/db";
 
-export default function getRemoteItemPath({type, item}) {
+import {syncFileByItemType} from "../syncConfig";
+import {resolveFilePath} from "./resolversPath";
+
+export default async function getRemoteItemPath({type, item}) {
+  const syncFile = syncFileByItemType[type];
+  const folderTemplate = syncFile.remoteFolder;
+  const fileTemplate = syncFile.remoteFile;
+
   const remoteContainer = store.getState().sync.remoteContainer;
+
   const projectsById = store.getState().projects.projectsById;
   const listingsById = store.getState().listings.listingsById;
-  const scopesById = store.getState().scopes.scopesById;
 
   if (!remoteContainer || !item) return null;
 
-  const getProject = (id) => projectsById[id];
-  const getListing = (id) => listingsById[id];
-  const getScope = (id) => scopesById[id];
-
-  const basePath = (clientRef) =>
-    `${remoteContainer.projectsPath}/${clientRef}`;
-  const dataPath = (clientRef) => `${basePath(clientRef)}/_data`;
-
   let path;
-  let fileName;
 
   switch (type) {
     case "PROJECT": {
-      fileName = "_project.json";
-      path = `${dataPath(item.clientRef)}/_project.json`;
+      const context = {remoteContainer};
+      path = resolveFilePath({folderTemplate, fileTemplate, context, item});
       break;
     }
 
     case "SCOPE": {
-      const project = getProject(item.projectId);
-      fileName = `_scope_${item.id}.json`;
-      path = `${dataPath(project.clientRef)}/_scope_${item.id}.json`;
+      const project = await db.projects.get(item.projectId);
+      console.log("[getRemoteItemPath] scope", item, project);
+      const context = {remoteContainer, project};
+      path = resolveFilePath({folderTemplate, fileTemplate, context, item});
       break;
     }
 
     case "LISTING": {
-      const project = getProject(item.projectId);
-      fileName = `_listing_${item.id}.json`;
-      path = `${dataPath(project.clientRef)}/_listing_${item.id}.json`;
-      break;
-    }
-
-    case "RELS_SCOPE_ITEM": {
-      const scope = getScope(item.scopeId);
-      const project = getProject(scope.projectId);
-      fileName = `_relsScopeItem_${item.scopeId}.json`;
-      path = `${dataPath(project.clientRef)}/_relsScopeItem_${
-        item.scopeId
-      }.json`;
+      const project = await db.projects.get(item.projectId);
+      const context = {remoteContainer, project};
+      console.log("[getRemoteItemPath] scope", item, context);
+      path = resolveFilePath({folderTemplate, fileTemplate, context, item});
       break;
     }
 
     case "ENTITY": {
-      const listing = getListing(item.listingId);
-      const project = getProject(listing.projectId);
-      fileName = `_${item.createdBy}.json`;
-      path = `${basePath(project.clientRef)}/_listings/_data_${
-        item.listingId
-      }/_${item.createdBy}.json`;
+      const listing = await db.listings.get(item.listingId);
+      const project = await db.projects.get(listing.projectId);
+      const context = {remoteContainer, project};
+      console.log("[getRemoteItemPath] entity", item, context);
+      path = resolveFilePath({folderTemplate, fileTemplate, context, item});
+      break;
     }
 
     case "FILE": {
-      const listing = getListing(item.listingId);
-      const project = getProject(listing.projectId);
-      const base = `${basePath(project.clientRef)}/_listings/_${listing.key}_${
-        item.listingId
-      }`;
-      const folder = item.isImage
-        ? `_images_${item.createdBy}`
-        : `_files_${item.createdBy}`;
-
-      fileName = item.name;
-      path = `${base}/${folder}/${item.name}`;
+      const project = projectsById[item.projectId];
+      const context = {remoteContainer, project};
+      path = resolveFilePath({folderTemplate, fileTemplate, context, item});
+      break;
     }
 
     default:
       path = null;
   }
 
-  return {path, fileName};
+  return {path};
 }

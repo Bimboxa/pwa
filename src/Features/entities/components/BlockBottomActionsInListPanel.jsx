@@ -50,7 +50,7 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
     setLoading(true);
     //
     if (!entity.id) {
-      const newEntity = await create(entity);
+      const newEntity = await create(entity, {updateSyncFile: true});
       if (tempMarker) {
         const {id: entityId, listingId: listingId} = newEntity;
         await createMarker({...tempMarker, entityId, listingId});
@@ -58,7 +58,8 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
       }
       dispatch(setNewEntity({}));
     } else {
-      await update(entity.id, entity);
+      console.log("update entity", entity);
+      await update(entity.id, entity, {updateSyncFile: true});
       dispatch(setIsEditingEntity(false));
       dispatch(setEditedEntity({}));
     }

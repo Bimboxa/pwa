@@ -7,13 +7,13 @@ export default function getProjectByClientRef(clientRef) {
     .first()
     .then((project) => {
       if (!project) {
-        console.error(`Project with clientRef ${clientRef} not found`);
+        console.log(`Project with clientRef ${clientRef} not found in local`);
         return null;
       }
       return project;
     })
     .catch((error) => {
-      console.error("Error fetching project by clientRef:", error);
+      console.log("Error fetching project by clientRef:", error);
       return null;
     });
 }

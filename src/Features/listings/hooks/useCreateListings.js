@@ -4,12 +4,13 @@ import {nanoid} from "@reduxjs/toolkit";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
+import getDateString from "Features/misc/utils/getDateString";
 
-export default function useCreateListings(options) {
+export default function useCreateListings() {
   const createdBy = useUserEmail();
   const createdAt = getDateString(new Date());
 
-  const create = async ({listings, scope}) => {
+  const create = async ({listings, scope}, options) => {
     const listingsClean = listings.map((listing) => {
       return {
         ...listing,
@@ -24,17 +25,18 @@ export default function useCreateListings(options) {
     await db.listings.bulkAdd(listingsClean);
 
     // update sync file
-    await Promise.all(
-      listingsClean.map((listing) => {
-        return updateItemSyncFile(
-          {
+    if (options.updateSyncFile) {
+      await Promise.all(
+        listingsClean.map((listing) => {
+          return updateItemSyncFile({
             item: listing,
             type: "LISTING",
-          },
-          {updateSyncFile: options?.updateSyncFile}
-        );
-      })
-    );
+            updatedAt: options.updatedAt,
+            syncAt: options.syncAt,
+          });
+        })
+      );
+    }
   };
 
   return create;

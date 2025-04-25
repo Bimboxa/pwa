@@ -1,4 +1,4 @@
-export default function getSortedListings(listings, sortedIds) {
+export default function getSortedListings(listings, sortedIdsObjects) {
   // edge case
   if (!listings) return;
 
@@ -13,7 +13,7 @@ export default function getSortedListings(listings, sortedIds) {
 
   // sort listings
 
-  sortedIds = sortedIds || [];
+  const sortedIds = sortedIdsObjects?.map((l) => l.id) || [];
 
   const sortedListings = [];
 

@@ -48,21 +48,21 @@ export default function useSelectRemoteScope() {
 
       if (!localProject) {
         // step 2 - fetch project data
-        const {path} = getRemoteItemPath({
+        const {path} = await getRemoteItemPath({
           item: remoteProject,
           type: "PROJECT",
         });
         const projectFile = await remoteProvider.downloadFile(path);
         const result = await jsonFileToObjectAsync(projectFile);
         const _project = result.data;
+        console.log(
+          "[useSelectRemoteScope] project from syncFile remote",
+          _project
+        );
 
         // case 1 - no local - no remote
         if (!_project) {
-          const project = await createProject({
-            clientRef,
-            name: remoteProject.name,
-          });
-          projectId = project.id;
+          console.log("error selecting remote scope - no project");
         } else {
           // case 2 - no local - remote
           await createProject(
@@ -87,24 +87,27 @@ export default function useSelectRemoteScope() {
       if (!localScope) {
         const name = remoteScope.name;
         const clientRef = remoteScope.clientRef;
-        const sortedListingsIds = remoteScope.sortedListingsIds ?? [];
+        const sortedListings = remoteScope.sortedListings ?? [];
         const createdBy = remoteScope.createdBy;
         const createdAt = remoteScope.createdAt;
         const id = remoteScope.id;
 
-        await createScope({
-          id,
-          name,
-          clientRef,
-          projectId,
-          createdBy,
-          createdAt,
-          sortedListingsIds,
-        });
+        await createScope(
+          {
+            id,
+            name,
+            clientRef,
+            projectId,
+            createdBy,
+            createdAt,
+            sortedListings,
+          },
+          {updateSyncFile: true}
+        );
       }
-      dispatch(setSelectedScopeId(scope.id));
+      dispatch(setSelectedScopeId(id));
     } catch (e) {
-      console.log("error selecting remote scope", scope, e);
+      console.log("error selecting remote scope", e);
     }
   };
 

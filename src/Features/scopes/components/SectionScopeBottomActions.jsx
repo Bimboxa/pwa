@@ -7,6 +7,7 @@ import useUpdateScope from "../hooks/useUpdateScope";
 import {Box, Button} from "@mui/material";
 import getListingsToCreateFromAppConfig from "Features/listings/utils/getListingsToCreateFromAppConfig";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import updateSyncFile from "Features/sync/services/updateSyncFile";
 
 export default function SectionScopeBottomActions({
   forceNew,
@@ -48,13 +49,16 @@ export default function SectionScopeBottomActions({
     if (loading) return;
     setLoading(true);
     if (scope.id) {
-      await update(scope);
+      await update(scope, {updateSyncFile: true});
       if (onSaved) onSaved(scope);
     } else {
       const name = scope.name;
       const clientRef = scope.clientRef;
       const projectId = newScopeProjectId;
-      const newScope = await create({name, clientRef, projectId, newListings});
+      const newScope = await create(
+        {name, clientRef, projectId, newListings},
+        {updateSyncFile: true}
+      );
       if (onSaved) onSaved(newScope);
     }
     setLoading(false);

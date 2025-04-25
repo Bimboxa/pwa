@@ -1,0 +1,366 @@
+name: "Configuration LEI"
+version: "18/04/2025"
+
+# COLORS
+
+colors:
+  purple700: &purple700 "#7B1FA2"
+  purple900: &purple900 "#4A148C"
+  red300: &red300 "#E57373"
+  red800: &red800 "#C62828"
+  orange300: &orange300 "#FF9800"
+  orange800: &orange800 "#EF6C00"
+  blue800: &blue800 "#1976D2"
+  blue700: &blue700 "#0288D1"
+  blue300: &blue300 "#4FC3F7"
+  green900: &green900 "#1B5E20"
+  grey900: &grey900 "#212121"
+
+# STRINGS
+
+strings:
+  general:
+    projectAndScope: "Périmètre des données"
+    select: "Sélectionnez un dossier / lot"
+
+  project:
+    nameSingular: "Dossier"
+    namePlural: "Dossiers"
+    seeAll: "Tous les dossiers"
+    new: "Nouveau dossier"
+    create: "Créez un nouveau dossier"
+
+  scope:
+    nameSingular: "Lot / mission"
+    namePlural: "Lots - missions"
+    seeAll: "Tous les lots"
+    new: "Nouveau lot / mission"
+    create: "Créez un nouveau lot"
+
+  presetConfig:
+    title: "Mission"
+    select: "Sélectionnez une mission"
+
+# REMOTE CONTAINERS
+
+remoteContainers:
+  - service: "DROPBOX"
+    name: "Dropbox"
+    path: "/1 = Client DB/LEI"
+    clientId: "t3in2phwzao0ph6"
+
+remoteProjectsContainers:
+  - service: "DROPBOX"
+    name: "Dropbox"
+    path: "/1 = Client DB/LEI/1 = Dossiers"
+  - service: "GOOGLE_DRIVE"
+    name: "Google Drive"
+
+sync:
+  canSyncLocalProject: false
+  canSyncLocalScope: true
+
+# ENTITY MODEL
+
+entityModelsObject:
+  projectData:
+    key: projectData
+    type: KEY_VALUE
+
+  map:
+    key: map
+    type: MAP
+    strings:
+      labelNew: Nouveau fond de plan
+    labelKey: label
+    fieldsObject:
+      label:
+        key: label
+        type: text
+        label: Nom
+      image:
+        key: image
+        type: image
+        label: Image
+
+  zone:
+    key: zone
+    type: ZONE_ENTITY_MODEL
+    strings:
+      labelNew: Nouvelle pièce
+
+  material:
+    key: material
+    type: "ENTITY"
+    strings:
+      labelNew: Nouveau matériau
+    labelKey: description
+    fieldsObject:
+      category:
+        key: "category"
+        type: category
+        label: "Catégorie"
+        nomenclatureKey: "nomenclature1"
+      description:
+        key: description
+        type: text
+        label: Description
+      photo:
+        key: photo
+        type: image
+        label: Image
+      zones:
+        key: zones
+        type: zones
+        label: Pièces
+
+  comment:
+    key: comment
+    type: LOCATED_ENTITY
+    strings:
+      labelNew: Nouveau commentaire
+    labelKey: text
+    fieldsObject:
+      text:
+        key: text
+        type: text
+        label: Description
+        options:
+          multiline: true
+      image:
+        key: image
+        type: image
+        label: Image
+
+  sample:
+    type: LOCATED_ENTITY
+    key: sample
+    label: Prélèvement
+    strings:
+      labelNew: Nouveau prélèvement
+    labelKey: num
+    subLabelKey: description
+    fieldsObject:
+      num:
+        key: num
+        label: Numéro
+        type: text
+        options:
+          autoFocus: true
+          increment: auto
+      description:
+        key: description
+        label: Description (pièce & matériau)
+        type: text
+        options:
+          autoFocus: true
+          multiline: true
+      photo:
+        key: photo
+        label: Photo
+        type: image
+        options:
+          autoFocus: true
+          variant: auto
+      material:
+        key: material
+        label: "Matériau"
+        type: "entity"
+        relationKey: "material1" # used in the list specification.
+        entities:
+          - id: "wait"
+            label: "..."
+
+  inspection:
+    type: LOCATED_ENTITY
+    key: inspection
+    label: Sondage
+    strings:
+      labelNew: Nouveau sondage
+    labelKey: num
+    subLabelKey: description
+    fieldsObject:
+      num:
+        key: num
+        label: Numéro
+        type: text
+        options:
+          autoFocus: true
+          increment: auto
+      description:
+        key: description
+        label: Description (pièce & matériau)
+        type: text
+        options:
+          autoFocus: true
+          multiline: true
+      photo:
+        key: photo
+        label: Photo
+        type: image
+        options:
+          autoFocus: true
+          variant: auto
+
+  laboOrder:
+    label: Commande labo
+    type: ENTITY_PROPS
+    labelKey: order
+    actionsTemplate:
+      type: SELECT_OPTIONS
+      optionKey: order
+    props:
+      order:
+        key: order
+        type: options
+
+# PRESET LISTINGS
+
+presetListingsObject:
+  projectDataset:
+    key: projectDataset
+    uniqueByProject: true # do not re-create if the listing exists.
+    name: Affaire
+    entityModelKey: projectData
+    table: keyValuePairs
+    color: *grey900
+    iconKey: dataObject
+    formTemplate:
+      fields:
+        - key: name
+          label: Nom de l'affaire
+          type: text
+        - key: address
+          label: Adresse
+          type: text
+          options:
+            multiline: true
+
+  mapsFromPhotos:
+    key: mapsFromPhotos
+    name: Fonds de plan (photos)
+    entityModelKey: map
+    table: maps
+    color: *purple700
+    iconKey: map
+
+  mapsFromPdf:
+    key: mapsFromPdf
+    name: Fonds de plan (pdf archi)
+    uniqueByProject: true
+    entityModelKey: map
+    table: maps
+    color: *purple900
+    iconKey: map
+
+  zones:
+    key: zones
+    name: Pièces
+    entityModelKey: zone
+    table: zones
+    color: *red300
+    iconKey: room
+
+  nomenclature1:
+    key: nomenclature1
+    name: "NFX 46-020"
+    entityModelKey: category
+    color: *orange800
+    iconKey: category
+
+  materials:
+    name: Matériaux
+    entityModelKey: material
+    table: entities
+    color: *orange300
+    iconKey: material
+    zoningKey: zones
+
+  samples:
+    key: samples
+    name: Prélèvements
+    entityModelKey: sample
+    table: entities
+    color: *blue800
+    iconKey: sample
+    sortBy:
+      key: num
+      order: desc
+    relatedEntities: # list the modelEntityKey of the related entities
+      material1:
+        listingsKeys:
+          - materials
+        listingsIds:
+          - COMPUTED # this is a computed value when creating the list.
+
+  observations:
+    name: Sondages
+    entityModelKey: inspection
+    table: entities
+    color: *blue700
+    iconKey: info
+    sortBy:
+      key: num
+      order: desc
+
+  locations:
+    name: Localisations
+    entityModelKey: location
+    table: entities
+    color: *blue300
+    iconKey: location
+
+  comments:
+    name: Commentaires
+    entityModelKey: comment
+    table: entities
+    color: *red800
+    iconKey: comment
+
+  laboOrders:
+    key: laboOrders
+    name: Commandes labo
+    entityModelKey: laboOrder
+    table: entitiesProps
+    color: *green900
+    iconKey: shoppingCart
+    targetKeys:
+      - samples
+
+# PRESET SCOPES
+
+presetScopesObject:
+  preset1:
+    key: preset1
+    name: Diagnostic amiante
+    description: Enregistrer vos prélèvements et sondages
+    listings:
+      - projectDataset
+      - mapsFromPhotos
+      - mapsFromPdf
+      - zones
+      - materials
+      - samples
+      - observations
+      - comments
+      - laboOrders
+
+  preset2:
+    key: preset2
+    name: Notes libres
+    description: Enregistrer vos commentaires
+    listings:
+      - comments
+
+  presetDebug:
+    key: presetDebug
+    name: Debug
+    listings:
+      - materials
+      - samples
+      - comments
+
+  preset3:
+    key: DEFAULT
+    name: Lot vide
+    listings: []

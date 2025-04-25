@@ -3,6 +3,7 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import db from "App/db/db";
 import getEntityPureDataAndFilesDataByKey from "../utils/getEntityPureDataAndFilesDataByKey";
+import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
 export default function useUpdateEntity() {
   // data
@@ -12,7 +13,7 @@ export default function useUpdateEntity() {
 
   // helper
 
-  const update = async (entityId, updates) => {
+  const update = async (entityId, updates, options) => {
     let changes = {
       ...updates,
       updatedBy: userEmail,
@@ -39,6 +40,16 @@ export default function useUpdateEntity() {
 
     try {
       await db.entities.update(entityId, pureData);
+
+      // sync file
+      if (options?.updateSyncFile) {
+        await updateItemSyncFile({
+          item: pureData,
+          type: "ENTITY",
+          updatedAt: options.updatedAt,
+          syncAt: options.syncAt,
+        });
+      }
     } catch (e) {
       console.log("[db] error updating the entity", e);
     }

@@ -66,12 +66,7 @@ export default function PageProjectsFromRemoteContainer() {
     dispatch(setPage("SCOPES_FROM_REMOTE_CONTAINER"));
     dispatch(setRemoteProject(remoteItem));
 
-    // dispatch(
-    //   setRemoteProjectContainer({
-    //     service: remoteContainer.service,
-    //     metadata: folder,
-    //   })
-    // );
+    // we create the project in the store if it doesn't exist yet.
   }
 
   // helpers

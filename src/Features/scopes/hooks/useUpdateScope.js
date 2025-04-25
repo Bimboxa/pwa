@@ -6,6 +6,7 @@ export default function useUpdateScope() {
   const updatedAt = getDateString(Date.now());
 
   const update = async (updates, options) => {
+    console.log("debug_2504 updateScope", updates, options);
     const coreUpdates = {...updates, updatedAt};
     delete coreUpdates.id;
     await db.scopes.update(updates.id, coreUpdates);
