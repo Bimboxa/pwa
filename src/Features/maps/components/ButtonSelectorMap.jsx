@@ -11,6 +11,7 @@ import {ArrowDropDown as Down} from "@mui/icons-material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import PanelSelectorMap from "./PanelSelectorMap";
+import DropboxChooserButton from "Features/dropbox/components/DropboxChooserButton";
 
 export default function ButtonSelectorMap() {
   const dispatch = useDispatch();
@@ -59,10 +60,13 @@ export default function ButtonSelectorMap() {
         </Box>
       </Button>
       <DialogGeneric open={open} onClose={() => setOpen(false)} title={selectS}>
-        <PanelSelectorMap
-          selection={loadedMainMap?.id}
-          onSelectionChange={handleMapSelectionChange}
-        />
+        <Box>
+          <DropboxChooserButton />
+          <PanelSelectorMap
+            selection={loadedMainMap?.id}
+            onSelectionChange={handleMapSelectionChange}
+          />
+        </Box>
       </DialogGeneric>
     </Box>
   );
