@@ -33,13 +33,26 @@ export default async function prepareSyncTasks({
     const direction = config.direction;
     const syncFileKey = config.syncFile.key;
 
-    const syncFilesRemote = await resolveSyncFilesRemote(
-      config,
-      context,
-      remoteProvider
-    );
-    const syncFilesLocal = await resolveSyncFilesLocal(config, context);
+    let syncFilesRemote = [];
+    if (direction !== "PUSH") {
+      syncFilesRemote = await resolveSyncFilesRemote(
+        config,
+        context,
+        remoteProvider
+      );
+    }
 
+    let syncFilesLocal = [];
+    if (direction !== "PULL") {
+      syncFilesLocal = await resolveSyncFilesLocal(config, context);
+    }
+
+    console.log(
+      "[prepareSyncTasks] syncFiles",
+      direction,
+      syncFilesLocal,
+      syncFilesRemote
+    );
     const [syncFiles_PULL, syncFiles_PUSH, syncFiles_BOTH] = intersectItems(
       syncFilesRemote,
       syncFilesLocal,

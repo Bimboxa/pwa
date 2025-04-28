@@ -27,6 +27,7 @@ export default function useCreateEntity() {
       {
         entityId,
         listingId: listing.id,
+        createdBy: userEmail,
       }
     );
 
@@ -35,8 +36,17 @@ export default function useCreateEntity() {
     // store files
     if (filesDataByKey) {
       await Promise.all(
-        Object.values(filesDataByKey).map(async (fileData) => {
+        Object.entries(filesDataByKey).map(async ([key, fileData]) => {
           await db.files.put(fileData);
+
+          if (options?.updateSyncFile) {
+            await updateItemSyncFile({
+              item: fileData,
+              type: "IMAGE",
+              updatedAt: options.updatedAt,
+              syncAt: options.syncAt,
+            });
+          }
         })
       );
     }

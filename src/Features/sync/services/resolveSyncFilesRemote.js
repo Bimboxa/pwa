@@ -8,23 +8,33 @@ import {
   resolveFoldersPaths,
 } from "../utils/resolversPath";
 
+import resolveComputedContext from "../utils/resolveComputedContext";
+import resolveIteration from "../utils/resolveIteration";
+import getParentPath from "Features/misc/utils/getParentPath";
+
 export default async function resolveSyncFilesRemote(
   config,
   context,
   remoteProvider
 ) {
   // edge case
-  if (!config || !context || remoteProvider) return [];
+  if (!config || !context || !remoteProvider) return [];
 
   // helpers
 
   const fileTemplate = config.syncFile.remoteFile;
   const folderTemplate = config.syncFile.remoteFolder;
+  const table = config.syncFile.localData.table;
 
-  const fetchBy = config.remoteMetadata.fetchBy;
+  const computedContext = config.computedContext;
 
+  const metadataFetchBy = config.remoteMetadata.fetchBy;
   const itemFromContext = config.remoteMetadata.itemFromContext;
-  const iteration = config.remoteMetadata.iteration;
+  const iterationToResolve = config.remoteMetadata.iteration;
+
+  const fetchBy = config.remoteToLocal.fetchBy;
+  const pathToItemTemplate = config.remoteToLocal.pathToItemTemplate;
+  const itemPathSeparator = config.remoteToLocal.itemPathSeparator;
 
   // helper - context
 
@@ -34,20 +44,26 @@ export default async function resolveSyncFilesRemote(
   );
   context = {...context, ...computedContextResolved};
 
-  //mai
-  switch (fetchBy) {
+  // helper - iteration
+  let iteration = null;
+  if (iterationToResolve)
+    iteration = resolveIteration(iterationToResolve, context);
+
+  //main
+  switch (metadataFetchBy) {
     case "FILE": {
       if (itemFromContext) {
         const item = context[itemFromContext];
         const filePath = resolveFilePath({
           folderTemplate,
           fileTemplate,
+          context,
           item,
         });
         const fileMetadata = await remoteProvider.fetchFileMetadata(filePath);
         const updatedAtRemote = fileMetadata.lastModifiedAt;
         //
-        return [{filePath, updatedAtRemote}];
+        return [{filePath, updatedAtRemote, fetchBy, table}];
       } else {
         return null;
       }
@@ -61,6 +77,8 @@ export default async function resolveSyncFilesRemote(
       return filesMetada.map((metadata) => ({
         filePath: metadata.path,
         updatedAtRemote: metadata.lastModifiedAt,
+        fetchBy,
+        table,
       }));
     }
 
@@ -79,6 +97,9 @@ export default async function resolveSyncFilesRemote(
           syncFiles.push({
             filePath: metadata.path,
             updatedAtRemote: metadata.lastModifiedAt,
+            fetchBy,
+            table,
+            pathToItemTemplate,
           });
         });
       }
@@ -96,9 +117,18 @@ export default async function resolveSyncFilesRemote(
         const filesMetadata =
           await remoteProvider.fetchFilesMetadataFromParentFolder(parentFolder);
         filesMetadata.forEach((metadata) => {
+          const filePath = metadata.path;
+          const itemPath = itemPathSeparator
+            ? filePath.split(itemPathSeparator).pop()
+            : null;
+
           syncFiles.push({
-            filePath: metadata.path,
+            filePath,
             updatedAtRemote: metadata.lastModifiedAt,
+            fetchBy,
+            table,
+            pathToItemTemplate,
+            itemPath,
           });
         });
       }

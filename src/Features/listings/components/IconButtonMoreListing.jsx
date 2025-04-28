@@ -49,6 +49,7 @@ export default function IconButtonMoreListing() {
   function handleRefresh() {
     dispatch(triggerEntitiesUpdate());
   }
+
   async function handleRename(newName) {
     console.log("[IconButtonMoreListing] handleRename", newName);
     await updateListing(

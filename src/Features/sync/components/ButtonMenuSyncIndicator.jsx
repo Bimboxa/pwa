@@ -5,6 +5,9 @@ import {useSelector, useDispatch} from "react-redux";
 import {setOpenPanelSync} from "../syncSlice";
 
 import useIsSignedIn from "Features/auth/hooks/useIsSignedIn";
+import useSyncFilesToPush from "../hooks/useSyncFilesToPush";
+import useRemoteContainer from "../hooks/useRemoteContainer";
+import useSaveShortcut from "Features/layout/hooks/useSaveShortcut";
 
 import {Box, IconButton, Tooltip, Badge} from "@mui/material";
 
@@ -12,8 +15,7 @@ import BlockSyncIndicator from "./BlockSyncIndicator";
 import PanelSync from "./PanelSync";
 
 import DialogFsOrMenu from "Features/layout/components/DialogFsOrMenu";
-import useSyncFilesToPush from "../hooks/useSyncFilesToPush";
-import useRemoteContainer from "../hooks/useRemoteContainer";
+import useUploadChanges from "../hooks/useUploadChanges";
 
 export default function ButtonMenuSyncIndicator() {
   const dispatch = useDispatch();
@@ -27,9 +29,19 @@ export default function ButtonMenuSyncIndicator() {
   const isSignedIn = useIsSignedIn();
   const open = useSelector((s) => s.sync.openPanelSync);
   const remoteContainer = useRemoteContainer();
-
   const syncFilesToPush = useSyncFilesToPush();
-  console.log("[debug] syncFilesToPush", syncFilesToPush);
+
+  // data - func
+
+  const uploadSyncFiles = useUploadChanges();
+
+  // data - saveShortcut
+
+  const onSave = () => {
+    console.log("save");
+    uploadSyncFiles();
+  };
+  useSaveShortcut(onSave);
 
   // state
 

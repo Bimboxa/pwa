@@ -74,7 +74,7 @@ export default async function resolveSyncFilesLocal(config, context) {
             });
             const syncFile = await db.syncFiles.get(filePath);
             const updatedAtLocal = syncFile?.updatedAt;
-            return {filePath, updatedAtLocal};
+            return {filePath, updatedAtLocal, entry: item};
           })
         );
       }

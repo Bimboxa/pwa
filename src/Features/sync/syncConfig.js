@@ -6,6 +6,7 @@ export const syncFileByItemType = {
     remoteFile: "_project.json",
     localData: {
       table: "projects",
+      getItemFromKey: "clientRef",
     },
   },
   SCOPE: {
@@ -16,6 +17,7 @@ export const syncFileByItemType = {
     remoteFile: "_scope_{{id}}.json",
     localData: {
       table: "scopes",
+      getItemFromKey: "id",
     },
   },
   LISTING: {
@@ -26,6 +28,7 @@ export const syncFileByItemType = {
     remoteFile: "_listing_{{id}}.json",
     localData: {
       table: "listings",
+      getItemFromKey: "id",
     },
   },
   ENTITY: {
@@ -36,6 +39,7 @@ export const syncFileByItemType = {
     remoteFile: "_{{createdBy}}.json",
     localData: {
       table: "entities",
+      getItemsFromKeys: ["listingId", "createdBy"],
     },
   },
   IMAGE: {
@@ -46,6 +50,7 @@ export const syncFileByItemType = {
     localData: {
       table: "files",
       filterBy: {key: "fileType", value: "IMAGE"},
+      getItemFromKey: "fileName",
     },
   },
 };
@@ -160,6 +165,8 @@ const syncConfig = {
     },
     remoteToLocal: {
       fetchBy: "FILE",
+      itemPathSeparator: "/_images/",
+      pathToItemTemplate: "_listing_{{listingId}}/_{{createdBy}}/{{fileName}}",
     },
     localToRemote: {
       writeMode: "TABLE_ENTRY_TO_FILE",
