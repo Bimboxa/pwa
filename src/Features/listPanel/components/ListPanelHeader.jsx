@@ -33,7 +33,7 @@ export default function ListPanelHeader({open}) {
         </Typography>
         <IconButtonMoreInHeader />
       </Paper>
-      {deviceType !== "MOBILE" && <ButtonCloseListPanel />}
+      {deviceType !== "MOBILE" && open && <ButtonCloseListPanel />}
     </Box>
   );
 }

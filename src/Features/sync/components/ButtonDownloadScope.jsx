@@ -85,7 +85,7 @@ export default function ButtonDownloadScope() {
     // main
     setLoading(true);
     await syncService(options);
-    //setLoading(false);
+    setLoading(false);
   }
   return (
     <>
