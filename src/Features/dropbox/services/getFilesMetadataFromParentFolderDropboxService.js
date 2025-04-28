@@ -22,9 +22,10 @@ export default async function getFilesMetadataFromParentFolderDropboxService({
 
     const targetFiles = [];
 
-    for (const targetFolder in targetFolders) {
+    for (const targetFolder of targetFolders) {
       const folderPath = targetFolder.path_display;
-      const filesResult = await dbx.filesListFolder(folderPath);
+      const folderId = targetFolder.id;
+      const filesResult = await dbx.filesListFolder({path: folderPath});
       filesResult.result.entries.forEach((entry) => targetFiles.push(entry));
     }
     return targetFiles;

@@ -1,15 +1,17 @@
 import testIsPngImage from "Features/files/utils/testIsPngImage";
 import getDateString from "Features/misc/utils/getDateString";
+import getFileIdFromEntityAndFile from "./getFileIdFromEntityAndFile";
 
 export default function getEntityPureDataAndFilesDataByKey(entity, options) {
   // edge case
 
   if (!entity || (!entity.id && !options.entityId)) return;
 
-  // data
+  // data - options
 
   const entityId = entity.id ?? options.entityId;
   const listingId = options?.listingId;
+  const createdBy = options?.createdBy;
 
   // init
 
@@ -19,31 +21,41 @@ export default function getEntityPureDataAndFilesDataByKey(entity, options) {
 
   // loop
 
-  console.log("[getPureData] entity", entity);
   Object.entries(entity).forEach(([key, value]) => {
     if (value && value.file instanceof File) {
       // test
       testHasFiles = true;
 
+      // helpers
+      const extension = value.file.name.split(".").pop();
+      const isImage = [
+        "png",
+        "PNG",
+        "jpg",
+        "JPG",
+        "jpeg",
+        "JPEG",
+        "gif",
+      ].includes(extension);
+
       // fileData
-      const fileId = key + "::" + entityId;
+      const fileName = getFileIdFromEntityAndFile({
+        entityId,
+        file: value.file,
+        key,
+      });
       const fileData = {
-        id: fileId,
+        fileName,
         file: value.file,
         listingId,
-        entityId,
-        entityKey: key,
-        name: value.file.name,
-        size: value.file.size,
-        type: value.file.type,
-        lastModifiedAt: getDateString(value.file.lastModified),
+        createdBy,
       };
 
       // pureData
       const newValue = {...value};
       delete newValue.file;
-      newValue.fileId = fileId;
-      if (testIsPngImage(value.file)) newValue.isImage = true;
+      newValue.fileName = fileName;
+      if (isImage) newValue.isImage = true;
       pureData[key] = newValue;
 
       // filesDataByKey
@@ -53,6 +65,7 @@ export default function getEntityPureDataAndFilesDataByKey(entity, options) {
     }
   });
 
+  console.log("[getPureData] entity pureData", pureData);
   // response
   const response = {pureData};
   if (testHasFiles) response.filesDataByKey = filesDataByKey;

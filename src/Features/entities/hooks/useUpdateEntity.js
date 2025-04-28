@@ -26,7 +26,14 @@ export default function useUpdateEntity() {
       {
         entityId,
         listingId: listing?.id,
+        createdBy: userEmail,
       }
+    );
+
+    console.log(
+      "[useUpdateEntity] pureData-filesDataByKey",
+      pureData,
+      filesDataByKey
     );
 
     // store files
@@ -34,6 +41,15 @@ export default function useUpdateEntity() {
       await Promise.all(
         Object.values(filesDataByKey).map(async (fileData) => {
           await db.files.put(fileData);
+
+          if (options?.updateSyncFile) {
+            await updateItemSyncFile({
+              item: fileData,
+              type: "IMAGE",
+              updatedAt: options.updatedAt,
+              syncAt: options.syncAt,
+            });
+          }
         })
       );
     }

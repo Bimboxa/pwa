@@ -57,11 +57,16 @@ export default class DropboxRemote {
   // FETCH FILES METADATA
 
   async fetchFilesMetadataFromFolder(path) {
-    const metadatas = await getFilesMetadataDropboxService({
-      path,
-      accessToken: this.accessToken,
-    });
-    return metadatas.map(dropboxToGenericMetadata);
+    try {
+      const metadatas = await getFilesMetadataDropboxService({
+        path,
+        accessToken: this.accessToken,
+      });
+      return metadatas?.map(dropboxToGenericMetadata);
+    } catch (e) {
+      console.log("error fetching files metadata", path, e);
+      return null;
+    }
   }
 
   async fetchFilesMetadataFromParentFolder(path) {
@@ -69,7 +74,7 @@ export default class DropboxRemote {
       path,
       accessToken: this.accessToken,
     });
-    return metadatas.map(dropboxToGenericMetadata);
+    return metadatas?.map(dropboxToGenericMetadata);
   }
 
   // DOWNLOAD FILE

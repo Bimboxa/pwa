@@ -117,12 +117,17 @@ export default function useEntities(options) {
             );
             await Promise.all(
               entriesWithImages.map(async ([key, value]) => {
-                const file = await db.files.get(value.fileId);
-                entityWithImages[key] = {
-                  ...value,
-                  file,
-                  imageUrlClient: URL.createObjectURL(file.file),
-                };
+                if (value.fileName) {
+                  const file = await db.files.get(value.fileName);
+                  console.log("debug_2804_2 file from files db", file);
+                  if (file && file.file) {
+                    entityWithImages[key] = {
+                      ...value,
+                      file,
+                      imageUrlClient: URL.createObjectURL(file.file),
+                    };
+                  }
+                }
               })
             );
             return entityWithImages;

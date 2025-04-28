@@ -57,6 +57,14 @@ export default async function getRemoteItemPath({type, item}) {
       break;
     }
 
+    case "IMAGE": {
+      const listing = await db.listings.get(item.listingId);
+      const project = await db.projects.get(listing.projectId);
+      const context = {remoteContainer, project};
+      path = resolveFilePath({folderTemplate, fileTemplate, context, item});
+      break;
+    }
+
     default:
       path = null;
   }

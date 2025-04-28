@@ -13,13 +13,21 @@ export default async function syncTaskRemoteToLocal({task, remoteProvider}) {
   const folderPath = task.folderPath;
   const table = task.table;
   const filterFilesById = task.filterFilesById;
+  const pathToItemTemplate = task.pathToItemTemplate;
+  const itemPath = task.itemPath;
 
   // main
 
   switch (fetchBy) {
     case "FILE": {
       const file = await remoteProvider.downloadFile(filePath);
-      await updateTableWithFileAsync({table, file});
+      await updateTableWithFileAsync({
+        table,
+        file,
+        filePath,
+        pathToItemTemplate,
+        itemPath,
+      });
       break;
     }
 
