@@ -35,17 +35,20 @@ export default function ButtonMenuSyncIndicator() {
 
   const uploadSyncFiles = useUploadChanges();
 
-  // data - saveShortcut
-
-  const onSave = () => {
-    console.log("save");
-    uploadSyncFiles();
-  };
-  useSaveShortcut(onSave);
-
   // state
 
   const [anchorEl, setAnchorEl] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+
+  // data - saveShortcut
+
+  const onSave = async () => {
+    console.log("save");
+    setSyncing(true);
+    await uploadSyncFiles();
+    setSyncing(false);
+  };
+  useSaveShortcut(onSave);
 
   // helpers - color
 
@@ -73,11 +76,16 @@ export default function ButtonMenuSyncIndicator() {
         <Box
           sx={{display: "flex", alignItems: "center", justifyContent: "center"}}
         >
-          <Badge badgeContent={syncCounter} color="warning">
+          <Badge
+            badgeContent={syncCounter}
+            color="warning"
+            variant={syncing ? "dot" : "standard"}
+          >
             <IconButton
               onClick={handleClick}
               disabled={!isSignedIn}
               size="small"
+              loading={syncing}
             >
               <BlockSyncIndicator color={color} />
             </IconButton>
