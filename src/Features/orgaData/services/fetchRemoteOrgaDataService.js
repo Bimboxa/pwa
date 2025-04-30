@@ -7,7 +7,10 @@ export default async function fetchRemoteOrgaDataService({
   orgaData,
   remoteProvider,
 }) {
-  const file = await remoteProvider.downloadFile(orgaData.remotePath);
+  console.log("[fetchRemoteOrgaDataService] orgaData", orgaData.key);
+  const test = await remoteProvider.fetchFileMetadata(orgaData.remotePath);
+  console.log("[fetchRemoteOrgaDataService] test", test);
+  const file = await remoteProvider.downloadFile(test.id);
   console.log("[donwloaded file]", file);
   //
   let item;
@@ -25,13 +28,18 @@ export default async function fetchRemoteOrgaDataService({
         dataStructure: orgaData.dataStructure,
       };
       break;
+
     case "FILE":
+      console.log("[fetchRemoteOrgaDataService] orgaData2", orgaData);
       item = {
         key: orgaData.key,
         file: file,
         dataStructure: orgaData.dataStructure,
       };
       break;
+
+    default:
+      throw new Error("Unsupported data structure");
   }
   //
   await db.orgaData.put(item);
