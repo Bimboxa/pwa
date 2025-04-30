@@ -19,41 +19,7 @@ export default function FieldTextVariantGrid({
   label,
   size = 8,
 }) {
-  const recognitionRef = useRef(null);
-
-  useEffect(() => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      console.warn("Speech Recognition non supportée par ce navigateur.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "fr-FR";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      onChange(transcript);
-    };
-
-    recognition.onerror = (event) => {
-      console.error("Erreur de reconnaissance vocale :", event.error);
-    };
-
-    recognitionRef.current = recognition;
-  }, [onChange]);
-
-  const handleMicClick = () => {
-    recognitionRef.current?.start();
-  };
-
-  function handleChange(event) {
-    const newValue = event.target.value;
-    onChange(newValue);
-  }
+  // helpers
 
   return (
     <Grid2
@@ -69,7 +35,12 @@ export default function FieldTextVariantGrid({
         <FieldText
           value={value}
           onChange={onChange}
-          options={{fullWidth: true, ...options}}
+          options={{
+            fullWidth: true,
+            ...options,
+            hideMic: true,
+            hideBorder: true,
+          }}
           label={label}
         />
       </Grid2>

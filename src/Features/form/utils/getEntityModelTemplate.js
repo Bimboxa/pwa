@@ -2,7 +2,8 @@ export default function getEntityModelTemplate(entityModel, options) {
   // options
 
   const zonesTree = options?.zonesTree;
-  const entitiesByRelationKey = options?.entitiesByRelationKey;
+  const entitiesByRelationKey = options?.entitiesByRelationKey ?? {};
+  const nomenclaturesByKey = options?.nomenclaturesByKey ?? {};
 
   // main
 
@@ -19,6 +20,11 @@ export default function getEntityModelTemplate(entityModel, options) {
         entities: entitiesByRelationKey
           ? entitiesByRelationKey[field.relationKey]
           : [],
+      };
+    } else if (field.type === "category") {
+      return {
+        ...field,
+        nomenclature: nomenclaturesByKey[field.nomenclatureKey],
       };
     } else {
       return field;

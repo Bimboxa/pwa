@@ -8,14 +8,20 @@ import ButtonBasicMobile from "Features/layout/components/ButtonBasicMobile";
 import BoxCenter from "Features/layout/components/BoxCenter";
 import testIsPngImage from "Features/files/utils/testIsPngImage";
 import getImageSizeAsync from "Features/misc/utils/getImageSize";
+import resizeImageToLowResolution from "Features/images/utils/resizeImageToLowResolution";
 
 export default function FieldImageVariantGrid({
   label,
   value,
   onChange,
   size = 8,
+  options,
 }) {
   const inputRef = useRef(null);
+
+  // options
+
+  const maxSize = options?.maxSize;
 
   // strings
 
@@ -39,7 +45,10 @@ export default function FieldImageVariantGrid({
   }
 
   async function handleChange(event) {
-    const file = event.target.files[0];
+    let file = event.target.files[0];
+
+    if (maxSize) file = await resizeImageToLowResolution(file, maxSize * 1024);
+
     const imageUrlClient = URL.createObjectURL(file);
     const isImage = testIsPngImage(file);
     if (file && isImage) {

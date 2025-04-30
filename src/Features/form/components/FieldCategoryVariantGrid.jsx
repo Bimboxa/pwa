@@ -10,17 +10,20 @@ import {
 import {ArrowForwardIos as Forward} from "@mui/icons-material";
 
 import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
+import {get} from "firebase/database";
+import getNodeById from "Features/tree/utils/getNodeById";
 
-export default function FieldZonesVariantGrid({
+export default function FieldCategoryVariantGrid({
   value,
   onChange,
-  zonesTree,
+  nomenclature,
   label,
   size = 8,
   formContainerRef,
 }) {
-  zonesTree = zonesTree || [];
-  console.log("[FieldZones] zonesTree", zonesTree);
+  // helpers
+
+  const items = nomenclature?.items || [];
 
   // state
 
@@ -28,17 +31,20 @@ export default function FieldZonesVariantGrid({
 
   // helpers
 
-  const valueLabel = value ? `${value?.ids.length} pièce(s)` : "Aucune zone";
   const bbox = formContainerRef?.current?.getBoundingClientRect();
 
   // helpers
 
-  const selection = value?.ids ?? [];
+  const selection = value?.id ? [value.id] : [];
+  const node = getNodeById(value?.id, nomenclature?.items);
+
+  const valueLabel = value?.id ? node.label : "Aucune catégorie";
 
   // handlers
 
-  function handleChange(zoneIds) {
-    const newZones = {ids: zoneIds};
+  function handleChange(id) {
+    console.log("[FieldCategoryVariantGrid] handleChange", id);
+    const newZones = {id};
     onChange(newZones);
     setOpen(false);
   }
@@ -64,9 +70,10 @@ export default function FieldZonesVariantGrid({
             }}
           >
             <SelectorVariantTree
-              items={zonesTree}
+              items={items}
               selection={selection}
               onChange={handleChange}
+              multiSelect={false}
             />
           </Box>
         </ClickAwayListener>

@@ -1,3 +1,4 @@
+import {Box} from "@mui/material";
 import FormGeneric from "Features/form/components/FormGeneric";
 
 export default function FormEntity({
@@ -14,7 +15,7 @@ export default function FormEntity({
   }
 
   return (
-    <>
+    <Box sx={{width: 1, bgcolor: "common.white"}}>
       <FormGeneric
         template={template}
         item={entity}
@@ -22,6 +23,6 @@ export default function FormEntity({
         onItemChange={handleItemChange}
         selectorContainerRef={selectorContainerRef}
       />
-    </>
+    </Box>
   );
 }

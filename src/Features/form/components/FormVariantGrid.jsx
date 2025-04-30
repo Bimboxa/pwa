@@ -6,6 +6,7 @@ import FieldTextVariantGrid from "./FieldTextVariantGrid";
 import FieldImageVariantGrid from "./FieldImageVariantGrid";
 import FieldZonesVariantGrid from "./FieldZonesVariantGrid";
 import FieldEntityVariantGrid from "./FieldEntityVariantGrid";
+import FieldCategoryVariantGrid from "./FieldCategoryVariantGrid";
 
 import getTemplateFields from "../utils/getTemplateFields";
 
@@ -61,6 +62,7 @@ export default function FormVariantGrid({
               key={field.key}
               label={field.label}
               width={field.width}
+              options={field.options}
               value={value}
               onChange={(newValue) =>
                 handleFieldValueChange(field.key, newValue)
@@ -80,7 +82,7 @@ export default function FormVariantGrid({
                 handleFieldValueChange(field.key, newValue)
               }
               zonesTree={field.zonesTree}
-              selectorContainerRef={selectorContainerRef}
+              formContainerRef={formContainerRef}
             />
           );
         }
@@ -96,6 +98,22 @@ export default function FormVariantGrid({
                 handleFieldValueChange(field.key, newValue)
               }
               entities={field.entities}
+              formContainerRef={formContainerRef}
+            />
+          );
+        }
+
+        if (field?.type === "category") {
+          return (
+            <FieldCategoryVariantGrid
+              key={field.key}
+              label={field.label}
+              width={field.width}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              nomenclature={field.nomenclature}
               formContainerRef={formContainerRef}
             />
           );

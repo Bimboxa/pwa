@@ -1,3 +1,4 @@
+import {useRef} from "react";
 import {useDispatch} from "react-redux";
 
 import {
@@ -17,14 +18,16 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import BlockBottomActionsInListPanel from "./BlockBottomActionsInListPanel";
 import {setOpenPanelListItem} from "Features/listPanel/listPanelSlice";
 
-export default function SectionEntity({selectorContainerRef}) {
+export default function SectionEntity() {
   const dispatch = useDispatch();
+  const selectorContainerRef = useRef(null);
+
   // data
 
   const entity = useEntity();
+  console.log("[SectionEntity] entity", entity);
 
   const template = useEntityFormTemplate();
-  console.log("entityTemplate", template);
 
   // handlers
 
@@ -43,6 +46,7 @@ export default function SectionEntity({selectorContainerRef}) {
 
   return (
     <Box
+      ref={selectorContainerRef}
       sx={{
         width: 1,
         display: "flex",

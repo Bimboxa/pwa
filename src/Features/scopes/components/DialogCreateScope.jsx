@@ -15,10 +15,6 @@ export default function DialogCreateScope({project, open, onClose, onCreated}) {
 
   async function handleSaved(scope) {
     console.log("[DialogCreateScope] new scope saved", scope);
-    // if (createRemote) {
-    //   const file = await createRemoteScopeFile({scope, project});
-    //   console.log("[DialogCreateScope] file created", file);
-    // }
     if (onCreated) onCreated(scope);
     onClose();
   }

@@ -3,6 +3,7 @@ import Dexie from "dexie";
 const db = new Dexie("appDB");
 
 db.version(5).stores({
+  orgaData: "key", // {key,data,dataStructure}
   projects: "id,clientRef",
   scopes: "id,projectId",
   listings: "id,name",
