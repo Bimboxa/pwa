@@ -13,18 +13,22 @@ export default function SectionOrgaData() {
 
   // helpers
 
-  const orgaDataItems = Object.entries(appConfig.orgaData).map(
-    ([key, orgaData]) => {
-      return {
-        ...orgaData,
-        orgaDataInDb: orgaDataByKey?.[key],
-      };
-    }
-  );
+  let orgaDataItems = [];
+
+  if (appConfig?.orgaData) {
+    orgaDataItems = Object.entries(appConfig?.orgaData).map(
+      ([key, orgaData]) => {
+        return {
+          ...orgaData,
+          orgaDataInDb: orgaDataByKey?.[key],
+        };
+      }
+    );
+  }
 
   return (
     <List>
-      {orgaDataItems.map((item) => (
+      {orgaDataItems?.map((item) => (
         <ListItem key={item.key}>
           <BlockOrgaData orgaData={item} />
         </ListItem>
