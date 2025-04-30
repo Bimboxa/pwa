@@ -41,18 +41,19 @@ export const makeGetListingsByOptions = (options) =>
       if (filterByListingsIds) {
         listings = listings.filter((l) => filterByListingsIds.includes(l?.id));
       }
-      if (mapsOnly) {
-        listings = listings?.filter((l) => l?.entityModel?.type === "MAP");
-      }
 
-      // relation
-      if (withEntityModel) {
+      // relations. Need entityModel for mapsOnly
+      if (withEntityModel || mapsOnly) {
         listings = listings?.map((listing) => {
           return {
             ...listing,
             entityModel: entityModelsObject?.[listing?.entityModelKey] ?? null,
           };
         });
+      }
+
+      if (mapsOnly) {
+        listings = listings?.filter((l) => l?.entityModel?.type === "MAP");
       }
 
       return listings;

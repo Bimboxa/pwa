@@ -2,6 +2,7 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useListingEntityModel from "Features/listings/hooks/useListingEntityModel";
 import useZonesTree from "Features/zones/hooks/useZonesTree";
 import useEntities from "./useEntities";
+import useNomenclaturesByKey from "Features/nomenclatures/hooks/useNomenclaturesByKey";
 
 import getEntityModelTemplate from "Features/form/utils/getEntityModelTemplate";
 import getListingRelatedEntitiesListingsIds from "Features/listings/utils/getListingRelatedEntitiesListingsIds";
@@ -11,6 +12,7 @@ export default function useEntityFormTemplate() {
 
   const {value: listing} = useSelectedListing();
   const entityModel = useListingEntityModel(listing);
+  const _nomenclaturesByKey = useNomenclaturesByKey();
 
   // helpers - listing relationKeys
 
@@ -35,11 +37,23 @@ export default function useEntityFormTemplate() {
     entitiesByRelationKey[key] = entities;
   });
 
+  // helpers - nomenclaturesByKey
+
+  const nomenclaturesByKey = {};
+
+  Object.entries(listing?.relatedNomenclatures ?? {}).forEach(
+    ([key, targetKey]) => {
+      const nomenclature = _nomenclaturesByKey?.[targetKey];
+      if (nomenclature) nomenclaturesByKey[key] = nomenclature;
+    }
+  );
+
   // helpers - template
 
   const template = getEntityModelTemplate(entityModel, {
     zonesTree,
     entitiesByRelationKey,
+    nomenclaturesByKey,
   });
 
   return template;

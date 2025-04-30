@@ -6,7 +6,12 @@ import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
 import getNodesToExpand from "../utils/getNodesToExpand";
 
-export default function SelectorVariantTree({items, selection, onChange}) {
+export default function SelectorVariantTree({
+  items,
+  selection,
+  onChange,
+  multiSelect = false,
+}) {
   // strings
 
   const saveS = "Enregistrer";
@@ -44,8 +49,8 @@ export default function SelectorVariantTree({items, selection, onChange}) {
     >
       <Box sx={{flex: 1, overflow: "auto"}}>
         <RichTreeViewPro
-          checkboxSelection
-          multiSelect
+          checkboxSelection={multiSelect}
+          multiSelect={multiSelect}
           items={items}
           selectedItems={tempSelection}
           onSelectedItemsChange={handleSelectionChange}

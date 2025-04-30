@@ -24,12 +24,5 @@ export default function getSortedListings(listings, sortedIdsObjects) {
     }
   });
 
-  // add unsorted listings
-  unsortedIds.forEach((id) => {
-    if (listingsById[id]) {
-      sortedListings.push(listingsById[id]);
-    }
-  });
-
   return sortedListings;
 }

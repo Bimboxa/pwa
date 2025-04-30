@@ -8,6 +8,7 @@ import SectionListEntitiesInListPanel from "Features/entities/components/Section
 import SectionTreeZonesInListPanel from "Features/zones/components/SectionTreeZonesInListPanel";
 import SectionListEntityPropsInListPanel from "Features/entityProps/components/SectionListEntityPropsInListPanel";
 import SectionDataObjectInListPanel from "Features/dataObjects/components/SectionDataObjectInListPanel";
+import SectionNomenclatureInListPanel from "Features/nomenclatures/components/SectionNomenclatureInListPanel";
 
 export default function ListPanelListItems() {
   // data
@@ -24,6 +25,7 @@ export default function ListPanelListItems() {
     ZONE_ENTITY_MODEL: <SectionTreeZonesInListPanel />,
     ENTITY_PROPS: <SectionListEntityPropsInListPanel />,
     KEY_VALUE: <SectionDataObjectInListPanel />,
+    NOMENCLATURE_ITEM: <SectionNomenclatureInListPanel />,
   };
 
   const component = componentByType[entityModel?.type] ?? (

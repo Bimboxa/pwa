@@ -18,6 +18,7 @@ export default function FieldText({value, onChange, options, label}) {
   const showLabel = options?.showLabel;
   const hideMic = options?.hideMic;
   const autoFocus = options?.autoFocus;
+  const hideBorder = options?.hideBorder;
 
   const [recording, setRecording] = useState(false);
 
@@ -91,6 +92,15 @@ export default function FieldText({value, onChange, options, label}) {
             </InputAdornment>
           ) : null,
         },
+      }}
+      sx={{
+        "& .MuiOutlinedInput-root": hideBorder
+          ? {
+              "& fieldset": {
+                border: "none",
+              },
+            }
+          : {},
       }}
     />
   );
