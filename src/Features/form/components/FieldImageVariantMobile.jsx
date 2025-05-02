@@ -1,4 +1,4 @@
-import {useRef, useEffect} from "react";
+import {useRef, useEffect, useState} from "react";
 
 import {Box, IconButton, Button, Paper} from "@mui/material";
 import {Image as ImageIcon} from "@mui/icons-material";
@@ -22,6 +22,10 @@ export default function FieldImageVariantMobile({
 
   const maxSize = options?.maxSize;
 
+  // state
+
+  const [loading, setLoading] = useState(false);
+
   // strings
 
   const takePictureS = "Prendre une photo";
@@ -44,7 +48,7 @@ export default function FieldImageVariantMobile({
   }
 
   async function handleChange(event) {
-    const file = event.target.files[0];
+    let file = event.target.files[0];
 
     if (maxSize) file = await resizeImageToLowResolution(file, maxSize * 1024);
 
@@ -61,10 +65,10 @@ export default function FieldImageVariantMobile({
   }
 
   return (
-    <BoxFlexVStretch>
+    <BoxFlexVStretch sx={{}}>
       <BoxCenter sx={{position: "relative", width: 1}}>
         <Box sx={{width: 1, height: "70%", p: 2, position: "relative"}}>
-          <Paper sx={{height: 1, width: 1}}>
+          <Paper sx={{height: 1, width: 1, bgcolor: "background.default"}}>
             {imageSrc && (
               <img
                 src={imageSrc}

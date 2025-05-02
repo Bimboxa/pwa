@@ -1,23 +1,35 @@
-import {Typography, Box} from "@mui/material";
+import {useState, useEffect} from "react";
+
+import {Typography, Box, Button} from "@mui/material";
 import FieldText from "./FieldText";
 
 export default function FieldTextVariantMobile({
   value,
-  lastValue,
   onChange,
   options,
   label,
-  onNext,
 }) {
   console.log("[FieldTextVariantMobile] autoFocus", options?.autoFocus);
 
+  // string
+
+  const saveS = "Enregistrer";
+
+  // state
+
+  const [tempText, setTempText] = useState(value);
+  useEffect(() => {
+    setTempText(value);
+  }, [value]);
+
   // handlers
 
+  function handleSave() {
+    onChange(tempText);
+  }
+
   function handleChange(newValue) {
-    if (newValue !== value) {
-      onChange(newValue);
-      //if (onNext) onNext();
-    }
+    setTempText(newValue);
   }
 
   return (
@@ -35,11 +47,11 @@ export default function FieldTextVariantMobile({
 
       <FieldText
         value={value}
-        lastValue={lastValue}
         onChange={handleChange}
-        options={{...options, fullWidth: true}}
+        options={{...options, fullWidth: true, autoFocus: true, hideMic: true}}
         label={label}
       />
+      <Button onClick={handleSave}>{saveS}</Button>
     </Box>
   );
 }

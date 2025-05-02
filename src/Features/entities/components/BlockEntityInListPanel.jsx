@@ -23,13 +23,17 @@ export default function BlockEntityInListPanel() {
   // data
 
   const entity = useEntity();
-  const {value: listing} = useSelectedListing();
+  const {value: listing} = useSelectedListing({withEntityModel: true});
   const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
   const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);
 
+  // helper - label
+
+  const newS = listing.entityModel?.strings.labelNew;
+
   // helpers
 
-  const label = entity?.label ?? entity?.id;
+  const label = entity?.id ? entity?.[listing?.entityModel?.labelKey] : newS;
   const id = entity?.id;
   const bgcolor = listing?.color ?? theme.palette.primary.main;
 

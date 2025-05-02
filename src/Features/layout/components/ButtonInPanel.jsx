@@ -1,6 +1,6 @@
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 
-import {Box, Button, Paper} from "@mui/material";
+import {Box, Button, Paper, Typography} from "@mui/material";
 
 export default function ButtonInPanel({
   label,
@@ -23,7 +23,7 @@ export default function ButtonInPanel({
           onClick={onClick}
           loading={loading}
         >
-          {label}
+          <Typography>{label}</Typography>
         </Button>
       </Paper>
     </Box>
