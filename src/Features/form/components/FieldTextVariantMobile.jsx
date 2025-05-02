@@ -51,7 +51,11 @@ export default function FieldTextVariantMobile({
         options={{...options, fullWidth: true, autoFocus: true, hideMic: true}}
         label={label}
       />
-      <Button onClick={handleSave}>{saveS}</Button>
+      <Box sx={{display: "flex", justifyContent: "end", p: 1}}>
+        <Button size="large" onClick={handleSave} variant="contained">
+          {saveS}
+        </Button>
+      </Box>
     </Box>
   );
 }
