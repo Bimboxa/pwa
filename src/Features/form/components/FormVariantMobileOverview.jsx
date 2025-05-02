@@ -3,6 +3,7 @@ import {Box, List, ListItemButton, Button} from "@mui/material";
 import FieldTextVariantMobileOverview from "./FieldTextVariantMobileOverview";
 import FieldImageVariantMobileOverview from "./FieldImageVariantMobileOverview";
 import FieldCategoryVariantMobileOverview from "./FieldCategoryVariantMobileOverview";
+import FieldOptionVariantMobileOverview from "./FieldOptionVariantMobileOverview";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonBasicMobile from "Features/layout/components/ButtonBasicMobile";
@@ -63,6 +64,19 @@ export default function FormVariantMobileOverview({
                     nomenclature={nomenclature}
                   />
                 )}
+                {type === "option" && (
+                  <FieldOptionVariantMobileOverview
+                    value={value}
+                    label={label}
+                  />
+                )}
+                {/* {type === "option" && (
+                  <FieldOptionVariantMobileOverview
+                    value={value}
+                    label={label}
+                    nomenclature={nomenclature}
+                  />
+                )} */}
               </ListItemButton>
             );
           })}

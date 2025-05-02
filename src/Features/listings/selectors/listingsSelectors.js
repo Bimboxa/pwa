@@ -10,7 +10,7 @@ export const makeGetListingsByOptions = (options) =>
     [
       (state) => state.listings.listingsUpdatedAt,
       (state) => state.listings.listingsById,
-      (state) => state.appConfig.value.entityModelsObject,
+      (state) => state.appConfig.value?.entityModelsObject,
       (state) => state.scopes.scopesById[options?.filterByScopeId],
     ],
     (listingsUpdatedAt, listingsById, entityModelsObject, scope) => {
