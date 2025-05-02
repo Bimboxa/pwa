@@ -15,7 +15,7 @@ export default function FormEntity({
   }
 
   return (
-    <Box sx={{width: 1, bgcolor: "common.white"}}>
+    <Box sx={{width: 1}}>
       <FormGeneric
         template={template}
         item={entity}
