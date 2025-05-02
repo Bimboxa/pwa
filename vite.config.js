@@ -10,6 +10,10 @@ export default defineConfig({
     svgr(),
     VitePWA({
       registerType: "autoUpdate",
+      workbox: {
+        clientsClaim: true,
+        skipWaiting: true,
+      },
       includeAssets: [
         "favicon.svg",
         "favicon.ico",
