@@ -17,9 +17,12 @@ import {Provider} from "react-redux";
 // routes
 
 import {Routes, Route} from "react-router-dom";
+
+import AuthGate from "Features/auth/components/AuthGate";
 import MainAppLayout from "./MainAppLayout";
 import PageLanding from "Features/init/components/PageLanding";
 import PageRemoteContainerRedirect from "Features/sync/components/PageRemoteContainerRedirect";
+import PageSignIn from "Features/auth/components/PageSignIn";
 
 // dexie
 
@@ -40,15 +43,18 @@ function App({pca, runningIn}) {
         <Provider store={store}>
           <ThemeProvider theme={theme}>
             <CssBaseline />
-            <Routes>
-              <Route path="/" element={<MainAppLayout />} />
-              <Route
-                path="/remote-container-redirect"
-                element={<PageRemoteContainerRedirect />}
-              />
+            <AuthGate>
+              <Routes>
+                <Route path="/" element={<MainAppLayout />} />
+                <Route
+                  path="/remote-container-redirect"
+                  element={<PageRemoteContainerRedirect />}
+                />
 
-              <Route path="/landing" element={<PageLanding />} />
-            </Routes>
+                <Route path="/landing" element={<PageLanding />} />
+                <Route path="/sign-in" element={<PageSignIn />} />
+              </Routes>
+            </AuthGate>
           </ThemeProvider>
         </Provider>
       </RemoteTokenDataProvider>
