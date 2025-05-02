@@ -5,6 +5,7 @@ import {useDispatch} from "react-redux";
 import {setSelectedMapId} from "Features/maps/mapsSlice";
 
 import useLoadedMainMap from "Features/mapEditor/hooks/useLoadedMainMap";
+import useIsMobile from "Features/layout/hooks/useIsMobile";
 
 import {Button, Box, Typography} from "@mui/material";
 import {ArrowDropDown as Down} from "@mui/icons-material";
@@ -28,6 +29,7 @@ export default function ButtonSelectorMap() {
   // data
 
   const loadedMainMap = useLoadedMainMap();
+  const isMobile = useIsMobile();
 
   // helper
 
@@ -50,7 +52,7 @@ export default function ButtonSelectorMap() {
         onClick={handleClick}
         endIcon={<Down />}
         variant="contained"
-        size="small"
+        size={isMobile ? "medium" : "small"}
         sx={{borderRadius: 2}}
       >
         <Box

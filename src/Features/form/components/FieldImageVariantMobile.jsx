@@ -1,6 +1,6 @@
 import {useRef, useEffect, useState} from "react";
 
-import {Box, IconButton, Button, Paper} from "@mui/material";
+import {Box, IconButton, Button, Paper, CircularProgress} from "@mui/material";
 import {Image as ImageIcon} from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -33,7 +33,7 @@ export default function FieldImageVariantMobile({
   // effect - init
 
   useEffect(() => {
-    //if (!value) handleClick();
+    if (!value) handleClick();
   }, []);
 
   // helpers
@@ -50,7 +50,11 @@ export default function FieldImageVariantMobile({
   async function handleChange(event) {
     let file = event.target.files[0];
 
-    if (maxSize) file = await resizeImageToLowResolution(file, maxSize * 1024);
+    if (maxSize) {
+      setLoading(true);
+      file = await resizeImageToLowResolution(file, maxSize * 1024);
+      setLoading(false);
+    }
 
     const imageUrlClient = URL.createObjectURL(file);
     const isImage = testIsPngImage(file);
@@ -68,8 +72,18 @@ export default function FieldImageVariantMobile({
     <BoxFlexVStretch sx={{}}>
       <BoxCenter sx={{position: "relative", width: 1}}>
         <Box sx={{width: 1, height: "70%", p: 2, position: "relative"}}>
-          <Paper sx={{height: 1, width: 1, bgcolor: "background.default"}}>
-            {imageSrc && (
+          <Paper
+            sx={{
+              height: 1,
+              width: 1,
+              bgcolor: "background.default",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "column",
+            }}
+          >
+            {imageSrc && !loading && (
               <img
                 src={imageSrc}
                 alt={label}
@@ -80,6 +94,7 @@ export default function FieldImageVariantMobile({
                 }}
               />
             )}
+            {loading && <CircularProgress />}
           </Paper>
           <Box
             sx={{
