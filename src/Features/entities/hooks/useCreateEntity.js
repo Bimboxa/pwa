@@ -18,6 +18,10 @@ export default function useCreateEntity() {
   const create = async (data, options) => {
     console.log("[useCreateEntity] data", data, options);
 
+    // table
+
+    const table = listing.table;
+
     // ids
     const entityId = nanoid();
 
@@ -62,7 +66,7 @@ export default function useCreateEntity() {
     };
     try {
       console.log("[db] adding entity ...", entity);
-      await db.entities.add(entity);
+      await db[table].add(entity);
 
       if (options?.updateSyncFile) {
         await updateItemSyncFile({

@@ -32,11 +32,9 @@ export default function useUploadChanges() {
       provider: remoteContainer.service,
     });
 
-    await Promise.all(
-      syncFilesToPush.map(async (syncFile) => {
-        await uploadSyncFile({remoteProvider, syncFile, context});
-      })
-    );
+    for (const syncFile of syncFilesToPush) {
+      await uploadSyncFile({remoteProvider, syncFile, context});
+    }
   };
 
   return upload;
