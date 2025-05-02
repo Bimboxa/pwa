@@ -14,6 +14,7 @@ db.version(5).stores({
   files: "fileName,listingId,itemId", // {fileName, listingId, itemId, fileType}
   relationsEntities:
     "id,sourceListingId,sourceEntityId,targetEntityId,relationType",
+  reports: "id,listingId", // {id,listingId}
   syncFiles: "path", // {path,updatedAt} // updatedAt = local updates when one table is updated.
 });
 
