@@ -30,12 +30,12 @@ export default function FormVariantMobileOverview({
         flexDirection: "column",
         width: 1,
         height: 1,
-        bgcolor: "background.default",
-        pb: 2,
+        //bgcolor: "background.default",
+        //pb: 2,
       }}
     >
       <BoxFlexVStretch sx={{overflowY: "auto"}}>
-        <List>
+        <List disablePadding>
           {template?.fields.map((field) => {
             const value = item?.[field.key];
             const type = field.type;

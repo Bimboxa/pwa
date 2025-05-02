@@ -7,6 +7,8 @@ import useUpdateProject from "../hooks/useUpdateProject";
 
 import {Box, Button} from "@mui/material";
 
+import ButtonInPanel from "Features/layout/components/ButtonInPanel";
+
 export default function SectionProjectBottomActions({forceNew, onSaved}) {
   // strings
 
@@ -41,14 +43,7 @@ export default function SectionProjectBottomActions({forceNew, onSaved}) {
   }
   return (
     <Box sx={{width: 1, p: 1}}>
-      <Button
-        fullWidth
-        disabled={loading}
-        variant="contained"
-        onClick={handleSave}
-      >
-        {saveS}
-      </Button>
+      <ButtonInPanel onClick={handleSave} label={saveS} />
     </Box>
   );
 }
