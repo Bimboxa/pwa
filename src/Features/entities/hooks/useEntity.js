@@ -28,7 +28,7 @@ export default function useEntity() {
   if (!entity?.id) {
     entity = {
       ...newEntity,
-      label: newEntity.label ?? entityModel?.strings?.labelNew,
+      //label: newEntity.label ?? entityModel?.strings?.labelNew, // we don't want to override the label key if it exists when creating a new entity.
     };
   } else if (isEditingEntity) {
     label = editedEntity[entityModel?.labelKey];

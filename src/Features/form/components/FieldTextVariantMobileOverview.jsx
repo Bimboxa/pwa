@@ -5,12 +5,12 @@ export default function FieldTextVariantMobileOverview({label, value}) {
 
   // helpers
 
-  const text = value ?? "-";
+  const text = value?.length > 0 ? value : "-";
 
   return (
     <Box sx={{width: 1}}>
       <Typography
-        variant="body2"
+        variant="caption"
         color="text.secondary"
         sx={{whiteSpace: "pre"}}
       >
