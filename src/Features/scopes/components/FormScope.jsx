@@ -1,6 +1,22 @@
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import FormGeneric from "Features/form/components/FormGeneric";
 
 export default function FormScope({scope, onChange}) {
+  // data
+
+  const appConfig = useAppConfig();
+
+  // helpers
+
+  const presetScopesObject = appConfig?.presetScopesObject ?? {};
+  const configOptions = Object.values(presetScopesObject).map((scope) => {
+    return {
+      key: scope.key,
+      label: scope.name,
+    };
+  });
+
   // const
 
   const template = {
@@ -14,6 +30,12 @@ export default function FormScope({scope, onChange}) {
         key: "clientRef",
         label: "Réf.",
         type: "text",
+      },
+      {
+        key: "presetConfigKey",
+        label: appConfig?.strings?.presetConfig?.title,
+        type: "option",
+        options: configOptions,
       },
     ],
   };
@@ -29,7 +51,6 @@ export default function FormScope({scope, onChange}) {
       template={template}
       item={scope}
       onItemChange={handleItemChange}
-      forceVariantGrid={true}
     />
   );
 }

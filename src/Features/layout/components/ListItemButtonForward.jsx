@@ -1,3 +1,5 @@
+import useIsMobile from "Features/layout/hooks/useIsMobile";
+
 import {
   ListItem,
   ListItemButton,
@@ -7,11 +9,13 @@ import {
 } from "@mui/material";
 import {ArrowForwardIos as Forward} from "@mui/icons-material";
 
-export default function ListItemButtonForward({label, onClick}) {
+export default function ListItemButtonForward({label, onClick, divider}) {
+  const isMobile = useIsMobile();
   return (
     <ListItem
+      divider={divider}
       disablePadding
-      dense
+      dense={!isMobile}
       secondaryAction={
         <IconButton onClick={onClick}>
           <Forward color="action" />

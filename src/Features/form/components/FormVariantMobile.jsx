@@ -5,6 +5,7 @@ import {Box} from "@mui/material";
 import FieldTextVariantMobile from "./FieldTextVariantMobile";
 import FieldImageVariantMobile from "./FieldImageVariantMobile";
 import FieldCategoryVariantMobile from "./FieldCategoryVariantMobile";
+import FieldOptionVariantMobile from "./FieldOptionVariantMobile";
 
 //import FieldNumberVariantMobile from "./FieldNumberVariantMobile";
 //import FieldColorVariantMobile from "./FieldColorVariantMobile";
@@ -92,7 +93,7 @@ export default function FormVariantMobile({
               key={field.key}
               label={field.label}
               width={field.width}
-              value={item[field.key]}
+              value={item?.[field.key]}
               onChange={(newValue) =>
                 handleFieldValueChange(field.key, newValue)
               }
@@ -104,7 +105,19 @@ export default function FormVariantMobile({
               key={field.key}
               label={field.label}
               nomenclature={field.nomenclature}
-              value={item[field.key]}
+              value={item?.[field.key]}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              options={field.options}
+            />
+          )}
+          {field?.type === "option" && (
+            <FieldOptionVariantMobile
+              key={field.key}
+              label={field.label}
+              valueOptions={field.valueOptions}
+              value={item?.[field.key]}
               onChange={(newValue) =>
                 handleFieldValueChange(field.key, newValue)
               }

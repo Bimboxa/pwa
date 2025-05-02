@@ -13,7 +13,7 @@ export default function getListingsToCreateFromAppConfig(
   const presetListingsObject = appConfig.presetListingsObject;
   const presetScopesObject = appConfig.presetScopesObject;
 
-  const presetScope = presetScopesObject[presetScopeKey];
+  const presetScope = presetScopesObject?.[presetScopeKey];
   const listingByKey = {};
 
   // edge case

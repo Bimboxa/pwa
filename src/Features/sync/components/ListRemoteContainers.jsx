@@ -8,6 +8,7 @@ import {
 import {ArrowForwardIos as Forward} from "@mui/icons-material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
+import ListItemButtonForward from "Features/layout/components/ListItemButtonForward";
 
 export default function ListRemoteContainers({containers, onClick}) {
   // render
@@ -16,23 +17,12 @@ export default function ListRemoteContainers({containers, onClick}) {
     <List dense>
       {containers.map((container) => {
         return (
-          <ListItem
-            divider
-            secondaryAction={
-              <BoxCenter>
-                <Forward color="action" />
-              </BoxCenter>
-            }
-            key={container.service}
-            disablePadding
-          >
-            <ListItemButton
-              key={container.service}
-              onClick={() => onClick(container)}
-            >
-              <ListItemText primary={container.name} />
-            </ListItemButton>
-          </ListItem>
+          <ListItemButtonForward
+            onClick={() => onClick(container)}
+            label={container.name}
+            key={container.name}
+            divider={true}
+          />
         );
       })}
     </List>

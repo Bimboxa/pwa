@@ -17,6 +17,7 @@ export default function SectionRemoteContainerDisconnected({onChange}) {
   // handlers
 
   function handleClick(container) {
+    console.log("[SectionRemoteContainerDisconnected] container", container);
     onChange(container);
   }
   return (
