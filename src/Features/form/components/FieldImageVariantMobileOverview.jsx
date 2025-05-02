@@ -16,13 +16,14 @@ export default function FieldImageVariantMobileOverview({label, value}) {
       <Typography variant="caption" color="text.secondary">
         {label}
       </Typography>
-      <Box sx={{p: 1}}>
+      <Box sx={{p: 1, width: 1}}>
         {imageSrc ? (
-          <Paper>
+          <Paper sx={{width: 1, display: "flex"}}>
             <img
               src={imageSrc}
               alt={label}
               style={{
+                borderRadius: "4px",
                 width: "100%",
                 maxHeight: "400px",
                 objectFit: "contain",

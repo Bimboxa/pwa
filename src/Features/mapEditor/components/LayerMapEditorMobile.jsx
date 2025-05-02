@@ -23,7 +23,7 @@ export default function LayerMapEditorMobile() {
         sx={{
           position: "absolute",
           left: "50%",
-          bottom: "8px",
+          bottom: "16px",
           transform: "translateX(-50%)",
           zIndex: 1,
         }}

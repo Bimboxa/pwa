@@ -29,7 +29,7 @@ export default function BlockEntityInListPanel() {
 
   // helper - label
 
-  const newS = listing.entityModel?.strings.labelNew;
+  const newS = listing?.entityModel?.strings.labelNew;
 
   // helpers
 
