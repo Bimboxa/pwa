@@ -12,6 +12,7 @@ import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 import {Box, Typography, Dialog, DialogTitle, Button} from "@mui/material";
 import {ArrowBackIos as Back} from "@mui/icons-material";
 
+import DialogGeneric from "Features/layout/components/DialogGeneric";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ListProjects from "Features/projects/components/ListProjects";
 import SectionRemoteProjectsContainers from "./SectionRemoteProjectsContainers";
@@ -136,17 +137,25 @@ export default function PageProjectSelector() {
             </Box>
           </Box>
         )}
-        <BarAppConfig />
+        <Box
+          sx={{
+            flexGrow: 1,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "end",
+          }}
+        >
+          <BarAppConfig />
+        </Box>
       </BoxFlexVStretch>
 
       {open && (
-        <Dialog open={open} onClose={() => setOpen(false)}>
-          <DialogTitle>{title}</DialogTitle>
+        <DialogGeneric title={title} open={open} onClose={() => setOpen(false)}>
           <SectionProject
             options={{forceNew: true}}
             onSaved={handleProjectSaved}
           />
-        </Dialog>
+        </DialogGeneric>
       )}
     </>
   );
