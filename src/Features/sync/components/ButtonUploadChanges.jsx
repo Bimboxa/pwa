@@ -37,7 +37,7 @@ export default function ButtonUploadChanges() {
         bgcolor="secondary.main"
         color="white"
         variant="text"
-        label="Télécharger les modifications"
+        label="Enregistrer les modifications"
         loading={loading}
         onClick={handleClick}
       />

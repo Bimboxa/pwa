@@ -2,12 +2,13 @@ import Dexie from "dexie";
 
 const db = new Dexie("appDB");
 
-db.version(5).stores({
+db.version(6).stores({
   orgaData: "key", // {key,data,dataStructure}
   projects: "id,clientRef",
   scopes: "id,projectId",
   listings: "id,name",
   entities: "id,listingId,[listingId+createdBy]",
+  maps: "id,listingId",
   entitiesProps:
     "id,[listingKey+targetEntityId],listingKey,targetListingKey,targetEntityId", // entityProps = {id,tarketListingKey,targetEntityId,props}
   markers: "id,mapId,targetListingId,targetEntityId", // marker = {id,mapId,x,y,targetListingId,targetEntityId}
