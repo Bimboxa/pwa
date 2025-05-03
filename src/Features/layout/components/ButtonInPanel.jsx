@@ -5,8 +5,8 @@ import {Box, Button, Paper, Typography} from "@mui/material";
 export default function ButtonInPanel({
   label,
   onClick,
-  bgcolor,
-  color,
+  bgcolor = "primary.main",
+  color = "white",
   loading,
   variant,
 }) {
@@ -19,11 +19,12 @@ export default function ButtonInPanel({
         <Button
           fullWidth
           size={size}
-          variant={variant ?? "contained"}
+          sx={{color: "inherit"}}
+          //variant={variant ?? "contained"}
           onClick={onClick}
           loading={loading}
         >
-          <Typography>{label}</Typography>
+          <Typography color="inherit">{label}</Typography>
         </Button>
       </Paper>
     </Box>
