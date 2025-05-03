@@ -12,7 +12,6 @@ import updateSyncFile from "Features/sync/services/updateSyncFile";
 export default function SectionScopeBottomActions({
   forceNew,
   newScopeProjectId,
-  presetConfigKey,
   onSaved,
 }) {
   // strings
@@ -36,17 +35,18 @@ export default function SectionScopeBottomActions({
 
   // helpers
 
-  // const newListings = presetConfig?.listings || [];
-  const newListings = getListingsToCreateFromAppConfig(
-    appConfig,
-    presetConfigKey
-  );
-  console.log("[debug] newListings", newListings);
-
   // handlers
 
   async function handleSave() {
     if (loading) return;
+
+    // const newListings = presetConfig?.listings || [];
+    const newListings = getListingsToCreateFromAppConfig(
+      appConfig,
+      scope?.presetConfig?.key
+    );
+    console.log("[debug] newListings", newListings);
+
     setLoading(true);
     if (scope.id) {
       await update(scope, {updateSyncFile: true});

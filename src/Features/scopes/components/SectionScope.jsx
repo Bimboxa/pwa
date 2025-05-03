@@ -60,16 +60,10 @@ export default function SectionScope({forceNew, onSaved, newScopeProjectId}) {
         <Box sx={{width: 1, mb: 2}}>
           {!loading && <FormScope scope={scope} onChange={handleChange} />}
         </Box>
-
-        <SectionNewScopePresetConfigs
-          presetConfigKey={presetConfigKey}
-          onChange={setPresetConfigKey}
-        />
       </BoxFlexVStretch>
       <SectionScopeBottomActions
         forceNew={forceNew}
         newScopeProjectId={newScopeProjectId}
-        presetConfigKey={presetConfigKey}
         onSaved={handleSaved}
       />
     </Box>
