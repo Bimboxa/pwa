@@ -17,6 +17,7 @@ export default function FieldOptionVariantMobile({
         const selected = value?.key === option.key;
         return (
           <ListItemButton
+            divider
             selected={selected}
             onClick={() => handleChange(option)}
             key={option.key}

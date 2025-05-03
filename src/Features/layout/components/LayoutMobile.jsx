@@ -9,6 +9,7 @@ import BottomBarMobile from "./BottomBarMobile";
 import ListPanel from "Features/listPanel/components/ListPanel";
 import PanelChatContainer from "./PanelChatContainer";
 import PanelShowable from "./PanelShowable";
+import DialogAppConfig from "Features/appConfig/components/DialogAppConfig";
 
 export default function LayoutMobile() {
   console.log("[debug] LayoutMobile");
@@ -29,39 +30,42 @@ export default function LayoutMobile() {
     : `translateX(-${listPanelWidth}px)`;
 
   return (
-    <BoxFlexV>
-      <TopBar />
-      <BoxFlexV sx={{position: "relative"}}>
-        <PanelShowable show={showViewer} sx={{position: "absolute", top: 0}}>
-          <SectionViewer />
-        </PanelShowable>
-        <PanelShowable show={showList} sx={{position: "absolute", top: 0}}>
-          <ListPanel />
-        </PanelShowable>
-      </BoxFlexV>
-      <BottomBarMobile />
-      <PanelChatContainer />
+    <>
+      <DialogAppConfig />
+      <BoxFlexV>
+        <TopBar />
+        <BoxFlexV sx={{position: "relative"}}>
+          <PanelShowable show={showViewer} sx={{position: "absolute", top: 0}}>
+            <SectionViewer />
+          </PanelShowable>
+          <PanelShowable show={showList} sx={{position: "absolute", top: 0}}>
+            <ListPanel />
+          </PanelShowable>
+        </BoxFlexV>
+        <BottomBarMobile />
+        <PanelChatContainer />
 
-      {openPanelListItem && (
-        <Box
-          sx={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            left: 0,
-            width: 1,
-            //transform,
-            zIndex: 100,
-            boxSizing: "border-box",
-            bgcolor: "background.default",
-            display: "flex",
-            flexDirection: "column",
-            pb: 2,
-          }}
-        >
-          <PanelListItem />
-        </Box>
-      )}
-    </BoxFlexV>
+        {openPanelListItem && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              left: 0,
+              width: 1,
+              //transform,
+              zIndex: 100,
+              boxSizing: "border-box",
+              bgcolor: "background.default",
+              display: "flex",
+              flexDirection: "column",
+              pb: 2,
+            }}
+          >
+            <PanelListItem />
+          </Box>
+        )}
+      </BoxFlexV>
+    </>
   );
 }

@@ -32,10 +32,10 @@ export default function FormScope({scope, onChange}) {
         type: "text",
       },
       {
-        key: "presetConfigKey",
+        key: "presetConfig",
         label: appConfig?.strings?.presetConfig?.title,
         type: "option",
-        options: configOptions,
+        valueOptions: configOptions,
       },
     ],
   };
