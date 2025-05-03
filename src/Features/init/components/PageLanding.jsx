@@ -9,7 +9,7 @@ export default function PageLanding() {
   const [fadeOut, setFadeOut] = useState(false);
   const [visible, setVisible] = useState(true);
 
-  const version = "v1.1";
+  const version = "v1.2";
 
   useEffect(() => {
     // Step 1: trigger fade out after delay

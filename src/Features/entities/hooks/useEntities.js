@@ -6,6 +6,7 @@ import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import {useLiveQuery} from "dexie-react-hooks";
 import db from "App/db/db";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 export default function useEntities(options) {
   // options
@@ -93,13 +94,14 @@ export default function useEntities(options) {
       // fetch entities
       console.log("[db] fetching entities", listingsIds);
       let entities = [];
+      const table = selectedListing?.table;
       if (listingsIds.length > 1) {
-        entities = await db.entities
+        entities = await db[table]
           .where("listingId")
           .anyOf(listingsIds)
           .toArray();
       } else if (listingsIds.length === 1) {
-        entities = await db.entities
+        entities = await db[table]
           .where("listingId")
           .equals(listingsIds[0])
           .toArray();
