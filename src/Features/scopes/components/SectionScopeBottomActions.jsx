@@ -4,10 +4,10 @@ import useScope from "../hooks/useScope";
 import useCreateScope from "../hooks/useCreateScope";
 import useUpdateScope from "../hooks/useUpdateScope";
 
-import {Box, Button} from "@mui/material";
 import getListingsToCreateFromAppConfig from "Features/listings/utils/getListingsToCreateFromAppConfig";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import updateSyncFile from "Features/sync/services/updateSyncFile";
+
+import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
 export default function SectionScopeBottomActions({
   forceNew,
@@ -63,16 +63,5 @@ export default function SectionScopeBottomActions({
     }
     setLoading(false);
   }
-  return (
-    <Box sx={{width: 1, p: 1}}>
-      <Button
-        fullWidth
-        disabled={loading}
-        variant="contained"
-        onClick={handleSave}
-      >
-        {saveS}
-      </Button>
-    </Box>
-  );
+  return <ButtonInPanel label={saveS} onClick={handleSave} loading={loading} />;
 }
