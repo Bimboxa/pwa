@@ -5,5 +5,9 @@ export default function PanelShowable({sx, children, show}) {
 
   const transform = show ? "translateX(0)" : "translateX(100%)";
 
-  return <Box sx={{width: 1, height: 1, transform, ...sx}}>{children}</Box>;
+  return (
+    <Box sx={{width: 1, ...(!sx.bottom && {height: 1}), transform, ...sx}}>
+      {children}
+    </Box>
+  );
 }

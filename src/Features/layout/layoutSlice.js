@@ -1,3 +1,4 @@
+import {bottomNavigationActionClasses} from "@mui/material";
 import {createSlice} from "@reduxjs/toolkit";
 import {setOpen} from "Features/listPanel/listPanelSlice";
 
@@ -6,6 +7,7 @@ const layoutInitialState = {
   deviceType: null, // "MOBILE" | "DESKTOP"
   //
   topBarHeight: 48,
+  bottomBarHeight: 56,
   //
   viewModeInMobile: "LIST", // "MAP" | "LIST"
   //
@@ -17,6 +19,9 @@ export const layoutSlice = createSlice({
   name: "layout",
   initialState: layoutInitialState,
   reducers: {
+    setBottomBarHeight: (state, action) => {
+      state.bottomBarHeight = action.payload;
+    },
     setDeviceType: (state, action) => {
       state.deviceType = action.payload;
     },
@@ -32,6 +37,8 @@ export const layoutSlice = createSlice({
 });
 
 export const {
+  setBottomBarHeight,
+  //
   setDeviceType,
   //
   setViewModeInMobile,

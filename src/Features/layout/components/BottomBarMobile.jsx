@@ -1,6 +1,11 @@
 import {useSelector, useDispatch} from "react-redux";
+import {useEffect, useRef} from "react";
 
-import {setViewModeInMobile, setOpenChat} from "../layoutSlice";
+import {
+  setViewModeInMobile,
+  setOpenChat,
+  setBottomBarHeight,
+} from "../layoutSlice";
 
 import {BottomNavigation, BottomNavigationAction, Paper} from "@mui/material";
 import {
@@ -13,6 +18,7 @@ import {setOpenAppConfig} from "Features/appConfig/appConfigSlice";
 
 export default function BottomBarMobile() {
   const dispatch = useDispatch();
+  const ref = useRef();
 
   // strings
 
@@ -20,6 +26,13 @@ export default function BottomBarMobile() {
   const mapLabel = "Plan";
   const listLabel = "Liste";
   const chatLabel = "IA";
+
+  // effect
+
+  useEffect(() => {
+    const height = ref.current.offsetHeight;
+    dispatch(setBottomBarHeight(height));
+  }, []);
 
   // data
 
@@ -41,7 +54,7 @@ export default function BottomBarMobile() {
   }
 
   return (
-    <Paper sx={{pb: 2}}>
+    <Paper ref={ref} sx={{pb: 2}}>
       <BottomNavigation
         value={viewModeInMobile}
         onChange={handleChange}
