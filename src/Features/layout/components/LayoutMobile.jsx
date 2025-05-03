@@ -20,6 +20,11 @@ export default function LayoutMobile() {
   const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
   const listPanelWidth = useSelector((s) => s.listPanel.width);
 
+  const topBarHeight = useSelector((s) => s.layout.topBarHeight);
+  const bottomBarHeight = useSelector((s) => s.layout.bottomBarHeight);
+
+  console.log("bottomBarHeight", bottomBarHeight);
+
   // helpers
 
   const showViewer = viewModeInMobile === "MAP";
@@ -35,10 +40,17 @@ export default function LayoutMobile() {
       <BoxFlexV>
         <TopBar />
         <BoxFlexV sx={{position: "relative"}}>
-          <PanelShowable show={showViewer} sx={{position: "absolute", top: 0}}>
+          <PanelShowable
+            show={showViewer}
+            sx={{position: "fixed", top: topBarHeight, bottom: bottomBarHeight}}
+            //sx={{position: "absolute", top: 0}}
+          >
             <SectionViewer />
           </PanelShowable>
-          <PanelShowable show={showList} sx={{position: "absolute", top: 0}}>
+          <PanelShowable
+            show={showList}
+            sx={{position: "fixed", top: topBarHeight, bottom: bottomBarHeight}}
+          >
             <ListPanel />
           </PanelShowable>
         </BoxFlexV>
@@ -48,7 +60,7 @@ export default function LayoutMobile() {
         {openPanelListItem && (
           <Box
             sx={{
-              position: "absolute",
+              position: "fixed",
               top: 0,
               bottom: 0,
               left: 0,
