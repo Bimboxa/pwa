@@ -7,6 +7,7 @@ import useListingsByScope from "../hooks/useListingsByScope";
 import DialogFs from "Features/layout/components/DialogFs";
 import ListListings from "./ListListings";
 import {Box} from "@mui/material";
+import BoxFlexHStretch from "Features/layout/components/BoxFlexHStretch";
 
 export default function PanelSelectorListing({
   onListingSelected,
@@ -30,13 +31,13 @@ export default function PanelSelectorListing({
   }
 
   return (
-    <Box sx={{width: 1}}>
+    <BoxFlexHStretch sx={{overflow: "auto"}}>
       <ListListings
         loading={loading}
         listings={listings}
         onClick={handleListingClick}
         selection={selection}
       />
-    </Box>
+    </BoxFlexHStretch>
   );
 }

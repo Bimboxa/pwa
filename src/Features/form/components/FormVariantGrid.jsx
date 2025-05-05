@@ -10,12 +10,7 @@ import FieldCategoryVariantGrid from "./FieldCategoryVariantGrid";
 
 import getTemplateFields from "../utils/getTemplateFields";
 
-export default function FormVariantGrid({
-  template,
-  item,
-  onItemChange,
-  selectorContainerRef,
-}) {
+export default function FormVariantGrid({template, item, onItemChange}) {
   const formContainerRef = useRef(null);
 
   // state

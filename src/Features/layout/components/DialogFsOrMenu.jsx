@@ -3,6 +3,7 @@ import useIsMobile from "Features/layout/hooks/useIsMobile";
 import DialogFs from "./DialogFs";
 
 import {Menu} from "@mui/material";
+import BoxFlexVStretch from "./BoxFlexVStretch";
 
 export default function DialogFsOrMenu({
   open,

@@ -1,8 +1,14 @@
+import useIsMobile from "Features/layout/hooks/useIsMobile";
+
 import {List} from "@mui/material";
 
 import ListItemEntityVariantDefault from "./ListItemEntityVariantDefault";
 
 export default function ListEntities({entities, onClick, selection}) {
+  // data
+
+  const isMobile = useIsMobile();
+
   // handlers
 
   function handleEntityClick(entity) {
@@ -10,7 +16,7 @@ export default function ListEntities({entities, onClick, selection}) {
   }
 
   return (
-    <List dense disablePadding>
+    <List dense={!isMobile} disablePadding>
       {entities?.map((entity) => (
         <ListItemEntityVariantDefault
           key={entity.id}

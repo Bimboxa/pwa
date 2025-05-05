@@ -1,14 +1,18 @@
 import {useState} from "react";
 
+import useIsMobile from "Features/layout/hooks/useIsMobile";
+import useSendMessage from "../hooks/useSendMessage";
+import useProcessAnswer from "../hooks/useProcessAnswer";
+
 import {Box, IconButton} from "@mui/material";
 import {Send as SendIcon} from "@mui/icons-material";
 
 import FieldText from "Features/form/components/FieldText";
-import useSendMessage from "../hooks/useSendMessage";
-import useProcessAnswer from "../hooks/useProcessAnswer";
 
 export default function ChatInput() {
   const [input, setInput] = useState("");
+
+  const isMobile = useIsMobile();
 
   const sendMessage = useSendMessage();
   const processAnswer = useProcessAnswer();
@@ -33,7 +37,7 @@ export default function ChatInput() {
       overflow="auto"
     >
       <FieldText
-        options={{fullWidth: true, multiline: true}}
+        options={{fullWidth: true, multiline: true, hideMic: isMobile}}
         variant="outlined"
         size="small"
         placeholder="Type your question..."

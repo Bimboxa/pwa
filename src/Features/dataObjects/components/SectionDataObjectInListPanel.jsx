@@ -21,7 +21,7 @@ export default function SectionDataObjectInListPanel() {
         template={formTemplate}
         item={dataObject}
         onItemChange={handleDataObjectChange}
-        forceVariantGrid={true}
+        //forceVariantGrid={true}
       />
     </Box>
   );

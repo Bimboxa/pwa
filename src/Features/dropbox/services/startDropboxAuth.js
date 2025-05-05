@@ -32,15 +32,15 @@ export default async function startDropboxAuth(clientId, options) {
     window.location.href = authUrl;
   }
 
-  return new Promise((resolve) => {
-    const listener = (event) => {
-      if (event.origin !== window.location.origin) return;
-      if (event.data.type === "DROPBOX_AUTH" && event.data.code) {
-        window.removeEventListener("message", listener);
-        if (popup) popup.close();
-        resolve(event.data.code);
-      }
-    };
-    window.addEventListener("message", listener);
-  });
+  // return new Promise((resolve) => {
+  //   const listener = (event) => {
+  //     if (event.origin !== window.location.origin) return;
+  //     if (event.data.type === "DROPBOX_AUTH" && event.data.code) {
+  //       window.removeEventListener("message", listener);
+  //       if (popup) popup.close();
+  //       resolve(event.data.code);
+  //     }
+  //   };
+  //   window.addEventListener("message", listener);
+  // });
 }

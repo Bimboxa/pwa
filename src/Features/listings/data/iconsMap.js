@@ -12,6 +12,7 @@ import {
   Map as MapIcon,
   Category,
   DocumentScanner as Document,
+  Share,
 } from "@mui/icons-material";
 import ExcelIcon from "Features/excel/utils/components/ExcelIcon";
 
@@ -28,5 +29,6 @@ iconsMap.set("dataObject", DataObject);
 iconsMap.set("map", MapIcon);
 iconsMap.set("nomenclature", Category);
 iconsMap.set("excel", ExcelIcon);
+iconsMap.set("share", Share);
 
 export default iconsMap;

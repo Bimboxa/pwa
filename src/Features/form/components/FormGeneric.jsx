@@ -6,9 +6,7 @@ import FormVariantMobile from "./FormVariantMobile";
 export default function FormGeneric({
   template,
   item,
-  lastItem,
   onItemChange,
-  selectorContainerRef,
   forceVariantGrid = false,
 }) {
   let isMobile = useIsMobile();
@@ -20,16 +18,13 @@ export default function FormGeneric({
         <FormVariantMobile
           template={template}
           item={item}
-          lastItem={lastItem}
           onItemChange={onItemChange}
         />
       ) : (
         <FormVariantGrid
           template={template}
           item={item}
-          lastItem={lastItem}
           onItemChange={onItemChange}
-          selectorContainerRef={selectorContainerRef}
         />
       )}
     </>

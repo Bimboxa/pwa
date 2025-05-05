@@ -5,7 +5,6 @@ export default function useNomenclaturesByKey() {
   const orgaDataItems = useOrgaData({
     nomenclaturesOnly: false,
   });
-  console.log("[useNomenclaturesByKey] orgaDataItems", orgaDataItems);
 
   // edge case
 

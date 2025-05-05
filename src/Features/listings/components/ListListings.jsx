@@ -18,7 +18,7 @@ export default function ListListings({listings, selection, onClick, loading}) {
     <>
       {loading && <SkeletonList />}
       {!loading && (
-        <List>
+        <List sx={{width: 1}}>
           {listings?.map((listing) => (
             <ListItemButton
               key={listing?.id}

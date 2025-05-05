@@ -16,6 +16,7 @@ export default function ListPanelBottom() {
 
   const componentByEntityModel = {
     ENTITY_PROPS: <BlockBottomActionsInPanel />,
+    KEY_VALUE: <Box />,
   };
 
   const component = componentByEntityModel[entityModel?.type] ?? (
