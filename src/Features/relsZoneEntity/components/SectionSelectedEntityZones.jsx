@@ -4,17 +4,19 @@ import {setSelectedEntity} from "../relsZoneEntitySlice";
 
 import useEntities from "Features/entities/hooks/useEntities";
 
-import {Box} from "@mui/material";
+import {Box, Paper} from "@mui/material";
 
 import FormGeneric from "Features/form/components/FormGeneric";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
+import useZonesTree from "Features/zones/hooks/useZonesTree";
 
-export default function BlockListingSelectedEntity() {
+export default function SectionSelectedEntityZones() {
   const dispatch = useDispatch();
 
   // data
 
+  const {value: zonesTree} = useZonesTree();
   const {value: listing} = useSelectedListing({withEntityModel: true});
   const {value: listings} = useListingsByScope({withEntityModel: true});
 
@@ -32,14 +34,15 @@ export default function BlockListingSelectedEntity() {
 
   // helper - form
 
+  console.log("[SectionSelectedEntityZones] zonesTree", zonesTree);
+
   const template = {
     fields: [
       {
-        key: "entity",
-        label: relatedListing?.entityModel?.strings?.labelEntity,
-        type: "entity",
-        entities,
-        entityModel: relatedListing?.entityModel,
+        key: "zones",
+        label: "Zones",
+        type: "treeItems",
+        tree: zonesTree,
       },
     ],
   };
@@ -52,12 +55,14 @@ export default function BlockListingSelectedEntity() {
   }
 
   return (
-    <Box sx={{flexGrow: 1}}>
-      <FormGeneric
-        template={template}
-        item={selectedEntity}
-        onItemChange={handleItemChange}
-      />
+    <Box sx={{flexGrow: 1, p: 2}}>
+      <Paper elevation={0}>
+        <FormGeneric
+          template={template}
+          item={selectedEntity}
+          onItemChange={handleItemChange}
+        />
+      </Paper>
     </Box>
   );
 }

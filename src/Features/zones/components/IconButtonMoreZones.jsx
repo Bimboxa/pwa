@@ -12,7 +12,7 @@ export default function IconButtonMoreZones() {
 
   const actions = [
     {
-      label: "Généer un exemple",
+      label: "Générer un exemple",
       handler: () => createZonesTree(),
     },
   ];

@@ -17,6 +17,8 @@ import BlockLoading from "Features/layout/components/BlockLoading";
 import HeaderVariantTitleIconButton from "Features/layout/components/HeaderVariantTitleIconButton";
 import IconButtonSyncScope from "./IconButtonSyncScope";
 
+import ButtonUploadChanges from "./ButtonUploadChanges";
+
 export default function SectionRemoteContainerConnected({
   remoteContainer,
   onDisconnexion,
@@ -54,6 +56,7 @@ export default function SectionRemoteContainerConnected({
         title={name}
         iconButton={<IconButtonSyncScope />}
       />
+      <ButtonUploadChanges />
       <Box sx={{bgcolor: "white"}}>
         {loading && (
           <Box sx={{width: 1}}>

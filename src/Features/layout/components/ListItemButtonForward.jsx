@@ -22,12 +22,7 @@ export default function ListItemButtonForward({label, onClick, divider}) {
         </IconButton>
       }
     >
-      <ListItemButton
-        sx={{bgcolor: "white"}}
-        dense
-        color="inherit"
-        onClick={onClick}
-      >
+      <ListItemButton sx={{bgcolor: "white"}} color="inherit" onClick={onClick}>
         <ListItemText>
           <Typography variant="body2">{label}</Typography>
         </ListItemText>

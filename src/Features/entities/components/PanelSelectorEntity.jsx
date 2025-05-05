@@ -12,10 +12,6 @@ export default function PanelSelectorEntity({
   onClose,
 }) {
   console.log("entities", entities);
-  // helper - title
-
-  const titleS = "Sélectionnez une entité";
-  title = title || titleS;
 
   // helpers
 
@@ -30,7 +26,7 @@ export default function PanelSelectorEntity({
 
   return (
     <BoxFlexVStretch>
-      <HeaderTitleClose title={title} onClose={onClose} />
+      {title && <HeaderTitleClose title={title} onClose={onClose} />}
       <Box sx={{bgcolor: "white"}}>
         <ListEntities
           entities={entities}
