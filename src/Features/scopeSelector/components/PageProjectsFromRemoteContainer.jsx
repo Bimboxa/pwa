@@ -38,6 +38,7 @@ export default function PageProjectsFromRemoteContainer() {
   // state
 
   const [loading, setLoading] = useState(false);
+
   // effect
 
   const canFetch = Boolean(fetchProjects);
