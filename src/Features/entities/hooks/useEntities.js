@@ -32,7 +32,7 @@ export default function useEntities(options) {
     filterByKeys: filterByListingsKeys ?? null,
     filterByListingsIds: filterByListingsIds ?? null,
   });
-  //console.log("[debug] listings", listings?.length, filterByListingsIds);
+  //console.log("[debug] listings", lTistings?.length, filterByListingsIds);
 
   const mapId = useSelector((s) => s.mapEditor.loadedMainMapId);
 
@@ -94,13 +94,17 @@ export default function useEntities(options) {
       // fetch entities
       console.log("[db] fetching entities", listingsIds);
       let entities = [];
-      const table = selectedListing?.table;
+
       if (listingsIds.length > 1) {
+        const table = selectedListing?.table;
         entities = await db[table]
           .where("listingId")
           .anyOf(listingsIds)
           .toArray();
       } else if (listingsIds.length === 1) {
+        const _listingId = listingsIds[0];
+        const listing = listings.find((l) => l.id === _listingId);
+        const table = listing?.table;
         entities = await db[table]
           .where("listingId")
           .equals(listingsIds[0])

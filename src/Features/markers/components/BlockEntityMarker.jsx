@@ -27,13 +27,14 @@ export default function BlockEntityMarker({top, right}) {
   // helper
 
   const show = listing?.entityModel?.type === "LOCATED_ENTITY";
+  const newS = listing?.entityModel?.strings?.labelNew;
   //entity?.id &&
   //entity?.listingId === listing.id;
 
   // helpers
 
   const color = listing?.color ?? theme.palette.primary.main;
-  const label = entity?.label ?? entity?.id;
+  const label = entity?.id ? entity?.label : newS;
 
   // handlers
 

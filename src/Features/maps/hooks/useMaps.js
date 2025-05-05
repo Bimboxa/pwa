@@ -21,20 +21,20 @@ export default function useMaps() {
 
   // data
 
-  // const {value: entities, loading: loadingEntities} = useEntities({
-  //   wait: loadingListings,
-  //   filterByListingsIds: listingsIds,
-  //   withImages: true,
-  // });
+  const {value: entities, loading: loadingEntities} = useEntities({
+    wait: loadingListings,
+    filterByListingsIds: listingsIds,
+    withImages: true,
+  });
 
-  const entities = useLiveQuery(async () => {
-    const entities = await db.maps
-      .where("listingId")
-      .anyOf(listingsIds)
-      .toArray();
+  // const entities = useLiveQuery(async () => {
+  //   const entities = await db.maps
+  //     .where("listingId")
+  //     .anyOf(listingsIds)
+  //     .toArray();
 
-    return entities;
-  }, [scopeId]);
+  //   return entities;
+  // }, [scopeId]);
 
   const maps = entities?.map((entity) => {
     return {

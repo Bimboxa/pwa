@@ -9,6 +9,8 @@ db.version(6).stores({
   listings: "id,name",
   entities: "id,listingId,[listingId+createdBy]",
   maps: "id,listingId",
+  zones: "id,listingId",
+  relsZoneEntity: "id,zoneId,listingId,entityId", // {id,zoneId,table,listingId,entityId}
   entitiesProps:
     "id,[listingKey+targetEntityId],listingKey,targetListingKey,targetEntityId", // entityProps = {id,tarketListingKey,targetEntityId,props}
   markers: "id,mapId,targetListingId,targetEntityId", // marker = {id,mapId,x,y,targetListingId,targetEntityId}

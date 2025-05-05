@@ -30,7 +30,7 @@ export default function ListItemEntityVariantDefault({
   }
   return (
     <ListItem
-      dense
+      //dense
       divider
       disablePadding
       secondaryAction={

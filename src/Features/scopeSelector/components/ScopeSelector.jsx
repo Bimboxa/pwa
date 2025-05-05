@@ -14,6 +14,7 @@ import PageScopeSelector from "./PageScopeSelector";
 
 import PageProjectsFromRemoteContainer from "./PageProjectsFromRemoteContainer";
 import PageScopesFromRemoteContainer from "./PageScopesFromRemoteContainer";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 export default function ScopeSelector() {
   const dispatch = useDispatch();
@@ -49,7 +50,7 @@ export default function ScopeSelector() {
 
   // return
   return (
-    <>
+    <BoxFlexVStretch sx={{overflow: "auto"}}>
       {showProjectAndScope && <PageProjectAndScope />}
       {showProjects && <PageProjectSelector />}
       {page === "SCOPES" && <PageScopeSelector />}
@@ -57,6 +58,6 @@ export default function ScopeSelector() {
         <PageProjectsFromRemoteContainer />
       )}
       {showRemoteScopes && <PageScopesFromRemoteContainer />}
-    </>
+    </BoxFlexVStretch>
   );
 }

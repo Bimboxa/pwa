@@ -32,7 +32,7 @@ export default function FieldEntityVariantGrid({
 
   const valueWithProps = entityById[value?.id];
   const valueLabel = valueWithProps?.label ?? "-?-";
-  const bbox = formContainerRef?.current?.getBoundingClientRect();
+  const bbox = formContainerRef?.current.getBoundingClientRect();
 
   // helpers
 

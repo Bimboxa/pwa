@@ -39,18 +39,26 @@ export default function getListingsToCreateFromAppConfig(
   // step 2 - update relatedListings ids
 
   listings = listings.map((listing) => {
+    let newListing = {...listing};
     if (listing.relatedEntities) {
       const relatedEntities = updateListingRelatedEntitiesWithListingsIds(
         listing.relatedEntities,
         listingByKey
       );
-      return {
-        ...listing,
-        relatedEntities,
-      };
-    } else {
-      return listing;
+      newListing.relatedEntities = relatedEntities;
     }
+
+    if (listing.relatedListing) {
+      const fullRelatedListing = listingByKey[listing.relatedListing.key];
+      if (fullRelatedListing) {
+        newListing.relatedListing = {
+          ...listing.relatedListing,
+          id: fullRelatedListing.id,
+        };
+      }
+    }
+
+    return newListing;
   });
 
   return listings;

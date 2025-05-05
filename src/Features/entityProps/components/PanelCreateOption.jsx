@@ -34,11 +34,11 @@ export default function PanelCreateOption({onSaved, onCancelled}) {
         label: "Description",
         type: "text",
       },
-      {
-        key: "color",
-        label: "Couleur",
-        type: "color",
-      },
+      // {
+      //   key: "color",
+      //   label: "Couleur",
+      //   type: "color",
+      // },
     ],
   };
 

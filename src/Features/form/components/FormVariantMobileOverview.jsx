@@ -7,6 +7,7 @@ import FieldOptionVariantMobileOverview from "./FieldOptionVariantMobileOverview
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonBasicMobile from "Features/layout/components/ButtonBasicMobile";
+import FieldEntityVariantMobileOverview from "./FieldEntityVariantMobileOverview";
 
 export default function FormVariantMobileOverview({
   item,
@@ -42,6 +43,7 @@ export default function FormVariantMobileOverview({
             const type = field.type;
             const label = field.label;
             const nomenclature = field.nomenclature;
+            const entities = field.entities;
             return (
               <ListItemButton
                 key={field.key}
@@ -62,6 +64,12 @@ export default function FormVariantMobileOverview({
                     value={value}
                     label={label}
                     nomenclature={nomenclature}
+                  />
+                )}
+                {type === "entity" && (
+                  <FieldEntityVariantMobileOverview
+                    value={value}
+                    label={label}
                   />
                 )}
                 {type === "option" && (
