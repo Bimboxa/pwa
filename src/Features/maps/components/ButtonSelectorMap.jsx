@@ -63,7 +63,7 @@ export default function ButtonSelectorMap() {
       </Button>
       <DialogGeneric open={open} onClose={() => setOpen(false)} title={selectS}>
         <Box>
-          {/* <DropboxChooserButton /> */}
+          <DropboxChooserButton />
           <PanelSelectorMap
             selection={loadedMainMap?.id}
             onSelectionChange={handleMapSelectionChange}
