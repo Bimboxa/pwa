@@ -3,7 +3,7 @@ import {useNavigate} from "react-router-dom";
 
 import {useDispatch} from "react-redux";
 
-import {setRemoteContainer} from "../syncSlice";
+import {setRemoteContainer, setSignedOut} from "../syncSlice";
 
 import useToken from "Features/auth/hooks/useToken";
 
@@ -62,6 +62,7 @@ export default function PageRemoteContainerRedirect() {
         (r) => r.service === remoteContainer.service
       );
       dispatch(setRemoteContainer(rc));
+      dispatch(setSignedOut(false));
       setRemoteContainerInLocalStorage(rc);
       navigate("/");
     } catch (e) {
