@@ -18,7 +18,7 @@ db.version(6).stores({
   relationsEntities:
     "id,sourceListingId,sourceEntityId,targetEntityId,relationType",
   reports: "id,listingId", // {id,listingId}
-  syncFiles: "path", // {path,updatedAt} // updatedAt = local updates when one table is updated.
+  syncFiles: "path,scopeId", // {path,updatedAt,scopeId} // updatedAt = local updates when one table is updated.
 });
 
 export default db;

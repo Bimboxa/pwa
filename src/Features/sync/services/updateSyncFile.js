@@ -1,4 +1,5 @@
 import db from "App/db/db";
+import getInitScopeId from "Features/init/services/getInitScopeId";
 import getDateString from "Features/misc/utils/getDateString";
 
 export default async function updateSyncFile({
@@ -9,6 +10,7 @@ export default async function updateSyncFile({
 }) {
   try {
     updatedAt = updatedAt ?? getDateString(new Date());
+    const scopeId = getInitScopeId();
 
     console.log("debug_2104 updateSyncFile", path, itemType, updatedAt, syncAt);
 
@@ -26,6 +28,7 @@ export default async function updateSyncFile({
         itemType,
         updatedAt,
         syncAt,
+        scopeId,
       });
     }
   } catch (e) {

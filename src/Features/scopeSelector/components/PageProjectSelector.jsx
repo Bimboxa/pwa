@@ -44,6 +44,10 @@ export default function PageProjectSelector() {
   const {value: projects, loading} = useProjects();
   const remoteContainer = useRemoteContainer();
 
+  // helper - can create project
+
+  const canCreateProject = appConfig?.creation?.canCreateProject;
+
   // helpers
 
   const selection = project ? [project.id] : [];
@@ -118,7 +122,7 @@ export default function PageProjectSelector() {
             projects={projects}
             selection={selection}
             onClick={handleProjectClick}
-            onNewClick={handleNewProjectClick}
+            onNewClick={canCreateProject ? handleNewProjectClick : null}
           />
         </Box>
 
