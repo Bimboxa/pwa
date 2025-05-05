@@ -2,7 +2,10 @@ import {useSelector} from "react-redux";
 
 import {Box} from "@mui/material";
 import PanelListItem from "Features/listPanel/components/PanelListItem";
+
 import BoxFlexV from "./BoxFlexV";
+import BoxFlexVStretch from "./BoxFlexVStretch";
+
 import TopBar from "./TopBar";
 import SectionViewer from "./SectionViewer";
 import BottomBarMobile from "./BottomBarMobile";
@@ -39,7 +42,7 @@ export default function LayoutMobile() {
       <DialogAppConfig />
       <BoxFlexV>
         <TopBar />
-        <BoxFlexV sx={{position: "relative"}}>
+        <BoxFlexVStretch>
           <PanelShowable
             show={showViewer}
             sx={{position: "fixed", top: topBarHeight, bottom: bottomBarHeight}}
@@ -53,7 +56,7 @@ export default function LayoutMobile() {
           >
             <ListPanel />
           </PanelShowable>
-        </BoxFlexV>
+        </BoxFlexVStretch>
         <BottomBarMobile />
         <PanelChatContainer />
 
