@@ -5,6 +5,7 @@ import {triggerZonesUpdate} from "../zonesSlice";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
 import db from "App/db/db";
 
@@ -17,7 +18,7 @@ export default function useCreateOrUpdateZonesTree() {
 
   const {value: listing} = useSelectedListing();
 
-  const createOrUpdate = async ({listingId, zonesTree}) => {
+  const createOrUpdate = async ({listingId, zonesTree}, options) => {
     try {
       // listingId
       const _listingId = listingId || listing?.id;
@@ -26,7 +27,8 @@ export default function useCreateOrUpdateZonesTree() {
       }
 
       // create or update
-      const exitingEntity = await db.entities
+      const table = listing?.table;
+      const exitingEntity = await db[table]
         .where("listingId")
         .equals(_listingId)
         .first();
@@ -40,7 +42,7 @@ export default function useCreateOrUpdateZonesTree() {
           listingId: _listingId,
           zonesTree,
         };
-        await db.entities.add(entity);
+        await db[table].add(entity);
         console.log("[db] zones entity updated", entity);
       } else {
         // update
@@ -49,10 +51,20 @@ export default function useCreateOrUpdateZonesTree() {
           updatedAt,
           zonesTree,
         };
-        await db.entities.update(exitingEntity.id, entity);
+        await db[table].update(exitingEntity.id, entity);
         console.log("[db] zones entity updated", entity);
       }
       dispatch(triggerZonesUpdate());
+
+      // update syncFiles
+      if (options?.updateSyncFile) {
+        await updateItemSyncFile({
+          item: entity,
+          type: "ZONES_TREE",
+          updatedAt: options.updatedAt,
+          syncAt: options.syncAt,
+        });
+      }
     } catch (e) {
       console.log(e);
       return;
