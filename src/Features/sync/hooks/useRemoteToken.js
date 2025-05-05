@@ -15,7 +15,7 @@ export default function useRemoteToken(remoteContainer) {
 
   const token = useToken();
 
-  const [loading, setLoading] = useState(!Boolean(remoteTokenData));
+  const [loading, setLoading] = useState(false);
 
   const isRefreshing = useRef(false);
 
@@ -25,8 +25,8 @@ export default function useRemoteToken(remoteContainer) {
 
   async function refreshToken() {
     try {
-      if (isRefreshing.current || !remoteContainerInState) {
-        setLoading(false);
+      if (isRefreshing.current || !remoteContainer) {
+        //setLoading(false);
         return;
       }
       console.log(
@@ -35,16 +35,17 @@ export default function useRemoteToken(remoteContainer) {
       );
       if (remoteContainer?.service === "DROPBOX") {
         const {clientId} = remoteContainer;
+        setLoading(true);
         const accessTokenDropbox = await getAccessTokenDropboxService({
           token,
           clientId,
         });
         const expiresAt = Date.now() + accessTokenDropbox?.expiresIn * 1000;
         setRemoteTokenData({...accessTokenDropbox, expiresAt});
+        //
         isRefreshing.current = false;
+        setLoading(false);
       }
-
-      setLoading(false);
     } catch (e) {
       console.error("[useRemoteToken] Error refreshing token", e);
       setLoading(false);
@@ -56,8 +57,8 @@ export default function useRemoteToken(remoteContainer) {
       (remoteTokenData?.expiresAt && token && timeUntillRefresh < 0) ||
       (!remoteTokenData?.accessToken && token)
     ) {
+      console.log("TRIGGER REFRESH TOKEN");
       refreshToken();
-      console.log("[useRemoteToken] refreshing token...");
       isRefreshing.current = true;
     }
   }, [

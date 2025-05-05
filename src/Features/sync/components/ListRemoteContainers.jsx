@@ -14,7 +14,7 @@ export default function ListRemoteContainers({containers, onClick}) {
   // render
 
   return (
-    <List dense>
+    <List>
       {containers.map((container) => {
         return (
           <ListItemButtonForward

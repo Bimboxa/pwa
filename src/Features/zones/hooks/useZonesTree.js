@@ -42,7 +42,7 @@ export default function useZonesTree() {
     let tree = [];
     if (zonesListing?.id) {
       setLoading(true);
-      const item = await db.entities
+      const item = await db[zonesListing.table]
         .where("listingId")
         .equals(zonesListing?.id)
         .first();

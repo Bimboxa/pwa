@@ -4,10 +4,11 @@ import FieldTextVariantMobileOverview from "./FieldTextVariantMobileOverview";
 import FieldImageVariantMobileOverview from "./FieldImageVariantMobileOverview";
 import FieldCategoryVariantMobileOverview from "./FieldCategoryVariantMobileOverview";
 import FieldOptionVariantMobileOverview from "./FieldOptionVariantMobileOverview";
+import FieldEntityVariantMobileOverview from "./FieldEntityVariantMobileOverview";
+import FieldTreeItemsVariantMobileOverview from "./FieldTreeItemsVariantMobileOverview";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonBasicMobile from "Features/layout/components/ButtonBasicMobile";
-import FieldEntityVariantMobileOverview from "./FieldEntityVariantMobileOverview";
 
 export default function FormVariantMobileOverview({
   item,
@@ -44,6 +45,9 @@ export default function FormVariantMobileOverview({
             const label = field.label;
             const nomenclature = field.nomenclature;
             const entities = field.entities;
+            const entityModel = field.entityModel;
+            const tree = field.tree;
+
             return (
               <ListItemButton
                 key={field.key}
@@ -70,12 +74,21 @@ export default function FormVariantMobileOverview({
                   <FieldEntityVariantMobileOverview
                     value={value}
                     label={label}
+                    entities={entities}
+                    entityModel={entityModel}
                   />
                 )}
                 {type === "option" && (
                   <FieldOptionVariantMobileOverview
                     value={value}
                     label={label}
+                  />
+                )}
+                {type === "treeItems" && (
+                  <FieldTreeItemsVariantMobileOverview
+                    value={value}
+                    label={label}
+                    tree={tree}
                   />
                 )}
                 {/* {type === "option" && (

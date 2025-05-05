@@ -4,7 +4,11 @@ import {Box} from "@mui/material";
 import {RichTreeViewPro} from "@mui/x-tree-view-pro";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
+import SwitchSeeSelectionOnly from "./SwitchSeeSelectionOnly";
+import TreeItemGeneric from "./TreeItemGeneric";
+
 import getNodesToExpand from "../utils/getNodesToExpand";
+import getSelectedNodesWithParents from "../utils/getSelectedNodesWithParents";
 
 export default function SelectorVariantTree({
   items,
@@ -16,16 +20,27 @@ export default function SelectorVariantTree({
 
   const saveS = "Enregistrer";
 
+  // helpers
+
+  const seeSelectionOnlyLabel = "Sélection uniquement";
+
   // state
 
   const [tempSelection, setTempSelection] = useState(selection ?? []);
   const [expandedNodes, setExpandedNodes] = useState([]);
+
+  const [seeSelectionOnly, setSeeSelectionOnly] = useState(false);
 
   useEffect(() => {
     setTempSelection(selection);
     const expanded = getNodesToExpand(items, selection);
     setExpandedNodes(expanded);
   }, []);
+
+  // helpers - items
+
+  if (seeSelectionOnly)
+    items = getSelectedNodesWithParents(tempSelection, items);
 
   // handlers
 
@@ -56,8 +71,13 @@ export default function SelectorVariantTree({
           onSelectedItemsChange={handleSelectionChange}
           expandedItems={expandedNodes}
           onExpandedItemsChange={(e, ids) => setExpandedNodes(ids)}
+          slots={{item: TreeItemGeneric}}
         />
       </Box>
+      <SwitchSeeSelectionOnly
+        checked={seeSelectionOnly}
+        onChange={setSeeSelectionOnly}
+      />
       <ButtonInPanel label={saveS} onClick={handleSave} />
     </Box>
   );

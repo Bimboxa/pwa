@@ -1,7 +1,20 @@
 import {RichTreeViewPro} from "@mui/x-tree-view-pro";
+import TreeItemGeneric from "./TreeItemGeneric";
 
-export default function TreeGeneric({items}) {
+import getAllNodesIds from "Features/tree/utils/getAllNodesIds";
+
+export default function TreeGeneric({items, expandAll}) {
+  const props = {};
+
+  if (expandAll) props.expandedItems = getAllNodesIds(items);
+
+  console.log("props", props);
   return (
-    <RichTreeViewPro items={items} getItemId={(item) => item.id ?? item.num} />
+    <RichTreeViewPro
+      {...props}
+      items={items}
+      getItemId={(item) => item.id ?? item.num}
+      slots={{item: TreeItemGeneric}}
+    />
   );
 }

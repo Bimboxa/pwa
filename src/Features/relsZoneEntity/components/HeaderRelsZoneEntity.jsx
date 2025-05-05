@@ -5,17 +5,18 @@ import SelectorMode from "./SelectorMode";
 
 export default function HeaderRelsZoneEntity() {
   return (
-    <Box sx={{p: 1}}>
+    <Box sx={{p: 1, px: 2}}>
       <Paper
+        elevation={0}
         sx={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          p: 1,
+          //p: 1,
         }}
       >
         <BlockListingSelectedEntity />
-        <SelectorMode />
+        {/* <SelectorMode /> */}
       </Paper>
     </Box>
   );

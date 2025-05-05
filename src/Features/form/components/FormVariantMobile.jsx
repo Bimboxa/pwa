@@ -6,6 +6,8 @@ import FieldTextVariantMobile from "./FieldTextVariantMobile";
 import FieldImageVariantMobile from "./FieldImageVariantMobile";
 import FieldCategoryVariantMobile from "./FieldCategoryVariantMobile";
 import FieldOptionVariantMobile from "./FieldOptionVariantMobile";
+import FieldEntityVariantMobile from "./FieldEntityVariantMobile";
+import FieldTreeItemsVariantMobile from "./FieldTreeItemsVariantMobile";
 
 //import FieldNumberVariantMobile from "./FieldNumberVariantMobile";
 //import FieldColorVariantMobile from "./FieldColorVariantMobile";
@@ -112,11 +114,35 @@ export default function FormVariantMobile({
               options={field.options}
             />
           )}
+          {field?.type === "entity" && (
+            <FieldEntityVariantMobile
+              key={field.key}
+              label={field.label}
+              width={field.width}
+              value={item?.[field.key]}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              entities={field.entities}
+            />
+          )}
           {field?.type === "option" && (
             <FieldOptionVariantMobile
               key={field.key}
               label={field.label}
               valueOptions={field.valueOptions}
+              value={item?.[field.key]}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              options={field.options}
+            />
+          )}
+          {field?.type === "treeItems" && (
+            <FieldTreeItemsVariantMobile
+              key={field.key}
+              label={field.label}
+              tree={field.tree}
               value={item?.[field.key]}
               onChange={(newValue) =>
                 handleFieldValueChange(field.key, newValue)

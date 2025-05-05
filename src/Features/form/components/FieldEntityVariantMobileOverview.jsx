@@ -3,13 +3,19 @@ import {Typography, Box} from "@mui/material";
 export default function FieldEntityVariantMobileOverview({
   label,
   value,
+  entities,
   entityModel,
 }) {
-  console.log("[FieldEntity] value text", value);
+  //
+
+  const entity = entities?.find((entity) => entity.id === value?.id);
 
   // helpers
 
-  const text = value?.[entityModel.labelKey].length > 0 ? value : "-";
+  const text =
+    entity?.[entityModel.labelKey]?.length > 0
+      ? entity?.[entityModel.labelKey]
+      : "-";
 
   return (
     <Box sx={{width: 1}}>
