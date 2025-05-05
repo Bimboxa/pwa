@@ -5,6 +5,7 @@ import {Box} from "@mui/material";
 import FieldTextVariantGrid from "./FieldTextVariantGrid";
 import FieldImageVariantGrid from "./FieldImageVariantGrid";
 import FieldZonesVariantGrid from "./FieldZonesVariantGrid";
+import FieldZoneVariantGrid from "./FieldZoneVariantGrid";
 import FieldEntityVariantGrid from "./FieldEntityVariantGrid";
 import FieldCategoryVariantGrid from "./FieldCategoryVariantGrid";
 
@@ -65,7 +66,21 @@ export default function FormVariantGrid({template, item, onItemChange}) {
             />
           );
         }
-
+        if (field?.type === "zone") {
+          return (
+            <FieldZoneVariantGrid
+              key={field.key}
+              label={field.label}
+              width={field.width}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              zonesTree={field.zonesTree}
+              formContainerRef={formContainerRef}
+            />
+          );
+        }
         if (field?.type === "zones") {
           return (
             <FieldZonesVariantGrid

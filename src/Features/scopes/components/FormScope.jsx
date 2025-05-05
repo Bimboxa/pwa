@@ -51,6 +51,7 @@ export default function FormScope({scope, onChange}) {
       template={template}
       item={scope}
       onItemChange={handleItemChange}
+      forceVariantMobile={true}
     />
   );
 }

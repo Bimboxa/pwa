@@ -8,9 +8,11 @@ export default function FormGeneric({
   item,
   onItemChange,
   forceVariantGrid = false,
+  forceVariantMobile = false,
 }) {
   let isMobile = useIsMobile();
   if (forceVariantGrid) isMobile = false;
+  if (forceVariantMobile) isMobile = true;
 
   return (
     <>

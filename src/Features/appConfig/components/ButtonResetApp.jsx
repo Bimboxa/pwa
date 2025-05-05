@@ -33,6 +33,7 @@ export default function ButtonResetApp() {
   async function handleReset() {
     setLoading(true);
     const appConfig = await fetchOrgaInitAppConfigService({accessToken});
+    console.log("[ButtonResetApp] appConfig", appConfig);
     dispatch(setAppConfig(appConfig));
     setLoading(false);
   }
