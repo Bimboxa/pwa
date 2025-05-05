@@ -4,6 +4,7 @@ const syncInitialState = {
   //
   isSyncing: false,
   openPanelSync: false,
+  signedOut: false, // used to avoid to refresh token when re-signin
   //
   remoteContainer: null,
   //
@@ -30,6 +31,9 @@ export const syncSlice = createSlice({
   name: "sync",
   initialState: syncInitialState,
   reducers: {
+    setSignedOut: (state, action) => {
+      state.signedOut = action.payload;
+    },
     setRemoteContainer: (state, action) => {
       console.log("[STATE] setRemoteContainer", action.payload?.service);
       state.remoteContainer = action.payload;
@@ -77,6 +81,8 @@ export const syncSlice = createSlice({
 });
 
 export const {
+  setSignedOut,
+  //
   setRemoteContainer,
   triggerRemoteProjectContainerPropsUpdate,
   setOpenPanelSync,

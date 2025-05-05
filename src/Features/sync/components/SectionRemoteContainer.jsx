@@ -1,7 +1,10 @@
 import {useState, useEffect} from "react";
 import {useDispatch} from "react-redux";
 
-import {setRemoteContainer as setRemoteContainerInRedux} from "../syncSlice";
+import {
+  setRemoteContainer as setRemoteContainerInRedux,
+  setSignedOut,
+} from "../syncSlice";
 import setRemoteContainerInLocalStorage from "../services/setRemoteContainerInLocalStorage";
 
 import useRemoteContainer from "../hooks/useRemoteContainer";
@@ -41,6 +44,7 @@ export default function SectionRemoteContainer() {
     dispatch(setRemoteContainerInRedux(null));
     setRemoteContainerInLocalStorage(null);
     setRemoteTokenData(null);
+    dispatch(setSignedOut(true));
   }
   // render
 

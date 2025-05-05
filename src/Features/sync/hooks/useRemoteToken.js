@@ -1,4 +1,7 @@
 import {useEffect, useState, useRef} from "react";
+
+import {useSelector} from "react-redux";
+
 import useToken from "Features/auth/hooks/useToken";
 
 import {useRemoteTokenData} from "../RemoteTokenDataContext";
@@ -10,6 +13,7 @@ export default function useRemoteToken(remoteContainer) {
   const {remoteTokenData, setRemoteTokenData} = useRemoteTokenData();
 
   const remoteContainerInState = useRemoteContainer();
+  const signedOut = useSelector((s) => s.sync.signedOut);
 
   if (!remoteContainer) remoteContainer = remoteContainerInState;
 
@@ -54,8 +58,9 @@ export default function useRemoteToken(remoteContainer) {
 
   useEffect(() => {
     if (
-      (remoteTokenData?.expiresAt && token && timeUntillRefresh < 0) ||
-      (!remoteTokenData?.accessToken && token)
+      !signedOut &&
+      ((remoteTokenData?.expiresAt && token && timeUntillRefresh < 0) ||
+        (!remoteTokenData?.accessToken && token))
     ) {
       console.log("TRIGGER REFRESH TOKEN");
       refreshToken();
@@ -67,6 +72,7 @@ export default function useRemoteToken(remoteContainer) {
     remoteTokenData?.accessToken,
     remoteContainer?.service,
     remoteContainerInState?.service,
+    signedOut,
   ]);
 
   return {value: remoteTokenData?.accessToken, loading, remoteContainer};
