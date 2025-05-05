@@ -34,27 +34,28 @@ export default function ButtonLoginDropbox({clientId}) {
 
   async function handleClick() {
     console.log("[ButtonLoginDropbox] handleClick", clientId);
-    const code = await startDropboxAuth(clientId, {withPopup: !isMobile});
+    const code = await startDropboxAuth(clientId, {withPopup: false});
+    //const code = await startDropboxAuth(clientId, {withPopup: !isMobile});
 
     // mobile
-    if (isMobile) return;
+    // if (isMobile) return;
 
     // not mobile ...
-    try {
-      setLoading(true);
-      const accessTokenData = await exchangeCodeForToken({
-        code,
-        token,
-        clientId,
-      });
-      //
-      const expiresAt = Date.now() + accessTokenData?.expiresIn * 1000;
-      setRemoteTokenData({...accessTokenData, expiresAt});
-      dispatch(setSignedOut(false));
-    } catch (e) {
-      console.error("[ButtonLoginDropbox] Error exchanging code for token", e);
-      setLoading(false);
-    }
+    // try {
+    //   setLoading(true);
+    //   const accessTokenData = await exchangeCodeForToken({
+    //     code,
+    //     token,
+    //     clientId,
+    //   });
+    //   //
+    //   const expiresAt = Date.now() + accessTokenData?.expiresIn * 1000;
+    //   setRemoteTokenData({...accessTokenData, expiresAt});
+    //   dispatch(setSignedOut(false));
+    // } catch (e) {
+    //   console.error("[ButtonLoginDropbox] Error exchanging code for token", e);
+    //   setLoading(false);
+    // }
   }
 
   return <ButtonInPanel label={loginS} onClick={handleClick} />;
