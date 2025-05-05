@@ -7,7 +7,7 @@ import {RemoteTokenDataProvider} from "Features/sync/RemoteTokenDataContext";
 
 // styles
 import {ThemeProvider} from "@mui/material/styles";
-import {CssBaseline} from "@mui/material";
+import {CssBaseline, GlobalStyles} from "@mui/material";
 import theme from "Styles/theme";
 
 // redux store
@@ -43,6 +43,12 @@ function App({pca, runningIn}) {
         <Provider store={store}>
           <ThemeProvider theme={theme}>
             <CssBaseline />
+            <GlobalStyles
+              styles={{
+                html: {overscrollBehaviorY: "contain"},
+                body: {overscrollBehaviorY: "contain"},
+              }}
+            />
             <AuthGate>
               <Routes>
                 <Route path="/" element={<MainAppLayout />} />
