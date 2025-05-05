@@ -1,6 +1,8 @@
 import {useState} from "react";
 import {useSelector} from "react-redux";
 
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+
 import {useLiveQuery} from "dexie-react-hooks";
 
 import db from "App/db/db";
@@ -17,6 +19,7 @@ export default function useSelectedEntity(options) {
   // data
 
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
+  const {value: listing} = useSelectedListing();
 
   const entity = useLiveQuery(async () => {
     if (!selectedEntityId) {
@@ -24,7 +27,8 @@ export default function useSelectedEntity(options) {
       return null;
     }
     try {
-      const entity = await db.entities.get(selectedEntityId);
+      const table = listing?.table;
+      const entity = await db[table].get(selectedEntityId);
 
       // add images
       if (withImages) {
