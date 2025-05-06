@@ -14,8 +14,15 @@ export default function useRemoteContainer() {
 
   const appConfig = useAppConfig();
 
+  // update remoteContainer if appConfig changes
+  // used to update redux state with data from appConfig
+
   useEffect(() => {
-    console.log("[EFFECT] useRemoteContainer", appConfig?.version);
+    console.log(
+      "[EFFECT] useRemoteContainer",
+      appConfig?.name,
+      appConfig?.version
+    );
     if (appConfig?.remoteContainers) {
       const remoteContainer = appConfig.remoteContainers.find((container) => {
         return container.service === remoteContainerInRedux?.service;
@@ -25,7 +32,7 @@ export default function useRemoteContainer() {
         dispatch(setRemoteContainer(remoteContainer));
       }
     }
-  }, [appConfig?.version]);
+  }, [appConfig?.version, appConfig?.name]);
 
   return remoteContainerInRedux;
 }

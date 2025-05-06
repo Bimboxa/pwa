@@ -8,6 +8,7 @@ export default function HeaderVariantTitleIconButton({title, iconButton}) {
         alignItems: "center",
         justifyContent: "space-between",
         px: 1,
+        py: iconButton ? 0 : 1,
         bgcolor: "background.default",
         borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
       }}
