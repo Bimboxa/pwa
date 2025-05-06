@@ -8,12 +8,13 @@ import {useRemoteTokenData} from "../RemoteTokenDataContext";
 import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 
 import getAccessTokenDropboxService from "Features/dropbox/services/getAccessTokenDropboxService";
+import getSignedOutFromLocalStorage from "../services/getSignedOutFromLocalStorage";
 
 export default function useRemoteToken(remoteContainer) {
   const {remoteTokenData, setRemoteTokenData} = useRemoteTokenData();
 
   const remoteContainerInState = useRemoteContainer();
-  const signedOut = useSelector((s) => s.sync.signedOut);
+  const signedOut = getSignedOutFromLocalStorage();
 
   if (!remoteContainer) remoteContainer = remoteContainerInState;
 

@@ -25,22 +25,5 @@ export default async function startDropboxAuth(clientId, options) {
     REDIRECT_URI
   )}&code_challenge_method=S256&code_challenge=${codeChallenge}&token_access_type=offline`;
 
-  let popup = null;
-  if (withPopup) {
-    popup = window.open(authUrl, "_blank", "width=600,height=600");
-  } else {
-    window.location.href = authUrl;
-  }
-
-  // return new Promise((resolve) => {
-  //   const listener = (event) => {
-  //     if (event.origin !== window.location.origin) return;
-  //     if (event.data.type === "DROPBOX_AUTH" && event.data.code) {
-  //       window.removeEventListener("message", listener);
-  //       if (popup) popup.close();
-  //       resolve(event.data.code);
-  //     }
-  //   };
-  //   window.addEventListener("message", listener);
-  // });
+  window.location.href = authUrl;
 }

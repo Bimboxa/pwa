@@ -17,6 +17,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 import exchangeCodeForToken from "Features/dropbox/services/exchangeCodeForToken";
 import setRemoteContainerInLocalStorage from "../services/setRemoteContainerInLocalStorage";
+import setSignedOutInLocalStorage from "../services/setSignedOutInLocalStorage";
 
 export default function PageRemoteContainerRedirect() {
   const navigate = useNavigate();
@@ -63,6 +64,7 @@ export default function PageRemoteContainerRedirect() {
       );
       dispatch(setRemoteContainer(rc));
       dispatch(setSignedOut(false));
+      setSignedOutInLocalStorage("false");
       setRemoteContainerInLocalStorage(rc);
       navigate("/");
     } catch (e) {
@@ -74,18 +76,8 @@ export default function PageRemoteContainerRedirect() {
 
   useEffect(() => {
     if (code && token) {
-      if (!isMobile && window.opener) {
-        window.opener.postMessage(
-          {
-            type: "DROPBOX_AUTH",
-            code,
-          },
-          window.location.origin
-        );
-      } else {
-        if (remoteContainer?.service === "DROPBOX") {
-          getDropboxToken();
-        }
+      if (remoteContainer?.service === "DROPBOX") {
+        getDropboxToken();
       }
     }
 
