@@ -13,6 +13,8 @@ import SectionRemoteContainerConnected from "./SectionRemoteContainerConnected";
 import SectionRemoteContainerDisconnected from "./SectionRemoteContainerDisconnected";
 import {useRemoteTokenData} from "../RemoteTokenDataContext";
 
+import setSignedOutInLocalStorage from "../services/setSignedOutInLocalStorage";
+
 export default function SectionRemoteContainer() {
   const dispatch = useDispatch();
 
@@ -30,7 +32,9 @@ export default function SectionRemoteContainer() {
   const {setRemoteTokenData} = useRemoteTokenData();
 
   useEffect(() => {
-    setRemoteContainer(rcInRedux);
+    if (rcInRedux?.service) {
+      setRemoteContainer(rcInRedux);
+    }
   }, [rcInRedux?.service]);
 
   // handler
@@ -45,6 +49,7 @@ export default function SectionRemoteContainer() {
     setRemoteContainerInLocalStorage(null);
     setRemoteTokenData(null);
     dispatch(setSignedOut(true));
+    setSignedOutInLocalStorage(true);
   }
   // render
 

@@ -13,6 +13,7 @@ export default function useInitRemoteContainer() {
   const rc = getRemoteContainerFromLocalStorage();
 
   useEffect(() => {
+    console.log("[debug effect] rc.service", rc?.service);
     if (rc?.service) {
       console.log("[effect] setRemoteContainer", rc);
       dispatch(setRemoteContainer(rc));
