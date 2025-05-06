@@ -44,12 +44,17 @@ export default function SectionRemoteContainer() {
   }
 
   function handleDisconnexion() {
-    setRemoteContainer(null);
-    dispatch(setRemoteContainerInRedux(null));
-    setRemoteContainerInLocalStorage(null);
-    setRemoteTokenData(null);
-    dispatch(setSignedOut(true));
-    setSignedOutInLocalStorage(true);
+    try {
+      console.log("[SectionRemoteContainer] handleDisconnexion");
+      setRemoteContainer(null);
+      dispatch(setRemoteContainerInRedux(null));
+      setRemoteContainerInLocalStorage(null);
+      setRemoteTokenData(null);
+      dispatch(setSignedOut(true));
+      setSignedOutInLocalStorage(true);
+    } catch (e) {
+      console.error("[SectionRemoteContainer] error handleDisconnexion", e);
+    }
   }
   // render
 

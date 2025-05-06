@@ -33,6 +33,8 @@ export default function SectionRemoteContainerConnected({
     remoteContainer: connectedRemoteContainer,
   } = useRemoteToken(remoteContainer);
 
+  console.log("remoteToken v1", remoteToken);
+
   // helpers
 
   const name = remoteContainer?.name;
@@ -54,7 +56,7 @@ export default function SectionRemoteContainerConnected({
     <Box>
       <HeaderVariantTitleIconButton
         title={name}
-        iconButton={<IconButtonSyncScope />}
+        iconButton={remoteToken && <IconButtonSyncScope />}
       />
       <ButtonUploadChanges />
       <Box sx={{bgcolor: "white"}}>
