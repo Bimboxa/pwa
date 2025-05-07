@@ -12,6 +12,7 @@ import ListPanel from "Features/listPanel/components/ListPanel";
 import PanelChatContainer from "./PanelChatContainer";
 
 import PanelListItem from "Features/listPanel/components/PanelListItem";
+import BottomBarDesktop from "./BottomBarDesktop";
 
 export default function LayoutDesktop() {
   // data
@@ -33,6 +34,7 @@ export default function LayoutDesktop() {
         <ListPanel />
         <SectionViewer />
       </BoxFlexHStretch>
+      <BottomBarDesktop />
       <PanelChatContainer />
 
       <Box

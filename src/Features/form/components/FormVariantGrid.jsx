@@ -6,6 +6,7 @@ import FieldTextVariantGrid from "./FieldTextVariantGrid";
 import FieldImageVariantGrid from "./FieldImageVariantGrid";
 import FieldZonesVariantGrid from "./FieldZonesVariantGrid";
 import FieldZoneVariantGrid from "./FieldZoneVariantGrid";
+import FieldOptionVariantGrid from "./FieldOptionVariantGrid";
 import FieldEntityVariantGrid from "./FieldEntityVariantGrid";
 import FieldCategoryVariantGrid from "./FieldCategoryVariantGrid";
 
@@ -108,6 +109,22 @@ export default function FormVariantGrid({template, item, onItemChange}) {
                 handleFieldValueChange(field.key, newValue)
               }
               entities={field.entities}
+              formContainerRef={formContainerRef}
+            />
+          );
+        }
+
+        if (field?.type === "option") {
+          return (
+            <FieldOptionVariantGrid
+              key={field.key}
+              label={field.label}
+              width={field.width}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              optionValues={field.optionValues}
               formContainerRef={formContainerRef}
             />
           );

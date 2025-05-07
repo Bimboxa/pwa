@@ -1,0 +1,53 @@
+import useRemoteContainer from "../hooks/useRemoteContainer";
+import useRemoteToken from "../hooks/useRemoteToken";
+
+import {Box, Typography} from "@mui/material";
+
+import LinkRemoteItem from "./LinkRemoteItem";
+import ButtonLoginRemoteContainer from "./ButtonLoginRemoteContainer";
+import ButtonLogoutRemoteContainer from "./ButtonLogoutRemoteContainer";
+
+export default function SectionRemoteContainerOverview() {
+  // strings
+
+  const title = "Sauvegarde distante";
+  const serviceS = "Service";
+  const pathS = "Dossier racine";
+
+  // data
+
+  const remoteContainer = useRemoteContainer();
+  const {value: accessToken} = useRemoteToken();
+
+  // helpers
+
+  const serviceLabel = `${serviceS}: ${remoteContainer?.service}`;
+  const pathLabel = `${pathS}:`;
+
+  return (
+    <Box sx={{p: 1}}>
+      <Box
+        sx={{
+          p: 1,
+          borderRadius: "4px",
+          border: (theme) => `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <Typography sx={{mb: 1}}>{title}</Typography>
+        <Typography variant="body2">{serviceLabel}</Typography>
+        <Box sx={{display: "flex", alignItems: "center"}}>
+          <Typography variant="body2">{pathLabel}</Typography>
+          <LinkRemoteItem
+            label={remoteContainer?.path}
+            path={remoteContainer?.path}
+          />
+        </Box>
+        {!accessToken ? (
+          <ButtonLoginRemoteContainer remoteContainer={remoteContainer} />
+        ) : (
+          <ButtonLogoutRemoteContainer />
+        )}
+      </Box>
+    </Box>
+  );
+}

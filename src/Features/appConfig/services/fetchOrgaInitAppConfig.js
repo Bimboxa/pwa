@@ -10,8 +10,12 @@ export default async function fetchOrgaInitAppConfigService({accessToken}) {
   });
 
   if (response.ok) {
-    const appConfig = await response?.json();
-    console.log("[fetchOrgaAppConfig] appConfig", appConfig);
-    return appConfig;
+    try {
+      const appConfig = await response?.json();
+      console.log("[fetchOrgaAppConfig] appConfig", appConfig);
+      return appConfig;
+    } catch (e) {
+      console.log("error response", response, e);
+    }
   }
 }

@@ -1,14 +1,28 @@
-import {SignedIn, UserButton, SignedOut} from "@clerk/clerk-react";
+import useNetworkStatus from "../hooks/useNetworkStatus";
+
+import {SignedIn, UserButton, SignedOut, useAuth} from "@clerk/clerk-react";
 
 import {Box} from "@mui/material";
 import ButtonSignIn from "./ButtonSignIn";
+import AuthButtonOffline from "./AuthButtonOffline";
 
 import CredentialsIcon from "Features/servicesCredentials/components/CredentialsIcon";
 import PageServicesCredentials from "Features/servicesCredentials/components/PageServicesCredentials";
 
 export function AuthButtons() {
+  // data
+
+  const isOnline = useNetworkStatus();
+  const {isLoaded} = useAuth();
+  console.log("Clerk isLoaded", isLoaded);
+
+  if (!isOnline) {
+    return <AuthButtonOffline />;
+  }
+
   return (
     <Box
+      key={`auth-${isOnline}`}
       sx={{
         p: 1,
         display: "flex",

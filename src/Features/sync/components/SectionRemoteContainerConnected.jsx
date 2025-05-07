@@ -33,8 +33,6 @@ export default function SectionRemoteContainerConnected({
     remoteContainer: connectedRemoteContainer,
   } = useRemoteToken(remoteContainer);
 
-  console.log("remoteToken v1", remoteToken);
-
   // helpers
 
   const name = remoteContainer?.name;

@@ -1,48 +1,60 @@
 import {useState} from "react";
+import {createPortal} from "react-dom";
 
 import {
   Box,
+  Button,
   ClickAwayListener,
   Grid2,
   IconButton,
   Typography,
 } from "@mui/material";
-import {ArrowForwardIos as Forward} from "@mui/icons-material";
+import {
+  ArrowForwardIos as Forward,
+  ArrowDropDown as Down,
+} from "@mui/icons-material";
 import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
 import PanelSelectorEntity from "Features/entities/components/PanelSelectorEntity";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
-export default function FieldEntityVariantGrid({
+export default function FieldOptionVariantGrid({
   value,
   onChange,
-  entities,
+  optionValues,
   label,
   size = 8,
   formContainerRef,
 }) {
+  // string
+
+  const selectS = "";
+
   // state
 
   const [open, setOpen] = useState(false);
 
   // helpers - entities
 
-  const entityById = getItemsByKey(entities, "id");
+  const optionsByKey = getItemsByKey(optionValues, "key");
 
   // helpers
 
-  const valueWithProps = entityById[value?.id];
-  const valueLabel = valueWithProps?.label ?? "-?-";
+  const valueLabel = value?.label ?? selectS;
   const bbox = formContainerRef?.current?.getBoundingClientRect();
 
   // helpers
 
-  const selectedEntityId = value?.id;
+  const selectedEntityId = value?.key;
+
+  // helpers - entities
+
+  const entities = optionValues.map((option) => ({...option, id: option.id}));
 
   // handlers
 
   function handleSelectionChange(id) {
-    // const newZones = {ids: zoneIds};
-    onChange({id});
+    const option = optionsByKey[id];
+    onChange(option);
     setOpen(false);
   }
 
@@ -57,17 +69,19 @@ export default function FieldEntityVariantGrid({
 
   return (
     <>
-      {open && (
-        <ClickAwayListener onClickAway={() => setOpen(false)}>
+      {open &&
+        createPortal(
           <Box
             sx={{
               position: "absolute",
+              bgcolor: "white",
               top: 0,
-              left: bbox.left,
-              width: bbox.width,
               bottom: 0,
-              zIndex: 2000,
-              bgcolor: "background.default",
+              left: 0,
+              right: 0,
+              zIndex: 1,
+              display: "flex",
+              flexDirection: "column",
             }}
           >
             <PanelSelectorEntity
@@ -75,10 +89,12 @@ export default function FieldEntityVariantGrid({
               selectedEntityId={selectedEntityId}
               onSelectionChange={handleSelectionChange}
               onClose={handlePanelClose}
+              title={label}
             />
-          </Box>
-        </ClickAwayListener>
-      )}
+          </Box>,
+          formContainerRef.current
+        )}
+
       <Grid2
         container
         sx={{border: (theme) => `1px solid ${theme.palette.divider}`}}
@@ -88,21 +104,17 @@ export default function FieldEntityVariantGrid({
             {label}
           </Typography>
         </Grid2>
-        <Grid2
-          size={size}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            pl: 1,
-          }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            {valueLabel}
-          </Typography>
-          <IconButton onClick={handleOpenSelector}>
-            <Forward />
-          </IconButton>
+        <Grid2 size={size}>
+          <Button
+            variant="text"
+            fullWidth
+            onClick={handleOpenSelector}
+            endIcon={<Down />}
+          >
+            <Typography variant="body2" color="text.secondary" sx={{width: 1}}>
+              {valueLabel}
+            </Typography>
+          </Button>
         </Grid2>
       </Grid2>
     </>

@@ -12,6 +12,7 @@ import {DndContext} from "@dnd-kit/core";
 
 import useDndSensors from "App/hooks/useDndSensors";
 import PageLanding from "Features/init/components/PageLanding";
+import DialogAutoSelectScope from "Features/scopeSelector/components/DialogAutoSelectScope";
 
 export default function MainAppLayout() {
   // init
@@ -39,6 +40,7 @@ export default function MainAppLayout() {
         {deviceType === "MOBILE" && <LayoutMobile />}
       </Box>
       <PageLanding />
+      <DialogAutoSelectScope />
     </DndContext>
   );
 }

@@ -13,9 +13,6 @@ export default function ButtonInPanel({
   const isMobile = useIsMobile();
   const size = isMobile ? "large" : "medium";
 
-  if (!bgcolor) bgcolor = "primary.main";
-  if (!isMobile) color = "text.primary";
-
   return (
     <Box sx={{width: 1, p: 1}}>
       <Paper sx={{width: 1, bgcolor, color}}>
