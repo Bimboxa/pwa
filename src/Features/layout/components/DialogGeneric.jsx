@@ -19,7 +19,11 @@ const DialogGeneric = forwardRef(function DialogGeneric(
       fullScreen={isMobile}
       open={open}
       onClose={onClose}
-      slotProps={{paper: {ref}}}
+      slotProps={{
+        paper: {
+          ref,
+        },
+      }}
     >
       {Boolean(title) && !isMobile && <DialogTitle>{title}</DialogTitle>}
       {Boolean(title) && isMobile && (

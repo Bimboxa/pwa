@@ -17,7 +17,11 @@ import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
 import setInitProjectId from "Features/init/services/setInitProjectId";
 import setInitScopeId from "Features/init/services/setInitScopeId";
 
-export default function PanelAddProjectAndScope({containerEl, onClose}) {
+export default function PanelAddProjectAndScope({
+  containerEl,
+  onClose,
+  onCreated,
+}) {
   const dispatch = useDispatch();
 
   // data
@@ -46,13 +50,8 @@ export default function PanelAddProjectAndScope({containerEl, onClose}) {
   }
 
   function handleSelectScope(scope) {
-    const projectId = project.id;
-    //
-    setInitProjectId(projectId);
-    dispatch(setSelectedProjectId(projectId));
-    //
-    setInitScopeId(scope.id);
-    dispatch(setSelectedScopeId(scope.id));
+    const projectAndScope = {...scope, project};
+    if (onCreated) onCreated(projectAndScope);
     //
     onClose();
   }

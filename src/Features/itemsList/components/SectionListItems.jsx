@@ -13,7 +13,7 @@ export default function SectionListItems({items, onClick, selection}) {
           <ListItem key={item.id} disablePadding dense={!isMobile}>
             <ListItemButton
               divider
-              selected={selection === item.id}
+              selected={selection?.includes(item.id)}
               onClick={() => onClick(item)}
             >
               <ListItemText

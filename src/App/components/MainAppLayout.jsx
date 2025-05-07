@@ -13,13 +13,11 @@ import LayoutMobile from "Features/layout/components/LayoutMobile";
 import {DndContext} from "@dnd-kit/core";
 
 import useDndSensors from "App/hooks/useDndSensors";
+
+import DialogAutoRemoteContainerConnexion from "Features/sync/components/DialogAutoRemoteContainerConnexion";
 import PageLanding from "Features/init/components/PageLanding";
 import DialogAutoSelectScope from "Features/scopeSelector/components/DialogAutoSelectScope";
 import Toaster from "Features/layout/components/Toaster";
-
-// sw
-import {setupSWUpdateListener} from "App/services/sw-update-listener";
-import {setNewVersionAvailable} from "Features/appConfig/appConfigSlice";
 
 export default function MainAppLayout() {
   const dispatch = useDispatch();
@@ -33,13 +31,7 @@ export default function MainAppLayout() {
   const sensors = useDndSensors();
 
   const openLandingPage = useSelector((s) => s.init.openLandingPage);
-
-  // sw
-
-  setupSWUpdateListener(() => {
-    dispatch(setToaster({message: "Nouvelle version disponible"}));
-    dispatch(setNewVersionAvailable(true));
-  });
+  const warningWasShowed = useSelector((s) => s.init.warningWasShowed);
 
   return (
     <DndContext sensors={sensors}>
@@ -58,7 +50,8 @@ export default function MainAppLayout() {
       </Box>
       <Toaster />
       <PageLanding />
-      {!openLandingPage && <DialogAutoSelectScope />}
+      {!openLandingPage && warningWasShowed && <DialogAutoSelectScope />}
+      {!openLandingPage && <DialogAutoRemoteContainerConnexion />}
     </DndContext>
   );
 }
