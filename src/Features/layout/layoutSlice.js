@@ -13,6 +13,8 @@ const layoutInitialState = {
   //
   openChat: false,
   chatWidth: 400,
+  //
+  toaster: {}, // {triggeredAt,isError,message}
 };
 
 export const layoutSlice = createSlice({
@@ -33,6 +35,15 @@ export const layoutSlice = createSlice({
     setOpenChat: (state, action) => {
       state.openChat = action.payload;
     },
+    //
+    setToaster: (state, action) => {
+      const toaster = action.payload;
+      state.toaster = {
+        message: toaster.message,
+        isError: toaster.isError,
+        triggeredAt: Date.now(),
+      };
+    },
   },
 });
 
@@ -44,6 +55,8 @@ export const {
   setViewModeInMobile,
   //
   setOpenChat,
+  //
+  setToaster,
 } = layoutSlice.actions;
 
 export default layoutSlice.reducer;

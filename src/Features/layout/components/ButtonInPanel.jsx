@@ -9,17 +9,19 @@ export default function ButtonInPanel({
   color = "white",
   loading,
   variant,
+  disabled,
 }) {
   const isMobile = useIsMobile();
   const size = isMobile ? "large" : "medium";
 
   return (
     <Box sx={{width: 1, p: 1}}>
-      <Paper sx={{width: 1, bgcolor, color}}>
+      <Paper sx={{width: 1, color}}>
         <Button
+          disabled={disabled}
           fullWidth
           size={size}
-          sx={{color: "inherit"}}
+          sx={{color: "inherit", bgcolor: disabled ? "white" : bgcolor}}
           //variant={variant ?? "contained"}
           variant="text"
           onClick={onClick}

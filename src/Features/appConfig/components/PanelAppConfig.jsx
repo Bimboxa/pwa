@@ -8,10 +8,12 @@ import ButtonResetApp from "./ButtonResetApp";
 import SectionUpdateAppConfigFromFile from "./SectionUpdateAppConfigFromFile";
 import SectionAppConfigTitle from "./SectionAppConfigTitle";
 import SectionRemoteContainerOverview from "Features/sync/components/SectionRemoteContainerOverview";
+import SectionUpdateAppVersion from "./SectionUpdateAppVersion";
 
 export default function PanelAppConfig() {
   return (
     <BoxFlexVStretch>
+      <SectionUpdateAppVersion />
       <SectionAppConfigTitle />
       <BoxFlexVStretch sx={{overflow: "auto"}}>
         <SectionRemoteContainerOverview />

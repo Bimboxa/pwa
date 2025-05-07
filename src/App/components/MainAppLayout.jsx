@@ -1,6 +1,6 @@
 import React from "react";
 
-import {useSelector} from "react-redux";
+import {useSelector, useDispatch} from "react-redux";
 
 import useInit from "Features/init/hooks/useInit";
 
@@ -13,8 +13,14 @@ import {DndContext} from "@dnd-kit/core";
 import useDndSensors from "App/hooks/useDndSensors";
 import PageLanding from "Features/init/components/PageLanding";
 import DialogAutoSelectScope from "Features/scopeSelector/components/DialogAutoSelectScope";
+import Toaster from "Features/layout/components/Toaster";
+
+// sw
+import {setupSWUpdateListener} from "App/services/sw-update-listener";
+import {setNewVersionAvailable} from "Features/appConfig/appConfigSlice";
 
 export default function MainAppLayout() {
+  const dispatch = useDispatch();
   // init
 
   useInit();
@@ -25,6 +31,13 @@ export default function MainAppLayout() {
   const sensors = useDndSensors();
 
   const openLandingPage = useSelector((s) => s.init.openLandingPage);
+
+  // sw
+
+  setupSWUpdateListener(() => {
+    dispatch(setToaster({message: "Nouvelle version disponible"}));
+    dispatch(setNewVersionAvailable(true));
+  });
 
   return (
     <DndContext sensors={sensors}>
@@ -41,6 +54,7 @@ export default function MainAppLayout() {
         {deviceType === "DESKTOP" && <LayoutDesktop />}
         {deviceType === "MOBILE" && <LayoutMobile />}
       </Box>
+      <Toaster />
       <PageLanding />
       {!openLandingPage && <DialogAutoSelectScope />}
     </DndContext>

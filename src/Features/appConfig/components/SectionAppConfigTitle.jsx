@@ -1,4 +1,9 @@
 import {useState} from "react";
+
+import {useDispatch} from "react-redux";
+
+import {setToaster} from "Features/layout/layoutSlice";
+
 import useAppConfig from "../hooks/useAppConfig";
 import useFetchOrgaAppConfig from "../hooks/useFetchOrgaAppConfig";
 
@@ -8,6 +13,7 @@ import {Refresh} from "@mui/icons-material";
 export default function SectionAppConfigTitle() {
   const appConfig = useAppConfig();
   const fetchOrgaAppConfig = useFetchOrgaAppConfig();
+  const dispatch = useDispatch();
 
   // state
 
@@ -23,6 +29,7 @@ export default function SectionAppConfigTitle() {
   async function handleRefresh() {
     setLoading(true);
     await fetchOrgaAppConfig();
+    await dispatch(setToaster({message: "Configuration actualisée"}));
     setLoading(false);
   }
 

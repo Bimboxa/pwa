@@ -65,14 +65,14 @@ export default function ButtonSelectorScopeInTopBar() {
         </Button>
         <ButtonMenuSyncIndicator />
       </Box>
-      <DialogFsOrMenu
+      {/* <DialogFsOrMenu
         title={title}
         open={open}
         onClose={handleDialogClose}
         anchorEl={anchorEl}
       >
         <ScopeSelector />
-      </DialogFsOrMenu>
+      </DialogFsOrMenu> */}
     </>
   );
 }
