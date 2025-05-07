@@ -1,19 +1,22 @@
-import {useState} from "react";
+import {useDispatch, useSelector} from "react-redux";
+
+import {setOpenAppConfig} from "../appConfigSlice";
+
 import useAppConfig from "../hooks/useAppConfig";
 
 import {Button, Typography} from "@mui/material";
 
-import DialogGeneric from "Features/layout/components/DialogGeneric";
-import PanelAppConfig from "./PanelAppConfig";
+import DialogAppConfig from "./DialogAppConfig";
 
 export default function ButtonDialogAppConfig() {
+  const dispatch = useDispatch();
   // data
 
   const appConfig = useAppConfig();
 
   // state
 
-  const [open, setOpen] = useState(false);
+  const open = useSelector((s) => s.appConfig.openAppConfig);
 
   // helpers
 
@@ -23,12 +26,10 @@ export default function ButtonDialogAppConfig() {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
+      <Button onClick={() => dispatch(setOpenAppConfig(true))}>
         <Typography variant="body2">{label}</Typography>
       </Button>
-      <DialogGeneric open={open} onClose={() => setOpen(false)}>
-        <PanelAppConfig />
-      </DialogGeneric>
+      <DialogAppConfig />
     </>
   );
 }

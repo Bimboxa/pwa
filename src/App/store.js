@@ -1,6 +1,7 @@
 import {configureStore} from "@reduxjs/toolkit";
 
 import appConfigReducer from "Features/appConfig/appConfigSlice";
+import initReducer from "Features/init/initSlice";
 import servicesCredentialsReducer from "Features/servicesCredentials/servicesCredentialsSlice";
 import settingsReducer from "Features/settings/settingsSlice";
 import webrtcReducer from "Features/webrtc/webrtcSlice";
@@ -35,6 +36,7 @@ import dropboxReducer from "Features/dropbox/dropboxSlice";
 const store = configureStore({
   reducer: {
     appConfig: appConfigReducer,
+    init: initReducer,
     servicesCredentials: servicesCredentialsReducer,
     settings: settingsReducer,
     webrtc: webrtcReducer,

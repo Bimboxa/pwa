@@ -11,6 +11,11 @@ export default function DialogAppConfig() {
   // data
 
   const open = useSelector((s) => s.appConfig.openAppConfig);
+  const version = useSelector((s) => s.appConfig.appVersion);
+
+  // helpers
+
+  const title = `v.${version}`;
 
   // handlers
 
@@ -19,11 +24,7 @@ export default function DialogAppConfig() {
   }
 
   return (
-    <DialogGeneric
-      open={open}
-      onClose={handleClose}
-      title="Configuration de l'application"
-    >
+    <DialogGeneric open={open} onClose={handleClose} title={title}>
       <PanelAppConfig />
     </DialogGeneric>
   );
