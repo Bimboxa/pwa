@@ -40,7 +40,7 @@ export default function useCreateProject() {
         name,
         clientRef,
       };
-      await db.projects.put(project);
+      await db.projects.add(project);
       console.log("debug_2504 [db] added project", project);
 
       // sync file
