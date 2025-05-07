@@ -20,12 +20,18 @@ const AuthGate = ({children}) => {
   const email = user?.primaryEmailAddress?.emailAddress;
 
   useEffect(() => {
-    console.log("[EFFECT] authGate", email);
+    console.log("[EFFECT] authGate 1", email, isOnline);
     if (email) {
       setUserEmailInLocalStorage(email);
       dispatch(setUserEmail(email));
     }
     const userEmail = getUserEmailFromLocalStorage();
+    console.log(
+      "[EFFECT] authGate 2",
+      !userEmail && isOnline,
+      userEmail,
+      isOnline
+    );
     if (!userEmail && isOnline) {
       navigate("/sign-in"); // Redirects to Clerk sign-in page
     }
