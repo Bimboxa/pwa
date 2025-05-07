@@ -17,6 +17,8 @@ export default function FormScope({scope, onChange}) {
     };
   });
 
+  console.log("configOptions", appConfig);
+
   // const
 
   const template = {
@@ -35,7 +37,7 @@ export default function FormScope({scope, onChange}) {
         key: "presetConfig",
         label: appConfig?.strings?.presetConfig?.title,
         type: "option",
-        valueOptions: configOptions,
+        optionValues: configOptions,
       },
     ],
   };
@@ -51,7 +53,6 @@ export default function FormScope({scope, onChange}) {
       template={template}
       item={scope}
       onItemChange={handleItemChange}
-      forceVariantMobile={true}
     />
   );
 }

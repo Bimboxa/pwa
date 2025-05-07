@@ -18,7 +18,7 @@ export default function TopBarDesktop() {
         alignItems: "center",
         bgcolor: "white",
         zIndex: 1000,
-        pl: 1,
+        px: 1,
       }}
     >
       <ButtonSelectorScopeInTopBar />

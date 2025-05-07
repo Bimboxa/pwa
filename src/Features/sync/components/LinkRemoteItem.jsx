@@ -47,10 +47,19 @@ export default function LinkRemoteItem({label, path, variant, color}) {
   // effect
 
   useEffect(() => {
-    if (path) {
+    if (path && fetchRemoteItemMetadata) {
       fetchMetadata();
     }
   }, [path]);
+
+  // handlers
+
+  async function handleIndicatorClick() {
+    setLoading(true);
+    console.log("fetch metadata");
+    await fetchMetadata();
+    setLoading(false);
+  }
 
   return (
     <Box sx={{display: "flex", alignItems: "center", p: 1}}>
@@ -72,21 +81,23 @@ export default function LinkRemoteItem({label, path, variant, color}) {
           alignItems: "center",
         }}
       >
-        <BoxCenter>
-          {loading && <CircularProgress size={10} />}
-          {!loading && (
-            <Box
-              sx={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                bgcolor,
-              }}
-            />
-          )}
-        </BoxCenter>
+        <Box onClick={handleIndicatorClick} sx={{cursor: "pointer"}}>
+          <BoxCenter>
+            {loading && <CircularProgress size={10} />}
+            {!loading && (
+              <Box
+                sx={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  bgcolor,
+                }}
+              />
+            )}
+          </BoxCenter>
+        </Box>
       </Box>
     </Box>
   );

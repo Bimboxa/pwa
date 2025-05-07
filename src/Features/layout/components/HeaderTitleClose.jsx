@@ -18,9 +18,11 @@ export default function HeaderTitleClose({title, onClose}) {
           {title}
         </Typography>
       </Box>
-      <IconButton onClick={onClose}>
-        <Close />
-      </IconButton>
+      {onClose && (
+        <IconButton onClick={onClose}>
+          <Close />
+        </IconButton>
+      )}
     </Box>
   );
 }

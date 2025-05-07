@@ -1,8 +1,9 @@
 import React, {useState} from "react";
 
-import {Box, Typography} from "@mui/material";
+import {Box, CircularProgress, Typography} from "@mui/material";
 import {CloudUpload} from "@mui/icons-material";
 
+import BoxCenter from "Features/layout/components/BoxCenter";
 import FilesSelectorButton from "Features/files/components/FilesSelectorButton";
 
 export default function ContainerFilesSelector({
@@ -29,20 +30,8 @@ export default function ContainerFilesSelector({
     onFilesChange(files);
   }
   function handleFilesChangeFromButton(files) {
-    if (multiple) {
-      onFilesChange(files);
-    } else {
-      onFilesChange([files]);
-    }
+    onFilesChange(files);
   }
-
-  // helper - files object
-
-  const fileObjects = files?.map((file) => ({
-    id: file.name,
-    name: file.name,
-    file: file,
-  }));
 
   const background = (theme) =>
     `linear-gradient(to right,${theme.palette.secondary.main},${theme.palette.primary.main})`;
@@ -91,7 +80,11 @@ export default function ContainerFilesSelector({
         position: "relative",
       }}
     >
-      {loading && <Typography>...</Typography>}
+      {loading && (
+        <BoxCenter>
+          <CircularProgress />
+        </BoxCenter>
+      )}
       {!loading && (
         <Box sx={{flex: 1, p: 2, width: 1}}>
           <Box

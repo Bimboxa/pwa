@@ -9,6 +9,7 @@ import fetchOrgaInitAppConfigService from "../services/fetchOrgaInitAppConfig";
 import appConfigDefault from "../data/appConfigDefault";
 
 import useToken from "Features/auth/hooks/useToken";
+import setAppConfigInLocalStorage from "../services/setAppConfigInLocalStorage";
 
 export default function useInitAppConfig() {
   const dispatch = useDispatch();
@@ -23,6 +24,7 @@ export default function useInitAppConfig() {
     // Fallback : fetch appConfig from server
     if (!appConfig && accessToken) {
       appConfig = await fetchOrgaInitAppConfigService({accessToken});
+      setAppConfigInLocalStorage(appConfig);
     }
 
     dispatch(setAppConfig(appConfig));

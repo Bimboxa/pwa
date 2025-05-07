@@ -27,6 +27,7 @@ import PageSignIn from "Features/auth/components/PageSignIn";
 // dexie
 
 import {startDexieSync} from "App/dexieSyncService";
+import useNetworkStatus from "Features/auth/hooks/useNetworkStatus";
 
 startDexieSync();
 
@@ -34,11 +35,16 @@ function App({pca, runningIn}) {
   // auth
 
   const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+  const isOnline = useNetworkStatus();
 
   // render
 
   return (
-    <ClerkProvider publishableKey={clerkPublishableKey} localization={frFR}>
+    <ClerkProvider
+      key={isOnline ? "online" : "offline"}
+      publishableKey={clerkPublishableKey}
+      localization={frFR}
+    >
       <RemoteTokenDataProvider>
         <Provider store={store}>
           <ThemeProvider theme={theme}>

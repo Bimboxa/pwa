@@ -18,6 +18,17 @@ export default function useCreateProject() {
 
       const updateSyncFile = options?.updateSyncFile;
 
+      // edge case
+      if (clientRef) {
+        const existingProjects = db.projects
+          .where("clientRef")
+          .equals(clientRef);
+        if (existingProjects) {
+          console.error("Project already exists with this ref");
+          return;
+        }
+      }
+
       // main
 
       const project = {
