@@ -2,12 +2,15 @@ import {useState, useEffect} from "react";
 import {useSelector, useDispatch} from "react-redux";
 
 import {setOpenLandingPage} from "Features/init/initSlice";
+import {setToaster} from "Features/layout/layoutSlice";
 
-import {Box, Typography} from "@mui/material";
+import {Box, Typography, Button} from "@mui/material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
 import LogoBimboxa from "Features/layout/components/LogoBimboxa";
 import LogoAnimated from "Features/layout/components/LogoAnimated";
+
+import {checkForSWUpdate} from "App/services/sw-update-listener";
 
 export default function PageLanding() {
   const dispatch = useDispatch();
@@ -41,6 +44,15 @@ export default function PageLanding() {
 
   if (!visible) return null;
 
+  // handlers
+
+  function handleVersionClick(e) {
+    e.stopPropagation();
+    console.log("version click");
+    checkForSWUpdate();
+    dispatch(setToaster({message: "Vérification mise à jour ..."}));
+  }
+
   return (
     <Box
       onClick={() => setOpen(false)}
@@ -66,7 +78,9 @@ export default function PageLanding() {
       >
         <BoxCenter sx={{display: "flex", flexDirection: "column"}}>
           <LogoAnimated />
-          <Typography sx={{mt: 2}}>{version}</Typography>
+          <Button sx={{mt: 2}} onClick={handleVersionClick}>
+            <Typography>{version}</Typography>
+          </Button>
         </BoxCenter>
       </Box>
     </Box>
