@@ -3,6 +3,7 @@ import useScopes from "Features/scopes/hooks/useScopes";
 
 import ItemsList from "Features/itemsList/components/ItemsList";
 import PanelAddProjectAndScope from "./PanelAddProjectAndScope";
+import BoxFlexHStretch from "Features/layout/components/BoxFlexHStretch";
 
 export default function PanelSelectProjectAndScope({containerEl}) {
   // data
@@ -33,16 +34,21 @@ export default function PanelSelectProjectAndScope({containerEl}) {
   });
 
   return (
-    <ItemsList
-      items={items}
-      searchKeys={["primaryText", "secondaryText"]}
-      sortby="primaryText"
-      noItemLabel={noScopeS}
-      containerEl={containerEl}
-      createComponent={({onClose}) => (
-        <PanelAddProjectAndScope containerEl={containerEl} onClose={onClose} />
-      )}
-      createLabel={addProjectAndScopeS}
-    />
+    <BoxFlexHStretch sx={{width: 1}}>
+      <ItemsList
+        items={items}
+        searchKeys={["primaryText", "secondaryText"]}
+        sortby="primaryText"
+        noItemLabel={noScopeS}
+        containerEl={containerEl}
+        createComponent={({onClose}) => (
+          <PanelAddProjectAndScope
+            containerEl={containerEl}
+            onClose={onClose}
+          />
+        )}
+        createLabel={addProjectAndScopeS}
+      />
+    </BoxFlexHStretch>
   );
 }

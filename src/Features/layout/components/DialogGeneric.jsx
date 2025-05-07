@@ -29,8 +29,8 @@ const DialogGeneric = forwardRef(function DialogGeneric(
       <BoxFlexVStretch
         sx={{
           pb: isMobile ? 2 : 0,
-          ...(vh && {height: `${vh}vh`}),
-          ...(vw && {width: `${vw}vw`}),
+          ...(vh && !isMobile && {height: `${vh}vh`}),
+          ...(vw && !isMobile && {width: `${vw}vw`}),
         }}
       >
         {children}
