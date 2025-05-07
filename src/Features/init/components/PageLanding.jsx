@@ -10,8 +10,6 @@ import BoxCenter from "Features/layout/components/BoxCenter";
 import LogoBimboxa from "Features/layout/components/LogoBimboxa";
 import LogoAnimated from "Features/layout/components/LogoAnimated";
 
-import {checkForSWUpdate} from "App/services/sw-update-listener";
-
 export default function PageLanding() {
   const dispatch = useDispatch();
 
@@ -49,7 +47,7 @@ export default function PageLanding() {
   function handleVersionClick(e) {
     e.stopPropagation();
     console.log("version click");
-    checkForSWUpdate();
+
     dispatch(setToaster({message: "Vérification mise à jour ..."}));
   }
 
