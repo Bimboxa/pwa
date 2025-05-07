@@ -1,6 +1,7 @@
 import {useState, useMemo, useEffect} from "react";
 
 import useDebouncedValue from "Features/misc/hooks/useDebounceValue";
+import useIsMobile from "Features/layout/hooks/useIsMobile";
 
 import {Box} from "@mui/material";
 
@@ -13,7 +14,6 @@ import getFoundItems from "Features/search/getFoundItems";
 import getSortedItems from "Features/misc/utils/getSortedItems";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 import {createPortal} from "react-dom";
-import {create} from "qrcode";
 
 export default function ItemsList({
   items,
@@ -26,6 +26,10 @@ export default function ItemsList({
   createComponent,
   createLabel,
 }) {
+  //
+
+  const isMobile = useIsMobile();
+
   // state
 
   const [searchText, setSearchText] = useState();
@@ -122,6 +126,7 @@ export default function ItemsList({
               zIndex: 1,
               display: "flex",
               flexDirection: "column",
+              pb: isMobile ? 2 : 0,
             }}
           >
             {createComponent({
