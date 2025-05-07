@@ -2,6 +2,8 @@ import React from "react";
 
 import {useSelector, useDispatch} from "react-redux";
 
+import {setToaster} from "Features/layout/layoutSlice";
+
 import useInit from "Features/init/hooks/useInit";
 
 import {Box} from "@mui/material";
