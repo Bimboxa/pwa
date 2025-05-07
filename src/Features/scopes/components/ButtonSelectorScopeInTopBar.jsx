@@ -13,6 +13,7 @@ import {ArrowDropDown as Down} from "@mui/icons-material";
 import ScopeSelector from "Features/scopeSelector/components/ScopeSelector";
 import ButtonMenuSyncIndicator from "Features/sync/components/ButtonMenuSyncIndicator";
 import DialogFsOrMenu from "Features/layout/components/DialogFsOrMenu";
+import useUserEmail from "Features/auth/hooks/useUserEmail";
 
 export default function ButtonSelectorScopeInTopBar() {
   const dispatch = useDispatch();
@@ -25,6 +26,7 @@ export default function ButtonSelectorScopeInTopBar() {
   // data
 
   const open = useSelector((s) => s.scopeSelector.open);
+  const {value: userEmail} = useUserEmail();
 
   // state
 
@@ -36,6 +38,8 @@ export default function ButtonSelectorScopeInTopBar() {
   console.log("[debug] scope", scope);
 
   // helpers
+
+  const show = userEmail && userEmail.includes("@");
 
   //const projectName = scope?.project?.name;
   const scopeName = scope?.name ?? selectS;
@@ -52,6 +56,7 @@ export default function ButtonSelectorScopeInTopBar() {
     dispatch(setOpen(true));
   }
 
+  if (!show) return <Box />;
   return (
     <>
       <Box sx={{alignItems: "center", display: "flex"}}>
