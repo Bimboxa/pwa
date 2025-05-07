@@ -24,6 +24,8 @@ export default function SectionCreateScope({onCreated, onClose}) {
   const [tempScope, setTempScope] = useState({});
   const [loading, setLoading] = useState(false);
 
+  console.log("tempScope", tempScope);
+
   // handlers
 
   async function handleCreateScope() {

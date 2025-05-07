@@ -20,10 +20,12 @@ export default function useCreateProject() {
 
       // edge case
       if (clientRef) {
-        const existingProjects = db.projects
+        const existingProject = await db.projects
           .where("clientRef")
-          .equals(clientRef);
-        if (existingProjects) {
+          .equals(clientRef)
+          .first();
+        console.log("existingProject", existingProject);
+        if (existingProject) {
           console.error("Project already exists with this ref");
           return;
         }

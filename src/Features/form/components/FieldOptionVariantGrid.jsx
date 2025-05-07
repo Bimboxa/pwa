@@ -20,7 +20,7 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 export default function FieldOptionVariantGrid({
   value,
   onChange,
-  optionValues,
+  valueOptions,
   label,
   size = 8,
   formContainerRef,
@@ -35,7 +35,7 @@ export default function FieldOptionVariantGrid({
 
   // helpers - entities
 
-  const optionsByKey = getItemsByKey(optionValues, "key");
+  const optionsByKey = getItemsByKey(valueOptions, "key");
 
   // helpers
 
@@ -48,11 +48,12 @@ export default function FieldOptionVariantGrid({
 
   // helpers - entities
 
-  const entities = optionValues.map((option) => ({...option, id: option.id}));
+  const entities = valueOptions.map((option) => ({...option, id: option.key}));
 
   // handlers
 
   function handleSelectionChange(id) {
+    console.log("SelectionChange", id);
     const option = optionsByKey[id];
     onChange(option);
     setOpen(false);
