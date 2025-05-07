@@ -7,6 +7,7 @@ import {Box, Typography} from "@mui/material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
 import LogoBimboxa from "Features/layout/components/LogoBimboxa";
+import LogoAnimated from "Features/layout/components/LogoAnimated";
 
 export default function PageLanding() {
   const dispatch = useDispatch();
@@ -64,7 +65,7 @@ export default function PageLanding() {
         }}
       >
         <BoxCenter sx={{display: "flex", flexDirection: "column"}}>
-          <LogoBimboxa />
+          <LogoAnimated />
           <Typography sx={{mt: 2}}>{version}</Typography>
         </BoxCenter>
       </Box>
