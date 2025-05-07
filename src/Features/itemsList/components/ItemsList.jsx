@@ -25,6 +25,7 @@ export default function ItemsList({
   containerEl,
   createComponent,
   createLabel,
+  clickOnCreation,
 }) {
   //
 
@@ -84,12 +85,12 @@ export default function ItemsList({
 
   function handleCreateClick() {
     setOpenCreate(true);
-    console.log("bbox", bbox, containerEl);
   }
 
   function handleItemCreated(item) {
     console.log("[item] created", item);
     setOpenCreate(false);
+    if (clickOnCreation) onClick(item, {fromCreation: true});
   }
 
   return (
@@ -105,7 +106,11 @@ export default function ItemsList({
         />
         <BoxFlexVStretch sx={{overflow: "auto"}}>
           {!noItems ? (
-            <SectionListItems items={foundItems} onClick={handleItemClick} />
+            <SectionListItems
+              items={foundItems}
+              selection={selection}
+              onClick={handleItemClick}
+            />
           ) : (
             <SectionNoItem noItemLabel={noItemLabel} />
           )}

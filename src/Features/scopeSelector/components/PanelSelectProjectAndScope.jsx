@@ -1,5 +1,7 @@
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 
+import {setScope} from "../scopeSelectorSlice";
+import {setProject} from "../scopeSelectorSlice";
 import {setSelectedScopeId} from "Features/scopes/scopesSlice";
 import {setSelectedProjectId} from "Features/projects/projectsSlice";
 import {setOpen} from "../scopeSelectorSlice";
@@ -19,6 +21,7 @@ export default function PanelSelectProjectAndScope({containerEl}) {
 
   const {value: scopes} = useScopes({withProject: true});
   const appConfig = useAppConfig();
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   console.log("scopes", scopes);
 
@@ -44,19 +47,30 @@ export default function PanelSelectProjectAndScope({containerEl}) {
     };
   });
 
+  // helpers - selection
+
+  const selection = selectedScopeId ? [selectedScopeId] : null;
+
   // handlers
 
-  function handleClick(item) {
-    const scope = scopes.find((s) => s.id === item.id);
+  function handleClick(item, options) {
+    let scope;
+    if (options?.fromCreation) {
+      scope = item;
+    } else {
+      scope = scopes.find((s) => s.id === item.id);
+    }
     if (!scope || !scope.project) return;
     //
     const projectId = scope.project.id;
     //
     setInitProjectId(projectId);
     dispatch(setSelectedProjectId(projectId));
+    dispatch(setProject(null));
     //
     setInitScopeId(scope.id);
     dispatch(setSelectedScopeId(scope.id));
+    dispatch(setProject(null));
     //
     dispatch(setOpen(false));
   }
@@ -65,18 +79,21 @@ export default function PanelSelectProjectAndScope({containerEl}) {
     <BoxFlexHStretch sx={{width: 1}}>
       <ItemsList
         items={items}
+        selection={selection}
         onClick={handleClick}
         searchKeys={["primaryText", "secondaryText"]}
         sortby="primaryText"
         noItemLabel={noScopeS}
         containerEl={containerEl}
-        createComponent={({onClose}) => (
+        createComponent={({onClose, onCreated}) => (
           <PanelAddProjectAndScope
             containerEl={containerEl}
             onClose={onClose}
+            onCreated={onCreated}
           />
         )}
         createLabel={addProjectAndScopeS}
+        clickOnCreation={true}
       />
     </BoxFlexHStretch>
   );

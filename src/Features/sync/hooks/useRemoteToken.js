@@ -1,6 +1,8 @@
 import {useEffect, useState, useRef} from "react";
 
-import {useSelector} from "react-redux";
+import {useSelector, useDispatch} from "react-redux";
+
+import {setInitConnextionToRemoteWasDone} from "Features/init/initSlice";
 
 import useToken from "Features/auth/hooks/useToken";
 
@@ -12,6 +14,7 @@ import getSignedOutFromLocalStorage from "../services/getSignedOutFromLocalStora
 
 export default function useRemoteToken(remoteContainer) {
   const {remoteTokenData, setRemoteTokenData} = useRemoteTokenData();
+  const dispatch = useDispatch();
 
   const remoteContainerInState = useRemoteContainer();
   const signedOut = getSignedOutFromLocalStorage();
@@ -54,6 +57,8 @@ export default function useRemoteToken(remoteContainer) {
     } catch (e) {
       console.error("[useRemoteToken] Error refreshing token", e);
       setLoading(false);
+    } finally {
+      dispatch(setInitConnextionToRemoteWasDone(true));
     }
   }
 

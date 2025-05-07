@@ -11,7 +11,7 @@ import SectionRemoteContainerOverview from "Features/sync/components/SectionRemo
 import SectionUpdateAppVersion from "./SectionUpdateAppVersion";
 import ButtonDeleteProjects from "./ButtonDeleteProjects";
 
-export default function PanelAppConfig() {
+export default function PanelAppConfig({onClose}) {
   return (
     <BoxFlexVStretch>
       <SectionUpdateAppVersion />
@@ -21,7 +21,7 @@ export default function PanelAppConfig() {
         <SectionRemoteContainerOverview />
         <BlockRemoteAppConfigFile />
         <SectionOrgaData />
-        <ButtonDeleteProjects />
+        <ButtonDeleteProjects onDeleted={onClose} />
       </BoxFlexVStretch>
     </BoxFlexVStretch>
   );

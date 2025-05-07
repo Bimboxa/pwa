@@ -1,3 +1,5 @@
+import {useSelector} from "react-redux";
+
 import useProjects from "Features/projects/hooks/useProjects";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -9,10 +11,15 @@ export default function PanelSelectProject({containerEl, onClose, onSelect}) {
 
   const {value: projects} = useProjects();
   const appConfig = useAppConfig();
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
 
   // helpers
 
   const createS = appConfig.strings.project.create || "Créer un projet";
+
+  // helpers - selection
+
+  const selection = projectId ? [projectId] : null;
 
   // helpers - notItems
 
@@ -28,14 +35,21 @@ export default function PanelSelectProject({containerEl, onClose, onSelect}) {
 
   // handlers
 
-  function handleClick(item) {
-    const project = projects.find((p) => p.id === item.id);
+  function handleClick(item, options) {
+    let project;
+    if (options?.fromCreation) {
+      project = item;
+    } else {
+      project = projects.find((p) => p.id === item.id);
+    }
+
     if (onSelect) onSelect(project);
   }
 
   return (
     <ItemsList
       items={items}
+      selection={selection}
       onClick={handleClick}
       searchKeys={["primaryText", "secondaryText"]}
       sortBy={"secondaryText"}
@@ -45,6 +59,7 @@ export default function PanelSelectProject({containerEl, onClose, onSelect}) {
       createComponent={({onClose, onCreated}) => (
         <SectionCreateProject onClose={onClose} onCreated={onCreated} />
       )}
+      clickOnCreation={true}
     />
   );
 }

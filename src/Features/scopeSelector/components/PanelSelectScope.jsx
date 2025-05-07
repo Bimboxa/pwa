@@ -31,8 +31,13 @@ export default function PanelSelectScope({containerEl, onClose, onSelect}) {
 
   // handlers
 
-  function handleClick(item) {
-    const scope = scopes.find((p) => p.id === item.id);
+  function handleClick(item, options) {
+    let scope;
+    if (options.fromCreation) {
+      scope = item;
+    } else {
+      scope = scopes.find((p) => p.id === item.id);
+    }
     if (onSelect) onSelect(scope);
   }
 
@@ -52,6 +57,7 @@ export default function PanelSelectScope({containerEl, onClose, onSelect}) {
           projectId={project.id}
         />
       )}
+      clickOnCreation={true}
     />
   );
 }
