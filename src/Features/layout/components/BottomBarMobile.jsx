@@ -11,7 +11,7 @@ import {BottomNavigation, BottomNavigationAction, Paper} from "@mui/material";
 import {
   ListAlt as List,
   Map,
-  SmartToy as Chat,
+  AutoAwesome as Chat,
   Settings,
 } from "@mui/icons-material";
 import {setOpenAppConfig} from "Features/appConfig/appConfigSlice";
@@ -63,18 +63,22 @@ export default function BottomBarMobile() {
         <BottomNavigationAction
           label={settingsS}
           value="SETTINGS"
-          icon={<Settings />}
+          icon={<Settings fontSize="large" />}
         />
         <BottomNavigationAction
           label={listLabel}
           value="LIST"
-          icon={<List />}
+          icon={<List fontSize="large" />}
         />
-        <BottomNavigationAction label={mapLabel} value="MAP" icon={<Map />} />
+        <BottomNavigationAction
+          label={mapLabel}
+          value="MAP"
+          icon={<Map fontSize="large" />}
+        />
         <BottomNavigationAction
           label={chatLabel}
           value="CHAT"
-          icon={<Chat />}
+          icon={<Chat fontSize="large" />}
         />
       </BottomNavigation>
     </Paper>
