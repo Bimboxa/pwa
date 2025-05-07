@@ -2,7 +2,7 @@ import {useState} from "react";
 
 import useUpdateOrgaAppConfig from "../hooks/useUpdateOrgaAppConfig";
 
-import {Box, Button} from "@mui/material";
+import {Box, Button, Typography} from "@mui/material";
 import {ArrowDropDown as Down, ArrowDropUp as Up} from "@mui/icons-material";
 
 import ContainerFilesSelector from "Features/files/components/ContainerFilesSelector";
@@ -44,7 +44,7 @@ export default function SectionUpdateAppConfigFromFile() {
         onClick={() => setOpen((open) => !open)}
         endIcon={open ? <Up /> : <Down />}
       >
-        {updateS}
+        <Typography variant="caption">{updateS}</Typography>
       </Button>
       <Box
         sx={{

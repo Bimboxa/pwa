@@ -8,7 +8,9 @@ import FormScope from "./FormScope";
 import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
-export default function SectionCreateScope({onCreated, onClose}) {
+import getListingsToCreateFromAppConfig from "Features/listings/utils/getListingsToCreateFromAppConfig";
+
+export default function SectionCreateScope({projectId, onCreated, onClose}) {
   // data
 
   const createScope = useCreateScope();
@@ -29,8 +31,23 @@ export default function SectionCreateScope({onCreated, onClose}) {
   // handlers
 
   async function handleCreateScope() {
+    // 1 - listings
+
+    const newListings = getListingsToCreateFromAppConfig(
+      appConfig,
+      tempScope?.presetConfig?.key
+    );
+
+    // 2 - scope
+    const props = {
+      ...tempScope,
+      projectId,
+      newListings,
+    };
+
+    // 3 - create
     setLoading(true);
-    const newScope = await createScope(tempScope);
+    const newScope = await createScope(props, {updateSyncFile: true});
     setLoading(false);
     if (onCreated) onCreated(newScope);
   }

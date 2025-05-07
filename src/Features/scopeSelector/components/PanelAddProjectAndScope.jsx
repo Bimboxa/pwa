@@ -3,6 +3,9 @@ import {useDispatch, useSelector} from "react-redux";
 
 import {setProject} from "Features/scopeSelector/scopeSelectorSlice";
 
+import {setSelectedProjectId} from "Features/projects/projectsSlice";
+import {setSelectedScopeId} from "Features/scopes/scopesSlice";
+
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -10,6 +13,9 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PanelSelectProject from "./PanelSelectProject";
 import PanelSelectScope from "./PanelSelectScope";
 import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
+
+import setInitProjectId from "Features/init/services/setInitProjectId";
+import setInitScopeId from "Features/init/services/setInitScopeId";
 
 export default function PanelAddProjectAndScope({containerEl, onClose}) {
   const dispatch = useDispatch();
@@ -40,7 +46,15 @@ export default function PanelAddProjectAndScope({containerEl, onClose}) {
   }
 
   function handleSelectScope(scope) {
-    console.log("scope", scope);
+    const projectId = project.id;
+    //
+    setInitProjectId(projectId);
+    dispatch(setSelectedProjectId(projectId));
+    //
+    setInitScopeId(scope.id);
+    dispatch(setSelectedScopeId(scope.id));
+    //
+    onClose();
   }
 
   return (

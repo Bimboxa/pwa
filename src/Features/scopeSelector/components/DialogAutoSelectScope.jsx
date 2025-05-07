@@ -3,6 +3,7 @@ import {useSelector, useDispatch} from "react-redux";
 
 import {setOpen} from "../scopeSelectorSlice";
 import useScopes from "Features/scopes/hooks/useScopes";
+import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useResolvedRef from "Features/misc/hooks/useResolvedRef";
@@ -20,11 +21,12 @@ export default function DialogAutoSelectScope() {
   const {value: scopes} = useScopes();
   const open = useSelector((s) => s.scopeSelector.open);
   const containerEl = useResolvedRef(containerRef, open);
+  const {value: scope} = useSelectedScope();
 
   // effect
 
   useEffect(() => {
-    if (Array.isArray(scopes) && scopes.length === 0) {
+    if (Array.isArray(scopes) && (scopes.length === 0 || !scope)) {
       dispatch(setOpen(true));
     }
   }, [scopes?.length]);
