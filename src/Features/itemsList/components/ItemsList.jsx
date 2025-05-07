@@ -90,7 +90,11 @@ export default function ItemsList({
 
   return (
     <>
-      <BoxFlexVStretch sx={{visibility: openCreate ? "hidden" : "visible"}}>
+      <BoxFlexVStretch
+        sx={{
+          visibility: openCreate ? "hidden" : "visible",
+        }}
+      >
         <SectionSearch
           searchText={searchText}
           onChange={handleSearchTextChange}
