@@ -24,13 +24,13 @@ export default function PageLanding() {
       // Step 1: trigger fade out after delay
       const fadeTimer = setTimeout(() => {
         setFadeOut(true);
-      }, 1000); // wait 1s before starting fade
+      }, 100); // wait 1s before starting fade
 
       // Step 2: unmount after fade duration (1s)
       const unmountTimer = setTimeout(() => {
         setVisible(false);
         dispatch(setOpenLandingPage(false));
-      }, 2000); // total 2s = 1s wait + 1s fade
+      }, 1000); // total 2s = 1s wait + 1s fade
 
       return () => {
         clearTimeout(fadeTimer);
