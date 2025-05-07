@@ -24,6 +24,8 @@ export default function MainAppLayout() {
   const deviceType = useSelector((s) => s.layout.deviceType);
   const sensors = useDndSensors();
 
+  const openLandingPage = useSelector((s) => s.init.openLandingPage);
+
   return (
     <DndContext sensors={sensors}>
       <Box
@@ -40,7 +42,7 @@ export default function MainAppLayout() {
         {deviceType === "MOBILE" && <LayoutMobile />}
       </Box>
       <PageLanding />
-      <DialogAutoSelectScope />
+      {!openLandingPage && <DialogAutoSelectScope />}
     </DndContext>
   );
 }
