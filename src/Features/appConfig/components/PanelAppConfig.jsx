@@ -9,20 +9,19 @@ import SectionUpdateAppConfigFromFile from "./SectionUpdateAppConfigFromFile";
 import SectionAppConfigTitle from "./SectionAppConfigTitle";
 import SectionRemoteContainerOverview from "Features/sync/components/SectionRemoteContainerOverview";
 import SectionUpdateAppVersion from "./SectionUpdateAppVersion";
+import ButtonDeleteProjects from "./ButtonDeleteProjects";
 
 export default function PanelAppConfig() {
   return (
     <BoxFlexVStretch>
       <SectionUpdateAppVersion />
       <SectionAppConfigTitle />
+      <SectionUpdateAppConfigFromFile />
       <BoxFlexVStretch sx={{overflow: "auto"}}>
         <SectionRemoteContainerOverview />
         <BlockRemoteAppConfigFile />
-        <BoxFlexVStretch sx={{minHeight: 0}}>
-          <SectionOrgaData />
-        </BoxFlexVStretch>
-
-        <SectionUpdateAppConfigFromFile />
+        <SectionOrgaData />
+        <ButtonDeleteProjects />
       </BoxFlexVStretch>
     </BoxFlexVStretch>
   );

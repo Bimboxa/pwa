@@ -2,6 +2,7 @@ import {useState, useEffect} from "react";
 import {useLiveQuery} from "dexie-react-hooks";
 
 import db from "App/db/db";
+import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 export default function useScopes(options) {
   const [loading, setLoading] = useState(true);
@@ -11,6 +12,7 @@ export default function useScopes(options) {
 
   const filterByProjectId = options?.filterByProjectId;
   const sortByClientRef = options?.sortByClientRef;
+  const withProject = options?.withProject;
 
   // data
 
@@ -24,6 +26,12 @@ export default function useScopes(options) {
         .toArray();
     } else {
       scopes = await db.scopes.toArray();
+    }
+    // withProject
+    if (withProject) {
+      const projects = await db.projects.toArray();
+      const projectById = getItemsByKey(projects, "id");
+      scopes = scopes.map((s) => ({...s, project: projectById[s.projectId]}));
     }
     // sort
     if (sortByClientRef) {

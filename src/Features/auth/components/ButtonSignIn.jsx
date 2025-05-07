@@ -1,6 +1,6 @@
 import {useClerk} from "@clerk/clerk-react";
 
-import {Button} from "@mui/material";
+import {Button, Typography} from "@mui/material";
 
 export default function ButtonSignIn() {
   // strings
@@ -23,7 +23,7 @@ export default function ButtonSignIn() {
   }
   return (
     <Button onClick={handleClick} color="secondary" variant="contained">
-      {signInS}
+      <Typography variant="body2">{signInS}</Typography>
     </Button>
   );
 }

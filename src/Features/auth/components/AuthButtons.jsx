@@ -1,5 +1,3 @@
-import {useEffect} from "react";
-
 import useNetworkStatus from "../hooks/useNetworkStatus";
 
 import {SignedIn, UserButton, SignedOut, useAuth} from "@clerk/clerk-react";
@@ -15,12 +13,6 @@ export function AuthButtons() {
   // data
 
   const isOnline = useNetworkStatus();
-  const {isLoaded, userId} = useAuth();
-  console.log("Clerk isLoaded", isLoaded);
-
-  useEffect(() => {
-    if (isOnline && userId === null) localStorage.setItem("userEmail", null);
-  }, [userId]);
 
   if (!isOnline) {
     return <AuthButtonOffline />;

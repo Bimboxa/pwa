@@ -1,6 +1,7 @@
 import {configureStore} from "@reduxjs/toolkit";
 
 import appConfigReducer from "Features/appConfig/appConfigSlice";
+import authReducer from "Features/auth/authSlice";
 import initReducer from "Features/init/initSlice";
 import servicesCredentialsReducer from "Features/servicesCredentials/servicesCredentialsSlice";
 import settingsReducer from "Features/settings/settingsSlice";
@@ -36,6 +37,7 @@ import dropboxReducer from "Features/dropbox/dropboxSlice";
 const store = configureStore({
   reducer: {
     appConfig: appConfigReducer,
+    auth: authReducer,
     init: initReducer,
     servicesCredentials: servicesCredentialsReducer,
     settings: settingsReducer,

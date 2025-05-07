@@ -46,7 +46,11 @@ export default function PanelSelectScope({containerEl, onClose, onSelect}) {
       createLabel={createS}
       containerEl={containerEl}
       createComponent={({onClose, onCreated}) => (
-        <SectionCreateScope onClose={onClose} onCreated={onCreated} />
+        <SectionCreateScope
+          onClose={onClose}
+          onCreated={onCreated}
+          projectId={project.id}
+        />
       )}
     />
   );

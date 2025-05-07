@@ -11,7 +11,7 @@ export default function TopBarMobile() {
     <Box
       sx={{
         width: 1,
-        pl: 1,
+        px: 1,
         height,
         display: "flex",
         justifyContent: "space-between",
