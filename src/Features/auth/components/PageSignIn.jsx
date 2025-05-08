@@ -11,7 +11,7 @@ export default function PageSignIn() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        bgcolor: "primary.main",
+        //sbgcolor: "primary.main",
       }}
     >
       <SignIn />
