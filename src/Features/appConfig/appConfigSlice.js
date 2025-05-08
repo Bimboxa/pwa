@@ -3,10 +3,11 @@ import {createSlice} from "@reduxjs/toolkit";
 const appConfigSlice = createSlice({
   name: "appConfig",
   initialState: {
-    appVersion: "0.9.12",
+    appVersion: "0.9.14",
     newVersionAvailable: false,
     value: null,
     openAppConfig: false,
+    forceUpdateAt: null,
   },
   reducers: {
     setAppConfig: (state, action) => {
@@ -18,9 +19,16 @@ const appConfigSlice = createSlice({
     setNewVersionAvailable: (state, action) => {
       state.newVersionAvailable = action.payload;
     },
+    forceUpdate: (state) => {
+      state.forceUpdateAt = Date.now();
+    },
   },
 });
 
-export const {setAppConfig, setOpenAppConfig, setNewVersionAvailable} =
-  appConfigSlice.actions;
+export const {
+  setAppConfig,
+  setOpenAppConfig,
+  setNewVersionAvailable,
+  forceUpdate,
+} = appConfigSlice.actions;
 export default appConfigSlice.reducer;

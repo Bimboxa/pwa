@@ -1,5 +1,6 @@
 const appConfigDefault = {
   name: "Configuration par défaut",
+  version: "v1",
   strings: {
     general: {
       projectAndScope: "Périmètre des données",
@@ -24,29 +25,6 @@ const appConfigDefault = {
       select: "Sélectionnez une mission",
     },
   },
-  remoteContainers: [
-    {
-      service: "DROPBOX",
-      name: "Dropbox",
-      path: "/1 = Client DB/LEI",
-      clientId: "t3in2phwzao0ph6",
-    },
-    {
-      service: "GOOGLE_DRIVE",
-      name: "Google Drive",
-    },
-  ],
-  remoteProjectsContainers: [
-    {
-      service: "DROPBOX",
-      name: "Dropbox",
-      path: "/1 = Client DB/LEI/1 = Dossiers",
-    },
-    {
-      service: "GOOGLE_DRIVE",
-      name: "Google Drive",
-    },
-  ],
 };
 
 export default appConfigDefault;
