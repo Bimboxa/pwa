@@ -1,4 +1,4 @@
-import {Box, Typography} from "@mui/material";
+import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 //import BlockEditableAppConfigItem from "./BlockEditableAppConfigItem";
@@ -12,14 +12,18 @@ import SectionUpdateAppVersion from "./SectionUpdateAppVersion";
 import ButtonDeleteProjects from "./ButtonDeleteProjects";
 
 export default function PanelAppConfig({onClose}) {
+  // data
+
+  const remoteContainer = useRemoteContainer();
+
   return (
     <BoxFlexVStretch>
       <SectionUpdateAppVersion />
       <SectionAppConfigTitle />
       <SectionUpdateAppConfigFromFile />
       <BoxFlexVStretch sx={{overflow: "auto"}}>
-        <SectionRemoteContainerOverview />
-        <BlockRemoteAppConfigFile />
+        {remoteContainer && <SectionRemoteContainerOverview />}
+        {remoteContainer && <BlockRemoteAppConfigFile />}
         <SectionOrgaData />
         <ButtonDeleteProjects onDeleted={onClose} />
       </BoxFlexVStretch>

@@ -1,8 +1,12 @@
 import {useClerk} from "@clerk/clerk-react";
 
+import {useNavigate} from "react-router-dom";
+
 import {Button, Typography} from "@mui/material";
 
 export default function ButtonSignIn() {
+  const navigate = useNavigate();
+
   // strings
 
   const signInS = "Se connecter";
@@ -16,7 +20,8 @@ export default function ButtonSignIn() {
   function handleClick() {
     try {
       // Redirect to Clerk-hosted Sign-In page
-      redirectToSignIn();
+      //redirectToSignIn();
+      navigate("/sign-in");
     } catch (err) {
       console.error("Error during sign-in:", err);
     }

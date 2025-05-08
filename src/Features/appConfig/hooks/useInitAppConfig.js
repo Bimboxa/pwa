@@ -1,11 +1,12 @@
 import {useEffect} from "react";
 
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 
 import {setAppConfig} from "../appConfigSlice";
 
 import getAppConfigFromLocalStorage from "../services/getAppConfigFromLocalStorage";
 import fetchOrgaInitAppConfigService from "../services/fetchOrgaInitAppConfig";
+
 import appConfigDefault from "../data/appConfigDefault";
 
 import useToken from "Features/auth/hooks/useToken";
@@ -14,6 +15,8 @@ import setAppConfigInLocalStorage from "../services/setAppConfigInLocalStorage";
 export default function useInitAppConfig() {
   const dispatch = useDispatch();
   const accessToken = useToken();
+
+  const forceUpdateAt = useSelector((s) => s.appConfig.forceUpdateAt);
 
   const initAsync = async () => {
     let appConfig;
@@ -24,6 +27,9 @@ export default function useInitAppConfig() {
     // Fallback : fetch appConfig from server
     if (!appConfig && accessToken) {
       appConfig = await fetchOrgaInitAppConfigService({accessToken});
+
+      // fallback to default confit
+      if (!appConfig) appConfig = appConfigDefault;
       setAppConfigInLocalStorage(appConfig);
     }
 
@@ -32,5 +38,5 @@ export default function useInitAppConfig() {
 
   useEffect(() => {
     initAsync();
-  }, [accessToken]);
+  }, [accessToken, forceUpdateAt]);
 }

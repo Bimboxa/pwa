@@ -18,7 +18,17 @@ export default function PageLanding() {
 
   const [open, setOpen] = useState(true);
 
+  // data
+
   const version = useSelector((s) => s.appConfig.appVersion);
+
+  // effect - trigger close landing page
+
+  useEffect(() => {
+    if (version) setOpen(false);
+  }, []);
+
+  // effect - fade out effect
 
   useEffect(() => {
     if (!open) {
