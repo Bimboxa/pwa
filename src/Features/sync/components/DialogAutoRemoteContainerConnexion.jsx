@@ -14,6 +14,8 @@ import getHideWarningFromLocalStorage from "../services/getHideWarningFromLocalS
 import setHideWarningInLocalStorage from "../services/setHideWarningInLocalStorage";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 import ButtonLoginRemoteContainer from "./ButtonLoginRemoteContainer";
+import {Warning} from "@mui/icons-material";
+import BoxCenter from "Features/layout/components/BoxCenter";
 
 export default function DialogAutoRemoteContainerConnexion() {
   const dispatch = useDispatch();
@@ -42,7 +44,12 @@ export default function DialogAutoRemoteContainerConnexion() {
 
   // helper - message
 
-  const messageS = `En cas de problèmes, essayez d'abord de vous connecter à ${remoteContainer.service} depuis le site web de ${remoteContainer.service}`;
+  const message1 = `L'application doit se connecter à ${remoteContainer?.service} pour récupérer les données de votre organisation.`;
+  const message2 = `En cas de problèmes, essayez d'abord de vous connecter à ${remoteContainer?.service} depuis le site web de ${remoteContainer?.service}`;
+
+  const messageS = `${message1} 
+  
+  ${message2}`;
 
   // handler
 
@@ -60,8 +67,16 @@ export default function DialogAutoRemoteContainerConnexion() {
 
   return (
     <DialogGeneric open={openDialog} onClose={handleClose} title={title}>
+      <BoxCenter sx={{width: 1, height: 40}}>
+        <Warning sx={{color: "warning.main"}} />
+      </BoxCenter>
+
       <Box sx={{p: 2}}>
-        <Typography variant="body2" color="text.secondary">
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{whiteSpace: "pre-line"}}
+        >
           {messageS}
         </Typography>
       </Box>
