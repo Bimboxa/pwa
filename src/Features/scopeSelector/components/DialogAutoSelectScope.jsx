@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import {useSelector, useDispatch} from "react-redux";
 
-import {setOpen} from "../scopeSelectorSlice";
+import {setOpen, setProject, setScope} from "../scopeSelectorSlice";
 import useScopes from "Features/scopes/hooks/useScopes";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 
@@ -31,6 +31,13 @@ export default function DialogAutoSelectScope() {
     }
   }, [scopes?.length]);
 
+  // handlers
+
+  function handleClose() {
+    dispatch(setScope(null));
+    dispatch(setProject(null));
+    dispatch(setOpen(false));
+  }
   // helpers
 
   let title = appConfig?.strings?.scope?.select;
@@ -41,7 +48,7 @@ export default function DialogAutoSelectScope() {
       key={open ? "open" : "close"}
       ref={containerRef}
       open={open}
-      onClose={() => dispatch(setOpen(false))}
+      onClose={handleClose}
       title={title}
       vh={50}
       vw={30}
