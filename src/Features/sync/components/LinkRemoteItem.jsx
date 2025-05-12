@@ -35,6 +35,7 @@ export default function LinkRemoteItem({label, path, variant, color}) {
     syncingRef.current = true;
     try {
       const metadata = await fetchRemoteItemMetadata(path);
+      console.log("fetch metadata", metadata);
       setMetadata(metadata);
     } catch (error) {
       console.log(error);
@@ -56,7 +57,7 @@ export default function LinkRemoteItem({label, path, variant, color}) {
 
   async function handleIndicatorClick() {
     setLoading(true);
-    console.log("fetch metadata");
+
     await fetchMetadata();
     setLoading(false);
   }

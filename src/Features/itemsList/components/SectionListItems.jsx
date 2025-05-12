@@ -10,7 +10,7 @@ export default function SectionListItems({items, onClick, selection}) {
     <List>
       {items?.map((item) => {
         return (
-          <ListItem key={item.id} disablePadding dense={!isMobile}>
+          <ListItem key={item.id ?? item.key} disablePadding dense={!isMobile}>
             <ListItemButton
               divider
               selected={selection?.includes(item.id)}

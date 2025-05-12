@@ -1,3 +1,4 @@
+import {useState} from "react";
 import {useSelector} from "react-redux";
 
 import useProjects from "Features/projects/hooks/useProjects";
@@ -5,6 +6,9 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import ItemsList from "Features/itemsList/components/ItemsList";
 import SectionCreateProject from "Features/projects/components/SectionCreateProject";
+import useFetchRemoteOpenedProjects from "Features/sync/hooks/useFetchRemoteOpenedProjects";
+import useInitFetchRemoteOpenedProjects from "Features/sync/hooks/useInitFetchRemoteOpenedProjects";
+import mergeItemsArrays from "Features/misc/utils/mergeItemsArrays";
 
 export default function PanelSelectProject({containerEl, onClose, onSelect}) {
   // data
@@ -12,6 +16,15 @@ export default function PanelSelectProject({containerEl, onClose, onSelect}) {
   const {value: projects} = useProjects();
   const appConfig = useAppConfig();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+
+  const {value: remoteOpenedProjects, loading} =
+    useInitFetchRemoteOpenedProjects();
+
+  const allProjects = mergeItemsArrays(
+    remoteOpenedProjects,
+    projects,
+    "clientRef"
+  );
 
   // helpers
 
@@ -27,10 +40,10 @@ export default function PanelSelectProject({containerEl, onClose, onSelect}) {
 
   // helpers - items
 
-  const items = projects.map((project) => {
+  const items = allProjects.map((project) => {
     const primaryText = project.name;
     const secondaryText = project.clientRef;
-    return {...project, primaryText, secondaryText};
+    return {...project, primaryText, secondaryText, key: project.clientRef};
   });
 
   // handlers
@@ -60,6 +73,7 @@ export default function PanelSelectProject({containerEl, onClose, onSelect}) {
         <SectionCreateProject onClose={onClose} onCreated={onCreated} />
       )}
       clickOnCreation={true}
+      loading={loading}
     />
   );
 }

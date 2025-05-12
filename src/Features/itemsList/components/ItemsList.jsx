@@ -3,7 +3,7 @@ import {useState, useMemo, useEffect} from "react";
 import useDebouncedValue from "Features/misc/hooks/useDebounceValue";
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 
-import {Box} from "@mui/material";
+import {Box, LinearProgress} from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionSearch from "Features/itemsList/components/SectionSearch";
@@ -26,6 +26,7 @@ export default function ItemsList({
   createComponent,
   createLabel,
   clickOnCreation,
+  loading,
 }) {
   //
 
@@ -104,6 +105,9 @@ export default function ItemsList({
           searchText={searchText}
           onChange={handleSearchTextChange}
         />
+        <Box sx={{visibility: loading ? "visible" : "hidden"}}>
+          <LinearProgress />
+        </Box>
         <BoxFlexVStretch sx={{overflow: "auto"}}>
           {!noItems ? (
             <SectionListItems
