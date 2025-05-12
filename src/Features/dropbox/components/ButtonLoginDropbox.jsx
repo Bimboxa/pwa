@@ -13,5 +13,11 @@ export default function ButtonLoginDropbox({clientId}) {
     startDropboxAuth(clientId);
   }
 
-  return <ButtonInPanel label={loginS} onClick={handleClick} />;
+  return (
+    <ButtonInPanel
+      label={loginS}
+      onClick={handleClick}
+      bgcolor="secondary.main"
+    />
+  );
 }

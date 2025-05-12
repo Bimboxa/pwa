@@ -2,8 +2,7 @@ import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 //import BlockEditableAppConfigItem from "./BlockEditableAppConfigItem";
-import BlockRemoteAppConfigFile from "./BlockRemoteAppConfigFile";
-import SectionOrgaData from "Features/orgaData/components/SectionOrgaData";
+//import SectionOrgaData from "Features/orgaData/components/SectionOrgaData";
 import ButtonResetApp from "./ButtonResetApp";
 import SectionUpdateAppConfigFromFile from "./SectionUpdateAppConfigFromFile";
 import SectionAppConfigTitle from "./SectionAppConfigTitle";
@@ -23,8 +22,7 @@ export default function PanelAppConfig({onClose}) {
       <SectionUpdateAppConfigFromFile />
       <BoxFlexVStretch sx={{overflow: "auto"}}>
         {remoteContainer && <SectionRemoteContainerOverview />}
-        {remoteContainer && <BlockRemoteAppConfigFile />}
-        <SectionOrgaData />
+        {/* <SectionOrgaData /> */}
         <ButtonDeleteProjects onDeleted={onClose} />
       </BoxFlexVStretch>
     </BoxFlexVStretch>
