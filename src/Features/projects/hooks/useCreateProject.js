@@ -2,6 +2,8 @@ import {nanoid} from "@reduxjs/toolkit";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 
+import useCreateRemoteProject from "Features/sync/hooks/useCreateRemoteProject";
+
 import db from "App/db/db";
 import getDateString from "Features/misc/utils/getDateString";
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
@@ -10,6 +12,10 @@ export default function useCreateProject() {
   const {value: createdBy} = useUserEmail();
   const createdAt = getDateString(new Date());
 
+  // data
+
+  const createRemoteProject = useCreateRemoteProject();
+
   // main
 
   const create = async ({name, clientRef, id}, options) => {
@@ -17,6 +23,7 @@ export default function useCreateProject() {
       // options
 
       const updateSyncFile = options?.updateSyncFile;
+      const forceLocalToRemote = options?.forceLocalToRemote;
 
       // edge case
       if (clientRef) {
@@ -50,6 +57,12 @@ export default function useCreateProject() {
         if (options.updatedAt) props.updatedAt = options.updatedAt;
         if (options.syncAt) props.syncAt = options.syncAt;
         await updateItemSyncFile(props);
+      }
+
+      // force upload;
+
+      if (forceLocalToRemote) {
+        await createRemoteProject(project);
       }
 
       return project;

@@ -8,6 +8,8 @@ const scopeSelectorInitialState = {
   project: null,
   scope: null,
   //
+  showScopePresetSelector: false,
+  //
   remoteFolder: null,
   //
   remoteProjectContainer: null, // {service,metadata}
@@ -46,6 +48,9 @@ export const scopeSelectorSlice = createSlice({
     setRemoteProjectContainer: (state, action) => {
       state.remoteProjectContainer = action.payload;
     },
+    setShowScopePresetSelector: (state, action) => {
+      state.showScopePresetSelector = action.payload;
+    },
   },
 });
 
@@ -59,6 +64,7 @@ export const {
   setRemoteProjectContainer,
   setRemoteOpenedProjects,
   setRemoteProject,
+  setShowScopePresetSelector,
   //
 } = scopeSelectorSlice.actions;
 

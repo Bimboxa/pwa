@@ -49,7 +49,7 @@ export default function SectionCreateScope({projectId, onCreated, onClose}) {
     setLoading(true);
     const newScope = await createScope(props, {updateSyncFile: true});
     setLoading(false);
-    if (onCreated) onCreated(newScope);
+    if (onCreated) onCreated({...newScope, isNew: true});
   }
 
   return (

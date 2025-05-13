@@ -14,6 +14,7 @@ import PanelAddProjectAndScope from "./PanelAddProjectAndScope";
 import BoxFlexHStretch from "Features/layout/components/BoxFlexHStretch";
 import setInitScopeId from "Features/init/services/setInitScopeId";
 import setInitProjectId from "Features/init/services/setInitProjectId";
+import PanelSelectProjectAndScopeLoadingScreen from "./PanelSelectProjectAndScopeLoadingScreen";
 
 export default function PanelSelectProjectAndScope({containerEl}) {
   const dispatch = useDispatch();
@@ -54,12 +55,19 @@ export default function PanelSelectProjectAndScope({containerEl}) {
   // handlers
 
   function handleClick(item, options) {
-    let scope;
-    if (options?.fromCreation) {
-      scope = item;
-    } else {
-      scope = scopes.find((s) => s.id === item.id);
-    }
+    console.log("click on", item);
+    dispatch(setScope(item));
+    if (item.project) dispatch(setProject(item.project));
+    // let scope;
+    // if (options?.fromCreation) {
+    //   scope = item;
+    // } else {
+    //   scope = scopes.find((s) => s.id === item.id);
+    // }
+  }
+
+  function handleLoaded({scope}) {
+    console.log("loaded scope", scope);
     if (!scope || !scope.project) return;
     //
     const projectId = scope.project.id;
@@ -70,13 +78,13 @@ export default function PanelSelectProjectAndScope({containerEl}) {
     //
     setInitScopeId(scope.id);
     dispatch(setSelectedScopeId(scope.id));
-    dispatch(setProject(null));
+    dispatch(setScope(null));
     //
     dispatch(setOpen(false));
   }
 
   return (
-    <BoxFlexHStretch sx={{width: 1}}>
+    <BoxFlexHStretch sx={{width: 1, position: "relative"}}>
       <ItemsList
         items={items}
         selection={selection}
@@ -94,6 +102,11 @@ export default function PanelSelectProjectAndScope({containerEl}) {
         )}
         createLabel={addProjectAndScopeS}
         clickOnCreation={true}
+      />
+
+      <PanelSelectProjectAndScopeLoadingScreen
+        containerEl={containerEl}
+        onLoaded={handleLoaded}
       />
     </BoxFlexHStretch>
   );

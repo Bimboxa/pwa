@@ -22,12 +22,17 @@ export default function resolveAppConfig(appConfig, options) {
   // projectsPath
 
   if (appConfig.remoteContainer.projectsPathRelative) {
-    newAppConfig.projectsPath =
-      newAppConfig.remoteContainer.path +
-      newAppConfig.remoteContainer.projectsPathRelative;
+    newAppConfig.remoteContainer = {
+      ...newAppConfig.remoteContainer,
+      projectsPath:
+        newAppConfig.remoteContainer.path +
+        newAppConfig.remoteContainer.projectsPathRelative,
+    };
   }
 
   // return
+
+  console.log("[resolveAppConfig] newAppConfig", newAppConfig);
 
   return newAppConfig;
 }
