@@ -4,6 +4,7 @@
  */
 
 export default function resolveAppConfig(appConfig, options) {
+  console.log("resolveAppConfig", options);
   // edge case
 
   if (!appConfig) return;
