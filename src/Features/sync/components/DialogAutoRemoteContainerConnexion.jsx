@@ -1,6 +1,6 @@
 import {useState} from "react";
 
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 
 import {setWarningWasShowed} from "Features/init/initSlice";
 
@@ -31,7 +31,9 @@ export default function DialogAutoRemoteContainerConnexion() {
 
   // const
 
-  const hideWarning = getHideWarningFromLocalStorage();
+  //const hideWarning = getHideWarningFromLocalStorage();
+  const hideWarning = useSelector((s) => s.init.warningWasShowed);
+  console.log("hideWarning", hideWarning);
 
   // data
 
@@ -52,10 +54,6 @@ export default function DialogAutoRemoteContainerConnexion() {
   ${message2}`;
 
   // handler
-
-  function handleToggleWarning() {
-    setHideWarningInLocalStorage(!showWarning);
-  }
 
   function handleConnectLater() {
     dispatch(setWarningWasShowed(true));

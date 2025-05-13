@@ -8,6 +8,7 @@ import getHideWarningFromLocalStorage from "../services/getHideWarningFromLocalS
 export default function useInitWarningWasShowed() {
   const dispatch = useDispatch();
   const hideWarning = getHideWarningFromLocalStorage();
+
   useEffect(() => {
     dispatch(setWarningWasShowed(hideWarning));
   });

@@ -2,6 +2,7 @@ import {useState} from "react";
 import {useDispatch, useSelector} from "react-redux";
 
 import {setProject} from "Features/scopeSelector/scopeSelectorSlice";
+import {setScope} from "Features/scopeSelector/scopeSelectorSlice";
 
 import {setSelectedProjectId} from "Features/projects/projectsSlice";
 import {setSelectedScopeId} from "Features/scopes/scopesSlice";

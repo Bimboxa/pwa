@@ -22,7 +22,7 @@ export default function useInit() {
 
   useInitAppConfig();
 
-  useInitWarningWasShowed();
+  useInitWarningWasShowed(); // we need it when the app reload after first connection
 
   useInitSelectProject();
   useInitSelectScope();
