@@ -5,14 +5,20 @@ export default async function createSyncTaskLocalToRemoteFromItem({
   type,
 }) {
   const {path} = await getRemoteItemPath({
-    item: openedProject,
-    type: "PROJECT",
+    item,
+    type,
   });
 
   switch (type) {
     case "PROJECT": {
       return {
-        entity: item,
+        entry: item,
+        filePath: path,
+      };
+    }
+    case "SCOPE": {
+      return {
+        entry: item,
         filePath: path,
       };
     }

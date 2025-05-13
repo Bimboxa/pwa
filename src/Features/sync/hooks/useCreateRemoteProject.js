@@ -4,6 +4,7 @@ import useRemoteContainer from "./useRemoteContainer";
 import RemoteProvider from "../js/RemoteProvider";
 
 import createSyncTaskLocalToRemoteFromItem from "../utils/createSyncTaskLocalToRemoteFromItem";
+import syncTaskLocalToRemote from "../services/syncTaskLocalToRemote";
 
 export default function useCreateRemoteProject() {
   // data

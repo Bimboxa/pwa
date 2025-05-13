@@ -27,6 +27,7 @@ export default function ItemsList({
   createLabel,
   clickOnCreation,
   loading,
+  disableCreation,
 }) {
   //
 
@@ -119,7 +120,11 @@ export default function ItemsList({
             <SectionNoItem noItemLabel={noItemLabel} />
           )}
         </BoxFlexVStretch>
-        <ButtonInPanel label={createLabel} onClick={handleCreateClick} />
+        <ButtonInPanel
+          label={createLabel}
+          onClick={handleCreateClick}
+          disabled={disableCreation}
+        />
       </BoxFlexVStretch>
       {openCreate &&
         containerEl &&

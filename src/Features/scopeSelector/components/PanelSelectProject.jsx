@@ -27,6 +27,10 @@ export default function PanelSelectProject({containerEl, onClose, onSelect}) {
 
   // helpers
 
+  const canCreate = appConfig.creation.canCreateProject;
+
+  // helpers
+
   const allProjects = mergeItemsArrays(
     remoteOpenedProjects?.map((p) => ({...p, isRemote: true})),
     projects,
@@ -100,6 +104,7 @@ export default function PanelSelectProject({containerEl, onClose, onSelect}) {
       )}
       clickOnCreation={true}
       loading={loading || syncing}
+      disableCreation={!canCreate}
     />
   );
 }
