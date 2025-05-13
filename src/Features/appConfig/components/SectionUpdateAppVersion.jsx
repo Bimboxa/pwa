@@ -2,6 +2,7 @@ import {useSelector} from "react-redux";
 
 import {Box} from "@mui/material";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
+import setHideWarningInLocalStorage from "Features/sync/services/setHideWarningInLocalStorage";
 
 export default function SectionUpdateAppVersion() {
   // strings
@@ -17,6 +18,7 @@ export default function SectionUpdateAppVersion() {
   // handlers
 
   function handleClick() {
+    setHideWarningInLocalStorage(false);
     window.location.reload();
   }
 
