@@ -5,6 +5,7 @@ import {useSelector, useDispatch} from "react-redux";
 import {setToaster} from "Features/layout/layoutSlice";
 
 import useInit from "Features/init/hooks/useInit";
+import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 
 import {Box} from "@mui/material";
 
@@ -32,6 +33,7 @@ export default function MainAppLayout() {
 
   const openLandingPage = useSelector((s) => s.init.openLandingPage);
   const warningWasShowed = useSelector((s) => s.init.warningWasShowed);
+  const remoteContainer = useRemoteContainer();
 
   return (
     <DndContext sensors={sensors}>
@@ -50,7 +52,9 @@ export default function MainAppLayout() {
       </Box>
       <Toaster />
       <PageLanding />
-      {!openLandingPage && warningWasShowed && <DialogAutoSelectScope />}
+      {!openLandingPage && (warningWasShowed || !remoteContainer) && (
+        <DialogAutoSelectScope />
+      )}
       {!openLandingPage && <DialogAutoRemoteContainerConnexion />}
     </DndContext>
   );

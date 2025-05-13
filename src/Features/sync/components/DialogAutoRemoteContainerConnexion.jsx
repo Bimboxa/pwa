@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useState, useEffect} from "react";
 
 import {useDispatch, useSelector} from "react-redux";
 
@@ -43,6 +43,15 @@ export default function DialogAutoRemoteContainerConnexion() {
   // helpers
 
   const openDialog = !hideWarning && !accessToken && remoteContainer;
+
+  // effect - setWarning was shown if auto connect
+
+  useEffect(() => {
+    if (accessToken) {
+      dispatch(setWarningWasShowed(true));
+      setHideWarningInLocalStorage(true);
+    }
+  }, [accessToken]);
 
   // helper - message
 
