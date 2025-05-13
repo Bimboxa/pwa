@@ -18,8 +18,25 @@ export default function SectionUpdateAppVersion() {
   // handlers
 
   function handleClick() {
-    setHideWarningInLocalStorage(false);
-    window.location.reload();
+    try {
+      setHideWarningInLocalStorage(false);
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker
+          .getRegistrations()
+          .then((registrations) => {
+            for (const registration of registrations) {
+              registration.unregister();
+            }
+          })
+          .finally(() => {
+            window.location.reload(); // force reload
+          });
+      } else {
+        window.location.reload();
+      }
+    } catch (e) {
+      console.log("error", e);
+    }
   }
 
   return (
