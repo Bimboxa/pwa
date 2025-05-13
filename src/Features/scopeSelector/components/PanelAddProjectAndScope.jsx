@@ -37,9 +37,10 @@ export default function PanelAddProjectAndScope({
   // helpers
 
   const selectProjectS =
-    appConfig?.strings?.project?.select || "Sélectionnez un projet";
+    "[1/2] " +
+    (appConfig?.strings?.project?.select || "Sélectionnez un projet");
   const selectScopeS =
-    appConfig?.strings?.scope?.select || "Sélectionnez un lot ";
+    "[2/2] " + (appConfig?.strings?.scope?.select || "Sélectionnez un lot ");
 
   const title = step === "PROJECT" ? selectProjectS : selectScopeS;
 
@@ -56,9 +57,19 @@ export default function PanelAddProjectAndScope({
     onClose();
   }
 
+  function handleClosePanelSelectScope() {
+    dispatch(setProject(null));
+  }
+
+  function handleClose() {
+    dispatch(setProject(null));
+    dispatch(setScope(null));
+    onClose();
+  }
+
   return (
     <BoxFlexVStretch>
-      <HeaderTitleClose title={title} onClose={onClose} />
+      <HeaderTitleClose title={title} onClose={handleClose} />
       {step === "PROJECT" && (
         <PanelSelectProject
           containerEl={containerEl}
@@ -69,6 +80,7 @@ export default function PanelAddProjectAndScope({
         <PanelSelectScope
           containerEl={containerEl}
           onSelect={handleSelectScope}
+          onClose={handleClosePanelSelectScope}
         />
       )}
     </BoxFlexVStretch>

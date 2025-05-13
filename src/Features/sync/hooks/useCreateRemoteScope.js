@@ -4,6 +4,7 @@ import useRemoteContainer from "./useRemoteContainer";
 import RemoteProvider from "../js/RemoteProvider";
 
 import createSyncTaskLocalToRemoteFromItem from "../utils/createSyncTaskLocalToRemoteFromItem";
+import syncTaskLocalToRemote from "../services/syncTaskLocalToRemote";
 
 export default function useCreateRemoteScope() {
   // data
@@ -21,9 +22,10 @@ export default function useCreateRemoteScope() {
   // main
   const createAsync = async (scope) => {
     const task = await createSyncTaskLocalToRemoteFromItem({
-      item: project,
+      item: scope,
       type: "SCOPE",
     });
+    console.log("[createRemoteScope] syncTaskLocalToRemote", task);
     await syncTaskLocalToRemote({task, remoteProvider});
   };
 

@@ -14,7 +14,7 @@ import useCreateScope from "Features/scopes/hooks/useCreateScope";
 import useCreateRemoteScope from "Features/sync/hooks/useCreateRemoteScope";
 import useCreateRemoteProject from "Features/sync/hooks/useCreateRemoteProject";
 
-import {Box} from "@mui/material";
+import {Box, Typography, Paper} from "@mui/material";
 import ScreenGeneric from "Features/layout/components/ScreenGeneric";
 import getActionsFromSelectedProjectAndScope from "../services/getActionsFromSelectedProjectAndScopeService";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -46,6 +46,8 @@ export default function PanelSelectProjectAndScopeLoadingScreen({
     scope: selectedScope,
   });
 
+  console.log("actions", actions);
+
   // state
 
   const openLoadingScreen = Boolean(selectedScope?.id);
@@ -61,7 +63,7 @@ export default function PanelSelectProjectAndScopeLoadingScreen({
   // helpers
 
   const createLabel =
-    actions?.scope?.CREATE || actions?.scope?.SYNC ? "Créer" : "Ouvrir";
+    actions?.scope?.CREATE || actions?.scope?.SYNC ? "Confirmer" : "Ouvrir";
 
   // handlers
 
@@ -78,14 +80,21 @@ export default function PanelSelectProjectAndScopeLoadingScreen({
       if (actions?.project?.CREATE) {
         await createProject(selectedProject);
       } else if (actions?.project?.SYNC) {
-        await createRemoteProject(selectedProject);
+        const newProject = {...selectedProject};
+        delete newProject.isNew;
+        delete newProject.isRemote;
+        await createRemoteProject(newProject);
       }
 
       // scope
       if (actions?.scope?.CREATE) {
         await createScope(selectedScope);
       } else if (actions?.scope?.SYNC) {
-        await createRemoteScope(selectedScope);
+        const newScope = {...selectedScope};
+        delete newScope.project;
+        delete newScope.isNew;
+        delete newScope.isRemote;
+        await createRemoteScope(newScope);
       }
 
       // onLoaded
@@ -107,11 +116,14 @@ export default function PanelSelectProjectAndScopeLoadingScreen({
       }}
     >
       <BoxFlexVStretch>
-        <Box sx={{flexGrow: 1}}>
-          <ContainerProjectAndScope
-            project={selectedProject}
-            scope={selectedScope}
-          />
+        <Box sx={{p: 2}}>{/* <Typography>{messageS}</Typography> */}</Box>
+        <Box sx={{flexGrow: 1, p: 1}}>
+          <Paper sx={{p: 1}}>
+            <ContainerProjectAndScope
+              project={selectedProject}
+              scope={selectedScope}
+            />
+          </Paper>
         </Box>
         <ButtonInPanel
           label={createLabel}

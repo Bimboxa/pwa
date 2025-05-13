@@ -12,7 +12,7 @@ export default async function getRemoteItemPath({type, item}) {
   const remoteContainer = store.getState().sync.remoteContainer;
 
   const projectsById = store.getState().projects.projectsById;
-  const listingsById = store.getState().listings.listingsById;
+  //const listingsById = store.getState().listings.listingsById;
 
   if (!remoteContainer || !item) return null;
 

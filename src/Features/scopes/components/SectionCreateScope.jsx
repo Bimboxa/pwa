@@ -10,7 +10,12 @@ import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
 import getListingsToCreateFromAppConfig from "Features/listings/utils/getListingsToCreateFromAppConfig";
 
-export default function SectionCreateScope({projectId, onCreated, onClose}) {
+export default function SectionCreateScope({
+  projectId,
+  onCreated,
+  onClose,
+  updateSyncFile,
+}) {
   // data
 
   const createScope = useCreateScope();
@@ -47,7 +52,7 @@ export default function SectionCreateScope({projectId, onCreated, onClose}) {
 
     // 3 - create
     setLoading(true);
-    const newScope = await createScope(props, {updateSyncFile: true});
+    const newScope = await createScope(props, {updateSyncFile});
     setLoading(false);
     if (onCreated) onCreated({...newScope, isNew: true});
   }

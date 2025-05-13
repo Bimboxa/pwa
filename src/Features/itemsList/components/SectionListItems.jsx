@@ -6,6 +6,8 @@ export default function SectionListItems({items, onClick, selection}) {
 
   const isMobile = useIsMobile();
 
+  console.log("[ListItems] items", items);
+
   return (
     <List>
       {items?.map((item) => {
@@ -15,6 +17,7 @@ export default function SectionListItems({items, onClick, selection}) {
               divider
               selected={selection?.includes(item.id)}
               onClick={() => onClick(item)}
+              sx={{...(item.isNew && {borderLeft: "1px solid black"})}}
             >
               <ListItemText
                 primary={item.primaryText}

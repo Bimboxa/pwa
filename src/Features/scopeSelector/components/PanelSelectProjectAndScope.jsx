@@ -24,8 +24,6 @@ export default function PanelSelectProjectAndScope({containerEl}) {
   const appConfig = useAppConfig();
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
 
-  console.log("scopes", scopes);
-
   // helpers
 
   let noScopeS = appConfig?.strings?.scope?.noScope ?? "Aucune mission";
