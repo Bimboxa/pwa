@@ -30,7 +30,7 @@ export default function SectionCreateProject({onCreated, onClose}) {
     setLoading(true);
     const newProject = await createProject(tempProject);
     setLoading(false);
-    if (onCreated) onCreated(newProject);
+    if (onCreated) onCreated({...newProject, isNew: true});
   }
 
   return (

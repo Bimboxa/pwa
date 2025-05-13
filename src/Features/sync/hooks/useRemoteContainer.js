@@ -13,6 +13,7 @@ export default function useRemoteContainer() {
   );
 
   const appConfig = useAppConfig();
+  const forceUpdateAt = useSelector((s) => s.appConfig.forceUpdateAt);
 
   // update remoteContainer if appConfig changes
   // used to update redux state with data from appConfig
@@ -27,7 +28,7 @@ export default function useRemoteContainer() {
     if (appConfig?.remoteContainer) {
       dispatch(setRemoteContainer(appConfig?.remoteContainer));
     }
-  }, [appConfig?.version, appConfig?.name]);
+  }, [appConfig?.version, appConfig?.name, forceUpdateAt]);
 
   return remoteContainerInRedux;
 }

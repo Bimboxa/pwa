@@ -2,6 +2,7 @@ import {nanoid} from "@reduxjs/toolkit";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
+import useCreateRemoteScope from "Features/sync/hooks/useCreateRemoteScope";
 
 import db from "App/db/db";
 
@@ -12,6 +13,7 @@ export default function useCreateScope() {
   const createdAt = new Date(Date.now()).toISOString();
 
   const createListings = useCreateListings();
+  const createRemoteScope = useCreateRemoteScope();
 
   const create = async (
     {id, name, clientRef, projectId, newListings, sortedListings},
@@ -20,6 +22,7 @@ export default function useCreateScope() {
     // options
 
     const updateSyncFile = options?.updateSyncFile;
+    const forceLocalToRemote = options?.forceLocalToRemote;
 
     //
     const listingsWithIds = newListings?.map((listing) => {
@@ -56,6 +59,11 @@ export default function useCreateScope() {
         updatedAt: options.updatedAt,
         syncAt: options.syncAt,
       });
+    }
+
+    // remoteScope
+    if (forceLocalToRemote) {
+      await createRemoteScope(scope);
     }
 
     // add listings

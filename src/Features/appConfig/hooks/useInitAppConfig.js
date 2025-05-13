@@ -39,10 +39,13 @@ export default function useInitAppConfig() {
       appConfig = resolveAppConfig(appConfig, {debug});
 
       // fallback to default confit
-      if (!appConfig) appConfig = appConfigDefault;
+      if (!appConfig) appConfig = resolveAppConfig(appConfigDefault);
+
+      // store
       setAppConfigInLocalStorage(appConfig);
     }
 
+    console.log("[debug] setAppConfig", appConfig);
     dispatch(setAppConfig(appConfig));
   };
 

@@ -6,7 +6,7 @@ import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 export default function SectionUpdateAppVersion() {
   // strings
 
-  const updateS = "Installer la nouvelle version";
+  const updateS = "Relancer l'application";
 
   // data
 
@@ -23,9 +23,11 @@ export default function SectionUpdateAppVersion() {
   return (
     <Box sx={{width: 1}}>
       <ButtonInPanel
+        bgcolor="white"
+        color="text.secondary"
         label={updateS}
         onClick={handleClick}
-        disabled={!newVersionAvailable}
+        //disabled={!newVersionAvailable}
       />
     </Box>
   );
