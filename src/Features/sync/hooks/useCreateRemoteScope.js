@@ -12,15 +12,13 @@ export default function useCreateRemoteScope() {
   const {value: accessToken} = useRemoteToken();
   const remoteContainer = useRemoteContainer();
 
-  // helper
-
-  const remoteProvider = new RemoteProvider({
-    accessToken,
-    provider: remoteContainer.service,
-  });
-
   // main
   const createAsync = async (scope) => {
+    const remoteProvider = new RemoteProvider({
+      accessToken,
+      provider: remoteContainer?.service,
+    });
+
     const task = await createSyncTaskLocalToRemoteFromItem({
       item: scope,
       type: "SCOPE",

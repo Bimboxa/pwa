@@ -12,15 +12,13 @@ export default function useCreateRemoteProject() {
   const {value: accessToken} = useRemoteToken();
   const remoteContainer = useRemoteContainer();
 
-  // helper
-
-  const remoteProvider = new RemoteProvider({
-    accessToken,
-    provider: remoteContainer.service,
-  });
-
   // main
   const createAsync = async (project) => {
+    const remoteProvider = new RemoteProvider({
+      accessToken,
+      provider: remoteContainer?.service,
+    });
+
     const task = await createSyncTaskLocalToRemoteFromItem({
       item: project,
       type: "PROJECT",
