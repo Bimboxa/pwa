@@ -31,8 +31,8 @@ export default function DialogAutoRemoteContainerConnexion() {
 
   // const
 
-  //const hideWarning = getHideWarningFromLocalStorage();
-  const hideWarning = useSelector((s) => s.init.warningWasShowed);
+  const hideWarning = getHideWarningFromLocalStorage();
+  //const hideWarning = useSelector((s) => s.init.warningWasShowed);
   console.log("hideWarning", hideWarning);
 
   // data
@@ -50,6 +50,7 @@ export default function DialogAutoRemoteContainerConnexion() {
     if (accessToken) {
       dispatch(setWarningWasShowed(true));
       setHideWarningInLocalStorage(true);
+      setUpdatedAt(Date.now());
     }
   }, [accessToken]);
 
