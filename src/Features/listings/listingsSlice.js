@@ -6,6 +6,8 @@ import setInitListingId from "Features/init/services/setInitListingId";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 const listingsInitialState = {
+  openSelectorPanel: false,
+  openDialogAddListing: false,
   //
   listingsMap: exampleListingsMap,
   listingsUpdatedAt: null,
@@ -20,6 +22,12 @@ export const listingsSlice = createSlice({
   name: "listings",
   initialState: listingsInitialState,
   reducers: {
+    setOpenSelectorPanel: (state, action) => {
+      state.openSelectorPanel = action.payload;
+    },
+    setOpenDialogAddListing: (state, action) => {
+      state.openDialogAddListing = action.payload;
+    },
     setListingsById: (state, action) => {
       const listings = action.payload;
       state.listingsById = getItemsByKey(listings, "id");
@@ -51,6 +59,9 @@ export const listingsSlice = createSlice({
 });
 
 export const {
+  setOpenDialogAddListing,
+  setOpenSelectorPanel,
+  //
   setListingsById,
   //
   setSelectedListingId,

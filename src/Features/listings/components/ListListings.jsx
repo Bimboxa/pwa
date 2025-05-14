@@ -1,19 +1,30 @@
 import {createElement} from "react";
 import {
   List,
+  ListItemIcon,
   ListItemButton,
   ListItemAvatar,
   ListItemText,
   Avatar,
   Icon,
 } from "@mui/material";
-import {Square} from "@mui/icons-material";
+import {Square, Add} from "@mui/icons-material";
 
 import iconsMap from "../data/iconsMap";
 import SkeletonList from "Features/layout/components/SkeletonList";
 
-export default function ListListings({listings, selection, onClick, loading}) {
-  console.log("listings", listings, loading);
+export default function ListListings({
+  listings,
+  selection,
+  onClick,
+  loading,
+  onAddClick,
+}) {
+  // string
+
+  const addPrimary = "Nouveau";
+  const addSecondary = "Ajouter une liste";
+
   return (
     <>
       {loading && <SkeletonList />}
@@ -36,6 +47,14 @@ export default function ListListings({listings, selection, onClick, loading}) {
               <ListItemText primary={listing?.name} />
             </ListItemButton>
           ))}
+          {onAddClick && (
+            <ListItemButton onClick={onAddClick}>
+              <ListItemIcon>
+                <Add />
+              </ListItemIcon>
+              <ListItemText primary={addPrimary} secondary={addSecondary} />
+            </ListItemButton>
+          )}
         </List>
       )}
     </>

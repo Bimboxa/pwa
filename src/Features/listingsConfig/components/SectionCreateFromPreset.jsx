@@ -46,7 +46,11 @@ export default function SectionCreateFromPreset() {
       <List>
         {presets.map((preset) => {
           return (
-            <ListItemButton divider onClick={() => handlePresetClick(preset)}>
+            <ListItemButton
+              key={preset.key}
+              divider
+              onClick={() => handlePresetClick(preset)}
+            >
               <ListItemText primary={preset?.name} />
             </ListItemButton>
           );

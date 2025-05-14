@@ -1,4 +1,4 @@
-import {useEffect} from "react";
+import {useEffect, useRef} from "react";
 import {useSelector} from "react-redux";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -18,8 +18,11 @@ export default function useAutoFetchOrgaDataFolder() {
   const fetchOrgaDataSuccess = getFetchOrgaDataSuccessInLocalStorage();
   const forceUpdateAt = useSelector((s) => s.appConfig.forceUpdateAt);
 
+  const syncingRef = useRef(false);
+
   const fetchFolder = async () => {
     try {
+      if (syncingRef.current) return;
       const orgaData = appConfig.orgaData;
 
       // edge case
@@ -33,10 +36,13 @@ export default function useAutoFetchOrgaDataFolder() {
         provider: remoteContainer.service,
       });
 
+      // syncing
+      syncingRef.current = true;
       await fetchOrgaDataFolderService({
         orgaData,
         remoteProvider,
       });
+      syncingRef.current = false;
       setFetchOrgaDataSuccessInLocalStorage(true);
     } catch (e) {
       console.error("Error fetching orgaData:", e);

@@ -1,5 +1,7 @@
 import {useState} from "react";
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
+
+import {setOpenSelectorPanel} from "Features/listings/listingsSlice";
 
 import useSelectedListing from "../hooks/useSelectedListing";
 
@@ -17,28 +19,28 @@ export default function IconButtonListingSelector() {
 
   // state
 
-  const [open, setOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
 
   // data
 
   const {value: selectedListing} = useSelectedListing();
   const selectedListingId = selectedListing?.id;
+  const open = useSelector((s) => s.listings.openSelectorPanel);
 
   // handlers
 
   function handleIconButtonClick(anchorEl) {
-    setOpen(true);
+    dispatch(setOpenSelectorPanel(true));
     setAnchorEl(anchorEl);
   }
 
   function handleCloseMenu() {
-    setOpen(false);
+    dispatch(setOpenSelectorPanel(false));
     setAnchorEl(null);
   }
 
   function handleListingSelected() {
-    setOpen(false);
+    dispatch(setOpenSelectorPanel(false));
   }
 
   return (

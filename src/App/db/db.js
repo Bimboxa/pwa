@@ -2,11 +2,11 @@ import Dexie from "dexie";
 
 const db = new Dexie("appDB");
 
-db.version(6).stores({
+db.version(7).stores({
   orgaData: "key", // {key,data,dataStructure,file}
   projects: "id,clientRef",
   scopes: "id,projectId", // {id,name,projectId,sortedListings:[{id,table}]}. Table is used to resolve syncConfig
-  listings: "id,name",
+  listings: "id,projectId",
   entities: "id,listingId,[listingId+createdBy]",
   maps: "id,listingId",
   zones: "id,listingId", // {id,listingId,zonesTree}

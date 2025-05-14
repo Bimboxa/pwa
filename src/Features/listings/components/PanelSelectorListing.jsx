@@ -1,6 +1,10 @@
 import {useDispatch} from "react-redux";
 
-import {setSelectedListingId} from "../listingsSlice";
+import {
+  setSelectedListingId,
+  setOpenSelectorPanel,
+  setOpenDialogAddListing,
+} from "../listingsSlice";
 
 import useListingsByScope from "../hooks/useListingsByScope";
 
@@ -30,6 +34,11 @@ export default function PanelSelectorListing({
     if (onListingSelected) onListingSelected();
   }
 
+  function handleAddClick() {
+    dispatch(setOpenSelectorPanel(false));
+    dispatch(setOpenDialogAddListing(true));
+  }
+
   return (
     <BoxFlexHStretch sx={{overflow: "auto"}}>
       <ListListings
@@ -37,6 +46,7 @@ export default function PanelSelectorListing({
         listings={listings}
         onClick={handleListingClick}
         selection={selection}
+        onAddClick={handleAddClick}
       />
     </BoxFlexHStretch>
   );
