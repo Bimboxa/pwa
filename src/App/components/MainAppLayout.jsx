@@ -23,6 +23,7 @@ import useAutoFetchOrgaDataFolder from "Features/orgaData/hooks/useAutoFetchOrga
 import DialogAutoListingsConfig from "Features/listingsConfig/components/DialogAutoListingsConfig";
 import DialogAutoSyncTasks from "Features/sync/components/DialogAutoSyncTasks";
 import DialogAutoDownloadListingsData from "Features/listingsConfig/components/DialogAutoDownloadListingsData";
+import DialogAutoAddListing from "Features/listings/components/DialogAutoAddListing";
 
 export default function MainAppLayout() {
   const dispatch = useDispatch();
@@ -67,6 +68,7 @@ export default function MainAppLayout() {
       <DialogAutoListingsConfig />
       <DialogAutoDownloadListingsData />
       <DialogAutoSyncTasks />
+      <DialogAutoAddListing />
     </DndContext>
   );
 }
