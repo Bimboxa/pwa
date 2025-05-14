@@ -19,12 +19,20 @@ import DialogAutoRemoteContainerConnexion from "Features/sync/components/DialogA
 import PageLanding from "Features/init/components/PageLanding";
 import DialogAutoSelectScope from "Features/scopeSelector/components/DialogAutoSelectScope";
 import Toaster from "Features/layout/components/Toaster";
+import useAutoFetchOrgaDataFolder from "Features/orgaData/hooks/useAutoFetchOrgaDataFolder";
+import DialogAutoListingsConfig from "Features/listingsConfig/components/DialogAutoListingsConfig";
+import DialogAutoSyncTasks from "Features/sync/components/DialogAutoSyncTasks";
+import DialogAutoDownloadListingsData from "Features/listingsConfig/components/DialogAutoDownloadListingsData";
 
 export default function MainAppLayout() {
   const dispatch = useDispatch();
   // init
 
   useInit();
+
+  // auto
+
+  useAutoFetchOrgaDataFolder();
 
   // data
 
@@ -56,6 +64,9 @@ export default function MainAppLayout() {
         <DialogAutoSelectScope />
       )}
       {!openLandingPage && <DialogAutoRemoteContainerConnexion />}
+      <DialogAutoListingsConfig />
+      <DialogAutoDownloadListingsData />
+      <DialogAutoSyncTasks />
     </DndContext>
   );
 }

@@ -22,6 +22,12 @@ export default async function createSyncTaskLocalToRemoteFromItem({
         filePath: path,
       };
     }
+    case "LISTING": {
+      return {
+        entry: item,
+        filePath: path,
+      };
+    }
     default: {
       return;
     }

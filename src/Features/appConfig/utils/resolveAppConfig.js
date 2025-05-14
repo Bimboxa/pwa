@@ -22,12 +22,21 @@ export default function resolveAppConfig(appConfig, options) {
 
   // projectsPath
 
-  if (appConfig.remoteContainer.projectsPathRelative) {
+  if (appConfig.remoteContainer?.projectsPathRelative) {
     newAppConfig.remoteContainer = {
       ...newAppConfig.remoteContainer,
       projectsPath:
         newAppConfig.remoteContainer.path +
         newAppConfig.remoteContainer.projectsPathRelative,
+    };
+  }
+
+  // orgaDataPath
+  if (appConfig.orgaData?.pathRelative) {
+    newAppConfig.orgaData = {
+      ...newAppConfig.orgaData,
+      path:
+        newAppConfig.remoteContainer.path + newAppConfig.orgaData.pathRelative,
     };
   }
 

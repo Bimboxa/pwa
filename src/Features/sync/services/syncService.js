@@ -19,6 +19,7 @@ export default async function syncService({
   context,
   syncConfig,
   dispatch,
+  debug,
 }) {
   // step 1 - prepare sync tasks
 
@@ -31,6 +32,8 @@ export default async function syncService({
   dispatch(setPreparingSyncTasks(false));
   dispatch(setSyncTasks(tasks));
   console.log("tasks v2", tasks);
+
+  if (debug) return;
 
   // step 2 - execute sync tasks
 

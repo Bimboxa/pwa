@@ -6,6 +6,7 @@ import {Box, Typography} from "@mui/material";
 import LinkRemoteItem from "./LinkRemoteItem";
 import ButtonLoginRemoteContainer from "./ButtonLoginRemoteContainer";
 import ButtonLogoutRemoteContainer from "./ButtonLogoutRemoteContainer";
+import BlockOrgaDataFolder from "Features/orgaData/components/BlockOrgaDataFolder";
 
 export default function SectionRemoteContainerOverview() {
   // strings
@@ -42,6 +43,7 @@ export default function SectionRemoteContainerOverview() {
             path={remoteContainer?.path}
           />
         </Box>
+        <BlockOrgaDataFolder />
         {!accessToken ? (
           <ButtonLoginRemoteContainer remoteContainer={remoteContainer} />
         ) : (

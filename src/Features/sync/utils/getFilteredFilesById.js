@@ -10,6 +10,7 @@ export default function getFilteredFilesById(files, filterFilesById) {
 
   // main
   return files.filter((file) => {
-    return _in.includes(extractKeyFromTemplate(file.name, template, "id"));
+    const fileId = extractKeyFromTemplate(file.name, template, "id");
+    return _in.includes(fileId);
   });
 }

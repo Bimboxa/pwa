@@ -11,6 +11,8 @@ import {
 import resolveComputedContext from "../utils/resolveComputedContext";
 import resolveIteration from "../utils/resolveIteration";
 import getParentPath from "Features/misc/utils/getParentPath";
+import resolveFilterFilesById from "../utils/resolveFilterFilesById";
+import getFilteredFilesById from "../utils/getFilteredFilesById";
 
 export default async function resolveSyncFilesRemote(
   config,
@@ -31,6 +33,7 @@ export default async function resolveSyncFilesRemote(
   const metadataFetchBy = config.remoteMetadata.fetchBy;
   const itemFromContext = config.remoteMetadata.itemFromContext;
   const iterationToResolve = config.remoteMetadata.iteration;
+  const filterFilesByIdToResolve = config.remoteMetadata.filterFilesById;
 
   const fetchBy = config.remoteToLocal.fetchBy;
   const pathToItemTemplate = config.remoteToLocal.pathToItemTemplate;
@@ -48,6 +51,11 @@ export default async function resolveSyncFilesRemote(
   let iteration = null;
   if (iterationToResolve)
     iteration = resolveIteration(iterationToResolve, context);
+
+  // helper - filterFilesById
+  let filterFilesById;
+  if (filterFilesByIdToResolve)
+    filterFilesById = resolveFilterFilesById(filterFilesByIdToResolve, context);
 
   //main
   switch (metadataFetchBy) {
@@ -74,12 +82,18 @@ export default async function resolveSyncFilesRemote(
       const filesMetada = await remoteProvider.fetchFilesMetadataFromFolder(
         folderPath
       );
-      return filesMetada.map((metadata) => ({
+      let _filesMetada = filesMetada.map((metadata) => ({
         filePath: metadata.path,
+        name: metadata.path.split("/").pop(),
         updatedAtRemote: metadata.lastModifiedAt,
         fetchBy,
         table,
       }));
+
+      if (filterFilesByIdToResolve) {
+        _filesMetada = getFilteredFilesById(_filesMetada, filterFilesById);
+      }
+      return _filesMetada;
     }
 
     case "ITERATION_FOLDER": {

@@ -47,12 +47,12 @@ export default async function prepareSyncTasks({
       syncFilesLocal = await resolveSyncFilesLocal(config, context);
     }
 
-    console.log(
-      "[prepareSyncTasks] syncFiles",
-      direction,
-      syncFilesLocal,
-      syncFilesRemote
-    );
+    // console.log(
+    //   "[prepareSyncTasks] syncFiles",
+    //   direction,
+    //   syncFilesLocal,
+    //   syncFilesRemote
+    // );
     const [syncFiles_PULL, syncFiles_PUSH, syncFiles_BOTH] = intersectItems(
       syncFilesRemote,
       syncFilesLocal,
