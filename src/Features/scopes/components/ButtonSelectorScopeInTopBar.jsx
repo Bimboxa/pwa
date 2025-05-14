@@ -6,14 +6,16 @@ import {setOpen} from "Features/scopeSelector/scopeSelectorSlice";
 
 import useSelectedScope from "../hooks/useSelectedScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useUserEmail from "Features/auth/hooks/useUserEmail";
+import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
+import useSyncFilesToPush from "Features/sync/hooks/useSyncFilesToPush";
 
-import {Box, Typography, Button} from "@mui/material";
+import {Box, Typography, Button, Badge} from "@mui/material";
 import {ArrowDropDown as Down} from "@mui/icons-material";
 
 import ScopeSelector from "Features/scopeSelector/components/ScopeSelector";
 import ButtonMenuSyncIndicator from "Features/sync/components/ButtonMenuSyncIndicator";
 import DialogFsOrMenu from "Features/layout/components/DialogFsOrMenu";
-import useUserEmail from "Features/auth/hooks/useUserEmail";
 
 export default function ButtonSelectorScopeInTopBar() {
   const dispatch = useDispatch();
@@ -27,6 +29,8 @@ export default function ButtonSelectorScopeInTopBar() {
 
   const open = useSelector((s) => s.scopeSelector.open);
   const {value: userEmail} = useUserEmail();
+  const syncFilesToPush = useSyncFilesToPush();
+  const remoteContainer = useRemoteContainer();
 
   // state
 
@@ -38,6 +42,8 @@ export default function ButtonSelectorScopeInTopBar() {
   console.log("[debug] scope", scope);
 
   // helpers
+
+  const syncCounter = syncFilesToPush?.length;
 
   const show = userEmail && userEmail.includes("@");
 
@@ -60,14 +66,21 @@ export default function ButtonSelectorScopeInTopBar() {
   return (
     <>
       <Box sx={{alignItems: "center", display: "flex"}}>
-        <Button
-          onClick={handleClick}
-          endIcon={<Down />}
-          variant={scope?.name ? "text" : "contained"}
-          color={scope?.name ? "secondary" : "secondary"}
+        <Badge
+          badgeContent={syncCounter}
+          color="warning"
+          variant="dot"
+          //variant={syncing ? "dot" : "standard"}
         >
-          <Typography variant="body2">{scopeName}</Typography>
-        </Button>
+          <Button
+            onClick={handleClick}
+            endIcon={<Down />}
+            variant={scope?.name ? "text" : "contained"}
+            color={scope?.name ? "secondary" : "secondary"}
+          >
+            <Typography variant="body2">{scopeName}</Typography>
+          </Button>
+        </Badge>
         {/* <ButtonMenuSyncIndicator /> */}
       </Box>
     </>

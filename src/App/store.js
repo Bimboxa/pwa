@@ -12,6 +12,7 @@ import listPanelReducer from "Features/listPanel/listPanelSlice";
 import projectsReducer from "Features/projects/projectsSlice";
 import scopesReducer from "Features/scopes/scopesSlice";
 import scopeSelectorReducer from "Features/scopeSelector/scopeSelectorSlice";
+import listingsConfigReducer from "Features/listingsConfig/listingsConfigSlice";
 import viewersReducer from "Features/viewers/viewersSlice";
 import listingsReducer from "Features/listings/listingsSlice";
 import entitiesReducer from "Features/entities/entitiesSlice";
@@ -48,6 +49,7 @@ const store = configureStore({
     projects: projectsReducer,
     scopes: scopesReducer,
     scopeSelector: scopeSelectorReducer,
+    listingsConfig: listingsConfigReducer,
     listings: listingsReducer,
     entities: entitiesReducer,
     entityProps: entityPropsReducer,

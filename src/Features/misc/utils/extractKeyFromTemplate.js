@@ -4,7 +4,14 @@
 
 export default function extractKeyFromTemplate(inputString, template, key) {
   if (!template.includes(`{{${key}}}`)) return null;
-  const regex = template.replace(`{{${key}}}`, "(.*?)").replace(/\./g, "\\.");
-  const match = inputString.match(new RegExp(regex));
+
+  // Échappe tous les caractères spéciaux dans le template
+  const escapedTemplate = template.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+
+  // Remplace {{key}} par un groupe de capture
+  const regexString = escapedTemplate.replace(`\\{\\{${key}\\}\\}`, "(.*?)");
+
+  const regex = new RegExp(`^${regexString}$`);
+  const match = inputString.match(regex);
   return match?.[1] || null;
 }

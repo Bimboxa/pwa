@@ -26,7 +26,7 @@ const DialogGeneric = forwardRef(function DialogGeneric(
       }}
     >
       {Boolean(title) && !isMobile && <DialogTitle>{title}</DialogTitle>}
-      {Boolean(title) && isMobile && (
+      {Boolean(onClose || title) && isMobile && (
         <HeaderTitleClose title={title} onClose={onClose} />
       )}
 

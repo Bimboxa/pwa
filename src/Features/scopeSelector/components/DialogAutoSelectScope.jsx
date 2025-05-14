@@ -49,7 +49,7 @@ export default function DialogAutoSelectScope() {
       ref={containerRef}
       open={open}
       onClose={handleClose}
-      title={title}
+      //title={title}
       vh={50}
       vw={30}
     >

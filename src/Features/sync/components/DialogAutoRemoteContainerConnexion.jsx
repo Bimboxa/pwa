@@ -27,7 +27,7 @@ export default function DialogAutoRemoteContainerConnexion() {
 
   // state
 
-  const [updatedAt, setUpdatedAt] = useState();
+  const [updatedAt, setUpdatedAt] = useState(); // we use the updatedAt to recompute the openDialog
 
   // const
 
@@ -43,6 +43,7 @@ export default function DialogAutoRemoteContainerConnexion() {
   // helpers
 
   const openDialog = !hideWarning && !accessToken && remoteContainer;
+  const closeDialog = hideWarning || accessToken || !remoteContainer;
 
   // effect - setWarning was shown if auto connect
 
@@ -74,7 +75,7 @@ export default function DialogAutoRemoteContainerConnexion() {
   function handleClose() {}
 
   return (
-    <DialogGeneric open={openDialog} onClose={handleClose} title={title}>
+    <DialogGeneric open={!closeDialog} onClose={handleClose} title={title}>
       <BoxCenter sx={{width: 1, height: 40}}>
         <Warning sx={{color: "warning.main"}} />
       </BoxCenter>
