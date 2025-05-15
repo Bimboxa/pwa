@@ -8,6 +8,7 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import CardUploadScope from "Features/sync/components/CardUploadScope";
 import CardUploadChanges from "Features/sync/components/CardUploadChanges";
+import CardDownloadScope from "Features/sync/components/CardDownloadScope";
 
 export default function PanelSelectedScope({onMoreClick}) {
   // data
@@ -33,8 +34,9 @@ export default function PanelSelectedScope({onMoreClick}) {
           </Typography>
         </Button>
       </Box>
-      <CardUploadChanges />
+      {/* <CardUploadChanges /> */}
       <CardUploadScope />
+      <CardDownloadScope />
     </Panel>
   );
 }

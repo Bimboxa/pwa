@@ -1,10 +1,9 @@
-import {useState} from "react";
-
-import {useSelector, useDispatch} from "react-redux";
+import {useDispatch} from "react-redux";
 
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useRemoteToken from "Features/sync/hooks/useRemoteToken";
 import useRemoteContainer from "../hooks/useRemoteContainer";
+import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
 import syncService from "../services/syncService";
 import {overrideSyncConfig} from "../utils/overrideSyncConfig";
@@ -12,17 +11,18 @@ import {overrideSyncConfig} from "../utils/overrideSyncConfig";
 import RemoteProvider from "../js/RemoteProvider";
 
 import syncConfig from "../syncConfig";
-import useListingsByScope from "Features/listings/hooks/useListingsByScope";
+
+import db from "App/db/db";
 import computeSyncConfig from "../utils/computeSyncConfig";
 
-export default function useDownloadScopeData() {
+export default function useUploadScopeData() {
   const dispatch = useDispatch();
 
   // data
 
   const {value: scope} = useSelectedScope({withProject: true});
   const {value: accessToken} = useRemoteToken();
-  const listings = scope.sortedListings;
+  const {value: listings} = useListingsByScope();
 
   // TODO : add listings & relScopItem ? to the context
   // TODO : override syncFilesPath to add the items if they do not exists on dropbox.
@@ -32,14 +32,21 @@ export default function useDownloadScopeData() {
   // const
 
   const syncScope = {
-    LISTINGS: {direction: "PULL", listings},
-    ENTITIES: {direction: "PULL", listings},
-    FILES: {direction: "PULL", listings, fileTypes: ["IMAGE"]},
+    PROJECT: {direction: "PUSH", project: scope?.project},
+    SCOPE: {direction: "PUSH", scope},
+    LISTINGS: {direction: "PUSH", listings},
+    ENTITIES: {direction: "PUSH", listings},
+    FILES: {direction: "PUSH", listings, fileTypes: ["IMAGE"]},
   };
+
+  const syncConfig = computeSyncConfig(syncScope);
 
   // handlers
 
-  const downloadData = async () => {
+  const uploadData = async () => {
+    // reset syncFiles
+    await db.syncFiles.clear();
+
     // remoteProvider
     const remoteProvider = new RemoteProvider({
       accessToken,
@@ -51,10 +58,9 @@ export default function useDownloadScopeData() {
       remoteContainer,
       project: scope.project,
       scope,
-      listings,
+      //listings,
     };
-    const syncConfig = computeSyncConfig(syncScope);
-    console.log("sync config", syncConfig);
+
     // options
     const options = {
       context,
@@ -67,5 +73,8 @@ export default function useDownloadScopeData() {
 
     await syncService(options);
   };
-  return downloadData;
+
+  // return
+
+  return uploadData;
 }
