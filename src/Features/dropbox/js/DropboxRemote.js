@@ -16,8 +16,8 @@ export default class DropboxRemote {
 
   // POST FILE
 
-  async postFile(path, file) {
-    const clientModifiedAt = getDateString(file.lastModified);
+  async postFile(path, file, updatedAt) {
+    const clientModifiedAt = updatedAt ?? getDateString(file.lastModified);
     return await createDropboxFileService({
       path,
       blob: file,
@@ -30,13 +30,11 @@ export default class DropboxRemote {
   // POST FILES
 
   async postFiles(files) {
-    // files = [{path,blob}]
-    await Promise.all(
-      files.map(async (file) => {
-        const {path, blob} = file;
-        await this.postFile(path, blob);
-      })
-    );
+    // files = [{path,blob,updatedAt}]
+    for (const file of files) {
+      const {path, blob, updatedAt} = file;
+      await this.postFile(path, blob, updatedAt);
+    }
   }
 
   // FETCH FILE METADATA

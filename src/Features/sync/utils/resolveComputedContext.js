@@ -25,8 +25,9 @@ export default function resolveComputedContext(computedContext, context) {
     const filtersToResolve = value.filters;
     const trans = value.transform;
     const _value = value.value; // value is already computed. No need to resolve it.
+    const doNotResolve = value.doNotResolve;
 
-    if (_value) {
+    if (doNotResolve) {
       result[key] = _value;
     } else {
       let items = getValueFromContext(from, context);

@@ -5,14 +5,14 @@ import getDateString from "Features/misc/utils/getDateString";
 export default async function updateSyncFile({
   path,
   updatedAt,
-  itemType,
+  syncFileType,
+  fileType,
+  listingId,
   syncAt,
 }) {
   try {
     updatedAt = updatedAt ?? getDateString(new Date());
     const scopeId = getInitScopeId();
-
-    console.log("debug_2104 updateSyncFile", path, itemType, updatedAt, syncAt);
 
     const existing = await db.syncFiles.get(path);
 
@@ -20,12 +20,16 @@ export default async function updateSyncFile({
       const updates = {};
       if (updatedAt) updates.updatedAt = updatedAt;
       if (syncAt) updates.syncAt = syncAt;
-      if (itemType) updates.itemType = itemType;
+      if (syncFileType) updates.syncFileType = syncFileType;
+      if (fileType) updates.fileType = fileType;
+      if (listingId) updates.listingId = listingId;
       await db.syncFiles.update(path, updates);
     } else {
       await db.syncFiles.put({
         path,
-        itemType,
+        syncFileType,
+        fileType,
+        listingId,
         updatedAt,
         syncAt,
         scopeId,

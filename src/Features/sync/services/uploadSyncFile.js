@@ -8,7 +8,6 @@ import jsonObjectToFile from "Features/files/utils/jsonObjectToFile";
 import getDynamicVariablesFromTemplate from "../utils/getDynamicVariablesFromTemplate";
 import updateSyncFile from "./updateSyncFile";
 
-import {syncFileByItemType} from "../syncConfig";
 import getDateString from "Features/misc/utils/getDateString";
 
 export default async function uploadSyncFile({
@@ -16,10 +15,10 @@ export default async function uploadSyncFile({
   syncFile,
   context,
 }) {
-  const itemType = syncFile?.itemType;
+  const syncFileType = syncFile?.syncFileType;
   const filePath = syncFile?.path;
 
-  const syncFileConfig = syncFileByItemType[itemType];
+  const syncFileConfig = syncFile?.config;
 
   const remoteFolder = syncFileConfig?.remoteFolder;
   const remoteFile = syncFileConfig?.remoteFile;
@@ -30,7 +29,7 @@ export default async function uploadSyncFile({
   const filePathTemplate = remoteFolder + "/" + remoteFile;
 
   // edge case
-  if (!itemType || !filePath) return;
+  if (!syncFileType || !filePath) return;
 
   // main
   const dynamicVariables = getDynamicVariablesFromTemplate(
@@ -40,8 +39,8 @@ export default async function uploadSyncFile({
   );
 
   let content = null;
-  if (getItemFromKey && itemType !== "IMAGE") content = "DATA";
-  if (getItemFromKey && itemType === "IMAGE") content = "IMAGE";
+  if (getItemFromKey && syncFileType !== "IMAGE") content = "DATA";
+  if (getItemFromKey && syncFileType === "IMAGE") content = "IMAGE";
   if (getItemsFromKeys) content = "ITEMS";
 
   let fileContent = {error: "no content"};

@@ -1,23 +1,39 @@
-import useSyncFilesToPush from "./useSyncFilesToPush";
-import useRemoteToken from "./useRemoteToken";
-import useRemoteContainer from "./useRemoteContainer";
-import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
+import {useDispatch} from "react-redux";
 
-import uploadSyncFile from "../services/uploadSyncFile";
+import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
+import useRemoteToken from "Features/sync/hooks/useRemoteToken";
+import useRemoteContainer from "../hooks/useRemoteContainer";
+
+import syncService from "../services/syncService";
 
 import RemoteProvider from "../js/RemoteProvider";
 
+import computeSyncConfig from "../utils/computeSyncConfig";
+import useSyncFilesToPush from "./useSyncFilesToPush";
+import computeSyncScopeFromSyncFiles from "../services/computeSyncScopeFromSyncFiles";
+
 export default function useUploadChanges() {
+  const dispatch = useDispatch();
+
   // data
 
-  const remoteContainer = useRemoteContainer();
-  const {value: accessToken} = useRemoteToken();
-  const syncFilesToPush = useSyncFilesToPush();
   const {value: scope} = useSelectedScope({withProject: true});
+  const {value: accessToken} = useRemoteToken();
 
-  // main
+  const remoteContainer = useRemoteContainer();
 
-  const upload = async () => {
+  // handlers
+
+  const syncData = async (syncScope) => {
+    // remoteProvider
+    const remoteProvider = new RemoteProvider({
+      accessToken,
+      provider: remoteContainer.service,
+    });
+
+    // config
+    const syncConfig = computeSyncConfig(syncScope);
+
     // context
     const context = {
       remoteContainer,
@@ -25,17 +41,16 @@ export default function useUploadChanges() {
       scope,
     };
 
-    console.log("[useUploadChanges] syncFilesToPush", syncFilesToPush, context);
-    // remoteProvider
-    const remoteProvider = new RemoteProvider({
-      accessToken,
-      provider: remoteContainer.service,
-    });
+    // options
+    const options = {
+      context,
+      remoteProvider,
+      syncConfig,
+      dispatch,
+      //debug: true,
+    };
 
-    for (const syncFile of syncFilesToPush) {
-      await uploadSyncFile({remoteProvider, syncFile, context});
-    }
+    await syncService(options);
   };
-
-  return upload;
+  return syncData;
 }

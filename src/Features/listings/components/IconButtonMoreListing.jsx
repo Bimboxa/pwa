@@ -20,6 +20,7 @@ import useSelectedListing from "../hooks/useSelectedListing";
 import {update} from "firebase/database";
 import useSyncListingData from "Features/sync/hooks/useSyncListingData";
 import {setOpenPanelSync} from "Features/sync/syncSlice";
+import deleteListingDataInDb from "../services/deleteListingDataInDb";
 
 export default function IconButtonMoreListing() {
   const dispatch = useDispatch();
@@ -49,8 +50,11 @@ export default function IconButtonMoreListing() {
   function handleCloseSync() {
     dispatch(setOpenListingSyncDetail(false));
   }
-  function handleRefresh() {
-    dispatch(triggerEntitiesUpdate());
+  async function handleReset() {
+    await deleteListingDataInDb(listingId);
+    dispatch(setOpenPanelSync(true));
+    await syncListingData();
+    dispatch(setOpenPanelSync(false));
   }
 
   async function handleSyncListing() {
@@ -88,6 +92,10 @@ export default function IconButtonMoreListing() {
     {
       label: "Sync",
       handler: handleSyncListing,
+    },
+    {
+      label: "Réinitialiser",
+      handler: handleReset,
     },
     {
       label: "Supprimer",

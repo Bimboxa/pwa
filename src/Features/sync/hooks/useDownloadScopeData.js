@@ -13,6 +13,7 @@ import RemoteProvider from "../js/RemoteProvider";
 
 import syncConfig from "../syncConfig";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
+import computeSyncConfig from "../utils/computeSyncConfig";
 
 export default function useDownloadScopeData() {
   const dispatch = useDispatch();
@@ -30,13 +31,13 @@ export default function useDownloadScopeData() {
 
   // const
 
-  const fileList = [
-    //{key: "project", direction: "PULL"},
-    //{key: "scope", direction: "PULL"},
-    {key: "listings", direction: "PULL"},
-    {key: "entities", direction: "PULL"},
-    {key: "images", direction: "PULL"},
-  ];
+  const syncScope = {
+    LISTINGS: {direction: "PULL", listings},
+    ENTITIES: {direction: "PULL", listings},
+    FILES: {direction: "PULL", listings, fileTypes: ["IMAGE"]},
+  };
+
+  const syncConfig = computeSyncConfig(syncScope);
 
   // handlers
 
@@ -60,8 +61,8 @@ export default function useDownloadScopeData() {
     const options = {
       context,
       remoteProvider,
-      syncConfig: overrideSyncConfig(syncConfig, fileList),
-      syncFilesByPath: {}, // to force the download of all files
+      syncConfig,
+      //syncConfig: overrideSyncConfig(syncConfig, fileList),
       dispatch,
       //debug: true,
     };

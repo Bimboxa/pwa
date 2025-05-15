@@ -19,7 +19,7 @@ import RemoteProvider from "../js/RemoteProvider";
 export default function DialogCreateRemoteItem({
   item,
   itemPath,
-  itemType,
+  syncFileType,
   type,
   open,
   onClose,
@@ -66,7 +66,7 @@ export default function DialogCreateRemoteItem({
       //await createRemoteFile({path: itemPath, blob});
 
       // create local project
-      if (itemType === "PROJECT") {
+      if (syncFileType === "PROJECT") {
         await createProject(newItem, {
           syncRemoteFile: true,
           updatedAt: getDateString(file.lastModified),

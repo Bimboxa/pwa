@@ -6,10 +6,10 @@ export default function useSyncFilesToPush() {
 
   const syncFilesToPush = syncFiles.filter((syncFile) => {
     return (
-      syncFile.updatedAt !== syncFile.syncAt &&
+      syncFile.updatedAt > syncFile.syncAt &&
       (syncFile.scopeId === selectedScopeId ||
-        syncFile.itemType === "PROJECT" ||
-        syncFile.itemType === "SCOPE")
+        syncFile.syncFileType === "PROJECT" ||
+        syncFile.syncFileType === "SCOPE")
     );
   });
 

@@ -41,13 +41,13 @@ export default function useUpdateEntity() {
       await Promise.all(
         Object.values(filesDataByKey).map(async (fileData) => {
           await db.files.put(fileData);
-
+          //
           if (options?.updateSyncFile) {
             await updateItemSyncFile({
               item: fileData,
-              type: "IMAGE",
-              updatedAt: options.updatedAt,
-              syncAt: options.syncAt,
+              type: "FILE",
+              updatedAt: fileData.updatedAt,
+              //syncAt: options.syncAt,
             });
           }
         })

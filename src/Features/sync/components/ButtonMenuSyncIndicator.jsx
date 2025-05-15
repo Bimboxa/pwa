@@ -12,9 +12,7 @@ import useSaveShortcut from "Features/layout/hooks/useSaveShortcut";
 import {Box, IconButton, Tooltip, Badge} from "@mui/material";
 
 import BlockSyncIndicator from "./BlockSyncIndicator";
-import PanelSync from "./PanelSync";
 
-import DialogFsOrMenu from "Features/layout/components/DialogFsOrMenu";
 import useUploadChanges from "../hooks/useUploadChanges";
 
 export default function ButtonMenuSyncIndicator() {
@@ -71,36 +69,25 @@ export default function ButtonMenuSyncIndicator() {
   };
 
   return (
-    <>
-      <Tooltip title={title}>
-        <Box
-          sx={{display: "flex", alignItems: "center", justifyContent: "center"}}
-        >
-          <Badge
-            badgeContent={syncCounter}
-            color="warning"
-            variant={syncing ? "dot" : "standard"}
-          >
-            <IconButton
-              onClick={handleClick}
-              disabled={!isSignedIn}
-              size="small"
-              loading={syncing}
-            >
-              <BlockSyncIndicator color={color} />
-            </IconButton>
-          </Badge>
-        </Box>
-      </Tooltip>
-      <DialogFsOrMenu
-        title={dialogTitle}
-        anchorEl={anchorEl}
-        open={open}
-        onClose={handleClose}
-        //onClick={() => setAnchorEl(null)}
+    <Tooltip title={title}>
+      <Box
+        sx={{display: "flex", alignItems: "center", justifyContent: "center"}}
       >
-        <PanelSync />
-      </DialogFsOrMenu>
-    </>
+        <Badge
+          badgeContent={syncCounter}
+          color="warning"
+          variant={syncing ? "dot" : "standard"}
+        >
+          <IconButton
+            onClick={handleClick}
+            disabled={!isSignedIn}
+            size="small"
+            loading={syncing}
+          >
+            <BlockSyncIndicator color={color} />
+          </IconButton>
+        </Badge>
+      </Box>
+    </Tooltip>
   );
 }

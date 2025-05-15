@@ -44,7 +44,8 @@ export default async function syncService({
       // ____ UP TO DATE ____
 
       if (task.action === "UP_TO_DATE") {
-        await db.syncFiles.update(task.filePath, {syncAt: updatedAtRemote});
+        const updatedAt = task.updatedAtRemote;
+        await updateSyncedAt(task, updatedAt);
       }
 
       // ---- PULL ----
@@ -63,9 +64,10 @@ export default async function syncService({
           remoteProvider,
         });
 
-        // we update syncFile based one the updatedAtClient (=file.lastModified);
+        // we update syncFile based one the updatedAtClient (=file.lastModified); !NOOO => base on task.updatedAtLocal
         if (file) {
-          const updatedAt = getDateString(file.lastModified);
+          //const updatedAt = getDateString(file.lastModified);
+          const updatedAt = task.updatedAtLocal;
           await updateSyncedAt(task, updatedAt);
         }
       }
@@ -76,12 +78,15 @@ export default async function syncService({
       dispatch(updateSyncTaskStatus({id: task.id, status: "ERROR"}));
     }
   }
+
+  dispatch(setSyncTasks([]));
 }
 
 async function updateSyncedAt(task, updatedAt) {
+  const syncAt = getDateString(Date.now());
   try {
     const path = task.filePath;
-    await updateSyncFile({path, updatedAt, syncAt: updatedAt});
+    await updateSyncFile({path, updatedAt, syncAt});
   } catch (e) {
     console.error("[updateSyncedAt] Error updating syncFiles:", e);
   }

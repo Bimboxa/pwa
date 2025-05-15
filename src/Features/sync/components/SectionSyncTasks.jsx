@@ -4,6 +4,8 @@ import {
   Box,
   Typography,
   CircularProgress,
+  List,
+  ListItem,
   IconButton,
   LinearProgress,
 } from "@mui/material";
@@ -21,6 +23,12 @@ export default function SectionSyncTasks() {
   const syncTasks = useSelector((state) => state.sync.syncTasks);
   const preparing = useSelector((s) => s.sync.preparingSyncTasks);
 
+  // helpers - activeTasks
+
+  const activeTasks = syncTasks?.filter((t) =>
+    ["PUSH", "PULL"].includes(t.action)
+  ); // remove "UP_TO_DATE" actions
+
   // helpers
 
   const noTasks = syncTasks?.length === 0;
@@ -30,8 +38,8 @@ export default function SectionSyncTasks() {
       {preparing && <LinearProgress sx={{minWidth: 300}} />}
       {!preparing && noTasks && <Typography>{noTaskS}</Typography>}
       {!preparing && !noTasks && (
-        <Box>
-          {syncTasks?.map((syncTask) => {
+        <List>
+          {activeTasks?.map((syncTask) => {
             const syncing = syncTask.status === "SYNCING";
             const taskSucceed = syncTask.status === "DONE";
             const taskFailed = syncTask.status === "ERROR";
@@ -51,7 +59,8 @@ export default function SectionSyncTasks() {
 
             const label = syncTask.syncFileKey;
             return (
-              <Box
+              <ListItem
+                divider
                 sx={{
                   display: "flex",
                   alignItems: "center",
@@ -62,10 +71,10 @@ export default function SectionSyncTasks() {
               >
                 <Typography>{label}</Typography>
                 <IconButton loading={syncing}>{icon}</IconButton>
-              </Box>
+              </ListItem>
             );
           })}
-        </Box>
+        </List>
       )}
     </Box>
   );

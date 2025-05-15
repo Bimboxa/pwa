@@ -15,6 +15,8 @@ export default async function syncTaskRemoteToLocal({task, remoteProvider}) {
   const filterFilesById = task.filterFilesById;
   const pathToItemTemplate = task.pathToItemTemplate;
   const itemPath = task.itemPath;
+  const fileType = task.config.fileType;
+  const updatedAt = task.updatedAtRemote;
 
   // main
 
@@ -27,6 +29,8 @@ export default async function syncTaskRemoteToLocal({task, remoteProvider}) {
         filePath,
         pathToItemTemplate,
         itemPath,
+        fileType,
+        updatedAt,
       });
       break;
     }

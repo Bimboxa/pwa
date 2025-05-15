@@ -66,22 +66,16 @@ export default function ButtonSelectorScopeInTopBar() {
   return (
     <>
       <Box sx={{alignItems: "center", display: "flex"}}>
-        <Badge
-          badgeContent={syncCounter}
-          color="warning"
-          variant="dot"
-          //variant={syncing ? "dot" : "standard"}
+        <Button
+          onClick={handleClick}
+          endIcon={<Down />}
+          variant={scope?.name ? "text" : "contained"}
+          color={scope?.name ? "secondary" : "secondary"}
         >
-          <Button
-            onClick={handleClick}
-            endIcon={<Down />}
-            variant={scope?.name ? "text" : "contained"}
-            color={scope?.name ? "secondary" : "secondary"}
-          >
-            <Typography variant="body2">{scopeName}</Typography>
-          </Button>
-        </Badge>
-        {/* <ButtonMenuSyncIndicator /> */}
+          <Typography variant="body2">{scopeName}</Typography>
+        </Button>
+
+        {syncCounter > 0 && <ButtonMenuSyncIndicator />}
       </Box>
     </>
   );

@@ -14,11 +14,11 @@ db.version(7).stores({
   entitiesProps:
     "id,[listingKey+targetEntityId],listingKey,targetListingKey,targetEntityId", // entityProps = {id,tarketListingKey,targetEntityId,props}
   markers: "id,mapId,targetListingId,targetEntityId", // marker = {id,mapId,x,y,targetListingId,targetEntityId}
-  files: "fileName,listingId,itemId", // {fileName, listingId, itemId, fileType}
+  files: "fileName,listingId,itemId", // {fileName, listingId, itemId, fileType} fileType: "IMAGE", "VIDEO",...
   relationsEntities:
     "id,sourceListingId,sourceEntityId,targetEntityId,relationType",
   reports: "id,listingId", // {id,listingId}
-  syncFiles: "path,scopeId", // {path,updatedAt,scopeId} // updatedAt = local updates when one table is updated.
+  syncFiles: "path,scopeId", // {path,updatedAt,updatedAtRemote,syncAt,syncFileType,scopeId,table,config,pathToItemTemplate} // updatedAt = local updates when one table is updated.// syncFileType: "PROJECT", "SCOPE", "LISTING","ENTITY", "FILE" => related to syncConfig.
 });
 
 export default db;

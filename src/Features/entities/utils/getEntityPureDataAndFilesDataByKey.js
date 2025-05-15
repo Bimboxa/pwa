@@ -37,6 +37,7 @@ export default function getEntityPureDataAndFilesDataByKey(entity, options) {
         "JPEG",
         "gif",
       ].includes(extension);
+      const createdAt = getDateString(Date.now());
 
       // fileData
       const fileName = getFileIdFromEntityAndFile({
@@ -49,7 +50,10 @@ export default function getEntityPureDataAndFilesDataByKey(entity, options) {
         file: value.file,
         listingId,
         createdBy,
+        createdAt,
+        updatedAt: createdAt,
       };
+      if (isImage) fileData.fileType = "IMAGE";
 
       // pureData
       const newValue = {...value};

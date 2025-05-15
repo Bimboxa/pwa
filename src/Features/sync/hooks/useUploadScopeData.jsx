@@ -13,6 +13,7 @@ import RemoteProvider from "../js/RemoteProvider";
 import syncConfig from "../syncConfig";
 
 import db from "App/db/db";
+import computeSyncConfig from "../utils/computeSyncConfig";
 
 export default function useUploadScopeData() {
   const dispatch = useDispatch();
@@ -30,12 +31,15 @@ export default function useUploadScopeData() {
 
   // const
 
-  const fileList = [
-    {key: "project", direction: "PUSH"},
-    {key: "scope", direction: "PUSH"},
-    {key: "listings", direction: "PUSH"},
-    {key: "entities", direction: "PUSH"},
-  ];
+  const syncScope = {
+    PROJECT: {direction: "PUSH", project: scope?.project},
+    SCOPE: {direction: "PUSH", scope},
+    LISTINGS: {direction: "PUSH", listings},
+    ENTITIES: {direction: "PUSH", listings},
+    FILES: {direction: "PUSH", listings, fileTypes: ["IMAGE"]},
+  };
+
+  const syncConfig = computeSyncConfig(syncScope);
 
   // handlers
 
@@ -54,15 +58,17 @@ export default function useUploadScopeData() {
       remoteContainer,
       project: scope.project,
       scope,
-      listings,
+      //listings,
     };
 
     // options
     const options = {
       context,
       remoteProvider,
-      syncConfig: overrideSyncConfig(syncConfig, fileList),
+      syncConfig,
+      //syncConfig: overrideSyncConfig(syncConfig, fileList),
       dispatch,
+      //debug: true,
     };
 
     await syncService(options);
