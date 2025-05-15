@@ -18,6 +18,8 @@ import {triggerEntitiesUpdate} from "Features/entities/entitiesSlice";
 import DialogGenericRename from "Features/layout/components/DialogGenericRename";
 import useSelectedListing from "../hooks/useSelectedListing";
 import {update} from "firebase/database";
+import useSyncListingData from "Features/sync/hooks/useSyncListingData";
+import {setOpenPanelSync} from "Features/sync/syncSlice";
 
 export default function IconButtonMoreListing() {
   const dispatch = useDispatch();
@@ -37,6 +39,7 @@ export default function IconButtonMoreListing() {
 
   const updateListing = useUpdateListing();
   const deleteListing = useDeleteListing();
+  const syncListingData = useSyncListingData();
 
   // helpers - handler
 
@@ -48,6 +51,12 @@ export default function IconButtonMoreListing() {
   }
   function handleRefresh() {
     dispatch(triggerEntitiesUpdate());
+  }
+
+  async function handleSyncListing() {
+    dispatch(setOpenPanelSync(true));
+    await syncListingData();
+    dispatch(setOpenPanelSync(false));
   }
 
   async function handleRename(newName) {
@@ -68,17 +77,17 @@ export default function IconButtonMoreListing() {
       label: "Renommer",
       handler: () => setOpenRename(true),
     },
-    {
-      label: "Synchroniser",
-      handler: handleOpenSync,
-    },
-    {
-      label: "Mettre à jour",
-      handler: handleRefresh,
-    },
+    // {
+    //   label: "Synchroniser",
+    //   handler: handleOpenSync,
+    // },
+    // {
+    //   label: "Mettre à jour",
+    //   handler: handleRefresh,
+    // },
     {
       label: "Sync",
-      handler: handleOpenSync,
+      handler: handleSyncListing,
     },
     {
       label: "Supprimer",

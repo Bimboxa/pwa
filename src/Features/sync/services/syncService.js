@@ -44,7 +44,7 @@ export default async function syncService({
       // ____ UP TO DATE ____
 
       if (task.action === "UP_TO_DATE") {
-        await db.syncFiles.update(filePath, {syncAt: updatedAtRemote});
+        await db.syncFiles.update(task.filePath, {syncAt: updatedAtRemote});
       }
 
       // ---- PULL ----

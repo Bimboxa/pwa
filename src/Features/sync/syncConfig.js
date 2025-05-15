@@ -173,7 +173,7 @@ const syncConfig = {
       mode: "ONE_FILE_BY_ENTRY",
       filterEntries: [
         {key: "listingId", in: "listingsIds"},
-        {key: "isImage", value: true},
+        {key: "isImage", value: true, doNotResolve: true},
       ],
     },
   },
