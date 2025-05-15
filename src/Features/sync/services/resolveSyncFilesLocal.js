@@ -60,7 +60,6 @@ export default async function resolveSyncFilesLocal(config, context) {
       if (filterEntriesToResolve) {
         const filters = resolveFilters(filterEntriesToResolve, context);
         const items = await getTableEntriesFromFilters(table, filters);
-        console.log("debug_2222 one_file_by_entry", items, filters, table);
 
         if (!items) return [];
 

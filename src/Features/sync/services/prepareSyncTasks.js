@@ -47,12 +47,12 @@ export default async function prepareSyncTasks({
       syncFilesLocal = await resolveSyncFilesLocal(config, context);
     }
 
-    // console.log(
-    //   "[prepareSyncTasks] syncFiles",
-    //   direction,
-    //   syncFilesLocal,
-    //   syncFilesRemote
-    // );
+    console.log(
+      "[prepareSyncTasks] syncFiles",
+      direction,
+      syncFilesLocal,
+      syncFilesRemote
+    );
     const [syncFiles_PULL, syncFiles_PUSH, syncFiles_BOTH] = intersectItems(
       syncFilesRemote,
       syncFilesLocal,
@@ -91,18 +91,12 @@ export default async function prepareSyncTasks({
       const shouldPull = updatedAtRemote > updatedAtLocal;
       const upToDate = updatedAtRemote === updatedAtLocal;
 
-      const actionMap = {
-        shouldPush: "PUSH",
-        shouldPull: "PULL",
-        upToDate: "UP_TO_DATE",
-      };
+      let _action = "UP_TO_DATE";
+      if (shouldPush) _action = "PUSH";
+      if (shouldPull) _action = "PULL";
 
-      const action =
-        direction !== "BOTH"
-          ? direction
-          : actionMap[shouldPush] ||
-            actionMap[shouldPull] ||
-            actionMap[upToDate];
+      const action = direction !== "BOTH" ? direction : _action;
+
       allTasks.push({
         ...syncFile,
         id: `task-${taskIdCounter++}`,

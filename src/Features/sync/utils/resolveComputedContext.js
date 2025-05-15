@@ -24,16 +24,21 @@ export default function resolveComputedContext(computedContext, context) {
     const from = value.from;
     const filtersToResolve = value.filters;
     const trans = value.transform;
+    const _value = value.value; // value is already computed. No need to resolve it.
 
-    let items = getValueFromContext(from, context);
-    if (filtersToResolve?.length > 0) {
-      //const filters = resolveFilters(filtersToResolve, context); // filters don't need to be resolved here...
-      const filters = filtersToResolve;
-      items = getFilteredItems(items, filters);
+    if (_value) {
+      result[key] = _value;
+    } else {
+      let items = getValueFromContext(from, context);
+      if (filtersToResolve?.length > 0) {
+        //const filters = resolveFilters(filtersToResolve, context); // filters don't need to be resolved here...
+        const filters = filtersToResolve;
+        items = getFilteredItems(items, filters);
+      }
+      if (trans?.type === "map") items = items.map((item) => item[trans.key]);
+
+      result[key] = items;
     }
-    if (trans?.type === "map") items = items.map((item) => item[trans.key]);
-
-    result[key] = items;
   });
 
   return result;

@@ -58,7 +58,7 @@ export default function SectionSyncTasks() {
                   p: 1,
                   justifyContent: "space-between",
                 }}
-                key={label}
+                key={syncTask.id}
               >
                 <Typography>{label}</Typography>
                 <IconButton loading={syncing}>{icon}</IconButton>

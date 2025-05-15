@@ -7,6 +7,7 @@ import {useLiveQuery} from "dexie-react-hooks";
 import db from "App/db/db";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import getSortedItems from "Features/misc/utils/getSortedItems";
 
 export default function useEntities(options) {
   // options
@@ -154,13 +155,7 @@ export default function useEntities(options) {
 
       // sort
       if (sortBy?.key) {
-        entities = entities.sort((a, b) => {
-          if (sortBy?.order === "desc") {
-            return b[sortBy.key] - a[sortBy.key];
-          } else {
-            return a[sortBy.key] - b[sortBy.key];
-          }
-        });
+        entities = getSortedItems(entities, sortBy);
       }
 
       // add label && listingKey
