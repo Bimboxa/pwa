@@ -13,7 +13,12 @@ import jsonFileToObjectAsync from "Features/files/utils/jsonFileToObjectAsync";
 
 import RemoteProvider from "../js/RemoteProvider";
 
-export default function ListRemoteItems({items, onClick, itemType, loading}) {
+export default function ListRemoteItems({
+  items,
+  onClick,
+  syncFileType,
+  loading,
+}) {
   // data
 
   const remoteContainer = useRemoteContainer();
@@ -45,7 +50,7 @@ export default function ListRemoteItems({items, onClick, itemType, loading}) {
     // ex: projects come from _openedProjects, not directly the list of items.
     //
     const {path} = await getRemoteItemPath({
-      type: itemType,
+      type: syncFileType,
       remoteContainer,
       item,
     });
@@ -99,7 +104,7 @@ export default function ListRemoteItems({items, onClick, itemType, loading}) {
         open={open}
         onClose={() => setOpen(false)}
         item={item}
-        itemType={itemType}
+        syncFileType={syncFileType}
         itemPath={itemPath}
         type="FILE"
         onCreated={handleRemoteItemCreated}

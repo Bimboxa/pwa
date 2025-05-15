@@ -42,13 +42,13 @@ export default function useCreateEntity() {
       await Promise.all(
         Object.entries(filesDataByKey).map(async ([key, fileData]) => {
           await db.files.put(fileData);
-
+          //
           if (options?.updateSyncFile) {
             await updateItemSyncFile({
               item: fileData,
-              type: "IMAGE",
-              updatedAt: options.updatedAt,
-              syncAt: options.syncAt,
+              type: "FILE",
+              updatedAt: fileData.updatedAt,
+              //syncAt: options.syncAt,
             });
           }
         })
@@ -72,8 +72,8 @@ export default function useCreateEntity() {
         await updateItemSyncFile({
           item: entity,
           type: "ENTITY",
-          updatedAt: options.updatedAt,
-          syncAt: options.syncAt,
+          updatedAt: entity.updatedAt ?? entity.createdAt,
+          //syncAt: options.syncAt,
         });
       }
       return entity;

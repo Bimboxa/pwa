@@ -10,6 +10,7 @@ import getTableEntriesFromFilters from "../utils/getTableEntriesFromFilters";
 import groupItemsByKeys from "Features/misc/utils/groupItemsByKeys";
 
 import db from "App/db/db";
+import getItemsUpdatedAt from "Features/misc/utils/getItemsUpdatedAt";
 
 export default async function resolveSyncFilesLocal(config, context) {
   // edge case
@@ -24,9 +25,14 @@ export default async function resolveSyncFilesLocal(config, context) {
   const computedContext = config.computedContext;
 
   const mode = config.localToRemote.mode;
-  const entryToResolve = config.localToRemote.entry;
+  const writeMode = config.localToRemote.writeMode;
+  const entryToResolve = config.localToRemote.entry; // used when entry is one context object: project, scope
   const filterEntriesToResolve = config.localToRemote.filterEntries;
   const groupEntriesBy = config.localToRemote.groupEntriesBy;
+
+  // helper
+
+  const syncFileConfig = config.syncFile;
 
   // helper - context
 
@@ -47,10 +53,19 @@ export default async function resolveSyncFilesLocal(config, context) {
           context,
           item,
         });
-        const syncFile = await db.syncFiles.get(filePath);
-        const updatedAtLocal = syncFile?.updatedAt;
+        //const syncFile = await db.syncFiles.get(filePath);
+        //const updatedAtLocal = syncFile?.updatedAt;
+        const updatedAtLocal = item.updatedAt;
         //
-        return [{filePath, updatedAtLocal, entry: item}];
+        return [
+          {
+            filePath,
+            updatedAtLocal,
+            entry: item,
+            config: syncFileConfig,
+            writeMode,
+          },
+        ];
       } else {
         return null;
       }
@@ -60,6 +75,7 @@ export default async function resolveSyncFilesLocal(config, context) {
       if (filterEntriesToResolve) {
         const filters = resolveFilters(filterEntriesToResolve, context);
         const items = await getTableEntriesFromFilters(table, filters);
+        console.log("debug_444", table, filters, config, items);
 
         if (!items) return [];
 
@@ -71,9 +87,16 @@ export default async function resolveSyncFilesLocal(config, context) {
               context,
               item,
             });
-            const syncFile = await db.syncFiles.get(filePath);
-            const updatedAtLocal = syncFile?.updatedAt;
-            return {filePath, updatedAtLocal, entry: item};
+            //const syncFile = await db.syncFiles.get(filePath);
+            //const updatedAtLocal = syncFile?.updatedAt;
+            const updatedAtLocal = item.updatedAt;
+            return {
+              filePath,
+              updatedAtLocal,
+              entry: item,
+              config: syncFileConfig,
+              writeMode,
+            };
           })
         );
       }
@@ -84,6 +107,7 @@ export default async function resolveSyncFilesLocal(config, context) {
         const filters = resolveFilters(filterEntriesToResolve, context);
         const entries = await getTableEntriesFromFilters(table, filters);
         const groupedEntries = groupItemsByKeys(entries, groupEntriesBy);
+        const entriesLastUpdatedAt = getItemsUpdatedAt(entries);
 
         if (!groupedEntries) return [];
 
@@ -100,9 +124,16 @@ export default async function resolveSyncFilesLocal(config, context) {
               context,
               item,
             });
-            const syncFile = await db.syncFiles.get(filePath);
-            const updatedAtLocal = syncFile?.updatedAt;
-            return {filePath, updatedAtLocal, entries};
+            //const syncFile = await db.syncFiles.get(filePath);
+            //const updatedAtLocal = syncFile?.updatedAt;
+            const updatedAtLocal = entriesLastUpdatedAt;
+            return {
+              filePath,
+              updatedAtLocal,
+              entries,
+              config: syncFileConfig,
+              writeMode,
+            };
           })
         );
       }

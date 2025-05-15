@@ -87,7 +87,7 @@ export default function PageProjectsFromRemoteContainer() {
         <ListRemoteItems
           loading={loading}
           items={remoteProjects}
-          itemType="PROJECT"
+          syncFileType="PROJECT"
           onClick={handleRemoteProjectClick}
         />
       </Box>

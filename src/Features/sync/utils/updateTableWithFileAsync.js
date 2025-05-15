@@ -9,6 +9,8 @@ export default async function updateTableWithFileAsync({
   filePath,
   pathToItemTemplate,
   itemPath,
+  fileType,
+  updatedAt,
 }) {
   try {
     // edge case
@@ -48,6 +50,8 @@ export default async function updateTableWithFileAsync({
           fileName,
           listingId,
           createdBy,
+          fileType,
+          updatedAt,
         };
         db[table].put(fileItem);
         break;

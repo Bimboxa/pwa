@@ -13,8 +13,8 @@ export default class RemoteProvider {
 
   // POST
 
-  async postFile(path, file) {
-    return await this.provider.postFile(path, file);
+  async postFile(path, file, updatedAt) {
+    return await this.provider.postFile(path, file, updatedAt);
   }
 
   async postFiles(files) {

@@ -22,6 +22,6 @@ export default async function getFilesMetadataDropboxService({
     return targetFiles;
   } catch (e) {
     console.error("Error fetching file:", e);
-    throw new Error("Error fetching file from Dropbox.");
+    //throw new Error("Error fetching file from Dropbox.");
   }
 }

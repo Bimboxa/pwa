@@ -1,3 +1,10 @@
+export const fileTypeConfig = {
+  IMAGE: {
+    key: "image",
+    path: "_images",
+  },
+};
+
 export const syncFileByItemType = {
   PROJECT: {
     key: "PROJECT",
@@ -43,6 +50,17 @@ export const syncFileByItemType = {
     },
   },
   IMAGE: {
+    key: "IMAGE",
+    remoteFolder:
+      "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_images/_listing_{{listingId}}/_{{createdBy}}",
+    remoteFile: "{{fileName}}",
+    localData: {
+      table: "files",
+      filterBy: {key: "fileType", value: "IMAGE"},
+      getItemFromKey: "fileName",
+    },
+  },
+  FILE: {
     key: "IMAGE",
     remoteFolder:
       "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_images/_listing_{{listingId}}/_{{createdBy}}",
@@ -124,8 +142,9 @@ const syncConfig = {
     direction: "BOTH",
     computedContext: {
       entitiesListingsIds: {
-        from: "scope.sortedListings",
-        filters: [{key: "table", value: "entities"}],
+        //from: "scope.sortedListings",
+        from: "listings",
+        //filters: [{key: "table", value: "entities"}],
         transform: {type: "map", key: "id"},
       },
     },
@@ -152,7 +171,8 @@ const syncConfig = {
     direction: "BOTH",
     computedContext: {
       listingsIds: {
-        from: "scope.sortedListings",
+        //from: "scope.sortedListings",
+        from: "listings",
         transform: {type: "map", key: "id"},
       },
     },
