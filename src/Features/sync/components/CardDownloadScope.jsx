@@ -2,7 +2,7 @@ import {useDispatch} from "react-redux";
 
 import {setOpenPanelSync} from "../syncSlice";
 
-import useUploadScopeData from "../hooks/useUploadScopeData";
+import useDownloadScopeData from "../hooks/useDownloadScopeData";
 import useRemoteContainer from "../hooks/useRemoteContainer";
 
 import CardGeneric from "Features/layout/components/CardGeneric";
@@ -12,7 +12,7 @@ export default function CardDownloadScope() {
 
   // data
 
-  const uploadData = useUploadScopeData();
+  const downloadData = useDownloadScopeData();
   const remoteContainer = useRemoteContainer();
 
   // helpers
@@ -27,7 +27,7 @@ export default function CardDownloadScope() {
 
   async function handleClick() {
     dispatch(setOpenPanelSync(true));
-    await uploadData();
+    await downloadData();
     dispatch(setOpenPanelSync(false));
   }
   return (

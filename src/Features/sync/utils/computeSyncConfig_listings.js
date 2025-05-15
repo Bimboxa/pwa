@@ -1,7 +1,7 @@
 import computeSyncFilePathTemplates from "./computeSyncFilePathTemplates";
 
 export default function computeSyncConfig_listings({listings, direction}) {
-  const templates = computeSyncFilePathTemplates({syncFileType: "LISTINGS"});
+  const templates = computeSyncFilePathTemplates({syncFileType: "LISTING"});
   return {
     listings: {
       priority: 3,

@@ -19,151 +19,161 @@ export default async function resolveSyncFilesRemote(
   context,
   remoteProvider
 ) {
-  // edge case
-  if (!config || !context || !remoteProvider) return [];
+  console.log("[resolveSyncFilesRemote]", config);
 
-  // helpers
+  try {
+    // edge case
+    if (!config || !context || !remoteProvider) return [];
 
-  const fileTemplate = config.syncFile.remoteFile;
-  const folderTemplate = config.syncFile.remoteFolder;
-  const table = config.syncFile.localData.table;
+    // helpers
 
-  const computedContext = config.computedContext;
+    const fileTemplate = config.syncFile.remoteFile;
+    const folderTemplate = config.syncFile.remoteFolder;
+    const table = config.syncFile.localData.table;
 
-  const metadataFetchBy = config.remoteMetadata.fetchBy;
-  const itemFromContext = config.remoteMetadata.itemFromContext;
-  const iterationToResolve = config.remoteMetadata.iteration;
-  const filterFilesByIdToResolve = config.remoteMetadata.filterFilesById;
+    const computedContext = config.computedContext;
 
-  const fetchBy = config.remoteToLocal.fetchBy;
-  const pathToItemTemplate = config.remoteToLocal.pathToItemTemplate;
-  const itemPathSeparator = config.remoteToLocal.itemPathSeparator;
+    const metadataFetchBy = config.remoteMetadata.fetchBy;
+    const itemFromContext = config.remoteMetadata.itemFromContext;
+    const iterationToResolve = config.remoteMetadata.iteration;
+    const filterFilesByIdToResolve = config.remoteMetadata.filterFilesById;
 
-  // helper - syncFileConfig (used to compute file and upload it)
+    const fetchBy = config.remoteToLocal.fetchBy;
+    const pathToItemTemplate = config.remoteToLocal.pathToItemTemplate;
+    const itemPathSeparator = config.remoteToLocal.itemPathSeparator;
 
-  const syncFileConfig = config.syncFile;
+    // helper - syncFileConfig (used to compute file and upload it)
 
-  // helper - context
+    const syncFileConfig = config.syncFile;
 
-  const computedContextResolved = resolveComputedContext(
-    computedContext,
-    context
-  );
-  context = {...context, ...computedContextResolved};
+    // helper - context
 
-  // helper - iteration
-  let iteration = null;
-  if (iterationToResolve)
-    iteration = resolveIteration(iterationToResolve, context);
+    const computedContextResolved = resolveComputedContext(
+      computedContext,
+      context
+    );
+    context = {...context, ...computedContextResolved};
 
-  // helper - filterFilesById
-  let filterFilesById;
-  if (filterFilesByIdToResolve)
-    filterFilesById = resolveFilterFilesById(filterFilesByIdToResolve, context);
+    // helper - iteration
+    let iteration = null;
+    if (iterationToResolve)
+      iteration = resolveIteration(iterationToResolve, context);
 
-  //main
-  switch (metadataFetchBy) {
-    case "FILE": {
-      if (itemFromContext) {
-        const item = context[itemFromContext];
-        const filePath = resolveFilePath({
-          folderTemplate,
-          fileTemplate,
-          context,
-          item,
-        });
-        const fileMetadata = await remoteProvider.fetchFileMetadata(filePath);
-        const updatedAtRemote = fileMetadata.lastModifiedAt;
-        //
-        return [
-          {filePath, updatedAtRemote, fetchBy, table, config: syncFileConfig},
-        ];
-      } else {
-        return null;
-      }
-    }
-
-    case "SINGLE_FOLDER": {
-      const folderPath = resolveFolderPath({folderTemplate, context});
-      const filesMetada = await remoteProvider.fetchFilesMetadataFromFolder(
-        folderPath
+    // helper - filterFilesById
+    let filterFilesById;
+    if (filterFilesByIdToResolve)
+      filterFilesById = resolveFilterFilesById(
+        filterFilesByIdToResolve,
+        context
       );
-      let _filesMetada = filesMetada.map((metadata) => ({
-        filePath: metadata.path,
-        name: metadata.path.split("/").pop(),
-        updatedAtRemote: metadata.lastModifiedAt,
-        fetchBy,
-        table,
-        config: syncFileConfig,
-      }));
 
-      if (filterFilesByIdToResolve) {
-        _filesMetada = getFilteredFilesById(_filesMetada, filterFilesById);
+    //main
+    switch (metadataFetchBy) {
+      case "FILE": {
+        if (itemFromContext) {
+          const item = context[itemFromContext];
+          const filePath = resolveFilePath({
+            folderTemplate,
+            fileTemplate,
+            context,
+            item,
+          });
+          const fileMetadata = await remoteProvider.fetchFileMetadata(filePath);
+          const updatedAtRemote = fileMetadata.lastModifiedAt;
+          //
+          return [
+            {filePath, updatedAtRemote, fetchBy, table, config: syncFileConfig},
+          ];
+        } else {
+          return null;
+        }
       }
-      return _filesMetada;
-    }
 
-    case "ITERATION_FOLDER": {
-      const folders = resolveFoldersPaths({
-        folderTemplate,
-        context,
-        iteration,
-      });
-      const syncFiles = [];
-      for (const folder of folders) {
-        const filesMetadata = await remoteProvider.fetchFilesMetadataFromFolder(
-          folder
+      case "SINGLE_FOLDER": {
+        const folderPath = resolveFolderPath({folderTemplate, context});
+        const filesMetada = await remoteProvider.fetchFilesMetadataFromFolder(
+          folderPath
         );
-        if (Array.isArray(filesMetadata)) {
-          filesMetadata.forEach((metadata) => {
-            syncFiles.push({
-              filePath: metadata.path,
-              updatedAtRemote: metadata.lastModifiedAt,
-              fetchBy,
-              table,
-              pathToItemTemplate,
-              config: syncFileConfig,
-            });
-          });
+        let _filesMetada = filesMetada.map((metadata) => ({
+          filePath: metadata.path,
+          name: metadata.path.split("/").pop(),
+          updatedAtRemote: metadata.lastModifiedAt,
+          fetchBy,
+          table,
+          config: syncFileConfig,
+        }));
+
+        if (filterFilesByIdToResolve) {
+          _filesMetada = getFilteredFilesById(_filesMetada, filterFilesById);
         }
+        return _filesMetada;
       }
-      return syncFiles;
-    }
 
-    case "ITERATION_PARENT_FOLDER": {
-      const parentFolders = resolveFoldersPaths({
-        folderTemplate: getParentPath(folderTemplate),
-        context,
-        iteration,
-      });
-      const syncFiles = [];
-
-      if (!Array.isArray(parentFolders)) return syncFiles;
-
-      for (const parentFolder of parentFolders) {
-        const filesMetadata =
-          await remoteProvider.fetchFilesMetadataFromParentFolder(parentFolder);
-
-        if (Array.isArray(filesMetadata)) {
-          filesMetadata.forEach((metadata) => {
-            const filePath = metadata.path;
-            const itemPath = itemPathSeparator
-              ? filePath.split(itemPathSeparator).pop()
-              : null;
-
-            syncFiles.push({
-              filePath,
-              updatedAtRemote: metadata.lastModifiedAt,
-              fetchBy,
-              table,
-              pathToItemTemplate,
-              itemPath,
-              config: syncFileConfig,
+      case "ITERATION_FOLDER": {
+        const folders = resolveFoldersPaths({
+          folderTemplate,
+          context,
+          iteration,
+        });
+        const syncFiles = [];
+        for (const folder of folders) {
+          const filesMetadata =
+            await remoteProvider.fetchFilesMetadataFromFolder(folder);
+          if (Array.isArray(filesMetadata)) {
+            filesMetadata.forEach((metadata) => {
+              syncFiles.push({
+                filePath: metadata.path,
+                updatedAtRemote: metadata.lastModifiedAt,
+                fetchBy,
+                table,
+                pathToItemTemplate,
+                config: syncFileConfig,
+              });
             });
-          });
+          }
         }
+        return syncFiles;
       }
-      return syncFiles;
+
+      case "ITERATION_PARENT_FOLDER": {
+        const parentFolders = resolveFoldersPaths({
+          folderTemplate: getParentPath(folderTemplate),
+          context,
+          iteration,
+        });
+        const syncFiles = [];
+
+        if (!Array.isArray(parentFolders)) return syncFiles;
+
+        for (const parentFolder of parentFolders) {
+          const filesMetadata =
+            await remoteProvider.fetchFilesMetadataFromParentFolder(
+              parentFolder
+            );
+
+          if (Array.isArray(filesMetadata)) {
+            filesMetadata.forEach((metadata) => {
+              const filePath = metadata.path;
+              const itemPath = itemPathSeparator
+                ? filePath.split(itemPathSeparator).pop()
+                : null;
+
+              syncFiles.push({
+                filePath,
+                updatedAtRemote: metadata.lastModifiedAt,
+                fetchBy,
+                table,
+                pathToItemTemplate,
+                itemPath,
+                config: syncFileConfig,
+              });
+            });
+          }
+        }
+        return syncFiles;
+      }
     }
+  } catch (e) {
+    console.error("[resolveSyncFilesRemote]", config, context, e);
   }
 }
