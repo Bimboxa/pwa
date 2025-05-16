@@ -35,6 +35,10 @@ export default class RemoteProvider {
     return await this.provider.fetchFilesMetadataFromParentFolder(path);
   }
 
+  async fetchSharedFileMetadata(link) {
+    return await this.provider.fetchSharedFileMetadata(link);
+  }
+
   // DOWNLOAD
 
   async downloadFile(path) {
