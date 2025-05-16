@@ -57,7 +57,7 @@ function DropboxChooserButton({onSelectedFiles}) {
     if (sdkLoaded && dropboxButtonRef.current && window.Dropbox) {
       const buttonElement = window.Dropbox.createChooseButton({
         success: (files) => {
-          //console.log("Files selected from button:", files);
+          console.log("Files selected from button:", files);
           if (onSelectedFiles) onSelectedFiles(files);
         },
         cancel: () => {
