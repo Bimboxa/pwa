@@ -93,8 +93,14 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
     <DialogGeneric open={open} onClose={onClose} title={title}>
       <DropboxChooserButton onSelectedFiles={handleSelectedFiles} />
       <Box sx={{p: 2}}>
-        <Typography variant="body2" sx={{mb: 2, mt: 2}}>
+        <Typography variant="body2" color="text.secondary">
+          Configuration
+        </Typography>
+        <Typography variant="body2" sx={{mb: 2}}>
           {remoteContainer.path}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Fichier sélectionné
         </Typography>
         <Typography variant="body2">{userPath}</Typography>
       </Box>
