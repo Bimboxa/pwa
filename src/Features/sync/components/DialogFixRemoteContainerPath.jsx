@@ -48,10 +48,10 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
 
     const metadata = await remoteProvider.fetchFileMetadata(sharedFileId);
     console.log("metadata_33", metadata);
-    const path_display = metadata?.path_display;
-    if (path_display) {
+    const path = metadata?.path;
+    if (path) {
       setFolderIsOk(true);
-      setUserPath(path_display);
+      setUserPath(path);
     }
   }
   // handlers
