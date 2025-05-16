@@ -1,3 +1,4 @@
+import {useEffect} from "react";
 import useSyncFilesToPush from "../hooks/useSyncFilesToPush";
 import useUploadChanges from "../hooks/useUploadChanges";
 
@@ -18,16 +19,26 @@ export default function SectionSyncFilesToPush() {
   const syncFilesToPush = useSyncFilesToPush();
   const uploadChanges = useUploadChanges();
 
+  // effect - auto trigger
+
+  // useEffect(() => {
+  //   if (syncFilesToPush?.length > 0) uploadChangesAsync();
+  // }, []);
+
   // helpers
 
   const isUpToDate = syncFilesToPush?.length === 0;
 
+  // helpers - func
+
+  const uploadChangesAsync = async () => {
+    const syncScope = await computeSyncScopeFromSyncFiles(syncFilesToPush);
+    uploadChanges(syncScope);
+  };
   // handlers
 
   async function handleClick() {
-    const syncScope = await computeSyncScopeFromSyncFiles(syncFilesToPush);
-    console.log("click", syncScope);
-    uploadChanges(syncScope);
+    uploadChangesAsync();
   }
 
   return (
