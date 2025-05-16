@@ -1,4 +1,5 @@
 import computeSyncFilePathTemplates from "./computeSyncFilePathTemplates";
+import computeSyncFileGetItemsRules from "./computeSyncFileGetItemsRules";
 
 export default function computeSyncConfig_files({
   fileTypes,
@@ -13,6 +14,7 @@ export default function computeSyncConfig_files({
       syncFileType: "FILE",
       fileType,
     });
+    const rules = computeSyncFileGetItemsRules({syncFileType: "FILE"});
 
     // result
     result[`files_${fileType}`] = {
@@ -24,7 +26,7 @@ export default function computeSyncConfig_files({
         localData: {
           table: "files",
           filterBy: {key: "fileType", value: fileType, doNotResolve: true},
-          getItemFromKey: "fileName",
+          ...rules,
         },
       },
       direction,

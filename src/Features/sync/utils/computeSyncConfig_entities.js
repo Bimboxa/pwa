@@ -1,3 +1,4 @@
+import computeSyncFileGetItemsRules from "./computeSyncFileGetItemsRules";
 import computeSyncFilePathTemplates from "./computeSyncFilePathTemplates";
 
 export default function computeSyncConfig_entities({direction, listings}) {
@@ -15,6 +16,7 @@ export default function computeSyncConfig_entities({direction, listings}) {
 
   // helper - templates
   const templates = computeSyncFilePathTemplates({syncFileType: "ENTITIES"});
+  const rules = computeSyncFileGetItemsRules({syncFileType: "ENTITIES"});
 
   Object.entries(listingsByTable).map(([table, listings], index) => {
     result[`entities_${table}`] = {
@@ -25,7 +27,7 @@ export default function computeSyncConfig_entities({direction, listings}) {
         ...templates,
         localData: {
           table, // fill the table here
-          getItemsFromKeys: ["listingId", "createdBy"],
+          ...rules,
         },
       },
       direction,

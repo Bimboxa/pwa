@@ -13,22 +13,27 @@ import getDateString from "Features/misc/utils/getDateString";
 import prepareSyncTasks from "./prepareSyncTasks";
 import syncTaskRemoteToLocal from "./syncTaskRemoteToLocal";
 import syncTaskLocalToRemote from "./syncTaskLocalToRemote";
+import computeSyncTasksFromSyncFiles from "./computeSyncTasksFromSyncFiles";
 
 export default async function syncService({
   remoteProvider,
   context,
   syncConfig,
+  syncFiles,
   dispatch,
   debug,
 }) {
   // step 1 - prepare sync tasks
 
   dispatch(setPreparingSyncTasks(true));
-  const tasks = await prepareSyncTasks({
-    remoteProvider,
-    context,
-    syncConfig,
-  });
+
+  let tasks;
+
+  if (syncFiles) {
+    tasks = await computeSyncTasksFromSyncFiles({context, syncFiles});
+  } else {
+    tasks = await prepareSyncTasks({remoteProvider, context, syncConfig});
+  }
   dispatch(setPreparingSyncTasks(false));
   dispatch(setSyncTasks(tasks));
   console.log("tasks v2", tasks);

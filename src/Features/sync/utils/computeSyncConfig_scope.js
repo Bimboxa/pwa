@@ -1,7 +1,9 @@
 import computeSyncFilePathTemplates from "./computeSyncFilePathTemplates";
+import computeSyncFileGetItemsRules from "./computeSyncFileGetItemsRules";
 
 export default function computeSyncConfig_scope({direction}) {
   const templates = computeSyncFilePathTemplates({syncFileType: "SCOPE"});
+  const rules = computeSyncFileGetItemsRules({syncFileType: "SCOPE"});
   return {
     scope: {
       priority: 2,
@@ -11,7 +13,7 @@ export default function computeSyncConfig_scope({direction}) {
         ...templates,
         localData: {
           table: "scopes",
-          getItemFromKey: "id",
+          ...rules,
         },
       },
       direction,
