@@ -21,6 +21,14 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
 
   const [userPath, setUserPath] = useState("...");
 
+  const [tokenIsOk, setTokenIsOk] = useState(false);
+  const [apiIsOk, setApiIsOk] = useState(false);
+  const [folderIsOk, setFolderIsOk] = useState(false);
+
+  // tests
+
+  const tests = [{label: "Token", value: tokenIsOk}];
+
   // helpers
 
   const title = `Connexion ${remoteContainer?.service ?? "-?-"}`;

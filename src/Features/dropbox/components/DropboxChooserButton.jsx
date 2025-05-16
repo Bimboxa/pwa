@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from "react";
 
 import {Box} from "@mui/material";
 
-function DropboxChooserButton(onSelectedFiles) {
+function DropboxChooserButton({onSelectedFiles}) {
   const [sdkLoaded, setSdkLoaded] = useState(false);
   const dropboxButtonRef = useRef(null);
 
