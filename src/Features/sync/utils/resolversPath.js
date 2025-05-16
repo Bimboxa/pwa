@@ -13,7 +13,6 @@ const resolveTemplate = (template, context, item) => {
     console.error("[resolveTemplate] template is empty", item);
     return null;
   }
-  console.log("[resolveTemplate] template", context, template);
 
   return template.replace(/{{(.*?)}}/g, (_, key) => {
     // Si le key contient un point, on considère que c'est context.key

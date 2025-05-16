@@ -8,11 +8,15 @@ import {Box} from "@mui/material";
 import {setSelectedEntityId} from "../entitiesSlice";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import useIsMobile from "Features/layout/hooks/useIsMobile";
+import {setOpenPanelListItem} from "Features/listPanel/listPanelSlice";
 
 export default function SectionListEntitiesInListPanel() {
   const dispatch = useDispatch();
 
   // data
+
+  const isMobile = useIsMobile();
 
   const {value: listing} = useSelectedListing({withEntityModel: true});
   const entityModel = listing?.entityModel;
@@ -35,7 +39,12 @@ export default function SectionListEntitiesInListPanel() {
 
   function handleClick(entity) {
     console.log("[SectionListEntitiesInListPanel] handleClick", entity);
-    const id = selectedEntityId === entity.id ? null : entity.id;
+    let id = selectedEntityId === entity.id ? null : entity.id;
+
+    if (isMobile) {
+      id = entity.id;
+      dispatch(setOpenPanelListItem(true));
+    }
     dispatch(setSelectedEntityId(id));
   }
 

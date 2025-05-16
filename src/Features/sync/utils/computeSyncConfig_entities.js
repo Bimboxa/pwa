@@ -22,7 +22,7 @@ export default function computeSyncConfig_entities({direction, listings}) {
     result[`entities_${table}`] = {
       priority: 4,
       syncFile: {
-        key: "ENTITY",
+        key: `ENTITIES_${table}`,
         description: "Entities items of one listing",
         ...templates,
         localData: {

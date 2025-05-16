@@ -30,7 +30,7 @@ export default function ButtonSelectorScopeInTopBar() {
   const open = useSelector((s) => s.scopeSelector.open);
   const {value: userEmail} = useUserEmail();
   const syncFilesToPush = useSyncFilesToPush();
-  const remoteContainer = useRemoteContainer();
+  const syncTasks = useSelector((s) => s.sync.syncTasks);
 
   // state
 
@@ -43,7 +43,7 @@ export default function ButtonSelectorScopeInTopBar() {
 
   // helpers
 
-  const syncCounter = syncFilesToPush?.length;
+  const syncCounter = syncFilesToPush?.length + syncTasks?.length;
 
   const show = userEmail && userEmail.includes("@");
 
