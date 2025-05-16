@@ -20,19 +20,17 @@ export default function useUploadChanges() {
   const {value: scope} = useSelectedScope({withProject: true});
   const {value: accessToken} = useRemoteToken();
 
+  const syncFiles = useSyncFilesToPush();
   const remoteContainer = useRemoteContainer();
 
   // handlers
 
-  const syncData = async (syncScope) => {
+  const syncData = async () => {
     // remoteProvider
     const remoteProvider = new RemoteProvider({
       accessToken,
       provider: remoteContainer.service,
     });
-
-    // config
-    const syncConfig = computeSyncConfig(syncScope);
 
     // context
     const context = {
@@ -45,7 +43,7 @@ export default function useUploadChanges() {
     const options = {
       context,
       remoteProvider,
-      syncConfig,
+      syncFiles,
       dispatch,
       //debug: true,
     };

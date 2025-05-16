@@ -1,7 +1,9 @@
 import computeSyncFilePathTemplates from "./computeSyncFilePathTemplates";
+import computeSyncFileGetItemsRules from "./computeSyncFileGetItemsRules";
 
 export default function computeSyncConfig_listings({listings, direction}) {
   const templates = computeSyncFilePathTemplates({syncFileType: "LISTING"});
+  const rules = computeSyncFileGetItemsRules({syncFileType: "LISTING"});
   return {
     listings: {
       priority: 3,
@@ -11,7 +13,7 @@ export default function computeSyncConfig_listings({listings, direction}) {
         ...templates,
         localData: {
           table: "listings",
-          getItemFromKey: "id",
+          ...rules,
         },
       },
       direction,

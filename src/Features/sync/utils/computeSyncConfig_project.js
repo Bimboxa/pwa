@@ -1,4 +1,5 @@
 import computeSyncFilePathTemplates from "./computeSyncFilePathTemplates";
+import computeSyncFileGetItemsRules from "./computeSyncFileGetItemsRules";
 
 /*
  * syncScope : {project,scope,listings}
@@ -6,6 +7,7 @@ import computeSyncFilePathTemplates from "./computeSyncFilePathTemplates";
  */
 export default function computeSyncConfig_project({direction}) {
   const templates = computeSyncFilePathTemplates({syncFileType: "PROJECT"});
+  const rules = computeSyncFileGetItemsRules({syncFileType: "PROJECT"});
   return {
     project: {
       priority: 1,
@@ -14,7 +16,7 @@ export default function computeSyncConfig_project({direction}) {
         description: "Project data",
         localData: {
           table: "projects",
-          getItemFromKey: "clientRef",
+          ...rules,
         },
         ...templates,
       },
