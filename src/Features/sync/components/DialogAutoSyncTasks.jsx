@@ -1,6 +1,6 @@
 import {useSelector, useDispatch} from "react-redux";
 
-import {setOpenPanelSync} from "../syncSlice";
+import {setOpenPanelSync, setSyncTasks} from "../syncSlice";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import SectionSyncTasks from "./SectionSyncTasks";
@@ -13,17 +13,22 @@ export default function DialogAutoSyncTasks() {
 
   const open = useSelector((s) => s.sync.openPanelSync);
   const syncTasks = useSelector((s) => s.sync.syncTasks);
+  const preparingSyncTasks = useSelector((s) => s.sync.preparingSyncTasks);
 
   // handlers
 
   function handleClose() {
     dispatch(setOpenPanelSync(false));
+    dispatch(setSyncTasks([]));
   }
 
   // helpers
 
-  const syncing = syncTasks?.length > 0;
-  console.log("syncTasks", syncTasks);
+  const syncing = syncTasks?.length > 0 || preparingSyncTasks;
+  console.log(
+    "syncTasks_33",
+    syncTasks.filter((s) => ["PULL", "PUSH"].includes(s.action))
+  );
 
   return (
     <DialogGeneric open={open} onClose={handleClose}>

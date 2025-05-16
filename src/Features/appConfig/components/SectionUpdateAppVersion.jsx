@@ -7,7 +7,7 @@ import setHideWarningInLocalStorage from "Features/sync/services/setHideWarningI
 export default function SectionUpdateAppVersion() {
   // strings
 
-  const updateS = "Relancer l'application";
+  const updateS = "Mettre à jour l'application";
 
   // data
 

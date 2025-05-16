@@ -35,10 +35,9 @@ export default function ButtonMenuSyncIndicator() {
 
   // state
 
-  const [anchorEl, setAnchorEl] = useState(null);
   const [syncing, setSyncing] = useState(false);
 
-  // data - saveShortcut
+  // data - saveShortcut (CTRL+S)
 
   const onSave = async () => {
     console.log("save");
@@ -60,12 +59,7 @@ export default function ButtonMenuSyncIndicator() {
   // handlers
 
   const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
     dispatch(setOpenPanelSync(true));
-  };
-
-  const handleClose = () => {
-    dispatch(setOpenPanelSync(false));
   };
 
   return (

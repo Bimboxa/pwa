@@ -17,7 +17,9 @@ export default class DropboxRemote {
   // POST FILE
 
   async postFile(path, file, updatedAt) {
-    const clientModifiedAt = updatedAt ?? getDateString(file.lastModified);
+    const clientModifiedAt =
+      getDateString(updatedAt) ?? getDateString(file.lastModified);
+    console.log("[DROPBOX] postFile", file, clientModifiedAt);
     return await createDropboxFileService({
       path,
       blob: file,

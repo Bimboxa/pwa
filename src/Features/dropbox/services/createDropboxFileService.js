@@ -7,14 +7,6 @@ export default async function createDropboxFileService({
 }) {
   const url = "https://content.dropboxapi.com/2/files/upload";
 
-  // debug
-  console.log(
-    "[debug] createDropboxFileService ...",
-    path,
-    blob,
-    clientModifiedAt
-  );
-
   // apiArg
 
   const apiArg = {

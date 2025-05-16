@@ -108,6 +108,7 @@ export default async function computeSyncTasksFromSyncFiles({
         writeMode: "TABLE_ENTRY_TO_FILE",
         entry,
         entries,
+        updatedAtLocal: syncFile.updatedAt,
       };
       tasks.push(newTask);
       id++;

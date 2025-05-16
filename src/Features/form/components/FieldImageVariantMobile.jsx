@@ -1,6 +1,13 @@
 import {useRef, useEffect, useState} from "react";
 
-import {Box, IconButton, Button, Paper, CircularProgress} from "@mui/material";
+import {
+  Box,
+  IconButton,
+  Typography,
+  Button,
+  Paper,
+  CircularProgress,
+} from "@mui/material";
 import {Image as ImageIcon} from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -109,7 +116,9 @@ export default function FieldImageVariantMobile({
               startIcon={<ImageIcon />}
               variant="contained"
             >
-              {takePictureS}
+              <Typography noWrap variant="body2">
+                {takePictureS}
+              </Typography>
             </Button>
           </Box>
         </Box>
