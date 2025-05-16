@@ -28,7 +28,7 @@ export default function DialogAutoSyncTasks() {
   const syncing = syncTasks?.length > 0 || preparingSyncTasks;
   console.log(
     "syncTasks_33",
-    syncTasks.filter((s) => ["PULL", "PUSH"].includes(s.action))
+    syncTasks?.filter((s) => ["PULL", "PUSH"].includes(s.action))
   );
 
   return (

@@ -8,6 +8,7 @@ import dropboxToGenericMetadata from "../utils/dropboxToGenericMetadata";
 
 import getDateString from "Features/misc/utils/getDateString";
 import getFilesMetadataFromParentFolderDropboxService from "../services/getFilesMetadataFromParentFolderDropboxService";
+import fetchDropboxSharedFileMetadataService from "../services/fetchDropboxSharedFileMetadataService";
 
 export default class DropboxRemote {
   constructor({accessToken}) {
@@ -52,6 +53,13 @@ export default class DropboxRemote {
       console.log("error fetching file metadata", err);
       return null;
     }
+  }
+
+  async fetchSharedFileMetadata(link) {
+    return fetchDropboxSharedFileMetadataService({
+      accessToken: this.accessToken,
+      link,
+    });
   }
 
   // FETCH FILES METADATA

@@ -65,7 +65,7 @@ function DropboxChooserButton(onSelectedFiles) {
         },
         linkType: "preview",
         multiselect: true,
-        extensions: [".pdf", ".jpg", ".png", ".docx"],
+        extensions: [".pdf", ".jpg", ".png", ".docx", ".yaml", ".yml", ".json"],
       });
 
       // Append the buttonElement directly
