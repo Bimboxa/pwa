@@ -7,7 +7,9 @@ export default async function fetchDropboxSharedFileMetadataService({
   const dbx = new Dropbox({accessToken});
   try {
     const response = await dbx.sharingGetSharedLinkMetadata({url: link});
-    return response.result; // Contains name, path_lower, id, etc.
+    const result = response.result;
+    console.log("[fetchSharedFileMetadata]", result);
+    return result; // Contains name, path_lower, id, etc.
   } catch (err) {
     console.error("Error fetching shared link metadata:", err);
     return null;
