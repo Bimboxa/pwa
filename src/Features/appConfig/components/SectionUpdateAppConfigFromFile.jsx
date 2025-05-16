@@ -40,12 +40,14 @@ export default function SectionUpdateAppConfigFromFile() {
   }
   return (
     <Box sx={{width: 1}}>
-      <Button
-        onClick={() => setOpen((open) => !open)}
-        endIcon={open ? <Up /> : <Down />}
-      >
-        <Typography variant="caption">{updateS}</Typography>
-      </Button>
+      <Box sx={{width: 1, display: "flex", justifyContent: "end"}}>
+        <Button
+          onClick={() => setOpen((open) => !open)}
+          endIcon={open ? <Up /> : <Down />}
+        >
+          <Typography variant="caption">{updateS}</Typography>
+        </Button>
+      </Box>
       <Box
         sx={{
           display: open ? "block" : "none",
