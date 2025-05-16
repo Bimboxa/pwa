@@ -8,7 +8,7 @@ export default function CardGeneric({
   disabled,
 }) {
   return (
-    <Box sx={{p: 1}}>
+    <Box sx={{p: 2}}>
       <Box
         sx={{
           p: 1,
@@ -20,7 +20,7 @@ export default function CardGeneric({
         <Typography variant="body2" color="text.secondary">
           {description}
         </Typography>
-        <Box sx={{display: "flex", justifyContent: "end", width: 1}}>
+        <Box sx={{display: "flex", justifyContent: "end", width: 1, mt: 2}}>
           <Button
             size="small"
             onClick={onClick}

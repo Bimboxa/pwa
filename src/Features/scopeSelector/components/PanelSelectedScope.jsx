@@ -1,4 +1,4 @@
-import {Box, Button, Typography} from "@mui/material";
+import {Box, Button, Typography, Paper} from "@mui/material";
 import {ArrowForwardIos as Forward} from "@mui/icons-material";
 
 import Panel from "Features/layout/components/Panel";
@@ -26,13 +26,17 @@ export default function PanelSelectedScope({onMoreClick}) {
 
   return (
     <Panel>
-      <ContainerProjectAndScope project={project} scope={scope} />
-      <Box sx={{width: 1, p: 1, display: "flex", justifyContent: "end"}}>
-        <Button onClick={onMoreClick} endIcon={<Forward />}>
-          <Typography variant="body2" color="text.secondary">
-            {moreS}
-          </Typography>
-        </Button>
+      <Box sx={{p: 2}}>
+        <Paper elevation={6} sx={{p: 1}}>
+          <ContainerProjectAndScope project={project} scope={scope} />
+          <Box sx={{width: 1, p: 1, display: "flex", justifyContent: "end"}}>
+            <Button onClick={onMoreClick} endIcon={<Forward />}>
+              <Typography variant="body2" color="text.secondary">
+                {moreS}
+              </Typography>
+            </Button>
+          </Box>
+        </Paper>
       </Box>
       {/* <CardUploadChanges /> */}
       <CardUploadScope />

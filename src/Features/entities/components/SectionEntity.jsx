@@ -11,7 +11,7 @@ import useEntity from "../hooks/useEntity";
 
 import useEntityFormTemplate from "../hooks/useEntityFormTemplate";
 
-import {Box, Paper} from "@mui/material";
+import {Box, Typography} from "@mui/material";
 
 import FormEntity from "./FormEntity";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -28,6 +28,10 @@ export default function SectionEntity() {
   console.log("[SectionEntity] entity", entity);
 
   const template = useEntityFormTemplate();
+
+  // helper
+
+  const caption = `Créé par ${entity.createdBy}`;
 
   // handlers
 
@@ -55,6 +59,9 @@ export default function SectionEntity() {
         minHeight: 0,
       }}
     >
+      <Typography sx={{p: 1}} variant="caption" color="text.secondary" noWrap>
+        {caption}
+      </Typography>
       <Box
         sx={{
           flexGrow: 1,
