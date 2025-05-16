@@ -23,6 +23,7 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
 
   const [tokenIsOk, setTokenIsOk] = useState(false);
   const [apiIsOk, setApiIsOk] = useState(false);
+  const [sharedFileId, setSharedFileId] = useState(false);
   const [folderIsOk, setFolderIsOk] = useState(false);
 
   // tests
@@ -30,13 +31,29 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
   const tests = [
     {label: "Token", value: tokenIsOk},
     {label: "Dropbox API", value: apiIsOk},
-    //{label: "Dossier racine", value: folderIsOk},
+    {label: "Test fichier", value: folderIsOk},
   ];
 
   // helpers
 
   const title = `Connexion ${remoteContainer?.service ?? "-?-"}`;
 
+  // helper - fetch fileMetadata
+
+  async function fetchFileMetadata() {
+    const remoteProvider = new RemoteProvider({
+      accessToken,
+      provider: remoteContainer.service,
+    });
+
+    const metadata = await remoteProvider.fetchFileMetadata(sharedFileId);
+    console.log("metadata_33", metadata);
+    const path_display = metadata?.path_display;
+    if (path_display) {
+      setFolderIsOk(true);
+      setUserPath(path_display);
+    }
+  }
   // handlers
 
   async function handleSelectedFiles(files) {
@@ -51,11 +68,10 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
 
       const metadata = await remoteProvider.fetchSharedFileMetadata(link);
       console.log("metadata", metadata);
-      const _userPath = metadata?.result?.path_display;
 
-      if (_userPath) setApiIsOk(true);
+      if (metadata?.id) setApiIsOk(true);
 
-      setUserPath(_userPath);
+      setSharedFileId(metadata.id);
     } catch (e) {
       console.log("error selecting files", e, files);
     }
@@ -66,6 +82,12 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
   useEffect(() => {
     if (accessToken) setTokenIsOk(true);
   }, [accessToken]);
+
+  useEffect(() => {
+    if (sharedFileId) {
+      fetchFileMetadata();
+    }
+  }, [sharedFileId]);
 
   return (
     <DialogGeneric open={open} onClose={onClose} title={title}>

@@ -22,7 +22,7 @@ export default function SectionRemoteContainerOverview() {
 
   // helpers
 
-  const serviceLabel = `${serviceS}: ${remoteContainer?.service}`;
+  const serviceLabel = `${remoteContainer?.service}`;
   const pathLabel = `${pathS}:`;
 
   return (
@@ -34,9 +34,9 @@ export default function SectionRemoteContainerOverview() {
           border: (theme) => `1px solid ${theme.palette.divider}`,
         }}
       >
-        <Typography sx={{mb: 1}}>{title}</Typography>
-        <Typography variant="body2">{serviceLabel}</Typography>
-        <Box sx={{display: "flex", alignItems: "center"}}>
+        <Typography sx={{mb: 1}}>{serviceLabel}</Typography>
+
+        <Box sx={{display: "flex", alignItems: "center", p: 1}}>
           <Typography variant="body2">{pathLabel}</Typography>
           <LinkRemoteItem
             label={remoteContainer?.path}

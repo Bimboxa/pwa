@@ -40,7 +40,7 @@ export default function SectionUpdateAppVersion() {
   }
 
   return (
-    <Box sx={{width: 1}}>
+    <Box sx={{width: 1, p: 2}}>
       <ButtonInPanel
         bgcolor="white"
         color="text.secondary"

@@ -46,6 +46,8 @@ export default function BlockOrgaDataFolder() {
         alignItems: "center",
         justifyContent: "space-between",
         width: 1,
+        bgcolor: "background.default",
+        px: 1,
       }}
     >
       <Box sx={{display: "flex", alignItems: "center"}}>
