@@ -28,18 +28,22 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
   // handlers
 
   async function handleSelectedFiles(files) {
-    console.log("files", files);
-    const link = files[0].link;
+    try {
+      console.log("files", files);
+      const link = files[0].link;
 
-    const remoteProvider = new RemoteProvider({
-      accessToken,
-      provider: remoteContainer.service,
-    });
+      const remoteProvider = new RemoteProvider({
+        accessToken,
+        provider: remoteContainer.service,
+      });
 
-    const metadata = await remoteProvider.fetchSharedFileMetadata(link);
-    console.log("metadata", metadata);
-    const _userPath = metadata?.result.path_display;
-    setUserPath(_userPath);
+      const metadata = await remoteProvider.fetchSharedFileMetadata(link);
+      console.log("metadata", metadata);
+      const _userPath = metadata?.result.path_display;
+      setUserPath(_userPath);
+    } catch (e) {
+      console.log("error selecting files", e, files);
+    }
   }
 
   return (
