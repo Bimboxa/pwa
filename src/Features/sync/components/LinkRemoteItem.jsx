@@ -2,10 +2,12 @@ import {useEffect, useState, useRef} from "react";
 
 import useFetchRemoteItemMetadata from "../hooks/useFetchRemoteItemMetadata";
 
-import {Box, CircularProgress, Link, Tooltip} from "@mui/material";
+import {Box, CircularProgress, Link, Tooltip, Typography} from "@mui/material";
 import BoxCenter from "Features/layout/components/BoxCenter";
 import {Circle} from "@mui/icons-material";
 import getRemoteItemWebUrlFromMetadata from "../services/getRemoteItemWebUrlFromMetadata";
+
+import DialogFixRemoteContainerPath from "./DialogFixRemoteContainerPath";
 
 export default function LinkRemoteItem({label, path, variant, color}) {
   const [loading, setLoading] = useState(false);
@@ -15,6 +17,10 @@ export default function LinkRemoteItem({label, path, variant, color}) {
   // data
 
   const fetchRemoteItemMetadata = useFetchRemoteItemMetadata();
+
+  // state
+
+  const [open, setOpen] = useState(false);
 
   // helpers
 
@@ -36,7 +42,7 @@ export default function LinkRemoteItem({label, path, variant, color}) {
     try {
       const metadata = await fetchRemoteItemMetadata(path);
       console.log("fetch metadata", metadata);
-      setMetadata(metadata);
+      setMetadata(metadata?.value);
     } catch (error) {
       console.log(error);
     } finally {
@@ -62,44 +68,55 @@ export default function LinkRemoteItem({label, path, variant, color}) {
     setLoading(false);
   }
 
+  function handleLinkClick() {
+    setOpen(true);
+  }
+
   return (
-    <Box sx={{display: "flex", alignItems: "center", p: 1}}>
-      <Tooltip title={webUrl ?? path} placement="top">
-        <Link
-          href={webUrl}
-          target="_blank"
-          rel="noopener"
-          variant={variant ?? "body2"}
-          color={color ?? "text.secondary"}
+    <>
+      <DialogFixRemoteContainerPath
+        open={open}
+        onClose={() => setOpen(false)}
+      />
+      <Box sx={{display: "flex", alignItems: "center", p: 1}}>
+        <Tooltip title={webUrl ?? path} placement="top">
+          <Typography
+            onClick={handleLinkClick}
+            // href={webUrl}
+            // target="_blank"
+            // rel="noopener"
+            variant={variant ?? "body2"}
+            color={color ?? "text.secondary"}
+          >
+            {label}
+          </Typography>
+        </Tooltip>
+        <Box
+          sx={{
+            ml: 1,
+            display: "flex",
+            alignItems: "center",
+          }}
         >
-          {label}
-        </Link>
-      </Tooltip>
-      <Box
-        sx={{
-          ml: 1,
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
-        <Box onClick={handleIndicatorClick} sx={{cursor: "pointer"}}>
-          <BoxCenter>
-            {loading && <CircularProgress size={10} />}
-            {!loading && (
-              <Box
-                sx={{
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  bgcolor,
-                }}
-              />
-            )}
-          </BoxCenter>
+          <Box onClick={handleIndicatorClick} sx={{cursor: "pointer"}}>
+            <BoxCenter>
+              {loading && <CircularProgress size={10} />}
+              {!loading && (
+                <Box
+                  sx={{
+                    width: "8px",
+                    height: "8px",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    bgcolor,
+                  }}
+                />
+              )}
+            </BoxCenter>
+          </Box>
         </Box>
       </Box>
-    </Box>
+    </>
   );
 }

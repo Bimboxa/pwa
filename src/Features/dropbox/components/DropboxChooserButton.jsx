@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from "react";
 
 import {Box} from "@mui/material";
 
-function DropboxChooserButton() {
+function DropboxChooserButton(onSelectedFiles) {
   const [sdkLoaded, setSdkLoaded] = useState(false);
   const dropboxButtonRef = useRef(null);
 
@@ -57,7 +57,8 @@ function DropboxChooserButton() {
     if (sdkLoaded && dropboxButtonRef.current && window.Dropbox) {
       const buttonElement = window.Dropbox.createChooseButton({
         success: (files) => {
-          console.log("Files selected from button:", files);
+          //console.log("Files selected from button:", files);
+          if (onSelectedFiles) onSelectedFiles(files);
         },
         cancel: () => {
           console.log("User canceled from button.");
