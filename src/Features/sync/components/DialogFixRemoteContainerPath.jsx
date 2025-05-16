@@ -1,9 +1,9 @@
-import {useState} from "react";
+import {useState, useEffect} from "react";
 
 import useRemoteContainer from "../hooks/useRemoteContainer";
 import useRemoteToken from "../hooks/useRemoteToken";
 
-import {Typography} from "@mui/material";
+import {Typography, Box} from "@mui/material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 
@@ -27,7 +27,11 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
 
   // tests
 
-  const tests = [{label: "Token", value: tokenIsOk}];
+  const tests = [
+    {label: "Token", value: tokenIsOk},
+    {label: "Dropbox API", value: apiIsOk},
+    //{label: "Dossier racine", value: folderIsOk},
+  ];
 
   // helpers
 
@@ -47,20 +51,43 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
 
       const metadata = await remoteProvider.fetchSharedFileMetadata(link);
       console.log("metadata", metadata);
-      const _userPath = metadata?.result.path_display;
+      const _userPath = metadata?.result?.path_display;
+
+      if (_userPath) setApiIsOk(true);
+
       setUserPath(_userPath);
     } catch (e) {
       console.log("error selecting files", e, files);
     }
   }
 
+  // tests
+
+  useEffect(() => {
+    if (accessToken) setTokenIsOk(true);
+  }, [accessToken]);
+
   return (
     <DialogGeneric open={open} onClose={onClose} title={title}>
       <DropboxChooserButton onSelectedFiles={handleSelectedFiles} />
-      <Typography variant="body2" sx={{mb: 2, mt: 2}}>
-        {remoteContainer.path}
-      </Typography>
-      <Typography variant="body2">{userPath}</Typography>
+      <Box sx={{p: 2}}>
+        <Typography variant="body2" sx={{mb: 2, mt: 2}}>
+          {remoteContainer.path}
+        </Typography>
+        <Typography variant="body2">{userPath}</Typography>
+      </Box>
+      <Box sx={{p: 2}}>
+        {tests.map((test) => {
+          return (
+            <Typography
+              variant="body2"
+              color={test.value ? "success" : "text.secondary"}
+            >
+              {test.label}
+            </Typography>
+          );
+        })}
+      </Box>
     </DialogGeneric>
   );
 }
