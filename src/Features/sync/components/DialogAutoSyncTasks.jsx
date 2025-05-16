@@ -8,6 +8,7 @@ import SectionSyncFilesToPush from "./SectionSyncFilesToPush";
 
 export default function DialogAutoSyncTasks() {
   const dispatch = useDispatch();
+  const title = "Synchronisation";
 
   // data
 
@@ -31,7 +32,7 @@ export default function DialogAutoSyncTasks() {
   );
 
   return (
-    <DialogGeneric open={open} onClose={handleClose}>
+    <DialogGeneric open={open} onClose={handleClose} title={title}>
       {syncing && <SectionSyncTasks />}
       {!syncing && <SectionSyncFilesToPush />}
     </DialogGeneric>
