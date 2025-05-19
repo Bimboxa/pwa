@@ -3,7 +3,7 @@
  * - resolve remoteContainer paths
  */
 
-import getRemoteContainerFromLocalStorage from "Features/sync/services/getRemoteContainerFromLocalStorage";
+import getRemoteContainerPathFromLocalStorage from "../services/getRemoteContainerPathFromLocalStorage";
 
 export default function resolveAppConfig(appConfig, options) {
   console.log("resolveAppConfig", options);
@@ -23,8 +23,8 @@ export default function resolveAppConfig(appConfig, options) {
   }
 
   // path
-  const remoteContainerPath = getRemoteContainerFromLocalStorage();
-  if (remoteContainerPath) {
+  const remoteContainerPath = getRemoteContainerPathFromLocalStorage();
+  if (remoteContainerPath?.length > 0) {
     newAppConfig.remoteContainer = {
       ...newAppConfig.remoteContainer,
       path: remoteContainerPath,
