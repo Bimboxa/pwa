@@ -54,7 +54,7 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
   // helpers
 
   const title = `Connexion ${remoteContainer?.service ?? "-?-"}`;
-  const disabled = rcPath?.length > 0 && rcPath !== remoteContainer?.path;
+  const disabled = rcPath?.length > 0 && rcPath === remoteContainer?.path;
 
   // helper - fetch fileMetadata
 
