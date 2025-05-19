@@ -23,7 +23,7 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
 
   // strings
 
-  const selectS = "Sélectionnez le fichier _data/_openedProjects.js";
+  const selectS = "Sélectionnez le fichier _data/_openedProjects.json";
   const updateS = "Mettre à jour le chemin d'accès";
 
   // data
