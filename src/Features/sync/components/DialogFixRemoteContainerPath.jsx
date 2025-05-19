@@ -33,6 +33,7 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
 
   // state
 
+  const [pathLower, setPathLower] = useState("");
   const [userPath, setUserPath] = useState("...");
   const rcPath = userPath
     ? userPath.split("/_data/_openedProjects.js")?.[0]
@@ -64,7 +65,7 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
       provider: remoteContainer.service,
     });
 
-    const metadata = await remoteProvider.fetchFileMetadata(sharedFileId);
+    const metadata = await remoteProvider.fetchFileMetadata(pathLower);
     console.log("metadata_33", metadata);
     const path = metadata?.path;
     if (path) {
@@ -89,8 +90,9 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
 
       if (metadata?.id) setApiIsOk(true);
 
-      console.log("debug_1905 metadata.id", metadata.id);
+      console.log("debug_1905 metadata.path_lower", metadata.path_lower);
       setSharedFileId(metadata.path_lower);
+      setPathLower(metadata.path_lower);
     } catch (e) {
       console.log("debug_1905 error selecting files", e, files);
     }
@@ -108,10 +110,10 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
   }, [accessToken]);
 
   useEffect(() => {
-    if (sharedFileId) {
+    if (pathLower) {
       fetchFileMetadata();
     }
-  }, [sharedFileId]);
+  }, [pathLower]);
 
   return (
     <DialogGeneric open={open} onClose={onClose} title={title}>
