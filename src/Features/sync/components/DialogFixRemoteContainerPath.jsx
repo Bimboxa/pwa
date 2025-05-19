@@ -16,6 +16,8 @@ import DropboxChooserButton from "Features/dropbox/components/DropboxChooserButt
 import RemoteProvider from "../js/RemoteProvider";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
+import setRemoteContainerPathInLocalStorage from "Features/appConfig/services/setRemoteContainerPathInLocalStorage";
+
 export default function DialogFixRemoteContainerPath({open, onClose}) {
   const dispatch = useDispatch();
 
@@ -95,7 +97,7 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
 
   function handleUpdate() {
     setRemoteContainerPathInLocalStorage(rcPath);
-    dispatch(forceUpdate);
+    dispatch(forceUpdate());
   }
 
   // tests
@@ -132,12 +134,12 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
             <Typography variant="body2" color="text.secondary">
               Fichier sélectionné
             </Typography>
-            <Typography variant="body2">{userPath}</Typography>
+            <Typography variant="body2">{rcPath}</Typography>
             <ButtonInPanel
               label={updateS}
               onClick={handleUpdate}
               disabled={disabled}
-              bgcolor="secondary"
+              bgcolor="secondary.main"
             />
           </Box>
         </Box>
