@@ -48,4 +48,10 @@ export default class RemoteProvider {
   async downloadFilesFromFolder(path) {
     return await this.provider.downloadFilesFromFolder(path);
   }
+
+  // DELETE
+
+  async deleteItem(path) {
+    await this.provider.deleteItem(path);
+  }
 }

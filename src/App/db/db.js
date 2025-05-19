@@ -6,7 +6,7 @@ db.version(7).stores({
   orgaData: "key", // {key,data,dataStructure,file}
   projects: "id,clientRef",
   scopes: "id,projectId", // {id,name,projectId,sortedListings:[{id,table}]}. Table is used to resolve syncConfig
-  listings: "id,projectId",
+  listings: "id,key,uniqueByProject,projectId",
   entities: "id,listingId,[listingId+createdBy]",
   maps: "id,listingId",
   zones: "id,listingId", // {id,listingId,zonesTree}

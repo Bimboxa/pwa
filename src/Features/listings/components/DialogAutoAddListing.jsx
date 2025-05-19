@@ -19,7 +19,7 @@ export default function DialogAutoAddListing() {
   }
 
   return (
-    <DialogGeneric open={open} onClose={handleClose}>
+    <DialogGeneric open={open} onClose={handleClose} vh={70} vw={50}>
       <PanelAddListings />
     </DialogGeneric>
   );

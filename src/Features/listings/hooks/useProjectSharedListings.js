@@ -12,7 +12,7 @@ export default function useProjectSharedListings() {
   const takenIds = scope?.sortedListings?.map((l) => l.id);
 
   let listings = useLiveQuery(async () => {
-    if (scope?.id) {
+    if (scope?.id && projectId) {
       const _listings = await db.listings
         .where("projectId")
         .equals(projectId)
