@@ -9,6 +9,7 @@ import dropboxToGenericMetadata from "../utils/dropboxToGenericMetadata";
 import getDateString from "Features/misc/utils/getDateString";
 import getFilesMetadataFromParentFolderDropboxService from "../services/getFilesMetadataFromParentFolderDropboxService";
 import fetchDropboxSharedFileMetadataService from "../services/fetchDropboxSharedFileMetadataService";
+import listFolderItemsDropboxService from "../services/listFolderItemsDropboxService";
 
 export default class DropboxRemote {
   constructor({accessToken}) {
@@ -83,6 +84,15 @@ export default class DropboxRemote {
       accessToken: this.accessToken,
     });
     return metadatas?.map(dropboxToGenericMetadata);
+  }
+
+  // LIST
+
+  async listFolderItems(path) {
+    return await listFolderItemsDropboxService({
+      accessToken: this.accessToken,
+      path,
+    });
   }
 
   // DOWNLOAD FILE

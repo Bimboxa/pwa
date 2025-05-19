@@ -3,7 +3,7 @@ import {createSlice} from "@reduxjs/toolkit";
 const appConfigSlice = createSlice({
   name: "appConfig",
   initialState: {
-    appVersion: "0.11.6",
+    appVersion: "0.11.7",
     newVersionAvailable: false,
     value: null,
     openAppConfig: false,
