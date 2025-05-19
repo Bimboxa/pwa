@@ -21,6 +21,7 @@ export default function useCreateListings() {
         projectId: listing?.projectId ?? scope?.projectId,
         createdBy,
         createdAt,
+        updatedAt: createdAt,
       };
     });
 
@@ -28,7 +29,7 @@ export default function useCreateListings() {
     await db.listings.bulkAdd(listingsClean);
 
     // remote listings
-    if (options.forceLocalToRemote) {
+    if (options?.forceLocalToRemote) {
       await createRemoteListings(listingsClean);
     }
     // update sync file

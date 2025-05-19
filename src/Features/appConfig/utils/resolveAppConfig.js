@@ -3,6 +3,8 @@
  * - resolve remoteContainer paths
  */
 
+import getRemoteContainerFromLocalStorage from "Features/sync/services/getRemoteContainerFromLocalStorage";
+
 export default function resolveAppConfig(appConfig, options) {
   console.log("resolveAppConfig", options);
   // edge case
@@ -20,6 +22,14 @@ export default function resolveAppConfig(appConfig, options) {
     };
   }
 
+  // path
+  const remoteContainerPath = getRemoteContainerFromLocalStorage();
+  if (remoteContainerPath) {
+    newAppConfig.remoteContainer = {
+      ...newAppConfig.remoteContainer,
+      path: remoteContainerPath,
+    };
+  }
   // projectsPath
 
   if (appConfig.remoteContainer?.projectsPathRelative) {

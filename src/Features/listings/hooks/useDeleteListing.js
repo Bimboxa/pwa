@@ -16,10 +16,6 @@ export default function useDeleteListing() {
     const nextSelectedListingId = nextListings?.[0]?.id;
 
     await db.listings.delete(listingId);
-    await db.relsScopeItem
-      .where("[itemTable+itemId]")
-      .equals(["listings", listingId])
-      .delete();
     await db.files.where("listingId").equals(listingId).delete();
     await db.entitites.where("listingId").equals(listingId).delete();
 

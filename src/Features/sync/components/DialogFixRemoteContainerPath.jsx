@@ -1,5 +1,9 @@
 import {useState, useEffect} from "react";
 
+import {useDispatch} from "react-redux";
+
+import {forceUpdate} from "Features/appConfig/appConfigSlice";
+
 import useRemoteContainer from "../hooks/useRemoteContainer";
 import useRemoteToken from "../hooks/useRemoteToken";
 
@@ -10,8 +14,16 @@ import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DropboxChooserButton from "Features/dropbox/components/DropboxChooserButton";
 
 import RemoteProvider from "../js/RemoteProvider";
+import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
 export default function DialogFixRemoteContainerPath({open, onClose}) {
+  const dispatch = useDispatch();
+
+  // strings
+
+  const selectS = "Sélectionnez le fichier _data/_openedProjects.js";
+  const updateS = "Mettre à jour le chemin d'accès";
+
   // data
 
   const remoteContainer = useRemoteContainer();
@@ -20,6 +32,9 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
   // state
 
   const [userPath, setUserPath] = useState("...");
+  const rcPath = userPath
+    ? userPath.split("/_data/_openedProjects.js")?.[0]
+    : "";
 
   const [tokenIsOk, setTokenIsOk] = useState(false);
   const [apiIsOk, setApiIsOk] = useState(false);
@@ -37,6 +52,7 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
   // helpers
 
   const title = `Connexion ${remoteContainer?.service ?? "-?-"}`;
+  const disabled = rcPath?.length > 0 && rcPath !== remoteContainer?.path;
 
   // helper - fetch fileMetadata
 
@@ -77,6 +93,11 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
     }
   }
 
+  function handleUpdate() {
+    setRemoteContainerPathInLocalStorage(rcPath);
+    dispatch(forceUpdate);
+  }
+
   // tests
 
   useEffect(() => {
@@ -91,18 +112,35 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
 
   return (
     <DialogGeneric open={open} onClose={onClose} title={title}>
-      <DropboxChooserButton onSelectedFiles={handleSelectedFiles} />
-      <Box sx={{p: 2}}>
-        <Typography variant="body2" color="text.secondary">
-          Configuration
-        </Typography>
-        <Typography variant="body2" sx={{mb: 2}}>
-          {remoteContainer.path}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Fichier sélectionné
-        </Typography>
-        <Typography variant="body2">{userPath}</Typography>
+      <Box sx={{p: 1}}>
+        <Box
+          sx={{
+            p: 1,
+            borderRadius: "4px",
+            border: (theme) => `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Typography variant="body2">{selectS}</Typography>
+          <DropboxChooserButton onSelectedFiles={handleSelectedFiles} />
+          <Box sx={{p: 2}}>
+            <Typography variant="body2" color="text.secondary">
+              Configuration
+            </Typography>
+            <Typography variant="body2" sx={{mb: 2}}>
+              {remoteContainer.path}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Fichier sélectionné
+            </Typography>
+            <Typography variant="body2">{userPath}</Typography>
+            <ButtonInPanel
+              label={updateS}
+              onClick={handleUpdate}
+              disabled={disabled}
+              bgcolor="secondary"
+            />
+          </Box>
+        </Box>
       </Box>
       <Box sx={{p: 2}}>
         {tests.map((test) => {

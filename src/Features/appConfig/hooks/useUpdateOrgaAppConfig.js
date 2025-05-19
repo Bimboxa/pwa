@@ -6,6 +6,7 @@ import useToken from "Features/auth/hooks/useToken";
 
 import postOrgaAppConfigService from "../services/postOrgaAppConfigService";
 import setAppConfigInLocalStorage from "../services/setAppConfigInLocalStorage";
+import setRemoteContainerInLocalStorage from "Features/sync/services/setRemoteContainerInLocalStorage";
 
 export default function useUpdateOrgaAppConfig() {
   const dispatch = useDispatch();
@@ -14,6 +15,7 @@ export default function useUpdateOrgaAppConfig() {
   return async (appConfig) => {
     await postOrgaAppConfigService({accessToken, appConfig});
     setAppConfigInLocalStorage(appConfig);
+    setRemoteContainerInLocalStorage(null);
     dispatch(setAppConfig(appConfig));
   };
 }

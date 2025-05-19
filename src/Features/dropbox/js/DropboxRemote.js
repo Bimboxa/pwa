@@ -105,4 +105,9 @@ export default class DropboxRemote {
     const files = await unzipFilesAsync(zip);
     return files;
   }
+
+  // DELETE
+  async deleteItem(path) {
+    await deleteDropboxItemService({accessToken: this.accessToken, path});
+  }
 }
