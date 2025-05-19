@@ -45,6 +45,9 @@ export default function useInitAppConfig() {
       setAppConfigInLocalStorage(appConfig);
     }
 
+    // resolve with localData
+    if (appConfig) appConfig = resolveAppConfig(appConfig); // to update when remoteContainerPath change
+
     console.log("[debug] setAppConfig", appConfig);
     dispatch(setAppConfig(appConfig));
   };
