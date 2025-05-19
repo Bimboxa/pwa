@@ -17,6 +17,7 @@ import RemoteProvider from "../js/RemoteProvider";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
 import setRemoteContainerPathInLocalStorage from "Features/appConfig/services/setRemoteContainerPathInLocalStorage";
+import ButtonInPanelListFolderItems from "./ButtonInPanelListFolderItems";
 
 export default function DialogFixRemoteContainerPath({open, onClose}) {
   const dispatch = useDispatch();
@@ -144,6 +145,7 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
               disabled={disabled}
               bgcolor="secondary.main"
             />
+            <ButtonInPanelListFolderItems path={""} />
           </Box>
         </Box>
       </Box>
