@@ -85,13 +85,14 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
       });
 
       const metadata = await remoteProvider.fetchSharedFileMetadata(link);
-      console.log("metadata", metadata);
+      console.log("debug_1905 metadata", metadata);
 
       if (metadata?.id) setApiIsOk(true);
 
+      console.log("debug_1905 metadata.id", metadata.id);
       setSharedFileId(metadata.id);
     } catch (e) {
-      console.log("error selecting files", e, files);
+      console.log("debug_1905 error selecting files", e, files);
     }
   }
 
