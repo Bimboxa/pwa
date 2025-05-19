@@ -90,7 +90,7 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
       if (metadata?.id) setApiIsOk(true);
 
       console.log("debug_1905 metadata.id", metadata.id);
-      setSharedFileId(metadata.id);
+      setSharedFileId(metadata.path_lower);
     } catch (e) {
       console.log("debug_1905 error selecting files", e, files);
     }
