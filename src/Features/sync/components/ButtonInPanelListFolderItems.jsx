@@ -8,6 +8,7 @@ import useRemoteContainer from "../hooks/useRemoteContainer";
 import RemoteProvider from "../js/RemoteProvider";
 import useRemoteToken from "../hooks/useRemoteToken";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import getUserAccountDropboxService from "Features/dropbox/services/getUserAccountDropboxService";
 
 export default function ButtonInPanelListFolderItems({path}) {
   // data
@@ -28,12 +29,28 @@ export default function ButtonInPanelListFolderItems({path}) {
   // handlers
 
   async function handleClick() {
+    setLoading(true);
+
+    // team folder
+    const userAccount = await getUserAccountDropboxService({accessToken});
+    console.log("debug_2005 userAccount", userAccount);
+    const rootInfo = userAccount.root_info;
+
+    let options = {};
+    if (rootInfo?.[".tag"] === "team") {
+      options.pathRoot = {
+        ".tag": "namespace_id",
+        namespace_id: rootInfo.root_namespace_id,
+      };
+    }
+
+    //
     const remoteProvider = new RemoteProvider({
       accessToken,
       provider: remoteContainer.service,
+      options,
     });
 
-    setLoading(true);
     let items = await remoteProvider.listFolderItems(path);
     items = items.filter((item) => item[".tag"] === "folder");
     console.log("items", items);
@@ -53,14 +70,20 @@ export default function ButtonInPanelListFolderItems({path}) {
         <BoxFlexVStretch sx={{overflow: "auto"}}>
           <List dense>
             {items.map((item) => (
-              <ListItem divider>
+              <ListItem divider key={item.name}>
                 <ListItemText>{item.name}</ListItemText>
               </ListItem>
             ))}
           </List>
         </BoxFlexVStretch>
       </DialogGeneric>
-      <ButtonInPanel label={filesS} loading={loading} onClick={handleClick} />
+      <ButtonInPanel
+        label={filesS}
+        loading={loading}
+        onClick={handleClick}
+        bgcolor="white"
+        color="text.primary"
+      />
     </>
   );
 }
