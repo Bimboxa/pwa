@@ -9,6 +9,8 @@ import RemoteProvider from "../js/RemoteProvider";
 import useRemoteToken from "../hooks/useRemoteToken";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import getUserAccountDropboxService from "Features/dropbox/services/getUserAccountDropboxService";
+import searchFileDropboxService from "Features/dropbox/services/searchFileDropboxService";
+import getItemMetadataDropboxService from "Features/dropbox/services/getItemMetadataDropboxService";
 
 export default function ButtonInPanelListFolderItems({path}) {
   // data
@@ -31,16 +33,33 @@ export default function ButtonInPanelListFolderItems({path}) {
   async function handleClick() {
     setLoading(true);
 
+    // get team namespaceId
+    const _openedProjectsFile = await searchFileDropboxService({
+      fileName: "_openedProjects.json",
+      accessToken,
+    });
+    console.log("_openedProjectsFile", _openedProjectsFile);
+    //const namespace_id = _openedProjectsFile?.metadata?.metadata?.namespace_id;
+    const file_id = _openedProjectsFile?.metadata?.metadata?.id;
+
+    // metadata
+    const fileMetadata = await getItemMetadataDropboxService({
+      accessToken,
+      path: file_id,
+    });
+    console.log("fileMetata", fileMetadata);
+    const namespace_id = fileMetadata?.namespace_id;
+
     // team folder
     const userAccount = await getUserAccountDropboxService({accessToken});
     console.log("debug_2005 userAccount", userAccount);
     const rootInfo = userAccount.root_info;
 
     let options = {};
-    if (rootInfo?.[".tag"] === "team") {
+    if (namespace_id) {
       options.pathRoot = {
         ".tag": "namespace_id",
-        namespace_id: rootInfo.root_namespace_id,
+        namespace_id: namespace_id,
       };
     }
 

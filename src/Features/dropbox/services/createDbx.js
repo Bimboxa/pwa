@@ -4,7 +4,7 @@ export default function createDbx({options, accessToken}) {
   const props = {accessToken};
 
   // used by team folder
-  if (options.pathRoot) {
+  if (options?.pathRoot) {
     props.pathRoot = pathRoot;
   }
 

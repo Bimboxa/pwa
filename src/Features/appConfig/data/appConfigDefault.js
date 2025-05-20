@@ -7,18 +7,18 @@ const appConfigDefault = {
       select: "Sélectionnez un projet",
     },
     project: {
+      nameSingular: "Affaire",
+      namePlural: "Affaires",
+      seeAll: "Toutes les affaires",
+      new: "Nouvelle affaire",
+      create: "Créez une nouvelle affaire",
+    },
+    scope: {
       nameSingular: "Projet",
       namePlural: "Projets",
       seeAll: "Tous les projets",
       new: "Nouveau projet",
       create: "Créez un nouveau projet",
-    },
-    scope: {
-      nameSingular: "Sous-projet",
-      namePlural: "Sous-projets",
-      seeAll: "Tous les sous-projets",
-      new: "Nouveau sous-projet",
-      create: "Créez un nouveau sous-projet",
     },
     presetConfig: {
       title: "Mission",

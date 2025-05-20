@@ -8,6 +8,7 @@ import {ArrowDropDown as Down, ArrowDropUp as Up} from "@mui/icons-material";
 import ContainerFilesSelector from "Features/files/components/ContainerFilesSelector";
 
 import yamlToJsonAsync from "Features/files/utils/yamlToJsonAsync";
+import SwitchUseDefault from "./SwitchUseDefault";
 
 export default function SectionUpdateAppConfigFromFile() {
   // strings
@@ -52,17 +53,34 @@ export default function SectionUpdateAppConfigFromFile() {
         sx={{
           display: open ? "block" : "none",
           width: 1,
-          height: 150,
           bgcolor: "background.default",
         }}
       >
-        <ContainerFilesSelector
-          onFilesChange={handleFilesChange}
-          callToActionLabel={callToActionLabel}
-          accept=".yaml,.yml"
-          multiple={false}
-          loading={loading}
-        />
+        <Box
+          sx={{
+            width: 1,
+            height: 150,
+            bgcolor: "background.default",
+          }}
+        >
+          <ContainerFilesSelector
+            onFilesChange={handleFilesChange}
+            callToActionLabel={callToActionLabel}
+            accept=".yaml,.yml"
+            multiple={false}
+            loading={loading}
+          />
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "end",
+            width: 1,
+          }}
+        >
+          <SwitchUseDefault />
+        </Box>
       </Box>
     </Box>
   );
