@@ -19,7 +19,7 @@ export default function CardDownloadScope() {
 
   const title = "Réinitialiser la mission";
 
-  const description = `La mission sera réinitialiser à partir des données présente sur ${remoteContainer.service}`;
+  const description = `La mission sera réinitialiser à partir des données présente sur ${remoteContainer?.service}`;
 
   const buttonLabel = "Réinitialiser";
 

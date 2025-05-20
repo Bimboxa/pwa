@@ -25,7 +25,7 @@ export default function useRemoteContainer() {
       appConfig?.version
     );
 
-    if (appConfig?.remoteContainer) {
+    if (appConfig?.name) {
       dispatch(setRemoteContainer(appConfig?.remoteContainer));
     }
   }, [appConfig?.version, appConfig?.name, forceUpdateAt]);

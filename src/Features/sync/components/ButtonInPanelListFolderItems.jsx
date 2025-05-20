@@ -43,10 +43,14 @@ export default function ButtonInPanelListFolderItems({path}) {
     const file_id = _openedProjectsFile?.metadata?.metadata?.id;
 
     // metadata
-    const fileMetadata = await getItemMetadataDropboxService({
-      accessToken,
-      path: file_id,
-    });
+    let fileMetadata;
+    if (file_id) {
+      fileMetadata = await getItemMetadataDropboxService({
+        accessToken,
+        path: file_id,
+      });
+    }
+
     console.log("fileMetata", fileMetadata);
     const namespace_id = fileMetadata?.namespace_id;
 
