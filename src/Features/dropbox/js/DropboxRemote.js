@@ -1,3 +1,5 @@
+import getUserAccountDropboxService from "../services/getUserAccountDropboxService";
+
 import createDropboxFileService from "../services/createDropboxFileService";
 import downloadZipFolderDropboxService from "../services/downloadZipFolderDropboxService";
 import getFilesMetadataDropboxService from "../services/getFilesMetadataDropboxService";
@@ -12,10 +14,19 @@ import fetchDropboxSharedFileMetadataService from "../services/fetchDropboxShare
 import listFolderItemsDropboxService from "../services/listFolderItemsDropboxService";
 
 export default class DropboxRemote {
-  constructor({accessToken}) {
+  constructor({accessToken, options}) {
     this.accessToken = accessToken;
+    this.options = options;
   }
 
+  // USER
+
+  async getUserAccount() {
+    const account = await getUserAccountDropboxService({
+      accessToken: this.accessToken,
+    });
+    return account;
+  }
   // POST FILE
 
   async postFile(path, file, updatedAt) {
@@ -91,6 +102,7 @@ export default class DropboxRemote {
   async listFolderItems(path) {
     return await listFolderItemsDropboxService({
       accessToken: this.accessToken,
+      options: this.options,
       path,
     });
   }

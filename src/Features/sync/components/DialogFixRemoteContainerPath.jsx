@@ -18,6 +18,7 @@ import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
 import setRemoteContainerPathInLocalStorage from "Features/appConfig/services/setRemoteContainerPathInLocalStorage";
 import ButtonInPanelListFolderItems from "./ButtonInPanelListFolderItems";
+import ButtonInPanelGetUserAccount from "./ButtonInPanelGetUserAccount";
 
 export default function DialogFixRemoteContainerPath({open, onClose}) {
   const dispatch = useDispatch();
@@ -145,10 +146,15 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
               disabled={disabled}
               bgcolor="secondary.main"
             />
-            <ButtonInPanelListFolderItems path={""} />
           </Box>
         </Box>
       </Box>
+
+      <Box sx={{p: 1, mt: 1}}>
+        <ButtonInPanelListFolderItems path={""} />
+        {/* <ButtonInPanelGetUserAccount /> */}
+      </Box>
+
       <Box sx={{p: 2}}>
         {tests.map((test) => {
           return (

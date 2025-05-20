@@ -1,16 +1,21 @@
 import DropboxRemote from "Features/dropbox/js/DropboxRemote";
 
 export default class RemoteProvider {
-  constructor({accessToken, provider}) {
+  constructor({accessToken, provider, options}) {
     switch (provider) {
       case "DROPBOX":
-        this.provider = new DropboxRemote({accessToken});
+        this.provider = new DropboxRemote({accessToken, options});
         break;
       default:
         throw new Error("Unsupported provider");
     }
   }
 
+  // USER
+
+  async getUserAccount() {
+    return await this.provider.getUserAccount();
+  }
   // POST
 
   async postFile(path, file, updatedAt) {
