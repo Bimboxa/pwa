@@ -26,6 +26,7 @@ export default function useInitAppConfig() {
   const debug = email === "favreau-consulting@lei.fr";
 
   const forceUpdateAt = useSelector((s) => s.appConfig.forceUpdateAt);
+  const useDefault = useSelector((s) => s.appConfig.useDefault);
 
   const initAsync = async () => {
     let appConfig;
@@ -33,8 +34,12 @@ export default function useInitAppConfig() {
     // 1st : get appConfig from localStorage
     appConfig = getAppConfigFromLocalStorage();
 
-    // Fallback : fetch appConfig from server & resolve it
-    if (!appConfig && accessToken) {
+    if (useDefault) {
+      appConfig = resolveAppConfig(appConfigDefault);
+      setAppConfigInLocalStorage(appConfig);
+    } else if (!appConfig && accessToken) {
+      // Fallback : fetch appConfig from server & resolve it
+
       appConfig = await fetchOrgaInitAppConfigService({accessToken});
       appConfig = resolveAppConfig(appConfig, {debug});
 
