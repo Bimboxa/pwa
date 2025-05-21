@@ -15,7 +15,7 @@ export default function PanelDownloadListingsData() {
   const dispatch = useDispatch();
 
   const description =
-    "Télécharger les données de la mission sur votre appareil. Vous pourrez ensuite les utiliser hors-ligne.";
+    "Téléchargez les données de la mission sur votre appareil. Vous pourrez ensuite les utiliser hors-ligne.";
 
   const label = "Télécharger";
 
@@ -36,7 +36,7 @@ export default function PanelDownloadListingsData() {
     <BoxFlexVStretch>
       <BoxFlexVStretch>
         <BoxCenter sx={{p: 2}}>
-          <Typography variant="body2" color="text.secondary">
+          <Typography sx={{whiteSpace: "pre-line"}} color="text.secondary">
             {description}
           </Typography>
         </BoxCenter>
