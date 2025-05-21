@@ -84,7 +84,7 @@ export default async function uploadSyncFile({
   }
 
   const updatedAt = getDateString(file.lastModified);
-  const uploadResult = await remoteProvider.postFile(filePath, file);
+  const uploadResult = await remoteProvider.postFile({path: filePath, file});
   console.log("[File uploaded]", uploadResult);
   await updateSyncFile({path: filePath, updatedAt, syncAt: updatedAt});
 }

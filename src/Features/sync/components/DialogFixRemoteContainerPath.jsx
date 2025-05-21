@@ -19,6 +19,7 @@ import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 import setRemoteContainerPathInLocalStorage from "Features/appConfig/services/setRemoteContainerPathInLocalStorage";
 import ButtonInPanelListFolderItems from "./ButtonInPanelListFolderItems";
 import ButtonInPanelGetUserAccount from "./ButtonInPanelGetUserAccount";
+import useRemoteProvider from "../hooks/useRemoteProvider";
 
 export default function DialogFixRemoteContainerPath({open, onClose}) {
   const dispatch = useDispatch();
@@ -32,6 +33,20 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
 
   const remoteContainer = useRemoteContainer();
   const {value: accessToken} = useRemoteToken();
+  const remoteProvider = useRemoteProvider();
+
+  // effect
+
+  useEffect(() => {
+    if (open && remoteProvider) {
+      (async () => {
+        const targetFile = await remoteProvider.searchFile(
+          "_openedProjects.js"
+        );
+        setUserPath(targetFile?.path);
+      })();
+    }
+  }, [remoteProvider, open]);
 
   // state
 

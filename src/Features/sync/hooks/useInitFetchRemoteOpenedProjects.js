@@ -1,12 +1,12 @@
 import {useState, useEffect} from "react";
-import useFetchRemoteOpenedProjects from "./useFetchRemoteOpenedProjects";
-import useRemoteToken from "./useRemoteToken";
-import useRemoteContainer from "./useRemoteContainer";
+
+import useRemoteProvider from "./useRemoteProvider";
 
 import fetchRemoteOpenedProjectsService from "../services/fetchRemoteOpenedProjectsService";
+import useRemoteContainer from "./useRemoteContainer";
 
 export default function useInitFetchRemoteOpenedProjects() {
-  const {value: accessToken} = useRemoteToken();
+  const remoteProvider = useRemoteProvider();
   const remoteContainer = useRemoteContainer();
 
   const [openedProjects, setOpenedProjects] = useState(null);
@@ -16,7 +16,7 @@ export default function useInitFetchRemoteOpenedProjects() {
     try {
       setLoading(true);
       const projects = await fetchRemoteOpenedProjectsService({
-        accessToken,
+        remoteProvider,
         remoteContainer,
       });
       setOpenedProjects(projects);
@@ -26,12 +26,13 @@ export default function useInitFetchRemoteOpenedProjects() {
     }
   };
 
+  const rpBoolean = Boolean(remoteProvider);
   useEffect(() => {
     console.log("[EFFECT] useInitFetchRemote");
-    if (accessToken) {
+    if (rpBoolean) {
       fetchAsync();
     }
-  }, [accessToken]);
+  }, [rpBoolean]);
 
   return {loading, value: openedProjects};
 }

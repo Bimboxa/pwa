@@ -10,13 +10,14 @@ import useInitRemoteContainer from "Features/sync/hooks/useInitRemoteContainer";
 import useInitSelectListing from "Features/listings/hooks/useInitSelectListing";
 import useInitWarningWasShowed from "Features/sync/hooks/useInitWarningWasShowed";
 
-import useRemoteToken from "Features/sync/hooks/useRemoteToken";
+import useAutoRefreshRemoteToken from "Features/sync/hooks/useAutoRefreshRemoteToken";
+import useInitRcUserAccount from "Features/sync/hooks/useInitRcUserAccount";
 
 //import useInitFetchServicesCredentials from "Features/servicesCredentials/hooks/useInitFetchServicesCredentials";
 //import useInitServicesConfig from "Features/settings/hooks/useInitServicesConfig";
 
 export default function useInit() {
-  useRemoteToken();
+  useAutoRefreshRemoteToken();
 
   useInitDeviceType();
 
@@ -28,6 +29,7 @@ export default function useInit() {
   useInitSelectScope();
 
   useInitRemoteContainer();
+  useInitRcUserAccount();
 
   useInitSelectListing();
   //useInitFetchServicesCredentials();

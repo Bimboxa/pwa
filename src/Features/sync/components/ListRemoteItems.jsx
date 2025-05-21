@@ -1,7 +1,6 @@
 import {useState} from "react";
 
-import useRemoteContainer from "../hooks/useRemoteContainer";
-import useRemoteToken from "../hooks/useRemoteToken";
+import useRemoteProvider from "../hooks/useRemoteProvider";
 
 import {ListItemButton, ListItemText, List} from "@mui/material";
 
@@ -11,8 +10,6 @@ import BlockLoading from "Features/layout/components/BlockLoading";
 import getRemoteItemPath from "../utils/getRemoteItemPath";
 import jsonFileToObjectAsync from "Features/files/utils/jsonFileToObjectAsync";
 
-import RemoteProvider from "../js/RemoteProvider";
-
 export default function ListRemoteItems({
   items,
   onClick,
@@ -21,8 +18,7 @@ export default function ListRemoteItems({
 }) {
   // data
 
-  const remoteContainer = useRemoteContainer();
-  const {value: accessToken} = useRemoteToken();
+  const remoteProvider = useRemoteProvider();
 
   // state
 
@@ -37,12 +33,6 @@ export default function ListRemoteItems({
   // handlers
 
   async function handleClick(item) {
-    // init
-    const remoteProvider = new RemoteProvider({
-      accessToken,
-      provider: remoteContainer.service,
-    });
-
     // get remote item metadata
     console.log("[click] item", item);
     setLoadingRemoteItem(true);

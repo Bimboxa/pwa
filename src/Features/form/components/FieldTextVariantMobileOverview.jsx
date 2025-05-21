@@ -16,7 +16,7 @@ export default function FieldTextVariantMobileOverview({label, value}) {
       >
         {label}
       </Typography>
-      <Typography sx={{whiteSpace: "pre"}}>{text}</Typography>
+      <Typography sx={{whiteSpace: "pre-line"}}>{text}</Typography>
     </Box>
   );
 }

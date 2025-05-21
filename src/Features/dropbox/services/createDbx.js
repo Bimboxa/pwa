@@ -5,8 +5,9 @@ export default function createDbx({options, accessToken}) {
 
   // used by team folder
   if (options?.pathRoot) {
-    props.pathRoot = pathRoot;
+    props.pathRoot = options.pathRoot;
   }
 
+  console.log("createDbx, props", props);
   return new Dropbox(props);
 }

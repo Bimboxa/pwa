@@ -1,10 +1,10 @@
 import DropboxRemote from "Features/dropbox/js/DropboxRemote";
 
 export default class RemoteProvider {
-  constructor({accessToken, provider, options}) {
+  constructor({accessToken, provider, userAccount, options}) {
     switch (provider) {
       case "DROPBOX":
-        this.provider = new DropboxRemote({accessToken, options});
+        this.provider = new DropboxRemote({accessToken, userAccount, options});
         break;
       default:
         throw new Error("Unsupported provider");
@@ -16,10 +16,19 @@ export default class RemoteProvider {
   async getUserAccount() {
     return await this.provider.getUserAccount();
   }
+
+  // SEARCH
+
+  async searchFile(fileName) {
+    return await this.provider.searchFile({
+      fileName,
+    });
+  }
+
   // POST
 
-  async postFile(path, file, updatedAt) {
-    return await this.provider.postFile(path, file, updatedAt);
+  async postFile({path, file, updatedAt}) {
+    return await this.provider.postFile({path, file, updatedAt});
   }
 
   async postFiles(files) {
@@ -27,6 +36,10 @@ export default class RemoteProvider {
   }
 
   // FETCH  METADATA
+
+  async fetchItemMetadata(path) {
+    return await this.provider.fetchItemMetadata(path);
+  }
 
   async fetchFileMetadata(path) {
     return await this.provider.fetchFileMetadata(path);
@@ -58,6 +71,10 @@ export default class RemoteProvider {
 
   async downloadFilesFromFolder(path) {
     return await this.provider.downloadFilesFromFolder(path);
+  }
+
+  async downloadZipFolder(path) {
+    return await this.provider.downloadZipFolder(path);
   }
 
   // DELETE

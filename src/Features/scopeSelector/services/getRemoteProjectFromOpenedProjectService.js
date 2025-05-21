@@ -9,15 +9,8 @@ import jsonFileToObjectAsync from "Features/files/utils/jsonFileToObjectAsync";
 
 export default async function getRemoteProjectFromOpenedProjectService({
   openedProject,
-  remoteContainer,
-  accessToken,
+  remoteProvider,
 }) {
-  // init
-  const remoteProvider = new RemoteProvider({
-    accessToken,
-    provider: remoteContainer.service,
-  });
-
   // data
   const {path} = await getRemoteItemPath({
     item: openedProject,

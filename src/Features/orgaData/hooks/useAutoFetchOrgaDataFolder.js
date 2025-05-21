@@ -3,6 +3,7 @@ import {useSelector} from "react-redux";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useRemoteToken from "Features/sync/hooks/useRemoteToken";
+import useRemoteProvider from "Features/sync/hooks/useRemoteProvider";
 
 import fetchOrgaDataFolderService from "../services/fetchOrgaDataFolderService";
 import RemoteProvider from "Features/sync/js/RemoteProvider";
@@ -20,6 +21,10 @@ export default function useAutoFetchOrgaDataFolder() {
 
   const syncingRef = useRef(false);
 
+  const remoteProvider = useRemoteProvider();
+
+  const rpBoolean = Boolean(remoteProvider);
+
   const fetchFolder = async () => {
     try {
       if (syncingRef.current) return;
@@ -29,12 +34,6 @@ export default function useAutoFetchOrgaDataFolder() {
       if (!orgaData) {
         throw new Error(`OrgaData not found`);
       }
-
-      // main
-      const remoteProvider = new RemoteProvider({
-        accessToken,
-        provider: remoteContainer.service,
-      });
 
       // syncing
       syncingRef.current = true;
@@ -51,13 +50,13 @@ export default function useAutoFetchOrgaDataFolder() {
   };
 
   useEffect(() => {
-    if (accessToken && !fetchOrgaDataSuccess && appConfig?.orgaData?.path) {
+    if (rpBoolean && !fetchOrgaDataSuccess && appConfig?.orgaData?.path) {
       fetchFolder();
     }
   }, [
-    accessToken,
     fetchOrgaDataSuccess,
     appConfig?.orgaData?.path,
     forceUpdateAt,
+    rpBoolean,
   ]);
 }

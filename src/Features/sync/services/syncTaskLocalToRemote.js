@@ -26,19 +26,20 @@ export default async function syncTaskLocalToRemote({task, remoteProvider}) {
   switch (mode) {
     case "DATA": {
       const file = jsonObjectToFile({data: entry}, fileName);
-      await remoteProvider.postFile(filePath, file, updatedAt);
+      await remoteProvider.postFile({path: filePath, file, updatedAt});
       return file;
     }
 
     case "ITEMS": {
       const file = jsonObjectToFile({items: entries}, fileName);
-      await remoteProvider.postFile(filePath, file, updatedAt);
+      await remoteProvider.postFile({path: filePath, file, updatedAt});
       return file;
     }
 
     case "FILE": {
       const file = entry.file;
-      if (file) await remoteProvider.postFile(filePath, file, updatedAt);
+      if (file)
+        await remoteProvider.postFile({path: filePath, file, updatedAt});
       return file;
     }
 

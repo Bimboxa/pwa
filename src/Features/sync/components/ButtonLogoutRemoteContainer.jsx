@@ -1,4 +1,4 @@
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 
 import {setRemoteContainer} from "../syncSlice";
 
@@ -7,6 +7,7 @@ import setRemoteContainerInLocalStorage from "../services/setRemoteContainerInLo
 
 import {useRemoteTokenData} from "../RemoteTokenDataContext";
 
+import {Box, Typography} from "@mui/material";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
 export default function ButtonLogoutRemoteContainer({remoteContainer}) {
@@ -14,6 +15,7 @@ export default function ButtonLogoutRemoteContainer({remoteContainer}) {
   // data
 
   const {setRemoteTokenData} = useRemoteTokenData();
+  const rcUserAccount = useSelector((s) => s.sync.rcUserAccount);
 
   //strings
 
@@ -30,5 +32,12 @@ export default function ButtonLogoutRemoteContainer({remoteContainer}) {
       console.error("[SectionRemoteContainer] error handleDisconnexion", e);
     }
   }
-  return <ButtonInPanel onClick={handleClick} label={label} />;
+  return (
+    <Box sx={{width: 1}}>
+      <ButtonInPanel onClick={handleClick} label={label} />
+      <Typography variant="caption" color="text.secondary">
+        {rcUserAccount?.email}
+      </Typography>
+    </Box>
+  );
 }

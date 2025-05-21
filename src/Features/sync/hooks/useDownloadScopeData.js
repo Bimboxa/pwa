@@ -10,6 +10,7 @@ import syncService from "../services/syncService";
 import {overrideSyncConfig} from "../utils/overrideSyncConfig";
 
 import RemoteProvider from "../js/RemoteProvider";
+import useRemoteProvider from "./useRemoteProvider";
 
 import syncConfig from "../syncConfig";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
@@ -21,13 +22,13 @@ export default function useDownloadScopeData() {
   // data
 
   const {value: scope} = useSelectedScope({withProject: true});
-  const {value: accessToken} = useRemoteToken();
   const listings = scope.sortedListings;
 
   // TODO : add listings & relScopItem ? to the context
   // TODO : override syncFilesPath to add the items if they do not exists on dropbox.
 
   const remoteContainer = useRemoteContainer();
+  const remoteProvider = useRemoteProvider();
 
   // const
 
@@ -40,12 +41,6 @@ export default function useDownloadScopeData() {
   // handlers
 
   const downloadData = async () => {
-    // remoteProvider
-    const remoteProvider = new RemoteProvider({
-      accessToken,
-      provider: remoteContainer.service,
-    });
-
     // context
     const context = {
       remoteContainer,

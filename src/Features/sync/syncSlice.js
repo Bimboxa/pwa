@@ -6,7 +6,11 @@ const syncInitialState = {
   openPanelSync: false,
   //
   remoteContainer: null,
-  //
+
+  // remote container account
+
+  rcUserAccount: null, // used to getDropbox root_namespace_id
+
   // remoteProjectContainer
   remoteProjectsContainers: [],
   selectedRemoteProjectsContainer: null,
@@ -73,6 +77,9 @@ export const syncSlice = createSlice({
     clearSyncTasks: (state) => {
       state.syncTasks = [];
     },
+    setRcUserAccount: (state, action) => {
+      state.rcUserAccount = action.payload;
+    },
   },
 });
 
@@ -91,6 +98,7 @@ export const {
   updateSyncTaskStatus,
   clearSyncTasks,
   //
+  setRcUserAccount,
 } = syncSlice.actions;
 
 export default syncSlice.reducer;
