@@ -11,6 +11,8 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import getUserAccountDropboxService from "Features/dropbox/services/getUserAccountDropboxService";
 import searchFileDropboxService from "Features/dropbox/services/searchFileDropboxService";
 import getItemMetadataDropboxService from "Features/dropbox/services/getItemMetadataDropboxService";
+import listFolderItemsDropboxService from "Features/dropbox/services/listFolderItemsDropboxService";
+import listFolderItemsWithNamespaceDropboxService from "Features/dropbox/services/listFolderItemsWithNamespaceDropboxService";
 
 export default function ButtonInPanelListFolderItems({path}) {
   // data
@@ -33,39 +35,44 @@ export default function ButtonInPanelListFolderItems({path}) {
   async function handleClick() {
     setLoading(true);
 
-    // get team namespaceId
-    const _openedProjectsFile = await searchFileDropboxService({
-      fileName: "_openedProjects.json",
-      accessToken,
-    });
-    console.log("_openedProjectsFile", _openedProjectsFile);
-    //const namespace_id = _openedProjectsFile?.metadata?.metadata?.namespace_id;
-    const file_id = _openedProjectsFile?.metadata?.metadata?.id;
-
-    // metadata
-    let fileMetadata;
-    if (file_id) {
-      fileMetadata = await getItemMetadataDropboxService({
-        accessToken,
-        path: file_id,
-      });
-    }
-
-    console.log("fileMetata", fileMetadata);
-    const namespace_id = fileMetadata?.namespace_id;
-
     // team folder
     const userAccount = await getUserAccountDropboxService({accessToken});
-    console.log("debug_2005 userAccount", userAccount);
-    const rootInfo = userAccount.root_info;
+    console.log("debug_2005 userAccount 1", userAccount);
+    const namespaceId = userAccount?.root_info?.root_namespace_id;
+
+    // // get team namespaceId
+    // const _openedProjectsFile = await searchFileDropboxService({
+    //   fileName: "_openedProjects.json",
+    //   accessToken,
+    // });
+    // console.log("_openedProjectsFile", _openedProjectsFile);
+    // //const namespace_id = _openedProjectsFile?.metadata?.metadata?.namespace_id;
+    // const file_id = _openedProjectsFile?.metadata?.metadata?.id;
+
+    // // metadata
+    // let fileMetadata;
+    // if (file_id) {
+    //   fileMetadata = await getItemMetadataDropboxService({
+    //     accessToken,
+    //     path: file_id,
+    //   });
+    // }
+    // console.log("fileMetata", fileMetadata);
+
+    const _items = await listFolderItemsWithNamespaceDropboxService({
+      path: "",
+      accessToken,
+      namespaceId,
+    });
+    console.log("_items", _items);
 
     let options = {};
-    if (namespace_id) {
-      options.pathRoot = {
-        ".tag": "namespace_id",
-        namespace_id: namespace_id,
-      };
-    }
+    // if (namespace_id) {
+    //   options.pathRoot = {
+    //     ".tag": "namespace_id",
+    //     namespace_id: namespace_id,
+    //   };
+    // }
 
     //
     const remoteProvider = new RemoteProvider({
@@ -74,11 +81,13 @@ export default function ButtonInPanelListFolderItems({path}) {
       options,
     });
 
+    path = "";
+
     let items = await remoteProvider.listFolderItems(path);
     items = items.filter((item) => item[".tag"] === "folder");
     console.log("items", items);
     setLoading(false);
-    setItems(items);
+    setItems(_items);
     setOpen(true);
   }
 

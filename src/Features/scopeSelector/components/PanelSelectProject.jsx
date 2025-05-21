@@ -4,8 +4,7 @@ import {useSelector} from "react-redux";
 import useProjects from "Features/projects/hooks/useProjects";
 import useInitFetchRemoteOpenedProjects from "Features/sync/hooks/useInitFetchRemoteOpenedProjects";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import useRemoteToken from "Features/sync/hooks/useRemoteToken";
-import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
+import useRemoteProvider from "Features/sync/hooks/useRemoteProvider";
 
 import ItemsList from "Features/itemsList/components/ItemsList";
 import SectionCreateProject from "Features/projects/components/SectionCreateProject";
@@ -16,8 +15,8 @@ import getRemoteProjectFromOpenedProjectService from "../services/getRemoteProje
 export default function PanelSelectProject({containerEl, onClose, onSelect}) {
   // data
 
-  const {value: accessToken} = useRemoteToken();
-  const remoteContainer = useRemoteContainer();
+  const remoteProvider = useRemoteProvider();
+
   const {value: projects} = useProjects();
   const appConfig = useAppConfig();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
@@ -73,8 +72,7 @@ export default function PanelSelectProject({containerEl, onClose, onSelect}) {
       setSyncing(true);
       project = await getRemoteProjectFromOpenedProjectService({
         openedProject: item,
-        remoteContainer,
-        accessToken,
+        remoteProvider,
       });
       setSyncing(false);
     } else if (options?.fromCreation) {

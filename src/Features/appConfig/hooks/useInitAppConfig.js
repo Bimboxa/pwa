@@ -23,7 +23,9 @@ export default function useInitAppConfig() {
   // user for debug mode
   const {user} = useUser();
   const email = user?.primaryEmailAddress?.emailAddress;
-  const debug = email === "favreau-consulting@lei.fr";
+
+  let debug = email === "favreau-consulting@lei.fr";
+  debug = false;
 
   const forceUpdateAt = useSelector((s) => s.appConfig.forceUpdateAt);
   const useDefault = useSelector((s) => s.appConfig.useDefault);

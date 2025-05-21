@@ -3,18 +3,14 @@ import {useState} from "react";
 import {nanoid} from "@reduxjs/toolkit";
 
 import useCreateRemoteFolders from "../hooks/useCreateRemoteFolders";
-import useCreateRemoteFile from "../hooks/useCreateRemoteFile";
-import useRemoteContainer from "../hooks/useRemoteContainer";
-import useRemoteToken from "../hooks/useRemoteToken";
 import useCreateProject from "Features/projects/hooks/useCreateProject";
+import useRemoteProvider from "../hooks/useRemoteProvider";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import BottomBarCancelSave from "Features/layout/components/BottomBarCancelSave";
 
 import jsonObjectToFile from "Features/files/utils/jsonObjectToFile";
 import getDateString from "Features/misc/utils/getDateString";
-
-import RemoteProvider from "../js/RemoteProvider";
 
 export default function DialogCreateRemoteItem({
   item,
@@ -33,9 +29,8 @@ export default function DialogCreateRemoteItem({
   // data - func
 
   const createRemoteFolders = useCreateRemoteFolders();
-  const remoteContainer = useRemoteContainer();
-  const {value: accessToken} = useRemoteToken();
   const createProject = useCreateProject();
+  const remoteProvider = useRemoteProvider();
 
   // state
 
@@ -44,12 +39,6 @@ export default function DialogCreateRemoteItem({
   // handlers
 
   async function handleCreate() {
-    // init
-    const remoteProvider = new RemoteProvider({
-      accessToken,
-      provider: remoteContainer.service,
-    });
-
     // main
     setLoading(true);
     let newItem = {
@@ -62,7 +51,7 @@ export default function DialogCreateRemoteItem({
     } else if (type === "FILE") {
       const itemFileName = itemPath.split("/").pop();
       const file = jsonObjectToFile({data: newItem}, itemFileName);
-      await remoteProvider.postFile(itemPath, file);
+      await remoteProvider.postFile({path: itemPath, file});
       //await createRemoteFile({path: itemPath, blob});
 
       // create local project

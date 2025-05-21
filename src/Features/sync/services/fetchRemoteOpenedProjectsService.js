@@ -3,11 +3,12 @@ import jsonFileToObjectAsync from "Features/files/utils/jsonFileToObjectAsync";
 import fetchFileDropboxService from "Features/dropbox/services/fetchFileDropboxService";
 
 export default async function fetchRemoteOpenedProjectsService({
-  accessToken,
+  remoteProvider,
   remoteContainer,
 }) {
-  if (!accessToken) {
-    throw new Error("No remote token available");
+  if (!remoteProvider) {
+    console.error("No remoteProvider available");
+    return;
   }
 
   const {service} = remoteContainer;
@@ -16,10 +17,7 @@ export default async function fetchRemoteOpenedProjectsService({
     case "DROPBOX":
       const path = remoteContainer.path + "/_data/_openedProjects.json";
       console.log("[FETCH] file : path", path);
-      const jsonFile = await fetchFileDropboxService({
-        accessToken: accessToken,
-        path,
-      });
+      const jsonFile = await remoteProvider.downloadFile(path);
       const response = await jsonFileToObjectAsync(jsonFile);
 
       return response.items;

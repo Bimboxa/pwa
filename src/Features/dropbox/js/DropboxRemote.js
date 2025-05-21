@@ -5,6 +5,9 @@ import downloadZipFolderDropboxService from "../services/downloadZipFolderDropbo
 import getFilesMetadataDropboxService from "../services/getFilesMetadataDropboxService";
 import getItemMetadataDropboxService from "../services/getItemMetadataDropboxService";
 import fetchFileDropboxService from "../services/fetchFileDropboxService";
+
+import dropboxServices from "../services/dropboxServices";
+
 import unzipFilesAsync from "Features/files/utils/unzipFilesAsync";
 import dropboxToGenericMetadata from "../utils/dropboxToGenericMetadata";
 
@@ -14,9 +17,10 @@ import fetchDropboxSharedFileMetadataService from "../services/fetchDropboxShare
 import listFolderItemsDropboxService from "../services/listFolderItemsDropboxService";
 
 export default class DropboxRemote {
-  constructor({accessToken, options}) {
+  constructor({accessToken, userAccount, options}) {
     this.accessToken = accessToken;
     this.options = options;
+    this.userAccount = userAccount;
   }
 
   // USER
@@ -27,17 +31,28 @@ export default class DropboxRemote {
     });
     return account;
   }
+
+  // SEARCH
+
+  async searchFile({fileName}) {
+    return await dropboxServices.searchFile({
+      fileName,
+      namespaceId: this.userAccount?.namespaceId,
+      accessToken: this.accessToken,
+    });
+  }
+
   // POST FILE
 
-  async postFile(path, file, updatedAt) {
+  async postFile({path, file, updatedAt}) {
     const clientModifiedAt =
       getDateString(updatedAt) ?? getDateString(file.lastModified);
     console.log("[DROPBOX] postFile", file, clientModifiedAt);
-    return await createDropboxFileService({
+    return await dropboxServices.postFile({
       path,
-      blob: file,
+      file,
       accessToken: this.accessToken,
-      mode: "overwrite",
+      namespaceId: this.namespaceId,
       clientModifiedAt,
     });
   }
@@ -48,23 +63,26 @@ export default class DropboxRemote {
     // files = [{path,blob,updatedAt}]
     for (const file of files) {
       const {path, blob, updatedAt} = file;
-      await this.postFile(path, blob, updatedAt);
+      await this.postFile({path, file: blob, updatedAt});
     }
   }
 
   // FETCH FILE METADATA
 
+  async fetchItemMetadata(path) {
+    return await dropboxServices.fetchItemMetadata({
+      path,
+      accessToken: this.accessToken,
+      namespaceId: this.userAccount?.namespaceId,
+    });
+  }
+
   async fetchFileMetadata(path) {
-    try {
-      const metadata = await getItemMetadataDropboxService({
-        path,
-        accessToken: this.accessToken,
-      });
-      return dropboxToGenericMetadata(metadata);
-    } catch (err) {
-      console.log("error fetching file metadata", err);
-      return null;
-    }
+    return await dropboxServices.fetchItemMetadata({
+      path,
+      accessToken: this.accessToken,
+      namespaceId: this.userAccount?.namespaceId,
+    });
   }
 
   async fetchSharedFileMetadata(link) {
@@ -78,11 +96,12 @@ export default class DropboxRemote {
 
   async fetchFilesMetadataFromFolder(path) {
     try {
-      const metadatas = await getFilesMetadataDropboxService({
+      const metadatas = await dropboxServices.fetchFilesMetadataFromFolder({
         path,
         accessToken: this.accessToken,
+        namespaceId: this.userAccount?.namespaceId,
       });
-      return metadatas?.map(dropboxToGenericMetadata);
+      return metadatas;
     } catch (e) {
       console.log("error fetching files metadata", path, e);
       return null;
@@ -90,11 +109,23 @@ export default class DropboxRemote {
   }
 
   async fetchFilesMetadataFromParentFolder(path) {
-    const metadatas = await getFilesMetadataFromParentFolderDropboxService({
+    const targetFolders = await dropboxServices.fetchFoldersMetadataFromFolder({
       path,
       accessToken: this.accessToken,
+      namespaceId: this.userAccount?.namespaceId,
     });
-    return metadatas?.map(dropboxToGenericMetadata);
+    const targetFiles = [];
+
+    for (const targetFolder of targetFolders) {
+      const folderPath = targetFolder.path;
+      const filesResult = await dropboxServices.fetchFilesMetadataFromFolder({
+        path: folderPath,
+        accessToken: this.accessToken,
+        namespaceId: this.userAccount?.namespaceId,
+      });
+      filesResult.forEach((entry) => targetFiles.push(entry));
+    }
+    return targetFiles;
   }
 
   // LIST
@@ -110,19 +141,30 @@ export default class DropboxRemote {
   // DOWNLOAD FILE
 
   async downloadFile(path) {
-    const blob = await fetchFileDropboxService({
+    const file = await dropboxServices.downloadFile({
       path,
       accessToken: this.accessToken,
+      namespaceId: this.userAccount?.namespaceId,
     });
-    return blob;
+    return file;
+  }
+
+  async downloadZipFolder(path) {
+    const zip = await dropboxServices.downloadZipFolder({
+      path,
+      accessToken: this.accessToken,
+      namespaceId: this.userAccount?.namespaceId,
+    });
+    return zip;
   }
 
   // DOWNLOAD FILES FROM FOLDER
 
   async downloadFilesFromFolder(path) {
-    const zip = downloadZipFolderDropboxService({
+    const zip = await dropboxServices.downloadZipFolder({
       path,
       accessToken: this.accessToken,
+      namespaceId: this.userAccount?.namespaceId,
     });
     const files = await unzipFilesAsync(zip);
     return files;

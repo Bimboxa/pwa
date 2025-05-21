@@ -1,12 +1,14 @@
 import {useState, useEffect} from "react";
 import useRemoteToken from "./useRemoteToken";
 import useRemoteContainer from "./useRemoteContainer";
+import useRemoteProvider from "./useRemoteProvider";
 
 import fetchRemoteProjectScopesService from "../services/fetchRemoteProjectScopesService";
 
 export default function useInitFetchRemoteProjectScopes({projectClientRef}) {
   const {value: accessToken} = useRemoteToken();
   const remoteContainer = useRemoteContainer();
+  const remoteProvider = useRemoteProvider();
 
   const [scopes, setScopes] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -15,7 +17,7 @@ export default function useInitFetchRemoteProjectScopes({projectClientRef}) {
     try {
       setLoading(true);
       const scopes = await fetchRemoteProjectScopesService({
-        accessToken,
+        remoteProvider,
         remoteContainer,
         projectClientRef,
       });
@@ -28,10 +30,10 @@ export default function useInitFetchRemoteProjectScopes({projectClientRef}) {
 
   useEffect(() => {
     console.log("[EFFECT] useInitFetchRemote");
-    if (accessToken) {
+    if (Boolean(remoteProvider)) {
       fetchAsync();
     }
-  }, [accessToken]);
+  }, [Boolean(remoteProvider)]);
 
   return {loading, value: scopes};
 }

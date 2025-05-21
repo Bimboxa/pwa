@@ -8,6 +8,7 @@ import {Circle} from "@mui/icons-material";
 import getRemoteItemWebUrlFromMetadata from "../services/getRemoteItemWebUrlFromMetadata";
 
 import DialogFixRemoteContainerPath from "./DialogFixRemoteContainerPath";
+import useRemoteContainer from "../hooks/useRemoteContainer";
 
 export default function LinkRemoteItem({label, path, variant, color}) {
   const [loading, setLoading] = useState(false);
@@ -17,6 +18,7 @@ export default function LinkRemoteItem({label, path, variant, color}) {
   // data
 
   const fetchRemoteItemMetadata = useFetchRemoteItemMetadata();
+  const remoteContainer = useRemoteContainer();
 
   // state
 
@@ -29,8 +31,8 @@ export default function LinkRemoteItem({label, path, variant, color}) {
   // helper - webUrl
 
   const webUrl = getRemoteItemWebUrlFromMetadata(
-    metadata?.value,
-    metadata?.service
+    metadata,
+    remoteContainer?.service
   );
 
   // helpers - func
@@ -42,7 +44,7 @@ export default function LinkRemoteItem({label, path, variant, color}) {
     try {
       const metadata = await fetchRemoteItemMetadata(path);
       console.log("fetch metadata", metadata);
-      setMetadata(metadata?.value);
+      setMetadata(metadata);
     } catch (error) {
       console.log(error);
     } finally {
@@ -53,11 +55,13 @@ export default function LinkRemoteItem({label, path, variant, color}) {
 
   // effect
 
+  const exists = Boolean(fetchRemoteItemMetadata);
+
   useEffect(() => {
-    if (path && fetchRemoteItemMetadata) {
+    if (path && exists) {
       fetchMetadata();
     }
-  }, [path]);
+  }, [path, exists]);
 
   // handlers
 

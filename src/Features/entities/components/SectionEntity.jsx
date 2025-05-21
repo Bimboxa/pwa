@@ -59,9 +59,11 @@ export default function SectionEntity() {
         minHeight: 0,
       }}
     >
-      <Typography sx={{p: 1}} variant="caption" color="text.secondary" noWrap>
-        {caption}
-      </Typography>
+      {entity?.createdBy && (
+        <Typography sx={{p: 1}} variant="caption" color="text.secondary" noWrap>
+          {caption}
+        </Typography>
+      )}
       <Box
         sx={{
           flexGrow: 1,
