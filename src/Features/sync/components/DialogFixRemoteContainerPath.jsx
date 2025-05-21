@@ -26,7 +26,7 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
 
   // strings
 
-  const selectS = "Sélectionnez le fichier _data/_openedProjects.json";
+  const selectS = "Sélection automatique de _data/_openedProjects.json";
   const updateS = "Mettre à jour le chemin d'accès";
 
   // data
@@ -72,7 +72,10 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
   // helpers
 
   const title = `Connexion ${remoteContainer?.service ?? "-?-"}`;
-  const disabled = rcPath?.length > 0 && rcPath === remoteContainer?.path;
+
+  const disabled =
+    (rcPath?.length > 4 && rcPath === remoteContainer?.path) ||
+    rcPath?.length < 4;
 
   // helper - fetch fileMetadata
 
@@ -91,29 +94,6 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
     }
   }
   // handlers
-
-  async function handleSelectedFiles(files) {
-    try {
-      console.log("files", files);
-      const link = files[0].link;
-
-      const remoteProvider = new RemoteProvider({
-        accessToken,
-        provider: remoteContainer.service,
-      });
-
-      const metadata = await remoteProvider.fetchSharedFileMetadata(link);
-      console.log("debug_1905 metadata", metadata);
-
-      if (metadata?.id) setApiIsOk(true);
-
-      console.log("debug_1905 metadata.path_lower", metadata.path_lower);
-      setSharedFileId(metadata.path_lower);
-      setPathLower(metadata.path_lower);
-    } catch (e) {
-      console.log("debug_1905 error selecting files", e, files);
-    }
-  }
 
   function handleUpdate() {
     setRemoteContainerPathInLocalStorage(rcPath);
@@ -143,7 +123,7 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
           }}
         >
           <Typography variant="body2">{selectS}</Typography>
-          <DropboxChooserButton onSelectedFiles={handleSelectedFiles} />
+
           <Box sx={{p: 2}}>
             <Typography variant="body2" color="text.secondary">
               Configuration
@@ -166,7 +146,7 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
       </Box>
 
       <Box sx={{p: 1, mt: 1}}>
-        <ButtonInPanelListFolderItems path={""} />
+        {/* <ButtonInPanelListFolderItems path={""} /> */}
         {/* <ButtonInPanelGetUserAccount /> */}
       </Box>
 
