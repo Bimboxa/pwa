@@ -15,12 +15,12 @@ export default function resolveAppConfig(appConfig, options) {
 
   // hardcoded fields for debug mode
 
-  if (options?.debug) {
-    newAppConfig.remoteContainer = {
-      ...newAppConfig.remoteContainer,
-      path: "/0. DONNEES BIMBOXA",
-    };
-  }
+  // if (options?.debug) {
+  //   newAppConfig.remoteContainer = {
+  //     ...newAppConfig.remoteContainer,
+  //     path: "/0. DONNEES BIMBOXA",
+  //   };
+  // }
 
   // path
   const remoteContainerPath = getRemoteContainerPathFromLocalStorage();
