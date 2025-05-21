@@ -15,6 +15,7 @@ export default async function uploadSyncFile({
   syncFile,
   context,
 }) {
+  console.log("[uploadSyncFile] syncFile", syncFile);
   const syncFileType = syncFile?.syncFileType;
   const filePath = syncFile?.path;
 

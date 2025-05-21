@@ -129,7 +129,8 @@ const serviceFactory = (serviceProps) => {
           }),
           ...(props.headers ?? {}),
         },
-        body: JSON.stringify(props.body),
+        body:
+          props.body instanceof Blob ? props.body : JSON.stringify(props.body),
       });
 
       if (!response.ok) {

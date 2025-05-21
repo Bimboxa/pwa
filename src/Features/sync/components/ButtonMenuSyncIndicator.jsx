@@ -18,14 +18,9 @@ import useUploadChanges from "../hooks/useUploadChanges";
 export default function ButtonMenuSyncIndicator() {
   const dispatch = useDispatch();
 
-  // strings
-
-  const dialogTitle = "Sync";
-
   // data
 
   const isSignedIn = useIsSignedIn();
-  const open = useSelector((s) => s.sync.openPanelSync);
   const remoteContainer = useRemoteContainer();
   const syncFilesToPush = useSyncFilesToPush();
 

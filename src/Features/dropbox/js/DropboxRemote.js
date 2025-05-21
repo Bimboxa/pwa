@@ -52,7 +52,7 @@ export default class DropboxRemote {
       path,
       file,
       accessToken: this.accessToken,
-      namespaceId: this.namespaceId,
+      namespaceId: this.userAccount?.namespaceId,
       clientModifiedAt,
     });
   }
