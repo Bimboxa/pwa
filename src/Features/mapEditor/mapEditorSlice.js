@@ -1,6 +1,10 @@
 import {createSlice} from "@reduxjs/toolkit";
 
 const mapEditorInitialState = {
+  // selector
+  selectedMapsListingId: null,
+
+  // main map
   loadedMainMapId: null,
   //
   showShapes: true,
@@ -12,6 +16,9 @@ export const mapEditorSlice = createSlice({
   name: "mapEditors",
   initialState: mapEditorInitialState,
   reducers: {
+    setSelectedMapsListingId: (state, action) => {
+      state.selectedMapsListingId = action.payload;
+    },
     setLoadedMainMapId: (state, action) => {
       state.loadedMainMapId = action.payload;
     },
@@ -32,6 +39,7 @@ export const mapEditorSlice = createSlice({
 });
 
 export const {
+  setSelectedMapsListingId,
   setLoadedMainMapId,
   setShowShapes,
   setEnabledDrawingMode,

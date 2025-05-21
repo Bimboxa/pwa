@@ -73,12 +73,14 @@ export default function SectionEntity() {
           overflow: "auto",
         }}
       >
-        <FormEntity
-          template={template}
-          entity={entity}
-          onEntityChange={handleEntityChange}
-          selectorContainerRef={selectorContainerRef}
-        />
+        <Box sx={{bgcolor: "white"}}>
+          <FormEntity
+            template={template}
+            entity={entity}
+            onEntityChange={handleEntityChange}
+            selectorContainerRef={selectorContainerRef}
+          />
+        </Box>
       </Box>
 
       <BlockBottomActionsInListPanel onSaved={handleSaved} />

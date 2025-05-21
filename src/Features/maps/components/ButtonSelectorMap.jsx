@@ -61,14 +61,17 @@ export default function ButtonSelectorMap() {
           <Typography variant="body2">{buttonLabel}</Typography>
         </Box>
       </Button>
-      <DialogGeneric open={open} onClose={() => setOpen(false)} title={selectS}>
-        <Box>
-          <DropboxChooserButton />
-          <PanelSelectorMap
-            selection={loadedMainMap?.id}
-            onSelectionChange={handleMapSelectionChange}
-          />
-        </Box>
+      <DialogGeneric
+        open={open}
+        onClose={() => setOpen(false)}
+        title={selectS}
+        vh={70}
+        vw={50}
+      >
+        <PanelSelectorMap
+          selection={loadedMainMap?.id}
+          onSelectionChange={handleMapSelectionChange}
+        />
       </DialogGeneric>
     </Box>
   );

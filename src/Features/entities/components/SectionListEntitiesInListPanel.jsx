@@ -11,6 +11,8 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 import {setOpenPanelListItem} from "Features/listPanel/listPanelSlice";
 
+import {setSelectedMapId} from "Features/maps/mapsSlice";
+
 export default function SectionListEntitiesInListPanel() {
   const dispatch = useDispatch();
 
@@ -45,6 +47,12 @@ export default function SectionListEntitiesInListPanel() {
       id = entity.id;
       dispatch(setOpenPanelListItem(true));
     }
+
+    if (entity.entityModelType === "MAP" && id) {
+      console.log("debug_2105 select map", entity);
+      dispatch(setSelectedMapId(entity.id));
+    }
+
     dispatch(setSelectedEntityId(id));
   }
 

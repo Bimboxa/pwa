@@ -46,6 +46,7 @@ export default function useEntities(options) {
   let labelKeyByListingId = {};
   let subLabelKeyByListingId = {};
   let listingKeyByListingId = {};
+  let entityModelTypeByListingId = {};
 
   if (!loadingList) {
     const allListings = [...(listings ?? []), selectedListing];
@@ -53,21 +54,27 @@ export default function useEntities(options) {
       if (listing?.id) {
         acc[listing.id] = listing.entityModel?.subLabelKey;
       }
-
       return acc;
     }, {});
+
     labelKeyByListingId = allListings.reduce((acc, listing) => {
       if (listing?.id) {
         acc[listing.id] = listing.entityModel?.labelKey;
       }
-
       return acc;
     }, {});
+
     listingKeyByListingId = allListings.reduce((acc, listing) => {
       if (listing?.id) {
         acc[listing.id] = listing.key;
       }
+      return acc;
+    }, {});
 
+    entityModelTypeByListingId = allListings.reduce((acc, listing) => {
+      if (listing?.id) {
+        acc[listing.id] = listing.entityModel.type;
+      }
       return acc;
     }, {});
   }
@@ -165,7 +172,8 @@ export default function useEntities(options) {
         const label = entity[labelKey];
         const subLabel = entity[subLabelKey];
         const listingKey = listingKeyByListingId[entity.listingId];
-        return {...entity, label, subLabel, listingKey};
+        const entityModelType = entityModelTypeByListingId[entity.listingId];
+        return {...entity, label, subLabel, listingKey, entityModelType};
       });
       // end
       setLoading(false);
