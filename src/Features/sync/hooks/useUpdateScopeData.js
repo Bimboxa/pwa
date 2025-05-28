@@ -16,7 +16,7 @@ import syncConfig from "../syncConfig";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import computeSyncConfig from "../utils/computeSyncConfig";
 
-export default function useDownloadScopeData() {
+export default function useUpdateScopeData() {
   const dispatch = useDispatch();
 
   // data
@@ -33,15 +33,15 @@ export default function useDownloadScopeData() {
   // const
 
   const syncScope = {
-    SCOPE: {direction: "PULL"},
-    LISTINGS: {direction: "PULL", listings},
-    ENTITIES: {direction: "PULL", listings},
-    FILES: {direction: "PULL", listings, fileTypes: ["IMAGE"]},
+    SCOPE: {direction: "BOTH", listings},
+    LISTINGS: {direction: "BOTH", listings},
+    ENTITIES: {direction: "BOTH", listings},
+    FILES: {direction: "BOTH", listings, fileTypes: ["IMAGE"]},
   };
 
   // handlers
 
-  const downloadData = async () => {
+  const updateData = async () => {
     // context
     const context = {
       remoteContainer,
@@ -50,18 +50,16 @@ export default function useDownloadScopeData() {
       listings,
     };
     const syncConfig = computeSyncConfig(syncScope);
-    console.log("sync config", syncConfig);
     // options
     const options = {
       context,
       remoteProvider,
       syncConfig,
-      //syncConfig: overrideSyncConfig(syncConfig, fileList),
       dispatch,
-      //debug: true,
+      debug: true,
     };
 
     await syncService(options);
   };
-  return downloadData;
+  return updateData;
 }

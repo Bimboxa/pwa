@@ -15,7 +15,7 @@ export default function CardUploadScope() {
 
   // helpers
 
-  const title = "Enregistrer tout le project";
+  const title = "⬆️ Sauvegarder tout le project";
 
   const description =
     "Synchroniser toutes les données locales. Toutes les données de la mission seront enregistrées";

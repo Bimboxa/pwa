@@ -28,11 +28,15 @@ export default class MapEditor {
     this.layerShapes = new Konva.Layer();
     this.layerMarkers = new Konva.Layer();
     this.layerEditedShape = new Konva.Layer();
+    this.layerFreeline = new Konva.Layer();
 
     this.stage.add(this.layerImages);
     this.stage.add(this.layerShapes);
     this.stage.add(this.layerMarkers);
     this.stage.add(this.layerEditedShape);
+    this.stage.add(this.layerFreeline);
+
+    this.layerFreeline.setZIndex(10);
 
     this.imagesManager = new ImagesManager({
       mapEditor: this,

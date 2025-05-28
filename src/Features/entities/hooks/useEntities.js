@@ -73,7 +73,7 @@ export default function useEntities(options) {
 
     entityModelTypeByListingId = allListings.reduce((acc, listing) => {
       if (listing?.id) {
-        acc[listing.id] = listing.entityModel.type;
+        acc[listing.id] = listing.entityModel?.type;
       }
       return acc;
     }, {});
@@ -105,18 +105,22 @@ export default function useEntities(options) {
 
       if (listingsIds.length > 1) {
         const table = selectedListing?.table;
-        entities = await db[table]
-          .where("listingId")
-          .anyOf(listingsIds)
-          .toArray();
+        if (table) {
+          entities = await db[table]
+            .where("listingId")
+            .anyOf(listingsIds)
+            .toArray();
+        }
       } else if (listingsIds.length === 1) {
         const _listingId = listingsIds[0];
         const listing = listings.find((l) => l.id === _listingId);
         const table = listing?.table;
-        entities = await db[table]
-          .where("listingId")
-          .equals(listingsIds[0])
-          .toArray();
+        if (table) {
+          entities = await db[table]
+            .where("listingId")
+            .equals(listingsIds[0])
+            .toArray();
+        }
       }
 
       entities = entities.filter(Boolean);

@@ -24,6 +24,7 @@ export default function SectionSyncTasks() {
   // strings
 
   const noTaskS = "Tout est à jour";
+  const prepareS = "Calcul des mises à jour";
 
   // state
 
@@ -54,7 +55,16 @@ export default function SectionSyncTasks() {
 
   return (
     <Box sx={{flexGrow: 1, display: "flex", flexDirection: "column"}}>
-      {preparing && <LinearProgress sx={{minWidth: 300}} />}
+      {preparing && (
+        <BoxFlexVStretch>
+          <LinearProgress sx={{minWidth: 300}} />
+          <BoxFlexVStretch>
+            <BoxCenter>
+              <Typography>{prepareS}</Typography>
+            </BoxCenter>
+          </BoxFlexVStretch>
+        </BoxFlexVStretch>
+      )}
       {!preparing && noTasks && (
         <Box sx={{p: 1}}>
           <Typography>{noTaskS}</Typography>

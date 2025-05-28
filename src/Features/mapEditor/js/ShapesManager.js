@@ -1,4 +1,5 @@
 import LineDrawer from "./LineDrawer";
+import FreelineDrawer from "./FreelineDrawer";
 
 import store from "App/store";
 import {setSelectedShapeId} from "Features/shapes/shapesSlice";
@@ -13,6 +14,7 @@ export default class ShapesManager {
     this.onMapEditorIsReady = onMapEditorIsReady;
 
     this.lineDrawer = new LineDrawer({mapEditor});
+    this.freelineDrawer = new FreelineDrawer({mapEditor});
 
     this.stage = null;
 
@@ -137,6 +139,8 @@ export default class ShapesManager {
       this.lineDrawer.startDrawing("POLYLINE", shapeProps);
     } else if (mode === "SEGMENT") {
       this.lineDrawer.startDrawing("SEGMENT", shapeProps);
+    } else if (mode === "FREELINE") {
+      this.freelineDrawer.startDrawing();
     }
   }
 

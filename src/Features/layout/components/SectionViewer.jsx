@@ -21,9 +21,9 @@ export default function SectionViewer() {
       <PanelShowable show={showMap} sx={{position: "absolute", zIndex: 0}}>
         <MainMapEditor />
       </PanelShowable>
-      {/* <PanelShowable show={showThreed} sx={{position: "absolute", zIndex: 0}}>
+      <PanelShowable show={showThreed} sx={{position: "absolute", zIndex: 0}}>
         <MainThreedEditor />
-      </PanelShowable> */}
+      </PanelShowable>
       <PanelShowable show={showLeaflet} sx={{position: "absolute", zIndex: 0}}>
         <MainLeafletEditor />
       </PanelShowable>
