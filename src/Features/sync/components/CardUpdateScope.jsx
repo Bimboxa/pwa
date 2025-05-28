@@ -2,26 +2,26 @@ import {useDispatch} from "react-redux";
 
 import {setOpenPanelSync} from "../syncSlice";
 
-import useDownloadScopeData from "../hooks/useDownloadScopeData";
+import useUpdateScopeData from "../hooks/useUpdateScopeData";
 import useRemoteContainer from "../hooks/useRemoteContainer";
 
 import CardGeneric from "Features/layout/components/CardGeneric";
 
-export default function CardDownloadScope() {
+export default function CardUpdateScope() {
   const dispatch = useDispatch();
 
   // data
 
-  const downloadData = useDownloadScopeData();
+  const downloadData = useUpdateScopeData();
   const remoteContainer = useRemoteContainer();
 
   // helpers
 
-  const title = "⬇️ Réinitialiser la mission";
+  const title = "🔄 Mettre à jour la mission";
 
-  const description = `La mission sera réinitialiser à partir des données présente sur ${remoteContainer?.service}`;
+  const description = `Mise à jour à partir des données présentes sur ${remoteContainer?.service}`;
 
-  const buttonLabel = "Réinitialiser";
+  const buttonLabel = "Mettre à jour";
 
   // handlers
 

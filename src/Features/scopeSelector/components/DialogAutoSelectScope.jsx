@@ -50,7 +50,7 @@ export default function DialogAutoSelectScope() {
       open={open}
       onClose={handleClose}
       //title={title}
-      vh={50}
+      vh={70}
       vw={30}
     >
       {containerEl && <ScopeSelectorV2 containerEl={containerEl} />}

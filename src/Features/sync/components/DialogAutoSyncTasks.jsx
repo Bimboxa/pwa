@@ -32,7 +32,13 @@ export default function DialogAutoSyncTasks() {
   );
 
   return (
-    <DialogGeneric open={open} onClose={handleClose} title={title}>
+    <DialogGeneric
+      open={open}
+      onClose={handleClose}
+      title={title}
+      vh="70"
+      vw="30"
+    >
       {syncing && <SectionSyncTasks />}
       {!syncing && <SectionSyncFilesToPush />}
     </DialogGeneric>

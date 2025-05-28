@@ -6,7 +6,7 @@ import {triggerMapsUpdate, updateMap} from "Features/maps/mapsSlice";
 
 import useLoadedMainMap from "../hooks/useLoadedMainMap";
 
-import {Paper, TextField, Button} from "@mui/material";
+import {Paper, TextField, Button, Typography} from "@mui/material";
 import {setAnchorPositionScale} from "../mapEditorSlice";
 
 export default function SectionEditScale() {
@@ -69,8 +69,13 @@ export default function SectionEditScale() {
         onChange={handleChange}
         label={label}
       />
-      <Button disabled={disabled} onClick={handleSave} sx={{ml: 2}}>
-        {saveS}
+      <Button
+        disabled={disabled}
+        onClick={handleSave}
+        sx={{ml: 2}}
+        variant="contained"
+      >
+        <Typography>{saveS}</Typography>
       </Button>
     </Paper>
   );
