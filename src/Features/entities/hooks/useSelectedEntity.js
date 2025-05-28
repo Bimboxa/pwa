@@ -40,7 +40,6 @@ export default function useSelectedEntity(options) {
           entriesWithImages.map(async ([key, value]) => {
             const file = await db.files.get(value.fileName);
             if (file && file.file) {
-              console.log("debug_2804_2 file from files db", file);
               entityWithImages[key] = {
                 ...value,
                 file,

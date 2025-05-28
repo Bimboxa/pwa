@@ -11,9 +11,9 @@ export default function useUpdateEntity() {
   const {value: userEmail} = useUserEmail();
   const {value: listing} = useSelectedListing();
 
-  // helper
-
   const update = async (entityId, updates, options) => {
+    const table = listing?.table;
+
     let changes = {
       ...updates,
       updatedBy: userEmail,
@@ -55,7 +55,7 @@ export default function useUpdateEntity() {
     }
 
     try {
-      await db.entities.update(entityId, pureData);
+      await db[table]?.update(entityId, pureData);
 
       // sync file
       if (options?.updateSyncFile) {
