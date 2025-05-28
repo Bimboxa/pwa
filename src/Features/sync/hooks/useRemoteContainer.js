@@ -6,13 +6,16 @@ import {setRemoteContainer} from "../syncSlice";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function useRemoteContainer() {
+  // data
+  const appConfig = useAppConfig();
+  return appConfig?.remoteContainer;
+
   const dispatch = useDispatch();
 
   const remoteContainerInRedux = useSelector(
     (state) => state.sync.remoteContainer
   );
 
-  const appConfig = useAppConfig();
   const forceUpdateAt = useSelector((s) => s.appConfig.forceUpdateAt);
 
   // update remoteContainer if appConfig changes

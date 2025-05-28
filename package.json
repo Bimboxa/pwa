@@ -34,6 +34,7 @@
     "jszip": "^3.10.1",
     "konva": "^9.3.18",
     "leaflet": "^1.9.4",
+    "pdfjs-dist": "^5.2.133",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-color": "^2.19.3",
