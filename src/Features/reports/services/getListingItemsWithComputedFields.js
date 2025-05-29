@@ -9,7 +9,7 @@ export default async function getListingItemsWithComputedFields({
   const listingId = listing.id;
   const table = listing.table;
   const entityModel = listing.entityModel;
-  const listingItemsType = entityModel.type;
+  const listingItemsType = entityModel?.type;
 
   const customFields = {}; // TO CHANGE
 
