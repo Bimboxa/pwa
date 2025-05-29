@@ -10,6 +10,7 @@ import CardUploadScope from "Features/sync/components/CardUploadScope";
 import CardUploadChanges from "Features/sync/components/CardUploadChanges";
 import CardUpdateScope from "Features/sync/components/CardUpdateScope";
 import CardDownloadScope from "Features/sync/components/CardDownloadScope";
+import CardDeleteSyncFiles from "Features/sync/components/CardDeleteSyncFiles";
 
 export default function PanelSelectedScope({onMoreClick}) {
   // data
@@ -43,6 +44,7 @@ export default function PanelSelectedScope({onMoreClick}) {
       <CardUpdateScope />
       <CardUploadScope />
       <CardDownloadScope />
+      <CardDeleteSyncFiles />
     </Panel>
   );
 }

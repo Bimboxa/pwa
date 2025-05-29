@@ -1,7 +1,5 @@
 import {nanoid} from "@reduxjs/toolkit";
 
-import RemoteProvider from "Features/sync/js/RemoteProvider";
-
 import createSyncTaskLocalToRemoteFromItem from "Features/sync/utils/createSyncTaskLocalToRemoteFromItem";
 import syncTaskLocalToRemote from "Features/sync/services/syncTaskLocalToRemote";
 import getRemoteItemPath from "Features/sync/utils/getRemoteItemPath";
@@ -10,11 +8,13 @@ import jsonFileToObjectAsync from "Features/files/utils/jsonFileToObjectAsync";
 export default async function getRemoteProjectFromOpenedProjectService({
   openedProject,
   remoteProvider,
+  remoteContainer,
 }) {
   // data
   const {path} = await getRemoteItemPath({
     item: openedProject,
     type: "PROJECT",
+    remoteContainer,
   });
   const projectFile = await remoteProvider.downloadFile(path);
   const result = await jsonFileToObjectAsync(projectFile);
@@ -26,6 +26,7 @@ export default async function getRemoteProjectFromOpenedProjectService({
     const task = await createSyncTaskLocalToRemoteFromItem({
       item: project,
       type: "PROJECT",
+      remoteContainer,
     });
     await syncTaskLocalToRemote({task, remoteProvider});
     return project;

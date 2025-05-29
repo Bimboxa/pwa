@@ -55,8 +55,8 @@ export default function ButtonMenuSyncIndicator() {
 
   const handleClick = async () => {
     dispatch(setOpenPanelSync(true));
-    await onSave();
-    dispatch(setOpenPanelSync(false));
+    //await onSave();
+    //dispatch(setOpenPanelSync(false));
   };
 
   return (

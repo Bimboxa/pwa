@@ -1,6 +1,7 @@
 import {createSlice} from "@reduxjs/toolkit";
 
 import demoMap from "./data/demoMap";
+import setInitMapId from "Features/init/services/setInitMapId";
 
 const mapsInitialState = {
   //
@@ -16,7 +17,9 @@ export const mapsSlice = createSlice({
   initialState: mapsInitialState,
   reducers: {
     setSelectedMapId: (state, action) => {
+      const mapId = action.payload;
       state.selectedMapId = action.payload;
+      setInitMapId(mapId);
     },
     //
     triggerMapsUpdate: (state) => {

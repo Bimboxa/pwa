@@ -29,6 +29,14 @@ export default async function computeSyncTasksFromSyncFiles({
       const {getItemFromKey, getItemsFromKeys} = computeSyncFileGetItemsRules({
         syncFileType,
       });
+
+      //
+      console.log(
+        "debug_2805 getItemsFromKeys",
+        getItemsFromKeys,
+        syncFileType
+      );
+      //
       const {remoteFile, remoteFolder} = computeSyncFilePathTemplates({
         syncFileType,
         fileType,
@@ -55,63 +63,81 @@ export default async function computeSyncTasksFromSyncFiles({
         context
       );
 
-      console.log("dynamicVariables", dynamicVariables);
+      console.log(
+        "dynamicVariables",
+        path,
+        pathTemplate,
+        context,
+        dynamicVariables
+      );
 
-      // content
-      let content;
-      if (["PROJECT", "SCOPE", "LISTING"].includes(syncFileType)) {
-        content = "DATA";
-      } else if (["ENTITIES"].includes(syncFileType)) {
-        content = "ITEMS";
-      } else if (["FILE"].includes(syncFileType)) {
-        content = "FILE";
+      if (dynamicVariables) {
+        // content
+        let content;
+        if (["PROJECT", "SCOPE", "LISTING"].includes(syncFileType)) {
+          content = "DATA";
+        } else if (["ENTITIES"].includes(syncFileType)) {
+          content = "ITEMS";
+        } else if (["FILE"].includes(syncFileType)) {
+          content = "FILE";
+        }
+
+        // entries & entry
+
+        let entry;
+        let entries;
+
+        switch (content) {
+          case "DATA":
+            const itemKey = dynamicVariables[getItemFromKey];
+            entry = await db[table].get(itemKey);
+            break;
+
+          case "ITEMS":
+            const whereArg = `[${getItemsFromKeys.join("+")}]`;
+            const itemsKeys = getItemsFromKeys.map(
+              (key) => dynamicVariables[key]
+            );
+            console.log("debug_2805", table, whereArg, itemsKeys);
+            entries = await db[table]
+              .where(whereArg)
+              .equals(itemsKeys)
+              .toArray();
+            break;
+
+          case "FILE":
+            const fileName = dynamicVariables[getItemFromKey];
+            try {
+              entry = await db[table].get(dynamicVariables[getItemFromKey]);
+            } catch (e) {
+              console.error(
+                e,
+                table,
+                fileName,
+                getItemFromKey,
+                dynamicVariables
+              );
+            }
+            break;
+          default:
+            break;
+        }
+
+        // task
+
+        const newTask = {
+          id: `task_${id}`,
+          syncFileKey: syncFileType,
+          filePath: path,
+          action: "PUSH",
+          writeMode: "TABLE_ENTRY_TO_FILE",
+          entry,
+          entries,
+          updatedAtLocal: syncFile.updatedAt,
+        };
+        tasks.push(newTask);
+        id++;
       }
-
-      // entries & entry
-
-      let entry;
-      let entries;
-
-      switch (content) {
-        case "DATA":
-          const itemKey = dynamicVariables[getItemFromKey];
-          entry = await db[table].get(itemKey);
-          break;
-
-        case "ITEMS":
-          const whereArg = `[${getItemsFromKeys.join("+")}]`;
-          const itemsKeys = getItemsFromKeys.map(
-            (key) => dynamicVariables[key]
-          );
-          entries = await db[table].where(whereArg).equals(itemsKeys).toArray();
-          break;
-
-        case "FILE":
-          const fileName = dynamicVariables[getItemFromKey];
-          try {
-            entry = await db[table].get(dynamicVariables[getItemFromKey]);
-          } catch (e) {
-            console.error(e, table, fileName, getItemFromKey, dynamicVariables);
-          }
-          break;
-        default:
-          break;
-      }
-
-      // task
-
-      const newTask = {
-        id: `task_${id}`,
-        syncFileKey: syncFileType,
-        filePath: path,
-        action: "PUSH",
-        writeMode: "TABLE_ENTRY_TO_FILE",
-        entry,
-        entries,
-        updatedAtLocal: syncFile.updatedAt,
-      };
-      tasks.push(newTask);
-      id++;
     }
 
     // return

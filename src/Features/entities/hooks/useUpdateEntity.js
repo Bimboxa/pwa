@@ -67,7 +67,7 @@ export default function useUpdateEntity() {
         });
       }
     } catch (e) {
-      console.log("[db] error updating the entity", e);
+      console.error("[db] error updating the entity", e);
     }
   };
 

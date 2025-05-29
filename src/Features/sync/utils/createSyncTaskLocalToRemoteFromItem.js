@@ -3,10 +3,12 @@ import getRemoteItemPath from "./getRemoteItemPath";
 export default async function createSyncTaskLocalToRemoteFromItem({
   item,
   type,
+  remoteContainer,
 }) {
   const {path} = await getRemoteItemPath({
     item,
     type,
+    remoteContainer,
   });
 
   switch (type) {

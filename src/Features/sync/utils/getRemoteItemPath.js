@@ -1,11 +1,9 @@
-import store from "App/store";
 import db from "App/db/db";
 
-import {syncFileByItemType} from "../syncConfig";
 import {resolveFilePath} from "./resolversPath";
 import computeSyncFilePathTemplates from "./computeSyncFilePathTemplates";
 
-export default async function getRemoteItemPath({type, item}) {
+export default async function getRemoteItemPath({type, item, remoteContainer}) {
   const syncFileTypeByType = {
     PROJECT: "PROJECT",
     SCOPE: "SCOPE",
@@ -23,7 +21,6 @@ export default async function getRemoteItemPath({type, item}) {
     const folderTemplate = templates.remoteFolder;
     const fileTemplate = templates.remoteFile;
 
-    const remoteContainer = store.getState().sync.remoteContainer;
     //const projectsById = store.getState().projects.projectsById;
     //const listingsById = store.getState().listings.listingsById;
 

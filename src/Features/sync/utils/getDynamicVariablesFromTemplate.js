@@ -24,6 +24,9 @@ export default function getDynamicVariablesFromTemplate(
     }
   });
 
+  // debug
+  console.log("[getDynamicVariables]", keys, str, template, context);
+
   // Étape 2 : transformer le template avec {{key}} en RegExp
   const regexPattern = resolvedTemplate.replace(/{{(.*?)}}/g, (_, key) => {
     return `(?<${key}>[^/]+)`;
@@ -32,13 +35,14 @@ export default function getDynamicVariablesFromTemplate(
   const regex = new RegExp(`^${regexPattern}$`);
   const match = str.match(regex);
 
-  if (!match?.groups) return {};
+  if (!match?.groups) return null;
 
   // Étape 3 : convertir les résultats en valeurs typées simples
   const result = {};
   for (const key of keys) {
     const raw = match.groups[key];
-    result[key] = isNaN(raw) ? raw : Number(raw);
+    //result[key] = isNaN(raw) ? raw : Number(raw);
+    result[key] = raw;
   }
 
   return result;

@@ -5,6 +5,7 @@ import useProjects from "Features/projects/hooks/useProjects";
 import useInitFetchRemoteOpenedProjects from "Features/sync/hooks/useInitFetchRemoteOpenedProjects";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useRemoteProvider from "Features/sync/hooks/useRemoteProvider";
+import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 
 import ItemsList from "Features/itemsList/components/ItemsList";
 import SectionCreateProject from "Features/projects/components/SectionCreateProject";
@@ -16,6 +17,7 @@ export default function PanelSelectProject({containerEl, onClose, onSelect}) {
   // data
 
   const remoteProvider = useRemoteProvider();
+  const remoteContainer = useRemoteContainer();
 
   const {value: projects} = useProjects();
   const appConfig = useAppConfig();
@@ -73,6 +75,7 @@ export default function PanelSelectProject({containerEl, onClose, onSelect}) {
       project = await getRemoteProjectFromOpenedProjectService({
         openedProject: item,
         remoteProvider,
+        remoteContainer,
       });
       setSyncing(false);
     } else if (options?.fromCreation) {

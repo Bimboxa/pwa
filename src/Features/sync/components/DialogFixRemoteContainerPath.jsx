@@ -154,6 +154,7 @@ export default function DialogFixRemoteContainerPath({open, onClose}) {
         {tests.map((test) => {
           return (
             <Typography
+              key={test.value}
               variant="body2"
               color={test.value ? "success" : "text.secondary"}
             >

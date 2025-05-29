@@ -51,6 +51,7 @@ export default function useSelectRemoteScope() {
         const {path} = await getRemoteItemPath({
           item: remoteProject,
           type: "PROJECT",
+          remoteContainer,
         });
         const projectFile = await remoteProvider.downloadFile(path);
         const result = await jsonFileToObjectAsync(projectFile);
