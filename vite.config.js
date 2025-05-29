@@ -13,6 +13,7 @@ export default defineConfig({
       workbox: {
         clientsClaim: true,
         skipWaiting: true,
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
       includeAssets: [
         "favicon.svg",
@@ -58,6 +59,5 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
-    chunkSizeWarningLimit: 3000,
   },
 });
