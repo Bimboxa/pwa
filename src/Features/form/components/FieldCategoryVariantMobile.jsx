@@ -23,7 +23,7 @@ export default function FieldCategoryVariantGrid({
 }) {
   // helpers
 
-  const items = nomenclature?.items || [];
+  const items = nomenclature?.value || [];
 
   // state
 
