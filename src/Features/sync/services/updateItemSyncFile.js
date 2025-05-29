@@ -1,6 +1,6 @@
 import getRemoteItemPath from "Features/sync/utils/getRemoteItemPath";
 import updateSyncFile from "Features/sync/services/updateSyncFile";
-
+import store from "App/store";
 export default async function updateItemSyncFile({
   item,
   type,
@@ -8,10 +8,16 @@ export default async function updateItemSyncFile({
   syncAt,
 }) {
   try {
-    const {path} = await getRemoteItemPath({
+    const remoteContainer = store.getState().appConfig.value.remoteContainer;
+    const itemPath = await getRemoteItemPath({
       type,
       item,
+      remoteContainer,
     });
+
+    const path = itemPath?.path;
+
+    if (!path) return;
 
     const syncFileTypeByType = {
       PROJECT: "PROJECT",

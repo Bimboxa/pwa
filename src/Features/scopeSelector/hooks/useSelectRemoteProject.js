@@ -2,6 +2,7 @@ import {useDispatch, useSelector} from "react-redux";
 
 import useCreateProject from "Features/projects/hooks/useCreateProject";
 import useRemoteProvider from "Features/sync/hooks/useRemoteProvider";
+import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 
 import {setSelectedProjectId} from "Features/projects/projectsSlice";
 
@@ -16,6 +17,7 @@ export default function useSelectRemoteProject() {
 
   const remoteProject = useSelector((s) => s.scopeSelector.remoteProject);
   const remoteProvider = useRemoteProvider();
+  const remoteContainer = useRemoteContainer();
 
   // data - func
 
@@ -36,6 +38,7 @@ export default function useSelectRemoteProject() {
         const {path} = await getRemoteItemPath({
           item: remoteProject,
           type: "PROJECT",
+          remoteContainer,
         });
         const projectFile = await remoteProvider.downloadFile(path);
         const result = await jsonFileToObjectAsync(projectFile);

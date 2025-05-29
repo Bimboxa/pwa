@@ -22,6 +22,7 @@ export default function useCreateRemoteProject() {
     const task = await createSyncTaskLocalToRemoteFromItem({
       item: project,
       type: "PROJECT",
+      remoteContainer,
     });
     await syncTaskLocalToRemote({task, remoteProvider});
   };

@@ -29,16 +29,16 @@ export default function SectionSyncFilesToPush() {
 
   const isUpToDate = syncFilesToPush?.length === 0;
 
-  // helpers - func
-
-  const uploadChangesAsync = async () => {
-    const syncScope = await computeSyncScopeFromSyncFiles(syncFilesToPush);
-    uploadChanges(syncScope);
-  };
   // handlers
 
   async function handleClick() {
-    uploadChangesAsync();
+    try {
+      await uploadChanges();
+      //dispatch(setOpenPanelSync(false));
+    } catch (e) {
+      console.log("error", e);
+      dispatch(setOpenPanelSync(false));
+    }
   }
 
   return (

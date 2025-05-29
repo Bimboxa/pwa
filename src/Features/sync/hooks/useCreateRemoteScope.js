@@ -22,6 +22,7 @@ export default function useCreateRemoteScope() {
     const task = await createSyncTaskLocalToRemoteFromItem({
       item: scope,
       type: "SCOPE",
+      remoteContainer,
     });
     console.log("[createRemoteScope] syncTaskLocalToRemote", task);
     await syncTaskLocalToRemote({task, remoteProvider});

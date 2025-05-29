@@ -4,6 +4,7 @@ import useInitAppConfig from "Features/appConfig/hooks/useInitAppConfig";
 
 import useInitSelectProject from "Features/projects/hooks/useInitSelectProject";
 import useInitSelectScope from "Features/scopes/hooks/useInitSelectScope";
+import useInitSelectMap from "Features/maps/hooks/useInitSelectMap";
 
 import useInitRemoteContainer from "Features/sync/hooks/useInitRemoteContainer";
 
@@ -27,6 +28,7 @@ export default function useInit() {
 
   useInitSelectProject();
   useInitSelectScope();
+  useInitSelectMap();
 
   useInitRemoteContainer();
   useInitRcUserAccount();
