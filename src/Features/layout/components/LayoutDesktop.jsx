@@ -40,6 +40,7 @@ export default function LayoutDesktop() {
       <Box
         sx={{
           position: "absolute",
+
           top,
           bottom: 0,
           left: 0,

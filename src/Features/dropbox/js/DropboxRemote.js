@@ -45,8 +45,9 @@ export default class DropboxRemote {
   // POST FILE
 
   async postFile({path, file, updatedAt}) {
-    const clientModifiedAt =
-      getDateString(updatedAt) ?? getDateString(file.lastModified);
+    const clientModifiedAt = updatedAt
+      ? getDateString(updatedAt)
+      : getDateString(file.lastModified);
     console.log("[DROPBOX] postFile", file, clientModifiedAt);
     return await dropboxServices.postFile({
       path,
@@ -116,15 +117,18 @@ export default class DropboxRemote {
     });
     const targetFiles = [];
 
-    for (const targetFolder of targetFolders) {
-      const folderPath = targetFolder.path;
-      const filesResult = await dropboxServices.fetchFilesMetadataFromFolder({
-        path: folderPath,
-        accessToken: this.accessToken,
-        namespaceId: this.userAccount?.namespaceId,
-      });
-      filesResult.forEach((entry) => targetFiles.push(entry));
+    if (targetFolders) {
+      for (const targetFolder of targetFolders) {
+        const folderPath = targetFolder.path;
+        const filesResult = await dropboxServices.fetchFilesMetadataFromFolder({
+          path: folderPath,
+          accessToken: this.accessToken,
+          namespaceId: this.userAccount?.namespaceId,
+        });
+        filesResult.forEach((entry) => targetFiles.push(entry));
+      }
     }
+
     return targetFiles;
   }
 

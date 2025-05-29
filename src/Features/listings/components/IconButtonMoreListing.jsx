@@ -21,6 +21,7 @@ import {update} from "firebase/database";
 import useSyncListingData from "Features/sync/hooks/useSyncListingData";
 import {setOpenPanelSync} from "Features/sync/syncSlice";
 import deleteListingDataInDb from "../services/deleteListingDataInDb";
+import {setOpen} from "Features/listPanel/listPanelSlice";
 
 export default function IconButtonMoreListing() {
   const dispatch = useDispatch();
@@ -112,7 +113,10 @@ export default function IconButtonMoreListing() {
       <DialogDeleteRessource
         open={openDelete}
         onClose={() => setOpenDelete(false)}
-        onConfirmAsync={() => deleteListing(listingId)}
+        onConfirmAsync={async () => {
+          await deleteListing(listingId, {forceLocalToRemote: true});
+          setOpenDelete(false);
+        }}
       />
 
       <DialogGenericRename

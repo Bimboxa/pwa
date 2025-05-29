@@ -6,55 +6,16 @@ import useNomenclaturesByKey from "Features/nomenclatures/hooks/useNomenclatures
 
 import getEntityModelTemplate from "Features/form/utils/getEntityModelTemplate";
 import getListingRelatedEntitiesListingsIds from "Features/listings/utils/getListingRelatedEntitiesListingsIds";
+import getListingEntityModelTemplate from "Features/form/utils/getListingEntityModelTemplate";
+import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
 export default function useEntityFormTemplate() {
   // data
 
-  const {value: listing} = useSelectedListing();
-  const entityModel = useListingEntityModel(listing);
-  const _nomenclaturesByKey = useNomenclaturesByKey();
+  const {value: listing} = useSelectedListing({withEntityModel: true});
+  const {value: listings} = useListingsByScope();
 
-  // helpers - listing relationKeys
-
-  const relatedListingsIds = getListingRelatedEntitiesListingsIds(listing);
-
-  // data - related entities
-
-  const {value: zonesTree} = useZonesTree();
-  const {value: relEntities} = useEntities({
-    filterByListingsIds: relatedListingsIds,
-  });
-
-  // helpers - entitiesByRelationKey
-
-  const entitiesByRelationKey = {};
-
-  Object.entries(listing?.relatedEntities ?? {}).forEach(([key, value]) => {
-    const {listingsIds} = value;
-    const entities = relEntities?.filter((entity) => {
-      return listingsIds.includes(entity.listingId);
-    });
-    entitiesByRelationKey[key] = entities;
-  });
-
-  // helpers - nomenclaturesByKey
-
-  const nomenclaturesByKey = {};
-
-  Object.entries(listing?.relatedNomenclatures ?? {}).forEach(
-    ([key, targetKey]) => {
-      const nomenclature = _nomenclaturesByKey?.[targetKey];
-      if (nomenclature) nomenclaturesByKey[key] = nomenclature;
-    }
-  );
-
-  // helpers - template
-
-  const template = getEntityModelTemplate(entityModel, {
-    zonesTree,
-    entitiesByRelationKey,
-    nomenclaturesByKey,
-  });
+  const template = getListingEntityModelTemplate({listing, listings});
 
   return template;
 }

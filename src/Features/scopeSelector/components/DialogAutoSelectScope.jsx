@@ -21,15 +21,15 @@ export default function DialogAutoSelectScope() {
   const {value: scopes} = useScopes();
   const open = useSelector((s) => s.scopeSelector.open);
   const containerEl = useResolvedRef(containerRef, open);
-  const {value: scope} = useSelectedScope();
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   // effect
 
   useEffect(() => {
-    if (Array.isArray(scopes) && (scopes.length === 0 || !scope)) {
+    if (Array.isArray(scopes) && (scopes.length === 0 || !scopeId)) {
       dispatch(setOpen(true));
     }
-  }, [scopes?.length]);
+  }, [scopes?.length, scopeId]);
 
   // handlers
 

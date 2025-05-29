@@ -14,7 +14,10 @@ import useCreateEntity from "../hooks/useCreateEntity";
 import useUpdateEntity from "../hooks/useUpdateEntity";
 import useCreateMarker from "Features/markers/hooks/useCreateMarker";
 
+import {Box} from "@mui/material";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
+import {listingsConfigSlice} from "Features/listingsConfig/listingsConfigSlice";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 export default function BlockBottomActionsInListPanel({onSaved}) {
   const dispatch = useDispatch();
@@ -31,6 +34,7 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
   // data
 
   const entity = useEntity();
+  const {value: listing} = useSelectedListing();
   console.log("[Action] entity", entity);
 
   const create = useCreateEntity();
@@ -42,6 +46,10 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
   // helper
 
   const saveS = entity.id ? updateS : createS;
+
+  // helper - display
+
+  const show = listing?.canCreateItem;
 
   // handlers
 
@@ -68,5 +76,9 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
     if (onSaved) onSaved();
   }
 
-  return <ButtonInPanel label={saveS} onClick={handleSave} loading={loading} />;
+  return (
+    <Box sx={{width: 1, display: show ? "flex" : "none"}}>
+      <ButtonInPanel label={saveS} onClick={handleSave} loading={loading} />
+    </Box>
+  );
 }

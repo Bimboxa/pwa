@@ -23,7 +23,8 @@ export default function FieldCategoryVariantGrid({
 }) {
   // helpers
 
-  const items = nomenclature?.items || [];
+  console.log("nomenclature", nomenclature);
+  const items = nomenclature?.tree || [];
 
   // state
 
@@ -36,9 +37,10 @@ export default function FieldCategoryVariantGrid({
   // helpers
 
   const selection = value?.id ? [value.id] : [];
-  const node = getNodeById(value?.id, nomenclature?.items);
+  const node = getNodeById(value?.id, nomenclature?.tree);
 
-  const valueLabel = value?.id ? node.label : "Aucune catégorie";
+  const nomenclatureName = nomenclature?.name ?? "-?-";
+  const valueLabel = value?.id ? node.label : nomenclatureName;
 
   // handlers
 

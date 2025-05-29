@@ -24,6 +24,7 @@ export default function PanelAddListings() {
   function handleChangeMode(mode) {
     setMode(mode);
   }
+
   return (
     <Panel>
       <BoxFlexVStretch sx={{overflow: "auto"}}>

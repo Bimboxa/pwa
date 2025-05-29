@@ -10,10 +10,17 @@ import useResolvedRef from "Features/misc/hooks/useResolvedRef";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import PanelListingsConfig from "./PanelListingsConfig";
+import ButtonInPanel from "Features/layout/components/ButtonInPanel";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 export default function DialogAutoListingsConfig() {
   const containerRef = useRef();
   const dispatch = useDispatch();
+
+  // strings
+
+  const laterS = "Ajouter plus tard";
+
   // data
 
   const open = useSelector((s) => s.listingsConfig.openPanel);
@@ -37,7 +44,13 @@ export default function DialogAutoListingsConfig() {
       vh={50}
       vw={30}
     >
-      <PanelListingsConfig containerEl={containerEl} />
+      <BoxFlexVStretch>
+        <PanelListingsConfig containerEl={containerEl} />
+      </BoxFlexVStretch>
+      <ButtonInPanel
+        onClick={() => dispatch(setOpenPanel(false))}
+        label={laterS}
+      />
     </DialogGeneric>
   );
 }

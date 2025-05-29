@@ -60,7 +60,7 @@ export default async function prepareSyncTasks({
     );
 
     // PULL
-    syncFiles_PULL.forEach((syncFile) => {
+    syncFiles_PULL?.forEach((syncFile) => {
       if (direction === "PUSH") return;
       allTasks.push({
         ...syncFile,
@@ -72,7 +72,7 @@ export default async function prepareSyncTasks({
     });
 
     // PUSH
-    syncFiles_PUSH.forEach((syncFile) => {
+    syncFiles_PUSH?.forEach((syncFile) => {
       if (direction === "PULL") return;
       allTasks.push({
         ...syncFile,
@@ -84,7 +84,7 @@ export default async function prepareSyncTasks({
     });
 
     // BOTH
-    syncFiles_BOTH.forEach((syncFile) => {
+    syncFiles_BOTH?.forEach((syncFile) => {
       const {updatedAtRemote, updatedAtLocal} = syncFile;
 
       const shouldPush = updatedAtLocal > updatedAtRemote;

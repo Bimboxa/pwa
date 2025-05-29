@@ -48,12 +48,6 @@ export default function ItemsList({
     }
   }, [containerEl]);
 
-  // helpers
-
-  const bbox = containerEl
-    ? containerEl.getBoundingClientRect()
-    : {top: 0, bottom: 10, left: 0, right: 0};
-
   // helpers - search
 
   const foundItems = useMemo(() => {
@@ -65,10 +59,12 @@ export default function ItemsList({
     });
 
     // sortBy
-    if (sortBy) _items = getSortedItems(items, sortBy);
+    if (sortBy) _items = getSortedItems(_items, sortBy);
 
     return _items;
   }, [debouncedSearchText, items, searchKeys, sortBy]);
+
+  console.log("foundItems", foundItems);
 
   // helpers - noItems
 

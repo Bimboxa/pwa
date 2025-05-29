@@ -18,12 +18,12 @@ export default function useNewEntity() {
 
   const {value: entities} = useEntities();
 
-  const autoFields = template.fields.filter((field) => {
+  const autoFields = template?.fields?.filter((field) => {
     return field.options?.increment === "auto";
   });
 
   const autoNew = {};
-  autoFields.forEach((field) => {
+  autoFields?.forEach((field) => {
     const fieldKey = field.key;
     const values = entities?.map((entity) => parseInt(entity[fieldKey]));
     const max = values?.length > 0 ? Math.max(...values) : 0;
