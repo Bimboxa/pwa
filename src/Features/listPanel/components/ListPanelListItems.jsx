@@ -14,8 +14,8 @@ import SectionRelsZoneEntityInListPanel from "Features/relsZoneEntity/components
 
 export default function ListPanelListItems() {
   // data
-  const {value: listing} = useSelectedListing();
-  const entityModel = useListingEntityModel(listing);
+  const {value: listing} = useSelectedListing({withEntityModel: true});
+  const entityModel = listing?.entityModel;
 
   // effect
 

@@ -1,6 +1,7 @@
 import useOrgaData from "Features/orgaData/hooks/useOrgaData";
 
 export default function useNomenclatureItemsFromListing({listing}) {
+  return listing?.metadata?.nomenclature?.tree ?? [];
   // data
   const orgaDataByKey = useOrgaData({variant: "byKey"});
 
@@ -10,8 +11,6 @@ export default function useNomenclatureItemsFromListing({listing}) {
 
   // helper
 
-  const shouldGetItemsFromOrgaData =
-    listing?.metadata?.tree?.srcType === "ORGA_DATA";
   const orgaDataKey = listing?.metadata?.tree?.srcKey;
 
   // helper - items

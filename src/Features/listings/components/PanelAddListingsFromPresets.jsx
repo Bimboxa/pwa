@@ -4,7 +4,7 @@ import {useDispatch} from "react-redux";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-import {setOpenDialogAddListing} from "../listingsSlice";
+import {setOpenDialogAddListing, setSelectedListingId} from "../listingsSlice";
 
 import useResolvedPresetListings from "../hooks/useResolvedPresetListings";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
@@ -65,12 +65,13 @@ export default function PanelAddListingsFromPresets() {
 
     // create listings
     await createListings(
-      {listings: newListings, scope}
-      //{forceLocalToRemote: true}
+      {listings: newListings, scope},
+      {forceLocalToRemote: true}
     );
     // update scope
     await updateScope(updates, {forceLocalToRemote: true});
     setLoading(false);
+    dispatch(setSelectedListingId(newListings[0].id));
     dispatch(setOpenDialogAddListing(false));
   }
 

@@ -23,6 +23,7 @@ export default async function updateSyncFile({
       if (syncFileType) updates.syncFileType = syncFileType;
       if (fileType) updates.fileType = fileType;
       if (listingId) updates.listingId = listingId;
+
       await db.syncFiles.update(path, updates);
     } else {
       await db.syncFiles.put({

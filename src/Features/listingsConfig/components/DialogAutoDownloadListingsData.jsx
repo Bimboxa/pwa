@@ -16,6 +16,8 @@ export default function DialogAutoDownloadListingsData() {
   const listingsToDownload = useListingsToDownload();
   const {value: scope} = useSelectedScope();
 
+  console.log("listingsToDownload", listingsToDownload, scope?.sortedListings);
+
   // effect
 
   useEffect(() => {

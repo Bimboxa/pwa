@@ -17,11 +17,10 @@ export default async function getRemoteProjectFromOpenedProjectService({
     remoteContainer,
   });
   const projectFile = await remoteProvider.downloadFile(path);
-  const result = await jsonFileToObjectAsync(projectFile);
-  const _project = result.data;
+  console.log("projectFile", projectFile);
 
   // create remote project if it doesn't exist
-  if (!_project) {
+  if (!projectFile) {
     const project = {id: nanoid(), ...openedProject};
     const task = await createSyncTaskLocalToRemoteFromItem({
       item: project,
@@ -31,6 +30,9 @@ export default async function getRemoteProjectFromOpenedProjectService({
     await syncTaskLocalToRemote({task, remoteProvider});
     return project;
   } else {
+    const result = await jsonFileToObjectAsync(projectFile);
+    const _project = result.data;
+
     // return project
     return _project;
   }

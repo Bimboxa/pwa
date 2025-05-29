@@ -12,6 +12,8 @@ export default function ListPanelHeader({open}) {
   const {value: selectedListing} = useSelectedListing();
   const deviceType = useSelector((s) => s.layout.deviceType);
 
+  console.log("selectedListing", selectedListing);
+
   // helper
 
   const name = selectedListing?.name ?? "-?-";

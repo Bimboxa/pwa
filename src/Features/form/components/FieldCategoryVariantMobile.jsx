@@ -36,7 +36,7 @@ export default function FieldCategoryVariantGrid({
   // helpers
 
   const selection = value?.id ? [value.id] : [];
-  const node = getNodeById(value?.id, nomenclature?.items);
+  const node = getNodeById(value?.id, nomenclature?.tree);
 
   const valueLabel = value?.id ? node.label : "Aucune catégorie";
 

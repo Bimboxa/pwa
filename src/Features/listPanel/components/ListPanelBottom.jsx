@@ -1,5 +1,4 @@
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
-import useListingEntityModel from "Features/listings/hooks/useListingEntityModel";
 
 import {Box} from "@mui/material";
 
@@ -9,8 +8,12 @@ import BlockBottomActionsInPanel from "Features/entityProps/components/BlockBott
 export default function ListPanelBottom() {
   // data
 
-  const {value: listing} = useSelectedListing();
-  const entityModel = useListingEntityModel(listing);
+  const {value: listing} = useSelectedListing({withEntityModel: true});
+  const entityModel = listing?.entityModel;
+
+  // helper
+
+  const show = listing?.canCreateItem;
 
   // helpers
 
@@ -23,5 +26,7 @@ export default function ListPanelBottom() {
     <BlockEntityInListPanel />
   );
 
-  return <Box sx={{width: 1}}>{component}</Box>;
+  return (
+    <Box sx={{width: 1, display: show ? "flex" : "none"}}>{component}</Box>
+  );
 }

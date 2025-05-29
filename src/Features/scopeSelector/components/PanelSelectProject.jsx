@@ -62,6 +62,8 @@ export default function PanelSelectProject({containerEl, onClose, onSelect}) {
     return {...project, primaryText, secondaryText, key: project.clientRef};
   });
 
+  console.log("projects", items);
+
   // handlers
 
   async function handleClick(item, options) {
@@ -96,7 +98,7 @@ export default function PanelSelectProject({containerEl, onClose, onSelect}) {
       selection={selection}
       onClick={handleClick}
       searchKeys={["primaryText", "secondaryText"]}
-      sortBy={"secondaryText"}
+      sortBy={{key: "createdAt", order: "desc"}}
       noItemLabel={noItemS}
       createLabel={createS}
       containerEl={containerEl}

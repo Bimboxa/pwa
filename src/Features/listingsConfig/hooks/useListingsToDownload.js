@@ -11,9 +11,11 @@ export default function useListingsToDownload() {
     let _listingsToDownload = [];
     if (!scope?.id || !scopeListings || scopeListings.length === 0) return [];
     for (let listing of scopeListings) {
-      const listingInDb = await db.listings.get(listing.id);
+      if (listing.id && listing.table) {
+        const listingInDb = await db.listings.get(listing.id);
 
-      if (!listingInDb) _listingsToDownload.push(listing);
+        if (!listingInDb) _listingsToDownload.push(listing);
+      }
     }
     return _listingsToDownload;
   }, [scope?.id]);
