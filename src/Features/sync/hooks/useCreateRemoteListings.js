@@ -12,6 +12,8 @@ export default function useCreateRemoteListings() {
 
   // main
   const createAsync = async (listings) => {
+    if (!remoteContainer) return;
+
     for (let listing of listings) {
       const task = await createSyncTaskLocalToRemoteFromItem({
         item: listing,

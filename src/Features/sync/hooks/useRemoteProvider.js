@@ -21,7 +21,7 @@ export default function useRemoteProvider() {
     if (accessToken && userAccountBoolean) {
       const rp = new RemoteProvider({
         accessToken,
-        provider: remoteContainer.service,
+        provider: remoteContainer?.service,
         userAccount,
       });
       setRemoteProvider(rp);

@@ -2,8 +2,8 @@ import {createSlice} from "@reduxjs/toolkit";
 
 const syncInitialState = {
   //
-  disableRemoteContainer: true, // disable sync
-  autoSyncMacro: false, // Macro = forceLocalToRemote for Project / Scope / Listing creation.
+  disableRemoteContainer: false, // disable sync
+  autoSyncMacro: true, // Macro = forceLocalToRemote for Project / Scope / Listing creation.
   //
   isSyncing: false,
   openPanelSync: false,
@@ -37,6 +37,9 @@ export const syncSlice = createSlice({
   name: "sync",
   initialState: syncInitialState,
   reducers: {
+    toggleRemoteContainerEnabled: (state) => {
+      state.disableRemoteContainer = !state.disableRemoteContainer;
+    },
     setRemoteContainer: (state, action) => {
       console.log("[STATE] setRemoteContainer", action.payload?.service);
       state.remoteContainer = action.payload;
@@ -87,6 +90,8 @@ export const syncSlice = createSlice({
 });
 
 export const {
+  //
+  toggleRemoteContainerEnabled,
   //
   setRemoteContainer,
   triggerRemoteProjectContainerPropsUpdate,
