@@ -1,21 +1,38 @@
-import useSelectedListing from "Features/listings/hooks/useSelectedListing";
-import useListingEntityModel from "Features/listings/hooks/useListingEntityModel";
-import useZonesTree from "Features/zones/hooks/useZonesTree";
-import useEntities from "./useEntities";
-import useNomenclaturesByKey from "Features/nomenclatures/hooks/useNomenclaturesByKey";
+import {useEffect, useState} from "react";
 
-import getEntityModelTemplate from "Features/form/utils/getEntityModelTemplate";
-import getListingRelatedEntitiesListingsIds from "Features/listings/utils/getListingRelatedEntitiesListingsIds";
-import getListingEntityModelTemplate from "Features/form/utils/getListingEntityModelTemplate";
-import useListingsByScope from "Features/listings/hooks/useListingsByScope";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+
+import getListingEntityModelTemplateAsync from "Features/form/services/getListingEntityModelTemplateAsync";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function useEntityFormTemplate() {
   // data
 
   const {value: listing} = useSelectedListing({withEntityModel: true});
-  const {value: listings} = useListingsByScope();
+  const appConfig = useAppConfig();
 
-  const template = getListingEntityModelTemplate({listing, listings});
+  // helpers
+  const entityModelsObject = appConfig?.entityModelsObject;
+
+  // state
+
+  const [template, setTemplate] = useState({});
+
+  // effect
+
+  const setTemplateAsync = async () => {
+    const template = await getListingEntityModelTemplateAsync({
+      listing,
+      entityModelsObject,
+    });
+    setTemplate(template);
+  };
+
+  useEffect(() => {
+    if (listing?.id) {
+      setTemplateAsync();
+    }
+  }, [listing?.id]);
 
   return template;
 }

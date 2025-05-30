@@ -19,6 +19,7 @@ export default function PanelTempListings() {
   const tempListings = useSelector((s) => s.listingsConfig.tempListings);
   const createListings = useCreateListings();
   const updateScope = useUpdateScope();
+  const autoSyncMacro = useSelector((s) => s.sync.autoSyncMacro);
 
   const {value: scope} = useSelectedScope();
 
@@ -38,14 +39,15 @@ export default function PanelTempListings() {
     const sortedListings = tempListings.map((l) => ({
       id: l.id,
       table: l.table,
+      type: l.type,
     }));
     const updates = {id: scope.id, sortedListings};
-    await updateScope(updates, {forceLocalToRemote: true});
+    await updateScope(updates, {forceLocalToRemote: autoSyncMacro});
 
     // listings
     await createListings(
       {listings: tempListings, scope},
-      {forceLocalToRemote: true}
+      {forceLocalToRemote: autoSyncMacro}
     );
     setLoading(false);
     dispatch(setOpenPanel(false));

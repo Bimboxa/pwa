@@ -1,6 +1,6 @@
 import {useState} from "react";
 
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 
 import {setOpenDialogAddListing} from "../listingsSlice";
 
@@ -26,6 +26,7 @@ export default function PanelAddListingsFromProject() {
   const listings = useProjectSharedListings();
   const {value: scope} = useSelectedScope();
   const updateScope = useUpdateScope();
+  const autoSyncMacro = useSelector((s) => s.sync.autoSyncMacro);
 
   // state
 
@@ -56,7 +57,7 @@ export default function PanelAddListingsFromProject() {
 
     // update
     setLoading(true);
-    await updateScope(updates, {forceLocalToRemote: true});
+    await updateScope(updates, {forceLocalToRemote: autoSyncMacro});
     setLoading(false);
     dispatch(setOpenDialogAddListing(false));
   }

@@ -22,12 +22,18 @@ export default async function fetchRemoteProjectScopesService({
   console.log("[debug] download path", path);
   const files = await remoteProvider.downloadFilesFromFolder(path);
   console.log("[debug] files", files);
-  const scopesFiles = files?.filter((file) => file.name.startsWith("_scope_"));
-  const scopes = await Promise.all(
-    scopesFiles?.map(async (file) => {
-      const object = await jsonFileToObjectAsync(file);
-      return object.data;
-    })
-  );
-  return scopes;
+  if (files) {
+    const scopesFiles = files?.filter((file) =>
+      file.name.startsWith("_scope_")
+    );
+    const scopes = await Promise.all(
+      scopesFiles?.map(async (file) => {
+        const object = await jsonFileToObjectAsync(file);
+        return object.data;
+      })
+    );
+    return scopes;
+  } else {
+    return null;
+  }
 }

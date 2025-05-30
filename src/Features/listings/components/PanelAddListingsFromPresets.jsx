@@ -1,6 +1,6 @@
 import {useState} from "react";
 
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -31,6 +31,7 @@ export default function PanelAddListingsFromPresets() {
   const {value: scope} = useSelectedScope();
   const updateScope = useUpdateScope();
   const createListings = useCreateListings();
+  const autoSyncMacro = useSelector((s) => s.sync.autoSyncMacro);
 
   // state
 
@@ -70,10 +71,10 @@ export default function PanelAddListingsFromPresets() {
     // create listings
     await createListings(
       {listings: newListings, scope},
-      {forceLocalToRemote: true}
+      {forceLocalToRemote: autoSyncMacro}
     );
     // update scope
-    await updateScope(updates, {forceLocalToRemote: true});
+    await updateScope(updates, {forceLocalToRemote: autoSyncMacro});
     setLoading(false);
     dispatch(setSelectedListingId(newListings[0].id));
     dispatch(setOpenDialogAddListing(false));

@@ -53,6 +53,7 @@ export default function PanelSelectProjectAndScopeLoadingScreen({
   const openLoadingScreen = Boolean(selectedScope?.id);
   const [open, setOpen] = useState(openLoadingScreen);
   const [loading, setLoading] = useState(false);
+  const autoSyncMacro = useSelector((s) => s.sync.autoSyncMacro);
 
   useEffect(() => {
     if (openLoadingScreen) {
@@ -83,7 +84,7 @@ export default function PanelSelectProjectAndScopeLoadingScreen({
         const newProject = {...selectedProject};
         delete newProject.isNew;
         delete newProject.isRemote;
-        await createRemoteProject(newProject);
+        if (autoSyncMacro) await createRemoteProject(newProject);
       }
 
       // scope
@@ -94,7 +95,7 @@ export default function PanelSelectProjectAndScopeLoadingScreen({
         delete newScope.project;
         delete newScope.isNew;
         delete newScope.isRemote;
-        await createRemoteScope(newScope);
+        if (autoSyncMacro) await createRemoteScope(newScope);
       }
 
       // onLoaded

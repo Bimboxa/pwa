@@ -4,7 +4,6 @@ export default function FieldEntityVariantMobileOverview({
   label,
   value,
   entities,
-  entityModel,
 }) {
   //
 
@@ -12,10 +11,7 @@ export default function FieldEntityVariantMobileOverview({
 
   // helpers
 
-  const text =
-    entity?.[entityModel.labelKey]?.length > 0
-      ? entity?.[entityModel.labelKey]
-      : "-";
+  const text = entity.label ?? "-?-";
 
   return (
     <Box sx={{width: 1}}>
