@@ -1,12 +1,7 @@
 import PanelSelectorEntity from "Features/entities/components/PanelSelectorEntity";
 import React from "react";
 
-export default function FieldEntityVariantMobile({
-  value,
-  onChange,
-  entities,
-  entityModel,
-}) {
+export default function FieldEntityVariantMobile({value, onChange, entities}) {
   // handlers
 
   function handleSelectionChange(selectionId) {
