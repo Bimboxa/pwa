@@ -14,6 +14,8 @@ export default function useCreateRemoteProject() {
 
   // main
   const createAsync = async (project) => {
+    if (!remoteContainer) return;
+
     const remoteProvider = new RemoteProvider({
       accessToken,
       provider: remoteContainer?.service,

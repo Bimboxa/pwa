@@ -14,6 +14,8 @@ export default function useCreateRemoteScope() {
 
   // main
   const createAsync = async (scope) => {
+    if (!remoteContainer) return;
+
     const remoteProvider = new RemoteProvider({
       accessToken,
       provider: remoteContainer?.service,

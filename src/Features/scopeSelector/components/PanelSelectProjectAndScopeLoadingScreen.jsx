@@ -53,6 +53,7 @@ export default function PanelSelectProjectAndScopeLoadingScreen({
   const openLoadingScreen = Boolean(selectedScope?.id);
   const [open, setOpen] = useState(openLoadingScreen);
   const [loading, setLoading] = useState(false);
+
   const autoSyncMacro = useSelector((s) => s.sync.autoSyncMacro);
 
   useEffect(() => {
