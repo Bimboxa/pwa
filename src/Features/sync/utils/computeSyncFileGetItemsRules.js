@@ -14,6 +14,9 @@ export default function computeSyncFileGetItemsRules({syncFileType}) {
     ENTITIES: {
       getItemsFromKeys: ["listingId", "createdBy"], // based on key = [listingId+createdBy]
     },
+    ZONING: {
+      getItemFromKey: "listingId",
+    },
     FILE: {
       getItemFromKey: "fileName",
     },

@@ -10,6 +10,8 @@ export default async function updateSyncFile({
   listingId,
   syncAt,
 }) {
+  console.log("[updateSyncFile]", syncFileType, path);
+  if (!syncFileType) console.error("[syncFileType] missing syncFileType", path);
   try {
     updatedAt = updatedAt ?? getDateString(new Date());
     const scopeId = getInitScopeId();

@@ -27,7 +27,14 @@ export default function useSyncListingData() {
 
   const listings = listing ? [listing] : [];
   const syncScope = {
-    ENTITIES: {direction: "BOTH", listings},
+    ENTITIES: {
+      direction: "BOTH",
+      listings: listings?.filter((l) => l.type !== "ZONING"),
+    },
+    ZONINGS: {
+      direction: "BOTH",
+      listings: listings?.filter((l) => l.type === "ZONING"),
+    },
     FILES: {direction: "BOTH", listings, fileTypes: ["IMAGE"]},
   };
 

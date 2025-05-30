@@ -1,4 +1,9 @@
-import {fileTypeConfig} from "../syncConfig";
+const fileTypeConfig = {
+  IMAGE: {
+    key: "image",
+    path: "_images",
+  },
+};
 
 export default function computeSyncFilePathTemplates({syncFileType, fileType}) {
   // for FILE, get _images, or _videos, or...
@@ -25,6 +30,11 @@ export default function computeSyncFilePathTemplates({syncFileType, fileType}) {
       remoteFolder:
         "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_entities/_listing_{{listingId}}",
       remoteFile: "_{{createdBy}}.json",
+    },
+    ZONING: {
+      remoteFolder:
+        "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_zonings",
+      remoteFile: "_{{listingId}}.json",
     },
     FILE: {
       remoteFolder: `{{remoteContainer.projectsPath}}/{{project.clientRef}}/${path}/_listing_{{listingId}}/_{{createdBy}}`,

@@ -48,7 +48,7 @@ export default function PanelAddListingsFromProject() {
     const listingsById = getItemsByKey(listings, "id");
     const newListings = tempSelection
       .map((id) => listingsById[id])
-      .map(({id, table}) => ({id, table}));
+      .map(({id, table, type}) => ({id, table, type}));
     const updates = {
       id: scope.id,
       sortedListings: [...scope.sortedListings, ...newListings],

@@ -12,8 +12,6 @@ import {overrideSyncConfig} from "../utils/overrideSyncConfig";
 import RemoteProvider from "../js/RemoteProvider";
 import useRemoteProvider from "./useRemoteProvider";
 
-import syncConfig from "../syncConfig";
-import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import computeSyncConfig from "../utils/computeSyncConfig";
 
 export default function useDownloadScopeData() {
@@ -35,7 +33,14 @@ export default function useDownloadScopeData() {
   const syncScope = {
     SCOPE: {direction: "PULL"},
     LISTINGS: {direction: "PULL", listings},
-    ENTITIES: {direction: "PULL", listings},
+    ENTITIES: {
+      direction: "PULL",
+      listings: listings?.filter((l) => l.type !== "ZONING"),
+    },
+    ZONINGS: {
+      direction: "PULL",
+      listings: listings?.filter((l) => l.type === "ZONING"),
+    },
     FILES: {direction: "PULL", listings, fileTypes: ["IMAGE"]},
   };
 

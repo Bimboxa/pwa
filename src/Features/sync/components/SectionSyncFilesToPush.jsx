@@ -36,7 +36,7 @@ export default function SectionSyncFilesToPush() {
       await uploadChanges();
       //dispatch(setOpenPanelSync(false));
     } catch (e) {
-      console.log("error", e);
+      console.error("error", e);
       dispatch(setOpenPanelSync(false));
     }
   }

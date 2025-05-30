@@ -10,7 +10,7 @@ export default function FieldCategoryVariantMobileOverview({
 
   // helpers
 
-  const category = getNodeById(value?.id, nomenclature?.tree);
+  const category = getNodeById(value?.id, nomenclature?.items);
   const text = category?.label ?? "-";
 
   return (

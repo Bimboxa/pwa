@@ -35,7 +35,14 @@ export default function useUploadScopeData() {
     PROJECT: {direction: "PUSH", project: scope?.project},
     SCOPE: {direction: "PUSH", scope},
     LISTINGS: {direction: "PUSH", listings},
-    ENTITIES: {direction: "PUSH", listings},
+    ENTITIES: {
+      direction: "PUSH",
+      listings: listings?.filter((l) => l.type !== "ZONING"),
+    },
+    ZONINGS: {
+      direction: "PUSH",
+      listings: listings?.filter((l) => l.type === "ZONING"),
+    },
     FILES: {direction: "PUSH", listings, fileTypes: ["IMAGE"]},
   };
 

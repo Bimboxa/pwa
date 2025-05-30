@@ -73,6 +73,17 @@ export function resolveFoldersPaths({
   return resolveTemplateWithIteration(folderTemplate, context, item, iteration);
 }
 
+export function resolveFilesPaths({
+  folderTemplate,
+  fileTemplate,
+  context,
+  item,
+  iteration,
+}) {
+  const template = folderTemplate + "/" + fileTemplate;
+  return resolveTemplateWithIteration(template, context, item, iteration);
+}
+
 export function resolveFilesPathsFromItems({folderTemplate, context, items}) {
   const allPaths = items.map((item) => {
     const filePath = resolveTemplate(folderTemplate, context, item);

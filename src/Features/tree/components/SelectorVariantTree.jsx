@@ -18,7 +18,7 @@ export default function SelectorVariantTree({
 }) {
   // strings
 
-  const saveS = "Enregistrer";
+  const saveS = "Sélectionner";
 
   // helpers
 

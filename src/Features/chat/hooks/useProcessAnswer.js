@@ -21,7 +21,7 @@ export default function useProcessAnswer() {
           console.log("[processAnswer] ends with", tree);
         }
       });
-      createOrUpdateZoneTree({zonesTree: tree});
+      createOrUpdateZoneTree({zonesTree: tree}, {updateSyncFile: true});
     }
   };
 
