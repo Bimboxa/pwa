@@ -2,6 +2,9 @@ import {createSlice} from "@reduxjs/toolkit";
 
 const syncInitialState = {
   //
+  disableRemoteContainer: true, // disable sync
+  autoSyncMacro: false, // Macro = forceLocalToRemote for Project / Scope / Listing creation.
+  //
   isSyncing: false,
   openPanelSync: false,
   //

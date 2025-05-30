@@ -7,7 +7,12 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function useRemoteContainer() {
   // data
+  const disableRemoteContainer = useSelector(
+    (s) => s.sync.disableRemoteContainer
+  );
   const appConfig = useAppConfig();
+
+  if (disableRemoteContainer) return null;
   return appConfig?.remoteContainer;
 
   const dispatch = useDispatch();

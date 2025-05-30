@@ -4,6 +4,7 @@ import {Box} from "@mui/material";
 
 import FieldTextVariantMobile from "./FieldTextVariantMobile";
 import FieldImageVariantMobile from "./FieldImageVariantMobile";
+import FieldZoneVariantMobile from "./FieldZoneVariantMobile";
 import FieldCategoryVariantMobile from "./FieldCategoryVariantMobile";
 import FieldOptionVariantMobile from "./FieldOptionVariantMobile";
 import FieldEntityVariantMobile from "./FieldEntityVariantMobile";
@@ -27,15 +28,18 @@ export default function FormVariantMobile({
   // state
 
   let templateFields = getTemplateFields(template);
+  console.log("templateFields", templateFields);
   templateFields = [...templateFields, {key: "_overview"}];
   const lastIndex = templateFields.length - 1;
 
   const [fieldIndex, setFieldIndex] = useState(0);
 
   useEffect(() => {
-    //setFieldIndex(0);
-    setFieldIndex(lastIndex);
-  }, [item?.id]);
+    if (templateFields.length > 0) {
+      //setFieldIndex(0);
+      setFieldIndex(lastIndex);
+    }
+  }, [item?.id, templateFields?.length]);
 
   // helpers
 
@@ -95,6 +99,18 @@ export default function FormVariantMobile({
               key={field.key}
               label={field.label}
               width={field.width}
+              value={item?.[field.key]}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              options={field.options}
+            />
+          )}
+          {field?.type === "zone" && (
+            <FieldZoneVariantMobile
+              key={field.key}
+              label={field.label}
+              zonesTree={field.zonesTree}
               value={item?.[field.key]}
               onChange={(newValue) =>
                 handleFieldValueChange(field.key, newValue)

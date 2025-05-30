@@ -6,6 +6,7 @@ import FieldCategoryVariantMobileOverview from "./FieldCategoryVariantMobileOver
 import FieldOptionVariantMobileOverview from "./FieldOptionVariantMobileOverview";
 import FieldEntityVariantMobileOverview from "./FieldEntityVariantMobileOverview";
 import FieldTreeItemsVariantMobileOverview from "./FieldTreeItemsVariantMobileOverview";
+import FieldZoneVariantMobileOverview from "./FieldZoneVariantMobileOverview";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonBasicMobile from "Features/layout/components/ButtonBasicMobile";
@@ -39,11 +40,12 @@ export default function FormVariantMobileOverview({
     >
       <BoxFlexVStretch sx={{overflowY: "auto"}}>
         <List disablePadding>
-          {template?.fields.map((field) => {
+          {template?.fields?.map((field) => {
             const value = item?.[field.key];
             const type = field.type;
             const label = field.label;
             const nomenclature = field.nomenclature;
+            const zonesTree = field.zonesTree;
             const entities = field.entities;
             const entityModel = field.entityModel;
             const tree = field.tree;
@@ -61,6 +63,13 @@ export default function FormVariantMobileOverview({
                   <FieldImageVariantMobileOverview
                     value={value}
                     label={label}
+                  />
+                )}
+                {type === "zone" && (
+                  <FieldZoneVariantMobileOverview
+                    value={value}
+                    label={label}
+                    zonesTree={zonesTree}
                   />
                 )}
                 {type === "category" && (

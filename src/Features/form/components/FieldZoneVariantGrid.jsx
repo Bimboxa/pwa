@@ -28,7 +28,8 @@ export default function FieldZoneVariantGrid({
 
   // helpers
 
-  const node = getNodeById(zonesTree, value?.id);
+  const node = getNodeById(value?.id, zonesTree);
+  console.log("debug_3005_ids", node, value?.id);
 
   const valueLabel = node ? node.label : "Aucune zone";
   const bbox = formContainerRef?.current?.getBoundingClientRect();

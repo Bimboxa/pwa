@@ -12,6 +12,7 @@ import {
   ListItemButton,
 } from "@mui/material";
 import getListingsToCreateFromAppConfig from "Features/listings/utils/getListingsToCreateFromAppConfig";
+import useResolvedPresetListings from "Features/listings/hooks/useResolvedPresetListings";
 
 export default function SectionCreateFromPreset() {
   const dispatch = useDispatch();
@@ -23,16 +24,23 @@ export default function SectionCreateFromPreset() {
   // data
 
   const appConfig = useAppConfig();
+  const presetListings = useResolvedPresetListings();
 
   // helpers
 
   const presets = Object.values(appConfig.presetScopesObject);
+  console.log("presets", presets, presetListings);
 
   // handlers
 
   function handlePresetClick(preset) {
-    const listings = getListingsToCreateFromAppConfig(appConfig, preset.key);
-    dispatch(setTempListings(listings));
+    const listingKeys = preset?.listings;
+    if (listingKeys?.length > 0) {
+      const listings = presetListings.filter((l) =>
+        listingKeys.includes(l.key)
+      );
+      dispatch(setTempListings(listings));
+    }
   }
 
   return (

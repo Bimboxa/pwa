@@ -13,17 +13,17 @@ import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
 import {get} from "firebase/database";
 import getNodeById from "Features/tree/utils/getNodeById";
 
-export default function FieldCategoryVariantMobile({
+export default function FieldZoneVariantMobile({
   value,
   onChange,
-  nomenclature,
+  zonesTree,
   label,
   size = 8,
   formContainerRef,
 }) {
   // helpers
 
-  const items = nomenclature?.items || [];
+  const items = zonesTree || [];
 
   // state
 
@@ -31,21 +31,16 @@ export default function FieldCategoryVariantMobile({
 
   // helpers
 
-  const bbox = formContainerRef?.current?.getBoundingClientRect();
-
-  // helpers
-
   const selection = value?.id ? [value.id] : [];
-  const node = getNodeById(value?.id, nomenclature?.items);
+  const node = getNodeById(value?.id, zonesTree);
 
   const valueLabel = value?.id ? node?.label : "Aucune catégorie";
 
   // handlers
 
   function handleChange(id) {
-    console.log("[FieldCategoryVariantGrid] handleChange", id);
-    const newZones = {id};
-    onChange(newZones);
+    const newZone = {id};
+    onChange(newZone);
     setOpen(false);
   }
 
