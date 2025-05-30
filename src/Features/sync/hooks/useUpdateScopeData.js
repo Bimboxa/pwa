@@ -12,8 +12,6 @@ import {overrideSyncConfig} from "../utils/overrideSyncConfig";
 import RemoteProvider from "../js/RemoteProvider";
 import useRemoteProvider from "./useRemoteProvider";
 
-import syncConfig from "../syncConfig";
-import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import computeSyncConfig from "../utils/computeSyncConfig";
 
 export default function useUpdateScopeData() {
@@ -35,7 +33,14 @@ export default function useUpdateScopeData() {
   const syncScope = {
     SCOPE: {direction: "BOTH", listings},
     LISTINGS: {direction: "BOTH", listings},
-    ENTITIES: {direction: "BOTH", listings},
+    ENTITIES: {
+      direction: "BOTH",
+      listings: listings?.filter((l) => l.type !== "ZONING"),
+    },
+    ZONINGS: {
+      direction: "BOTH",
+      listings: listings?.filter((l) => l.type === "ZONING"),
+    },
     FILES: {direction: "BOTH", listings, fileTypes: ["IMAGE"]},
   };
 

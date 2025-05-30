@@ -52,6 +52,7 @@ export default async function computeSyncTasksFromSyncFiles({
         SCOPE: "scopes",
         LISTING: "listings",
         ENTITIES: listing.table,
+        ZONING: listing.table,
         FILE: "files",
       };
       const table = tableBySyncFileType[syncFileType];
@@ -74,7 +75,7 @@ export default async function computeSyncTasksFromSyncFiles({
       if (dynamicVariables) {
         // content
         let content;
-        if (["PROJECT", "SCOPE", "LISTING"].includes(syncFileType)) {
+        if (["PROJECT", "SCOPE", "LISTING", "ZONING"].includes(syncFileType)) {
           content = "DATA";
         } else if (["ENTITIES"].includes(syncFileType)) {
           content = "ITEMS";
@@ -82,10 +83,11 @@ export default async function computeSyncTasksFromSyncFiles({
           content = "FILE";
         }
 
-        // entries & entry
+        // entries & entry & write mode
 
         let entry;
         let entries;
+        let writeMode;
 
         switch (content) {
           case "DATA":
@@ -109,6 +111,7 @@ export default async function computeSyncTasksFromSyncFiles({
             const fileName = dynamicVariables[getItemFromKey];
             try {
               entry = await db[table].get(dynamicVariables[getItemFromKey]);
+              writeMode = "TABLE_ENTRY_TO_FILE";
             } catch (e) {
               console.error(
                 e,
@@ -130,7 +133,8 @@ export default async function computeSyncTasksFromSyncFiles({
           syncFileKey: syncFileType,
           filePath: path,
           action: "PUSH",
-          writeMode: "TABLE_ENTRY_TO_FILE",
+          writeMode,
+          //writeMode: "TABLE_ENTRY_TO_FILE", // NO ! it depends on the syncFileType.
           entry,
           entries,
           updatedAtLocal: syncFile.updatedAt,

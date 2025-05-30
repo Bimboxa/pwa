@@ -53,7 +53,7 @@ export default function SectionTreeZonesInListPanel() {
     ids.forEach((id) => {
       removeNodeById(items, id);
     });
-    createOrUpdate({zonesTree: items});
+    createOrUpdate({zonesTree: items}, {updateSyncFile: true});
   }
 
   function handleItemPositionChange({itemId, oldPosition, newPosition}) {
@@ -68,7 +68,7 @@ export default function SectionTreeZonesInListPanel() {
       newParentId,
       position,
     });
-    createOrUpdate({zonesTree: items});
+    createOrUpdate({zonesTree: items}, {updateSyncFile: true});
   }
 
   return loading ? (

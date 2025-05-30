@@ -30,7 +30,17 @@ export default async function computeSyncScopeFromSyncFiles(syncFiles) {
   }
   // ENTITIES
   if (syncFileTypes.includes("ENTITIES")) {
-    syncScope.ENTITIES = {direction: "PUSH", listings};
+    syncScope.ENTITIES = {
+      direction: "PUSH",
+      listings: listings?.filter((l) => l.type !== "ZONING"),
+    };
+  }
+  // ZONINGS
+  if (syncFileTypes.includes("ZONING")) {
+    syncScope.ZONINGS = {
+      direction: "PUSH",
+      listings: listings?.filter((l) => l.type === "ZONING"),
+    };
   }
   // FILES
   if (syncFileTypes.includes("FILE")) {

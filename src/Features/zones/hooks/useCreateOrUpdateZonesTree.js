@@ -7,14 +7,16 @@ import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
+import getDateString from "Features/misc/utils/getDateString";
+
 import db from "App/db/db";
 
 export default function useCreateOrUpdateZonesTree() {
   const dispatch = useDispatch();
 
   const createdBy = useUserEmail();
-  const createdAt = new Date().toISOString();
-  const updatedAt = new Date().toISOString();
+  const createdAt = getDateString(new Date());
+  const updatedAt = getDateString(new Date());
 
   const {value: listing} = useSelectedListing();
 
@@ -28,15 +30,12 @@ export default function useCreateOrUpdateZonesTree() {
 
       // create or update
       const table = listing?.table;
-      const exitingEntity = await db[table]
-        .where("listingId")
-        .equals(_listingId)
-        .first();
+      const exitingEntity = await db[table].get(_listingId);
+      let entity;
 
       // create
       if (!exitingEntity) {
-        const entity = {
-          id: nanoid(),
+        entity = {
           createdBy,
           createdAt,
           listingId: _listingId,
@@ -46,12 +45,12 @@ export default function useCreateOrUpdateZonesTree() {
         console.log("[db] zones entity updated", entity);
       } else {
         // update
-        const entity = {
+        entity = {
           ...exitingEntity,
           updatedAt,
           zonesTree,
         };
-        await db[table].update(exitingEntity.id, entity);
+        await db[table].update(exitingEntity.listingId, entity);
         console.log("[db] zones entity updated", entity);
       }
       dispatch(triggerZonesUpdate());
@@ -60,7 +59,7 @@ export default function useCreateOrUpdateZonesTree() {
       if (options?.updateSyncFile) {
         await updateItemSyncFile({
           item: entity,
-          type: "ZONES_TREE",
+          type: "ZONING",
           updatedAt: options.updatedAt,
           syncAt: options.syncAt,
         });

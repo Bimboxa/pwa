@@ -7,6 +7,7 @@ import computeSyncConfig_project from "./computeSyncConfig_project";
 import computeSyncConfig_scope from "./computeSyncConfig_scope";
 import computeSyncConfig_listings from "./computeSyncConfig_listings";
 import computeSyncConfig_entities from "./computeSyncConfig_entities";
+import computeSyncConfig_zonings from "./computeSyncConfig_zonings";
 import computeSyncConfig_files from "./computeSyncConfig_files";
 
 export default function computeSyncConfig(syncScope) {
@@ -37,6 +38,13 @@ export default function computeSyncConfig(syncScope) {
     syncConfig = {
       ...syncConfig,
       ...computeSyncConfig_entities(syncScope.ENTITIES),
+    };
+  }
+
+  if (syncScope.ZONINGS) {
+    syncConfig = {
+      ...syncConfig,
+      ...computeSyncConfig_zonings(syncScope.ZONINGS),
     };
   }
 

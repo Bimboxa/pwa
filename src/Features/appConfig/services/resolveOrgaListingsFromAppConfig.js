@@ -4,7 +4,7 @@ export default async function resolveOrgaListingsFromAppConfig(appConfig) {
   let listings = Object.values(appConfig?.presetListingsObject ?? {});
 
   // filter on isOrgaData
-  listings = listings.filter((l) => l.isOrgaData);
+  listings = listings?.filter((l) => l.isOrgaData);
 
   // resolve
   listings = await Promise.all(

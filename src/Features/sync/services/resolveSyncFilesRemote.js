@@ -6,6 +6,7 @@ import {
   resolveFilePath,
   resolveFolderPath,
   resolveFoldersPaths,
+  resolveFilesPaths,
 } from "../utils/resolversPath";
 
 import resolveComputedContext from "../utils/resolveComputedContext";
@@ -107,6 +108,30 @@ export default async function resolveSyncFilesRemote(
           _filesMetada = getFilteredFilesById(_filesMetada, filterFilesById);
         }
         return _filesMetada;
+      }
+
+      case "ITERATION_FILE": {
+        const filesPaths = resolveFilesPaths({
+          folderTemplate,
+          fileTemplate,
+          context,
+          iteration,
+        });
+        const syncFiles = [];
+        for (const filePath of filesPaths) {
+          const fileMetadata = await remoteProvider.fetchFileMetadata(filePath);
+          const updatedAtRemote = fileMetadata.lastModifiedAt;
+          //
+          const syncFile = {
+            filePath,
+            updatedAtRemote,
+            fetchBy,
+            table,
+            config: syncFileConfig,
+          };
+          syncFiles.push(syncFile);
+        }
+        return syncFiles;
       }
 
       case "ITERATION_FOLDER": {

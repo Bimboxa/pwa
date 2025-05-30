@@ -38,6 +38,8 @@ export default function useUploadChanges() {
       //debug: true,
     };
 
+    console.log("[uploadChanges] syncFiles", syncFiles);
+
     await syncService(options);
   };
   return syncData;

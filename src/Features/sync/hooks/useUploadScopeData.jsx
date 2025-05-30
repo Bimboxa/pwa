@@ -6,11 +6,8 @@ import useRemoteContainer from "../hooks/useRemoteContainer";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
 import syncService from "../services/syncService";
-import {overrideSyncConfig} from "../utils/overrideSyncConfig";
 
 import RemoteProvider from "../js/RemoteProvider";
-
-import syncConfig from "../syncConfig";
 
 import db from "App/db/db";
 import computeSyncConfig from "../utils/computeSyncConfig";
@@ -35,7 +32,14 @@ export default function useUploadScopeData() {
     PROJECT: {direction: "PUSH", project: scope?.project},
     SCOPE: {direction: "PUSH", scope},
     LISTINGS: {direction: "PUSH", listings},
-    ENTITIES: {direction: "PUSH", listings},
+    ENTITIES: {
+      direction: "PUSH",
+      listings: listings?.filter((l) => l.type !== "ZONING"),
+    },
+    ZONINGS: {
+      direction: "PUSH",
+      listings: listings?.filter((l) => l.type === "ZONING"),
+    },
     FILES: {direction: "PUSH", listings, fileTypes: ["IMAGE"]},
   };
 

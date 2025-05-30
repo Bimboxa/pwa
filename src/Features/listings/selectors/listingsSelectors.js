@@ -36,10 +36,10 @@ export const makeGetListingsByOptions = (options) =>
 
       // filter
       if (filterByKeys) {
-        listings = listings.filter((l) => filterByKeys.includes(l?.key));
+        listings = listings?.filter((l) => filterByKeys.includes(l?.key));
       }
       if (filterByListingsIds) {
-        listings = listings.filter((l) => filterByListingsIds.includes(l?.id));
+        listings = listings?.filter((l) => filterByListingsIds.includes(l?.id));
       }
 
       // relations. Need entityModel for mapsOnly

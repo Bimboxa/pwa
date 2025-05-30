@@ -23,7 +23,7 @@ export default async function fetchOrgaDataFolderService({
           key: remoteItem.key,
           data: {
             ...object,
-            tree: addIdToNodes(_items),
+            items: addIdToNodes(_items),
           },
           dataStructure: remoteItem.dataStructure,
         };

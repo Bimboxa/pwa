@@ -53,7 +53,11 @@ export default function PanelAddListingsFromPresets() {
     const listingsById = getItemsByKey(listings, "id");
     const newListings = tempSelection.map((id) => listingsById[id]);
 
-    const newScopeListings = newListings.map(({id, table}) => ({id, table}));
+    const newScopeListings = newListings.map(({id, table, type}) => ({
+      id,
+      table,
+      type,
+    }));
 
     const updates = {
       id: scope.id,

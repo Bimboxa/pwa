@@ -9,7 +9,7 @@ db.version(8).stores({
   listings: "id,key,uniqueByProject,projectId",
   entities: "id,listingId,[listingId+createdBy]",
   maps: "id,listingId,[listingId+createdBy]",
-  zones: "id,listingId", // {id,listingId,zonesTree}
+  zonings: "listingId", // {listingId,zonesTree}
   relsZoneEntity: "id,zoneId,listingId,entityId", // {id,zoneId,table,listingId,entityId}
   entitiesProps:
     "id,[listingKey+targetEntityId],listingKey,targetListingKey,targetEntityId", // entityProps = {id,tarketListingKey,targetEntityId,props}
