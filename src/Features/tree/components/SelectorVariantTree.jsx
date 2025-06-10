@@ -6,9 +6,12 @@ import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
 import SwitchSeeSelectionOnly from "./SwitchSeeSelectionOnly";
 import TreeItemGeneric from "./TreeItemGeneric";
+import SectionSearch from "./SectionSearch";
 
 import getNodesToExpand from "../utils/getNodesToExpand";
 import getSelectedNodesWithParents from "../utils/getSelectedNodesWithParents";
+import getNodesFromSearchText from "../utils/getNodesFromSearchText";
+import getAllNodesIds from "../utils/getAllNodesIds";
 
 export default function SelectorVariantTree({
   items,
@@ -20,9 +23,9 @@ export default function SelectorVariantTree({
 
   const saveS = "Sélectionner";
 
-  // helpers
+  // state - search text
 
-  const seeSelectionOnlyLabel = "Sélection uniquement";
+  const [searchText, setSearchText] = useState("");
 
   // state
 
@@ -39,8 +42,21 @@ export default function SelectorVariantTree({
 
   // helpers - items
 
-  if (seeSelectionOnly)
+  if (seeSelectionOnly) {
     items = getSelectedNodesWithParents(tempSelection, items);
+  } else if (searchText?.length > 0) {
+    items = getNodesFromSearchText(searchText, items);
+  }
+
+  // effect - expand found nodes
+
+  useEffect(() => {
+    if (searchText?.length > 0) {
+      setExpandedNodes(getAllNodesIds(items));
+    } else {
+      setExpandedNodes(getNodesToExpand(items, tempSelection));
+    }
+  }, [searchText]);
 
   // handlers
 
@@ -62,6 +78,7 @@ export default function SelectorVariantTree({
         flexDirection: "column",
       }}
     >
+      <SectionSearch searchText={searchText} onChange={setSearchText} />
       <Box sx={{flex: 1, overflow: "auto"}}>
         <RichTreeViewPro
           checkboxSelection={multiSelect}

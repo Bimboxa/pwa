@@ -42,7 +42,9 @@ export default function BlockEntityInListPanel() {
   function handleClick() {
     console.log("[BlockEntityInListPanel] handleClick");
     dispatch(setOpenPanelListItem(!openPanelListItem));
-    if (isEditingEntity) dispatch(setIsEditingEntity(false));
+    if (isEditingEntity) {
+      dispatch(setIsEditingEntity(false));
+    }
     if (!entity.id) dispatch(setNewEntity({}));
   }
 

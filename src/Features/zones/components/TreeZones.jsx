@@ -1,6 +1,12 @@
+import {useState} from "react";
 import {RichTreeViewPro} from "@mui/x-tree-view-pro";
 
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import SectionSearch from "Features/tree/components/SectionSearch";
+
 import {cleanNodesIds} from "Features/tree/utils/nodesManagementUtils";
+import getNodesFromSearchText from "Features/tree/utils/getNodesFromSearchText";
+import getAllNodesIds from "Features/tree/utils/getAllNodesIds";
 
 export default function TreeZones({
   items,
@@ -12,9 +18,24 @@ export default function TreeZones({
   onDeleteItems,
   updatedAt, // to force re-render of the tree
 }) {
+  // state - search
+
+  const [searchText, setSearchText] = useState("");
+  const onSearchChange = (text) => {
+    setSearchText(text);
+  };
+
   // helpers
 
   items = cleanNodesIds(items);
+
+  // search
+
+  items = getNodesFromSearchText(searchText, items);
+
+  // helpers
+
+  if (searchText?.length > 0) expandedItems = getAllNodesIds(items);
 
   // handlers
 
@@ -36,20 +57,25 @@ export default function TreeZones({
     }
   }
   return (
-    <RichTreeViewPro
-      key={updatedAt}
-      itemsReordering
-      experimentalFeatures={{
-        indentationAtItemLevel: true,
-        itemsReordering: true,
-      }}
-      items={items}
-      expandedItems={expandedItems}
-      onExpandedItemsChange={handleExpandedItemsChange}
-      selectedItems={selectedItems}
-      onSelectedItemsChange={handleSelectedItemsChange}
-      onItemPositionChange={handleItemPositionChange}
-      onKeyDown={handleKeyDown}
-    />
+    <BoxFlexVStretch>
+      <SectionSearch searchText={searchText} onChange={onSearchChange} />
+      <BoxFlexVStretch sx={{width: 1, p: 1, overflow: "auto"}}>
+        <RichTreeViewPro
+          key={updatedAt}
+          itemsReordering
+          experimentalFeatures={{
+            indentationAtItemLevel: true,
+            itemsReordering: true,
+          }}
+          items={items}
+          expandedItems={expandedItems}
+          onExpandedItemsChange={handleExpandedItemsChange}
+          selectedItems={selectedItems}
+          onSelectedItemsChange={handleSelectedItemsChange}
+          onItemPositionChange={handleItemPositionChange}
+          onKeyDown={handleKeyDown}
+        />
+      </BoxFlexVStretch>
+    </BoxFlexVStretch>
   );
 }
