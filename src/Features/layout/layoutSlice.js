@@ -1,6 +1,5 @@
 import {bottomNavigationActionClasses} from "@mui/material";
 import {createSlice} from "@reduxjs/toolkit";
-import {setOpen} from "Features/listPanel/listPanelSlice";
 
 const layoutInitialState = {
   //

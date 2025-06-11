@@ -16,5 +16,6 @@ export default function IconButtonMoreZones() {
       handler: () => createZonesTree(),
     },
   ];
+
   return <IconButtonMenu icon={<Icon as={More} />} actions={actions} />;
 }

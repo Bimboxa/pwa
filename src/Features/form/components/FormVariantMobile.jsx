@@ -24,6 +24,7 @@ export default function FormVariantMobile({
   item,
   onItemChange,
   lastItem,
+  focusOnFirstField,
 }) {
   // state
 
@@ -36,8 +37,11 @@ export default function FormVariantMobile({
 
   useEffect(() => {
     if (templateFields.length > 0) {
-      //setFieldIndex(0);
-      setFieldIndex(lastIndex);
+      if (focusOnFirstField) {
+        setFieldIndex(0);
+      } else {
+        setFieldIndex(lastIndex);
+      }
     }
   }, [item?.id, templateFields?.length]);
 

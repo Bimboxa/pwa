@@ -1,19 +1,25 @@
+import {useState} from "react";
 import {useSelector, useDispatch} from "react-redux";
 
-import {setSelectedItems, setExpandedItems} from "../zonesSlice";
+import {
+  setSelectedItems,
+  setExpandedItems,
+  setSelectedZoneId,
+} from "../zonesSlice";
 
 import useZonesTree from "../hooks/useZonesTree";
 import useCreateOrUpdateZonesTree from "../hooks/useCreateOrUpdateZonesTree";
+import useSelectedZone from "../hooks/useSelectedZone";
 
 import {Box} from "@mui/material";
 
 import TreeZones from "./TreeZones";
+import MenuGeneric from "Features/layout/components/MenuGeneric";
 
-import {
-  countNodes,
-  removeNodeById,
-} from "Features/tree/utils/nodesManagementUtils";
+import {removeNodeById} from "Features/tree/utils/nodesManagementUtils";
 import manageTree from "Features/tree/utils/manageTree";
+
+import MenuActionsZone from "./MenuActionsZone";
 
 export default function SectionTreeZonesInListPanel() {
   const dispatch = useDispatch();
@@ -27,9 +33,16 @@ export default function SectionTreeZonesInListPanel() {
 
   const updatedAt = useSelector((s) => s.zones.zonesUpdatedAt);
 
+  const selectedZone = useSelectedZone();
+
   // data - func
 
   const createOrUpdate = useCreateOrUpdateZonesTree();
+
+  // state
+
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
 
   // helpers
 
@@ -71,18 +84,34 @@ export default function SectionTreeZonesInListPanel() {
     createOrUpdate({zonesTree: items}, {updateSyncFile: true});
   }
 
+  function handleMoreClick(e, zoneId) {
+    const currentTarget = e.currentTarget;
+    console.log("[TreeZones] handleMoreClick", zoneId, currentTarget);
+    setAnchorEl(e.currentTarget);
+    dispatch(setSelectedZoneId(zoneId));
+  }
+
   return loading ? (
     <Box />
   ) : (
-    <TreeZones
-      updatedAt={updatedAt}
-      items={items}
-      expandedItems={expandedItems}
-      onExpandedItemsChange={handleExpandedItemsChange}
-      selectedItems={selectedItems}
-      onSelectedItemsChange={handleSelectedItemsChange}
-      onItemPositionChange={handleItemPositionChange}
-      onDeleteItems={handleDeleteItems}
-    />
+    <>
+      <MenuActionsZone
+        anchorEl={anchorEl}
+        onClose={() => setAnchorEl(null)}
+        zone={selectedZone}
+        zonesTree={zonesTree}
+      />
+      <TreeZones
+        updatedAt={updatedAt}
+        items={items}
+        expandedItems={expandedItems}
+        onExpandedItemsChange={handleExpandedItemsChange}
+        selectedItems={selectedItems}
+        onSelectedItemsChange={handleSelectedItemsChange}
+        onItemPositionChange={handleItemPositionChange}
+        onDeleteItems={handleDeleteItems}
+        onMoreClick={handleMoreClick}
+      />
+    </>
   );
 }

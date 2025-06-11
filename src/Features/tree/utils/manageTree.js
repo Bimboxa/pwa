@@ -26,7 +26,7 @@ export default function manageTree(tree, args) {
         label,
         children: children || [],
       };
-      const inserted = insertNodeUnderParent(tree, targetId, newNode);
+      const inserted = insertNodeUnderParent(tree, targetId, newNode, position);
       if (!inserted)
         throw new Error(`Parent node with id "${targetId}" not found`);
       return tree;
