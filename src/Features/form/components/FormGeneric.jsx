@@ -9,6 +9,7 @@ export default function FormGeneric({
   onItemChange,
   forceVariantGrid = false,
   forceVariantMobile = false,
+  focusOnFirstField = true,
 }) {
   let isMobile = useIsMobile();
   if (forceVariantGrid) isMobile = false;
@@ -21,6 +22,7 @@ export default function FormGeneric({
           template={template}
           item={item}
           onItemChange={onItemChange}
+          focusOnFirstField={focusOnFirstField}
         />
       ) : (
         <FormVariantGrid

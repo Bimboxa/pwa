@@ -1,7 +1,11 @@
 import * as React from "react";
-import {Typography} from "@mui/material";
+
+import {Typography, IconButton} from "@mui/material";
+import {MoreHoriz as More} from "@mui/icons-material";
 
 import {useTreeItem} from "@mui/x-tree-view/useTreeItem";
+import useIsMobile from "Features/layout/hooks/useIsMobile";
+
 import {
   TreeItemCheckbox,
   TreeItemContent,
@@ -16,9 +20,18 @@ import {TreeItemDragAndDropOverlay} from "@mui/x-tree-view/TreeItemDragAndDropOv
 import {TreeItemLabelInput} from "@mui/x-tree-view/TreeItemLabelInput";
 
 const TreeItemGeneric = React.forwardRef(function CustomTreeItem(
-  {id, itemId, label, disabled, children},
+  {id, itemId, label, disabled, children, onMoreClick},
   ref
 ) {
+  // data
+
+  const isMobile = useIsMobile();
+
+  // helpers - height
+
+  const height = isMobile ? "40px" : "30px";
+
+  // helpers - other
   const {
     getContextProviderProps,
     getRootProps,
@@ -37,7 +50,7 @@ const TreeItemGeneric = React.forwardRef(function CustomTreeItem(
   return (
     <TreeItemProvider {...getContextProviderProps()}>
       <TreeItemRoot {...getRootProps()}>
-        <TreeItemContent {...getContentProps()}>
+        <TreeItemContent {...getContentProps()} sx={{height}}>
           <TreeItemIconContainer {...getIconContainerProps()}>
             <TreeItemIcon status={status} />
           </TreeItemIconContainer>
@@ -48,6 +61,18 @@ const TreeItemGeneric = React.forwardRef(function CustomTreeItem(
           >
             {label}
           </Typography>
+          {status.selected && (
+            <IconButton
+              size="small"
+              edge="end"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoreClick(e, itemId);
+              }}
+            >
+              <More fontSize={isMobile ? "medium" : "small"} />
+            </IconButton>
+          )}
 
           <TreeItemDragAndDropOverlay {...getDragAndDropOverlayProps()} />
         </TreeItemContent>

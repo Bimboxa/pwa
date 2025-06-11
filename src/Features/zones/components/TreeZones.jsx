@@ -3,6 +3,7 @@ import {RichTreeViewPro} from "@mui/x-tree-view-pro";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionSearch from "Features/tree/components/SectionSearch";
+import TreeItemGeneric from "Features/tree/components/TreeItemGeneric";
 
 import {cleanNodesIds} from "Features/tree/utils/nodesManagementUtils";
 import getNodesFromSearchText from "Features/tree/utils/getNodesFromSearchText";
@@ -17,6 +18,7 @@ export default function TreeZones({
   onItemPositionChange,
   onDeleteItems,
   updatedAt, // to force re-render of the tree
+  onMoreClick,
 }) {
   // state - search
 
@@ -56,6 +58,12 @@ export default function TreeZones({
       onDeleteItems(selectedItems);
     }
   }
+
+  function handleMoreClick(e, itemId) {
+    console.log("More clicked for item:", itemId);
+    if (onMoreClick) onMoreClick(e, itemId);
+  }
+
   return (
     <BoxFlexVStretch>
       <SectionSearch searchText={searchText} onChange={onSearchChange} />
@@ -74,6 +82,12 @@ export default function TreeZones({
           onSelectedItemsChange={handleSelectedItemsChange}
           onItemPositionChange={handleItemPositionChange}
           onKeyDown={handleKeyDown}
+          slots={{item: TreeItemGeneric}}
+          slotProps={{
+            item: {
+              onMoreClick: handleMoreClick,
+            },
+          }}
         />
       </BoxFlexVStretch>
     </BoxFlexVStretch>

@@ -1,4 +1,10 @@
-import {Dialog, DialogTitle, DialogActions, Button} from "@mui/material";
+import {
+  Dialog,
+  DialogTitle,
+  DialogActions,
+  Button,
+  Typography,
+} from "@mui/material";
 
 export default function DialogDeleteRessource({open, onClose, onConfirmAsync}) {
   // strings
@@ -17,10 +23,10 @@ export default function DialogDeleteRessource({open, onClose, onConfirmAsync}) {
       <DialogTitle>{title}</DialogTitle>
       <DialogActions>
         <Button onClick={onClose} variant="outlined">
-          {cancelS}
+          <Typography variant="body2">{cancelS}</Typography>
         </Button>
-        <Button onClick={handleConfirm} color="warning" variant="outlined">
-          {confirmS}
+        <Button onClick={handleConfirm} color="error" variant="contained">
+          <Typography variant="body2">{confirmS}</Typography>
         </Button>
       </DialogActions>
     </Dialog>
