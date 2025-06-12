@@ -8,6 +8,8 @@ import {triggerMarkersUpdate} from "../markersSlice";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useLoadedMainMap from "Features/mapEditor/hooks/useLoadedMainMap";
 
+import getDateString from "Features/misc/utils/getDateString";
+
 export default function useCreateMarker() {
   // data
 
@@ -15,7 +17,7 @@ export default function useCreateMarker() {
   const {value: createdBy} = useUserEmail();
 
   const createMarker = async ({mapId, x, y, listingId, entityId}) => {
-    const updatedAt = new Date().toISOString();
+    const updatedAt = getDateString(new Date());
 
     try {
       // edge case
@@ -31,9 +33,9 @@ export default function useCreateMarker() {
         x,
         y,
         targetEntityId: entityId,
-        targetListingId: listingId,
+        listingId: listingId,
         createdBy,
-        createdAt: new Date().toISOString(),
+        createdAt: getDateString(new Date()),
       };
 
       // old

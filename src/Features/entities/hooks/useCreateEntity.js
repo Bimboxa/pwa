@@ -11,12 +11,16 @@ export default function useCreateEntity() {
   // data
 
   const {value: userEmail} = useUserEmail();
-  const {value: listing} = useSelectedListing();
+  const {value: _listing} = useSelectedListing();
 
   // helper
 
   const create = async (data, options) => {
     console.log("[useCreateEntity] data", data, options);
+
+    // listing
+
+    const listing = options?.listing || _listing;
 
     // table
 

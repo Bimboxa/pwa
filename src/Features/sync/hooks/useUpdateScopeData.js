@@ -37,6 +37,10 @@ export default function useUpdateScopeData() {
       direction: "BOTH",
       listings: listings?.filter((l) => l.type !== "ZONING"),
     },
+    MARKERS: {
+      direction: "BOTH",
+      listings: listings?.filter((l) => l.enableMarkers),
+    },
     ZONINGS: {
       direction: "BOTH",
       listings: listings?.filter((l) => l.type === "ZONING"),

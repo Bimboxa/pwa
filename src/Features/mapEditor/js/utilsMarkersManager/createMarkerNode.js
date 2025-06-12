@@ -3,7 +3,7 @@ import theme from "Styles/theme";
 export default function createMarkerNode({marker, stageScale, imageNode}) {
   // helper - id
 
-  if (!marker.id) return;
+  if ((!marker.id && !marker.isTemp) || !imageNode) return;
   const id = marker.id;
 
   // helper - color

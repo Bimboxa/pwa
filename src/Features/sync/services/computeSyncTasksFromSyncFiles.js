@@ -52,6 +52,7 @@ export default async function computeSyncTasksFromSyncFiles({
         SCOPE: "scopes",
         LISTING: "listings",
         ENTITIES: listing.table,
+        MARKERS: "markers",
         ZONING: listing.table,
         FILE: "files",
       };

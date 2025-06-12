@@ -54,6 +54,7 @@ export default async function getListingEntityModelTemplateAsync({
                 });
                 console.log("debug_3050 entities", entities);
                 _field[key] = entities;
+                _field["entitiesListing"] = relatedListing;
               }
             } else {
               console.error("[error] in relatedListings of listing ", listing);

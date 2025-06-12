@@ -29,7 +29,7 @@ const TreeItemGeneric = React.forwardRef(function CustomTreeItem(
 
   // helpers - height
 
-  const height = isMobile ? "40px" : "30px";
+  //const height = isMobile ? "40px" : "30px";
 
   // helpers - other
   const {
@@ -50,7 +50,7 @@ const TreeItemGeneric = React.forwardRef(function CustomTreeItem(
   return (
     <TreeItemProvider {...getContextProviderProps()}>
       <TreeItemRoot {...getRootProps()}>
-        <TreeItemContent {...getContentProps()} sx={{height}}>
+        <TreeItemContent {...getContentProps()}>
           <TreeItemIconContainer {...getIconContainerProps()}>
             <TreeItemIcon status={status} />
           </TreeItemIconContainer>
@@ -61,7 +61,7 @@ const TreeItemGeneric = React.forwardRef(function CustomTreeItem(
           >
             {label}
           </Typography>
-          {status.selected && (
+          {status.selected && onMoreClick && (
             <IconButton
               size="small"
               edge="end"

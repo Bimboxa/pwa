@@ -31,6 +31,11 @@ export default function computeSyncFilePathTemplates({syncFileType, fileType}) {
         "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_entities/_listing_{{listingId}}",
       remoteFile: "_{{createdBy}}.json",
     },
+    MARKERS: {
+      remoteFolder:
+        "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_markers/_listing_{{listingId}}",
+      remoteFile: "_{{createdBy}}.json",
+    },
     ZONING: {
       remoteFolder:
         "{{remoteContainer.projectsPath}}/{{project.clientRef}}/_zonings",

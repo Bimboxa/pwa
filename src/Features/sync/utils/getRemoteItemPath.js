@@ -9,6 +9,7 @@ export default async function getRemoteItemPath({type, item, remoteContainer}) {
     SCOPE: "SCOPE",
     LISTING: "LISTING",
     ENTITY: "ENTITIES",
+    MARKER: "MARKERS",
     ZONING: "ZONING",
     FILE: "FILE",
   };
@@ -48,6 +49,15 @@ export default async function getRemoteItemPath({type, item, remoteContainer}) {
         const project = await db.projects.get(item.projectId);
         const context = {remoteContainer, project};
         console.log("[getRemoteItemPath] scope", item, context);
+        path = resolveFilePath({folderTemplate, fileTemplate, context, item});
+        break;
+      }
+
+      case "ENTITY": {
+        const listing = await db.listings.get(item.listingId);
+        const project = await db.projects.get(listing.projectId);
+        const context = {remoteContainer, project};
+        console.log("[getRemoteItemPath] entity", item, context);
         path = resolveFilePath({folderTemplate, fileTemplate, context, item});
         break;
       }

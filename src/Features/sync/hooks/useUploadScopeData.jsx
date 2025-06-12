@@ -36,6 +36,10 @@ export default function useUploadScopeData() {
       direction: "PUSH",
       listings: listings?.filter((l) => l.type !== "ZONING"),
     },
+    MARKERS: {
+      direction: "PUSH",
+      listings: listings?.filter((l) => l.enableMarkers),
+    },
     ZONINGS: {
       direction: "PUSH",
       listings: listings?.filter((l) => l.type === "ZONING"),
