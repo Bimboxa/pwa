@@ -14,6 +14,7 @@ const entitiesInitialState = {
   isEditingEntity: false,
   editedEntity: null,
   //
+  entityTemplateUpdatedAt: null,
 };
 
 export const entitiesSlice = createSlice({
@@ -40,6 +41,10 @@ export const entitiesSlice = createSlice({
     triggerEntitiesUpdate: (state) => {
       state.entitiesUpdatedAt = new Date(Date.now()).toISOString();
     },
+    triggerEntityTemplateUpdate: (state) => {
+      state.entityTemplateUpdatedAt = new Date(Date.now()).toISOString();
+    },
+
     //
     createEntity: (state, action) => {
       const entity = action.payload;
@@ -65,6 +70,8 @@ export const {
   //
   createEntity,
   updateEntity,
+  //
+  triggerEntityTemplateUpdate,
 } = entitiesSlice.actions;
 
 export default entitiesSlice.reducer;

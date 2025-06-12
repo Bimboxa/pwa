@@ -37,6 +37,10 @@ export default function useDownloadScopeData() {
       direction: "PULL",
       listings: listings?.filter((l) => l.type !== "ZONING"),
     },
+    MARKERS: {
+      direction: "PULL",
+      listings: listings?.filter((l) => l.enableMarkers),
+    },
     ZONINGS: {
       direction: "PULL",
       listings: listings?.filter((l) => l.type === "ZONING"),

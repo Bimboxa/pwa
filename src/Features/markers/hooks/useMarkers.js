@@ -54,12 +54,12 @@ export default function useMarkers(options) {
         .equals(filterByMapId)
         .toArray();
       markers = markers.filter((m) =>
-        filterByListingsIds.includes(m.targetListingId)
+        filterByListingsIds.includes(m.listingId)
       );
 
       // add color
       markers = markers.map((m) => {
-        const listing = listingById?.[m.targetListingId];
+        const listing = listingById?.[m.listingId];
         if (listing) {
           m.color = listing.color;
         }

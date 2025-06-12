@@ -247,4 +247,14 @@ export default class MapEditor {
   resizeNodes() {
     this.markersManager.resizeMarkersNodes();
   }
+
+  // ------- cursor -------
+
+  setStageCursor(cursor) {
+    this.stageCursorMemo = this.stage.container().style.cursor;
+    this.stage.container().style.cursor = cursor;
+  }
+  resetStageCursor() {
+    this.stage.container().style.cursor = this.stageCursorMemo || "default";
+  }
 }

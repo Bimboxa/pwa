@@ -11,6 +11,7 @@ import DraggableFabMarker from "Features/markers/components/DraggableFabMarker";
 
 import theme from "Styles/theme";
 import {lighten} from "@mui/material";
+import getDateString from "Features/misc/utils/getDateString";
 
 export default function BlockEntityMarker({top, right}) {
   const dispatch = useDispatch();
@@ -39,7 +40,7 @@ export default function BlockEntityMarker({top, right}) {
   // handlers
 
   function handleCreateMarker({x, y, mapId}) {
-    console.log("[handleCreateMarker] entity", entity.label);
+    console.log("[handleCreateMarker] entity", entity);
     if (entity.id) {
       createMarker({
         mapId,
@@ -49,7 +50,15 @@ export default function BlockEntityMarker({top, right}) {
         entityId: entity.id,
       });
     } else {
-      dispatch(setTempMarker({x, y, mapId}));
+      dispatch(
+        setTempMarker({
+          isTemp: true,
+          x,
+          y,
+          mapId,
+          createdAt: getDateString(new Date()),
+        })
+      );
       dispatch(setOpenPanelListItem(true));
     }
   }

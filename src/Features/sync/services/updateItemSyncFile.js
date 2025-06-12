@@ -24,6 +24,7 @@ export default async function updateItemSyncFile({
       SCOPE: "SCOPE",
       LISTING: "LISTING",
       ENTITY: "ENTITIES",
+      MARKER: "MARKERS",
       ZONING: "ZONING",
       FILE: "FILE",
     };

@@ -6,6 +6,7 @@ import {
   setIsEditingEntity,
   setNewEntity,
 } from "../entitiesSlice";
+import {setTempMarker} from "Features/markers/markersSlice";
 
 import useEntity from "../hooks/useEntity";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
@@ -46,6 +47,8 @@ export default function BlockEntityInListPanel() {
       dispatch(setIsEditingEntity(false));
     }
     if (!entity.id) dispatch(setNewEntity({}));
+    //
+    dispatch(setTempMarker(null));
   }
 
   return (

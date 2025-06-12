@@ -1,15 +1,25 @@
 import {useEffect, useState} from "react";
 
+import {useSelector} from "react-redux";
+
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import getListingEntityModelTemplateAsync from "Features/form/services/getListingEntityModelTemplateAsync";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-export default function useEntityFormTemplate() {
+export default function useEntityFormTemplate(options) {
+  // options
+
+  let listing = options?.listing;
+
   // data
 
-  const {value: listing} = useSelectedListing({withEntityModel: true});
+  const entityTemplateUpdatedAt = useSelector(
+    (s) => s.entities.entityTemplateUpdatedAt
+  );
+  const {value: _listing} = useSelectedListing({withEntityModel: true});
   const appConfig = useAppConfig();
+  listing = listing || _listing;
 
   // helpers
   const entityModelsObject = appConfig?.entityModelsObject;
@@ -32,7 +42,7 @@ export default function useEntityFormTemplate() {
     if (listing?.id) {
       setTemplateAsync();
     }
-  }, [listing?.id]);
+  }, [listing?.id, entityTemplateUpdatedAt]);
 
   return template;
 }

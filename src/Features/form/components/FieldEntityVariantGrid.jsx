@@ -16,10 +16,15 @@ export default function FieldEntityVariantGrid({
   value,
   onChange,
   entities,
+  entitiesListing,
   label,
   size = 8,
   formContainerRef,
 }) {
+  // strings
+
+  const selectS = "Sélectionner une entité";
+
   // state
 
   const [open, setOpen] = useState(false);
@@ -71,7 +76,9 @@ export default function FieldEntityVariantGrid({
             }}
           >
             <PanelSelectorEntity
+              title={selectS}
               entities={entities}
+              entitiesListing={entitiesListing}
               selectedEntityId={selectedEntityId}
               onSelectionChange={handleSelectionChange}
               onClose={handlePanelClose}

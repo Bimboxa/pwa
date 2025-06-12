@@ -110,6 +110,7 @@ export default function FormVariantGrid({template, item, onItemChange}) {
                 handleFieldValueChange(field.key, newValue)
               }
               entities={field.entities}
+              entitiesListing={field.entitiesListing}
               formContainerRef={formContainerRef}
             />
           );

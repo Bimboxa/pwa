@@ -73,24 +73,24 @@ export default function FieldText({value, onChange, options, label}) {
       onKeyDown={(e) => e.stopPropagation()}
       slotProps={{
         input: {
-          startAdornment: tempValue ? (
-            <InputAdornment position="start">
+          endAdornment: tempValue ? (
+            <InputAdornment position="end">
               <IconButton
                 onClick={() => setTempValue("")}
-                edge="start"
+                //edge="start"
                 size="small"
               >
                 <Close fontSize="small" />
               </IconButton>
             </InputAdornment>
           ) : null,
-          endAdornment: !hideMic ? (
-            <InputAdornment position="end">
-              <IconButton onClick={handleMicClick} size="small">
-                {recording ? <Stop sx={{color: "red"}} /> : <MicIcon />}
-              </IconButton>
-            </InputAdornment>
-          ) : null,
+          // endAdornment: !hideMic ? (
+          //   <InputAdornment position="end">
+          //     <IconButton onClick={handleMicClick} size="small">
+          //       {recording ? <Stop sx={{color: "red"}} /> : <MicIcon />}
+          //     </IconButton>
+          //   </InputAdornment>
+          // ) : null,
         },
       }}
       sx={{

@@ -52,6 +52,14 @@ export default class MarkersManager {
         console.log("[MarkersManager] dragend x,y", x.toFixed(1), y.toFixed(1));
         await db.markers.update(marker.id, {x, y});
       });
+
+      node.on("mouseenter", () => {
+        this.mapEditor.setStageCursor("pointer");
+      });
+
+      node.on("mouseleave", () => {
+        this.mapEditor.resetStageCursor("default");
+      });
     });
     this.mapEditor.layerMarkers.batchDraw();
   }

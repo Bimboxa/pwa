@@ -7,7 +7,7 @@ export default class RemoteProvider {
         this.provider = new DropboxRemote({accessToken, userAccount, options});
         break;
       default:
-        throw new Error("Unsupported provider");
+        console.error("Unsupported provider");
     }
   }
 
