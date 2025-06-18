@@ -22,9 +22,10 @@ export default function ListPanelBottom() {
     KEY_VALUE: <Box />,
   };
 
-  const component = componentByEntityModel[entityModel?.type] ?? (
-    <BlockEntityInListPanel />
-  );
+  // const component = componentByEntityModel[entityModel?.type] ?? (
+  //   <BlockEntityInListPanel />
+  // );
+  const component = componentByEntityModel[entityModel?.type] ?? null;
 
   return (
     <Box sx={{width: 1, display: show ? "flex" : "none"}}>{component}</Box>

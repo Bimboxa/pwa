@@ -1,17 +1,16 @@
 import {useDispatch, useSelector} from "react-redux";
 
 import useEntities from "../hooks/useEntities";
-
-import ListEntities from "./ListEntities";
-
-import {Box} from "@mui/material";
-import {setSelectedEntityId} from "../entitiesSlice";
-
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useIsMobile from "Features/layout/hooks/useIsMobile";
-import {setOpenPanelListItem} from "Features/listPanel/listPanelSlice";
 
+import {setOpenPanelListItem} from "Features/listPanel/listPanelSlice";
 import {setSelectedMapId} from "Features/maps/mapsSlice";
+import {setSelectedEntityId} from "../entitiesSlice";
+
+import {Box} from "@mui/material";
+
+import ListEntities from "./ListEntities";
 
 export default function SectionListEntitiesInListPanel() {
   const dispatch = useDispatch();
@@ -56,12 +55,18 @@ export default function SectionListEntitiesInListPanel() {
     dispatch(setSelectedEntityId(id));
   }
 
+  function handleCreateClick() {
+    dispatch(setOpenPanelListItem(true));
+  }
+
   return (
-    <Box sx={{width: 1, bgcolor: "common.white"}}>
+    <Box sx={{width: 1}}>
       <ListEntities
+        listing={listing}
         entities={entities}
         onClick={handleClick}
         selection={selection}
+        onCreateClick={handleCreateClick}
       />
     </Box>
   );

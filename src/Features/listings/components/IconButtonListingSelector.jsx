@@ -15,7 +15,7 @@ export default function IconButtonListingSelector() {
 
   // strings
 
-  const title = "Sélectionnez une liste";
+  const title = "Sélectionnez un module";
 
   // state
 
