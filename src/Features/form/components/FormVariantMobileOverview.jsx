@@ -7,6 +7,7 @@ import FieldOptionVariantMobileOverview from "./FieldOptionVariantMobileOverview
 import FieldEntityVariantMobileOverview from "./FieldEntityVariantMobileOverview";
 import FieldTreeItemsVariantMobileOverview from "./FieldTreeItemsVariantMobileOverview";
 import FieldZoneVariantMobileOverview from "./FieldZoneVariantMobileOverview";
+import FieldQrcodeVariantMobileOverview from "./FieldQrcodeVariantMobileOverview";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonBasicMobile from "Features/layout/components/ButtonBasicMobile";
@@ -98,6 +99,12 @@ export default function FormVariantMobileOverview({
                     value={value}
                     label={label}
                     tree={tree}
+                  />
+                )}
+                {type === "qrcode" && (
+                  <FieldQrcodeVariantMobileOverview
+                    value={value}
+                    label={label}
                   />
                 )}
                 {/* {type === "option" && (

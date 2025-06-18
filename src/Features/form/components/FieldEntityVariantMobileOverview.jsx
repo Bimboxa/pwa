@@ -11,7 +11,7 @@ export default function FieldEntityVariantMobileOverview({
 
   // helpers
 
-  const text = entity.label ?? "-?-";
+  const text = entity?.label ?? "-";
 
   return (
     <Box sx={{width: 1}}>

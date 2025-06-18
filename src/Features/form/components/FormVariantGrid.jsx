@@ -9,6 +9,7 @@ import FieldZoneVariantGrid from "./FieldZoneVariantGrid";
 import FieldOptionVariantGrid from "./FieldOptionVariantGrid";
 import FieldEntityVariantGrid from "./FieldEntityVariantGrid";
 import FieldCategoryVariantGrid from "./FieldCategoryVariantGrid";
+import FieldQrcodeVariantGrid from "./FieldQrcodeVariantGrid";
 
 import getTemplateFields from "../utils/getTemplateFields";
 
@@ -143,6 +144,21 @@ export default function FormVariantGrid({template, item, onItemChange}) {
                 handleFieldValueChange(field.key, newValue)
               }
               nomenclature={field.nomenclature}
+              formContainerRef={formContainerRef}
+            />
+          );
+        }
+
+        if (field?.type === "qrcode") {
+          return (
+            <FieldQrcodeVariantGrid
+              key={field.key}
+              label={field.label}
+              width={field.width}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
               formContainerRef={formContainerRef}
             />
           );

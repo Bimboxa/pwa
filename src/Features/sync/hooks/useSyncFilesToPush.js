@@ -6,8 +6,6 @@ export default function useSyncFilesToPush() {
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const remoteContainer = useRemoteContainer();
 
-  console.log("syncFiles", syncFiles);
-
   const syncFilesToPush = syncFiles.filter((syncFile) => {
     return (
       syncFile?.path?.startsWith(remoteContainer?.path) &&

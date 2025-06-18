@@ -6,6 +6,7 @@ import PanelShowable from "./PanelShowable";
 import MainMapEditor from "Features/mapEditor/components/MainMapEditor";
 import MainThreedEditor from "Features/threedEditor/components/MainThreedEditor";
 import MainLeafletEditor from "Features/leafletEditor/components/MainLeafletEditor";
+import TableViewer from "Features/tables/components/ViewerTable";
 
 export default function SectionViewer() {
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
@@ -15,6 +16,7 @@ export default function SectionViewer() {
   const showMap = viewerKey === "MAP";
   const showThreed = viewerKey === "THREED";
   const showLeaflet = viewerKey === "LEAFLET";
+  const showTable = viewerKey === "TABLE";
 
   return (
     <BoxCenter sx={{position: "relative"}}>
@@ -26,6 +28,9 @@ export default function SectionViewer() {
       </PanelShowable>
       <PanelShowable show={showLeaflet} sx={{position: "absolute", zIndex: 0}}>
         <MainLeafletEditor />
+      </PanelShowable>
+      <PanelShowable show={showTable} sx={{position: "absolute", zIndex: 0}}>
+        <TableViewer />
       </PanelShowable>
     </BoxCenter>
   );

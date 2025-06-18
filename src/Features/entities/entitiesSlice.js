@@ -6,7 +6,6 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 const entitiesInitialState = {
   entitiesById: {},
   //
-  entitiesMap: {[exampleEntity.id]: exampleEntity},
   entitiesUpdatedAt: null,
   //
   selectedEntityId: null,
