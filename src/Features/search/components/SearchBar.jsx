@@ -1,12 +1,18 @@
 import {useState, useRef} from "react";
-import {TextField, InputAdornment, IconButton} from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
-import CloseIcon from "@mui/icons-material/Close";
+
+import {Box, TextField, InputAdornment, IconButton} from "@mui/material";
+import {
+  AddCircle as AddIcon,
+  Search as SearchIcon,
+  Close as CloseIcon,
+} from "@mui/icons-material";
 
 export default function SearchBar({
   value,
   onChange,
-  placeholder = "Search...",
+  onCreateClick,
+  color,
+  placeholder = "Recherche...",
 }) {
   const [focused, setFocused] = useState(false);
   const blurTimeout = useRef(null);
@@ -32,33 +38,46 @@ export default function SearchBar({
   };
 
   return (
-    <TextField
-      variant="outlined"
-      placeholder={placeholder}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      fullWidth={focused}
-      size="small"
-      InputProps={{
-        startAdornment: !focused && (
-          <InputAdornment position="start">
-            <SearchIcon />
-          </InputAdornment>
-        ),
-        endAdornment: value && (
-          <InputAdornment position="end">
-            <IconButton onClick={handleClear} size="small">
-              <CloseIcon />
-            </IconButton>
-          </InputAdornment>
-        ),
-      }}
+    <Box
       sx={{
-        transition: "width 0.3s ease",
-        minWidth: focused ? "100%" : "200px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
       }}
-    />
+    >
+      <TextField
+        variant="outlined"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        fullWidth={focused}
+        size="small"
+        InputProps={{
+          startAdornment: !focused && (
+            <InputAdornment position="start">
+              <SearchIcon />
+            </InputAdornment>
+          ),
+          endAdornment: value && (
+            <InputAdornment position="end">
+              <IconButton onClick={handleClear} size="small">
+                <CloseIcon />
+              </IconButton>
+            </InputAdornment>
+          ),
+        }}
+        sx={{
+          transition: "width 0.3s ease",
+          minWidth: focused ? "100%" : "200px",
+        }}
+      />
+      {onCreateClick && (
+        <IconButton color={color} onClick={onCreateClick}>
+          <AddIcon sx={{color}} />
+        </IconButton>
+      )}
+    </Box>
   );
 }

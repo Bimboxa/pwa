@@ -7,9 +7,16 @@ import {List, Box} from "@mui/material";
 import ListItemEntityVariantDefault from "./ListItemEntityVariantDefault";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SearchBar from "Features/search/components/SearchBar";
+
 import getFoundItems from "Features/search/getFoundItems";
 
-export default function ListEntities({entities, onClick, selection}) {
+export default function ListEntities({
+  listing,
+  entities,
+  onClick,
+  selection,
+  onCreateClick,
+}) {
   // state
 
   const [searchText, setSearchText] = useState("");
@@ -26,6 +33,8 @@ export default function ListEntities({entities, onClick, selection}) {
     searchKeys: ["label"],
   });
 
+  const color = listing?.color;
+
   // handlers
 
   function handleSearchTextChange(text) {
@@ -39,19 +48,26 @@ export default function ListEntities({entities, onClick, selection}) {
   return (
     <BoxFlexVStretch>
       <Box sx={{width: 1, p: 1}}>
-        <SearchBar value={searchText} onChange={handleSearchTextChange} />
+        <SearchBar
+          value={searchText}
+          onChange={handleSearchTextChange}
+          onCreateClick={onCreateClick}
+          color={color}
+        />
       </Box>
       <BoxFlexVStretch>
-        <List dense={!isMobile} disablePadding>
-          {filteredEntities?.map((entity) => (
-            <ListItemEntityVariantDefault
-              key={entity.id}
-              entity={entity}
-              onClick={handleEntityClick}
-              selection={selection}
-            />
-          ))}
-        </List>
+        <Box sx={{width: 1, bgcolor: "common.white"}}>
+          <List dense={!isMobile} disablePadding>
+            {filteredEntities?.map((entity) => (
+              <ListItemEntityVariantDefault
+                key={entity.id}
+                entity={entity}
+                onClick={handleEntityClick}
+                selection={selection}
+              />
+            ))}
+          </List>
+        </Box>
       </BoxFlexVStretch>
     </BoxFlexVStretch>
   );

@@ -23,7 +23,7 @@ export default function ListListings({
   // string
 
   const addPrimary = "Nouveau";
-  const addSecondary = "Ajouter une liste";
+  const addSecondary = "Ajouter un module";
 
   return (
     <>
