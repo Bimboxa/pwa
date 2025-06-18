@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import {useState, useRef} from "react";
 import {TextField, InputAdornment, IconButton} from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
@@ -9,9 +9,26 @@ export default function SearchBar({
   placeholder = "Search...",
 }) {
   const [focused, setFocused] = useState(false);
+  const blurTimeout = useRef(null);
 
-  const handleClear = () => {
+  const handleClear = (e) => {
+    e.preventDefault(); // empêche le focus de partir du bouton
+    e.stopPropagation();
     onChange("");
+  };
+
+  const handleBlur = () => {
+    // retarde la perte de focus pour laisser le clic se terminer
+    blurTimeout.current = setTimeout(() => {
+      setFocused(false);
+    }, 100);
+  };
+
+  const handleFocus = () => {
+    if (blurTimeout.current) {
+      clearTimeout(blurTimeout.current);
+    }
+    setFocused(true);
   };
 
   return (
@@ -20,8 +37,8 @@ export default function SearchBar({
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       fullWidth={focused}
       size="small"
       InputProps={{

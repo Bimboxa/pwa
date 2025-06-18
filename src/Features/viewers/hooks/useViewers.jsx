@@ -1,5 +1,10 @@
 import {Typography} from "@mui/material";
-import {Map, PictureAsPdf as PdfIcon, Image} from "@mui/icons-material";
+import {
+  Map,
+  PictureAsPdf as PdfIcon,
+  Image,
+  TableChart as Table,
+} from "@mui/icons-material";
 
 import theme from "Styles/theme";
 
@@ -9,6 +14,12 @@ export default function useViewers() {
       key: "MAP",
       label: "Fond de plan",
       icon: <Image />,
+      bgcolor: theme.palette.viewers.map,
+    },
+    {
+      key: "TABLE",
+      label: "Tableau",
+      icon: <Table />,
       bgcolor: theme.palette.viewers.map,
     },
     {

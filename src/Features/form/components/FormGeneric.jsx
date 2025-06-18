@@ -9,7 +9,7 @@ export default function FormGeneric({
   onItemChange,
   forceVariantGrid = false,
   forceVariantMobile = false,
-  focusOnFirstField = true,
+  focusOnFirstField = false,
 }) {
   let isMobile = useIsMobile();
   if (forceVariantGrid) isMobile = false;

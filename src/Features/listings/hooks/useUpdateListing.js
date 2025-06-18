@@ -14,7 +14,7 @@ export default function useUpdateListing() {
     await updateItemSyncFile({item: listing, type: "LISTING"});
 
     // sync file
-    if (options.updateSyncFile) {
+    if (options?.updateSyncFile) {
       const props = {item: listing, type: "LISTING"};
       if (options.updatedAt) props.updatedAt = options.updatedAt;
       if (options.syncAt) props.syncAt = options.syncAt;

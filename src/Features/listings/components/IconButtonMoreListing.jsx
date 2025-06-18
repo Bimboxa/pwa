@@ -22,6 +22,7 @@ import useSyncListingData from "Features/sync/hooks/useSyncListingData";
 import {setOpenPanelSync} from "Features/sync/syncSlice";
 import deleteListingDataInDb from "../services/deleteListingDataInDb";
 import {setOpen} from "Features/listPanel/listPanelSlice";
+import DialogEditListing from "./DialogEditListing";
 
 export default function IconButtonMoreListing() {
   const dispatch = useDispatch();
@@ -30,6 +31,7 @@ export default function IconButtonMoreListing() {
 
   const [openDelete, setOpenDelete] = useState(false);
   const [openRename, setOpenRename] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
 
   // data
 
@@ -78,9 +80,13 @@ export default function IconButtonMoreListing() {
   // actions
 
   const actions = [
+    // {
+    //   label: "Renommer",
+    //   handler: () => setOpenRename(true),
+    // },
     {
-      label: "Renommer",
-      handler: () => setOpenRename(true),
+      label: "Editer",
+      handler: () => setOpenEdit(true),
     },
     // {
     //   label: "Synchroniser",
@@ -125,6 +131,9 @@ export default function IconButtonMoreListing() {
         name={listing?.name}
         onNameChange={handleRename}
       />
+      {openEdit && (
+        <DialogEditListing open={openEdit} onClose={() => setOpenEdit(false)} />
+      )}
     </Box>
   );
 }

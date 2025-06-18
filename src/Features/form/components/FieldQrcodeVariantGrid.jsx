@@ -12,12 +12,14 @@ import {
 import {
   ArrowForwardIos as Forward,
   ArrowDropDown as Down,
+  QrCode,
 } from "@mui/icons-material";
 import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
 import PanelSelectorEntity from "Features/entities/components/PanelSelectorEntity";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import PanelQrcodeReader from "Features/qrcode/components/PanelQrcodeReader";
 
-export default function FieldOptionVariantGrid({
+export default function FieldQrcodeVariantGrid({
   value,
   onChange,
   valueOptions,
@@ -27,34 +29,21 @@ export default function FieldOptionVariantGrid({
 }) {
   // string
 
-  const selectS = "";
+  const flashS = "Flasher un QR code";
 
   // state
 
   const [open, setOpen] = useState(false);
 
-  // helpers - entities
-
-  const optionsByKey = getItemsByKey(valueOptions, "key");
-
   // helpers
 
-  const valueLabel = value?.label ?? selectS;
-
-  // helpers
-
-  const selectedEntityId = value?.key;
-
-  // helpers - entities
-
-  const entities = valueOptions.map((option) => ({...option, id: option.key}));
+  const valueLabel = value?.length > 0 ? value : flashS;
 
   // handlers
 
-  function handleSelectionChange(id) {
-    console.log("SelectionChange", id);
-    const option = optionsByKey[id];
-    onChange(option);
+  function handleScan(qrcode) {
+    console.log("[FieldQrcode] SelectionChange", qrcode);
+    onChange(qrcode);
     setOpen(false);
   }
 
@@ -84,10 +73,8 @@ export default function FieldOptionVariantGrid({
               flexDirection: "column",
             }}
           >
-            <PanelSelectorEntity
-              entities={entities}
-              selectedEntityId={selectedEntityId}
-              onSelectionChange={handleSelectionChange}
+            <PanelQrcodeReader
+              onScan={handleScan}
               onClose={handlePanelClose}
               title={label}
             />
@@ -104,12 +91,13 @@ export default function FieldOptionVariantGrid({
             {label}
           </Typography>
         </Grid2>
-        <Grid2 size={size}>
+        <Grid2 size={size} sx={{p: 0, display: "flex"}}>
           <Button
             variant="text"
             fullWidth
             onClick={handleOpenSelector}
-            endIcon={<Down />}
+            endIcon={<QrCode />}
+            sx={{width: 1}}
           >
             <Typography variant="body2" color="text.secondary" sx={{width: 1}}>
               {valueLabel}

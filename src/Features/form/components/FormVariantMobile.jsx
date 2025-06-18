@@ -9,6 +9,7 @@ import FieldCategoryVariantMobile from "./FieldCategoryVariantMobile";
 import FieldOptionVariantMobile from "./FieldOptionVariantMobile";
 import FieldEntityVariantMobile from "./FieldEntityVariantMobile";
 import FieldTreeItemsVariantMobile from "./FieldTreeItemsVariantMobile";
+import FieldQrcodeVariantMobile from "./FieldQrcodeVariantMobile";
 
 //import FieldNumberVariantMobile from "./FieldNumberVariantMobile";
 //import FieldColorVariantMobile from "./FieldColorVariantMobile";
@@ -168,6 +169,16 @@ export default function FormVariantMobile({
                 handleFieldValueChange(field.key, newValue)
               }
               options={field.options}
+            />
+          )}
+          {field?.type === "qrcode" && (
+            <FieldQrcodeVariantMobile
+              key={field.key}
+              label={field.label}
+              value={item?.[field.key]}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
             />
           )}
         </DialogGeneric>
