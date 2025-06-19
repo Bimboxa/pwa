@@ -18,6 +18,12 @@ export default function BlockEntityInListPanelVariantHeader({
 
   const isMobile = useIsMobile();
 
+  // handlers
+
+  function handleBackClick() {
+    onClose();
+  }
+
   return (
     <Box sx={{p: 1}}>
       <Paper
@@ -31,7 +37,7 @@ export default function BlockEntityInListPanelVariantHeader({
           justifyContent: "space-between",
         }}
       >
-        <IconButton color="inherit" onClick={onClose}>
+        <IconButton color="inherit" onClick={handleBackClick}>
           <Back />
         </IconButton>
         <Typography

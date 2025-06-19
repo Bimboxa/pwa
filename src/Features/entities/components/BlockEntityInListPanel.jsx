@@ -51,12 +51,18 @@ export default function BlockEntityInListPanel() {
     dispatch(setTempMarker(null));
   }
 
+  function handleClose() {
+    dispatch(setOpenPanelListItem(false));
+    dispatch(setSelectedEntityId(null));
+    dispatch(setTempMarker(null));
+  }
+
   return (
     <Box sx={{width: 1, bgcolor: "common.white"}}>
       {openPanelListItem ? (
         <BlockEntityInListPanelVariantHeader
           label={label}
-          onClose={handleClick}
+          onClose={handleClose}
           bgcolor={bgcolor}
         />
       ) : (
