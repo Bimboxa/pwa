@@ -75,12 +75,13 @@ export default function SectionTreeZonesInListPanel() {
     const position = newPosition.index;
     console.log("[TreeZones] handleItemPositionChange", targetId, newPosition);
 
-    items = manageTree(items, {
+    const result = manageTree(items, {
       action: "move_node",
       targetId,
       newParentId,
       position,
     });
+    items = result.tree;
     createOrUpdate({zonesTree: items}, {updateSyncFile: true});
   }
 

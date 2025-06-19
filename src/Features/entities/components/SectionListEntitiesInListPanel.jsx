@@ -8,9 +8,8 @@ import {setOpenPanelListItem} from "Features/listPanel/listPanelSlice";
 import {setSelectedMapId} from "Features/maps/mapsSlice";
 import {setSelectedEntityId} from "../entitiesSlice";
 
-import {Box} from "@mui/material";
-
 import ListEntities from "./ListEntities";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 export default function SectionListEntitiesInListPanel() {
   const dispatch = useDispatch();
@@ -57,10 +56,11 @@ export default function SectionListEntitiesInListPanel() {
 
   function handleCreateClick() {
     dispatch(setOpenPanelListItem(true));
+    dispatch(setSelectedEntityId(null));
   }
 
   return (
-    <Box sx={{width: 1}}>
+    <BoxFlexVStretch>
       <ListEntities
         listing={listing}
         entities={entities}
@@ -68,6 +68,6 @@ export default function SectionListEntitiesInListPanel() {
         selection={selection}
         onCreateClick={handleCreateClick}
       />
-    </Box>
+    </BoxFlexVStretch>
   );
 }

@@ -55,7 +55,7 @@ export default function ListEntities({
           color={color}
         />
       </Box>
-      <BoxFlexVStretch>
+      <BoxFlexVStretch sx={{overflow: "auto"}}>
         <Box sx={{width: 1, bgcolor: "common.white"}}>
           <List dense={!isMobile} disablePadding>
             {filteredEntities?.map((entity) => (

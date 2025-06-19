@@ -10,17 +10,21 @@ import {
 import {ArrowForwardIos as Forward} from "@mui/icons-material";
 
 import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
+import PanelSelectorZone from "Features/zones/components/PanelSelectorZone";
+
 import getNodeById from "Features/tree/utils/getNodeById";
 
 export default function FieldZoneVariantGrid({
   value,
   onChange,
   zonesTree,
+  zonesListing,
   label,
   size = 8,
   formContainerRef,
 }) {
   zonesTree = zonesTree || [];
+  console.log("debug_1906 zonesListing", zonesListing);
 
   // state
 
@@ -29,7 +33,6 @@ export default function FieldZoneVariantGrid({
   // helpers
 
   const node = getNodeById(value?.id, zonesTree);
-  console.log("debug_3005_ids", node, value?.id);
 
   const valueLabel = node ? node.label : "Aucune zone";
   const bbox = formContainerRef?.current?.getBoundingClientRect();
@@ -62,18 +65,21 @@ export default function FieldZoneVariantGrid({
               width: bbox.width,
               bottom: 0,
               bgcolor: "background.paper",
-              zIndex: 2000,
+              zIndex: 1000,
             }}
           >
-            <SelectorVariantTree
-              items={zonesTree}
+            <PanelSelectorZone
+              zonesListing={zonesListing}
+              zonesTree={zonesTree}
               selection={selection}
-              onChange={handleChange}
+              onSelectionChange={handleChange}
               multiSelect={false}
+              onClose={() => setOpen(false)}
             />
           </Box>
         </ClickAwayListener>
       )}
+
       <Grid2
         container
         sx={{border: (theme) => `1px solid ${theme.palette.divider}`}}

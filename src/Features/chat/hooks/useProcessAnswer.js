@@ -17,7 +17,8 @@ export default function useProcessAnswer() {
 
         if (name === "manage_zones_tree") {
           console.log("[processAnswer] start with", tree);
-          tree = manageTree(tree, args);
+          const result = manageTree(tree, args);
+          tree = result.tree;
           console.log("[processAnswer] ends with", tree);
         }
       });

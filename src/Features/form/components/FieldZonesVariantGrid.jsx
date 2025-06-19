@@ -15,6 +15,7 @@ export default function FieldZonesVariantGrid({
   value,
   onChange,
   zonesTree,
+  zonesListing,
   label,
   size = 8,
   formContainerRef,
@@ -64,6 +65,7 @@ export default function FieldZonesVariantGrid({
             }}
           >
             <SelectorVariantTree
+              listing={zonesListing}
               items={zonesTree}
               selection={selection}
               onChange={handleChange}

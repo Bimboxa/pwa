@@ -18,6 +18,8 @@ export default function SelectorVariantTree({
   selection,
   onChange,
   multiSelect = false,
+  color,
+  onCreateClick,
 }) {
   // strings
 
@@ -68,6 +70,10 @@ export default function SelectorVariantTree({
     onChange(tempSelection);
   }
 
+  function handleCreateClick() {
+    onCreateClick({tempSelection});
+  }
+
   return (
     <Box
       sx={{
@@ -78,7 +84,12 @@ export default function SelectorVariantTree({
         flexDirection: "column",
       }}
     >
-      <SectionSearch searchText={searchText} onChange={setSearchText} />
+      <SectionSearch
+        searchText={searchText}
+        onChange={setSearchText}
+        color={color}
+        onCreateClick={handleCreateClick}
+      />
       <Box sx={{flex: 1, overflow: "auto"}}>
         <RichTreeViewPro
           checkboxSelection={multiSelect}
