@@ -80,6 +80,7 @@ export default function FormVariantGrid({template, item, onItemChange}) {
                 handleFieldValueChange(field.key, newValue)
               }
               zonesTree={field.zonesTree}
+              zonesListing={field.zonesListing}
               formContainerRef={formContainerRef}
             />
           );
@@ -95,6 +96,7 @@ export default function FormVariantGrid({template, item, onItemChange}) {
                 handleFieldValueChange(field.key, newValue)
               }
               zonesTree={field.zonesTree}
+              zonesListing={field.zonesListing}
               formContainerRef={formContainerRef}
             />
           );

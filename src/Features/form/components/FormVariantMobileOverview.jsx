@@ -40,7 +40,7 @@ export default function FormVariantMobileOverview({
       }}
     >
       <BoxFlexVStretch sx={{overflowY: "auto"}}>
-        <List disablePadding>
+        <List>
           {template?.fields?.map((field) => {
             const value = item?.[field.key];
             const type = field.type;

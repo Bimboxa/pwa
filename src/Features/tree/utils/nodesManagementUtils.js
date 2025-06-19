@@ -30,6 +30,16 @@ export function insertNodeUnderParent(
   nodeToInsert,
   position = null
 ) {
+  // edge case - handle insertion at root level
+  if (parentId === null) {
+    if (position !== null && position >= 0 && position <= tree.length) {
+      tree.splice(position, 0, nodeToInsert);
+    } else {
+      tree.push(nodeToInsert);
+    }
+    return true;
+  }
+  // main
   for (const node of tree) {
     if (node.id === parentId) {
       node.children = node.children || [];

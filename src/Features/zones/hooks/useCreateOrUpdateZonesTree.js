@@ -14,22 +14,24 @@ import db from "App/db/db";
 export default function useCreateOrUpdateZonesTree() {
   const dispatch = useDispatch();
 
-  const createdBy = useUserEmail();
+  const {value: createdBy} = useUserEmail();
   const createdAt = getDateString(new Date());
   const updatedAt = getDateString(new Date());
 
-  const {value: listing} = useSelectedListing();
+  const {value: selectedListing} = useSelectedListing();
 
-  const createOrUpdate = async ({listingId, zonesTree}, options) => {
+  const createOrUpdate = async ({listing, zonesTree}, options) => {
     try {
       // listingId
-      const _listingId = listingId || listing?.id;
-      if (!_listingId) {
+      const _listing = listing || selectedListing;
+      if (!_listing) {
         throw new Error("No listingId provided");
       }
 
+      const _listingId = _listing.id;
+
       // create or update
-      const table = listing?.table;
+      const table = _listing?.table;
       const exitingEntity = await db[table].get(_listingId);
       let entity;
 

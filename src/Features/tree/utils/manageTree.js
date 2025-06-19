@@ -15,10 +15,10 @@ export default function manageTree(tree, args) {
       if (!children || !Array.isArray(children)) {
         throw new Error("create_tree requires a `children` array");
       }
-      return [...children];
+      return {tree: [...children]};
 
     case "add_node":
-      if (!targetId || !label) {
+      if (!label) {
         throw new Error("add_node requires `targetId` (parent) and `label`");
       }
       const newNode = {
@@ -29,13 +29,13 @@ export default function manageTree(tree, args) {
       const inserted = insertNodeUnderParent(tree, targetId, newNode, position);
       if (!inserted)
         throw new Error(`Parent node with id "${targetId}" not found`);
-      return tree;
+      return {tree, newNode};
 
     case "remove_node":
       if (!targetId) throw new Error("remove_node requires `targetId`");
       const [removedNode, updatedTree] = removeNodeById(tree, targetId);
       if (!removedNode) throw new Error(`Node with id "${targetId}" not found`);
-      return updatedTree;
+      return {tree: updatedTree};
 
     case "update_node":
       if (!targetId || !label)
@@ -44,7 +44,7 @@ export default function manageTree(tree, args) {
       if (!nodeToUpdate)
         throw new Error(`Node with id "${targetId}" not found`);
       nodeToUpdate.label = label;
-      return tree;
+      return {tree};
 
     case "move_node": // {action:"move_node", targetId, newParentId, position}
       if (!targetId) {
@@ -65,7 +65,7 @@ export default function manageTree(tree, args) {
       ) {
         throw new Error(`Parent node with id "${newParentId}" not found`);
       }
-      return treeAfterRemoval;
+      return {tree: treeAfterRemoval};
 
     default:
       throw new Error(`Unknown action: ${action}`);

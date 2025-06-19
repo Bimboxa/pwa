@@ -28,7 +28,7 @@ export default function DialogDeleteZone({open, onClose, zone, zonesTree}) {
       action: "remove_node",
       targetId: zone.id,
     };
-    const tree = manageTree(zonesTree, args);
+    const {tree} = manageTree(zonesTree, args);
     createOrUpdateZonesTree({zonesTree: tree}, {updateSyncFile: true});
     //
     onClose();

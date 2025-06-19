@@ -8,6 +8,8 @@ export default function getNodeById(id, tree) {
     return null;
   }
 
+  if (!id) return null;
+
   function traverse(items) {
     for (const item of items) {
       if (item.id === id) {

@@ -47,7 +47,7 @@ export default function DialogAddZone({open, onClose, zone, zonesTree}) {
       label: item.label,
       position: position + 1,
     };
-    const tree = manageTree(zonesTree, args);
+    const {tree} = manageTree(zonesTree, args);
     createOrUpdateZonesTree({zonesTree: tree}, {updateSyncFile: true});
     //
     onClose();

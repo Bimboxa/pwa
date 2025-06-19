@@ -42,7 +42,7 @@ export default function DialogRenameZone({open, onClose, zone, zonesTree}) {
       targetId: zone.id,
       label: item.label,
     };
-    const tree = manageTree(zonesTree, args);
+    const {tree} = manageTree(zonesTree, args);
     createOrUpdateZonesTree({zonesTree: tree}, {updateSyncFile: true});
     //
     onClose();

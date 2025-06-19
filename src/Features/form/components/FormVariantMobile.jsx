@@ -116,6 +116,7 @@ export default function FormVariantMobile({
               key={field.key}
               label={field.label}
               zonesTree={field.zonesTree}
+              zonesListing={field.zonesListing}
               value={item?.[field.key]}
               onChange={(newValue) =>
                 handleFieldValueChange(field.key, newValue)
@@ -145,6 +146,7 @@ export default function FormVariantMobile({
                 handleFieldValueChange(field.key, newValue)
               }
               entities={field.entities}
+              entitiesListing={field.entitiesListing}
             />
           )}
           {field?.type === "option" && (

@@ -15,6 +15,18 @@ export default function getNodeParentIdAndPosition(targetNodeId, tree) {
    * @param {string|null} currentParentId - The ID of the parent of the `nodes` array.
    * @returns {Object|null} Position object or null.
    */
+
+  // edge case
+
+  if (targetNodeId === null) {
+    return {
+      parentId: null,
+      position: tree.length,
+    };
+  }
+
+  // main
+
   function searchNodes(nodes, currentParentId) {
     if (!nodes) {
       return null;
