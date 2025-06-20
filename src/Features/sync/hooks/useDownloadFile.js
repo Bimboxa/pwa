@@ -1,17 +1,9 @@
-import useRemoteToken from "./useRemoteToken";
-import useRemoteContainer from "./useRemoteContainer";
-
-import RemoteProvider from "../js/RemoteProvider";
+import useRemoteProvider from "./useRemoteProvider";
 
 export default function useDownloadFile() {
-  const {value: accessToken} = useRemoteToken();
-  const remoteContainer = useRemoteContainer();
+  const remoteProvider = useRemoteProvider();
 
   const download = async (path) => {
-    const remoteProvider = new RemoteProvider({
-      accessToken,
-      provider: remoteContainer.service,
-    });
     return await remoteProvider.downloadFile(path);
   };
 

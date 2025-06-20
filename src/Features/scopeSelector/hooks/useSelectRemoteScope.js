@@ -3,17 +3,14 @@ import {useDispatch, useSelector} from "react-redux";
 import useCreateProject from "Features/projects/hooks/useCreateProject";
 import useCreateScope from "Features/scopes/hooks/useCreateScope";
 import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
-import useRemoteToken from "Features/sync/hooks/useRemoteToken";
+import useRemoteProvider from "Features/sync/hooks/useRemoteProvider";
 
 import {setSelectedProjectId} from "Features/projects/projectsSlice";
 import {setSelectedScopeId} from "Features/scopes/scopesSlice";
 
-import RemoteProvider from "Features/sync/js/RemoteProvider";
-
 import getProjectByClientRef from "Features/projects/services/getProjectByClientRef";
 import jsonFileToObjectAsync from "Features/files/utils/jsonFileToObjectAsync";
 import getRemoteItemPath from "Features/sync/utils/getRemoteItemPath";
-import updateSyncFile from "Features/sync/services/updateSyncFile";
 
 export default function useSelectRemoteScope() {
   const dispatch = useDispatch();
@@ -23,7 +20,7 @@ export default function useSelectRemoteScope() {
   const remoteProject = useSelector((s) => s.scopeSelector.remoteProject);
   const scopesById = useSelector((s) => s.scopes.scopesById);
   const remoteContainer = useRemoteContainer();
-  const {value: accessToken} = useRemoteToken();
+  const remoteProvider = useRemoteProvider();
 
   // data - func
 
@@ -34,12 +31,6 @@ export default function useSelectRemoteScope() {
 
   const select = async (remoteScope) => {
     try {
-      // init
-      const remoteProvider = new RemoteProvider({
-        accessToken,
-        provider: remoteContainer.service,
-      });
-
       // step 1 - fetch local project
       const clientRef = remoteProject.clientRef;
       const localProject = await getProjectByClientRef(clientRef);

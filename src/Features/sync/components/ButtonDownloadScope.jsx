@@ -21,6 +21,7 @@ import syncConfig from "../syncConfig";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
+import useRemoteProvider from "../hooks/useRemoteProvider";
 
 export default function ButtonDownloadScope() {
   const dispatch = useDispatch();
@@ -39,7 +40,7 @@ export default function ButtonDownloadScope() {
   // TODO : override syncFilesPath to add the items if they do not exists on dropbox.
 
   const remoteContainer = useRemoteContainer();
-  const syncFiles = useSelector((s) => s.sync.syncFiles);
+  const remoteProvider = useRemoteProvider();
 
   // const
 
@@ -58,12 +59,6 @@ export default function ButtonDownloadScope() {
   // handlers
 
   async function handleClick() {
-    // remoteProvider
-    const remoteProvider = new RemoteProvider({
-      accessToken,
-      provider: remoteContainer.service,
-    });
-
     // context
     const context = {
       remoteContainer,
