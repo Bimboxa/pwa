@@ -36,7 +36,7 @@ export default function DialogEditListing({open, onClose, listing}) {
   // handlers
 
   async function handleSave() {
-    await updateListing(tempListing);
+    await updateListing(tempListing, {updateSyncFile: true});
     onClose();
   }
   // render
