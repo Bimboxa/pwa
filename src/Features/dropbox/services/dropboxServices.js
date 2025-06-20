@@ -101,14 +101,17 @@ const servicesProps = {
     },
   }),
 
-  downloadZipFolder: ({path, namespaceId}) => ({
-    url: "https://content.dropboxapi.com/2/files/download_zip",
-    namespaceId,
-    responseIsBlob: true,
-    headers: {
-      "Dropbox-API-Arg": JSON.stringify({path}),
-    },
-  }),
+  downloadZipFolder: ({path, namespaceId}) => {
+    console.log("debug_2006 downloadZipFolder", path, namespaceId);
+    return {
+      url: "https://content.dropboxapi.com/2/files/download_zip",
+      namespaceId,
+      responseIsBlob: true,
+      headers: {
+        "Dropbox-API-Arg": JSON.stringify({path}),
+      },
+    };
+  },
 };
 
 // SERVICES factory
