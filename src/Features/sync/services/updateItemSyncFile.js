@@ -31,7 +31,9 @@ export default async function updateItemSyncFile({
 
     const syncFileType = syncFileTypeByType[type];
     const fileType = item.fileType;
-    const listingId = item.listingId;
+
+    let listingId = item.listingId;
+    if (item.syncFileType === "LISTING") listingId = item.id;
 
     await updateSyncFile({
       path,
