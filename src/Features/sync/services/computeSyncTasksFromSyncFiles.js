@@ -10,6 +10,7 @@ export default async function computeSyncTasksFromSyncFiles({
   syncFiles,
 }) {
   try {
+    console.log("debug_2006 syncFiles", syncFiles);
     let tasks = [];
 
     // helpers - listings
@@ -51,9 +52,9 @@ export default async function computeSyncTasksFromSyncFiles({
         RPOJECT: "projects",
         SCOPE: "scopes",
         LISTING: "listings",
-        ENTITIES: listing.table,
+        ENTITIES: listing?.table,
         MARKERS: "markers",
-        ZONING: listing.table,
+        ZONING: listing?.table,
         FILE: "files",
       };
       const table = tableBySyncFileType[syncFileType];
