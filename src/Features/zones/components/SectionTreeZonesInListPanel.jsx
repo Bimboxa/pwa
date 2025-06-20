@@ -20,6 +20,7 @@ import {removeNodeById} from "Features/tree/utils/nodesManagementUtils";
 import manageTree from "Features/tree/utils/manageTree";
 
 import MenuActionsZone from "./MenuActionsZone";
+import SectionCreateFirstZone from "./SectionCreateFirstZone";
 
 export default function SectionTreeZonesInListPanel() {
   const dispatch = useDispatch();
@@ -47,6 +48,8 @@ export default function SectionTreeZonesInListPanel() {
   // helpers
 
   let items = Array.isArray(zonesTree) ? zonesTree : [];
+
+  const noZones = !items.length > 0;
 
   // handlers
 
@@ -102,17 +105,21 @@ export default function SectionTreeZonesInListPanel() {
         zone={selectedZone}
         zonesTree={zonesTree}
       />
-      <TreeZones
-        updatedAt={updatedAt}
-        items={items}
-        expandedItems={expandedItems}
-        onExpandedItemsChange={handleExpandedItemsChange}
-        selectedItems={selectedItems}
-        onSelectedItemsChange={handleSelectedItemsChange}
-        onItemPositionChange={handleItemPositionChange}
-        onDeleteItems={handleDeleteItems}
-        onMoreClick={handleMoreClick}
-      />
+      {noZones ? (
+        <SectionCreateFirstZone />
+      ) : (
+        <TreeZones
+          updatedAt={updatedAt}
+          items={items}
+          expandedItems={expandedItems}
+          onExpandedItemsChange={handleExpandedItemsChange}
+          selectedItems={selectedItems}
+          onSelectedItemsChange={handleSelectedItemsChange}
+          onItemPositionChange={handleItemPositionChange}
+          onDeleteItems={handleDeleteItems}
+          onMoreClick={handleMoreClick}
+        />
+      )}
     </>
   );
 }
