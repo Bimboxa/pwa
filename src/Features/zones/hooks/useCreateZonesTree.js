@@ -12,14 +12,14 @@ export default function useCreateZonesTree(options) {
 
   const createEntity = useCreateEntity();
 
-  const create = async (zonesTree) => {
+  const create = async (zonesTree, options2) => {
     const data = {
       zonesTree: createExample
         ? parseMarkdownToTreeZones(exampleZones)
         : zonesTree,
     };
 
-    await createEntity(data);
+    await createEntity(data, options2);
   };
 
   return create;
