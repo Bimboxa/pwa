@@ -1,7 +1,5 @@
-import useRemoteToken from "./useRemoteToken";
 import useRemoteContainer from "./useRemoteContainer";
-
-import RemoteProvider from "../js/RemoteProvider";
+import useRemoteProvider from "./useRemoteProvider";
 
 import createSyncTaskLocalToRemoteFromItem from "../utils/createSyncTaskLocalToRemoteFromItem";
 import syncTaskLocalToRemote from "../services/syncTaskLocalToRemote";
@@ -9,17 +7,12 @@ import syncTaskLocalToRemote from "../services/syncTaskLocalToRemote";
 export default function useCreateRemoteProject() {
   // data
 
-  const {value: accessToken} = useRemoteToken();
   const remoteContainer = useRemoteContainer();
+  const remoteProvider = useRemoteProvider();
 
   // main
   const createAsync = async (project) => {
     if (!remoteContainer) return;
-
-    const remoteProvider = new RemoteProvider({
-      accessToken,
-      provider: remoteContainer?.service,
-    });
 
     const task = await createSyncTaskLocalToRemoteFromItem({
       item: project,

@@ -4,10 +4,9 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useRemoteToken from "Features/sync/hooks/useRemoteToken";
 import useRemoteContainer from "../hooks/useRemoteContainer";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
+import useRemoteProvider from "./useRemoteProvider";
 
 import syncService from "../services/syncService";
-
-import RemoteProvider from "../js/RemoteProvider";
 
 import db from "App/db/db";
 import computeSyncConfig from "../utils/computeSyncConfig";
@@ -24,6 +23,7 @@ export default function useUploadScopeData() {
   // TODO : add listings & relScopItem ? to the context
   // TODO : override syncFilesPath to add the items if they do not exists on dropbox.
 
+  const remoteProvider = useRemoteProvider();
   const remoteContainer = useRemoteContainer();
 
   // const
@@ -54,12 +54,6 @@ export default function useUploadScopeData() {
   const uploadData = async () => {
     // reset syncFiles
     await db.syncFiles.clear();
-
-    // remoteProvider
-    const remoteProvider = new RemoteProvider({
-      accessToken,
-      provider: remoteContainer.service,
-    });
 
     // context
     const context = {

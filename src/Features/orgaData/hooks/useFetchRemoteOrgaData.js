@@ -1,14 +1,11 @@
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import useRemoteToken from "Features/sync/hooks/useRemoteToken";
+import useRemoteProvider from "Features/sync/hooks/useRemoteProvider";
 
 import fetchRemoteOrgaDataService from "../services/fetchRemoteOrgaDataService";
-import RemoteProvider from "Features/sync/js/RemoteProvider";
-import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 
 export default function useFetchRemoteOrgaData() {
   const appConfig = useAppConfig();
-  const {value: accessToken} = useRemoteToken();
-  const remoteContainer = useRemoteContainer();
+  const remoteProvider = useRemoteProvider();
 
   const fetchRemoteOrgaData = async (orgaDataKey) => {
     try {
@@ -20,10 +17,6 @@ export default function useFetchRemoteOrgaData() {
       }
 
       // main
-      const remoteProvider = new RemoteProvider({
-        accessToken,
-        provider: remoteContainer.service,
-      });
 
       await fetchRemoteOrgaDataService({
         orgaData,
