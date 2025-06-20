@@ -42,7 +42,7 @@ export default async function getListingEntityModelTemplateAsync({
                 const zoning = await db[relatedListing.table].get(
                   relatedListing.id
                 );
-                _field[key] = zoning.zonesTree;
+                _field[key] = zoning?.zonesTree;
                 _field["zonesListing"] = relatedListing;
               } else if (key === "entities") {
                 let entities = await db[relatedListing.table]
