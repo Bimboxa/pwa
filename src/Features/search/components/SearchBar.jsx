@@ -2,7 +2,7 @@ import {useState, useRef} from "react";
 
 import {Box, TextField, InputAdornment, IconButton} from "@mui/material";
 import {
-  AddCircle as AddIcon,
+  Add as AddIcon,
   Search as SearchIcon,
   Close as CloseIcon,
 } from "@mui/icons-material";
@@ -74,9 +74,19 @@ export default function SearchBar({
         }}
       />
       {onCreateClick && (
-        <IconButton color={color} onClick={onCreateClick}>
-          <AddIcon sx={{color}} />
-        </IconButton>
+        <Box
+          sx={{
+            bgcolor: color,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "50%",
+          }}
+        >
+          <IconButton onClick={onCreateClick}>
+            <AddIcon sx={{color: "white"}} />
+          </IconButton>
+        </Box>
       )}
     </Box>
   );
