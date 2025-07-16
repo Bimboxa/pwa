@@ -1,20 +1,20 @@
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 
-import {useDispatch, useSelector} from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
-import {setWarningWasShowed} from "Features/init/initSlice";
+import { setWarningWasShowed } from "Features/init/initSlice";
 
 import useRemoteContainer from "../hooks/useRemoteContainer";
 import useRemoteToken from "../hooks/useRemoteToken";
 
-import {Box, Typography} from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import getHideWarningFromLocalStorage from "../services/getHideWarningFromLocalStorage";
 import setHideWarningInLocalStorage from "../services/setHideWarningInLocalStorage";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 import ButtonLoginRemoteContainer from "./ButtonLoginRemoteContainer";
-import {Warning} from "@mui/icons-material";
+import { Warning } from "@mui/icons-material";
 import BoxCenter from "Features/layout/components/BoxCenter";
 
 export default function DialogAutoRemoteContainerConnexion() {
@@ -38,12 +38,15 @@ export default function DialogAutoRemoteContainerConnexion() {
   // data
 
   const remoteContainer = useRemoteContainer();
-  const {value: accessToken} = useRemoteToken();
+  const { value: accessToken } = useRemoteToken();
 
   // helpers
 
-  const openDialog = !hideWarning && !accessToken && remoteContainer;
-  const closeDialog = hideWarning || accessToken || !remoteContainer;
+  const closeDialog =
+    hideWarning ||
+    accessToken ||
+    !remoteContainer ||
+    !remoteContainer.showSignInWarning;
 
   // effect - setWarning was shown if auto connect
 
@@ -76,15 +79,15 @@ export default function DialogAutoRemoteContainerConnexion() {
 
   return (
     <DialogGeneric open={!closeDialog} onClose={handleClose} title={title}>
-      <BoxCenter sx={{width: 1, height: 40}}>
-        <Warning sx={{color: "warning.main"}} />
+      <BoxCenter sx={{ width: 1, height: 40 }}>
+        <Warning sx={{ color: "warning.main" }} />
       </BoxCenter>
 
-      <Box sx={{p: 2}}>
+      <Box sx={{ p: 2 }}>
         <Typography
           variant="body2"
           color="text.secondary"
-          sx={{whiteSpace: "pre-line"}}
+          sx={{ whiteSpace: "pre-line" }}
         >
           {messageS}
         </Typography>
