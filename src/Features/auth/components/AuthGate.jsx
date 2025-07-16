@@ -26,7 +26,7 @@ const AuthGate = ({children}) => {
     console.log("[EFFECT] authGate");
     if (!email && isLoaded && isOnline) {
       setUserEmailInLocalStorage(null);
-      navigate("/sign-in");
+      //navigate("/sign-in");
     }
   }, [email, isOnline, isLoaded]);
 
@@ -53,7 +53,7 @@ const AuthGate = ({children}) => {
       isOnline
     );
     if (!userEmail && isOnline) {
-      navigate("/sign-in"); // Redirects to Clerk sign-in page
+      //navigate("/sign-in"); // Redirects to Clerk sign-in page
     }
   }, [email]);
 

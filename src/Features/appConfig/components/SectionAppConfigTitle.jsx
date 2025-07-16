@@ -5,15 +5,20 @@ import {useDispatch} from "react-redux";
 import {setToaster} from "Features/layout/layoutSlice";
 
 import useAppConfig from "../hooks/useAppConfig";
-import useFetchOrgaAppConfig from "../hooks/useFetchOrgaAppConfig";
+import useRefreshAppConfig from "../hooks/useRefreshAppConfig";
 
-import {Box, IconButton, Typography} from "@mui/material";
+import {Box, IconButton, Typography,Tooltip} from "@mui/material";
 import {Refresh} from "@mui/icons-material";
 
 export default function SectionAppConfigTitle() {
-  const appConfig = useAppConfig();
-  const fetchOrgaAppConfig = useFetchOrgaAppConfig();
   const dispatch = useDispatch();
+  const appConfig = useAppConfig();
+  const refreshAppConfig = useRefreshAppConfig();
+
+
+  // strings
+
+  const refreshS = "Mettre à jour la configuration";
 
   // state
 
@@ -28,7 +33,7 @@ export default function SectionAppConfigTitle() {
 
   async function handleRefresh() {
     setLoading(true);
-    await fetchOrgaAppConfig();
+    await refreshAppConfig();
     await dispatch(setToaster({message: "Configuration actualisée"}));
     setLoading(false);
   }
@@ -50,9 +55,10 @@ export default function SectionAppConfigTitle() {
           {subtitle}
         </Typography>
       </Box>
-      <IconButton onClick={handleRefresh} loading={loading}>
+      <Tooltip title={refreshS}><IconButton onClick={handleRefresh} loading={loading}>
         <Refresh />
-      </IconButton>
+      </IconButton></Tooltip>
+      
     </Box>
   );
 }

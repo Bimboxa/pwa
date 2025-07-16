@@ -5,8 +5,7 @@
 
 import getRemoteContainerPathFromLocalStorage from "../services/getRemoteContainerPathFromLocalStorage";
 
-export default function resolveAppConfig(appConfig, options) {
-  console.log("resolveAppConfig", options);
+export default function resolveAppConfig(appConfig) {
   // edge case
 
   if (!appConfig) return;

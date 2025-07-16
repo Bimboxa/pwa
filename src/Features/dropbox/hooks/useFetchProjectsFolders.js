@@ -1,13 +1,13 @@
-import {useDispatch} from "react-redux";
+//import {useDispatch} from "react-redux";
 
 import useRemoteToken from "Features/sync/hooks/useRemoteToken";
 
 export default function useFetchProjectsFolders() {
-  const dispatch = useDispatch();
+  //const dispatch = useDispatch();
   console.log("[ TO DELETE ]");
   // data
 
-  const {value: token} = useRemoteToken();
+  const { value: token } = useRemoteToken();
 
   // helpers
 

@@ -7,6 +7,7 @@ import {triggerShapesUpdate} from "Features/shapes/shapesSlice";
 import useAutoLoadShapesInMapEditor from "../hooks/useAutoLoadShapesInMapEditor";
 import useAutoLoadMainMapInMapEditor from "../hooks/useAutoLoadMainMapInMapEditor";
 import useAutoLoadMarkersInMapEditor from "../hooks/useAutoLoadMarkersInMapEditor";
+import useLoadedMainMap from "../hooks/useLoadedMainMap";
 
 import {Box} from "@mui/material";
 
@@ -14,6 +15,7 @@ import MapEditor from "Features/mapEditor/js/MapEditor";
 import LayerMapEditor from "./LayerMapEditor";
 import PopperEditScale from "./PopperEditScale";
 import BlockEntityMarker from "Features/markers/components/BlockEntityMarker";
+import SectionNoMap from "./SectionNoMap";
 
 import editor from "App/editor";
 
@@ -27,10 +29,18 @@ export default function MainMapEditor() {
   const containerRef = useRef();
   const mapEditorRef = useRef();
 
+  // data
+
+  const mapLoaded = useLoadedMainMap();
+
   // state
 
   const [containerElExists, setContainerElExists] = useState(false);
   const [mapEditorIsReady, setMapEditorIsReady] = useState(false);
+
+  // helpers
+
+  const noMap = !Boolean(mapLoaded);
 
   // effect - init
 
@@ -98,6 +108,10 @@ export default function MainMapEditor() {
     mapEditor: mapEditorRef.current,
     mapEditorIsReady,
   });
+
+  if (noMap) {
+    return <SectionNoMap />;
+  }
 
   return (
     <Box
