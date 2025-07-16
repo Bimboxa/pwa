@@ -8,7 +8,7 @@ const appConfigSlice = createSlice({
     value: null,
     openAppConfig: false,
     forceUpdateAt: null,
-    useDefault: false,
+    useDefault: false, // use default config
   },
   reducers: {
     setAppConfig: (state, action) => {

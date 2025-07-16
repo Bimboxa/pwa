@@ -1,37 +1,32 @@
-import {useEffect} from "react";
+import { useEffect } from "react";
 
-import {useDispatch, useSelector} from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
-import {setAppConfig} from "../appConfigSlice";
+import { setAppConfig } from "../appConfigSlice";
 
 import getAppConfigFromLocalStorage from "../services/getAppConfigFromLocalStorage";
-import fetchOrgaInitAppConfigService from "../services/fetchOrgaInitAppConfig";
-
-import appConfigDefault from "../data/appConfigDefault";
+import fetchOrgaAppConfigService from "../services/fetchOrgaAppConfig";
 
 import useToken from "Features/auth/hooks/useToken";
 import setAppConfigInLocalStorage from "../services/setAppConfigInLocalStorage";
 import resolveAppConfig from "../utils/resolveAppConfig";
 
-import {useUser} from "@clerk/clerk-react";
-import {LensOutlined} from "@mui/icons-material";
+import getAppConfigDefault from "../services/getAppConfigDefault";
 
 export default function useInitAppConfig() {
   const dispatch = useDispatch();
   const accessToken = useToken();
 
-  // user for debug mode
-  const {user} = useUser();
-  const email = user?.primaryEmailAddress?.emailAddress;
-
-  let debug = email === "favreau-consulting@lei.fr";
-  debug = false;
+  // data
 
   const forceUpdateAt = useSelector((s) => s.appConfig.forceUpdateAt);
   const useDefault = useSelector((s) => s.appConfig.useDefault);
 
+  // helpers
+
   const initAsync = async () => {
     let appConfig;
+    const appConfigDefault = await getAppConfigDefault();
 
     // 1st : get appConfig from localStorage
     appConfig = getAppConfigFromLocalStorage();
@@ -42,15 +37,15 @@ export default function useInitAppConfig() {
     } else if (!appConfig && accessToken) {
       // Fallback : fetch appConfig from server & resolve it
 
-      appConfig = await fetchOrgaInitAppConfigService({accessToken});
-      appConfig = resolveAppConfig(appConfig, {debug});
-
-      // fallback to default confit
-      if (!appConfig) appConfig = resolveAppConfig(appConfigDefault);
-
-      // store
-      setAppConfigInLocalStorage(appConfig);
+      appConfig = await fetchOrgaAppConfigService({ accessToken });
+      appConfig = resolveAppConfig(appConfig);
     }
+
+    // fallback to default config
+    if (!appConfig) appConfig = resolveAppConfig(appConfigDefault);
+
+    // store
+    setAppConfigInLocalStorage(appConfig);
 
     // resolve with localData
     if (appConfig) appConfig = resolveAppConfig(appConfig); // to update when remoteContainerPath change

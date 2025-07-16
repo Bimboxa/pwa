@@ -8,7 +8,7 @@ import useToken from "Features/auth/hooks/useToken";
 
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
-import fetchOrgaInitAppConfigService from "../services/fetchOrgaInitAppConfig";
+import fetchOrgaAppConfigService from "../services/fetchOrgaAppConfig";
 
 export default function ButtonResetApp() {
   const dispatch = useDispatch();
@@ -32,7 +32,7 @@ export default function ButtonResetApp() {
 
   async function handleReset() {
     setLoading(true);
-    const appConfig = await fetchOrgaInitAppConfigService({accessToken});
+    const appConfig = await fetchOrgaAppConfigService({accessToken});
     console.log("[ButtonResetApp] appConfig", appConfig);
     dispatch(setAppConfig(appConfig));
     setLoading(false);

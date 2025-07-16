@@ -22,7 +22,7 @@ export default function SectionRemoteContainerOverview() {
 
   // helpers
 
-  const serviceLabel = `${remoteContainer?.service}`;
+  const serviceLabel = `${remoteContainer?.name}`;
   const pathLabel = `${pathS}:`;
 
   return (

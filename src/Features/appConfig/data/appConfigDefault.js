@@ -1,4 +1,5 @@
 import {red} from "@mui/material/colors";
+
 const appConfigDefault = {
   name: "Configuration par défaut",
   version: "v1",

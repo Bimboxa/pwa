@@ -52,7 +52,7 @@ export default function PanelSelectProject({containerEl, onClose, onSelect}) {
 
   // helpers - notItems
 
-  const noItemS = appConfig.strings.project.noProject || "Aucun projet";
+  const noItemS = appConfig.strings.project.noProject || "0 projet";
 
   // helpers - items
 

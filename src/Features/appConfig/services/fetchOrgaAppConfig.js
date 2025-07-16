@@ -1,4 +1,4 @@
-export default async function fetchOrgaInitAppConfigService({accessToken}) {
+export default async function fetchOrgaAppConfigService({ accessToken }) {
   const url = import.meta.env.VITE_WORKER_URL_ORGA_APP_CONFIG;
 
   const response = await fetch(url, {

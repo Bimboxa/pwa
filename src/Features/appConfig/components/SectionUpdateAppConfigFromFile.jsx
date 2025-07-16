@@ -34,7 +34,7 @@ export default function SectionUpdateAppConfigFromFile() {
     if (file) {
       setLoading(true);
       const appConfig = await yamlToJsonAsync(file);
-      console.log("appConfig", appConfig);
+      //console.log("appConfig", appConfig);
       await updateOrgaAppConfig(appConfig);
       setLoading(false);
     }
