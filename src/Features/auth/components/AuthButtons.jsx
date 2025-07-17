@@ -1,8 +1,9 @@
 import useNetworkStatus from "../hooks/useNetworkStatus";
+import useToken from "../hooks/useToken";
 
-import {SignedIn, UserButton, SignedOut, useAuth} from "@clerk/clerk-react";
+import { SignedIn, UserButton, SignedOut, useAuth } from "@clerk/clerk-react";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 import ButtonSignIn from "./ButtonSignIn";
 import AuthButtonOffline from "./AuthButtonOffline";
 
@@ -13,6 +14,13 @@ export function AuthButtons() {
   // data
 
   const isOnline = useNetworkStatus();
+  const token = useToken();
+
+  // debug - handler
+
+  const handleDebug = () => {
+    console.log("debug_1705", token);
+  };
 
   if (!isOnline) {
     return <AuthButtonOffline />;
@@ -27,6 +35,7 @@ export function AuthButtons() {
         alignItems: "center",
         justifyContent: "center",
       }}
+      onClick={handleDebug}
     >
       <SignedIn>
         <UserButton>
