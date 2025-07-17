@@ -1,0 +1,597 @@
+name: "Conf. par défaut"
+version: "16/07/2025"
+isDefault: true
+
+# COLORS
+
+colors:
+  purple700: &purple700 "#7B1FA2"
+  purple900: &purple900 "#4A148C"
+  red300: &red300 "#E57373"
+  red800: &red800 "#C62828"
+  red900: &red900 "#B71C1C"
+  orange300: &orange300 "#FF9800"
+  orange700: &orange700 "#F57C00"
+  orange800: &orange800 "#EF6C00"
+  blue800: &blue800 "#1976D2"
+  blue700: &blue700 "#0288D1"
+  blue300: &blue300 "#4FC3F7"
+  green800: &green800 "#388E3C"
+  green900: &green900 "#1B5E20"
+  grey900: &grey900 "#212121"
+
+# STRINGS
+
+strings:
+  general:
+    projectAndScope: "Périmètre des données"
+    select: "Sélectionnez un dossier / lot"
+
+  project:
+    nameSingular: "Projet"
+    namePlural: "Projets"
+    seeAll: "Tous les projets"
+    new: "Nouveau projet"
+    create: "Créez un nouveau projet"
+    noProject: Aucun projet disponible
+
+  scope:
+    nameSingular: "Dossier"
+    namePlural: "Dossiers"
+    seeAll: "Tous les dossiers"
+    new: "Nouveau dossier"
+    create: "Créez un nouveau dossier"
+    select: "Sélectionnez un dossier"
+
+  presetConfig:
+    title: "Type de dossier"
+    select: "Sélectionnez un type de dossier"
+
+# REMOTE CONTAINERS
+
+remoteContainer:
+  service: "REMOTE_CONTAINER"
+  name: "Serveur de sauvegarde"
+  showSignInWarning: false
+
+orgaData:
+  pathRelative: "/_data/_orga"
+  files:
+    - key: nomenclature1
+      fileName: _nomenclature_nfx-46-020_v1.json
+      dataStructure: "NOMENCLATURE"
+      description: "Nomenclature NFX 46-020. Objet {name,ranks,items:[{num,label,children}]}"
+    - key: reportTemplate1
+      fileName: SGS - Bon de commande Générique AMIANTE rev 1123.xlsx
+      dataStructure: "FILE"
+      description: "Bordereau d'envoi SGS pour les prélèvement"
+
+sync:
+  canSyncLocalProject: false
+  canSyncLocalScope: true
+
+# CREATION
+
+creation:
+  #canCreateProject: false
+  canCreateProject: true
+
+# DATA
+
+# ENTITY MODEL
+
+entityModelsObject:
+  projectData:
+    key: projectData
+    type: KEY_VALUE
+
+  map:
+    key: map
+    type: MAP
+    strings:
+      labelNew: Nouveau fond de plan
+    labelKey: label
+    fieldsObject:
+      label:
+        key: label
+        type: text
+        label: Nom
+      image:
+        key: image
+        type: image
+        label: Image
+        options:
+          maxSize: 5000
+          fromPdf: true
+          buttonLabel: Choisir une image / un pdf
+
+  zone:
+    key: zone
+    type: ZONE_ENTITY_MODEL
+    strings:
+      labelNew: Nouvelle pièce
+
+  relZoneEntity:
+    key: relZoneEntity
+    type: REL_ZONE_ENTITY
+
+  materialCategory:
+    key: materialCategory
+    type: NOMENCLATURE_ITEM
+    computedFields:
+      fullName:
+        computationType: "HARD_CODED"
+        scriptKey: "categoryFullName_v1"
+        needListingItems: true
+
+  material:
+    key: material
+    type: "ENTITY"
+    strings:
+      labelEntity: Matériau
+      labelNew: Nouveau matériau
+      labelSelect: Sélectionnez un matériau
+    labelKey: description
+    subLabelKey: secondaryLabel
+    fieldsObject:
+      category:
+        key: "category"
+        type: category
+        label: "Catégorie"
+        nomenclature:
+          listingKey: "nomenclature_1" # nomenclature_1 is the key used in the listing.relatedListings object.
+      description:
+        key: description
+        type: text
+        label: Description
+      photo:
+        key: photo
+        type: image
+        label: Image
+        options:
+          maxSize: 100 # in Ko
+      # secondaryLabel:
+      #   type: computedText
+      #   computedValues:
+      #     index:
+      #       countBy: "code"
+      #       format: "000"
+      #   template: "{{category.code}}-{{index}}"
+
+      # zones:
+      #   key: zones
+      #   type: zones
+      #   label: Pièces
+    # computedFields:
+    #   fullLabelWithCategory:
+    #     computationType: "TEMPLATE_BASED"
+    #     template: "{{category.fullName}} - {{description}}"
+
+  comment:
+    key: comment
+    type: LOCATED_ENTITY
+    strings:
+      labelNew: Nouveau commentaire
+    labelKey: text
+    fieldsObject:
+      text:
+        key: text
+        type: text
+        label: Description
+        options:
+          multiline: true
+      image:
+        key: image
+        type: image
+        label: Image
+        options:
+          autoFocus: true
+          variant: auto
+          maxSize: 200
+    sortBy:
+      key: createdAt
+      order: desc
+
+  sample:
+    type: LOCATED_ENTITY
+    key: sample
+    label: Prélèvement
+    strings:
+      labelNew: Nouveau prélèvement
+    labelKey: num
+    subLabelKey: comment
+    fieldsObject:
+      num:
+        key: num
+        label: Numéro
+        type: text
+        options:
+          autoFocus: true
+          increment: auto
+      photo:
+        key: photo
+        label: Photo
+        type: image
+        options:
+          autoFocus: true
+          variant: auto
+          maxSize: 50
+      material:
+        key: material
+        label: "Matériau"
+        type: "entity"
+        #relationKey: "material1" # used in the list specification.
+        entities:
+          listingKey: materials_1
+
+      zone:
+        key: zone
+        label: Pièce
+        type: zone
+        zonesTree:
+          listingKey: zoning_1 # computed field : zonesListing (for creation)
+        #relationKey: "zone1" # used in the list specification.
+
+      comment:
+        key: comment
+        label: Commentaire
+        type: text
+        options:
+          autoFocus: true
+          multiline: true
+
+      qrcode:
+        key: qrcode
+        label: QR Code
+        type: qrcode
+
+  inspection:
+    type: LOCATED_ENTITY
+    key: inspection
+    label: Sondage
+    strings:
+      labelNew: Nouveau sondage
+    labelKey: num
+    subLabelKey: description
+    fieldsObject:
+      num:
+        key: num
+        label: Numéro
+        type: text
+        options:
+          autoFocus: true
+          increment: auto
+      description:
+        key: description
+        label: Description (pièce & matériau)
+        type: text
+        options:
+          autoFocus: true
+          multiline: true
+      photo:
+        key: photo
+        label: Photo
+        type: image
+        options:
+          autoFocus: true
+          variant: auto
+
+  laboOrder:
+    label: Commande labo
+    type: ENTITY_PROPS
+    labelKey: order
+    actionsTemplate:
+      type: SELECT_OPTIONS
+      optionKey: order
+    props:
+      order:
+        key: order
+        type: options
+
+  laboOrderReport:
+    label: Bordereau d'envoi
+    type: "REPORT"
+    labelKey: "labo"
+    strings:
+      labelNew: Nouveau bordereau d'envoi
+    fieldsObject:
+      name:
+        key: name
+        label: "Nom du bordereau"
+        type: text
+      laboOrder:
+        key: laboOrder
+        label: "Commande"
+        type: "option"
+        options:
+          from:
+            listingKey: "list1"
+            key: "order"
+
+# PRESET LISTINGS
+
+presetListingsObject:
+  projectDataset:
+    key: projectDataset
+    uniqueByProject: true # do not re-create if the listing exists.
+    name: Affaire
+    entityModelKey: projectData
+    table: keyValuePairs
+    color: *grey900
+    iconKey: dataObject
+    formTemplate:
+      fields:
+        - key: name
+          label: Nom de l'affaire
+          type: text
+        - key: address
+          label: Adresse
+          type: text
+          options:
+            multiline: true
+
+  mapsGeneric:
+    key: mapsGeneric
+    name: Fonds de plan
+    entityModelKey: map
+    table: maps
+    color: *purple700
+    iconKey: map
+    canCreateItem: true
+
+  mapsFromPhotos:
+    key: mapsFromPhotos
+    name: Fonds de plan (photos)
+    entityModelKey: map
+    table: maps
+    color: *purple700
+    iconKey: map
+    canCreateItem: true
+
+  mapsFromPdf:
+    key: mapsFromPdf
+    name: Fonds de plan (pdf archi)
+    uniqueByProject: true
+    entityModelKey: map
+    table: maps
+    color: *purple900
+    iconKey: map
+    canCreateItem: true
+
+  zones:
+    key: zones
+    name: Pièces
+    type: "ZONING"
+    entityModelKey: zone
+    table: zonings
+    color: *red300
+    iconKey: room
+
+  nom_NFX_46_020:
+    key: nom_NFX_46_020
+    uniqueByProject: true
+    name: "NFX 46-020"
+    type: "NOMENCLATURE"
+    entityModelKey: materialCategory
+    mainTableKey: materialCategories
+    color: *orange800
+    iconKey: nomenclature
+    metadata:
+      nomenclature:
+        srcType: "ORGA_DATA"
+        srcKey: "nomenclature1" # path: orgaData.nomenclature1
+
+  materials:
+    key: materials
+    name: Matériaux
+    entityModelKey: material
+    relatedListings:
+      nomenclature_1: nom_NFX_46_020
+    #relatedNomenclatures: # relation from the key of the nomenclature.
+    #nomenclature_1: "nomenclature1" # we use the key related to the orgadata.
+    #nomenclature_1: nom_NFX_46_020"
+    table: entities
+    color: *orange300
+    iconKey: material
+    zoningKey: zones
+    canCreateItem: true
+
+  relsZoneMaterial:
+    key: relsZoneMaterial
+    type: "RELS_ZONE_ENTITY"
+    name: "ZPSO"
+    entityModelKey: relZoneEntity
+    table: relsZoneEntity
+    color: *orange700
+    iconKey: "share"
+    relatedListing:
+      key: materials
+      id: COMPUTED # this is a computed value when creating the list.
+
+  samples:
+    key: samples
+    name: Prélèvements
+    entityModelKey: sample
+    relatedListings:
+      materials_1: materials
+      zoning_1: zones
+    table: entities
+    enableMarkers: true
+    color: *blue800
+    iconKey: sample
+    sortBy:
+      key: num
+      order: desc
+    relatedEntities: # list the modelEntityKey of the related entities
+      material1:
+        listingsKeys:
+          - materials
+        listingsIds:
+          - COMPUTED # this is a computed value when creating the list.
+      zone1:
+        listingsKeys:
+          - zones
+        listingsIds:
+          - COMPUTED # this is a computed value when creating the list.
+    canCreateItem: true
+
+  observations:
+    name: Sondages
+    entityModelKey: inspection
+    table: entities
+    color: *blue700
+    iconKey: info
+    sortBy:
+      key: num
+      order: desc
+
+  locations:
+    name: Localisations
+    entityModelKey: location
+    table: entities
+    color: *blue300
+    iconKey: location
+
+  comments:
+    key: comments
+    name: Commentaires
+    entityModelKey: comment
+    table: entities
+    color: *red800
+    iconKey: comment
+    canCreateItem: true
+
+  laboOrders:
+    key: laboOrders
+    name: Commandes labo
+    entityModelKey: laboOrder
+    table: entitiesProps
+    color: *green900
+    iconKey: shoppingCart
+    targetKeys:
+      - samples
+
+  laboOrderReports:
+    key: laboOrderReports
+    name: "Bordereau d'envoi"
+    type: "REPORTS"
+    entityModelKey: laboOrderReport
+    table: "reports"
+    color: *green800
+    iconKey: excel
+    metadata:
+      reportConfigKey: "laboOrderReport"
+
+# PRESET SCOPES
+
+presetScopesObject:
+  preset1:
+    key: preset1
+    name: Diagnostic amiante (WIP)
+    description: Enregistrer vos prélèvements et sondages
+    listings:
+      - projectDataset
+      - mapsFromPhotos
+      - mapsFromPdf
+      - zones
+      - materials
+      - relsZoneMaterial
+      - samples
+      - observations
+      - comments
+      - laboOrders
+      - laboOrderReports
+
+  preset2:
+    key: preset2
+    name: Notes libres
+    description: Enregistrer vos commentaires
+    listings:
+      - comments
+
+  presetDebug:
+    key: presetDebug
+    name: Diagnostic amiante
+    listings:
+      - mapsGeneric
+      - zones
+      - nom_NFX_46_020
+      - materials
+      - samples
+      - relsZoneMaterial
+
+# REPORT TABLES
+
+tables:
+  materialCategories:
+    name: "Nomenclature de matériaux"
+    description: "Tableau de la nomenclature des matériaux"
+    type: "NOMENCLATURE_BASED"
+    categoryKeyLabel:
+      # - key: "num"
+      #   label: "N°"
+      # - key: "label"
+      #   label: "Nom"
+      - key: "code"
+        label: "Code"
+
+  sampleMaterialZone:
+    name: "Prélèvement - Matériau - Pièce"
+    description: "Tableau des prélèvements (Prélevement | Matériau | Pièce)"
+    type: "ENTITIES_BASED"
+    columns:
+      - key: num
+        label: N°
+        description: "Numéro du prélèvement"
+        value:
+          type: "ENTITY_PROP"
+          entityFieldKey: num
+      - key: material
+        label: Matériau
+        description: "Matériau prélevé"
+        value:
+          type: "ENTITY_PROP"
+          entityFieldKey: material
+          entityFieldValue: fullLabelWithCategory
+      - key: zone
+        label: Pièce
+        description: "Pièce où le prélèvement a été effectué"
+        value:
+          type: "ENTITY_PROP"
+          entityFieldKey: zone
+          entityFieldValue: fullName
+
+  orderSamples:
+    name: "Echantillons (commandes)"
+    description: "Tableau d'échantillons pour les commandes"
+    type: "ENTITIES_PROPS_BASED"
+    columns:
+      - key: num
+        label: N°
+        description: N° du prélèvement
+        value:
+          type: "ENTITY_PROP"
+          entityFieldKey: num
+      - key: description
+        label: Description
+        description: "Catégorie + Ouvrages ou Composants de la construction + Partie d'ouvrages ou de composants à inspecter + descriptif technicien"
+        value:
+          type: "ENTITY_PROP"
+          entityFieldKey: material
+          entityFieldValue: fullNameWithCategory
+
+# REPORTS
+
+reports:
+  laboOrderReport:
+    strings:
+      createTitle: "Nouveau bordereau d'envoi"
+    name: "Bordereau d'envoi"
+    type: "EXCEL"
+    options:
+      - key: "SGS"
+        label: "Labo SGS"
+        templateKey: "reportTemplate1"
+      - key: "MY_EASY_LAB"
+        label: "My Easy Lab"
+        templateKey: "reportTemplate2"
