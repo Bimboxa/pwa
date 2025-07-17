@@ -1,8 +1,12 @@
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
-import { Box, Stepper, Step, StepLabel } from "@mui/material";
+import { setStep } from "../onboardingSlice";
+
+import { Box, Stepper, Step, StepLabel, StepButton } from "@mui/material";
 
 export default function SectionStepperHorizontal() {
+  const dispatch = useDispatch();
+
   // const
 
   const steps = ["CREATE_PROJECT", "CREATE_MAP", "CREATE_LISTINGS"];
@@ -10,6 +14,10 @@ export default function SectionStepperHorizontal() {
   // data
 
   const step = useSelector((s) => s.onboarding.step);
+
+  const projectName = useSelector((s) => s.onboarding.projectName);
+  const mapName = useSelector((s) => s.onboarding.mapName);
+  const issuesListingName = useSelector((s) => s.onboarding.issuesListingName);
 
   // helpers
 
@@ -19,18 +27,36 @@ export default function SectionStepperHorizontal() {
     CREATE_LISTINGS: "Sélectionnez des listes d'objets",
   };
 
-  const label = labelByStep[step];
+  // helpers - completedByStep
+
+  const completedByStep = {
+    CREATE_PROJECT: Boolean(projectName),
+    CREATE_MAP: Boolean(mapName),
+    CREATE_LISTINGS: Boolean(issuesListingName),
+  };
+
+  // handlers
+
+  function handleStep(index) {
+    dispatch(setStep(steps[index]));
+  }
 
   // render
 
   return (
-    <Box sx={{ width: 1, p: 2 }}>
-      <Stepper activeStep={steps.indexOf(step)} orientation="horizontal">
-        {steps.map((step, index) => (
-          <Step key={step}>
-            <StepLabel>{labelByStep[step]}</StepLabel>
-          </Step>
-        ))}
+    <Box sx={{ width: 1, p: 6 }}>
+      <Stepper activeStep={steps.indexOf(step)} alternativeLabel nonLinear>
+        {steps.map((step, index) => {
+          const label = labelByStep[step];
+          const completed = completedByStep[step];
+          return (
+            <Step key={label} completed={completed}>
+              <StepButton color="inherit" onClick={() => handleStep(index)}>
+                {label}
+              </StepButton>
+            </Step>
+          );
+        })}
       </Stepper>
     </Box>
   );
