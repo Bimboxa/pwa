@@ -1,4 +1,4 @@
-import {configureStore} from "@reduxjs/toolkit";
+import { configureStore } from "@reduxjs/toolkit";
 
 import appConfigReducer from "Features/appConfig/appConfigSlice";
 import authReducer from "Features/auth/authSlice";
@@ -9,6 +9,7 @@ import webrtcReducer from "Features/webrtc/webrtcSlice";
 import syncReducer from "Features/sync/syncSlice";
 import layoutReducer from "Features/layout/layoutSlice";
 import listPanelReducer from "Features/listPanel/listPanelSlice";
+import onboardingReducer from "Features/onboarding/onboardingSlice";
 import projectsReducer from "Features/projects/projectsSlice";
 import scopesReducer from "Features/scopes/scopesSlice";
 import scopeSelectorReducer from "Features/scopeSelector/scopeSelectorSlice";
@@ -45,6 +46,7 @@ const store = configureStore({
     webrtc: webrtcReducer,
     sync: syncReducer,
     layout: layoutReducer,
+    onboarding: onboardingReducer,
     listPanel: listPanelReducer,
     projects: projectsReducer,
     scopes: scopesReducer,

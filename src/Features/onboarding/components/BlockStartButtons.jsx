@@ -4,7 +4,7 @@ import { Box } from "@mui/material";
 
 import { Button, Typography } from "@mui/material";
 
-export default function BlockStartButtons({ isMobile }) {
+export default function BlockStartButtons({ isMobile, onShowCreateData }) {
   const navigate = useNavigate();
 
   // strings
@@ -15,7 +15,7 @@ export default function BlockStartButtons({ isMobile }) {
   // handlers
 
   function handleStartOffline() {
-    navigate("/");
+    onShowCreateData();
   }
 
   function handleStartOnline() {
