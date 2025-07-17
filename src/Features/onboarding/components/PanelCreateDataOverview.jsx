@@ -3,11 +3,14 @@ import { useDispatch } from "react-redux";
 
 import useCreateOnboardingData from "../hooks/useCreateOnboardingData";
 
+import { setSelectedProjectId } from "Features/projects/projectsSlice";
+import { setSelectedListingId } from "Features/listings/listingsSlice";
+
 import { Button, Typography } from "@mui/material";
 
 import Panel from "Features/layout/components/Panel";
 import BoxCenter from "Features/layout/components/BoxCenter";
-import { setSelectedProjectId } from "Features/projects/projectsSlice";
+import { setLoadedMainMapId } from "Features/mapEditor/mapEditorSlice";
 
 export default function PanelCreateDataOverview() {
   const dispatch = useDispatch();
@@ -24,11 +27,18 @@ export default function PanelCreateDataOverview() {
   // handlers
 
   async function handleCreate() {
-    const { project } = await createOnboardingData();
+    try {
+      const { project, issuesListing, map } = await createOnboardingData();
+      console.log("[success]", project, issuesListing, map);
 
-    dispatch(setSelectedProjectId(project.id));
+      dispatch(setSelectedProjectId(project.id));
+      dispatch(setSelectedListingId(issuesListing?.id));
+      dispatch(setLoadedMainMapId(map?.id));
 
-    navigate("/");
+      navigate("/");
+    } catch (e) {
+      console.error("error", e);
+    }
   }
 
   return (

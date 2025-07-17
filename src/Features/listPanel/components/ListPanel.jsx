@@ -1,11 +1,11 @@
-import {useSelector, useDispatch} from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
-import {setOpenDialogAddListing} from "Features/listings/listingsSlice";
+import { setOpenDialogAddListing } from "Features/listings/listingsSlice";
 
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 
-import {Box, Button, Typography} from "@mui/material";
-import {Add} from "@mui/icons-material";
+import { Box, Button, Typography } from "@mui/material";
+import { Add } from "@mui/icons-material";
 
 import SectionShapesInListPanel from "Features/shapes/components/SectionShapesInListPanel";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -27,7 +27,9 @@ export default function ListPanel() {
   const width = useSelector((s) => s.listPanel.width);
   const open = useSelector((s) => s.listPanel.open);
   const isMobile = useIsMobile();
-  const {value: listings} = useListingsByScope();
+  const { value: listings } = useListingsByScope();
+
+  console.log("debug_1707 listings", listings);
 
   // helpers - hasListings
 

@@ -44,6 +44,7 @@ export default function SectionStepCreateMap() {
   }
 
   function handleCreate() {
+    console.log("setMapFile to ", tempFile);
     dispatch(setMapName(tempMapName));
     dispatch(setMapFile(tempFile));
     dispatch(setStep("CREATE_LISTINGS"));
