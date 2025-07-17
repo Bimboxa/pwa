@@ -138,6 +138,17 @@ presetListingsObject:
     iconKey: map
     canCreateItem: true
 
+  issues:
+    key: issues
+    name: Observations
+    entityModelKey: issues
+    table: entities
+    color: *blue700
+    iconKey: info
+    sortBy:
+      key: num
+      order: desc
+
   mapsFromPhotos:
     key: mapsFromPhotos
     name: Fonds de plan (photos)

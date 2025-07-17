@@ -1,4 +1,4 @@
-import {createSelectorCreator, lruMemoize} from "reselect";
+import { createSelectorCreator, lruMemoize } from "reselect";
 import isEqual from "fast-deep-equal";
 
 import getSortedListings from "../utils/getSortedListings";
@@ -16,6 +16,7 @@ export const makeGetListingsByOptions = (options) =>
     (listingsUpdatedAt, listingsById, entityModelsObject, scope) => {
       // options
 
+      const filterByProjectId = options?.filterByProjectId;
       const filterByScopeId = options?.filterByScopeId;
       const withEntityModel = options?.withEntityModel;
       const filterByKeys = options?.filterByKeys;
@@ -29,6 +30,11 @@ export const makeGetListingsByOptions = (options) =>
       // main
 
       let listings = Object.values(listingsById ?? {}) ?? [];
+
+      if (filterByProjectId) {
+        listings = listings.filter((l) => l.projectId === filterByProjectId);
+      }
+
       if (filterByScopeId) {
         listings = getSortedListings(listings, scope?.sortedListings);
       }

@@ -1,4 +1,4 @@
-import {createSlice} from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
 
 import exampleListingsMap from "./data/exampleListingsMap";
 
@@ -7,7 +7,8 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 const listingsInitialState = {
   openSelectorPanel: false,
-  openDialogAddListing: false,
+  openDialogAddListing: false, // TO REMOVE ?
+  openPanelAddListing: false,
   //
   listingsMap: exampleListingsMap,
   listingsUpdatedAt: null,
@@ -27,6 +28,9 @@ export const listingsSlice = createSlice({
     },
     setOpenDialogAddListing: (state, action) => {
       state.openDialogAddListing = action.payload;
+    },
+    setOpenPanelAddListing: (state, action) => {
+      state.openPanelAddListing = action.payload;
     },
     setListingsById: (state, action) => {
       const listings = action.payload;
@@ -49,7 +53,7 @@ export const listingsSlice = createSlice({
     updateListing: (state, action) => {
       const updates = action.payload;
       const listing = state.listingsListing[updates.id];
-      state.listingsListing[updates.id] = {...listing, ...updates};
+      state.listingsListing[updates.id] = { ...listing, ...updates };
     },
     //
     setOpenListingSyncDetail: (state, action) => {
@@ -60,6 +64,7 @@ export const listingsSlice = createSlice({
 
 export const {
   setOpenDialogAddListing,
+  setOpenPanelAddListing,
   setOpenSelectorPanel,
   //
   setListingsById,

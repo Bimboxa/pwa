@@ -1,15 +1,15 @@
-import React, {useRef, useState, useEffect} from "react";
+import React, { useRef, useState, useEffect } from "react";
 
-import {useDispatch} from "react-redux";
+import { useDispatch } from "react-redux";
 
-import {triggerShapesUpdate} from "Features/shapes/shapesSlice";
+import { triggerShapesUpdate } from "Features/shapes/shapesSlice";
 
 import useAutoLoadShapesInMapEditor from "../hooks/useAutoLoadShapesInMapEditor";
 import useAutoLoadMainMapInMapEditor from "../hooks/useAutoLoadMainMapInMapEditor";
 import useAutoLoadMarkersInMapEditor from "../hooks/useAutoLoadMarkersInMapEditor";
 import useLoadedMainMap from "../hooks/useLoadedMainMap";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 
 import MapEditor from "Features/mapEditor/js/MapEditor";
 import LayerMapEditor from "./LayerMapEditor";
@@ -40,7 +40,8 @@ export default function MainMapEditor() {
 
   // helpers
 
-  const noMap = !Boolean(mapLoaded);
+  //const noMap = !Boolean(mapLoaded);
+  const noMap = false;
 
   // effect - init
 
