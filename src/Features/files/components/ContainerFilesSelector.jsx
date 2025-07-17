@@ -1,7 +1,7 @@
-import React, {useState} from "react";
+import React, { useState } from "react";
 
-import {Box, CircularProgress, Typography} from "@mui/material";
-import {CloudUpload} from "@mui/icons-material";
+import { Box, CircularProgress, Typography } from "@mui/material";
+import { CloudUpload } from "@mui/icons-material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
 import FilesSelectorButton from "Features/files/components/FilesSelectorButton";
@@ -30,6 +30,7 @@ export default function ContainerFilesSelector({
     onFilesChange(files);
   }
   function handleFilesChangeFromButton(files) {
+    console.log("debug_1707 files", files);
     onFilesChange(files);
   }
 
@@ -86,7 +87,7 @@ export default function ContainerFilesSelector({
         </BoxCenter>
       )}
       {!loading && (
-        <Box sx={{flex: 1, p: 2, width: 1}}>
+        <Box sx={{ flex: 1, p: 2, width: 1 }}>
           <Box
             sx={{
               position: "relative",
@@ -101,7 +102,7 @@ export default function ContainerFilesSelector({
               bgcolor,
               color: "common.white",
               borderRadius: "4px",
-              ...(hover && {background}),
+              ...(hover && { background }),
             }}
           >
             <Box
@@ -120,7 +121,7 @@ export default function ContainerFilesSelector({
               }}
             />
             <CloudUpload color="inherit" />
-            <Typography variant="body2" color="inherit" sx={{mt: 1}}>
+            <Typography variant="body2" color="inherit" sx={{ mt: 1 }}>
               {callToActionLabel}
             </Typography>
           </Box>

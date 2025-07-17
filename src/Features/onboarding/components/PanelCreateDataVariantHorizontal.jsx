@@ -1,31 +1,27 @@
 import { useSelector } from "react-redux";
 
-import { Box, Stepper, Step, StepLabel } from "@mui/material";
+import { Box } from "@mui/material";
 
-export default function PanelCreateDataVariantHorizontal() {
-  // const
+import SectionStepHelper from "./SectionStepHelper";
+import SectionStepperHorizontal from "./SectionStepperHorizontal";
+import SectionStepCreateProject from "./SectionStepCreateProject";
+import SectionStepCreateMap from "./SectionStepCreateMap";
+import SectionStepCreateListings from "./SectionStepCreateListings";
 
-  const steps = ["CREATE_PROJECT", "CREATE_MAP", "CREATE_LISTINGS"];
-
+export default function PanelCreateDataVariantHorizontal({ onClose }) {
   // data
 
   const step = useSelector((s) => s.onboarding.step);
 
-  // helpers
-
-  const labelByStep = {
-    CREATE_PROJECT: "Créer un projet",
-    CREATE_MAP: "Ajoutez un fond de plan",
-    CREATE_LISTINGS: "Sélectionnez des listes d'objets",
-  };
-
-  const label = labelByStep[step];
-
-  // render
-
   return (
-    <Box sx={{ width: 1, p: 2 }}>
-      <SectionStepperHorizonta></SectionStepperHorizonta>
+    <Box sx={{ width: 1, height: 1, display: "flex" }}>
+      <SectionStepHelper />
+      <Box sx={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
+        <SectionStepperHorizontal />
+        {step === "CREATE_PROJECT" && <SectionStepCreateProject />}
+        {step === "CREATE_MAP" && <SectionStepCreateMap />}
+        {step === "CREATE_LISTINGS" && <SectionStepCreateListings />}
+      </Box>
     </Box>
   );
 }
