@@ -1,19 +1,19 @@
 import React from "react";
 
-import {useDispatch, useSelector} from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import useShapes from "../hooks/useShapes";
 
-import {setSelectedShapeId} from "Features/shapes/shapesSlice";
+import { setSelectedShapeId } from "Features/shapes/shapesSlice";
 
-import {ListItemButton, List, Typography, Box} from "@mui/material";
+import { ListItemButton, List, Typography, Box } from "@mui/material";
 
 export default function SectionShapesInListPanel() {
   const dispatch = useDispatch();
 
   // data
 
-  const mapId = useSelector((s) => s.maps.selectedMapId);
+  const mapId = useSelector((s) => s.maps.selectedBaseMapId);
   const shapes = useShapes({
     widthSelected: true,
     filterByMapId: mapId,
@@ -29,7 +29,7 @@ export default function SectionShapesInListPanel() {
   }
 
   return (
-    <Box sx={{height: 1, overflowY: "auto"}}>
+    <Box sx={{ height: 1, overflowY: "auto" }}>
       <List>
         {shapes.map((shape) => {
           const surfaceS = shape.surface

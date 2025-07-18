@@ -1,22 +1,22 @@
-import {nanoid} from "@reduxjs/toolkit";
+import { nanoid } from "@reduxjs/toolkit";
 
 import db from "App/db/db";
 import store from "App/store";
 
-import {triggerMarkersUpdate} from "../markersSlice";
+import { triggerMarkersUpdate } from "../markersSlice";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
-import useLoadedMainMap from "Features/mapEditor/hooks/useLoadedMainMap";
+import useLoadedMainBaseMap from "Features/mapEditor/hooks/useLoadedMainBaseMap";
 
 import getDateString from "Features/misc/utils/getDateString";
 
 export default function useCreateMarker() {
   // data
 
-  const loadedMainMap = useLoadedMainMap();
-  const {value: createdBy} = useUserEmail();
+  const loadedMainBaseMap = useLoadedMainBaseMap();
+  const { value: createdBy } = useUserEmail();
 
-  const createMarker = async ({mapId, x, y, listingId, entityId}) => {
+  const createMarker = async ({ mapId, x, y, listingId, entityId }) => {
     const updatedAt = getDateString(new Date());
 
     try {
@@ -29,7 +29,7 @@ export default function useCreateMarker() {
       // main
       const entityMarker = {
         id: nanoid(),
-        mapId: loadedMainMap.id,
+        mapId: loadedMainBaseMap.id,
         x,
         y,
         targetEntityId: entityId,
@@ -46,7 +46,7 @@ export default function useCreateMarker() {
       const oldMarker = oldMarkers?.find((marker) => marker.mapId === mapId);
 
       if (oldMarker) {
-        await db.markers.update(oldMarker.id, {x, y, updatedAt});
+        await db.markers.update(oldMarker.id, { x, y, updatedAt });
         console.log("[db] marker updated", entityMarker);
       } else {
         await db.markers.add(entityMarker);

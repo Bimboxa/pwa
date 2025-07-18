@@ -1,9 +1,10 @@
-import {Typography} from "@mui/material";
+import { Typography } from "@mui/material";
 import {
   Map,
   PictureAsPdf as PdfIcon,
   Image,
   TableChart as Table,
+  Print,
 } from "@mui/icons-material";
 
 import theme from "Styles/theme";
@@ -12,9 +13,15 @@ export default function useViewers() {
   const viewers = [
     {
       key: "MAP",
-      label: "Fond de plan",
-      icon: <Image />,
+      label: "2D",
+      //icon: <Image />,
+      icon: <Typography>2D</Typography>,
       bgcolor: theme.palette.viewers.map,
+    },
+    {
+      key: "PRINT",
+      label: "Format impression",
+      icon: <Print />,
     },
     {
       key: "TABLE",
@@ -24,7 +31,7 @@ export default function useViewers() {
     },
     {
       key: "LEAFLET",
-      label: "Carte",
+      label: "Carte satellite",
       icon: <Map />,
       bgcolor: theme.palette.viewers.map,
     },

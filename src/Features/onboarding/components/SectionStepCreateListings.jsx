@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { useDispatch } from "react-redux";
 
@@ -13,6 +13,7 @@ import { Box, Typography, TextField, Button } from "@mui/material";
 import BoxCenter from "Features/layout/components/BoxCenter";
 
 import BlockEditableListingName from "Features/listings/components/BlockEditableListingName";
+import getAppConfigDefault from "Features/appConfig/services/getAppConfigDefault";
 
 export default function SectionStepCreateListings() {
   const dispatch = useDispatch();
@@ -20,6 +21,7 @@ export default function SectionStepCreateListings() {
   // strings
 
   const label = "Nom du calque";
+  const defaultName = "Calque par défaut";
 
   const createS = "Enregister";
 
@@ -27,7 +29,19 @@ export default function SectionStepCreateListings() {
 
   // state
 
-  const [tempIssuesListingName, setTempIssuesListingName] = useState("");
+  const [tempIssuesListingName, setTempIssuesListingName] =
+    useState(defaultName);
+  const [defaultColor, setDefaultColor] = useState("grey");
+
+  // state - init
+  const updateStateAsync = async () => {
+    const appConfig = await getAppConfigDefault();
+    const listing = appConfig?.presetListingsObject?.issues;
+    setDefaultColor(listing.color);
+  };
+  useEffect(() => {
+    updateStateAsync();
+  }, []);
 
   // handlers
 
@@ -58,6 +72,7 @@ export default function SectionStepCreateListings() {
         <Box sx={{ display: "flex", justifyContent: "center" }}>
           <BlockEditableListingName
             label={label}
+            color={defaultColor}
             name={tempIssuesListingName}
             onChange={handleNameChage}
           />

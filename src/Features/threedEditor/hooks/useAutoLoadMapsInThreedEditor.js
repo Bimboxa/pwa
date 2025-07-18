@@ -1,21 +1,20 @@
-import {useEffect} from "react";
-import {useSelector} from "react-redux";
+import { useEffect } from "react";
+import { useSelector } from "react-redux";
 
-import useMaps from "Features/maps/hooks/useMaps";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 
 export default function useAutoLoadMapsInThreedEditor({
   threedEditor,
   rendererIsReady,
 }) {
-  const mapsUpdatedAt = useSelector((s) => s.maps.mapsUpdatedAt);
-  const mapId = useSelector((s) => s.maps.selectedMapId);
+  const baseMapId = useSelector((s) => s.mapEditor.selectedMainBaseMapId);
 
-  //const maps = useMaps({widthSelected: true, filterByMapId: mapId});
-  const {value: maps, loading: mapsLoading} = useMaps();
+  //const maps = useBaseMaps({widthSelected: true, filterByMapId: mapId});
+  const { value: baseMaps } = useBaseMaps();
 
   useEffect(() => {
-    if (threedEditor?.loadMaps && maps?.length > 0) {
-      threedEditor.loadMaps(maps);
+    if (threedEditor?.loadMaps && baseMaps?.length > 0) {
+      threedEditor.loadMaps(baseMaps);
     }
-  }, [rendererIsReady, maps?.length, mapsUpdatedAt, mapId]);
+  }, [rendererIsReady, baseMaps?.length, baseMapId]);
 }

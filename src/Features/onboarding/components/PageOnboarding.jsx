@@ -44,7 +44,6 @@ export default function PageOnboarding() {
         alignItems: "center",
         justifyContent: "center",
         display: "flex",
-        border: "1px solid red",
       }}
     >
       <Box

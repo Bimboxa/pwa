@@ -9,16 +9,16 @@ import parsePointsFromNodeToState from "./utilsShapesManager/parsePointsFromNode
 
 import store from "App/store";
 
-import {createShape} from "Features/shapes/shapesSlice";
-import {nanoid} from "@reduxjs/toolkit";
-import {setAnchorPositionScale, setScaleInPx} from "../mapEditorSlice";
+import { createShape } from "Features/shapes/shapesSlice";
+import { nanoid } from "@reduxjs/toolkit";
+import { setAnchorPositionScale, setScaleInPx } from "../mapEditorSlice";
 import getSegmentNodeDistance from "./utilsShapesManager/getSegmentNodeDistance";
 import computeShapeSurface from "Features/shapes/utils/computeShapeSurface";
 import computeShapeLength from "Features/shapes/utils/computeShapeLength";
 import addShapeRowService from "Features/gapi/gapiServicesGSheetMisc/addShapeRowService";
 
 export default class LineDrawer {
-  constructor({mapEditor}) {
+  constructor({ mapEditor }) {
     this.mapEditor = mapEditor;
 
     this.layerEditedShape = mapEditor.layerEditedShape;
@@ -101,7 +101,7 @@ export default class LineDrawer {
   handlerPointerClick = (e) => {
     const end = this._testEnd();
     //
-    const {x, y} = getMousePositionInStage(this.stage);
+    const { x, y } = getMousePositionInStage(this.stage);
     //
     if (!this.node) {
       this._initNode(x, y);
@@ -110,7 +110,7 @@ export default class LineDrawer {
       //
       if (this.shapeProps?.isScale) {
         const scaleInPx = getSegmentNodeDistance(this.node);
-        const anchorPosition = {x: e.evt.clientX, y: e.evt.clientY};
+        const anchorPosition = { x: e.evt.clientX, y: e.evt.clientY };
         store.dispatch(setAnchorPositionScale(anchorPosition));
         store.dispatch(setScaleInPx(scaleInPx));
       }
@@ -159,7 +159,7 @@ export default class LineDrawer {
   //  ------------ endNode ------------
 
   initEndNode() {
-    const {x, y} = this.getEndNodePosition();
+    const { x, y } = this.getEndNodePosition();
     const stageScale = this.mapEditor.stage.scaleX();
     this.endNode = new Konva.Circle({
       x,
@@ -178,7 +178,7 @@ export default class LineDrawer {
       if (this.variant === "POLYLINE") {
         return this.lastPoint;
       } else if (this.variant === "POLYGON") {
-        return {x: this.node.points()[0], y: this.node.points()[1]};
+        return { x: this.node.points()[0], y: this.node.points()[1] };
       }
     }
   }
@@ -187,7 +187,7 @@ export default class LineDrawer {
     const endNodePosition = this.getEndNodePosition();
     if (!endNodePosition) return null;
     //
-    const distance = getDistance(endNodePosition, {x, y});
+    const distance = getDistance(endNodePosition, { x, y });
     const mapEditorBboxInStage = getMapEditorBboxInStage(this.mapEditor);
     const distanceRef = Math.min(
       mapEditorBboxInStage.width,
@@ -243,7 +243,7 @@ export default class LineDrawer {
       stroke: this.newShape.color ?? "black",
       strokeWidth: 2 / this.stageScale,
     });
-    this.lastPoint = {x, y};
+    this.lastPoint = { x, y };
     this.nodePointsPrev = [x, y];
     this.layerEditedShape.add(this.node);
   }
@@ -251,7 +251,7 @@ export default class LineDrawer {
   _addPoint(x, y) {
     const newPoints = [...this.nodePointsPrev, x, y];
     this.node.points(newPoints);
-    this.lastPoint = {x, y};
+    this.lastPoint = { x, y };
     this.nodePointsPrev = newPoints;
     this.layerEditedShape.batchDraw();
   }
@@ -289,12 +289,12 @@ export default class LineDrawer {
       imageSize,
       imagePosition
     );
-    const shape = {...this.shapeProps, ...this.newShape, points};
+    const shape = { ...this.shapeProps, ...this.newShape, points };
     if (!shape.id) shape.id = nanoid();
 
     // map to compute qties
     const mapsMap = store.getState().maps.mapsMap;
-    const mapId = store.getState().mapEditor.loadedMainMapId;
+    const mapId = store.getState().mapEditor.loadedMainBaseMapId;
     const map = mapsMap[mapId];
 
     // compute qties

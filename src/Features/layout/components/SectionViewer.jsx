@@ -1,4 +1,4 @@
-import {useSelector} from "react-redux";
+import { useSelector } from "react-redux";
 
 import BoxCenter from "./BoxCenter";
 
@@ -19,17 +19,20 @@ export default function SectionViewer() {
   const showTable = viewerKey === "TABLE";
 
   return (
-    <BoxCenter sx={{position: "relative"}}>
-      <PanelShowable show={showMap} sx={{position: "absolute", zIndex: 0}}>
+    <BoxCenter sx={{ position: "relative" }}>
+      <PanelShowable show={showMap} sx={{ position: "absolute", zIndex: 0 }}>
         <MainMapEditor />
       </PanelShowable>
-      <PanelShowable show={showThreed} sx={{position: "absolute", zIndex: 0}}>
+      <PanelShowable show={showThreed} sx={{ position: "absolute", zIndex: 0 }}>
         <MainThreedEditor />
       </PanelShowable>
-      <PanelShowable show={showLeaflet} sx={{position: "absolute", zIndex: 0}}>
+      <PanelShowable
+        show={showLeaflet}
+        sx={{ position: "absolute", zIndex: 0 }}
+      >
         <MainLeafletEditor />
       </PanelShowable>
-      <PanelShowable show={showTable} sx={{position: "absolute", zIndex: 0}}>
+      <PanelShowable show={showTable} sx={{ position: "absolute", zIndex: 0 }}>
         <TableViewer />
       </PanelShowable>
     </BoxCenter>

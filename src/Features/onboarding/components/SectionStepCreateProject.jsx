@@ -25,7 +25,7 @@ export default function SectionStepCreateProject() {
 
   const [tempName, setTempName] = useState("");
   useEffect(() => {
-    setTempName(projectName);
+    setTempName(projectName ?? "");
   }, [projectName]);
 
   // handlers

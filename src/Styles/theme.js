@@ -1,4 +1,4 @@
-import {createTheme} from "@mui/material/styles";
+import { createTheme } from "@mui/material/styles";
 import {
   blueGrey,
   green,
@@ -9,7 +9,7 @@ import {
   orange,
   purple,
 } from "@mui/material/colors";
-import {frFR} from "@mui/x-data-grid-pro/locales";
+import { frFR } from "@mui/x-data-grid-pro/locales";
 
 let theme = createTheme(
   {
@@ -18,7 +18,13 @@ let theme = createTheme(
         styleOverrides: {
           root: {
             textTransform: "none",
-            borderRadius: 0,
+            borderRadius: "8px",
+          },
+          contained: {
+            boxShadow: "none",
+            "&:hover": {
+              boxShadow: "none",
+            },
           },
         },
       },
@@ -58,10 +64,12 @@ let theme = createTheme(
     palette: {
       primary: {
         main: grey[800],
+        //main: "#e85426",
       },
       secondary: {
         //main: blueGrey[600],
-        main: purple[600],
+        main: "#e85426",
+        // main: purple[600],
       },
       background: {
         default: "#F4F4F8",

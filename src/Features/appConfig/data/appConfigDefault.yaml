@@ -83,7 +83,7 @@ creation:
 entityModelsObject:
   map:
     key: map
-    type: MAP
+    type: BASE_MAP
     strings:
       labelNew: Nouveau fond de plan
     labelKey: label
@@ -133,7 +133,7 @@ presetListingsObject:
     key: mapsGeneric
     name: Fonds de plan
     entityModelKey: map
-    table: maps
+    table: baseMaps
     color: *purple700
     iconKey: map
     canCreateItem: true
