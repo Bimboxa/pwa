@@ -10,7 +10,7 @@ import { Button, Typography } from "@mui/material";
 
 import Panel from "Features/layout/components/Panel";
 import BoxCenter from "Features/layout/components/BoxCenter";
-import { setLoadedMainMapId } from "Features/mapEditor/mapEditorSlice";
+import { setLoadedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 export default function PanelCreateDataOverview() {
   const dispatch = useDispatch();
@@ -33,7 +33,7 @@ export default function PanelCreateDataOverview() {
 
       dispatch(setSelectedProjectId(project.id));
       dispatch(setSelectedListingId(issuesListing?.id));
-      dispatch(setLoadedMainMapId(map?.id));
+      dispatch(setLoadedMainBaseMapId(map?.id));
 
       navigate("/");
     } catch (e) {

@@ -1,6 +1,6 @@
-import {useEffect} from "react";
+import { useEffect } from "react";
 
-import {useSelector} from "react-redux";
+import { useSelector } from "react-redux";
 
 import useMarkers from "Features/markers/hooks/useMarkers";
 
@@ -8,18 +8,20 @@ export default function useAutoLoadMarkersInMapEditor({
   mapEditor,
   mapEditorIsReady,
 }) {
-  const loadedMainMapId = useSelector((s) => s.mapEditor.loadedMainMapId);
+  const loadedMainBaseMapId = useSelector(
+    (s) => s.mapEditor.loadedMainBaseMapId
+  );
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
   const tempMarker = useSelector((s) => s.markers.tempMarker);
 
-  const {value: markers, loading} = useMarkers({
-    filterByMapId: loadedMainMapId,
+  const { value: markers, loading } = useMarkers({
+    filterByMapId: loadedMainBaseMapId,
     filterByListingsIds: [selectedListingId],
   });
 
   useEffect(() => {
-    if (mapEditorIsReady && loadedMainMapId && !loading) {
+    if (mapEditorIsReady && loadedMainBaseMapId && !loading) {
       console.log("useAutoLoadMarkersInMapEditor", markers);
       // init
       let _markers = [...markers];
@@ -31,7 +33,7 @@ export default function useAutoLoadMarkersInMapEditor({
       }
 
       // add temp marker if exists
-      if (tempMarker && tempMarker.mapId === loadedMainMapId) {
+      if (tempMarker && tempMarker.mapId === loadedMainBaseMapId) {
         _markers.push(tempMarker);
       }
       mapEditor.loadMarkers(_markers);
@@ -39,7 +41,7 @@ export default function useAutoLoadMarkersInMapEditor({
   }, [
     mapEditorIsReady,
     markers?.length,
-    loadedMainMapId,
+    loadedMainBaseMapId,
     selectedListingId,
     selectedEntityId,
     loading,

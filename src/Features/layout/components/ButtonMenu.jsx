@@ -1,4 +1,4 @@
-import {useState} from "react";
+import { useState } from "react";
 
 import {
   Button,
@@ -8,9 +8,9 @@ import {
   ListItemIcon,
   Typography,
 } from "@mui/material";
-import {ArrowDropDown as Down} from "@mui/icons-material";
+import { ArrowDropDown as Down } from "@mui/icons-material";
 
-export default function ButtonMenu({buttonLabel, sx, actions}) {
+export default function ButtonMenu({ buttonLabel, sx, actions }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
@@ -28,8 +28,10 @@ export default function ButtonMenu({buttonLabel, sx, actions}) {
   }
   return (
     <>
-      <Button endIcon={<Down />} onClick={handleClick} sx={{...sx}}>
-        <Typography variant="body2">{buttonLabel}</Typography>
+      <Button endIcon={<Down />} onClick={handleClick} sx={{ ...sx }}>
+        <Typography variant="body2" noWrap>
+          {buttonLabel}
+        </Typography>
       </Button>
       <Menu open={open} anchorEl={anchorEl} onClose={handleClose}>
         {actions

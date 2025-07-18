@@ -1,13 +1,13 @@
-import {useState} from "react";
+import { useState } from "react";
 
-import {useSelector, useDispatch} from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
-import {triggerMapsUpdate, updateMap} from "Features/maps/mapsSlice";
+import { triggerMapsUpdate, updateMap } from "Features/baseMaps/baseMapsSlice";
 
-import useLoadedMainMap from "../hooks/useLoadedMainMap";
+import useLoadedMainBaseMap from "../hooks/useLoadedMainBaseMap";
 
-import {Paper, TextField, Button, Typography} from "@mui/material";
-import {setAnchorPositionScale} from "../mapEditorSlice";
+import { Paper, TextField, Button, Typography } from "@mui/material";
+import { setAnchorPositionScale } from "../mapEditorSlice";
 
 export default function SectionEditScale() {
   const dispatch = useDispatch();
@@ -23,12 +23,12 @@ export default function SectionEditScale() {
 
   // data
 
-  const loadedMainMap = useLoadedMainMap();
+  const loadedMainBaseMap = useLoadedMainBaseMap();
   const scaleInPx = useSelector((s) => s.mapEditor.scaleInPx);
 
   // helper
 
-  const meterByPx = loadedMainMap?.meterByPx ?? 1;
+  const meterByPx = loadedMainBaseMap?.meterByPx ?? 1;
   const currentDistance = scaleInPx * meterByPx;
 
   // helper - disable
@@ -53,7 +53,7 @@ export default function SectionEditScale() {
 
   function handleSave() {
     const updates = {
-      id: loadedMainMap.id,
+      id: loadedMainBaseMap.id,
       meterByPx: targetDistance / scaleInPx,
     };
     dispatch(updateMap(updates));
@@ -62,9 +62,9 @@ export default function SectionEditScale() {
   }
 
   return (
-    <Paper sx={{display: "flex", alignItems: "center", p: 2}}>
+    <Paper sx={{ display: "flex", alignItems: "center", p: 2 }}>
       <TextField
-        sx={{width: 100}}
+        sx={{ width: 100 }}
         value={value}
         onChange={handleChange}
         label={label}
@@ -72,7 +72,7 @@ export default function SectionEditScale() {
       <Button
         disabled={disabled}
         onClick={handleSave}
-        sx={{ml: 2}}
+        sx={{ ml: 2 }}
         variant="contained"
       >
         <Typography>{saveS}</Typography>

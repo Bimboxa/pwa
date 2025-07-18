@@ -1,4 +1,4 @@
-import {useSelector} from "react-redux";
+import { useSelector } from "react-redux";
 import useShapeInForm from "../hooks/useShapeInForm";
 import useUpdateShapeInForm from "../hooks/useUpdateShapeInForm";
 import useShapes from "../hooks/useShapes";
@@ -10,9 +10,9 @@ export default function ToolbarShapeProps() {
 
   const shape = useShapeInForm();
   const updateShapeInForm = useUpdateShapeInForm();
-  const mapId = useSelector((s) => s.maps.selectedMapId);
+  const mapId = useSelector((s) => s.maps.selectedBaseMapId);
 
-  const shapes = useShapes({filterByMapId: mapId});
+  const shapes = useShapes({ filterByMapId: mapId });
 
   // helpers
 
@@ -22,8 +22,8 @@ export default function ToolbarShapeProps() {
 
   const template = {
     fields: [
-      {type: "color", key: "color"},
-      {type: "number", key: "height", label: "Hauteur (m)", width: 100},
+      { type: "color", key: "color" },
+      { type: "number", key: "height", label: "Hauteur (m)", width: 100 },
       {
         type: "text",
         key: "label",

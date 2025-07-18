@@ -1,25 +1,23 @@
-import {useState} from "react";
+import { useState } from "react";
 
-import {useDispatch} from "react-redux";
+import { useDispatch } from "react-redux";
 
-import {setSelectedMapId} from "Features/maps/mapsSlice";
+import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
-import useLoadedMainMap from "Features/mapEditor/hooks/useLoadedMainMap";
+import useLoadedMainBaseMap from "Features/mapEditor/hooks/useLoadedMainBaseMap";
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 
-import {Button, Box, Typography} from "@mui/material";
-import {ArrowDropDown as Down} from "@mui/icons-material";
+import { Button, Box, Typography } from "@mui/material";
+import { ArrowDropDown as Down } from "@mui/icons-material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
-import PanelSelectorMap from "./PanelSelectorMap";
-import DropboxChooserButton from "Features/dropbox/components/DropboxChooserButton";
+import PanelSelectorBaseMap from "./PanelSelectorBaseMap";
 
-export default function ButtonSelectorMap() {
+export default function ButtonSelectorBaseMapInMapEditor() {
   const dispatch = useDispatch();
 
   // strings
 
-  const seeMaps = "Ouvrir un plan";
   const selectS = "Sélectionnez un fond de plan";
 
   // state
@@ -28,12 +26,12 @@ export default function ButtonSelectorMap() {
 
   // data
 
-  const loadedMainMap = useLoadedMainMap();
+  const loadedMainBaseMap = useLoadedMainBaseMap();
   const isMobile = useIsMobile();
 
   // helper
 
-  const buttonLabel = loadedMainMap ? loadedMainMap.label : seeMaps;
+  const buttonLabel = loadedMainBaseMap ? loadedMainBaseMap.label : selectS;
 
   // handlers
 
@@ -42,7 +40,7 @@ export default function ButtonSelectorMap() {
   }
 
   function handleMapSelectionChange(mapId) {
-    dispatch(setSelectedMapId(mapId));
+    dispatch(setSelectedMainBaseMapId(mapId));
     setOpen(false);
   }
 
@@ -53,10 +51,10 @@ export default function ButtonSelectorMap() {
         endIcon={<Down />}
         variant="contained"
         size={isMobile ? "medium" : "small"}
-        sx={{borderRadius: 2}}
+        sx={{ borderRadius: 2 }}
       >
         <Box
-          sx={{display: "flex", flexDirection: "column", alignItems: "start"}}
+          sx={{ display: "flex", flexDirection: "column", alignItems: "start" }}
         >
           <Typography variant="body2">{buttonLabel}</Typography>
         </Box>
@@ -68,8 +66,8 @@ export default function ButtonSelectorMap() {
         vh={70}
         vw={50}
       >
-        <PanelSelectorMap
-          selection={loadedMainMap?.id}
+        <PanelSelectorBaseMap
+          selection={loadedMainBaseMap?.id}
           onSelectionChange={handleMapSelectionChange}
         />
       </DialogGeneric>

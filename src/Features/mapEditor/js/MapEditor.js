@@ -7,7 +7,7 @@ import MarkersManager from "./MarkersManager";
 import store from "App/store";
 import {
   setEnabledDrawingMode,
-  setLoadedMainMapId,
+  setLoadedMainBaseMapId,
 } from "Features/mapEditor/mapEditorSlice";
 
 import getStagePositionAndScaleFromImageSize from "../utils/getStagePositionAndScaleFromImageSize";
@@ -18,8 +18,8 @@ import testPinchEvent from "./utilsMapEditor/testPinchEvent";
 import getPointerPositionInStage from "../utils/getPointerPositionInStage";
 
 export default class MapEditor {
-  constructor({container, width, height, onMapEditorIsReady}) {
-    this.stage = new Konva.Stage({container, draggable: true, width, height});
+  constructor({ container, width, height, onMapEditorIsReady }) {
+    this.stage = new Konva.Stage({ container, draggable: true, width, height });
 
     this.scaleBy = 1.1;
     this.scaleByTouch = 1.05;
@@ -76,7 +76,7 @@ export default class MapEditor {
   handleKeyDown = (e) => {
     if (e.key === "Escape") {
       if (this.enabledDrawingMode && !this.shapesManager.getIsDrawing()) {
-        this.disableDrawingMode({updateRedux: true});
+        this.disableDrawingMode({ updateRedux: true });
         if (this.stageCursorMemo) {
           this.stage.container().style.cursor = this.stageCursorMemo;
         }
@@ -100,7 +100,7 @@ export default class MapEditor {
     var newScale =
       e.evt.deltaY < 0 ? oldScale * this.scaleBy : oldScale / this.scaleBy;
 
-    this.stage.scale({x: newScale, y: newScale});
+    this.stage.scale({ x: newScale, y: newScale });
 
     var newPos = {
       x: pointer.x - mousePointTo.x * newScale,
@@ -137,7 +137,7 @@ export default class MapEditor {
       const newScale =
         delta > 0 ? oldScale * this.scaleByTouch : oldScale / this.scaleByTouch;
 
-      this.stage.scale({x: newScale, y: newScale});
+      this.stage.scale({ x: newScale, y: newScale });
 
       // position
 
@@ -172,25 +172,26 @@ export default class MapEditor {
   refresh() {
     const width = this.imagesManager.mainImageNode.width();
     const height = this.imagesManager.mainImageNode.height();
-    const imageSize = {width, height};
-    const {x, y, scale} = getStagePositionAndScaleFromImageSize(
+    const imageSize = { width, height };
+    const { x, y, scale } = getStagePositionAndScaleFromImageSize(
       this.stage,
       imageSize
     );
-    console.log("[MapEditor] refresh", {x, y, scale});
-    this.stage.position({x, y});
-    this.stage.scale({x: scale, y: scale});
+    console.log("[MapEditor] refresh", { x, y, scale });
+    this.stage.position({ x, y });
+    this.stage.scale({ x: scale, y: scale });
   }
 
   // main image
 
-  async loadMainMap(map) {
-    const imageProps = fromMapPropsToImageProps(map);
+  async loadMainBaseMap(baseMap) {
+    console.log("[MapEditor] loadMainBaseMap", baseMap);
+    const imageProps = fromMapPropsToImageProps(baseMap);
     this.imagesManager.deleteAllImagesNodes();
     await this.imagesManager.createImageNodeAsync(imageProps, {
       isMainImage: true,
     });
-    store.dispatch(setLoadedMainMapId(map.id));
+    store.dispatch(setLoadedMainBaseMapId(baseMap.id));
   }
   // shapes
 

@@ -1,6 +1,6 @@
-import {useSelector} from "react-redux";
+import { useSelector } from "react-redux";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 import PanelListItem from "Features/listPanel/components/PanelListItem";
 
 import BoxFlexV from "./BoxFlexV";
@@ -30,7 +30,7 @@ export default function LayoutMobile() {
 
   // helpers
 
-  const showViewer = viewModeInMobile === "MAP";
+  const showViewer = viewModeInMobile === "BASE_MAP";
   const showList = viewModeInMobile === "LIST";
 
   const transform = openPanelListItem
@@ -45,14 +45,22 @@ export default function LayoutMobile() {
         <BoxFlexVStretch>
           <PanelShowable
             show={showViewer}
-            sx={{position: "fixed", top: topBarHeight, bottom: bottomBarHeight}}
+            sx={{
+              position: "fixed",
+              top: topBarHeight,
+              bottom: bottomBarHeight,
+            }}
             //sx={{position: "absolute", top: 0}}
           >
             <SectionViewer />
           </PanelShowable>
           <PanelShowable
             show={showList}
-            sx={{position: "fixed", top: topBarHeight, bottom: bottomBarHeight}}
+            sx={{
+              position: "fixed",
+              top: topBarHeight,
+              bottom: bottomBarHeight,
+            }}
           >
             <ListPanel />
           </PanelShowable>

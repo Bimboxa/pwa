@@ -1,6 +1,6 @@
-import {useSelector} from "react-redux";
+import { useSelector } from "react-redux";
 
-export default function useMaps(options) {
+export default function useBaseMaps(options) {
   // options
 
   const filterByProjectId = options?.filterByProjectId;

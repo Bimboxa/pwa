@@ -4,10 +4,10 @@ import { useDispatch } from "react-redux";
 
 import { triggerShapesUpdate } from "Features/shapes/shapesSlice";
 
-import useAutoLoadShapesInMapEditor from "../hooks/useAutoLoadShapesInMapEditor";
-import useAutoLoadMainMapInMapEditor from "../hooks/useAutoLoadMainMapInMapEditor";
-import useAutoLoadMarkersInMapEditor from "../hooks/useAutoLoadMarkersInMapEditor";
-import useLoadedMainMap from "../hooks/useLoadedMainMap";
+import useAutoLoadMainBaseMapInMapEditor from "../hooks/useAutoLoadMainBaseMapInMapEditor";
+//import useAutoLoadShapesInMapEditor from "../hooks/useAutoLoadShapesInMapEditor";
+//import useAutoLoadMarkersInMapEditor from "../hooks/useAutoLoadMarkersInMapEditor";
+import useLoadedMainBaseMap from "../hooks/useLoadedMainBaseMap";
 
 import { Box } from "@mui/material";
 
@@ -19,9 +19,8 @@ import SectionNoMap from "./SectionNoMap";
 
 import editor from "App/editor";
 
-import DraggableFabMarker from "Features/markers/components/DraggableFabMarker";
-
 export default function MainMapEditor() {
+  console.log("[MainMapEditor] render");
   const dispatch = useDispatch();
 
   // ref
@@ -31,7 +30,7 @@ export default function MainMapEditor() {
 
   // data
 
-  const mapLoaded = useLoadedMainMap();
+  const loadedMainBaseMap = useLoadedMainBaseMap();
 
   // state
 
@@ -41,7 +40,7 @@ export default function MainMapEditor() {
   // helpers
 
   //const noMap = !Boolean(mapLoaded);
-  const noMap = false;
+  const noBaseMap = false;
 
   // effect - init
 
@@ -93,25 +92,27 @@ export default function MainMapEditor() {
   });
 
   // -- main image
-  useAutoLoadMainMapInMapEditor({
+  useAutoLoadMainBaseMapInMapEditor({
     mapEditor: mapEditorRef.current,
     mapEditorIsReady,
   });
 
   // -- shapes
-  useAutoLoadShapesInMapEditor({
-    mapEditor: mapEditorRef.current,
-    mapEditorIsReady,
-  });
+  //useAutoLoadShapesInMapEditor({
+  //  mapEditor: mapEditorRef.current,
+  //  mapEditorIsReady,
+  //});
 
   // -- markers
-  useAutoLoadMarkersInMapEditor({
-    mapEditor: mapEditorRef.current,
-    mapEditorIsReady,
-  });
+  //useAutoLoadMarkersInMapEditor({
+  //  mapEditor: mapEditorRef.current,
+  //  mapEditorIsReady,
+  //});
 
-  if (noMap) {
-    return <SectionNoMap />;
+  console.log("noBaseMap", noBaseMap);
+
+  if (noBaseMap) {
+    //return <SectionNoMap />;
   }
 
   return (
@@ -127,7 +128,7 @@ export default function MainMapEditor() {
     >
       <PopperEditScale />
       <LayerMapEditor />
-      {/* <DraggableFabMarker /> */}
+      {/*<DraggableFabMarker />*/}
       <BlockEntityMarker top={16} right={16} />
       <div
         id="container"

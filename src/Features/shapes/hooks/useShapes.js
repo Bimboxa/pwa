@@ -1,4 +1,8 @@
-import {useSelector} from "react-redux";
+import { useSelector } from "react-redux";
+
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+
+import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 export default function useShapes(options) {
   // options
@@ -9,12 +13,13 @@ export default function useShapes(options) {
 
   // data
 
-  const shapesMap = useSelector((state) => state.shapes.shapesMap);
+  const shapesMap = useSelector((s) => s.shapes.shapesMap);
   const selectedShapeId = useSelector((s) => s.shapes.selectedShapeId);
-  const mapsMap = useSelector((state) => state.maps.mapsMap);
+  const baseMaps = useBaseMaps();
 
   // helpers
 
+  const baseMapsById = getItemsByKey(baseMaps, "id");
   let shapes = Object.values(shapesMap);
 
   // options
@@ -26,7 +31,7 @@ export default function useShapes(options) {
   if (withMap) {
     shapes = shapes.map((shape) => ({
       ...shape,
-      map: mapsMap[shape.mapId],
+      map: baseMapsById[shape.mapId],
     }));
   }
 

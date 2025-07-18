@@ -1,9 +1,9 @@
-import {useState} from "react";
-import {useSelector} from "react-redux";
+import { useState } from "react";
+import { useSelector } from "react-redux";
 
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
-import {useLiveQuery} from "dexie-react-hooks";
+import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
@@ -28,14 +28,14 @@ export default function useEntities(options) {
 
   // data
 
-  const {value: listings, loading: loadingList} = useListingsByScope({
+  const { value: listings, loading: loadingList } = useListingsByScope({
     withEntityModel: true,
     filterByKeys: filterByListingsKeys ?? null,
     filterByListingsIds: filterByListingsIds ?? null,
   });
   //console.log("[debug] listings", lTistings?.length, filterByListingsIds);
 
-  const mapId = useSelector((s) => s.mapEditor.loadedMainMapId);
+  const mapId = useSelector((s) => s.mapEditor.loadedMainBaseMapId);
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   const selectedListing = listings?.find((l) => l?.id === selectedListingId);
@@ -129,7 +129,7 @@ export default function useEntities(options) {
       if (withImages) {
         entities = await Promise.all(
           entities.map(async (entity) => {
-            const entityWithImages = {...entity};
+            const entityWithImages = { ...entity };
             const entriesWithImages = Object.entries(entity).filter(
               ([key, value]) => value?.isImage
             );
@@ -160,7 +160,7 @@ export default function useEntities(options) {
 
         entities = entities.map((entity) => {
           const marker = markersByEntityId[entity.id];
-          return {...entity, marker};
+          return { ...entity, marker };
         });
       }
 
@@ -177,7 +177,7 @@ export default function useEntities(options) {
         const subLabel = entity[subLabelKey];
         const listingKey = listingKeyByListingId[entity.listingId];
         const entityModelType = entityModelTypeByListingId[entity.listingId];
-        return {...entity, label, subLabel, listingKey, entityModelType};
+        return { ...entity, label, subLabel, listingKey, entityModelType };
       });
       // end
       setLoading(false);
@@ -189,5 +189,5 @@ export default function useEntities(options) {
     }
   }, [listingsIdsHash, entitiesUpdatedAt, mapId, withMarkers]);
 
-  return {value, loading};
+  return { value, loading };
 }

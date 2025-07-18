@@ -1,30 +1,30 @@
-import {useDndMonitor, useDraggable} from "@dnd-kit/core";
+import { useDndMonitor, useDraggable } from "@dnd-kit/core";
 
-import {useDispatch} from "react-redux";
-import {nanoid} from "@reduxjs/toolkit";
+import { useDispatch } from "react-redux";
+import { nanoid } from "@reduxjs/toolkit";
 
-import {createMarker} from "../markersSlice";
+import { createMarker } from "../markersSlice";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 import FabMarker from "./FabMarker";
-import useLoadedMainMap from "Features/mapEditor/hooks/useLoadedMainMap";
+import useLoadedMainBaseMap from "Features/mapEditor/hooks/useLoadedMainBaseMap";
 import getPointerPositionInStage from "Features/mapEditor/utils/getPointerPositionInStage";
 
 import editor from "App/editor";
 
-export default function DraggableFabMarker({bgcolor, onDropped}) {
+export default function DraggableFabMarker({ bgcolor, onDropped }) {
   const dispatch = useDispatch();
   // data
 
-  const loadedMainMap = useLoadedMainMap();
+  const loadedMainBaseMap = useLoadedMainBaseMap();
 
   // data - dnd
 
-  const {attributes, listeners, setNodeRef, transform, isDragging} =
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: "marker",
     });
-  useDndMonitor({onDragEnd: handleDragEnd, onDragStart: handleDragStart});
+  useDndMonitor({ onDragEnd: handleDragEnd, onDragStart: handleDragStart });
 
   // helpers - dnd
 
@@ -44,8 +44,8 @@ export default function DraggableFabMarker({bgcolor, onDropped}) {
     }
 
     // main
-    const {activatorEvent, delta} = event;
-    let pointer = {x: 0, y: 0};
+    const { activatorEvent, delta } = event;
+    let pointer = { x: 0, y: 0 };
     if (activatorEvent.clientX || activatorEvent.clientY) {
       pointer = {
         x: activatorEvent.clientX + delta.x ?? 0,
@@ -62,17 +62,17 @@ export default function DraggableFabMarker({bgcolor, onDropped}) {
     const pointInStage = getPointerPositionInStage(pointer, stage, {
       coordsInWindow: true,
     });
-    const x = pointInStage.x / loadedMainMap.imageWidth;
-    const y = pointInStage.y / loadedMainMap.imageHeight;
+    const x = pointInStage.x / loadedMainBaseMap.imageWidth;
+    const y = pointInStage.y / loadedMainBaseMap.imageHeight;
 
     const newMarker = {
       id: nanoid(),
       x,
       y,
-      mapId: loadedMainMap.id,
+      mapId: loadedMainBaseMap.id,
     };
 
-    if (onDropped) onDropped({x, y, mapId: newMarker.mapId});
+    if (onDropped) onDropped({ x, y, mapId: newMarker.mapId });
   }
 
   return (

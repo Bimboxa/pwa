@@ -21,7 +21,7 @@ export const makeGetListingsByOptions = (options) =>
       const withEntityModel = options?.withEntityModel;
       const filterByKeys = options?.filterByKeys;
       const filterByListingsIds = options?.filterByListingsIds;
-      const mapsOnly = options?.mapsOnly;
+      const baseMapsOnly = options?.baseMapsOnly;
 
       // edge case
 
@@ -48,8 +48,8 @@ export const makeGetListingsByOptions = (options) =>
         listings = listings?.filter((l) => filterByListingsIds.includes(l?.id));
       }
 
-      // relations. Need entityModel for mapsOnly
-      if (withEntityModel || mapsOnly) {
+      // relations. Need entityModel for baseMapsOnly
+      if (withEntityModel || baseMapsOnly) {
         listings = listings?.map((listing) => {
           return {
             ...listing,
@@ -58,8 +58,8 @@ export const makeGetListingsByOptions = (options) =>
         });
       }
 
-      if (mapsOnly) {
-        listings = listings?.filter((l) => l?.entityModel?.type === "MAP");
+      if (baseMapsOnly) {
+        listings = listings?.filter((l) => l?.entityModel?.type === "BASE_MAP");
       }
 
       return listings;

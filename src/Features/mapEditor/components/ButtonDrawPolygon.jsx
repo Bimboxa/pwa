@@ -1,15 +1,15 @@
-import {useSelector} from "react-redux";
+import { useSelector } from "react-redux";
 
-import {Pentagon as Polygon} from "@mui/icons-material";
-import {IconButton} from "@mui/material";
+import { Pentagon as Polygon } from "@mui/icons-material";
+import { IconButton } from "@mui/material";
 
 import editor from "App/editor";
-import useLoadedMainMap from "../hooks/useLoadedMainMap";
+import useLoadedMainBaseMap from "../hooks/useLoadedMainBaseMap";
 
 export default function ButtonDrawPolygon() {
   // data
 
-  const mapId = useSelector((s) => s.mapEditor.loadedMainMapId);
+  const mapId = useSelector((s) => s.mapEditor.loadedMainBaseMapId);
   const newShape = useSelector((s) => s.shapes.newShape);
 
   // handler
@@ -17,8 +17,8 @@ export default function ButtonDrawPolygon() {
   function handleClick() {
     editor.mapEditor.enableDrawingMode(
       "POLYGON",
-      {mapId, ...newShape},
-      {updateRedux: true}
+      { mapId, ...newShape },
+      { updateRedux: true }
     );
   }
 

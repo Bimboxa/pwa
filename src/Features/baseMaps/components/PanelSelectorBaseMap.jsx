@@ -1,21 +1,25 @@
-import useMaps from "../hooks/useMaps";
-import ListMaps from "./ListMaps";
+import { useSelector } from "react-redux";
+
+import useBaseMaps from "../hooks/useBaseMaps";
+
+import ListBaseMaps from "./ListBaseMaps";
 import Panel from "Features/layout/components/Panel";
 import SelectorMapsListingVariantChips from "./SelectorMapsListingVariantChips";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import useMapsInSelector from "../hooks/useMapsInSelector";
 
-export default function PanelSelectorMap({onSelectionChange, selection}) {
+export default function PanelSelectorBaseMap({ onSelectionChange, selection }) {
   // data
 
-  const {value: items} = useMapsInSelector();
-  console.log("[SelectorMap] maps", items);
+  const listingId = useSelector((s) => s.mapEditor.selectedBaseMapsListingId);
+  const { value: items } = useBaseMaps({
+    filterByListingId: listingId,
+  });
 
   // handler
 
-  function handleClick(map) {
-    console.log("map", map);
-    onSelectionChange(map.id);
+  function handleClick(baseMap) {
+    console.log("baseMap", baseMap);
+    onSelectionChange(baseMap.id);
   }
 
   function handleCreateClick() {
@@ -27,8 +31,8 @@ export default function PanelSelectorMap({onSelectionChange, selection}) {
       <BoxFlexVStretch>
         <SelectorMapsListingVariantChips />
         <BoxFlexVStretch>
-          <ListMaps
-            maps={items}
+          <ListBaseMaps
+            baseMaps={items}
             selection={selection ? [selection] : []}
             onClick={handleClick}
             //onCreateClick={handleCreateClick}

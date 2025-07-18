@@ -1,11 +1,11 @@
-import {createSlice} from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
 
 const mapEditorInitialState = {
-  // selector
-  selectedMapsListingId: null,
-
   // main map
-  loadedMainMapId: null,
+  selectedBaseMapsListingId: null,
+  selectedMainBaseMapId: null,
+  loadedMainBaseMapId: null,
+
   //
   showShapes: true,
   //
@@ -16,11 +16,15 @@ export const mapEditorSlice = createSlice({
   name: "mapEditors",
   initialState: mapEditorInitialState,
   reducers: {
-    setSelectedMapsListingId: (state, action) => {
-      state.selectedMapsListingId = action.payload;
+    setSelectedBaseMapsListingId: (state, action) => {
+      state.selectedBaseMapsListingId = action.payload;
     },
-    setLoadedMainMapId: (state, action) => {
-      state.loadedMainMapId = action.payload;
+    setSelectedMainBaseMapId: (state, action) => {
+      console.log("[STATE] selectedMainBaseMapId", action.payload);
+      state.selectedMainBaseMapId = action.payload;
+    },
+    setLoadedMainBaseMapId: (state, action) => {
+      state.loadedMainBaseMapId = action.payload;
     },
     setShowShapes: (state, action) => {
       state.showShapes = action.payload;
@@ -39,8 +43,10 @@ export const mapEditorSlice = createSlice({
 });
 
 export const {
-  setSelectedMapsListingId,
-  setLoadedMainMapId,
+  setSelectedBaseMapsListingId,
+  setSelectedMainBaseMapId,
+  setLoadedMainBaseMapId,
+  //
   setShowShapes,
   setEnabledDrawingMode,
   //

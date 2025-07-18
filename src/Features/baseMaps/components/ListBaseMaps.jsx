@@ -5,25 +5,30 @@ import {
   ListItemIcon,
   Avatar,
 } from "@mui/material";
-import {Add} from "@mui/icons-material";
+import { Add } from "@mui/icons-material";
 
-export default function ListMaps({maps, onClick, onCreateClick, selection}) {
+export default function ListBaseMaps({
+  baseMaps,
+  onClick,
+  onCreateClick,
+  selection,
+}) {
   // helper
 
   const canCreate = Boolean(onCreateClick);
   return (
     <List dense>
-      {maps?.map((map) => (
+      {baseMaps?.map((baseMap) => (
         <ListItemButton
-          selected={selection?.includes(map.id)}
-          key={map.id}
-          onClick={() => onClick(map)}
+          selected={selection?.includes(baseMap.id)}
+          key={baseMap.id}
+          onClick={() => onClick(baseMap)}
           divider
         >
           <ListItemIcon>
-            <Avatar src={map?.image?.imageUrlClient} />
+            <Avatar src={baseMap?.image?.imageUrlClient} />
           </ListItemIcon>
-          <ListItemText primary={map.label} />
+          <ListItemText primary={baseMap.label} />
         </ListItemButton>
       ))}
       {canCreate && (

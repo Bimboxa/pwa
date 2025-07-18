@@ -1,6 +1,6 @@
-import {useSelector, useDispatch} from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
-import {setSelectedMapsListingId} from "Features/mapEditor/mapEditorSlice";
+import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
 
 import SelectorVariantChips from "Features/layout/components/SelectorVariantChips";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
@@ -8,24 +8,24 @@ import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 export default function SelectorMapsListingVariantChips() {
   const dispatch = useDispatch();
 
-  const {value: mapsListings} = useListingsByScope({mapsOnly: true});
-  const id = useSelector((s) => s.mapEditor.selectedMapsListingId);
+  const { value: baseMapsListings } = useListingsByScope({
+    baseMapsOnly: true,
+  });
+  const id = useSelector((s) => s.mapEditor.selectedBaseMapsListingId);
 
-  const options = mapsListings?.map((listing) => ({
+  const options = baseMapsListings?.map((listing) => ({
     key: listing.id,
     label: listing.name,
   }));
 
   const selection = id ? [id] : [];
 
-  console.log("selection", selection);
-
   // handlers
 
   function handleChange(selection) {
     let id = null;
     if (selection?.length > 0) id = selection[0];
-    dispatch(setSelectedMapsListingId(id));
+    dispatch(setSelectedBaseMapsListingId(id));
   }
 
   return (
