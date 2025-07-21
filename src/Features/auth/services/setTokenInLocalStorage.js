@@ -1,3 +1,3 @@
 export default function setTokenInLocalStorage(token) {
-  localStorage.set("auth_token", token);
+  localStorage.setItem("auth_token", token);
 }

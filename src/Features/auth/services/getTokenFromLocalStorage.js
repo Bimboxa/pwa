@@ -1,3 +1,3 @@
 export default function getTokenFromLocalStorage() {
-  return localStorage.get("auth_token");
+  return localStorage.getItem("auth_token");
 }

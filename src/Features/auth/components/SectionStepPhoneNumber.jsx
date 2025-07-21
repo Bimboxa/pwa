@@ -6,10 +6,13 @@ import FieldPhoneNumber from "Features/form/components/FieldPhoneNumber";
 
 import getMFACodeService from "../services/getMFACodeService";
 
+import getAppConfigDefault from "Features/appConfig/services/getAppConfigDefault";
+
 export default function SectionStepPhoneNumber({ onSuccess }) {
   // strings
 
-  const descriptionS = "Saisissez votre numéro de téléphone professionnel.";
+  const descriptionS =
+    "Saisissez votre numéro de téléphone professionnel pour recevoir par sms le code de connexion.";
   const sendS = "Envoyer";
 
   // state
@@ -19,18 +22,28 @@ export default function SectionStepPhoneNumber({ onSuccess }) {
   // handlers
 
   async function handleSend() {
-    await getMFACodeService({ phoneNumber });
-    //
-    if (onSuccess) onSuccess({ phoneNumber });
+    try {
+      const appConfig = await getAppConfigDefault();
+      const serviceUrl = appConfig?.auth?.getMfaCodeUrl;
+      const number = await getMFACodeService({ phoneNumber, serviceUrl });
+      console.log("request MFA for phone number", number);
+      //
+      if (onSuccess && number) onSuccess({ phoneNumber: number });
+    } catch (e) {
+      console.log("error", e);
+    }
     //
   }
 
   return (
     <Box>
-      <Typography variant="body2" color="text.secondary">
-        {descriptionS}
-      </Typography>
-      <Box sx={{ display: "flex", mt: 4 }}>
+      <Box sx={{ p: 3 }}>
+        <Typography variant="body2" color="text.secondary">
+          {descriptionS}
+        </Typography>
+      </Box>
+
+      <Box sx={{ mt: 4, display: "flex" }}>
         <FieldPhoneNumber value={phoneNumber} onChange={setPhoneNumber} />
         <Button
           color="secondary"

@@ -15,6 +15,7 @@ import ImageAnimatedMap from "Features/onboarding/components/ImageAnimatedMap";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import getUserInfoFromJwt from "../services/getUserInfoFromJwt";
 import setUserInfoInLocalStorage from "../services/setUserInfoInLocalStorage";
+import setTokenInLocalStorage from "../services/setTokenInLocalStorage";
 
 export default function PageSignInVariantPhoneNumber() {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ export default function PageSignInVariantPhoneNumber() {
     const userInfo = getUserInfoFromJwt({ appConfig, jwt });
     console.log("userInfo");
     setUserInfoInLocalStorage(userInfo);
+    setTokenInLocalStorage(jwt);
     navigate("/");
   }
 

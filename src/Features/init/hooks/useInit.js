@@ -2,6 +2,8 @@ import useInitDeviceType from "Features/layout/hooks/useInitDeviceType";
 
 import useInitAppConfig from "Features/appConfig/hooks/useInitAppConfig";
 
+import useInitUserInfo from "Features/auth/hooks/useInitUserInfo";
+
 import useInitSelectProject from "Features/projects/hooks/useInitSelectProject";
 import useInitSelectScope from "Features/scopes/hooks/useInitSelectScope";
 import useInitSelectedMainBaseMap from "Features/mapEditor/hooks/useInitSelectedMainBaseMap";
@@ -19,6 +21,8 @@ import useInitRcUserAccount from "Features/sync/hooks/useInitRcUserAccount";
 
 export default function useInit() {
   useAutoRefreshRemoteToken();
+
+  useInitUserInfo();
 
   useInitDeviceType();
 
