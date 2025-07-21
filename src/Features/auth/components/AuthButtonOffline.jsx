@@ -1,4 +1,4 @@
-import {Avatar} from "@mui/material";
+import { Avatar } from "@mui/material";
 import useUserEmail from "../hooks/useUserEmail";
 import getAvatarStringFromEmail from "../utils/getAvatarStringFromEmail";
 
@@ -12,7 +12,7 @@ export default function AuthButtonOffline() {
   const avatarString = getAvatarStringFromEmail(userEmail.value);
 
   return (
-    <Avatar sx={{bgcolor: "primary.main", width: 32, height: 32}}>
+    <Avatar sx={{ bgcolor: "primary.main", width: 32, height: 32 }}>
       {avatarString}
     </Avatar>
   );

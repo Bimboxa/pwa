@@ -4,6 +4,7 @@ import { Box, Typography } from "@mui/material";
 
 import FieldCode from "Features/form/components/FieldCode";
 import verifyMFACodeService from "../services/verifyMFACodeService";
+import getAppConfigDefault from "Features/appConfig/services/getAppConfigDefault";
 
 function formatFrenchPhoneNumber(value) {
   const digits = value.replace(/\D/g, "");
@@ -18,13 +19,21 @@ export default function SectionStepMFACode({ phoneNumber, onSuccess }) {
 
   // helpers
 
-  const descriptionS = `Code envoyé au ${formatFrenchPhoneNumber(phoneNumber)}`;
+  const descriptionS = `Saisissez le code envoyé au ${formatFrenchPhoneNumber(
+    phoneNumber
+  )}`;
 
   // handlers
 
   async function handleCodeChange(code) {
     setLocked(true);
-    const jwt = await verifyMFACodeService({ phoneNumber, mfaCode: code });
+    const appConfig = await getAppConfigDefault();
+    const serviceUrl = appConfig.auth.verifyMfaCodeUrl;
+    const jwt = await verifyMFACodeService({
+      phoneNumber,
+      mfaCode: code,
+      serviceUrl,
+    });
     onSuccess({ jwt });
   }
 
@@ -35,7 +44,7 @@ export default function SectionStepMFACode({ phoneNumber, onSuccess }) {
 
   return (
     <Box>
-      <Typography sx={{ mb: 2 }} variant="body2" color="text.secondary">
+      <Typography sx={{ mb: 2, p: 4 }} variant="body2" color="text.secondary">
         {descriptionS}
       </Typography>
       <FieldCode

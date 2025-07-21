@@ -55,7 +55,7 @@ auth:
   verifyMfaCodeUrl: https://auth.etandex.fr/api/Auth/CheckMfaCode
   userInfo:
     firstName: given_name # Antoine
-    familyName: familyName # Favreau
+    lastName: familyName # Favreau
     trigram: unique_name # FVA
 
 remoteContainer:

@@ -1,4 +1,4 @@
-export default async function getMFACodeService({ phoneNumber }) {
+export default async function getMFACodeService({ serviceUrl, phoneNumber }) {
   const body = JSON.stringify({
     UserName: "",
     Password: "",
@@ -8,18 +8,18 @@ export default async function getMFACodeService({ phoneNumber }) {
 
   async function fetchMFACode() {
     try {
-      const response = await fetch("https://auth.etandex.fr/api/Auth/Login", {
+      const response = await fetch(serviceUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body,
       });
-      console.log("response", response);
+      if (response.ok) return phoneNumber;
     } catch (error) {
       console.error("Error:", error);
     }
   }
 
-  await fetchMFACode();
+  return await fetchMFACode();
 }
