@@ -49,6 +49,15 @@ strings:
 
 # REMOTE CONTAINERS
 
+auth:
+  service: PHONE_NUMBER
+  getMfaCodeUrl: https://auth.etandex.fr/api/Auth/Login
+  verifyMfaCodeUrl: https://auth.etandex.fr/api/Auth/CheckMfaCode
+  userInfo:
+    firstName: given_name # Antoine
+    familyName: familyName # Favreau
+    trigram: unique_name # FVA
+
 remoteContainer:
   service: "REMOTE_CONTAINER"
   name: "Serveur de sauvegarde"
