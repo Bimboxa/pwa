@@ -17,7 +17,8 @@ export default function SectionStepPhoneNumber({ onSuccess }) {
 
   // state
 
-  const [phoneNumber, setPhoneNumber] = useState("0685631098");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  //"0685631098"
 
   // handlers
 

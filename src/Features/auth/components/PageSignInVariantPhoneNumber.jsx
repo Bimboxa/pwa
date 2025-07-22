@@ -2,23 +2,27 @@ import { useState } from "react";
 
 import { useNavigate } from "react-router-dom";
 
-import { Typography, TextField, Button, Box } from "@mui/material";
+import { useDispatch } from "react-redux";
+
+import { setUserInfo, setToken } from "../authSlice";
+
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
+import { Box } from "@mui/material";
+import IconButtonClose from "Features/layout/components/IconButtonClose";
 import BoxCenter from "Features/layout/components/BoxCenter";
 import PageGeneric from "Features/layout/components/PageGeneric";
-import FieldPhoneNumber from "Features/form/components/FieldPhoneNumber";
 import SectionStepMFACode from "./SectionStepMFACode";
 import SectionStepPhoneNumber from "./SectionStepPhoneNumber";
-import getMFACodeService from "../services/getMFACodeService";
-import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import BoxFlexHStretch from "Features/layout/components/BoxFlexHStretch";
 import ImageAnimatedMap from "Features/onboarding/components/ImageAnimatedMap";
-import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import getUserInfoFromJwt from "../services/getUserInfoFromJwt";
 import setUserInfoInLocalStorage from "../services/setUserInfoInLocalStorage";
 import setTokenInLocalStorage from "../services/setTokenInLocalStorage";
 
 export default function PageSignInVariantPhoneNumber() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   // data
 
@@ -39,13 +43,15 @@ export default function PageSignInVariantPhoneNumber() {
   function handleVerifyMfaSuccess({ jwt }) {
     const userInfo = getUserInfoFromJwt({ appConfig, jwt });
     console.log("userInfo");
-    setUserInfoInLocalStorage(userInfo);
-    setTokenInLocalStorage(jwt);
+    dispatch(setUserInfo(userInfo));
+    dispatch(setToken(jwt));
+
     navigate("/");
   }
 
   return (
     <PageGeneric>
+      <IconButtonClose onClose={() => navigate("/")} position="top-right" />
       <Box sx={{ display: "flex", width: 1, height: 1 }}>
         <Box sx={{ width: 400, height: 1 }}>
           <ImageAnimatedMap />

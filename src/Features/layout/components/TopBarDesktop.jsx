@@ -5,7 +5,7 @@ import { Box } from "@mui/material";
 import SelectorProject from "Features/projectSelector/components/SelectorProject";
 import SelectorViewer from "Features/viewers/components/SelectorViewer";
 import ButtonSelectorScopeInTopBar from "Features/scopes/components/ButtonSelectorScopeInTopBar";
-import { AuthButtons } from "Features/auth/components/AuthButtons";
+import AuthButtons from "Features/auth/components/AuthButtons";
 
 export default function TopBarDesktop() {
   const height = useSelector((s) => s.layout.topBarHeight);

@@ -2,6 +2,7 @@ import useInitDeviceType from "Features/layout/hooks/useInitDeviceType";
 
 import useInitAppConfig from "Features/appConfig/hooks/useInitAppConfig";
 
+import useInitToken from "Features/auth/hooks/useInitToken";
 import useInitUserInfo from "Features/auth/hooks/useInitUserInfo";
 
 import useInitSelectProject from "Features/projects/hooks/useInitSelectProject";
@@ -22,6 +23,7 @@ import useInitRcUserAccount from "Features/sync/hooks/useInitRcUserAccount";
 export default function useInit() {
   useAutoRefreshRemoteToken();
 
+  useInitToken();
   useInitUserInfo();
 
   useInitDeviceType();
