@@ -8,6 +8,7 @@ import useAutoLoadMainBaseMapInMapEditor from "../hooks/useAutoLoadMainBaseMapIn
 //import useAutoLoadShapesInMapEditor from "../hooks/useAutoLoadShapesInMapEditor";
 //import useAutoLoadMarkersInMapEditor from "../hooks/useAutoLoadMarkersInMapEditor";
 import useLoadedMainBaseMap from "../hooks/useLoadedMainBaseMap";
+import useAutoSelectedMainBaseMap from "../hooks/useAutoSelectedMainBaseMap";
 
 import { Box } from "@mui/material";
 
@@ -27,6 +28,10 @@ export default function MainMapEditor() {
 
   const containerRef = useRef();
   const mapEditorRef = useRef();
+
+  // auto
+
+  useAutoSelectedMainBaseMap();
 
   // data
 

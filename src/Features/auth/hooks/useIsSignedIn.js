@@ -5,7 +5,7 @@ export default function isSignedIn() {
   //const { isSignedIn } = useUser();
 
   const token = useToken();
-  console.log("token", token, Boolean(token));
+  //console.log("token", token, Boolean(token));
 
   return Boolean(token);
 }

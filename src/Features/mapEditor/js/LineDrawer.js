@@ -293,9 +293,9 @@ export default class LineDrawer {
     if (!shape.id) shape.id = nanoid();
 
     // map to compute qties
-    const mapsMap = store.getState().maps.mapsMap;
+    const baseMapsMap = store.getState().baseMaps.baseMapsMap;
     const mapId = store.getState().mapEditor.loadedMainBaseMapId;
-    const map = mapsMap[mapId];
+    const map = baseMapsMap[mapId];
 
     // compute qties
     const length = computeShapeLength(shape, map);

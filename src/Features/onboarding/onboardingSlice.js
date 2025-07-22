@@ -3,6 +3,9 @@ import setInitProjectId from "Features/init/services/setInitProjectId";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 const onboardingInitialState = {
+  //
+  openPanelCreateData: false,
+  //
   step: "CREATE_PROJECT",
   //
   projectName: null,
@@ -17,6 +20,9 @@ export const onboardingSlice = createSlice({
   name: "onboarding",
   initialState: onboardingInitialState,
   reducers: {
+    setOpenPanelCreateData: (state, action) => {
+      state.openPanelCreateData = action.payload;
+    },
     setStep: (state, action) => {
       state.step = action.payload;
     },
@@ -41,6 +47,8 @@ export const onboardingSlice = createSlice({
 });
 
 export const {
+  setOpenPanelCreateData,
+  //
   setStep,
   //
   setProjectName,

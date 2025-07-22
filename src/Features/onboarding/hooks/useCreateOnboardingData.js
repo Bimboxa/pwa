@@ -13,9 +13,9 @@ import getImageSizeAsync from "Features/misc/utils/getImageSize";
 export default function useCreateOnboardingData() {
   // data
 
-  const projectName = useSelector((s) => s.onboarding.projectName);
-  const mapName = useSelector((s) => s.onboarding.mapName);
-  const mapFile = useSelector((s) => s.onboarding.mapFile);
+  const _projectName = useSelector((s) => s.onboarding.projectName);
+  const _mapName = useSelector((s) => s.onboarding.mapName);
+  const _mapFile = useSelector((s) => s.onboarding.mapFile);
   const issuesListingName = useSelector((s) => s.onboarding.issuesListingName);
 
   // data - func
@@ -27,8 +27,14 @@ export default function useCreateOnboardingData() {
 
   // return
 
-  return async () => {
+  return async ({ projectName, mapFile, mapMeterByPx }) => {
     try {
+      // helpers
+
+      projectName = _projectName ?? projectName;
+      const mapName = _mapName ?? "Google map";
+      mapFile = _mapFile ?? mapFile;
+
       // appConfig
 
       const appConfig = await getAppConfigDefault();
@@ -61,6 +67,7 @@ export default function useCreateOnboardingData() {
           isImage: true,
         },
       };
+      if (mapMeterByPx) mapEntity.image.meterByPx = mapMeterByPx;
       const entity = await createEntity(mapEntity, { listing: mapsListing });
       console.log("entity created: ", entity);
 

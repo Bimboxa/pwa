@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 import { Box, Typography } from "@mui/material";
 
@@ -13,6 +13,8 @@ function formatFrenchPhoneNumber(value) {
 }
 
 export default function SectionStepMFACode({ phoneNumber, onSuccess }) {
+  const verifyingRef = useRef();
+
   // state
 
   const [locked, setLocked] = useState(false);
@@ -26,15 +28,22 @@ export default function SectionStepMFACode({ phoneNumber, onSuccess }) {
   // handlers
 
   async function handleCodeChange(code) {
+    if (verifyingRef.current) {
+      console.log("...verifying");
+      return;
+    }
     setLocked(true);
     const appConfig = await getAppConfigDefault();
     const serviceUrl = appConfig.auth.verifyMfaCodeUrl;
+    verifyingRef.current = true;
     const jwt = await verifyMFACodeService({
       phoneNumber,
       mfaCode: code,
       serviceUrl,
     });
-    onSuccess({ jwt });
+    console.log("jwt", jwt);
+    if (jwt) onSuccess({ jwt });
+    verifyingRef.current = false;
   }
 
   function handleLockedChange(_locked) {
