@@ -9,6 +9,7 @@ import { Avatar } from "@mui/material";
 import MenuGeneric from "Features/layout/components/MenuGeneric";
 
 import getAvatarStringFromUserInfo from "../utils/getAvatarStringFromUserInfo";
+import { getUserDataService } from "../services/getUserDataService";
 
 export default function ButtonUserAvatar() {
   const dispatch = useDispatch();
@@ -30,6 +31,13 @@ export default function ButtonUserAvatar() {
       label: "Se déconnecter",
       handler: () => {
         dispatch(logout());
+      },
+    },
+    {
+      label: "Debug",
+      handler: async () => {
+        const info = await getUserDataService({});
+        console.log("info", info);
       },
     },
   ];

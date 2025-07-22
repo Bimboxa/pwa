@@ -32,7 +32,7 @@ export const baseMapsSlice = createSlice({
 });
 
 export const {
-  setselectedBaseMapId,
+  setSelectedBaseMapId,
   triggerMapsUpdate,
   //
   createMap,

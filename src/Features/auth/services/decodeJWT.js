@@ -5,7 +5,7 @@ export default function decodeJWT(jwt) {
     const decoded = jwtDecode(jwt);
     return decoded;
   } catch (error) {
-    console.error("Error decoding JWT:", error);
+    console.error("Error decoding JWT:", error, "jwt", jwt);
     return null;
   }
 }

@@ -1,5 +1,9 @@
 import { useState } from "react";
 
+import { useSelector, useDispatch } from "react-redux";
+
+import { setOpenPanelCreateData } from "../onboardingSlice";
+
 import { useMediaQuery } from "@mui/material";
 import theme from "Styles/theme";
 
@@ -11,6 +15,8 @@ import PanelCreateData from "./PanelCreateData";
 import ImageAnimatedMap from "./ImageAnimatedMap";
 
 export default function PageOnboarding() {
+  const dispatch = useDispatch();
+
   // strings
 
   const titleS = `Des plans de repérage,
@@ -20,10 +26,9 @@ export default function PageOnboarding() {
   // data
 
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-
-  // state
-
-  const [openPanelCreateData, setOpenPanelCreateData] = useState(false);
+  const openPanelCreateData = useSelector(
+    (s) => s.onboarding.openPanelCreateData
+  );
 
   // render - PanelCreateData
   if (openPanelCreateData) {
@@ -77,7 +82,7 @@ export default function PageOnboarding() {
         <Box sx={{ mt: 3 }}>
           <BlockStartButtons
             isMobile={isMobile}
-            onShowCreateData={() => setOpenPanelCreateData(true)}
+            onShowCreateData={() => dispatch(setOpenPanelCreateData(true))}
           />
         </Box>
       </Box>
