@@ -1,5 +1,7 @@
 import { useSelector } from "react-redux";
 
+import { useNavigate } from "react-router-dom";
+
 import { Box } from "@mui/material";
 
 import SectionStepHelper from "./SectionStepHelper";
@@ -8,13 +10,17 @@ import SectionStepCreateProject from "./SectionStepCreateProject";
 import SectionStepCreateMap from "./SectionStepCreateMap";
 import SectionStepCreateListings from "./SectionStepCreateListings";
 
-export default function PanelCreateDataVariantHorizontal({ onClose }) {
+import IconButtonClose from "Features/layout/components/IconButtonClose";
+
+export default function PanelCreateDataVariantHorizontal() {
+  const navigate = useNavigate();
   // data
 
   const step = useSelector((s) => s.onboarding.step);
 
   return (
     <Box sx={{ width: 1, height: 1, display: "flex" }}>
+      <IconButtonClose onClose={() => navigate("/")} position="top-right" />
       <SectionStepHelper />
       <Box sx={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
         <SectionStepperHorizontal />

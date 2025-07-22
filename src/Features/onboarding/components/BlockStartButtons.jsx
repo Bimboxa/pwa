@@ -36,6 +36,7 @@ export default function BlockStartButtons({ isMobile, onShowCreateData }) {
         sx={{ width: 240 }}
         variant="outlined"
         onClick={handleStartOffline}
+        color="secondary"
       >
         <Typography noWrap>{startOfflineS}</Typography>
       </Button>
@@ -44,6 +45,7 @@ export default function BlockStartButtons({ isMobile, onShowCreateData }) {
         sx={{ width: 240, ...(isMobile && { mt: 2 }) }}
         variant="contained"
         onClick={handleStartOnline}
+        color="secondary"
       >
         <Typography>{startOnlineS}</Typography>
       </Button>
