@@ -47,7 +47,7 @@ strings:
     title: "Type de dossier"
     select: "Sélectionnez un type de dossier"
 
-# REMOTE CONTAINERS
+# AUTH
 
 auth:
   service: PHONE_NUMBER
@@ -57,6 +57,8 @@ auth:
     firstName: given_name # Antoine
     lastName: familyName # Favreau
     trigram: unique_name # FVA
+
+# REMOTE CONTAINERS
 
 remoteContainer:
   service: "REMOTE_CONTAINER"

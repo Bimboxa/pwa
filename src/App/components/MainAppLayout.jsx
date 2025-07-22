@@ -1,19 +1,19 @@
 import React from "react";
 
-import {useSelector, useDispatch} from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
-import {setToaster} from "Features/layout/layoutSlice";
+import { setToaster } from "Features/layout/layoutSlice";
 
-import useInit from "Features/init/hooks/useInit";
 import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 
 import LayoutDesktop from "Features/layout/components/LayoutDesktop";
 import LayoutMobile from "Features/layout/components/LayoutMobile";
-import {DndContext} from "@dnd-kit/core";
+import { DndContext } from "@dnd-kit/core";
 
 import useDndSensors from "App/hooks/useDndSensors";
+import useAutoRedirect from "App/hooks/useAutoRedirect";
 
 import DialogAutoRemoteContainerConnexion from "Features/sync/components/DialogAutoRemoteContainerConnexion";
 import PageLanding from "Features/init/components/PageLanding";
@@ -26,14 +26,10 @@ import DialogAutoDownloadListingsData from "Features/listingsConfig/components/D
 import DialogAutoAddListing from "Features/listings/components/DialogAutoAddListing";
 
 export default function MainAppLayout() {
-  const dispatch = useDispatch();
-  // init
-
-  useInit();
-
   // auto
 
   useAutoFetchOrgaDataFolder();
+  useAutoRedirect();
 
   // data
 
