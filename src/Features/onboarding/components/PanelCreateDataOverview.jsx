@@ -28,7 +28,7 @@ export default function PanelCreateDataOverview() {
 
   async function handleCreate() {
     try {
-      const { project, issuesListing, map } = await createOnboardingData();
+      const { project, issuesListing, map } = await createOnboardingData({});
       console.log("[success]", project, issuesListing, map);
 
       dispatch(setSelectedProjectId(project.id));
