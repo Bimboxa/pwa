@@ -10,6 +10,7 @@ import syncReducer from "Features/sync/syncSlice";
 import layoutReducer from "Features/layout/layoutSlice";
 import listPanelReducer from "Features/listPanel/listPanelSlice";
 import onboardingReducer from "Features/onboarding/onboardingSlice";
+import masterProjectsReducer from "Features/masterProjects/masterProjectsSlice";
 import projectsReducer from "Features/projects/projectsSlice";
 import scopesReducer from "Features/scopes/scopesSlice";
 import scopeSelectorReducer from "Features/scopeSelector/scopeSelectorSlice";
@@ -48,6 +49,7 @@ const store = configureStore({
     layout: layoutReducer,
     onboarding: onboardingReducer,
     listPanel: listPanelReducer,
+    masterProjects: masterProjectsReducer,
     projects: projectsReducer,
     scopes: scopesReducer,
     scopeSelector: scopeSelectorReducer,

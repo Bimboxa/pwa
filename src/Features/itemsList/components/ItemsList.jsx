@@ -1,9 +1,9 @@
-import {useState, useMemo, useEffect} from "react";
+import { useState, useMemo, useEffect } from "react";
 
 import useDebouncedValue from "Features/misc/hooks/useDebounceValue";
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 
-import {Box, LinearProgress} from "@mui/material";
+import { Box, LinearProgress } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionSearch from "Features/itemsList/components/SectionSearch";
@@ -13,7 +13,7 @@ import SectionNoItem from "./SectionNoItem";
 import getFoundItems from "Features/search/getFoundItems";
 import getSortedItems from "Features/misc/utils/getSortedItems";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
-import {createPortal} from "react-dom";
+import { createPortal } from "react-dom";
 
 export default function ItemsList({
   items,
@@ -28,6 +28,7 @@ export default function ItemsList({
   clickOnCreation,
   loading,
   disableCreation,
+  maxItems,
 }) {
   //
 
@@ -50,7 +51,7 @@ export default function ItemsList({
 
   // helpers - search
 
-  const foundItems = useMemo(() => {
+  let foundItems = useMemo(() => {
     // search
     let _items = getFoundItems({
       items,
@@ -63,6 +64,10 @@ export default function ItemsList({
 
     return _items;
   }, [debouncedSearchText, items, searchKeys, sortBy]);
+
+  // maxItems
+
+  if (maxItems) foundItems = foundItems.slice(0, maxItems);
 
   console.log("foundItems", foundItems);
 
@@ -88,7 +93,7 @@ export default function ItemsList({
   function handleItemCreated(item) {
     console.log("[item] created", item);
     setOpenCreate(false);
-    if (clickOnCreation) onClick(item, {fromCreation: true});
+    if (clickOnCreation) onClick(item, { fromCreation: true });
   }
 
   return (
@@ -102,10 +107,10 @@ export default function ItemsList({
           searchText={searchText}
           onChange={handleSearchTextChange}
         />
-        <Box sx={{visibility: loading ? "visible" : "hidden"}}>
+        <Box sx={{ visibility: loading ? "visible" : "hidden" }}>
           <LinearProgress />
         </Box>
-        <BoxFlexVStretch sx={{overflow: "auto"}}>
+        <BoxFlexVStretch sx={{ overflowY: "auto" }}>
           {!noItems ? (
             <SectionListItems
               items={foundItems}
@@ -116,11 +121,13 @@ export default function ItemsList({
             <SectionNoItem noItemLabel={noItemLabel} />
           )}
         </BoxFlexVStretch>
-        <ButtonInPanel
-          label={createLabel}
-          onClick={handleCreateClick}
-          disabled={disableCreation}
-        />
+        {!disableCreation && (
+          <ButtonInPanel
+            label={createLabel}
+            onClick={handleCreateClick}
+            disabled={disableCreation}
+          />
+        )}
       </BoxFlexVStretch>
       {openCreate &&
         containerEl &&

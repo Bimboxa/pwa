@@ -13,10 +13,10 @@ export default function MainGoogleMapEditor() {
 
   return (
     <Box sx={{ width: 1, height: 1 }}>
-      <GoogleMap
+      {/*<GoogleMap
         onGmapChange={setGmap}
         onGmapContainerChange={setGmapContainer}
-      />
+      />*/}
       <LayersGoogleMap gmap={gmap} gmapContainer={gmapContainer} />
       {/*<Box
         sx={{ position: "absolute", bottom: "8px", left: "8px", zIndex: 1000 }}
