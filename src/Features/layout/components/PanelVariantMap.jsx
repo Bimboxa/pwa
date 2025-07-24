@@ -6,7 +6,7 @@ export default function PanelVariantMap({ children }) {
       elevation={6}
       sx={{
         width: 1,
-        height: 1,
+        flexGrow: 1,
         display: "flex",
         flexDirection: "column",
         minHeight: 0,

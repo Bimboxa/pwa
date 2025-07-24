@@ -16,7 +16,11 @@ export default function LayersGoogleMap({ gmap, gmapContainer }) {
           width: 300,
           position: "absolute",
           top: `${tpHeight + 8}px`,
+          maxHeight: "600px",
           left: "16px",
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <PanelMasterProjects gmap={gmap} gmapContainer={gmapContainer} />

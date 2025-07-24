@@ -48,7 +48,7 @@ export default function ButtonUserAvatar() {
     <>
       <Avatar
         sx={{
-          bgcolor: "primary.main",
+          bgcolor: "secondary.main",
           width: 36,
           height: 36,
           cursor: "pointer",

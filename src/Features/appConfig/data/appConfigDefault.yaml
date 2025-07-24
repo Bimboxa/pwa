@@ -2,6 +2,9 @@ name: "Conf. par défaut"
 version: "16/07/2025"
 isDefault: true
 
+# APP
+appName: "Bimboxa"
+
 # COLORS
 
 colors:
