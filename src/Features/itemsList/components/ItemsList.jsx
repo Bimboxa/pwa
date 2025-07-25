@@ -14,6 +14,7 @@ import getFoundItems from "Features/search/getFoundItems";
 import getSortedItems from "Features/misc/utils/getSortedItems";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 import { createPortal } from "react-dom";
+import BoxFlexV from "Features/layout/components/BoxFlexV";
 
 export default function ItemsList({
   items,
@@ -67,7 +68,7 @@ export default function ItemsList({
 
   // maxItems
 
-  if (maxItems) foundItems = foundItems.slice(0, maxItems);
+  if (maxItems && foundItems) foundItems = foundItems.slice(0, maxItems);
 
   console.log("foundItems", foundItems);
 
@@ -106,6 +107,7 @@ export default function ItemsList({
         <SectionSearch
           searchText={searchText}
           onChange={handleSearchTextChange}
+          onCreateClick={disableCreation ? undefined : handleCreateClick}
         />
         <Box sx={{ visibility: loading ? "visible" : "hidden" }}>
           <LinearProgress />
@@ -121,13 +123,6 @@ export default function ItemsList({
             <SectionNoItem noItemLabel={noItemLabel} />
           )}
         </BoxFlexVStretch>
-        {!disableCreation && (
-          <ButtonInPanel
-            label={createLabel}
-            onClick={handleCreateClick}
-            disabled={disableCreation}
-          />
-        )}
       </BoxFlexVStretch>
       {openCreate &&
         containerEl &&
@@ -137,7 +132,7 @@ export default function ItemsList({
               position: "absolute",
               bgcolor: "white",
               top: 0,
-              bottom: 0,
+              ...(isMobile && { bottom: 0 }),
               left: 0,
               right: 0,
               zIndex: 1,

@@ -1,6 +1,6 @@
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 
-import {Box, Button, Paper, Typography} from "@mui/material";
+import { Box, Button, Paper, Typography } from "@mui/material";
 
 export default function ButtonInPanel({
   label,
@@ -15,13 +15,13 @@ export default function ButtonInPanel({
   const size = isMobile ? "large" : "medium";
 
   return (
-    <Box sx={{width: 1, p: 1}}>
-      <Paper sx={{width: 1, color}}>
+    <Box sx={{ width: 1, p: 1 }}>
+      <Paper sx={{ width: 1, color }}>
         <Button
           disabled={disabled}
           fullWidth
           size={size}
-          sx={{color: "inherit", bgcolor: disabled ? "white" : bgcolor}}
+          sx={{ color: "inherit", bgcolor: disabled ? "white" : bgcolor }}
           //variant={variant ?? "contained"}
           variant="text"
           onClick={onClick}

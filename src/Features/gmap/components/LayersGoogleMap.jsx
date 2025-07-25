@@ -2,7 +2,8 @@ import { useSelector } from "react-redux";
 
 import { Box } from "@mui/material";
 
-import PanelMasterProjects from "Features/masterProjects/components/PanelMasterProjects";
+import PanelMainSelector from "Features/dashboard/components/PanelMainSelector";
+import VerticalMenuDashboard from "Features/dashboard/components/VerticalMenuDashboard";
 
 export default function LayersGoogleMap({ gmap, gmapContainer }) {
   // data
@@ -13,17 +14,30 @@ export default function LayersGoogleMap({ gmap, gmapContainer }) {
     <>
       <Box
         sx={{
-          width: 300,
           position: "absolute",
-          top: `${tpHeight + 8}px`,
-          maxHeight: "600px",
-          left: "16px",
+          top: "50%",
+          left: "8px",
           minHeight: 0,
           display: "flex",
           flexDirection: "column",
         }}
       >
-        <PanelMasterProjects gmap={gmap} gmapContainer={gmapContainer} />
+        <VerticalMenuDashboard />
+      </Box>
+
+      <Box
+        sx={{
+          width: 300,
+          position: "absolute",
+          top: `${tpHeight + 8}px`,
+          maxHeight: "600px",
+          left: "56px",
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <PanelMainSelector gmap={gmap} gmapContainer={gmapContainer} />
       </Box>
     </>
   );

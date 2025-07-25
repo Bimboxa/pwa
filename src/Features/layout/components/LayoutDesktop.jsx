@@ -1,10 +1,12 @@
-import {useSelector} from "react-redux";
+import { useSelector } from "react-redux";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 
 import BoxFlexV from "./BoxFlexV";
 import BoxFlexVStretch from "./BoxFlexVStretch";
 import BoxFlexHStretch from "./BoxFlexHStretch";
+
+import LayerDesktop from "./LayerDesktop";
 
 import TopBarDesktop from "./TopBarDesktop";
 import SectionViewer from "./SectionViewer";
@@ -28,10 +30,11 @@ export default function LayoutDesktop() {
     : `translateX(-${listPanelWidth}px)`;
 
   return (
-    <BoxFlexV sx={{position: "relative"}}>
+    <BoxFlexV sx={{ position: "relative" }}>
+      <LayerDesktop />
       <TopBarDesktop />
       <BoxFlexHStretch>
-        <ListPanel />
+        {/*<ListPanel />*/}
         <SectionViewer />
       </BoxFlexHStretch>
       <BottomBarDesktop />

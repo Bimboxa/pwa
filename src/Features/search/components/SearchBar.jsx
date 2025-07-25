@@ -1,6 +1,6 @@
-import {useState, useRef} from "react";
+import { useState, useRef } from "react";
 
-import {Box, TextField, InputAdornment, IconButton} from "@mui/material";
+import { Box, TextField, InputAdornment, IconButton } from "@mui/material";
 import {
   Add as AddIcon,
   Search as SearchIcon,
@@ -76,15 +76,16 @@ export default function SearchBar({
       {onCreateClick && (
         <Box
           sx={{
+            ml: 1,
             bgcolor: color,
-            display: "flex",
+            display: focused ? "none" : "flex",
             alignItems: "center",
             justifyContent: "center",
             borderRadius: "50%",
           }}
         >
           <IconButton onClick={onCreateClick}>
-            <AddIcon sx={{color: "white"}} />
+            <AddIcon sx={{ color: "white" }} />
           </IconButton>
         </Box>
       )}
