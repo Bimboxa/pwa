@@ -39,14 +39,12 @@ strings:
     noProject: Aucun projet disponible
 
   scope:
-    nameSingular: "Krto"
-    namePlural: "Krto"
-    seeAll: "Toutes les Krtos"
-    new: "Nouvelle Krto"
-    create: "Créez une nouvelle Krto"
-    select: "Sélectionnez une Krto"
-    myScopes: "Mes Krtos"
-    nameLabel: "Nom du Krto"
+    nameSingular: "Dossier"
+    namePlural: "Dossiers"
+    seeAll: "Tous les dossiers"
+    new: "Nouveau dossier"
+    create: "Créez un nouveau dossier"
+    select: "Sélectionnez un dossier"
 
   presetConfig:
     title: "Type de dossier"

@@ -1,4 +1,4 @@
-import {createSlice} from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
 
 import setInitScopeId from "Features/init/services/setInitScopeId";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
@@ -14,6 +14,8 @@ const scopesInitialState = {
   isEditingScope: false,
   //
   relsScopeItemByScopeId: {},
+  //
+  openSelectorScope: false,
 };
 
 export const scopesSlice = createSlice({
@@ -53,6 +55,10 @@ export const scopesSlice = createSlice({
     setIsEditingScope: (state, action) => {
       state.isEditingScope = action.payload;
     },
+    //
+    setOpenSelectorScope: (state, action) => {
+      state.openSelectorScope = action.payload;
+    },
   },
 });
 
@@ -66,6 +72,8 @@ export const {
   setIsEditingScope,
   //
   setRelsScopeItemByScopeId,
+  //
+  setOpenSelectorScope,
 } = scopesSlice.actions;
 
 export default scopesSlice.reducer;

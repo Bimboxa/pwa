@@ -22,10 +22,8 @@ export default function SelectorProject() {
     navigate("/dashboard");
   }
   return (
-    <>
-      <Button startIcon={<Back />} onClick={handleClick}>
-        <Typography>{projectName}</Typography>
-      </Button>
-    </>
+    <Button startIcon={<Back />} onClick={handleClick}>
+      <Typography>{projectName}</Typography>
+    </Button>
   );
 }

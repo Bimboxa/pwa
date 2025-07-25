@@ -1,13 +1,13 @@
-import {forwardRef} from "react";
+import { forwardRef } from "react";
 
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 
-import {Dialog, DialogTitle, Box} from "@mui/material";
+import { Dialog, DialogTitle, Box } from "@mui/material";
 import HeaderTitleClose from "./HeaderTitleClose";
 import BoxFlexVStretch from "./BoxFlexVStretch";
 
 const DialogGeneric = forwardRef(function DialogGeneric(
-  {title, open, onClose, children, vh, vw},
+  { title, open, onClose, children, vh, vw, width, height },
   ref
 ) {
   // data
@@ -33,8 +33,10 @@ const DialogGeneric = forwardRef(function DialogGeneric(
       <BoxFlexVStretch
         sx={{
           pb: isMobile ? 2 : 0,
-          ...(vh && !isMobile && {height: `${vh}vh`}),
-          ...(vw && !isMobile && {width: `${vw}vw`}),
+          ...(vh && !isMobile && { height: `${vh}vh` }),
+          ...(vw && !isMobile && { width: `${vw}vw` }),
+          ...(width && !isMobile && { width }),
+          ...(height && !isMobile && { height }),
         }}
       >
         {children}

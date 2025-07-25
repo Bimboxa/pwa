@@ -1,4 +1,5 @@
-import {createSlice} from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
+import listTypes from "./data/listTypes";
 
 const listPanelInitialState = {
   width: 400,
@@ -7,6 +8,8 @@ const listPanelInitialState = {
   openPanelListItem: false,
   //
   selectedListId: null,
+  //
+  selectedListTypeKey: listTypes[0].key,
 };
 
 export const listPanelSlice = createSlice({
@@ -27,6 +30,10 @@ export const listPanelSlice = createSlice({
     setSelectedListId: (state, action) => {
       state.selectedListId = action.payload;
     },
+    //
+    setSelectedListTypeKey: (state, action) => {
+      state.selectedListTypeKey = action.payload;
+    },
   },
 });
 
@@ -37,6 +44,8 @@ export const {
   setOpenPanelListItem,
   //
   setSelectedListId,
+  //
+  setSelectedListTypeKey,
 } = listPanelSlice.actions;
 
 export default listPanelSlice.reducer;

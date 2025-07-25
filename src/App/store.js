@@ -7,6 +7,7 @@ import servicesCredentialsReducer from "Features/servicesCredentials/servicesCre
 import settingsReducer from "Features/settings/settingsSlice";
 import webrtcReducer from "Features/webrtc/webrtcSlice";
 import syncReducer from "Features/sync/syncSlice";
+import dashboardReducer from "Features/dashboard/dashboardSlice";
 import layoutReducer from "Features/layout/layoutSlice";
 import listPanelReducer from "Features/listPanel/listPanelSlice";
 import onboardingReducer from "Features/onboarding/onboardingSlice";
@@ -46,6 +47,7 @@ const store = configureStore({
     settings: settingsReducer,
     webrtc: webrtcReducer,
     sync: syncReducer,
+    dashboard: dashboardReducer,
     layout: layoutReducer,
     onboarding: onboardingReducer,
     listPanel: listPanelReducer,
