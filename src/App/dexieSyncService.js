@@ -1,16 +1,17 @@
 // services/dexieSyncService.js
-import {liveQuery} from "dexie";
+import { liveQuery } from "dexie";
 import db from "../App/db/db";
 import store from "../App/store";
 
-import {setProjectsById} from "../Features/projects/projectsSlice";
+import { setProjectsById } from "../Features/projects/projectsSlice";
 import {
   setScopesById,
   setRelsScopeItemByScopeId,
 } from "../Features/scopes/scopesSlice";
-import {setListingsById} from "../Features/listings/listingsSlice";
-import {setEntitiesById} from "../Features/entities/entitiesSlice";
-import {setSyncFiles} from "../Features/sync/syncSlice";
+import { setBaseMapsById } from "Features/baseMaps/baseMapsSlice";
+import { setListingsById } from "../Features/listings/listingsSlice";
+import { setEntitiesById } from "../Features/entities/entitiesSlice";
+import { setSyncFiles } from "../Features/sync/syncSlice";
 
 const syncConfigs = [
   {
@@ -43,7 +44,7 @@ const syncConfigs = [
 const subscriptions = {};
 
 export function startDexieSync() {
-  syncConfigs.forEach(({table, query, action}) => {
+  syncConfigs.forEach(({ table, query, action }) => {
     if (subscriptions[table]) return; // already syncing
 
     const observable = liveQuery(query);

@@ -3,7 +3,7 @@
  * - menuItem = {key, label, icon}
  *
  */
-import { ToggleButton, ToggleButtonGroup, Tooltip } from "@mui/material";
+import { Box, ToggleButton, ToggleButtonGroup, Tooltip } from "@mui/material";
 import { toggleButtonClasses } from "@mui/material/ToggleButton";
 import { toggleButtonGroupClasses } from "@mui/material/ToggleButtonGroup";
 
@@ -43,25 +43,27 @@ export default function VerticalMenu({
   }
 
   return (
-    <StyledToggleButtonGroup
-      value={selection}
-      exclusive
-      onChange={handleChange}
-      orientation="vertical"
-    >
-      {menuItems.map((item) => {
-        return (
-          <Tooltip
-            key={item.key}
-            title={item.label}
-            placement={tooltipPlacement}
-          >
-            <ToggleButton key={item.key} value={item.key}>
-              {item.icon}
-            </ToggleButton>
-          </Tooltip>
-        );
-      })}
-    </StyledToggleButtonGroup>
+    <Box sx={{ p: 0.5, bgcolor: "white", borderRadius: 1 }}>
+      <StyledToggleButtonGroup
+        value={selection}
+        exclusive
+        onChange={handleChange}
+        orientation="vertical"
+      >
+        {menuItems.map((item) => {
+          return (
+            <Tooltip
+              key={item.key}
+              title={item.label}
+              placement={tooltipPlacement}
+            >
+              <ToggleButton key={item.key} value={item.key}>
+                {item.icon}
+              </ToggleButton>
+            </Tooltip>
+          );
+        })}
+      </StyledToggleButtonGroup>
+    </Box>
   );
 }

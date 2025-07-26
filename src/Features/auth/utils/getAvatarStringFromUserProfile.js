@@ -1,7 +1,7 @@
-export default function getAvatarStringFromUserInfo(userInfo) {
-  const firstName = userInfo?.firstName;
-  const lastName = userInfo?.lastName;
-  const trigram = userInfo?.trigram;
+export default function getAvatarStringFromUserProfile(userProfile) {
+  const firstName = userProfile?.firstName;
+  const lastName = userProfile?.lastName;
+  const trigram = userProfile?.trigram;
 
   if (trigram) return trigram;
 

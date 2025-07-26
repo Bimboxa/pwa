@@ -1,15 +1,15 @@
 import getTokenFromLocalStorage from "./getTokenFromLocalStorage";
-import getUserInfoFromLocalStorage from "./getUserInfoFromLocalStorage";
+import getUserProfileFromLocalStorage from "./getUserProfileFromLocalStorage";
 
 export async function getUserDataService({ trigram, token }) {
   // data
 
-  const _userInfo = getUserInfoFromLocalStorage();
+  const _userProfile = getUserProfileFromLocalStorage();
   const _token = getTokenFromLocalStorage();
 
   // fallback
 
-  trigram = trigram ?? _userInfo?.trigram;
+  trigram = trigram ?? _userProfile?.trigram;
   token = token ?? _token;
 
   if (!trigram || !token) throw new Error("Both id and apiToken are required");

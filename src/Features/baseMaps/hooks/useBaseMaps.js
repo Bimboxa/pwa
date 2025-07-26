@@ -1,43 +1,42 @@
-import { useSelector } from "react-redux";
+import db from "App/db/db";
 
-import useListingsByScope from "Features/listings/hooks/useListingsByScope";
-import useEntities from "Features/entities/hooks/useEntities";
+import { useSelector } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
+
+import BaseMap from "../js/BaseMap";
 
 export default function useBaseMaps(options) {
   // options
 
-  const filterByListingId = options?.filterByListingId;
+  const _filterByProjectId = options?.filterByProject;
 
   // data
 
-  const { value: listings } = useListingsByScope({
-    baseMapsOnly: true,
-    withEntityModel: true,
-  });
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const baseMapsUpdatedAt = useSelector((s) => s.baseMaps.baseMapsUpdatedAt);
 
   // helpers
 
-  let listingsIds = listings?.map((l) => l.id);
-  if (filterByListingId) listingsIds = [filterByListingId];
+  const filterByProjectId = _filterByProjectId ?? projectId;
 
-  // data
+  // main
 
-  const { value: entities } = useEntities({
-    filterByListingsIds: listingsIds,
-    withImages: true,
-  });
+  const baseMaps = useLiveQuery(async () => {
+    let records;
+    if (filterByProjectId) {
+      records = await db.baseMaps
+        .where("projectId")
+        .equals(filterByProjectId)
+        .toArray();
+    } else {
+      records = await db.baseMaps.toArray();
+    }
+    return await Promise.all(
+      records.map(async (record) => await BaseMap.createFromRecord(record))
+    );
+  }, [projectId, baseMapsUpdatedAt]);
 
-  const baseMaps = entities?.map((entity) => {
-    return {
-      ...entity,
-      imageUrl: entity?.image?.imageUrlClient,
-      imageWidth: entity?.image?.imageSize.width,
-      imageHeight: entity?.image?.imageSize.height,
-      meterByPx: entity?.image?.meterByPx ?? 0.01,
-    };
-  });
+  // return
 
-  return {
-    value: baseMaps,
-  };
+  return { value: baseMaps };
 }

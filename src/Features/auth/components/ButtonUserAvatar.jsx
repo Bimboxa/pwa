@@ -8,7 +8,7 @@ import { Avatar } from "@mui/material";
 
 import MenuGeneric from "Features/layout/components/MenuGeneric";
 
-import getAvatarStringFromUserInfo from "../utils/getAvatarStringFromUserInfo";
+import getAvatarStringFromUserProfile from "../utils/getAvatarStringFromUserProfile";
 import { getUserDataService } from "../services/getUserDataService";
 
 export default function ButtonUserAvatar() {
@@ -16,9 +16,9 @@ export default function ButtonUserAvatar() {
 
   // data
 
-  const userInfo = useSelector((s) => s.auth.userInfo);
+  const userProfile = useSelector((s) => s.auth.userProfile);
 
-  const avatarString = getAvatarStringFromUserInfo(userInfo);
+  const avatarString = getAvatarStringFromUserProfile(userProfile);
 
   // state
 

@@ -2,7 +2,10 @@ import { useState } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { triggerMapsUpdate, updateMap } from "Features/baseMaps/baseMapsSlice";
+import {
+  triggerBaseMapsUpdate,
+  updateMap,
+} from "Features/baseMaps/baseMapsSlice";
 
 import useLoadedMainBaseMap from "../hooks/useLoadedMainBaseMap";
 
@@ -57,7 +60,7 @@ export default function SectionEditScale() {
       meterByPx: targetDistance / scaleInPx,
     };
     dispatch(updateMap(updates));
-    dispatch(triggerMapsUpdate());
+    dispatch(triggerBaseMapsUpdate());
     dispatch(setAnchorPositionScale(null));
   }
 

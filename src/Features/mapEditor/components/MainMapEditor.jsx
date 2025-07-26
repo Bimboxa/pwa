@@ -5,6 +5,7 @@ import { useDispatch } from "react-redux";
 import { triggerShapesUpdate } from "Features/shapes/shapesSlice";
 
 import useAutoLoadMainBaseMapInMapEditor from "../hooks/useAutoLoadMainBaseMapInMapEditor";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 //import useAutoLoadShapesInMapEditor from "../hooks/useAutoLoadShapesInMapEditor";
 //import useAutoLoadMarkersInMapEditor from "../hooks/useAutoLoadMarkersInMapEditor";
 import useLoadedMainBaseMap from "../hooks/useLoadedMainBaseMap";
@@ -36,6 +37,7 @@ export default function MainMapEditor() {
   // data
 
   const loadedMainBaseMap = useLoadedMainBaseMap();
+  const { value: baseMaps } = useBaseMaps();
 
   // state
 
@@ -44,8 +46,8 @@ export default function MainMapEditor() {
 
   // helpers
 
-  //const noMap = !Boolean(mapLoaded);
-  const noBaseMap = false;
+  const noBaseMap = !baseMaps?.length > 0;
+  //const noBaseMap = false;
 
   // effect - init
 
@@ -117,7 +119,7 @@ export default function MainMapEditor() {
   console.log("noBaseMap", noBaseMap);
 
   if (noBaseMap) {
-    //return <SectionNoMap />;
+    return <SectionNoMap />;
   }
 
   return (

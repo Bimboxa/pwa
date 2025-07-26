@@ -9,12 +9,10 @@ export default function useAutoLoadMainBaseMapInMapEditor({
   mapEditorIsReady,
 }) {
   const baseMap = useSelectedMainBaseMap();
-  const id = useSelector((s) => s.mapEditor.selectedMainBaseMapId);
-  console.log("selectedBaseMap - v2", baseMap, mapEditorIsReady);
 
   useEffect(() => {
-    if (mapEditorIsReady && baseMap?.imageUrl) {
+    if (mapEditorIsReady && baseMap?.id) {
       mapEditor.loadMainBaseMap(baseMap);
     }
-  }, [mapEditorIsReady, baseMap?.imageUrl, id]);
+  }, [mapEditorIsReady, baseMap?.id]);
 }

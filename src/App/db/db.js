@@ -5,11 +5,17 @@ const db = new Dexie("appDB");
 db.version(10).stores({
   orgaData: "key", // {key,data,dataStructure,file}
   projects: "id,clientRef",
+
+  projectFiles: "id",
+
   scopes: "id,projectId", // {id,name,projectId,sortedListings:[{id,table}]}. Table is used to resolve syncConfig
+  baseMaps: "id,projectId",
+
   listings: "id,key,uniqueByProject,projectId",
   entities: "id,listingId,[listingId+createdBy]",
+
   maps: "id,listingId,[listingId+createdBy]",
-  baseMaps: "id,listingId,[listingId+createdBy]",
+
   zonings: "listingId", // {listingId,zonesTree}
   relsZoneEntity: "id,zoneId,listingId,entityId", // {id,zoneId,table,listingId,entityId}
   entitiesProps:
