@@ -32,7 +32,7 @@ export default function LayoutDesktop() {
   return (
     <BoxFlexV sx={{ position: "relative" }}>
       <LayerDesktop />
-      <TopBarDesktop />
+      {/*<TopBarDesktop />*/}
       <BoxFlexHStretch>
         {/*<ListPanel />*/}
         <SectionViewer />

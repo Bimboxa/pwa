@@ -58,7 +58,7 @@ auth:
   service: PHONE_NUMBER
   getMfaCodeUrl: https://auth.etandex.fr/api/Auth/Login
   verifyMfaCodeUrl: https://auth.etandex.fr/api/Auth/CheckMfaCode
-  userInfo:
+  userProfile:
     firstName: given_name # Antoine
     lastName: familyName # Favreau
     trigram: unique_name # FVA

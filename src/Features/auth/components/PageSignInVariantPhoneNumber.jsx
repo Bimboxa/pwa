@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import { useDispatch } from "react-redux";
 
-import { setUserInfo, setToken } from "../authSlice";
+import { setUserProfile, setToken } from "../authSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -16,8 +16,8 @@ import SectionStepMFACode from "./SectionStepMFACode";
 import SectionStepPhoneNumber from "./SectionStepPhoneNumber";
 import ImageAnimatedMap from "Features/onboarding/components/ImageAnimatedMap";
 
-import getUserInfoFromJwt from "../services/getUserInfoFromJwt";
-import setUserInfoInLocalStorage from "../services/setUserInfoInLocalStorage";
+import getUserProfileFromJwt from "../services/getUserProfileFromJwt";
+import setUserProfileInLocalStorage from "../services/setUserProfileInLocalStorage";
 import setTokenInLocalStorage from "../services/setTokenInLocalStorage";
 
 export default function PageSignInVariantPhoneNumber() {
@@ -41,9 +41,9 @@ export default function PageSignInVariantPhoneNumber() {
   }
 
   function handleVerifyMfaSuccess({ jwt }) {
-    const userInfo = getUserInfoFromJwt({ appConfig, jwt });
-    console.log("userInfo");
-    dispatch(setUserInfo(userInfo));
+    const userProfile = getUserProfileFromJwt({ appConfig, jwt });
+    console.log("userProfile");
+    dispatch(setUserProfile(userProfile));
     dispatch(setToken(jwt));
 
     navigate("/");

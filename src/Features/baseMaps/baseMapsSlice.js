@@ -1,9 +1,9 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 import demoMap from "./data/demoMap";
-import setInitSelectedMainBaseMapId from "Features/init/services/setInitSelectedMainBaseMapId";
 
 const baseMapsInitialState = {
+  baseMapsById: null,
   //
   baseMapsMap: { demo: demoMap },
   baseMapsUpdatedAt: null,
@@ -14,26 +14,23 @@ export const baseMapsSlice = createSlice({
   name: "baseMaps",
   initialState: baseMapsInitialState,
   reducers: {
+    setBaseMapsById: (state, action) => {
+      const baseMaps = action.payload;
+      state.baseMapsById = getItemsByKey(baseMaps, "id");
+    },
     //
-    triggerMapsUpdate: (state) => {
+    triggerBaseMapsUpdate: (state) => {
       state.baseMapsUpdatedAt = Date.now();
     },
     //
-    createMap: (state, action) => {
-      const map = action.payload;
-      state.baseMapsMap[map.id] = map;
-    },
-    updateMap: (state, action) => {
-      const updates = action.payload;
-      const map = state.baseMapsMap[updates.id];
-      state.baseMapsMap[updates.id] = { ...map, ...updates };
-    },
   },
 });
 
 export const {
+  setBaseMapsById,
+  //
   setSelectedBaseMapId,
-  triggerMapsUpdate,
+  triggerBaseMapsUpdate,
   //
   createMap,
   updateMap,
