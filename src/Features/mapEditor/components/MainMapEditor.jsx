@@ -9,7 +9,7 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 //import useAutoLoadShapesInMapEditor from "../hooks/useAutoLoadShapesInMapEditor";
 //import useAutoLoadMarkersInMapEditor from "../hooks/useAutoLoadMarkersInMapEditor";
 import useLoadedMainBaseMap from "../hooks/useLoadedMainBaseMap";
-import useAutoSelectedMainBaseMap from "../hooks/useAutoSelectedMainBaseMap";
+import useAutoSelectMainBaseMap from "../hooks/useAutoSelectMainBaseMap";
 
 import { Box } from "@mui/material";
 
@@ -32,7 +32,7 @@ export default function MainMapEditor() {
 
   // auto
 
-  useAutoSelectedMainBaseMap();
+  useAutoSelectMainBaseMap();
 
   // data
 
@@ -52,14 +52,17 @@ export default function MainMapEditor() {
   // effect - init
 
   useEffect(() => {
-    const width = containerRef.current?.getBoundingClientRect().width;
-    const height = containerRef.current?.getBoundingClientRect().height;
-    if (width && height) {
-      setContainerElExists(true);
+    if (containerRef.current) {
+      const width = containerRef.current?.getBoundingClientRect().width;
+      const height = containerRef.current?.getBoundingClientRect().height;
+      if (width && height) {
+        setContainerElExists(true);
+      }
     }
-  }, []);
+  }, [containerRef.current]);
 
   useEffect(() => {
+    console.log("CREATE MAP EDITOR", containerElExists);
     if (containerElExists) {
       const bbox = containerRef.current.getBoundingClientRect();
       const mapEditor = new MapEditor({

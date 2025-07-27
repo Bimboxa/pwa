@@ -1,9 +1,24 @@
+import { useSelector } from "react-redux";
+
+import useOpenListPanel from "Features/listPanel/hooks/useOpenListPanel";
+
 import { Box } from "@mui/material";
 import MenuListTypes from "Features/listPanel/components/MenuListTypes";
 import TopBarProjectAndScope from "./TopBarProjectAndScope";
 import SelectorViewer from "Features/viewers/components/SelectorViewer";
+import ListPanelV2 from "Features/listPanel/components/ListPanelV2";
 
 export default function LayerDesktop() {
+  // data
+
+  const width = useSelector((s) => s.listPanel.width);
+  const windowHeight = useSelector((s) => s.layout.windowHeight);
+  const openListPanel = useOpenListPanel();
+
+  // helpers
+
+  const panelHeight = windowHeight - 150;
+
   return (
     <>
       <Box
@@ -38,6 +53,30 @@ export default function LayerDesktop() {
       >
         <MenuListTypes />
       </Box>
+
+      {openListPanel && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: "64px",
+            left: "70px",
+            zIndex: 2,
+            width,
+            maxHeight: panelHeight,
+          }}
+        >
+          <Box
+            sx={{
+              borderRadius: 1,
+              width: 1,
+              bgcolor: "white",
+              zIndex: 1,
+            }}
+          >
+            <ListPanelV2 />
+          </Box>
+        </Box>
+      )}
     </>
   );
 }

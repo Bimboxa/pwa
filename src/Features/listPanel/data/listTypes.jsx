@@ -6,9 +6,14 @@
  * - MASTER_DATA
  */
 
-import { Layers, FileDownload } from "@mui/icons-material";
+import { Layers, FileDownload, Image } from "@mui/icons-material";
 
 const listTypes = [
+  {
+    key: "BASE_MAPS",
+    label: "Fonds de plan",
+    icon: <Image />,
+  },
   {
     key: "LAYERS",
     label: "Calques",

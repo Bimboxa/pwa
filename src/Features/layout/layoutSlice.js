@@ -1,9 +1,11 @@
-import {bottomNavigationActionClasses} from "@mui/material";
-import {createSlice} from "@reduxjs/toolkit";
+import { bottomNavigationActionClasses } from "@mui/material";
+import { createSlice } from "@reduxjs/toolkit";
 
 const layoutInitialState = {
   //
   deviceType: null, // "MOBILE" | "DESKTOP"
+  //
+  windowHeight: null,
   //
   topBarHeight: 48,
   bottomBarHeight: 56,
@@ -20,6 +22,9 @@ export const layoutSlice = createSlice({
   name: "layout",
   initialState: layoutInitialState,
   reducers: {
+    setWindowHeight: (state, action) => {
+      state.windowHeight = action.payload;
+    },
     setBottomBarHeight: (state, action) => {
       state.bottomBarHeight = action.payload;
     },
@@ -47,6 +52,8 @@ export const layoutSlice = createSlice({
 });
 
 export const {
+  setWindowHeight,
+  //
   setBottomBarHeight,
   //
   setDeviceType,

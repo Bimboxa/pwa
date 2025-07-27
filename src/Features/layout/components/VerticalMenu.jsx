@@ -39,7 +39,7 @@ export default function VerticalMenu({
   // handlers
 
   function handleChange(e, newKey) {
-    onSelectionChange(newKey);
+    onSelectionChange(newKey !== selection ? newKey : null);
   }
 
   return (

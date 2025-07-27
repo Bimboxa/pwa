@@ -32,7 +32,16 @@ export default class BaseMap {
 
   static async createFromRecord(record) {
     const fileRecord = await db.projectFiles.get(`imageFile_${record.id}`);
-    return new BaseMap({ ...record, imageFile: fileRecord.file });
+    return new BaseMap({
+      ...record,
+      imageProps: {
+        ...record.imageProps,
+        imageUrlClient: fileRecord?.file
+          ? URL.createObjectURL(fileRecord.file)
+          : null,
+      },
+      imageFile: fileRecord.file,
+    });
   }
 
   // INIT

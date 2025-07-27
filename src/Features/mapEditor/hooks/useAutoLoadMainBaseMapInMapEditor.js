@@ -11,7 +11,7 @@ export default function useAutoLoadMainBaseMapInMapEditor({
   const baseMap = useSelectedMainBaseMap();
 
   useEffect(() => {
-    if (mapEditorIsReady && baseMap?.id) {
+    if (mapEditorIsReady && Boolean(baseMap?.id)) {
       mapEditor.loadMainBaseMap(baseMap);
     }
   }, [mapEditorIsReady, baseMap?.id]);

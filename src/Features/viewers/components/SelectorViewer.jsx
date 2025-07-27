@@ -1,9 +1,10 @@
-import {useDispatch} from "react-redux";
+import { useDispatch } from "react-redux";
 
-import {setSelectedViewerKey} from "../viewersSlice";
+import { setSelectedViewerKey } from "../viewersSlice";
 
 import useViewers from "../hooks/useViewers";
 
+import { Box } from "@mui/material";
 import ButtonMenu from "Features/layout/components/ButtonMenu";
 
 import useSelectedViewer from "../hooks/useSelectedViewer";
@@ -36,7 +37,9 @@ export default function SelectorViewer() {
   // return <BlockViewer viewer={viewer} />;
 
   return (
-    <ButtonMenu sx={{width: 150}} buttonLabel={buttonLabel} actions={actions} />
+    <Box sx={{ p: 0.5, bgcolor: "white", borderRadius: 1 }}>
+      <ButtonMenu buttonLabel={buttonLabel} actions={actions} />
+    </Box>
     // <ButtonMenuContainer buttonLabel={buttonLabel} sx={{width: 150}}>
     //   <ListViewers
     //     viewers={viewers}
