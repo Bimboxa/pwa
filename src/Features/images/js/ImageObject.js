@@ -56,5 +56,29 @@ export default class ImageObject {
   }
   // REDUX EXCHANGE
 
-  toRedux() {}
+  toRedux() {
+    return {
+      fileSize: this.fileSize,
+      imageSize: this.imageSize,
+      imageUrlClient: this.imageUrlClient,
+      imageUrlRemote: this.imageUrlRemote,
+    };
+  }
+
+  // URL CONVERSION
+
+  createObjectURL() {
+    if (this.file) {
+      this.imageUrlClient = URL.createObjectURL(this.file);
+      return this.imageUrlClient;
+    }
+    return null;
+  }
+
+  revokeObjectURL() {
+    if (this.imageUrlClient) {
+      URL.revokeObjectURL(this.imageUrlClient);
+      this.imageUrlClient = null;
+    }
+  }
 }

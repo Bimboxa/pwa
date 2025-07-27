@@ -40,6 +40,7 @@ export default class MapEditor {
 
     this.imagesManager = new ImagesManager({
       mapEditor: this,
+      onMapEditorIsReady,
     });
 
     this.shapesManager = new ShapesManager({

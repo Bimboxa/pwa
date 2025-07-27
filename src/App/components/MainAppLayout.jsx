@@ -1,19 +1,19 @@
-import React from "react";
+import { useEffect } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { setToaster } from "Features/layout/layoutSlice";
+import { setWindowHeight } from "Features/layout/layoutSlice";
 
 import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
+import useDndSensors from "App/hooks/useDndSensors";
+import useAutoRedirect from "App/hooks/useAutoRedirect";
 
 import { Box } from "@mui/material";
 
-import LayoutDesktop from "Features/layout/components/LayoutDesktop";
-import LayoutMobile from "Features/layout/components/LayoutMobile";
 import { DndContext } from "@dnd-kit/core";
 
-import useDndSensors from "App/hooks/useDndSensors";
-import useAutoRedirect from "App/hooks/useAutoRedirect";
+import LayoutDesktop from "Features/layout/components/LayoutDesktop";
+import LayoutMobile from "Features/layout/components/LayoutMobile";
 
 import DialogAutoRemoteContainerConnexion from "Features/sync/components/DialogAutoRemoteContainerConnexion";
 import PageLanding from "Features/init/components/PageLanding";
@@ -26,6 +26,8 @@ import DialogAutoDownloadListingsData from "Features/listingsConfig/components/D
 import DialogAutoAddListing from "Features/listings/components/DialogAutoAddListing";
 
 export default function MainAppLayout() {
+  const dispatch = useDispatch();
+
   // auto
 
   useAutoFetchOrgaDataFolder();
@@ -39,6 +41,22 @@ export default function MainAppLayout() {
   const openLandingPage = useSelector((s) => s.init.openLandingPage);
   const warningWasShowed = useSelector((s) => s.init.warningWasShowed);
   const remoteContainer = useRemoteContainer();
+
+  // effect
+
+  useEffect(() => {
+    function handleResize() {
+      dispatch(setWindowHeight(window.innerHeight));
+    }
+
+    // Set initial height
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   return (
     <DndContext sensors={sensors}>
@@ -61,7 +79,7 @@ export default function MainAppLayout() {
         <DialogAutoSelectScope />
       )}
       {!openLandingPage && <DialogAutoRemoteContainerConnexion />}
-      <DialogAutoListingsConfig />
+      {/*<DialogAutoListingsConfig />*/}
       <DialogAutoDownloadListingsData />
       <DialogAutoSyncTasks />
       <DialogAutoAddListing />
