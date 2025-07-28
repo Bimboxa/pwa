@@ -10,49 +10,56 @@ export default class BaseMap {
   createdAt;
   projectId;
   name;
-  imageProps;
-  imageFile;
+  image;
 
-  constructor({ id, createdAt, projectId, name, imageProps, imageFile }) {
+  constructor({ id, createdAt, projectId, name, image }) {
     this.id = id;
     this.createdAt = createdAt;
     this.projectId = projectId;
     this.name = name;
-    this.imageProps = imageProps;
-    this.imageFile = imageFile;
+    this.image = image;
   }
 
   // STATIC METHOD
 
-  static async create({ projectId, name, imageFile }) {
-    const baseMap = new BaseMap({ projectId, name });
+  static async create({ projectId, name, imageFile, image }) {
+    const baseMap = new BaseMap({ projectId, name, image });
     await baseMap.initialize({ imageFile });
     return baseMap;
   }
 
   static async createFromRecord(record) {
-    const fileRecord = await db.projectFiles.get(`imageFile_${record.id}`);
+    console.log("debug_2807 createFromRecord", record);
+    if (!record) return null;
+
+    // the id of the file is computed from the field + id of the entity.
+    const fileRecord = await db.projectFiles.get(`image_${record.id}`);
+
+    const bmImage = new ImageObject({
+      ...record.image,
+      file: fileRecord?.file,
+      imageUrlClient: URL.createObjectURL(fileRecord.file), // the record.image contains an imageUrl out of date.
+    });
+
     return new BaseMap({
       ...record,
-      imageProps: {
-        ...record.imageProps,
-        imageUrlClient: fileRecord?.file
-          ? URL.createObjectURL(fileRecord.file)
-          : null,
-      },
-      imageFile: fileRecord.file,
+      image: bmImage,
     });
   }
 
   // INIT
 
   async initialize({ imageFile }) {
-    this.id = nanoid();
-    this.createdAt = getDateString(Date.now());
-    const baseMapImage = await ImageObject.create(imageFile);
-    this.imageProps = baseMapImage.toJSON();
-    this.imageFile = baseMapImage.file;
-    return baseMapImage;
+    if (!this.id) this.id = nanoid();
+
+    if (!this.createdAt) this.createdAt = getDateString(Date.now());
+
+    // imageFile
+    if (!this.image && imageFile) {
+      this.image = await ImageObject.create(imageFile);
+    }
+
+    if (!this.name && this.image) this.name = this.image.fileName;
   }
 
   // SERIALIZER
@@ -63,7 +70,7 @@ export default class BaseMap {
       createdAt: this.createdAt,
       projectId: this.projectId,
       name: this.name,
-      imageProps: this.imageProps,
+      image: this.image.toJSON(),
     };
   }
 
@@ -71,10 +78,20 @@ export default class BaseMap {
     return {
       baseMapRecord: this.toJSON(),
       projectFileRecord: new ProjectFile({
-        file: this.imageFile,
+        file: this.image.file,
         itemId: this.id,
-        itemField: "imageFile",
+        itemField: "image",
       }),
+    };
+  };
+
+  toKonva = () => {
+    return {
+      id: this.id,
+      url: this.image.imageUrlClient,
+      width: this.image.imageSize.width,
+      height: this.image.imageSize.height,
+      nodeType: "MAP",
     };
   };
 }

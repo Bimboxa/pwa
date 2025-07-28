@@ -75,6 +75,9 @@ let theme = createTheme(
         default: "#F4F4F8",
         dark: "#F5F5F5",
       },
+      editor: {
+        selected: "#39FF14", // Flash green (Stabilo Boss-like)
+      },
       shape: {
         default: blueGrey[500],
         selected: green[500],

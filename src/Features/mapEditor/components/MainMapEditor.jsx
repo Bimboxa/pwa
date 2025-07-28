@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { triggerShapesUpdate } from "Features/shapes/shapesSlice";
 
@@ -15,6 +15,7 @@ import { Box } from "@mui/material";
 
 import MapEditor from "Features/mapEditor/js/MapEditor";
 import LayerMapEditor from "./LayerMapEditor";
+import LayerScreenCursor from "./LayerScreenCursor";
 import PopperEditScale from "./PopperEditScale";
 import BlockEntityMarker from "Features/markers/components/BlockEntityMarker";
 import SectionNoMap from "./SectionNoMap";
@@ -38,6 +39,9 @@ export default function MainMapEditor() {
 
   const loadedMainBaseMap = useLoadedMainBaseMap();
   const { value: baseMaps } = useBaseMaps();
+  const showLayerScreenCursor = useSelector(
+    (s) => s.mapEditor.showLayerScreenCursor
+  );
 
   // state
 
@@ -138,6 +142,9 @@ export default function MainMapEditor() {
     >
       <PopperEditScale />
       <LayerMapEditor />
+      {showLayerScreenCursor && (
+        <LayerScreenCursor containerEl={containerRef.current} />
+      )}
       {/*<DraggableFabMarker />*/}
       <BlockEntityMarker top={16} right={16} />
       <div

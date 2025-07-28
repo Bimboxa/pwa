@@ -10,9 +10,9 @@ export default function ToolbarShapeProps() {
 
   const shape = useShapeInForm();
   const updateShapeInForm = useUpdateShapeInForm();
-  const mapId = useSelector((s) => s.maps.selectedBaseMapId);
+  const baseMapId = useSelector((s) => s.mapEditor.selectedMainBaseMapId);
 
-  const shapes = useShapes({ filterByMapId: mapId });
+  const shapes = useShapes({ filterByMapId: baseMapId });
 
   // helpers
 

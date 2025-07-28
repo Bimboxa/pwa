@@ -1,28 +1,42 @@
+import stringifyFileSize from "Features/files/utils/stringifyFileSize";
+
 export default class ImageObject {
   file;
+  fileName;
   fileSize;
   imageSize;
   imageUrlClient;
   imageUrlRemote;
 
-  constructor(imageFile) {
-    this.file = imageFile;
-    this.fileSize = imageFile.size;
+  constructor({
+    file,
+    fileName,
+    fileSize,
+    imageSize,
+    imageUrlClient,
+    imageUrlRemote,
+  }) {
+    this.file = file;
+    this.fileName = fileName ?? file?.name;
+    this.fileSize = fileSize ?? file?.size;
+    this.imageSize = imageSize;
+    this.imageUrlClient = imageUrlClient ?? (file && URL.createObjectURL(file));
+    this.imageUrlRemote = imageUrlRemote;
   }
 
   // STATIC FACTORY
 
   static async create(imageFile) {
-    const instance = new ImageObject(imageFile);
-    await instance.initialize();
+    const instance = new ImageObject({ file: imageFile });
+    await instance._initialize();
     return instance;
   }
 
-  async initialize() {
-    this.imageSize = await this.computeImageSize();
-  }
+  _initialize = async () => {
+    this.imageSize = await this._computeImageSize();
+  };
 
-  async computeImageSize() {
+  _computeImageSize = async () => {
     const image = new window.Image();
     return new Promise((resolve, reject) => {
       image.onload = function () {
@@ -34,6 +48,14 @@ export default class ImageObject {
       image.onerror = reject;
       image.src = URL.createObjectURL(this.file);
     });
+  };
+
+  /*
+   * GETTER
+   */
+
+  getFileSizeAsString() {
+    return stringifyFileSize(this.fileSize);
   }
 
   // SERIALIZER
@@ -47,13 +69,13 @@ export default class ImageObject {
 
   // DB EXCHANGE
 
-  toJSON() {
+  toDb = () => {
     return {
       file: this.file,
-      fileSize: this.fileSize,
-      imageSize: this.imageSize,
+      props: this.toJSON(),
     };
-  }
+  };
+
   // REDUX EXCHANGE
 
   toRedux() {

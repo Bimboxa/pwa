@@ -5,12 +5,14 @@ import ButtonEditScale from "./ButtonEditScale";
 import ButtonDrawPolyline from "./ButtonDrawPolyline";
 import ButtonAutoSegmentation from "./ButtonAutoSegmentation";
 import ButtonDrawFreeline from "./ButtonDrawFreeline";
+import ButtonDrawMarker from "./ButtonDrawMarker";
 
 export default function ToolbarMapEditorMain() {
   return (
     <Toolbar>
       <ButtonRefreshMap />
       <ButtonEditScale />
+      <ButtonDrawMarker />
       <ButtonDrawPolyline />
       <ButtonDrawPolygon />
       <ButtonDrawFreeline />
