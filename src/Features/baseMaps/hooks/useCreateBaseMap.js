@@ -6,12 +6,19 @@ import createBaseMapService from "../services/createBaseMapService";
 
 export default function useCreateBaseMap() {
   const dispatch = useDispatch();
-  const projectId = useSelector((s) => s.projects.selectedProjectId);
-  return async (props) => {
+
+  // data
+
+  const _projectId = useSelector((s) => s.projects.selectedProjectId);
+
+  // main
+
+  return async ({ projectId, name, image, imageFile }) => {
     const baseMap = await createBaseMapService({
-      projectId: props.projectId ?? projectId,
-      name: props.name ?? props.imageFile.name,
-      imageFile: props.imageFile,
+      projectId: projectId ?? _projectId,
+      name: name ?? image?.name ?? imageFile.name,
+      image,
+      imageFile,
     });
     dispatch(triggerBaseMapsUpdate());
     return baseMap;

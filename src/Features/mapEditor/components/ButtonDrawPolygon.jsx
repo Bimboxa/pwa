@@ -15,11 +15,10 @@ export default function ButtonDrawPolygon() {
   // handler
 
   function handleClick() {
-    editor.mapEditor.enableDrawingMode(
-      "POLYGON",
-      { mapId, ...newShape },
-      { updateRedux: true }
-    );
+    editor.mapEditor.enableDrawingMode("POLYGON", {
+      presetProps: { mapId, ...newShape },
+      updateRedux: true,
+    });
   }
 
   return (

@@ -63,18 +63,11 @@ export default function LayerDesktop() {
             zIndex: 2,
             width,
             maxHeight: panelHeight,
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          <Box
-            sx={{
-              borderRadius: 1,
-              width: 1,
-              bgcolor: "white",
-              zIndex: 1,
-            }}
-          >
-            <ListPanelV2 />
-          </Box>
+          <ListPanelV2 />
         </Box>
       )}
     </>

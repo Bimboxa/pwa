@@ -38,7 +38,7 @@ export default function LayerMapEditorDesktop() {
           bottom: "8px",
           left: "50%",
           transform: "translateX(-50%)",
-          zIndex: 1,
+          zIndex: 10000,
         }}
       >
         <ToolbarMapEditor />

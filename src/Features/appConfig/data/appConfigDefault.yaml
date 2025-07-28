@@ -48,6 +48,9 @@ strings:
     myScopes: "Mes Krtos"
     nameLabel: "Nom du Krto"
 
+  listing:
+    locatedEntities: "Annotations"
+
   presetConfig:
     title: "Type de dossier"
     select: "Sélectionnez un type de dossier"

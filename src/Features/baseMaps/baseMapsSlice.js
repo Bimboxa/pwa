@@ -8,6 +8,10 @@ const baseMapsInitialState = {
   baseMapsMap: { demo: demoMap },
   baseMapsUpdatedAt: null,
   //
+  selectedBaseMapId: null,
+  isCreatingBaseMap: false,
+  //
+  editedBaseMap: null,
 };
 
 export const baseMapsSlice = createSlice({
@@ -23,6 +27,15 @@ export const baseMapsSlice = createSlice({
       state.baseMapsUpdatedAt = Date.now();
     },
     //
+    setSelectedBaseMapId: (state, action) => {
+      state.selectedBaseMapId = action.payload;
+    },
+    setIsCreatingBaseMap: (state, action) => {
+      state.isCreatingBaseMap = action.payload;
+    },
+    setEditedBaseMap: (state, action) => {
+      state.editedBaseMap = action.payload;
+    },
   },
 });
 
@@ -34,6 +47,9 @@ export const {
   //
   createMap,
   updateMap,
+  //
+  setIsCreatingBaseMap,
+  setEditedBaseMap,
 } = baseMapsSlice.actions;
 
 export default baseMapsSlice.reducer;

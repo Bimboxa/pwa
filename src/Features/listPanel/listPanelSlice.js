@@ -2,14 +2,14 @@ import { createSlice } from "@reduxjs/toolkit";
 import listTypes from "./data/listTypes";
 
 const listPanelInitialState = {
-  width: 400,
+  width: 350,
   open: true,
   //
   openPanelListItem: false,
   //
   selectedListId: null,
   //
-  selectedListTypeKey: listTypes[0].key,
+  selectedListTypeKey: null,
 };
 
 export const listPanelSlice = createSlice({

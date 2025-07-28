@@ -10,6 +10,8 @@ const mapEditorInitialState = {
   showShapes: true,
   //
   enabledDrawingMode: null,
+  //
+  showLayerScreenCursor: false,
 };
 
 export const mapEditorSlice = createSlice({
@@ -30,7 +32,9 @@ export const mapEditorSlice = createSlice({
       state.showShapes = action.payload;
     },
     setEnabledDrawingMode: (state, action) => {
-      state.enabledDrawingMode = action.payload;
+      const drawingMode = action.payload;
+      state.enabledDrawingMode = drawingMode;
+      if (!drawingMode) state.showLayerScreenCursor = false;
     },
     // scale
     setAnchorPositionScale: (state, action) => {
@@ -38,6 +42,10 @@ export const mapEditorSlice = createSlice({
     },
     setScaleInPx: (state, action) => {
       state.scaleInPx = action.payload;
+    },
+    // layers
+    setShowLayerScreenCursor: (state, action) => {
+      state.showLayerScreenCursor = action.payload;
     },
   },
 });
@@ -52,6 +60,8 @@ export const {
   //
   setAnchorPositionScale,
   setScaleInPx,
+  //
+  setShowLayerScreenCursor,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;

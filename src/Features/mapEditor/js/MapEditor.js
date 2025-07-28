@@ -187,9 +187,9 @@ export default class MapEditor {
 
   async loadMainBaseMap(baseMap) {
     console.log("[MapEditor] loadMainBaseMap", baseMap);
-    const imageProps = fromMapPropsToImageProps(baseMap);
+
     this.imagesManager.deleteAllImagesNodes();
-    await this.imagesManager.createImageNodeAsync(imageProps, {
+    await this.imagesManager.createImageNodeAsync(baseMap.toKonva(), {
       isMainImage: true,
     });
     store.dispatch(setLoadedMainBaseMapId(baseMap.id));
@@ -210,8 +210,9 @@ export default class MapEditor {
 
   // ------ draw ------
 
-  enableDrawingMode(mode, shapeProps, options) {
+  enableDrawingMode(mode, options) {
     console.log("[MapEditor] enableDrawingMode", mode);
+    const shapeProps = options?.presetProps;
     this.stageCursorMemo = this.stage.container().style.cursor;
     this.stage.container().style.cursor = "crosshair";
     this.enabledDrawingMode = mode;
@@ -220,7 +221,11 @@ export default class MapEditor {
     const updateRedux = options?.updateRedux ?? false;
 
     // main
-    this.shapesManager.enableDrawingMode(mode, shapeProps);
+    if (mode === "MARKER") {
+      this.markersManager.enableDrawing();
+    } else {
+      this.shapesManager.enableDrawingMode(mode, shapeProps);
+    }
 
     // redux
     if (updateRedux) {
@@ -235,6 +240,8 @@ export default class MapEditor {
     // main
     if (this.enabledDrawingMode === "POYGON") {
       this.shapesManager.polygonDrawer.disableDrawing();
+    } else if (this.enabledDrawingMode === "MARKER") {
+      this.markersManager.disableDrawing();
     }
 
     // post process
@@ -258,5 +265,18 @@ export default class MapEditor {
   }
   resetStageCursor() {
     this.stage.container().style.cursor = this.stageCursorMemo || "default";
+  }
+  /*
+   * CLICK
+
+  
+   */
+
+  /*
+   * SELECTION
+   */
+
+  resetSelection() {
+    this.imagesManager.resetSelection();
   }
 }

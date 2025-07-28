@@ -1,4 +1,4 @@
-import {Paper} from "@mui/material";
+import { Paper } from "@mui/material";
 
 import FieldTextVariantToolbar from "./FieldTextVariantToolbar";
 import FieldNumberVariantToolbar from "./FieldNumberVariantToolbar";
@@ -14,11 +14,11 @@ export default function FormVariantToolbar({
   // handler
 
   function handleFieldValueChange(fieldKey, fieldValue) {
-    onItemChange({...item, [fieldKey]: fieldValue});
+    onItemChange({ ...item, [fieldKey]: fieldValue });
   }
 
   return (
-    <Paper sx={{display: "flex", alignItems: "center", gap, p}}>
+    <Paper sx={{ display: "flex", alignItems: "center", gap, p, zIndex: 2 }}>
       {template.fields.map((field) => {
         if (field.type === "text") {
           return (

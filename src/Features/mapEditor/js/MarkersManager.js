@@ -1,14 +1,15 @@
 import store from "App/store";
 import db from "App/db/db";
 
-import {setSelectedEntityId} from "Features/entities/entitiesSlice";
+import { setSelectedEntityId } from "Features/entities/entitiesSlice";
 
 import createMarkerNode from "./utilsMarkersManager/createMarkerNode";
 import getNodeCoordsInImage from "./utilsImagesManager/getNodeCoordsInImage";
-import {HitCanvas} from "konva/lib/Canvas";
+
+import getMousePositionInStage from "../utils/getMousePositionInStage";
 
 export default class MarkersManager {
-  constructor({mapEditor}) {
+  constructor({ mapEditor }) {
     this.mapEditor = mapEditor;
 
     this.stage = mapEditor.stage;
@@ -52,13 +53,13 @@ export default class MarkersManager {
 
         node.on("dragend", async () => {
           const image = this.mapEditor.imagesManager.mainImageNode;
-          const {x, y} = getNodeCoordsInImage(node, image);
+          const { x, y } = getNodeCoordsInImage(node, image);
           console.log(
             "[MarkersManager] dragend x,y",
             x.toFixed(1),
             y.toFixed(1)
           );
-          await db.markers.update(marker.id, {x, y});
+          await db.markers.update(marker.id, { x, y });
         });
 
         node.on("mouseenter", () => {
@@ -82,4 +83,22 @@ export default class MarkersManager {
     });
     this.mapEditor.layerMarkers.batchDraw();
   }
+
+  /*
+   * DRAWING
+   */
+
+  enableDrawing() {
+    console.log("[MARKERS] enable drawing");
+    this.stage.on("click", this.handleMouseClick);
+  }
+
+  disableDrawing() {
+    this.stage.off("click", this.handleMouseClick);
+  }
+
+  handleMouseClick = () => {
+    const { x, y } = getMousePositionInStage(this.stage);
+    console.log("x,y", x, y);
+  };
 }
