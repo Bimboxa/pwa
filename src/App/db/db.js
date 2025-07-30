@@ -10,6 +10,7 @@ db.version(10).stores({
 
   scopes: "id,projectId", // {id,name,projectId,sortedListings:[{id,table}]}. Table is used to resolve syncConfig
   baseMaps: "id,projectId",
+  baseMapViews: "id,scopeId,baseMapId",
 
   listings: "id,key,uniqueByProject,projectId",
   entities: "id,listingId,[listingId+createdBy]",

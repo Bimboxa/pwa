@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { triggerShapesUpdate } from "Features/shapes/shapesSlice";
 
-import useAutoLoadMainBaseMapInMapEditor from "../hooks/useAutoLoadMainBaseMapInMapEditor";
+//import useAutoLoadMainBaseMapInMapEditor from "../hooks/useAutoLoadMainBaseMapInMapEditor";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 //import useAutoLoadShapesInMapEditor from "../hooks/useAutoLoadShapesInMapEditor";
 //import useAutoLoadMarkersInMapEditor from "../hooks/useAutoLoadMarkersInMapEditor";
@@ -21,6 +21,8 @@ import BlockEntityMarker from "Features/markers/components/BlockEntityMarker";
 import SectionNoMap from "./SectionNoMap";
 
 import editor from "App/editor";
+import useAutoSelectBaseMapViewInEditor from "Features/baseMapViews/hooks/useAutoSelectBaseMapViewInEditor";
+import useAutoSetMapEditorConfig from "../hooks/useAutoSetMapEditorConfig";
 
 export default function MainMapEditor() {
   console.log("[MainMapEditor] render");
@@ -33,7 +35,8 @@ export default function MainMapEditor() {
 
   // auto
 
-  useAutoSelectMainBaseMap();
+  //useAutoSelectMainBaseMap();
+  useAutoSelectBaseMapViewInEditor();
 
   // data
 
@@ -103,13 +106,16 @@ export default function MainMapEditor() {
     return () => {
       resizeObserver.disconnect();
     };
-  });
+  }, []);
+
+  // -- main
+  useAutoSetMapEditorConfig();
 
   // -- main image
-  useAutoLoadMainBaseMapInMapEditor({
-    mapEditor: mapEditorRef.current,
-    mapEditorIsReady,
-  });
+  //useAutoLoadMainBaseMapInMapEditor({
+  //  mapEditor: mapEditorRef.current,
+  //  mapEditorIsReady,
+  //});
 
   // -- shapes
   //useAutoLoadShapesInMapEditor({

@@ -45,7 +45,11 @@ export default class ImageObject {
           height: image.naturalHeight,
         });
       };
-      image.onerror = reject;
+      image.onerror = (error) => {
+        console.error("Error loading image for size computation:", error);
+        reject(error);
+      };
+      image.crossOrigin = "anonymous";
       image.src = URL.createObjectURL(this.file);
     });
   };
@@ -65,6 +69,15 @@ export default class ImageObject {
     imageSize: this.imageSize,
     imageUrlClient: this.imageUrlClient,
     imageUrlRemote: this.imageUrlRemote,
+  });
+
+  toKonva = () => ({
+    id: this.id,
+    url: this.imageUrlRemote ?? this.imageUrlClient,
+    x: 0,
+    y: 0,
+    width: this.imageSize.width,
+    height: this.imageSize.height,
   });
 
   // DB EXCHANGE

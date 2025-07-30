@@ -6,6 +6,7 @@ import ButtonDrawPolyline from "./ButtonDrawPolyline";
 import ButtonAutoSegmentation from "./ButtonAutoSegmentation";
 import ButtonDrawFreeline from "./ButtonDrawFreeline";
 import ButtonDrawMarker from "./ButtonDrawMarker";
+import ButtonDownloadBaseMapView from "./ButtonDownloadBaseMapView";
 
 export default function ToolbarMapEditorMain() {
   return (
@@ -16,7 +17,8 @@ export default function ToolbarMapEditorMain() {
       <ButtonDrawPolyline />
       <ButtonDrawPolygon />
       <ButtonDrawFreeline />
-      <ButtonAutoSegmentation />
+      <ButtonDownloadBaseMapView />
+      {/*<ButtonAutoSegmentation />*/}
     </Toolbar>
   );
 }

@@ -1,4 +1,4 @@
-import {nanoid} from "@reduxjs/toolkit";
+import { nanoid } from "@reduxjs/toolkit";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
@@ -9,14 +9,14 @@ import db from "App/db/db";
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
 export default function useCreateScope() {
-  const {value: createdBy} = useUserEmail();
+  const { value: createdBy } = useUserEmail();
   const createdAt = new Date(Date.now()).toISOString();
 
   const createListings = useCreateListings();
   const createRemoteScope = useCreateRemoteScope();
 
   const create = async (
-    {id, name, clientRef, projectId, newListings, sortedListings},
+    { id, name, clientRef, projectId, newListings, sortedListings },
     options
   ) => {
     // options
@@ -69,8 +69,8 @@ export default function useCreateScope() {
     // add listings
     if (newListings?.length > 0) {
       await createListings(
-        {listings: listingsWithIds, scope},
-        {updateSyncFile: options?.updateSyncFile}
+        { listings: listingsWithIds, scope },
+        { updateSyncFile: options?.updateSyncFile }
       );
     }
 

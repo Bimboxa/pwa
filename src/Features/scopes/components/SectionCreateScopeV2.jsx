@@ -7,12 +7,14 @@ import { useNavigate } from "react-router-dom";
 
 import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
+import { setSelectedBaseMapViewIdInEditor } from "Features/baseMapViews/baseMapViewsSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useProjects from "Features/projects/hooks/useProjects";
 
 import useCreateProject from "Features/projects/hooks/useCreateProject";
 import useCreateScope from "../hooks/useCreateScope";
+import useCreateBaseMapView from "Features/baseMapViews/hooks/useCreateBaseMapView";
 
 import { Autocomplete, Typography, TextField, Box } from "@mui/material";
 
@@ -36,6 +38,7 @@ export default function SectionCreateScopeV2({ onClose, onCreated }) {
 
   const createProject = useCreateProject();
   const createScope = useCreateScope();
+  const createBaseMapView = useCreateBaseMapView();
 
   // state
 
@@ -68,6 +71,11 @@ export default function SectionCreateScopeV2({ onClose, onCreated }) {
       projectId: scopeProject.id,
     });
 
+    const baseMapView = await createBaseMapView({
+      name: "Nouveau plan",
+      scopeId: scope.id,
+    });
+    dispatch(setSelectedBaseMapViewIdInEditor(baseMapView.id));
     onCreated(scope);
   }
 

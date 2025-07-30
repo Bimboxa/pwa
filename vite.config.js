@@ -61,4 +61,8 @@ export default defineConfig({
   build: {
     sourcemap: true,
   },
+  optimizeDeps: {
+    include: ["pdf-lib"],
+    force: true,
+  },
 });

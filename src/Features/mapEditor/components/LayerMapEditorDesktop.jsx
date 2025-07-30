@@ -3,7 +3,7 @@ import { Box } from "@mui/material";
 import ButtonOpenListPanel from "Features/listPanel/components/ButtonOpenListPanel";
 import ToolbarMapEditor from "./ToolbarMapEditor";
 //import SelectorMapInMapEditor from "Features/baseMaps/components/SelectorMapInMapEditor";
-import ButtonSelectorBaseMapInMapEditor from "Features/baseMaps/components/ButtonSelectorBaseMapInMapEditor";
+import BlockPrintMode from "./BlockPrintMode";
 
 export default function LayerMapEditorDesktop() {
   return (
@@ -23,13 +23,12 @@ export default function LayerMapEditorDesktop() {
       <Box
         sx={{
           position: "absolute",
-          left: "50%",
-          top: "8px",
-          transform: "translateX(-50%)",
-          zIndex: 1,
+          top: "50px",
+          right: "8px",
+          zIndex: 2,
         }}
       >
-        <ButtonSelectorBaseMapInMapEditor />
+        <BlockPrintMode />
       </Box>
 
       <Box

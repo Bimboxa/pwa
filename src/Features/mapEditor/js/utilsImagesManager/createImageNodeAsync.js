@@ -8,11 +8,6 @@ export default function createImageNodeAsync(image) {
 
   return new Promise((resolve, reject) => {
     imageObj.onload = () => {
-      // Create a group to hold the image and its border
-      const BORDER_COLOR = "#39FF14"; // Example: Stabilo Boss-like green, change as needed
-      const BORDER_WIDTH = 2;
-
-      // Create the image node
       const imageNode = new Konva.Image({
         id,
         image: imageObj,
@@ -26,11 +21,11 @@ export default function createImageNodeAsync(image) {
 
       resolve(imageNode);
     };
-    imageObj.crossOrigin = "Anonymous";
+    imageObj.crossOrigin = "anonymous";
     imageObj.src = url;
 
     imageObj.onerror = (error) => {
-      reject(error);
+      console.error("error creating Image node", error);
     };
   });
 }

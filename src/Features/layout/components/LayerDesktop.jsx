@@ -7,6 +7,7 @@ import MenuListTypes from "Features/listPanel/components/MenuListTypes";
 import TopBarProjectAndScope from "./TopBarProjectAndScope";
 import SelectorViewer from "Features/viewers/components/SelectorViewer";
 import ListPanelV2 from "Features/listPanel/components/ListPanelV2";
+import BlockBaseMapViewInEditor from "Features/baseMapViews/components/BlockBaseMapViewInEditor";
 
 export default function LayerDesktop() {
   // data
@@ -42,6 +43,19 @@ export default function LayerDesktop() {
       >
         <SelectorViewer />
       </Box>
+
+      <Box
+        sx={{
+          position: "absolute",
+          top: "8px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 2,
+        }}
+      >
+        <BlockBaseMapViewInEditor />
+      </Box>
+
       <Box
         sx={{
           position: "absolute",

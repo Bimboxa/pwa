@@ -12,6 +12,7 @@ const mapEditorInitialState = {
   enabledDrawingMode: null,
   //
   showLayerScreenCursor: false,
+  printModeEnabled: false,
 };
 
 export const mapEditorSlice = createSlice({
@@ -47,6 +48,10 @@ export const mapEditorSlice = createSlice({
     setShowLayerScreenCursor: (state, action) => {
       state.showLayerScreenCursor = action.payload;
     },
+    // print mode
+    setPrintModeEnabled: (state, action) => {
+      state.printModeEnabled = action.payload;
+    },
   },
 });
 
@@ -62,6 +67,8 @@ export const {
   setScaleInPx,
   //
   setShowLayerScreenCursor,
+  //
+  setPrintModeEnabled,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;

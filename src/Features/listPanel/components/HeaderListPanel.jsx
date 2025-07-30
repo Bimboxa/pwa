@@ -8,11 +8,10 @@ export default function HeaderListPanel({ title, actionComponent }) {
         width: 1,
         alignItems: "center",
         justifyContent: "space-between",
+        p: 2,
       }}
     >
-      <Typography variant="h4" sx={{ p: 2 }}>
-        {title}
-      </Typography>
+      <Typography variant="h4">{title}</Typography>
       {actionComponent}
     </Box>
   );

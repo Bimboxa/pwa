@@ -3,6 +3,8 @@ import getStagePositionAndScaleFromImageSize from "../utils/getStagePositionAndS
 
 import theme from "Styles/theme";
 
+import Image2D from "./Image2D";
+
 export default class ImagesManager {
   constructor({ mapEditor, onMapEditorIsReady }) {
     this.mapEditor = mapEditor;
@@ -11,7 +13,11 @@ export default class ImagesManager {
     this.stage = mapEditor.stage;
     this.layerImages = mapEditor.layerImages;
 
+    this.bgImageNode = null;
+    this.bgImage2D = null;
+
     this.mainImageNode = null;
+    this.mainImage2D = null;
 
     this.imageNodesById = {};
 
@@ -25,6 +31,23 @@ export default class ImagesManager {
     this.onMapEditorIsReady();
   };
 
+  addBgImageNodeAsync = async (image) => {
+    // main
+    const imageNode = await createImageNodeAsync(image);
+    this.layerImages.add(imageNode);
+    this.bgImageNode = imageNode;
+
+    console.log("[ImageManager] adde bgImageNode", this.bgImageNode);
+  };
+
+  createImage2DAsync = async (image) => {
+    const image2D = await Image2D.create(image);
+    console.log("createImage2DAsync", image2D);
+    this.layerImages.add(image2D.group);
+    this.mainImage2D = image2D;
+    this.centerImage2D(image2D);
+  };
+
   createImageNodeAsync = async (image, options) => {
     console.log("[ImagesManager] createImageNodeAsync", image);
     try {
@@ -32,7 +55,11 @@ export default class ImagesManager {
       const isMainImage = options?.isMainImage ?? false;
 
       // main
+
+      //const image2D = await Image2D.create(image);
+
       const imageNode = await createImageNodeAsync(image);
+      //const imageNode = image2D.group;
       console.log("imageNode", imageNode);
       this.layerImages.add(imageNode);
 
@@ -49,7 +76,8 @@ export default class ImagesManager {
       // post process
       if (isMainImage) {
         this.mainImageNode = imageNode;
-        this.centerStageOnImageNode(imageNode);
+        this.centerImageNode(imageNode);
+        //this.centerStageOnImageNode(imageNode);
       }
 
       // update manager
@@ -57,6 +85,51 @@ export default class ImagesManager {
     } catch (error) {
       console.error(error);
     }
+  };
+
+  centerImageNode = (imageNode) => {
+    if (!imageNode || !this.stage) return;
+
+    const stage = this.stage;
+    const stageWidth = stage.width();
+    const stageHeight = stage.height();
+
+    const imageWidth = imageNode.width();
+    const imageHeight = imageNode.height();
+
+    // Calculate scale to fit image in stage (objectFit: "contain")
+    const scale = Math.min(stageWidth / imageWidth, stageHeight / imageHeight);
+
+    // Center the image in the stage
+    const x = (stageWidth - imageWidth * scale) / 2;
+    const y = (stageHeight - imageHeight * scale) / 2;
+
+    // Set imageNode scale and position
+    imageNode.scale({ x: scale, y: scale });
+    imageNode.position({ x, y });
+  };
+
+  centerImage2D = (image2D) => {
+    if (!image2D || !this.stage) return;
+
+    console.log("[centerImage2D] image2D", image2D);
+    const stage = this.stage;
+    const stageWidth = stage.width();
+    const stageHeight = stage.height();
+
+    const imageWidth = image2D.width;
+    const imageHeight = image2D.height;
+
+    // Calculate scale to fit image in stage (objectFit: "contain")
+    const scale = Math.min(stageWidth / imageWidth, stageHeight / imageHeight);
+
+    // Center the image in the stage
+    const x = (stageWidth - imageWidth * scale) / 2;
+    const y = (stageHeight - imageHeight * scale) / 2;
+
+    // Set imageNode scale and position
+    image2D.setScale(scale);
+    image2D.setPosition({ x, y });
   };
 
   centerStageOnImageNode = (imageNode) => {
@@ -73,6 +146,12 @@ export default class ImagesManager {
 
   deleteAllImagesNodes = () => {
     this.layerImages.destroyChildren();
+    this.mainImageNode = null;
+  };
+
+  deleteMainImageNode = () => {
+    if (!this.mainImageNode) return;
+    this.mainImageNode.destroy();
     this.mainImageNode = null;
   };
 
@@ -135,4 +214,12 @@ export default class ImagesManager {
       );
     }
   }
+
+  // DELETE
+
+  deleteMainImage2D = () => {
+    if (!this.mainImage2D) return;
+    this.mainImage2D.destroyNodes();
+    this.mainImage2D = null;
+  };
 }
