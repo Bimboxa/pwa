@@ -7,9 +7,20 @@
  * - LAYERS
  */
 
-import { Layers, FileDownload, Image, Category } from "@mui/icons-material";
+import {
+  Layers,
+  FileDownload,
+  Image,
+  Category,
+  Map,
+} from "@mui/icons-material";
 
 const listTypes = [
+  {
+    key: "BASE_MAP_VIEWS",
+    label: "Plans",
+    icon: <Map />,
+  },
   {
     key: "BASE_MAPS",
     label: "Fonds de plan",

@@ -17,16 +17,12 @@ import getPinchDistance from "./utilsMapEditor/getPinchDistance";
 import testPinchEvent from "./utilsMapEditor/testPinchEvent";
 import getPointerPositionInStage from "../utils/getPointerPositionInStage";
 
-import bgImageUrl from "../assets/bgImage150dpiA4.png";
-
 export default class MapEditor {
   constructor({ container, width, height, onMapEditorIsReady }) {
     this.stage = new Konva.Stage({ container, draggable: true, width, height });
 
     this.scaleBy = 1.1;
     this.scaleByTouch = 1.05;
-
-    this.printModeEnabled = false;
 
     this.layerImages = new Konva.Layer();
     this.layerShapes = new Konva.Layer();
@@ -40,7 +36,7 @@ export default class MapEditor {
     this.stage.add(this.layerEditedShape);
     this.stage.add(this.layerFreeline);
 
-    this.layerFreeline.setZIndex(4);
+    this.layerFreeline.setZIndex(10);
 
     this.imagesManager = new ImagesManager({
       mapEditor: this,
@@ -72,27 +68,6 @@ export default class MapEditor {
     this.stage.on("dragend", () => (this.isDraggingStage = false));
 
     window.addEventListener("keydown", this.handleKeyDown);
-
-    this._initStageSize({ width, height });
-  }
-
-  /*
-   * INIT
-   */
-
-  async _initStageSize({ width, height }) {
-    this.stage.width(width);
-    this.stage.height(height);
-    const image = {
-      url: bgImageUrl,
-      x: 0,
-      y: 0,
-      width,
-      height,
-    };
-
-    //await this.imagesManager.addBgImageNodeAsync(image);
-    this.resetStagePositionAndScale();
   }
 
   /*
@@ -193,49 +168,6 @@ export default class MapEditor {
     this.stage.height(bbox.height);
   }
 
-  /*
-   *  STAGE
-   */
-
-  setStageSize(size) {
-    this.stageWidth = size.width;
-    this.stageHeight = size.height;
-    this.resetStagePositionAndScale();
-  }
-
-  resetStagePositionAndScale() {
-    // Center the stage in its container with objectFit: "contain"
-    const containerRect = this.stage.container().getBoundingClientRect();
-
-    // Calculate scale to fit (objectFit: contain)
-    const scaleX = containerRect.width / this.stageWidth;
-    const scaleY = containerRect.height / this.stageHeight;
-    const scale = Math.min(scaleX, scaleY);
-
-    // Center the content
-    const newWidth = this.stageWidth * scale;
-    const newHeight = this.stageHeight * scale;
-    const x = (containerRect.width - newWidth) / 2;
-    const y = (containerRect.height - newHeight) / 2;
-
-    this.stage.position({ x, y });
-    this.stage.scale({ x: scale, y: scale });
-    this.stage.batchDraw();
-  }
-
-  /*
-   *  BASE MAP VIEW
-   */
-
-  async loadBaseMapView(baseMapView) {
-    this.setStageSize(baseMapView.size);
-    const imageKonva = baseMapView.baseMap.image.toKonva();
-    console.log("imageKonva", imageKonva);
-
-    this.imagesManager.deleteAllImagesNodes();
-    await this.imagesManager.addBgImageNodeAsync(imageKonva);
-  }
-
   // control
 
   refresh() {
@@ -256,8 +188,8 @@ export default class MapEditor {
   async loadMainBaseMap(baseMap) {
     console.log("[MapEditor] loadMainBaseMap", baseMap);
 
-    this.imagesManager.deleteMainImageNode();
-    await this.imagesManager.createImage2DAsync(baseMap.toKonva(), {
+    this.imagesManager.deleteAllImagesNodes();
+    await this.imagesManager.createImageNodeAsync(baseMap.toKonva(), {
       isMainImage: true,
     });
     store.dispatch(setLoadedMainBaseMapId(baseMap.id));
@@ -346,75 +278,5 @@ export default class MapEditor {
 
   resetSelection() {
     this.imagesManager.resetSelection();
-  }
-
-  /*
-   * PRINT MODE
-   */
-
-  enablePrintMode() {
-    console.log("[MapEditor] enablePrintMode");
-    this.imagesManager.bgImageNode?.show();
-    this.printModeEnabled = true;
-  }
-
-  disablePrintMode() {
-    this.imagesManager.bgImageNode?.hide();
-    this.printModeEnabled = false;
-  }
-
-  async setBgImage(bgImage) {
-    const { imageUrlRemote, imageSize } = bgImage;
-    const props = {
-      url: imageUrlRemote,
-      width: imageSize?.width,
-      height: imageSize?.height,
-      x: 0,
-      y: 0,
-    };
-    console.log("debug_3007 props", props, bgImage);
-
-    await this.imagesManager.addBgImageNodeAsync(props);
-    this.setStageSize(imageSize);
-  }
-
-  /*
-   * EXPORT
-   */
-
-  getStageImageUrl() {
-    // Store original stage position and scale
-    const originalPosition = this.stage.position();
-    const originalScale = this.stage.scale();
-
-    try {
-      // Temporarily reset stage to show full content
-      this.stage.position({ x: 0, y: 0 });
-      this.stage.scale({ x: 1, y: 1 });
-
-      // Force a redraw to ensure all content is visible
-      this.stage.batchDraw();
-
-      // Use stage size directly
-      const dataUrl = this.stage.toDataURL({
-        pixelRatio: 2, // higher quality export
-        mimeType: "image/png",
-        quality: 1,
-        x: 0,
-        y: 0,
-        width: this.stageWidth,
-        height: this.stageHeight,
-      });
-
-      return dataUrl;
-    } catch (error) {
-      console.error("Error generating stage image:", error);
-      throw error;
-    } finally {
-      // Restore original position and scale
-      this.stage.position(originalPosition);
-      this.stage.scale(originalScale);
-      this.stage.batchDraw();
-    }
   }
 }

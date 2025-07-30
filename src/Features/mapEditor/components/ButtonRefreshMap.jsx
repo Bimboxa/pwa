@@ -1,5 +1,5 @@
-import {IconButton, Tooltip} from "@mui/material";
-import {Refresh} from "@mui/icons-material";
+import { IconButton, Tooltip } from "@mui/material";
+import { Refresh } from "@mui/icons-material";
 
 import editor from "App/editor";
 
@@ -11,7 +11,8 @@ export default function ButtonRefreshMap() {
   // handler
 
   function handleClick() {
-    editor.mapEditor.refresh();
+    //editor.mapEditor.refresh();
+    editor.mapEditor.resetStagePositionAndScale();
   }
 
   return (

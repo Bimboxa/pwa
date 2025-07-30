@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 
-import { useSelector } from "react-redux";
-
 import useSelectedMainBaseMap from "./useSelectedMainBaseMap";
 
 export default function useAutoLoadMainBaseMapInMapEditor({
   mapEditor,
   mapEditorIsReady,
 }) {
+  // BASE MAP
+
   const baseMap = useSelectedMainBaseMap();
 
   useEffect(() => {
@@ -15,4 +15,6 @@ export default function useAutoLoadMainBaseMapInMapEditor({
       mapEditor.loadMainBaseMap(baseMap);
     }
   }, [mapEditorIsReady, baseMap?.id]);
+
+  // BASE MAP VIEW
 }

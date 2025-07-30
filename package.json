@@ -36,6 +36,7 @@
     "jwt-decode": "^4.0.0",
     "konva": "^9.3.18",
     "leaflet": "^1.9.4",
+    "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.2.133",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",

@@ -15,6 +15,7 @@ import masterProjectsReducer from "Features/masterProjects/masterProjectsSlice";
 import projectsReducer from "Features/projects/projectsSlice";
 import scopesReducer from "Features/scopes/scopesSlice";
 import scopeSelectorReducer from "Features/scopeSelector/scopeSelectorSlice";
+import baseMapViewsReducer from "Features/baseMapViews/baseMapViewsSlice";
 import baseMapsReducer from "Features/baseMaps/baseMapsSlice";
 import listingsConfigReducer from "Features/listingsConfig/listingsConfigSlice";
 import viewersReducer from "Features/viewers/viewersSlice";
@@ -56,6 +57,7 @@ const store = configureStore({
     scopes: scopesReducer,
     scopeSelector: scopeSelectorReducer,
     listingsConfig: listingsConfigReducer,
+    baseMapViews: baseMapViewsReducer,
     baseMaps: baseMapsReducer,
     listings: listingsReducer,
     entities: entitiesReducer,

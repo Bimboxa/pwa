@@ -85,6 +85,23 @@ orgaData:
       dataStructure: "FILE"
       description: "Bordereau d'envoi SGS pour les prélèvement"
 
+# FEATURES
+
+features:
+  baseMaps:
+    bgImages:
+      - key: DEFAULT
+        url: https://public.media.bimboxa.com/bg_image_A4_150dpi_default.png
+        name: "A4 - 150dpi"
+        width: 1740
+        height: 1240
+        isDefault: true
+      - key: BASIC
+        url: https://public.media.bimboxa.com/bg_image_A4_150dpi_etandex_wS9kwOYWr2ltTF9l2L-bu.png
+        name: "A4 - 150dpi - Cartouche Etandex"
+        width: 1740
+        height: 1240
+
 sync:
   canSyncLocalProject: false
   canSyncLocalScope: true
