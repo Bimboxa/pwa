@@ -14,6 +14,7 @@ import ListPanel from "Features/listPanel/components/ListPanel";
 import PanelChatContainer from "./PanelChatContainer";
 
 import PanelListItem from "Features/listPanel/components/PanelListItem";
+import PanelLegend from "Features/legend/components/PanelLegend";
 import BottomBarDesktop from "./BottomBarDesktop";
 
 export default function LayoutDesktop() {
@@ -57,6 +58,23 @@ export default function LayoutDesktop() {
         }}
       >
         <PanelListItem />
+      </Box>
+
+      <Box
+        sx={{
+          position: "absolute",
+          top: "100px",
+
+          right: "8px",
+          width: "200px",
+          zIndex: 100,
+          boxSizing: "border-box",
+          bgcolor: "background.default",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <PanelLegend />
       </Box>
     </BoxFlexV>
   );

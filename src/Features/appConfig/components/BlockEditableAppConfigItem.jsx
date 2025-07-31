@@ -1,16 +1,16 @@
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 
-import {Grid2, TextField, Typography, Button} from "@mui/material";
+import { Grid, TextField, Typography, Button } from "@mui/material";
 import FieldDataObject from "Features/form/components/FieldDataObject";
 
-export default function BlockEditableAppConfigItem({item}) {
+export default function BlockEditableAppConfigItem({ item }) {
   // strings
 
   const saveS = "Enregistrer";
 
   // helpers
 
-  const {key, label, value, prefix} = item;
+  const { key, label, value, prefix } = item;
 
   // data - func
 
@@ -52,8 +52,8 @@ export default function BlockEditableAppConfigItem({item}) {
   }
 
   return (
-    <Grid2 container spacing={2}>
-      <Grid2
+    <Grid container spacing={2}>
+      <Grid
         size={4}
         sx={{
           display: "flex",
@@ -65,15 +65,15 @@ export default function BlockEditableAppConfigItem({item}) {
         <Typography variant="body2" color="text.secondary">
           {label}
         </Typography>
-      </Grid2>
-      <Grid2 size={8}>
+      </Grid>
+      <Grid size={8}>
         <FieldDataObject
           value={tempValue}
           onChange={handleChange}
           fullWidth
           variant="outlined"
         />
-      </Grid2>
-    </Grid2>
+      </Grid>
+    </Grid>
   );
 }

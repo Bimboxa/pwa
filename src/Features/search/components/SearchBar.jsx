@@ -77,7 +77,7 @@ export default function SearchBar({
         <Box
           sx={{
             ml: 1,
-            bgcolor: color,
+            bgcolor: color ?? "secondary.main",
             display: focused ? "none" : "flex",
             alignItems: "center",
             justifyContent: "center",

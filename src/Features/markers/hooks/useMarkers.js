@@ -1,4 +1,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
+import { useSelector } from "react-redux";
+
+import db from "App/db/db";
 
 export default function useMarkers(options) {
   // data
@@ -6,6 +9,8 @@ export default function useMarkers(options) {
   const loadedMainBaseMapId = useSelector(
     (s) => s.mapEditor.loadedMainBaseMapId
   );
+
+  const markersUpdatedAt = useSelector((s) => s.markers.markersUpdatedAt);
 
   // helpers
 
@@ -18,5 +23,6 @@ export default function useMarkers(options) {
     } else {
       markers = db.markers.toArray();
     }
-  });
+    return markers;
+  }, [markersUpdatedAt]);
 }

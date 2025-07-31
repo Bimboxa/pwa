@@ -38,6 +38,9 @@ export default class ImagesManager {
     this.bgImageNode = imageNode;
 
     console.log("[ImageManager] adde bgImageNode", this.bgImageNode);
+    if (!this.mapEditor.printModeEnabled) {
+      this.bgImageNode.hide();
+    }
   };
 
   createImage2DAsync = async (image) => {

@@ -8,6 +8,8 @@ import createMarkerNodeV2 from "./utilsMarkersManager/createMarkerNodeV2";
 import getNodeCoordsInImage from "./utilsImagesManager/getNodeCoordsInImage";
 import getMousePositionInStage from "../utils/getMousePositionInStage";
 
+import createMarkerService from "Features/markers/services/createMarkerService";
+
 import theme from "Styles/theme";
 
 export default class MarkersManager {
@@ -115,5 +117,6 @@ export default class MarkersManager {
     const { x, y } = getMousePositionInStage(this.stage);
     console.log("x,y", x, y);
     this.addMarker({ x, y });
+    createMarkerService({ x, y, ...this.tempMarkerProps });
   };
 }

@@ -8,9 +8,6 @@ export default function useAutoLoadMarkersInMapEditor({
   mapEditor,
   mapEditorIsReady,
 }) {
-  const baseMapViewId = useSelector(
-    (s) => s.baseMapViews.selectedBaseMapViewIdInEditor
-  );
   const loadedMainBaseMapId = useSelector(
     (s) => s.mapEditor.loadedMainBaseMapId
   );
@@ -18,15 +15,36 @@ export default function useAutoLoadMarkersInMapEditor({
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
   const tempMarker = useSelector((s) => s.markers.tempMarker);
 
-  const markers = useMarkers();
+  const { value: markers, loading } = useMarkers({
+    filterByMapId: loadedMainBaseMapId,
+    filterByListingsIds: [selectedListingId],
+  });
 
   useEffect(() => {
-    if (mapEditorIsReady && baseMapViewId) {
+    if (mapEditorIsReady && loadedMainBaseMapId && !loading) {
       console.log("useAutoLoadMarkersInMapEditor", markers);
       // init
       let _markers = [...markers];
+      // filter markers
+      if (selectedEntityId) {
+        _markers = _markers.filter(
+          (m) => m.targetEntityId === selectedEntityId
+        );
+      }
 
+      // add temp marker if exists
+      if (tempMarker && tempMarker.mapId === loadedMainBaseMapId) {
+        _markers.push(tempMarker);
+      }
       mapEditor.loadMarkers(_markers);
     }
-  }, [mapEditorIsReady, markers?.length, baseMapViewId]);
+  }, [
+    mapEditorIsReady,
+    markers?.length,
+    loadedMainBaseMapId,
+    selectedListingId,
+    selectedEntityId,
+    loading,
+    tempMarker?.createdAt,
+  ]);
 }

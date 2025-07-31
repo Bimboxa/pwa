@@ -1,6 +1,6 @@
-import {useSelector} from "react-redux";
+import { useSelector } from "react-redux";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 
 import ToolbarMapEditorMain from "./ToolbarMapEditorMain";
 import ToolbarShapeProps from "Features/shapes/components/ToolbarShapeProps";
@@ -18,7 +18,7 @@ export default function ToolbarMapEditor() {
   return (
     <Box sx={{}}>
       {showMain && <ToolbarMapEditorMain />}
-      {showShapeProps && <ToolbarShapeProps />}
+      {false && showShapeProps && <ToolbarShapeProps />}
     </Box>
   );
 }

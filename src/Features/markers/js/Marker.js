@@ -20,14 +20,14 @@ export default class Marker {
     this.iconColor = iconColor;
   }
 
-  static create = async ({ x, y, baseMapId }) => {
-    const marker = new Marker({ x, y, baseMapId });
-    await this._initialize({ baseMapId });
+  static create = async ({ id, x, y, baseMapId, iconIndex, iconColor }) => {
+    const marker = new Marker({ id, x, y, iconIndex, iconColor });
+    await marker._initialize({ baseMapId });
     return marker;
   };
 
   _initialize = async ({ baseMapId }) => {
-    if (!this.id) id = nanoid();
+    if (!this.id) this.id = nanoid();
     this.baseMap = new BaseMap({ id: baseMapId });
   };
 
@@ -40,5 +40,7 @@ export default class Marker {
     x: this.x,
     y: this.y,
     baseMap: { id: this.baseMap.id },
+    iconIndex: this.iconIndex,
+    iconColor: this.iconColor,
   });
 }

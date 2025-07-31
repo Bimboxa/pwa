@@ -1,13 +1,13 @@
-import {useState} from "react";
+import { useState } from "react";
 
 import {
   Box,
   ClickAwayListener,
-  Grid2,
+  Grid,
   IconButton,
   Typography,
 } from "@mui/material";
-import {ArrowForwardIos as Forward} from "@mui/icons-material";
+import { ArrowForwardIos as Forward } from "@mui/icons-material";
 
 import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
 
@@ -39,7 +39,7 @@ export default function FieldZonesVariantGrid({
   // handlers
 
   function handleChange(zoneIds) {
-    const newZones = {ids: zoneIds};
+    const newZones = { ids: zoneIds };
     onChange(newZones);
     setOpen(false);
   }
@@ -73,16 +73,16 @@ export default function FieldZonesVariantGrid({
           </Box>
         </ClickAwayListener>
       )}
-      <Grid2
+      <Grid
         container
-        sx={{border: (theme) => `1px solid ${theme.palette.divider}`}}
+        sx={{ border: (theme) => `1px solid ${theme.palette.divider}` }}
       >
-        <Grid2 size={12 - size} sx={{p: 1, bgcolor: "background.default"}}>
+        <Grid size={12 - size} sx={{ p: 1, bgcolor: "background.default" }}>
           <Typography variant="body2" color="text.secondary">
             {label}
           </Typography>
-        </Grid2>
-        <Grid2
+        </Grid>
+        <Grid
           size={size}
           sx={{
             display: "flex",
@@ -97,8 +97,8 @@ export default function FieldZonesVariantGrid({
           <IconButton onClick={handleOpenSelector}>
             <Forward />
           </IconButton>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </>
   );
 }

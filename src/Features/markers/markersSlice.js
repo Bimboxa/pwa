@@ -8,6 +8,8 @@ const markersInitialState = {
   markersMap: {},
   markersUpdatedAt: null,
   //
+  markersUpdatedAt: null,
+  //
   selectedMarkerId: null,
   //
   tempMarkerProps: { iconIndex: 1, iconColor: theme.palette.marker.default }, // props used when adding a marker
