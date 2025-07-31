@@ -1,17 +1,17 @@
-import {useSelector, useDispatch} from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
-import {setOpenPanelListItem} from "Features/listPanel/listPanelSlice";
+import { setOpenPanelListItem } from "Features/listPanel/listPanelSlice";
 import {
   setSelectedEntityId,
   setIsEditingEntity,
   setNewEntity,
 } from "../entitiesSlice";
-import {setTempMarker} from "Features/markers/markersSlice";
+import { setTempMarkerProps } from "Features/markers/markersSlice";
 
 import useEntity from "../hooks/useEntity";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 
 import BlockEntityInListPanelVariantBottom from "./BlockEntityInListPanelVariantBottom";
 import BlockEntityInListPanelVariantHeader from "./BlockEntityInListPanelVariantHeader";
@@ -24,7 +24,7 @@ export default function BlockEntityInListPanel() {
   // data
 
   const entity = useEntity();
-  const {value: listing} = useSelectedListing({withEntityModel: true});
+  const { value: listing } = useSelectedListing({ withEntityModel: true });
   const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
   const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);
 
@@ -48,17 +48,17 @@ export default function BlockEntityInListPanel() {
     }
     if (!entity.id) dispatch(setNewEntity({}));
     //
-    dispatch(setTempMarker(null));
+    dispatch(setTempMarkerProps(null));
   }
 
   function handleClose() {
     dispatch(setOpenPanelListItem(false));
     dispatch(setSelectedEntityId(null));
-    dispatch(setTempMarker(null));
+    dispatch(setTempMarkerProps(null));
   }
 
   return (
-    <Box sx={{width: 1, bgcolor: "common.white"}}>
+    <Box sx={{ width: 1, bgcolor: "common.white" }}>
       {openPanelListItem ? (
         <BlockEntityInListPanelVariantHeader
           label={label}

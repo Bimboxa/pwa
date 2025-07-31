@@ -1,4 +1,5 @@
 import { useSelector } from "react-redux";
+import useOpenCreateItemPanel from "./useOpenCreateItemPanel";
 
 export default function useOpenListPanel() {
   // data
@@ -7,5 +8,7 @@ export default function useOpenListPanel() {
     (s) => s.listPanel.selectedListTypeKey
   );
 
-  return Boolean(selectedListTypeKey);
+  const openCreateItemPanel = useOpenCreateItemPanel();
+
+  return Boolean(selectedListTypeKey) || openCreateItemPanel;
 }

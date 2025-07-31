@@ -23,6 +23,7 @@ import SectionNoMap from "./SectionNoMap";
 import editor from "App/editor";
 import useAutoSelectBaseMapViewInEditor from "Features/baseMapViews/hooks/useAutoSelectBaseMapViewInEditor";
 import useAutoSetMapEditorConfig from "../hooks/useAutoSetMapEditorConfig";
+import useAutoUpdateMarkersManager from "Features/markers/hooks/useAutoUpdateMarkersManager";
 
 export default function MainMapEditor() {
   console.log("[MainMapEditor] render");
@@ -110,6 +111,7 @@ export default function MainMapEditor() {
 
   // -- main
   useAutoSetMapEditorConfig();
+  useAutoUpdateMarkersManager();
 
   // -- main image
   //useAutoLoadMainBaseMapInMapEditor({

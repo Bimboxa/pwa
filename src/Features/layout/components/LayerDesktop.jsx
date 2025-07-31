@@ -6,7 +6,7 @@ import { Box } from "@mui/material";
 import MenuListTypes from "Features/listPanel/components/MenuListTypes";
 import TopBarProjectAndScope from "./TopBarProjectAndScope";
 import SelectorViewer from "Features/viewers/components/SelectorViewer";
-import ListPanelV2 from "Features/listPanel/components/ListPanelV2";
+import ListPanelsContainer from "Features/listPanel/components/ListPanelsContainer";
 import BlockBaseMapViewInEditor from "Features/baseMapViews/components/BlockBaseMapViewInEditor";
 
 export default function LayerDesktop() {
@@ -81,7 +81,7 @@ export default function LayerDesktop() {
             flexDirection: "column",
           }}
         >
-          <ListPanelV2 />
+          <ListPanelsContainer />
         </Box>
       )}
     </>

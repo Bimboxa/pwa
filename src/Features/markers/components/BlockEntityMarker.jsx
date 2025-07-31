@@ -1,25 +1,25 @@
-import {useDispatch} from "react-redux";
+import { useDispatch } from "react-redux";
 
-import {setOpenPanelListItem} from "Features/listPanel/listPanelSlice";
-import {setTempMarker} from "../markersSlice";
+import { setOpenPanelListItem } from "Features/listPanel/listPanelSlice";
+import { setTempMarkerProps } from "../markersSlice";
 
 import useEntity from "Features/entities/hooks/useEntity";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useCreateMarker from "Features/markers/hooks/useCreateMarker";
-import {Box, Typography, Button} from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
 import DraggableFabMarker from "Features/markers/components/DraggableFabMarker";
 
 import theme from "Styles/theme";
-import {lighten} from "@mui/material";
+import { lighten } from "@mui/material";
 import getDateString from "Features/misc/utils/getDateString";
 
-export default function BlockEntityMarker({top, right}) {
+export default function BlockEntityMarker({ top, right }) {
   const dispatch = useDispatch();
 
   // data
 
   const entity = useEntity();
-  const {value: listing} = useSelectedListing({withEntityModel: true});
+  const { value: listing } = useSelectedListing({ withEntityModel: true });
 
   // data - func
 
@@ -39,7 +39,7 @@ export default function BlockEntityMarker({top, right}) {
 
   // handlers
 
-  function handleCreateMarker({x, y, mapId}) {
+  function handleCreateMarker({ x, y, mapId }) {
     console.log("[handleCreateMarker] entity", entity);
     if (entity.id) {
       createMarker({
@@ -51,7 +51,7 @@ export default function BlockEntityMarker({top, right}) {
       });
     } else {
       dispatch(
-        setTempMarker({
+        setTempMarkerProps({
           isTemp: true,
           x,
           y,
@@ -78,7 +78,7 @@ export default function BlockEntityMarker({top, right}) {
         zIndex: 2,
       }}
     >
-      <Box sx={{position: "relative", display: "flex", alignItems: "center"}}>
+      <Box sx={{ position: "relative", display: "flex", alignItems: "center" }}>
         <Button
           onClick={handleEntityClick}
           sx={{
@@ -91,7 +91,7 @@ export default function BlockEntityMarker({top, right}) {
             alignItems: "center",
           }}
         >
-          <Typography variant="caption" sx={{mr: 2}}>
+          <Typography variant="caption" sx={{ mr: 2 }}>
             {label}
           </Typography>
         </Button>

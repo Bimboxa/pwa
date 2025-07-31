@@ -1,25 +1,25 @@
-import {useState} from "react";
+import { useState } from "react";
 
-import {useDispatch, useSelector} from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import {
   setEditedEntity,
   setIsEditingEntity,
   setNewEntity,
 } from "../entitiesSlice";
-import {setTempMarker} from "Features/markers/markersSlice";
+import { setTempMarkerProps } from "Features/markers/markersSlice";
 
 import useEntity from "../hooks/useEntity";
 import useCreateEntity from "../hooks/useCreateEntity";
 import useUpdateEntity from "../hooks/useUpdateEntity";
 import useCreateMarker from "Features/markers/hooks/useCreateMarker";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
-import {listingsConfigSlice} from "Features/listingsConfig/listingsConfigSlice";
+import { listingsConfigSlice } from "Features/listingsConfig/listingsConfigSlice";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
-export default function BlockBottomActionsInListPanel({onSaved}) {
+export default function BlockBottomActionsInListPanel({ onSaved }) {
   const dispatch = useDispatch();
 
   // strings
@@ -34,7 +34,7 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
   // data
 
   const entity = useEntity();
-  const {value: listing} = useSelectedListing();
+  const { value: listing } = useSelectedListing();
   console.log("[Action] entity", entity);
 
   const create = useCreateEntity();
@@ -58,16 +58,16 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
     setLoading(true);
     //
     if (!entity.id) {
-      const newEntity = await create(entity, {updateSyncFile: true});
+      const newEntity = await create(entity, { updateSyncFile: true });
       if (tempMarker) {
-        const {id: entityId, listingId: listingId} = newEntity;
-        await createMarker({...tempMarker, entityId, listingId});
-        dispatch(setTempMarker(null));
+        const { id: entityId, listingId: listingId } = newEntity;
+        await createMarker({ ...tempMarker, entityId, listingId });
+        dispatch(setTempMarkerProps(null));
       }
       dispatch(setNewEntity({}));
     } else {
       console.log("update entity", entity);
-      await update(entity.id, entity, {updateSyncFile: true});
+      await update(entity.id, entity, { updateSyncFile: true });
       dispatch(setIsEditingEntity(false));
       dispatch(setEditedEntity({}));
     }
@@ -77,7 +77,7 @@ export default function BlockBottomActionsInListPanel({onSaved}) {
   }
 
   return (
-    <Box sx={{width: 1, display: show ? "flex" : "none"}}>
+    <Box sx={{ width: 1, display: show ? "flex" : "none" }}>
       <ButtonInPanel label={saveS} onClick={handleSave} loading={loading} />
     </Box>
   );

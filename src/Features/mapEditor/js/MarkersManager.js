@@ -4,9 +4,11 @@ import db from "App/db/db";
 import { setSelectedEntityId } from "Features/entities/entitiesSlice";
 
 import createMarkerNode from "./utilsMarkersManager/createMarkerNode";
+import createMarkerNodeV2 from "./utilsMarkersManager/createMarkerNodeV2";
 import getNodeCoordsInImage from "./utilsImagesManager/getNodeCoordsInImage";
-
 import getMousePositionInStage from "../utils/getMousePositionInStage";
+
+import theme from "Styles/theme";
 
 export default class MarkersManager {
   constructor({ mapEditor }) {
@@ -16,6 +18,18 @@ export default class MarkersManager {
 
     this.markersById = {};
     this.markersNodesById = {};
+
+    this.tempMarkerProps = {
+      x: 0,
+      y: 0,
+      iconIndex: 0,
+      iconColor: theme.palette.marker.default,
+    };
+  }
+
+  async addMarker({ x, y }) {
+    const node = await createMarkerNodeV2({ x, y, ...this.tempMarkerProps });
+    this.mapEditor.layerMarkers.add(node);
   }
 
   deleteAllMarkersNodes() {
@@ -100,5 +114,6 @@ export default class MarkersManager {
   handleMouseClick = () => {
     const { x, y } = getMousePositionInStage(this.stage);
     console.log("x,y", x, y);
+    this.addMarker({ x, y });
   };
 }

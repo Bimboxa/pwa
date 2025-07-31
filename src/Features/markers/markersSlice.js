@@ -1,4 +1,5 @@
-import {createSlice} from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
+import theme from "Styles/theme";
 
 //import demoMarker from "./data/demoMarker";
 
@@ -9,7 +10,8 @@ const markersInitialState = {
   //
   selectedMarkerId: null,
   //
-  tempMarker: null,
+  tempMarkerProps: { iconIndex: 1, iconColor: theme.palette.marker.default }, // props used when adding a marker
+  //
 };
 
 export const markersSlice = createSlice({
@@ -30,8 +32,9 @@ export const markersSlice = createSlice({
       state.markersUpdatedAt = Date.now();
     },
     //
-    setTempMarker: (state, action) => {
-      state.tempMarker = action.payload;
+    setTempMarkerProps: (state, action) => {
+      const props = action.payload ?? {};
+      state.tempMarkerProps = { ...props, updatedAt: Date.now() };
     },
   },
 });
@@ -42,7 +45,7 @@ export const {
   //
   createMarker,
   //
-  setTempMarker,
+  setTempMarkerProps,
 } = markersSlice.actions;
 
 export default markersSlice.reducer;

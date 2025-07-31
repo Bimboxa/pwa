@@ -15,6 +15,8 @@ export default function useMarkers(options) {
     let markers;
     if (filterByBaseMapId) {
       markers = db.markers.toArray();
+    } else {
+      markers = db.markers.toArray();
     }
   });
 }
