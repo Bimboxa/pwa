@@ -1,13 +1,13 @@
-import {useState} from "react";
+import { useState } from "react";
 
 import {
   Box,
   ClickAwayListener,
-  Grid2,
+  Grid,
   IconButton,
   Typography,
 } from "@mui/material";
-import {ArrowForwardIos as Forward} from "@mui/icons-material";
+import { ArrowForwardIos as Forward } from "@mui/icons-material";
 import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
 import PanelSelectorEntity from "Features/entities/components/PanelSelectorEntity";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
@@ -47,7 +47,7 @@ export default function FieldEntityVariantGrid({
 
   function handleSelectionChange(id) {
     // const newZones = {ids: zoneIds};
-    onChange({id});
+    onChange({ id });
     setOpen(false);
   }
 
@@ -85,16 +85,16 @@ export default function FieldEntityVariantGrid({
           </Box>
         </ClickAwayListener>
       )}
-      <Grid2
+      <Grid
         container
-        sx={{border: (theme) => `1px solid ${theme.palette.divider}`}}
+        sx={{ border: (theme) => `1px solid ${theme.palette.divider}` }}
       >
-        <Grid2 size={12 - size} sx={{p: 1, bgcolor: "background.default"}}>
+        <Grid size={12 - size} sx={{ p: 1, bgcolor: "background.default" }}>
           <Typography variant="body2" color="text.secondary">
             {label}
           </Typography>
-        </Grid2>
-        <Grid2
+        </Grid>
+        <Grid
           size={size}
           sx={{
             display: "flex",
@@ -109,8 +109,8 @@ export default function FieldEntityVariantGrid({
           <IconButton onClick={handleOpenSelector}>
             <Forward />
           </IconButton>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </>
   );
 }

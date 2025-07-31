@@ -4,11 +4,17 @@ import useMarkerTemplateByIndex from "../hooks/useMarkerTemplate";
 
 import { setTempMarkerProps } from "../markersSlice";
 
+import { Typography } from "@mui/material";
+
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SelectorMarkerIcon from "./SelectorMarkerIcon";
 
 export default function SectionCreateMarkerInListPanel() {
   const dispatch = useDispatch();
+
+  // string
+
+  const createS = "Nouveau marqueur";
 
   // data
 
@@ -34,6 +40,7 @@ export default function SectionCreateMarkerInListPanel() {
 
   return (
     <BoxFlexVStretch>
+      <Typography sx={{ p: 1 }}>{createS}</Typography>
       <SelectorMarkerIcon
         iconIndex={iconIndex}
         iconColor={iconColor}

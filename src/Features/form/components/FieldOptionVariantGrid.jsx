@@ -1,11 +1,11 @@
-import {useState} from "react";
-import {createPortal} from "react-dom";
+import { useState } from "react";
+import { createPortal } from "react-dom";
 
 import {
   Box,
   Button,
   ClickAwayListener,
-  Grid2,
+  Grid,
   IconButton,
   Typography,
 } from "@mui/material";
@@ -47,7 +47,10 @@ export default function FieldOptionVariantGrid({
 
   // helpers - entities
 
-  const entities = valueOptions.map((option) => ({...option, id: option.key}));
+  const entities = valueOptions.map((option) => ({
+    ...option,
+    id: option.key,
+  }));
 
   // handlers
 
@@ -95,28 +98,32 @@ export default function FieldOptionVariantGrid({
           formContainerRef.current
         )}
 
-      <Grid2
+      <Grid
         container
-        sx={{border: (theme) => `1px solid ${theme.palette.divider}`}}
+        sx={{ border: (theme) => `1px solid ${theme.palette.divider}` }}
       >
-        <Grid2 size={12 - size} sx={{p: 1, bgcolor: "background.default"}}>
+        <Grid size={12 - size} sx={{ p: 1, bgcolor: "background.default" }}>
           <Typography variant="body2" color="text.secondary">
             {label}
           </Typography>
-        </Grid2>
-        <Grid2 size={size}>
+        </Grid>
+        <Grid size={size}>
           <Button
             variant="text"
             fullWidth
             onClick={handleOpenSelector}
             endIcon={<Down />}
           >
-            <Typography variant="body2" color="text.secondary" sx={{width: 1}}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ width: 1 }}
+            >
               {valueLabel}
             </Typography>
           </Button>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </>
   );
 }

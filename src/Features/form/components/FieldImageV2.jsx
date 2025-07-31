@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { Box, Typography, Grid2 } from "@mui/material";
+import { Box, Typography, Grid } from "@mui/material";
 import { Image as ImageIcon } from "@mui/icons-material";
 
 import SelectorImage from "Features/images/components/SelectorImage";

@@ -16,7 +16,7 @@ export default function useCreateBaseMapView() {
   const defaultBgImage = bgImages?.find((i) => i.isDefault);
 
   const props = {
-    name: "Nouveau plan",
+    name: "Plan n°01",
     bgImage: {
       imageUrlRemote: defaultBgImage.url,
       imageSize: {

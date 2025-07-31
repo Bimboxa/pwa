@@ -1,8 +1,8 @@
-import {useRef, useEffect, useState} from "react";
-import {createPortal} from "react-dom";
+import { useRef, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
-import {Box, Typography, Grid2} from "@mui/material";
-import {Image as ImageIcon} from "@mui/icons-material";
+import { Box, Typography, Grid } from "@mui/material";
+import { Image as ImageIcon } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonBasicMobile from "Features/layout/components/ButtonBasicMobile";
@@ -59,7 +59,7 @@ export default function FieldImageVariantGrid({
     const imageObject = {
       imageUrlClient,
       file,
-      imageSize: await getImageSizeAsync({file}),
+      imageSize: await getImageSizeAsync({ file }),
       fileSize: file.size,
       isImage: true,
     };
@@ -117,11 +117,11 @@ export default function FieldImageVariantGrid({
           </Box>,
           formContainerRef.current
         )}
-      <Grid2
+      <Grid
         container
-        sx={{border: (theme) => `1px solid ${theme.palette.divider}`}}
+        sx={{ border: (theme) => `1px solid ${theme.palette.divider}` }}
       >
-        <Grid2
+        <Grid
           size={12 - size}
           sx={{
             bgcolor: "background.default",
@@ -131,17 +131,17 @@ export default function FieldImageVariantGrid({
           <Typography variant="body2" color="text.secondary">
             {label}
           </Typography>
-        </Grid2>
-        <Grid2 size={size}>
-          <BoxCenter sx={{position: "relative", width: 1, minHeight: 100}}>
+        </Grid>
+        <Grid size={size}>
+          <BoxCenter sx={{ position: "relative", width: 1, minHeight: 100 }}>
             {imageSrc ? (
               <img
                 src={imageSrc}
                 alt={label}
-                style={{width: "100%", height: "auto"}}
+                style={{ width: "100%", height: "auto" }}
               />
             ) : (
-              <ImageIcon sx={{fontSize: 100, color: "text.secondary"}} />
+              <ImageIcon sx={{ fontSize: 100, color: "text.secondary" }} />
             )}
             <Box
               sx={{
@@ -161,11 +161,11 @@ export default function FieldImageVariantGrid({
             type="file"
             accept="image/*, application/pdf"
             capture="environment"
-            style={{display: "none"}}
+            style={{ display: "none" }}
             onChange={handleChange}
           />
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </>
   );
 }

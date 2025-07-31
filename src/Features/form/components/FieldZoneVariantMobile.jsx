@@ -1,13 +1,13 @@
-import {useState} from "react";
+import { useState } from "react";
 
 import {
   Box,
   ClickAwayListener,
-  Grid2,
+  Grid,
   IconButton,
   Typography,
 } from "@mui/material";
-import {ArrowForwardIos as Forward} from "@mui/icons-material";
+import { ArrowForwardIos as Forward } from "@mui/icons-material";
 
 import PanelSelectorZone from "Features/zones/components/PanelSelectorZone";
 import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
@@ -30,7 +30,7 @@ export default function FieldZoneVariantMobile({
   // handlers
 
   function handleChange(id) {
-    const newZone = {id};
+    const newZone = { id };
     onChange(newZone);
   }
 

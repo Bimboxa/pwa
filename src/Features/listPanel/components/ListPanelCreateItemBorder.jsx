@@ -3,9 +3,10 @@ import { Box } from "@mui/material";
 
 import { lighten, alpha } from "@mui/material/styles";
 import theme from "Styles/theme";
+import { grey } from "@mui/material/colors";
 
 export default function ListPanelCreateItemBorder({ children }) {
-  const baseColor = theme.palette.secondary.main;
+  const baseColor = grey[500];
   const shiningColor = alpha(lighten(baseColor, 0.9), 0.9);
 
   return (
@@ -27,7 +28,7 @@ export default function ListPanelCreateItemBorder({ children }) {
       <Box
         sx={{
           position: "absolute",
-          borderRadius: 2,
+          borderRadius: 1,
           top: 0,
           left: 0,
           width: 1,

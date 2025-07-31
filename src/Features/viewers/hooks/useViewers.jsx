@@ -22,18 +22,14 @@ export default function useViewers() {
       key: "PRINT",
       label: "Format impression",
       icon: <Print />,
+      disabled: true,
     },
     {
       key: "TABLE",
       label: "Tableau",
       icon: <Table />,
       bgcolor: theme.palette.viewers.map,
-    },
-    {
-      key: "LEAFLET",
-      label: "Carte satellite",
-      icon: <Map />,
-      bgcolor: theme.palette.viewers.map,
+      disabled: true,
     },
     {
       key: "THREED",
@@ -42,12 +38,20 @@ export default function useViewers() {
       icon: <Typography>3D</Typography>,
     },
     {
+      key: "LEAFLET",
+      label: "Carte satellite",
+      icon: <Map />,
+      bgcolor: theme.palette.viewers.map,
+      ///disabled: true,
+    },
+    {
       key: "PDF",
       label: "PDF",
       bgcolor: theme.palette.viewers.threed,
       icon: <PdfIcon />,
+      disabled: true,
     },
   ];
 
-  return viewers;
+  return viewers.filter((v) => !v.disabled);
 }

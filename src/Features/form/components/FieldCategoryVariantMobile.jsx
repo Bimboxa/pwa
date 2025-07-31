@@ -1,16 +1,16 @@
-import {useState} from "react";
+import { useState } from "react";
 
 import {
   Box,
   ClickAwayListener,
-  Grid2,
+  Grid,
   IconButton,
   Typography,
 } from "@mui/material";
-import {ArrowForwardIos as Forward} from "@mui/icons-material";
+import { ArrowForwardIos as Forward } from "@mui/icons-material";
 
 import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
-import {get} from "firebase/database";
+import { get } from "firebase/database";
 import getNodeById from "Features/tree/utils/getNodeById";
 
 export default function FieldCategoryVariantMobile({
@@ -44,7 +44,7 @@ export default function FieldCategoryVariantMobile({
 
   function handleChange(id) {
     console.log("[FieldCategoryVariantGrid] handleChange", id);
-    const newZones = {id};
+    const newZones = { id };
     onChange(newZones);
     setOpen(false);
   }

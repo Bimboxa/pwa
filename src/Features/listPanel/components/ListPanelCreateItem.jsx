@@ -4,21 +4,27 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ListPanelCreateItemBorder from "./ListPanelCreateItemBorder";
 import SectionCreateMarkerInListPanel from "Features/markers/components/SectionCreateMarkerInListPanel";
 import SectionCreateLocatedEntityInListPanel from "Features/locatedEntities/components/SectionCreateLocatedEntityInListPanel";
+import SectionCreateBaseMapViewInListPanel from "Features/baseMapViews/components/SectionCreateBaseMapViewInListPanel";
 
 export default function ListPanelCreateItem() {
   // data
 
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  const isCreatingBaseMapView = useSelector(
+    (s) => s.baseMapViews.isCreatingBaseMapView
+  );
 
   // helper
 
   const showLocatedEntity = Boolean(enabledDrawingMode);
+  const showBaseMapView = isCreatingBaseMapView && !showLocatedEntity;
 
   return (
     <BoxFlexVStretch>
       <ListPanelCreateItemBorder>
         <BoxFlexVStretch>
-          <SectionCreateLocatedEntityInListPanel />
+          {showBaseMapView && <SectionCreateBaseMapViewInListPanel />}
+          {showLocatedEntity && <SectionCreateLocatedEntityInListPanel />}
         </BoxFlexVStretch>
       </ListPanelCreateItemBorder>
     </BoxFlexVStretch>

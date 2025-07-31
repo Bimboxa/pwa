@@ -1,9 +1,9 @@
-import {useEffect, useRef} from "react";
+import { useEffect, useRef } from "react";
 import {
   Autocomplete,
   TextField,
   Box,
-  Grid2,
+  Grid,
   Typography,
   IconButton,
   InputAdornment,
@@ -22,16 +22,16 @@ export default function FieldTextVariantGrid({
   // helpers
 
   return (
-    <Grid2
+    <Grid
       container
-      sx={{border: (theme) => `1px solid ${theme.palette.divider}`}}
+      sx={{ border: (theme) => `1px solid ${theme.palette.divider}` }}
     >
-      <Grid2 size={12 - size} sx={{p: 1, bgcolor: "background.default"}}>
+      <Grid size={12 - size} sx={{ p: 1, bgcolor: "background.default" }}>
         <Typography variant="body2" color="text.secondary">
           {label}
         </Typography>
-      </Grid2>
-      <Grid2 size={size}>
+      </Grid>
+      <Grid size={size}>
         <FieldText
           value={value}
           onChange={onChange}
@@ -43,7 +43,7 @@ export default function FieldTextVariantGrid({
           }}
           label={label}
         />
-      </Grid2>
-    </Grid2>
+      </Grid>
+    </Grid>
   );
 }

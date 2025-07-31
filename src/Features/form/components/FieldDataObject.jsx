@@ -1,11 +1,11 @@
-import {useRef, useEffect} from "react";
+import { useRef, useEffect } from "react";
 
-import {Box, Typography, Grid2, IconButton, Tooltip} from "@mui/material";
-import {Image as ImageIcon, Download, Upload} from "@mui/icons-material";
+import { Box, Typography, Grid, IconButton, Tooltip } from "@mui/material";
+import { Image as ImageIcon, Download, Upload } from "@mui/icons-material";
 
 import IconButtonUploadFile from "Features/files/components/IconButtonUploadFile";
 
-export default function FieldDataObject({label, value, onChange, size = 8}) {
+export default function FieldDataObject({ label, value, onChange, size = 8 }) {
   const inputRef = useRef(null);
 
   // strings
@@ -30,7 +30,7 @@ export default function FieldDataObject({label, value, onChange, size = 8}) {
   }
 
   return (
-    <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
       <Typography>{dataObjectLabel}</Typography>
       <Tooltip title={downloadS}>
         <IconButton>

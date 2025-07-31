@@ -1,10 +1,10 @@
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 
-import {Grid2, TextField, Typography, Button} from "@mui/material";
+import { Grid, TextField, Typography, Button } from "@mui/material";
 
 import useCreateOrUpdateCredentialService from "../hooks/useCreateOrUpdateCredentialService";
 
-export default function BlockEditableServiceCredential({serviceCredential}) {
+export default function BlockEditableServiceCredential({ serviceCredential }) {
   const serviceName = serviceCredential.serviceName;
   const label = serviceCredential.label;
   const value = serviceCredential.value;
@@ -47,7 +47,7 @@ export default function BlockEditableServiceCredential({serviceCredential}) {
     try {
       if (loading) return;
       setLoading(true);
-      await createOrUpdate({key, prefix, value: tempValue});
+      await createOrUpdate({ key, prefix, value: tempValue });
       setLoading(false);
     } catch (e) {
       console.log("error", e);
@@ -55,8 +55,8 @@ export default function BlockEditableServiceCredential({serviceCredential}) {
   }
 
   return (
-    <Grid2 container spacing={2}>
-      <Grid2
+    <Grid container spacing={2}>
+      <Grid
         size={4}
         sx={{
           display: "flex",
@@ -68,8 +68,8 @@ export default function BlockEditableServiceCredential({serviceCredential}) {
         <Typography variant="body2" color="text.secondary">
           {label}
         </Typography>
-      </Grid2>
-      <Grid2 size={6}>
+      </Grid>
+      <Grid size={6}>
         <TextField
           type={"password"}
           value={tempValue}
@@ -77,8 +77,8 @@ export default function BlockEditableServiceCredential({serviceCredential}) {
           fullWidth
           variant="outlined"
         />
-      </Grid2>
-      <Grid2 size={2} sx={{display: "flex", alignItems: "center"}}>
+      </Grid>
+      <Grid size={2} sx={{ display: "flex", alignItems: "center" }}>
         <Button
           disabled={disabledSave}
           variant="contained"
@@ -87,7 +87,7 @@ export default function BlockEditableServiceCredential({serviceCredential}) {
         >
           {saveS}
         </Button>
-      </Grid2>
-    </Grid2>
+      </Grid>
+    </Grid>
   );
 }

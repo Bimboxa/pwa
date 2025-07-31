@@ -1,6 +1,9 @@
 import { useSelector, useDispatch } from "react-redux";
 
-import { setSelectedBaseMapViewId } from "../baseMapViewsSlice";
+import {
+  setIsCreatingBaseMapView,
+  setSelectedBaseMapViewId,
+} from "../baseMapViewsSlice";
 
 import useBaseMapViews from "../hooks/useBaseMapViews";
 import useBaseMapView from "../hooks/useBaseMapView";
@@ -17,6 +20,9 @@ export default function SectionBaseMapViewsInListPanel() {
   const views = useBaseMapViews();
   const selectedId = useSelector((s) => s.baseMapViews.selectedBaseMapViewId);
   const selectedBaseMapView = useBaseMapView({ id: selectedId });
+  const isCreatingBaseMapView = useSelector(
+    (s) => s.baseMapViews.isCreatingBaseMapView
+  );
 
   // helpers
 
@@ -33,6 +39,11 @@ export default function SectionBaseMapViewsInListPanel() {
     dispatch(setSelectedBaseMapViewId(null));
   }
 
+  function handleCreateClick() {
+    console.log("create new base map view");
+    dispatch(setIsCreatingBaseMapView(true));
+  }
+
   if (selectedId)
     return (
       <SectionBaseMapViewInListPanel
@@ -46,9 +57,9 @@ export default function SectionBaseMapViewsInListPanel() {
       title="Plans"
       items={views}
       onItemClick={onItemClick}
+      onCreateClick={handleCreateClick}
       selection={selection}
       componentListItem={ListItemBaseMapView}
-      componentSelectedItem={SectionBaseMapViewInListPanel}
     />
   );
 }

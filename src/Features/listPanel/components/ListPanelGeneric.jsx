@@ -22,6 +22,7 @@ export default function ListPanelGeneric({
   items,
   selection,
   onItemClick,
+  onCreateClick,
   componentListItem,
 }) {
   const dispatch = useDispatch();
@@ -55,7 +56,11 @@ export default function ListPanelGeneric({
         actionComponent={<IconButtonClose onClose={handleClose} />}
       />
       <Box sx={{ p: 1, width: 1 }}>
-        <SearchBar value={searchText} onChange={setSetText} />
+        <SearchBar
+          value={searchText}
+          onChange={setSetText}
+          onCreateClick={onCreateClick}
+        />
       </Box>
 
       <BoxFlexVStretch>

@@ -4,6 +4,7 @@ import { Box } from "@mui/material";
 
 import FieldTextV2 from "./FieldTextV2";
 import FieldImageV2 from "./FieldImageV2";
+import FieldBaseMap from "./FieldBaseMap";
 
 import FieldZonesVariantGrid from "./FieldZonesVariantGrid";
 import FieldZoneVariantGrid from "./FieldZoneVariantGrid";
@@ -62,6 +63,21 @@ export default function FormGenericV2({ template, item, onItemChange }) {
               label={field.label}
               width={field.width}
               options={field.options}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              formContainerRef={formContainerRef}
+            />
+          );
+        }
+
+        if (field?.type === "baseMap") {
+          return (
+            <FieldBaseMap
+              key={field.key}
+              label={field.label}
+              baseMaps={field.baseMaps}
               value={value}
               onChange={(newValue) =>
                 handleFieldValueChange(field.key, newValue)

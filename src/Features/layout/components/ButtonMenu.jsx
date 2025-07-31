@@ -43,7 +43,9 @@ export default function ButtonMenu({ buttonLabel, sx, actions }) {
                 key={action.label}
                 onClick={() => handleActionClick(action)}
               >
-                {action.icon && <ListItemIcon>{action.icon}</ListItemIcon>}
+                {false && action.icon && (
+                  <ListItemIcon>{action.icon}</ListItemIcon>
+                )}
                 <ListItemText>{action.label}</ListItemText>
               </ListItemButton>
             );

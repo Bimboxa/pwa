@@ -18,7 +18,7 @@ export default function SectionCreateLocatedEntityInListPanel() {
 
   return (
     <BoxFlexVStretch>
-      <Typography>{enabledDrawingMode}</Typography>
+      {/* <Typography>{enabledDrawingMode}</Typography> */}
       {showMarker && <SectionCreateMarkerInListPanel />}
     </BoxFlexVStretch>
   );

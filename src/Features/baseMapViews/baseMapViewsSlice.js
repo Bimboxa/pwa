@@ -4,8 +4,8 @@ const baseMapViewsInitialState = {
   //
   selectedBaseMapViewId: null,
   selectedBaseMapViewIdInEditor: null,
-  isCreatingBaseMapView: false,
   //
+  isCreatingBaseMapView: false,
   editedBaseMapView: null,
 };
 
