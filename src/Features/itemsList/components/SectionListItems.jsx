@@ -1,7 +1,7 @@
 import useIsMobile from "Features/layout/hooks/useIsMobile";
-import {List, ListItem, ListItemText, ListItemButton} from "@mui/material";
+import { List, ListItem, ListItemText, ListItemButton } from "@mui/material";
 
-export default function SectionListItems({items, onClick, selection}) {
+export default function SectionListItems({ items, onClick, selection }) {
   // data
 
   const isMobile = useIsMobile();
@@ -17,7 +17,7 @@ export default function SectionListItems({items, onClick, selection}) {
               divider
               selected={selection?.includes(item.id)}
               onClick={() => onClick(item)}
-              sx={{...(item.isNew && {borderLeft: "1px solid black"})}}
+              sx={{ ...(item.isNew && { borderLeft: "1px solid black" }) }}
             >
               <ListItemText
                 primary={item.primaryText}

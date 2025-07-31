@@ -11,11 +11,13 @@ export default class Marker {
   baseMap;
   entity;
 
-  constructor({ id, x, y, baseMap }) {
+  constructor({ id, x, y, baseMap, iconIndex, iconColor }) {
     this.id = id;
     this.x = x;
     this.y = y;
     this.baseMap = baseMap;
+    this.iconIndex = iconIndex;
+    this.iconColor = iconColor;
   }
 
   static create = async ({ x, y, baseMapId }) => {
