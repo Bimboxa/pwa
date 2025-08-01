@@ -6,6 +6,15 @@ import useSelectedBaseMapViewInEditor from "Features/baseMapViews/hooks/useSelec
 
 import editor from "App/editor";
 export default function useAutoSetMapEditorConfig() {
+  // SCOPE ID
+
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+  useEffect(() => {
+    if (editor.mapEditor) {
+      editor.mapEditor.scopeId = scopeId;
+    }
+  }, [scopeId]);
+
   // BG IMAGE
 
   const baseMapView = useSelectedBaseMapViewInEditor();

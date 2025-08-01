@@ -15,7 +15,12 @@ import FieldQrcodeVariantGrid from "./FieldQrcodeVariantGrid";
 
 import getTemplateFields from "../utils/getTemplateFields";
 
-export default function FormGenericV2({ template, item, onItemChange }) {
+export default function FormGenericV2({
+  template,
+  item,
+  onItemChange,
+  createContainerEl,
+}) {
   const formContainerRef = useRef(null);
 
   // state
@@ -83,6 +88,7 @@ export default function FormGenericV2({ template, item, onItemChange }) {
                 handleFieldValueChange(field.key, newValue)
               }
               formContainerRef={formContainerRef}
+              createContainerEl={createContainerEl}
             />
           );
         }

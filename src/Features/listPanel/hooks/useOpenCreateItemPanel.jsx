@@ -10,7 +10,7 @@ export default function useOpenCreateItemPanel() {
 
   // helper
 
-  const test = Boolean(enabledDrawingMode);
+  const test = Boolean(enabledDrawingMode) || isCreatingBaseMapView;
 
   return test;
 }

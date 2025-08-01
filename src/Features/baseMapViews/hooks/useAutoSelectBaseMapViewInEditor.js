@@ -26,7 +26,7 @@ export default function useAutoSelectBaseMapViewInEditor() {
   // effect
 
   useEffect(() => {
-    console.log("[EFFECT] setBaseMapViewId", defaultViewRecord?.name);
-    dispatch(setSelectedBaseMapViewIdInEditor(defaultViewRecord?.id));
+    dispatch(setSelectedBaseMapViewIdInEditor(id ?? defaultViewRecord?.id));
+    console.log("[EFFECT] setBaseMapViewId", id);
   }, [id, scopeId, defaultViewRecord?.id]);
 }

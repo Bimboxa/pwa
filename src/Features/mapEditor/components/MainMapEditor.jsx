@@ -24,6 +24,7 @@ import editor from "App/editor";
 import useAutoSelectBaseMapViewInEditor from "Features/baseMapViews/hooks/useAutoSelectBaseMapViewInEditor";
 import useAutoSetMapEditorConfig from "../hooks/useAutoSetMapEditorConfig";
 import useAutoUpdateMarkersManager from "Features/markers/hooks/useAutoUpdateMarkersManager";
+import useAutoLoadBaseMapViewInMapEditor from "../hooks/useAutoLoadBaseMapViewInMapEditor";
 
 export default function MainMapEditor() {
   console.log("[MainMapEditor] render");
@@ -112,6 +113,12 @@ export default function MainMapEditor() {
   // -- main
   useAutoSetMapEditorConfig();
   useAutoUpdateMarkersManager();
+
+  // -- baseMapView
+  useAutoLoadBaseMapViewInMapEditor({
+    mapEditor: mapEditorRef.current,
+    mapEditorIsReady,
+  });
 
   // -- main image
   //useAutoLoadMainBaseMapInMapEditor({

@@ -8,6 +8,7 @@ import TopBarProjectAndScope from "./TopBarProjectAndScope";
 import SelectorViewer from "Features/viewers/components/SelectorViewer";
 import ListPanelsContainer from "Features/listPanel/components/ListPanelsContainer";
 import BlockBaseMapViewInEditor from "Features/baseMapViews/components/BlockBaseMapViewInEditor";
+import PanelLegend from "Features/legend/components/PanelLegend";
 
 export default function LayerDesktop() {
   // data
@@ -15,6 +16,7 @@ export default function LayerDesktop() {
   const width = useSelector((s) => s.listPanel.width);
   const windowHeight = useSelector((s) => s.layout.windowHeight);
   const openListPanel = useOpenListPanel();
+  const printMode = useSelector((s) => s.mapEditor.printModeEnabled);
 
   // helpers
 
@@ -22,39 +24,45 @@ export default function LayerDesktop() {
 
   return (
     <>
-      <Box
-        sx={{
-          position: "absolute",
-          top: "8px",
-          left: "8px",
-          zIndex: 2,
-        }}
-      >
-        <TopBarProjectAndScope />
-      </Box>
+      {!printMode && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: "8px",
+            left: "8px",
+            zIndex: 2,
+          }}
+        >
+          <TopBarProjectAndScope />
+        </Box>
+      )}
 
-      <Box
-        sx={{
-          position: "absolute",
-          top: "8px",
-          right: "8px",
-          zIndex: 2,
-        }}
-      >
-        <SelectorViewer />
-      </Box>
+      {false && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: "8px",
+            right: "8px",
+            zIndex: 2,
+          }}
+        >
+          <SelectorViewer />
+        </Box>
+      )}
 
-      <Box
-        sx={{
-          position: "absolute",
-          top: "8px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 2,
-        }}
-      >
-        <BlockBaseMapViewInEditor />
-      </Box>
+      {!printMode && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: "8px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 2,
+          }}
+        >
+          <BlockBaseMapViewInEditor />
+        </Box>
+      )}
 
       <Box
         sx={{
@@ -84,6 +92,22 @@ export default function LayerDesktop() {
           <ListPanelsContainer />
         </Box>
       )}
+
+      <Box
+        sx={{
+          position: "absolute",
+          top: "64px",
+          right: "8px",
+          width: "200px",
+          zIndex: 100,
+          boxSizing: "border-box",
+          bgcolor: "background.default",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <PanelLegend />
+      </Box>
     </>
   );
 }

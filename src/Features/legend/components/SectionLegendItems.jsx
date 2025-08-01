@@ -1,5 +1,3 @@
-import useLegendItems from "../hooks/useLegendItems";
-
 import { Box } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -7,13 +5,7 @@ import MarkerIcon from "Features/markers/components/MarkerIcon";
 
 import getRowAndColFromIndex from "Features/markers/utils/getRowAndColFromIndex";
 
-export default function SectionLegendItems() {
-  // data
-
-  const legendItems = useLegendItems();
-
-  console.log("legendItems", legendItems);
-
+export default function SectionLegendItems({ legendItems }) {
   return (
     <BoxFlexVStretch>
       {legendItems?.map((item) => {

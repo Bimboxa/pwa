@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import {
   setEditedBaseMapView,
-  setIsCreatingBaseMapView,
+  setIsEditingBaseMapView,
   setSelectedBaseMapViewId,
 } from "../baseMapViewsSlice";
 
@@ -12,25 +12,27 @@ import useCreateBaseMapView from "Features/baseMapViews/hooks/useCreateBaseMapVi
 
 import { Box } from "@mui/material";
 
-import FormBaseMapViewVariantCreate from "./FormBaseMapViewVariantCreate";
+import FormBaseMapViewVariantEdit from "./FormBaseMapViewVariantEdit";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import HeaderListPanel from "Features/listPanel/components/HeaderListPanel";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
+import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
+import useUpdateBaseMapView from "../hooks/useUpdateBaseMapView";
 
-export default function SectionCreateBaseMapViewInListPanel() {
+export default function SectionEditBaseMapViewInListPanel() {
   const dispatch = useDispatch();
   const createContainerRef = useRef();
 
   // strings
 
-  const title = "Créer un plan";
-  const createS = "Créer";
+  const title = "Modifier le plan";
+  const createS = "Enregistrer";
 
   // data
 
   const { value: baseMaps } = useBaseMaps();
-  const createBaseMapView = useCreateBaseMapView();
+  const updateBaseMapView = useUpdateBaseMapView();
 
   const editedBaseMapView = useSelector(
     (s) => s.baseMapViews.editedBaseMapView
@@ -42,11 +44,12 @@ export default function SectionCreateBaseMapViewInListPanel() {
     dispatch(setEditedBaseMapView(newBaseMapView));
   }
 
-  async function handleCreate() {
-    console.log("[creatingBaseMapView]", editedBaseMapView);
-    const newBaseMapView = await createBaseMapView(editedBaseMapView);
-    dispatch(setIsCreatingBaseMapView(false));
-    dispatch(setSelectedBaseMapViewId(newBaseMapView.id));
+  async function handleSave() {
+    console.log("[savingBaseMapView]", editedBaseMapView);
+
+    await updateBaseMapView({ updates: editedBaseMapView });
+    dispatch(setIsEditingBaseMapView(false));
+    dispatch(setSelectedBaseMapViewId(null));
   }
 
   return (
@@ -60,21 +63,17 @@ export default function SectionCreateBaseMapViewInListPanel() {
           minHeight: 0,
         }}
       >
-        <HeaderListPanel
+        <HeaderTitleClose
           title={title}
-          actionComponent={
-            <IconButtonClose
-              onClose={() => dispatch(setIsCreatingBaseMapView(false))}
-            />
-          }
+          onClose={() => dispatch(setIsEditingBaseMapView(false))}
         />
-        <FormBaseMapViewVariantCreate
+        <FormBaseMapViewVariantEdit
           baseMapView={editedBaseMapView}
           onChange={handleChange}
           baseMaps={baseMaps}
           createContainerEl={createContainerRef.current}
         />
-        <ButtonInPanelV2 label={createS} onClick={handleCreate} />
+        <ButtonInPanelV2 label={createS} onClick={handleSave} />
       </Box>
     </BoxFlexVStretch>
   );

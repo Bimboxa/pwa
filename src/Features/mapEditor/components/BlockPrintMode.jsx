@@ -26,7 +26,7 @@ export default function BlockPrintMode() {
   // render
 
   return (
-    <Box>
+    <Box sx={{ bgcolor: "white", borderRadius: "8px", pl: 0.5 }}>
       <SwitchGeneric
         label={printModeLabel}
         checked={printModeEnabled}

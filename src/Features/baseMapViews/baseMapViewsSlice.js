@@ -1,11 +1,13 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 const baseMapViewsInitialState = {
+  baseMapViewsUpdatedAt: null,
   //
   selectedBaseMapViewId: null,
   selectedBaseMapViewIdInEditor: null,
   //
   isCreatingBaseMapView: false,
+  isEditingBaseMapView: false,
   editedBaseMapView: null,
 };
 
@@ -28,6 +30,9 @@ export const baseMapViewsSlice = createSlice({
     setIsCreatingBaseMapView: (state, action) => {
       state.isCreatingBaseMapView = action.payload;
     },
+    setIsEditingBaseMapView: (state, action) => {
+      state.isEditingBaseMapView = action.payload;
+    },
     setEditedBaseMapView: (state, action) => {
       state.editedBaseMapView = action.payload;
     },
@@ -39,15 +44,17 @@ export const baseMapViewsSlice = createSlice({
 });
 
 export const {
+  triggerBaseMapViewsUpdate,
+  //
   setBaseMapViewsById,
   //
   setSelectedBaseMapViewId,
-  triggerBaseMapViewsUpdate,
   //
   createMap,
   updateMap,
   //
   setIsCreatingBaseMapView,
+  setIsEditingBaseMapView,
   setEditedBaseMapView,
   //
   setSelectedBaseMapViewIdInEditor,

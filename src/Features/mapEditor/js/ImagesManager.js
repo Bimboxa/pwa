@@ -5,6 +5,9 @@ import theme from "Styles/theme";
 
 import Image2D from "./Image2D";
 
+import html2canvas from "html2canvas";
+import { DevicesRounded } from "@mui/icons-material";
+
 export default class ImagesManager {
   constructor({ mapEditor, onMapEditorIsReady }) {
     this.mapEditor = mapEditor;
@@ -14,7 +17,7 @@ export default class ImagesManager {
     this.layerImages = mapEditor.layerImages;
 
     this.bgImageNode = null;
-    this.bgImage2D = null;
+    this.legendImage2D = null;
 
     this.mainImageNode = null;
     this.mainImage2D = null;
@@ -31,10 +34,12 @@ export default class ImagesManager {
     this.onMapEditorIsReady();
   };
 
-  addBgImageNodeAsync = async (image) => {
+  setBgImageNodeAsync = async (image) => {
+    if (this.bgImageNode) this.bgImageNode.destroy();
     // main
-    const imageNode = await createImageNodeAsync(image);
+    const imageNode = await createImageNodeAsync({ ...image, x: 0, y: 0 });
     this.layerImages.add(imageNode);
+    imageNode.moveToBottom();
     this.bgImageNode = imageNode;
 
     console.log("[ImageManager] adde bgImageNode", this.bgImageNode);
@@ -43,14 +48,15 @@ export default class ImagesManager {
     }
   };
 
-  createImage2DAsync = async (image) => {
+  createImage2DAsync = async (image, options) => {
     const image2D = await Image2D.create(image);
     console.log("createImage2DAsync", image2D);
     this.layerImages.add(image2D.group);
     this.mainImage2D = image2D;
-    this.centerImage2D(image2D);
+    if (options?.center) this.centerImage2D(image2D);
   };
 
+  // DEPRECATED
   createImageNodeAsync = async (image, options) => {
     console.log("[ImagesManager] createImageNodeAsync", image);
     try {
@@ -124,7 +130,10 @@ export default class ImagesManager {
     const imageHeight = image2D.height;
 
     // Calculate scale to fit image in stage (objectFit: "contain")
-    const scale = Math.min(stageWidth / imageWidth, stageHeight / imageHeight);
+    const scale = Math.min(
+      (stageWidth - 2 * this.mapEditor.offset.x) / imageWidth,
+      (stageHeight - 2 * this.mapEditor.offset.x) / imageHeight
+    );
 
     // Center the image in the stage
     const x = (stageWidth - imageWidth * scale) / 2;
