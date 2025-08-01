@@ -20,10 +20,16 @@ export default function ListItemBaseMapView({ ...baseMapView }) {
   // handlers
 
   function handleOpenClick(e) {
-    e.stopPropagation();
-    e.preventDefault();
-    e.nativeEvent.stopImmediatePropagation();
-    dispatch(setSelectedBaseMapViewIdInEditor(baseMapView.id));
+    try {
+      console.log("open baseMapView", baseMapView ?? "null");
+      e.stopPropagation();
+      e.preventDefault();
+      e.nativeEvent.stopImmediatePropagation();
+
+      dispatch(setSelectedBaseMapViewIdInEditor(baseMapView.id));
+    } catch (e) {
+      console.error("error opening view", e);
+    }
   }
 
   // helper

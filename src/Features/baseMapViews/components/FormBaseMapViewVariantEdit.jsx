@@ -2,12 +2,16 @@ import FormGenericV2 from "Features/form/components/FormGenericV2";
 
 import BaseMapView from "../js/BaseMapView";
 
-export default function FormBaseMapViewVariantCreate({
+export default function FormBaseMapViewVariantEdit({
   baseMapView,
   onChange,
   baseMaps,
   createContainerEl,
 }) {
+  // debug
+
+  console.log("debug_0108 baseMapView", baseMapView);
+
   // template
 
   const template = {
@@ -39,7 +43,8 @@ export default function FormBaseMapViewVariantCreate({
   // handlers
 
   function handleChange(item) {
-    onChange(new BaseMapView(item));
+    // onChange(new BaseMapView(item));
+    onChange({ ...item, id: baseMapView.id });
   }
 
   // render

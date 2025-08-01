@@ -52,7 +52,7 @@ export default function FieldImageV2({
 
   async function handleImageFileChange(file) {
     if (maxSize) file = await resizeImageToLowResolution(file, maxSize * 1024);
-    const imageObject = await ImageObject.create(file);
+    const imageObject = await ImageObject.create({ imageFile: file });
     onChange(imageObject);
   }
 

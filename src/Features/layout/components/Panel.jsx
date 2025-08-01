@@ -2,7 +2,7 @@ import useIsMobile from "Features/layout/hooks/useIsMobile";
 
 import { Box, Paper } from "@mui/material";
 
-export default function Panel({ children }) {
+export default function Panel({ elevation, children }) {
   const isMobile = useIsMobile();
 
   return (
@@ -23,7 +23,7 @@ export default function Panel({ children }) {
 
       {!isMobile && (
         <Paper
-          elevation={12}
+          elevation={elevation}
           sx={{
             width: 1,
             height: 1,

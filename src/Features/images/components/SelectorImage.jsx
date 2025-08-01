@@ -32,7 +32,7 @@ export default function SelectorImage({ onImageFileChange }) {
       }
       setImageUrl(URL.createObjectURL(file0));
 
-      const _imageObject = await ImageObject.create(file0);
+      const _imageObject = await ImageObject.create({ imageFile: file0 });
       setImageObject(_imageObject);
       onImageFileChange(file0);
     }

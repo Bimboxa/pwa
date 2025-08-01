@@ -1,5 +1,6 @@
 import Konva from "konva";
 
+import LegendManager from "./LegendManager";
 import ImagesManager from "./ImagesManager";
 import ShapesManager from "./ShapesManager";
 import MarkersManager from "./MarkersManager";
@@ -21,8 +22,10 @@ import bgImageUrl from "../assets/bgImage150dpiA4.png";
 
 export default class MapEditor {
   constructor({ container, width, height, onMapEditorIsReady }) {
+    this.scope = null;
     this.stage = new Konva.Stage({ container, draggable: true, width, height });
 
+    this.offset = { x: 62, y: 62 }; // offset in px = margin of the bgImage.
     this.scaleBy = 1.1;
     this.scaleByTouch = 1.05;
 
@@ -41,6 +44,8 @@ export default class MapEditor {
     this.stage.add(this.layerFreeline);
 
     this.layerFreeline.setZIndex(4);
+
+    this.legendManager = new LegendManager({ mapEditor: this });
 
     this.imagesManager = new ImagesManager({
       mapEditor: this,
@@ -198,8 +203,10 @@ export default class MapEditor {
    */
 
   setStageSize(size) {
-    this.stageWidth = size.width;
-    this.stageHeight = size.height;
+    if (!size) return;
+    console.log("setStage");
+    this.stage.width(size.width);
+    this.stage.height(size.height);
     this.resetStagePositionAndScale();
   }
 
@@ -208,13 +215,13 @@ export default class MapEditor {
     const containerRect = this.stage.container().getBoundingClientRect();
 
     // Calculate scale to fit (objectFit: contain)
-    const scaleX = containerRect.width / this.stageWidth;
-    const scaleY = containerRect.height / this.stageHeight;
+    const scaleX = containerRect.width / this.stage.width();
+    const scaleY = containerRect.height / this.stage.height();
     const scale = Math.min(scaleX, scaleY);
 
     // Center the content
-    const newWidth = this.stageWidth * scale;
-    const newHeight = this.stageHeight * scale;
+    const newWidth = this.stage.width() * scale;
+    const newHeight = this.stage.height() * scale;
     const x = (containerRect.width - newWidth) / 2;
     const y = (containerRect.height - newHeight) / 2;
 
@@ -228,12 +235,19 @@ export default class MapEditor {
    */
 
   async loadBaseMapView(baseMapView) {
-    this.setStageSize(baseMapView.size);
-    const imageKonva = baseMapView.baseMap.image.toKonva();
-    console.log("imageKonva", imageKonva);
+    // debug
+    console.log("[MapEditor] loadBaseMapView", baseMapView);
 
+    // init - delete all
     this.imagesManager.deleteAllImagesNodes();
-    await this.imagesManager.addBgImageNodeAsync(imageKonva);
+
+    // set bgImage
+    const img = baseMapView.getBgImageForKonva();
+    //this.setStageSize(baseMapView.bgImage?.imageSize);
+    await this.imagesManager.setBgImageNodeAsync(img);
+
+    // load main base map
+    this.loadMainBaseMap(baseMapView.baseMap);
   }
 
   // control
@@ -259,6 +273,7 @@ export default class MapEditor {
     this.imagesManager.deleteMainImageNode();
     await this.imagesManager.createImage2DAsync(baseMap.toKonva(), {
       isMainImage: true,
+      center: true,
     });
     store.dispatch(setLoadedMainBaseMapId(baseMap.id));
   }
@@ -355,12 +370,14 @@ export default class MapEditor {
   enablePrintMode() {
     console.log("[MapEditor] enablePrintMode");
     this.imagesManager.bgImageNode?.show();
+    this.legendManager.updateLegend();
     this.printModeEnabled = true;
   }
 
   disablePrintMode() {
     this.imagesManager.bgImageNode?.hide();
     this.printModeEnabled = false;
+    this.legendManager.hideLegend();
   }
 
   async setBgImage(bgImage) {
@@ -374,7 +391,7 @@ export default class MapEditor {
     };
     console.log("debug_3007 props", props, bgImage);
 
-    await this.imagesManager.addBgImageNodeAsync(props);
+    await this.imagesManager.setBgImageNodeAsync(props);
     this.setStageSize(imageSize);
   }
 
@@ -402,8 +419,8 @@ export default class MapEditor {
         quality: 1,
         x: 0,
         y: 0,
-        width: this.stageWidth,
-        height: this.stageHeight,
+        width: this.stage.width(),
+        height: this.stage.height(),
       });
 
       return dataUrl;

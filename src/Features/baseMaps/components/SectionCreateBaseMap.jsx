@@ -5,12 +5,11 @@ import { setEditedBaseMap, setIsCreatingBaseMap } from "../baseMapsSlice";
 import useCreateBaseMap from "../hooks/useCreateBaseMap";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import HeaderListPanel from "Features/listPanel/components/HeaderListPanel";
 import FormBaseMapVariantCreate from "./FormBaseMapVariantCreate";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
-import IconButtonClose from "Features/layout/components/IconButtonClose";
+import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
 
-export default function SectionCreateBaseMap() {
+export default function SectionCreateBaseMap({ onClose }) {
   const dispatch = useDispatch();
 
   // strings
@@ -40,14 +39,12 @@ export default function SectionCreateBaseMap() {
   function handleClose() {
     console.log("closing");
     dispatch(setIsCreatingBaseMap(false));
+    if (onClose) onClose();
   }
 
   return (
     <BoxFlexVStretch>
-      <HeaderListPanel
-        title={title}
-        actionComponent={<IconButtonClose onClose={handleClose} />}
-      />
+      <HeaderTitleClose title={title} onClose={handleClose} />
       <FormBaseMapVariantCreate
         baseMap={baseMap}
         onChange={handleBaseMapChange}

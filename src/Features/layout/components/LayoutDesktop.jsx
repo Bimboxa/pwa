@@ -59,23 +59,6 @@ export default function LayoutDesktop() {
       >
         <PanelListItem />
       </Box>
-
-      <Box
-        sx={{
-          position: "absolute",
-          top: "100px",
-
-          right: "8px",
-          width: "200px",
-          zIndex: 100,
-          boxSizing: "border-box",
-          bgcolor: "background.default",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <PanelLegend />
-      </Box>
     </BoxFlexV>
   );
 }

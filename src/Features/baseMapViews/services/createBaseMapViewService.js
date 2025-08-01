@@ -6,6 +6,7 @@ export default async function createBaseMapViewService({
   name,
   documentSize,
   bgImage,
+  baseMap,
 }) {
   const id = nanoid();
 
@@ -15,5 +16,6 @@ export default async function createBaseMapViewService({
     name,
     documentSize,
     bgImage,
+    baseMap: { id: baseMap.id },
   });
 }

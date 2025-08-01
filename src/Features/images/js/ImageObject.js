@@ -9,6 +9,7 @@ export default class ImageObject {
   imageUrlRemote;
 
   constructor({
+    url,
     file,
     fileName,
     fileSize,
@@ -16,6 +17,7 @@ export default class ImageObject {
     imageUrlClient,
     imageUrlRemote,
   }) {
+    this.url = url;
     this.file = file;
     this.fileName = fileName ?? file?.name;
     this.fileSize = fileSize ?? file?.size;
@@ -26,8 +28,8 @@ export default class ImageObject {
 
   // STATIC FACTORY
 
-  static async create(imageFile) {
-    const instance = new ImageObject({ file: imageFile });
+  static async create({ imageFile, url }) {
+    const instance = new ImageObject({ file: imageFile, url });
     await instance._initialize();
     return instance;
   }
@@ -50,7 +52,7 @@ export default class ImageObject {
         reject(error);
       };
       image.crossOrigin = "anonymous";
-      image.src = URL.createObjectURL(this.file);
+      image.src = this.url ?? URL.createObjectURL(this.file);
     });
   };
 

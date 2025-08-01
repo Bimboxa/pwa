@@ -1,6 +1,8 @@
+import getImageSizeAsync from "Features/misc/utils/getImageSize";
 import createImageNodeAsync from "./utilsImagesManager/createImageNodeAsync";
 
 import Konva from "konva";
+import ImageObject from "Features/images/js/ImageObject";
 
 export default class Image2D {
   imageNode;
@@ -11,7 +13,7 @@ export default class Image2D {
   isSelected = false;
   isTransforming = false;
 
-  constructor({ url, x, y, width, height }) {
+  constructor({ url, x, y, width, height, rotateEnabled, resizeEnabled }) {
     this.url = url;
     this.x = x;
     this.y = y;
@@ -19,8 +21,8 @@ export default class Image2D {
     this.height = height;
 
     this.transformer = new Konva.Transformer({
-      rotateEnabled: true,
-      resizeEnabled: true,
+      rotateEnabled,
+      resizeEnabled,
       borderStroke: "#39FF14", // Flash green
       borderStrokeWidth: 2,
       anchorStroke: "#39FF14",
@@ -73,6 +75,10 @@ export default class Image2D {
 
     return image2D;
   };
+
+  /*
+   * UPDATE
+   */
 
   /*
    * LISTENERS
@@ -140,6 +146,18 @@ export default class Image2D {
     this.borderNode.opacity(0);
     this.isSelected = false;
     this.disableTransformer();
+  };
+
+  /*
+   * SHOW / HIDE
+   */
+
+  hide = () => {
+    this.group.hide();
+  };
+
+  show = () => {
+    this.group.show();
   };
 
   /*

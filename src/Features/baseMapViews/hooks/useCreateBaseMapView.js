@@ -1,4 +1,6 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import { triggerBaseMapViewsUpdate } from "../baseMapViewsSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import createBaseMapViewService from "../services/createBaseMapViewService";
@@ -9,6 +11,7 @@ export default function useCreateBaseMapView() {
   // data
 
   const appConfig = useAppConfig();
+  const _scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   // helpers
 
@@ -30,11 +33,12 @@ export default function useCreateBaseMapView() {
     },
   };
 
-  const create = async ({ name, scopeId }) => {
+  const create = async ({ name, scopeId, baseMap }) => {
     const baseMapView = await createBaseMapViewService({
-      name,
-      scopeId,
       ...props,
+      name,
+      scopeId: scopeId ?? _scopeId,
+      baseMap,
     });
 
     return baseMapView;

@@ -23,8 +23,11 @@ export default function LayerMapEditorDesktop() {
       <Box
         sx={{
           position: "absolute",
-          top: "50px",
+          //top: "64px",
+          bottom: "8px",
           right: "8px",
+          //left: "50%",
+          //transform: "translateX(-50%)",
           zIndex: 2,
         }}
       >

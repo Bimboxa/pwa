@@ -1,7 +1,9 @@
 import { useSelector, useDispatch } from "react-redux";
 
 import {
+  setEditedBaseMapView,
   setIsCreatingBaseMapView,
+  setIsEditingBaseMapView,
   setSelectedBaseMapViewId,
 } from "../baseMapViewsSlice";
 
@@ -11,6 +13,7 @@ import useBaseMapView from "../hooks/useBaseMapView";
 import ListPanelGeneric from "Features/listPanel/components/ListPanelGeneric";
 import ListItemBaseMapView from "./ListItemBaseMapView";
 import SectionBaseMapViewInListPanel from "./SectionBaseMapViewInListPanel";
+import SectionEditBaseMapViewInListPanel from "./SectionEditBaseMapViewInListPanel";
 
 export default function SectionBaseMapViewsInListPanel() {
   const dispatch = useDispatch();
@@ -20,9 +23,8 @@ export default function SectionBaseMapViewsInListPanel() {
   const views = useBaseMapViews();
   const selectedId = useSelector((s) => s.baseMapViews.selectedBaseMapViewId);
   const selectedBaseMapView = useBaseMapView({ id: selectedId });
-  const isCreatingBaseMapView = useSelector(
-    (s) => s.baseMapViews.isCreatingBaseMapView
-  );
+  const isCreating = useSelector((s) => s.baseMapViews.isCreatingBaseMapView);
+  const isEditing = useSelector((s) => s.baseMapViews.isEditingBaseMapView);
 
   // helpers
 
@@ -35,6 +37,12 @@ export default function SectionBaseMapViewsInListPanel() {
     dispatch(setSelectedBaseMapViewId(view.id));
   }
 
+  function handleEditClick(view) {
+    dispatch(setSelectedBaseMapViewId(view.id));
+    dispatch(setIsEditingBaseMapView(true));
+    dispatch(setEditedBaseMapView(view));
+  }
+
   function handleCloseSelection() {
     dispatch(setSelectedBaseMapViewId(null));
   }
@@ -44,19 +52,24 @@ export default function SectionBaseMapViewsInListPanel() {
     dispatch(setIsCreatingBaseMapView(true));
   }
 
-  if (selectedId)
-    return (
-      <SectionBaseMapViewInListPanel
-        item={selectedBaseMapView}
-        onClose={() => handleCloseSelection}
-      />
-    );
+  if (selectedId) {
+    if (isEditing) {
+      return <SectionEditBaseMapViewInListPanel />;
+    } else {
+      return (
+        <SectionBaseMapViewInListPanel
+          item={selectedBaseMapView}
+          onClose={() => handleCloseSelection()}
+        />
+      );
+    }
+  }
 
   return (
     <ListPanelGeneric
       title="Plans"
       items={views}
-      onItemClick={onItemClick}
+      onItemClick={handleEditClick}
       onCreateClick={handleCreateClick}
       selection={selection}
       componentListItem={ListItemBaseMapView}
