@@ -10,6 +10,7 @@ import {
   setEnabledDrawingMode,
   setLoadedMainBaseMapId,
 } from "Features/mapEditor/mapEditorSlice";
+import { setClickedItem } from "Features/listPanel/listPanelSlice";
 
 import getStagePositionAndScaleFromImageSize from "../utils/getStagePositionAndScaleFromImageSize";
 import fromMapPropsToImageProps from "./utilsImagesManager/fromMapPropsToImageProps";
@@ -75,6 +76,9 @@ export default class MapEditor {
     this.stage.on("touchend", (e) => this.handleTouchEnd(e));
     this.stage.on("dragstart", () => (this.isDraggingStage = true));
     this.stage.on("dragend", () => (this.isDraggingStage = false));
+
+    // Centralized click handler for all stage items
+    this.stage.on("click", (e) => this.handleStageClick(e));
 
     window.addEventListener("keydown", this.handleKeyDown);
 
@@ -189,6 +193,28 @@ export default class MapEditor {
       this.lastPinchDistance = null;
       this.stage.draggable(true);
       this.resizeNodes();
+    }
+  };
+
+  handleStageClick = (e) => {
+    console.log("stage click", e);
+    // Get the clicked target
+    const target = e.target;
+
+    // Only dispatch if we clicked on a node (not the stage itself)
+    if (target && target !== this.stage) {
+      // Get the node type/class
+      let nodeType = "unknown";
+      const nodeId = target._id;
+
+      if (target.getClassName) {
+        nodeType = target.getClassName();
+      } else if (target.constructor && target.constructor.name) {
+        nodeType = target.constructor.name;
+      }
+
+      // Dispatch the event on the stage container
+      store.dispatch(setClickedItem({ type: nodeId }));
     }
   };
 

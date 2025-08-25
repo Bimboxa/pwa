@@ -2,7 +2,7 @@ import useIsMobile from "Features/layout/hooks/useIsMobile";
 
 import { Box, Paper } from "@mui/material";
 
-export default function Panel({ elevation, children }) {
+export default function Panel({ elevation, children, ...sx }) {
   const isMobile = useIsMobile();
 
   return (
@@ -30,6 +30,7 @@ export default function Panel({ elevation, children }) {
             display: "flex",
             flexDirection: "column",
             minHeight: 0,
+            ...sx,
           }}
         >
           {children}
