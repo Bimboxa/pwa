@@ -32,6 +32,7 @@ async function loadSpriteImage() {
 }
 
 export default async function createMarkerNodeV2({
+  image2D,
   x,
   y,
   iconColor,
@@ -87,8 +88,8 @@ export default async function createMarkerNodeV2({
   //icon.alpha(1);
 
   const group = new Konva.Group({
-    x, // Group position is the center point
-    y, // Group position is the center point
+    x: image2D.imageNode.width() * x, // Group position is the center point
+    y: image2D.imageNode.height() * y, // Group position is the center point
     draggable: true,
   });
 
@@ -98,6 +99,10 @@ export default async function createMarkerNodeV2({
 
   // Force the icon to be on top
   icon.moveToTop();
+
+  // Add group to imageNode
+
+  image2D.group.add(group);
 
   return group;
 }

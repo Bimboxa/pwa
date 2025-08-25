@@ -29,9 +29,14 @@ export default class MarkersManager {
     };
   }
 
-  async addMarker({ x, y }) {
-    const node = await createMarkerNodeV2({ x, y, ...this.tempMarkerProps });
-    this.mapEditor.layerMarkers.add(node);
+  async addMarker({ image2D, x, y }) {
+    const node = await createMarkerNodeV2({
+      image2D,
+      x,
+      y,
+      ...this.tempMarkerProps,
+    });
+    //this.mapEditor.layerMarkers.add(node);
   }
 
   deleteAllMarkersNodes() {
@@ -113,10 +118,18 @@ export default class MarkersManager {
     this.stage.off("click", this.handleMouseClick);
   }
 
-  handleMouseClick = () => {
-    const { x, y } = getMousePositionInStage(this.stage);
-    console.log("x,y", x, y);
-    this.addMarker({ x, y });
+  handleMouseClick = (event) => {
+    const image2D = this.mapEditor.imagesManager.mainImage2D;
+    const imageNode = this.mapEditor.imagesManager.mainImage2D.imageNode;
+
+    const relativePosition = imageNode.getRelativePointerPosition();
+    const imageWidth = imageNode.width();
+    const imageHeight = imageNode.height();
+
+    const x = relativePosition?.x / imageWidth;
+    const y = relativePosition?.y / imageHeight;
+    //const { x: _x, y: _y } = getMousePositionInStage(this.stage);
+    //this.addMarker({ x, y, image2D });
     createMarkerService({ x, y, ...this.tempMarkerProps });
   };
 }

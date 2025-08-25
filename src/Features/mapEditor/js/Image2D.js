@@ -13,12 +13,24 @@ export default class Image2D {
   isSelected = false;
   isTransforming = false;
 
-  constructor({ url, x, y, width, height, rotateEnabled, resizeEnabled }) {
+  constructor({
+    url,
+    x,
+    y,
+    width,
+    height,
+    rotateEnabled,
+    resizeEnabled,
+    nodeType,
+    baseMapId,
+  }) {
     this.url = url;
     this.x = x;
     this.y = y;
     this.width = width;
     this.height = height;
+    this.nodeType = nodeType;
+    this.baseMapId = baseMapId;
 
     this.transformer = new Konva.Transformer({
       rotateEnabled,

@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import {
+  Box,
   Button,
   Menu,
   ListItemButton,
@@ -8,7 +9,10 @@ import {
   ListItemIcon,
   Typography,
 } from "@mui/material";
-import { ArrowDropDown as Down } from "@mui/icons-material";
+import {
+  ArrowDropDown as Down,
+  Construction as Tool,
+} from "@mui/icons-material";
 
 export default function ButtonMenu({ buttonLabel, sx, actions }) {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -28,11 +32,18 @@ export default function ButtonMenu({ buttonLabel, sx, actions }) {
   }
   return (
     <>
-      <Button endIcon={<Down />} onClick={handleClick} sx={{ ...sx }}>
-        <Typography variant="body2" noWrap>
-          {buttonLabel}
-        </Typography>
-      </Button>
+      <Box sx={{ display: "flex", alignItems: "center", pl: 0.5 }}>
+        <Tool color="action" />
+        <Button
+          endIcon={<Down />}
+          onClick={handleClick}
+          sx={{ ...sx, ml: 0.5 }}
+        >
+          <Typography variant="body1" noWrap>
+            {buttonLabel}
+          </Typography>
+        </Button>
+      </Box>
       <Menu open={open} anchorEl={anchorEl} onClose={handleClose}>
         {actions
           ?.filter((action) => !action.hide)

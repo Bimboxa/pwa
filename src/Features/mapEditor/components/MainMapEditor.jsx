@@ -7,7 +7,7 @@ import { triggerShapesUpdate } from "Features/shapes/shapesSlice";
 //import useAutoLoadMainBaseMapInMapEditor from "../hooks/useAutoLoadMainBaseMapInMapEditor";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 //import useAutoLoadShapesInMapEditor from "../hooks/useAutoLoadShapesInMapEditor";
-//import useAutoLoadMarkersInMapEditor from "../hooks/useAutoLoadMarkersInMapEditor";
+import useAutoLoadMarkersInMapEditor from "../hooks/useAutoLoadMarkersInMapEditor";
 import useLoadedMainBaseMap from "../hooks/useLoadedMainBaseMap";
 import useAutoSelectMainBaseMap from "../hooks/useAutoSelectMainBaseMap";
 
@@ -132,11 +132,11 @@ export default function MainMapEditor() {
   //  mapEditorIsReady,
   //});
 
-  // -- markers
-  //useAutoLoadMarkersInMapEditor({
-  //  mapEditor: mapEditorRef.current,
-  //  mapEditorIsReady,
-  //});
+  //--markers;
+  // useAutoLoadMarkersInMapEditor({
+  //   mapEditor: mapEditorRef.current,
+  //   mapEditorIsReady,
+  // });
 
   console.log("noBaseMap", noBaseMap);
 
