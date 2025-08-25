@@ -48,8 +48,8 @@ export default function SectionCreateScopeV2({ onClose, onCreated }) {
 
   // helper
 
-  const title = appConfig?.strings?.scope?.newScope ?? "Nouveau dossier";
-  const label = appConfig?.strings?.project?.nameSingular ?? "Projet";
+  const title = appConfig?.strings?.scope?.new ?? "Nouveau dossier";
+  const label = appConfig?.strings?.project?.nameLabel ?? "Nom du projet";
   const scopeNameLabel =
     appConfig?.strings?.scope?.nameLabel ?? "Nom du dossier";
 

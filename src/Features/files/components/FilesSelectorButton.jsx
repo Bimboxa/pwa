@@ -1,4 +1,4 @@
-import {useRef} from "react";
+import { useRef } from "react";
 
 import {
   Button,
@@ -8,7 +8,7 @@ import {
   Typography,
   Tooltip,
 } from "@mui/material";
-import {Add, Image, Computer} from "@mui/icons-material";
+import { Add, Image, Computer } from "@mui/icons-material";
 
 export default function FilesSelectorButton({
   onFilesChange,
@@ -39,13 +39,13 @@ export default function FilesSelectorButton({
     onFilesChange(files);
   }
   return (
-    <Box sx={{position: "relative"}}>
+    <Box sx={{ position: "relative" }}>
       <input
         ref={ref}
         type="file"
         accept={accept}
         multiple={multiple}
-        style={{position: "absolute", top: 0, opacity: 0, width: 1}}
+        style={{ position: "absolute", top: 0, opacity: 0, width: 1 }}
         onChange={handleInputChange}
       />
       {variant === "button" && (
@@ -58,12 +58,14 @@ export default function FilesSelectorButton({
           color={buttonColor}
           size="small"
           disableElevation
-          sx={{position: "relative"}}
+          sx={{ position: "relative" }}
           disabled={status === "loading"}
         >
-          <Typography variant="body2">{buttonName}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {buttonName}
+          </Typography>
           {status === "loading" && (
-            <Box sx={{position: "absolute", bottom: 0, width: "100%"}}>
+            <Box sx={{ position: "absolute", bottom: 0, width: "100%" }}>
               <LinearProgress />
             </Box>
           )}

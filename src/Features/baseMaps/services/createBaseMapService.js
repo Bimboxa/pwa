@@ -15,4 +15,6 @@ export default async function createBaseMapService({
     await db.baseMaps.add(baseMapRecord);
     await db.projectFiles.add(projectFileRecord);
   });
+
+  return baseMap;
 }
