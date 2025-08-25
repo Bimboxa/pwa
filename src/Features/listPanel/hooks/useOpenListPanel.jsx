@@ -9,6 +9,7 @@ export default function useOpenListPanel() {
   );
 
   const openCreateItemPanel = useOpenCreateItemPanel();
+  const clickedItem = useSelector((s) => s.listPanel.clickedItem);
 
-  return Boolean(selectedListTypeKey) || openCreateItemPanel;
+  return Boolean(selectedListTypeKey) || openCreateItemPanel || clickedItem;
 }

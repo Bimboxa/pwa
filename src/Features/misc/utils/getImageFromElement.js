@@ -8,6 +8,7 @@ export default async function getImageFromElement(element) {
   if (!element) return;
 
   const bbox = element.getBoundingClientRect();
+  const devicePixelRatio = Math.min(window.devicePixelRatio, 2);
 
   try {
     const _canvas = await html2canvas(element, {
@@ -39,8 +40,10 @@ export default async function getImageFromElement(element) {
     }
   } finally {
     if (url) {
-      width = (bbox.width / 2) * devicePixelRatio;
-      height = (bbox.height / 2) * devicePixelRatio;
+      //width = (bbox.width / 2) * devicePixelRatio;
+      //height = (bbox.height / 2) * devicePixelRatio;
+      width = bbox.width;
+      height = bbox.height;
     }
   }
 

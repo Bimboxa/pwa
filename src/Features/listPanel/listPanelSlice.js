@@ -10,6 +10,8 @@ const listPanelInitialState = {
   selectedListId: null,
   //
   selectedListTypeKey: null,
+  //
+  clickedItem: null, // {type,item}. clicked Item from the editors.
 };
 
 export const listPanelSlice = createSlice({
@@ -34,6 +36,10 @@ export const listPanelSlice = createSlice({
     setSelectedListTypeKey: (state, action) => {
       state.selectedListTypeKey = action.payload;
     },
+    //
+    setClickedItem: (state, action) => {
+      state.clickedItem = action.payload;
+    },
   },
 });
 
@@ -46,6 +52,8 @@ export const {
   setSelectedListId,
   //
   setSelectedListTypeKey,
+  //
+  setClickedItem,
 } = listPanelSlice.actions;
 
 export default listPanelSlice.reducer;
