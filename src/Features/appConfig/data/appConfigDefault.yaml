@@ -31,12 +31,13 @@ strings:
     select: "Sélectionnez un dossier / lot"
 
   project:
-    nameSingular: "Projet"
-    namePlural: "Projets"
-    seeAll: "Tous les projets"
-    new: "Nouveau projet"
-    create: "Créez un nouveau projet"
-    noProject: Aucun projet disponible
+    nameSingular: "Chantier"
+    namePlural: "Chantiers"
+    seeAll: "Tous les chantiers"
+    new: "Nouveau chantier"
+    create: "Créez un nouveau chantier"
+    noProject: Aucun chantier disponible
+    nameLabel: Nom du chantier
 
   scope:
     nameSingular: "Krto"
@@ -47,6 +48,7 @@ strings:
     select: "Sélectionnez une Krto"
     myScopes: "Mes Krtos"
     nameLabel: "Nom du Krto"
+    noScope: "Aucun Krto"
 
   listing:
     locatedEntities: "Annotations"

@@ -26,6 +26,9 @@ export default function PanelLegend({ printMode }) {
 
   const legendItems = useLegendItems();
   const printModeEnabled = useSelector((s) => s.mapEditor.printModeEnabled);
+  const baseMapViewId = useSelector(
+    (s) => s.baseMapViews.selectedBaseMapViewId
+  );
 
   // state
 
@@ -41,7 +44,7 @@ export default function PanelLegend({ printMode }) {
 
   return (
     <>
-      {!printModeEnabled && (
+      {!printModeEnabled && baseMapViewId && (
         <Panel elevation={0}>
           <Box
             ref={printMode ? legendRef : null}
