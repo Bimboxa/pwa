@@ -49,11 +49,24 @@ export default class ImagesManager {
   };
 
   createImage2DAsync = async (image, options) => {
-    const image2D = await Image2D.create(image);
+    // options
+    const center = options?.center;
+    const isMainImage = options?.isMainImage;
+    const baseMapId = options?.fromBaseMapId;
+
+    // main
+    const image2D = await Image2D.create({
+      ...image,
+      nodeType: isMainImage ? "MAIN_IMAGE" : "IMAGE",
+      baseMapId,
+    });
+
     console.log("createImage2DAsync", image2D);
     this.layerImages.add(image2D.group);
     this.mainImage2D = image2D;
-    if (options?.center) this.centerImage2D(image2D);
+
+    // center
+    if (center) this.centerImage2D(image2D);
   };
 
   // DEPRECATED

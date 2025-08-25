@@ -31,24 +31,28 @@ export default function LayerDesktop() {
             top: "8px",
             left: "8px",
             zIndex: 2,
+            display: "flex",
+            alignItems: "center",
+            "&>*": {
+              mr: 2,
+            },
           }}
         >
           <TopBarProjectAndScope />
-        </Box>
-      )}
-
-      {false && (
-        <Box
-          sx={{
-            position: "absolute",
-            top: "8px",
-            right: "8px",
-            zIndex: 2,
-          }}
-        >
           <SelectorViewer />
         </Box>
       )}
+
+      {/* <Box
+        sx={{
+          position: "absolute",
+          top: "8px",
+          right: "8px",
+          zIndex: 2,
+        }}
+      >
+        <SelectorViewer />
+      </Box> */}
 
       {!printMode && (
         <Box
