@@ -16,6 +16,10 @@ import PanelChatContainer from "./PanelChatContainer";
 import PanelListItem from "Features/listPanel/components/PanelListItem";
 import PanelLegend from "Features/legend/components/PanelLegend";
 import BottomBarDesktop from "./BottomBarDesktop";
+import ListPanelsContainer from "Features/listPanel/components/ListPanelsContainer";
+import MenuListTypes from "Features/listPanel/components/MenuListTypes";
+import ListPanelV2 from "Features/listPanel/components/ListPanelV2";
+import VerticalMenuRightPanel from "Features/rightPanel/components/VerticalMenuRightPanel";
 
 export default function LayoutDesktop() {
   // data
@@ -32,16 +36,23 @@ export default function LayoutDesktop() {
 
   return (
     <BoxFlexV sx={{ position: "relative" }}>
-      <LayerDesktop />
-      {/*<TopBarDesktop />*/}
-      <BoxFlexHStretch>
-        {/*<ListPanel />*/}
-        <SectionViewer />
-      </BoxFlexHStretch>
-      <BottomBarDesktop />
-      <PanelChatContainer />
+      {/* <LayerDesktop /> */}
+      <TopBarDesktop />
+      <Box sx={{ display: "flex", width: 1, flexGrow: 1 }}>
+        <Box sx={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
+          <MenuListTypes />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <SectionViewer />
+          </Box>
 
-      <Box
+          {/*  */}
+        </Box>
+        <VerticalMenuRightPanel />
+      </Box>
+      <BottomBarDesktop />
+      {/* <PanelChatContainer /> */}
+
+      {/* <Box
         sx={{
           position: "absolute",
 
@@ -58,7 +69,7 @@ export default function LayoutDesktop() {
         }}
       >
         <PanelListItem />
-      </Box>
+      </Box> */}
     </BoxFlexV>
   );
 }

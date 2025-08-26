@@ -17,6 +17,7 @@ export default function LayerDesktop() {
   const windowHeight = useSelector((s) => s.layout.windowHeight);
   const openListPanel = useOpenListPanel();
   const printMode = useSelector((s) => s.mapEditor.printModeEnabled);
+  const showRightPanel = useSelector((s) => s.rightPanel.selectedMenuItemKey);
 
   // helpers
 
@@ -112,6 +113,21 @@ export default function LayerDesktop() {
       >
         <PanelLegend />
       </Box>
+
+      <Box
+        sx={{
+          position: "absolute",
+          top: "64px",
+          right: "8px",
+          width: "200px",
+          zIndex: 100,
+          boxSizing: "border-box",
+          bgcolor: "background.default",
+          display: "flex",
+          flexDirection: "column",
+          bgcolor: "white",
+        }}
+      ></Box>
     </>
   );
 }

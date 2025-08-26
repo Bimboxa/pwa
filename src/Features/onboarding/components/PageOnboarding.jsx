@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
 import { setOpenPanelCreateData } from "../onboardingSlice";
 
@@ -16,6 +17,7 @@ import ImageAnimatedMap from "./ImageAnimatedMap";
 
 export default function PageOnboarding() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   // strings
 
@@ -82,7 +84,8 @@ export default function PageOnboarding() {
         <Box sx={{ mt: 3 }}>
           <BlockStartButtons
             isMobile={isMobile}
-            onShowCreateData={() => dispatch(setOpenPanelCreateData(true))}
+            //onShowCreateData={() => dispatch(setOpenPanelCreateData(true))}
+            onShowCreateData={() => navigate("/dashboard")}
           />
         </Box>
       </Box>

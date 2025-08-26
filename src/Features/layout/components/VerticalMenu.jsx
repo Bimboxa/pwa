@@ -43,7 +43,7 @@ export default function VerticalMenu({
   }
 
   return (
-    <Box sx={{ p: 0.5, bgcolor: "white", borderRadius: 1 }}>
+    <Box sx={{ p: 0.5, borderRadius: 1 }}>
       <StyledToggleButtonGroup
         value={selection}
         exclusive

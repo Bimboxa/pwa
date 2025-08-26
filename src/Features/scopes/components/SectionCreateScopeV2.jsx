@@ -71,11 +71,12 @@ export default function SectionCreateScopeV2({ onClose, onCreated }) {
       projectId: scopeProject.id,
     });
 
-    const baseMapView = await createBaseMapView({
-      name: "Nouveau plan",
-      scopeId: scope.id,
-    });
-    dispatch(setSelectedBaseMapViewIdInEditor(baseMapView.id));
+    // const baseMapView = await createBaseMapView({
+    //   name: "Nouveau plan",
+    //   scopeId: scope.id,
+    // });
+    // dispatch(setSelectedBaseMapViewIdInEditor(baseMapView.id));
+
     onCreated(scope);
   }
 
@@ -84,7 +85,7 @@ export default function SectionCreateScopeV2({ onClose, onCreated }) {
   return (
     <BoxFlexVStretch>
       <HeaderTitleClose title={title} onClose={onClose} />
-      <BoxFlexV sx={{ p: 1, flexGrow: 1 }}>
+      <BoxFlexV sx={{ p: 1, pt: 3, flexGrow: 1 }}>
         <Autocomplete
           freeSolo
           fullWidth

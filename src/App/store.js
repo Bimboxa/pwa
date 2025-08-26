@@ -10,6 +10,7 @@ import syncReducer from "Features/sync/syncSlice";
 import dashboardReducer from "Features/dashboard/dashboardSlice";
 import layoutReducer from "Features/layout/layoutSlice";
 import listPanelReducer from "Features/listPanel/listPanelSlice";
+import rightPanelReducer from "Features/rightPanel/rightPanelSlice";
 import onboardingReducer from "Features/onboarding/onboardingSlice";
 import masterProjectsReducer from "Features/masterProjects/masterProjectsSlice";
 import projectsReducer from "Features/projects/projectsSlice";
@@ -32,6 +33,7 @@ import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
 import reportsReducer from "Features/reports/reportsSlice";
 //
 import chatReducer from "Features/chat/chatSlice";
+import showerReducer from "Features/shower/showerSlice";
 //
 import gapiReducer from "Features/gapi/gapiSlice";
 import dropboxReducer from "Features/dropbox/dropboxSlice";
@@ -52,6 +54,7 @@ const store = configureStore({
     layout: layoutReducer,
     onboarding: onboardingReducer,
     listPanel: listPanelReducer,
+    rightPanel: rightPanelReducer,
     masterProjects: masterProjectsReducer,
     projects: projectsReducer,
     scopes: scopesReducer,
@@ -73,6 +76,7 @@ const store = configureStore({
     reports: reportsReducer,
     //
     chat: chatReducer,
+    shower: showerReducer,
     //
     gapi: gapiReducer,
     dropbox: dropboxReducer,
