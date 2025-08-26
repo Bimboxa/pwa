@@ -1,4 +1,4 @@
-import {Box, Paper} from "@mui/material";
+import { Box, Paper } from "@mui/material";
 import ButtonDialogAppConfig from "Features/appConfig/components/ButtonDialogAppConfig";
 
 export default function BottomBarDesktop() {
@@ -10,6 +10,7 @@ export default function BottomBarDesktop() {
         height: 42,
         display: "flex",
         alignItems: "center",
+        zIndex: 100,
       }}
     >
       <ButtonDialogAppConfig />

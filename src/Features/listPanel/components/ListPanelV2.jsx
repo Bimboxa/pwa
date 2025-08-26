@@ -12,17 +12,16 @@ export default function ListPanelV2() {
   // data
 
   const key = useSelector((s) => s.listPanel.selectedListTypeKey);
-  console.log("listType", key);
 
   return (
     <Paper
-      elevation={12}
+      //elevation={12}
+      square
       sx={{
         width: 1,
         display: "flex",
         flexDirection: "column",
         minHeight: 1,
-        flexGrow: 1,
       }}
     >
       {key === "BASE_MAP_VIEWS" && <SectionBaseMapViewsInListPanel />}

@@ -10,11 +10,13 @@ export default function OnboardingGate({ children }) {
   // effect
 
   const isOnboarded = getIsOnboardedFromLocalStorage();
+
   useEffect(() => {
     if (!isOnboarded) {
       navigate("/onboarding");
       setIsOnboardedInLocalStorage("true");
     }
-  });
+  }, [isOnboarded]);
+
   return <>{children}</>;
 }

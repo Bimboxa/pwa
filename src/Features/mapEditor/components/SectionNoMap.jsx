@@ -96,6 +96,9 @@ export default function SectionNoMap() {
           width: 1,
           height: 1,
           position: "relative",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
         }}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -126,7 +129,15 @@ export default function SectionNoMap() {
             accept=".png"
           />
         </Box>
-        <img src={imageMap} width="100%" alt="Aucune carte disponible" />
+        <img
+          src={imageMap}
+          height="100%"
+          alt="Aucune carte disponible"
+          //style={{ border: "1px solid red" }}
+          onMouseDown={(e) => e.preventDefault()}
+          onDragStart={(e) => e.preventDefault()}
+          draggable={false}
+        />
       </Box>
     </BoxCenter>
   );

@@ -10,6 +10,8 @@ export default async function createBaseMapViewService({
 }) {
   const id = nanoid();
 
+  if (!baseMap?.id) return;
+
   return await db.baseMapViews.add({
     id,
     scopeId,

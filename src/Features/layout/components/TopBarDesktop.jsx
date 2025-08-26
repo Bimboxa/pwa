@@ -9,6 +9,7 @@ import ButtonSelectorScope from "Features/scopes/components/ButtonSelectorScope"
 import SelectorViewer from "Features/viewers/components/SelectorViewer";
 //import ButtonSelectorScopeInTopBar from "Features/scopes/components/ButtonSelectorScopeInTopBar";
 import AuthButtons from "Features/auth/components/AuthButtons";
+import TopBarProjectAndScope from "./TopBarProjectAndScope";
 
 export default function TopBarDesktop() {
   const height = useSelector((s) => s.layout.topBarHeight);
@@ -23,16 +24,19 @@ export default function TopBarDesktop() {
         bgcolor: "white",
         zIndex: 1000,
         px: 1,
+        borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
       }}
     >
       {/* <ButtonSelectorScopeInTopBar /> */}
-      <BoxFlexH>
+      {/* <BoxFlexH>
         <ButtonSelectorProject />
         <Box sx={{ px: 1 }}>
           <Divider orientation="vertical" flexItem sx={{ height: 24 }} />
         </Box>
         <ButtonSelectorScope />
-      </BoxFlexH>
+      </BoxFlexH> */}
+
+      <TopBarProjectAndScope />
 
       <Box />
 
