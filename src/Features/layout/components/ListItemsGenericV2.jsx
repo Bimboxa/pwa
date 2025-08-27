@@ -1,3 +1,4 @@
+import React from "react";
 import {
   Box,
   List,
@@ -33,7 +34,8 @@ export default function ListItemsGenericV2({
           key={item[keyString]}
           onClick={() => onClick(item)}
         >
-          {componentListItem && componentListItem({ ...item })}
+          {componentListItem &&
+            React.createElement(componentListItem, { ...item })}
         </ListItemButton>
       ))}
     </List>

@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 
-import useSelectedMainBaseMap from "./useSelectedMainBaseMap";
 import useSelectedBaseMapViewInEditor from "Features/baseMapViews/hooks/useSelectedBaseMapViewInEditor";
 
 export default function useAutoLoadBaseMapViewInMapEditor({

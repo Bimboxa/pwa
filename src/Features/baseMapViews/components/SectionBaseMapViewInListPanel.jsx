@@ -27,7 +27,7 @@ export default function SectionBaseMapViewInListPanel({ item, onClose }) {
 
   // helpers
 
-  const bgImages = appConfig?.features?.baseMaps.bgImages;
+  const bgImages = appConfig?.features?.baseMapViews.bgImages;
   const nextIndex = index === bgImages?.length - 1 ? 0 : index + 1;
 
   // handlers

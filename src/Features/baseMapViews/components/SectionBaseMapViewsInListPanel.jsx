@@ -10,7 +10,7 @@ import {
 import useBaseMapViews from "../hooks/useBaseMapViews";
 import useBaseMapView from "../hooks/useBaseMapView";
 
-import ListPanelGeneric from "Features/listPanel/components/ListPanelGeneric";
+import ItemsInListPanelGeneric from "Features/listPanel/components/ItemsInListPanelGeneric";
 import ListItemBaseMapView from "./ListItemBaseMapView";
 import SectionBaseMapViewInListPanel from "./SectionBaseMapViewInListPanel";
 import SectionEditBaseMapViewInListPanel from "./SectionEditBaseMapViewInListPanel";
@@ -66,7 +66,7 @@ export default function SectionBaseMapViewsInListPanel() {
   }
 
   return (
-    <ListPanelGeneric
+    <ItemsInListPanelGeneric
       title="Plans"
       items={views}
       onItemClick={handleEditClick}

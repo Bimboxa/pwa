@@ -9,6 +9,12 @@ const baseMapViewsInitialState = {
   isCreatingBaseMapView: false,
   isEditingBaseMapView: false,
   editedBaseMapView: null,
+
+  // tempProps : used to update temp props while modifying the view in the mapEditor.
+
+  tempProps: {
+    bgImage: null,
+  },
 };
 
 export const baseMapViewsSlice = createSlice({

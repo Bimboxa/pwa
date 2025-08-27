@@ -26,7 +26,9 @@ export default class MapEditor {
     this.scope = null;
     this.stage = new Konva.Stage({ container, draggable: true, width, height });
 
-    this.offset = { x: 62, y: 62 }; // offset in px = margin of the bgImage.
+    //this.offset = { x: 62, y: 62 }; // offset in px = margin of the bgImage.
+    this.offset = { x: 70, y: 70 }; // offset in px = margin of the bgImage.
+
     this.scaleBy = 1.1;
     this.scaleByTouch = 1.05;
 
@@ -83,6 +85,17 @@ export default class MapEditor {
     window.addEventListener("keydown", this.handleKeyDown);
 
     this._initStageSize({ width, height });
+
+    // subscription to store
+    this.unsubsribe = store.subscribe(() => {
+      const showBgImage = store.getState().shower.showBgImage;
+      console.log("[SUBSCRIPTION] showBgImage", showBgImage);
+      if (showBgImage) {
+        this.showBgImage();
+      } else {
+        this.hideBgImage();
+      }
+    });
   }
 
   /*
@@ -392,6 +405,13 @@ export default class MapEditor {
   /*
    * PRINT MODE
    */
+  showBgImage() {
+    this.imagesManager.bgImageNode?.show();
+  }
+
+  hideBgImage() {
+    this.imagesManager.bgImageNode?.hide();
+  }
 
   enablePrintMode() {
     console.log("[MapEditor] enablePrintMode");
@@ -415,7 +435,6 @@ export default class MapEditor {
       x: 0,
       y: 0,
     };
-    console.log("debug_3007 props", props, bgImage);
 
     await this.imagesManager.setBgImageNodeAsync(props);
     this.setStageSize(imageSize);
