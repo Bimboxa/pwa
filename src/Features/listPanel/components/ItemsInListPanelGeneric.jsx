@@ -15,7 +15,7 @@ import IconButtonClose from "Features/layout/components/IconButtonClose";
 
 import getFoundItems from "Features/search/getFoundItems";
 
-export default function ListPanelGeneric({
+export default function ItemsInListPanelGeneric({
   title,
   onClose,
   searchKeys,
@@ -29,7 +29,7 @@ export default function ListPanelGeneric({
 
   // state
 
-  const [searchText, setSetText] = useState();
+  const [searchText, setSearchText] = useState("");
   const [openCreate, setOpenCreate] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
@@ -38,6 +38,8 @@ export default function ListPanelGeneric({
   const filteredItems = useMemo(() => {
     return getFoundItems({ items, searchText, searchKeys });
   }, [items, searchText, searchKeys]);
+
+  console.log("debug_0827 filteredItems", filteredItems);
 
   // handlers
 
@@ -58,7 +60,7 @@ export default function ListPanelGeneric({
       <Box sx={{ p: 1, width: 1 }}>
         <SearchBar
           value={searchText}
-          onChange={setSetText}
+          onChange={setSearchText}
           onCreateClick={onCreateClick}
         />
       </Box>

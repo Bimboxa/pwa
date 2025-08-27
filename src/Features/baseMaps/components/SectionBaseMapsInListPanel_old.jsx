@@ -10,8 +10,6 @@ import useSelectedListType from "Features/listPanel/hooks/useSelectedListType";
 import ListBaseMapsV2 from "./ListBaseMapsV2";
 import ButtonCreateBaseMap from "./ButtonCreateBaseMap";
 import SectionCreateBaseMap from "./SectionCreateBaseMap";
-import ItemsInListPanelGeneric from "Features/listPanel/components/ItemsInListPanelGeneric";
-import ListItemBaseMap from "./ListItemBaseMap";
 
 export default function SectionBaseMapsInListPanel() {
   const dispatch = useDispatch();
@@ -25,13 +23,8 @@ export default function SectionBaseMapsInListPanel() {
   const listType = useSelectedListType();
   const { value: baseMaps } = useBaseMaps();
   const isCreating = useSelector((s) => s.baseMaps.isCreatingBaseMap);
-  const selectedId = useSelector((s) => s.baseMapViews.selectedBaseMapId);
 
   console.log("baseMaps", baseMaps);
-
-  // helpers
-
-  const selection = selectedId ? [selectedId] : [];
 
   // handlers
 
@@ -43,24 +36,11 @@ export default function SectionBaseMapsInListPanel() {
     dispatch(setSelectedMainBaseMapId(bm.id));
   }
 
-  function handleCreateClick() {
-    const selectedId = useSelector((s) => s.baseMapViews.selectedBaseMapViewId);
-  }
-
   if (isCreating) return <SectionCreateBaseMap />;
 
   return (
     <BoxFlexVStretch>
-      <ItemsInListPanelGeneric
-        title="Fonds de plan"
-        items={baseMaps}
-        searchKeys={["name"]}
-        onItemClick={handleBaseMapClick}
-        onCreateClick={handleCreateClick}
-        selection={selection}
-        componentListItem={ListItemBaseMap}
-      />
-      {/* <HeaderListPanel
+      <HeaderListPanel
         title={listType?.label}
         actionComponent={<ButtonCreateBaseMap />}
       />
@@ -70,7 +50,7 @@ export default function SectionBaseMapsInListPanel() {
           onClick={handleBaseMapClick}
           onSelectInEditor={handleSelectInEditor}
         />
-      </BoxFlexVStretch> */}
+      </BoxFlexVStretch>
     </BoxFlexVStretch>
   );
 }

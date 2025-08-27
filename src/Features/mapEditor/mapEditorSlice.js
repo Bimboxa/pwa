@@ -13,6 +13,8 @@ const mapEditorInitialState = {
   //
   showLayerScreenCursor: false,
   printModeEnabled: false,
+  //
+  bgImageKey: "DEFAULT",
 };
 
 export const mapEditorSlice = createSlice({
@@ -52,6 +54,10 @@ export const mapEditorSlice = createSlice({
     setPrintModeEnabled: (state, action) => {
       state.printModeEnabled = action.payload;
     },
+    // bgImage
+    setDefaultBgImage: (state, action) => {
+      state.defaultBgImage = action.payload;
+    },
   },
 });
 
@@ -69,6 +75,8 @@ export const {
   setShowLayerScreenCursor,
   //
   setPrintModeEnabled,
+  //
+  setDefaultBgImage,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;

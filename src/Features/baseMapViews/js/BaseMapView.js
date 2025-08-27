@@ -20,6 +20,7 @@ export default class BaseMapView {
     bgImage,
     baseMapPosition,
     baseMapScale,
+    isTemp,
   }) {
     this.id = id;
     this.name = name;
@@ -28,6 +29,7 @@ export default class BaseMapView {
     this.bgImage = bgImage;
     this.baseMapPosition = baseMapPosition;
     this.baseMapScale = baseMapScale;
+    this.isTemp = isTemp;
   }
 
   /*
@@ -38,6 +40,14 @@ export default class BaseMapView {
     const baseMap = await BaseMap.createFromRecord({ id: record.baseMap?.id });
     const bgImage = new ImageObject({ ...record.bgImage });
     const baseMapView = new BaseMapView({ ...record, baseMap, bgImage });
+    return baseMapView;
+  };
+
+  static createFromBaseMap = ({ baseMap, imageUrlRemote, imageSize }) => {
+    const id = "_" + baseMap.id;
+    const isTemp = true;
+    const bgImage = new ImageObject({ imageUrlRemote, imageSize });
+    const baseMapView = new BaseMapView({ id, bgImage, baseMap, isTemp });
     return baseMapView;
   };
 
@@ -60,7 +70,6 @@ export default class BaseMapView {
     return {
       name: this.name,
       baseMapId: this.baseMap.id,
-      documentSize: this.documentSize,
       bgImage: {
         imageUrlRemote: this.bgImage.imageUrlRemote,
         imageSize: this.bgImage.imageSize,

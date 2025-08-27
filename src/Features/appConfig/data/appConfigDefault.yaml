@@ -90,7 +90,7 @@ orgaData:
 # FEATURES
 
 features:
-  baseMaps:
+  baseMapViews:
     bgImages:
       - key: DEFAULT
         url: https://public.media.bimboxa.com/bg_image_A4_150dpi_default.png

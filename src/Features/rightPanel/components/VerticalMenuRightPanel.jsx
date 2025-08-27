@@ -4,11 +4,12 @@ import { setSelectedMenuItemKey } from "../rightPanelSlice";
 
 import VerticalMenu from "Features/layout/components/VerticalMenu";
 
-import { Info, Visibility } from "@mui/icons-material";
+import { Download, Info, Visibility } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
 
 import PanelShower from "Features/shower/components/PanelShower";
+import PanelEditorExport from "Features/editorExport/components/PanelEditorExport";
 
 export default function VerticalMenuRightPanel() {
   const dispatch = useDispatch();
@@ -26,11 +27,17 @@ export default function VerticalMenuRightPanel() {
       label: "Sélection",
       icon: <Info />,
     },
+    {
+      key: "EDITOR_EXPORT",
+      label: "Export",
+      icon: <Download />,
+    },
   ];
 
   // data
 
   const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
+  const width = useSelector((s) => s.rightPanel.width);
 
   // helper
 
@@ -64,13 +71,14 @@ export default function VerticalMenuRightPanel() {
             top: 5,
             left: -5,
             transform: "translateX(-100%)",
-            width: 200,
+            width,
             minHeight: 100,
             bgcolor: "white",
             zIndex: 200,
           }}
         >
           {selectedKey === "SHOWER" && <PanelShower />}
+          {selectedKey === "EDITOR_EXPORT" && <PanelEditorExport />}
         </Paper>
       )}
     </Box>

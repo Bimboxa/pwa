@@ -5,6 +5,9 @@ import { useSelector } from "react-redux";
 import useSelectedBaseMapViewInEditor from "Features/baseMapViews/hooks/useSelectedBaseMapViewInEditor";
 
 import editor from "App/editor";
+import useBgImagesFromAppConfig from "Features/baseMapViews/hooks/useBgImagesFromAppConfig";
+import useBgImageInMapEditor from "./useBgImageInMapEditor";
+
 export default function useAutoSetMapEditorConfig() {
   // SCOPE ID
 
@@ -17,15 +20,14 @@ export default function useAutoSetMapEditorConfig() {
 
   // BG IMAGE
 
-  const baseMapView = useSelectedBaseMapViewInEditor();
-
-  const bgImage = baseMapView?.bgImage;
+  const bgImage = useBgImageInMapEditor();
 
   useEffect(() => {
-    if (editor?.mapEditor) {
+    console.log("debug_0827 set bgImage", bgImage);
+    if (editor?.mapEditor && bgImage) {
       editor?.mapEditor.setBgImage(bgImage);
     }
-  }, [bgImage?.imageUrlRemote, editor?.mapEditor]);
+  }, [editor?.mapEditor, bgImage?.imageUrlRemote]);
 
   // PRINT MODE
 
