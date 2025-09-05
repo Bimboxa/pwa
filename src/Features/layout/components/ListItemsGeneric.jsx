@@ -1,6 +1,11 @@
-import {Box, List, ListItemButton, ListItemText} from "@mui/material";
+import { Box, List, ListItemButton, ListItemText } from "@mui/material";
 
-export default function ListItemsGeneric({items, onClick, keyString}) {
+export default function ListItemsGeneric({
+  items,
+  onClick,
+  keyString,
+  selection,
+}) {
   // edge case
 
   if (!items || items.length === 0) {
@@ -10,7 +15,12 @@ export default function ListItemsGeneric({items, onClick, keyString}) {
   return (
     <List dense>
       {items.map((item) => (
-        <ListItemButton key={item[keyString]} onClick={() => onClick(item)}>
+        <ListItemButton
+          divider
+          selected={selection?.includes(item.id)}
+          key={item[keyString]}
+          onClick={() => onClick(item)}
+        >
           <ListItemText>{item.label}</ListItemText>
         </ListItemButton>
       ))}

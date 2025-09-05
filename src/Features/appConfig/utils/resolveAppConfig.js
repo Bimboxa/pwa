@@ -51,7 +51,5 @@ export default function resolveAppConfig(appConfig) {
 
   // return
 
-  console.log("[resolveAppConfig] newAppConfig", newAppConfig);
-
   return newAppConfig;
 }

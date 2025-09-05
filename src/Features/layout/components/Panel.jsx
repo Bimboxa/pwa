@@ -22,8 +22,7 @@ export default function Panel({ elevation, children, ...sx }) {
       )}
 
       {!isMobile && (
-        <Paper
-          elevation={elevation}
+        <Box
           sx={{
             width: 1,
             height: 1,
@@ -34,7 +33,7 @@ export default function Panel({ elevation, children, ...sx }) {
           }}
         >
           {children}
-        </Paper>
+        </Box>
       )}
     </>
   );

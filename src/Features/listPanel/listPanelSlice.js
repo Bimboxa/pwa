@@ -9,7 +9,7 @@ const listPanelInitialState = {
   //
   selectedListId: null,
   //
-  selectedListTypeKey: null,
+  selectedListTypeKey: "LOCATED_ENTITIES",
   //
   clickedItem: null, // {type,item}. clicked Item from the editors.
 };

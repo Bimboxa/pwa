@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { Typography } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import SectionCreateMarkerInListPanel from "Features/markers/components/SectionCreateMarkerInListPanel";
+import SectionCreateMarker from "Features/markers/components/SectionCreateMarker";
 
 export default function SectionCreateLocatedEntityInListPanel() {
   // data
@@ -19,7 +19,7 @@ export default function SectionCreateLocatedEntityInListPanel() {
   return (
     <BoxFlexVStretch>
       {/* <Typography>{enabledDrawingMode}</Typography> */}
-      {showMarker && <SectionCreateMarkerInListPanel />}
+      {showMarker && <SectionCreateMarker />}
     </BoxFlexVStretch>
   );
 }

@@ -9,12 +9,14 @@ import webrtcReducer from "Features/webrtc/webrtcSlice";
 import syncReducer from "Features/sync/syncSlice";
 import dashboardReducer from "Features/dashboard/dashboardSlice";
 import layoutReducer from "Features/layout/layoutSlice";
+import leftPanelReducer from "Features/leftPanel/leftPanelSlice";
 import listPanelReducer from "Features/listPanel/listPanelSlice";
 import rightPanelReducer from "Features/rightPanel/rightPanelSlice";
 import onboardingReducer from "Features/onboarding/onboardingSlice";
 import masterProjectsReducer from "Features/masterProjects/masterProjectsSlice";
 import projectsReducer from "Features/projects/projectsSlice";
 import scopesReducer from "Features/scopes/scopesSlice";
+import scopeCreatorReducer from "Features/scopeCreator/scopeCreatorSlice";
 import scopeSelectorReducer from "Features/scopeSelector/scopeSelectorSlice";
 import baseMapViewsReducer from "Features/baseMapViews/baseMapViewsSlice";
 import baseMapsReducer from "Features/baseMaps/baseMapsSlice";
@@ -53,11 +55,13 @@ const store = configureStore({
     dashboard: dashboardReducer,
     layout: layoutReducer,
     onboarding: onboardingReducer,
+    leftPanel: leftPanelReducer,
     listPanel: listPanelReducer,
     rightPanel: rightPanelReducer,
     masterProjects: masterProjectsReducer,
     projects: projectsReducer,
     scopes: scopesReducer,
+    scopeCreator: scopeCreatorReducer,
     scopeSelector: scopeSelectorReducer,
     listingsConfig: listingsConfigReducer,
     baseMapViews: baseMapViewsReducer,

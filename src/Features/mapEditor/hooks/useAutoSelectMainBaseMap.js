@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import getInitSelectedMainBaseMapId from "Features/init/services/getInitSelectedMainBaseMapId";
 import { setSelectedMainBaseMapId } from "../mapEditorSlice";
 
-import useSelectedMainBaseMap from "./useSelectedMainBaseMap";
+import useMainBaseMap from "./useMainBaseMap";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 
 import db from "App/db/db";
@@ -14,7 +14,7 @@ export default function useAutoSelectMainBaseMap() {
 
   // data
 
-  const baseMap = useSelectedMainBaseMap();
+  const baseMap = useMainBaseMap();
   const { value: baseMaps } = useBaseMaps();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 

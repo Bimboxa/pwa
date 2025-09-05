@@ -88,9 +88,9 @@ export default class MapEditor {
 
     // subscription to store
     this.unsubsribe = store.subscribe(() => {
-      const showBgImage = store.getState().shower.showBgImage;
-      console.log("[SUBSCRIPTION] showBgImage", showBgImage);
-      if (showBgImage) {
+      const _showBgImage = store.getState().shower.showBgImage;
+      console.log("[SUBSCRIPTION] showBgImage", _showBgImage);
+      if (_showBgImage) {
         this.showBgImage();
       } else {
         this.hideBgImage();
@@ -415,9 +415,9 @@ export default class MapEditor {
 
   enablePrintMode() {
     console.log("[MapEditor] enablePrintMode");
-    this.imagesManager.bgImageNode?.show();
-    this.legendManager.updateLegend();
-    this.printModeEnabled = true;
+    // this.imagesManager.bgImageNode?.show();
+    // this.legendManager.updateLegend();
+    // this.printModeEnabled = true;
   }
 
   disablePrintMode() {
@@ -427,6 +427,7 @@ export default class MapEditor {
   }
 
   async setBgImage(bgImage) {
+    console.log("[MapEditor] setBgImage", bgImage);
     const { imageUrlRemote, imageSize } = bgImage;
     const props = {
       url: imageUrlRemote,

@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useLoadedMainBaseMap from "Features/mapEditor/hooks/useLoadedMainBaseMap";
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 
@@ -27,11 +28,13 @@ export default function ButtonSelectorBaseMapInMapEditor() {
   // data
 
   const loadedMainBaseMap = useLoadedMainBaseMap();
+  const mainBaseMap = useMainBaseMap();
   const isMobile = useIsMobile();
 
   // helper
 
-  const buttonLabel = loadedMainBaseMap ? loadedMainBaseMap.label : selectS;
+  //const buttonLabel = loadedMainBaseMap ? loadedMainBaseMap.label : selectS;
+  const buttonLabel = mainBaseMap ? mainBaseMap.name : selectS;
 
   // handlers
 

@@ -24,6 +24,7 @@ import DialogAutoListingsConfig from "Features/listingsConfig/components/DialogA
 import DialogAutoSyncTasks from "Features/sync/components/DialogAutoSyncTasks";
 import DialogAutoDownloadListingsData from "Features/listingsConfig/components/DialogAutoDownloadListingsData";
 import DialogAutoAddListing from "Features/listings/components/DialogAutoAddListing";
+import DialogAutoScopeCreator from "Features/scopeCreator/components/DialogAutoScopeCreator";
 
 export default function MainAppLayout() {
   const dispatch = useDispatch();
@@ -83,6 +84,7 @@ export default function MainAppLayout() {
       <DialogAutoDownloadListingsData />
       <DialogAutoSyncTasks />
       <DialogAutoAddListing />
+      <DialogAutoScopeCreator />
     </DndContext>
   );
 }

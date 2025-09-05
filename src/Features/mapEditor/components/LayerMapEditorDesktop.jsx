@@ -4,6 +4,8 @@ import ButtonOpenListPanel from "Features/listPanel/components/ButtonOpenListPan
 import ToolbarMapEditor from "./ToolbarMapEditor";
 //import SelectorMapInMapEditor from "Features/baseMaps/components/SelectorMapInMapEditor";
 import BlockPrintMode from "./BlockPrintMode";
+import BlockSaveBaseMapViewInEditor from "Features/baseMapViews/components/BlockSaveBaseMapViewInEditor";
+import ButtonSelectorBaseMapInMapEditor from "Features/baseMaps/components/ButtonSelectorBaseMapInMapEditor";
 
 export default function LayerMapEditorDesktop() {
   return (
@@ -11,16 +13,28 @@ export default function LayerMapEditorDesktop() {
       <Box
         sx={{
           position: "absolute",
+          left: "50%",
+          top: "16px",
+          transform: "translateX(-50%)",
+          zIndex: 10000,
+        }}
+      >
+        <ButtonSelectorBaseMapInMapEditor />
+      </Box>
+
+      <Box
+        sx={{
+          position: "absolute",
           top: "50%",
           left: "8px",
           transform: "translateY(-50%)",
-          zIndex: 1,
+          zIndex: 10000,
         }}
       >
         <ButtonOpenListPanel />
       </Box>
 
-      <Box
+      {/* <Box
         sx={{
           position: "absolute",
           //top: "64px",
@@ -31,8 +45,8 @@ export default function LayerMapEditorDesktop() {
           zIndex: 2,
         }}
       >
-        <BlockPrintMode />
-      </Box>
+        <BlockSaveBaseMapViewInEditor />
+      </Box> */}
 
       <Box
         sx={{

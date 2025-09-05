@@ -4,6 +4,7 @@ import BoxCenter from "./BoxCenter";
 
 import PanelShowable from "./PanelShowable";
 import MainMapEditor from "Features/mapEditor/components/MainMapEditor";
+import MainMapEditorV2 from "Features/mapEditor/components/MainMapEditorV2";
 import MainThreedEditor from "Features/threedEditor/components/MainThreedEditor";
 import MainLeafletEditor from "Features/leafletEditor/components/MainLeafletEditor";
 import TableViewer from "Features/tables/components/ViewerTable";
@@ -21,7 +22,7 @@ export default function SectionViewer() {
   return (
     <BoxCenter sx={{ position: "relative" }}>
       <PanelShowable show={showMap} sx={{ position: "absolute", zIndex: 0 }}>
-        <MainMapEditor />
+        <MainMapEditorV2 />
       </PanelShowable>
       <PanelShowable show={showThreed} sx={{ position: "absolute", zIndex: 0 }}>
         <MainThreedEditor />

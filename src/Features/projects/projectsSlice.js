@@ -1,8 +1,10 @@
-import {createSlice} from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
 import setInitProjectId from "Features/init/services/setInitProjectId";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 const projectsInitialState = {
+  initSelectProjectDone: false, // used to know if the projects have been initialized
+  //
   projectsById: {},
   //
   projectsMap: {},
@@ -19,6 +21,9 @@ export const projectsSlice = createSlice({
   name: "projects",
   initialState: projectsInitialState,
   reducers: {
+    setInitSelectProjectDone: (state, action) => {
+      state.initSelectProjectDone = action.payload;
+    },
     setProjectsById: (state, action) => {
       const projects = action.payload;
       console.log("debug_2504_1/2", projects);
@@ -43,6 +48,8 @@ export const projectsSlice = createSlice({
 });
 
 export const {
+  setInitSelectProjectDone,
+  //
   setProjectsById,
   //
   setSelectedProjectId,

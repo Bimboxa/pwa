@@ -13,6 +13,7 @@ import setAppConfigInLocalStorage from "../services/setAppConfigInLocalStorage";
 import useToken from "Features/auth/hooks/useToken";
 
 import resolveAppConfig from "../utils/resolveAppConfig";
+
 import getAppConfigDefault from "../services/getAppConfigDefault";
 
 export default function useRefreshAppConfig() {

@@ -9,12 +9,13 @@ export default function useAutoRedirect() {
   const location = useLocation();
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-
-  console.log("projectId", projectId);
+  const initSelectProjectDone = useSelector(
+    (s) => s.projects.initSelectProjectDone
+  );
 
   useEffect(() => {
-    if (location.pathname === "/" && !projectId) {
+    if (location.pathname === "/" && !projectId && initSelectProjectDone) {
       navigate("/dashboard");
     }
-  }, [location.pathname, projectId]);
+  }, [location.pathname, projectId, initSelectProjectDone]);
 }

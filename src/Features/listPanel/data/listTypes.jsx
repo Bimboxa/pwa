@@ -17,11 +17,6 @@ import {
 
 const listTypes = [
   {
-    key: "BASE_MAP_VIEWS",
-    label: "Plans",
-    icon: <Map />,
-  },
-  {
     key: "BASE_MAPS",
     label: "Fonds de plan",
     icon: <Image />,
@@ -32,14 +27,9 @@ const listTypes = [
     icon: <Category />,
   },
   {
-    key: "LAYERS",
-    label: "Calques",
-    icon: <Layers />,
-  },
-  {
-    key: "EXPORTS",
-    label: "Exports",
-    icon: <FileDownload />,
+    key: "BASE_MAP_VIEWS",
+    label: "Plans",
+    icon: <Map />,
   },
 ];
 

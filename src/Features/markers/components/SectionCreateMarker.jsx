@@ -9,7 +9,7 @@ import { Typography } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SelectorMarkerIcon from "./SelectorMarkerIcon";
 
-export default function SectionCreateMarkerInListPanel() {
+export default function SectionCreateMarker() {
   const dispatch = useDispatch();
 
   // string

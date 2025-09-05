@@ -1,8 +1,8 @@
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-import FormGeneric from "Features/form/components/FormGeneric";
+import FormGenericV2 from "Features/form/components/FormGenericV2";
 
-export default function FormScope({scope, onChange}) {
+export default function FormScope({ scope, onChange }) {
   // data
 
   const appConfig = useAppConfig();
@@ -25,12 +25,16 @@ export default function FormScope({scope, onChange}) {
         key: "name",
         label: "Nom",
         type: "text",
+        options: {
+          fullWidth: true,
+          showLabel: true,
+        },
       },
-      {
-        key: "clientRef",
-        label: "Réf.",
-        type: "text",
-      },
+      // {
+      //   key: "clientRef",
+      //   label: "Réf.",
+      //   type: "text",
+      // },
       // {
       //   key: "presetConfig",
       //   label: appConfig?.strings?.presetConfig?.title,
@@ -47,7 +51,7 @@ export default function FormScope({scope, onChange}) {
   }
 
   return (
-    <FormGeneric
+    <FormGenericV2
       template={template}
       item={scope}
       onItemChange={handleItemChange}

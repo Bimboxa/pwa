@@ -1,10 +1,11 @@
-import {useEffect} from "react";
+import { useEffect } from "react";
 
-import {useSelector, useDispatch} from "react-redux";
+import { useDispatch } from "react-redux";
 
-import useProjects from "./useProjects";
-
-import {setSelectedProjectId} from "../projectsSlice";
+import {
+  setSelectedProjectId,
+  setInitSelectProjectDone,
+} from "../projectsSlice";
 import getInitProjectId from "Features/init/services/getInitProjectId";
 
 export default function useInitSelectProject() {
@@ -14,5 +15,6 @@ export default function useInitSelectProject() {
 
   useEffect(() => {
     dispatch(setSelectedProjectId(initProjectId));
+    dispatch(setInitSelectProjectDone(true));
   }, []);
 }
