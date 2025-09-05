@@ -83,8 +83,9 @@ export default function MapEditorGeneric({
 
   // Fit-to-view (based on bgImage by default)
   const fit = useCallback(() => {
-    const W = bgSize.w || baseSize.w;
-    const H = bgSize.h || baseSize.h;
+    // Prefer the visible layer for fitting
+    const W = (showBgImage ? bgSize.w : 0) || baseSize.w;
+    const H = (showBgImage ? bgSize.h : 0) || baseSize.h;
     console.log("debug_0509 fit", W, H, viewport.w, viewport.h);
     //
     if (!W || !H || !viewport.w || !viewport.h) return;
@@ -94,19 +95,20 @@ export default function MapEditorGeneric({
     const x = (viewport.w - W * k) / 2;
     const y = (viewport.h - H * k) / 2;
     setWorld({ x, y, k });
-  }, [bgSize, baseSize, viewport, minScale, maxScale]);
+  }, [bgSize, baseSize, viewport, minScale, maxScale, showBgImage]);
 
   useEffect(() => {
     if (initialScale === "fit") fit();
     else if (typeof initialScale === "number") {
       const k = clamp(initialScale, minScale, maxScale);
-      const W = bgSize.w || baseSize.w;
-      const H = bgSize.h || baseSize.h;
+      // Prefer the visible layer when centering with a fixed scale
+      const W = (showBgImage ? bgSize.w : 0) || baseSize.w;
+      const H = (showBgImage ? bgSize.h : 0) || baseSize.h;
       const x = (viewport.w - W * k) / 2;
       const y = (viewport.h - H * k) / 2;
       setWorld({ x, y, k });
     }
-  }, [initialScale, viewport, bgSize, baseSize, minScale, maxScale, fit]);
+  }, [initialScale, viewport, bgSize, baseSize, minScale, maxScale]);
 
   // === PANNING ===
 
@@ -303,7 +305,13 @@ export default function MapEditorGeneric({
           <g
             transform={`translate(${bgPose.x}, ${bgPose.y}) scale(${bgPose.k})`}
           >
-            <NodeSvgImage src={bgImageUrl} width={bgSize.w} height={bgSize.h} />
+            {showBgImage && (
+              <NodeSvgImage
+                src={bgImageUrl}
+                width={bgSize.w}
+                height={bgSize.h}
+              />
+            )}
             <g>
               {/* {bgAnnots.map((p, i) => (
                 <circle key={i} cx={p.x} cy={p.y} r={6} fill="#9c27b0" />
