@@ -84,8 +84,8 @@ export default function PageOnboarding() {
         <Box sx={{ mt: 3 }}>
           <BlockStartButtons
             isMobile={isMobile}
-            //onShowCreateData={() => dispatch(setOpenPanelCreateData(true))}
-            onShowCreateData={() => navigate("/dashboard")}
+            onShowCreateData={() => dispatch(setOpenPanelCreateData(true))}
+            //onShowCreateData={() => navigate("/dashboard")}
           />
         </Box>
       </Box>

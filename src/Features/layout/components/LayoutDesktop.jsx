@@ -17,9 +17,10 @@ import PanelListItem from "Features/listPanel/components/PanelListItem";
 import PanelLegend from "Features/legend/components/PanelLegend";
 import BottomBarDesktop from "./BottomBarDesktop";
 import ListPanelsContainer from "Features/listPanel/components/ListPanelsContainer";
-import MenuListTypes from "Features/listPanel/components/MenuListTypes";
+import VerticalMenuListTypes from "Features/listPanel/components/VerticalMenuListTypes";
 import ListPanelV2 from "Features/listPanel/components/ListPanelV2";
-import VerticalMenuRightPanel from "Features/rightPanel/components/VerticalMenuRightPanel";
+import RightPanel from "Features/rightPanel/components/RightPanel";
+import LeftPanel from "Features/leftPanel/components/LeftPanel";
 
 export default function LayoutDesktop() {
   // data
@@ -40,14 +41,15 @@ export default function LayoutDesktop() {
       <TopBarDesktop />
       <Box sx={{ display: "flex", width: 1, flexGrow: 1 }}>
         <Box sx={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
-          <MenuListTypes />
+          {/* <VerticalMenuListTypes /> */}
+          <LeftPanel />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <SectionViewer />
           </Box>
 
           {/*  */}
         </Box>
-        <VerticalMenuRightPanel />
+        <RightPanel />
       </Box>
       <BottomBarDesktop />
       {/* <PanelChatContainer /> */}

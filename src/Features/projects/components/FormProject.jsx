@@ -1,13 +1,8 @@
-import FormVariantGrid from "Features/form/components/FormVariantGrid";
-import FormVariantMobile from "Features/form/components/FormVariantMobile";
+import FormGenericV2 from "Features/form/components/FormGenericV2";
 
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 
-export default function FormProject({project, onChange}) {
-  // data
-
-  const isMobile = useIsMobile();
-
+export default function FormProject({ project, onChange }) {
   // const
 
   const template = {
@@ -16,11 +11,19 @@ export default function FormProject({project, onChange}) {
         key: "name",
         label: "Nom",
         type: "text",
+        options: {
+          showLabel: true,
+          fullWidth: true,
+        },
       },
       {
         key: "clientRef",
         label: "Réf.",
         type: "text",
+        options: {
+          showLabel: true,
+          fullWidth: true,
+        },
       },
     ],
   };
@@ -32,21 +35,10 @@ export default function FormProject({project, onChange}) {
   }
 
   return (
-    <>
-      {isMobile && (
-        <FormVariantMobile
-          template={template}
-          item={project}
-          onItemChange={handleItemChange}
-        />
-      )}
-      {!isMobile && (
-        <FormVariantGrid
-          template={template}
-          item={project}
-          onItemChange={handleItemChange}
-        />
-      )}
-    </>
+    <FormGenericV2
+      template={template}
+      item={project}
+      onItemChange={handleItemChange}
+    />
   );
 }

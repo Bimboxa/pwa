@@ -5,21 +5,21 @@
  * - relatedListings: ex {nomenclature: {id}, zones: xxx}. Used to get the listings related to the entityTemplate.
  * - exists: if the listing already exists in the DB.
  */
-import {nanoid} from "@reduxjs/toolkit";
+import { nanoid } from "@reduxjs/toolkit";
 import updateListingRelatedEntitiesWithListingsIds from "../utils/updateListingRelatedEntitiesWithListingsIds";
 
 import db from "App/db/db";
 import resolveListingNomenclature from "Features/appConfig/services/resolveListingNomenclature";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
-export default async function resolvePresetListings({projectId, appConfig}) {
+export default async function resolvePresetListings({ projectId, appConfig }) {
   // edge case
 
   if (!appConfig || !appConfig.presetListingsObject) return [];
 
   // helpers
 
-  const {presetListingsObject} = appConfig;
+  const { presetListingsObject } = appConfig;
   const presetListings = Object.values(presetListingsObject);
 
   const projectListings = await db.listings
@@ -65,7 +65,7 @@ export default async function resolvePresetListings({projectId, appConfig}) {
       Object.entries(listing.relatedListings).map(([fieldKey, listingKey]) => {
         relatedListings[fieldKey] = listingByKey[listingKey];
       });
-      return {...listing, relatedListings};
+      return { ...listing, relatedListings };
     } else {
       return listing;
     }
@@ -76,7 +76,7 @@ export default async function resolvePresetListings({projectId, appConfig}) {
   listingByKey = getItemsByKey(listings, "key");
 
   listings = listings.map((listing) => {
-    let newListing = {...listing};
+    let newListing = { ...listing };
     if (listing.relatedEntities) {
       const relatedEntities = updateListingRelatedEntitiesWithListingsIds(
         listing.relatedEntities,

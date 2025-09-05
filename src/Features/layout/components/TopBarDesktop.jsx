@@ -10,6 +10,7 @@ import SelectorViewer from "Features/viewers/components/SelectorViewer";
 //import ButtonSelectorScopeInTopBar from "Features/scopes/components/ButtonSelectorScopeInTopBar";
 import AuthButtons from "Features/auth/components/AuthButtons";
 import TopBarProjectAndScope from "./TopBarProjectAndScope";
+import ToggleOpenLeftPanel from "Features/leftPanel/components/ToggleOpenLeftPanel";
 
 export default function TopBarDesktop() {
   const height = useSelector((s) => s.layout.topBarHeight);
@@ -23,7 +24,8 @@ export default function TopBarDesktop() {
         alignItems: "center",
         bgcolor: "white",
         zIndex: 1000,
-        px: 1,
+        pr: 1,
+        pl: 0.5,
         borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
       }}
     >
@@ -36,9 +38,10 @@ export default function TopBarDesktop() {
         <ButtonSelectorScope />
       </BoxFlexH> */}
 
-      <TopBarProjectAndScope />
-
-      <Box />
+      <Box sx={{ display: "flex", alignItems: "center" }}>
+        <ToggleOpenLeftPanel />
+        <TopBarProjectAndScope />
+      </Box>
 
       <SelectorViewer />
 

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import useSelectedMainBaseMap from "./useSelectedMainBaseMap";
+import useMainBaseMap from "./useMainBaseMap";
 
 export default function useAutoLoadMainBaseMapInMapEditor({
   mapEditor,
@@ -8,7 +8,7 @@ export default function useAutoLoadMainBaseMapInMapEditor({
 }) {
   // BASE MAP
 
-  const baseMap = useSelectedMainBaseMap();
+  const baseMap = useMainBaseMap();
 
   useEffect(() => {
     if (mapEditorIsReady && Boolean(baseMap?.id)) {

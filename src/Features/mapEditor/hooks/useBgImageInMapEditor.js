@@ -12,11 +12,9 @@ export default function useBgImageInMapEditor() {
 
   // helpers
 
-  const _bgImages = appConfig?.features?.baseMapViews?.bgImages;
+  const _bgImages = appConfig?.features?.bgImages?.options;
 
   const _bgImage = _bgImages?.find((_bgImage) => _bgImage.key === bgImageKey);
-
-  console.log("_bgImage", _bgImages, bgImageKey);
 
   // return
 

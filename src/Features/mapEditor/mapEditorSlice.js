@@ -55,8 +55,8 @@ export const mapEditorSlice = createSlice({
       state.printModeEnabled = action.payload;
     },
     // bgImage
-    setDefaultBgImage: (state, action) => {
-      state.defaultBgImage = action.payload;
+    setBgImageKey: (state, action) => {
+      state.bgImageKey = action.payload;
     },
   },
 });
@@ -76,7 +76,7 @@ export const {
   //
   setPrintModeEnabled,
   //
-  setDefaultBgImage,
+  setBgImageKey,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;

@@ -33,7 +33,6 @@ export default function ButtonMenu({ buttonLabel, sx, actions }) {
   return (
     <>
       <Box sx={{ display: "flex", alignItems: "center", pl: 0.5 }}>
-        <Tool color="action" />
         <Button
           endIcon={<Down />}
           onClick={handleClick}

@@ -1,0 +1,51 @@
+/*
+ * we compute the listings to create from the preset scope of the config.
+ * props to add :
+ * - id (for unique list in project like nomenclatures)
+ * - projectId
+ *
+ * TODO - add relatedListings (cf resolvePresetListings.js)
+ */
+
+import { nanoid } from "@reduxjs/toolkit";
+
+export default function resolvePresetScopeListings({
+  presetScopeKey,
+  appConfig,
+  projectId,
+}) {
+  // edge case
+
+  if (
+    !appConfig ||
+    !appConfig.presetListingsObject ||
+    !appConfig.presetScopesObject
+  )
+    return [];
+
+  // helpers - presetScope
+
+  const presetScope = appConfig?.presetScopesObject[presetScopeKey];
+
+  // helpers - presetListings
+
+  const presetListings = presetScope?.listings.map((listingKey) => {
+    return appConfig.presetListingsObject[listingKey];
+  });
+
+  // main
+
+  // step 1 - add id & projectId to listings
+
+  let listings = presetListings?.map((listing) => {
+    return {
+      ...listing,
+      id: nanoid(),
+      projectId,
+    };
+  });
+
+  // return
+
+  return listings;
+}

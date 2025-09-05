@@ -2,7 +2,7 @@ import { useSelector } from "react-redux";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ListPanelCreateItemBorder from "./ListPanelCreateItemBorder";
-import SectionCreateMarkerInListPanel from "Features/markers/components/SectionCreateMarkerInListPanel";
+import SectionCreateMarker from "Features/markers/components/SectionCreateMarker";
 import SectionCreateLocatedEntityInListPanel from "Features/locatedEntities/components/SectionCreateLocatedEntityInListPanel";
 import SectionCreateBaseMapViewInListPanel from "Features/baseMapViews/components/SectionCreateBaseMapViewInListPanel";
 

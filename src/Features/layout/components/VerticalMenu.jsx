@@ -30,6 +30,20 @@ const StyledToggleButtonGroup = styled(ToggleButtonGroup)(({ theme }) => ({
     },
 }));
 
+const StyledToggleButton = styled(ToggleButton)(({ theme }) => ({
+  backgroundColor: "white",
+  "&:hover": {
+    backgroundColor: theme.palette.grey[100],
+  },
+  "&.Mui-selected": {
+    backgroundColor: theme.palette.primary.main,
+    color: theme.palette.primary.contrastText,
+    "&:hover": {
+      backgroundColor: theme.palette.primary.dark,
+    },
+  },
+}));
+
 export default function VerticalMenu({
   menuItems,
   selection, // item.key
@@ -57,9 +71,9 @@ export default function VerticalMenu({
               title={item.label}
               placement={tooltipPlacement}
             >
-              <ToggleButton key={item.key} value={item.key}>
+              <StyledToggleButton key={item.key} value={item.key}>
                 {item.icon}
-              </ToggleButton>
+              </StyledToggleButton>
             </Tooltip>
           );
         })}

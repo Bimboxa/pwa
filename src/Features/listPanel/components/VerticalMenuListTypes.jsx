@@ -8,7 +8,7 @@ import listTypes from "../data/listTypes";
 import VerticalMenu from "Features/layout/components/VerticalMenu";
 import ListPanelV2 from "./ListPanelV2";
 
-export default function MenuListTypes() {
+export default function VerticalMenuListTypes() {
   const dispatch = useDispatch();
 
   // helpers

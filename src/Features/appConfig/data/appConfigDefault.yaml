@@ -3,7 +3,7 @@ version: "16/07/2025"
 isDefault: true
 
 # APP
-appName: "Bimboxa"
+appName: "Krto"
 
 # COLORS
 
@@ -31,18 +31,19 @@ strings:
     select: "Sélectionnez un dossier / lot"
 
   project:
-    nameSingular: "Chantier"
-    namePlural: "Chantiers"
-    seeAll: "Tous les chantiers"
-    new: "Nouveau chantier"
-    create: "Créez un nouveau chantier"
-    noProject: Aucun chantier disponible
-    nameLabel: Nom du chantier
+    nameSingular: "Opportunité / Chantier"
+    namePlural: "Opportunités / Chantiers"
+    seeAll: "Tous"
+    new: "Nouveau chantier / opportunité"
+    create: "Créez un nouveau chantier / opportunité"
+    noProject: Aucun chantier / opportunité disponible
+    nameLabel: Nom du chantier / opportunité
 
   scope:
     nameSingular: "Krto"
     namePlural: "Krto"
     seeAll: "Toutes les Krtos"
+    search: "Rechercher une Krto"
     new: "Nouvelle Krto"
     create: "Créez une nouvelle Krto"
     select: "Sélectionnez une Krto"
@@ -90,8 +91,8 @@ orgaData:
 # FEATURES
 
 features:
-  baseMapViews:
-    bgImages:
+  bgImages:
+    options:
       - key: DEFAULT
         url: https://public.media.bimboxa.com/bg_image_A4_150dpi_default.png
         name: "A4 - 150dpi"
@@ -103,6 +104,8 @@ features:
         name: "A4 - 150dpi - Cartouche Etandex"
         width: 1740
         height: 1240
+  presetScopes:
+    templatesImageUrl: https://public.media.bimboxa.com/scope_templates_etandex.gif
 
 sync:
   canSyncLocalProject: false
@@ -119,25 +122,19 @@ creation:
 # ENTITY MODEL
 
 entityModelsObject:
-  map:
-    key: map
-    type: BASE_MAP
+  annotation:
+    key: annotation
+    type: LOCATED_ENTITY
     strings:
-      labelNew: Nouveau fond de plan
-    labelKey: label
+      labelNew: Nouvelle annotation
+    labelKey: text
     fieldsObject:
-      label:
-        key: label
+      text:
+        key: text
         type: text
-        label: Nom
-      image:
-        key: image
-        type: image
-        label: Image
+        label: Description
         options:
-          maxSize: 5000
-          fromPdf: true
-          buttonLabel: Choisir une image / un pdf
+          multiline: true
 
   issue:
     key: issue
@@ -167,14 +164,16 @@ entityModelsObject:
 # PRESET LISTINGS
 
 presetListingsObject:
-  mapsGeneric:
-    key: mapsGeneric
-    name: Fonds de plan
-    entityModelKey: map
-    table: baseMaps
-    color: *purple700
-    iconKey: map
-    canCreateItem: true
+  annotations:
+    key: annotations
+    name: Annotations
+    entityModelKey: annotation
+    table: entities
+    color: *orange300
+    iconKey: annotation
+    sortBy:
+      key: createdAt
+      order: desc
 
   issues:
     key: issues
@@ -187,186 +186,31 @@ presetListingsObject:
       key: num
       order: desc
 
-  mapsFromPhotos:
-    key: mapsFromPhotos
-    name: Fonds de plan (photos)
-    entityModelKey: map
-    table: maps
-    color: *purple700
-    iconKey: map
-    canCreateItem: true
-
-  mapsFromPdf:
-    key: mapsFromPdf
-    name: Fonds de plan (pdf archi)
-    uniqueByProject: true
-    entityModelKey: map
-    table: maps
-    color: *purple900
-    iconKey: map
-    canCreateItem: true
-
-  zones:
-    key: zones
-    name: Pièces
-    type: "ZONING"
-    entityModelKey: zone
-    table: zonings
-    color: *red300
-    iconKey: room
-
-  nom_NFX_46_020:
-    key: nom_NFX_46_020
-    uniqueByProject: true
-    name: "NFX 46-020"
-    type: "NOMENCLATURE"
-    entityModelKey: materialCategory
-    mainTableKey: materialCategories
-    color: *orange800
-    iconKey: nomenclature
-    metadata:
-      nomenclature:
-        srcType: "ORGA_DATA"
-        srcKey: "nomenclature1" # path: orgaData.nomenclature1
-
-  materials:
-    key: materials
-    name: Matériaux
-    entityModelKey: material
-    relatedListings:
-      nomenclature_1: nom_NFX_46_020
-    #relatedNomenclatures: # relation from the key of the nomenclature.
-    #nomenclature_1: "nomenclature1" # we use the key related to the orgadata.
-    #nomenclature_1: nom_NFX_46_020"
-    table: entities
-    color: *orange300
-    iconKey: material
-    zoningKey: zones
-    canCreateItem: true
-
-  relsZoneMaterial:
-    key: relsZoneMaterial
-    type: "RELS_ZONE_ENTITY"
-    name: "ZPSO"
-    entityModelKey: relZoneEntity
-    table: relsZoneEntity
-    color: *orange700
-    iconKey: "share"
-    relatedListing:
-      key: materials
-      id: COMPUTED # this is a computed value when creating the list.
-
-  samples:
-    key: samples
-    name: Prélèvements
-    entityModelKey: sample
-    relatedListings:
-      materials_1: materials
-      zoning_1: zones
-    table: entities
-    enableMarkers: true
-    color: *blue800
-    iconKey: sample
-    sortBy:
-      key: num
-      order: desc
-    relatedEntities: # list the modelEntityKey of the related entities
-      material1:
-        listingsKeys:
-          - materials
-        listingsIds:
-          - COMPUTED # this is a computed value when creating the list.
-      zone1:
-        listingsKeys:
-          - zones
-        listingsIds:
-          - COMPUTED # this is a computed value when creating the list.
-    canCreateItem: true
-
-  observations:
-    name: Sondages
-    entityModelKey: inspection
-    table: entities
-    color: *blue700
-    iconKey: info
-    sortBy:
-      key: num
-      order: desc
-
-  locations:
-    name: Localisations
-    entityModelKey: location
-    table: entities
-    color: *blue300
-    iconKey: location
-
-  comments:
-    key: comments
-    name: Commentaires
-    entityModelKey: comment
-    table: entities
-    color: *red800
-    iconKey: comment
-    canCreateItem: true
-
-  laboOrders:
-    key: laboOrders
-    name: Commandes labo
-    entityModelKey: laboOrder
-    table: entitiesProps
-    color: *green900
-    iconKey: shoppingCart
-    targetKeys:
-      - samples
-
-  laboOrderReports:
-    key: laboOrderReports
-    name: "Bordereau d'envoi"
-    type: "REPORTS"
-    entityModelKey: laboOrderReport
-    table: "reports"
-    color: *green800
-    iconKey: excel
-    metadata:
-      reportConfigKey: "laboOrderReport"
-
 # PRESET SCOPES
 
 presetScopesObject:
   preset1:
     key: preset1
-    name: Diagnostic amiante (WIP)
-    description: Enregistrer vos prélèvements et sondages
+    name: Repérage libre
+    description: Créez librement un plan de repérage.
+    descriptionImageUrl: https://public.media.bimboxa.com/scope_template_etandex_reperage_libre.png
     listings:
-      - projectDataset
-      - mapsFromPhotos
-      - mapsFromPdf
-      - zones
-      - materials
-      - relsZoneMaterial
-      - samples
-      - observations
-      - comments
-      - laboOrders
-      - laboOrderReports
+      - annotations
 
   preset2:
     key: preset2
-    name: Notes libres
-    description: Enregistrer vos commentaires
+    name: Réception de support
+    description: Créez des écarts à partir d'une bibliothèque type.
+    descriptionImageUrl: https://public.media.bimboxa.com/scope_template_etandex_reception_support.png
     listings:
-      - comments
+      - annotations
+      - issues
 
-  presetDebug:
-    key: presetDebug
-    name: Diagnostic amiante
-    listings:
-      - mapsGeneric
-      - zones
-      - nom_NFX_46_020
-      - materials
-      - samples
-      - relsZoneMaterial
+  presetVoid:
+    key: presetVoid
+    name: Krto libre
+    description: Démarrez avec un Krto vide.
+    descriptionImageUrl: https://public.media.bimboxa.com/scope_template_etandex_vide.png
 
 # REPORT TABLES
 

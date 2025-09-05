@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { triggerShapesUpdate } from "Features/shapes/shapesSlice";
 
-//import useAutoLoadMainBaseMapInMapEditor from "../hooks/useAutoLoadMainBaseMapInMapEditor";
+import useAutoLoadMainBaseMapInMapEditor from "../hooks/useAutoLoadMainBaseMapInMapEditor";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 //import useAutoLoadShapesInMapEditor from "../hooks/useAutoLoadShapesInMapEditor";
 import useAutoLoadMarkersInMapEditor from "../hooks/useAutoLoadMarkersInMapEditor";
@@ -115,16 +115,16 @@ export default function MainMapEditor() {
   useAutoUpdateMarkersManager();
 
   // -- baseMapView
-  useAutoLoadBaseMapViewInMapEditor({
+  // useAutoLoadBaseMapViewInMapEditor({
+  //   mapEditor: mapEditorRef.current,
+  //   mapEditorIsReady,
+  // });
+
+  // -- main image
+  useAutoLoadMainBaseMapInMapEditor({
     mapEditor: mapEditorRef.current,
     mapEditorIsReady,
   });
-
-  // -- main image
-  //useAutoLoadMainBaseMapInMapEditor({
-  //  mapEditor: mapEditorRef.current,
-  //  mapEditorIsReady,
-  //});
 
   // -- shapes
   //useAutoLoadShapesInMapEditor({

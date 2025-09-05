@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import useOpenListPanel from "Features/listPanel/hooks/useOpenListPanel";
 
 import { Box } from "@mui/material";
-import MenuListTypes from "Features/listPanel/components/MenuListTypes";
+import VerticalMenuListTypes from "Features/listPanel/components/VerticalMenuListTypes";
 import TopBarProjectAndScope from "./TopBarProjectAndScope";
 import SelectorViewer from "Features/viewers/components/SelectorViewer";
 import ListPanelsContainer from "Features/listPanel/components/ListPanelsContainer";
@@ -16,7 +16,6 @@ export default function LayerDesktop() {
   const width = useSelector((s) => s.listPanel.width);
   const windowHeight = useSelector((s) => s.layout.windowHeight);
   const openListPanel = useOpenListPanel();
-  const printMode = useSelector((s) => s.mapEditor.printModeEnabled);
   const showRightPanel = useSelector((s) => s.rightPanel.selectedMenuItemKey);
 
   // helpers
@@ -25,24 +24,22 @@ export default function LayerDesktop() {
 
   return (
     <>
-      {!printMode && (
-        <Box
-          sx={{
-            position: "absolute",
-            top: "8px",
-            left: "8px",
-            zIndex: 2,
-            display: "flex",
-            alignItems: "center",
-            "&>*": {
-              mr: 2,
-            },
-          }}
-        >
-          <TopBarProjectAndScope />
-          <SelectorViewer />
-        </Box>
-      )}
+      <Box
+        sx={{
+          position: "absolute",
+          top: "8px",
+          left: "8px",
+          zIndex: 2,
+          display: "flex",
+          alignItems: "center",
+          "&>*": {
+            mr: 2,
+          },
+        }}
+      >
+        <TopBarProjectAndScope />
+        <SelectorViewer />
+      </Box>
 
       {/* <Box
         sx={{
@@ -55,19 +52,17 @@ export default function LayerDesktop() {
         <SelectorViewer />
       </Box> */}
 
-      {!printMode && (
-        <Box
-          sx={{
-            position: "absolute",
-            top: "8px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 2,
-          }}
-        >
-          <BlockBaseMapViewInEditor />
-        </Box>
-      )}
+      <Box
+        sx={{
+          position: "absolute",
+          top: "8px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 2,
+        }}
+      >
+        <BlockBaseMapViewInEditor />
+      </Box>
 
       <Box
         sx={{
@@ -78,7 +73,7 @@ export default function LayerDesktop() {
           zIndex: 2,
         }}
       >
-        <MenuListTypes />
+        <VerticalMenuListTypes />
       </Box>
 
       {openListPanel && (

@@ -11,14 +11,14 @@ import theme from "Styles/theme";
 
 export default function useViewers() {
   const viewers = [
-    {
-      key: "BLUEPRINT",
-      label: "Plan de repérage",
-      icon: <Print />,
-    },
+    // {
+    //   key: "BLUEPRINT",
+    //   label: "Plan de repérage",
+    //   icon: <Print />,
+    // },
     {
       key: "MAP",
-      label: "Fond de plan",
+      label: "2D",
       //icon: <Image />,
       icon: <Typography>2D</Typography>,
       bgcolor: theme.palette.viewers.map,
