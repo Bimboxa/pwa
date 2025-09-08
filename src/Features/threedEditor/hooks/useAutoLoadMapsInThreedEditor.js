@@ -7,7 +7,7 @@ export default function useAutoLoadMapsInThreedEditor({
   threedEditor,
   rendererIsReady,
 }) {
-  const baseMapId = useSelector((s) => s.mapEditor.selectedMainBaseMapId);
+  const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
   //const maps = useBaseMaps({widthSelected: true, filterByMapId: mapId});
   const { value: baseMaps } = useBaseMaps();

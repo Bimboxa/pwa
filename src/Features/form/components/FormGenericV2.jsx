@@ -4,7 +4,9 @@ import { Box } from "@mui/material";
 
 import FieldTextV2 from "./FieldTextV2";
 import FieldImageV2 from "./FieldImageV2";
+import FieldColorV2 from "./FieldColorV2";
 import FieldBaseMap from "./FieldBaseMap";
+import FieldIcon from "./FieldIcon";
 
 import FieldZonesVariantGrid from "./FieldZonesVariantGrid";
 import FieldZoneVariantGrid from "./FieldZoneVariantGrid";
@@ -52,6 +54,33 @@ export default function FormGenericV2({
               key={field.key}
               label={field.label}
               width={field.width}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              options={field.options}
+            />
+          );
+        }
+
+        if (field?.type === "color") {
+          return (
+            <FieldColorV2
+              key={field.key}
+              label={field.label}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+            />
+          );
+        }
+
+        if (field?.type === "icon") {
+          return (
+            <FieldIcon
+              key={field.key}
+              label={field.label}
               value={value}
               onChange={(newValue) =>
                 handleFieldValueChange(field.key, newValue)

@@ -3,9 +3,8 @@ import { createSlice } from "@reduxjs/toolkit";
 const mapEditorInitialState = {
   // main map
   selectedBaseMapsListingId: null,
-  selectedMainBaseMapId: null,
+  selectedBaseMapId: null,
   loadedMainBaseMapId: null,
-
   //
   showShapes: true,
   //
@@ -25,8 +24,8 @@ export const mapEditorSlice = createSlice({
       state.selectedBaseMapsListingId = action.payload;
     },
     setSelectedMainBaseMapId: (state, action) => {
-      console.log("[STATE] selectedMainBaseMapId", action.payload);
-      state.selectedMainBaseMapId = action.payload;
+      console.log("[STATE] selectedBaseMapId", action.payload);
+      state.selectedBaseMapId = action.payload;
     },
     setLoadedMainBaseMapId: (state, action) => {
       state.loadedMainBaseMapId = action.payload;
@@ -37,7 +36,7 @@ export const mapEditorSlice = createSlice({
     setEnabledDrawingMode: (state, action) => {
       const drawingMode = action.payload;
       state.enabledDrawingMode = drawingMode;
-      if (!drawingMode) state.showLayerScreenCursor = false;
+      state.showLayerScreenCursor = Boolean(drawingMode);
     },
     // scale
     setAnchorPositionScale: (state, action) => {

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useSelector } from "react-redux";
 
-import useListingById from "../hooks/useListingById";
+import useSelectedListing from "../hooks/useSelectedListing";
+import useEntities from "Features/entities/hooks/useEntities";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
@@ -15,8 +15,8 @@ export default function PanelListingContainer() {
 
   // data
 
-  const listingId = useSelector((s) => s.listings.selectedListingId);
-  const listing = useListingById(listingId);
+  const { value: listing } = useSelectedListing();
+  const { value: entities } = useEntities();
 
   // handlers
 
@@ -31,7 +31,7 @@ export default function PanelListingContainer() {
     <BoxFlexVStretch>
       {openSelectorPanel ? (
         <PanelSelectorListing
-          selectedListingId={listingId}
+          selectedListingId={listing?.id}
           onListingSelected={handleSelectListing}
         />
       ) : (
