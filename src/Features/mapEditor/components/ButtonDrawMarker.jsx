@@ -1,6 +1,9 @@
 import { useDispatch } from "react-redux";
 
-import { setShowLayerScreenCursor } from "../mapEditorSlice";
+import {
+  setEnabledDrawingMode,
+  setShowLayerScreenCursor,
+} from "../mapEditorSlice";
 import { Add as Marker } from "@mui/icons-material";
 import { IconButton } from "@mui/material";
 
@@ -12,7 +15,8 @@ export default function ButtonDrawMarker() {
 
   function handleClick() {
     dispatch(setShowLayerScreenCursor(true));
-    editor.mapEditor.enableDrawingMode("MARKER", { updateRedux: true });
+    editor?.mapEditor?.enableDrawingMode("MARKER", { updateRedux: true });
+    dispatch(setEnabledDrawingMode("MARKER"));
   }
 
   return (

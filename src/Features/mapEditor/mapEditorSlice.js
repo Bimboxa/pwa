@@ -9,7 +9,7 @@ const mapEditorInitialState = {
   //
   showShapes: true,
   //
-  enabledDrawingMode: null,
+  enabledDrawingMode: null, // "MARKER"
   //
   showLayerScreenCursor: false,
   printModeEnabled: false,

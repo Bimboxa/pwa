@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { Box } from "@mui/material";
 
 import VerticalMenuRightPanel from "./VerticalMenuRightPanel";
-import SectionCreateLocatedEntity from "Features/locatedEntities/components/SectionCreateLocatedEntity";
+import PanelCreateLocatedEntity from "Features/locatedEntities/components/PanelCreateLocatedEntity";
 
 export default function RightPanel() {
   // data
@@ -30,7 +30,7 @@ export default function RightPanel() {
               transform: "translateX(-100%)",
             }}
           >
-            <SectionCreateLocatedEntity />
+            <PanelCreateLocatedEntity />
           </Box>
         </Box>
       )}
