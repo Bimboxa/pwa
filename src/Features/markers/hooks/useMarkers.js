@@ -1,28 +1,30 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useSelector } from "react-redux";
 
+import demoMarkers from "../data/demoMarkers";
+
 import db from "App/db/db";
 
 export default function useMarkers(options) {
   // data
 
-  const loadedMainBaseMapId = useSelector(
-    (s) => s.mapEditor.loadedMainBaseMapId
-  );
-
   const markersUpdatedAt = useSelector((s) => s.markers.markersUpdatedAt);
 
-  // helpers
+  // options
 
   const filterByBaseMapId = options?.filterByBaseMapId;
+  const addDemoMarkers = options?.addDemoMarkers;
 
   return useLiveQuery(async () => {
     let markers;
     if (filterByBaseMapId) {
-      markers = db.markers.toArray();
+      markers = await db.markers.toArray();
     } else {
-      markers = db.markers.toArray();
+      markers = await db.markers.toArray();
     }
+
+    // demo markers
+    if (addDemoMarkers) markers = [...markers, ...demoMarkers];
     return markers;
   }, [markersUpdatedAt]);
 }

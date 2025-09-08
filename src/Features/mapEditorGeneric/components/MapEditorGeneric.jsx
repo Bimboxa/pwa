@@ -11,6 +11,7 @@ import { Box, Tooltip, IconButton } from "@mui/material";
 import { CenterFocusStrong as CenterFocusStrongIcon } from "@mui/icons-material";
 
 import NodeSvgImage from "./NodeSvgImage";
+import NodeMarkerVariantDot from "./NodeMarkerVariantDot";
 
 import clamp from "Features/misc/utils/clamp";
 
@@ -18,20 +19,32 @@ import {
   mFromTSR,
   mApply,
   mInverse,
+  mMul,
 } from "Features/matrix/utils/matrixHelpers";
 
 export default function MapEditorGeneric({
   bgImageUrl,
   baseMapImageUrl,
+  markers,
   initialScale = "fit",
   minScale = 0.1,
   maxScale = 10,
   attachTo = "bg", // "bg" or "base"
   showBgImage = true,
+  cursor = "grab",
+  enabledDrawingMode,
+  onNewAnnotation,
+  onAnnotationClick,
 }) {
-  // refs
+  // === REFS ===
 
   const containerRef = useRef();
+
+  // prevent click after drag stops.
+  const CLICK_DRAG_TOL = 5; // px   // 🔥 NEW
+  const downRef = useRef({ x: 0, y: 0 }); // 🔥 NEW
+  const movedRef = useRef(false); // 🔥 NEW
+  const suppressNextClickRef = useRef(false); // 🔥 NEW
 
   // === STATES ===
 
@@ -114,11 +127,16 @@ export default function MapEditorGeneric({
 
   const [isPanning, setIsPanning] = useState(false);
   const panStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
+
   const onPointerDown = useCallback(
     (e) => {
       if (!containerRef.current) return;
-      containerRef.current.setPointerCapture(e.pointerId);
+      //containerRef.current.setPointerCapture(e.pointerId);
       setIsPanning(true);
+      // to prevent click at drag stops
+      downRef.current = { x: e.clientX, y: e.clientY };
+      movedRef.current = false;
+      //
       panStart.current = {
         x: e.clientX,
         y: e.clientY,
@@ -133,6 +151,16 @@ export default function MapEditorGeneric({
       if (!isPanning) return;
       const dx = e.clientX - panStart.current.x;
       const dy = e.clientY - panStart.current.y;
+
+      // 🔥 detect drag beyond tolerance
+      if (
+        !movedRef.current &&
+        (Math.abs(e.clientX - downRef.current.x) > CLICK_DRAG_TOL ||
+          Math.abs(e.clientY - downRef.current.y) > CLICK_DRAG_TOL)
+      ) {
+        movedRef.current = true;
+      }
+
       setWorld((t) => ({
         ...t,
         x: panStart.current.tx + dx,
@@ -148,6 +176,8 @@ export default function MapEditorGeneric({
       containerRef.current.releasePointerCapture(e.pointerId);
     } catch {}
     setIsPanning(false);
+    // prevent click propagation after drag stop
+    if (movedRef.current) suppressNextClickRef.current = true;
   }, []);
 
   // === ZOOM TO POINTER ===
@@ -224,30 +254,90 @@ export default function MapEditorGeneric({
 
   // === CURSOR ===
 
-  const cursor = isPanning ? "grabbing" : "grab";
+  cursor = isPanning ? "grabbing" : cursor;
 
   // === CLICK ===
+
+  // 🔥 capture-phase handler to suppress unwanted click
+  const onSvgClickCapture = useCallback((e) => {
+    if (suppressNextClickRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      suppressNextClickRef.current = false; // reset for next click
+    }
+  }, []);
 
   // Click to add an annotation to the selected layer
   const onSvgClick = useCallback(
     (e) => {
+      console.log("debug_0809 SVG CLICK detected!", {
+        isPanning,
+        enabledDrawingMode,
+        e,
+      });
       if (isPanning) return;
+
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
+
       const sx = e.clientX - rect.left;
       const sy = e.clientY - rect.top;
+
       let p;
       if (attachTo === "bg") {
         p = screenToBgLocal(sx, sy);
-        //setBgAnnots((arr) => [...arr, { x: p.x, y: p.y }]);
       } else {
         p = screenToBaseLocal(sx, sy);
-        //setBaseAnnots((arr) => [...arr, { x: p.x, y: p.y }]);
       }
+
+      // Check if we're in marker creation mode
+      if (enabledDrawingMode === "MARKER" && onNewAnnotation) {
+        // Convert to ratio coordinates (0-1) relative to bgImage
+        const ratioX = p.x / bgSize.w;
+        const ratioY = p.y / bgSize.h;
+
+        // Clamp to valid range
+        const clampedX = Math.max(0, Math.min(1, ratioX));
+        const clampedY = Math.max(0, Math.min(1, ratioY));
+
+        onNewAnnotation({
+          type: "MARKER",
+          x: clampedX,
+          y: clampedY,
+        });
+
+        console.log("Marker created at:", { x: clampedX, y: clampedY });
+        return;
+      }
+
       console.log("debug_0509 onSvgClick", p);
     },
-    [attachTo, isPanning, screenToBgLocal, screenToBaseLocal]
+    [
+      attachTo,
+      isPanning,
+      screenToBgLocal,
+      screenToBaseLocal,
+      enabledDrawingMode,
+      onNewAnnotation,
+      bgSize.w,
+      bgSize.h,
+    ]
   );
+
+  // === DRAG ===
+
+  // Handle marker drag end
+  const handleMarkerDragEnd = useCallback((markerId, newPosition) => {
+    console.log("Marker drag ended:", { markerId, newPosition });
+    // Here you would typically update the marker position in your state/store
+    // For now, we'll just log the new position
+  }, []);
+
+  // === ANNOTATION EVENTS ===
+
+  function handleMarkerClick(marker) {
+    if (onAnnotationClick) onAnnotationClick({ type: "MARKER", ...marker });
+  }
 
   return (
     <Box
@@ -293,11 +383,18 @@ export default function MapEditorGeneric({
       </Box>
 
       {/* SVG scene */}
+
       <Box
         component="svg"
         onClick={onSvgClick}
+        onClickCapture={onSvgClickCapture}
         xmlns="http://www.w3.org/2000/svg"
-        sx={{ width: "100%", height: "100%", display: "block" }}
+        sx={{
+          width: "100%",
+          height: "100%",
+          display: "block",
+          pointerEvents: "auto", // Ensure SVG can receive pointer events
+        }}
       >
         {/* WORLD group — applies viewport pan/zoom to everything */}
         <g transform={`translate(${world.x}, ${world.y}) scale(${world.k})`}>
@@ -316,6 +413,8 @@ export default function MapEditorGeneric({
               {/* {bgAnnots.map((p, i) => (
                 <circle key={i} cx={p.x} cy={p.y} r={6} fill="#9c27b0" />
               ))} */}
+
+              {/* Markers positioned relative to bgImage */}
             </g>
           </g>
 
@@ -328,18 +427,21 @@ export default function MapEditorGeneric({
               width={baseSize.w}
               height={baseSize.h}
             />
-            {/* <g>
-              {baseAnnots.map((p, i) => (
-                <rect
-                  key={i}
-                  x={p.x - 6}
-                  y={p.y - 6}
-                  width={12}
-                  height={12}
-                  fill="#1976d2"
-                />
-              ))}
-            </g> */}
+            <g>
+              {markers?.map((marker) => {
+                return (
+                  <NodeMarkerVariantDot
+                    key={marker.id}
+                    marker={marker}
+                    bgSize={bgSize}
+                    bgPose={bgPose}
+                    worldScale={world.k}
+                    onDragEnd={handleMarkerDragEnd}
+                    onClick={handleMarkerClick}
+                  />
+                );
+              })}
+            </g>
           </g>
         </g>
       </Box>

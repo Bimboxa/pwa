@@ -9,10 +9,20 @@ export default async function createMarkerService({
   x,
   y,
   baseMapId,
+  entityId,
   iconColor,
   iconIndex,
+  iconType,
 }) {
-  const marker = await Marker.create({ x, y, baseMapId, iconColor, iconIndex });
+  const marker = await Marker.create({
+    x,
+    y,
+    baseMapId,
+    entityId,
+    iconColor,
+    iconType,
+    iconIndex,
+  });
 
   const record = marker.toDb();
 

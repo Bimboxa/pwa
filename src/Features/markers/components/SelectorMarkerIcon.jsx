@@ -8,7 +8,13 @@ import DiskGeneric from "Features/form/components/DiskGeneric";
 
 import getRowAndColFromIndex from "../utils/getRowAndColFromIndex";
 
-export default function SelectorMarkerIcon({ iconIndex, onChange, iconColor }) {
+export default function SelectorMarkerIcon({
+  iconKey,
+  onChange,
+  iconColor,
+  iconKeys,
+  spriteImageUrl,
+}) {
   const size = 24;
 
   // helper
@@ -25,12 +31,12 @@ export default function SelectorMarkerIcon({ iconIndex, onChange, iconColor }) {
           flexWrap: "wrap",
         }}
       >
-        {Array.from({ length: 9 }).map((_, idx) => {
-          const { row, col } = getRowAndColFromIndex(idx);
-          const bgcolor = idx === iconIndex ? iconColor : bgcolorDefault;
+        {iconKeys?.map((_iconKey) => {
+          const bgcolor = _iconKey === iconKey ? iconColor : bgcolorDefault;
 
           return (
             <Box
+              key={_iconKey}
               sx={{
                 bgcolor,
                 borderRadius: "50%",
@@ -41,8 +47,13 @@ export default function SelectorMarkerIcon({ iconIndex, onChange, iconColor }) {
                 mb: 1,
               }}
             >
-              <IconButton size="small" onClick={() => onChange(idx)}>
-                <MarkerIcon row={row} col={col} size={size} />
+              <IconButton size="small" onClick={() => onChange(_iconKey)}>
+                <MarkerIcon
+                  iconKey={_iconKey}
+                  iconKeys={iconKeys}
+                  spriteImageUrl={spriteImageUrl}
+                  size={size}
+                />
               </IconButton>
             </Box>
           );

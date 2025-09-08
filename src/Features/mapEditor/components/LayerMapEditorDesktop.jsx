@@ -6,10 +6,12 @@ import ToolbarMapEditorContainer from "./ToolbarMapEditorContainer";
 import BlockPrintMode from "./BlockPrintMode";
 import BlockSaveBaseMapViewInEditor from "Features/baseMapViews/components/BlockSaveBaseMapViewInEditor";
 import ButtonSelectorBaseMapInMapEditor from "Features/baseMaps/components/ButtonSelectorBaseMapInMapEditor";
+import LayerCreateLocatedEntity from "./LayerCreateLocatedEntity";
 
 export default function LayerMapEditorDesktop() {
   return (
     <>
+      <LayerCreateLocatedEntity />
       <Box
         sx={{
           position: "absolute",

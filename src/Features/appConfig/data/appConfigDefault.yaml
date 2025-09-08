@@ -106,6 +106,20 @@ features:
         height: 1240
   presetScopes:
     templatesImageUrl: https://public.media.bimboxa.com/scope_templates_etandex.gif
+  markers:
+    spriteImages:
+      - key: DEFAULT
+        url: https://public.media.bimboxa.com/sprite_etandex_default.png
+        iconKeys:
+          - circle
+          - drop
+          - ring
+          - triangle
+          - square
+          - info
+          - sun
+          - clean
+          - brush
 
 sync:
   canSyncLocalProject: false
@@ -174,6 +188,7 @@ presetListingsObject:
     sortBy:
       key: createdAt
       order: desc
+    spriteImageKey: DEFAULT
 
   issues:
     key: issues

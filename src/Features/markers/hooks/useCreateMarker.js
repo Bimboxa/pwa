@@ -9,10 +9,15 @@ export default function useCreateMarker() {
 
   // data
 
-  const _baseMapId = useSelector((s) => s.mapEditor.loadedMainBaseMapId);
+  const _baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
-  return async ({ x, y, baseMapId }) => {
-    await createMarkerService({ x, y, baseMapId: baseMapId ?? _baseMapId });
+  return async ({ x, y, baseMapId, entityId }) => {
+    await createMarkerService({
+      x,
+      y,
+      baseMapId: baseMapId ?? _baseMapId,
+      entityId,
+    });
     dispatch(triggerMarkersUpdate());
   };
 }

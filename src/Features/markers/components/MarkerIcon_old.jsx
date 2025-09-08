@@ -2,21 +2,7 @@ import spriteImage from "../assets/spriteImage3x3.png";
 
 import { Box } from "@mui/material";
 
-import getRowAndColFromIndex from "../utils/getRowAndColFromIndex";
-
-export default function MarkerIcon({
-  iconKeys,
-  spriteImageUrl,
-  iconKey,
-  size,
-  iconSize = 64,
-}) {
-  // helpers
-
-  const index = iconKeys.indexOf(iconKey);
-  const { row, col } = getRowAndColFromIndex(index);
-
-  //
+export default function MarkerIcon({ row, col, size, iconSize = 64 }) {
   const offsetX = (col - 1) * iconSize;
   const offsetY = (row - 1) * iconSize;
   const spriteSize = iconSize * 3;
@@ -39,7 +25,7 @@ export default function MarkerIcon({
             sx={{
               width: iconSize,
               height: iconSize,
-              backgroundImage: `url(${spriteImageUrl})`,
+              backgroundImage: `url(${spriteImage})`,
               backgroundPosition: `-${offsetX}px -${offsetY}px`,
               backgroundSize: `${spriteSize}px ${spriteSize}px`,
               backgroundRepeat: "no-repeat",
