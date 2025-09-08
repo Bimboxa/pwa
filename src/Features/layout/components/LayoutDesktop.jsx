@@ -22,6 +22,8 @@ import ListPanelV2 from "Features/listPanel/components/ListPanelV2";
 import RightPanel from "Features/rightPanel/components/RightPanel";
 import LeftPanel from "Features/leftPanel/components/LeftPanel";
 
+import RightPanelContainer from "Features/rightPanel/components/RightPanelContainer";
+
 export default function LayoutDesktop() {
   // data
 
@@ -43,13 +45,13 @@ export default function LayoutDesktop() {
         <Box sx={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
           {/* <VerticalMenuListTypes /> */}
           <LeftPanel />
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
             <SectionViewer />
+            <RightPanelContainer />
           </Box>
 
           {/*  */}
         </Box>
-        <RightPanel />
       </Box>
       <BottomBarDesktop />
       {/* <PanelChatContainer /> */}

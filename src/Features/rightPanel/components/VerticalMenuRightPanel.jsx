@@ -64,23 +64,6 @@ export default function VerticalMenuRightPanel() {
         selection={selectedKey}
         onSelectionChange={handleChange}
       />
-      {openPanel && (
-        <Paper
-          sx={{
-            position: "absolute",
-            top: 5,
-            left: -5,
-            transform: "translateX(-100%)",
-            width,
-            minHeight: 100,
-            bgcolor: "white",
-            zIndex: 200,
-          }}
-        >
-          {selectedKey === "SHOWER" && <PanelShower />}
-          {selectedKey === "EDITOR_EXPORT" && <PanelEditorExport />}
-        </Paper>
-      )}
     </Box>
   );
 }
