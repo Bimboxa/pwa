@@ -8,16 +8,14 @@ import ButtonDrawFreeline from "./ButtonDrawFreeline";
 import ButtonDrawMarker from "./ButtonDrawMarker";
 import ButtonDownloadBaseMapView from "./ButtonDownloadBaseMapView";
 
-export default function ToolbarMapEditorMain() {
+export default function ToolbarMapEditorLocatedEntities() {
   return (
     <Toolbar>
-      <ButtonRefreshMap />
-      <ButtonEditScale />
       <ButtonDrawMarker />
-      <ButtonDrawPolyline />
+      {/* <ButtonDrawPolyline />
       <ButtonDrawPolygon />
       <ButtonDrawFreeline />
-      <ButtonDownloadBaseMapView />
+      <ButtonDownloadBaseMapView /> */}
       {/*<ButtonAutoSegmentation />*/}
     </Toolbar>
   );

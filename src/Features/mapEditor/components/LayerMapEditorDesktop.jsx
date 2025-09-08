@@ -1,7 +1,7 @@
 import { Box } from "@mui/material";
 
 import ButtonOpenListPanel from "Features/listPanel/components/ButtonOpenListPanel";
-import ToolbarMapEditor from "./ToolbarMapEditor";
+import ToolbarMapEditorContainer from "./ToolbarMapEditorContainer";
 //import SelectorMapInMapEditor from "Features/baseMaps/components/SelectorMapInMapEditor";
 import BlockPrintMode from "./BlockPrintMode";
 import BlockSaveBaseMapViewInEditor from "Features/baseMapViews/components/BlockSaveBaseMapViewInEditor";
@@ -57,7 +57,7 @@ export default function LayerMapEditorDesktop() {
           zIndex: 10000,
         }}
       >
-        <ToolbarMapEditor />
+        <ToolbarMapEditorContainer />
       </Box>
     </>
   );

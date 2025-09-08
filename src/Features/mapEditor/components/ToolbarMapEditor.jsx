@@ -1,24 +1,16 @@
-import { useSelector } from "react-redux";
-
-import { Box } from "@mui/material";
-
-import ToolbarMapEditorMain from "./ToolbarMapEditorMain";
-import ToolbarShapeProps from "Features/shapes/components/ToolbarShapeProps";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import ToolbarMapEditorLocatedEntities from "./ToolbarMapEditorLocatedEntities";
 
 export default function ToolbarMapEditor() {
   // data
 
-  const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  const { value: listing } = useSelectedListing();
 
-  // helper
+  // helpers
 
-  const showMain = !Boolean(enabledDrawingMode);
-  const showShapeProps = Boolean(enabledDrawingMode);
+  const type = listing?.entityModel?.type;
 
   return (
-    <Box sx={{}}>
-      {showMain && <ToolbarMapEditorMain />}
-      {false && showShapeProps && <ToolbarShapeProps />}
-    </Box>
+    <>{type === "LOCATED_ENTITY" && <ToolbarMapEditorLocatedEntities />}</>
   );
 }
