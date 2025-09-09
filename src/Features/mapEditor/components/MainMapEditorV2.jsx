@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { useSelector, useDispatch } from "react-redux";
 
 import { setEnabledDrawingMode } from "../mapEditorSlice";
@@ -9,8 +11,9 @@ import useAutoSelectMainBaseMap from "../hooks/useAutoSelectMainBaseMap";
 import useMarkers from "Features/markers/hooks/useMarkers";
 import useEntity from "Features/entities/hooks/useEntity";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
+import useAnnotations from "Features/annotations/hooks/useAnnotations";
 
-import { Box } from "@mui/material";
+import { Box, Button } from "@mui/material";
 
 import SectionNoMap from "Features/mapEditor/components/SectionNoMap";
 import MapEditorGeneric from "Features/mapEditorGeneric/components/MapEditorGeneric";
@@ -19,9 +22,18 @@ import LayerScreenCursor from "./LayerScreenCursor";
 import { useRef } from "react";
 import useCreateMarker from "Features/markers/hooks/useCreateMarker";
 
+import { serializeSvgToPng } from "Features/mapEditorGeneric/utils/serializeSvgToPng";
+import downloadBlob from "Features/files/utils/downloadBlob";
+import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
+
 export default function MainMapEditorV2() {
   const dispatch = useDispatch();
   const containerRef = useRef();
+  const svgRef = useRef();
+
+  // state
+
+  const [basePoseInBg, setBasePoseInBg] = useState({ x: 40, y: 40, k: 1 });
 
   // data
 
@@ -31,6 +43,7 @@ export default function MainMapEditorV2() {
   const { value: baseMaps } = useBaseMaps();
   const bgImage = useBgImageInMapEditor();
   const markers = useMarkers({ addDemoMarkers: true });
+  const annotations = useAnnotations();
 
   const showBgImage = useSelector((s) => s.shower.showBgImage);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
@@ -80,6 +93,14 @@ export default function MainMapEditorV2() {
     console.log("click on annotation", annotation);
   }
 
+  async function handleClick() {
+    console.log("click on svg", svgRef.current);
+    //const dataUrl = await serializeSvgToPng(svgRef.current);
+
+    const blob = await getImageFromSvg(svgRef.current);
+    downloadBlob(blob, "map.png");
+  }
+
   // render
 
   return (
@@ -99,19 +120,30 @@ export default function MainMapEditorV2() {
     >
       <MapEditorGeneric
         baseMapImageUrl={mainBaseMap?.image.imageUrlClient}
+        baseMapPoseInBg={basePoseInBg}
+        onBaseMapPoseInBgChange={setBasePoseInBg}
         bgImageUrl={bgImage?.imageUrlRemote}
         showBgImage={showBgImage}
         markers={markers}
+        annotations={annotations}
         cursor={cursor}
         enabledDrawingMode={enabledDrawingMode}
         onNewAnnotation={handleNewAnnotation}
         onAnnotationClick={handleAnnotationClick}
+        ref={svgRef}
       />
 
       <LayerMapEditor />
       {showScreenCursor && (
         <LayerScreenCursor containerEl={containerRef?.current} />
       )}
+
+      <Button
+        onClick={handleClick}
+        sx={{ position: "absolute", bottom: 10, right: 10 }}
+      >
+        Print
+      </Button>
     </Box>
   );
 }
