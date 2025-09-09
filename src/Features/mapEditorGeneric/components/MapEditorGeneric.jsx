@@ -5,6 +5,7 @@ import {
   useLayoutEffect,
   useCallback,
   useMemo,
+  forwardRef,
 } from "react";
 
 import { Box, Tooltip, IconButton } from "@mui/material";
@@ -12,6 +13,8 @@ import { CenterFocusStrong as CenterFocusStrongIcon } from "@mui/icons-material"
 
 import NodeSvgImage from "./NodeSvgImage";
 import NodeMarkerVariantDot from "./NodeMarkerVariantDot";
+import NodeText from "./NodeText";
+import NodePolygon from "./NodePolygon";
 
 import clamp from "Features/misc/utils/clamp";
 
@@ -22,20 +25,31 @@ import {
   mMul,
 } from "Features/matrix/utils/matrixHelpers";
 
-export default function MapEditorGeneric({
-  bgImageUrl,
-  baseMapImageUrl,
-  markers,
-  initialScale = "fit",
-  minScale = 0.1,
-  maxScale = 10,
-  attachTo = "bg", // "bg" or "base"
-  showBgImage = true,
-  cursor = "grab",
-  enabledDrawingMode,
-  onNewAnnotation,
-  onAnnotationClick,
-}) {
+const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
+  let {
+    bgImageUrl,
+    baseMapImageUrl,
+    baseMapPoseInBg, // {x:0,y:0,k:1,r:0}, pose of baseMap in bg local coords.
+    onBaseMapPoseInBgChange,
+    markers,
+    annotations,
+    initialScale = "fit",
+    minScale = 0.1,
+    maxScale = 10,
+    attachTo = "bg",
+    showBgImage = true,
+    cursor = "grab",
+    enabledDrawingMode,
+    onNewAnnotation,
+    onAnnotationClick,
+    onAnnotationChange,
+    onAnnotationDragEnd,
+  } = props;
+  // === HELPERS ANNOTATIONS ===
+
+  const textAnnotations = annotations?.filter((a) => a.type === "TEXT");
+  const polygonAnnotations = annotations?.filter((a) => a.type === "POLYGON");
+
   // === REFS ===
 
   const containerRef = useRef();
@@ -58,7 +72,26 @@ export default function MapEditorGeneric({
 
   // === Layer poses (local -> world) ===
   const [bgPose, setBgPose] = useState({ x: 0, y: 0, k: 1, r: 0 }); // bgImage positioned in world
-  const [basePose, setBasePose] = useState({ x: 0, y: 0, k: 1, r: 0 }); // mainBaseMap positioned in world
+  //const [basePose, setBasePose] = useState({ x: 0, y: 0, k: 1, r: 0 }); // mainBaseMap positioned in world
+
+  const basePose = {
+    x: bgPose.x + (baseMapPoseInBg.x || 0) * (bgPose.k || 1),
+    y: bgPose.y + (baseMapPoseInBg.y || 0) * (bgPose.k || 1),
+    k: (bgPose.k || 1) * (baseMapPoseInBg.k || 1),
+    r: (bgPose.r || 0) + (baseMapPoseInBg.r || 0),
+  };
+
+  // === positionning baseMap ===
+
+  const [basePoseIsChanging, setBasePoseIsChanging] = useState(false);
+
+  function handleBasePoseChangeStart() {
+    setBasePoseIsChanging(true);
+  }
+
+  function handleBasePoseChangeEnd() {
+    setBasePoseIsChanging(false);
+  }
 
   // === SIZE EFFECTS ===
 
@@ -99,7 +132,7 @@ export default function MapEditorGeneric({
     // Prefer the visible layer for fitting
     const W = (showBgImage ? bgSize.w : 0) || baseSize.w;
     const H = (showBgImage ? bgSize.h : 0) || baseSize.h;
-    console.log("debug_0509 fit", W, H, viewport.w, viewport.h);
+    console.log("debug_0509 fit", W, H, viewport.wMap, viewport.h);
     //
     if (!W || !H || !viewport.w || !viewport.h) return;
     //
@@ -252,6 +285,16 @@ export default function MapEditorGeneric({
     [Mvw, Mbase]
   );
 
+  // ...compute relative transform base->bg (r == 0 assumed)
+  const relBase = useMemo(() => {
+    const kbg = bgPose.k || 1;
+    return {
+      x: (basePose.x - bgPose.x) / kbg,
+      y: (basePose.y - bgPose.y) / kbg,
+      k: (basePose.k || 1) / kbg,
+    };
+  }, [bgPose, basePose]);
+
   // === CURSOR ===
 
   cursor = isPanning ? "grabbing" : cursor;
@@ -339,6 +382,18 @@ export default function MapEditorGeneric({
     if (onAnnotationClick) onAnnotationClick({ type: "MARKER", ...marker });
   }
 
+  function handleAnnotationChange(annotation) {
+    if (onAnnotationChange) onAnnotationChange(annotation);
+  }
+
+  function handleAnnotationDragEnd(annotation) {
+    if (onAnnotationDragEnd) onAnnotationDragEnd(annotation);
+  }
+
+  function handleAnnotationClick(annotation) {
+    if (onAnnotationClick) onAnnotationClick({ annotation });
+  }
+
   return (
     <Box
       ref={containerRef}
@@ -381,10 +436,9 @@ export default function MapEditorGeneric({
           </IconButton>
         </Tooltip>
       </Box>
-
       {/* SVG scene */}
-
       <Box
+        //ref={ref}
         component="svg"
         onClick={onSvgClick}
         onClickCapture={onSvgClickCapture}
@@ -426,25 +480,144 @@ export default function MapEditorGeneric({
               src={baseMapImageUrl}
               width={baseSize.w}
               height={baseSize.h}
+              worldScale={world.k}
+              containerK={basePose.k}
+              onPoseChangeStart={() => setBasePoseIsChanging(true)}
+              onPoseChangeEnd={(delta) => {
+                // compose in parent: P' = P ∘ delta (bg-local)
+                const P = baseMapPoseInBg;
+                onBaseMapPoseInBgChange?.({
+                  x: P.x + delta.x,
+                  y: P.y + delta.y,
+                  k: P.k * delta.k,
+                });
+                setBasePoseIsChanging(false);
+              }}
             />
-            <g>
-              {markers?.map((marker) => {
-                return (
-                  <NodeMarkerVariantDot
-                    key={marker.id}
-                    marker={marker}
-                    bgSize={bgSize}
-                    bgPose={bgPose}
-                    worldScale={world.k}
-                    onDragEnd={handleMarkerDragEnd}
-                    onClick={handleMarkerClick}
-                  />
-                );
-              })}
-            </g>
+
+            {!basePoseIsChanging && (
+              <g>
+                {markers?.map((marker) => {
+                  return (
+                    <NodeMarkerVariantDot
+                      key={marker.id}
+                      marker={marker}
+                      bgSize={bgSize}
+                      bgPose={bgPose}
+                      worldScale={world.k}
+                      onDragEnd={handleMarkerDragEnd}
+                      onClick={handleMarkerClick}
+                    />
+                  );
+                })}
+                {textAnnotations.map((ta) => {
+                  return (
+                    <NodeText
+                      key={ta.id}
+                      text={ta}
+                      bgSize={bgSize}
+                      bgPose={bgPose}
+                      worldScale={world.k}
+                      onChange={handleAnnotationChange}
+                      onDragEnd={handleAnnotationDragEnd}
+                      onClick={handleAnnotationClick}
+                    />
+                  );
+                })}
+                {polygonAnnotations.map((pa) => {
+                  return (
+                    <NodePolygon
+                      key={pa.id}
+                      polygon={pa}
+                      imageSize={baseSize}
+                      containerK={basePose.k}
+                      worldScale={world.k}
+                      onDragEnd={handleAnnotationDragEnd}
+                      onClick={handleAnnotationClick}
+                    />
+                  );
+                })}
+              </g>
+            )}
           </g>
         </g>
       </Box>
+      {/* ===== Hidden export-only SVG (normalized to bg size) ===== */}
+      <svg
+        ref={ref}
+        width={bgSize.w}
+        height={bgSize.h}
+        viewBox={`0 0 ${bgSize.w} ${bgSize.h}`}
+        style={{
+          position: "absolute",
+          //left: -99999, // keep it offscreen
+          left: 0,
+          top: 0,
+          zIndex: 30,
+          pointerEvents: "none",
+          zIndex: -1,
+          //visibility: "hidden",
+        }}
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* BG layer in bg-local coords (identity pose) */}
+        <g>
+          {showBgImage && (
+            <NodeSvgImage src={bgImageUrl} width={bgSize.w} height={bgSize.h} />
+          )}
+
+          {/* If you ever have annotations attached to BG, render them here */}
+          {/* e.g., <NodePolygon .../> / markers-on-bg, etc. */}
+        </g>
+
+        {/* BASE layer expressed relative to BG */}
+        <g
+          transform={`translate(${relBase.x}, ${relBase.y}) scale(${relBase.k})`}
+        >
+          <NodeSvgImage
+            src={baseMapImageUrl}
+            width={baseSize.w}
+            height={baseSize.h}
+          />
+          {/* Annotations that you currently render in the base layer */}
+          {markers?.map((marker) => (
+            <NodeMarkerVariantDot
+              key={marker.id}
+              marker={marker}
+              bgSize={bgSize}
+              bgPose={{ x: 0, y: 0, k: 1, r: 0 }} // normalized space
+              worldScale={1} // no world zoom in export
+              onDragEnd={() => {}}
+              onClick={() => {}}
+            />
+          ))}
+          {textAnnotations.map((ta) => (
+            <NodeText
+              key={ta.id + "_"}
+              text={ta}
+              bgSize={bgSize}
+              bgPose={{ x: 0, y: 0, k: 1, r: 0 }}
+              worldScale={1}
+              onChange={() => {}}
+              onDragEnd={() => {}}
+              onClick={() => {}}
+            />
+          ))}
+          {polygonAnnotations.map((pa) => (
+            <NodePolygon
+              key={pa.id + "_"}
+              polygon={pa}
+              imageSize={baseSize}
+              containerK={basePose.k}
+              worldScale={1}
+              onDragEnd={() => {}}
+              onClick={() => {}}
+            />
+          ))}
+        </g>
+      </svg>
     </Box>
   );
-}
+});
+
+export default MapEditorGeneric;
