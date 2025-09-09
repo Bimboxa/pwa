@@ -11,7 +11,7 @@ import LayerCreateLocatedEntity from "./LayerCreateLocatedEntity";
 export default function LayerMapEditorDesktop() {
   return (
     <>
-      <LayerCreateLocatedEntity />
+      {/* <LayerCreateLocatedEntity /> */}
       <Box
         sx={{
           position: "absolute",

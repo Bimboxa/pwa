@@ -1,6 +1,8 @@
 import { CompactPicker, CirclePicker } from "react-color";
 import { Box, Typography } from "@mui/material";
 
+import defaultColors from "Features/colors/data/defaultColors";
+
 export default function FieldColorV2({ value, onChange, label }) {
   // handlers
 
@@ -33,7 +35,11 @@ export default function FieldColorV2({ value, onChange, label }) {
           width: 1,
         }}
       >
-        <CirclePicker onChange={handleColorChange} color={value} />
+        <CirclePicker
+          onChange={handleColorChange}
+          color={value}
+          colors={defaultColors}
+        />
       </Box>
     </Box>
   );

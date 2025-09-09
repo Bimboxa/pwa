@@ -11,6 +11,7 @@ import { Box, Paper } from "@mui/material";
 import PanelShower from "Features/shower/components/PanelShower";
 import PanelEditorExport from "Features/editorExport/components/PanelEditorExport";
 import VerticalMenuRightPanel from "./VerticalMenuRightPanel";
+import PanelAnnotationFormat from "Features/annotations/components/PanelAnnotationFormat";
 
 export default function RightPanelContainer() {
   // data
@@ -42,6 +43,7 @@ export default function RightPanelContainer() {
         >
           {selectedKey === "SHOWER" && <PanelShower />}
           {selectedKey === "EDITOR_EXPORT" && <PanelEditorExport />}
+          {selectedKey === "ANNOTATION_FORMAT" && <PanelAnnotationFormat />}
         </Paper>
       )}
     </>

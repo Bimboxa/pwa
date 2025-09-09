@@ -4,7 +4,7 @@ import { setSelectedMenuItemKey } from "../rightPanelSlice";
 
 import VerticalMenu from "Features/layout/components/VerticalMenu";
 
-import { Download, Info, Visibility } from "@mui/icons-material";
+import { Download, Info, Visibility, Palette } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
 
@@ -31,6 +31,11 @@ export default function VerticalMenuRightPanel() {
       key: "EDITOR_EXPORT",
       label: "Export",
       icon: <Download />,
+    },
+    {
+      key: "ANNOTATION_FORMAT",
+      label: "Format",
+      icon: <Palette />,
     },
   ];
 

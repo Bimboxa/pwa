@@ -30,7 +30,6 @@ export default function LayoutDesktop() {
   const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
   const listPanelWidth = useSelector((s) => s.listPanel.width);
   const top = useSelector((s) => s.layout.topBarHeight);
-  const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
 
   // helpers
 
@@ -48,7 +47,7 @@ export default function LayoutDesktop() {
           <LeftPanel />
           <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
             <SectionViewer />
-            {!enabledDrawingMode && <RightPanelContainer />}
+            <RightPanelContainer />
           </Box>
 
           {/*  */}
