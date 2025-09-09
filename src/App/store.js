@@ -28,6 +28,7 @@ import entityPropsReducer from "Features/entityProps/entityPropsSlice";
 import zonesReducer from "Features/zones/zonesSlice";
 import relsZoneEntityReducer from "Features/relsZoneEntity/relsZoneEntitySlice";
 import locatedEntitiesReducer from "Features/locatedEntities/locatedEntitiesSlice";
+import annotationsReducer from "Features/annotations/annotationsSlice";
 import shapesReducer from "Features/shapes/shapesSlice";
 import markersReducer from "Features/markers/markersSlice";
 import threedEditorReducer from "Features/threedEditor/threedEditorSlice";
@@ -73,6 +74,7 @@ const store = configureStore({
     relsZoneEntity: relsZoneEntityReducer,
     locatedEntities: locatedEntitiesReducer,
     viewers: viewersReducer,
+    annotations: annotationsReducer,
     shapes: shapesReducer,
     markers: markersReducer,
     mapEditor: mapEditorReducer,

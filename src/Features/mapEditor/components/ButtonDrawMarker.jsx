@@ -8,6 +8,7 @@ import { Add as Marker } from "@mui/icons-material";
 import { IconButton } from "@mui/material";
 
 import editor from "App/editor";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 export default function ButtonDrawMarker() {
   const dispatch = useDispatch();
@@ -17,6 +18,7 @@ export default function ButtonDrawMarker() {
     dispatch(setShowLayerScreenCursor(true));
     editor?.mapEditor?.enableDrawingMode("MARKER", { updateRedux: true });
     dispatch(setEnabledDrawingMode("MARKER"));
+    dispatch(setSelectedMenuItemKey("ANNOTATION_FORMAT"));
   }
 
   return (
