@@ -22,7 +22,7 @@ export default function LeftPanel() {
       sx={{
         width,
         borderRight: "1px solid #ccc",
-        display: "flex",
+        display: openLeftPanel ? "flex" : "none",
         flexDirection: "column",
         minHeight: 0,
         height: 1,

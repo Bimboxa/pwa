@@ -10,6 +10,7 @@ import {
   setSelectedMainBaseMapId,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedEntityId } from "../entitiesSlice";
+import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 
 import ListEntities from "./ListEntities";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -29,6 +30,7 @@ export default function SectionListEntitiesInListPanel() {
     withImages: true,
     sortBy,
     withMarkers: entityModel?.type === "LOCATED_ENTITY",
+    withAnnotations: entityModel?.type === "LOCATED_ENTITY",
   });
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
 
@@ -53,6 +55,10 @@ export default function SectionListEntitiesInListPanel() {
       console.log("debug_2105 select map", entity);
       dispatch(setSelectedMainBaseMapId(entity.id));
       dispatch(setSelectedBaseMapsListingId(entity.listingId));
+    }
+
+    if (entity.annotation) {
+      dispatch(setSelectedAnnotationId(entity.annotation.id));
     }
 
     dispatch(setSelectedEntityId(id));

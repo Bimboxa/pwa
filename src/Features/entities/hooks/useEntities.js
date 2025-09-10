@@ -16,6 +16,7 @@ export default function useEntities(options) {
 
   const withImages = options?.withImages;
   const withMarkers = options?.withMarkers;
+  const withAnnotations = options?.withAnnotations;
 
   const filterByListingsKeys = options?.filterByListingsKeys;
   const filterByListingsIds = options?.filterByListingsIds;
@@ -35,7 +36,8 @@ export default function useEntities(options) {
   });
   //console.log("[debug] listings", lTistings?.length, filterByListingsIds);
 
-  const mapId = useSelector((s) => s.mapEditor.loadedMainBaseMapId);
+  //const mapId = useSelector((s) => s.mapEditor.loadedMainBaseMapId);
+  const mapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   const selectedListing = listings?.find((l) => l?.id === selectedListingId);
@@ -161,6 +163,20 @@ export default function useEntities(options) {
         entities = entities.map((entity) => {
           const marker = markersByEntityId[entity.id];
           return { ...entity, marker };
+        });
+      }
+
+      // add annotations
+      if (withAnnotations && mapId) {
+        const annotations = await db.annotations
+          .where("baseMapId")
+          .equals(mapId)
+          .toArray();
+        const annotationsByEntityId = getItemsByKey(annotations, "entityId");
+
+        entities = entities.map((entity) => {
+          const annotation = annotationsByEntityId[entity.id];
+          return { ...entity, annotation };
         });
       }
 

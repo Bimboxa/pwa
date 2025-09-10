@@ -39,6 +39,9 @@ export default function MainMapEditorV2() {
   const [basePoseInBg, setBasePoseInBg] = useState({ x: 40, y: 40, k: 1 });
 
   // data
+
+  const listingId = useSelector((s) => s.listings.selectedListingId);
+
   const annotationSpriteImage = useAnnotationSpriteImage();
   const entity = useEntity();
   const mainBaseMap = useMainBaseMap();
@@ -46,7 +49,10 @@ export default function MainMapEditorV2() {
   const { value: baseMaps } = useBaseMaps();
   const bgImage = useBgImageInMapEditor();
   const markers = useMarkers({ addDemoMarkers: true });
-  const annotations = useAnnotations({ addDemoAnnotations: true });
+  const annotations = useAnnotations({
+    addDemoAnnotations: true,
+    filterByBaseMapId: mainBaseMap?.id,
+  });
 
   const showBgImage = useSelector((s) => s.shower.showBgImage);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
@@ -102,6 +108,8 @@ export default function MainMapEditorV2() {
         x: annotation.x,
         y: annotation.y,
         entityId: entity?.id,
+        listingId: listingId,
+        baseMapId: mainBaseMap?.id,
         type: "MARKER",
       });
       console.log("[MainMapEditor] new entity created", _annotation, entity);
