@@ -5,6 +5,7 @@ export default function ListItemsGeneric({
   onClick,
   keyString,
   selection,
+  onSortEnd,
 }) {
   // edge case
 

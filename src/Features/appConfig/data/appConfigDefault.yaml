@@ -11,6 +11,7 @@ colors:
   purple700: &purple700 "#7B1FA2"
   purple900: &purple900 "#4A148C"
   red300: &red300 "#E57373"
+  red500: &red500 "#F44336"
   red800: &red800 "#C62828"
   red900: &red900 "#B71C1C"
   orange300: &orange300 "#FF9800"
@@ -18,10 +19,13 @@ colors:
   orange800: &orange800 "#EF6C00"
   blue800: &blue800 "#1976D2"
   blue700: &blue700 "#0288D1"
+  blue500: &blue500 "#2196F3"
   blue300: &blue300 "#4FC3F7"
   green800: &green800 "#388E3C"
   green900: &green900 "#1B5E20"
   grey900: &grey900 "#212121"
+  purple500: &purple500 "#9C27B0"
+  deepPurple500: &deepPurple500 "#673ab7"
 
 # STRINGS
 
@@ -139,6 +143,10 @@ creation:
 # ENTITY MODEL
 
 entityModelsObject:
+  legend:
+    key: legend
+    type: "LEGEND_ENTITY"
+
   annotation:
     key: annotation
     type: LOCATED_ENTITY
@@ -204,6 +212,33 @@ presetListingsObject:
       key: num
       order: desc
 
+  legend:
+    key: legend
+    name: Légende
+    type: ANNOTATIONS_LEGEND
+    entityModelKey: legend
+    table: legends
+    color: *blue700
+    iconKey: legend
+    initialItems:
+      - sortedItems:
+          - type: MARKER
+            iconKey: ring
+            fillColor: *red500
+            label: Gaine annelée NC
+          - type: MARKER
+            iconKey: square
+            fillColor: *red500
+            label: Réservation NC
+          - type: MARKER
+            iconKey: drop
+            fillColor: *blue500
+            label: Présence d'eau stagnante
+          - type: MARKER
+            iconKey: triangle
+            fillColor: *deepPurple500
+            label: Support à poncer
+
 # PRESET SCOPES
 
 presetScopesObject:
@@ -214,6 +249,7 @@ presetScopesObject:
     descriptionImageUrl: https://public.media.bimboxa.com/scope_template_etandex_reperage_libre.png
     listings:
       - annotations
+      - legend
 
   preset2:
     key: preset2

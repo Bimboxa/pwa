@@ -41,8 +41,6 @@ export default memo(function NodeSvgImage({
   );
   const F = 1;
 
-  console.log("F", worldScale, containerK);
-
   // Delta in CSS px for Rnd
   const cssPos = useMemo(
     () => ({ x: delta.x, y: delta.y }),
@@ -54,7 +52,7 @@ export default memo(function NodeSvgImage({
   // );
 
   const cssSize = { width: width * delta.k * F, height: height * delta.k * F };
-  console.log("cssSize", cssSize);
+
   refSize.current = cssSize;
 
   // Stop bubbling into the map; let wheel bubble unless interacting
@@ -90,7 +88,6 @@ export default memo(function NodeSvgImage({
   const onResize = useCallback(
     (e, _dir, ref, _delta, pos) => {
       const newK = (ref.offsetWidth / F / width) * 10; // uniform scale from width
-      console.log("new K", newK, _F);
       //setDelta(p=>({ x: pos.x / F, y: pos.y / F, k: newK }));
       setDelta((p) => ({ ...p, k: newK }));
     },

@@ -11,12 +11,14 @@ export default function useListingById(id) {
   // main
 
   const listing = useLiveQuery(async () => {
-    const _listing = await db.listings.get(id);
+    if (id) {
+      const _listing = await db.listings.get(id);
 
-    const entityModel =
-      appConfig?.entityModelsObject?.[_listing?.entityModelKey] ?? null;
+      const entityModel =
+        appConfig?.entityModelsObject?.[_listing?.entityModelKey] ?? null;
 
-    return { ..._listing, entityModel };
+      return { ..._listing, entityModel };
+    }
   }, [id]);
 
   return listing;

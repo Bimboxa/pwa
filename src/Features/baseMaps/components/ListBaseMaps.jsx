@@ -28,7 +28,7 @@ export default function ListBaseMaps({
           <ListItemIcon>
             <Avatar src={baseMap?.image?.imageUrlClient} />
           </ListItemIcon>
-          <ListItemText primary={baseMap.label} />
+          <ListItemText primary={baseMap.name} />
         </ListItemButton>
       ))}
       {canCreate && (

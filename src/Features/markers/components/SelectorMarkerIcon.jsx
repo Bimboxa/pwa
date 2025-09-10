@@ -12,8 +12,7 @@ export default function SelectorMarkerIcon({
   iconKey,
   onChange,
   iconColor,
-  iconKeys,
-  spriteImageUrl,
+  spriteImage,
 }) {
   const size = 18;
 
@@ -31,7 +30,7 @@ export default function SelectorMarkerIcon({
           flexWrap: "wrap",
         }}
       >
-        {iconKeys?.map((_iconKey) => {
+        {spriteImage?.iconKeys?.map((_iconKey) => {
           const bgcolor = _iconKey === iconKey ? iconColor : bgcolorDefault;
 
           return (
@@ -43,15 +42,14 @@ export default function SelectorMarkerIcon({
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                mx: 0.5,
-                mb: 1,
+                mx: 1,
+                mb: 2,
               }}
             >
               <IconButton size="small" onClick={() => onChange(_iconKey)}>
                 <MarkerIcon
                   iconKey={_iconKey}
-                  iconKeys={iconKeys}
-                  spriteImageUrl={spriteImageUrl}
+                  spriteImage={spriteImage}
                   size={size}
                 />
               </IconButton>

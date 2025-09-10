@@ -19,6 +19,8 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   const hideMic = options?.hideMic;
   const autoFocus = options?.autoFocus;
   const hideBorder = options?.hideBorder;
+  const placeholder = options?.placeholder;
+  const showAsSection = options?.showAsSection;
 
   const [recording, setRecording] = useState(false);
 
@@ -61,11 +63,25 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   }
 
   return (
-    <Box sx={{ p: 1, width: 1 }}>
+    <Box
+      sx={{
+        p: 1,
+        width: 1,
+        ...(showAsSection && {
+          borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+        }),
+      }}
+    >
+      {showAsSection && (
+        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+          {label}
+        </Typography>
+      )}
       <TextField
         size="small"
         autoFocus={autoFocus}
         label={showLabel ? label : null}
+        placeholder={placeholder}
         fullWidth={fullWidth}
         multiline={multiline}
         value={tempValue}

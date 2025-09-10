@@ -19,6 +19,7 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 import resolvePresetScopeListings from "../services/resolvePresetScopeListings";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
+import resolvePresetScopeEntities from "../services/resolvePresetScopeEntities";
 
 export default function SectionCreateScope() {
   const dispatch = useDispatch();
@@ -66,10 +67,23 @@ export default function SectionCreateScope() {
 
   console.log("debug_25_09 [newListings] newListings", newListings);
 
+  // helpers - entities
+
+  const newEntities = useMemo(() => {
+    return resolvePresetScopeEntities({ listings: newListings });
+  }, [newListings]);
+
+  console.log("debug_0910 [newEntities] newEntities", newEntities);
+
   // handlers
 
   async function handleCreateScope() {
-    const scope = await createScope({ ...tempScope, projectId, newListings });
+    const scope = await createScope({
+      ...tempScope,
+      projectId,
+      newListings,
+      newEntities,
+    });
     console.log("debug_25_09 [scope] created scope", scope);
     if (scope) {
       //dispatch(setSelectedScopeId(scope.id));
