@@ -1,8 +1,8 @@
-import {useState} from "react";
+import { useState } from "react";
 
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 
-import {List, Box} from "@mui/material";
+import { List, Box } from "@mui/material";
 
 import ListItemEntityVariantDefault from "./ListItemEntityVariantDefault";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -47,7 +47,7 @@ export default function ListEntities({
 
   return (
     <BoxFlexVStretch>
-      <Box sx={{width: 1, p: 1}}>
+      <Box sx={{ width: 1, p: 1 }}>
         <SearchBar
           value={searchText}
           onChange={handleSearchTextChange}
@@ -55,19 +55,17 @@ export default function ListEntities({
           color={color}
         />
       </Box>
-      <BoxFlexVStretch sx={{overflow: "auto"}}>
-        <Box sx={{width: 1, bgcolor: "common.white"}}>
-          <List dense={!isMobile} disablePadding>
-            {filteredEntities?.map((entity) => (
-              <ListItemEntityVariantDefault
-                key={entity.id}
-                entity={entity}
-                onClick={handleEntityClick}
-                selection={selection}
-              />
-            ))}
-          </List>
-        </Box>
+      <BoxFlexVStretch sx={{ overflow: "auto", bgcolor: "white" }}>
+        <List dense={!isMobile} disablePadding>
+          {filteredEntities?.map((entity) => (
+            <ListItemEntityVariantDefault
+              key={entity.id}
+              entity={entity}
+              onClick={handleEntityClick}
+              selection={selection}
+            />
+          ))}
+        </List>
       </BoxFlexVStretch>
     </BoxFlexVStretch>
   );
