@@ -7,6 +7,7 @@ import FieldImageV2 from "./FieldImageV2";
 import FieldColorV2 from "./FieldColorV2";
 import FieldBaseMap from "./FieldBaseMap";
 import FieldIcon from "./FieldIcon";
+import FieldAnnotationTemplateId from "./FieldAnnotationTemplateId";
 
 import FieldZonesVariantGrid from "./FieldZonesVariantGrid";
 import FieldZoneVariantGrid from "./FieldZoneVariantGrid";
@@ -79,6 +80,20 @@ export default function FormGenericV2({
         if (field?.type === "icon") {
           return (
             <FieldIcon
+              key={field.key}
+              label={field.label}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              options={field.options}
+            />
+          );
+        }
+
+        if (field?.type === "annotationTemplateId") {
+          return (
+            <FieldAnnotationTemplateId
               key={field.key}
               label={field.label}
               value={value}

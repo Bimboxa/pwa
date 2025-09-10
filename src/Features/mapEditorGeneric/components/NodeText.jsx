@@ -73,7 +73,6 @@ export default function NodeText({
 
   // measuredPx is refined by the effect below, but starts with a good estimate
   const [measuredPx, setMeasuredPx] = useState({ w: initialW, h: initialH });
-  console.log("measuredPx", measuredPx, measureText);
 
   useEffect(() => {
     if (!measureRef.current) return;

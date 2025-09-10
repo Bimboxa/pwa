@@ -5,29 +5,51 @@ import { Box } from "@mui/material";
 import getRowAndColFromIndex from "../utils/getRowAndColFromIndex";
 
 export default function MarkerIcon({
-  iconKeys,
-  spriteImageUrl,
+  spriteImage,
   iconKey,
-  size,
-  iconSize = 64,
+  fillColor,
+  size = 24,
 }) {
+  // helpers - sprite image
+
+  const {
+    url: spriteImageUrl,
+    iconKeys,
+    columns,
+    rows,
+    tile,
+  } = spriteImage ?? {};
   // helpers
 
   const index = iconKeys.indexOf(iconKey);
-  const { row, col } = getRowAndColFromIndex(index);
 
   //
-  const offsetX = (col - 1) * iconSize;
-  const offsetY = (row - 1) * iconSize;
-  const spriteSize = iconSize * 3;
-  const scale = size / iconSize;
+
+  const scale = size / tile;
+  const spriteW = columns * tile;
+  const spriteH = rows * tile; // 3x3
+
+  const row = Math.floor(index / columns);
+  const col = index % columns;
+
+  const offsetX = col * tile;
+  const offsetY = row * tile;
 
   return (
-    <Box>
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        borderRadius: "50%",
+        bgcolor: fillColor,
+      }}
+    >
       <Box
         sx={{
           width: size,
           height: size,
+          borderRadius: "50%",
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
@@ -37,11 +59,11 @@ export default function MarkerIcon({
         <Box>
           <Box
             sx={{
-              width: iconSize,
-              height: iconSize,
+              width: tile,
+              height: tile,
               backgroundImage: `url(${spriteImageUrl})`,
               backgroundPosition: `-${offsetX}px -${offsetY}px`,
-              backgroundSize: `${spriteSize}px ${spriteSize}px`,
+              backgroundSize: `${spriteW}px ${spriteH}px`,
               backgroundRepeat: "no-repeat",
               transform: `scale(${scale})`,
               transformOrigin: "center",

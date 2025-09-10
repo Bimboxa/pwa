@@ -1,5 +1,8 @@
 import { useDispatch, useSelector } from "react-redux";
 
+import useLegendItems from "Features/legend/hooks/useLegendItems";
+import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
+
 import { setNewAnnotation } from "../annotationsSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
@@ -8,14 +11,16 @@ import { Box } from "@mui/material";
 import FormAnnotation from "./FormAnnotation";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
+import BlockAnnotation from "./BlockAnnotation";
 
 export default function SectionCreateAnnotation() {
   const dispatch = useDispatch();
 
   // data
+  const spriteImage = useAnnotationSpriteImage();
+  const annotationTemplates = useLegendItems();
 
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
-  console.log("newAnnotation", newAnnotation);
 
   // handlers
 
@@ -29,7 +34,13 @@ export default function SectionCreateAnnotation() {
 
   return (
     <BoxFlexVStretch>
-      <Box sx={{ display: "flex", justifyContent: "end" }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", p: 1 }}>
+        <BlockAnnotation
+          annotation={newAnnotation}
+          spriteImage={spriteImage}
+          annotationTemplates={annotationTemplates}
+        />
+
         <IconButtonClose onClose={handleClose} />
       </Box>
 

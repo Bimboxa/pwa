@@ -1,10 +1,15 @@
-import SelectorMarkerIcon from "Features/markers/components/SelectorMarkerIcon";
-
 import { Box, Typography } from "@mui/material";
 
-export default function FieldIcon({ value, onChange, label, options }) {
+import SelectorAnnotationTemplate from "Features/annotations/components/SelectorAnnotationTemplate";
+
+export default function FieldAnnotationTemplateId({
+  value,
+  onChange,
+  label,
+  options,
+}) {
   const spriteImage = options?.spriteImage;
-  const iconColor = options?.iconColor;
+  const annotationTemplates = options?.annotationTemplates ?? [];
 
   return (
     <Box sx={{ width: 1 }}>
@@ -21,11 +26,11 @@ export default function FieldIcon({ value, onChange, label, options }) {
         </Typography>
       </Box>
       <Box sx={{ display: "flex", justifyContent: "center", p: 1 }}>
-        <SelectorMarkerIcon
-          iconKey={value}
+        <SelectorAnnotationTemplate
+          selectedAnnotationTemplateId={value}
+          annotationTemplates={annotationTemplates}
           onChange={onChange}
           spriteImage={spriteImage}
-          iconColor={iconColor}
         />
       </Box>
     </Box>

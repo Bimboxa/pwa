@@ -1,6 +1,11 @@
 import { useDispatch } from "react-redux";
 
-import { setOpenScopeCreator, setStepKey } from "../scopeCreatorSlice";
+import {
+  setOpenScopeCreator,
+  setStepKey,
+  setSelectedProjectId,
+  setSelectedPresetScopeKey,
+} from "../scopeCreatorSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 

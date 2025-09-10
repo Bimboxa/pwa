@@ -22,6 +22,7 @@ db.version(11).stores({
   entitiesProps:
     "id,[listingKey+targetEntityId],listingKey,targetListingKey,targetEntityId", // entityProps = {id,tarketListingKey,targetEntityId,props}
 
+  legends: "id,listingId",
   markers: "id,mapId,listingId,targetEntityId", // marker = {id,mapId,x,y,listingId,targetEntityId,createdBy,createdAt,updatedAt}
   annotations: "id,mapId,listingId,entityId", // annotation = {id,mapId,listingId,entityId,...}
 

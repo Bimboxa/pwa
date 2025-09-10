@@ -26,6 +26,7 @@ export default function resolvePresetScopeListings({
   // helpers - presetScope
 
   const presetScope = appConfig?.presetScopesObject[presetScopeKey];
+  const entityModelsObject = appConfig?.entityModelsObject ?? {};
 
   // helpers - presetListings
 
@@ -42,6 +43,7 @@ export default function resolvePresetScopeListings({
       ...listing,
       id: nanoid(),
       projectId,
+      entityModel: entityModelsObject[listing.entityModelKey],
     };
   });
 

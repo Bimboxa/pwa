@@ -3,6 +3,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useCreateRemoteScope from "Features/sync/hooks/useCreateRemoteScope";
+import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 
 import db from "App/db/db";
 
@@ -14,9 +15,18 @@ export default function useCreateScope() {
 
   const createListings = useCreateListings();
   const createRemoteScope = useCreateRemoteScope();
+  const createEntity = useCreateEntity();
 
   const create = async (
-    { id, name, clientRef, projectId, newListings, sortedListings },
+    {
+      id,
+      name,
+      clientRef,
+      projectId,
+      newListings,
+      newEntities,
+      sortedListings,
+    },
     options
   ) => {
     // options
@@ -72,6 +82,13 @@ export default function useCreateScope() {
         { listings: listingsWithIds, scope },
         { updateSyncFile: options?.updateSyncFile }
       );
+    }
+
+    // add entities
+    if (newEntities?.length > 0) {
+      for (let entity of newEntities) {
+        await createEntity(entity, { listing: entity.listing });
+      }
     }
 
     // return
