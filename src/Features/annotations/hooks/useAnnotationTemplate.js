@@ -20,7 +20,7 @@ export default function useAnnotationTemplate(annotation) {
       },
       {
         key: "label",
-        label: "Libellé",
+        label: "Libellé dans la légende",
         type: "text",
         options: {
           fullWidth: true,

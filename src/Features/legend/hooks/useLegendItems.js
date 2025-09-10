@@ -14,7 +14,7 @@ export default function useLegendItems() {
   // helpers
 
   const legendListing = listings?.find(
-    (listing) => listing.entityModel.type === "LEGEND_ENTITY"
+    (listing) => listing?.entityModel?.type === "LEGEND_ENTITY"
   );
 
   console.log("debug_0910 legendListing", listings);

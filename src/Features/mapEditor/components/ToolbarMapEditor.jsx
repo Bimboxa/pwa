@@ -10,6 +10,8 @@ export default function ToolbarMapEditor() {
 
   const type = listing?.entityModel?.type;
 
+  console.log("debug_0910 listing", listing);
+
   return (
     <>{type === "LOCATED_ENTITY" && <ToolbarMapEditorLocatedEntities />}</>
   );
