@@ -41,8 +41,8 @@ export default function LayoutDesktop() {
     <BoxFlexV sx={{ position: "relative" }}>
       {/* <LayerDesktop /> */}
       <TopBarDesktop />
-      <Box sx={{ display: "flex", width: 1, flexGrow: 1 }}>
-        <Box sx={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
+      <Box sx={{ display: "flex", width: 1, flexGrow: 1, minHeight: 0 }}>
+        <Box sx={{ display: "flex", width: 1, minWidth: 0, minHeight: 0 }}>
           {/* <VerticalMenuListTypes /> */}
           <LeftPanel />
           <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>

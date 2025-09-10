@@ -8,6 +8,7 @@ export default function BottomBarDesktop() {
         bgcolor: "white",
         borderTop: (theme) => `1px solid ${theme.palette.divider}`,
         height: 42,
+        minHeight: 42,
         display: "flex",
         alignItems: "center",
         zIndex: 100,
