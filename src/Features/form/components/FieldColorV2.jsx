@@ -39,6 +39,8 @@ export default function FieldColorV2({ value, onChange, label }) {
           onChange={handleColorChange}
           color={value}
           colors={defaultColors}
+          circleSize={16}
+          circleSpacing={9}
         />
       </Box>
     </Box>

@@ -15,7 +15,7 @@ export default function SelectorMarkerIcon({
   iconKeys,
   spriteImageUrl,
 }) {
-  const size = 24;
+  const size = 18;
 
   // helper
 

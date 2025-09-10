@@ -5,15 +5,13 @@ import theme from "Styles/theme";
 
 const annotationsInitialState = {
   //
-  annotationsMap: {},
-  annotationsUpdatedAt: null,
-  //
   annotationsUpdatedAt: null,
   //
   selectedAnnotationId: null,
   //
   newAnnotation: {}, // props used when adding a annotation
   editedAnnotation: null,
+  isEditingAnnotation: false,
   //
 };
 
@@ -38,6 +36,12 @@ export const annotationsSlice = createSlice({
     setNewAnnotation: (state, action) => {
       state.newAnnotation = action.payload;
     },
+    setEditedAnnotation: (state, action) => {
+      state.editedAnnotation = action.payload;
+    },
+    setIsEditingAnnotation: (state, action) => {
+      state.isEditingAnnotation = action.payload;
+    },
   },
 });
 
@@ -48,6 +52,8 @@ export const {
   createAnnotation,
   //
   setNewAnnotation,
+  setEditedAnnotation,
+  setIsEditingAnnotation,
 } = annotationsSlice.actions;
 
 export default annotationsSlice.reducer;

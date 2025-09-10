@@ -16,21 +16,23 @@ function estimateWidthPx(str, fontSizePx) {
 
 export default function NodeText({
   text,
-  bgSize,
-  bgPose,
+  imageSize,
+  containerK,
   worldScale,
   onChange,
   onDragEnd,
   onClick,
-  fontSizePx = 16,
-  paddingPx = 8,
-  minWidthPx = 28,
-  placeholder = "Text",
-  fontFamily = "inherit",
 }) {
+  // text
+  const fontFamily = text.fontFamily ?? "inherit";
+  const placeholder = text.placeholder ?? "Texte";
+  const fontSizePx = 16;
+  const paddingPx = 8;
+  const minWidthPx = 28;
+
   // bg-local anchor position
-  const pixelX = (text.x ?? 0) * (bgSize?.w ?? 0);
-  const pixelY = (text.y ?? 0) * (bgSize?.h ?? 0);
+  const pixelX = (text.x ?? 0) * (imageSize?.w ?? 0);
+  const pixelY = (text.y ?? 0) * (imageSize?.h ?? 0);
 
   const CLICK_DRAG_TOL = 5;
   const movedRef = useRef(false);
@@ -145,12 +147,18 @@ export default function NodeText({
       const deltaBgY = dy / scaleFactor;
       const newPixelX = dragStartRef.current.pixelX + deltaBgX;
       const newPixelY = dragStartRef.current.pixelY + deltaBgY;
-      const newRatioX = Math.max(0, Math.min(1, newPixelX / (bgSize?.w || 1)));
-      const newRatioY = Math.max(0, Math.min(1, newPixelY / (bgSize?.h || 1)));
+      const newRatioX = Math.max(
+        0,
+        Math.min(1, newPixelX / (imageSize?.w || 1))
+      );
+      const newRatioY = Math.max(
+        0,
+        Math.min(1, newPixelY / (imageSize?.h || 1))
+      );
       onDragEnd?.(text.id, { x: newRatioX, y: newRatioY });
       setDragOffset({ x: 0, y: 0 });
     },
-    [scaleFactor, bgSize?.w, bgSize?.h, onDragEnd, text.id]
+    [scaleFactor, imageSize?.w, imageSize?.h, onDragEnd, text.id]
   );
 
   const handlePointerUp = useCallback(

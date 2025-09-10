@@ -132,7 +132,7 @@ export default memo(function NodeSvgImage({
           width={width}
           height={height}
           preserveAspectRatio="none"
-          onClick={() => setPoseEditable(true)}
+          //onClick={() => setPoseEditable(true)}
         />
       )}
 

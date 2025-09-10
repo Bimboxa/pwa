@@ -2,7 +2,7 @@ import Dexie from "dexie";
 
 const db = new Dexie("appDB");
 
-db.version(10).stores({
+db.version(11).stores({
   orgaData: "key", // {key,data,dataStructure,file}
   projects: "id,clientRef",
 
@@ -21,7 +21,10 @@ db.version(10).stores({
   relsZoneEntity: "id,zoneId,listingId,entityId", // {id,zoneId,table,listingId,entityId}
   entitiesProps:
     "id,[listingKey+targetEntityId],listingKey,targetListingKey,targetEntityId", // entityProps = {id,tarketListingKey,targetEntityId,props}
+
   markers: "id,mapId,listingId,targetEntityId", // marker = {id,mapId,x,y,listingId,targetEntityId,createdBy,createdAt,updatedAt}
+  annotations: "id,mapId,listingId,entityId", // annotation = {id,mapId,listingId,entityId,...}
+
   files: "fileName,listingId,itemId", // {fileName, listingId, itemId, fileType} fileType: "IMAGE", "VIDEO",...
   relationsEntities: "id,listingId,sourceEntityId,targetEntityId,relationType",
   reports: "id,listingId", // {id,listingId}
