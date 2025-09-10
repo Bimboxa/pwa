@@ -16,10 +16,12 @@ export default function useCreateAnnotation() {
     const _annotation = {
       ...annotation,
       id: annotation?.id ?? nanoid(),
-      listingId: listing?.id,
+      listingId: annotation?.listingId ?? listing?.id,
     };
 
     await createAnnotationService(_annotation);
     dispatch(triggerAnnotationsUpdate());
+
+    return _annotation;
   };
 }

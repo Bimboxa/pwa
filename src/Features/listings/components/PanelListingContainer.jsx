@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import useSelectedListing from "../hooks/useSelectedListing";
-import useEntities from "Features/entities/hooks/useEntities";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
@@ -16,7 +15,6 @@ export default function PanelListingContainer() {
   // data
 
   const { value: listing } = useSelectedListing();
-  const { value: entities } = useEntities();
 
   // handlers
 

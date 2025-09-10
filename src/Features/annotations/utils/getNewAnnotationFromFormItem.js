@@ -19,14 +19,18 @@ export default function getNewAnnotationFromFormItem({
     const templateAnnotation = annotationTemplates?.find(
       (t) => t.id === newAnnotationTemplateId
     );
-    newAnnotation = { ...newItem, ...templateAnnotation };
+    newAnnotation = { ...newItem, ...templateAnnotation }; // pass id from templateAnnotation !
   } else {
     newAnnotation = { ...newItem };
   }
 
   // delete fields
 
-  delete newAnnotation.templateAnnotationId;
+  delete newAnnotation.annotationTemplateId;
+
+  // id
+
+  newAnnotation.id = oldAnnotation.id;
 
   // return
 

@@ -4,10 +4,7 @@ import { useState } from "react";
 
 import { useDispatch } from "react-redux";
 
-import {
-  setBaseMapViewsById,
-  setSelectedBaseMapViewId,
-} from "Features/baseMapViews/baseMapViewsSlice";
+import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import useCreateBaseMap from "Features/baseMaps/hooks/useCreateBaseMap";
 import useCreateBaseMapView from "Features/baseMapViews/hooks/useCreateBaseMapView";
@@ -39,11 +36,10 @@ export default function SectionNoMap() {
 
   // helpers
 
-  async function _createBaseMapView(file) {
+  async function _createBaseMap(file) {
     const baseMap = await createBaseMap({ imageFile: file });
-    const baseMapView = await createBaseMapView({ name: nameS, baseMap });
-
-    dispatch(setBaseMapViewsById(baseMapView?.id));
+    //const baseMapView = await createBaseMapView({ name: nameS, baseMap });
+    dispatch(setSelectedMainBaseMapId(baseMap?.id));
   }
 
   // handlers
@@ -70,7 +66,7 @@ export default function SectionNoMap() {
     if (files && files.length > 0) {
       const firstFile = files[0];
       if (testIsImage(firstFile)) {
-        await _createBaseMapView(firstFile);
+        await _createBaseMap(firstFile);
       }
       // You can now use firstFile as needed, e.g., read it with FileReader
       console.log("First dragged file:", firstFile);
@@ -80,7 +76,7 @@ export default function SectionNoMap() {
   async function handleFilesChangeFromButton(files) {
     const firstFile = files[0];
     if (testIsImage(firstFile)) {
-      await _createBaseMapView(firstFile);
+      await _createBaseMap(firstFile);
     }
   }
 
