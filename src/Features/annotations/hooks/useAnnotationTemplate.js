@@ -1,29 +1,24 @@
-import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useAnnotationSpriteImage from "./useAnnotationSpriteImage";
 
 export default function useAnnotationTemplate(annotation) {
-  const appConfig = useAppConfig();
-
-  // helpers - spriteImage
-
-  const spriteImages = appConfig?.features?.markers?.spriteImages;
-  const spriteImage = spriteImages?.[0];
+  const spriteImage = useAnnotationSpriteImage();
 
   // main
 
   const template = {
     fields: [
       {
-        key: "color",
+        key: "fillColor",
         label: "Couleur",
         type: "color",
       },
       {
-        key: "icon",
+        key: "iconKey",
         label: "Icône",
         type: "icon",
         options: {
           spriteImage,
-          iconColor: annotation?.color,
+          iconColor: annotation?.fillColor,
         },
       },
     ],

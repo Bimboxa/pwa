@@ -8,6 +8,14 @@ const demoAnnotations = [
     fontSize: 16,
   },
   {
+    id: "marker1",
+    type: "MARKER",
+    x: 0.12,
+    y: 0.12,
+    fillColor: "#e85426",
+    iconKey: "drop",
+  },
+  {
     id: "polygon1",
     type: "POLYGON",
     // GeoJSON-style coordinates: [ [outer ring], [hole ring] ]

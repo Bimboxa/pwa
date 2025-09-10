@@ -106,10 +106,13 @@ features:
         height: 1240
   presetScopes:
     templatesImageUrl: https://public.media.bimboxa.com/scope_templates_etandex.gif
-  markers:
+  annotations:
     spriteImages:
       - key: DEFAULT
         url: https://public.media.bimboxa.com/sprite_etandex_default.png
+        columns: 3
+        rows: 3
+        tile: 64
         iconKeys:
           - circle
           - drop

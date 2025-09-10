@@ -15,6 +15,8 @@ import NodeSvgImage from "./NodeSvgImage";
 import NodeMarkerVariantDot from "./NodeMarkerVariantDot";
 import NodeText from "./NodeText";
 import NodePolygon from "./NodePolygon";
+import NodeMarker from "./NodeMarker";
+import NodeAnnotation from "./NodeAnnotation";
 
 import clamp from "Features/misc/utils/clamp";
 
@@ -36,7 +38,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     initialScale = "fit",
     minScale = 0.1,
     maxScale = 10,
-    attachTo = "bg",
+    attachTo = "base", // "bg" or "base"
     showBgImage = true,
     cursor = "grab",
     enabledDrawingMode,
@@ -44,11 +46,17 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     onAnnotationClick,
     onAnnotationChange,
     onAnnotationDragEnd,
+    annotationSpriteImage,
+    selectedAnnotationIds,
   } = props;
+
   // === HELPERS ANNOTATIONS ===
 
-  const textAnnotations = annotations?.filter((a) => a.type === "TEXT");
-  const polygonAnnotations = annotations?.filter((a) => a.type === "POLYGON");
+  const textAnnotations = annotations?.filter((a) => a.type === "TEXT") ?? [];
+  const polygonAnnotations =
+    annotations?.filter((a) => a.type === "POLYGON") ?? [];
+  const markerAnnotations =
+    annotations?.filter((a) => a.type === "MARKER") ?? [];
 
   // === REFS ===
 
@@ -326,30 +334,24 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       const sx = e.clientX - rect.left;
       const sy = e.clientY - rect.top;
 
-      let p;
+      let p, ratioX, ratioY;
       if (attachTo === "bg") {
         p = screenToBgLocal(sx, sy);
+        ratioX = p.x / bgSize.w;
+        ratioY = p.y / bgSize.h;
       } else {
         p = screenToBaseLocal(sx, sy);
+        ratioX = p.x / baseSize.w;
+        ratioY = p.y / baseSize.h;
       }
 
       // Check if we're in marker creation mode
       if (enabledDrawingMode === "MARKER" && onNewAnnotation) {
-        // Convert to ratio coordinates (0-1) relative to bgImage
-        const ratioX = p.x / bgSize.w;
-        const ratioY = p.y / bgSize.h;
-
-        // Clamp to valid range
-        const clampedX = Math.max(0, Math.min(1, ratioX));
-        const clampedY = Math.max(0, Math.min(1, ratioY));
-
         onNewAnnotation({
           type: "MARKER",
-          x: clampedX,
-          y: clampedY,
+          x: ratioX,
+          y: ratioY,
         });
-
-        console.log("Marker created at:", { x: clampedX, y: clampedY });
         return;
       }
 
@@ -497,43 +499,18 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
             {!basePoseIsChanging && (
               <g>
-                {markers?.map((marker) => {
+                {annotations?.map((annotation) => {
                   return (
-                    <NodeMarkerVariantDot
-                      key={marker.id}
-                      marker={marker}
-                      bgSize={bgSize}
-                      bgPose={bgPose}
-                      worldScale={world.k}
-                      onDragEnd={handleMarkerDragEnd}
-                      onClick={handleMarkerClick}
-                    />
-                  );
-                })}
-                {textAnnotations.map((ta) => {
-                  return (
-                    <NodeText
-                      key={ta.id}
-                      text={ta}
-                      bgSize={bgSize}
-                      bgPose={bgPose}
-                      worldScale={world.k}
-                      onChange={handleAnnotationChange}
-                      onDragEnd={handleAnnotationDragEnd}
-                      onClick={handleAnnotationClick}
-                    />
-                  );
-                })}
-                {polygonAnnotations.map((pa) => {
-                  return (
-                    <NodePolygon
-                      key={pa.id}
-                      polygon={pa}
+                    <NodeAnnotation
+                      key={annotation.id}
+                      annotation={annotation}
                       imageSize={baseSize}
                       containerK={basePose.k}
                       worldScale={world.k}
-                      onDragEnd={handleAnnotationDragEnd}
-                      onClick={handleAnnotationClick}
+                      onDragEnd={handleMarkerDragEnd}
+                      onClick={handleMarkerClick}
+                      spriteImage={annotationSpriteImage}
+                      selected={selectedAnnotationIds.includes(annotation.id)}
                     />
                   );
                 })}
@@ -542,6 +519,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           </g>
         </g>
       </Box>
+
       {/* ===== Hidden export-only SVG (normalized to bg size) ===== */}
       <svg
         ref={ref}
@@ -580,7 +558,19 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
             height={baseSize.h}
           />
           {/* Annotations that you currently render in the base layer */}
-          {markers?.map((marker) => (
+          {annotations.map((pa) => (
+            <NodeAnnotation
+              key={pa.id + "_"}
+              annotation={pa}
+              imageSize={baseSize}
+              containerK={basePose.k}
+              worldScale={1}
+              onDragEnd={() => {}}
+              onClick={() => {}}
+              spriteImage={annotationSpriteImage}
+            />
+          ))}
+          {/* {markers?.map((marker) => (
             <NodeMarkerVariantDot
               key={marker.id}
               marker={marker}
@@ -613,7 +603,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               onDragEnd={() => {}}
               onClick={() => {}}
             />
-          ))}
+          ))} */}
         </g>
       </svg>
     </Box>
