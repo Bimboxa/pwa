@@ -463,6 +463,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                 src={bgImageUrl}
                 width={bgSize.w}
                 height={bgSize.h}
+                locked={true}
               />
             )}
             <g>
@@ -495,6 +496,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                 });
                 setBasePoseIsChanging(false);
               }}
+              enabledDrawingMode={enabledDrawingMode}
             />
 
             {!basePoseIsChanging && (

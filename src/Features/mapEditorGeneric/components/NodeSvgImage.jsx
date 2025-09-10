@@ -17,6 +17,8 @@ export default memo(function NodeSvgImage({
   containerK = 1, // 🔁 was bgPoseK — the immediate parent's scale (here: basePose.k)
   onPoseChangeStart, // () => void
   onPoseChangeEnd, // (deltaPose: { x, y, k }) => void
+  enabledDrawingMode,
+  locked = false,
 }) {
   const refSize = useRef();
 
@@ -129,7 +131,9 @@ export default memo(function NodeSvgImage({
           width={width}
           height={height}
           preserveAspectRatio="none"
-          //onClick={() => setPoseEditable(true)}
+          onClick={() => {
+            if (!enabledDrawingMode && !locked) setPoseEditable(true);
+          }}
         />
       )}
 
@@ -149,6 +153,9 @@ export default memo(function NodeSvgImage({
           onTouchEndCapture={stopPointerCapture}
           onWheelCapture={maybeStopWheel}
           style={{ overflow: "visible" }}
+          onClick={() => {
+            setPoseEditable(false);
+          }}
         >
           <div
             data-stop-pan

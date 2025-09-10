@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { setEnabledDrawingMode } from "../mapEditorSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
+import { setSelectedEntityId } from "Features/entities/entitiesSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -119,6 +120,10 @@ export default function MainMapEditorV2() {
   function handleAnnotationClick(annotation) {
     console.log("click on annotation", annotation);
     dispatch(setSelectedAnnotationId(annotation.id));
+
+    if (annotation.listingId === listingId) {
+      dispatch(setSelectedEntityId(annotation.entityId));
+    }
   }
 
   async function handleClick() {

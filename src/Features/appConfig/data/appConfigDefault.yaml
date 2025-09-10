@@ -204,13 +204,14 @@ presetListingsObject:
   issues:
     key: issues
     name: Observations
-    entityModelKey: issues
+    entityModelKey: issue
     table: entities
     color: *blue700
     iconKey: info
     sortBy:
       key: num
       order: desc
+    spriteImageKey: DEFAULT
 
   legend:
     key: legend
