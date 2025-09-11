@@ -47,11 +47,10 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     onAnnotationChange,
     onAnnotationDragEnd,
     annotationSpriteImage,
-    selectedAnnotationIds,
+    selectedAnnotationIds = [],
   } = props;
 
   // === HELPERS ANNOTATIONS ===
-
   const textAnnotations = annotations?.filter((a) => a.type === "TEXT") ?? [];
   const polygonAnnotations =
     annotations?.filter((a) => a.type === "POLYGON") ?? [];
@@ -59,14 +58,13 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     annotations?.filter((a) => a.type === "MARKER") ?? [];
 
   // === REFS ===
-
   const containerRef = useRef();
 
   // prevent click after drag stops.
-  const CLICK_DRAG_TOL = 5; // px   // 🔥 NEW
-  const downRef = useRef({ x: 0, y: 0 }); // 🔥 NEW
-  const movedRef = useRef(false); // 🔥 NEW
-  const suppressNextClickRef = useRef(false); // 🔥 NEW
+  const CLICK_DRAG_TOL = 5;
+  const downRef = useRef({ x: 0, y: 0 });
+  const movedRef = useRef(false);
+  const suppressNextClickRef = useRef(false);
 
   // === STATES ===
 
@@ -80,7 +78,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
   // === Layer poses (local -> world) ===
   const [bgPose, setBgPose] = useState({ x: 0, y: 0, k: 1, r: 0 }); // bgImage positioned in world
-  //const [basePose, setBasePose] = useState({ x: 0, y: 0, k: 1, r: 0 }); // mainBaseMap positioned in world
+  //const [basePoseState, setBasePoseState] = useState({ x: 0, y: 0, k: 1, r: 0 }); // (non utilisé)
 
   const basePose = {
     x: bgPose.x + (baseMapPoseInBg.x || 0) * (bgPose.k || 1),
@@ -90,13 +88,11 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   };
 
   // === positionning baseMap ===
-
   const [basePoseIsChanging, setBasePoseIsChanging] = useState(false);
 
   function handleBasePoseChangeStart() {
     setBasePoseIsChanging(true);
   }
-
   function handleBasePoseChangeEnd() {
     setBasePoseIsChanging(false);
   }
@@ -135,15 +131,12 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
   // === INIT VIEWPORT ===
 
-  // Fit-to-view (based on bgImage by default)
   const fit = useCallback(() => {
     // Prefer the visible layer for fitting
     const W = (showBgImage ? bgSize.w : 0) || baseSize.w;
     const H = (showBgImage ? bgSize.h : 0) || baseSize.h;
-    console.log("debug_0509 fit", W, H, viewport.wMap, viewport.h);
-    //
+    // console.log("debug fit", W, H, viewport.w, viewport.h);
     if (!W || !H || !viewport.w || !viewport.h) return;
-    //
     const scale = Math.min(viewport.w / W, viewport.h / H) || 1;
     const k = clamp(scale, minScale, maxScale);
     const x = (viewport.w - W * k) / 2;
@@ -155,14 +148,99 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     if (initialScale === "fit") fit();
     else if (typeof initialScale === "number") {
       const k = clamp(initialScale, minScale, maxScale);
-      // Prefer the visible layer when centering with a fixed scale
       const W = (showBgImage ? bgSize.w : 0) || baseSize.w;
       const H = (showBgImage ? bgSize.h : 0) || baseSize.h;
       const x = (viewport.w - W * k) / 2;
       const y = (viewport.h - H * k) / 2;
       setWorld({ x, y, k });
     }
-  }, [initialScale, viewport, bgSize, baseSize, minScale, maxScale]);
+  }, [initialScale, viewport, bgSize, baseSize, minScale, maxScale, fit, showBgImage]);
+
+  // ============================
+  // 🟢 NEW: état & refs pour PINCH + INERTIE
+  // ============================
+  const [isPinching, setIsPinching] = useState(false); // 🟢 NEW
+  const pointersRef = useRef(new Map()); // 🟢 NEW (pointerId -> {x,y})
+  const pinchRef = useRef({
+    // 🟢 NEW
+    active: false,
+    lastDist: 0,
+    lastMid: { x: 0, y: 0 },
+    lastT: 0,
+  });
+  const inertiaRef = useRef({
+    // 🟢 NEW
+    raf: null,
+    zoomV: 0, // vitesse zoom ln(k)/ms
+    panVX: 0, // px/ms
+    panVY: 0, // px/ms
+    pivotPx: 0, // pivot relatif au container
+    pivotPy: 0,
+    lastT: 0,
+  });
+
+  // 🟢 NEW: utilitaires pinch
+  const getDistance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y); // 🟢 NEW
+  const getMidpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }); // 🟢 NEW
+  const cancelInertia = useCallback(() => {
+    // 🟢 NEW
+    if (inertiaRef.current.raf) {
+      cancelAnimationFrame(inertiaRef.current.raf);
+      inertiaRef.current.raf = null;
+    }
+  }, []);
+
+  // ============================
+  // 🟢 NEW: boucle d’inertie (zoom + pan)
+  // ============================
+  const startInertia = useCallback(() => {
+    // 🟢 NEW
+    const MIN_ZOOMV = 1e-5; // seuil ln(k)/ms
+    const MIN_PANV = 0.02; // px/ms
+
+    let { zoomV, panVX, panVY, pivotPx, pivotPy } = inertiaRef.current;
+    if (Math.abs(zoomV) < MIN_ZOOMV && Math.hypot(panVX, panVY) < MIN_PANV) {
+      return;
+    }
+
+    const ZOOM_FRICTION = 0.0025; // friction zoom (par ms)
+    const PAN_FRICTION = 0.003; // friction pan (par ms)
+
+    const step = (t) => {
+      const ref = inertiaRef.current;
+      const lastT = ref.lastT || t;
+      const dt = Math.max(0, t - lastT);
+      ref.lastT = t;
+
+      // Décroissance
+      zoomV *= Math.exp(-ZOOM_FRICTION * dt);
+      panVX *= Math.exp(-PAN_FRICTION * dt);
+      panVY *= Math.exp(-PAN_FRICTION * dt);
+
+      if (Math.abs(zoomV) < MIN_ZOOMV && Math.hypot(panVX, panVY) < MIN_PANV) {
+        cancelInertia();
+        return;
+      }
+
+      const factor = Math.exp(zoomV * dt);
+
+      setWorld((prev) => {
+        const newK = clamp(prev.k * factor, minScale, maxScale);
+        const wx = (pivotPx - prev.x) / prev.k;
+        const wy = (pivotPy - prev.y) / prev.k;
+        let newX = pivotPx - wx * newK;
+        let newY = pivotPy - wy * newK;
+        newX += panVX * dt;
+        newY += panVY * dt;
+        return { x: newX, y: newY, k: newK };
+      });
+
+      ref.raf = requestAnimationFrame(step);
+    };
+
+    inertiaRef.current.lastT = performance.now();
+    inertiaRef.current.raf = requestAnimationFrame(step);
+  }, [cancelInertia, minScale, maxScale]);
 
   // === PANNING ===
 
@@ -172,28 +250,107 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   const onPointerDown = useCallback(
     (e) => {
       if (!containerRef.current) return;
-      //containerRef.current.setPointerCapture(e.pointerId);
-      setIsPanning(true);
-      // to prevent click at drag stops
-      downRef.current = { x: e.clientX, y: e.clientY };
-      movedRef.current = false;
-      //
-      panStart.current = {
-        x: e.clientX,
-        y: e.clientY,
-        tx: world.x,
-        ty: world.y,
-      };
+
+      cancelInertia(); // 🟢 NEW: toute nouvelle interaction annule l’inertie
+
+      // Gestion multi-pointeurs pour pinch
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); // 🟢 NEW
+      const count = pointersRef.current.size; // 🟢 NEW
+
+      if (count === 2) {
+        // 🟢 NEW: démarrage du pinch
+        setIsPinching(true);
+        setIsPanning(false);
+        movedRef.current = true;
+
+        const [p1, p2] = Array.from(pointersRef.current.values());
+        const dist = getDistance(p1, p2);
+        const mid = getMidpoint(p1, p2);
+        pinchRef.current = {
+          active: true,
+          lastDist: dist,
+          lastMid: mid,
+          lastT: performance.now(),
+        };
+        return;
+      }
+
+      if (count === 1) {
+        setIsPanning(true);
+        downRef.current = { x: e.clientX, y: e.clientY };
+        movedRef.current = false;
+        panStart.current = {
+          x: e.clientX,
+          y: e.clientY,
+          tx: world.x,
+          ty: world.y,
+        };
+      }
     },
-    [world.x, world.y]
+    [world.x, world.y, cancelInertia]
   );
+
   const onPointerMove = useCallback(
     (e) => {
+      // garder la position des pointeurs pour le pinch
+      if (pointersRef.current.has(e.pointerId)) {
+        pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); // 🟢 NEW
+      }
+
+      // 🟢 NEW: PINCH (2 doigts)
+      if (isPinching && pointersRef.current.size >= 2) {
+        const [a, b] = Array.from(pointersRef.current.values());
+        const dist = getDistance(a, b);
+        const mid = getMidpoint(a, b);
+
+        const now = performance.now();
+        const dt = Math.max(1, now - pinchRef.current.lastT);
+
+        const factor =
+          dist > 0 && pinchRef.current.lastDist > 0
+            ? dist / pinchRef.current.lastDist
+            : 1;
+
+        // Zoom autour du milieu
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (rect && factor !== 1) {
+          const px = mid.x - rect.left;
+          const py = mid.y - rect.top;
+
+          const newK = clamp(world.k * factor, minScale, maxScale);
+          const wx = (px - world.x) / world.k;
+          const wy = (py - world.y) / world.k;
+          const newX = px - wx * newK;
+          const newY = py - wy * newK;
+          setWorld({ x: newX, y: newY, k: newK });
+        }
+
+        // Pan pour suivre le midpoint
+        const dxMid = mid.x - pinchRef.current.lastMid.x;
+        const dyMid = mid.y - pinchRef.current.lastMid.y;
+        if (dxMid || dyMid) {
+          setWorld((t) => ({ ...t, x: t.x + dxMid, y: t.y + dyMid }));
+        }
+
+        // Vitesse pour inertie
+        const vZoom = Math.log(factor) / dt; // ln(k)/ms
+        const vX = dxMid / dt; // px/ms
+        const vY = dyMid / dt; // px/ms
+        inertiaRef.current.zoomV = isFinite(vZoom) ? vZoom : 0;
+        inertiaRef.current.panVX = isFinite(vX) ? vX : 0;
+        inertiaRef.current.panVY = isFinite(vY) ? vY : 0;
+
+        pinchRef.current.lastDist = dist;
+        pinchRef.current.lastMid = mid;
+        pinchRef.current.lastT = now;
+        return;
+      }
+
+      // PAN à 1 doigt (inchangé)
       if (!isPanning) return;
       const dx = e.clientX - panStart.current.x;
       const dy = e.clientY - panStart.current.y;
 
-      // 🔥 detect drag beyond tolerance
       if (
         !movedRef.current &&
         (Math.abs(e.clientX - downRef.current.x) > CLICK_DRAG_TOL ||
@@ -208,21 +365,50 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         y: panStart.current.ty + dy,
       }));
     },
-    [isPanning]
+    [isPinching, isPanning, minScale, maxScale, world.k, world.x, world.y]
   );
 
-  const endPan = useCallback((e) => {
-    if (!containerRef.current) return;
-    try {
-      containerRef.current.releasePointerCapture(e.pointerId);
-    } catch {}
-    setIsPanning(false);
-    // prevent click propagation after drag stop
-    if (movedRef.current) suppressNextClickRef.current = true;
-  }, []);
+  const endPan = useCallback(
+    (e) => {
+      if (!containerRef.current) return;
 
-  // === ZOOM TO POINTER ===
+      // 🟢 NEW: maj du set de pointeurs
+      if (pointersRef.current.has(e.pointerId)) {
+        pointersRef.current.delete(e.pointerId);
+      }
+      const count = pointersRef.current.size;
 
+      if (isPinching) {
+        if (count >= 2) return;
+        // Fin du pinch : lancer inertie
+        setIsPinching(false);
+        pinchRef.current.active = false;
+
+        const rect = containerRef.current.getBoundingClientRect();
+        const mid = pinchRef.current.lastMid;
+        inertiaRef.current.pivotPx = mid.x - rect.left;
+        inertiaRef.current.pivotPy = mid.y - rect.top;
+        inertiaRef.current.lastT = performance.now();
+
+        startInertia(); // 🟢 NEW
+
+        if (count === 1) {
+          const [p] = Array.from(pointersRef.current.values());
+          setIsPanning(true);
+          panStart.current = { x: p.x, y: p.y, tx: world.x, ty: world.y };
+          return;
+        }
+      }
+
+      if (count === 0) {
+        setIsPanning(false);
+        if (movedRef.current) suppressNextClickRef.current = true;
+      }
+    },
+    [isPinching, startInertia, world.x, world.y]
+  );
+
+  // === ZOOM TO POINTER (wheel desktop) ===
   const zoomAt = useCallback(
     (clientX, clientY, factor) => {
       const rect = containerRef.current?.getBoundingClientRect();
@@ -230,7 +416,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       const px = clientX - rect.left;
       const py = clientY - rect.top;
       const newK = clamp(world.k * factor, minScale, maxScale);
-      // keep (px,py) stable: compute world point under cursor before/after
       const wx = (px - world.x) / world.k;
       const wy = (py - world.y) / world.k;
       const newX = px - wx * newK;
@@ -243,10 +428,11 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   const onWheel = useCallback(
     (e) => {
       e.preventDefault();
+      cancelInertia(); // 🟢 NEW
       const factor = Math.pow(1.0015, -e.deltaY);
       zoomAt(e.clientX, e.clientY, factor);
     },
-    [zoomAt]
+    [zoomAt, cancelInertia]
   );
 
   // Add wheel event listener manually to ensure preventDefault works
@@ -258,8 +444,9 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
     return () => {
       container.removeEventListener("wheel", onWheel);
+      cancelInertia(); // 🟢 NEW
     };
-  }, [onWheel]);
+  }, [onWheel, cancelInertia]);
 
   // === MATRICES FOR CONVERSIONS ===
 
@@ -304,12 +491,10 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   }, [bgPose, basePose]);
 
   // === CURSOR ===
-
-  cursor = isPanning ? "grabbing" : cursor;
+  cursor = isPinching ? "grabbing" : isPanning ? "grabbing" : cursor; // 🟢 NEW
 
   // === CLICK ===
 
-  // 🔥 capture-phase handler to suppress unwanted click
   const onSvgClickCapture = useCallback((e) => {
     if (suppressNextClickRef.current) {
       e.preventDefault();
@@ -321,12 +506,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   // Click to add an annotation to the selected layer
   const onSvgClick = useCallback(
     (e) => {
-      console.log("debug_0809 SVG CLICK detected!", {
-        isPanning,
-        enabledDrawingMode,
-        e,
-      });
-      if (isPanning) return;
+      if (isPanning || isPinching) return; // 🟢 NEW: pas de click pendant gestes
 
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -345,7 +525,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         ratioY = p.y / baseSize.h;
       }
 
-      // Check if we're in marker creation mode
       if (enabledDrawingMode === "MARKER" && onNewAnnotation) {
         onNewAnnotation({
           type: "MARKER",
@@ -354,28 +533,27 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         });
         return;
       }
-
-      console.log("debug_0509 onSvgClick", p);
     },
     [
       attachTo,
       isPanning,
+      isPinching, // 🟢 NEW
       screenToBgLocal,
       screenToBaseLocal,
       enabledDrawingMode,
       onNewAnnotation,
       bgSize.w,
       bgSize.h,
+      baseSize.w,
+      baseSize.h,
     ]
   );
 
   // === DRAG ===
 
-  // Handle marker drag end
   const handleMarkerDragEnd = useCallback((markerId, newPosition) => {
-    console.log("Marker drag ended:", { markerId, newPosition });
-    // Here you would typically update the marker position in your state/store
-    // For now, we'll just log the new position
+    // Update as needed
+    // console.log("Marker drag ended:", { markerId, newPosition });
   }, []);
 
   // === ANNOTATION EVENTS ===
@@ -399,7 +577,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   return (
     <Box
       ref={containerRef}
-      //onDoubleClick={onDoubleClick}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endPan}
@@ -409,7 +586,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         width: "100%",
         height: "100%",
         bgcolor: "background.default",
-        touchAction: "none",
+        touchAction: "none", // important pour gestes pointer (pinch) 🟢 NEW (déjà présent)
         userSelect: "none",
         cursor,
       }}
@@ -429,7 +606,10 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       >
         <Tooltip title="Fit to view">
           <IconButton
-            onClick={fit}
+            onClick={() => {
+              cancelInertia(); // 🟢 NEW
+              fit();
+            }}
             onPointerDown={(e) => e.stopPropagation()}
             onPointerMove={(e) => e.stopPropagation()}
             size="small"
@@ -438,9 +618,9 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           </IconButton>
         </Tooltip>
       </Box>
+
       {/* SVG scene */}
       <Box
-        //ref={ref}
         component="svg"
         onClick={onSvgClick}
         onClickCapture={onSvgClickCapture}
@@ -449,7 +629,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           width: "100%",
           height: "100%",
           display: "block",
-          pointerEvents: "auto", // Ensure SVG can receive pointer events
+          pointerEvents: "auto",
         }}
       >
         {/* WORLD group — applies viewport pan/zoom to everything */}
@@ -466,13 +646,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                 locked={true}
               />
             )}
-            <g>
-              {/* {bgAnnots.map((p, i) => (
-                <circle key={i} cx={p.x} cy={p.y} r={6} fill="#9c27b0" />
-              ))} */}
-
-              {/* Markers positioned relative to bgImage */}
-            </g>
+            <g>{/* place for bg-attached annotations if any */}</g>
           </g>
 
           {/* LAYER: mainBaseMap — moving/scaling this moves its annotations */}
@@ -530,13 +704,10 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         viewBox={`0 0 ${bgSize.w} ${bgSize.h}`}
         style={{
           position: "absolute",
-          //left: -99999, // keep it offscreen
-          left: 0,
+          left: 0, // si tu dois l’exporter, évite left:-99999 avec html-to-image
           top: 0,
-          zIndex: 30,
           pointerEvents: "none",
           zIndex: -1,
-          //visibility: "hidden",
         }}
         xmlns="http://www.w3.org/2000/svg"
       >
@@ -545,21 +716,19 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           {showBgImage && (
             <NodeSvgImage src={bgImageUrl} width={bgSize.w} height={bgSize.h} />
           )}
-
-          {/* If you ever have annotations attached to BG, render them here */}
-          {/* e.g., <NodePolygon .../> / markers-on-bg, etc. */}
         </g>
 
         {/* BASE layer expressed relative to BG */}
         <g
-          transform={`translate(${relBase.x}, ${relBase.y}) scale(${relBase.k})`}
+          transform={`translate(${(basePose.x - bgPose.x) / (bgPose.k || 1)}, ${
+            (basePose.y - bgPose.y) / (bgPose.k || 1)
+          }) scale(${(basePose.k || 1) / (bgPose.k || 1)})`}
         >
           <NodeSvgImage
             src={baseMapImageUrl}
             width={baseSize.w}
             height={baseSize.h}
           />
-          {/* Annotations that you currently render in the base layer */}
           {annotations.map((pa) => (
             <NodeAnnotation
               key={pa.id + "_"}
@@ -572,40 +741,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               spriteImage={annotationSpriteImage}
             />
           ))}
-          {/* {markers?.map((marker) => (
-            <NodeMarkerVariantDot
-              key={marker.id}
-              marker={marker}
-              bgSize={bgSize}
-              bgPose={{ x: 0, y: 0, k: 1, r: 0 }} // normalized space
-              worldScale={1} // no world zoom in export
-              onDragEnd={() => {}}
-              onClick={() => {}}
-            />
-          ))}
-          {textAnnotations.map((ta) => (
-            <NodeText
-              key={ta.id + "_"}
-              text={ta}
-              bgSize={bgSize}
-              bgPose={{ x: 0, y: 0, k: 1, r: 0 }}
-              worldScale={1}
-              onChange={() => {}}
-              onDragEnd={() => {}}
-              onClick={() => {}}
-            />
-          ))}
-          {polygonAnnotations.map((pa) => (
-            <NodePolygon
-              key={pa.id + "_"}
-              polygon={pa}
-              imageSize={baseSize}
-              containerK={basePose.k}
-              worldScale={1}
-              onDragEnd={() => {}}
-              onClick={() => {}}
-            />
-          ))} */}
         </g>
       </svg>
     </Box>
