@@ -12,14 +12,9 @@ import { Box, Tooltip, IconButton } from "@mui/material";
 import { CenterFocusStrong as CenterFocusStrongIcon } from "@mui/icons-material";
 
 import NodeSvgImage from "./NodeSvgImage";
-import NodeMarkerVariantDot from "./NodeMarkerVariantDot";
-import NodeText from "./NodeText";
-import NodePolygon from "./NodePolygon";
-import NodeMarker from "./NodeMarker";
 import NodeAnnotation from "./NodeAnnotation";
 
 import clamp from "Features/misc/utils/clamp";
-
 import {
   mFromTSR,
   mApply,
@@ -33,7 +28,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     baseMapImageUrl,
     baseMapPoseInBg, // {x:0,y:0,k:1,r:0}, pose of baseMap in bg local coords.
     onBaseMapPoseInBgChange,
-    markers,
     annotations,
     initialScale = "fit",
     minScale = 0.1,
@@ -50,35 +44,25 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     selectedAnnotationIds = [],
   } = props;
 
-  // === HELPERS ANNOTATIONS ===
-  const textAnnotations = annotations?.filter((a) => a.type === "TEXT") ?? [];
-  const polygonAnnotations =
-    annotations?.filter((a) => a.type === "POLYGON") ?? [];
-  const markerAnnotations =
-    annotations?.filter((a) => a.type === "MARKER") ?? [];
-
   // === REFS ===
   const containerRef = useRef();
 
-  // prevent click after drag stops.
+  // click suppression
   const CLICK_DRAG_TOL = 5;
   const downRef = useRef({ x: 0, y: 0 });
   const movedRef = useRef(false);
   const suppressNextClickRef = useRef(false);
 
-  // === STATES ===
-
   // === Viewport & world transform (world -> viewport) ===
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
-  const [world, setWorld] = useState({ x: 0, y: 0, k: 1 }); // translate + scale applied to the top <g>
+  const [world, setWorld] = useState({ x: 0, y: 0, k: 1 });
 
-  // === Intrinsic sizes (local coordinate systems of each image) ===
+  // === Intrinsic sizes ===
   const [bgSize, setBgSize] = useState({ w: 0, h: 0 });
   const [baseSize, setBaseSize] = useState({ w: 0, h: 0 });
 
-  // === Layer poses (local -> world) ===
-  const [bgPose, setBgPose] = useState({ x: 0, y: 0, k: 1, r: 0 }); // bgImage positioned in world
-  //const [basePoseState, setBasePoseState] = useState({ x: 0, y: 0, k: 1, r: 0 }); // (non utilisé)
+  // === Layer poses ===
+  const [bgPose, setBgPose] = useState({ x: 0, y: 0, k: 1, r: 0 });
 
   const basePose = {
     x: bgPose.x + (baseMapPoseInBg.x || 0) * (bgPose.k || 1),
@@ -87,19 +71,9 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     r: (bgPose.r || 0) + (baseMapPoseInBg.r || 0),
   };
 
-  // === positionning baseMap ===
   const [basePoseIsChanging, setBasePoseIsChanging] = useState(false);
 
-  function handleBasePoseChangeStart() {
-    setBasePoseIsChanging(true);
-  }
-  function handleBasePoseChangeEnd() {
-    setBasePoseIsChanging(false);
-  }
-
-  // === SIZE EFFECTS ===
-
-  // Load intrinsic sizes
+  // === Load sizes
   useEffect(() => {
     if (!bgImageUrl) return;
     const img = new Image();
@@ -132,10 +106,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   // === INIT VIEWPORT ===
 
   const fit = useCallback(() => {
-    // Prefer the visible layer for fitting
     const W = (showBgImage ? bgSize.w : 0) || baseSize.w;
     const H = (showBgImage ? bgSize.h : 0) || baseSize.h;
-    // console.log("debug fit", W, H, viewport.w, viewport.h);
     if (!W || !H || !viewport.w || !viewport.h) return;
     const scale = Math.min(viewport.w / W, viewport.h / H) || 1;
     const k = clamp(scale, minScale, maxScale);
@@ -157,54 +129,72 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   }, [initialScale, viewport, bgSize, baseSize, minScale, maxScale, fit, showBgImage]);
 
   // ============================
-  // 🟢 NEW: état & refs pour PINCH + INERTIE
+  // 🟢 NEW: PINCH + INERTIE
   // ============================
-  const [isPinching, setIsPinching] = useState(false); // 🟢 NEW
-  const pointersRef = useRef(new Map()); // 🟢 NEW (pointerId -> {x,y})
+
+  // Constantes ajustées pour “sentir” l’inertie avec grandes images
+  const MIN_ZOOMV = 5e-5; // seuil ln(k)/ms pour stopper l’inertie (un poil plus haut qu’avant)  // 🟢 NEW
+  const MIN_PANV = 0.02; // px/ms (idem)                                                       // 🟢 NEW
+  const ZOOM_FRICTION = 0.0018; // friction zoom par ms (plus faible -> inertie plus visible)        // 🟢 NEW
+  const PAN_FRICTION = 0.002; // friction pan par ms                                                // 🟢 NEW
+  const PAN_SMOOTHING = 0.25; // IIR alpha pour lisser la vitesse pan                               // 🟢 NEW
+  const WHEEL_INERTIA_DELAY = 90; // ms sans wheel pour déclencher l’inertie de zoom                    // 🟢 NEW
+
+  const [isPinching, setIsPinching] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+
+  const pointersRef = useRef(new Map());
   const pinchRef = useRef({
-    // 🟢 NEW
     active: false,
     lastDist: 0,
     lastMid: { x: 0, y: 0 },
     lastT: 0,
   });
+
   const inertiaRef = useRef({
-    // 🟢 NEW
     raf: null,
-    zoomV: 0, // vitesse zoom ln(k)/ms
+    zoomV: 0, // ln(k)/ms
     panVX: 0, // px/ms
     panVY: 0, // px/ms
-    pivotPx: 0, // pivot relatif au container
+    pivotPx: 0, // pivot (px dans le container)
     pivotPy: 0,
     lastT: 0,
   });
 
-  // 🟢 NEW: utilitaires pinch
-  const getDistance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y); // 🟢 NEW
-  const getMidpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }); // 🟢 NEW
+  // 🟢 NEW: suivi vitesse de pan (1 doigt / souris)
+  const panSpeedRef = useRef({
+    lastX: 0,
+    lastY: 0,
+    lastT: 0,
+    vX: 0, // vitesse lissée px/ms
+    vY: 0,
+  });
+
+  // 🟢 NEW: suivi wheel pour inertie zoom
+  const wheelRef = useRef({
+    timer: null,
+    lastT: 0,
+    lastPivot: { x: 0, y: 0 }, // dernier point souris
+    vZoom: 0, // ln(k)/ms (échantillon récent)
+  });
+
   const cancelInertia = useCallback(() => {
-    // 🟢 NEW
     if (inertiaRef.current.raf) {
       cancelAnimationFrame(inertiaRef.current.raf);
       inertiaRef.current.raf = null;
     }
   }, []);
 
-  // ============================
-  // 🟢 NEW: boucle d’inertie (zoom + pan)
-  // ============================
-  const startInertia = useCallback(() => {
-    // 🟢 NEW
-    const MIN_ZOOMV = 1e-5; // seuil ln(k)/ms
-    const MIN_PANV = 0.02; // px/ms
+  const getDistance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const getMidpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
+  // 🟢 NEW: boucle d’inertie
+  const startInertia = useCallback(() => {
     let { zoomV, panVX, panVY, pivotPx, pivotPy } = inertiaRef.current;
+
     if (Math.abs(zoomV) < MIN_ZOOMV && Math.hypot(panVX, panVY) < MIN_PANV) {
       return;
     }
-
-    const ZOOM_FRICTION = 0.0025; // friction zoom (par ms)
-    const PAN_FRICTION = 0.003; // friction pan (par ms)
 
     const step = (t) => {
       const ref = inertiaRef.current;
@@ -212,53 +202,74 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       const dt = Math.max(0, t - lastT);
       ref.lastT = t;
 
-      // Décroissance
+      // Décroissance exponentielle
       zoomV *= Math.exp(-ZOOM_FRICTION * dt);
       panVX *= Math.exp(-PAN_FRICTION * dt);
       panVY *= Math.exp(-PAN_FRICTION * dt);
 
+      // Arret si vitesses très faibles
       if (Math.abs(zoomV) < MIN_ZOOMV && Math.hypot(panVX, panVY) < MIN_PANV) {
         cancelInertia();
         return;
       }
 
+      // Application
       const factor = Math.exp(zoomV * dt);
 
       setWorld((prev) => {
         const newK = clamp(prev.k * factor, minScale, maxScale);
+
+        // Pivot zoom
         const wx = (pivotPx - prev.x) / prev.k;
         const wy = (pivotPy - prev.y) / prev.k;
         let newX = pivotPx - wx * newK;
         let newY = pivotPy - wy * newK;
+
+        // Pan inertiel
         newX += panVX * dt;
         newY += panVY * dt;
+
         return { x: newX, y: newY, k: newK };
       });
 
+      ref.zoomV = zoomV;
+      ref.panVX = panVX;
+      ref.panVY = panVY;
       ref.raf = requestAnimationFrame(step);
     };
 
     inertiaRef.current.lastT = performance.now();
     inertiaRef.current.raf = requestAnimationFrame(step);
-  }, [cancelInertia, minScale, maxScale]);
+  }, [
+    MIN_ZOOMV,
+    MIN_PANV,
+    ZOOM_FRICTION,
+    PAN_FRICTION,
+    minScale,
+    maxScale,
+    cancelInertia,
+  ]);
 
-  // === PANNING ===
-
-  const [isPanning, setIsPanning] = useState(false);
+  // === PANNING / GESTURES ===
   const panStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
 
   const onPointerDown = useCallback(
     (e) => {
       if (!containerRef.current) return;
 
-      cancelInertia(); // 🟢 NEW: toute nouvelle interaction annule l’inertie
+      cancelInertia(); // 🟢 NEW
 
-      // Gestion multi-pointeurs pour pinch
-      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); // 🟢 NEW
-      const count = pointersRef.current.size; // 🟢 NEW
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const count = pointersRef.current.size;
+
+      // init vitesses pan
+      panSpeedRef.current.vX = 0; // 🟢 NEW
+      panSpeedRef.current.vY = 0; // 🟢 NEW
+      panSpeedRef.current.lastX = e.clientX; // 🟢 NEW
+      panSpeedRef.current.lastY = e.clientY; // 🟢 NEW
+      panSpeedRef.current.lastT = performance.now(); // 🟢 NEW
 
       if (count === 2) {
-        // 🟢 NEW: démarrage du pinch
         setIsPinching(true);
         setIsPanning(false);
         movedRef.current = true;
@@ -292,12 +303,11 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
   const onPointerMove = useCallback(
     (e) => {
-      // garder la position des pointeurs pour le pinch
       if (pointersRef.current.has(e.pointerId)) {
-        pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); // 🟢 NEW
+        pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       }
 
-      // 🟢 NEW: PINCH (2 doigts)
+      // PINCH
       if (isPinching && pointersRef.current.size >= 2) {
         const [a, b] = Array.from(pointersRef.current.values());
         const dist = getDistance(a, b);
@@ -311,7 +321,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
             ? dist / pinchRef.current.lastDist
             : 1;
 
-        // Zoom autour du milieu
         const rect = containerRef.current?.getBoundingClientRect();
         if (rect && factor !== 1) {
           const px = mid.x - rect.left;
@@ -325,17 +334,17 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           setWorld({ x: newX, y: newY, k: newK });
         }
 
-        // Pan pour suivre le midpoint
+        // pan suiveur
         const dxMid = mid.x - pinchRef.current.lastMid.x;
         const dyMid = mid.y - pinchRef.current.lastMid.y;
         if (dxMid || dyMid) {
           setWorld((t) => ({ ...t, x: t.x + dxMid, y: t.y + dyMid }));
         }
 
-        // Vitesse pour inertie
-        const vZoom = Math.log(factor) / dt; // ln(k)/ms
-        const vX = dxMid / dt; // px/ms
-        const vY = dyMid / dt; // px/ms
+        // vitesses pour inertie
+        const vZoom = Math.log(factor) / dt;
+        const vX = dxMid / dt;
+        const vY = dyMid / dt;
         inertiaRef.current.zoomV = isFinite(vZoom) ? vZoom : 0;
         inertiaRef.current.panVX = isFinite(vX) ? vX : 0;
         inertiaRef.current.panVY = isFinite(vY) ? vY : 0;
@@ -346,7 +355,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         return;
       }
 
-      // PAN à 1 doigt (inchangé)
+      // PAN à 1 doigt / souris
       if (!isPanning) return;
       const dx = e.clientX - panStart.current.x;
       const dy = e.clientY - panStart.current.y;
@@ -359,11 +368,27 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         movedRef.current = true;
       }
 
+      // position
       setWorld((t) => ({
         ...t,
         x: panStart.current.tx + dx,
         y: panStart.current.ty + dy,
       }));
+
+      // 🟢 NEW: vitesse lissée
+      const now = performance.now();
+      const dt = Math.max(1, now - panSpeedRef.current.lastT);
+      const instVX = (e.clientX - panSpeedRef.current.lastX) / dt; // px/ms
+      const instVY = (e.clientY - panSpeedRef.current.lastY) / dt;
+
+      panSpeedRef.current.vX =
+        panSpeedRef.current.vX * (1 - PAN_SMOOTHING) + instVX * PAN_SMOOTHING;
+      panSpeedRef.current.vY =
+        panSpeedRef.current.vY * (1 - PAN_SMOOTHING) + instVY * PAN_SMOOTHING;
+
+      panSpeedRef.current.lastX = e.clientX;
+      panSpeedRef.current.lastY = e.clientY;
+      panSpeedRef.current.lastT = now;
     },
     [isPinching, isPanning, minScale, maxScale, world.k, world.x, world.y]
   );
@@ -372,7 +397,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     (e) => {
       if (!containerRef.current) return;
 
-      // 🟢 NEW: maj du set de pointeurs
+      // maj du set de pointeurs
       if (pointersRef.current.has(e.pointerId)) {
         pointersRef.current.delete(e.pointerId);
       }
@@ -380,7 +405,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
       if (isPinching) {
         if (count >= 2) return;
-        // Fin du pinch : lancer inertie
+        // Fin du pinch → inertie avec vitesses calculées
         setIsPinching(false);
         pinchRef.current.active = false;
 
@@ -389,23 +414,47 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         inertiaRef.current.pivotPx = mid.x - rect.left;
         inertiaRef.current.pivotPy = mid.y - rect.top;
         inertiaRef.current.lastT = performance.now();
-
-        startInertia(); // 🟢 NEW
+        startInertia();
 
         if (count === 1) {
           const [p] = Array.from(pointersRef.current.values());
           setIsPanning(true);
           panStart.current = { x: p.x, y: p.y, tx: world.x, ty: world.y };
+          // reset vitesses pan
+          panSpeedRef.current.vX = 0;
+          panSpeedRef.current.vY = 0;
+          panSpeedRef.current.lastX = p.x;
+          panSpeedRef.current.lastY = p.y;
+          panSpeedRef.current.lastT = performance.now();
           return;
         }
-      }
+      } else {
+        // 🟢 NEW: fin de pan à 1 doigt/souris → inertie pan
+        if (count === 0) {
+          setIsPanning(false);
+          if (movedRef.current) suppressNextClickRef.current = true;
 
-      if (count === 0) {
-        setIsPanning(false);
-        if (movedRef.current) suppressNextClickRef.current = true;
+          // Seuils : si vitesse suffisante → inertie
+          const vX = panSpeedRef.current.vX;
+          const vY = panSpeedRef.current.vY;
+
+          if (Math.hypot(vX, vY) >= MIN_PANV) {
+            inertiaRef.current.zoomV = 0; // pas d'inertie zoom
+            inertiaRef.current.panVX = vX;
+            inertiaRef.current.panVY = vY;
+
+            // pivot quelconque (non utilisé sans zoom), on prend le pointeur
+            const rect = containerRef.current.getBoundingClientRect();
+            inertiaRef.current.pivotPx = e.clientX - rect.left;
+            inertiaRef.current.pivotPy = e.clientY - rect.top;
+            inertiaRef.current.lastT = performance.now();
+
+            startInertia();
+          }
+        }
       }
     },
-    [isPinching, startInertia, world.x, world.y]
+    [isPinching, startInertia, world.x, world.y, MIN_PANV]
   );
 
   // === ZOOM TO POINTER (wheel desktop) ===
@@ -429,37 +478,62 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     (e) => {
       e.preventDefault();
       cancelInertia(); // 🟢 NEW
+
+      // zoom direct
       const factor = Math.pow(1.0015, -e.deltaY);
       zoomAt(e.clientX, e.clientY, factor);
+
+      // 🟢 NEW: préparer inertie de zoom après la fin du wheel
+      const now = performance.now();
+      const vZoomSample =
+        Math.log(factor) /
+        Math.max(1, now - (wheelRef.current.lastT || now - 16));
+
+      wheelRef.current.vZoom = isFinite(vZoomSample) ? vZoomSample : 0;
+      wheelRef.current.lastT = now;
+
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        wheelRef.current.lastPivot = {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+        };
+      }
+
+      if (wheelRef.current.timer) clearTimeout(wheelRef.current.timer);
+      wheelRef.current.timer = setTimeout(() => {
+        // Si échantillon de zoom significatif → inertie
+        if (Math.abs(wheelRef.current.vZoom) >= MIN_ZOOMV) {
+          inertiaRef.current.zoomV = wheelRef.current.vZoom;
+          inertiaRef.current.panVX = 0;
+          inertiaRef.current.panVY = 0;
+          inertiaRef.current.pivotPx = wheelRef.current.lastPivot.x;
+          inertiaRef.current.pivotPy = wheelRef.current.lastPivot.y;
+          inertiaRef.current.lastT = performance.now();
+          startInertia();
+        }
+      }, WHEEL_INERTIA_DELAY);
     },
-    [zoomAt, cancelInertia]
+    [zoomAt, cancelInertia, MIN_ZOOMV, startInertia]
   );
 
-  // Add wheel event listener manually to ensure preventDefault works
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
     container.addEventListener("wheel", onWheel, { passive: false });
-
     return () => {
       container.removeEventListener("wheel", onWheel);
-      cancelInertia(); // 🟢 NEW
+      cancelInertia();
+      if (wheelRef.current.timer) clearTimeout(wheelRef.current.timer);
     };
   }, [onWheel, cancelInertia]);
 
   // === MATRICES FOR CONVERSIONS ===
-
-  // world->viewport
   const Mvw = useMemo(() => mFromTSR(world.x, world.y, world.k, 0), [world]);
-
-  // bg local->world
   const Mbg = useMemo(
     () => mFromTSR(bgPose.x, bgPose.y, bgPose.k, bgPose.r),
     [bgPose]
   );
-
-  // base local->world
   const Mbase = useMemo(
     () => mFromTSR(basePose.x, basePose.y, basePose.k, basePose.r),
     [basePose]
@@ -480,7 +554,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     [Mvw, Mbase]
   );
 
-  // ...compute relative transform base->bg (r == 0 assumed)
   const relBase = useMemo(() => {
     const kbg = bgPose.k || 1;
     return {
@@ -490,24 +563,20 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     };
   }, [bgPose, basePose]);
 
-  // === CURSOR ===
-  cursor = isPinching ? "grabbing" : isPanning ? "grabbing" : cursor; // 🟢 NEW
+  cursor = isPinching ? "grabbing" : isPanning ? "grabbing" : cursor;
 
   // === CLICK ===
-
   const onSvgClickCapture = useCallback((e) => {
     if (suppressNextClickRef.current) {
       e.preventDefault();
       e.stopPropagation();
-      suppressNextClickRef.current = false; // reset for next click
+      suppressNextClickRef.current = false;
     }
   }, []);
 
-  // Click to add an annotation to the selected layer
   const onSvgClick = useCallback(
     (e) => {
-      if (isPanning || isPinching) return; // 🟢 NEW: pas de click pendant gestes
-
+      if (isPanning || isPinching) return;
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
 
@@ -526,18 +595,13 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       }
 
       if (enabledDrawingMode === "MARKER" && onNewAnnotation) {
-        onNewAnnotation({
-          type: "MARKER",
-          x: ratioX,
-          y: ratioY,
-        });
-        return;
+        onNewAnnotation({ type: "MARKER", x: ratioX, y: ratioY });
       }
     },
     [
       attachTo,
       isPanning,
-      isPinching, // 🟢 NEW
+      isPinching,
       screenToBgLocal,
       screenToBaseLocal,
       enabledDrawingMode,
@@ -549,29 +613,15 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     ]
   );
 
-  // === DRAG ===
-
-  const handleMarkerDragEnd = useCallback((markerId, newPosition) => {
-    // Update as needed
-    // console.log("Marker drag ended:", { markerId, newPosition });
-  }, []);
-
   // === ANNOTATION EVENTS ===
-
-  function handleMarkerClick(marker) {
-    if (onAnnotationClick) onAnnotationClick({ type: "MARKER", ...marker });
+  function handleMarkerClick(annotation) {
+    onAnnotationClick?.({ annotation });
   }
-
   function handleAnnotationChange(annotation) {
-    if (onAnnotationChange) onAnnotationChange(annotation);
+    onAnnotationChange?.(annotation);
   }
-
   function handleAnnotationDragEnd(annotation) {
-    if (onAnnotationDragEnd) onAnnotationDragEnd(annotation);
-  }
-
-  function handleAnnotationClick(annotation) {
-    if (onAnnotationClick) onAnnotationClick({ annotation });
+    onAnnotationDragEnd?.(annotation);
   }
 
   return (
@@ -586,7 +636,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         width: "100%",
         height: "100%",
         bgcolor: "background.default",
-        touchAction: "none", // important pour gestes pointer (pinch) 🟢 NEW (déjà présent)
+        touchAction: "none", // indispensable pour pinch
         userSelect: "none",
         cursor,
       }}
@@ -632,9 +682,9 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           pointerEvents: "auto",
         }}
       >
-        {/* WORLD group — applies viewport pan/zoom to everything */}
+        {/* WORLD */}
         <g transform={`translate(${world.x}, ${world.y}) scale(${world.k})`}>
-          {/* LAYER: bgImage — annotations inside are in bg local coords */}
+          {/* BG layer */}
           <g
             transform={`translate(${bgPose.x}, ${bgPose.y}) scale(${bgPose.k})`}
           >
@@ -643,13 +693,12 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                 src={bgImageUrl}
                 width={bgSize.w}
                 height={bgSize.h}
-                locked={true}
+                locked
               />
             )}
-            <g>{/* place for bg-attached annotations if any */}</g>
           </g>
 
-          {/* LAYER: mainBaseMap — moving/scaling this moves its annotations */}
+          {/* BASE layer */}
           <g
             transform={`translate(${basePose.x}, ${basePose.y}) scale(${basePose.k})`}
           >
@@ -661,7 +710,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               containerK={basePose.k}
               onPoseChangeStart={() => setBasePoseIsChanging(true)}
               onPoseChangeEnd={(delta) => {
-                // compose in parent: P' = P ∘ delta (bg-local)
                 const P = baseMapPoseInBg;
                 onBaseMapPoseInBgChange?.({
                   x: P.x + delta.x,
@@ -675,28 +723,26 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
             {!basePoseIsChanging && (
               <g>
-                {annotations?.map((annotation) => {
-                  return (
-                    <NodeAnnotation
-                      key={annotation.id}
-                      annotation={annotation}
-                      imageSize={baseSize}
-                      containerK={basePose.k}
-                      worldScale={world.k}
-                      onDragEnd={handleMarkerDragEnd}
-                      onClick={handleMarkerClick}
-                      spriteImage={annotationSpriteImage}
-                      selected={selectedAnnotationIds.includes(annotation.id)}
-                    />
-                  );
-                })}
+                {annotations?.map((annotation) => (
+                  <NodeAnnotation
+                    key={annotation.id}
+                    annotation={annotation}
+                    imageSize={baseSize}
+                    containerK={basePose.k}
+                    worldScale={world.k}
+                    onDragEnd={handleAnnotationDragEnd}
+                    onClick={handleMarkerClick}
+                    spriteImage={annotationSpriteImage}
+                    selected={selectedAnnotationIds.includes(annotation.id)}
+                  />
+                ))}
               </g>
             )}
           </g>
         </g>
       </Box>
 
-      {/* ===== Hidden export-only SVG (normalized to bg size) ===== */}
+      {/* Export-only SVG */}
       <svg
         ref={ref}
         width={bgSize.w}
@@ -704,21 +750,19 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         viewBox={`0 0 ${bgSize.w} ${bgSize.h}`}
         style={{
           position: "absolute",
-          left: 0, // si tu dois l’exporter, évite left:-99999 avec html-to-image
+          left: 0,
           top: 0,
           pointerEvents: "none",
           zIndex: -1,
         }}
         xmlns="http://www.w3.org/2000/svg"
       >
-        {/* BG layer in bg-local coords (identity pose) */}
         <g>
           {showBgImage && (
             <NodeSvgImage src={bgImageUrl} width={bgSize.w} height={bgSize.h} />
           )}
         </g>
 
-        {/* BASE layer expressed relative to BG */}
         <g
           transform={`translate(${(basePose.x - bgPose.x) / (bgPose.k || 1)}, ${
             (basePose.y - bgPose.y) / (bgPose.k || 1)
@@ -729,10 +773,10 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
             width={baseSize.w}
             height={baseSize.h}
           />
-          {annotations.map((pa) => (
+          {annotations.map((a) => (
             <NodeAnnotation
-              key={pa.id + "_"}
-              annotation={pa}
+              key={a.id + "_"}
+              annotation={a}
               imageSize={baseSize}
               containerK={basePose.k}
               worldScale={1}
