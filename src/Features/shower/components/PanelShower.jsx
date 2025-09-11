@@ -5,7 +5,7 @@ import SwitchShowBgImage from "./SwitchShowBgImage";
 export default function PanelShower() {
   // strings
 
-  const title = "Affichage";
+  const title = "Calques";
 
   return (
     <Box sx={{ p: 1 }}>

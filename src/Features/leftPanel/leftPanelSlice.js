@@ -2,7 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const leftPanelInitialState = {
   width: 350,
-  openLeftPanel: true,
+  openLeftPanel: false,
 };
 
 export const leftPanelSlice = createSlice({
