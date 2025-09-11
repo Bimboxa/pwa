@@ -186,6 +186,10 @@ entityModelsObject:
       key: createdAt
       order: desc
 
+  blueprint:
+    key: blueprint
+    type: "BLUEPRINT"
+
 # PRESET LISTINGS
 
 presetListingsObject:
@@ -239,6 +243,14 @@ presetListingsObject:
             iconKey: triangle
             fillColor: *deepPurple500
             label: Support à poncer
+
+  blueprints:
+    key: blueprints
+    name: Exports
+    entityModelKey: blueprint
+    table: blueprints
+    color: *red500
+    iconKey: blueprint
 
 # PRESET SCOPES
 

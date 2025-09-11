@@ -17,7 +17,7 @@ export default function LayerMapEditorDesktop() {
         sx={{
           position: "absolute",
           left: "0px",
-          top: "16px",
+          top: "0px",
           zIndex: 10000,
         }}
       >
