@@ -18,6 +18,11 @@ export default function useAnnotations(options) {
     (s) => s.annotations.annotationsUpdatedAt
   );
 
+  const editedAnnotation = useSelector((s) => s.annotations.editedAnnotation);
+  const isEditingAnnotation = useSelector(
+    (s) => s.annotations.isEditingAnnotation
+  );
+
   // main
 
   let annotations = useLiveQuery(async () => {
@@ -27,8 +32,15 @@ export default function useAnnotations(options) {
     } else {
       _annotations = await db.annotations.toArray();
     }
+
+    // edition
+    if (isEditingAnnotation) {
+      _annotations = _annotations.filter((a) => a.id !== editedAnnotation.id);
+      _annotations.push(editedAnnotation);
+    }
+
     return _annotations;
-  }, [annotationsUpdatedAt]);
+  }, [annotationsUpdatedAt, isEditingAnnotation, editedAnnotation]);
 
   // demo
 
