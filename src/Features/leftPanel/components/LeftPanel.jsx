@@ -1,34 +1,71 @@
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import { setOpenedPanel } from "../leftPanelSlice";
 
 import { Box } from "@mui/material";
 
-import Panel from "Features/layout/components/Panel";
 import PanelListingContainer from "Features/listings/components/PanelListingContainer";
+import ButtonCloseLeftPanel from "./ButtonCloseLeftPanel";
+import VerticalSelectorListing from "Features/listings/components/VerticalSelectorListing";
+import VerticalBarInLeftPanel from "./VerticalBarInLeftPanel";
 
 export default function LeftPanel() {
+  const dispatch = useDispatch();
+
   // data
 
   const openLeftPanel = useSelector((s) => s.leftPanel.openLeftPanel);
   const panelWidth = useSelector((s) => s.leftPanel.width);
+  const openedPanel = useSelector((s) => s.leftPanel.openedPanel);
 
   // helpers
 
   const width = openLeftPanel ? panelWidth : 0;
 
+  // handler
+
+  function handleSeeAllClick() {
+    dispatch(setOpenedPanel("LISTING_SELECTOR"));
+  }
+
+  function handleOpenedPanelChange(type) {
+    dispatch(setOpenedPanel(type));
+  }
+
   // render
 
   return (
-    <Box
-      sx={{
-        width,
-        borderRight: "1px solid #ccc",
-        display: openLeftPanel ? "flex" : "none",
-        flexDirection: "column",
-        minHeight: 0,
-        height: 1,
-      }}
-    >
-      <PanelListingContainer />
+    <Box sx={{ display: "flex" }}>
+      <VerticalBarInLeftPanel>
+        <VerticalSelectorListing onSeeAllClick={handleSeeAllClick} />
+      </VerticalBarInLeftPanel>
+      <Box
+        sx={{
+          width,
+          borderRight: "1px solid #ccc",
+          display: openLeftPanel ? "flex" : "none",
+          flexDirection: "column",
+          minHeight: 0,
+          height: 1,
+          position: "relative",
+        }}
+      >
+        <PanelListingContainer
+          openedPanel={openedPanel}
+          onChange={handleOpenedPanelChange}
+        />
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            transform: "translateX(100%)",
+            zIndex: 1000,
+          }}
+        >
+          <ButtonCloseLeftPanel />
+        </Box>
+      </Box>
     </Box>
   );
 }

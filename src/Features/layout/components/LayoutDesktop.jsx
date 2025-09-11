@@ -23,6 +23,7 @@ import RightPanel from "Features/rightPanel/components/RightPanel";
 import LeftPanel from "Features/leftPanel/components/LeftPanel";
 
 import RightPanelContainer from "Features/rightPanel/components/RightPanelContainer";
+import VerticalSelectorListing from "Features/listings/components/VerticalSelectorListing";
 
 export default function LayoutDesktop() {
   // data
@@ -43,7 +44,6 @@ export default function LayoutDesktop() {
       <TopBarDesktop />
       <Box sx={{ display: "flex", width: 1, flexGrow: 1, minHeight: 0 }}>
         <Box sx={{ display: "flex", width: 1, minWidth: 0, minHeight: 0 }}>
-          {/* <VerticalMenuListTypes /> */}
           <LeftPanel />
           <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
             <SectionViewer />

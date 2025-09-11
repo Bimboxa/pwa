@@ -7,37 +7,28 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PanelListing from "./PanelListing";
 import PanelSelectorListing from "./PanelSelectorListing";
 
-export default function PanelListingContainer() {
-  // state
-
-  const [openSelectorPanel, setOpenSelectorPanel] = useState(false);
-
-  // data
-
+export default function PanelListingContainer({ openedPanel, onChange }) {
   const { value: listing } = useSelectedListing();
 
   // handlers
 
   function handleSelectListing(listing) {
     console.log("[PanelListingContainer] handleSelectListing", listing);
-    setOpenSelectorPanel(false);
+    onChange("LISTING");
   }
 
   // render
 
   return (
     <BoxFlexVStretch>
-      {openSelectorPanel ? (
+      {openedPanel === "LISTING_SELECTOR" && (
         <PanelSelectorListing
           selectedListingId={listing?.id}
           onListingSelected={handleSelectListing}
         />
-      ) : (
-        <PanelListing
-          listing={listing}
-          onOpenSelectorListing={() => setOpenSelectorPanel(true)}
-        />
       )}
+
+      {openedPanel === "LISTING" && <PanelListing listing={listing} />}
     </BoxFlexVStretch>
   );
 }
