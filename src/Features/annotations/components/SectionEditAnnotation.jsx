@@ -45,6 +45,7 @@ export default function SectionEditAnnotation() {
   function handleClose() {
     dispatch(setSelectedAnnotationId(null));
     dispatch(setEditedAnnotation({}));
+    dispatch(setIsEditingAnnotation(false));
   }
 
   return (
