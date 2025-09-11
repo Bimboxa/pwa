@@ -3,15 +3,27 @@ import { Box } from "@mui/material";
 import ButtonOpenListPanel from "Features/listPanel/components/ButtonOpenListPanel";
 import ToolbarMapEditorContainer from "./ToolbarMapEditorContainer";
 //import SelectorMapInMapEditor from "Features/baseMaps/components/SelectorMapInMapEditor";
-import BlockPrintMode from "./BlockPrintMode";
-import BlockSaveBaseMapViewInEditor from "Features/baseMapViews/components/BlockSaveBaseMapViewInEditor";
+//import BlockPrintMode from "./BlockPrintMode";
+//import BlockSaveBaseMapViewInEditor from "Features/baseMapViews/components/BlockSaveBaseMapViewInEditor";
 import ButtonSelectorBaseMapInMapEditor from "Features/baseMaps/components/ButtonSelectorBaseMapInMapEditor";
-import LayerCreateLocatedEntity from "./LayerCreateLocatedEntity";
+//import LayerCreateLocatedEntity from "./LayerCreateLocatedEntity";
+import LeftPanelOverviewInEditor from "Features/leftPanel/components/LeftPanelOverviewInEditor";
 
 export default function LayerMapEditorDesktop() {
   return (
     <>
       {/* <LayerCreateLocatedEntity /> */}
+      <Box
+        sx={{
+          position: "absolute",
+          left: "0px",
+          top: "16px",
+          zIndex: 10000,
+        }}
+      >
+        <LeftPanelOverviewInEditor />
+      </Box>
+
       <Box
         sx={{
           position: "absolute",

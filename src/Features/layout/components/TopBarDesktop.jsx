@@ -39,7 +39,6 @@ export default function TopBarDesktop() {
       </BoxFlexH> */}
 
       <Box sx={{ display: "flex", alignItems: "center" }}>
-        <ToggleOpenLeftPanel />
         <TopBarProjectAndScope />
       </Box>
 

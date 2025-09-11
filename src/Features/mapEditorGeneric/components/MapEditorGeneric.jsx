@@ -615,7 +615,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
   // === ANNOTATION EVENTS ===
   function handleMarkerClick(annotation) {
-    onAnnotationClick?.({ annotation });
+    onAnnotationClick?.(annotation);
   }
   function handleAnnotationChange(annotation) {
     onAnnotationChange?.(annotation);
@@ -654,7 +654,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           display: "flex",
         }}
       >
-        <Tooltip title="Fit to view">
+        {/* <Tooltip title="Fit to view">
           <IconButton
             onClick={() => {
               cancelInertia(); // 🟢 NEW
@@ -666,7 +666,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           >
             <CenterFocusStrongIcon />
           </IconButton>
-        </Tooltip>
+        </Tooltip> */}
       </Box>
 
       {/* SVG scene */}

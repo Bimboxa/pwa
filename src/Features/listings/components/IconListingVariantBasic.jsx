@@ -5,7 +5,7 @@ import { ArrowDropDown as Down, Circle } from "@mui/icons-material";
 import { red } from "@mui/material/colors";
 import iconsMap from "../data/iconsMap";
 
-export default function IconListingVariantBasic({ listing }) {
+export default function IconListingVariantBasic({ listing, size = 32 }) {
   const bgcolor = listing?.color ?? red[500];
   const iconKey = listing?.iconKey;
   const icon = iconsMap.get(iconKey) ?? Circle;
@@ -24,6 +24,8 @@ export default function IconListingVariantBasic({ listing }) {
         alignItems: "center",
         justifyContent: "center",
         p: 1,
+        width: `${size}px`,
+        height: `${size}px`,
       }}
     >
       {iconElement}

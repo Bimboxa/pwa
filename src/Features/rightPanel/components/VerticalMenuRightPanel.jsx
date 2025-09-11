@@ -4,7 +4,13 @@ import { setSelectedMenuItemKey } from "../rightPanelSlice";
 
 import VerticalMenu from "Features/layout/components/VerticalMenu";
 
-import { Download, Info, Visibility, Palette } from "@mui/icons-material";
+import {
+  Download,
+  Info,
+  Visibility,
+  Palette,
+  Layers,
+} from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
 
@@ -19,24 +25,24 @@ export default function VerticalMenuRightPanel() {
   const menuItems = [
     {
       key: "SHOWER",
-      label: "Affichage",
-      icon: <Visibility />,
-    },
-    {
-      key: "ENTITY_SELECTION",
-      label: "Sélection",
-      icon: <Info />,
-    },
-    {
-      key: "EDITOR_EXPORT",
-      label: "Export",
-      icon: <Download />,
+      label: "Calques",
+      icon: <Layers />,
     },
     {
       key: "ANNOTATION_FORMAT",
       label: "Format",
       icon: <Palette />,
     },
+    // {
+    //   key: "ENTITY_SELECTION",
+    //   label: "Sélection",
+    //   icon: <Info />,
+    // },
+    // {
+    //   key: "EDITOR_EXPORT",
+    //   label: "Export",
+    //   icon: <Download />,
+    // },
   ];
 
   // data

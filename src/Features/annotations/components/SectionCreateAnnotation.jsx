@@ -6,7 +6,7 @@ import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 import { setNewAnnotation } from "../annotationsSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
 import FormAnnotation from "./FormAnnotation";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -15,6 +15,9 @@ import BlockAnnotation from "./BlockAnnotation";
 
 export default function SectionCreateAnnotation() {
   const dispatch = useDispatch();
+
+  // strings
+  const newS = "Nouveau";
 
   // data
   const spriteImage = useAnnotationSpriteImage();
@@ -34,6 +37,11 @@ export default function SectionCreateAnnotation() {
 
   return (
     <BoxFlexVStretch>
+      <Box sx={{ width: 1, pl: 1 }}>
+        <Typography variant="caption" color="text.secondary">
+          {newS}
+        </Typography>
+      </Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", p: 1 }}>
         <BlockAnnotation
           annotation={newAnnotation}
