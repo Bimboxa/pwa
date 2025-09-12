@@ -28,6 +28,9 @@ import PageLanding from "Features/init/components/PageLanding";
 import PageRemoteContainerRedirect from "Features/sync/components/PageRemoteContainerRedirect";
 import PageSignIn from "Features/auth/components/PageSignIn";
 import PageOnboarding from "Features/onboarding/components/PageOnboarding";
+import PageProjects from "Features/projects/components/PageProjects";
+import PageProject from "Features/projects/components/PageProject";
+import PageScopes from "Features/scopes/components/PageScopes";
 
 // dexie
 
@@ -64,6 +67,12 @@ function App({ pca, runningIn }) {
               <OnboardingGate>
                 <AuthGate>
                   <Routes>
+                    <Route path="/projects" element={<PageProjects />} />
+                    <Route
+                      path="/projects/:projectId"
+                      element={<PageProject />}
+                    />
+                    <Route path="/scopes" element={<PageScopes />} />
                     <Route path="/" element={<MainAppLayout />} />
                     <Route
                       path="/remote-container-redirect"

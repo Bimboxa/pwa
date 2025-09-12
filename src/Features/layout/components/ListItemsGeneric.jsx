@@ -3,7 +3,7 @@ import { Box, List, ListItemButton, ListItemText } from "@mui/material";
 export default function ListItemsGeneric({
   items,
   onClick,
-  keyString,
+  keyString = "id",
   selection,
   onSortEnd,
 }) {
