@@ -21,12 +21,13 @@ export default function useInitAppConfig() {
 
   const forceUpdateAt = useSelector((s) => s.appConfig.forceUpdateAt);
   const useDefault = useSelector((s) => s.appConfig.useDefault);
+  const configCode = useSelector((s) => s.appConfig.configCode);
 
   // helpers
 
   const initAsync = async () => {
     let appConfig;
-    const appConfigDefault = await getAppConfigDefault();
+    const appConfigDefault = await getAppConfigDefault({ configCode });
 
     // 1st : get appConfig from localStorage
     appConfig = getAppConfigFromLocalStorage();

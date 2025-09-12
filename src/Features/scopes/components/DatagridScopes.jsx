@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { setSelectedScopeId } from "../scopesSlice";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import { DataGridPro, GridActionsCellItem } from "@mui/x-data-grid-pro";
 
 import { Box } from "@mui/material";
@@ -18,7 +20,17 @@ export default function DatagridScopes({ scopes }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  console.log("debug_0509 [scopes] scopes", scopes);
+  // data
+
+  const appConfig = useAppConfig();
+
+  // helpers
+
+  const scopeName = appConfig?.strings?.scope?.nameSingular;
+  const projectName = appConfig?.strings?.project?.nameSingular;
+  const projectClientRef = appConfig?.strings?.project?.clientRef;
+  const scopeProjectName = appConfig?.strings?.scopeProject?.nameSingular;
+  const scopeProjectClientRef = appConfig?.strings?.scopeProject?.clientRef;
 
   // state
 
@@ -36,10 +48,11 @@ export default function DatagridScopes({ scopes }) {
   // columns
 
   const columns = [
-    { field: "scopeName", headerName: "Krto", flex: 1 },
+    { field: "scopeProjectName", headerName: projectName, flex: 1 },
+    { field: "scopeName", headerName: scopeName, flex: 1 },
     //{ field: "scopeClientRef", headerName: "Réf.", flex: 1 },
-    { field: "scopeProjectName", headerName: "Projet", flex: 1 },
-    { field: "scopeProjectClientRef", headerName: "Réf. projet", flex: 1 },
+
+    //{ field: "scopeProjectClientRef", headerName: "Réf. projet", flex: 1 },
     {
       field: "openScope",
       headerName: "",

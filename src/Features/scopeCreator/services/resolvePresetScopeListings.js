@@ -36,9 +36,13 @@ export default function resolvePresetScopeListings({
 
   // main
 
+  // step 0 - filter out projectDataset
+
+  let listings = presetListings?.filter((listing) => Boolean(listing));
+
   // step 1 - add id & projectId to listings
 
-  let listings = presetListings?.map((listing) => {
+  listings = listings?.map((listing) => {
     return {
       ...listing,
       id: nanoid(),

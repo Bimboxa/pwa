@@ -1,4 +1,4 @@
-name: "Conf. par défaut"
+name: "LEI - Rapports amiante"
 version: "16/07/2025"
 isDefault: true
 
@@ -31,20 +31,27 @@ strings:
     select: "Sélectionnez un dossier / lot"
 
   project:
-    nameSingular: "Projet"
-    namePlural: "Projets"
-    seeAll: "Tous les projets"
-    new: "Nouveau projet"
-    create: "Créez un nouveau projet"
-    noProject: Aucun projet disponible
-
-  scope:
     nameSingular: "Dossier"
     namePlural: "Dossiers"
     seeAll: "Tous les dossiers"
     new: "Nouveau dossier"
     create: "Créez un nouveau dossier"
     select: "Sélectionnez un dossier"
+    noProject: Aucun dossier disponible
+
+  scope:
+    dashboardTitle: "Missions amiante"
+    nameSingular: "Mission"
+    namePlural: "Missions"
+    seeAll: "Toutes les missions"
+    new: "Nouvelle mission"
+    create: "Créez une nouvelle mission"
+    select: "Sélectionnez une mission"
+    search: "Recherchez une mission"
+
+  scopeConfig:
+    nameSingular: "Type de mission"
+    select: "Sélectionnez un type de mission"
 
   presetConfig:
     title: "Type de dossier"
@@ -83,6 +90,21 @@ orgaData:
 sync:
   canSyncLocalProject: false
   canSyncLocalScope: true
+
+# FEATURES
+
+features:
+  bgImages:
+    options:
+      - key: DEFAULT
+        url: https://public.media.bimboxa.com/bg_image_A4_150dpi_default.png
+        name: "A4 - 150dpi"
+        width: 1740
+        height: 1240
+        isDefault: true
+
+  presetScopes:
+    templatesImageUrl: https://public.media.bimboxa.com/scope_templates_lei.gif
 
 # CREATION
 
@@ -314,7 +336,7 @@ presetScopesObject:
     name: Diagnostic amiante (WIP)
     description: Enregistrer vos prélèvements et sondages
     listings:
-      - projectDataset
+      #- projectDataset
       - mapsFromPhotos
       - mapsFromPdf
       - zones

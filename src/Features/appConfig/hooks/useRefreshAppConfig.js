@@ -20,11 +20,11 @@ export default function useRefreshAppConfig() {
   const dispatch = useDispatch();
   const accessToken = useToken();
 
-  return async () => {
+  return async ({ configCode }) => {
     let appConfig;
     if (accessToken)
       appConfig = await fetchOrgaAppConfigService({ accessToken });
-    if (!appConfig) appConfig = await getAppConfigDefault();
+    if (!appConfig) appConfig = await getAppConfigDefault({ configCode });
     //
     appConfig = resolveAppConfig(appConfig);
     //

@@ -1,4 +1,3 @@
-import getAppConfigDefault from "Features/appConfig/services/getAppConfigDefault";
 import decodeJWT from "./decodeJWT";
 
 export default function getUserProfileFromJwt({ appConfig, jwt }) {

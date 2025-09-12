@@ -17,6 +17,7 @@ export default function useCreateOnboardingData() {
   const _mapName = useSelector((s) => s.onboarding.mapName);
   const _mapFile = useSelector((s) => s.onboarding.mapFile);
   const issuesListingName = useSelector((s) => s.onboarding.issuesListingName);
+  const configCode = useSelector((s) => s.appConfig.configCode);
 
   // data - func
 
@@ -37,7 +38,7 @@ export default function useCreateOnboardingData() {
 
       // appConfig
 
-      const appConfig = await getAppConfigDefault();
+      const appConfig = await getAppConfigDefault({ configCode });
 
       // project
 

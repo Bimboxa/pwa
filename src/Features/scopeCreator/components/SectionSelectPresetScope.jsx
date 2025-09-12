@@ -18,10 +18,6 @@ import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 export default function SectionSelectPresetScope() {
   const dispatch = useDispatch();
 
-  // string
-
-  const title = "Sélectionnez un modèle";
-
   // data
 
   const appConfig = useAppConfig();
@@ -31,9 +27,12 @@ export default function SectionSelectPresetScope() {
     (s) => s.scopeCreator.selectedPresetScopeKey
   );
 
+  // helpers
   const backS = appConfig?.strings?.project?.select ?? "Choisir un projet";
   const addS = appConfig?.strings?.scope?.create ?? "Créer un dossier";
-
+  const title =
+    appConfig?.strings?.scopeConfig?.select ??
+    "Sélectionnez un type de dossier";
   // helpers
 
   const items = presetScopes.map((ps) => ({
