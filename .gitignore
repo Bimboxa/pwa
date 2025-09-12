@@ -33,6 +33,8 @@ services.config.yml
 # Config
 config
 _appConfig.yaml
+#appConfig_lei.yaml
+appConfig_edx.yaml
 
 # Temp
 temp

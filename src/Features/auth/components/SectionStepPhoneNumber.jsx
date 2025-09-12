@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { useSelector } from "react-redux";
+
 import { Typography, TextField, Button, Box } from "@mui/material";
 
 import FieldPhoneNumber from "Features/form/components/FieldPhoneNumber";
@@ -15,6 +17,10 @@ export default function SectionStepPhoneNumber({ onSuccess }) {
     "Saisissez votre numéro de téléphone professionnel pour recevoir par sms le code de connexion.";
   const sendS = "Envoyer";
 
+  // data
+
+  const configCode = useSelector((s) => s.appConfig.configCode);
+
   // state
 
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -24,7 +30,7 @@ export default function SectionStepPhoneNumber({ onSuccess }) {
 
   async function handleSend() {
     try {
-      const appConfig = await getAppConfigDefault();
+      const appConfig = await getAppConfigDefault({ configCode });
       const serviceUrl = appConfig?.auth?.getMfaCodeUrl;
       const number = await getMFACodeService({ phoneNumber, serviceUrl });
       console.log("request MFA for phone number", number);

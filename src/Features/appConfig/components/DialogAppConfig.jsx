@@ -1,6 +1,6 @@
-import {useSelector, useDispatch} from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
-import {setOpenAppConfig} from "../appConfigSlice";
+import { setOpenAppConfig } from "../appConfigSlice";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import PanelAppConfig from "./PanelAppConfig";
@@ -15,7 +15,8 @@ export default function DialogAppConfig() {
 
   // helpers
 
-  const title = `v.${version}`;
+  //const title = `v.${version}`;
+  const title = "Configuration";
 
   // handlers
 
