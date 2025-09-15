@@ -3,9 +3,8 @@ import { createSlice } from "@reduxjs/toolkit";
 const leftPanelInitialState = {
   verticalBarWidth: 56,
   width: 350,
-  openLeftPanel: false,
+  openLeftPanel: true,
   //
-  openedPanel: "LISTING", // "LISTING", "LISTING_SELECTOR"
 };
 
 export const leftPanelSlice = createSlice({
@@ -15,12 +14,9 @@ export const leftPanelSlice = createSlice({
     setOpenLeftPanel: (state, action) => {
       state.openLeftPanel = action.payload;
     },
-    setOpenedPanel: (state, action) => {
-      state.openedPanel = action.payload;
-    },
   },
 });
 
-export const { setOpenLeftPanel, setOpenedPanel } = leftPanelSlice.actions;
+export const { setOpenLeftPanel } = leftPanelSlice.actions;
 
 export default leftPanelSlice.reducer;

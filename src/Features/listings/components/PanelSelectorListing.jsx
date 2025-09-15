@@ -1,4 +1,4 @@
-import {useDispatch} from "react-redux";
+import { useDispatch } from "react-redux";
 
 import {
   setSelectedListingId,
@@ -7,11 +7,13 @@ import {
 } from "../listingsSlice";
 
 import useListingsByScope from "../hooks/useListingsByScope";
-
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import DialogFs from "Features/layout/components/DialogFs";
+
 import ListListings from "./ListListings";
-import {Box} from "@mui/material";
-import BoxFlexHStretch from "Features/layout/components/BoxFlexHStretch";
+import { Box, Typography } from "@mui/material";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import ButtonDialogCreateListing from "./ButtonDialogCreateListing";
 
 export default function PanelSelectorListing({
   onListingSelected,
@@ -21,7 +23,12 @@ export default function PanelSelectorListing({
 
   // data
 
-  const {value: listings, loading} = useListingsByScope();
+  const appConfig = useAppConfig();
+  const { value: listings, loading } = useListingsByScope();
+
+  // helpers - title
+
+  const title = appConfig?.strings?.listing?.namePlural || "Modules";
 
   // helpers
 
@@ -40,14 +47,22 @@ export default function PanelSelectorListing({
   }
 
   return (
-    <BoxFlexHStretch sx={{overflow: "auto"}}>
-      <ListListings
-        loading={loading}
-        listings={listings}
-        onClick={handleListingClick}
-        selection={selection}
-        onAddClick={handleAddClick}
-      />
-    </BoxFlexHStretch>
+    <BoxFlexVStretch>
+      <Box sx={{ p: 1, display: "flex", justifyContent: "space-between" }}>
+        <Typography sx={{ fontWeight: "bold" }}>{title}</Typography>
+        <ButtonDialogCreateListing />
+      </Box>
+      <BoxFlexVStretch sx={{ overflow: "auto" }}>
+        <Box sx={{ bgcolor: "white" }}>
+          <ListListings
+            loading={loading}
+            listings={listings}
+            onClick={handleListingClick}
+            selection={selection}
+            onAddClick={handleAddClick}
+          />
+        </Box>
+      </BoxFlexVStretch>
+    </BoxFlexVStretch>
   );
 }

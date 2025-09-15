@@ -12,12 +12,21 @@ import PanelShower from "Features/shower/components/PanelShower";
 import PanelEditorExport from "Features/editorExport/components/PanelEditorExport";
 import VerticalMenuRightPanel from "./VerticalMenuRightPanel";
 import PanelAnnotationFormat from "Features/annotations/components/PanelAnnotationFormat";
+import PanelEditEntity from "Features/entities/components/PanelEditEntity";
 
 export default function RightPanelContainer() {
   // data
 
   const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
   const width = useSelector((s) => s.rightPanel.width);
+
+  const windowHeight = useSelector((s) => s.layout.windowHeight);
+  const bottomBarHeight = useSelector((s) => s.layout.bottomBarHeight);
+  const topBarHeight = useSelector((s) => s.layout.topBarHeight);
+
+  // helper - maxHeight
+
+  const maxHeight = windowHeight - topBarHeight - bottomBarHeight;
 
   // helper
 
@@ -36,14 +45,18 @@ export default function RightPanelContainer() {
             top: "12px",
             right: "64px",
             width,
-            minHeight: 100,
+            minHeight: 0,
+            maxHeight,
             bgcolor: "white",
             zIndex: 200,
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           {selectedKey === "SHOWER" && <PanelShower />}
           {selectedKey === "EDITOR_EXPORT" && <PanelEditorExport />}
           {selectedKey === "ANNOTATION_FORMAT" && <PanelAnnotationFormat />}
+          {selectedKey === "ENTITY" && <PanelEditEntity />}
         </Paper>
       )}
     </>

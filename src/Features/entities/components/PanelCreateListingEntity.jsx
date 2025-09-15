@@ -1,6 +1,6 @@
-import {useState} from "react";
+import { useState } from "react";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
@@ -9,11 +9,10 @@ import FormGeneric from "Features/form/components/FormGeneric";
 
 import useEntityFormTemplate from "../hooks/useEntityFormTemplate";
 import useCreateEntity from "../hooks/useCreateEntity";
-import {create} from "qrcode";
+import { create } from "qrcode";
 
 export default function PanelCreateListingEntity({
   listing,
-  open,
   onClose,
   onEntityCreated,
 }) {
@@ -28,7 +27,7 @@ export default function PanelCreateListingEntity({
 
   // data
 
-  const template = useEntityFormTemplate({listing});
+  const template = useEntityFormTemplate({ listing });
   const createEntity = useCreateEntity();
 
   // helpers
@@ -47,16 +46,16 @@ export default function PanelCreateListingEntity({
   async function handleCreateClick() {
     console.log("Create listing entity");
     // Logic to create a new listing entity goes here
-    const entity = await createEntity(tempItem, {listing});
+    const entity = await createEntity(tempItem, { listing });
 
     // Close the panel after creation
-    onEntityCreated(entity);
+    if (onEntityCreated) onEntityCreated(entity);
   }
   return (
     <Panel>
       <HeaderTitleClose title={title} onClose={onClose} />
       <BoxFlexVStretch>
-        <Box sx={{bgcolor: "white"}}>
+        <Box sx={{ bgcolor: "white" }}>
           <FormGeneric
             template={template}
             item={tempItem}

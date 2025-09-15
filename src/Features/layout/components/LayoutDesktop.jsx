@@ -19,7 +19,6 @@ import BottomBarDesktop from "./BottomBarDesktop";
 import ListPanelsContainer from "Features/listPanel/components/ListPanelsContainer";
 import VerticalMenuListTypes from "Features/listPanel/components/VerticalMenuListTypes";
 import ListPanelV2 from "Features/listPanel/components/ListPanelV2";
-import RightPanel from "Features/rightPanel/components/RightPanel";
 import LeftPanel from "Features/leftPanel/components/LeftPanel";
 
 import RightPanelContainer from "Features/rightPanel/components/RightPanelContainer";

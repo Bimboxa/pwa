@@ -1,15 +1,15 @@
-import {useRef, useState, useEffect} from "react";
-import {useSelector, useDispatch} from "react-redux";
+import { useRef, useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useListingEntityModel from "Features/listings/hooks/useListingEntityModel";
 
-import {setOpenPanelListItem} from "../listPanelSlice";
+import { setOpenPanelListItem } from "../listPanelSlice";
 
-import {Box, Paper} from "@mui/material";
+import { Box, Paper } from "@mui/material";
 
 import SectionEntity from "Features/entities/components/SectionEntity";
-import BlockEntityInListPanel from "Features/entities/components/BlockEntityInListPanel";
+import BlockEntityInPanel from "Features/entities/components/BlockEntityInPanel";
 import BlockBottomActionsInPanel from "Features/entityProps/components/BlockBottomActionsInPanel";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -21,7 +21,7 @@ export default function PanelListItem() {
 
   const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
 
-  const {value: listing} = useSelectedListing();
+  const { value: listing } = useSelectedListing();
   const entityModel = useListingEntityModel(listing);
 
   // helper - header
@@ -29,7 +29,7 @@ export default function PanelListItem() {
     ENTITY_PROPS: <BlockBottomActionsInPanel />,
   };
   const header = componentByEntityModel[entityModel?.type] ?? (
-    <BlockEntityInListPanel />
+    <BlockEntityInPanel />
   );
 
   // handlers

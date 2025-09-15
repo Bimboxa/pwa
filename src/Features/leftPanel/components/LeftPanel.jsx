@@ -1,6 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { setOpenedPanel } from "../leftPanelSlice";
+import { setOpenedPanel } from "Features/listings/listingsSlice";
 
 import { Box } from "@mui/material";
 
@@ -16,7 +16,6 @@ export default function LeftPanel() {
 
   const openLeftPanel = useSelector((s) => s.leftPanel.openLeftPanel);
   const panelWidth = useSelector((s) => s.leftPanel.width);
-  const openedPanel = useSelector((s) => s.leftPanel.openedPanel);
 
   // helpers
 
@@ -25,11 +24,8 @@ export default function LeftPanel() {
   // handler
 
   function handleSeeAllClick() {
+    console.log("handleSeeAllClick");
     dispatch(setOpenedPanel("LISTING_SELECTOR"));
-  }
-
-  function handleOpenedPanelChange(type) {
-    dispatch(setOpenedPanel(type));
   }
 
   // render
@@ -42,7 +38,7 @@ export default function LeftPanel() {
       <Box
         sx={{
           width,
-          borderRight: "1px solid #ccc",
+          //borderRight: "1px solid #ccc",
           display: openLeftPanel ? "flex" : "none",
           flexDirection: "column",
           minHeight: 0,
@@ -50,10 +46,7 @@ export default function LeftPanel() {
           position: "relative",
         }}
       >
-        <PanelListingContainer
-          openedPanel={openedPanel}
-          onChange={handleOpenedPanelChange}
-        />
+        <PanelListingContainer />
         <Box
           sx={{
             position: "absolute",

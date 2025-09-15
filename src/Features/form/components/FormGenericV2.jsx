@@ -8,6 +8,8 @@ import FieldColorV2 from "./FieldColorV2";
 import FieldBaseMap from "./FieldBaseMap";
 import FieldIcon from "./FieldIcon";
 import FieldAnnotationTemplateId from "./FieldAnnotationTemplateId";
+import FieldIconBasic from "./FieldIconBasic";
+import FieldOptionSelector from "./FieldOptionSelector";
 
 import FieldZonesVariantGrid from "./FieldZonesVariantGrid";
 import FieldZoneVariantGrid from "./FieldZoneVariantGrid";
@@ -80,6 +82,20 @@ export default function FormGenericV2({
         if (field?.type === "icon") {
           return (
             <FieldIcon
+              key={field.key}
+              label={field.label}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              options={field.options}
+            />
+          );
+        }
+
+        if (field?.type === "iconBasic") {
+          return (
+            <FieldIconBasic
               key={field.key}
               label={field.label}
               value={value}
@@ -188,7 +204,7 @@ export default function FormGenericV2({
 
         if (field?.type === "option") {
           return (
-            <FieldOptionVariantGrid
+            <FieldOptionSelector
               key={field.key}
               label={field.label}
               width={field.width}

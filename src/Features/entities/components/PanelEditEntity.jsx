@@ -6,6 +6,7 @@ import {
   setEditedEntity,
   setIsEditingEntity,
 } from "../entitiesSlice";
+import { setOpenPanelListItem } from "Features/listPanel/listPanelSlice";
 
 import useEntity from "../hooks/useEntity";
 
@@ -14,11 +15,13 @@ import useEntityFormTemplate from "../hooks/useEntityFormTemplate";
 import { Box, Typography } from "@mui/material";
 
 import FormEntity from "./FormEntity";
+import IconButtonClose from "Features/layout/components/IconButtonClose";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import BlockBottomActionsInPanel from "./BlockBottomActionsInPanel";
-import { setOpenPanelListItem } from "Features/listPanel/listPanelSlice";
+import BlockEntityInPanel from "./BlockEntityInPanel";
+import HeaderEntityInPanel from "./HeaderEntityInPanel";
 
-export default function SectionEntity() {
+export default function PanelEditEntity() {
   const dispatch = useDispatch();
   const selectorContainerRef = useRef(null);
 
@@ -59,16 +62,8 @@ export default function SectionEntity() {
         minHeight: 0,
       }}
     >
-      {entity?.createdBy && (
-        <Typography
-          sx={{ p: 1 }}
-          variant="caption"
-          color="text.secondary"
-          noWrap
-        >
-          {caption}
-        </Typography>
-      )}
+      <HeaderEntityInPanel />
+
       <Box
         sx={{
           flexGrow: 1,

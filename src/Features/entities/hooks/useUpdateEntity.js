@@ -1,3 +1,7 @@
+import { useDispatch } from "react-redux";
+
+import { triggerEntitiesTableUpdate } from "../entitiesSlice";
+
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
@@ -6,10 +10,12 @@ import getEntityPureDataAndFilesDataByKey from "../utils/getEntityPureDataAndFil
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
 export default function useUpdateEntity() {
+  const dispatch = useDispatch();
+
   // data
 
-  const {value: userEmail} = useUserEmail();
-  const {value: listing} = useSelectedListing();
+  const { value: userEmail } = useUserEmail();
+  const { value: listing } = useSelectedListing();
 
   const update = async (entityId, updates, options) => {
     const table = listing?.table;
@@ -21,7 +27,7 @@ export default function useUpdateEntity() {
     };
 
     // data
-    const {pureData, filesDataByKey} = getEntityPureDataAndFilesDataByKey(
+    const { pureData, filesDataByKey } = getEntityPureDataAndFilesDataByKey(
       changes,
       {
         entityId,
@@ -69,6 +75,9 @@ export default function useUpdateEntity() {
     } catch (e) {
       console.error("[db] error updating the entity", e);
     }
+
+    // update table
+    dispatch(triggerEntitiesTableUpdate(table));
   };
 
   return update;

@@ -1,12 +1,18 @@
-import {useState, useRef} from "react";
+import { useState, useRef } from "react";
 
-import {Menu, MenuItem, Box, Typography, Button} from "@mui/material";
-import {ArrowDropDown as Down} from "@mui/icons-material";
+import { Menu, MenuItem, Box, Typography, Button } from "@mui/material";
+import { ArrowDropDown as Down } from "@mui/icons-material";
 
-export default function FieldOptionSelector({value, onChange, options}) {
-  options = options ?? [];
+export default function FieldOptionSelector({
+  value,
+  label,
+  onChange,
+  valueOptions,
+}) {
+  const options = valueOptions ?? [];
   const arrowRef = useRef(null);
 
+  console.log("debug_1509 valueOptions", valueOptions);
   // state
 
   const [anchorEl, setAnchorEl] = useState(null);
@@ -14,7 +20,7 @@ export default function FieldOptionSelector({value, onChange, options}) {
 
   // helpers
 
-  const label = value?.label ?? "Choisir une option";
+  const buttonLabel = value?.label ?? "Choisir une option";
 
   // handlers
 
@@ -24,12 +30,20 @@ export default function FieldOptionSelector({value, onChange, options}) {
 
   return (
     <>
-      <Box>
+      <Box
+        sx={{
+          p: 1,
+          borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
+          {label}
+        </Typography>
         <Button
           endIcon={<Down ref={arrowRef} />}
           onClick={(e) => setAnchorEl(e.currentTarget)}
         >
-          {label}
+          <Typography>{buttonLabel}</Typography>
         </Button>
       </Box>
       <Menu
@@ -39,13 +53,13 @@ export default function FieldOptionSelector({value, onChange, options}) {
       >
         {options.map((option) => (
           <MenuItem
-            key={option.id}
+            key={option?.id}
             onClick={() => {
               handleChange(option);
               setAnchorEl(null);
             }}
           >
-            <Typography>{option.label}</Typography>
+            <Typography>{option?.label}</Typography>
           </MenuItem>
         ))}
       </Menu>

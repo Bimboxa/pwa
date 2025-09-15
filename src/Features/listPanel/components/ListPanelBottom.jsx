@@ -1,14 +1,14 @@
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 
-import BlockEntityInListPanel from "Features/entities/components/BlockEntityInListPanel";
+import BlockEntityInPanel from "Features/entities/components/BlockEntityInPanel";
 import BlockBottomActionsInPanel from "Features/entityProps/components/BlockBottomActionsInPanel";
 
 export default function ListPanelBottom() {
   // data
 
-  const {value: listing} = useSelectedListing({withEntityModel: true});
+  const { value: listing } = useSelectedListing({ withEntityModel: true });
   const entityModel = listing?.entityModel;
 
   // helper
@@ -23,11 +23,11 @@ export default function ListPanelBottom() {
   };
 
   // const component = componentByEntityModel[entityModel?.type] ?? (
-  //   <BlockEntityInListPanel />
+  //   <BlockEntityInPanel />
   // );
   const component = componentByEntityModel[entityModel?.type] ?? null;
 
   return (
-    <Box sx={{width: 1, display: show ? "flex" : "none"}}>{component}</Box>
+    <Box sx={{ width: 1, display: show ? "flex" : "none" }}>{component}</Box>
   );
 }

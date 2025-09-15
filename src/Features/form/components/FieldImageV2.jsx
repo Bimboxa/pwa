@@ -53,7 +53,7 @@ export default function FieldImageV2({
   async function handleImageFileChange(file) {
     if (maxSize) file = await resizeImageToLowResolution(file, maxSize * 1024);
     const imageObject = await ImageObject.create({ imageFile: file });
-    onChange(imageObject);
+    onChange(imageObject.toEntityField());
   }
 
   return (
@@ -64,7 +64,10 @@ export default function FieldImageV2({
           borderRadius: 1,
         }}
       >
-        <SelectorImage onImageFileChange={handleImageFileChange} />
+        <SelectorImage
+          selectedImageUrl={imageSrc}
+          onImageFileChange={handleImageFileChange}
+        />
       </Box>
     </Box>
   );

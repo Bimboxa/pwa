@@ -13,7 +13,9 @@ export default function useBaseMaps(options) {
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const baseMapsUpdatedAt = useSelector((s) => s.baseMaps.baseMapsUpdatedAt);
+  const baseMapsUpdatedAt = useSelector(
+    (s) => s.entities.entitiesTableUpdatedAt["baseMaps"]
+  );
 
   // helpers
 
@@ -31,10 +33,17 @@ export default function useBaseMaps(options) {
     } else {
       records = await db.baseMaps.toArray();
     }
-    return await Promise.all(
+
+    // filter by listing
+    records = records.filter((record) => record.listingId);
+
+    const _baseMaps = await Promise.all(
       records.map(async (record) => await BaseMap.createFromRecord(record))
     );
+    return _baseMaps;
   }, [projectId, baseMapsUpdatedAt]);
+
+  console.log("debug_0915 baseMaps", baseMaps);
 
   // return
 

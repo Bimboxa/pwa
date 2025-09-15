@@ -52,7 +52,7 @@ export default class ImageObject {
         reject(error);
       };
       image.crossOrigin = "anonymous";
-      image.src = this.url ?? URL.createObjectURL(this.file);
+      if (this.file) image.src = this.url ?? URL.createObjectURL(this.file);
     });
   };
 
@@ -65,6 +65,19 @@ export default class ImageObject {
   }
 
   // SERIALIZER
+
+  toEntityField = () => {
+    return {
+      file: this.file,
+      imageUrlClient: this.imageUrlClient,
+      imageUrlRemote: this.imageUrlRemote,
+      isImage: true,
+      imageSize: this.imageSize,
+      fileName: this.fileName,
+      fileSize: this.fileSize,
+      url: this.url,
+    };
+  };
 
   toJSON = () => ({
     fileSize: this.fileSize,

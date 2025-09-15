@@ -1,15 +1,15 @@
-import {useRef, useState, useEffect} from "react";
-import {useSelector, useDispatch} from "react-redux";
+import { useRef, useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useListingEntityModel from "Features/entities/hooks/useListingEntityModel";
 
-import {setOpenPanelListItem} from "../listPanelSlice";
+import { setOpenPanelListItem } from "../listPanelSlice";
 
-import {Box, Paper} from "@mui/material";
+import { Box, Paper } from "@mui/material";
 
 import SectionEntity from "Features/entities/components/SectionEntity";
-import BlockEntityInListPanel from "Features/entities/components/BlockEntityInListPanel";
+import BlockEntityInPanel from "Features/entities/components/BlockEntityInPanel";
 import BlockBottomActionsInPanel from "Features/entityProps/components/BlockBottomActionsInPanel";
 
 export default function PanelListItem() {
@@ -26,7 +26,7 @@ export default function PanelListItem() {
   const listPanelWidth = useSelector((s) => s.listPanel.width);
   const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
 
-  const {value: listing} = useSelectedListing();
+  const { value: listing } = useSelectedListing();
   const entityModel = useListingEntityModel(listing);
 
   // effect - init height
@@ -45,7 +45,7 @@ export default function PanelListItem() {
     ENTITY_PROPS: <BlockBottomActionsInPanel />,
   };
   const component = componentByEntityModel[entityModel?.type] ?? (
-    <BlockEntityInListPanel />
+    <BlockEntityInPanel />
   );
 
   // handlers
@@ -78,7 +78,7 @@ export default function PanelListItem() {
           justifyContent: openPanelListItem ? "flex-start" : "flex-end",
         }}
       >
-        <Box sx={{width: 1}} ref={listItemContainerRef}>
+        <Box sx={{ width: 1 }} ref={listItemContainerRef}>
           {component}
         </Box>
         {openPanelListItem && (

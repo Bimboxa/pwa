@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { Box, IconButton, Typography } from "@mui/material";
 import { Delete } from "@mui/icons-material";
@@ -11,7 +11,7 @@ import pdfToPngAsync from "Features/pdf/utils/pdfToPngAsync";
 
 import ImageObject from "../js/ImageObject";
 
-export default function SelectorImage({ onImageFileChange }) {
+export default function SelectorImage({ selectedImageUrl, onImageFileChange }) {
   // strings
 
   const labelS = "Glisser déposer une image ou un PDF";
@@ -20,6 +20,12 @@ export default function SelectorImage({ onImageFileChange }) {
 
   const [imageUrl, setImageUrl] = useState(null);
   const [imageObject, setImageObject] = useState(null);
+
+  // effect
+
+  useEffect(() => {
+    setImageUrl(selectedImageUrl);
+  }, [selectedImageUrl]);
 
   // handlers
 

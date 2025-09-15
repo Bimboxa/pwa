@@ -9,7 +9,7 @@ db.version(11).stores({
   projectFiles: "id",
 
   scopes: "id,projectId", // {id,name,projectId,sortedListings:[{id,table}]}. Table is used to resolve syncConfig
-  baseMaps: "id,projectId",
+  baseMaps: "id,listingId,projectId",
   baseMapViews: "id,scopeId,baseMapId",
 
   listings: "id,key,uniqueByProject,projectId",

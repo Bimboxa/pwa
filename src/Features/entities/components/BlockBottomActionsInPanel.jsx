@@ -15,11 +15,11 @@ import useUpdateEntity from "../hooks/useUpdateEntity";
 import useCreateMarker from "Features/markers/hooks/useCreateMarker";
 
 import { Box } from "@mui/material";
-import ButtonInPanel from "Features/layout/components/ButtonInPanel";
+import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import { listingsConfigSlice } from "Features/listingsConfig/listingsConfigSlice";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
-export default function BlockBottomActionsInListPanel({ onSaved }) {
+export default function BlockBottomActionsInPanel({ onSaved }) {
   const dispatch = useDispatch();
 
   // strings
@@ -33,6 +33,7 @@ export default function BlockBottomActionsInListPanel({ onSaved }) {
 
   // data
 
+  const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);
   const entity = useEntity();
   const { value: listing } = useSelectedListing();
   console.log("[Action] entity", entity);
@@ -78,7 +79,12 @@ export default function BlockBottomActionsInListPanel({ onSaved }) {
 
   return (
     <Box sx={{ width: 1, display: show ? "flex" : "none" }}>
-      <ButtonInPanel label={saveS} onClick={handleSave} loading={loading} />
+      <ButtonInPanelV2
+        label={saveS}
+        onClick={handleSave}
+        loading={loading}
+        disabled={!isEditingEntity && entity.id}
+      />
     </Box>
   );
 }

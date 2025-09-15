@@ -77,15 +77,18 @@ export default function SearchBar({
         <Box
           sx={{
             ml: 1,
-            bgcolor: color ?? "secondary.main",
+            //bgcolor: color ?? "secondary.main",
             display: focused ? "none" : "flex",
             alignItems: "center",
             justifyContent: "center",
             borderRadius: "50%",
           }}
         >
-          <IconButton onClick={onCreateClick}>
-            <AddIcon sx={{ color: "white" }} />
+          <IconButton
+            onClick={onCreateClick}
+            sx={{ color: color ?? "secondary.main" }}
+          >
+            <AddIcon sx={{}} />
           </IconButton>
         </Box>
       )}
