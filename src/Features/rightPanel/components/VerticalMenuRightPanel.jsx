@@ -10,6 +10,7 @@ import {
   Visibility,
   Palette,
   Layers,
+  Edit,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -33,11 +34,11 @@ export default function VerticalMenuRightPanel() {
       label: "Format",
       icon: <Palette />,
     },
-    // {
-    //   key: "ENTITY_SELECTION",
-    //   label: "Sélection",
-    //   icon: <Info />,
-    // },
+    {
+      key: "ENTITY",
+      label: "Edition",
+      icon: <Edit />,
+    },
     // {
     //   key: "EDITOR_EXPORT",
     //   label: "Export",

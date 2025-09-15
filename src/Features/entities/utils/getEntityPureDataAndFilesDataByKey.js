@@ -12,6 +12,7 @@ export default function getEntityPureDataAndFilesDataByKey(entity, options) {
   const entityId = entity.id ?? options.entityId;
   const listingId = options?.listingId;
   const createdBy = options?.createdBy;
+  const projectId = options?.projectId;
 
   // init
 
@@ -56,7 +57,7 @@ export default function getEntityPureDataAndFilesDataByKey(entity, options) {
       if (isImage) fileData.fileType = "IMAGE";
 
       // pureData
-      const newValue = {...value};
+      const newValue = { ...value };
       delete newValue.file;
       newValue.fileName = fileName;
       if (isImage) newValue.isImage = true;
@@ -69,9 +70,12 @@ export default function getEntityPureDataAndFilesDataByKey(entity, options) {
     }
   });
 
+  // add projectId
+  pureData.projectId = projectId;
+
   console.log("[getPureData] entity pureData", pureData);
   // response
-  const response = {pureData};
+  const response = { pureData };
   if (testHasFiles) response.filesDataByKey = filesDataByKey;
   return response;
 }

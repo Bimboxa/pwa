@@ -10,6 +10,8 @@ const listingsInitialState = {
   openDialogAddListing: false, // TO REMOVE ?
   openPanelAddListing: false,
   //
+  openedPanel: "LISTING", // "LISTING", "LISTING_SELECTOR", "NEW_LISTING_ITEM", "EDIT_LISTING_ITEM"
+  //
   listingsMap: exampleListingsMap,
   listingsUpdatedAt: null,
   listingsById: null,
@@ -31,6 +33,9 @@ export const listingsSlice = createSlice({
     },
     setOpenPanelAddListing: (state, action) => {
       state.openPanelAddListing = action.payload;
+    },
+    setOpenedPanel: (state, action) => {
+      state.openedPanel = action.payload;
     },
     setListingsById: (state, action) => {
       const listings = action.payload;
@@ -66,6 +71,8 @@ export const {
   setOpenDialogAddListing,
   setOpenPanelAddListing,
   setOpenSelectorPanel,
+  //
+  setOpenedPanel,
   //
   setListingsById,
   //

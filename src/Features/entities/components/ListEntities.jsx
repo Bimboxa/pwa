@@ -47,7 +47,7 @@ export default function ListEntities({
 
   return (
     <BoxFlexVStretch>
-      <Box sx={{ width: 1, p: 1 }}>
+      <Box sx={{ width: 1, p: 1, py: 2 }}>
         <SearchBar
           value={searchText}
           onChange={handleSearchTextChange}
@@ -55,8 +55,8 @@ export default function ListEntities({
           color={color}
         />
       </Box>
-      <BoxFlexVStretch sx={{ overflow: "auto", bgcolor: "white" }}>
-        <List dense={!isMobile} disablePadding>
+      <BoxFlexVStretch sx={{ overflow: "auto" }}>
+        <List dense={!isMobile} disablePadding sx={{ bgcolor: "white" }}>
           {filteredEntities?.map((entity) => (
             <ListItemEntityVariantDefault
               key={entity.id}

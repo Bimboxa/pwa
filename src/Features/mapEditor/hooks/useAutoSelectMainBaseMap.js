@@ -21,7 +21,10 @@ export default function useAutoSelectMainBaseMap() {
   console.log("debug_2707 baseMaps", baseMaps);
 
   useEffect(() => {
-    if (baseMaps?.length > 0 && baseMap?.projectId !== projectId) {
+    if (
+      baseMaps?.length > 0 &&
+      (baseMap?.projectId !== projectId || !baseMap)
+    ) {
       const baseMap0 = baseMaps[0];
       console.log("[AUTO] set baseMap to", baseMap0);
       dispatch(setSelectedMainBaseMapId(baseMap0?.id));

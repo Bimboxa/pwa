@@ -1,4 +1,4 @@
-import {createSlice} from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
 
 import exampleEntity from "./data/exampleEntity";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
@@ -7,6 +7,7 @@ const entitiesInitialState = {
   entitiesById: {},
   //
   entitiesUpdatedAt: null,
+  entitiesTableUpdatedAt: {},
   //
   selectedEntityId: null,
   newEntity: null,
@@ -40,6 +41,11 @@ export const entitiesSlice = createSlice({
     triggerEntitiesUpdate: (state) => {
       state.entitiesUpdatedAt = new Date(Date.now()).toISOString();
     },
+    triggerEntitiesTableUpdate: (state, action) => {
+      state.entitiesTableUpdatedAt[action.payload] = new Date(
+        Date.now()
+      ).toISOString();
+    },
     triggerEntityTemplateUpdate: (state) => {
       state.entityTemplateUpdatedAt = new Date(Date.now()).toISOString();
     },
@@ -52,7 +58,7 @@ export const entitiesSlice = createSlice({
     updateEntity: (state, action) => {
       const updates = action.payload;
       const entity = state.entitiesEntity[updates.id];
-      state.entitiesEntity[updates.id] = {...entity, ...updates};
+      state.entitiesEntity[updates.id] = { ...entity, ...updates };
     },
   },
 });
@@ -62,6 +68,7 @@ export const {
   //
   setSelectedEntityId,
   triggerEntitiesUpdate,
+  triggerEntitiesTableUpdate,
   //
   setNewEntity,
   setIsEditingEntity,

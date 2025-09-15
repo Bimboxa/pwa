@@ -11,6 +11,7 @@ import {
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedEntityId } from "../entitiesSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
+import { setOpenedPanel } from "Features/listings/listingsSlice";
 
 import ListEntities from "./ListEntities";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -35,6 +36,8 @@ export default function SectionListEntitiesInListPanel() {
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
 
   // debug
+
+  console.log("debug_1509 entities", entities);
 
   // helpers
 
@@ -65,8 +68,9 @@ export default function SectionListEntitiesInListPanel() {
   }
 
   function handleCreateClick() {
-    dispatch(setOpenPanelListItem(true));
+    //dispatch(setOpenPanelListItem(true));
     dispatch(setSelectedEntityId(null));
+    //dispatch(setOpenedPanel("NEW_LISTING_ITEM"));
   }
 
   return (

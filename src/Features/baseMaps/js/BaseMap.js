@@ -29,24 +29,33 @@ export default class BaseMap {
   }
 
   static async createFromRecord(record) {
-    console.log("debug_2807 createFromRecord", record);
-    if (!record) return null;
+    try {
+      console.log("debug_2807 createFromRecord", record);
+      if (!record) return null;
 
-    // the id of the file is computed from the field + id of the entity.
-    const fileRecord = await db.projectFiles.get(`image_${record.id}`);
+      // the id of the file is computed from the field + id of the entity.
+      //const fileRecord = await db.projectFiles.get(`image_${record.id}`);
+      let fileRecord;
+      if (record?.image?.fileName) {
+        fileRecord = await db.files.get(record.image.fileName);
+      }
 
-    // const bmImage = new ImageObject({
-    //   ...record.image,
-    //  file: fileRecord?.file,
-    //imageUrlClient: URL.createObjectURL(fileRecord.file), // the record.image contains an imageUrl out of date.
-    //});
+      const bmImage = fileRecord
+        ? await ImageObject.create({ imageFile: fileRecord?.file })
+        : null;
 
-    const bmImage = await ImageObject.create({ imageFile: fileRecord.file });
+      const baseMap = new BaseMap({
+        ...record,
+        image: bmImage,
+      });
 
-    return new BaseMap({
-      ...record,
-      image: bmImage,
-    });
+      console.log("debug_0915 baseMap", baseMap);
+
+      return baseMap;
+    } catch (e) {
+      console.error("debug_0915 error createFromRecord", e);
+      return null;
+    }
   }
 
   // INIT

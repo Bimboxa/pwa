@@ -1,4 +1,8 @@
-import {nanoid} from "@reduxjs/toolkit";
+import { useDispatch } from "react-redux";
+import { nanoid } from "@reduxjs/toolkit";
+
+import { triggerEntitiesTableUpdate } from "../entitiesSlice";
+
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 
 import db from "App/db/db";
@@ -10,8 +14,8 @@ import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 export default function useCreateEntity() {
   // data
 
-  const {value: userEmail} = useUserEmail();
-  const {value: _listing} = useSelectedListing();
+  const { value: userEmail } = useUserEmail();
+  const { value: _listing } = useSelectedListing();
 
   // helper
 
@@ -30,10 +34,11 @@ export default function useCreateEntity() {
     const entityId = nanoid();
 
     // data
-    const {pureData, filesDataByKey} = getEntityPureDataAndFilesDataByKey(
+    const { pureData, filesDataByKey } = getEntityPureDataAndFilesDataByKey(
       data,
       {
         entityId,
+        projectId: listing.projectId,
         listingId: listing.id,
         createdBy: userEmail,
       }
@@ -84,6 +89,10 @@ export default function useCreateEntity() {
     } catch (e) {
       console.log("[db] error adding entity", entity);
     }
+
+    // update table
+
+    dispatch(triggerEntitiesTableUpdate(table));
   };
 
   return create;

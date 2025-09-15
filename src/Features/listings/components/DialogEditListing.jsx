@@ -1,4 +1,4 @@
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 
 import useSelectedListing from "../hooks/useSelectedListing";
 import useUpdateListing from "../hooks/useUpdateListing";
@@ -8,14 +8,14 @@ import FormListing from "./FormListing";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 
-export default function DialogEditListing({open, onClose, listing}) {
+export default function DialogEditListing({ open, onClose, listing }) {
   // strings
 
   const title = "Configuration du module";
   const saveS = "Enregistrer";
 
   // data
-  const {value: selectedListing} = useSelectedListing();
+  const { value: selectedListing } = useSelectedListing();
 
   // data - func
   const updateListing = useUpdateListing();
@@ -36,13 +36,19 @@ export default function DialogEditListing({open, onClose, listing}) {
   // handlers
 
   async function handleSave() {
-    await updateListing(tempListing, {updateSyncFile: true});
+    await updateListing(tempListing, { updateSyncFile: true });
     onClose();
   }
   // render
 
   return (
-    <DialogGeneric title={title} open={open} onClose={onClose} vw={30} vh={50}>
+    <DialogGeneric
+      title={title}
+      open={open}
+      onClose={onClose}
+      width={350}
+      vh={70}
+    >
       <BoxFlexVStretch>
         <FormListing listing={tempListing} onChange={setTempListing} />
       </BoxFlexVStretch>

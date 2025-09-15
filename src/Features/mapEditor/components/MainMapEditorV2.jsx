@@ -41,13 +41,17 @@ export default function MainMapEditorV2() {
 
   // data
 
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
   const listingId = useSelector((s) => s.listings.selectedListingId);
 
   const annotationSpriteImage = useAnnotationSpriteImage();
-  const entity = useEntity();
   const mainBaseMap = useMainBaseMap();
 
-  const { value: baseMaps } = useBaseMaps();
+  const { value: baseMaps } = useBaseMaps({ filterByProjectId: projectId });
+
+  console.log("[MainMapEditorV2] baseMaps", baseMaps);
+
+  const entity = useEntity();
   const bgImage = useBgImageInMapEditor();
   const markers = useMarkers({ addDemoMarkers: true });
   const annotations = useAnnotations({
@@ -85,7 +89,7 @@ export default function MainMapEditorV2() {
 
   // effects
 
-  //useAutoSelectMainBaseMap();
+  useAutoSelectMainBaseMap();
 
   if (noBaseMaps) return <SectionNoMap />;
 
@@ -152,7 +156,7 @@ export default function MainMapEditorV2() {
       }}
     >
       <MapEditorGeneric
-        baseMapImageUrl={mainBaseMap?.image.imageUrlClient}
+        baseMapImageUrl={mainBaseMap?.image?.imageUrlClient}
         baseMapPoseInBg={basePoseInBg}
         onBaseMapPoseInBgChange={setBasePoseInBg}
         bgImageUrl={bgImage?.imageUrlRemote}

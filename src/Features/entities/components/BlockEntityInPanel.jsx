@@ -13,19 +13,22 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import { Box } from "@mui/material";
 
-import BlockEntityInListPanelVariantBottom from "./BlockEntityInListPanelVariantBottom";
-import BlockEntityInListPanelVariantHeader from "./BlockEntityInListPanelVariantHeader";
+import BlockEntityInPanelVariantBottom from "./BlockEntityInPanelVariantBottom";
+import BlockEntityInPanelVariantHeader from "./BlockEntityInPanelVariantHeader";
 
 import theme from "Styles/theme";
 
-export default function BlockEntityInListPanel() {
+export default function BlockEntityInPanel() {
   const dispatch = useDispatch();
 
   // data
 
   const entity = useEntity();
   const { value: listing } = useSelectedListing({ withEntityModel: true });
-  const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
+
+  //const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
+  const openPanelListItem = true;
+
   const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);
 
   // helper - label
@@ -41,7 +44,7 @@ export default function BlockEntityInListPanel() {
   // handlers
 
   function handleClick() {
-    console.log("[BlockEntityInListPanel] handleClick");
+    console.log("[BlockEntityInPanel] handleClick");
     dispatch(setOpenPanelListItem(!openPanelListItem));
     if (isEditingEntity) {
       dispatch(setIsEditingEntity(false));
@@ -60,13 +63,13 @@ export default function BlockEntityInListPanel() {
   return (
     <Box sx={{ width: 1, bgcolor: "common.white" }}>
       {openPanelListItem ? (
-        <BlockEntityInListPanelVariantHeader
+        <BlockEntityInPanelVariantHeader
           label={label}
           onClose={handleClose}
           bgcolor={bgcolor}
         />
       ) : (
-        <BlockEntityInListPanelVariantBottom
+        <BlockEntityInPanelVariantBottom
           label={label}
           onClick={handleClick}
           onClose={() => dispatch(setSelectedEntityId(null))}

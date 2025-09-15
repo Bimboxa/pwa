@@ -13,9 +13,9 @@ import { Stop, Mic as MicIcon, Close } from "@mui/icons-material";
 import useRecognition from "../hooks/useRecognition";
 
 export default function FieldTextV2({ value, onChange, options, label }) {
-  const fullWidth = options?.fullWidth;
+  const fullWidth = options ? options?.fullWidth : true; // to consider default value from entities model
   const multiline = options?.multiline;
-  const showLabel = options?.showLabel;
+  const showLabel = options ? options?.showLabel : true;
   const hideMic = options?.hideMic;
   const autoFocus = options?.autoFocus;
   const hideBorder = options?.hideBorder;
@@ -73,7 +73,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
       }}
     >
       {showAsSection && (
-        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+        <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
           {label}
         </Typography>
       )}

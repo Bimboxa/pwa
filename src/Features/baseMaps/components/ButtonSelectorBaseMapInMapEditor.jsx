@@ -27,7 +27,6 @@ export default function ButtonSelectorBaseMapInMapEditor() {
 
   // data
 
-  const loadedMainBaseMap = useLoadedMainBaseMap();
   const mainBaseMap = useMainBaseMap();
   const isMobile = useIsMobile();
 
@@ -70,7 +69,7 @@ export default function ButtonSelectorBaseMapInMapEditor() {
         vw={50}
       >
         <PanelSelectorBaseMap
-          selection={loadedMainBaseMap?.id}
+          selection={mainBaseMap?.id}
           onSelectionChange={handleMapSelectionChange}
         />
       </DialogGeneric>

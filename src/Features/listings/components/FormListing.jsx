@@ -1,41 +1,16 @@
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useListingFormTemplate from "../hooks/useListingFormTemplate";
 
-import FormGeneric from "Features/form/components/FormGeneric";
+import FormGenericV2 from "Features/form/components/FormGenericV2";
 
-export default function FormListing({listing, onChange}) {
+export default function FormListing({ listing, onChange }) {
   // data
   const appConfig = useAppConfig();
-
-  // helpers - tables
-  const tableOptions = Object.entries(appConfig?.tables || {}).map(
-    ([key, report]) => ({
-      key,
-      label: report.name,
-    })
-  );
-
-  // helpers - template
-  const template = {
-    fields: [
-      {
-        key: "name",
-        type: "text",
-        label: "Nom",
-      },
-      {
-        key: "mainTable",
-        type: "option",
-        label: "Table principale",
-        valueOptions: tableOptions,
-      },
-    ],
-  };
+  const template = useListingFormTemplate(listing);
 
   // helper - item
 
-  const item = {...listing};
-  const mainTable = appConfig.tables?.[listing?.mainTableKey];
-  item.mainTable = {key: listing?.mainTableKey, label: mainTable?.name};
+  const item = { ...listing };
 
   // handlers
 
@@ -44,18 +19,12 @@ export default function FormListing({listing, onChange}) {
       ...listing,
       ...item,
     };
-    // update props
-    newListing.mainTableKey = newListing.mainTable?.key;
-
-    // delete props
-    delete newListing.mainTable;
-    //
     onChange(newListing);
   }
 
   // render
   return (
-    <FormGeneric
+    <FormGenericV2
       template={template}
       item={item}
       onItemChange={handleItemChange}

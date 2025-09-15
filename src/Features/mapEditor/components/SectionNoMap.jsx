@@ -7,7 +7,8 @@ import { useDispatch } from "react-redux";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import useCreateBaseMap from "Features/baseMaps/hooks/useCreateBaseMap";
-import useCreateBaseMapView from "Features/baseMapViews/hooks/useCreateBaseMapView";
+import useCreateEntity from "Features/entities/hooks/useCreateEntity";
+import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 
 import { Box, Typography } from "@mui/material";
 
@@ -32,12 +33,21 @@ export default function SectionNoMap() {
   // data
 
   const createBaseMap = useCreateBaseMap();
-  const createBaseMapView = useCreateBaseMapView();
+  const projectBaseMapListings = useProjectBaseMapListings();
+  const createEntity = useCreateEntity();
 
   // helpers
 
   async function _createBaseMap(file) {
-    const baseMap = await createBaseMap({ imageFile: file });
+    const listing = projectBaseMapListings?.[0];
+
+    const entity = {
+      name: file.name,
+      image: { imageFile: file },
+    };
+    await createEntity(entity, { listing });
+
+    //const baseMap = await createBaseMap({ imageFile: file });
     //const baseMapView = await createBaseMapView({ name: nameS, baseMap });
     dispatch(setSelectedMainBaseMapId(baseMap?.id));
   }

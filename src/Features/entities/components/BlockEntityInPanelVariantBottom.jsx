@@ -7,11 +7,11 @@ import {
   ListItemText,
   Paper,
 } from "@mui/material";
-import {Close, Add} from "@mui/icons-material";
+import { Close, Add } from "@mui/icons-material";
 
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
-export default function BlockEntityInListPanelVariantBottom({
+export default function BlockEntityInPanelVariantBottom({
   label,
   id,
   onClick,
@@ -26,12 +26,12 @@ export default function BlockEntityInListPanelVariantBottom({
   const addIcon = Boolean(!id);
 
   return (
-    <Box sx={{width: 1, p}}>
+    <Box sx={{ width: 1, p }}>
       {/* <ButtonInPanel label={label} onClick={onClick} variant="default" /> */}
       <Paper elevation={6} width={1}>
         <ListItem
           //dense
-          sx={{bgcolor, color}}
+          sx={{ bgcolor, color }}
           disablePadding
           secondaryAction={
             id ? (
@@ -43,7 +43,7 @@ export default function BlockEntityInListPanelVariantBottom({
         >
           <ListItemButton onClick={onClick}>
             <ListItemIcon color="inherit">
-              {addIcon ? <Add sx={{color: "white"}} /> : null}
+              {addIcon ? <Add sx={{ color: "white" }} /> : null}
             </ListItemIcon>
 
             <ListItemText primary={label} />
