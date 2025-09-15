@@ -27,6 +27,8 @@ export default function HeaderEntityInListPanel() {
   const entity = useEntity();
   const { value: listing } = useSelectedListing({ withEntityModel: true });
 
+  console.log("debug_0915 listing", listing);
+
   //const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
   const openPanelListItem = true;
 

@@ -51,6 +51,11 @@ export default function useListingFormTemplate(listing) {
         type: "option",
         valueOptions: entityModels,
       },
+      {
+        key: "canCreateItem",
+        label: "Créer des entités",
+        type: "check",
+      },
     ],
   };
 

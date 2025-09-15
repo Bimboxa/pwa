@@ -45,6 +45,7 @@ export default function DialogEditListing({ open, onClose, listing }) {
     _listing.table = _listing?.entityModel?.defaultTable;
     delete _listing.entityModel;
 
+    console.log("[DialogEditListing] _listing", _listing);
     await updateListing(_listing, { updateSyncFile: true });
     onClose();
   }

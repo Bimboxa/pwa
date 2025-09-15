@@ -12,6 +12,7 @@ export default function SelectorIconGeneric({
         const selected = key === iconKey;
         return (
           <Box
+            key={key}
             sx={{
               display: "flex",
               alignItems: "center",
@@ -25,7 +26,6 @@ export default function SelectorIconGeneric({
           >
             <IconButton
               selected={selected}
-              key={key}
               onClick={() => onChange(key)}
               color="inherit"
             >
