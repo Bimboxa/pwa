@@ -35,8 +35,17 @@ export default function DialogEditListing({ open, onClose, listing }) {
 
   // handlers
 
+  function handleChange(listing) {
+    setTempListing(listing);
+  }
+
   async function handleSave() {
-    await updateListing(tempListing, { updateSyncFile: true });
+    const _listing = { ...tempListing };
+    _listing.entityModelKey = _listing?.entityModel?.key;
+    _listing.table = _listing?.entityModel?.defaultTable;
+    delete _listing.entityModel;
+
+    await updateListing(_listing, { updateSyncFile: true });
     onClose();
   }
   // render
@@ -50,7 +59,7 @@ export default function DialogEditListing({ open, onClose, listing }) {
       vh={70}
     >
       <BoxFlexVStretch>
-        <FormListing listing={tempListing} onChange={setTempListing} />
+        <FormListing listing={tempListing} onChange={handleChange} />
       </BoxFlexVStretch>
       <ButtonInPanel label={saveS} onClick={handleSave} />
     </DialogGeneric>
