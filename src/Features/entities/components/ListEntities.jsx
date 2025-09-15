@@ -63,6 +63,7 @@ export default function ListEntities({
               entity={entity}
               onClick={handleEntityClick}
               selection={selection}
+              listingColor={color}
             />
           ))}
         </List>

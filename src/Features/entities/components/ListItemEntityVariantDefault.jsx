@@ -6,6 +6,7 @@ import {
   Avatar,
   IconButton,
 } from "@mui/material";
+import { lighten } from "@mui/material/styles";
 import { NearMe as Focus } from "@mui/icons-material";
 
 import getEntityMainImage from "../utils/getEntityMainImage";
@@ -14,6 +15,7 @@ export default function ListItemEntityVariantDefault({
   entity,
   onClick,
   selection,
+  listingColor,
 }) {
   // helpers
 
@@ -41,7 +43,22 @@ export default function ListItemEntityVariantDefault({
         )
       }
     >
-      <ListItemButton onClick={handleClick} selected={isSelected}>
+      <ListItemButton
+        onClick={handleClick}
+        selected={isSelected}
+        sx={{
+          "&:hover": {
+            backgroundColor: lighten(listingColor, 0.9),
+          },
+          "&.Mui-selected": {
+            backgroundColor: listingColor,
+            color: "white",
+            "&:hover": {
+              backgroundColor: lighten(listingColor, 0.1),
+            },
+          },
+        }}
+      >
         {mainImage && (
           <ListItemAvatar>
             <Avatar src={mainImage.url} />

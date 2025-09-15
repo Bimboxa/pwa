@@ -10,6 +10,7 @@ import FieldIcon from "./FieldIcon";
 import FieldAnnotationTemplateId from "./FieldAnnotationTemplateId";
 import FieldIconBasic from "./FieldIconBasic";
 import FieldOptionSelector from "./FieldOptionSelector";
+import FieldCheck from "./FieldCheck";
 
 import FieldZonesVariantGrid from "./FieldZonesVariantGrid";
 import FieldZoneVariantGrid from "./FieldZoneVariantGrid";
@@ -62,6 +63,19 @@ export default function FormGenericV2({
                 handleFieldValueChange(field.key, newValue)
               }
               options={field.options}
+            />
+          );
+        }
+
+        if (field?.type === "check") {
+          return (
+            <FieldCheck
+              key={field.key}
+              label={field.label}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
             />
           );
         }
