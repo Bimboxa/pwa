@@ -1,3 +1,6 @@
+import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import { Add } from "@mui/icons-material";
+
 export default function ToolbarMapEditorBlueprint({ svgElement }) {
   // strings
 
@@ -10,5 +13,12 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
     console.log("create");
   }
 
-  <ButtonGeneric label={createS} onClick={handleCreateClick} />;
+  return (
+    <ButtonGeneric
+      label={createS}
+      onClick={handleCreateClick}
+      variant="contained"
+      startIcon={<Add />}
+    />
+  );
 }
