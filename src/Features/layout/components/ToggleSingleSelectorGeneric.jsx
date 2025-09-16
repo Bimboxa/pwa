@@ -14,7 +14,7 @@ export default function ToggleSingleSelectorGeneric({
       <ToggleButtonGroup onChange={handleChange} value={selectedKey} exclusive>
         {options.map(({ key, label, icon }) => {
           return (
-            <ToggleButton key={key} value={key}>
+            <ToggleButton key={key} value={key} size="small">
               {icon ?? label}
             </ToggleButton>
           );

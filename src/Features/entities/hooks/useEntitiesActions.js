@@ -1,7 +1,11 @@
-import { setOpenedPanel } from "Features/listings/listingsSlice";
 import { useSelector, useDispatch } from "react-redux";
+import { setOpenedPanel } from "Features/listings/listingsSlice";
+import {
+  setIsEditingEntity,
+  setOpenDialogDeleteEntity,
+} from "../entitiesSlice";
 
-import { Edit } from "@mui/icons-material";
+import { Edit, Delete } from "@mui/icons-material";
 
 export default function useEntitiesActions() {
   const dispatch = useDispatch();
@@ -17,7 +21,16 @@ export default function useEntitiesActions() {
       label: "Modifier",
       icon: Edit,
       handler: () => {
+        dispatch(setIsEditingEntity(true));
         dispatch(setOpenedPanel("EDITED_ENTITY"));
+      },
+      disabled: !selectedEntityId,
+    },
+    {
+      label: "Supprimer",
+      icon: Delete,
+      handler: () => {
+        dispatch(setOpenDialogDeleteEntity(true));
       },
       disabled: !selectedEntityId,
     },

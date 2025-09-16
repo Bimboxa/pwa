@@ -11,6 +11,7 @@ export default function DialogDeleteEntity({ open, entity, onClose }) {
 
   async function handleConfirm() {
     await deleteEntity(entity);
+    onClose();
   }
 
   return (
