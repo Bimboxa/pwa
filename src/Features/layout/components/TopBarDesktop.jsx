@@ -11,6 +11,7 @@ import SelectorViewer from "Features/viewers/components/SelectorViewer";
 import AuthButtons from "Features/auth/components/AuthButtons";
 import TopBarProjectAndScope from "./TopBarProjectAndScope";
 import ToggleOpenLeftPanel from "Features/leftPanel/components/ToggleOpenLeftPanel";
+import HorizontalMenuRightPanel from "Features/rightPanel/components/HorizontalMenuRightPanel";
 
 export default function TopBarDesktop() {
   const height = useSelector((s) => s.layout.topBarHeight);
@@ -24,7 +25,7 @@ export default function TopBarDesktop() {
         alignItems: "center",
         bgcolor: "white",
         zIndex: 1000,
-        pr: 1,
+        pr: 0.5,
         pl: 0.5,
         borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
       }}
@@ -44,7 +45,8 @@ export default function TopBarDesktop() {
 
       <SelectorViewer />
 
-      <AuthButtons />
+      {/* <AuthButtons /> */}
+      <HorizontalMenuRightPanel />
     </Box>
   );
 }

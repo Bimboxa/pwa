@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import useEntities from "../hooks/useEntities";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useIsMobile from "Features/layout/hooks/useIsMobile";
+import useOnEntityClick from "../hooks/useOnEntityClick";
 
 import { setOpenPanelListItem } from "Features/listPanel/listPanelSlice";
 import {
@@ -15,6 +16,7 @@ import { setOpenedPanel } from "Features/listings/listingsSlice";
 
 import ListEntities from "./ListEntities";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import SectionActions from "./SectionActions";
 
 export default function SectionListEntitiesInListPanel() {
   const dispatch = useDispatch();
@@ -34,6 +36,8 @@ export default function SectionListEntitiesInListPanel() {
     withAnnotations: entityModel?.type === "LOCATED_ENTITY",
   });
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
+
+  const onEntityClick = useOnEntityClick();
 
   // debug
 
@@ -64,7 +68,9 @@ export default function SectionListEntitiesInListPanel() {
     }
 
     dispatch(setSelectedEntityId(id));
-    dispatch(setOpenedPanel("EDITED_ENTITY"));
+
+    onEntityClick(entity);
+    //dispatch(setOpenedPanel("EDITED_ENTITY"));
   }
 
   function handleCreateClick() {

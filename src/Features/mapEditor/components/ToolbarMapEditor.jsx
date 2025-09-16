@@ -2,7 +2,7 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import ToolbarMapEditorLocatedEntities from "./ToolbarMapEditorLocatedEntities";
 import ToolbarMapEditorBlueprint from "Features/blueprints/components/ToolbarMapEditorBlueprint";
 
-export default function ToolbarMapEditor() {
+export default function ToolbarMapEditor({ svgElement }) {
   // data
 
   const { value: listing } = useSelectedListing();
@@ -16,7 +16,9 @@ export default function ToolbarMapEditor() {
   return (
     <>
       {type === "LOCATED_ENTITY" && <ToolbarMapEditorLocatedEntities />}
-      {type === "BLUEPRINT" && <ToolbarMapEditorBlueprint />}
+      {type === "BLUEPRINT" && (
+        <ToolbarMapEditorBlueprint svgElement={svgElement} />
+      )}
     </>
   );
 }

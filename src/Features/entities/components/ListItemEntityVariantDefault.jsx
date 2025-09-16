@@ -8,6 +8,7 @@ import {
 } from "@mui/material";
 import { lighten } from "@mui/material/styles";
 import { NearMe as Focus } from "@mui/icons-material";
+import theme from "Styles/theme";
 
 import getEntityMainImage from "../utils/getEntityMainImage";
 
@@ -15,7 +16,7 @@ export default function ListItemEntityVariantDefault({
   entity,
   onClick,
   selection,
-  listingColor,
+  listingColor = theme.palette.primary.main,
 }) {
   // helpers
 

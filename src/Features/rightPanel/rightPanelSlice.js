@@ -4,7 +4,7 @@ import { createSlice } from "@reduxjs/toolkit";
 const rightPanelInitialState = {
   width: 300,
   //
-  selectedMenuItemKey: null, // SHOWER, ENTITY, ANNOTATION_FORMAT
+  selectedMenuItemKey: "ANNOTATION_FORMAT", // SHOWER, ENTITY, ANNOTATION_FORMAT
   //
   selectedScopeIdInDashboard: null,
 };

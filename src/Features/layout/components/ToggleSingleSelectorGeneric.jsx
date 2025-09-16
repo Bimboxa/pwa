@@ -1,4 +1,4 @@
-import {Box, ToggleButtonGroup, ToggleButton} from "@mui/material";
+import { Box, ToggleButtonGroup, ToggleButton } from "@mui/material";
 
 export default function ToggleSingleSelectorGeneric({
   options,
@@ -6,17 +6,16 @@ export default function ToggleSingleSelectorGeneric({
   onChange,
 }) {
   function handleChange(e, v) {
-    if (v) {
-      onChange(v);
-    }
+    console.log("handleChange", v);
+    onChange(v === selectedKey ? null : v);
   }
   return (
-    <Box sx={{display: "flex", width: 1, justifyContent: "center"}}>
+    <Box sx={{ display: "flex", width: 1, justifyContent: "center" }}>
       <ToggleButtonGroup onChange={handleChange} value={selectedKey} exclusive>
-        {options.map(({key, label}) => {
+        {options.map(({ key, label, icon }) => {
           return (
             <ToggleButton key={key} value={key}>
-              {label}
+              {icon ?? label}
             </ToggleButton>
           );
         })}
