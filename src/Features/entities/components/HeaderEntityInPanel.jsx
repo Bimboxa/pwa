@@ -6,6 +6,7 @@ import {
   setIsEditingEntity,
   setNewEntity,
 } from "../entitiesSlice";
+import { setOpenedPanel } from "Features/listings/listingsSlice";
 import { setTempMarkerProps } from "Features/markers/markersSlice";
 
 import useIsMobile from "Features/layout/hooks/useIsMobile";
@@ -13,12 +14,13 @@ import useEntity from "../hooks/useEntity";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import { Box, Paper, Typography } from "@mui/material";
+import IconButtonClose from "Features/layout/components/IconButtonClose";
 
 import IconButtonMoreEntity from "./IconButtonMoreEntity";
 
 import theme from "Styles/theme";
 
-export default function HeaderEntityInListPanel() {
+export default function HeaderEntityInPanel() {
   const dispatch = useDispatch();
 
   // data
@@ -27,7 +29,7 @@ export default function HeaderEntityInListPanel() {
   const entity = useEntity();
   const { value: listing } = useSelectedListing({ withEntityModel: true });
 
-  console.log("debug_0915 listing", listing);
+  console.log("debug_0915 entity", entity);
 
   //const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
   const openPanelListItem = true;
@@ -54,6 +56,7 @@ export default function HeaderEntityInListPanel() {
     console.log("close");
     dispatch(setSelectedEntityId(null));
     dispatch(setTempMarkerProps(null));
+    dispatch(setOpenedPanel("LISTING"));
   }
 
   return (
@@ -71,14 +74,17 @@ export default function HeaderEntityInListPanel() {
           width: 1,
         }}
       >
+        <IconButtonClose onClose={handleClose} />
         <Typography
           sx={{ fontWeight: isMobile ? "normal" : "bold" }}
           variant={isMobile ? "body2" : "body1"}
         >
           {label}
         </Typography>
-        {entity?.id && (
+        {entity?.id ? (
           <IconButtonMoreEntity entity={entity} sx={{ color: "inherit" }} />
+        ) : (
+          <Box sx={{ width: 24 }} />
         )}
       </Paper>
     </Box>

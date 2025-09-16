@@ -10,6 +10,7 @@ import FormGeneric from "Features/form/components/FormGeneric";
 import useEntityFormTemplate from "../hooks/useEntityFormTemplate";
 import useCreateEntity from "../hooks/useCreateEntity";
 import { create } from "qrcode";
+//import FormGenericV2 from "Features/form/components/FormGenericV2";
 
 export default function PanelCreateListingEntity({
   listing,

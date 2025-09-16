@@ -8,7 +8,8 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 import PanelListing from "./PanelListing";
 import PanelSelectorListing from "./PanelSelectorListing";
-import PanelCreateListingEntity from "Features/entities/components/PanelCreateListingEntity";
+//import PanelCreateListingEntity from "Features/entities/components/PanelCreateListingEntity";
+import PanelEditEntity from "Features/entities/components/PanelEditEntity";
 
 export default function PanelListingContainer() {
   const dispatch = useDispatch();
@@ -17,6 +18,7 @@ export default function PanelListingContainer() {
 
   const { value: listing } = useSelectedListing();
   const openedPanel = useSelector((s) => s.listings.openedPanel);
+  console.log("[PanelListingContainer] openedPanel", openedPanel);
 
   // handlers
 
@@ -37,9 +39,8 @@ export default function PanelListingContainer() {
       )}
 
       {openedPanel === "LISTING" && <PanelListing listing={listing} />}
-      {openedPanel === "NEW_LISTING_ITEM" && (
-        <PanelCreateListingEntity listing={listing} />
-      )}
+      {openedPanel === "NEW_ENTITY" && <PanelEditEntity />}
+      {openedPanel === "EDITED_ENTITY" && <PanelEditEntity />}
     </BoxFlexVStretch>
   );
 }

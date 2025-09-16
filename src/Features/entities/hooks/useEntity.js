@@ -1,4 +1,4 @@
-import {useSelector} from "react-redux";
+import { useSelector } from "react-redux";
 
 import useEntityModel from "./useEntityModel";
 import useSelectedEntity from "./useSelectedEntity";
@@ -7,7 +7,8 @@ import useNewEntity from "./useNewEntity";
 export default function useEntity() {
   // data
 
-  const {value: selectedEntity} = useSelectedEntity({withImages: true});
+  const { value: selectedEntity } = useSelectedEntity({ withImages: true });
+  console.log("debug_1609 selectedEntity", selectedEntity?.id);
 
   const newEntity = useNewEntity();
   const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);
@@ -32,11 +33,13 @@ export default function useEntity() {
     };
   } else if (isEditingEntity) {
     label = editedEntity[entityModel?.labelKey];
-    entity = {...editedEntity, label};
+    entity = { ...editedEntity, label };
   } else {
     label = entity[entityModel?.labelKey];
-    entity = {...entity, label};
+    entity = { ...entity, label };
   }
+
+  console.log("debug_1509 [useEntity] entity", entity);
 
   return entity;
 }

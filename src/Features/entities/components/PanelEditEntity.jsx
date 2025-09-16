@@ -6,6 +6,7 @@ import {
   setEditedEntity,
   setIsEditingEntity,
 } from "../entitiesSlice";
+import { setOpenedPanel } from "Features/listings/listingsSlice";
 import { setOpenPanelListItem } from "Features/listPanel/listPanelSlice";
 
 import useEntity from "../hooks/useEntity";
@@ -48,7 +49,7 @@ export default function PanelEditEntity() {
   }
 
   function handleSaved() {
-    dispatch(setOpenPanelListItem(false));
+    dispatch(setOpenedPanel("LISTING"));
   }
 
   return (

@@ -10,7 +10,7 @@ const listingsInitialState = {
   openDialogAddListing: false, // TO REMOVE ?
   openPanelAddListing: false,
   //
-  openedPanel: "LISTING", // "LISTING", "LISTING_SELECTOR", "NEW_LISTING_ITEM", "EDIT_LISTING_ITEM"
+  openedPanel: "LISTING", // "LISTING", "LISTING_SELECTOR", "NEW_ENTITY", "EDITED_ENTITY"
   //
   listingsMap: exampleListingsMap,
   listingsUpdatedAt: null,
