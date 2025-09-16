@@ -7,6 +7,7 @@ import {
   setIsEditingEntity,
   setNewEntity,
 } from "../entitiesSlice";
+import { setOpenedPanel } from "Features/listings/listingsSlice";
 import { setTempMarkerProps } from "Features/markers/markersSlice";
 
 import useEntity from "../hooks/useEntity";
@@ -72,6 +73,7 @@ export default function BlockBottomActionsInPanel({ onSaved }) {
       dispatch(setIsEditingEntity(false));
       dispatch(setEditedEntity({}));
     }
+    dispatch(setOpenedPanel("LISTING"));
     //
     setLoading(false);
     if (onSaved) onSaved();
@@ -84,6 +86,7 @@ export default function BlockBottomActionsInPanel({ onSaved }) {
         onClick={handleSave}
         loading={loading}
         disabled={!isEditingEntity && entity.id}
+        sx={{ bgcolor: listing?.color, color: "white" }}
       />
     </Box>
   );

@@ -46,7 +46,6 @@ export default function SectionListEntitiesInListPanel() {
   // handlers
 
   function handleClick(entity) {
-    console.log("[SectionListEntitiesInListPanel] handleClick", entity);
     let id = selectedEntityId === entity.id ? null : entity.id;
 
     if (isMobile) {
@@ -65,12 +64,13 @@ export default function SectionListEntitiesInListPanel() {
     }
 
     dispatch(setSelectedEntityId(id));
+    dispatch(setOpenedPanel("EDITED_ENTITY"));
   }
 
   function handleCreateClick() {
     //dispatch(setOpenPanelListItem(true));
     dispatch(setSelectedEntityId(null));
-    //dispatch(setOpenedPanel("NEW_LISTING_ITEM"));
+    dispatch(setOpenedPanel("NEW_ENTITY"));
   }
 
   return (

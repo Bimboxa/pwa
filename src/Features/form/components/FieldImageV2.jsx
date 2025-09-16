@@ -57,17 +57,30 @@ export default function FieldImageV2({
   }
 
   return (
-    <Box sx={{ width: 1, p: 1 }}>
+    <Box sx={{ width: 1 }}>
       <Box
         sx={{
-          border: (theme) => `1px solid ${theme.palette.divider}`,
-          borderRadius: 1,
+          p: 1,
+          borderTop: (theme) => `1px solid ${theme.palette.divider}`,
         }}
       >
-        <SelectorImage
-          selectedImageUrl={imageSrc}
-          onImageFileChange={handleImageFileChange}
-        />
+        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+          {label}
+        </Typography>
+      </Box>
+
+      <Box sx={{ p: 1 }}>
+        <Box
+          sx={{
+            border: (theme) => `1px solid ${theme.palette.divider}`,
+            borderRadius: 1,
+          }}
+        >
+          <SelectorImage
+            selectedImageUrl={imageSrc}
+            onImageFileChange={handleImageFileChange}
+          />
+        </Box>
       </Box>
     </Box>
   );
