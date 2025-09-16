@@ -4,6 +4,7 @@ import { Box } from "@mui/material";
 
 import FieldTextV2 from "./FieldTextV2";
 import FieldImageV2 from "./FieldImageV2";
+import FieldImageKeyFromOptions from "./FieldImageKeyFromOptions";
 import FieldColorV2 from "./FieldColorV2";
 import FieldBaseMap from "./FieldBaseMap";
 import FieldIcon from "./FieldIcon";
@@ -147,6 +148,21 @@ export default function FormGenericV2({
                 handleFieldValueChange(field.key, newValue)
               }
               formContainerRef={formContainerRef}
+            />
+          );
+        }
+
+        if (field?.type === "imageKeyFromOptions") {
+          return (
+            <FieldImageKeyFromOptions
+              key={field.key}
+              label={field.label}
+              width={field.width}
+              options={field.options}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
             />
           );
         }

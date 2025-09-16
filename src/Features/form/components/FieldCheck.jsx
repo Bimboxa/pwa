@@ -16,6 +16,7 @@ export default function FieldCheck({ value, onChange, label }) {
       }}
     >
       <FormControlLabel
+        sx={{ pl: 1 }}
         control={<Checkbox checked={Boolean(value)} onChange={handleChange} />}
         label={<Typography>{label}</Typography>}
       />

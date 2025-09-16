@@ -2,7 +2,12 @@ import { useState } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { setEnabledDrawingMode } from "../mapEditorSlice";
+import {
+  setEnabledDrawingMode,
+  setMainBaseMapIsSelected,
+  setBaseMapPoseInBg,
+  setClickInBgPosition,
+} from "../mapEditorSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import { setSelectedEntityId } from "Features/entities/entitiesSlice";
 
@@ -35,10 +40,6 @@ export default function MainMapEditorV2() {
   const containerRef = useRef();
   const svgRef = useRef();
 
-  // state
-
-  const [basePoseInBg, setBasePoseInBg] = useState({ x: 40, y: 40, k: 1 });
-
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
@@ -46,6 +47,7 @@ export default function MainMapEditorV2() {
 
   const annotationSpriteImage = useAnnotationSpriteImage();
   const mainBaseMap = useMainBaseMap();
+  const basePoseInBg = useSelector((s) => s.mapEditor.baseMapPoseInBg);
 
   const { value: baseMaps } = useBaseMaps({ filterByProjectId: projectId });
 
@@ -59,12 +61,16 @@ export default function MainMapEditorV2() {
     filterByBaseMapId: mainBaseMap?.id,
   });
 
-  const showBgImage = useSelector((s) => s.shower.showBgImage);
+  const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
 
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const selectedAnnotationId = useSelector(
     (s) => s.annotations.selectedAnnotationId
+  );
+
+  const baseMapIsSelected = useSelector(
+    (s) => s.mapEditor.mainBaseMapIsSelected
   );
 
   // data - func
@@ -138,6 +144,14 @@ export default function MainMapEditorV2() {
     downloadBlob(blob, "map.png");
   }
 
+  function handleBaseMapSelectionChange(isSelected) {
+    dispatch(setMainBaseMapIsSelected(isSelected));
+  }
+
+  function handleClickInBg(p) {
+    dispatch(setClickInBgPosition(p));
+  }
+
   // render
 
   return (
@@ -158,8 +172,10 @@ export default function MainMapEditorV2() {
       <MapEditorGeneric
         baseMapImageUrl={mainBaseMap?.image?.imageUrlClient}
         baseMapPoseInBg={basePoseInBg}
-        onBaseMapPoseInBgChange={setBasePoseInBg}
-        bgImageUrl={bgImage?.imageUrlRemote}
+        onBaseMapPoseInBgChange={(pose) => dispatch(setBaseMapPoseInBg(pose))}
+        baseMapIsSelected={baseMapIsSelected}
+        onBaseMapSelectionChange={handleBaseMapSelectionChange}
+        bgImageUrl={bgImage?.url}
         showBgImage={showBgImage}
         markers={markers}
         annotations={annotations}
@@ -169,10 +185,11 @@ export default function MainMapEditorV2() {
         onAnnotationClick={handleAnnotationClick}
         annotationSpriteImage={annotationSpriteImage}
         selectedAnnotationIds={selectedAnnotationIds}
+        onClickInBg={handleClickInBg}
         ref={svgRef}
       />
 
-      <LayerMapEditor />
+      <LayerMapEditor svgElement={svgRef.current} />
       {showScreenCursor && (
         <LayerScreenCursor containerEl={containerRef?.current} />
       )}

@@ -9,7 +9,7 @@ import ButtonSelectorBaseMapInMapEditor from "Features/baseMaps/components/Butto
 //import LayerCreateLocatedEntity from "./LayerCreateLocatedEntity";
 import LeftPanelOverviewInEditor from "Features/leftPanel/components/LeftPanelOverviewInEditor";
 
-export default function LayerMapEditorDesktop() {
+export default function LayerMapEditorDesktop({ svgElement }) {
   return (
     <>
       {/* <LayerCreateLocatedEntity /> */}
@@ -71,7 +71,7 @@ export default function LayerMapEditorDesktop() {
           zIndex: 10000,
         }}
       >
-        <ToolbarMapEditorContainer />
+        <ToolbarMapEditorContainer svgElement={svgElement} />
       </Box>
     </>
   );

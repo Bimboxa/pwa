@@ -9,6 +9,7 @@ export default class ImageObject {
   imageUrlRemote;
 
   constructor({
+    key,
     url,
     file,
     fileName,
@@ -17,6 +18,7 @@ export default class ImageObject {
     imageUrlClient,
     imageUrlRemote,
   }) {
+    this.key = key;
     this.url = url;
     this.file = file;
     this.fileName = fileName ?? file?.name;

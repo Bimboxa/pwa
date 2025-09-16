@@ -31,6 +31,7 @@ import locatedEntitiesReducer from "Features/locatedEntities/locatedEntitiesSlic
 import annotationsReducer from "Features/annotations/annotationsSlice";
 import shapesReducer from "Features/shapes/shapesSlice";
 import markersReducer from "Features/markers/markersSlice";
+import bgImageReducer from "Features/bgImage/bgImageSlice";
 import threedEditorReducer from "Features/threedEditor/threedEditorSlice";
 import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
 import reportsReducer from "Features/reports/reportsSlice";
@@ -77,6 +78,7 @@ const store = configureStore({
     annotations: annotationsReducer,
     shapes: shapesReducer,
     markers: markersReducer,
+    bgImage: bgImageReducer,
     mapEditor: mapEditorReducer,
     threedEditor: threedEditorReducer,
     reports: reportsReducer,

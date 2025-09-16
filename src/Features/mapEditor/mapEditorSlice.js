@@ -14,6 +14,11 @@ const mapEditorInitialState = {
   printModeEnabled: false,
   //
   bgImageKey: "DEFAULT",
+  //
+  mainBaseMapIsSelected: false,
+  baseMapPoseInBg: { x: 40, y: 40, k: 1 },
+  //
+  clickInBgPosition: null, // { x, y }
 };
 
 export const mapEditorSlice = createSlice({
@@ -57,6 +62,16 @@ export const mapEditorSlice = createSlice({
     setBgImageKey: (state, action) => {
       state.bgImageKey = action.payload;
     },
+    setClickInBgPosition: (state, action) => {
+      state.clickInBgPosition = action.payload;
+    },
+    // Main Base Map
+    setMainBaseMapIsSelected: (state, action) => {
+      state.mainBaseMapIsSelected = action.payload;
+    },
+    setBaseMapPoseInBg: (state, action) => {
+      state.baseMapPoseInBg = action.payload;
+    },
   },
 });
 
@@ -76,6 +91,10 @@ export const {
   setPrintModeEnabled,
   //
   setBgImageKey,
+  setClickInBgPosition,
+  //
+  setMainBaseMapIsSelected,
+  setBaseMapPoseInBg,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;

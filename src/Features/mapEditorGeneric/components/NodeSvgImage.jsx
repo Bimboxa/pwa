@@ -11,6 +11,8 @@ import { Rnd } from "react-rnd";
  */
 export default memo(function NodeSvgImage({
   src,
+  dataNodeId,
+  dataNodeType,
   width,
   height,
   worldScale = 1, // MapEditorGeneric.world.k
@@ -19,11 +21,12 @@ export default memo(function NodeSvgImage({
   onPoseChangeEnd, // (deltaPose: { x, y, k }) => void
   enabledDrawingMode,
   locked = false,
+  selected,
 }) {
   const refSize = useRef();
 
   // We keep edit mode internal in your version
-  const [poseEditable, setPoseEditable] = useState(false);
+  const poseEditable = selected;
 
   // --- hooks (always called) ---
   const [delta, setDelta] = useState({ x: 0, y: 0, k: 1 });
@@ -89,9 +92,8 @@ export default memo(function NodeSvgImage({
 
   const onResize = useCallback(
     (e, _dir, ref, _delta, pos) => {
-      const newK = (ref.offsetWidth / F / width) * 10; // uniform scale from width
-      //setDelta(p=>({ x: pos.x / F, y: pos.y / F, k: newK }));
-      setDelta((p) => ({ ...p, k: newK }));
+      const newK = ref.offsetWidth / F / width; // uniform scale from width
+      setDelta((p) => ({ ...p, x: pos.x, y: pos.y, k: newK }));
     },
     [_F, width]
   );
@@ -131,9 +133,8 @@ export default memo(function NodeSvgImage({
           width={width}
           height={height}
           preserveAspectRatio="none"
-          onClick={() => {
-            if (!enabledDrawingMode && !locked) setPoseEditable(true);
-          }}
+          data-node-id={dataNodeId}
+          data-node-type={dataNodeType}
         />
       )}
 
@@ -153,9 +154,7 @@ export default memo(function NodeSvgImage({
           onTouchEndCapture={stopPointerCapture}
           onWheelCapture={maybeStopWheel}
           style={{ overflow: "visible" }}
-          onClick={() => {
-            setPoseEditable(false);
-          }}
+          data-node-type="BASE_MAP"
         >
           <div
             data-stop-pan
