@@ -7,6 +7,7 @@ import { List, Box } from "@mui/material";
 import ListItemEntityVariantDefault from "./ListItemEntityVariantDefault";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SearchBar from "Features/search/components/SearchBar";
+import SectionActions from "./SectionActions";
 
 import getFoundItems from "Features/search/getFoundItems";
 
@@ -47,7 +48,7 @@ export default function ListEntities({
 
   return (
     <BoxFlexVStretch>
-      <Box sx={{ width: 1, p: 1, py: 2 }}>
+      <Box sx={{ width: 1, p: 1, pt: 2 }}>
         <SearchBar
           value={searchText}
           onChange={handleSearchTextChange}
@@ -55,6 +56,7 @@ export default function ListEntities({
           color={color}
         />
       </Box>
+      <SectionActions />
       <BoxFlexVStretch sx={{ overflow: "auto" }}>
         <List dense={!isMobile} disablePadding sx={{ bgcolor: "white" }}>
           {filteredEntities?.map((entity) => (

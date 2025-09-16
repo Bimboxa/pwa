@@ -46,8 +46,8 @@ export default function LayoutDesktop() {
           <LeftPanel />
           <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
             <SectionViewer />
-            <RightPanelContainer />
           </Box>
+          <RightPanelContainer />
 
           {/*  */}
         </Box>

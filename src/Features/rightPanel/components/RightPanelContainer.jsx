@@ -34,30 +34,31 @@ export default function RightPanelContainer() {
 
   return (
     <>
-      <Box sx={{ position: "absolute", zIndex: 10, top: "8px", right: "8px" }}>
+      {/* <Box sx={{ position: "absolute", zIndex: 10, top: "8px", right: "8px" }}>
         <VerticalMenuRightPanel />
-      </Box>
+      </Box> */}
 
       {openPanel && (
-        <Paper
+        <Box
           sx={{
-            position: "absolute",
-            top: "12px",
-            right: "64px",
+            //position: "absolute",
+            //top: "12px",
+            //right: "64px",
             width,
             minHeight: 0,
-            maxHeight,
+            //maxHeight,
             bgcolor: "white",
             zIndex: 200,
             display: "flex",
             flexDirection: "column",
+            borderLeft: (theme) => `1px solid ${theme.palette.divider}`,
           }}
         >
           {selectedKey === "SHOWER" && <PanelShower />}
           {selectedKey === "EDITOR_EXPORT" && <PanelEditorExport />}
           {selectedKey === "ANNOTATION_FORMAT" && <PanelAnnotationFormat />}
           {selectedKey === "ENTITY" && <PanelEditEntity />}
-        </Paper>
+        </Box>
       )}
     </>
   );
