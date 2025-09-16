@@ -9,14 +9,14 @@ export default function useBgImagesFromAppConfig() {
 
   // helpers
 
-  const _bgImages = appConfig?.features.baseMapViews.bgImages;
+  const _bgImages = appConfig?.features?.bgImages?.options;
 
   if (!Array.isArray(_bgImages)) return;
 
   // return
 
   return _bgImages.map(
-    ({ imageUrlRemote, width, height }) =>
-      new ImageObject({ imageUrlRemote, imageSize: { width, height } })
+    ({ url, width, height, key }) =>
+      new ImageObject({ url, imageSize: { width, height }, key })
   );
 }

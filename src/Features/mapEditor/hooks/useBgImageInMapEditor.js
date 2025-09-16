@@ -8,7 +8,8 @@ export default function useBgImageInMapEditor() {
   // data
 
   const appConfig = useAppConfig();
-  const bgImageKey = useSelector((s) => s.mapEditor.bgImageKey);
+  //const bgImageKey = useSelector((s) => s.mapEditor.bgImageKey);
+  const bgImageKey = useSelector((s) => s.bgImage.bgImageKeyInMapEditor);
 
   // helpers
 
@@ -22,5 +23,11 @@ export default function useBgImageInMapEditor() {
 
   const { url, width, height } = _bgImage;
 
-  return new ImageObject({ imageUrlRemote: url, imageSize: { width, height } });
+  return { ..._bgImage, imageSize: { width, height } };
+
+  // return new ImageObject({
+  //   imageUrlRemote: url,
+  //   url,
+  //   imageSize: { width, height },
+  // });
 }

@@ -10,8 +10,6 @@ const baseMapsInitialState = {
   //
   selectedBaseMapId: null,
   isCreatingBaseMap: false,
-  //
-  editedBaseMap: null,
 };
 
 export const baseMapsSlice = createSlice({

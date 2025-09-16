@@ -11,6 +11,7 @@ db.version(11).stores({
   scopes: "id,projectId", // {id,name,projectId,sortedListings:[{id,table}]}. Table is used to resolve syncConfig
   baseMaps: "id,listingId,projectId",
   baseMapViews: "id,scopeId,baseMapId",
+  blueprints: "id,projectId,scopeId,listingId",
 
   listings: "id,key,uniqueByProject,projectId",
   entities: "id,listingId,[listingId+createdBy]",

@@ -14,6 +14,7 @@ import {
   DocumentScanner as Document,
   Share,
   ListAlt,
+  Wallpaper,
 } from "@mui/icons-material";
 import ExcelIcon from "Features/excel/utils/components/ExcelIcon";
 
@@ -32,5 +33,6 @@ iconsMap.set("nomenclature", Category);
 iconsMap.set("excel", ExcelIcon);
 iconsMap.set("share", Share);
 iconsMap.set("legend", ListAlt);
+iconsMap.set("blueprint", Wallpaper);
 
 export default iconsMap;

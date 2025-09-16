@@ -1,5 +1,6 @@
 import { Box, Paper } from "@mui/material";
 import ButtonDialogAppConfig from "Features/appConfig/components/ButtonDialogAppConfig";
+import HelperClickInBgPosition from "Features/mapEditor/components/HelperClickInBgPosition";
 
 export default function BottomBarDesktop() {
   return (
@@ -11,10 +12,12 @@ export default function BottomBarDesktop() {
         minHeight: 42,
         display: "flex",
         alignItems: "center",
+        justifyContent: "space-between",
         zIndex: 100,
       }}
     >
       <ButtonDialogAppConfig />
+      <HelperClickInBgPosition />
     </Box>
   );
 }

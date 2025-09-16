@@ -28,6 +28,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     baseMapImageUrl,
     baseMapPoseInBg, // {x:0,y:0,k:1,r:0}, pose of baseMap in bg local coords.
     onBaseMapPoseInBgChange,
+    baseMapIsSelected,
+    onBaseMapSelectionChange,
     annotations,
     initialScale = "fit",
     minScale = 0.1,
@@ -42,6 +44,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     onAnnotationDragEnd,
     annotationSpriteImage,
     selectedAnnotationIds = [],
+    onClickInBg,
   } = props;
 
   // === REFS ===
@@ -580,16 +583,43 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
 
+      // position
       const sx = e.clientX - rect.left;
       const sy = e.clientY - rect.top;
 
       let p, ratioX, ratioY;
+
+      const p_inBg = screenToBgLocal(sx, sy);
+      const p_inBase = screenToBaseLocal(sx, sy);
+
+      onClickInBg?.(p_inBg);
+
+      // selection
+      const nativeTarget = e.nativeEvent?.target || e.target;
+      const hit = nativeTarget.closest?.("[data-node-type]");
+
+      if (hit) {
+        const { nodeId, nodeType } = hit.dataset;
+        console.log("hit nodeType", nodeType);
+
+        // BASE_MAP
+        if (nodeType === "BASE_MAP") {
+          onBaseMapSelectionChange(!baseMapIsSelected);
+        }
+
+        // ANNOTATIONS
+        onAnnotationClick?.({ id: nodeId, type: nodeType });
+        return; // on stoppe ici : pas de création de nouveau marker
+      }
+
+      // create annotation
+
       if (attachTo === "bg") {
-        p = screenToBgLocal(sx, sy);
+        p = p_inBg;
         ratioX = p.x / bgSize.w;
         ratioY = p.y / bgSize.h;
       } else {
-        p = screenToBaseLocal(sx, sy);
+        p = p_inBase;
         ratioX = p.x / baseSize.w;
         ratioY = p.y / baseSize.h;
       }
@@ -622,6 +652,20 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   }
   function handleAnnotationDragEnd(annotation) {
     onAnnotationDragEnd?.(annotation);
+  }
+
+  // === BASE MAP POSE ===
+  function handleBasePoseChange(delta) {
+    const P = baseMapPoseInBg || { x: 0, y: 0, k: 1 };
+    const kP = P.k || 1;
+
+    onBaseMapPoseInBgChange?.({
+      x: P.x + (delta.x || 0) * kP,
+      y: P.y + (delta.y || 0) * kP,
+      k: kP * (delta.k || 1),
+    });
+
+    setBasePoseIsChanging(false);
   }
 
   return (
@@ -704,20 +748,14 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           >
             <NodeSvgImage
               src={baseMapImageUrl}
+              dataNodeType="BASE_MAP"
               width={baseSize.w}
               height={baseSize.h}
               worldScale={world.k}
               containerK={basePose.k}
               onPoseChangeStart={() => setBasePoseIsChanging(true)}
-              onPoseChangeEnd={(delta) => {
-                const P = baseMapPoseInBg;
-                onBaseMapPoseInBgChange?.({
-                  x: P.x + delta.x,
-                  y: P.y + delta.y,
-                  k: P.k * delta.k,
-                });
-                setBasePoseIsChanging(false);
-              }}
+              onPoseChangeEnd={handleBasePoseChange}
+              selected={baseMapIsSelected}
               enabledDrawingMode={enabledDrawingMode}
             />
 
