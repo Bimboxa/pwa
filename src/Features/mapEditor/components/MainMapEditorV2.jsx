@@ -7,6 +7,8 @@ import {
   setMainBaseMapIsSelected,
   setBaseMapPoseInBg,
   setClickInBgPosition,
+  setSelectedNode,
+  setLegendFormat,
 } from "../mapEditorSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import { setSelectedEntityId } from "Features/entities/entitiesSlice";
@@ -20,6 +22,7 @@ import useEntity from "Features/entities/hooks/useEntity";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useAnnotations from "Features/annotations/hooks/useAnnotations";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+import useLegendItems from "Features/legend/hooks/useLegendItems";
 
 import { Box, Button } from "@mui/material";
 
@@ -72,6 +75,10 @@ export default function MainMapEditorV2() {
   const baseMapIsSelected = useSelector(
     (s) => s.mapEditor.mainBaseMapIsSelected
   );
+
+  const legendItems = useLegendItems();
+  const legendFormat = useSelector((s) => s.mapEditor.legendFormat);
+  const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
 
   // data - func
 
@@ -136,6 +143,10 @@ export default function MainMapEditorV2() {
     }
   }
 
+  function handleNodeClick(node) {
+    dispatch(setSelectedNode(node.id === selectedNode?.id ? null : node));
+  }
+
   async function handleClick() {
     console.log("click on svg", svgRef.current);
     //const dataUrl = await serializeSvgToPng(svgRef.current);
@@ -150,6 +161,10 @@ export default function MainMapEditorV2() {
 
   function handleClickInBg(p) {
     dispatch(setClickInBgPosition(p));
+  }
+
+  function handleLegendFormatChange(newLegendFormat) {
+    dispatch(setLegendFormat(newLegendFormat));
   }
 
   // render
@@ -182,10 +197,15 @@ export default function MainMapEditorV2() {
         cursor={cursor}
         enabledDrawingMode={enabledDrawingMode}
         onNewAnnotation={handleNewAnnotation}
+        selectedNode={selectedNode}
+        onNodeClick={handleNodeClick}
         onAnnotationClick={handleAnnotationClick}
         annotationSpriteImage={annotationSpriteImage}
         selectedAnnotationIds={selectedAnnotationIds}
         onClickInBg={handleClickInBg}
+        legendItems={legendItems}
+        legendFormat={legendFormat}
+        onLegendFormatChange={handleLegendFormatChange}
         ref={svgRef}
       />
 

@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 import {
   setBaseMapPoseInBg,
   setSelectedMainBaseMapId,
+  setLegendFormat,
 } from "Features/mapEditor/mapEditorSlice";
 import { setBgImageKeyInMapEditor } from "Features/bgImage/bgImageSlice";
 
@@ -22,6 +23,9 @@ export default function useOnEntityClick() {
 
         if (entity.bgImageKey)
           dispatch(setBgImageKeyInMapEditor(entity.bgImageKey));
+
+        if (entity.legendFormat) dispatch(setLegendFormat(entity.legendFormat));
+
         break;
 
       default:

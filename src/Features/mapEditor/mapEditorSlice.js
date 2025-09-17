@@ -19,6 +19,10 @@ const mapEditorInitialState = {
   baseMapPoseInBg: { x: 40, y: 40, k: 1 },
   //
   clickInBgPosition: null, // { x, y }
+  //
+  selectedNode: null, // {id,type,entityId}
+  //
+  legendFormat: { x: 0, y: 0, width: 200, height: 50 },
 };
 
 export const mapEditorSlice = createSlice({
@@ -72,6 +76,15 @@ export const mapEditorSlice = createSlice({
     setBaseMapPoseInBg: (state, action) => {
       state.baseMapPoseInBg = action.payload;
     },
+    // Legend
+    setLegendFormat: (state, action) => {
+      state.legendFormat = action.payload;
+    },
+
+    // Nodes
+    setSelectedNode: (state, action) => {
+      state.selectedNode = action.payload;
+    },
   },
 });
 
@@ -95,6 +108,10 @@ export const {
   //
   setMainBaseMapIsSelected,
   setBaseMapPoseInBg,
+  //
+  setSelectedNode,
+  //
+  setLegendFormat,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;
