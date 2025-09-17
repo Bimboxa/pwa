@@ -26,6 +26,7 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
   const baseMapPoseInBg = useSelector((s) => s.mapEditor.baseMapPoseInBg);
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const bgImageKey = useSelector((s) => s.bgImage.bgImageKeyInMapEditor);
+  const legendFormat = useSelector((s) => s.mapEditor.legendFormat);
 
   // handlers
 
@@ -40,6 +41,7 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
       baseMapPoseInBg,
       baseMapId,
       bgImageKey,
+      legendFormat,
     };
 
     dispatch(setNewEntity(_newEntity));
@@ -54,6 +56,7 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
       name: "Nouveau plan v2",
       baseMapPoseInBg,
       bgImageKey,
+      legendFormat,
     };
 
     dispatch(setEditedEntity(_editedEntity));

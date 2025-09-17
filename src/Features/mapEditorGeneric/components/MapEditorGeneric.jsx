@@ -13,6 +13,7 @@ import { CenterFocusStrong as CenterFocusStrongIcon } from "@mui/icons-material"
 
 import NodeSvgImage from "./NodeSvgImage";
 import NodeAnnotation from "./NodeAnnotation";
+import NodeLegend from "./NodeLegend";
 
 import clamp from "Features/misc/utils/clamp";
 import {
@@ -38,6 +39,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     showBgImage = true,
     cursor = "grab",
     enabledDrawingMode,
+    selectedNode,
+    onNodeClick,
     onNewAnnotation,
     onAnnotationClick,
     onAnnotationChange,
@@ -45,6 +48,9 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     annotationSpriteImage,
     selectedAnnotationIds = [],
     onClickInBg,
+    legendItems,
+    legendFormat,
+    onLegendFormatChange,
   } = props;
 
   // === REFS ===
@@ -601,6 +607,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       if (hit) {
         const { nodeId, nodeType } = hit.dataset;
         console.log("hit nodeType", nodeType);
+        onNodeClick({ id: nodeId, type: nodeType });
 
         // BASE_MAP
         if (nodeType === "BASE_MAP") {
@@ -777,6 +784,23 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               </g>
             )}
           </g>
+
+          {/* LEGEND layer */}
+          <g
+            transform={`translate(${bgPose.x}, ${bgPose.y}) scale(${bgPose.k})`}
+          >
+            {legendItems && (
+              <NodeLegend
+                selected={selectedNode?.type === "LEGEND"}
+                legendItems={legendItems}
+                spriteImage={annotationSpriteImage}
+                legendFormat={legendFormat}
+                onLegendFormatChange={onLegendFormatChange}
+                worldScale={world.k} // ✅ needed for correct measurement conversion
+                containerK={bgPose.k} // ✅ legend is inside BG group
+              />
+            )}
+          </g>
         </g>
       </Box>
 
@@ -811,6 +835,22 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
             width={baseSize.w}
             height={baseSize.h}
           />
+          {legendItems?.length > 0 && (
+            <NodeLegend
+              id="legend-1"
+              legendItems={legendItems}
+              spriteImage={annotationSpriteImage}
+              legendFormat={legendFormat}
+              //x={legendRect.x}
+              //y={legendRect.y}
+              //width={legendRect.width}
+              //height={legendRect.height}
+              worldScale={1}
+              containerK={1}
+              selected={false}
+            />
+          )}
+
           {annotations.map((a) => (
             <NodeAnnotation
               key={a.id + "_"}
