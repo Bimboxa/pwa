@@ -40,20 +40,8 @@ export default memo(function NodeLegend({
     return () => ro.disconnect();
   }, [legendItems]);
 
-  // ===== live deltas
-  const [dxCss, setDxCss] = useState(0); // drag offset in CSS px
-  const [dyCss, setDyCss] = useState(0);
-  const [dWLocal, setDWLocal] = useState(0); // width delta in BG-local units
-
-  useEffect(() => {
-    setDxCss(0);
-    setDyCss(0);
-    setDWLocal(0);
-  }, [x, y, width]);
-
-  const widthLocal = Math.max(1, width + dWLocal);
-  const widthCss = widthLocal * F; // Rnd size width in CSS px
-  const heightLocal = Math.max(1, measuredCssH / F); // foreignObject height in BG-local
+  const widthLocal = width;
+  const heightLocal = Math.max(1, measuredCssH); // foreignObject height in BG-local
 
   // stop bubbling only when editing
   const stopIfEditing = useCallback(
@@ -64,48 +52,31 @@ export default memo(function NodeLegend({
   );
 
   // ===== RND handlers (NOTE: pos/size are CSS px; convert with F)
-  const onDrag = useCallback((_e, d) => {
-    setDxCss(d.x);
-    setDyCss(d.y);
-  }, []);
 
   const onDragStop = useCallback(
     (_e, d) => {
       onLegendFormatChange?.({
-        x: x + d.x / F,
-        y: y + d.y / F,
+        x: x + d.x,
+        y: y + d.y,
         width: widthLocal,
         height: heightLocal, // auto height committed in BG-local
       });
-      setDxCss(0);
-      setDyCss(0);
     },
     [x, y, F, widthLocal, heightLocal, onLegendFormatChange]
   );
 
-  const onResize = useCallback(
-    (_e, _dir, ref, _delta, pos) => {
-      const newWidthLocal = ref.offsetWidth / F; // CSS px -> BG-local
-      setDWLocal(newWidthLocal - width);
-      setDxCss(pos.x);
-      setDyCss(pos.y);
-    },
-    [F, width]
-  );
-
   const onResizeStop = useCallback(
     (_e, _dir, ref, _delta, pos) => {
-      const newWidthLocal = ref.offsetWidth / F;
-      const newHeightLocal = Math.max(1, ref.offsetHeight / F);
+      const _F = F;
+      const newWidthLocal = ref.offsetWidth;
+      const newHeightLocal = ref.offsetHeight;
       onLegendFormatChange?.({
-        x: x + pos.x / F,
-        y: y + pos.y / F,
+        ...legendFormat,
+        x: x + pos.x / _F,
+        y: y + pos.y / _F,
         width: newWidthLocal,
         height: newHeightLocal,
       });
-      setDxCss(0);
-      setDyCss(0);
-      setDWLocal(0);
     },
     [x, y, F, onLegendFormatChange]
   );
@@ -216,7 +187,7 @@ export default memo(function NodeLegend({
         height={heightLocal}
         data-node-type="LEGEND"
         data-node-id={id}
-        style={{ overflow: "visible" }}
+        style={{ overflow: "visible", border: "1px solid blue" }}
       >
         <div style={{ width: "100%" }}>{LegendBoxInner}</div>
       </foreignObject>
@@ -231,7 +202,7 @@ export default memo(function NodeLegend({
       height={heightLocal}
       data-node-type="LEGEND"
       data-node-id={id}
-      style={{ overflow: "visible" }}
+      style={{ overflow: "visible", border: "1px solid red" }}
       onPointerDownCapture={stopIfEditing}
       onPointerMoveCapture={stopIfEditing}
       onPointerUpCapture={stopIfEditing}
@@ -241,12 +212,13 @@ export default memo(function NodeLegend({
     >
       <div style={{ width: "100%", position: "relative" }}>
         <Rnd
-          position={{ x: dxCss, y: dyCss }} // CSS px
-          size={{ width: widthCss, height: measuredCssH }} // CSS px
+          //position={{ x: dxCss, y: dyCss }} // CSS px
+          //size={{ width: widthCss, height: measuredCssH }} // CSS px
+          size={{ width: "100%", height: "100%" }}
           scale={F} // <- SAME F everywhere
-          onDrag={onDrag}
+          //onDrag={onDrag}
           onDragStop={onDragStop}
-          onResize={onResize}
+          //onResize={onResize}
           onResizeStop={onResizeStop}
           lockAspectRatio={false}
           enableResizing={{
