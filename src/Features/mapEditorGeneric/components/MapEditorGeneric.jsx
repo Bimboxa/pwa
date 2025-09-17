@@ -840,6 +840,22 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
             width={baseSize.w}
             height={baseSize.h}
           />
+
+          {annotations.map((a) => (
+            <NodeAnnotation
+              key={a.id + "_"}
+              annotation={a}
+              imageSize={baseSize}
+              containerK={basePose.k}
+              worldScale={1}
+              onDragEnd={() => {}}
+              onClick={() => {}}
+              spriteImage={annotationSpriteImage}
+            />
+          ))}
+        </g>
+
+        <g>
           {legendItems?.length > 0 && (
             <NodeLegend
               id="legend-1"
@@ -855,19 +871,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               selected={false}
             />
           )}
-
-          {annotations.map((a) => (
-            <NodeAnnotation
-              key={a.id + "_"}
-              annotation={a}
-              imageSize={baseSize}
-              containerK={basePose.k}
-              worldScale={1}
-              onDragEnd={() => {}}
-              onClick={() => {}}
-              spriteImage={annotationSpriteImage}
-            />
-          ))}
         </g>
       </svg>
     </Box>
