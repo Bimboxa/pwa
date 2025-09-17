@@ -675,6 +675,11 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     setBasePoseIsChanging(false);
   }
 
+  // === BASE MAP POSE ===
+  function handleLegendFormatChange(_legendFormat) {
+    onLegendFormatChange(_legendFormat);
+  }
+
   return (
     <Box
       ref={containerRef}
@@ -795,7 +800,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                 legendItems={legendItems}
                 spriteImage={annotationSpriteImage}
                 legendFormat={legendFormat}
-                onLegendFormatChange={onLegendFormatChange}
+                onLegendFormatChange={handleLegendFormatChange}
                 worldScale={world.k} // ✅ needed for correct measurement conversion
                 containerK={bgPose.k} // ✅ legend is inside BG group
               />

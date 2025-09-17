@@ -142,8 +142,6 @@ export default memo(function NodeSvgImage({
         <foreignObject
           x={0}
           y={0}
-          //width="100%"
-          //height="100%"
           width={width}
           height={height}
           onPointerDownCapture={stopPointerCapture}
@@ -167,8 +165,8 @@ export default memo(function NodeSvgImage({
           >
             <Rnd
               //bounds="parent" // 🔁 keep for predictable UX
-              position={cssPos}
-              size={cssSize}
+              //position={cssPos}
+              //size={cssSize}
               scale={_F}
               onDragStart={startInteraction}
               onResizeStart={startInteraction}
