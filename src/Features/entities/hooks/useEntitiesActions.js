@@ -2,10 +2,12 @@ import { useSelector, useDispatch } from "react-redux";
 import { setOpenedPanel } from "Features/listings/listingsSlice";
 import {
   setIsEditingEntity,
+  setEditedEntity,
   setOpenDialogDeleteEntity,
 } from "../entitiesSlice";
 
 import { Edit, Delete } from "@mui/icons-material";
+import useSelectedEntity from "./useSelectedEntity";
 
 export default function useEntitiesActions() {
   const dispatch = useDispatch();
@@ -13,6 +15,7 @@ export default function useEntitiesActions() {
   // data
 
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
+  const { value: selectedEntity } = useSelectedEntity({ withImage: true });
 
   // main
 
@@ -22,6 +25,7 @@ export default function useEntitiesActions() {
       icon: Edit,
       handler: () => {
         dispatch(setIsEditingEntity(true));
+        dispatch(setEditedEntity(selectedEntity));
         dispatch(setOpenedPanel("EDITED_ENTITY"));
       },
       disabled: !selectedEntityId,
