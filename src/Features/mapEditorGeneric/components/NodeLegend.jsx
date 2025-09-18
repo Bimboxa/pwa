@@ -187,7 +187,7 @@ export default memo(function NodeLegend({
         height={heightLocal}
         data-node-type="LEGEND"
         data-node-id={id}
-        style={{ overflow: "visible", border: "1px solid blue" }}
+        style={{ overflow: "visible" }}
       >
         <div style={{ width: "100%" }}>{LegendBoxInner}</div>
       </foreignObject>
@@ -202,7 +202,7 @@ export default memo(function NodeLegend({
       height={heightLocal}
       data-node-type="LEGEND"
       data-node-id={id}
-      style={{ overflow: "visible", border: "1px solid red" }}
+      style={{ overflow: "visible" }}
       onPointerDownCapture={stopIfEditing}
       onPointerMoveCapture={stopIfEditing}
       onPointerUpCapture={stopIfEditing}
@@ -251,8 +251,8 @@ export default memo(function NodeLegend({
 const handleStyles = { left: knob(), right: knob() };
 function knob() {
   return {
-    width: 12,
-    height: 12,
+    width: 18,
+    height: 18,
     border: "2px solid #1976d2",
     background: "#fff",
     borderRadius: 2,

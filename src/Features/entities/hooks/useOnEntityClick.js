@@ -16,7 +16,7 @@ export default function useOnEntityClick() {
     console.log("debug_1609 click on entity", entity);
     switch (entity?.entityModelType) {
       case "BLUEPRINT":
-        if (entity.baseMapPoseInPg)
+        if (entity.baseMapPoseInBg)
           dispatch(setBaseMapPoseInBg(entity.baseMapPoseInBg));
 
         dispatch(setSelectedMainBaseMapId(entity.baseMapId));

@@ -9,15 +9,22 @@ import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
 
+import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
+
 import { Box } from "@mui/material";
 
 import BlockAnnotation from "./BlockAnnotation";
 import FormAnnotation from "./FormAnnotation";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
+import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 
 export default function SectionEditAnnotation() {
   const dispatch = useDispatch();
+
+  // strings
+
+  const saveS = "Enregistrer";
 
   // data
   const spriteImage = useAnnotationSpriteImage();
@@ -28,6 +35,10 @@ export default function SectionEditAnnotation() {
   const isEditingAnnotation = useSelector(
     (s) => s.annotations.isEditingAnnotation
   );
+
+  // data - func
+
+  const updateAnnotation = useUpdateAnnotation();
 
   // helper
 
@@ -48,6 +59,10 @@ export default function SectionEditAnnotation() {
     dispatch(setIsEditingAnnotation(false));
   }
 
+  async function handleSave() {
+    await updateAnnotation(annotation);
+  }
+
   return (
     <BoxFlexVStretch>
       <Box sx={{ display: "flex", justifyContent: "space-between", p: 1 }}>
@@ -61,6 +76,12 @@ export default function SectionEditAnnotation() {
       </Box>
 
       <FormAnnotation annotation={annotation} onChange={handleChange} />
+      <ButtonInPanelV2
+        label={saveS}
+        onClick={handleSave}
+        variant="contained"
+        disabled={!isEditingAnnotation}
+      />
     </BoxFlexVStretch>
   );
 }

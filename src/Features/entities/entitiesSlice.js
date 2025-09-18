@@ -31,6 +31,10 @@ export const entitiesSlice = createSlice({
       state.selectedEntityId = action.payload;
     },
     setNewEntity: (state, action) => {
+      const newEntity = action.payload;
+      console.log("[STATE] debug_1709 newEntity", newEntity);
+      //console.trace("[STATE] setNewEntity called from:");
+
       state.newEntity = action.payload;
     },
     setIsEditingEntity: (state, action) => {
