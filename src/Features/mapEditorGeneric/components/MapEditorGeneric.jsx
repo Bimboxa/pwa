@@ -575,6 +575,26 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   cursor = isPinching ? "grabbing" : isPanning ? "grabbing" : cursor;
 
   // === CLICK ===
+  // capture phase guards
+  const onAnyPointerDownCapture = useCallback((e) => {
+    downRef.current = { x: e.clientX, y: e.clientY };
+    movedRef.current = false;
+  }, []);
+
+  const onAnyPointerMoveCapture = useCallback((e) => {
+    if (movedRef.current) return;
+    const dx = e.clientX - downRef.current.x;
+    const dy = e.clientY - downRef.current.y;
+    if (Math.abs(dx) > CLICK_DRAG_TOL || Math.abs(dy) > CLICK_DRAG_TOL) {
+      movedRef.current = true;
+    }
+  }, []);
+
+  const onAnyPointerUpCapture = useCallback((e) => {
+    // If we detected movement during this pointer sequence, kill the next click
+    if (movedRef.current) suppressNextClickRef.current = true;
+  }, []);
+
   const onSvgClickCapture = useCallback((e) => {
     if (suppressNextClickRef.current) {
       e.preventDefault();
@@ -585,11 +605,13 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
   const onSvgClick = useCallback(
     (e) => {
+      console.log("[EVENT] Svg Click");
+
       if (isPanning || isPinching) return;
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
 
-      // position
+      // position,
       const sx = e.clientX - rect.left;
       const sy = e.clientY - rect.top;
 
@@ -604,7 +626,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       const nativeTarget = e.nativeEvent?.target || e.target;
       const hit = nativeTarget.closest?.("[data-node-type]");
 
-      if (hit) {
+      if (hit && !enabledDrawingMode) {
         const { nodeId, nodeType } = hit.dataset;
         console.log("hit nodeType", nodeType);
         onNodeClick({ id: nodeId, type: nodeType });
@@ -631,8 +653,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         ratioY = p.y / baseSize.h;
       }
 
-      if (enabledDrawingMode === "MARKER" && onNewAnnotation) {
-        onNewAnnotation({ type: "MARKER", x: ratioX, y: ratioY });
+      if (enabledDrawingMode && onNewAnnotation) {
+        onNewAnnotation({ type: enabledDrawingMode, x: ratioX, y: ratioY });
       }
     },
     [
@@ -655,9 +677,11 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     onAnnotationClick?.(annotation);
   }
   function handleAnnotationChange(annotation) {
+    console.log("debug_1809_annotation_changed", annotation);
     onAnnotationChange?.(annotation);
   }
   function handleAnnotationDragEnd(annotation) {
+    suppressNextClickRef.current = true; // prevent click event;
     console.log("annotation position changed", annotation);
     onAnnotationChange?.(annotation);
   }
@@ -674,6 +698,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     });
 
     setBasePoseIsChanging(false);
+    suppressNextClickRef.current = true;
   }
 
   // === BASE MAP POSE ===
@@ -729,6 +754,9 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       {/* SVG scene */}
       <Box
         component="svg"
+        onPointerDownCapture={onAnyPointerDownCapture}
+        onPointerMoveCapture={onAnyPointerMoveCapture}
+        onPointerUpCapture={onAnyPointerUpCapture}
         onClick={onSvgClick}
         onClickCapture={onSvgClickCapture}
         xmlns="http://www.w3.org/2000/svg"
@@ -782,6 +810,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                     containerK={basePose.k}
                     worldScale={world.k}
                     onDragEnd={handleAnnotationDragEnd}
+                    onChange={handleAnnotationChange}
                     onClick={handleMarkerClick}
                     spriteImage={annotationSpriteImage}
                     selected={selectedAnnotationIds.includes(annotation.id)}
