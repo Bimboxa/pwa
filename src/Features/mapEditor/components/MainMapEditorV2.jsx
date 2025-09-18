@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -23,6 +23,9 @@ import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useAnnotations from "Features/annotations/hooks/useAnnotations";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
+//import useCreateMarker from "Features/markers/hooks/useCreateMarker";
+import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
+import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
 import { Box, Button } from "@mui/material";
 
@@ -30,11 +33,7 @@ import SectionNoMap from "Features/mapEditor/components/SectionNoMap";
 import MapEditorGeneric from "Features/mapEditorGeneric/components/MapEditorGeneric";
 import LayerMapEditor from "./LayerMapEditor";
 import LayerScreenCursor from "./LayerScreenCursor";
-import { useRef } from "react";
-//import useCreateMarker from "Features/markers/hooks/useCreateMarker";
-import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 
-import { serializeSvgToPng } from "Features/mapEditorGeneric/utils/serializeSvgToPng";
 import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
 
@@ -85,6 +84,7 @@ export default function MainMapEditorV2() {
   const createEntity = useCreateEntity();
   //const createMarker = useCreateMarker();
   const createAnnotation = useCreateAnnotation();
+  const updateAnnotation = useUpdateAnnotation();
 
   // helpers
 
@@ -131,6 +131,15 @@ export default function MainMapEditorV2() {
         type: "MARKER",
       });
       console.log("[MainMapEditor] new entity created", _annotation, entity);
+    }
+  }
+
+  async function handleAnnotationChange(_annotation) {
+    try {
+      console.log("annotation change", _annotation);
+      await updateAnnotation(_annotation);
+    } catch (e) {
+      console.log("error handling annotation", e);
     }
   }
 
@@ -200,6 +209,7 @@ export default function MainMapEditorV2() {
         selectedNode={selectedNode}
         onNodeClick={handleNodeClick}
         onAnnotationClick={handleAnnotationClick}
+        onAnnotationChange={handleAnnotationChange}
         annotationSpriteImage={annotationSpriteImage}
         selectedAnnotationIds={selectedAnnotationIds}
         onClickInBg={handleClickInBg}

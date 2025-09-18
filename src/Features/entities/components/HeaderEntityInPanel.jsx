@@ -1,11 +1,7 @@
 import { useSelector, useDispatch } from "react-redux";
 
 import { setOpenPanelListItem } from "Features/listPanel/listPanelSlice";
-import {
-  setSelectedEntityId,
-  setIsEditingEntity,
-  setNewEntity,
-} from "../entitiesSlice";
+import { setSelectedEntityId } from "../entitiesSlice";
 import { setOpenedPanel } from "Features/listings/listingsSlice";
 import { setTempMarkerProps } from "Features/markers/markersSlice";
 
@@ -74,7 +70,7 @@ export default function HeaderEntityInPanel() {
           width: 1,
         }}
       >
-        <IconButtonClose onClose={handleClose} />
+        <IconButtonClose onClose={handleClose} sx={{ color: "inherit" }} />
         <Typography
           sx={{ fontWeight: isMobile ? "normal" : "bold" }}
           variant={isMobile ? "body2" : "body1"}

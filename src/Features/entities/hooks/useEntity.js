@@ -5,41 +5,46 @@ import useSelectedEntity from "./useSelectedEntity";
 import useNewEntity from "./useNewEntity";
 
 export default function useEntity() {
-  // data
+  try {
+    // data
 
-  const { value: selectedEntity } = useSelectedEntity({ withImages: true });
-  console.log("debug_1609 selectedEntity", selectedEntity?.id);
+    const { value: selectedEntity } = useSelectedEntity({ withImages: true });
+    console.log("debug_1609 selectedEntity", selectedEntity?.id);
 
-  const newEntity = useNewEntity();
-  const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);
-  const editedEntity = useSelector((s) => s.entities.editedEntity);
+    const newEntity = useNewEntity();
+    const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);
+    const editedEntity = useSelector((s) => s.entities.editedEntity);
 
-  const entityModel = useEntityModel();
+    const entityModel = useEntityModel();
 
-  // helpers
+    // helpers
 
-  let entity = selectedEntity;
+    let entity = selectedEntity ?? null;
+    console.log("debug_1709_entity", entity);
 
-  // helpers
+    // helpers
 
-  let label;
+    let label;
 
-  // helpers - entity
+    // helpers - entity
 
-  if (!entity?.id) {
-    entity = {
-      ...newEntity,
-      //label: newEntity.label ?? entityModel?.strings?.labelNew, // we don't want to override the label key if it exists when creating a new entity.
-    };
-  } else if (isEditingEntity) {
-    label = editedEntity[entityModel?.labelKey];
-    entity = { ...editedEntity, label };
-  } else {
-    label = entity[entityModel?.labelKey];
-    entity = { ...entity, label };
+    if (!entity?.id) {
+      entity = {
+        ...newEntity,
+        //label: newEntity.label ?? entityModel?.strings?.labelNew, // we don't want to override the label key if it exists when creating a new entity.
+      };
+    } else if (isEditingEntity) {
+      label = editedEntity[entityModel?.labelKey];
+      entity = { ...editedEntity, label };
+    } else {
+      label = entity[entityModel?.labelKey];
+      entity = { ...entity, label };
+    }
+
+    console.log("debug_1509 [useEntity] entity", entity);
+
+    return entity;
+  } catch (error) {
+    console.log("error", error);
   }
-
-  console.log("debug_1509 [useEntity] entity", entity);
-
-  return entity;
 }

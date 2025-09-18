@@ -25,7 +25,7 @@ export default function BlockBottomActionsInPanel({ onSaved }) {
 
   // strings
 
-  const createS = "Enregistrer";
+  const createS = "Créer";
   const updateS = "Mettre à jour";
 
   // state

@@ -658,7 +658,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     onAnnotationChange?.(annotation);
   }
   function handleAnnotationDragEnd(annotation) {
-    onAnnotationDragEnd?.(annotation);
+    console.log("annotation position changed", annotation);
+    onAnnotationChange?.(annotation);
   }
 
   // === BASE MAP POSE ===

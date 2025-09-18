@@ -135,7 +135,8 @@ export default function NodeMarker({
       const newRatioX = Math.max(0, Math.min(1, newPx / (imageSize?.w || 1)));
       const newRatioY = Math.max(0, Math.min(1, newPy / (imageSize?.h || 1)));
 
-      onDragEnd?.(marker.id, { x: newRatioX, y: newRatioY });
+      console.log("debug_1809_newRatio", newRatioX, newRatioY);
+      onDragEnd?.({ id: marker.id, x: newRatioX, y: newRatioY });
       setDragOffsetScreen({ x: 0, y: 0 });
     },
     [invF, imageSize?.w, imageSize?.h, onDragEnd, onClick, marker]

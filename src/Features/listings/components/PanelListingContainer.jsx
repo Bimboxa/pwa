@@ -10,6 +10,7 @@ import PanelListing from "./PanelListing";
 import PanelSelectorListing from "./PanelSelectorListing";
 //import PanelCreateListingEntity from "Features/entities/components/PanelCreateListingEntity";
 import PanelEditEntity from "Features/entities/components/PanelEditEntity";
+import Panel from "Features/layout/components/Panel";
 
 export default function PanelListingContainer() {
   const dispatch = useDispatch();
@@ -30,7 +31,9 @@ export default function PanelListingContainer() {
   // render
 
   return (
-    <BoxFlexVStretch>
+    <BoxFlexVStretch
+      sx={{ borderRight: (theme) => `1px solid ${theme.palette.divider}` }}
+    >
       {openedPanel === "LISTING_SELECTOR" && (
         <PanelSelectorListing
           selectedListingId={listing?.id}
