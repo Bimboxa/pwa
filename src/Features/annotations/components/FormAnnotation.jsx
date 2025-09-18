@@ -8,11 +8,13 @@ import getFormItemFromAnnotation from "../utils/getFormItemFromAnnotation";
 export default function FormAnnotation({ annotation, onChange }) {
   // data
 
-  const template = useAnnotationTemplate(annotation);
+  const template = useAnnotationTemplate(annotation, {
+    annotationType: annotation?.type,
+  });
 
   // helpers - annotationTemplates
 
-  const field = template.fields.find(
+  const field = template?.fields?.find(
     ({ key }) => key === "annotationTemplateId"
   );
   const annotationTemplates = field?.options?.annotationTemplates;

@@ -9,6 +9,7 @@ export default function BlockAnnotation({
   spriteImage,
   annotationTemplates,
 }) {
+  console.log("debug_1809_annotation", annotation);
   // helpers
 
   const templateId = getAnnotationTemplateIdFromAnnotation(annotation);

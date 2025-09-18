@@ -5,7 +5,7 @@ import {
   useEffect,
   useLayoutEffect,
 } from "react";
-import { Box, InputBase, Portal } from "@mui/material";
+import { Box, Paper, InputBase, Portal } from "@mui/material";
 
 // quick, decent first-pass width estimate (screen px)
 function estimateWidthPx(str, fontSizePx) {
@@ -21,20 +21,29 @@ export default function NodeText({
   worldScale,
   onChange,
   onDragEnd,
-  onClick,
+  //onClick,
+  selected,
 }) {
   // text
   const fontFamily = text.fontFamily ?? "inherit";
   const placeholder = text.placeholder ?? "Texte";
-  const fontSizePx = 16;
+  const fontSizePx = text.fontSize ?? 16;
   const paddingPx = 8;
   const minWidthPx = 28;
+
+  // dataProps
+
+  const dataProps = {
+    "data-node-type": "TEXT",
+    "data-node-id": text.id,
+  };
 
   // bg-local anchor position
   const pixelX = (text.x ?? 0) * (imageSize?.w ?? 0);
   const pixelY = (text.y ?? 0) * (imageSize?.h ?? 0);
 
   const CLICK_DRAG_TOL = 5;
+  const DRAG_END_TOL_PX = 5;
   const movedRef = useRef(false);
 
   // drag
@@ -43,23 +52,23 @@ export default function NodeText({
   const dragStartRef = useRef({ x: 0, y: 0, pixelX: 0, pixelY: 0 });
 
   // edit
+
   const [isEditing, setIsEditing] = useState(false);
-  const [localValue, setLocalValue] = useState(text.value ?? "-?-");
+  const [localValue, setLocalValue] = useState(text.textValue ?? "-?-");
   const inputRef = useRef(null);
 
   // visual scale compensation
-  //const scaleFactor = (worldScale || 1) * (bgPose?.k || 1);
-  const scaleFactor = 1;
-  const fontSize = fontSizePx / scaleFactor;
-  const padding = paddingPx / scaleFactor;
-  const borderRadius = 6 / scaleFactor;
+  const scaleFactor = (worldScale || 1) * (containerK || 1);
+  const fontSize = fontSizePx / 1;
+  const padding = paddingPx / 1;
+  const borderRadius = 6 / 1;
 
   // position (apply screen-drag converted to bg-local)
   const currentX = pixelX + dragOffset.x / scaleFactor;
   const currentY = pixelY + dragOffset.y / scaleFactor;
 
   // value shown
-  const displayValue = isEditing ? localValue : text.value ?? "";
+  const displayValue = isEditing ? localValue : text.textValue ?? "";
   const textOrPh = displayValue?.length ? displayValue : placeholder;
   const measureText = textOrPh + " ";
 
@@ -142,8 +151,16 @@ export default function NodeText({
       setIsDragging(false);
       const dx = clientX - dragStartRef.current.x;
       const dy = clientY - dragStartRef.current.y;
+
+      // If movement was tiny, treat as no-op and don't call onDragEnd
+      if (Math.hypot(dx, dy) < DRAG_END_TOL_PX || !movedRef.current) {
+        setDragOffset({ x: 0, y: 0 });
+        return;
+      }
+
       const deltaBgX = dx / scaleFactor;
       const deltaBgY = dy / scaleFactor;
+
       const newPixelX = dragStartRef.current.pixelX + deltaBgX;
       const newPixelY = dragStartRef.current.pixelY + deltaBgY;
       const newRatioX = Math.max(
@@ -154,7 +171,7 @@ export default function NodeText({
         0,
         Math.min(1, newPixelY / (imageSize?.h || 1))
       );
-      onDragEnd?.(text.id, { x: newRatioX, y: newRatioY });
+      onDragEnd?.({ id: text.id, x: newRatioX, y: newRatioY });
       setDragOffset({ x: 0, y: 0 });
     },
     [scaleFactor, imageSize?.w, imageSize?.h, onDragEnd, text.id]
@@ -196,20 +213,20 @@ export default function NodeText({
     };
   }, [isDragging, finishDragAtPointer]);
 
-  // click/edit
+  //click/edit
   const handleClick = useCallback(
     (e) => {
-      e.stopPropagation();
-      if (isDragging || movedRef.current) return;
-      onClick?.(text);
+      //e.stopPropagation();
+      if (isDragging || movedRef.current || !selected) return;
       setIsEditing(true);
     },
-    [isDragging, onClick, text]
+    [isDragging, text, selected]
   );
 
   const commitIfChanged = useCallback(() => {
-    if ((text.value ?? "") !== localValue) onChange?.(text.id, localValue);
-  }, [localValue, onChange, text.id, text.value]);
+    if ((text.textValue ?? "") !== localValue)
+      onChange?.({ id: text.id, textValue: localValue });
+  }, [localValue, onChange, text.id, text.textValue]);
 
   const handleBlur = useCallback(() => {
     commitIfChanged();
@@ -224,11 +241,11 @@ export default function NodeText({
         setIsEditing(false);
       } else if (e.key === "Escape") {
         e.preventDefault();
-        setLocalValue(text.value ?? "");
+        setLocalValue(text.textValue ?? "");
         setIsEditing(false);
       }
     },
-    [commitIfChanged, text.value]
+    [commitIfChanged, text.textValue]
   );
 
   const containerCursor = isEditing ? "text" : isDragging ? "grabbing" : "grab";
@@ -270,8 +287,8 @@ export default function NodeText({
         style={{
           pointerEvents: "auto",
           userSelect: "none",
-          border: "1px solid red",
         }}
+        {...dataProps}
       >
         <Box
           sx={{
@@ -281,13 +298,18 @@ export default function NodeText({
             alignItems: "center",
             justifyContent: "flex-start",
             cursor: containerCursor,
+            ...(selected && {
+              bgcolor: "white",
+              border: (theme) => `1px solid ${theme.palette.divider}`,
+            }),
           }}
           onClick={handleClick}
+          {...dataProps}
         >
           <InputBase
             inputRef={inputRef}
             multiline={false}
-            value={isEditing ? localValue : text.value ?? ""}
+            value={isEditing ? localValue : text.textValue ?? ""}
             //value={"AAAAAAAAAAAAAAA"}
             onChange={(e) => setLocalValue(e.target.value)}
             onBlur={handleBlur}
@@ -297,6 +319,8 @@ export default function NodeText({
             sx={{
               width: "100%",
               height: "100%",
+              //width: boxW,
+              //height: boxH,
               fontSize,
               lineHeight: 1.25,
               px: padding + "px",
@@ -305,20 +329,34 @@ export default function NodeText({
               //bgcolor: "white",
 
               borderRadius: `${borderRadius}px`,
-              border: isEditing ? "1px solid" : "1px solid transparent",
-              borderColor: isEditing ? "divider" : "transparent",
+              //border: isEditing ? "1px solid" : "1px solid transparent",
+              //borderColor: isEditing ? "divider" : "transparent",
+
+              // Complete border removal
+              border: "none !important",
+              borderColor: "transparent !important",
+              outline: "none !important",
+              boxShadow: "none !important",
+
               pointerEvents: "auto",
               whiteSpace: "nowrap",
               //overflow: "hidden",
               textOverflow: "clip",
               // Ensure visible text even if theme CSS vars don't propagate into foreignObject
               //color: "#111",
+              "& input": {
+                cursor: isEditing ? "text" : "pointer",
+              },
+              "& .MuiInputBase-input": {
+                cursor: isEditing ? "text" : "pointer",
+              },
             }}
             inputProps={{
               readOnly: !isEditing,
               style: {
                 fontSize,
                 whiteSpace: "nowrap",
+                borderColor: "transparent",
               },
             }}
           />

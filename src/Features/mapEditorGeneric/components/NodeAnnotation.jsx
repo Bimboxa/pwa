@@ -9,6 +9,7 @@ export default function NodeAnnotation({
   containerK,
   worldScale,
   onDragEnd,
+  onChange,
   onClick,
   selected,
 }) {
@@ -17,6 +18,7 @@ export default function NodeAnnotation({
     imageSize,
     containerK,
     worldScale,
+    onChange,
     onDragEnd,
     onClick,
     selected,

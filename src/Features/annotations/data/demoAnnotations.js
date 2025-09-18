@@ -4,7 +4,7 @@ const demoAnnotations = [
     type: "TEXT",
     x: 0.3,
     y: 0.3,
-    value: "Annotation 1",
+    textValue: "Annotation 1",
     fontSize: 16,
   },
   {

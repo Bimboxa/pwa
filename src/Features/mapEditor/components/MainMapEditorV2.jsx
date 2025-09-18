@@ -131,6 +131,20 @@ export default function MainMapEditorV2() {
         type: "MARKER",
       });
       console.log("[MainMapEditor] new entity created", _annotation, entity);
+
+      //
+    } else if (annotation.type === "TEXT") {
+      const entity = await createEntity({});
+      const _annotation = await createAnnotation({
+        ...newAnnotation,
+        x: annotation.x,
+        y: annotation.y,
+        textValue: newAnnotation?.text ?? "Texte",
+        entityId: entity?.id,
+        listingId: listingId,
+        baseMapId: mainBaseMap?.id,
+      });
+      dispatch(setEnabledDrawingMode(null));
     }
   }
 
