@@ -15,7 +15,7 @@ export default function useAutoRedirect() {
 
   useEffect(() => {
     if (location.pathname === "/" && !projectId && initSelectProjectDone) {
-      navigate("/dashboard");
+      //navigate("/dashboard");
     }
   }, [location.pathname, projectId, initSelectProjectDone]);
 }

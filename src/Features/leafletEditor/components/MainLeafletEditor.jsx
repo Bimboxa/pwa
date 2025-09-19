@@ -1,19 +1,20 @@
-import {useEffect, useRef} from "react";
+import { useEffect, useRef } from "react";
 
-import L, {map} from "leaflet";
+import L, { map } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 import useInitLoadGeoportailPlugin from "../hooks/useInitLoadGeoportailPlugin";
 
-import {Box, Typography} from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
-import {OrthoIGN, PlanIGN} from "../data/tileLayers";
+import { OrthoIGN, PlanIGN } from "../data/tileLayers";
 
 export default function MainLeafletEditor() {
   console.log("[debug] MainLeafletEditor");
   // data
 
   const mapRef = useRef();
+  const containerRef = useRef(); // Add container ref
 
   // init
 
@@ -26,7 +27,7 @@ export default function MainLeafletEditor() {
     }
 
     const mainMap = L.map("leafletMap", {
-      zoom: 18,
+      zoom: 24,
       center: [48.683619, 2.192905],
       //layers: [OrthoIGN, PlanIGN],
       layers: [OrthoIGN],
@@ -40,8 +41,31 @@ export default function MainLeafletEditor() {
     };
   }, []);
 
+  // Add resize observer effect
+  useEffect(() => {
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (mapRef.current) {
+        // Small delay to ensure DOM has updated
+        setTimeout(() => {
+          mapRef.current.invalidateSize();
+        }, 0);
+      }
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   return (
-    <Box sx={{width: 1, height: 1}}>
+    <Box
+      ref={containerRef} // Add ref to the container
+      sx={{ width: 1, height: 1, border: "1px solid red" }}
+    >
       <div
         id="leafletMap"
         style={{

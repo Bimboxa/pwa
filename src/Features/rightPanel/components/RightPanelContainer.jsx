@@ -45,6 +45,7 @@ export default function RightPanelContainer() {
             //top: "12px",
             //right: "64px",
             width,
+            minWidth: 0,
             minHeight: 0,
             //maxHeight,
             bgcolor: "white",

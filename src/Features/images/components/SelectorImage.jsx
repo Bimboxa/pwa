@@ -11,7 +11,11 @@ import pdfToPngAsync from "Features/pdf/utils/pdfToPngAsync";
 
 import ImageObject from "../js/ImageObject";
 
-export default function SelectorImage({ selectedImageUrl, onImageFileChange }) {
+export default function SelectorImage({
+  selectedImageUrl,
+  onImageFileChange,
+  bgImageUrl,
+}) {
   // strings
 
   const labelS = "Glisser déposer une image ou un PDF";
@@ -50,7 +54,13 @@ export default function SelectorImage({ selectedImageUrl, onImageFileChange }) {
   }
 
   return (
-    <BoxCenter sx={{ position: "relative" }}>
+    <BoxCenter
+      sx={{
+        position: "relative",
+        border: (theme) => `1px solid ${theme.palette.divider}`,
+        borderRadius: "8px",
+      }}
+    >
       {imageUrl && (
         <Box
           sx={{
@@ -91,7 +101,7 @@ export default function SelectorImage({ selectedImageUrl, onImageFileChange }) {
           sx={{
             //position: "absolute",
             width: 1,
-            //height: 1,
+            height: 1,
             zIndex: 1,
             display: "flex",
             bgcolor: "background.default",
@@ -102,19 +112,60 @@ export default function SelectorImage({ selectedImageUrl, onImageFileChange }) {
             style={{
               width: "100%",
               height: "auto",
+              maxHeight: "100%",
               zIndex: 1,
               //objectFit: "contain",
               objectFit: "contain",
+
+              borderRadius: "8px",
             }}
           />
         </Box>
       )}
       {!imageUrl && (
-        <ContainerFilesSelector
-          onFilesChange={handleFilesChange}
-          callToActionLabel={labelS}
-          accept=".png, .jpeg, .pdf"
-        />
+        <Box
+          sx={{
+            width: 1,
+            height: 1,
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {bgImageUrl && (
+            <Box
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                bottom: 0,
+                right: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+
+                //zIndex: 1,
+              }}
+            >
+              <img
+                src={bgImageUrl}
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  maxHeight: "100%",
+                  objectFit: "contain",
+                  //objectFit: "fill",
+                }}
+              />
+            </Box>
+          )}
+          <ContainerFilesSelector
+            onFilesChange={handleFilesChange}
+            callToActionLabel={labelS}
+            accept=".png, .jpeg, .pdf"
+          />
+        </Box>
       )}
     </BoxCenter>
   );

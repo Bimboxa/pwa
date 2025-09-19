@@ -17,12 +17,12 @@ import testIsImage from "Features/files/utils/testIsImage";
 
 import FilesSelectorButton from "Features/files/components/FilesSelectorButton";
 
-export default function SectionNoMap() {
+export default function SectionCreateBaseMapFullscreen() {
   const dispatch = useDispatch();
 
   // strings
 
-  const dragS = "Glissez déposez un plan";
+  const dragS = "Glissez déposez une image / PDF / photo";
   const selectFileS = "Choisir un fichier";
   const nameS = "Plan 01";
 
@@ -122,7 +122,7 @@ export default function SectionNoMap() {
           }}
           position="absolute"
         >
-          <Typography color={dragging ? "secondary" : "text.secondary"}>
+          <Typography color={"secondary"} noWrap>
             {dragS}
           </Typography>
           <FilesSelectorButton

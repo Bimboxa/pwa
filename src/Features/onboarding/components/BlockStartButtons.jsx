@@ -1,4 +1,7 @@
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+
+import { setOnboardingIsActive } from "../onboardingSlice";
 
 import { Box } from "@mui/material";
 
@@ -6,17 +9,19 @@ import { Button, Typography } from "@mui/material";
 
 export default function BlockStartButtons({ isMobile, onShowCreateData }) {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   // strings
 
-  const startOfflineS = "Démarrer sans compte";
+  const startOfflineS = "Créer un plan de repérage";
   const startOnlineS = "Se connecter";
 
   // handlers
 
   function handleStartOffline() {
     //onShowCreateData();
-    navigate("/dashboard");
+    navigate("/");
+    dispatch(setOnboardingIsActive(true));
   }
 
   function handleStartOnline() {
@@ -47,6 +52,7 @@ export default function BlockStartButtons({ isMobile, onShowCreateData }) {
         variant="contained"
         onClick={handleStartOnline}
         color="secondary"
+        disabled={true}
       >
         <Typography>{startOnlineS}</Typography>
       </Button>

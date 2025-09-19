@@ -72,7 +72,7 @@ export default function FieldImageV2({
       <Box sx={{ p: 1 }}>
         <Box
           sx={{
-            border: (theme) => `1px solid ${theme.palette.divider}`,
+            //border: (theme) => `1px solid ${theme.palette.divider}`,
             borderRadius: 1,
           }}
         >

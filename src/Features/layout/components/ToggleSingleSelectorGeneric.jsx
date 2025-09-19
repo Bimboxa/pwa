@@ -4,6 +4,7 @@ export default function ToggleSingleSelectorGeneric({
   options,
   selectedKey,
   onChange,
+  disabled,
 }) {
   function handleChange(e, v) {
     console.log("handleChange", v);
@@ -11,7 +12,12 @@ export default function ToggleSingleSelectorGeneric({
   }
   return (
     <Box sx={{ display: "flex", width: 1, justifyContent: "center" }}>
-      <ToggleButtonGroup onChange={handleChange} value={selectedKey} exclusive>
+      <ToggleButtonGroup
+        onChange={handleChange}
+        value={selectedKey}
+        exclusive
+        disabled={disabled}
+      >
         {options.map(({ key, label, icon }) => {
           return (
             <ToggleButton key={key} value={key} size="small">

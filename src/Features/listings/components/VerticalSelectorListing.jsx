@@ -25,6 +25,9 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
 
   const { value: listings } = useListingsByScope();
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
+  const onboardingIsActive = useSelector(
+    (s) => s.onboarding.onboardingIsActive
+  );
 
   // handlers
 
@@ -33,6 +36,18 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
   }
 
   // render
+
+  if (onboardingIsActive)
+    return (
+      <Box
+        sx={{
+          bgcolor: "primary.main",
+          display: "flex",
+          flexDirection: "column",
+          width: 1,
+        }}
+      />
+    );
 
   return (
     <Box

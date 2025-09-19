@@ -8,6 +8,8 @@ export default function useProjectBaseMapListings() {
   const appConfig = useAppConfig();
 
   return useLiveQuery(async () => {
+    if (!projectId) return null;
+
     let listings = await db.listings
       .where("projectId")
       .equals(projectId)

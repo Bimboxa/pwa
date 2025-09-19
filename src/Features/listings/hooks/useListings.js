@@ -23,7 +23,7 @@ export default function useListings(options) {
 
     let _listings;
 
-    if (!filterByProjectId) {
+    if (filterByProjectId) {
       _listings = await db.listings
         .where("projectId")
         .equals(filterByProjectId)

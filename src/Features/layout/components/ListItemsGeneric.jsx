@@ -6,6 +6,7 @@ export default function ListItemsGeneric({
   keyString = "id",
   selection,
   onSortEnd,
+  labelKey = "label",
 }) {
   // edge case
 
@@ -22,7 +23,7 @@ export default function ListItemsGeneric({
           key={item[keyString]}
           onClick={() => onClick(item)}
         >
-          <ListItemText>{item.label}</ListItemText>
+          <ListItemText>{item[labelKey]}</ListItemText>
         </ListItemButton>
       ))}
     </List>

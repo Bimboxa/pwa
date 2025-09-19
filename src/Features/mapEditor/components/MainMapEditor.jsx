@@ -18,7 +18,7 @@ import LayerMapEditor from "./LayerMapEditor";
 import LayerScreenCursor from "./LayerScreenCursor";
 import PopperEditScale from "./PopperEditScale";
 import BlockEntityMarker from "Features/markers/components/BlockEntityMarker";
-import SectionNoMap from "./SectionNoMap";
+import SectionCreateBaseMapFullscreen from "./SectionCreateBaseMapFullscreen";
 
 import editor from "App/editor";
 import useAutoSelectBaseMapViewInEditor from "Features/baseMapViews/hooks/useAutoSelectBaseMapViewInEditor";
@@ -141,7 +141,8 @@ export default function MainMapEditor() {
   console.log("noBaseMap", noBaseMap);
 
   if (noBaseMap) {
-    return <SectionNoMap />;
+    //return <SectionCreateBaseMapFullscreen />;
+    return <ScreenNoBaseMap />;
   }
 
   return (

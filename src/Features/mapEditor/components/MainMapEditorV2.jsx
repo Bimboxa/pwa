@@ -29,7 +29,8 @@ import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation"
 
 import { Box, Button } from "@mui/material";
 
-import SectionNoMap from "Features/mapEditor/components/SectionNoMap";
+import SectionCreateBaseMapFullscreen from "Features/mapEditor/components/SectionCreateBaseMapFullscreen";
+import ScreenNoBaseMap from "Features/mapEditor/components/ScreenNoBaseMap";
 import MapEditorGeneric from "Features/mapEditorGeneric/components/MapEditorGeneric";
 import LayerMapEditor from "./LayerMapEditor";
 import LayerScreenCursor from "./LayerScreenCursor";
@@ -104,7 +105,7 @@ export default function MainMapEditorV2() {
 
   useAutoSelectMainBaseMap();
 
-  if (noBaseMaps) return <SectionNoMap />;
+  if (noBaseMaps) return <ScreenNoBaseMap />;
 
   // handlers
 

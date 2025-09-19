@@ -14,6 +14,14 @@ const onboardingInitialState = {
   issuesListingName: null,
   //
   showOverview: false,
+
+  // == v2 ==
+
+  onboardingIsActive: false,
+  baseMap: null,
+  presetListingsKeys: null,
+  scope: null,
+  blueprint: null,
 };
 
 export const onboardingSlice = createSlice({
@@ -43,6 +51,22 @@ export const onboardingSlice = createSlice({
     setShowOverview: (state, action) => {
       state.showOverview = action.payload;
     },
+    // == v2 ==
+    setOnboardingIsActive: (state, action) => {
+      state.onboardingIsActive = action.payload;
+    },
+    setBaseMap: (state, action) => {
+      state.baseMap = action.payload;
+    },
+    setPresetListingsKeys: (state, action) => {
+      state.presetListingsKeys = action.payload;
+    },
+    setScope: (state, action) => {
+      state.scope = action.payload;
+    },
+    setBlueprint: (state, action) => {
+      state.blueprint = action.payload;
+    },
   },
 });
 
@@ -57,6 +81,14 @@ export const {
   setIssuesListingName,
   //
   setShowOverview,
+
+  // == v2 ==
+  setOnboardingIsActive,
+  setBaseMap,
+  setPresetListingsKeys,
+  setScope,
+  setBlueprint,
+  //
 } = onboardingSlice.actions;
 
 export default onboardingSlice.reducer;
