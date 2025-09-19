@@ -8,6 +8,7 @@ import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 import useDndSensors from "App/hooks/useDndSensors";
 import useAutoRedirect from "App/hooks/useAutoRedirect";
 import useAutoSelectListing from "Features/listings/hooks/useAutoSelectListing";
+import useAutoLayoutOnboarding from "Features/onboarding/hooks/useAutoLayoutOnboarding";
 
 import { Box } from "@mui/material";
 
@@ -35,6 +36,7 @@ export default function MainAppLayout() {
   useAutoFetchOrgaDataFolder();
   useAutoRedirect();
   useAutoSelectListing();
+  useAutoLayoutOnboarding();
 
   // data
 

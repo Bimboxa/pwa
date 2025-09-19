@@ -77,8 +77,12 @@ export default function ContainerFilesSelector({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
+        //justifyContent: "center",
         position: "relative",
+        // border: (theme) =>
+        //   `1px solid ${
+        //     hover ? theme.palette.secondary.main : theme.palette.divider
+        //   }`,
       }}
     >
       {loading && (
@@ -98,12 +102,14 @@ export default function ContainerFilesSelector({
               px: 1,
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
+              //justifyContent: "center",
               flexDirection: "column",
-              bgcolor,
-              color: "common.white",
+              //bgcolor,
+              //color: "common.white",
               borderRadius: "4px",
-              ...(hover && { background }),
+              border: (theme) => `1px dashed ${theme.palette.divider}`,
+              borderColor: hover ? "secondary.main" : "transparent",
+              //border: (theme) => `1px dashed ${theme.palette.divider}`,
             }}
           >
             <Box
@@ -117,11 +123,9 @@ export default function ContainerFilesSelector({
                 width: 1,
                 borderRadius: "4px",
                 //border: (theme) => `2px dashed ${theme.palette.divider}`,
-                borderColor: (theme) =>
-                  hover ? theme.palette.primary.flash : theme.palette.divider,
               }}
             />
-            <CloudUpload color="inherit" />
+            {/* <CloudUpload color="inherit" /> */}
             <Typography variant="body2" color="inherit" sx={{ mt: 1 }}>
               {callToActionLabel}
             </Typography>

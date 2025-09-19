@@ -18,6 +18,7 @@ import { Box, Paper } from "@mui/material";
 
 import PanelShower from "Features/shower/components/PanelShower";
 import PanelEditorExport from "Features/editorExport/components/PanelEditorExport";
+import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 
 export default function HorizontalMenuRightPanel() {
   const dispatch = useDispatch();
@@ -50,11 +51,12 @@ export default function HorizontalMenuRightPanel() {
   // data
 
   const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
-  const width = useSelector((s) => s.rightPanel.width);
+  const projectBaseMaps = useProjectBaseMapListings();
 
   // helper
 
   const openPanel = Boolean(selectedKey);
+  const hasBaseMaps = projectBaseMaps?.length > 0;
 
   // handlers
 
@@ -76,6 +78,7 @@ export default function HorizontalMenuRightPanel() {
         options={menuItems}
         selectedKey={selectedKey}
         onChange={handleChange}
+        disabled={!hasBaseMaps}
       />
     </Box>
   );

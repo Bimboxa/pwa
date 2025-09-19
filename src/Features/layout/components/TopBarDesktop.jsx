@@ -12,6 +12,7 @@ import AuthButtons from "Features/auth/components/AuthButtons";
 import TopBarProjectAndScope from "./TopBarProjectAndScope";
 import ToggleOpenLeftPanel from "Features/leftPanel/components/ToggleOpenLeftPanel";
 import HorizontalMenuRightPanel from "Features/rightPanel/components/HorizontalMenuRightPanel";
+import TopBarBreadcrumbs from "./TopBarBreadcrumbs";
 
 export default function TopBarDesktop() {
   const height = useSelector((s) => s.layout.topBarHeight);
@@ -40,10 +41,11 @@ export default function TopBarDesktop() {
       </BoxFlexH> */}
 
       <Box sx={{ display: "flex", alignItems: "center" }}>
-        <TopBarProjectAndScope />
+        <TopBarBreadcrumbs />
+        {/* <TopBarProjectAndScope /> */}
       </Box>
 
-      <SelectorViewer />
+      {/* <SelectorViewer /> */}
 
       {/* <AuthButtons /> */}
       <HorizontalMenuRightPanel />
