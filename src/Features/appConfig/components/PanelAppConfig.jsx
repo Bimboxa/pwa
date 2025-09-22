@@ -21,13 +21,13 @@ export default function PanelAppConfig({ onClose }) {
       <SectionAppConfigTitle />
       <SectionUpdateAppConfigFromFile />
       <BoxFlexVStretch sx={{ overflow: "auto", flexGrow: 1 }}>
-        {remoteContainer && <SectionRemoteContainerOverview />}
+        {/* {remoteContainer && <SectionRemoteContainerOverview />} */}
         {/* <SectionOrgaData /> */}
         <ButtonDeleteProjects onDeleted={onClose} />
       </BoxFlexVStretch>
-      <Box sx={{ width: 1, display: "flex", justifyContent: "end" }}>
+      {/* <Box sx={{ width: 1, display: "flex", justifyContent: "end" }}>
         <SwitchDisableRemoteContainer />
-      </Box>
+      </Box> */}
     </BoxFlexVStretch>
   );
 }
