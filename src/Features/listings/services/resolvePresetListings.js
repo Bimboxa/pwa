@@ -35,6 +35,18 @@ export default async function resolvePresetListings({ projectId, appConfig }) {
     let shouldAdd = true;
     presetListing = structuredClone(presetListing);
 
+    // entityModel
+
+    const entityModel =
+      appConfig.entityModelsObject[presetListing.entityModelKey];
+    presetListing.entityModel = entityModel;
+
+    // icon & colors
+
+    presetListing.iconKey =
+      presetListing?.iconKey ?? entityModel.defaultIconKey;
+    presetListing.color = presetListing?.color ?? entityModel.defaultColor;
+
     // existing listing
     let existingListing;
     if (presetListing.uniqueByProject) {
@@ -48,8 +60,9 @@ export default async function resolvePresetListings({ projectId, appConfig }) {
       presetListing = await resolveListingNomenclature(presetListing);
     }
 
-    // add id
+    // add id & projectId
     presetListing.id = existingListing?.id ?? nanoid();
+    presetListing.projectId = projectId;
 
     // return
     // if (shouldAdd) listings.push(presetListing);

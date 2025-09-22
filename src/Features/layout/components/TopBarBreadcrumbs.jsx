@@ -6,10 +6,12 @@ import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 
-import { IconButton, Box } from "@mui/material";
+import { IconButton, Box, Typography } from "@mui/material";
 
 import HomeIcon from "@mui/icons-material/Home";
+import ButtonGeneric from "./ButtonGeneric";
 import ButtonDialogOnboardingSelectProject from "Features/projects/components/ButtonDialogOnboardingSelectProject";
+import ButtonDialogOnboardingSelectScope from "Features/scopes/components/ButtonDialogOnboardingSelectScope";
 
 export default function TopBarBreadcrumbs() {
   const dispatch = useDispatch();
@@ -37,13 +39,35 @@ export default function TopBarBreadcrumbs() {
 
   // components
 
+  const Separator = () => (
+    <Box
+      sx={{
+        height: "18px",
+        borderRight: "1px solid",
+        borderColor: (theme) => theme.palette.divider,
+      }}
+    />
+  );
+
   const Home = () => (
     <IconButton onClick={handleClickHome}>
       <HomeIcon />
     </IconButton>
   );
 
-  const Project = () => <Box>{selectedProject?.name}</Box>;
+  const Project = () => (
+    <ButtonGeneric
+      label={selectedProject?.name}
+      onClick={() => dispatch(setSelectedScopeId(null))}
+    />
+  );
+
+  const Scope = () => (
+    <ButtonGeneric
+      label={selectedScope?.name}
+      //onClick={() => dispatch(setSelectedScopeId(null))}
+    />
+  );
 
   // render
 
@@ -51,6 +75,7 @@ export default function TopBarBreadcrumbs() {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Home />
+        <Separator />
         <ButtonDialogOnboardingSelectProject />
       </Box>
     );
@@ -58,10 +83,21 @@ export default function TopBarBreadcrumbs() {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Home />
+        <Separator />
         <Project />
+        <Separator />
+        <ButtonDialogOnboardingSelectScope />
       </Box>
     );
   } else {
-    return <Box>salut</Box>;
+    return (
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Home />
+        <Separator />
+        <Project />
+        <Separator />
+        <Scope />
+      </Box>
+    );
   }
 }

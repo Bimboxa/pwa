@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useSelector } from "react-redux";
 
+import useAnnotationsListings from "Features/annotations/hooks/useAnnotationsListings";
+
 import { Box } from "@mui/material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
@@ -16,6 +18,10 @@ export default function ScreenNoBaseMap() {
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const annotationsListings = useAnnotationsListings();
+
+  console.log("annotationsListings", annotationsListings);
 
   // state
 
@@ -23,7 +29,7 @@ export default function ScreenNoBaseMap() {
 
   // helpers
 
-  const disabled = !projectId;
+  const disabled = !projectId || !scopeId || !annotationsListings?.length > 0;
 
   // handlers
 
@@ -48,6 +54,7 @@ export default function ScreenNoBaseMap() {
             height: "auto",
             maxHeight: "100%",
             objectFit: "contain",
+            ...(disabled && { filter: "grayscale(100%)" }),
           }}
         />
         <Box sx={{ position: "absolute", bottom: "25%", right: "25%" }}>

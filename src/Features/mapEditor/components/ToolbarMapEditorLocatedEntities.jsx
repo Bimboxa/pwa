@@ -1,3 +1,9 @@
+import { useSelector } from "react-redux";
+
+import useAnnotations from "Features/annotations/hooks/useAnnotations";
+
+import { Box, Typography } from "@mui/material";
+
 import Toolbar from "Features/layout/components/Toolbar";
 import ButtonRefreshMap from "./ButtonRefreshMap";
 import ButtonDrawPolygon from "./ButtonDrawPolygon";
@@ -10,6 +16,38 @@ import ButtonAddText from "./ButtonAddText";
 import ButtonDownloadBaseMapView from "./ButtonDownloadBaseMapView";
 
 export default function ToolbarMapEditorLocatedEntities() {
+  // strings
+
+  const addS = "Ajoutez une annotation";
+
+  // data
+
+  const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+  const annotations = useAnnotations({ filterByBaseMapId: baseMapId });
+
+  // helpers
+
+  const noAnnotation = !annotations?.length > 0;
+
+  if (noAnnotation)
+    return (
+      <Box
+        sx={{
+          bgcolor: "secondary.main",
+          p: 1,
+          borderRadius: "8px",
+          color: "white",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        <Typography sx={{ mr: 1 }}>{addS}</Typography>
+        <Toolbar>
+          <ButtonDrawMarker />
+        </Toolbar>
+      </Box>
+    );
+
   return (
     <Toolbar>
       <ButtonDrawMarker />

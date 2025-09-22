@@ -1,5 +1,7 @@
 import { nanoid } from "@reduxjs/toolkit";
 
+import(useSelector);
+
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useCreateRemoteScope from "Features/sync/hooks/useCreateRemoteScope";
@@ -8,6 +10,7 @@ import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import db from "App/db/db";
 
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
+import { useSelector } from "react-redux";
 
 export default function useCreateScope() {
   const { value: createdBy } = useUserEmail();
@@ -16,6 +19,7 @@ export default function useCreateScope() {
   const createListings = useCreateListings();
   const createRemoteScope = useCreateRemoteScope();
   const createEntity = useCreateEntity();
+  const _projectId = useSelector((s) => s.projects.selectedProjectId);
 
   const create = async (
     {
@@ -55,7 +59,7 @@ export default function useCreateScope() {
       createdAt,
       name,
       clientRef,
-      projectId,
+      projectId: projectId ?? _projectId,
       sortedListings,
     };
     await db.scopes.add(scope);
