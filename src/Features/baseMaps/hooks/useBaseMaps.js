@@ -14,17 +14,25 @@ export default function useBaseMaps(options) {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const baseMapsUpdatedAt = useSelector(
-    (s) => s.entities.entitiesTableUpdatedAt["baseMaps"]
+    (s) => s.entities.entitiesTableUpdatedAt?.["baseMaps"]
   );
 
   // helpers
 
   const filterByProjectId = _filterByProjectId ?? projectId;
 
+  const hasNullFilterByProjectId =
+    options != null && // options exists (not null/undefined)
+    Object.prototype.hasOwnProperty.call(options, "filterByProjectId") && // prop is present
+    options.filterByProjectId === null; // and its value is exactly null
+
   // main
 
   const baseMaps = useLiveQuery(async () => {
     let records;
+    if (hasNullFilterByProjectId) {
+      return null;
+    }
     if (filterByProjectId) {
       records = await db.baseMaps
         .where("projectId")

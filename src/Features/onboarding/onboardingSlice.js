@@ -21,7 +21,11 @@ const onboardingInitialState = {
   baseMap: null,
   presetListingsKeys: null,
   scope: null,
+  scopeName: "",
   blueprint: null,
+
+  openDialogFsScopeName: false,
+  showSelectorPresetListings: true,
 };
 
 export const onboardingSlice = createSlice({
@@ -64,8 +68,17 @@ export const onboardingSlice = createSlice({
     setScope: (state, action) => {
       state.scope = action.payload;
     },
+    setScopeName: (state, action) => {
+      state.scopeName = action.payload;
+    },
     setBlueprint: (state, action) => {
       state.blueprint = action.payload;
+    },
+    setOpenDialogFsScopeName: (state, action) => {
+      state.openDialogFsScopeName = action.payload;
+    },
+    setShowSelectorPresetListings: (state, action) => {
+      state.showSelectorPresetListings = action.payload;
     },
   },
 });
@@ -87,6 +100,7 @@ export const {
   setBaseMap,
   setPresetListingsKeys,
   setScope,
+  setScopeName,
   setBlueprint,
   //
 } = onboardingSlice.actions;

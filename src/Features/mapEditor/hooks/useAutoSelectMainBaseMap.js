@@ -15,13 +15,16 @@ export default function useAutoSelectMainBaseMap() {
   // data
 
   const baseMap = useMainBaseMap();
-  const { value: baseMaps } = useBaseMaps();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const { value: baseMaps } = useBaseMaps({ filterByProjectId: projectId });
 
   console.log("debug_2707 baseMaps", baseMaps);
 
   useEffect(() => {
-    if (
+    if (!projectId) {
+      dispatch(setSelectedMainBaseMapId(null));
+    } else if (
+      projectId &&
       baseMaps?.length > 0 &&
       (baseMap?.projectId !== projectId || !baseMap)
     ) {

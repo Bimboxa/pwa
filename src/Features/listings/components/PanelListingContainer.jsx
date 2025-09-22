@@ -11,6 +11,8 @@ import PanelSelectorListing from "./PanelSelectorListing";
 //import PanelCreateListingEntity from "Features/entities/components/PanelCreateListingEntity";
 import PanelEditEntity from "Features/entities/components/PanelEditEntity";
 import Panel from "Features/layout/components/Panel";
+import PanelSelectorListingsOnboarding from "./PanelSelectorListingsOnboarding";
+import useAutoShowPanelSelectorPresetListings from "../hooks/useAutoShowPanelSelectorPresetListings";
 
 export default function PanelListingContainer() {
   const dispatch = useDispatch();
@@ -18,8 +20,12 @@ export default function PanelListingContainer() {
   // data
 
   const { value: listing } = useSelectedListing();
-  const openedPanel = useSelector((s) => s.listings.openedPanel);
-  console.log("[PanelListingContainer] openedPanel", openedPanel);
+  let openedPanel = useSelector((s) => s.listings.openedPanel);
+  const showSelectorPresetListings = useAutoShowPanelSelectorPresetListings();
+
+  // helpers
+
+  if (showSelectorPresetListings) openedPanel = "PRESET_LISTINGS_ONBOARDING";
 
   // handlers
 
@@ -44,6 +50,9 @@ export default function PanelListingContainer() {
       {openedPanel === "LISTING" && <PanelListing listing={listing} />}
       {openedPanel === "NEW_ENTITY" && <PanelEditEntity />}
       {openedPanel === "EDITED_ENTITY" && <PanelEditEntity />}
+      {openedPanel === "PRESET_LISTINGS_ONBOARDING" && (
+        <PanelSelectorListingsOnboarding />
+      )}
     </BoxFlexVStretch>
   );
 }

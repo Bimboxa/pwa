@@ -7,6 +7,7 @@ export default function useListings(options) {
   // options
 
   const filterByProjectId = options.filterByProjectId;
+  const filterByEntityModelType = options.filterByEntityModelType;
 
   // data
 
@@ -41,8 +42,15 @@ export default function useListings(options) {
       return { ..._listing, entityModel };
     });
 
+    // filter by entityModelType
+    if (filterByEntityModelType) {
+      _listings = _listings.filter(
+        (l) => l.entityModel?.type === filterByEntityModelType
+      );
+    }
+
     return _listings;
-  }, [appConfig]);
+  }, [appConfig, filterByProjectId, filterByEntityModelType]);
 
   return listings;
 }
