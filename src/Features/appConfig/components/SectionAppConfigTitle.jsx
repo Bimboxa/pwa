@@ -8,8 +8,10 @@ import { setToaster } from "Features/layout/layoutSlice";
 import useAppConfig from "../hooks/useAppConfig";
 import useRefreshAppConfig from "../hooks/useRefreshAppConfig";
 
-import { Box, IconButton, Typography, Tooltip, TextField } from "@mui/material";
+import { Box, Button, Typography, Tooltip, TextField } from "@mui/material";
 import { Refresh } from "@mui/icons-material";
+
+import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 export default function SectionAppConfigTitle() {
   const dispatch = useDispatch();
@@ -18,7 +20,7 @@ export default function SectionAppConfigTitle() {
 
   // strings
 
-  const refreshS = "Mettre à jour la configuration";
+  const refreshS = "Mettre à jour";
 
   // data
 
@@ -43,13 +45,15 @@ export default function SectionAppConfigTitle() {
   }
 
   return (
-    <Box sx={{ width: 1, p: 1, bgcolor: "background.default" }}>
-      <TextField
-        size="small"
-        label="Code"
-        value={configCode}
-        onChange={(e) => dispatch(setConfigCode(e.target.value))}
-      />
+    <Box sx={{ width: 1, p: 1, display: "flex", flexDirection: "column" }}>
+      <Box>
+        <TextField
+          size="small"
+          label="Code"
+          value={configCode}
+          onChange={(e) => dispatch(setConfigCode(e.target.value))}
+        />
+      </Box>
       <Box
         sx={{
           display: "flex",
@@ -66,9 +70,11 @@ export default function SectionAppConfigTitle() {
           </Typography>
         </Box>
         <Tooltip title={refreshS}>
-          <IconButton onClick={handleRefresh} loading={loading}>
-            <Refresh />
-          </IconButton>
+          <ButtonGeneric
+            onClick={handleRefresh}
+            label={refreshS}
+            variant="contained"
+          />
         </Tooltip>
       </Box>
     </Box>
