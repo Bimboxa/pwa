@@ -15,7 +15,7 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 export default async function resolvePresetListings({ projectId, appConfig }) {
   // edge case
 
-  if (!appConfig || !appConfig.presetListingsObject) return [];
+  if (!appConfig || !appConfig.presetListingsObject || !projectId) return [];
 
   // helpers
 
@@ -46,6 +46,8 @@ export default async function resolvePresetListings({ projectId, appConfig }) {
     presetListing.iconKey =
       presetListing?.iconKey ?? entityModel.defaultIconKey;
     presetListing.color = presetListing?.color ?? entityModel.defaultColor;
+    presetListing.spriteImageKey =
+      presetListing?.spriteImageKey ?? entityModel.defaultSpriteImageKey;
 
     // existing listing
     let existingListing;
@@ -63,6 +65,9 @@ export default async function resolvePresetListings({ projectId, appConfig }) {
     // add id & projectId
     presetListing.id = existingListing?.id ?? nanoid();
     presetListing.projectId = projectId;
+
+    // can create item
+    presetListing.canCreateItem = true;
 
     // return
     // if (shouldAdd) listings.push(presetListing);

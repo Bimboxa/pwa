@@ -1,5 +1,6 @@
 import useAnnotationSpriteImage from "./useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
+import useAnnotationTemplates from "./useAnnotationTemplates";
 
 export default function useAnnotationTemplate(annotation, options) {
   // options
@@ -9,7 +10,10 @@ export default function useAnnotationTemplate(annotation, options) {
   // data
 
   const spriteImage = useAnnotationSpriteImage();
-  const annotationTemplates = useLegendItems();
+  //const annotationTemplates = useLegendItems();
+  const annotationTemplates = useAnnotationTemplates();
+
+  console.log("[debug_2309] annotationTemplates", annotationTemplates);
 
   // helpers
 

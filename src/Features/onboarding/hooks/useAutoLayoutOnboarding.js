@@ -25,6 +25,8 @@ export default function useAutoLayoutOnboarding() {
 
   const [step, setStep] = useState("PROJECT"); // PROJECT, SCOPES, LISTINGS
 
+  console.log("[debug_2309] step", step);
+
   // effect - setStep
 
   useEffect(() => {
@@ -37,7 +39,7 @@ export default function useAutoLayoutOnboarding() {
     } else if (!baseMap?.id) {
       setStep("BASE_MAP");
     }
-  }, [projectId, baseMap?.id]);
+  }, [projectId, scopeId, presetListingsKeys?.length, baseMap?.id]);
   // effect
 
   useEffect(() => {

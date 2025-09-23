@@ -1,6 +1,6 @@
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 
-import {useSelector} from "react-redux";
+import { useSelector } from "react-redux";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -18,12 +18,12 @@ export default function useResolvedPresetListings() {
     // const _listings = await resolveListingsToCreateFromPresetListings(
     //   presetListings
     // );
-    const _listings = await resolvePresetListings({projectId, appConfig});
+    const _listings = await resolvePresetListings({ projectId, appConfig });
     setListings(_listings);
   };
 
   useEffect(() => {
-    resolveAsync();
+    if (projectId && appConfig?.name) resolveAsync();
   }, [projectId, appConfig?.name]);
 
   return listings;

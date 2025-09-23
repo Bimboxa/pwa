@@ -1,6 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import useLegendItems from "Features/legend/hooks/useLegendItems";
+import useAnnotationTemplates from "../hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 
 import { setNewAnnotation } from "../annotationsSlice";
@@ -21,7 +22,8 @@ export default function SectionCreateAnnotation() {
 
   // data
   const spriteImage = useAnnotationSpriteImage();
-  const annotationTemplates = useLegendItems();
+  //const annotationTemplates = useLegendItems();
+  const annotationTemplates = useAnnotationTemplates();
 
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
 

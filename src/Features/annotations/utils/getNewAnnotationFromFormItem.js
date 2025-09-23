@@ -1,4 +1,5 @@
 import getAnnotationTemplateIdFromAnnotation from "./getAnnotationTemplateIdFromAnnotation";
+import getPropsFromAnnotationTemplateId from "./getPropsFromAnnotationTemplateId";
 
 export default function getNewAnnotationFromFormItem({
   oldAnnotation,
@@ -16,10 +17,11 @@ export default function getNewAnnotationFromFormItem({
   const templateChanged = newAnnotationTemplateId !== oldAnnotationTemplateId;
 
   if (templateChanged && newAnnotationTemplateId) {
-    const templateAnnotation = annotationTemplates?.find(
-      (t) => t.id === newAnnotationTemplateId
-    );
-    newAnnotation = { ...newItem, ...templateAnnotation }; // pass id from templateAnnotation !
+    // const templateAnnotation = annotationTemplates?.find(
+    //   (t) => t.id === newAnnotationTemplateId
+    // );
+    const props = getPropsFromAnnotationTemplateId(newAnnotationTemplateId);
+    newAnnotation = { ...newItem, ...props }; // pass id from templateAnnotation !
   } else {
     newAnnotation = { ...newItem };
   }

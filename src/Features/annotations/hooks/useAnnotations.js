@@ -10,7 +10,7 @@ export default function useAnnotations(options) {
 
   const addDemoAnnotations = options?.addDemoAnnotations;
   const filterByBaseMapId = options?.filterByBaseMapId;
-  const filterByListingIds = options?.filterByListingIds;
+  const filterByListingId = options?.filterByListingId;
 
   // data
 
@@ -33,6 +33,12 @@ export default function useAnnotations(options) {
       _annotations = await db.annotations.toArray();
     }
 
+    if (filterByListingId) {
+      _annotations = _annotations.filter(
+        (a) => filterByListingId === a.listingId
+      );
+    }
+
     // edition
     if (isEditingAnnotation) {
       _annotations = _annotations.filter((a) => a.id !== editedAnnotation.id);
@@ -40,7 +46,12 @@ export default function useAnnotations(options) {
     }
 
     return _annotations;
-  }, [annotationsUpdatedAt, isEditingAnnotation, editedAnnotation]);
+  }, [
+    annotationsUpdatedAt,
+    isEditingAnnotation,
+    editedAnnotation,
+    filterByListingId,
+  ]);
 
   // demo
 

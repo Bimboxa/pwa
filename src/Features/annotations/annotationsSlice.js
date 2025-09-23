@@ -13,6 +13,8 @@ const annotationsInitialState = {
   editedAnnotation: null,
   isEditingAnnotation: false,
   //
+  annotationTemplatesById: {}, // {id:MARKER_#234513_square,label}
+  tempAnnotationTemplateLabel: null,
 };
 
 export const annotationsSlice = createSlice({
@@ -42,6 +44,14 @@ export const annotationsSlice = createSlice({
     setIsEditingAnnotation: (state, action) => {
       state.isEditingAnnotation = action.payload;
     },
+
+    // annotation templates
+    setAnnotationTemplatesById: (state, action) => {
+      state.annotationTemplatesById = action.payload;
+    },
+    setTempAnnotationTemplateLabel: (state, action) => {
+      state.tempAnnotationTemplateLabel = action.payload;
+    },
   },
 });
 
@@ -54,6 +64,8 @@ export const {
   setNewAnnotation,
   setEditedAnnotation,
   setIsEditingAnnotation,
+  //
+  setTempAnnotationTemplateLabel,
 } = annotationsSlice.actions;
 
 export default annotationsSlice.reducer;

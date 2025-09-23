@@ -21,12 +21,12 @@ export default function RightPanelContainer() {
   const width = useSelector((s) => s.rightPanel.width);
 
   const windowHeight = useSelector((s) => s.layout.windowHeight);
-  const bottomBarHeight = useSelector((s) => s.layout.bottomBarHeight);
+  const bottomBarHeight = useSelector((s) => s.layout.bottomBarHeightDesktop);
   const topBarHeight = useSelector((s) => s.layout.topBarHeight);
 
   // helper - maxHeight
 
-  const maxHeight = windowHeight - topBarHeight - bottomBarHeight;
+  const height = windowHeight - topBarHeight - bottomBarHeight;
 
   // helper
 
@@ -41,18 +41,21 @@ export default function RightPanelContainer() {
       {openPanel && (
         <Box
           sx={{
-            //position: "absolute",
-            //top: "12px",
-            //right: "64px",
+            position: "absolute",
+            top: topBarHeight,
+            bottom: bottomBarHeight,
+            right: 0,
             width,
-            minWidth: 0,
-            minHeight: 0,
+            //height,
+            //minWidth: 0,
+            //minHeight: 0,
             //maxHeight,
             bgcolor: "white",
             zIndex: 200,
             display: "flex",
             flexDirection: "column",
             borderLeft: (theme) => `1px solid ${theme.palette.divider}`,
+            ...(!openPanel & { transform: "translateX(100%)" }),
           }}
         >
           {selectedKey === "SHOWER" && <PanelShower />}
