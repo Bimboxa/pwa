@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -57,8 +57,6 @@ export default function MainMapEditorV2() {
 
   const { value: baseMaps } = useBaseMaps({ filterByProjectId: projectId });
 
-  console.log("[MainMapEditorV2] baseMaps", baseMaps);
-
   const entity = useEntity();
   const bgImage = useBgImageInMapEditor();
   //const markers = useMarkers({ addDemoMarkers: false });
@@ -108,21 +106,27 @@ export default function MainMapEditorV2() {
 
   useAutoSelectMainBaseMap();
 
-  if (noBaseMaps) return <ScreenNoBaseMap />;
-
   // handlers
 
-  function handleKeyDown(e) {
-    if (e.key === "Escape") {
-      console.log("ESCAPE");
-      if (enabledDrawingMode) {
-        dispatch(setEnabledDrawingMode(null));
-      } else {
-        dispatch(setSelectedAnnotationId(null));
-        dispatch(setMainBaseMapIsSelected(false));
+  // global listeners like the dot variant
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        console.log("ESCAPE");
+        if (enabledDrawingMode) {
+          dispatch(setEnabledDrawingMode(null));
+        } else {
+          dispatch(setSelectedAnnotationId(null));
+          dispatch(setMainBaseMapIsSelected(false));
+        }
       }
-    }
-  }
+    };
+    document.addEventListener("keydown", onKeyDown, { passive: false });
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [enabledDrawingMode]);
 
   async function handleNewAnnotation(annotation) {
     if (annotation.type === "MARKER") {
@@ -199,13 +203,14 @@ export default function MainMapEditorV2() {
     dispatch(setLegendFormat(newLegendFormat));
   }
 
+  if (noBaseMaps) return <ScreenNoBaseMap />;
+
   // render
 
   return (
     <Box
-      onKeyDown={handleKeyDown}
       ref={containerRef}
-      tabIndex={0}
+      tabIndex={-1}
       sx={{
         width: 1,
         height: 1,
