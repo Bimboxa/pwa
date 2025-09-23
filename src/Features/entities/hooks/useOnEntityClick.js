@@ -24,6 +24,12 @@ export default function useOnEntityClick() {
         if (entity.bgImageKey)
           dispatch(setBgImageKeyInMapEditor(entity.bgImageKey));
 
+        if (entity.bgImageRawTextAnnotations) {
+          dispatch(
+            setBgImageRawTextAnnotations(entity.bgImageRawTextAnnotations)
+          );
+        }
+
         if (entity.legendFormat) dispatch(setLegendFormat(entity.legendFormat));
 
         break;

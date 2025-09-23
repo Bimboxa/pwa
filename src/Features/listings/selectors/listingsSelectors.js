@@ -35,8 +35,25 @@ export const makeGetListingsByOptions = (options) =>
         listings = listings.filter((l) => l.projectId === filterByProjectId);
       }
 
+      // add entity model
+      listings = listings?.map((listing) => {
+        return {
+          ...listing,
+          entityModel: entityModelsObject?.[listing?.entityModelKey] ?? null,
+        };
+      });
+
       if (filterByScopeId) {
-        listings = getSortedListings(listings, scope?.sortedListings);
+        const sharedListings = listings.filter((l) =>
+          ["BASE_MAP", "BLUEPRINT"].includes(l?.entityModel?.type)
+        );
+        const scopedListings = listings.filter(
+          (l) => !["BASE_MAP", "BLUEPRINT"].includes(l?.entityModel?.type)
+        );
+        listings = [
+          ...sharedListings,
+          ...getSortedListings(scopedListings, scope?.sortedListings),
+        ];
       }
       console.log("listings1", filterByScopeId, listings);
 

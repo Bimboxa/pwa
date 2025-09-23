@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 
 import { setSelectedEntityId } from "../entitiesSlice";
 import { triggerEntitiesUpdate } from "../entitiesSlice";
+import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
 export default function useDeleteEntity() {
   const dispatch = useDispatch();
@@ -14,9 +15,11 @@ export default function useDeleteEntity() {
     const table = listing.table;
 
     await db[table].delete(entity.id);
+    await db.annotations.where("entityId").equals(entity.id).delete();
 
     dispatch(setSelectedEntityId(null));
     dispatch(triggerEntitiesUpdate());
+    dispatch(triggerAnnotationsUpdate());
   };
 
   return deleteEntity;

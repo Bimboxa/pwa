@@ -2,7 +2,9 @@ import { useRef } from "react";
 
 import { Box } from "@mui/material";
 
+import FieldSection from "./FieldSection";
 import FieldTextV2 from "./FieldTextV2";
+import FieldMetadata from "./FieldMetadata";
 import FieldImageV2 from "./FieldImageV2";
 import FieldImageKeyFromOptions from "./FieldImageKeyFromOptions";
 import FieldColorV2 from "./FieldColorV2";
@@ -53,6 +55,11 @@ export default function FormGenericV2({
     >
       {templateFields?.map((field) => {
         const value = item ? item[field.key] : null;
+
+        if (field?.type === "section") {
+          return <FieldSection key={field.key} label={field.label} />;
+        }
+
         if (field?.type === "text") {
           return (
             <FieldTextV2
@@ -64,6 +71,19 @@ export default function FormGenericV2({
                 handleFieldValueChange(field.key, newValue)
               }
               options={field.options}
+            />
+          );
+        }
+
+        if (field?.type === "metadata") {
+          return (
+            <FieldMetadata
+              key={field.key}
+              label={field.label}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
             />
           );
         }
