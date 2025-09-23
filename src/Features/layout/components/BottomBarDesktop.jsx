@@ -1,16 +1,22 @@
-import { Box, Paper } from "@mui/material";
+import { useSelector } from "react-redux";
+
+import { Box } from "@mui/material";
 import ButtonAppVersion from "App/components/ButtonAppVersion";
 import ButtonDialogAppConfig from "Features/appConfig/components/ButtonDialogAppConfig";
 import HelperClickInBgPosition from "Features/mapEditor/components/HelperClickInBgPosition";
 
 export default function BottomBarDesktop() {
+  // data
+
+  const height = useSelector((s) => s.layout.bottomBarHeightDesktop);
+
   return (
     <Box
       sx={{
         bgcolor: "white",
         borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-        height: 42,
-        minHeight: 42,
+        height,
+        minHeight: height,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",

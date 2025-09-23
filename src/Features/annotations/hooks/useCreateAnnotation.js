@@ -12,14 +12,14 @@ export default function useCreateAnnotation() {
   const dispatch = useDispatch();
   const { value: listing } = useSelectedListing();
 
-  return async (annotation) => {
+  return async (annotation, options) => {
     const _annotation = {
       ...annotation,
       id: annotation?.id ?? nanoid(),
       listingId: annotation?.listingId ?? listing?.id,
     };
 
-    await createAnnotationService(_annotation);
+    await createAnnotationService(_annotation, options);
     dispatch(triggerAnnotationsUpdate());
 
     return _annotation;

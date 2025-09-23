@@ -3,6 +3,7 @@ import { lighten } from "@mui/material/styles";
 import theme from "Styles/theme";
 
 import MarkerIcon from "Features/markers/components/MarkerIcon";
+import getPropsFromAnnotationTemplateId from "../utils/getPropsFromAnnotationTemplateId";
 
 export default function SelectorAnnotationTemplate({
   selectedAnnotationTemplateId,
@@ -25,8 +26,10 @@ export default function SelectorAnnotationTemplate({
         }}
       >
         {annotationTemplates?.map((annotationTemplate) => {
-          const bgcolor = annotationTemplate?.fillColor;
-          const iconKey = annotationTemplate?.iconKey;
+          const { fillColor, iconKey } = getPropsFromAnnotationTemplateId(
+            annotationTemplate?.id
+          );
+          const bgcolor = fillColor;
           const id = annotationTemplate.id;
           const label = annotationTemplate.label;
           const selected =

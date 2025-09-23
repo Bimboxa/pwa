@@ -8,6 +8,7 @@ import { setIsEditingAnnotation } from "../annotationsSlice";
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
+import useAnnotationTemplates from "../hooks/useAnnotationTemplates";
 
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
 
@@ -28,12 +29,16 @@ export default function SectionEditAnnotation() {
 
   // data
   const spriteImage = useAnnotationSpriteImage();
-  const annotationTemplates = useLegendItems();
+  const annotationTemplates = useAnnotationTemplates();
 
   const editedAnnotation = useSelector((s) => s.annotations.editedAnnotation);
   const selectedAnnotation = useSelectedAnnotation();
   const isEditingAnnotation = useSelector(
     (s) => s.annotations.isEditingAnnotation
+  );
+
+  const tempAnnotationTemplateLabel = useSelector(
+    (s) => s.annotations.tempAnnotationTemplateLabel
   );
 
   // data - func
@@ -60,7 +65,8 @@ export default function SectionEditAnnotation() {
   }
 
   async function handleSave() {
-    await updateAnnotation(annotation);
+    await updateAnnotation(annotation, { tempAnnotationTemplateLabel });
+    dispatch(setIsEditingAnnotation(false));
   }
 
   return (

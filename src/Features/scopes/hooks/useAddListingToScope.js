@@ -7,7 +7,7 @@ export default function useAddListingToScope() {
     const updates = {
       id: scope.id,
       sortedListings: [
-        ...scope.sortedListings,
+        ...(scope.sortedListings ?? []),
         { id: listingId, table: listingTable },
       ],
     };

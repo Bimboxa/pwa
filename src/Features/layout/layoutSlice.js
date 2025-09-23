@@ -9,6 +9,7 @@ const layoutInitialState = {
   //
   topBarHeight: 48,
   bottomBarHeight: 56,
+  bottomBarHeightDesktop: 42,
   //
   viewModeInMobile: "LIST", // "MAP" | "LIST"
   //

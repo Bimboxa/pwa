@@ -1,9 +1,14 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import {
   setEnabledDrawingMode,
   setShowLayerScreenCursor,
 } from "../mapEditorSlice";
+import {
+  setNewAnnotation,
+  setSelectedAnnotationId,
+} from "Features/annotations/annotationsSlice";
+
 import { AddCircle as Marker } from "@mui/icons-material";
 import { IconButton } from "@mui/material";
 
@@ -12,6 +17,11 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 export default function ButtonDrawMarker() {
   const dispatch = useDispatch();
+
+  // data
+
+  const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
+
   // handler
 
   function handleClick() {
@@ -19,6 +29,8 @@ export default function ButtonDrawMarker() {
     editor?.mapEditor?.enableDrawingMode("MARKER", { updateRedux: true });
     dispatch(setEnabledDrawingMode("MARKER"));
     dispatch(setSelectedMenuItemKey("ANNOTATION_FORMAT"));
+    dispatch(setNewAnnotation({ ...newAnnotation, type: "MARKER" }));
+    dispatch(setSelectedAnnotationId(null));
   }
 
   return (

@@ -49,6 +49,9 @@ export default function MainMapEditorV2() {
   const listingId = useSelector((s) => s.listings.selectedListingId);
 
   const annotationSpriteImage = useAnnotationSpriteImage();
+  const tempAnnotationTemplateLabel = useSelector(
+    (s) => s.annotations.tempAnnotationTemplateLabel
+  );
   const mainBaseMap = useMainBaseMap();
   const basePoseInBg = useSelector((s) => s.mapEditor.baseMapPoseInBg);
 
@@ -124,15 +127,18 @@ export default function MainMapEditorV2() {
   async function handleNewAnnotation(annotation) {
     if (annotation.type === "MARKER") {
       const entity = await createEntity({});
-      const _annotation = await createAnnotation({
-        ...newAnnotation,
-        x: annotation.x,
-        y: annotation.y,
-        entityId: entity?.id,
-        listingId: listingId,
-        baseMapId: mainBaseMap?.id,
-        type: "MARKER",
-      });
+      const _annotation = await createAnnotation(
+        {
+          ...newAnnotation,
+          x: annotation.x,
+          y: annotation.y,
+          entityId: entity?.id,
+          listingId: listingId,
+          baseMapId: mainBaseMap?.id,
+          type: "MARKER",
+        },
+        { tempAnnotationTemplateLabel }
+      );
       console.log("[MainMapEditor] new entity created", _annotation, entity);
 
       //

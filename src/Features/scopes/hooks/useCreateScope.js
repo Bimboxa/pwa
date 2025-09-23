@@ -1,6 +1,6 @@
 import { nanoid } from "@reduxjs/toolkit";
 
-import(useSelector);
+import { useSelector } from "react-redux";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
@@ -10,7 +10,6 @@ import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import db from "App/db/db";
 
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
-import { useSelector } from "react-redux";
 
 export default function useCreateScope() {
   const { value: createdBy } = useUserEmail();
