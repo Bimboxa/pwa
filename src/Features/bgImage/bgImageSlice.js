@@ -1,7 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 const bgImageInitialState = {
-  showBgImageInMapEditor: true,
+  showBgImageInMapEditor: false,
   bgImageKeyInMapEditor: "DEFAULT",
 };
 

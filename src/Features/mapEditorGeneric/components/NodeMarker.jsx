@@ -52,8 +52,12 @@ export default function NodeMarker({
   const iconSizePx = 32; // visual icon size in CSS px
   const hitStrokePx = 24; // easier grab ring in CSS px
 
-  const rLocal = (circleDiameterPx / 2) * invF; // circle radius in BG-local px
-  const iconLocal = iconSizePx * invF; // icon box size in BG-local px
+  // const rLocal = (circleDiameterPx / 2) * invF; // circle radius in BG-local px
+  // const iconLocal = iconSizePx * invF; // icon box size in BG-local px
+  // const hitStrokeLocal = Math.max(hitStrokePx * invF, 8 * invF);
+
+  const rLocal = circleDiameterPx / 2;
+  const iconLocal = iconSizePx;
   const hitStrokeLocal = Math.max(hitStrokePx * invF, 8 * invF);
 
   const fillColor = marker?.fillColor ?? "#f44336";

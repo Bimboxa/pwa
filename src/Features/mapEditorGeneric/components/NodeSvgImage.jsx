@@ -160,13 +160,13 @@ export default memo(function NodeSvgImage({
               width: "100%",
               height: "100%",
               position: "relative",
-              border: "1px solid red",
+              //border: "1px solid red",
             }}
           >
             <Rnd
               //bounds="parent" // 🔁 keep for predictable UX
-              //position={cssPos}
-              //size={cssSize}
+              position={cssPos} // need that to restore the position once drag / resize ends.
+              size={cssSize}
               scale={_F}
               onDragStart={startInteraction}
               onResizeStart={startInteraction}

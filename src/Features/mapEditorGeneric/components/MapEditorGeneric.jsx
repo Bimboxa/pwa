@@ -630,6 +630,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         const { nodeId, nodeType } = hit.dataset;
         console.log("hit nodeType", nodeType);
         onNodeClick({ id: nodeId, type: nodeType });
+        onBaseMapSelectionChange(false);
 
         // BASE_MAP
         if (nodeType === "BASE_MAP") {
@@ -776,6 +777,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
             {showBgImage && (
               <NodeSvgImage
                 src={bgImageUrl}
+                dataNodeType="BG_IMAGE"
                 width={bgSize.w}
                 height={bgSize.h}
                 locked

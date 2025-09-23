@@ -13,7 +13,7 @@ const mapEditorInitialState = {
   showLayerScreenCursor: false,
   printModeEnabled: false,
   //
-  bgImageKey: "DEFAULT",
+  bgImageKey: "DEFAULT", // "DEFAULT"
   //
   mainBaseMapIsSelected: false,
   baseMapPoseInBg: { x: 40, y: 40, k: 1 },

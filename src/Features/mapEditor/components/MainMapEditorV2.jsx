@@ -58,9 +58,9 @@ export default function MainMapEditorV2() {
 
   const entity = useEntity();
   const bgImage = useBgImageInMapEditor();
-  const markers = useMarkers({ addDemoMarkers: true });
+  //const markers = useMarkers({ addDemoMarkers: false });
   const annotations = useAnnotations({
-    addDemoAnnotations: true,
+    addDemoAnnotations: false,
     filterByBaseMapId: mainBaseMap?.id,
   });
 
@@ -111,10 +111,12 @@ export default function MainMapEditorV2() {
 
   function handleKeyDown(e) {
     if (e.key === "Escape") {
+      console.log("ESCAPE");
       if (enabledDrawingMode) {
         dispatch(setEnabledDrawingMode(null));
       } else {
         dispatch(setSelectedAnnotationId(null));
+        dispatch(setMainBaseMapIsSelected(false));
       }
     }
   }
@@ -197,7 +199,7 @@ export default function MainMapEditorV2() {
     <Box
       onKeyDown={handleKeyDown}
       ref={containerRef}
-      //tabIndex={0}
+      tabIndex={0}
       sx={{
         width: 1,
         height: 1,
@@ -216,7 +218,7 @@ export default function MainMapEditorV2() {
         onBaseMapSelectionChange={handleBaseMapSelectionChange}
         bgImageUrl={bgImage?.url}
         showBgImage={showBgImage}
-        markers={markers}
+        //markers={markers}
         annotations={annotations}
         cursor={cursor}
         enabledDrawingMode={enabledDrawingMode}
