@@ -278,7 +278,8 @@ export default function NodeText({
 
       <foreignObject
         x={currentX}
-        y={currentY}
+        //y={currentY}
+        y={currentY - boxH / 2}
         width={boxW}
         height={boxH}
         onPointerDown={handlePointerDown}

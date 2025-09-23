@@ -112,6 +112,17 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     return () => ro.disconnect();
   }, []);
 
+  // === ANNOTATIONS ===
+
+  const bgImageAnnotations = annotations.filter(
+    ({ nodeType }) => nodeType === "BG_IMAGE_TEXT"
+  );
+  const baseMapAnnotations = annotations.filter(({ baseMapId }) =>
+    Boolean(baseMapId)
+  );
+
+  console.log("debug_2309_bgImageAnnotations", bgImageAnnotations, annotations);
+
   // === INIT VIEWPORT ===
 
   const fit = useCallback(() => {
@@ -783,6 +794,20 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                 locked
               />
             )}
+            {bgImageAnnotations.map((annotation) => (
+              <NodeAnnotation
+                key={annotation.id}
+                annotation={annotation}
+                imageSize={bgSize}
+                containerK={bgPose.k}
+                worldScale={world.k}
+                onDragEnd={handleAnnotationDragEnd}
+                onChange={handleAnnotationChange}
+                onClick={handleMarkerClick}
+                spriteImage={annotationSpriteImage}
+                selected={selectedAnnotationIds.includes(annotation.id)}
+              />
+            ))}
           </g>
 
           {/* BASE layer */}
@@ -804,7 +829,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
             {!basePoseIsChanging && (
               <g>
-                {annotations?.map((annotation) => (
+                {baseMapAnnotations?.map((annotation) => (
                   <NodeAnnotation
                     key={annotation.id}
                     annotation={annotation}
@@ -860,6 +885,18 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           {showBgImage && (
             <NodeSvgImage src={bgImageUrl} width={bgSize.w} height={bgSize.h} />
           )}
+          {bgImageAnnotations.map((a) => (
+            <NodeAnnotation
+              key={a.id + "_"}
+              annotation={a}
+              imageSize={bgSize}
+              containerK={bgPose.k}
+              worldScale={1}
+              onDragEnd={() => {}}
+              onClick={() => {}}
+              spriteImage={annotationSpriteImage}
+            />
+          ))}
         </g>
 
         <g
@@ -873,7 +910,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
             height={baseSize.h}
           />
 
-          {annotations.map((a) => (
+          {baseMapAnnotations.map((a) => (
             <NodeAnnotation
               key={a.id + "_"}
               annotation={a}

@@ -1,6 +1,6 @@
 import useBgImagesFromAppConfig from "./useBgImagesFromAppConfig";
 
-export default function useBgImageFormTemplate() {
+export default function useBgImageFormTemplate(bgImageItem) {
   // data
 
   const bgImages = useBgImagesFromAppConfig();
@@ -24,6 +24,11 @@ export default function useBgImageFormTemplate() {
           images: bgImages,
           columns: 2,
         },
+      },
+      {
+        key: "metadata",
+        label: "Texte du gabarit",
+        type: "metadata",
       },
     ],
   };

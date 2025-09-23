@@ -63,6 +63,7 @@ export default function MainMapEditorV2() {
   const annotations = useAnnotations({
     addDemoAnnotations: false,
     filterByBaseMapId: mainBaseMap?.id,
+    addBgImageTextAnnotations: true,
   });
 
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);

@@ -2,6 +2,7 @@ import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import demoAnnotations from "../data/demoAnnotations";
+import useBgImageTextAnnotations from "Features/bgImage/hooks/useBgImageTextAnnotations";
 
 import db from "App/db/db";
 
@@ -11,6 +12,7 @@ export default function useAnnotations(options) {
   const addDemoAnnotations = options?.addDemoAnnotations;
   const filterByBaseMapId = options?.filterByBaseMapId;
   const filterByListingId = options?.filterByListingId;
+  const addBgImageTextAnnotations = options?.addBgImageTextAnnotations;
 
   // data
 
@@ -22,6 +24,7 @@ export default function useAnnotations(options) {
   const isEditingAnnotation = useSelector(
     (s) => s.annotations.isEditingAnnotation
   );
+  const bgImageTextAnnotations = useBgImageTextAnnotations();
 
   // main
 
@@ -57,6 +60,10 @@ export default function useAnnotations(options) {
 
   if (addDemoAnnotations)
     annotations = [...(annotations ?? []), ...demoAnnotations];
+
+  if (addBgImageTextAnnotations) {
+    annotations = [...(annotations ?? []), ...bgImageTextAnnotations];
+  }
 
   // return
 

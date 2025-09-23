@@ -8,6 +8,8 @@ import ToolbarMapEditorContainer from "./ToolbarMapEditorContainer";
 import ButtonSelectorBaseMapInMapEditor from "Features/baseMaps/components/ButtonSelectorBaseMapInMapEditor";
 //import LayerCreateLocatedEntity from "./LayerCreateLocatedEntity";
 import LeftPanelOverviewInEditor from "Features/leftPanel/components/LeftPanelOverviewInEditor";
+import ButtonCreateBlueprint from "Features/blueprints/components/ButtonCreateBlueprint";
+import ButtonBlueprintInMapEditor from "Features/blueprints/components/ButtonBlueprintInMapEditor";
 
 export default function LayerMapEditorDesktop({ svgElement }) {
   return (
@@ -61,6 +63,17 @@ export default function LayerMapEditorDesktop({ svgElement }) {
       >
         <BlockSaveBaseMapViewInEditor />
       </Box> */}
+
+      <Box
+        sx={{
+          position: "absolute",
+          bottom: "8px",
+          left: "8px",
+          zIndex: 10000,
+        }}
+      >
+        <ButtonBlueprintInMapEditor />
+      </Box>
 
       <Box
         sx={{
