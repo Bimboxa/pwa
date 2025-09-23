@@ -51,6 +51,7 @@ export default function SectionSelectorPresetListings({
               key={listing.key}
               sx={{ p: 0 }}
               onClick={(e) => handleClick(e, listing.key)}
+              divider
             >
               <Box
                 sx={{
@@ -63,9 +64,14 @@ export default function SectionSelectorPresetListings({
               >
                 <Box sx={{ display: "flex", alignItems: "center" }}>
                   <IconListingVariantBasic listing={listing} />
-                  <Typography sx={{ ml: 1 }}>{listing.name}</Typography>
+                  <Typography sx={{ ml: 1, fontWeight: "bold" }}>
+                    {listing.name}
+                  </Typography>
                 </Box>
-                <Box color="secondary.main">
+                <Box
+                  color="secondary.main"
+                  sx={{ display: "flex", alignItems: "center", mr: 1 }}
+                >
                   {checked ? <CheckBox /> : <CheckBoxOutlineBlank />}
                 </Box>
               </Box>

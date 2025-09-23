@@ -1,28 +1,19 @@
-import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import { useSelector } from "react-redux";
-import { useLiveQuery } from "dexie-react-hooks";
-import db from "App/db/db";
+import useListings from "Features/listings/hooks/useListings";
 
 export default function useProjectBaseMapListings() {
+  // data
+
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const appConfig = useAppConfig();
 
-  return useLiveQuery(async () => {
-    if (!projectId) return null;
+  // main
 
-    let listings = await db.listings
-      .where("projectId")
-      .equals(projectId)
-      .toArray();
+  const listings = useListings({
+    filterByProjectId: projectId,
+    filterByEntityModelType: "BASE_MAP",
+  });
 
-    // filter by baseMap
-    listings = listings.map((listing) => ({
-      ...listing,
-      entityModel: appConfig?.entityModelsObject?.[listing?.entityModelKey],
-    }));
+  // result
 
-    listings = listings.filter((l) => l.entityModel?.type === "BASE_MAP");
-
-    return listings;
-  }, [projectId]);
+  return listings;
 }

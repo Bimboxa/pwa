@@ -19,7 +19,7 @@ export default function PanelSelectorListingsOnboarding() {
 
   // strings
 
-  const helperS = `Sélectionnez les "objets" que vous souhaitez repérer sur le fond de plan.`;
+  const helperS = `Sélectionnez les "objets" que vous souhaitez repérer.`;
   const saveS = "Enregistrer";
 
   // data
@@ -64,8 +64,8 @@ export default function PanelSelectorListingsOnboarding() {
     }
   }
   return (
-    <BoxFlexVStretch>
-      <Box sx={{ p: 2 }}>
+    <BoxFlexVStretch sx={{ bgcolor: "white" }}>
+      <Box sx={{ p: 4 }}>
         <Typography variant="body2" color="text.secondary">
           {helperS}
         </Typography>

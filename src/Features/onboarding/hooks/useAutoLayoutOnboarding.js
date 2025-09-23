@@ -15,6 +15,7 @@ export default function useAutoLayoutOnboarding() {
   );
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const baseMap = useMainBaseMap();
   const presetListingsKeys = useSelector(
     (s) => s.onboarding.presetListingsKeys
@@ -22,24 +23,26 @@ export default function useAutoLayoutOnboarding() {
 
   // state
 
-  const [step, setStep] = useState("PROJECT"); // PROJECT, BASE_MAP, LISTINGS
+  const [step, setStep] = useState("PROJECT"); // PROJECT, SCOPES, LISTINGS
 
   // effect - setStep
 
   useEffect(() => {
     if (!projectId) {
       setStep("PROJECT");
-    } else if (!baseMap?.id) {
-      setStep("BASE_MAP");
+    } else if (!scopeId) {
+      setStep("SCOPE");
     } else if (!presetListingsKeys) {
       setStep("LISTINGS");
+    } else if (!baseMap?.id) {
+      setStep("BASE_MAP");
     }
   }, [projectId, baseMap?.id]);
   // effect
 
   useEffect(() => {
     if (onboardingIsActive) {
-      if (step === "PROJECT" || step === "BASE_MAPS") {
+      if (step === "PROJECT" || step === "SCOPE") {
         dispatch(setOpenLeftPanel(false));
         dispatch(setSelectedMenuItemKey(null));
       } else if (step === "LISTINGS") {
