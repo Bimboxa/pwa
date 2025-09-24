@@ -1,34 +1,53 @@
 import { useSelector } from "react-redux";
 
+import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
+import useAnnotations from "Features/annotations/hooks/useAnnotations";
+
 import useListings from "Features/listings/hooks/useListings";
 
 import db from "App/db/db";
 import { useLiveQuery } from "dexie-react-hooks";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import getAnnotationTemplateIdFromAnnotation from "Features/annotations/utils/getAnnotationTemplateIdFromAnnotation";
+import getPropsFromAnnotationTemplateId from "Features/annotations/utils/getPropsFromAnnotationTemplateId";
 
 export default function useLegendItems() {
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const listings = useListings({ filterByProjectId: projectId });
+  const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+
+  const annotationTemplates = useAnnotationTemplates();
+  const annotations = useAnnotations({
+    filterByBaseMapId: baseMapId,
+  });
 
   // helpers
 
-  const legendListing = listings?.find(
-    (listing) => listing?.entityModel?.type === "LEGEND_ENTITY"
-  );
+  let legendItems = [];
+  const idsMap = {};
 
-  console.log("debug_0910 legendListing", listings);
-
-  const legendEntity = useLiveQuery(async () => {
-    if (legendListing?.id) {
-      return await db.legends
-        .where("listingId")
-        .equals(legendListing?.id)
-        .first();
+  annotations?.forEach((annotation) => {
+    const templateId = getAnnotationTemplateIdFromAnnotation(annotation);
+    const template = annotationTemplates?.find((t) => t.id === templateId);
+    if (!idsMap[templateId]) {
+      idsMap[templateId] = annotation;
+      const { iconKey, fillColor } = annotation;
+      legendItems.push({
+        id: templateId,
+        iconKey,
+        fillColor,
+        label: template?.label ?? "A définir",
+      });
     }
-  }, [legendListing?.id]);
+  });
 
-  // main
+  // sort
 
-  return legendEntity?.sortedItems;
+  legendItems = legendItems.sort((a, b) => a.label.localeCompare(b.label));
+
+  // render
+
+  return legendItems;
 }

@@ -22,6 +22,22 @@ export default memo(function NodeLegend({
   const poseEditable = selected;
   const { x = 16, y = 16, width = 260 } = legendFormat ?? {};
 
+  // DRAG
+
+  const [delta, setDelta] = useState({ x: 0, y: 0, k: 1 });
+  // Delta in CSS px for Rnd
+  const cssPos = useMemo(
+    () => ({ x: delta.x, y: delta.y }),
+    [delta.x, delta.y]
+  );
+  // Live updates (CSS -> LOCAL)
+  const onDrag = useCallback(
+    (e, d) => {
+      setDelta((p) => ({ ...p, x: d.x, y: d.y }));
+    },
+    [] // 🔧 depend on F
+  );
+
   // ===== scale: BG-local -> CSS px
   const F = useMemo(
     () => (worldScale || 1) * (containerK || 1),
@@ -61,6 +77,7 @@ export default memo(function NodeLegend({
         width: widthLocal,
         height: heightLocal, // auto height committed in BG-local
       });
+      setDelta({ x: 0, y: 0, k: 1 });
     },
     [x, y, F, widthLocal, heightLocal, onLegendFormatChange]
   );
@@ -93,7 +110,7 @@ export default memo(function NodeLegend({
     iconKeys = [],
   } = spriteImage || {};
 
-  function LegendIcon({ iconKey, iconColor }) {
+  function LegendIcon({ iconKey, fillColor }) {
     const idx = Math.max(0, iconKeys.indexOf(iconKey));
     const row = Math.floor(idx / columns);
     const col = idx % columns;
@@ -103,7 +120,7 @@ export default memo(function NodeLegend({
           width: ICON_PX,
           height: ICON_PX,
           borderRadius: ICON_PX / 2,
-          background: iconColor || "#f44336",
+          background: fillColor || "#f44336",
           display: "grid",
           placeItems: "center",
           overflow: "hidden",
@@ -157,7 +174,7 @@ export default memo(function NodeLegend({
             <div style={{ alignSelf: "start" }}>
               <LegendIcon
                 iconKey={it.iconType ?? it.iconKey}
-                iconColor={it.iconColor}
+                fillColor={it.fillColor}
               />
             </div>
             <div
@@ -212,11 +229,11 @@ export default memo(function NodeLegend({
     >
       <div style={{ width: "100%", position: "relative" }}>
         <Rnd
-          //position={{ x: dxCss, y: dyCss }} // CSS px
+          position={cssPos}
           //size={{ width: widthCss, height: measuredCssH }} // CSS px
           size={{ width: "100%", height: "100%" }}
           scale={F} // <- SAME F everywhere
-          //onDrag={onDrag}
+          onDrag={onDrag}
           onDragStop={onDragStop}
           //onResize={onResize}
           onResizeStop={onResizeStop}

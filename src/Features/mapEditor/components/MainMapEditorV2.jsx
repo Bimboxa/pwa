@@ -259,12 +259,12 @@ export default function MainMapEditorV2() {
         <LayerScreenCursor containerEl={containerRef?.current} />
       )}
 
-      <Button
+      {/* <Button
         onClick={handleClick}
         sx={{ position: "absolute", bottom: 10, right: 10 }}
       >
         Print
-      </Button>
+      </Button> */}
     </Box>
   );
 }

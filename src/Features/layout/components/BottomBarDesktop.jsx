@@ -39,7 +39,9 @@ export default function BottomBarDesktop() {
         </Box>
       )}
 
-      <HelperClickInBgPosition />
+      <Box>
+        <HelperClickInBgPosition />
+      </Box>
     </Box>
   );
 }

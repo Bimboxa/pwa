@@ -10,6 +10,7 @@ import ButtonSelectorBaseMapInMapEditor from "Features/baseMaps/components/Butto
 import LeftPanelOverviewInEditor from "Features/leftPanel/components/LeftPanelOverviewInEditor";
 import ButtonCreateBlueprint from "Features/blueprints/components/ButtonCreateBlueprint";
 import ButtonBlueprintInMapEditor from "Features/blueprints/components/ButtonBlueprintInMapEditor";
+import ButtonDownloadMapEditorInPdf from "./ButtonDownloadMapEditorInPdf";
 
 export default function LayerMapEditorDesktop({ svgElement }) {
   return (
@@ -85,6 +86,18 @@ export default function LayerMapEditorDesktop({ svgElement }) {
         }}
       >
         <ToolbarMapEditorContainer svgElement={svgElement} />
+      </Box>
+
+      <Box
+        sx={{
+          position: "absolute",
+          bottom: "8px",
+          right: "8px",
+          //transform: "translateX(-100%)",
+          zIndex: 10000,
+        }}
+      >
+        <ButtonDownloadMapEditorInPdf svgElement={svgElement} />
       </Box>
     </>
   );

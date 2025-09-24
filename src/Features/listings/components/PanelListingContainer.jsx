@@ -10,7 +10,7 @@ import PanelListing from "./PanelListing";
 import PanelSelectorListing from "./PanelSelectorListing";
 //import PanelCreateListingEntity from "Features/entities/components/PanelCreateListingEntity";
 import PanelEditEntity from "Features/entities/components/PanelEditEntity";
-import Panel from "Features/layout/components/Panel";
+
 import PanelSelectorListingsOnboarding from "./PanelSelectorListingsOnboarding";
 import useAutoShowPanelSelectorPresetListings from "../hooks/useAutoShowPanelSelectorPresetListings";
 

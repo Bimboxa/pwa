@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -30,7 +30,12 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
 
   // state
 
+  const tempName = useSelector((s) => s.blueprints.tempName);
   const [name, setName] = useState("");
+
+  useEffect(() => {
+    if (tempName) setName(tempName);
+  }, [tempName]);
 
   // data
 
@@ -64,7 +69,7 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
     const _newEntity = {
       ...newEntity,
       image: { file, imageUrlClient: URL.createObjectURL(blob) },
-      name: "Nouveau plan",
+      name,
       baseMapPoseInBg,
       baseMapId,
       bgImageKey,
