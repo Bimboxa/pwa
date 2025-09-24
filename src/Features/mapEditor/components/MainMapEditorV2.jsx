@@ -12,6 +12,7 @@ import {
 } from "../mapEditorSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import { setSelectedEntityId } from "Features/entities/entitiesSlice";
+import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -116,6 +117,7 @@ export default function MainMapEditorV2() {
         console.log("ESCAPE");
         if (enabledDrawingMode) {
           dispatch(setEnabledDrawingMode(null));
+          dispatch(setNewAnnotation({}));
         } else {
           dispatch(setSelectedAnnotationId(null));
           dispatch(setMainBaseMapIsSelected(false));

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Box } from "@mui/material";
 
 import theme from "Styles/theme";
+import MarkerIconNewMarker from "Features/markers/components/MarkerIconNewMarker";
 
 export default function LayerScreenCursor({ containerEl }) {
   const [pos, setPos] = useState({ x: 0, y: 0 });
@@ -63,13 +64,14 @@ export default function LayerScreenCursor({ containerEl }) {
           pointerEvents: "none",
           top: `${pos.y}px`,
           left: `${pos.x}px`,
-          width: "24px",
-          height: "24px",
-          transform: "translate(-50%,-10%)",
+          transform: "translate(-50%,-120%)",
           zIndex: 1,
-          bgcolor: "pink",
+          display: "flex",
+          flexDirection: "column",
         }}
-      />
+      >
+        <MarkerIconNewMarker />
+      </Box>
       {/* Vertical line */}
       <div
         style={{
