@@ -58,7 +58,7 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
 
   // helpers
 
-  const mode = entity.id ? "UPDATE" : "CREATE";
+  const mode = entity?.id ? "UPDATE" : "CREATE";
 
   // handlers
 

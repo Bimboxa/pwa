@@ -9,6 +9,7 @@ export default function useAnnotationTemplates() {
   );
 
   return useLiveQuery(async () => {
+    if (!listingId) return;
     return await db.annotationTemplates
       .where("listingId")
       .equals(listingId)

@@ -24,12 +24,12 @@ export default function ButtonCreateBlueprint() {
 
   const createBlueprintsListing = useCreateDefaultBlueprintsListing();
 
-  const scope = useSelectedScope();
+  const { value: scope } = useSelectedScope();
   const baseMap = useMainBaseMap();
 
   // helper
 
-  const defaultName = scope.name + " • " + baseMap.name;
+  const defaultName = scope?.name + " • " + baseMap?.name;
 
   // handlers
 

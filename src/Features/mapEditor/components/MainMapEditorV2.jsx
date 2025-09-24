@@ -27,6 +27,7 @@ import useLegendItems from "Features/legend/hooks/useLegendItems";
 //import useCreateMarker from "Features/markers/hooks/useCreateMarker";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
+import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgImageRawTextAnnotations";
 
 import { Box, Button } from "@mui/material";
 
@@ -107,6 +108,7 @@ export default function MainMapEditorV2() {
   // effects
 
   useAutoSelectMainBaseMap();
+  useAutoBgImageRawTextAnnotations();
 
   // handlers
 

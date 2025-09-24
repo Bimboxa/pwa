@@ -5,7 +5,10 @@ import {
   setSelectedMainBaseMapId,
   setLegendFormat,
 } from "Features/mapEditor/mapEditorSlice";
-import { setBgImageKeyInMapEditor } from "Features/bgImage/bgImageSlice";
+import {
+  setBgImageKeyInMapEditor,
+  setShowBgImageInMapEditor,
+} from "Features/bgImage/bgImageSlice";
 
 import useEntityModel from "./useEntityModel";
 
@@ -16,6 +19,7 @@ export default function useOnEntityClick() {
     console.log("debug_1609 click on entity", entity);
     switch (entity?.entityModelType) {
       case "BLUEPRINT":
+        dispatch(setShowBgImageInMapEditor(true));
         if (entity.baseMapPoseInBg)
           dispatch(setBaseMapPoseInBg(entity.baseMapPoseInBg));
 
