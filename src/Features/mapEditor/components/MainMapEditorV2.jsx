@@ -48,6 +48,7 @@ export default function MainMapEditorV2() {
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const listingId = useSelector((s) => s.listings.selectedListingId);
 
   const annotationSpriteImage = useAnnotationSpriteImage();
@@ -93,7 +94,7 @@ export default function MainMapEditorV2() {
 
   // helpers
 
-  const noBaseMaps = !baseMaps?.length > 0;
+  const noBaseMaps = !baseMaps?.length > 0 || !scopeId;
   const showScreenCursor = Boolean(enabledDrawingMode);
 
   let cursor;

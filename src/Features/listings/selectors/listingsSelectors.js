@@ -2,6 +2,7 @@ import { createSelectorCreator, lruMemoize } from "reselect";
 import isEqual from "fast-deep-equal";
 
 import getSortedListings from "../utils/getSortedListings";
+import testObjectHasProp from "Features/misc/utils/testObjectHasProp";
 
 const createDeepEqualSelector = createSelectorCreator(lruMemoize, isEqual);
 
@@ -31,7 +32,9 @@ export const makeGetListingsByOptions = (options) =>
 
       let listings = Object.values(listingsById ?? {}) ?? [];
 
-      if (filterByProjectId) {
+      const test = testObjectHasProp(options, "filterByProjectId");
+      console.log("debug_2409_test", test, options);
+      if (test) {
         listings = listings.filter((l) => l.projectId === filterByProjectId);
       }
 

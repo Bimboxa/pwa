@@ -31,7 +31,10 @@ export default function useAnnotations(options) {
   let annotations = useLiveQuery(async () => {
     let _annotations;
     if (filterByBaseMapId) {
-      _annotations = await db.annotations.toArray();
+      _annotations = await db.annotations
+        .where("baseMapId")
+        .equals(filterByBaseMapId)
+        .toArray();
     } else {
       _annotations = await db.annotations.toArray();
     }
@@ -54,6 +57,7 @@ export default function useAnnotations(options) {
     isEditingAnnotation,
     editedAnnotation,
     filterByListingId,
+    filterByBaseMapId,
   ]);
 
   // demo

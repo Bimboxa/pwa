@@ -1,17 +1,21 @@
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import { getListingsSelector } from "../services/listingsSelectorCache";
+import getObjectHash from "Features/misc/utils/getObjectHash";
 
 export default function useListingsByScope(options) {
-  const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const newOptions = {
     ...options,
-    filterByProjectId: selectedProjectId,
     filterByScopeId: selectedScopeId,
   };
 
-  const selector = useMemo(() => getListingsSelector(newOptions), [newOptions]);
+  const newOptionsHash = getObjectHash(newOptions);
+
+  const selector = useMemo(
+    () => getListingsSelector(newOptions),
+    [newOptionsHash]
+  );
 
   // main
 

@@ -17,13 +17,18 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
 
   // strings
 
-  const seeAllS = "Voir tous les modules";
+  const seeAllS = "Voir les listes";
 
-  const pinnedS = "Modules favoris";
+  const pinnedS = "Listes";
 
   // data
 
-  const { value: listings } = useListingsByScope();
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+
+  const { value: listings } = useListingsByScope({
+    filterByProjectId: projectId ?? null,
+  });
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   const onboardingIsActive = useSelector(
     (s) => s.onboarding.onboardingIsActive
@@ -37,7 +42,7 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
 
   // render
 
-  if (onboardingIsActive)
+  if (onboardingIsActive || !scopeId)
     return (
       <Box
         sx={{
@@ -45,6 +50,7 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
           display: "flex",
           flexDirection: "column",
           width: 1,
+          flexGrow: 1,
         }}
       />
     );
@@ -55,9 +61,10 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
         bgcolor: "primary.main",
         display: "flex",
         flexDirection: "column",
-
+        flexGrow: 1,
         pt: 1,
         alignItems: "center",
+        minHeight: 0,
       }}
     >
       <Tooltip title={seeAllS} placement="right">

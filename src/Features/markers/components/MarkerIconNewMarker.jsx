@@ -38,7 +38,7 @@ export default function MarkerIconNewMarker() {
   if (unvalidMarker)
     return (
       <Box sx={{ bgcolor: "warning.main", p: 1, borderRadius: "4px" }}>
-        <Typography variant="body2" color="white">
+        <Typography variant="body2" color="white" noWrap>
           {selectMarkerS}
         </Typography>
       </Box>
