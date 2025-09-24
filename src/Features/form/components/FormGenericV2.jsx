@@ -14,6 +14,7 @@ import FieldAnnotationTemplateId from "./FieldAnnotationTemplateId";
 import FieldIconBasic from "./FieldIconBasic";
 import FieldOptionSelector from "./FieldOptionSelector";
 import FieldCheck from "./FieldCheck";
+import FieldButton from "./FieldButton";
 
 import FieldZonesVariantGrid from "./FieldZonesVariantGrid";
 import FieldZoneVariantGrid from "./FieldZoneVariantGrid";
@@ -97,6 +98,16 @@ export default function FormGenericV2({
               onChange={(newValue) =>
                 handleFieldValueChange(field.key, newValue)
               }
+            />
+          );
+        }
+
+        if (field?.type === "button") {
+          return (
+            <FieldButton
+              key={field.key}
+              label={field.label}
+              options={field.options}
             />
           );
         }

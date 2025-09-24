@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
+import { Box } from "@mui/material";
+
 import theme from "Styles/theme";
 
 export default function LayerScreenCursor({ containerEl }) {
@@ -54,6 +56,20 @@ export default function LayerScreenCursor({ containerEl }) {
 
   return (
     <>
+      {/* marker */}
+      <Box
+        sx={{
+          position: "absolute",
+          pointerEvents: "none",
+          top: `${pos.y}px`,
+          left: `${pos.x}px`,
+          width: "24px",
+          height: "24px",
+          transform: "translate(-50%,-10%)",
+          zIndex: 1,
+          bgcolor: "pink",
+        }}
+      />
       {/* Vertical line */}
       <div
         style={{

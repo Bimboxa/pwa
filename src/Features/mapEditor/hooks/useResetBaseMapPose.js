@@ -5,13 +5,9 @@ import { setBaseMapPoseInBg } from "../mapEditorSlice";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBgImageInMapEditor from "Features/mapEditor/hooks/useBgImageInMapEditor";
 
-import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
-
 import getDefaultBaseMapPoseInBg from "../utils/getDefaultBaseMapPoseInBg";
 
-export default function ButtonInPanelResetBaseMapPose({
-  label = "Réinitialiser la position",
-}) {
+export default function useResetBaseMapPose() {
   const dispatch = useDispatch();
 
   // data
@@ -21,7 +17,7 @@ export default function ButtonInPanelResetBaseMapPose({
 
   // handlers
 
-  async function handleClick() {
+  const reset = async () => {
     const baseMapUrl = mainBaseMap.image.imageUrlClient;
     const bgUrl = bgImage.url;
     const bbox = bgImage.bbox;
@@ -31,7 +27,7 @@ export default function ButtonInPanelResetBaseMapPose({
       bbox,
     });
     dispatch(setBaseMapPoseInBg(defaultBaseMapPoseInBg));
-  }
+  };
 
-  return <ButtonInPanelV2 label={label} onClick={handleClick} />;
+  return reset;
 }

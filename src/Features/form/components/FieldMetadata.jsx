@@ -39,7 +39,14 @@ export default function FieldMetadata({ value, onChange, label }) {
           {label}
         </Typography>
       </Box>
-      <Box sx={{ display: "flex", justifyContent: "center", p: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          p: 1,
+          flexDirection: "column",
+        }}
+      >
         {value?.map(({ key, value: _value, label: _label }) => {
           return (
             <FieldTextV2

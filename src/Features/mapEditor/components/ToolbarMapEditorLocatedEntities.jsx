@@ -34,14 +34,14 @@ export default function ToolbarMapEditorLocatedEntities() {
       <Box
         sx={{
           bgcolor: "secondary.main",
-          p: 1,
-          borderRadius: "8px",
+          p: 0.25,
+          borderRadius: "4px",
           color: "white",
           display: "flex",
           alignItems: "center",
         }}
       >
-        <Typography sx={{ mr: 1 }}>{addS}</Typography>
+        <Typography sx={{ px: 2 }}>{addS}</Typography>
         <Toolbar>
           <ButtonDrawMarker />
         </Toolbar>

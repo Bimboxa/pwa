@@ -24,6 +24,7 @@ export default function useBgImageTextAnnotations() {
         x: textAnnotation.position[0] / bgImageInMapEditor.width,
         y: textAnnotation.position[1] / bgImageInMapEditor.height,
         fontSize: textAnnotation.fontSize,
+        fontWeight: textAnnotation.fontWeight,
         type: "TEXT",
         nodeType: "BG_IMAGE_TEXT",
         textValue: rawAnnotations[textAnnotation.key],

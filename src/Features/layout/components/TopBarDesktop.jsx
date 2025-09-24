@@ -21,6 +21,7 @@ export default function TopBarDesktop() {
       sx={{
         width: 1,
         height,
+        minHeight: height,
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",

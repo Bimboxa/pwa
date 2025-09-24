@@ -26,6 +26,7 @@ export default function NodeText({
 }) {
   // text
   const fontFamily = text.fontFamily ?? "inherit";
+  const fontWeight = text.fontWeight ?? "normal";
   const placeholder = text.placeholder ?? "Texte";
   const fontSizePx = text.fontSize ?? 16;
   const paddingPx = 8;
@@ -267,7 +268,7 @@ export default function NodeText({
             fontSize: `${fontSizePx}px`,
             lineHeight: 1.25,
             fontFamily,
-            fontWeight: "inherit",
+            fontWeight,
             letterSpacing: "inherit",
             pointerEvents: "none",
           }}
@@ -323,6 +324,7 @@ export default function NodeText({
               //width: boxW,
               //height: boxH,
               fontSize,
+              fontWeight,
               lineHeight: 1.25,
               px: padding + "px",
               py: padding / 2 + "px",
@@ -356,6 +358,7 @@ export default function NodeText({
               readOnly: !isEditing,
               style: {
                 fontSize,
+                fontWeight,
                 whiteSpace: "nowrap",
                 borderColor: "transparent",
               },

@@ -121,8 +121,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     Boolean(baseMapId)
   );
 
-  console.log("debug_2309_bgImageAnnotations", bgImageAnnotations, annotations);
-
   // === INIT VIEWPORT ===
 
   const fit = useCallback(() => {
