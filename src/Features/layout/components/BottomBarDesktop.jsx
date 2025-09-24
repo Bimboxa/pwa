@@ -1,14 +1,17 @@
 import { useSelector } from "react-redux";
 
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
+
 import ButtonAppVersion from "App/components/ButtonAppVersion";
 import ButtonDialogAppConfig from "Features/appConfig/components/ButtonDialogAppConfig";
 import HelperClickInBgPosition from "Features/mapEditor/components/HelperClickInBgPosition";
+import useHelperMessageInBottomBar from "Features/mapEditor/hooks/useHelperMessageInBottomBar";
 
 export default function BottomBarDesktop() {
   // data
 
   const height = useSelector((s) => s.layout.bottomBarHeightDesktop);
+  const helperMessage = useHelperMessageInBottomBar();
 
   return (
     <Box
@@ -27,6 +30,14 @@ export default function BottomBarDesktop() {
         <ButtonAppVersion />
         <ButtonDialogAppConfig />
       </Box>
+
+      {helperMessage && (
+        <Box sx={{ bgcolor: "secondary.main", borderRadius: "4px", px: 1 }}>
+          <Typography color="white" variant="caption">
+            {helperMessage}
+          </Typography>
+        </Box>
+      )}
 
       <HelperClickInBgPosition />
     </Box>
