@@ -22,7 +22,7 @@ const mapEditorInitialState = {
   //
   selectedNode: null, // {id,type,entityId}
   //
-  legendFormat: { x: 0, y: 0, width: 200, height: 50 },
+  legendFormat: { x: 1320, y: 216, width: 200, height: 50 },
 };
 
 export const mapEditorSlice = createSlice({

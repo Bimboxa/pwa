@@ -20,7 +20,7 @@ export default memo(function NodeLegend({
   onLegendFormatChange,
 }) {
   const poseEditable = selected;
-  const { x = 16, y = 16, width = 260 } = legendFormat ?? {};
+  const { x = 16, y = 16, width = 260, fontSize = 18 } = legendFormat ?? {};
 
   // DRAG
 
@@ -183,7 +183,7 @@ export default memo(function NodeLegend({
                 overflowWrap: "anywhere",
                 wordBreak: "break-word",
                 lineHeight: 1.25,
-                fontSize: 13,
+                fontSize,
               }}
             >
               {it.label}
