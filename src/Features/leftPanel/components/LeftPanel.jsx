@@ -38,6 +38,7 @@ export default function LeftPanel() {
       <Box
         sx={{
           width,
+          minWidth: width,
           //borderRight: "1px solid #ccc",
           display: openLeftPanel ? "flex" : "none",
           flexDirection: "column",

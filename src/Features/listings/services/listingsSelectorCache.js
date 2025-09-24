@@ -1,5 +1,5 @@
 import stableStringify from "fast-json-stable-stringify";
-import {makeGetListingsByOptions} from "../selectors/listingsSelectors";
+import { makeGetListingsByOptions } from "../selectors/listingsSelectors";
 
 const selectorCache = new Map();
 

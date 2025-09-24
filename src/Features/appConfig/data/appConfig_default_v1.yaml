@@ -1,4 +1,4 @@
-name: "Etandex"
+name: "Conf. par défaut"
 version: "16/07/2025"
 isDefault: true
 
@@ -44,7 +44,6 @@ strings:
     nameLabel: Nom du chantier / opportunité
 
   scope:
-    dashboardTitle: "Krtos"
     nameSingular: "Krto"
     namePlural: "Krto"
     seeAll: "Toutes les Krtos"
@@ -57,7 +56,6 @@ strings:
     noScope: "Aucun Krto"
 
   listing:
-    namePlural: "Modules"
     locatedEntities: "Annotations"
 
   presetConfig:
@@ -97,54 +95,19 @@ orgaData:
 # FEATURES
 
 features:
-  entityModels:
-    keys:
-      - baseMap
-      - issue
-      - blueprint
   bgImages:
     options:
-      - key: BASIC
+      - key: DEFAULT
         url: https://public.media.bimboxa.com/bg_image_A4_150dpi_default.png
         name: "A4 - 150dpi"
         width: 1740
         height: 1240
-        bbox: [70, 70, 1670, 1170]
         isDefault: true
-      - key: DEFAULT
-        # url: https://public.media.bimboxa.com/bg_image_A4_150dpi_etandex_wS9kwOYWr2ltTF9l2L-bu.png
-        url: https://public.media.bimboxa.com/bg_image_A4_150dpi_etandex_2409wOYWr2ltTF9l2L-bu.png
+      - key: BASIC
+        url: https://public.media.bimboxa.com/bg_image_A4_150dpi_etandex_wS9kwOYWr2ltTF9l2L-bu.png
         name: "A4 - 150dpi - Cartouche Etandex"
         width: 1740
         height: 1240
-        bbox: [75, 215, 1600, 1100]
-        textAnnotations:
-          - key: projectName
-            label: "Chantier"
-            position: [570, 89]
-            fontSize: 18
-            mappedTo: projectName
-          - key: projectRef
-            label: "Réf. interne"
-            position: [1380, 89]
-            fontSize: 18
-            mappedTo: projectClientRef
-          - key: title
-            label: "Titre"
-            position: [570, 130]
-            fontSize: 18
-            fontWeight: "bold"
-            mappedTo: blueprintTitle
-          - key: authorName
-            label: "Auteur"
-            position: [1380, 129]
-            fontSize: 18
-          - key: date
-            label: "Date"
-            position: [1380, 171]
-            fontSize: 18
-            mappedTo: todayS
-
   presetScopes:
     templatesImageUrl: https://public.media.bimboxa.com/scope_templates_etandex.gif
   annotations:
@@ -180,52 +143,6 @@ creation:
 # ENTITY MODEL
 
 entityModelsObject:
-  blueprint:
-    key: blueprint
-    name: Plan
-    type: BLUEPRINT
-    defaultTable: blueprints
-    defaultColor: *red500
-    defaultIconKey: blueprint
-    defaultListingName: Plans de repérage
-    strings:
-      labelNew: Nouveau plan
-    labelKey: name
-    fieldsObject:
-      name:
-        key: name
-        type: text
-        label: Nom
-      image:
-        key: image
-        type: image
-        label: Image
-        options:
-          maxSize: 5000
-
-  baseMap:
-    key: baseMap
-    name: Fond de plan
-    type: BASE_MAP
-    defaultTable: baseMaps
-    defaultColor: *purple700
-    defaultIconKey: map
-    defaultListingName: Fonds de plan
-    strings:
-      labelNew: Nouveau fond de plan
-    labelKey: name
-    fieldsObject:
-      name:
-        key: name
-        type: text
-        label: Nom
-      image:
-        key: image
-        type: image
-        label: Image
-        options:
-          maxSize: 5000
-
   legend:
     key: legend
     type: "LEGEND_ENTITY"
@@ -233,10 +150,6 @@ entityModelsObject:
   annotation:
     key: annotation
     type: LOCATED_ENTITY
-    defaultTable: entities
-    defaultIconKey: annotation
-    defaultColor: *orange300
-    defaultSpriteImageKey: DEFAULT
     strings:
       labelNew: Nouvelle annotation
     labelKey: text
@@ -250,9 +163,7 @@ entityModelsObject:
 
   issue:
     key: issue
-    name: Observation
     type: LOCATED_ENTITY
-    defaultTable: entities
     strings:
       labelNew: Nouvelle observation
     labelKey: text
@@ -263,8 +174,6 @@ entityModelsObject:
         label: Description
         options:
           multiline: true
-          showAsSection: true
-          fullWidth: true
       image:
         key: image
         type: image
@@ -277,18 +186,13 @@ entityModelsObject:
       key: createdAt
       order: desc
 
+  blueprint:
+    key: blueprint
+    type: "BLUEPRINT"
+
 # PRESET LISTINGS
 
 presetListingsObject:
-  mapsGeneric:
-    key: mapsGeneric
-    name: Fonds de plan
-    entityModelKey: baseMap
-    table: baseMaps
-    color: *purple700
-    iconKey: map
-    canCreateItem: true
-
   annotations:
     key: annotations
     name: Annotations
@@ -350,20 +254,18 @@ presetListingsObject:
 
 # PRESET SCOPES
 
-presetScopesSortedKeys:
-  - pic
-  - reception
-  - visit
-  - other
-
 presetScopesObject:
-  pic:
-    key: pic
-    name: "PIC"
-    description: "Plan d'installations de chantier"
+  preset1:
+    key: preset1
+    name: Repérage libre
+    description: Créez librement un plan de repérage.
+    descriptionImageUrl: https://public.media.bimboxa.com/scope_template_etandex_reperage_libre.png
+    listings:
+      - annotations
+      - legend
 
-  reception:
-    key: reception
+  preset2:
+    key: preset2
     name: Réception de support
     description: Créez des écarts à partir d'une bibliothèque type.
     descriptionImageUrl: https://public.media.bimboxa.com/scope_template_etandex_reception_support.png
@@ -371,18 +273,10 @@ presetScopesObject:
       - annotations
       - issues
 
-  visit:
-    key: visit
-    name: Visite
-    description: Enregistrez vos observations au cours d'une visite
-    descriptionImageUrl: https://public.media.bimboxa.com/scope_template_etandex_reperage_libre.png
-    listings:
-      - issues
-
-  other:
-    key: other
-    name: Autre
-    description: Autre type de plan de repérage
+  presetVoid:
+    key: presetVoid
+    name: Krto libre
+    description: Démarrez avec un Krto vide.
     descriptionImageUrl: https://public.media.bimboxa.com/scope_template_etandex_vide.png
 
 # REPORT TABLES

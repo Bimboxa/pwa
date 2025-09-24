@@ -26,11 +26,11 @@ export default function HorizontalMenuRightPanel() {
   // const
 
   const menuItems = [
-    {
-      key: "SHOWER",
-      label: "Calques",
-      icon: <Layers />,
-    },
+    // {
+    //   key: "SHOWER",
+    //   label: "Calques",
+    //   icon: <Layers />,
+    // },
     {
       key: "ANNOTATION_FORMAT",
       label: "Format",
@@ -52,6 +52,8 @@ export default function HorizontalMenuRightPanel() {
 
   const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
   const projectBaseMaps = useProjectBaseMapListings();
+  const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   // helper
 
@@ -63,6 +65,10 @@ export default function HorizontalMenuRightPanel() {
   function handleChange(newKey) {
     dispatch(setSelectedMenuItemKey(newKey));
   }
+
+  // render
+
+  if (!scopeId || !baseMapId) return null;
 
   return (
     <Box

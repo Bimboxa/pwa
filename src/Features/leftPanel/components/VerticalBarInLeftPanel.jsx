@@ -1,4 +1,4 @@
-import BoxFlexHStretch from "Features/layout/components/BoxFlexHStretch";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import { useSelector } from "react-redux";
 
 export default function VerticalBarInLeftPanel({ children }) {
@@ -8,5 +8,9 @@ export default function VerticalBarInLeftPanel({ children }) {
 
   // render
 
-  return <BoxFlexHStretch sx={{ width }}>{children}</BoxFlexHStretch>;
+  return (
+    <BoxFlexVStretch sx={{ width, minWidth: width }}>
+      {children}
+    </BoxFlexVStretch>
+  );
 }

@@ -1,6 +1,5 @@
-import { Box, IconButton, Tooltip } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
 import { lighten } from "@mui/material/styles";
-import theme from "Styles/theme";
 
 import MarkerIcon from "Features/markers/components/MarkerIcon";
 import getPropsFromAnnotationTemplateId from "../utils/getPropsFromAnnotationTemplateId";
@@ -13,8 +12,20 @@ export default function SelectorAnnotationTemplate({
 }) {
   const size = 18;
 
-  //const bgcolor = theme.palette.primary.main;
-  const bgcolorDefault = theme.palette.grey[400];
+  // strings
+
+  const noTemplateS = "Aucun style prédéfini";
+
+  // helpers
+
+  const noTemplates = !annotationTemplates?.length > 0;
+
+  if (noTemplates)
+    return (
+      <Box sx={{ p: 2 }}>
+        <Typography variant="body2">{noTemplateS}</Typography>
+      </Box>
+    );
 
   return (
     <Box sx={{ width: 1, display: "flex", justifyContent: "center", p: 1 }}>

@@ -121,6 +121,7 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
               label={createS}
               onClick={handleCreateClick}
               variant="contained"
+              color="secondary"
               startIcon={<Add />}
               disabled={!name.length > 0}
             />
