@@ -12,7 +12,7 @@ export default function ButtonCreateBlueprint() {
 
   // strings
 
-  const label = "Créer un export";
+  const label = "Créer un plan";
 
   // data
 

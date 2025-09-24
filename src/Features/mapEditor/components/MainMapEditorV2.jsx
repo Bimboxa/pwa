@@ -131,6 +131,10 @@ export default function MainMapEditorV2() {
 
   async function handleNewAnnotation(annotation) {
     if (annotation.type === "MARKER") {
+      // edge
+      if (!newAnnotation.iconKey || !newAnnotation.fillColor) return;
+
+      // main
       const entity = await createEntity({});
       const _annotation = await createAnnotation(
         {

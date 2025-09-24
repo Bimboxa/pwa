@@ -1,3 +1,4 @@
+import useResetBaseMapPose from "Features/mapEditor/hooks/useResetBaseMapPose";
 import useBgImagesFromAppConfig from "./useBgImagesFromAppConfig";
 
 export default function useBgImageFormTemplate(bgImageItem) {
@@ -5,7 +6,7 @@ export default function useBgImageFormTemplate(bgImageItem) {
 
   const bgImages = useBgImagesFromAppConfig();
 
-  console.log("debug_1609 bgImages", bgImages);
+  const onClick = useResetBaseMapPose();
 
   // main
 
@@ -15,6 +16,18 @@ export default function useBgImageFormTemplate(bgImageItem) {
         key: "show",
         label: "Afficher",
         type: "check",
+      },
+      {
+        key: "buttonResetBaseMapPose",
+        label: "Position du fond de plan",
+        type: "button",
+        options: {
+          buttonLabel: "Réinitialiser",
+          buttonVariant: "outlined",
+          buttonColor: "primary",
+
+          onClick: onClick,
+        },
       },
       {
         key: "imageKey",
@@ -27,7 +40,7 @@ export default function useBgImageFormTemplate(bgImageItem) {
       },
       {
         key: "metadata",
-        label: "Texte du gabarit",
+        label: "Cartouche",
         type: "metadata",
       },
     ],

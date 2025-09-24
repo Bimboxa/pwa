@@ -24,9 +24,9 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
 
   // strings
 
-  const createS = "Nouveau plan";
+  const createS = "Créer";
   const updateS = "Mettre à jour";
-  const placeholder = "Titre du plan";
+  const placeholder = "Nom du plan";
 
   // state
 
@@ -117,6 +117,7 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
               onClick={handleCreateClick}
               variant="contained"
               startIcon={<Add />}
+              disabled={!name.length > 0}
             />
           </Box>
         </Box>
@@ -134,7 +135,7 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
             border: (theme) => `1px solid ${theme.palette.divider}`,
           }}
         >
-          <Typography variant="body2" sx={{ mr: 1 }}>
+          <Typography variant="body2" sx={{ mr: 2 }}>
             {entity.name}
           </Typography>
           <ButtonGeneric
