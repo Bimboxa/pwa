@@ -11,16 +11,30 @@ import { NearMe as Focus } from "@mui/icons-material";
 import theme from "Styles/theme";
 
 import getEntityMainImage from "../utils/getEntityMainImage";
+import getAnnotationTemplateIdFromAnnotation from "Features/annotations/utils/getAnnotationTemplateIdFromAnnotation";
 
 export default function ListItemEntityVariantDefault({
   entity,
   onClick,
   selection,
   listingColor = theme.palette.primary.main,
+  annotationTemplates,
 }) {
+  // helper - annotation
+
+  let annotation;
+  if (entity.annotation)
+    annotation = {
+      ...entity.annotation,
+      label: annotationTemplates?.find(
+        ({ id }) =>
+          id === getAnnotationTemplateIdFromAnnotation(entity.annotation)
+      )?.label,
+    };
+
   // helpers
 
-  const label = entity.label ?? entity.id;
+  const label = entity.label ?? annotation?.label;
   const subLabel = entity.subLabel;
   const isSelected = selection?.includes(entity.id);
   const mainImage = getEntityMainImage(entity);

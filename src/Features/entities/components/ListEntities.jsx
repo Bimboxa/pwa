@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import useIsMobile from "Features/layout/hooks/useIsMobile";
+import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 
 import { List, Box } from "@mui/material";
 
@@ -25,6 +26,7 @@ export default function ListEntities({
   // data
 
   const isMobile = useIsMobile();
+  const annotationTemplates = useAnnotationTemplates();
 
   // helpers
 
@@ -66,6 +68,7 @@ export default function ListEntities({
               onClick={handleEntityClick}
               selection={selection}
               listingColor={color}
+              annotationTemplates={annotationTemplates}
             />
           ))}
         </List>

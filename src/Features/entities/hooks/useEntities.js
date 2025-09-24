@@ -36,8 +36,8 @@ export default function useEntities(options) {
   });
   //console.log("[debug] listings", lTistings?.length, filterByListingsIds);
 
-  //const mapId = useSelector((s) => s.mapEditor.loadedMainBaseMapId);
-  const mapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+  //const baseMapId = useSelector((s) => s.mapEditor.loadedMainBaseMapId);
+  const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   const selectedListing = listings?.find((l) => l?.id === selectedListingId);
@@ -156,21 +156,24 @@ export default function useEntities(options) {
       }
 
       // add markers
-      if (withMarkers && mapId) {
-        const markers = await db.markers.where("mapId").equals(mapId).toArray();
-        const markersByEntityId = getItemsByKey(markers, "targetEntityId");
+      // if (withMarkers && baseMapId) {
+      //   const markers = await db.markers
+      //     .where("baseMapId")
+      //     .equals(baseMapId)
+      //     .toArray();
+      //   const markersByEntityId = getItemsByKey(markers, "targetEntityId");
 
-        entities = entities.map((entity) => {
-          const marker = markersByEntityId[entity.id];
-          return { ...entity, marker };
-        });
-      }
+      //   entities = entities.map((entity) => {
+      //     const marker = markersByEntityId[entity.id];
+      //     return { ...entity, marker };
+      //   });
+      // }
 
       // add annotations
-      if (withAnnotations && mapId) {
+      if (withAnnotations && baseMapId) {
         const annotations = await db.annotations
           .where("baseMapId")
-          .equals(mapId)
+          .equals(baseMapId)
           .toArray();
         const annotationsByEntityId = getItemsByKey(annotations, "entityId");
 
@@ -203,7 +206,7 @@ export default function useEntities(options) {
       setLoading(false);
       return [];
     }
-  }, [listingsIdsHash, entitiesUpdatedAt, mapId, withMarkers]);
+  }, [listingsIdsHash, entitiesUpdatedAt, baseMapId, withMarkers]);
 
   return { value, loading };
 }
