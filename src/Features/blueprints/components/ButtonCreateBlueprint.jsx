@@ -12,6 +12,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import { setTempName } from "../blueprintsSlice";
+import { setSelectedMenuItemKey } from "Features/dashboard/dashboardSlice";
 
 export default function ButtonCreateBlueprint() {
   const dispatch = useDispatch();
@@ -40,6 +41,8 @@ export default function ButtonCreateBlueprint() {
     dispatch(setSelectedListingId(listing?.id));
     dispatch(setIsEditingEntity(true));
     dispatch(setTempName(defaultName));
+    //
+    dispatch(setSelectedMenuItemKey("ANNOTATION_FORMAT"));
   }
 
   return (
