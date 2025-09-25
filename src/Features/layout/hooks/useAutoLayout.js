@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
+import { setOnboardingIsActive } from "Features/onboarding/onboardingSlice";
 import { setOpenLeftPanel } from "Features/leftPanel/leftPanelSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -32,6 +33,8 @@ export default function useAutoLayout() {
       setStep("LISTINGS");
     } else if (!baseMap?.id) {
       setStep("BASE_MAP");
+    } else {
+      setStep("END");
     }
   }, [projectId, scopeId, presetListingsKeys?.length, baseMap?.id]);
   // effect
@@ -42,6 +45,8 @@ export default function useAutoLayout() {
       dispatch(setSelectedMenuItemKey(null));
     } else if (step === "LISTINGS") {
       dispatch(setOpenLeftPanel(true));
+    } else if (step === "END") {
+      dispatch(setOnboardingIsActive(false));
     }
   }, [step]);
 }

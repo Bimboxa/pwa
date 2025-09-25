@@ -1,3 +1,5 @@
+import { useSelector } from "react-redux";
+
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
@@ -8,6 +10,7 @@ export default function useDataMapping() {
   const { value: project } = useSelectedProject();
   const { value: scope } = useSelectedScope();
   const baseMap = useMainBaseMap();
+  const userProfile = useSelector((s) => s.auth.userProfile);
 
   // helpers
 
@@ -24,6 +27,7 @@ export default function useDataMapping() {
     blueprintTitle:
       scope?.name && baseMap?.name ? scope?.name + " • " + baseMap?.name : null,
     todayS,
+    authorName: userProfile?.userName ?? "",
   };
 
   const hash = Object.entries(object).reduce((ac, [key, value]) => {

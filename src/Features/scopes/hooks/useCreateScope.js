@@ -29,6 +29,7 @@ export default function useCreateScope() {
       newListings,
       newEntities,
       sortedListings,
+      presetScopeKey,
     },
     options
   ) => {
@@ -54,6 +55,7 @@ export default function useCreateScope() {
     //
     const scope = {
       id: id ?? nanoid(),
+      presetScopeKey,
       createdBy,
       createdAt,
       name,

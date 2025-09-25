@@ -6,6 +6,7 @@ import { setSelectedListingId } from "../listingsSlice";
 import useScope from "Features/scopes/hooks/useScope";
 import useUpdateScope from "Features/scopes/hooks/useUpdateScope";
 import useCreateListingsFromPresetListingsKeys from "../hooks/useCreateListingsFromPresetListingsKeys";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
@@ -27,6 +28,7 @@ export default function PanelSelectorListingsOnboarding() {
   const presetListingsKeys = useSelector(
     (s) => s.onboarding.presetListingsKeys
   );
+  const appConfig = useAppConfig();
   const { value: scope } = useScope();
   console.log("debug_2209_scope", scope);
 

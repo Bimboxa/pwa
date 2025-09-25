@@ -12,19 +12,24 @@ export default function useResolvedPresetListings() {
 
   const appConfig = useAppConfig();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   const resolveAsync = async () => {
     //const presetListings = Object.values(appConfig?.presetListingsObject);
     // const _listings = await resolveListingsToCreateFromPresetListings(
     //   presetListings
     // );
-    const _listings = await resolvePresetListings({ projectId, appConfig });
+    const _listings = await resolvePresetListings({
+      projectId,
+      scopeId,
+      appConfig,
+    });
     setListings(_listings);
   };
 
   useEffect(() => {
     if (projectId && appConfig?.name) resolveAsync();
-  }, [projectId, appConfig?.name]);
+  }, [projectId, appConfig?.name, scopeId]);
 
   return listings;
 }

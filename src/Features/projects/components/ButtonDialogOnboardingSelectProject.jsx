@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { useSelector } from "react-redux";
+
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
@@ -10,6 +12,7 @@ export default function ButtonDialogOnboardingSelectProject() {
   // data
 
   const appConfig = useAppConfig();
+  const userProfile = useSelector((s) => s.auth.userProfile);
 
   // state
 
@@ -33,6 +36,7 @@ export default function ButtonDialogOnboardingSelectProject() {
         label={selectProjectS}
         variant="contained"
         color="secondary"
+        disabled={!userProfile?.userName}
       />
       {open && (
         <DialogGeneric

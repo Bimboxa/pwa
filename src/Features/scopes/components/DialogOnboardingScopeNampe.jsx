@@ -24,7 +24,6 @@ export default function DialogOnboardingScopeName({ open, onClose }) {
   // strings
 
   const helperS = "Quel type de plan de repérage souhaitez vous réaliser ? ";
-  const examplesS = "Exemples :";
   const saveS = "Enregistrer";
   const placeholder = "Type de plan";
   const existingScopesS = "Krtos existants sur le projet";
@@ -50,6 +49,12 @@ export default function DialogOnboardingScopeName({ open, onClose }) {
     }
   }, [Boolean(appConfig), presetScopeKey]);
 
+  // helpers
+
+  const scopeS = appConfig?.strings?.scope?.nameSingular;
+  const descriptionS = appConfig?.strings?.scope?.description;
+  const nameLabel = appConfig?.strings?.scope?.nameLabel;
+
   // handlers
 
   function handleClose() {
@@ -58,7 +63,7 @@ export default function DialogOnboardingScopeName({ open, onClose }) {
   }
 
   async function handleSave() {
-    const scope = await createScope({ name });
+    const scope = await createScope({ name, presetScopeKey });
     dispatch(setSelectedScopeId(scope?.id));
     onClose();
   }
@@ -71,36 +76,52 @@ export default function DialogOnboardingScopeName({ open, onClose }) {
   // render
 
   return (
-    <DialogGeneric open={open} onClose={handleClose} width={"300px"}>
+    <DialogGeneric open={open} onClose={handleClose} width={"350px"} vh={80}>
       <BoxFlexVStretch>
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: 3, pb: 1 }}>
           <Typography>{helperS}</Typography>
         </Box>
 
-        <Box sx={{ p: 3 }}>
-          <Typography variant="body2" color="text.secondary">
-            {examplesS}
-          </Typography>
+        <Box sx={{ p: 1, px: 2 }}>
           <SectionSelectorPresetScope
             presetScopeKey={presetScopeKey}
             onChange={setPresetScopeKey}
           />
         </Box>
 
-        <TextField
-          placeholder={placeholder}
-          size="small"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          sx={{ p: 1 }}
-        />
-        <Box sx={{ display: "flex", width: 1, justifyContent: "end", p: 1 }}>
-          <ButtonGeneric
-            label={saveS}
-            onClick={handleSave}
-            variant="contained"
-            disabled={!name}
-          />
+        <Box sx={{ p: 1 }}>
+          <Box
+            sx={{
+              p: 1,
+              borderRadius: "8px",
+              border: (theme) => `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+              {scopeS}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+              {descriptionS}
+            </Typography>
+            <TextField
+              placeholder={nameLabel}
+              fullWidth
+              size="small"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              sx={{ p: 1 }}
+            />
+            <Box
+              sx={{ display: "flex", width: 1, justifyContent: "end", p: 1 }}
+            >
+              <ButtonGeneric
+                label={saveS}
+                onClick={handleSave}
+                variant="contained"
+                disabled={!name}
+              />
+            </Box>
+          </Box>
         </Box>
 
         <BoxFlexVStretch

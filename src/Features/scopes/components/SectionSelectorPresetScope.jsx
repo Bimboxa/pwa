@@ -1,6 +1,6 @@
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
 import SelectorVariantChips from "Features/layout/components/SelectorVariantChips";
 
@@ -18,9 +18,13 @@ export default function SectionSelectorPresetScope({
     ?.map((key) => appConfig?.presetScopesObject[key])
     ?.map((item) => ({ ...item, label: item?.name }));
 
-  console.log("items", items);
-
   const selection = presetScopeKey ? [presetScopeKey] : [];
+
+  // helper - presetScope
+
+  const presetScope = presetScopeKey
+    ? appConfig?.presetScopesObject?.[presetScopeKey]
+    : null;
 
   // handlers
 
@@ -31,10 +35,15 @@ export default function SectionSelectorPresetScope({
   // return
 
   return (
-    <SelectorVariantChips
-      options={items}
-      selection={selection}
-      onChange={handleClick}
-    />
+    <Box sx={{ width: 1 }}>
+      <SelectorVariantChips
+        options={items}
+        selection={selection}
+        onChange={handleClick}
+      />
+      <Typography sx={{ mt: 1 }} variant="body2" color="text.secondary">
+        {presetScope?.description}
+      </Typography>
+    </Box>
   );
 }
