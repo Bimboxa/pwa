@@ -2,12 +2,14 @@ import { useLiveQuery } from "dexie-react-hooks";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import db from "App/db/db";
+import testObjectHasProp from "Features/misc/utils/testObjectHasProp";
 
 export default function useListings(options) {
   // options
 
-  const filterByProjectId = options.filterByProjectId;
-  const filterByEntityModelType = options.filterByEntityModelType;
+  const filterByProjectId = options?.filterByProjectId;
+  const filterByEntityModelType = options?.filterByEntityModelType;
+  const filterByScopeId = options?.filterByScopeId;
 
   // data
 
@@ -33,6 +35,13 @@ export default function useListings(options) {
       _listings = await db.listings.toArray();
     }
 
+    if (filterByScopeId) {
+      _listings = _listings.filter((listing) => {
+        const test = testObjectHasProp(listing, "scopeId");
+        !test || (test && listing.scopeId === filterByScopeId);
+      });
+    }
+
     // add entityModel
 
     _listings = _listings.map((_listing) => {
@@ -50,7 +59,7 @@ export default function useListings(options) {
     }
 
     return _listings;
-  }, [appConfig, filterByProjectId, filterByEntityModelType]);
+  }, [appConfig, filterByProjectId, filterByScopeId, filterByEntityModelType]);
 
   return listings;
 }

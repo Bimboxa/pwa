@@ -114,9 +114,9 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
   // === ANNOTATIONS ===
 
-  const bgImageAnnotations = annotations.filter(
-    ({ nodeType }) => nodeType === "BG_IMAGE_TEXT"
-  );
+  const bgImageAnnotations = showBgImage
+    ? annotations.filter(({ nodeType }) => nodeType === "BG_IMAGE_TEXT")
+    : [];
   const baseMapAnnotations = annotations.filter(({ baseMapId }) =>
     Boolean(baseMapId)
   );
@@ -849,7 +849,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           <g
             transform={`translate(${bgPose.x}, ${bgPose.y}) scale(${bgPose.k})`}
           >
-            {legendItems && (
+            {legendItems && showBgImage && (
               <NodeLegend
                 selected={selectedNode?.type === "LEGEND"}
                 legendItems={legendItems}
@@ -923,7 +923,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         </g>
 
         <g>
-          {legendItems?.length > 0 && (
+          {legendItems?.length > 0 && showBgImage && (
             <NodeLegend
               id="legend-1"
               legendItems={legendItems}

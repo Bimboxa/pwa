@@ -12,7 +12,11 @@ import db from "App/db/db";
 import resolveListingNomenclature from "Features/appConfig/services/resolveListingNomenclature";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
-export default async function resolvePresetListings({ projectId, appConfig }) {
+export default async function resolvePresetListings({
+  projectId,
+  scopeId,
+  appConfig,
+}) {
   // edge case
 
   if (!appConfig || !appConfig.presetListingsObject || !projectId) return [];
@@ -65,6 +69,12 @@ export default async function resolvePresetListings({ projectId, appConfig }) {
     // add id & projectId
     presetListing.id = existingListing?.id ?? nanoid();
     presetListing.projectId = projectId;
+
+    // scope id
+
+    if (entityModel.type === "LOCATED_ENTITY") {
+      presetListing.scopeId = scopeId;
+    }
 
     // can create item
     presetListing.canCreateItem = true;
