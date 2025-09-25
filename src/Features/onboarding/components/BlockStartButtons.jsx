@@ -40,14 +40,14 @@ export default function BlockStartButtons({ isMobile, onShowCreateData }) {
     >
       <Button
         sx={{ width: 240 }}
-        variant="outlined"
+        variant="contained"
         onClick={handleStartOffline}
         color="secondary"
       >
         <Typography noWrap>{startOfflineS}</Typography>
       </Button>
 
-      <Button
+      {/* <Button
         sx={{ width: 240, ...(isMobile && { mt: 2 }) }}
         variant="contained"
         onClick={handleStartOnline}
@@ -55,7 +55,7 @@ export default function BlockStartButtons({ isMobile, onShowCreateData }) {
         disabled={true}
       >
         <Typography>{startOnlineS}</Typography>
-      </Button>
+      </Button> */}
     </Box>
   );
 }
