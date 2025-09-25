@@ -121,9 +121,11 @@ export default function MainMapEditorV2() {
         if (enabledDrawingMode) {
           dispatch(setEnabledDrawingMode(null));
           dispatch(setNewAnnotation({}));
+          dispatch(setSelectedNode(null));
         } else {
           dispatch(setSelectedAnnotationId(null));
           dispatch(setMainBaseMapIsSelected(false));
+          dispatch(setSelectedNode(null));
         }
       }
     };
@@ -190,7 +192,8 @@ export default function MainMapEditorV2() {
   }
 
   function handleNodeClick(node) {
-    dispatch(setSelectedNode(node.id === selectedNode?.id ? null : node));
+    console.log("[CLICK] on node", node);
+    dispatch(setSelectedNode(node?.id === selectedNode?.id ? null : node));
   }
 
   async function handleClick() {

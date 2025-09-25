@@ -9,6 +9,7 @@ import { setOpenPanelListItem } from "Features/listPanel/listPanelSlice";
 import {
   setSelectedBaseMapsListingId,
   setSelectedMainBaseMapId,
+  setSelectedNode,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedEntityId } from "../entitiesSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
@@ -64,7 +65,14 @@ export default function SectionListEntitiesInListPanel() {
     }
 
     if (entity.annotation) {
-      dispatch(setSelectedAnnotationId(entity.annotation.id));
+      //dispatch(setSelectedAnnotationId(entity.annotation.id));
+      dispatch(
+        setSelectedNode({
+          id: entity.annotation.id,
+          nodeType: "ANNOTATION",
+          annotationType: entity.annotation.type,
+        })
+      );
     }
 
     dispatch(setSelectedEntityId(id));

@@ -22,6 +22,14 @@ export default function NodeMarker({
   onClick,
   selected,
 }) {
+  // --- dataProps ---
+
+  const dataProps = {
+    "data-node-id": marker.id,
+    "data-node-type": "ANNOTATION",
+    "data-annotation-type": "MARKER",
+  };
+
   // --- dragging/selection ----
 
   const draggingEnabled = selected;
@@ -82,7 +90,7 @@ export default function NodeMarker({
   // ---- pointer handlers (SVG version of NodeMarkerVariantDot) ----
 
   const handleClick = () => {
-    if (onClick) onClick(marker);
+    //if (onClick) onClick(marker);
   };
 
   const handlePointerDown = useCallback(
@@ -176,6 +184,7 @@ export default function NodeMarker({
         pointerEvents: "auto",
         filter: selected ? "drop-shadow(0 4px 8px rgba(0,0,0,0.3))" : "none",
       }}
+      {...dataProps}
     >
       {/* Filled circle background */}
       <circle
@@ -186,6 +195,7 @@ export default function NodeMarker({
         opacity={0.9}
         vectorEffect="non-scaling-stroke"
         scale={selected ? 1.2 : 1}
+        {...dataProps}
       />
 
       {/* Icon from sprite, centered */}

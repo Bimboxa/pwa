@@ -48,7 +48,7 @@ export default function DialogUserProfile({ open, onClose }) {
           <Typography variant="body2" sx={{ fontWeight: "bold" }}>
             {standaloneS}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
             {descriptionS}
           </Typography>
           <TextField
@@ -59,7 +59,15 @@ export default function DialogUserProfile({ open, onClose }) {
             fullWidth
             placeholder={placeholder}
           />
-          <Box sx={{ p: 1, display: "flex", justifyContent: "end", width: 1 }}>
+          <Box
+            sx={{
+              p: 1,
+              mt: 1,
+              display: "flex",
+              justifyContent: "end",
+              width: 1,
+            }}
+          >
             <ButtonGeneric
               label={saveS}
               onClick={handleSave}

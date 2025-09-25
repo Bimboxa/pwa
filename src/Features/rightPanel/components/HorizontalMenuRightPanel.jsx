@@ -32,7 +32,7 @@ export default function HorizontalMenuRightPanel() {
     //   icon: <Layers />,
     // },
     {
-      key: "ANNOTATION_FORMAT",
+      key: "NODE_FORMAT",
       label: "Format",
       icon: <Palette />,
     },

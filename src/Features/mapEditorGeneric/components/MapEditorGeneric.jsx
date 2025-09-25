@@ -614,8 +614,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
   const onSvgClick = useCallback(
     (e) => {
-      console.log("[EVENT] Svg Click");
-
       if (isPanning || isPinching) return;
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -629,25 +627,32 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       const p_inBg = screenToBgLocal(sx, sy);
       const p_inBase = screenToBaseLocal(sx, sy);
 
-      onClickInBg?.(p_inBg);
+      //onClickInBg?.(p_inBg);
 
       // selection
       const nativeTarget = e.nativeEvent?.target || e.target;
       const hit = nativeTarget.closest?.("[data-node-type]");
 
+      console.log("[EVENT] Svg Click", hit?.dataset);
+
+      if (!hit && !enabledDrawingMode) {
+        onNodeClick(null);
+        return;
+      }
+
       if (hit && !enabledDrawingMode) {
-        const { nodeId, nodeType } = hit.dataset;
+        const { nodeId, nodeType, annotationType } = hit.dataset;
         console.log("hit nodeType", nodeType);
-        onNodeClick({ id: nodeId, type: nodeType });
+        onNodeClick({ id: nodeId, nodeType, annotationType });
         onBaseMapSelectionChange(false);
 
         // BASE_MAP
-        if (nodeType === "BASE_MAP") {
-          onBaseMapSelectionChange(!baseMapIsSelected);
-        }
+        // if (nodeType === "BASE_MAP") {
+        //   onBaseMapSelectionChange(!baseMapIsSelected);
+        // }
 
         // ANNOTATIONS
-        onAnnotationClick?.({ id: nodeId, type: nodeType });
+        //onAnnotationClick?.({ id: nodeId, type: nodeType });
         return; // on stoppe ici : pas de création de nouveau marker
       }
 
@@ -787,25 +792,31 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               <NodeSvgImage
                 src={bgImageUrl}
                 dataNodeType="BG_IMAGE"
+                dataNodeId={bgImageUrl}
                 width={bgSize.w}
                 height={bgSize.h}
                 locked
               />
             )}
-            {bgImageAnnotations.map((annotation) => (
-              <NodeAnnotation
-                key={annotation.id}
-                annotation={annotation}
-                imageSize={bgSize}
-                containerK={bgPose.k}
-                worldScale={world.k}
-                onDragEnd={handleAnnotationDragEnd}
-                onChange={handleAnnotationChange}
-                onClick={handleMarkerClick}
-                spriteImage={annotationSpriteImage}
-                selected={selectedAnnotationIds.includes(annotation.id)}
-              />
-            ))}
+            {bgImageAnnotations.map((annotation) => {
+              const selected = selectedNode?.id === annotation.id;
+              console.log("debug_2509_selected", selected);
+              return (
+                <NodeAnnotation
+                  key={annotation.id}
+                  annotation={annotation}
+                  imageSize={bgSize}
+                  containerK={bgPose.k}
+                  worldScale={world.k}
+                  onDragEnd={handleAnnotationDragEnd}
+                  onChange={handleAnnotationChange}
+                  onClick={handleMarkerClick}
+                  spriteImage={annotationSpriteImage}
+                  //selected={selectedAnnotationIds.includes(annotation.id)}
+                  selected={selected}
+                />
+              );
+            })}
           </g>
 
           {/* BASE layer */}
@@ -815,13 +826,14 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
             <NodeSvgImage
               src={baseMapImageUrl}
               dataNodeType="BASE_MAP"
+              dataNodeId={baseMapImageUrl}
               width={baseSize.w}
               height={baseSize.h}
               worldScale={world.k}
               containerK={basePose.k}
               onPoseChangeStart={() => setBasePoseIsChanging(true)}
               onPoseChangeEnd={handleBasePoseChange}
-              selected={baseMapIsSelected}
+              selected={selectedNode?.nodeType === "BASE_MAP"}
               enabledDrawingMode={enabledDrawingMode}
             />
 
@@ -838,7 +850,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                     onChange={handleAnnotationChange}
                     onClick={handleMarkerClick}
                     spriteImage={annotationSpriteImage}
-                    selected={selectedAnnotationIds.includes(annotation.id)}
+                    selected={selectedNode?.id === annotation.id}
                   />
                 ))}
               </g>

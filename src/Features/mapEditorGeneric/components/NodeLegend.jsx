@@ -22,6 +22,13 @@ export default memo(function NodeLegend({
   const poseEditable = selected;
   const { x = 16, y = 16, width = 260, fontSize = 18 } = legendFormat ?? {};
 
+  // --- dataProps ---
+
+  const dataProps = {
+    "data-node-id": id,
+    "data-node-type": "LEGEND",
+  };
+
   // DRAG
 
   const [delta, setDelta] = useState({ x: 0, y: 0, k: 1 });
@@ -202,8 +209,7 @@ export default memo(function NodeLegend({
         y={y}
         width={widthLocal}
         height={heightLocal}
-        data-node-type="LEGEND"
-        data-node-id={id}
+        {...dataProps}
         style={{ overflow: "visible" }}
       >
         <div style={{ width: "100%" }}>{LegendBoxInner}</div>
@@ -217,8 +223,7 @@ export default memo(function NodeLegend({
       y={y}
       width={widthLocal}
       height={heightLocal}
-      data-node-type="LEGEND"
-      data-node-id={id}
+      {...dataProps}
       style={{ overflow: "visible" }}
       onPointerDownCapture={stopIfEditing}
       onPointerMoveCapture={stopIfEditing}

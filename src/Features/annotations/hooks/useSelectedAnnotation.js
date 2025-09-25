@@ -5,22 +5,27 @@ import demoAnnotations from "../data/demoAnnotations";
 
 import db from "App/db/db";
 
-export default function useSelectedAnnotation(options) {
+export default function useSelectedAnnotation() {
   // options
 
   // data
 
-  const selectedAnnotationId = useSelector(
-    (s) => s.annotations.selectedAnnotationId
-  );
+  const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
 
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
   );
 
+  // helper
+
+  let selectedAnnotationId;
+  if (selectedNode.nodeType === "ANNOTATION")
+    selectedAnnotationId = selectedNode.id;
+
   // main
 
   let annotation = useLiveQuery(async () => {
+    if (!selectedAnnotationId) return null;
     let _annotation = await db.annotations.get(selectedAnnotationId);
 
     return _annotation;
