@@ -6,6 +6,7 @@ import ButtonAppVersion from "App/components/ButtonAppVersion";
 import ButtonDialogAppConfig from "Features/appConfig/components/ButtonDialogAppConfig";
 import HelperClickInBgPosition from "Features/mapEditor/components/HelperClickInBgPosition";
 import useHelperMessageInBottomBar from "Features/mapEditor/hooks/useHelperMessageInBottomBar";
+import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
 
 export default function BottomBarDesktop() {
   // data
@@ -26,7 +27,8 @@ export default function BottomBarDesktop() {
         zIndex: 100,
       }}
     >
-      <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+      <Box sx={{ display: "flex", gap: 1, alignItems: "center", pl: 1 }}>
+        <ButtonSigninV2 />
         <ButtonAppVersion />
         <ButtonDialogAppConfig />
       </Box>
