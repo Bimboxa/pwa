@@ -13,6 +13,7 @@ import PanelEditorExport from "Features/editorExport/components/PanelEditorExpor
 import VerticalMenuRightPanel from "./VerticalMenuRightPanel";
 import PanelAnnotationFormat from "Features/annotations/components/PanelAnnotationFormat";
 import PanelEditEntity from "Features/entities/components/PanelEditEntity";
+import PanelNodeFormat from "Features/mapEditor/components/PanelNodeFormat";
 
 export default function RightPanelContainer() {
   // data
@@ -61,7 +62,8 @@ export default function RightPanelContainer() {
         >
           {selectedKey === "SHOWER" && <PanelShower />}
           {selectedKey === "EDITOR_EXPORT" && <PanelEditorExport />}
-          {selectedKey === "ANNOTATION_FORMAT" && <PanelAnnotationFormat />}
+          {/* {selectedKey === "ANNOTATION_FORMAT" && <PanelAnnotationFormat />} */}
+          {selectedKey === "NODE_FORMAT" && <PanelNodeFormat />}
           {selectedKey === "ENTITY" && <PanelEditEntity />}
         </Box>
       )}

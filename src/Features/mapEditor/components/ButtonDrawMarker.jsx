@@ -2,6 +2,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   setEnabledDrawingMode,
+  setMainBaseMapIsSelected,
   setShowLayerScreenCursor,
 } from "../mapEditorSlice";
 import {
@@ -28,9 +29,10 @@ export default function ButtonDrawMarker() {
     dispatch(setShowLayerScreenCursor(true));
     editor?.mapEditor?.enableDrawingMode("MARKER", { updateRedux: true });
     dispatch(setEnabledDrawingMode("MARKER"));
-    dispatch(setSelectedMenuItemKey("ANNOTATION_FORMAT"));
+    dispatch(setSelectedMenuItemKey("NODE_FORMAT"));
     dispatch(setNewAnnotation({ ...newAnnotation, type: "MARKER" }));
     dispatch(setSelectedAnnotationId(null));
+    dispatch(setMainBaseMapIsSelected(false));
   }
 
   return (

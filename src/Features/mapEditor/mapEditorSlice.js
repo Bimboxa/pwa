@@ -20,7 +20,7 @@ const mapEditorInitialState = {
   //
   clickInBgPosition: null, // { x, y }
   //
-  selectedNode: null, // {id,type,entityId}
+  selectedNode: null, // {id,nodeType,annotationType,entityId}
   //
   legendFormat: { x: 1320, y: 216, width: 200, height: 50 },
 };

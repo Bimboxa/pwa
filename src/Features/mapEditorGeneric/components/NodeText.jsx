@@ -35,8 +35,9 @@ export default function NodeText({
   // dataProps
 
   const dataProps = {
-    "data-node-type": "TEXT",
     "data-node-id": text.id,
+    "data-node-type": "ANNOTATION",
+    "data-annotation-type": "TEXT",
   };
 
   // bg-local anchor position

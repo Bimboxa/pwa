@@ -9,6 +9,7 @@ import {
 import useCreateDefaultBlueprintsListing from "../hooks/useCreateDefaultBlueprintsListing";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import { setTempName } from "../blueprintsSlice";
@@ -19,7 +20,10 @@ export default function ButtonCreateBlueprint() {
 
   // strings
 
-  const label = "Créer un plan";
+  const appConfig = useAppConfig();
+  const label =
+    appConfig?.entityModelsObject?.blueprint?.strings?.labelNew ??
+    "Nouveau plan";
 
   // data
 
@@ -42,7 +46,7 @@ export default function ButtonCreateBlueprint() {
     dispatch(setIsEditingEntity(true));
     dispatch(setTempName(defaultName));
     //
-    dispatch(setSelectedMenuItemKey("ANNOTATION_FORMAT"));
+    dispatch(setSelectedMenuItemKey("NODE_FORMAT"));
   }
 
   return (

@@ -25,6 +25,14 @@ export default memo(function NodeSvgImage({
 }) {
   const refSize = useRef();
 
+  // dataProps
+
+  const dataProps = {
+    "data-node-id": dataNodeId,
+    "data-node-type": dataNodeType,
+    "data-annotation-type": "IMAGE",
+  };
+
   // We keep edit mode internal in your version
   const poseEditable = selected;
 
@@ -133,8 +141,7 @@ export default memo(function NodeSvgImage({
           width={width}
           height={height}
           preserveAspectRatio="none"
-          data-node-id={dataNodeId}
-          data-node-type={dataNodeType}
+          {...dataProps}
         />
       )}
 
@@ -152,7 +159,7 @@ export default memo(function NodeSvgImage({
           onTouchEndCapture={stopPointerCapture}
           onWheelCapture={maybeStopWheel}
           style={{ overflow: "visible" }}
-          data-node-type="BASE_MAP"
+          {...dataProps}
         >
           <div
             data-stop-pan
