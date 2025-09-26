@@ -7,6 +7,7 @@ export default function useSelectedAnnotationTemplateInMapEditor() {
   const id = useSelector((s) => s.mapEditor.selectedAnnotationTemplateId);
 
   return useLiveQuery(async () => {
+    if (!id) return;
     return await db.annotationTemplates.get(id);
-  });
+  }, [id]);
 }
