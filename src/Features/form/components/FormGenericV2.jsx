@@ -13,6 +13,7 @@ import FieldIcon from "./FieldIcon";
 import FieldAnnotationTemplateId from "./FieldAnnotationTemplateId";
 import FieldIconBasic from "./FieldIconBasic";
 import FieldOptionSelector from "./FieldOptionSelector";
+import FieldOptionKey from "./FieldOptionKey";
 import FieldCheck from "./FieldCheck";
 import FieldButton from "./FieldButton";
 
@@ -134,6 +135,7 @@ export default function FormGenericV2({
               onChange={(newValue) =>
                 handleFieldValueChange(field.key, newValue)
               }
+              spriteImage={field.spriteImage}
               options={field.options}
             />
           );
@@ -259,6 +261,21 @@ export default function FormGenericV2({
               entities={field.entities}
               entitiesListing={field.entitiesListing}
               formContainerRef={formContainerRef}
+            />
+          );
+        }
+
+        if (field?.type === "optionKey") {
+          return (
+            <FieldOptionKey
+              key={field.key}
+              label={field.label}
+              width={field.width}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              valueOptions={field.valueOptions}
             />
           );
         }

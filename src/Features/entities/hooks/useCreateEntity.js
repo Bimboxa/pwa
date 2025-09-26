@@ -12,6 +12,7 @@ import getEntityPureDataAndFilesDataByKey from "../utils/getEntityPureDataAndFil
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
 export default function useCreateEntity() {
+  const dispatch = useDispatch();
   // data
 
   const { value: userEmail } = useUserEmail();
@@ -31,7 +32,8 @@ export default function useCreateEntity() {
     const table = listing.table;
 
     // ids
-    const entityId = nanoid();
+
+    let entityId = nanoid();
 
     // data
     const { pureData, filesDataByKey } = getEntityPureDataAndFilesDataByKey(

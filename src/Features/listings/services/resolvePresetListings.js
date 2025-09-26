@@ -76,6 +76,15 @@ export default async function resolvePresetListings({
       presetListing.scopeId = scopeId;
     }
 
+    // sprite image
+
+    if (presetListing.spriteImageKey) {
+      presetListing.spriteImage =
+        appConfig?.features?.annotations?.spriteImages?.find(
+          ({ key }) => key === presetListing.spriteImageKey
+        );
+    }
+
     // can create item
     presetListing.canCreateItem = true;
 

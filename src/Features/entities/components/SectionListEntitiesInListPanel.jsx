@@ -18,6 +18,7 @@ import { setOpenedPanel } from "Features/listings/listingsSlice";
 import ListEntities from "./ListEntities";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionActions from "./SectionActions";
+import SelectorAnnotationTemplate from "Features/annotations/components/SelectorAnnotationTemplate";
 
 export default function SectionListEntitiesInListPanel() {
   const dispatch = useDispatch();
@@ -47,6 +48,13 @@ export default function SectionListEntitiesInListPanel() {
   // helpers
 
   const selection = selectedEntityId ? [selectedEntityId] : [];
+
+  // helpers - variant
+
+  let variant = "DEFAULT";
+
+  if (listing?.entityModel?.type === "ANNOTATION_TEMPLATE")
+    variant = "ANNOTATION_TEMPLATES";
 
   // handlers
 

@@ -2,8 +2,13 @@ import SelectorMarkerIcon from "Features/markers/components/SelectorMarkerIcon";
 
 import { Box, Typography } from "@mui/material";
 
-export default function FieldIcon({ value, onChange, label, options }) {
-  const spriteImage = options?.spriteImage;
+export default function FieldIcon({
+  value,
+  onChange,
+  label,
+  spriteImage,
+  options,
+}) {
   const iconColor = options?.iconColor;
 
   return (

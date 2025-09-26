@@ -42,14 +42,8 @@ export default function SelectorAnnotationTemplateVariantList({
       <Typography sx={{ p: 2 }}>{title}</Typography>
       <List dense>
         {annotationTemplates?.map((annotationTemplate) => {
-          const { fillColor, iconKey } = getPropsFromAnnotationTemplateId(
-            annotationTemplate?.id
-          );
-          const bgcolor = fillColor;
-          const id = annotationTemplate.id;
-          const label = annotationTemplate.label;
-          const selected =
-            annotationTemplate.id === selectedAnnotationTemplateId;
+          const { fillColor: bgcolor, iconKey, id, label } = annotationTemplate;
+          const selected = id === selectedAnnotationTemplateId;
 
           return (
             <ListItemButton
@@ -57,7 +51,7 @@ export default function SelectorAnnotationTemplateVariantList({
               key={id}
               selected={selected}
               size="small"
-              onClick={() => onChange(selected ? null : annotationTemplate.id)}
+              onClick={() => onChange(selected ? null : id)}
             >
               <ListItemIcon>
                 <MarkerIcon
