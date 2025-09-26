@@ -1,4 +1,4 @@
-import {nanoid} from "@reduxjs/toolkit";
+import { nanoid } from "@reduxjs/toolkit";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 
@@ -9,7 +9,7 @@ import getDateString from "Features/misc/utils/getDateString";
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
 export default function useCreateProject() {
-  const {value: createdBy} = useUserEmail();
+  const { value: createdBy } = useUserEmail();
   const createdAt = getDateString(new Date());
 
   // data
@@ -18,7 +18,7 @@ export default function useCreateProject() {
 
   // main
 
-  const create = async ({name, clientRef, id}, options) => {
+  const create = async ({ name, clientRef, id }, options) => {
     try {
       // options
 
@@ -48,12 +48,11 @@ export default function useCreateProject() {
         clientRef,
       };
       await db.projects.add(project);
-      console.log("debug_2504 [db] added project", project);
 
       // sync file
 
       if (updateSyncFile) {
-        const props = {item: project, type: "PROJECT"};
+        const props = { item: project, type: "PROJECT" };
         if (options.updatedAt) props.updatedAt = options.updatedAt;
         if (options.syncAt) props.syncAt = options.syncAt;
         await updateItemSyncFile(props);

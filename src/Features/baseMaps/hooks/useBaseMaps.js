@@ -51,8 +51,6 @@ export default function useBaseMaps(options) {
     return _baseMaps;
   }, [projectId, baseMapsUpdatedAt]);
 
-  console.log("debug_0915 baseMaps", baseMaps);
-
   // return
 
   return { value: baseMaps };

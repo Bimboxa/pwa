@@ -23,8 +23,6 @@ export default function FormAnnotation({ annotation, onChange }) {
 
   const item = getFormItemFromAnnotation(annotation);
 
-  console.log("debug_0910 item", item);
-
   // handlers
 
   function handleItemChange(newItem) {

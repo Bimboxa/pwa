@@ -9,9 +9,8 @@ export default function SelectorAnnotationTemplate({
   onChange,
   annotationTemplates,
   spriteImage,
+  size = 18,
 }) {
-  const size = 18;
-
   // strings
 
   const noTemplateS = "Aucun style prédéfini";
@@ -56,13 +55,15 @@ export default function SelectorAnnotationTemplate({
                 justifyContent: "center",
                 alignItems: "center",
                 mx: 1,
-                mb: 2,
+                //mb: 2,
               }}
             >
               <Tooltip title={label}>
                 <IconButton
                   size="small"
-                  onClick={() => onChange(annotationTemplate.id)}
+                  onClick={() =>
+                    onChange(selected ? null : annotationTemplate.id)
+                  }
                 >
                   <MarkerIcon
                     iconKey={iconKey}

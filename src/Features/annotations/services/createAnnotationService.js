@@ -6,7 +6,6 @@ export default async function createAnnotationService(annotation, options) {
   // options
 
   const tempAnnotationTemplateLabel = options?.tempAnnotationTemplateLabel;
-  console.log("debug_2309_label", tempAnnotationTemplateLabel);
 
   // db
   await db.annotations.put(annotation);

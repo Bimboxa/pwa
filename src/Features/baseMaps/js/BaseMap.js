@@ -30,7 +30,6 @@ export default class BaseMap {
 
   static async createFromRecord(record) {
     try {
-      console.log("debug_2807 createFromRecord", record);
       if (!record) return null;
 
       // the id of the file is computed from the field + id of the entity.
@@ -48,8 +47,6 @@ export default class BaseMap {
         ...record,
         image: bmImage,
       });
-
-      console.log("debug_0915 baseMap", baseMap);
 
       return baseMap;
     } catch (e) {

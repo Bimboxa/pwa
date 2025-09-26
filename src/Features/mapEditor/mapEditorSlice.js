@@ -23,6 +23,8 @@ const mapEditorInitialState = {
   selectedNode: null, // {id,nodeType,annotationType,entityId}
   //
   legendFormat: { x: 1320, y: 216, width: 200, height: 50 },
+  //
+  selectedAnnotationTemplateId: null,
 };
 
 export const mapEditorSlice = createSlice({
@@ -85,6 +87,11 @@ export const mapEditorSlice = createSlice({
     setSelectedNode: (state, action) => {
       state.selectedNode = action.payload;
     },
+
+    // Annotation template
+    setSelectedAnnotationTemplateId: (state, action) => {
+      state.selectedAnnotationTemplateId = action.payload;
+    },
   },
 });
 
@@ -112,6 +119,8 @@ export const {
   setSelectedNode,
   //
   setLegendFormat,
+  //
+  setSelectedAnnotationTemplateId,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;

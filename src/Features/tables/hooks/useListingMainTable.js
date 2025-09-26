@@ -1,4 +1,4 @@
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -8,11 +8,11 @@ import Table from "../js/Table";
 export default function useListingMainTable(options) {
   // data
   const appConfig = useAppConfig();
-  const {value: selectedListing} = useSelectedListing();
+  const { value: selectedListing } = useSelectedListing();
 
   // state
 
-  const [datagridProps, setDatagridProps] = useState({rows: [], columns: []});
+  const [datagridProps, setDatagridProps] = useState({ rows: [], columns: [] });
 
   // helpers - listing
   const listing = options?.listing || selectedListing;
@@ -24,7 +24,7 @@ export default function useListingMainTable(options) {
 
   async function setDataAsync(table) {
     const data = await table.getDatagridPropsAsync();
-    console.log("debug_1306 table", table, data);
+
     setDatagridProps(data);
   }
 
@@ -39,5 +39,5 @@ export default function useListingMainTable(options) {
     }
   }, [listing?.id]);
 
-  return {config, datagridProps};
+  return { config, datagridProps };
 }

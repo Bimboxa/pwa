@@ -9,7 +9,6 @@ export default function useEntity() {
     // data
 
     const { value: selectedEntity } = useSelectedEntity({ withImages: true });
-    console.log("debug_1609 selectedEntity", selectedEntity?.id);
 
     const newEntity = useNewEntity();
     const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);
@@ -20,7 +19,6 @@ export default function useEntity() {
     // helpers
 
     let entity = selectedEntity ?? null;
-    console.log("debug_1709_entity", entity);
 
     // helpers
 

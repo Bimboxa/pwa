@@ -35,8 +35,6 @@ export default function SectionCreateScope() {
     (s) => s.scopeCreator.selectedPresetScopeKey
   );
 
-  console.log("debug_25_09 [projectId] projectId", projectId, presetScopeKey);
-
   const appConfig = useAppConfig();
   const presetScope = useSelectedPresetScope();
 
@@ -65,15 +63,11 @@ export default function SectionCreateScope() {
     return resolvePresetScopeListings({ presetScopeKey, appConfig, projectId });
   }, [presetScopeKey, appConfig?.presetScopesObject, projectId]);
 
-  console.log("debug_25_09 [newListings] newListings", newListings);
-
   // helpers - entities
 
   const newEntities = useMemo(() => {
     return resolvePresetScopeEntities({ listings: newListings });
   }, [newListings]);
-
-  console.log("debug_0910 [newEntities] newEntities", newEntities);
 
   // handlers
 

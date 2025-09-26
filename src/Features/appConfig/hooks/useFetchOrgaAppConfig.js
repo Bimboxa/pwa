@@ -17,7 +17,6 @@ export default function useFetchOrgaAppConfig() {
   // helpers
   const email = user?.primaryEmailAddress?.emailAddress;
   const debug = email === "favreau-consulting@lei.fr";
-  console.log("debug_1607", debug, email);
 
   return async () => {
     let appConfig = await fetchOrgaAppConfigService({ accessToken });
