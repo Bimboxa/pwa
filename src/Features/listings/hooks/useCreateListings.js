@@ -36,9 +36,11 @@ export default function useCreateListings() {
     const initialEntities = resolveListingsInitialEntities({
       listings: listingsClean,
     });
-    if (initialEntities) {
+
+    if (initialEntities?.length > 0) {
       for (let entity of initialEntities) {
-        await createEntity(entity);
+        const options = { listing: entity.listing };
+        await createEntity(entity, options);
       }
     }
 

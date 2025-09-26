@@ -110,12 +110,16 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
             border: (theme) => `1px solid ${theme.palette.divider}`,
           }}
         >
-          <TextField
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            size="small"
-            placeholder={placeholder}
-          />
+          <Box sx={{ width: "300px" }}>
+            <TextField
+              fullWidth
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              size="small"
+              placeholder={placeholder}
+            />
+          </Box>
+
           <Box sx={{ ml: 1 }}>
             <ButtonGeneric
               label={createS}

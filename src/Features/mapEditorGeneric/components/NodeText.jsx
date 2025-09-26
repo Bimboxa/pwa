@@ -309,62 +309,77 @@ export default function NodeText({
           onClick={handleClick}
           {...dataProps}
         >
-          <InputBase
-            inputRef={inputRef}
-            multiline={false}
-            value={isEditing ? localValue : text.textValue ?? ""}
-            //value={"AAAAAAAAAAAAAAA"}
-            onChange={(e) => setLocalValue(e.target.value)}
-            onBlur={handleBlur}
-            onKeyDown={handleKeyDown}
-            readOnly={!isEditing}
-            placeholder={placeholder}
-            sx={{
-              width: "100%",
-              height: "100%",
-              //width: boxW,
-              //height: boxH,
-              fontSize,
-              fontWeight,
-              lineHeight: 1.25,
-              px: padding + "px",
-              py: padding / 2 + "px",
-              bgcolor: isEditing ? "background.paper" : "transparent",
-              //bgcolor: "white",
-
-              borderRadius: `${borderRadius}px`,
-              //border: isEditing ? "1px solid" : "1px solid transparent",
-              //borderColor: isEditing ? "divider" : "transparent",
-
-              // Complete border removal
-              border: "none !important",
-              borderColor: "transparent !important",
-              outline: "none !important",
-              boxShadow: "none !important",
-
-              pointerEvents: "auto",
-              whiteSpace: "nowrap",
-              //overflow: "hidden",
-              textOverflow: "clip",
-              // Ensure visible text even if theme CSS vars don't propagate into foreignObject
-              //color: "#111",
-              "& input": {
-                cursor: isEditing ? "text" : "pointer",
-              },
-              "& .MuiInputBase-input": {
-                cursor: isEditing ? "text" : "pointer",
-              },
-            }}
-            inputProps={{
-              readOnly: !isEditing,
-              style: {
+          {isEditing ? (
+            <InputBase
+              inputRef={inputRef}
+              multiline={false}
+              value={isEditing ? localValue : text.textValue ?? ""}
+              //value={"AAAAAAAAAAAAAAA"}
+              onChange={(e) => setLocalValue(e.target.value)}
+              onBlur={handleBlur}
+              onKeyDown={handleKeyDown}
+              readOnly={!isEditing}
+              placeholder={placeholder}
+              sx={{
+                width: "100%",
+                height: "100%",
+                //width: boxW,
+                //height: boxH,
                 fontSize,
                 fontWeight,
+                lineHeight: 1.25,
+                px: padding + "px",
+                py: padding / 2 + "px",
+                bgcolor: isEditing ? "background.paper" : "transparent",
+                //bgcolor: "white",
+
+                borderRadius: `${borderRadius}px`,
+                //border: isEditing ? "1px solid" : "1px solid transparent",
+                //borderColor: isEditing ? "divider" : "transparent",
+
+                // Complete border removal
+                border: "none !important",
+                borderColor: "transparent !important",
+                outline: "none !important",
+                boxShadow: "none !important",
+
+                pointerEvents: "auto",
                 whiteSpace: "nowrap",
-                borderColor: "transparent",
-              },
-            }}
-          />
+                //overflow: "hidden",
+                textOverflow: "clip",
+                // Ensure visible text even if theme CSS vars don't propagate into foreignObject
+                //color: "#111",
+                "& input": {
+                  cursor: isEditing ? "text" : "pointer",
+                },
+                "& .MuiInputBase-input": {
+                  cursor: isEditing ? "text" : "pointer",
+                },
+              }}
+              inputProps={{
+                readOnly: !isEditing,
+                style: {
+                  fontSize,
+                  fontWeight,
+                  whiteSpace: "nowrap",
+                  borderColor: "transparent",
+                },
+              }}
+            />
+          ) : (
+            <span
+              style={{
+                display: "inline-block",
+                whiteSpace: "nowrap",
+                fontSize,
+                fontWeight,
+                padding: `${padding / 2}px ${padding}px`,
+              }}
+              {...dataProps}
+            >
+              {text.textValue ?? placeholder}
+            </span>
+          )}
         </Box>
       </foreignObject>
     </>

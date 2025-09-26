@@ -1,5 +1,7 @@
 import { useSelector } from "react-redux";
 
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+
 import { PictureAsPdf } from "@mui/icons-material";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
@@ -18,6 +20,7 @@ export default function ButtonDownloadMapEditorInPdf({ svgElement }) {
 
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
   const baseMap = useMainBaseMap();
+  const { value: listing } = useSelectedListing();
 
   // handlers
 
@@ -31,7 +34,7 @@ export default function ButtonDownloadMapEditorInPdf({ svgElement }) {
 
   // render
 
-  if (!showBgImage) return null;
+  if (!showBgImage || listing?.entityModel?.type === "BLUEPRINT") return null;
 
   return (
     <ButtonGeneric

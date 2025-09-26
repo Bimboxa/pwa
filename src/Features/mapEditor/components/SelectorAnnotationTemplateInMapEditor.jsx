@@ -29,6 +29,7 @@ export default function SelectorAnnotationTemplateInMapEditor() {
   const templateId = useSelector(
     (s) => s.mapEditor.selectedAnnotationTemplateId
   );
+
   const { value: listing } = useSelectedListing();
   const annotationTemplates = useAnnotationTemplates({
     filterByAnnotationTemplatesListingKey: listing?.annotationTemplatesKey,
@@ -65,7 +66,9 @@ export default function SelectorAnnotationTemplateInMapEditor() {
             sx={{ p: 1, width: 1, justifyContent: "space-between" }}
             onClick={() => setOpen(true)}
           >
-            <Typography variant="body2">{label}</Typography>
+            <Typography noWrap variant="body2">
+              {label}
+            </Typography>
             <Down />
           </ListItemButton>
         )}
@@ -74,7 +77,14 @@ export default function SelectorAnnotationTemplateInMapEditor() {
             sx={{ p: 1, width: 1, justifyContent: "space-between" }}
             onClick={() => setOpen(true)}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                minWidth: 0,
+              }}
+            >
               <MarkerIcon
                 iconKey={iconKey}
                 fillColor={fillColor}
@@ -82,7 +92,9 @@ export default function SelectorAnnotationTemplateInMapEditor() {
                 size={18}
               />
 
-              <Typography variant="body2">{label}</Typography>
+              <Typography variant="body2" noWrap>
+                {label}
+              </Typography>
             </Box>
             <Down />
           </ListItemButton>

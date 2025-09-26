@@ -42,37 +42,46 @@ export default function ToolbarMapEditorLocatedEntities() {
 
   // helpers - buttonsMap
 
-  const buttonsMap = {
-    MARKER: <ButtonDrawMarker />,
-    TEXT: <ButtonAddText />,
+  const ToolButton = ({ type }) => {
+    switch (type) {
+      case "MARKER":
+        return <ButtonDrawMarker />;
+      case "TEXT":
+        return <ButtonAddText />;
+    }
   };
+
+  // component
+
+  const MainToolbar = () => (
+    <Box sx={{ display: "flex", alignItems: "center" }}>
+      <SelectorAnnotationTemplateInMapEditor />
+
+      <Toolbar sx={{ ml: 1 }}>
+        {annotationTypes.map((type) => (
+          <ToolButton key={type} type={type} />
+        ))}
+      </Toolbar>
+    </Box>
+  );
 
   if (noAnnotation)
     return (
       <Box
         sx={{
           bgcolor: "secondary.main",
-          p: 0.25,
+          p: 1,
           borderRadius: "4px",
           color: "white",
           display: "flex",
-          alignItems: "center",
+
+          flexDirection: "column",
         }}
       >
-        <Typography sx={{ px: 2 }}>{addS}</Typography>
-        <Toolbar>
-          <ButtonDrawMarker />
-        </Toolbar>
+        <Typography sx={{ pb: 1 }}>{addS}</Typography>
+        <MainToolbar />
       </Box>
     );
 
-  return (
-    <Box sx={{ display: "flex", alignItems: "center" }}>
-      <SelectorAnnotationTemplateInMapEditor />
-
-      <Toolbar sx={{ ml: 1 }}>
-        {annotationTypes.map((type) => buttonsMap[type])}
-      </Toolbar>
-    </Box>
-  );
+  return <MainToolbar />;
 }

@@ -39,6 +39,7 @@ import LayerScreenCursor from "./LayerScreenCursor";
 
 import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 export default function MainMapEditorV2() {
   const dispatch = useDispatch();
@@ -194,6 +195,9 @@ export default function MainMapEditorV2() {
   function handleNodeClick(node) {
     console.log("[CLICK] on node", node);
     dispatch(setSelectedNode(node?.id === selectedNode?.id ? null : node));
+    if (node.nodeType === "ANNOTATION") {
+      dispatch(setSelectedMenuItemKey("NODE_FORMAT"));
+    }
   }
 
   async function handleClick() {

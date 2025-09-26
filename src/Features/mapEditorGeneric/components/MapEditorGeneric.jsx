@@ -800,7 +800,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
             )}
             {bgImageAnnotations.map((annotation) => {
               const selected = selectedNode?.id === annotation.id;
-              console.log("debug_2509_selected", selected);
+
               return (
                 <NodeAnnotation
                   key={annotation.id}
@@ -863,7 +863,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           >
             {legendItems && showBgImage && (
               <NodeLegend
-                selected={selectedNode?.type === "LEGEND"}
+                selected={selectedNode?.nodeType === "LEGEND"}
                 legendItems={legendItems}
                 spriteImage={annotationSpriteImage}
                 legendFormat={legendFormat}

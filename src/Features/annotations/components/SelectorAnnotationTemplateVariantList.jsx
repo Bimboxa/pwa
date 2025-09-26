@@ -53,6 +53,7 @@ export default function SelectorAnnotationTemplateVariantList({
 
           return (
             <ListItemButton
+              divider
               key={id}
               selected={selected}
               size="small"
