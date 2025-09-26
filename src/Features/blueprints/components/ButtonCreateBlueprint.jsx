@@ -1,6 +1,7 @@
 import { useDispatch } from "react-redux";
 
 import { setSelectedListingId } from "Features/listings/listingsSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import {
   setIsEditingEntity,
   setNewEntity,
@@ -13,7 +14,6 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import { setTempName } from "../blueprintsSlice";
-import { setSelectedMenuItemKey } from "Features/dashboard/dashboardSlice";
 
 export default function ButtonCreateBlueprint() {
   const dispatch = useDispatch();

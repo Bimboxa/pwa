@@ -29,9 +29,12 @@ export default function MarkerIconNewMarker() {
 
   const { iconKey, fillColor } = newAnnotation ?? {};
 
+  const isText = newAnnotation?.type === "TEXT";
+  const isMarker = newAnnotation?.type === "MARKER";
+
   // helper - unvalidMarker
 
-  const unvalidMarker = !iconKey || !fillColor;
+  const unvalidMarker = !isText && (!iconKey || !fillColor);
 
   // render
 
@@ -56,15 +59,17 @@ export default function MarkerIconNewMarker() {
         variant="body2"
         align="center"
         noWrap
-        sx={{ mb: 1, fontWeight: "bold" }}
+        sx={{ mb: 1, fontWeight: "bold", bgcolor: "white" }}
       >
-        {annotationTemplate?.label}
+        {isText ? "Texte" : annotationTemplate?.label}
       </Typography>
-      <MarkerIcon
-        spriteImage={spriteImage}
-        iconKey={iconKey}
-        fillColor={fillColor}
-      />
+      {isMarker && (
+        <MarkerIcon
+          spriteImage={spriteImage}
+          iconKey={iconKey}
+          fillColor={fillColor}
+        />
+      )}
     </Box>
   );
 }

@@ -37,7 +37,7 @@ export default function BlockBottomActionsInPanel({ onSaved }) {
   const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);
   const entity = useEntity();
   const { value: listing } = useSelectedListing();
-  console.log("[Action] entity", entity);
+  console.log("[Action] entity", entity, listing);
 
   const create = useCreateEntity();
   const update = useUpdateEntity();

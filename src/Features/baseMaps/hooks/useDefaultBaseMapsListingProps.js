@@ -22,8 +22,6 @@ export default function useDefaultBaseMapsListingProps() {
     table: entityModel?.defaultTable,
   };
 
-  console.log("debug_1909 props", props);
-
   // return
 
   return props;

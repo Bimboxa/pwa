@@ -26,8 +26,6 @@ export default function useSelectedScope(options) {
     filterByProjectId: selectedProjectId,
   });
 
-  console.log("debug_0509 [scopes] scopes", scopes);
-
   // helpers
 
   let selectedScope = useMemo(() => {

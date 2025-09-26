@@ -42,10 +42,12 @@ export default function ButtonDrawMarker() {
     dispatch(setShowLayerScreenCursor(true));
     editor?.mapEditor?.enableDrawingMode("MARKER", { updateRedux: true });
     dispatch(setEnabledDrawingMode("MARKER"));
-    dispatch(setSelectedMenuItemKey("NODE_FORMAT"));
+
     dispatch(setNewAnnotation(_newAnnotation));
     dispatch(setSelectedAnnotationId(null));
     dispatch(setMainBaseMapIsSelected(false));
+
+    if (!annotationTemplateId) dispatch(setSelectedMenuItemKey("NODE_FORMAT"));
   }
 
   return (

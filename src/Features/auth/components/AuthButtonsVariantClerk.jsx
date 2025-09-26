@@ -18,9 +18,7 @@ export default function AuthButtonsVariantClerk() {
 
   // debug - handler
 
-  const handleDebug = () => {
-    //console.log("debug_1705", token);
-  };
+  const handleDebug = () => {};
 
   if (!isOnline) {
     return <AuthButtonOffline />;

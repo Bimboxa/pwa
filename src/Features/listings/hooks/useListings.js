@@ -38,7 +38,7 @@ export default function useListings(options) {
     if (filterByScopeId) {
       _listings = _listings.filter((listing) => {
         const test = testObjectHasProp(listing, "scopeId");
-        !test || (test && listing.scopeId === filterByScopeId);
+        return !test || (test && listing.scopeId === filterByScopeId);
       });
     }
 

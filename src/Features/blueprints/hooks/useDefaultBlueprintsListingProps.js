@@ -20,9 +20,8 @@ export default function useDefaultBlueprintsListingProps() {
     entityModelKey: entityModel?.key,
     name: entityModel?.defaultListingName,
     table: entityModel?.defaultTable,
+    canCreateItem: true,
   };
-
-  console.log("debug_1909 props", props);
 
   // return
 

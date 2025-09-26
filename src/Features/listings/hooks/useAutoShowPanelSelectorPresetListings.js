@@ -11,7 +11,7 @@ export default function useAutoShowPanelSelectorPresetListings() {
   const listings = useListings({
     filterByProjectId: projectId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    //filterByScopeId: scopeId,
+    filterByScopeId: scopeId,
   });
 
   console.log("debug_2509_listings", listings, scopeId);
