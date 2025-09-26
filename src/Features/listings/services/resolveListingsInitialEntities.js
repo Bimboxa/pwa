@@ -11,7 +11,10 @@ export default function resolveListingsInitialEntities({ listings }) {
       for (let item of listing.initialEntities.sortedItems) {
         if (listing.entityModel.type === "ANNOTATION_TEMPLATE") {
           const entity = {
-            code: getAnnotationTemplateCode({ annotation: item, listing }),
+            code: getAnnotationTemplateCode({
+              annotation: item,
+              listingKey: listing.key,
+            }),
             listingKey: listing.key,
             listing: listing,
             ...item,

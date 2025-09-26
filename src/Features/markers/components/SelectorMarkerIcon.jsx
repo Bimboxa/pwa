@@ -1,12 +1,7 @@
-import { useState, useRef, useEffect } from "react";
-
 import { Box, IconButton } from "@mui/material";
 import theme from "Styles/theme";
 
 import MarkerIcon from "./MarkerIcon";
-import DiskGeneric from "Features/form/components/DiskGeneric";
-
-import getRowAndColFromIndex from "../utils/getRowAndColFromIndex";
 
 export default function SelectorMarkerIcon({
   iconKey,

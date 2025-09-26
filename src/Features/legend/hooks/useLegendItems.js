@@ -10,6 +10,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import getAnnotationTemplateIdFromAnnotation from "Features/annotations/utils/getAnnotationTemplateIdFromAnnotation";
 import getPropsFromAnnotationTemplateId from "Features/annotations/utils/getPropsFromAnnotationTemplateId";
+import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 export default function useLegendItems() {
   // data
@@ -23,14 +24,18 @@ export default function useLegendItems() {
     filterByBaseMapId: baseMapId,
   });
 
+  // helpers - annotationTemplateById
+
+  const annotationTemplateById = getItemsByKey(annotationTemplates, "id");
+
   // helpers
 
   let legendItems = [];
   const idsMap = {};
 
   annotations?.forEach((annotation) => {
-    const templateId = getAnnotationTemplateIdFromAnnotation(annotation);
-    const template = annotationTemplates?.find((t) => t.id === templateId);
+    const templateId = annotation.annotationTemplateId;
+    const template = annotationTemplateById[templateId];
     if (!idsMap[templateId]) {
       idsMap[templateId] = annotation;
       const { iconKey, fillColor } = annotation;

@@ -28,6 +28,7 @@ import useLegendItems from "Features/legend/hooks/useLegendItems";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgImageRawTextAnnotations";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import { Box, Button } from "@mui/material";
 
@@ -40,6 +41,7 @@ import LayerScreenCursor from "./LayerScreenCursor";
 import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import useSelectedAnnotationTemplateInMapEditor from "../hooks/useSelectedAnnotationTemplateInMapEditor";
 
 export default function MainMapEditorV2() {
   const dispatch = useDispatch();
@@ -51,11 +53,15 @@ export default function MainMapEditorV2() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const listingId = useSelector((s) => s.listings.selectedListingId);
+  const { value: listing } = useSelectedListing();
 
   const annotationSpriteImage = useAnnotationSpriteImage();
+
   const tempAnnotationTemplateLabel = useSelector(
     (s) => s.annotations.tempAnnotationTemplateLabel
   );
+  const annotationTemplate = useSelectedAnnotationTemplateInMapEditor();
+
   const mainBaseMap = useMainBaseMap();
   const basePoseInBg = useSelector((s) => s.mapEditor.baseMapPoseInBg);
 
@@ -144,6 +150,7 @@ export default function MainMapEditorV2() {
 
       // main
       const entity = await createEntity({});
+      console.log("[MainMapEditor] create entity", entity);
       const _annotation = await createAnnotation(
         {
           ...newAnnotation,
@@ -153,8 +160,15 @@ export default function MainMapEditorV2() {
           listingId: listingId,
           baseMapId: mainBaseMap?.id,
           type: "MARKER",
+          annotationTemplateId: annotationTemplate?.id,
         },
-        { tempAnnotationTemplateLabel }
+        {
+          tempAnnotationTemplateLabel: annotationTemplate
+            ? null
+            : tempAnnotationTemplateLabel,
+          listingKey: listing.id,
+          updateAnnotationTemplateId: !Boolean(annotationTemplate?.id),
+        }
       );
       console.log("[MainMapEditor] new entity created", _annotation, entity);
 
@@ -195,7 +209,7 @@ export default function MainMapEditorV2() {
   function handleNodeClick(node) {
     console.log("[CLICK] on node", node);
     dispatch(setSelectedNode(node?.id === selectedNode?.id ? null : node));
-    if (node.nodeType === "ANNOTATION") {
+    if (node?.nodeType === "ANNOTATION") {
       dispatch(setSelectedMenuItemKey("NODE_FORMAT"));
     }
   }

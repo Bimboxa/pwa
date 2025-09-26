@@ -39,7 +39,7 @@ export default function useEntity() {
       entity = { ...entity, label };
     }
 
-    console.log("debug_1509 [useEntity] entity", entity);
+    //console.log("debug_1509 [useEntity] entity", entity);
 
     return entity;
   } catch (error) {

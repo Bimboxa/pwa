@@ -1,23 +1,52 @@
 import db from "App/db/db";
 
-import getAnnotationTemplateIdFromAnnotation from "../utils/getAnnotationTemplateIdFromAnnotation";
+import { nanoid } from "@reduxjs/toolkit";
+
+import getAnnotationTemplateCode from "../utils/getAnnotationTemplateCode";
 
 export default async function createAnnotationService(annotation, options) {
   // options
 
+  const updateAnnotationTemplateId = options.updateAnnotationTemplateId;
   const tempAnnotationTemplateLabel = options?.tempAnnotationTemplateLabel;
+  const listingKey = options?.listingKey;
 
-  // db
-  await db.annotations.put(annotation);
+  let _annotation;
 
-  // annotation template
-  if (tempAnnotationTemplateLabel) {
-    await db.annotationTemplates.put({
-      id: getAnnotationTemplateIdFromAnnotation(annotation),
-      listingId: annotation.listingId,
-      label: tempAnnotationTemplateLabel,
-    });
+  if (!updateAnnotationTemplateId) {
+    _annotation = await db.annotations.put(annotation);
+  } else {
+    //annotation template
+    if (tempAnnotationTemplateLabel) {
+      const code = getAnnotationTemplateCode({ annotation, listingKey });
+
+      let annotationTemplate = await db.annotationTemplates
+        .where("code")
+        .equals(code)
+        .first();
+
+      if (!annotationTemplate) {
+        annotationTemplate = {
+          id: nanoid(),
+          code,
+          projectId: annotation.projectId,
+          listingId: annotation.listingId,
+          label: tempAnnotationTemplateLabel,
+          type: annotation.type,
+          fillColor: annotation.fillColor,
+          iconKey: annotation.iconKey,
+          isFromAnnotation: true,
+        };
+        await db.annotationTemplates.put(annotationTemplate);
+      }
+
+      // db
+      _annotation = await db.annotations.put({
+        ...annotation,
+        annotationTemplateId: annotationTemplate?.id,
+      });
+    }
   }
 
-  return annotation;
+  return _annotation;
 }
