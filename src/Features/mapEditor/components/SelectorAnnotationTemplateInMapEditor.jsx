@@ -49,7 +49,7 @@ export default function SelectorAnnotationTemplateInMapEditor() {
   // helper - label
 
   const label = annotationTemplate?.label || annotationTemplatesListing?.name;
-  const { iconKey, fillColor } = getPropsFromAnnotationTemplateId(templateId);
+  const { iconKey, fillColor } = annotationTemplate ?? {};
 
   // handlers
 

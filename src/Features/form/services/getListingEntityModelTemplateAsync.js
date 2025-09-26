@@ -7,8 +7,6 @@ export default async function getListingEntityModelTemplateAsync({
   entityModelsObject,
 }) {
   // edge case
-
-  console.log("listing", listing);
   if (!listing) return null;
 
   // helpers
@@ -27,9 +25,11 @@ export default async function getListingEntityModelTemplateAsync({
       await Promise.all(
         Object.entries(field).map(async ([key, value]) => {
           if (value.listingKey) {
-            const _relatedListing = listing.relatedListings[value.listingKey];
+            const _relatedListing = listing.relatedListings?.[value.listingKey];
             console.log("debug_3050 _relatedListing", _relatedListing);
-            if (_relatedListing) {
+            if (listing[value.listingKey]) {
+              _field[key] = listing[value.listingKey]; // example value.listingKey = "spriteImage"
+            } else if (_relatedListing) {
               console.log("debug_3005 _relatedListing", _relatedListing);
               let relatedListing = await db.listings.get(_relatedListing.id);
               relatedListing = resolveListingWithEntityModel({

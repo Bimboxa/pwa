@@ -36,14 +36,9 @@ export default function SelectorAnnotationTemplate({
         }}
       >
         {annotationTemplates?.map((annotationTemplate) => {
-          const { fillColor, iconKey } = getPropsFromAnnotationTemplateId(
-            annotationTemplate?.id
-          );
-          const bgcolor = fillColor;
-          const id = annotationTemplate.id;
-          const label = annotationTemplate.label;
-          const selected =
-            annotationTemplate.id === selectedAnnotationTemplateId;
+          const { id, fillColor: bgcolor, iconKey, label } = annotationTemplate;
+
+          const selected = id === selectedAnnotationTemplateId;
 
           return (
             <Box

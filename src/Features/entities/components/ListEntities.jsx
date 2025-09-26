@@ -11,6 +11,7 @@ import SearchBar from "Features/search/components/SearchBar";
 import SectionActions from "./SectionActions";
 
 import getFoundItems from "Features/search/getFoundItems";
+import ListItemEntityVariantAnnotationTemplate from "Features/annotations/components/ListItemEntityVariantAnnotationTemplate";
 
 export default function ListEntities({
   listing,
@@ -38,6 +39,13 @@ export default function ListEntities({
 
   const color = listing?.color;
 
+  // helper - variant
+
+  let variant = "DEFAULT";
+
+  if (listing?.entityModel?.type === "ANNOTATION_TEMPLATE")
+    variant = "ANNOTATION_TEMPLATE";
+
   // handlers
 
   function handleSearchTextChange(text) {
@@ -61,16 +69,31 @@ export default function ListEntities({
       <SectionActions />
       <BoxFlexVStretch sx={{ overflow: "auto" }}>
         <List dense={!isMobile} disablePadding sx={{ bgcolor: "white" }}>
-          {filteredEntities?.map((entity) => (
-            <ListItemEntityVariantDefault
-              key={entity.id}
-              entity={entity}
-              onClick={handleEntityClick}
-              selection={selection}
-              listingColor={color}
-              annotationTemplates={annotationTemplates}
-            />
-          ))}
+          {filteredEntities?.map((entity) => {
+            return (
+              <>
+                {variant === "DEFAULT" && (
+                  <ListItemEntityVariantDefault
+                    key={entity.id}
+                    entity={entity}
+                    onClick={handleEntityClick}
+                    selection={selection}
+                    listingColor={color}
+                    annotationTemplates={annotationTemplates}
+                  />
+                )}
+                {variant === "ANNOTATION_TEMPLATE" && (
+                  <ListItemEntityVariantAnnotationTemplate
+                    key={entity.id}
+                    entity={entity}
+                    onClick={handleEntityClick}
+                    selection={selection}
+                    listing={listing}
+                  />
+                )}
+              </>
+            );
+          })}
         </List>
       </BoxFlexVStretch>
     </BoxFlexVStretch>

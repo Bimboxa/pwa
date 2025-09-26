@@ -20,6 +20,9 @@ export default function SelectorMarkerIcon({
 
   //const bgcolor = theme.palette.primary.main;
   const bgcolorDefault = theme.palette.grey[400];
+  const iconColorDefault = theme.palette.grey[800];
+
+  if (!iconColor) iconColor = iconColorDefault;
 
   return (
     <Box sx={{ width: 1, display: "flex", justifyContent: "center", p: 1 }}>
