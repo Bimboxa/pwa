@@ -25,10 +25,13 @@ export default function SelectorAnnotationTemplateVariantList({
   // strings
 
   const noTemplateS = "Aucun style prédéfini";
+  const otherS = "Autre";
 
   // helpers
 
   const noTemplates = !annotationTemplates?.length > 0;
+  const newTemplates =
+    annotationTemplates.filter((t) => t.isFromAnnotation)?.length > 0;
 
   if (noTemplates)
     return (
@@ -82,24 +85,39 @@ export default function SelectorAnnotationTemplateVariantList({
           })}
       </List>
 
-      <List dense sx={{ mt: 2 }}>
-        {annotationTemplates
-          ?.filter((t) => t.isFromAnnotation)
-          .map((annotationTemplate) => {
-            const { fillColor, iconKey, id, label } = annotationTemplate;
-            const selected = id === selectedAnnotationTemplateId;
+      {newTemplates && (
+        <Box
+          sx={{
+            mt: 2,
+            width: 1,
+          }}
+        >
+          <Typography sx={{ p: 2 }} variant="body2" color="text.secondary">
+            {otherS}
+          </Typography>
+          <List
+            dense
+            sx={{ borderTop: (theme) => `1px solid ${theme.palette.divider}` }}
+          >
+            {annotationTemplates
+              ?.filter((t) => t.isFromAnnotation)
+              .map((annotationTemplate) => {
+                const { fillColor, iconKey, id, label } = annotationTemplate;
+                const selected = id === selectedAnnotationTemplateId;
 
-            return (
-              <ListItem
-                id={id}
-                selected={selected}
-                fillColor={fillColor}
-                iconKey={iconKey}
-                label={label}
-              />
-            );
-          })}
-      </List>
+                return (
+                  <ListItem
+                    id={id}
+                    selected={selected}
+                    fillColor={fillColor}
+                    iconKey={iconKey}
+                    label={label}
+                  />
+                );
+              })}
+          </List>
+        </Box>
+      )}
     </BoxFlexVStretch>
   );
 }

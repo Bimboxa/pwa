@@ -9,6 +9,7 @@ import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSp
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import getAnnotationTemplateIdFromAnnotation from "Features/annotations/utils/getAnnotationTemplateIdFromAnnotation";
 import getAnnotationTemplateCode from "Features/annotations/utils/getAnnotationTemplateCode";
+import useSelectedAnnotationTemplateInMapEditor from "Features/mapEditor/hooks/useSelectedAnnotationTemplateInMapEditor";
 
 export default function MarkerIconNewMarker() {
   // strings
