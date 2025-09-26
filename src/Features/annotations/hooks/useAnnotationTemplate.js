@@ -35,8 +35,8 @@ export default function useAnnotationTemplate(annotation, options) {
     key: "iconKey",
     label: "Icône",
     type: "icon",
+    spriteImage,
     options: {
-      spriteImage,
       iconColor: annotation?.fillColor,
     },
   };

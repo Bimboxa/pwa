@@ -1,4 +1,4 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { triggerAnnotationsUpdate } from "../annotationsSlice";
 
@@ -11,11 +11,13 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 export default function useCreateAnnotation() {
   const dispatch = useDispatch();
   const { value: listing } = useSelectedListing();
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
 
   return async (annotation, options) => {
     const _annotation = {
       ...annotation,
-      id: annotation?.id ?? nanoid(),
+      id: nanoid(),
+      projectId,
       listingId: annotation?.listingId ?? listing?.id,
     };
 

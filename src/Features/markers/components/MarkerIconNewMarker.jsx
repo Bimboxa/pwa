@@ -4,6 +4,7 @@ import { Box, Typography } from "@mui/material";
 
 import MarkerIcon from "./MarkerIcon";
 
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import getAnnotationTemplateIdFromAnnotation from "Features/annotations/utils/getAnnotationTemplateIdFromAnnotation";
@@ -18,12 +19,16 @@ export default function MarkerIconNewMarker() {
 
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const spriteImage = useAnnotationSpriteImage();
+  const { value: listing } = useSelectedListing();
 
   const annotationTemplates = useAnnotationTemplates();
 
   // helper - label
 
-  const code = getAnnotationTemplateCode(newAnnotation);
+  const code = getAnnotationTemplateCode({
+    annotation: newAnnotation,
+    listingKey: listing?.annotationTemplatesListingKey,
+  });
   const annotationTemplate = annotationTemplates?.find((t) => t.code === code);
 
   // helper

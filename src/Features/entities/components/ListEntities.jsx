@@ -76,6 +76,7 @@ export default function ListEntities({
                   <ListItemEntityVariantDefault
                     key={entity.id}
                     entity={entity}
+                    listing={listing}
                     onClick={handleEntityClick}
                     selection={selection}
                     listingColor={color}

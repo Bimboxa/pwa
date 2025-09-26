@@ -11,6 +11,8 @@ export default function SelectorAnnotationTemplate({
   spriteImage,
   size = 18,
 }) {
+  console.log("debug_2609_selectorAnnotationTemplate", annotationTemplates);
+
   // strings
 
   const noTemplateS = "Aucun style prédéfini";
@@ -50,7 +52,7 @@ export default function SelectorAnnotationTemplate({
                 justifyContent: "center",
                 alignItems: "center",
                 mx: 1,
-                //mb: 2,
+                mb: 2,
               }}
             >
               <Tooltip title={label}>
