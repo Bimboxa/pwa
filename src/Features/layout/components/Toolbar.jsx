@@ -1,6 +1,6 @@
-import {Paper} from "@mui/material";
+import { Paper } from "@mui/material";
 
-export default function Toolbar({children}) {
+export default function Toolbar({ children, sx }) {
   return (
     <Paper
       sx={{
@@ -8,6 +8,7 @@ export default function Toolbar({children}) {
         alignItems: "center",
         bgcolor: "grey.800",
         color: "white",
+        ...sx,
       }}
     >
       {children}

@@ -13,8 +13,6 @@ export default function useAnnotationTemplate(annotation, options) {
   //const annotationTemplates = useLegendItems();
   const annotationTemplates = useAnnotationTemplates();
 
-  console.log("[debug_2309] annotationTemplates", annotationTemplates);
-
   // helpers
 
   const field_annotationTemplate = {

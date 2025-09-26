@@ -1,6 +1,6 @@
-import {useState} from "react";
+import { useState } from "react";
 
-import {List, ListItem, ListItemText} from "@mui/material";
+import { List, ListItem, ListItemText } from "@mui/material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
@@ -14,11 +14,11 @@ import getItemMetadataDropboxService from "Features/dropbox/services/getItemMeta
 import listFolderItemsDropboxService from "Features/dropbox/services/listFolderItemsDropboxService";
 import listFolderItemsWithNamespaceDropboxService from "Features/dropbox/services/listFolderItemsWithNamespaceDropboxService";
 
-export default function ButtonInPanelListFolderItems({path}) {
+export default function ButtonInPanelListFolderItems({ path }) {
   // data
 
   const remoteContainer = useRemoteContainer();
-  const {value: accessToken} = useRemoteToken();
+  const { value: accessToken } = useRemoteToken();
 
   // strings
 
@@ -36,8 +36,8 @@ export default function ButtonInPanelListFolderItems({path}) {
     setLoading(true);
 
     // team folder
-    const userAccount = await getUserAccountDropboxService({accessToken});
-    console.log("debug_2005 userAccount 1", userAccount);
+    const userAccount = await getUserAccountDropboxService({ accessToken });
+
     const namespaceId = userAccount?.root_info?.root_namespace_id;
 
     // // get team namespaceId
@@ -99,7 +99,7 @@ export default function ButtonInPanelListFolderItems({path}) {
   return (
     <>
       <DialogGeneric open={open} onClose={handleClose} title={filesS}>
-        <BoxFlexVStretch sx={{overflow: "auto"}}>
+        <BoxFlexVStretch sx={{ overflow: "auto" }}>
           <List dense>
             {items.map((item) => (
               <ListItem divider key={item.name}>

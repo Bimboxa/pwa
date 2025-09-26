@@ -25,8 +25,6 @@ export default function useAutoLayoutOnboarding() {
 
   const [step, setStep] = useState("PROJECT"); // PROJECT, SCOPES, LISTINGS
 
-  console.log("[debug_2309] step", step);
-
   // effect - setStep
 
   useEffect(() => {

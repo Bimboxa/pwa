@@ -14,6 +14,9 @@ import ButtonDrawFreeline from "./ButtonDrawFreeline";
 import ButtonDrawMarker from "./ButtonDrawMarker";
 import ButtonAddText from "./ButtonAddText";
 import ButtonDownloadBaseMapView from "./ButtonDownloadBaseMapView";
+import SelectorAnnotationTemplateInMapEditor from "./SelectorAnnotationTemplateInMapEditor";
+import useSelectedAnnotationTemplateInMapEditor from "../hooks/useSelectedAnnotationTemplateInMapEditor";
+import getPropsFromAnnotationTemplateId from "Features/annotations/utils/getPropsFromAnnotationTemplateId";
 
 export default function ToolbarMapEditorLocatedEntities() {
   // strings
@@ -24,10 +27,25 @@ export default function ToolbarMapEditorLocatedEntities() {
 
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const annotations = useAnnotations({ filterByBaseMapId: baseMapId });
+  const annotationTemplateId = useSelector(
+    (s) => s.mapEditor.selectedAnnotationTemplateId
+  );
+
+  // helpers - annotation types
+
+  const { type } = getPropsFromAnnotationTemplateId(annotationTemplateId);
+  const annotationTypes = type ? [type] : ["MARKER", "TEXT"];
 
   // helpers
 
   const noAnnotation = !annotations?.length > 0;
+
+  // helpers - buttonsMap
+
+  const buttonsMap = {
+    MARKER: <ButtonDrawMarker />,
+    TEXT: <ButtonAddText />,
+  };
 
   if (noAnnotation)
     return (
@@ -49,14 +67,12 @@ export default function ToolbarMapEditorLocatedEntities() {
     );
 
   return (
-    <Toolbar>
-      <ButtonDrawMarker />
-      <ButtonAddText />
-      {/* <ButtonDrawPolyline />
-      <ButtonDrawPolygon />
-      <ButtonDrawFreeline />
-      <ButtonDownloadBaseMapView /> */}
-      {/*<ButtonAutoSegmentation />*/}
-    </Toolbar>
+    <Box sx={{ display: "flex", alignItems: "center" }}>
+      <SelectorAnnotationTemplateInMapEditor />
+
+      <Toolbar sx={{ ml: 1 }}>
+        {annotationTypes.map((type) => buttonsMap[type])}
+      </Toolbar>
+    </Box>
   );
 }

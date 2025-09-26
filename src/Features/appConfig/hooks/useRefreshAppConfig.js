@@ -28,8 +28,6 @@ export default function useRefreshAppConfig() {
     //
     appConfig = resolveAppConfig(appConfig);
     //
-    console.log("debug_1607 appConfig", appConfig);
-    //
     setAppConfigInLocalStorage(appConfig);
     dispatch(setAppConfig(appConfig));
   };
