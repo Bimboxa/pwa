@@ -1,4 +1,5 @@
 import { nanoid } from "@reduxjs/toolkit";
+import getAnnotationTemplateCode from "Features/annotations/utils/getAnnotationTemplateCode";
 import getAnnotationTemplateIdFromAnnotation from "Features/annotations/utils/getAnnotationTemplateIdFromAnnotation";
 
 export default function resolveListingsInitialEntities({ listings }) {
@@ -10,7 +11,7 @@ export default function resolveListingsInitialEntities({ listings }) {
       for (let item of listing.initialEntities.sortedItems) {
         if (listing.entityModel.type === "ANNOTATION_TEMPLATE") {
           const entity = {
-            id: getAnnotationTemplateIdFromAnnotation(item),
+            code: getAnnotationTemplateCode({ annotation: item, listing }),
             listingKey: listing.key,
             listing: listing,
             ...item,

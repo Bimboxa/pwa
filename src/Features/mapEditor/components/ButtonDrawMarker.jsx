@@ -16,6 +16,7 @@ import { IconButton } from "@mui/material";
 import editor from "App/editor";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import getPropsFromAnnotationTemplateId from "Features/annotations/utils/getPropsFromAnnotationTemplateId";
+import useSelectedAnnotationTemplateInMapEditor from "../hooks/useSelectedAnnotationTemplateInMapEditor";
 
 export default function ButtonDrawMarker() {
   const dispatch = useDispatch();
@@ -26,6 +27,7 @@ export default function ButtonDrawMarker() {
   const annotationTemplateId = useSelector(
     (s) => s.mapEditor.selectedAnnotationTemplateId
   );
+  const annotationTemplate = useSelectedAnnotationTemplateInMapEditor();
 
   // handler
 
@@ -33,9 +35,8 @@ export default function ButtonDrawMarker() {
     // process annotation templates
     let _newAnnotation = { ...newAnnotation, type: "MARKER" };
 
-    if (annotationTemplateId) {
-      const props = getPropsFromAnnotationTemplateId(annotationTemplateId);
-      _newAnnotation = { ..._newAnnotation, ...props };
+    if (annotationTemplate) {
+      _newAnnotation = { ..._newAnnotation, ...annotationTemplate };
     }
 
     //

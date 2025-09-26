@@ -15,8 +15,8 @@ import ButtonDrawMarker from "./ButtonDrawMarker";
 import ButtonAddText from "./ButtonAddText";
 import ButtonDownloadBaseMapView from "./ButtonDownloadBaseMapView";
 import SelectorAnnotationTemplateInMapEditor from "./SelectorAnnotationTemplateInMapEditor";
-import useSelectedAnnotationTemplateInMapEditor from "../hooks/useSelectedAnnotationTemplateInMapEditor";
 import getPropsFromAnnotationTemplateId from "Features/annotations/utils/getPropsFromAnnotationTemplateId";
+import useSelectedAnnotationTemplateInMapEditor from "../hooks/useSelectedAnnotationTemplateInMapEditor";
 
 export default function ToolbarMapEditorLocatedEntities() {
   // strings
@@ -30,10 +30,11 @@ export default function ToolbarMapEditorLocatedEntities() {
   const annotationTemplateId = useSelector(
     (s) => s.mapEditor.selectedAnnotationTemplateId
   );
+  const annotationTemplate = useSelectedAnnotationTemplateInMapEditor();
 
   // helpers - annotation types
 
-  const { type } = getPropsFromAnnotationTemplateId(annotationTemplateId);
+  const { type } = annotationTemplate ?? {};
   const annotationTypes = type ? [type] : ["MARKER", "TEXT"];
 
   // helpers

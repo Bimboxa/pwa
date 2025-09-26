@@ -7,6 +7,7 @@ import MarkerIcon from "./MarkerIcon";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import getAnnotationTemplateIdFromAnnotation from "Features/annotations/utils/getAnnotationTemplateIdFromAnnotation";
+import getAnnotationTemplateCode from "Features/annotations/utils/getAnnotationTemplateCode";
 
 export default function MarkerIconNewMarker() {
   // strings
@@ -22,8 +23,8 @@ export default function MarkerIconNewMarker() {
 
   // helper - label
 
-  const id = getAnnotationTemplateIdFromAnnotation(newAnnotation);
-  const annotationTemplate = annotationTemplates?.find((t) => t.id === id);
+  const code = getAnnotationTemplateCode(newAnnotation);
+  const annotationTemplate = annotationTemplates?.find((t) => t.code === code);
 
   // helper
 
