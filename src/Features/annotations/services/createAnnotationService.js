@@ -8,7 +8,7 @@ import getNewAnnotationTemplateFromAnnotation from "../utils/getNewAnnotationTem
 export default async function createAnnotationService(annotation, options) {
   // options
 
-  const updateAnnotationTemplateId = options.updateAnnotationTemplateId;
+  const updateAnnotationTemplateId = options?.updateAnnotationTemplateId;
   const tempAnnotationTemplateLabel = options?.tempAnnotationTemplateLabel;
   const listingKey = options?.listingKey;
 

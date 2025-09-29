@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
+import { useSelector } from "react-redux";
+
 import { Box } from "@mui/material";
 
 import theme from "Styles/theme";
@@ -8,6 +10,10 @@ import MarkerIconNewMarker from "Features/markers/components/MarkerIconNewMarker
 export default function LayerScreenCursor({ containerEl }) {
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [size, setSize] = useState({ width: 0, height: 0 });
+
+  // data
+
+  const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
 
   // effect
 
@@ -58,20 +64,22 @@ export default function LayerScreenCursor({ containerEl }) {
   return (
     <>
       {/* marker */}
-      <Box
-        sx={{
-          position: "absolute",
-          pointerEvents: "none",
-          top: `${pos.y}px`,
-          left: `${pos.x}px`,
-          transform: "translate(-50%,-120%)",
-          zIndex: 1,
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <MarkerIconNewMarker />
-      </Box>
+      {enabledDrawingMode === "MARKER" && (
+        <Box
+          sx={{
+            position: "absolute",
+            pointerEvents: "none",
+            top: `${pos.y}px`,
+            left: `${pos.x}px`,
+            transform: "translate(-50%,-120%)",
+            zIndex: 1,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <MarkerIconNewMarker />
+        </Box>
+      )}
       {/* Vertical line */}
       <div
         style={{

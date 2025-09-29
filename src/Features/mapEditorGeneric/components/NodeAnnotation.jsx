@@ -1,6 +1,7 @@
 import NodePolygon from "./NodePolygon";
 import NodeText from "./NodeText";
 import NodeMarker from "./NodeMarker";
+import NodePolyline from "./NodePolyline";
 
 export default function NodeAnnotation({
   annotation,
@@ -12,6 +13,8 @@ export default function NodeAnnotation({
   onChange,
   onClick,
   selected,
+  onPolylineComplete,
+  toBaseFromClient,
 }) {
   const props = {
     spriteImage,
@@ -22,6 +25,8 @@ export default function NodeAnnotation({
     onDragEnd,
     onClick,
     selected,
+    onPolylineComplete,
+    toBaseFromClient,
   };
   switch (annotation.type) {
     case "MARKER":
@@ -32,6 +37,9 @@ export default function NodeAnnotation({
 
     case "TEXT":
       return NodeText({ ...props, text: annotation });
+
+    case "POLYLINE":
+      return NodePolyline({ ...props, polyline: annotation });
 
     default:
       return null;

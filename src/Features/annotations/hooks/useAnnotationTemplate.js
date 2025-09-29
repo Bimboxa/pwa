@@ -75,6 +75,15 @@ export default function useAnnotationTemplate(annotation, options) {
       fields = [field_fontSize];
       break;
     }
+    case "POLYLINE": {
+      fields = [
+        //field_annotationTemplate,
+        field_fillColor,
+        // field_iconKey,
+        field_legendLabel,
+      ];
+      break;
+    }
   }
 
   const template = {
