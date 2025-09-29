@@ -1,12 +1,13 @@
-import {useEffect} from "react";
+import { useEffect } from "react";
 
-import {useDispatch} from "react-redux";
+import { useDispatch } from "react-redux";
 
-import {setUserEmail} from "../authSlice";
-import {forceUpdate} from "Features/appConfig/appConfigSlice";
+import { setUserEmail } from "../authSlice";
+import { forceUpdate } from "Features/appConfig/appConfigSlice";
 
-import {useClerk, useUser} from "@clerk/clerk-react";
-import {useNavigate} from "react-router-dom";
+//import {useClerk, useUser} from "@clerk/clerk-react";
+import useUser from "Features/auth/hooks/useUser";
+import { useNavigate } from "react-router-dom";
 import useNetworkStatus from "../hooks/useNetworkStatus";
 
 import setUserEmailInLocalStorage from "../services/setUserEmailInLocalStorage";
@@ -14,12 +15,12 @@ import getUserEmailFromLocalStorage from "../services/getUserEmailFromLocalStora
 import getEmailDomain from "../utils/getEmailDomain";
 import setAppConfigInLocalStorage from "Features/appConfig/services/setAppConfigInLocalStorage";
 
-const AuthGate = ({children}) => {
+const AuthGate = ({ children }) => {
   const navigate = useNavigate();
   const isOnline = useNetworkStatus();
   const dispatch = useDispatch();
 
-  const {user, isLoaded, userId} = useUser();
+  const { user, isLoaded, userId } = useUser();
   const email = user?.primaryEmailAddress?.emailAddress;
 
   useEffect(() => {
