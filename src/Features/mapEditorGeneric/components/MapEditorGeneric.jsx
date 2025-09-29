@@ -14,6 +14,7 @@ import { CenterFocusStrong as CenterFocusStrongIcon } from "@mui/icons-material"
 import NodeSvgImage from "./NodeSvgImage";
 import NodeAnnotation from "./NodeAnnotation";
 import NodeLegend from "./NodeLegend";
+import NodePolyline from "./NodePolyline";
 
 import clamp from "Features/misc/utils/clamp";
 import {
@@ -22,6 +23,9 @@ import {
   mInverse,
   mMul,
 } from "Features/matrix/utils/matrixHelpers";
+
+import { useDispatch } from "react-redux";
+import { addPolylinePoint } from "Features/mapEditor/mapEditorSlice";
 
 const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   let {
@@ -51,6 +55,10 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     legendItems,
     legendFormat,
     onLegendFormatChange,
+
+    // polyline
+    onPolylineComplete,
+    drawingPolylinePoints,
   } = props;
 
   // === REFS ===
@@ -583,6 +591,19 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
   cursor = isPinching ? "grabbing" : isPanning ? "grabbing" : cursor;
 
+  const toBaseFromClient = useCallback(
+    (clientX, clientY) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return { x: 0, y: 0 };
+      // convert to container-relative first
+      const sx = clientX - rect.left;
+      const sy = clientY - rect.top;
+      // then to base-local (your helper already handles viewport->base)
+      return screenToBaseLocal(sx, sy);
+    },
+    [screenToBaseLocal]
+  );
+
   // === CLICK ===
   // capture phase guards
   const onAnyPointerDownCapture = useCallback((e) => {
@@ -611,6 +632,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       suppressNextClickRef.current = false;
     }
   }, []);
+
+  const dispatch = useDispatch();
 
   const onSvgClick = useCallback(
     (e) => {
@@ -645,19 +668,10 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         console.log("hit nodeType", nodeType, hit?.dataset);
         onNodeClick({ id: nodeId, nodeListingId, nodeType, annotationType });
         onBaseMapSelectionChange(false);
-
-        // BASE_MAP
-        // if (nodeType === "BASE_MAP") {
-        //   onBaseMapSelectionChange(!baseMapIsSelected);
-        // }
-
-        // ANNOTATIONS
-        //onAnnotationClick?.({ id: nodeId, type: nodeType });
-        return; // on stoppe ici : pas de création de nouveau marker
+        return;
       }
 
       // create annotation
-
       if (attachTo === "bg") {
         p = p_inBg;
         ratioX = p.x / bgSize.w;
@@ -668,7 +682,11 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         ratioY = p.y / baseSize.h;
       }
 
-      if (enabledDrawingMode && onNewAnnotation) {
+      // Handle polyline drawing differently
+      if (enabledDrawingMode === "EDITED_POLYLINE") {
+        console.log("Adding polyline point:", { ratioX, ratioY });
+        dispatch(addPolylinePoint({ x: ratioX, y: ratioY }));
+      } else if (enabledDrawingMode && onNewAnnotation) {
         onNewAnnotation({ type: enabledDrawingMode, x: ratioX, y: ratioY });
       }
     },
@@ -684,6 +702,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       bgSize.h,
       baseSize.w,
       baseSize.h,
+      dispatch, // Add dispatch to dependencies
     ]
   );
 
@@ -837,6 +856,16 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               enabledDrawingMode={enabledDrawingMode}
             />
 
+            {/* Add NodePolyligne here */}
+            <NodePolyline
+              imageSize={baseSize}
+              containerPose={basePose}
+              toBaseFromClient={toBaseFromClient}
+              isDrawing={true}
+              polyline={{ points: drawingPolylinePoints }}
+              onComplete={onPolylineComplete}
+            />
+
             {!basePoseIsChanging && (
               <g>
                 {baseMapAnnotations?.map((annotation) => (
@@ -851,6 +880,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                     onClick={handleMarkerClick}
                     spriteImage={annotationSpriteImage}
                     selected={selectedNode?.id === annotation.id}
+                    toBaseFromClient={toBaseFromClient}
                   />
                 ))}
               </g>

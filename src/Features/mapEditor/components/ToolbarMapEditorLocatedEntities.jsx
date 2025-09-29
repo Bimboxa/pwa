@@ -9,6 +9,7 @@ import ButtonRefreshMap from "./ButtonRefreshMap";
 import ButtonDrawPolygon from "./ButtonDrawPolygon";
 import ButtonEditScale from "./ButtonEditScale";
 import ButtonDrawPolyline from "./ButtonDrawPolyline";
+import ButtonDrawPolylineV2 from "./ButtonDrawPolylineV2";
 import ButtonAutoSegmentation from "./ButtonAutoSegmentation";
 import ButtonDrawFreeline from "./ButtonDrawFreeline";
 import ButtonDrawMarker from "./ButtonDrawMarker";
@@ -36,7 +37,7 @@ export default function ToolbarMapEditorLocatedEntities() {
   // helpers - annotation types
 
   const { type } = annotationTemplate ?? {};
-  const annotationTypes = type ? [type] : ["MARKER", "TEXT"];
+  const annotationTypes = type ? [type] : ["MARKER", "POLYLINE", "TEXT"];
 
   // helpers
 
@@ -50,6 +51,8 @@ export default function ToolbarMapEditorLocatedEntities() {
         return <ButtonDrawMarker />;
       case "TEXT":
         return <ButtonAddText />;
+      case "POLYLINE":
+        return <ButtonDrawPolylineV2 />;
     }
   };
 

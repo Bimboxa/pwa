@@ -14,6 +14,8 @@ import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import { setSelectedEntityId } from "Features/entities/entitiesSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
+import { clearDrawingPolylinePoints } from "Features/mapEditor/mapEditorSlice";
+
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useBgImageInMapEditor from "Features/mapEditor/hooks/useBgImageInMapEditor";
@@ -95,6 +97,16 @@ export default function MainMapEditorV2() {
   const legendFormat = useSelector((s) => s.mapEditor.legendFormat);
   const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
 
+  // state - edited polyline
+
+  const drawingPolylinePoints = useSelector(
+    (s) => s.mapEditor.drawingPolylinePoints
+  );
+
+  function handlePolylineComplete(points) {
+    dispatch(setDrawingPolylinePoints(points));
+  }
+
   // data - func
 
   const createEntity = useCreateEntity();
@@ -132,6 +144,7 @@ export default function MainMapEditorV2() {
           dispatch(setEnabledDrawingMode(null));
           dispatch(setNewAnnotation({}));
           dispatch(setSelectedNode(null));
+          dispatch(clearDrawingPolylinePoints());
         } else {
           dispatch(setSelectedAnnotationId(null));
           dispatch(setMainBaseMapIsSelected(false));
@@ -225,6 +238,37 @@ export default function MainMapEditorV2() {
     }
   }
 
+  // Add polyline completion handler
+  async function handlePolylineComplete(points) {
+    if (points.length < 2) return;
+
+    try {
+      // Create entity for the polyline
+      const entity = await createEntity({});
+
+      // Create annotation with polyline data
+      const annotation = await createAnnotation({
+        ...newAnnotation,
+        type: "POLYLINE",
+        points, // Store the points array
+        entityId: entity?.id,
+        listingId: listingId,
+        baseMapId: mainBaseMap?.id,
+        annotationTemplateId: annotationTemplate?.id,
+      });
+
+      console.log("[MainMapEditor] new polyline created", annotation, entity);
+
+      // Reset drawing mode
+      dispatch(setEnabledDrawingMode(null));
+      dispatch(setNewAnnotation({}));
+      dispatch(setSelectedNode(null));
+      dispatch(clearDrawingPolylinePoints()); // Clear polyline points
+    } catch (error) {
+      console.error("Error creating polyline:", error);
+    }
+  }
+
   async function handleClick() {
     console.log("click on svg", svgRef.current);
     //const dataUrl = await serializeSvgToPng(svgRef.current);
@@ -286,6 +330,9 @@ export default function MainMapEditorV2() {
         legendItems={legendItems}
         legendFormat={legendFormat}
         onLegendFormatChange={handleLegendFormatChange}
+        // polyline
+        drawingPolylinePoints={drawingPolylinePoints}
+        onPolylineComplete={handlePolylineComplete}
         ref={svgRef}
       />
 

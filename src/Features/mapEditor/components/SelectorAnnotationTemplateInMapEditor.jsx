@@ -36,11 +36,6 @@ export default function SelectorAnnotationTemplateInMapEditor() {
   });
   const annotationTemplatesListing = useAnnotationTemplatesListingInMapEditor();
 
-  console.log(
-    "debug_2909_annotationTemplatesListing",
-    annotationTemplatesListing
-  );
-
   // state
 
   const [open, setOpen] = useState(false);

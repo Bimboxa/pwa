@@ -16,6 +16,7 @@ export default function BlockAnnotation({
   annotationTemplates,
 }) {
   const dispatch = useDispatch();
+  console.log("[BlockAnnotation] annotation", annotation);
 
   // data
 
@@ -39,8 +40,6 @@ export default function BlockAnnotation({
     : tempAnnotationTemplateLabel;
   if (newLabel && tempAnnotationTemplateLabel)
     templateLabel = tempAnnotationTemplateLabel;
-
-  console.log("newLabel", tempAnnotationTemplateLabel);
 
   // helpers - marker icon
 

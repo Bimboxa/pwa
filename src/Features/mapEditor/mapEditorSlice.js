@@ -25,6 +25,9 @@ const mapEditorInitialState = {
   legendFormat: { x: 1320, y: 216, width: 200, height: 50 },
   //
   selectedAnnotationTemplateId: null,
+
+  // polyline
+  drawingPolylinePoints: [], // Array of {x, y} in relative coordinates (0-1)
 };
 
 export const mapEditorSlice = createSlice({
@@ -92,6 +95,18 @@ export const mapEditorSlice = createSlice({
     setSelectedAnnotationTemplateId: (state, action) => {
       state.selectedAnnotationTemplateId = action.payload;
     },
+
+    // polyline
+    setDrawingPolylinePoints: (state, action) => {
+      state.drawingPolylinePoints = action.payload;
+    },
+    addPolylinePoint: (state, action) => {
+      const point = action.payload;
+      state.drawingPolylinePoints.push(point);
+    },
+    clearDrawingPolylinePoints: (state) => {
+      state.drawingPolylinePoints = [];
+    },
   },
 });
 
@@ -121,6 +136,11 @@ export const {
   setLegendFormat,
   //
   setSelectedAnnotationTemplateId,
+
+  // polyline
+  setDrawingPolylinePoints,
+  addPolylinePoint,
+  clearDrawingPolylinePoints,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;
