@@ -1,10 +1,24 @@
-import getAnnotationTemplateIdFromAnnotation from "./getAnnotationTemplateIdFromAnnotation";
+import getAnnotationTemplateFromAnnotation from "./getAnnotationTemplateFromAnnotation";
 
-export default function getFormItemFromAnnotation(annotation) {
+export default function getFormItemFromAnnotation({
+  annotation,
+  annotationTemplates,
+  listing,
+}) {
   // main
 
-  const annotationTemplateId =
-    getAnnotationTemplateIdFromAnnotation(annotation);
+  const annotationTemplate = getAnnotationTemplateFromAnnotation({
+    annotation,
+    annotationTemplates,
+    listing,
+  });
 
-  return { ...annotation, annotationTemplateId };
+  console.log(
+    "annotationTemplate_debug",
+    annotationTemplate,
+    annotationTemplates,
+    listing
+  );
+
+  return { ...annotation, legendLabel: annotationTemplate?.label };
 }

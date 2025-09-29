@@ -33,7 +33,7 @@ export default function SelectorAnnotationTemplate({
       <Box
         sx={{
           display: "flex",
-          alignItems: "center",
+          alignItems: "top",
           flexWrap: "wrap",
         }}
       >
@@ -44,31 +44,48 @@ export default function SelectorAnnotationTemplate({
 
           return (
             <Box
-              key={id}
               sx={{
-                bgcolor: selected ? bgcolor : lighten(bgcolor, 0.5),
-                borderRadius: "50%",
                 display: "flex",
-                justifyContent: "center",
+                flexDirection: "column",
                 alignItems: "center",
-                mx: 1,
-                mb: 2,
+                width: 80,
+                mb: 1,
               }}
             >
-              <Tooltip title={label}>
-                <IconButton
-                  size="small"
-                  onClick={() =>
-                    onChange(selected ? null : annotationTemplate.id)
-                  }
-                >
-                  <MarkerIcon
-                    iconKey={iconKey}
-                    spriteImage={spriteImage}
-                    size={size}
-                  />
-                </IconButton>
-              </Tooltip>
+              <Box
+                key={id}
+                sx={{
+                  bgcolor: selected ? bgcolor : lighten(bgcolor, 0.5),
+                  borderRadius: "50%",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  mx: 1,
+                  mb: 2,
+                }}
+              >
+                <Tooltip title={label}>
+                  <IconButton
+                    size="small"
+                    onClick={() =>
+                      onChange(selected ? null : annotationTemplate.id)
+                    }
+                  >
+                    <MarkerIcon
+                      iconKey={iconKey}
+                      spriteImage={spriteImage}
+                      size={size}
+                    />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Typography
+                variant="caption"
+                align="center"
+                color={selected ? "text.primary" : "text.secondary"}
+              >
+                {label}
+              </Typography>
             </Box>
           );
         })}

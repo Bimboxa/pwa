@@ -17,6 +17,7 @@ export default function resolveListingsInitialEntities({ listings }) {
             }),
             listingKey: listing.key,
             listing: listing,
+            projectId: listing.projectId,
             ...item,
           };
           entities.push(entity);

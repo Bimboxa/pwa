@@ -13,6 +13,7 @@ import FormAnnotation from "./FormAnnotation";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
 import BlockAnnotation from "./BlockAnnotation";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 export default function SectionCreateAnnotation() {
   const dispatch = useDispatch();
@@ -26,6 +27,7 @@ export default function SectionCreateAnnotation() {
   const annotationTemplates = useAnnotationTemplates();
 
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
+  const { value: listing } = useSelectedListing();
 
   // handlers
 
@@ -54,7 +56,11 @@ export default function SectionCreateAnnotation() {
         <IconButtonClose onClose={handleClose} />
       </Box> */}
 
-      <FormAnnotation annotation={newAnnotation} onChange={handleChange} />
+      <FormAnnotation
+        annotation={newAnnotation}
+        listing={listing}
+        onChange={handleChange}
+      />
     </BoxFlexVStretch>
   );
 }

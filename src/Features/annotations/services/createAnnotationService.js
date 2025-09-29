@@ -3,6 +3,7 @@ import db from "App/db/db";
 import { nanoid } from "@reduxjs/toolkit";
 
 import getAnnotationTemplateCode from "../utils/getAnnotationTemplateCode";
+import getNewAnnotationTemplateFromAnnotation from "../utils/getNewAnnotationTemplateFromAnnotation";
 
 export default async function createAnnotationService(annotation, options) {
   // options
@@ -26,17 +27,11 @@ export default async function createAnnotationService(annotation, options) {
         .first();
 
       if (!annotationTemplate) {
-        annotationTemplate = {
-          id: nanoid(),
-          code,
-          projectId: annotation.projectId,
-          listingId: annotation.listingId,
+        annotationTemplate = getNewAnnotationTemplateFromAnnotation({
+          annotation,
           label: tempAnnotationTemplateLabel,
-          type: annotation.type,
-          fillColor: annotation.fillColor,
-          iconKey: annotation.iconKey,
-          isFromAnnotation: true,
-        };
+          listingKey,
+        });
         await db.annotationTemplates.put(annotationTemplate);
       }
 

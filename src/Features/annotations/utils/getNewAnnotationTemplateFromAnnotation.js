@@ -1,0 +1,22 @@
+import { nanoid } from "@reduxjs/toolkit";
+import getAnnotationTemplateCode from "./getAnnotationTemplateCode";
+export default function getNewAnnotationTemplateFromAnnotation({
+  annotation,
+  label,
+  listingKey,
+}) {
+  const code = getAnnotationTemplateCode({ annotation, listingKey });
+  const annotationTemplate = {
+    id: nanoid(),
+    code,
+    projectId: annotation.projectId,
+    listingId: annotation.listingId,
+    label,
+    type: annotation.type,
+    fillColor: annotation.fillColor,
+    iconKey: annotation.iconKey,
+    isFromAnnotation: true,
+  };
+
+  return annotationTemplate;
+}

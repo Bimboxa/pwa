@@ -47,6 +47,8 @@ export default function useAnnotationTemplate(annotation, options) {
     type: "text",
     options: {
       showAsSection: true,
+      fullWidth: true,
+      readOnly: annotation?.annotationTemplateId && !annotation?.id,
     },
   };
 
@@ -61,7 +63,12 @@ export default function useAnnotationTemplate(annotation, options) {
   let fields;
   switch (annotationType) {
     case "MARKER": {
-      fields = [field_fillColor, field_iconKey, field_legendLabel];
+      fields = [
+        field_annotationTemplate,
+        field_fillColor,
+        field_iconKey,
+        field_legendLabel,
+      ];
       break;
     }
     case "TEXT": {

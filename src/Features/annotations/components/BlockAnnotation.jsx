@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { setTempAnnotationTemplateLabel } from "../annotationsSlice";
 
@@ -17,25 +17,30 @@ export default function BlockAnnotation({
 }) {
   const dispatch = useDispatch();
 
-  // strings
+  // data
 
-  const placeholder = "Libellé";
-
-  // state
-
-  const [tempLabel, setTempLabel] = useState("");
+  const tempAnnotationTemplateLabel = useSelector(
+    (s) => s.annotations.tempAnnotationTemplateLabel
+  );
 
   // helpers
 
-  const templateId = getAnnotationTemplateIdFromAnnotation(annotation);
+  const templateId = annotation?.annotationTemplateId;
   const template = annotationTemplates?.find((t) => t.id === templateId);
 
   // effect - tempLabel
 
-  useEffect(() => {
-    console.log("test", template, annotationTemplates, templateId);
-    setTempLabel(template?.label ?? "");
-  }, [templateId]);
+  const newLabel =
+    tempAnnotationTemplateLabel &&
+    template?.label !== tempAnnotationTemplateLabel;
+
+  let templateLabel = templateId
+    ? template?.label
+    : tempAnnotationTemplateLabel;
+  if (newLabel && tempAnnotationTemplateLabel)
+    templateLabel = tempAnnotationTemplateLabel;
+
+  console.log("newLabel", tempAnnotationTemplateLabel);
 
   // helpers - marker icon
 
@@ -57,8 +62,8 @@ export default function BlockAnnotation({
         size={24}
         fillColor={fillColor}
       />
-
-      <TextField
+      <Typography sx={{ ml: 1 }}>{templateLabel}</Typography>
+      {/* <TextField
         sx={{
           ml: 1,
           "& .MuiOutlinedInput-root": {
@@ -71,8 +76,9 @@ export default function BlockAnnotation({
         value={tempLabel}
         onChange={(e) => handleLabelChange(e.target.value)}
         placeholder={placeholder}
-        readOnly={Boolean(template)}
-      />
+        //readOnly={true}
+        //readOnly={Boolean(template)}
+      /> */}
     </Box>
   );
 }
