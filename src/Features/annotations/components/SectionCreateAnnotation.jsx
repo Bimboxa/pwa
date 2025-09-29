@@ -44,7 +44,7 @@ export default function SectionCreateAnnotation() {
           {newS}
         </Typography>
       </Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", p: 1 }}>
+      {/* <Box sx={{ display: "flex", justifyContent: "space-between", p: 1 }}>
         <BlockAnnotation
           annotation={newAnnotation}
           spriteImage={spriteImage}
@@ -52,7 +52,7 @@ export default function SectionCreateAnnotation() {
         />
 
         <IconButtonClose onClose={handleClose} />
-      </Box>
+      </Box> */}
 
       <FormAnnotation annotation={newAnnotation} onChange={handleChange} />
     </BoxFlexVStretch>

@@ -1,9 +1,9 @@
-name: "Etandex"
-version: "16/07/2025"
+name: "Default"
+version: "29/09/2025"
 isDefault: true
 
 # APP
-appName: "Krto"
+appName: "Bimboxa"
 
 # COLORS
 
@@ -17,10 +17,12 @@ colors:
   orange300: &orange300 "#FF9800"
   orange700: &orange700 "#F57C00"
   orange800: &orange800 "#EF6C00"
+  yellow500: &yellow500 "#ffeb3b"
   blue800: &blue800 "#1976D2"
   blue700: &blue700 "#0288D1"
   blue500: &blue500 "#2196F3"
   blue300: &blue300 "#4FC3F7"
+  green500: &green500 "#4caf50"
   green800: &green800 "#388E3C"
   green900: &green900 "#1B5E20"
   grey900: &grey900 "#212121"
@@ -46,6 +48,7 @@ strings:
   scope:
     dashboardTitle: "Krtos"
     nameSingular: "Krto"
+    description: "Un Krto est un dossier de plans de repérage de même type."
     namePlural: "Krto"
     seeAll: "Toutes les Krtos"
     search: "Rechercher une Krto"
@@ -139,6 +142,7 @@ features:
             label: "Auteur"
             position: [1380, 129]
             fontSize: 18
+            mappedTo: authorName
           - key: date
             label: "Date"
             position: [1380, 171]
@@ -187,9 +191,9 @@ entityModelsObject:
     defaultTable: blueprints
     defaultColor: *red500
     defaultIconKey: blueprint
-    defaultListingName: Plans de repérage
+    defaultListingName: Exports
     strings:
-      labelNew: Nouveau plan
+      labelNew: Nouvel export
     labelKey: name
     fieldsObject:
       name:
@@ -248,6 +252,65 @@ entityModelsObject:
         options:
           multiline: true
 
+  annotationTemplate:
+    key: annotationTemplate
+    type: ANNOTATION_TEMPLATE
+    defaultTable: annotationTemplates
+    strings:
+      labelNew: Nouvelle annotation type
+    labelKey: label
+    fieldsObject:
+      type:
+        key: type
+        type: optionKey
+        label: Type d'annotation
+        valueOptions:
+          - key: MARKER
+            label: Repère
+
+      iconKey:
+        key: iconKey
+        type: icon
+        label: Icone
+        spriteImage:
+          listingKey: spriteImage
+      fillColor:
+        key: fillColor
+        type: color
+        label: Couleur
+      label:
+        key: label
+        type: text
+        label: Libellé
+        options:
+          showAsSection: true
+          fullWidth: true
+
+  photo:
+    key: photo
+    type: LOCATED_ENTITY
+    name: Photo
+    defaultTable: entities
+    strings:
+      labelNew: Nouvelle photo
+    fieldsObject:
+      image:
+        key: image
+        type: image
+        label: Image
+        options:
+          autoFocus: true
+          variant: auto
+          maxSize: 200
+      text:
+        key: text
+        type: text
+        label: Description
+        options:
+          multiline: true
+          showAsSection: true
+          fullWidth: true
+
   issue:
     key: issue
     name: Observation
@@ -300,10 +363,12 @@ presetListingsObject:
       key: createdAt
       order: desc
     spriteImageKey: DEFAULT
+    canCreateItem: true
 
   issues:
     key: issues
     name: Observations
+    description: "Ex: Gaine annelée NC, fissure, eau stagnante,..."
     entityModelKey: issue
     table: entities
     color: *blue700
@@ -312,33 +377,49 @@ presetListingsObject:
       key: num
       order: desc
     spriteImageKey: DEFAULT
+    annotationTemplatesListingKey: templates-1
+    canCreateItem: true
 
-  legend:
-    key: legend
-    name: Légende
-    type: ANNOTATIONS_LEGEND
-    entityModelKey: legend
-    table: legends
+  photos:
+    key: photos
+    name: Photos
+    description: "Localisez des photos sur le plan"
+    entityModelKey: photo
+    table: entities
+    color: *purple700
+    iconKey: photo
+    comingSoon: true
+
+  templates-1:
+    key: templates-1
+    name: Bibliothèque d'annotations
+    entityModelKey: annotationTemplate
+    table: annotationTemplates
     color: *blue700
     iconKey: legend
-    initialItems:
-      - sortedItems:
-          - type: MARKER
-            iconKey: ring
-            fillColor: *red500
-            label: Gaine annelée NC
-          - type: MARKER
-            iconKey: square
-            fillColor: *red500
-            label: Réservation NC
-          - type: MARKER
-            iconKey: drop
-            fillColor: *blue500
-            label: Présence d'eau stagnante
-          - type: MARKER
-            iconKey: triangle
-            fillColor: *deepPurple500
-            label: Support à poncer
+    spriteImageKey: DEFAULT
+    initialEntities:
+      sortedItems:
+        - type: MARKER
+          iconKey: ring
+          fillColor: *red500
+          label: Gaine annelée NC
+        - type: MARKER
+          iconKey: square
+          fillColor: *green500
+          label: Réservation NC
+        - type: MARKER
+          iconKey: drop
+          fillColor: *blue500
+          label: Présence d'eau stagnante
+        - type: MARKER
+          iconKey: triangle
+          fillColor: *deepPurple500
+          label: Support à poncer
+        - type: MARKER
+          iconKey: triangle
+          fillColor: *purple500
+          label: Fissure
 
   blueprints:
     key: blueprints
@@ -347,13 +428,12 @@ presetListingsObject:
     table: blueprints
     color: *red500
     iconKey: blueprint
+    canCreateItem: true
 
 # PRESET SCOPES
 
 presetScopesSortedKeys:
-  - pic
   - reception
-  - visit
   - other
 
 presetScopesObject:
@@ -365,11 +445,11 @@ presetScopesObject:
   reception:
     key: reception
     name: Réception de support
-    description: Créez des écarts à partir d'une bibliothèque type.
+    description: Localisez des écarts avec des pastilles.
     descriptionImageUrl: https://public.media.bimboxa.com/scope_template_etandex_reception_support.png
     listings:
-      - annotations
       - issues
+      - photos
 
   visit:
     key: visit
