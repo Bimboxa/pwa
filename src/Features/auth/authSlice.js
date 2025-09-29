@@ -6,6 +6,7 @@ import setTokenInLocalStorage from "./services/setTokenInLocalStorage";
 
 const authSlice = createSlice({
   name: "init",
+  clerkIsEnabled: false,
   initialState: {
     userEmail: null,
     userProfile: {},

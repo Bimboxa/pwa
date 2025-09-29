@@ -7,7 +7,8 @@ import setAppConfigInLocalStorage from "../services/setAppConfigInLocalStorage";
 import useToken from "Features/auth/hooks/useToken";
 
 import resolveAppConfig from "../utils/resolveAppConfig";
-import { useUser } from "@clerk/clerk-react";
+//import { useUser } from "@clerk/clerk-react";
+import useUser from "Features/auth/hooks/useUser";
 
 export default function useFetchOrgaAppConfig() {
   const dispatch = useDispatch();

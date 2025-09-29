@@ -1,5 +1,5 @@
 // auth
-import { ClerkProvider } from "@clerk/clerk-react";
+import ClerkProviderCustom from "Features/auth/components/ClerkProviderCustom";
 import { frFR } from "@clerk/localizations";
 
 // remote containers
@@ -48,23 +48,23 @@ function App({ pca, runningIn }) {
   // render
 
   return (
-    <ClerkProvider
-      key={isOnline ? "online" : "offline"}
-      publishableKey={clerkPublishableKey}
-      localization={frFR}
-    >
-      <RemoteTokenDataProvider>
-        <Provider store={store}>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <GlobalStyles
-              styles={{
-                html: { overscrollBehaviorY: "contain" },
-                body: { overscrollBehaviorY: "contain" },
-              }}
-            />
-            <InitGate>
-              <OnboardingGate>
+    <RemoteTokenDataProvider>
+      <Provider store={store}>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <GlobalStyles
+            styles={{
+              html: { overscrollBehaviorY: "contain" },
+              body: { overscrollBehaviorY: "contain" },
+            }}
+          />
+          <InitGate>
+            <OnboardingGate>
+              <ClerkProviderCustom
+                key={isOnline ? "online" : "offline"}
+                publishableKey={clerkPublishableKey}
+                localization={frFR}
+              >
                 <AuthGate>
                   <Routes>
                     <Route path="/projects" element={<PageProjects />} />
@@ -85,12 +85,12 @@ function App({ pca, runningIn }) {
                     <Route path="/dashboard" element={<PageDashboard />} />
                   </Routes>
                 </AuthGate>
-              </OnboardingGate>
-            </InitGate>
-          </ThemeProvider>
-        </Provider>
-      </RemoteTokenDataProvider>
-    </ClerkProvider>
+              </ClerkProviderCustom>
+            </OnboardingGate>
+          </InitGate>
+        </ThemeProvider>
+      </Provider>
+    </RemoteTokenDataProvider>
   );
 }
 
