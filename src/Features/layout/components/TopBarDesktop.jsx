@@ -13,9 +13,12 @@ import TopBarProjectAndScope from "./TopBarProjectAndScope";
 import ToggleOpenLeftPanel from "Features/leftPanel/components/ToggleOpenLeftPanel";
 import HorizontalMenuRightPanel from "Features/rightPanel/components/HorizontalMenuRightPanel";
 import TopBarBreadcrumbs from "./TopBarBreadcrumbs";
+import useSelectedEntityModel from "Features/listings/hooks/useSelectedEntityModel";
 
 export default function TopBarDesktop() {
   const height = useSelector((s) => s.layout.topBarHeight);
+  const em = useSelectedEntityModel();
+
   return (
     <Box
       sx={{
@@ -46,7 +49,7 @@ export default function TopBarDesktop() {
         {/* <TopBarProjectAndScope /> */}
       </Box>
 
-      {/* <SelectorViewer /> */}
+      {em?.type === "BASE_MAP" && <SelectorViewer />}
 
       {/* <AuthButtons /> */}
       <HorizontalMenuRightPanel />

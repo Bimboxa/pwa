@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Button } from "@mui/material";
+
+import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 // TODO: Replace with your actual Google Maps Static API key
 const GOOGLE_STATIC_MAPS_API_KEY = "AIzaSyCZbEVpuUxtkyXo9gqa8ngGUWQSC-h858g";
@@ -12,7 +13,7 @@ function metersPerPixel(lat, zoom) {
   );
 }
 
-export default function ButtonGoogleMapScreenshot({ map, mapContainerRef }) {
+export default function ButtonGoogleMapScreenshot({ map, mapContainer }) {
   // strings
   const takeScreenshotS = "Prendre une photo";
 
@@ -20,9 +21,11 @@ export default function ButtonGoogleMapScreenshot({ map, mapContainerRef }) {
   const [meterByPx, setMeterByPx] = useState(null);
   const [mapImageFile, setMapImageFile] = useState(null);
 
+  console.log("mapImageFile", mapImageFile);
+
   // handler
   function handleClick() {
-    if (!map || !mapContainerRef?.current) return;
+    if (!map || !mapContainer) return;
     const center = map.getCenter();
     const zoom = map.getZoom();
     const mapTypeId = map.getMapTypeId();
@@ -30,8 +33,8 @@ export default function ButtonGoogleMapScreenshot({ map, mapContainerRef }) {
     const lng = center.lng();
 
     // Get the container's size
-    const width = Math.round(mapContainerRef.current.offsetWidth);
-    const height = Math.round(mapContainerRef.current.offsetHeight);
+    const width = Math.round(mapContainer.offsetWidth);
+    const height = Math.round(mapContainer.offsetHeight);
     // Google Static Maps API max size is 640x640 for free tier, 2048x2048 for premium
     const maxSize = 640;
     const size = `${Math.min(width, maxSize)}x${Math.min(height, maxSize)}`;
@@ -43,9 +46,14 @@ export default function ButtonGoogleMapScreenshot({ map, mapContainerRef }) {
 
   return (
     <div>
-      <Button onClick={handleClick}>{takeScreenshotS}</Button>
+      <ButtonGeneric
+        label={takeScreenshotS}
+        onClick={handleClick}
+        variant="contained"
+        color="secondary"
+      />
       {mapImageFile && (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 16, zIndex: 2 }}>
           <img
             src={mapImageFile}
             alt="Map screenshot"

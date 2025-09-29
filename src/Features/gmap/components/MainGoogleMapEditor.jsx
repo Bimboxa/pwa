@@ -4,7 +4,7 @@ import { Box } from "@mui/material";
 import GoogleMap from "./GoogleMap";
 import LayersGoogleMap from "./LayersGoogleMap";
 import SearchGoogleMap from "./SearchGoogleMap";
-//import SearchGoogleMap from "./SearchGoogleMap";
+import LayerGoogleMap from "./LayerGoogleMap";
 
 export default function MainGoogleMapEditor() {
   // state
@@ -19,11 +19,12 @@ export default function MainGoogleMapEditor() {
         onGmapContainerChange={setGmapContainer}
       />
       {/* <LayersGoogleMap gmap={gmap} gmapContainer={gmapContainer} /> */}
-      <Box
+      {/* <Box
         sx={{ position: "absolute", bottom: "8px", left: "8px", zIndex: 1000 }}
       >
         <SearchGoogleMap />
-      </Box>
+      </Box> */}
+      <LayerGoogleMap gmap={gmap} gmapContainer={gmapContainer} />
     </Box>
   );
 }
