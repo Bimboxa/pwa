@@ -1,3 +1,4 @@
+import getAnnotationTemplateFromAnnotation from "./getAnnotationTemplateFromAnnotation";
 import getAnnotationTemplateIdFromAnnotation from "./getAnnotationTemplateIdFromAnnotation";
 import getPropsFromAnnotationTemplateId from "./getPropsFromAnnotationTemplateId";
 
@@ -5,30 +6,33 @@ export default function getNewAnnotationFromFormItem({
   oldAnnotation,
   newItem,
   annotationTemplates,
+  listing,
 }) {
   let newAnnotation;
 
   // fill template value if changed
 
-  const oldAnnotationTemplateId =
-    getAnnotationTemplateIdFromAnnotation(oldAnnotation);
-  const newAnnotationTemplateId = newItem.annotationTemplateId;
+  const newAnnotationTemplate = getAnnotationTemplateFromAnnotation({
+    annotation: newItem,
+    listing,
+    annotationTemplates,
+  });
 
-  const templateChanged = newAnnotationTemplateId !== oldAnnotationTemplateId;
+  const templateChanged =
+    newAnnotationTemplate?.id !== oldAnnotation?.annotationTemplateId;
 
-  if (templateChanged && newAnnotationTemplateId) {
+  if (templateChanged) {
     // const templateAnnotation = annotationTemplates?.find(
     //   (t) => t.id === newAnnotationTemplateId
     // );
-    const props = getPropsFromAnnotationTemplateId(newAnnotationTemplateId);
-    newAnnotation = { ...newItem, ...props }; // pass id from templateAnnotation !
+    //const props = getPropsFromAnnotationTemplateId(newAnnotationTemplateId);
+    newAnnotation = {
+      ...newItem,
+      annotationTemplateId: newAnnotationTemplate?.id,
+    }; // pass id from templateAnnotation !
   } else {
     newAnnotation = { ...newItem };
   }
-
-  // delete fields
-
-  delete newAnnotation.annotationTemplateId;
 
   // id
 

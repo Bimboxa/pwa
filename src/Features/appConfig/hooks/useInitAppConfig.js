@@ -57,5 +57,5 @@ export default function useInitAppConfig() {
 
   useEffect(() => {
     initAsync();
-  }, [accessToken, forceUpdateAt]);
+  }, [accessToken, forceUpdateAt, configCode]);
 }

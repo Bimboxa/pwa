@@ -641,9 +641,9 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       }
 
       if (hit && !enabledDrawingMode) {
-        const { nodeId, nodeType, annotationType } = hit.dataset;
-        console.log("hit nodeType", nodeType);
-        onNodeClick({ id: nodeId, nodeType, annotationType });
+        const { nodeId, nodeListingId, nodeType, annotationType } = hit.dataset;
+        console.log("hit nodeType", nodeType, hit?.dataset);
+        onNodeClick({ id: nodeId, nodeListingId, nodeType, annotationType });
         onBaseMapSelectionChange(false);
 
         // BASE_MAP

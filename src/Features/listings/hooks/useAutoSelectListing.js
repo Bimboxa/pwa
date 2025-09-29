@@ -1,8 +1,8 @@
-import {useEffect} from "react";
+import { useEffect } from "react";
 
-import {useDispatch, useSelector} from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
-import {setSelectedListingId} from "../listingsSlice";
+import { setSelectedListingId } from "../listingsSlice";
 
 import useListingsByScope from "./useListingsByScope";
 
@@ -10,7 +10,7 @@ export default function useAutoSelectListing() {
   const dispatch = useDispatch();
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
-  const {value: listings} = useListingsByScope();
+  const { value: listings } = useListingsByScope();
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   const selectedListing = listings?.find((l) => l.id === selectedListingId);
@@ -18,6 +18,7 @@ export default function useAutoSelectListing() {
   useEffect(() => {
     console.log("[EFFECT] useAutoSelectListing");
     if (!selectedListing && listings?.length > 0) {
+      console.log("[EFFECT] useAutoSelectListing - set First listing");
       const firstListing = listings[0];
       if (firstListing) {
         dispatch(setSelectedListingId(firstListing.id));

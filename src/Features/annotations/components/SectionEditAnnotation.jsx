@@ -1,7 +1,10 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import { setEditedAnnotation } from "../annotationsSlice";
-import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
+import {
+  setEnabledDrawingMode,
+  setSelectedNode,
+} from "Features/mapEditor/mapEditorSlice";
 import { setSelectedAnnotationId } from "../annotationsSlice";
 import { setIsEditingAnnotation } from "../annotationsSlice";
 
@@ -19,6 +22,7 @@ import FormAnnotation from "./FormAnnotation";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
+import { useEffect } from "react";
 
 export default function SectionEditAnnotation() {
   const dispatch = useDispatch();
@@ -37,9 +41,17 @@ export default function SectionEditAnnotation() {
     (s) => s.annotations.isEditingAnnotation
   );
 
+  const listingId = useSelector((s) => s.listings.selectedListingId);
+
   const tempAnnotationTemplateLabel = useSelector(
     (s) => s.annotations.tempAnnotationTemplateLabel
   );
+
+  // effect - init editing when id change
+
+  useEffect(() => {
+    dispatch(setIsEditingAnnotation(false));
+  }, [selectedAnnotation?.id]);
 
   // data - func
 
@@ -62,10 +74,15 @@ export default function SectionEditAnnotation() {
     dispatch(setSelectedAnnotationId(null));
     dispatch(setEditedAnnotation({}));
     dispatch(setIsEditingAnnotation(false));
+
+    dispatch(setSelectedNode(null));
   }
 
   async function handleSave() {
-    await updateAnnotation(annotation, { tempAnnotationTemplateLabel });
+    await updateAnnotation(annotation, {
+      tempAnnotationTemplateLabel,
+      listingKey: listingId,
+    });
     dispatch(setIsEditingAnnotation(false));
   }
 
@@ -86,7 +103,10 @@ export default function SectionEditAnnotation() {
         label={saveS}
         onClick={handleSave}
         variant="contained"
-        disabled={!isEditingAnnotation}
+        disabled={
+          !isEditingAnnotation ||
+          (!annotation?.annotationTemplateId && !tempAnnotationTemplateLabel)
+        }
       />
     </BoxFlexVStretch>
   );

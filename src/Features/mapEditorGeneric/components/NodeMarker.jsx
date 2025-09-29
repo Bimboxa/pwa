@@ -26,6 +26,7 @@ export default function NodeMarker({
 
   const dataProps = {
     "data-node-id": marker.id,
+    "data-node-listing-id": marker.listingId,
     "data-node-type": "ANNOTATION",
     "data-annotation-type": "MARKER",
   };

@@ -42,6 +42,9 @@ import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import useSelectedAnnotationTemplateInMapEditor from "../hooks/useSelectedAnnotationTemplateInMapEditor";
+import { setSelectedListingId } from "Features/listings/listingsSlice";
+
+import db from "App/db/db";
 
 export default function MainMapEditorV2() {
   const dispatch = useDispatch();
@@ -206,11 +209,19 @@ export default function MainMapEditorV2() {
     }
   }
 
-  function handleNodeClick(node) {
+  async function handleNodeClick(node) {
     console.log("[CLICK] on node", node);
-    dispatch(setSelectedNode(node?.id === selectedNode?.id ? null : node));
+    node = node?.id === selectedNode?.id ? null : node;
+    dispatch(setSelectedNode(node));
     if (node?.nodeType === "ANNOTATION") {
       dispatch(setSelectedMenuItemKey("NODE_FORMAT"));
+      const annotation = await db.annotations.get(node?.id);
+      console.log("[CLICK] on annotation", annotation);
+      const entityId = annotation.entityId;
+      if (entityId) {
+        //dispatch(setSelectedListingId(node.listingId));
+        dispatch(setSelectedEntityId(entityId));
+      }
     }
   }
 

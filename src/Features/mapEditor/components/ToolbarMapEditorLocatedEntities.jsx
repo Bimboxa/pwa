@@ -25,6 +25,7 @@ export default function ToolbarMapEditorLocatedEntities() {
 
   // data
 
+  const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const annotations = useAnnotations({ filterByBaseMapId: baseMapId });
   const annotationTemplateId = useSelector(
@@ -66,6 +67,8 @@ export default function ToolbarMapEditorLocatedEntities() {
     </Box>
   );
 
+  // render
+
   if (noAnnotation)
     return (
       <Box
@@ -75,7 +78,7 @@ export default function ToolbarMapEditorLocatedEntities() {
           borderRadius: "4px",
           color: "white",
           display: "flex",
-
+          visibility: selectedNode ? "hidden" : "visible",
           flexDirection: "column",
         }}
       >
@@ -84,5 +87,14 @@ export default function ToolbarMapEditorLocatedEntities() {
       </Box>
     );
 
-  return <MainToolbar />;
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        visibility: selectedNode ? "hidden" : "visible",
+      }}
+    >
+      <MainToolbar />
+    </Box>
+  );
 }

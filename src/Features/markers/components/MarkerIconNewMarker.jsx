@@ -18,6 +18,9 @@ export default function MarkerIconNewMarker() {
 
   // data
 
+  const tempLabel = useSelector(
+    (s) => s.annotations.tempAnnotationTemplateLabel
+  );
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const spriteImage = useAnnotationSpriteImage();
   const { value: listing } = useSelectedListing();
@@ -38,6 +41,7 @@ export default function MarkerIconNewMarker() {
 
   const isText = newAnnotation?.type === "TEXT";
   const isMarker = newAnnotation?.type === "MARKER";
+  const label = tempLabel ?? annotationTemplate?.label;
 
   // helper - unvalidMarker
 
@@ -68,7 +72,7 @@ export default function MarkerIconNewMarker() {
         noWrap
         sx={{ mb: 1, fontWeight: "bold", bgcolor: "white" }}
       >
-        {isText ? "Texte" : annotationTemplate?.label}
+        {isText ? "Texte" : label}
       </Typography>
       {isMarker && (
         <MarkerIcon

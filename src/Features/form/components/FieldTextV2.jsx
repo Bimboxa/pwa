@@ -21,6 +21,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   const hideBorder = options?.hideBorder;
   const placeholder = options?.placeholder;
   const showAsSection = options?.showAsSection;
+  const readOnly = options?.readOnly;
 
   const [recording, setRecording] = useState(false);
 
@@ -51,6 +52,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   };
 
   function handleChange(event) {
+    if (readOnly) return;
     const newValue = event.target.value;
     setTempValue(newValue);
   }
@@ -79,6 +81,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
       )}
       <TextField
         size="small"
+        readOnly={readOnly}
         autoFocus={autoFocus}
         label={showLabel ? label : null}
         placeholder={placeholder}
@@ -90,17 +93,18 @@ export default function FieldTextV2({ value, onChange, options, label }) {
         onKeyDown={(e) => e.stopPropagation()}
         slotProps={{
           input: {
-            endAdornment: tempValue ? (
-              <InputAdornment position="end">
-                <IconButton
-                  onClick={() => setTempValue("")}
-                  //edge="start"
-                  size="small"
-                >
-                  <Close fontSize="small" />
-                </IconButton>
-              </InputAdornment>
-            ) : null,
+            endAdornment:
+              tempValue && !readOnly ? (
+                <InputAdornment position="end">
+                  <IconButton
+                    onClick={() => setTempValue("")}
+                    //edge="start"
+                    size="small"
+                  >
+                    <Close fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
             // endAdornment: !hideMic ? (
             //   <InputAdornment position="end">
             //     <IconButton onClick={handleMicClick} size="small">
