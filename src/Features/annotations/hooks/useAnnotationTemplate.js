@@ -41,6 +41,15 @@ export default function useAnnotationTemplate(annotation, options) {
     },
   };
 
+  const field_legendLabel = {
+    key: "legendLabel",
+    label: "Libellé de la légende",
+    type: "text",
+    options: {
+      showAsSection: true,
+    },
+  };
+
   const field_fontSize = {
     key: "fontSize",
     label: "Taille",
@@ -52,7 +61,7 @@ export default function useAnnotationTemplate(annotation, options) {
   let fields;
   switch (annotationType) {
     case "MARKER": {
-      fields = [field_annotationTemplate, field_fillColor, field_iconKey];
+      fields = [field_fillColor, field_iconKey, field_legendLabel];
       break;
     }
     case "TEXT": {
