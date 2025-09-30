@@ -38,10 +38,12 @@ export default function useLegendItems() {
     const template = annotationTemplateById[templateId];
     if (!idsMap[templateId]) {
       idsMap[templateId] = annotation;
-      const { iconKey, fillColor } = annotation;
+      const { iconKey, fillColor, strokeColor, type } = annotation;
       legendItems.push({
         id: templateId,
+        type,
         iconKey,
+        strokeColor,
         fillColor,
         label: template?.label ?? "A définir",
       });
@@ -51,6 +53,7 @@ export default function useLegendItems() {
   // sort
 
   legendItems = legendItems.sort((a, b) => a.label.localeCompare(b.label));
+  console.log();
 
   // render
 

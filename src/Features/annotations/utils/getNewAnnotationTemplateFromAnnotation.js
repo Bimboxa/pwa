@@ -14,6 +14,7 @@ export default function getNewAnnotationTemplateFromAnnotation({
     label,
     type: annotation.type,
     fillColor: annotation.fillColor,
+    strokeColor: annotation.strokeColor,
     iconKey: annotation.iconKey,
     isFromAnnotation: true,
   };

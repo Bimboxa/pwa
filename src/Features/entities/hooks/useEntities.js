@@ -183,11 +183,6 @@ export default function useEntities(options) {
         });
       }
 
-      // sort
-      if (sortBy?.key) {
-        entities = getSortedItems(entities, sortBy);
-      }
-
       // add label && listingKey
       entities = entities.map((entity) => {
         const labelKey = labelKeyByListingId[entity.listingId];
@@ -198,6 +193,13 @@ export default function useEntities(options) {
         const entityModelType = entityModelTypeByListingId[entity.listingId];
         return { ...entity, label, subLabel, listingKey, entityModelType };
       });
+
+      // sort
+      if (sortBy?.key) {
+        entities = getSortedItems(entities, sortBy);
+      } else {
+        entities = getSortedItems(entities, "label");
+      }
       // end
       setLoading(false);
       return entities;

@@ -11,6 +11,7 @@ import {
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import MarkerIcon from "Features/markers/components/MarkerIcon";
+import AnnotationIcon from "./AnnotationIcon";
 
 export default function SelectorAnnotationTemplateVariantList({
   selectedAnnotationTemplateId,
@@ -40,7 +41,7 @@ export default function SelectorAnnotationTemplateVariantList({
 
   // component
 
-  const ListItem = ({ id, selected, iconKey, fillColor, label }) => {
+  const ListItem = ({ id, selected, annotation }) => {
     return (
       <ListItemButton
         divider
@@ -50,9 +51,8 @@ export default function SelectorAnnotationTemplateVariantList({
         onClick={() => onChange(selected ? null : id)}
       >
         <ListItemIcon>
-          <MarkerIcon
-            iconKey={iconKey}
-            fillColor={fillColor}
+          <AnnotationIcon
+            annotation={annotation}
             spriteImage={spriteImage}
             size={size}
           />
@@ -61,7 +61,7 @@ export default function SelectorAnnotationTemplateVariantList({
           variant="body2"
           sx={{ ml: 0, fontWeight: selected ? "bold" : "normal" }}
         >
-          {label}
+          {annotation?.label}
         </Typography>
         {/* <ListItemText primary={label} /> */}
       </ListItemButton>
@@ -80,11 +80,10 @@ export default function SelectorAnnotationTemplateVariantList({
 
               return (
                 <ListItem
+                  key={id}
                   id={id}
+                  annotation={annotationTemplate}
                   selected={selected}
-                  fillColor={fillColor}
-                  iconKey={iconKey}
-                  label={label}
                 />
               );
             })}
@@ -109,16 +108,15 @@ export default function SelectorAnnotationTemplateVariantList({
               {annotationTemplates
                 ?.filter((t) => t.isFromAnnotation)
                 .map((annotationTemplate) => {
-                  const { fillColor, iconKey, id, label } = annotationTemplate;
+                  const { id } = annotationTemplate;
                   const selected = id === selectedAnnotationTemplateId;
 
                   return (
                     <ListItem
+                      key={id}
                       id={id}
                       selected={selected}
-                      fillColor={fillColor}
-                      iconKey={iconKey}
-                      label={label}
+                      annotation={annotationTemplate}
                     />
                   );
                 })}

@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import BaseMap from "../js/BaseMap";
+import getSortedItems from "Features/misc/utils/getSortedItems";
 
 export default function useBaseMaps(options) {
   // options
@@ -49,6 +50,10 @@ export default function useBaseMaps(options) {
         (record) => record.listingId === filterByListingId
       );
     }
+
+    // sort
+
+    records = getSortedItems(records, "name");
 
     const _baseMaps = await Promise.all(
       records.map(async (record) => await BaseMap.createFromRecord(record))

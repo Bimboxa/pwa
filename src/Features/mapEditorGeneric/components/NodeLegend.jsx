@@ -9,6 +9,8 @@ import {
 } from "react";
 import { Rnd } from "react-rnd";
 
+import { Polyline } from "@mui/icons-material";
+
 export default memo(function NodeLegend({
   id = "legend",
   legendItems = [],
@@ -117,7 +119,33 @@ export default memo(function NodeLegend({
     iconKeys = [],
   } = spriteImage || {};
 
-  function LegendIcon({ iconKey, fillColor }) {
+  function LegendIcon({ type, iconKey, fillColor, strokeColor }) {
+    // If type is POLYLINE, use MUI Polyline icon
+    if (type === "POLYLINE") {
+      return (
+        <div
+          style={{
+            width: ICON_PX,
+            height: ICON_PX,
+            borderRadius: ICON_PX / 2,
+            background: fillColor ?? "white",
+            display: "grid",
+            placeItems: "center",
+            overflow: "hidden",
+            border: `2px solid ${strokeColor}`,
+          }}
+        >
+          <Polyline
+            style={{
+              color: strokeColor || "#ffffff",
+              fontSize: ICON_PX * 0.6,
+            }}
+          />
+        </div>
+      );
+    }
+
+    // Default behavior for other types
     const idx = Math.max(0, iconKeys.indexOf(iconKey));
     const row = Math.floor(idx / columns);
     const col = idx % columns;
@@ -180,8 +208,10 @@ export default memo(function NodeLegend({
           <div key={i} style={{ display: "contents" }}>
             <div style={{ alignSelf: "start" }}>
               <LegendIcon
+                type={it.type}
                 iconKey={it.iconType ?? it.iconKey}
                 fillColor={it.fillColor}
+                strokeColor={it.strokeColor}
               />
             </div>
             <div

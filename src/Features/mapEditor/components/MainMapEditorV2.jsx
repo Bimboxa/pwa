@@ -15,6 +15,7 @@ import { setSelectedEntityId } from "Features/entities/entitiesSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { setOpenBaseMapSelector } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { setDrawingPolylinePoints } from "../mapEditorSlice";
 
 import { clearDrawingPolylinePoints } from "Features/mapEditor/mapEditorSlice";
 
@@ -353,6 +354,7 @@ export default function MainMapEditorV2() {
         // polyline
         drawingPolylinePoints={drawingPolylinePoints}
         onPolylineComplete={handlePolylineComplete}
+        newPolylineProps={{ ...(newAnnotation ?? {}) }}
         ref={svgRef}
       />
 

@@ -1,5 +1,6 @@
 import {
   ListItem,
+  ListItemIcon,
   ListItemButton,
   ListItemText,
   ListItemAvatar,
@@ -9,6 +10,8 @@ import {
 import { lighten } from "@mui/material/styles";
 import { NearMe as Focus } from "@mui/icons-material";
 import theme from "Styles/theme";
+
+import AnnotationIcon from "Features/annotations/components/AnnotationIcon";
 
 import getEntityMainImage from "../utils/getEntityMainImage";
 import getAnnotationTemplateCode from "Features/annotations/utils/getAnnotationTemplateCode";
@@ -20,6 +23,7 @@ export default function ListItemEntityVariantDefault({
   selection,
   listingColor = theme.palette.primary.main,
   annotationTemplates,
+  spriteImage,
 }) {
   // helper - annotation
 
@@ -34,7 +38,9 @@ export default function ListItemEntityVariantDefault({
 
   // helpers
 
-  const label = entity.label ?? annotation?.label;
+  let label = entity.label ?? annotation?.label;
+  const fontStyle = label ? "normal" : "italic";
+  if (!label) label = "Libellé à définir";
   const subLabel = entity.subLabel;
   const isSelected = selection?.includes(entity.id);
   const mainImage = getEntityMainImage(entity);
@@ -80,7 +86,12 @@ export default function ListItemEntityVariantDefault({
             <Avatar src={mainImage.url} />
           </ListItemAvatar>
         )}
-        <ListItemText primary={label} secondary={subLabel} />
+        {annotation && (
+          <ListItemIcon>
+            <AnnotationIcon annotation={annotation} spriteImage={spriteImage} />
+          </ListItemIcon>
+        )}
+        <ListItemText primary={label} sx={{ fontStyle }} secondary={subLabel} />
       </ListItemButton>
     </ListItem>
   );

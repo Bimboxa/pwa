@@ -12,6 +12,7 @@ import SectionActions from "./SectionActions";
 
 import getFoundItems from "Features/search/getFoundItems";
 import ListItemEntityVariantAnnotationTemplate from "Features/annotations/components/ListItemEntityVariantAnnotationTemplate";
+import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 
 export default function ListEntities({
   listing,
@@ -28,6 +29,7 @@ export default function ListEntities({
 
   const isMobile = useIsMobile();
   const annotationTemplates = useAnnotationTemplates();
+  const spriteImage = useAnnotationSpriteImage();
 
   // helpers
 
@@ -81,6 +83,7 @@ export default function ListEntities({
                     selection={selection}
                     listingColor={color}
                     annotationTemplates={annotationTemplates}
+                    spriteImage={spriteImage}
                   />
                 )}
                 {variant === "ANNOTATION_TEMPLATE" && (

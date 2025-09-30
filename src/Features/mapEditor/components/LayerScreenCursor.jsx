@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { useSelector } from "react-redux";
 
+import useNewAnnotationColor from "Features/annotations/hooks/useNewAnnotationColor";
+
 import { Box } from "@mui/material";
 
 import theme from "Styles/theme";
@@ -14,6 +16,7 @@ export default function LayerScreenCursor({ containerEl }) {
   // data
 
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  const color = useNewAnnotationColor();
 
   // effect
 
@@ -72,7 +75,7 @@ export default function LayerScreenCursor({ containerEl }) {
             top: `${pos.y}px`,
             left: `${pos.x}px`,
             transform: "translate(-50%,-120%)",
-            zIndex: 1,
+            zIndex: 2,
             display: "flex",
             flexDirection: "column",
           }}
@@ -89,7 +92,7 @@ export default function LayerScreenCursor({ containerEl }) {
           top: 0,
           width: "1px",
           height: `${size.height}px`,
-          background: theme.palette.divider,
+          background: color,
           zIndex: 1,
         }}
       />
@@ -102,7 +105,7 @@ export default function LayerScreenCursor({ containerEl }) {
           top: `${pos.y}px`,
           width: `${size.width}px`,
           height: "1px",
-          background: theme.palette.divider,
+          background: color,
           zIndex: 1,
         }}
       />
