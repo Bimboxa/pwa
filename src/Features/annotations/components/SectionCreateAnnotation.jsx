@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
 import useAnnotationTemplates from "../hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import { setNewAnnotation } from "../annotationsSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
@@ -11,12 +12,16 @@ import { Box, Typography } from "@mui/material";
 
 import FormAnnotation from "./FormAnnotation";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import BoxCenter from "Features/layout/components/BoxCenter";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
 import BlockAnnotation from "./BlockAnnotation";
-import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 export default function SectionCreateAnnotation() {
   const dispatch = useDispatch();
+
+  // sttrings
+
+  const wipS = "⚠ Fonctionnalité en cours de développement";
 
   // strings
   const newS = "Nouveau";
@@ -29,6 +34,8 @@ export default function SectionCreateAnnotation() {
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const { value: listing } = useSelectedListing();
 
+  console.log("debug_0910 newAnnotation", newAnnotation);
+
   // handlers
 
   function handleChange(annotation) {
@@ -37,6 +44,18 @@ export default function SectionCreateAnnotation() {
 
   function handleClose() {
     dispatch(setEnabledDrawingMode(null));
+  }
+
+  if (newAnnotation.type === "EDITED_POLYLINE") {
+    return (
+      <BoxFlexVStretch>
+        <BoxCenter sx={{ bgcolor: "warning.light" }}>
+          <Typography align="center" color="white" fontWeight="bold">
+            {wipS}
+          </Typography>
+        </BoxCenter>
+      </BoxFlexVStretch>
+    );
   }
 
   return (

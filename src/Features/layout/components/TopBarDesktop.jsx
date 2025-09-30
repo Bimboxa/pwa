@@ -14,6 +14,7 @@ import ToggleOpenLeftPanel from "Features/leftPanel/components/ToggleOpenLeftPan
 import HorizontalMenuRightPanel from "Features/rightPanel/components/HorizontalMenuRightPanel";
 import TopBarBreadcrumbs from "./TopBarBreadcrumbs";
 import useSelectedEntityModel from "Features/listings/hooks/useSelectedEntityModel";
+import ToolbarDrawingTools from "Features/mapEditor/components/ToolbarDrawingTools";
 
 export default function TopBarDesktop() {
   const height = useSelector((s) => s.layout.topBarHeight);
@@ -52,7 +53,12 @@ export default function TopBarDesktop() {
       {em?.type === "BASE_MAP" && <SelectorViewer />}
 
       {/* <AuthButtons /> */}
-      <HorizontalMenuRightPanel />
+      <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Box sx={{ mr: 3 }}>
+          <ToolbarDrawingTools />
+        </Box>
+        <HorizontalMenuRightPanel />
+      </Box>
     </Box>
   );
 }

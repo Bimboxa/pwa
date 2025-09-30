@@ -12,7 +12,7 @@ import {
 } from "Features/annotations/annotationsSlice";
 
 import { Polyline } from "@mui/icons-material";
-import { IconButton } from "@mui/material";
+import { IconButton, Tooltip } from "@mui/material";
 
 import editor from "App/editor";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
@@ -21,6 +21,10 @@ import useSelectedAnnotationTemplateInMapEditor from "../hooks/useSelectedAnnota
 
 export default function ButtonDrawPolylineV2() {
   const dispatch = useDispatch();
+
+  // strings
+
+  const title = "Dessiner une ligne ou un polygone";
 
   // data
 
@@ -58,8 +62,10 @@ export default function ButtonDrawPolylineV2() {
   }
 
   return (
-    <IconButton onClick={handleClick} color="inherit">
-      <Polyline />
-    </IconButton>
+    <Tooltip title={title}>
+      <IconButton onClick={handleClick} color="inherit">
+        <Polyline />
+      </IconButton>
+    </Tooltip>
   );
 }
