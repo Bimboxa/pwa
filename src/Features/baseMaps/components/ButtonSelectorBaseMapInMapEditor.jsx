@@ -9,7 +9,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useLoadedMainBaseMap from "Features/mapEditor/hooks/useLoadedMainBaseMap";
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 
-import { Button, Box, Typography, IconButton } from "@mui/material";
+import { Button, Box, Typography, IconButton, Tooltip } from "@mui/material";
 import { ArrowDropDown as Down, Add } from "@mui/icons-material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
@@ -21,6 +21,7 @@ export default function ButtonSelectorBaseMapInMapEditor() {
   // strings
 
   const selectS = "Sélectionnez un fond de plan";
+  const createS = "Ajoutez un fond de plan";
 
   // state
 
@@ -49,22 +50,46 @@ export default function ButtonSelectorBaseMapInMapEditor() {
 
   return (
     <Box>
-      <Button
-        onClick={handleClick}
-        endIcon={<Down />}
-        variant="contained"
-        size={isMobile ? "medium" : "small"}
-        sx={{ borderRadius: 2 }}
-      >
-        <Box
-          sx={{ display: "flex", flexDirection: "column", alignItems: "start" }}
+      <Box sx={{ display: "flex" }}>
+        <Button
+          onClick={handleClick}
+          endIcon={<Down />}
+          variant="contained"
+          size={isMobile ? "medium" : "small"}
+          sx={{ borderRadius: 2 }}
         >
-          <Typography variant="body2">{buttonLabel}</Typography>
-        </Box>
-      </Button>
-      <IconButton onClick={() => dispatch(setOpenBaseMapSelector(true))}>
-        <Add />
-      </IconButton>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "start",
+            }}
+          >
+            <Typography variant="body2">{buttonLabel}</Typography>
+          </Box>
+        </Button>
+        <Tooltip title={createS}>
+          <Box
+            sx={{
+              ml: 1,
+              borderRadius: "8px",
+              //bgcolor: "primary.main",
+              //color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <IconButton
+              color="inherit"
+              onClick={() => dispatch(setOpenBaseMapSelector(true))}
+            >
+              <Add />
+            </IconButton>
+          </Box>
+        </Tooltip>
+      </Box>
+
       <DialogGeneric
         open={open}
         onClose={() => setOpen(false)}
