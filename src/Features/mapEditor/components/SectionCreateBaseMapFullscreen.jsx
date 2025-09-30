@@ -73,6 +73,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
       //const baseMap = await createBaseMap({ imageFile: file });
       //const baseMapView = await createBaseMapView({ name: nameS, baseMap });
       dispatch(setSelectedMainBaseMapId(_entity?.id));
+      if (onClose) onClose();
     }
   }
 

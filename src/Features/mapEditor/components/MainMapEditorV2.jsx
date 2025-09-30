@@ -13,6 +13,8 @@ import {
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import { setSelectedEntityId } from "Features/entities/entitiesSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import { setOpenBaseMapSelector } from "Features/mapEditor/mapEditorSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import { clearDrawingPolylinePoints } from "Features/mapEditor/mapEditorSlice";
 
@@ -31,8 +33,11 @@ import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation"
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgImageRawTextAnnotations";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import useSelectedAnnotationTemplateInMapEditor from "../hooks/useSelectedAnnotationTemplateInMapEditor";
 
-import { Box, Button } from "@mui/material";
+import { Box } from "@mui/material";
+
+import BoxCenter from "Features/layout/components/BoxCenter";
 
 import SectionCreateBaseMapFullscreen from "Features/mapEditor/components/SectionCreateBaseMapFullscreen";
 import ScreenNoBaseMap from "Features/mapEditor/components/ScreenNoBaseMap";
@@ -42,9 +47,6 @@ import LayerScreenCursor from "./LayerScreenCursor";
 
 import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
-import useSelectedAnnotationTemplateInMapEditor from "../hooks/useSelectedAnnotationTemplateInMapEditor";
-import { setSelectedListingId } from "Features/listings/listingsSlice";
 
 import db from "App/db/db";
 
@@ -54,6 +56,10 @@ export default function MainMapEditorV2() {
   const svgRef = useRef();
 
   // data
+
+  const openBaseMapSelector = useSelector(
+    (s) => s.mapEditor.openBaseMapSelector
+  );
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -290,6 +296,15 @@ export default function MainMapEditorV2() {
   }
 
   if (noBaseMaps) return <ScreenNoBaseMap />;
+
+  if (openBaseMapSelector)
+    return (
+      <BoxCenter>
+        <SectionCreateBaseMapFullscreen
+          onClose={() => dispatch(setOpenBaseMapSelector(false))}
+        />
+      </BoxCenter>
+    );
 
   // render
 

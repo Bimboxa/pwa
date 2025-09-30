@@ -3,13 +3,14 @@ import { useState } from "react";
 import { useDispatch } from "react-redux";
 
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
+import { setOpenBaseMapSelector } from "Features/mapEditor/mapEditorSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useLoadedMainBaseMap from "Features/mapEditor/hooks/useLoadedMainBaseMap";
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 
-import { Button, Box, Typography } from "@mui/material";
-import { ArrowDropDown as Down } from "@mui/icons-material";
+import { Button, Box, Typography, IconButton } from "@mui/material";
+import { ArrowDropDown as Down, Add } from "@mui/icons-material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import PanelSelectorBaseMap from "./PanelSelectorBaseMap";
@@ -61,6 +62,9 @@ export default function ButtonSelectorBaseMapInMapEditor() {
           <Typography variant="body2">{buttonLabel}</Typography>
         </Box>
       </Button>
+      <IconButton onClick={() => dispatch(setOpenBaseMapSelector(true))}>
+        <Add />
+      </IconButton>
       <DialogGeneric
         open={open}
         onClose={() => setOpen(false)}

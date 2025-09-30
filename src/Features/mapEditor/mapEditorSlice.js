@@ -1,6 +1,9 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 const mapEditorInitialState = {
+  // selector
+  openBaseMapSelector: false,
+
   // main map
   selectedBaseMapsListingId: null,
   selectedBaseMapId: null,
@@ -34,6 +37,10 @@ export const mapEditorSlice = createSlice({
   name: "mapEditors",
   initialState: mapEditorInitialState,
   reducers: {
+    setOpenBaseMapSelector: (state, action) => {
+      state.openBaseMapSelector = action.payload;
+    },
+    //
     setSelectedBaseMapsListingId: (state, action) => {
       state.selectedBaseMapsListingId = action.payload;
     },
@@ -111,6 +118,9 @@ export const mapEditorSlice = createSlice({
 });
 
 export const {
+  //
+  setOpenBaseMapSelector,
+  //
   setSelectedBaseMapsListingId,
   setSelectedMainBaseMapId,
   setLoadedMainBaseMapId,
