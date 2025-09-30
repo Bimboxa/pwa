@@ -31,6 +31,10 @@ export default function NodeMarker({
     "data-annotation-type": "MARKER",
   };
 
+  // --- hide when stop draging to avoid blink
+
+  const [hide, setHide] = useState(false);
+
   // --- dragging/selection ----
 
   const draggingEnabled = selected;
@@ -181,6 +185,7 @@ export default function NodeMarker({
       onClick={handleClick}
       onPointerDown={handlePointerDown}
       style={{
+        visibility: hide ? "hidden" : "visible",
         cursor: isDragging ? "grabbing" : "pointer",
         pointerEvents: "auto",
         filter: selected ? "drop-shadow(0 4px 8px rgba(0,0,0,0.3))" : "none",

@@ -46,13 +46,6 @@ export default function BlockAnnotation({
   const iconKey = annotation?.iconKey;
   const fillColor = annotation?.fillColor;
 
-  // handlers
-
-  function handleLabelChange(label) {
-    setTempLabel(label);
-    dispatch(setTempAnnotationTemplateLabel(label));
-  }
-
   return (
     <Box sx={{ display: "flex", alignItems: "center" }}>
       <MarkerIcon
@@ -61,7 +54,7 @@ export default function BlockAnnotation({
         size={24}
         fillColor={fillColor}
       />
-      <Typography sx={{ ml: 1 }}>{templateLabel}</Typography>
+      <Typography sx={{ ml: 1 }}>{template?.label}</Typography>
       {/* <TextField
         sx={{
           ml: 1,

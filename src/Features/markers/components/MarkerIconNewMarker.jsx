@@ -15,6 +15,7 @@ export default function MarkerIconNewMarker() {
   // strings
 
   const selectMarkerS = "Choisissez un style de repère";
+  const missingLabelS = "Saisissez un libellé";
 
   // data
 
@@ -47,6 +48,7 @@ export default function MarkerIconNewMarker() {
   // helper - unvalidMarker
 
   const unvalidMarker = !isText && (!iconKey || !fillColor);
+  const missingLabel = !label;
 
   // render
 
@@ -55,6 +57,15 @@ export default function MarkerIconNewMarker() {
       <Box sx={{ bgcolor: "warning.main", p: 1, borderRadius: "4px" }}>
         <Typography variant="body2" color="white" noWrap>
           {selectMarkerS}
+        </Typography>
+      </Box>
+    );
+
+  if (missingLabel)
+    return (
+      <Box sx={{ bgcolor: "warning.main", p: 1, borderRadius: "4px" }}>
+        <Typography variant="body2" color="white" noWrap>
+          {missingLabelS}
         </Typography>
       </Box>
     );

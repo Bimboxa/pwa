@@ -1,6 +1,7 @@
 import db from "App/db/db";
 import getAnnotationTemplateIdFromAnnotation from "../utils/getAnnotationTemplateIdFromAnnotation";
 import getNewAnnotationTemplateFromAnnotation from "../utils/getNewAnnotationTemplateFromAnnotation";
+import testObjectHasProp from "Features/misc/utils/testObjectHasProp";
 
 export default async function updateAnnotationService(annotation, options) {
   // options
@@ -10,9 +11,13 @@ export default async function updateAnnotationService(annotation, options) {
 
   // annotationTemplate
 
+  const hasAnnotationTemplateId = testObjectHasProp(
+    annotation,
+    "annotationTemplateId"
+  );
   let annotationTemplateId = annotation?.annotationTemplateId;
 
-  if (!annotationTemplateId) {
+  if (!annotationTemplateId && hasAnnotationTemplateId) {
     const at = getNewAnnotationTemplateFromAnnotation({
       annotation,
       listingKey,
@@ -25,9 +30,12 @@ export default async function updateAnnotationService(annotation, options) {
   }
 
   // main
+  let updates;
+  if (hasAnnotationTemplateId) {
+    updates = { ...annotation, annotationTemplateId };
+  } else {
+    updates = annotation;
+  }
 
-  await db.annotations.update(annotation.id, {
-    ...annotation,
-    annotationTemplateId,
-  }); // partial update
+  await db.annotations.update(annotation.id, updates); // partial update
 }
