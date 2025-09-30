@@ -1,4 +1,4 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import {
   setSelectedListingId,
@@ -24,11 +24,14 @@ export default function PanelSelectorListing({
   // data
 
   const appConfig = useAppConfig();
-  const { value: listings, loading } = useListingsByScope();
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const { value: listings, loading } = useListingsByScope({
+    filterByProjectId: projectId,
+  });
 
   // helpers - title
 
-  const title = appConfig?.strings?.listing?.namePlural || "Modules";
+  const title = appConfig?.strings?.listing?.namePlural || "Listes";
 
   // helpers
 
