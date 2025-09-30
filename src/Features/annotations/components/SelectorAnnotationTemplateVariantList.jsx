@@ -31,7 +31,7 @@ export default function SelectorAnnotationTemplateVariantList({
 
   const noTemplates = !annotationTemplates?.length > 0;
   const newTemplates =
-    annotationTemplates.filter((t) => t.isFromAnnotation)?.length > 0;
+    annotationTemplates?.filter((t) => t.isFromAnnotation)?.length > 0;
 
   if (noTemplates)
     return (

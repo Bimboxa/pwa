@@ -14,6 +14,7 @@ export default function useCreateListing() {
   const createRemoteListings = useCreateRemoteListings();
 
   const create = async ({ listing, scope }, options) => {
+    console.log("debug_3009_create_listing", listing);
     const listingClean = {
       ...listing,
       id: listing?.id ?? nanoid(),

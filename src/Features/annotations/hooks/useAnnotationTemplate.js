@@ -64,7 +64,7 @@ export default function useAnnotationTemplate(annotation, options) {
   switch (annotationType) {
     case "MARKER": {
       fields = [
-        field_annotationTemplate,
+        //field_annotationTemplate,
         field_fillColor,
         field_iconKey,
         field_legendLabel,

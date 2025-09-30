@@ -19,7 +19,7 @@ export default function useListingById(id) {
 
       return { ..._listing, entityModel };
     }
-  }, [id]);
+  }, [id, appConfig?.version]);
 
   return listing;
 }

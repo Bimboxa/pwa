@@ -16,6 +16,8 @@ import BoxCenter from "Features/layout/components/BoxCenter";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
 import BlockAnnotation from "./BlockAnnotation";
 
+import SectionSelectorAnnotationTemplate from "./SectionSelectorAnnotationTemplate";
+
 export default function SectionCreateAnnotation() {
   const dispatch = useDispatch();
 
@@ -74,6 +76,10 @@ export default function SectionCreateAnnotation() {
 
         <IconButtonClose onClose={handleClose} />
       </Box> */}
+
+      <Box sx={{ width: 1, overflow: "auto", height: "300px" }}>
+        <SectionSelectorAnnotationTemplate />
+      </Box>
 
       <FormAnnotation
         annotation={newAnnotation}
