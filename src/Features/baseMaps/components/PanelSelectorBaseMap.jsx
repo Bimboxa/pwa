@@ -29,18 +29,16 @@ export default function PanelSelectorBaseMap({ onSelectionChange, selection }) {
   }
 
   return (
-    <Panel>
+    <BoxFlexVStretch>
+      <SelectorMapsListingVariantChips />
       <BoxFlexVStretch>
-        <SelectorMapsListingVariantChips />
-        <BoxFlexVStretch>
-          <ListBaseMaps
-            baseMaps={items}
-            selection={selection ? [selection] : []}
-            onClick={handleClick}
-            //onCreateClick={handleCreateClick}
-          />
-        </BoxFlexVStretch>
+        <ListBaseMaps
+          baseMaps={items}
+          selection={selection ? [selection] : []}
+          onClick={handleClick}
+          //onCreateClick={handleCreateClick}
+        />
       </BoxFlexVStretch>
-    </Panel>
+    </BoxFlexVStretch>
   );
 }
