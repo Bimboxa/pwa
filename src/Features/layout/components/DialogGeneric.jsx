@@ -17,6 +17,7 @@ const DialogGeneric = forwardRef(function DialogGeneric(
   return open ? (
     <Dialog
       fullScreen={isMobile}
+      maxWidth={vw || width ? false : true}
       open={open}
       onClose={onClose}
       slotProps={{

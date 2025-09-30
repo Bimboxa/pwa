@@ -94,8 +94,8 @@ export default function ButtonSelectorBaseMapInMapEditor() {
         open={open}
         onClose={() => setOpen(false)}
         title={selectS}
-        vh={70}
-        vw={50}
+        //vh={70}
+        width={350}
       >
         <PanelSelectorBaseMap
           selection={mainBaseMap?.id}
