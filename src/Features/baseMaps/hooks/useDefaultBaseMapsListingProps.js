@@ -2,8 +2,6 @@
  * this hook is used to get the default listing object to use in the useCreateListing hook.
  */
 
-import { useSelector } from "react-redux";
-
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function useDefaultBaseMapsListingProps() {

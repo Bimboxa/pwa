@@ -12,8 +12,6 @@ import {
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import MarkerIcon from "Features/markers/components/MarkerIcon";
 
-import getPropsFromAnnotationTemplateId from "../utils/getPropsFromAnnotationTemplateId";
-
 export default function SelectorAnnotationTemplateVariantList({
   selectedAnnotationTemplateId,
   onChange,
@@ -56,68 +54,78 @@ export default function SelectorAnnotationTemplateVariantList({
             iconKey={iconKey}
             fillColor={fillColor}
             spriteImage={spriteImage}
-            size={24}
+            size={size}
           />
         </ListItemIcon>
-        <ListItemText primary={label} />
+        <Typography
+          variant="body2"
+          sx={{ ml: 0, fontWeight: selected ? "bold" : "normal" }}
+        >
+          {label}
+        </Typography>
+        {/* <ListItemText primary={label} /> */}
       </ListItemButton>
     );
   };
   return (
     <BoxFlexVStretch>
       <Typography sx={{ p: 2 }}>{title}</Typography>
-      <List dense>
-        {annotationTemplates
-          ?.filter((t) => !t.isFromAnnotation)
-          .map((annotationTemplate) => {
-            const { fillColor, iconKey, id, label } = annotationTemplate;
-            const selected = id === selectedAnnotationTemplateId;
+      <BoxFlexVStretch sx={{ overflow: "auto" }}>
+        <List dense>
+          {annotationTemplates
+            ?.filter((t) => !t.isFromAnnotation)
+            .map((annotationTemplate) => {
+              const { fillColor, iconKey, id, label } = annotationTemplate;
+              const selected = id === selectedAnnotationTemplateId;
 
-            return (
-              <ListItem
-                id={id}
-                selected={selected}
-                fillColor={fillColor}
-                iconKey={iconKey}
-                label={label}
-              />
-            );
-          })}
-      </List>
+              return (
+                <ListItem
+                  id={id}
+                  selected={selected}
+                  fillColor={fillColor}
+                  iconKey={iconKey}
+                  label={label}
+                />
+              );
+            })}
+        </List>
 
-      {newTemplates && (
-        <Box
-          sx={{
-            mt: 2,
-            width: 1,
-          }}
-        >
-          <Typography sx={{ p: 2 }} variant="body2" color="text.secondary">
-            {otherS}
-          </Typography>
-          <List
-            dense
-            sx={{ borderTop: (theme) => `1px solid ${theme.palette.divider}` }}
+        {newTemplates && (
+          <Box
+            sx={{
+              mt: 2,
+              width: 1,
+            }}
           >
-            {annotationTemplates
-              ?.filter((t) => t.isFromAnnotation)
-              .map((annotationTemplate) => {
-                const { fillColor, iconKey, id, label } = annotationTemplate;
-                const selected = id === selectedAnnotationTemplateId;
+            <Typography sx={{ p: 2 }} variant="body2" color="text.secondary">
+              {otherS}
+            </Typography>
+            <List
+              dense
+              sx={{
+                borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              {annotationTemplates
+                ?.filter((t) => t.isFromAnnotation)
+                .map((annotationTemplate) => {
+                  const { fillColor, iconKey, id, label } = annotationTemplate;
+                  const selected = id === selectedAnnotationTemplateId;
 
-                return (
-                  <ListItem
-                    id={id}
-                    selected={selected}
-                    fillColor={fillColor}
-                    iconKey={iconKey}
-                    label={label}
-                  />
-                );
-              })}
-          </List>
-        </Box>
-      )}
+                  return (
+                    <ListItem
+                      id={id}
+                      selected={selected}
+                      fillColor={fillColor}
+                      iconKey={iconKey}
+                      label={label}
+                    />
+                  );
+                })}
+            </List>
+          </Box>
+        )}
+      </BoxFlexVStretch>
     </BoxFlexVStretch>
   );
 }

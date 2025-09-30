@@ -2,7 +2,7 @@ import useAnnotationSpriteImage from "./useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
 import useAnnotationTemplates from "./useAnnotationTemplates";
 
-export default function useAnnotationTemplate(annotation, options) {
+export default function useAnnotationFormTemplate(annotation, options) {
   // options
 
   const annotationType = options?.annotationType;

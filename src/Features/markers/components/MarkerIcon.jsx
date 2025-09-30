@@ -1,5 +1,3 @@
-import spriteImage from "../assets/spriteImage3x3.png";
-
 import { Box } from "@mui/material";
 
 import getRowAndColFromIndex from "../utils/getRowAndColFromIndex";
@@ -19,6 +17,7 @@ export default function MarkerIcon({
     rows,
     tile,
   } = spriteImage ?? {};
+
   // helpers
 
   const index = iconKeys?.indexOf(iconKey);
