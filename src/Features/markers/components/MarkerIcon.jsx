@@ -21,7 +21,7 @@ export default function MarkerIcon({
   } = spriteImage ?? {};
   // helpers
 
-  const index = iconKeys.indexOf(iconKey);
+  const index = iconKeys?.indexOf(iconKey);
 
   //
 

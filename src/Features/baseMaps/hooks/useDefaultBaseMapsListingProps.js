@@ -20,6 +20,7 @@ export default function useDefaultBaseMapsListingProps() {
     entityModelKey: entityModel?.key,
     name: entityModel?.defaultListingName,
     table: entityModel?.defaultTable,
+    canCreateItem: true,
   };
 
   // return
