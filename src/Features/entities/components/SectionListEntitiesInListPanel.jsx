@@ -43,7 +43,7 @@ export default function SectionListEntitiesInListPanel() {
 
   // debug
 
-  console.log("debug_1509 entities", entities);
+  console.log("debug_1509 entities", entities, listing?.id);
 
   // helpers
 

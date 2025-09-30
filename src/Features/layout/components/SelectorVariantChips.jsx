@@ -1,8 +1,8 @@
-import {useEffect} from "react";
+import { useEffect } from "react";
 
-import {Box, Typography} from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
-export default function SelectorVariantChips({options, selection, onChange}) {
+export default function SelectorVariantChips({ options, selection, onChange }) {
   // handlers
 
   function handleClick(option) {
@@ -14,7 +14,7 @@ export default function SelectorVariantChips({options, selection, onChange}) {
   // effect
 
   useEffect(() => {
-    if (!selection.length > 0 && options.length > 0) {
+    if (!selection?.length > 0 && options?.length > 0) {
       onChange([options[0].key]);
     }
   }, [options?.length, selection?.length]);
@@ -25,10 +25,10 @@ export default function SelectorVariantChips({options, selection, onChange}) {
         p: 1,
         display: "flex",
         flexWrap: "wrap",
-        "&>*:not(last-child)": {mr: 1, mb: 0.5},
+        "&>*:not(last-child)": { mr: 1, mb: 0.5 },
       }}
     >
-      {options.map((option) => {
+      {options?.map((option) => {
         const selected = selection.includes(option.key);
         return (
           <Box

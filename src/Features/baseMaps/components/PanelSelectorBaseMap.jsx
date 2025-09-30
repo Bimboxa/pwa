@@ -15,6 +15,8 @@ export default function PanelSelectorBaseMap({ onSelectionChange, selection }) {
     filterByListingId: listingId,
   });
 
+  console.log("__listingId", listingId, items);
+
   // handler
 
   function handleClick(baseMap) {

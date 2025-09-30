@@ -2,15 +2,15 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
 
+import useProjectBaseMapListings from "../hooks/useProjectBaseMapListings";
+
 import SelectorVariantChips from "Features/layout/components/SelectorVariantChips";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
 export default function SelectorMapsListingVariantChips() {
   const dispatch = useDispatch();
 
-  const { value: baseMapsListings } = useListingsByScope({
-    baseMapsOnly: true,
-  });
+  const baseMapsListings = useProjectBaseMapListings();
   const id = useSelector((s) => s.mapEditor.selectedBaseMapsListingId);
 
   const options = baseMapsListings?.map((listing) => ({

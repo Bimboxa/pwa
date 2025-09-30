@@ -9,6 +9,7 @@ export default function useBaseMaps(options) {
   // options
 
   const _filterByProjectId = options?.filterByProject;
+  const filterByListingId = options?.filterByListingId;
 
   // data
 
@@ -43,13 +44,17 @@ export default function useBaseMaps(options) {
     }
 
     // filter by listing
-    records = records.filter((record) => record.listingId);
+    if (filterByListingId) {
+      records = records.filter(
+        (record) => record.listingId === filterByListingId
+      );
+    }
 
     const _baseMaps = await Promise.all(
       records.map(async (record) => await BaseMap.createFromRecord(record))
     );
     return _baseMaps;
-  }, [projectId, baseMapsUpdatedAt]);
+  }, [projectId, baseMapsUpdatedAt, filterByListingId, filterByProjectId]);
 
   // return
 

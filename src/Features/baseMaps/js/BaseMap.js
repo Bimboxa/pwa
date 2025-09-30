@@ -9,13 +9,15 @@ export default class BaseMap {
   id;
   createdAt;
   projectId;
+  listingId;
   name;
   image;
 
-  constructor({ id, createdAt, projectId, name, image }) {
+  constructor({ id, createdAt, projectId, listingId, name, image }) {
     this.id = id;
     this.createdAt = createdAt;
     this.projectId = projectId;
+    this.listingId = listingId;
     this.name = name;
     this.image = image;
   }
