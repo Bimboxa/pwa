@@ -10,8 +10,8 @@ import {
   setSelectedAnnotationId,
 } from "Features/annotations/annotationsSlice";
 
-import { AddCircle as Marker } from "@mui/icons-material";
-import { IconButton } from "@mui/material";
+import { AddLocationAlt as Marker } from "@mui/icons-material";
+import { IconButton, Tooltip } from "@mui/material";
 
 import editor from "App/editor";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
@@ -20,6 +20,10 @@ import useSelectedAnnotationTemplateInMapEditor from "../hooks/useSelectedAnnota
 
 export default function ButtonDrawMarker() {
   const dispatch = useDispatch();
+
+  // strings
+
+  const title = "Ajouter un repère";
 
   // data
 
@@ -52,8 +56,10 @@ export default function ButtonDrawMarker() {
   }
 
   return (
-    <IconButton onClick={handleClick} color="inherit">
-      <Marker />
-    </IconButton>
+    <Tooltip title={title}>
+      <IconButton onClick={handleClick} color="inherit">
+        <Marker />
+      </IconButton>
+    </Tooltip>
   );
 }

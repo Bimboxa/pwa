@@ -22,7 +22,17 @@ export default function NodePolyline({
   onComplete,
   onPointsChange, // preferred name
   onChange, // backward compatibility with your earlier prop
+  selected,
 }) {
+  // --- dataProps ---
+
+  const dataProps = {
+    "data-node-id": polyline.id,
+    "data-node-listing-id": polyline.listingId,
+    "data-node-type": "ANNOTATION",
+    "data-annotation-type": "POLYLINE",
+  };
+
   const basePoints = polyline?.points || [];
   const w = imageSize?.w || 1;
   const h = imageSize?.h || 1;
@@ -186,7 +196,7 @@ export default function NodePolyline({
   }, []);
 
   return (
-    <g>
+    <g {...dataProps}>
       {/* Wide invisible path for easier hover on the line */}
       {renderPoints.length >= 2 && (
         <polyline
@@ -228,44 +238,45 @@ export default function NodePolyline({
       )}
 
       {/* Anchor handles (transparent big hit area) */}
-      {(tempPoints ?? basePoints).map((p, i) => {
-        const px = p.x * w;
-        const py = p.y * h;
-        const hovered =
-          hoverIdx === i ||
-          (draggingRef.current.active && draggingRef.current.idx === i);
+      {selected &&
+        (tempPoints ?? basePoints).map((p, i) => {
+          const px = p.x * w;
+          const py = p.y * h;
+          const hovered =
+            hoverIdx === i ||
+            (draggingRef.current.active && draggingRef.current.idx === i);
 
-        return (
-          <g key={`anchor-${i}`}>
-            {/* Big transparent hit circle to make grabbing easy */}
-            <circle
-              cx={px}
-              cy={py}
-              r={12}
-              fill="transparent"
-              stroke="transparent"
-              style={{
-                cursor: draggingRef.current.active ? "grabbing" : "grab",
-              }}
-              onMouseEnter={() => setHoverIdx(i)}
-              onMouseLeave={() =>
-                !draggingRef.current.active && setHoverIdx(null)
-              }
-              onPointerDown={(e) => onAnchorPointerDown(e, i)}
-            />
-            {/* Visible small circle */}
-            <circle
-              cx={px}
-              cy={py}
-              r={hovered ? 5 : 4}
-              fill={hovered ? "#0066cc" : "#ff0000"}
-              stroke="#ffffff"
-              strokeWidth="2"
-              style={{ pointerEvents: "none" }}
-            />
-          </g>
-        );
-      })}
+          return (
+            <g key={`anchor-${i}`}>
+              {/* Big transparent hit circle to make grabbing easy */}
+              <circle
+                cx={px}
+                cy={py}
+                r={12}
+                fill="transparent"
+                stroke="transparent"
+                style={{
+                  cursor: draggingRef.current.active ? "grabbing" : "grab",
+                }}
+                onMouseEnter={() => setHoverIdx(i)}
+                onMouseLeave={() =>
+                  !draggingRef.current.active && setHoverIdx(null)
+                }
+                onPointerDown={(e) => onAnchorPointerDown(e, i)}
+              />
+              {/* Visible small circle */}
+              <circle
+                cx={px}
+                cy={py}
+                r={hovered ? 5 : 4}
+                fill={hovered ? "#0066cc" : "#ff0000"}
+                stroke="#ffffff"
+                strokeWidth="2"
+                style={{ pointerEvents: "none" }}
+              />
+            </g>
+          );
+        })}
     </g>
   );
 }

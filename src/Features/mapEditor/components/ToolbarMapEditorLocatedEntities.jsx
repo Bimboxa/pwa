@@ -72,6 +72,8 @@ export default function ToolbarMapEditorLocatedEntities() {
 
   // render
 
+  return null;
+
   if (noAnnotation)
     return (
       <Box
