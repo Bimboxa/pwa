@@ -3,22 +3,20 @@ import getAnnotationTemplateFromAnnotation from "./getAnnotationTemplateFromAnno
 export default function getFormItemFromAnnotation({
   annotation,
   annotationTemplates,
-  listing,
+  tempAnnotationTemplateLabel,
 }) {
   // main
 
-  const annotationTemplate = getAnnotationTemplateFromAnnotation({
-    annotation,
-    annotationTemplates,
-    listing,
-  });
-
-  console.log(
-    "annotationTemplate_debug",
-    annotationTemplate,
-    annotationTemplates,
-    listing
+  const annotationTemplate = annotationTemplates?.find(
+    (t) => t.id === annotation?.annotationTemplateId
   );
 
-  return { ...annotation, legendLabel: annotationTemplate?.label };
+  console.log("debug_3009_annotationTemplate", annotationTemplate);
+
+  return {
+    ...annotation,
+    legendLabel: annotationTemplate
+      ? annotationTemplate?.label
+      : tempAnnotationTemplateLabel,
+  };
 }

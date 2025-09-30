@@ -1,3 +1,5 @@
+import { useSelector } from "react-redux";
+
 import { Box } from "@mui/material";
 
 import ButtonOpenListPanel from "Features/listPanel/components/ButtonOpenListPanel";
@@ -13,6 +15,11 @@ import ButtonBlueprintInMapEditor from "Features/blueprints/components/ButtonBlu
 import ButtonDownloadMapEditorInPdf from "./ButtonDownloadMapEditorInPdf";
 
 export default function LayerMapEditorDesktop({ svgElement }) {
+  // data
+
+  const openRightPanel = useSelector((s) => s.rightPanel.selectedMenuItemKey);
+  const width = useSelector((s) => s.rightPanel.width);
+
   return (
     <>
       {/* <LayerCreateLocatedEntity /> */}
@@ -92,7 +99,7 @@ export default function LayerMapEditorDesktop({ svgElement }) {
         sx={{
           position: "absolute",
           bottom: "8px",
-          right: "8px",
+          right: openRightPanel ? `${width + 8}px` : "8px",
           //transform: "translateX(-100%)",
           zIndex: 10000,
         }}

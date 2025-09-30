@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setEditedAnnotation } from "../annotationsSlice";
@@ -6,11 +7,13 @@ import {
   setSelectedNode,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedAnnotationId } from "../annotationsSlice";
+import { setSelectedAnnotationTemplateId } from "Features/mapEditor/mapEditorSlice";
 import { setIsEditingAnnotation } from "../annotationsSlice";
 
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
+
 import useAnnotationTemplates from "../hooks/useAnnotationTemplates";
 
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
@@ -22,7 +25,7 @@ import FormAnnotation from "./FormAnnotation";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
-import { useEffect } from "react";
+import SectionSelectorAnnotationTemplate from "./SectionSelectorAnnotationTemplate";
 
 export default function SectionEditAnnotation() {
   const dispatch = useDispatch();
@@ -47,11 +50,41 @@ export default function SectionEditAnnotation() {
     (s) => s.annotations.tempAnnotationTemplateLabel
   );
 
+  const selectedAnnotationTemplateId = useSelector(
+    (s) => s.mapEditor.selectedAnnotationTemplateId
+  );
+
   // effect - init editing when id change
 
   useEffect(() => {
     dispatch(setIsEditingAnnotation(false));
+    dispatch(
+      setSelectedAnnotationTemplateId(selectedAnnotation?.annotationTemplateId)
+    );
   }, [selectedAnnotation?.id]);
+
+  // effect - trigger edit if templateId change
+
+  useEffect(() => {
+    if (
+      selectedAnnotationTemplateId !==
+        selectedAnnotation?.annotationTemplateId &&
+      !isEditingAnnotation
+    ) {
+      const template = annotationTemplates?.find(
+        (t) => t.id === selectedAnnotationTemplateId
+      );
+      dispatch(setIsEditingAnnotation(true));
+      dispatch(
+        setEditedAnnotation({
+          ...selectedAnnotation,
+          annotationTemplateId: selectedAnnotationTemplateId,
+          fillColor: template?.fillColor,
+          iconKey: template?.iconKey,
+        })
+      );
+    }
+  }, [selectedAnnotationTemplateId]);
 
   // data - func
 
@@ -96,6 +129,19 @@ export default function SectionEditAnnotation() {
         />
 
         <IconButtonClose onClose={handleClose} />
+      </Box>
+
+      <Box
+        sx={{
+          width: 1,
+          overflow: "auto",
+          height: "500px",
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+        }}
+      >
+        <SectionSelectorAnnotationTemplate />
       </Box>
 
       <FormAnnotation annotation={annotation} onChange={handleChange} />

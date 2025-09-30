@@ -77,7 +77,16 @@ export default function SectionCreateAnnotation() {
         <IconButtonClose onClose={handleClose} />
       </Box> */}
 
-      <Box sx={{ width: 1, overflow: "auto", height: "300px" }}>
+      <Box
+        sx={{
+          width: 1,
+          overflow: "auto",
+          height: "500px",
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+        }}
+      >
         <SectionSelectorAnnotationTemplate />
       </Box>
 

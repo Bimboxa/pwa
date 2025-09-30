@@ -1,6 +1,8 @@
+/*
+ * props => {annotationTemplateId, fillColor, iconKey}
+ */
+
 import getAnnotationTemplateFromAnnotation from "./getAnnotationTemplateFromAnnotation";
-import getAnnotationTemplateIdFromAnnotation from "./getAnnotationTemplateIdFromAnnotation";
-import getPropsFromAnnotationTemplateId from "./getPropsFromAnnotationTemplateId";
 
 export default function getNewAnnotationFromFormItem({
   oldAnnotation,
@@ -22,14 +24,10 @@ export default function getNewAnnotationFromFormItem({
     newAnnotationTemplate?.id !== oldAnnotation?.annotationTemplateId;
 
   if (templateChanged) {
-    // const templateAnnotation = annotationTemplates?.find(
-    //   (t) => t.id === newAnnotationTemplateId
-    // );
-    //const props = getPropsFromAnnotationTemplateId(newAnnotationTemplateId);
     newAnnotation = {
       ...newItem,
       annotationTemplateId: newAnnotationTemplate?.id,
-    }; // pass id from templateAnnotation !
+    };
   } else {
     newAnnotation = { ...newItem };
   }
