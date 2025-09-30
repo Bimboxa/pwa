@@ -43,7 +43,7 @@ export default function ButtonDrawPolylineV2() {
     dispatch(clearDrawingPolylinePoints());
 
     // process annotation templates
-    let _newAnnotation = { ...newAnnotation, type: "EDITED_POLYLINE" };
+    let _newAnnotation = { ...newAnnotation, type: "POLYLINE" };
 
     if (annotationTemplate) {
       _newAnnotation = { ..._newAnnotation, ...annotationTemplate };
@@ -52,7 +52,7 @@ export default function ButtonDrawPolylineV2() {
     //
     dispatch(setShowLayerScreenCursor(true));
 
-    dispatch(setEnabledDrawingMode("EDITED_POLYLINE"));
+    dispatch(setEnabledDrawingMode("POLYLINE"));
 
     dispatch(setNewAnnotation(_newAnnotation));
     dispatch(setSelectedAnnotationId(null));

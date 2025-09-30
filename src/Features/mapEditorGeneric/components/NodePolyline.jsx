@@ -33,7 +33,13 @@ export default function NodePolyline({
     "data-annotation-type": "POLYLINE",
   };
 
+  // --- polyline ---
+
   const basePoints = polyline?.points || [];
+  const { strokeColor = "green" } = polyline;
+
+  // --- image ---
+
   const w = imageSize?.w || 1;
   const h = imageSize?.h || 1;
 
@@ -215,7 +221,7 @@ export default function NodePolyline({
         <polyline
           points={renderPoints.map((p) => `${p.x},${p.y}`).join(" ")}
           fill="none"
-          stroke={hoverIdx != null ? "#0066cc" : "#ff0000"}
+          stroke={hoverIdx != null ? "#0066cc" : strokeColor}
           strokeWidth={hoverIdx != null ? 3 : 2}
           strokeDasharray="5,5"
           style={{ pointerEvents: "none" }}
@@ -229,7 +235,7 @@ export default function NodePolyline({
           y1={lastCommitted.y * h}
           x2={currentMousePos.x * w}
           y2={currentMousePos.y * h}
-          stroke="#ff0000"
+          stroke={strokeColor}
           strokeWidth="2"
           strokeDasharray="3,3"
           opacity="0.7"

@@ -31,6 +31,12 @@ export default function useAnnotationFormTemplate(annotation, options) {
     type: "color",
   };
 
+  const field_strokeColor = {
+    key: "strokeColor",
+    label: "Couleur de la ligne",
+    type: "color",
+  };
+
   const field_iconKey = {
     key: "iconKey",
     label: "Icône",
@@ -78,7 +84,7 @@ export default function useAnnotationFormTemplate(annotation, options) {
     case "POLYLINE": {
       fields = [
         //field_annotationTemplate,
-        field_fillColor,
+        field_strokeColor,
         // field_iconKey,
         field_legendLabel,
       ];

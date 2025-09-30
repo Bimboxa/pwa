@@ -48,17 +48,17 @@ export default function SectionCreateAnnotation() {
     dispatch(setEnabledDrawingMode(null));
   }
 
-  if (newAnnotation.type === "EDITED_POLYLINE") {
-    return (
-      <BoxFlexVStretch>
-        <BoxCenter sx={{ bgcolor: "warning.light" }}>
-          <Typography align="center" color="white" fontWeight="bold">
-            {wipS}
-          </Typography>
-        </BoxCenter>
-      </BoxFlexVStretch>
-    );
-  }
+  // if (newAnnotation.type === "POLYLINE") {
+  //   return (
+  //     <BoxFlexVStretch>
+  //       <BoxCenter sx={{ bgcolor: "warning.light" }}>
+  //         <Typography align="center" color="white" fontWeight="bold">
+  //           {wipS}
+  //         </Typography>
+  //       </BoxCenter>
+  //     </BoxFlexVStretch>
+  //   );
+  // }
 
   return (
     <BoxFlexVStretch>

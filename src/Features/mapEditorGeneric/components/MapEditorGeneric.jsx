@@ -59,6 +59,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     // polyline
     onPolylineComplete,
     drawingPolylinePoints,
+    newPolylineProps,
   } = props;
 
   // === REFS ===
@@ -683,7 +684,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       }
 
       // Handle polyline drawing differently
-      if (enabledDrawingMode === "EDITED_POLYLINE") {
+      if (enabledDrawingMode === "POLYLINE") {
         console.log("Adding polyline point:", { ratioX, ratioY });
         dispatch(addPolylinePoint({ x: ratioX, y: ratioY }));
       } else if (enabledDrawingMode && onNewAnnotation) {
@@ -862,7 +863,10 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               containerPose={basePose}
               toBaseFromClient={toBaseFromClient}
               isDrawing={true}
-              polyline={{ points: drawingPolylinePoints }}
+              polyline={{
+                points: drawingPolylinePoints,
+                ...(newPolylineProps ?? {}),
+              }}
               onComplete={onPolylineComplete}
             />
 

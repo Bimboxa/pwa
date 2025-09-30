@@ -3,6 +3,7 @@ import { lighten } from "@mui/material/styles";
 
 import MarkerIcon from "Features/markers/components/MarkerIcon";
 import getPropsFromAnnotationTemplateId from "../utils/getPropsFromAnnotationTemplateId";
+import AnnotationIcon from "./AnnotationIcon";
 
 export default function SelectorAnnotationTemplate({
   selectedAnnotationTemplateId,
@@ -71,8 +72,8 @@ export default function SelectorAnnotationTemplate({
                       onChange(selected ? null : annotationTemplate.id)
                     }
                   >
-                    <MarkerIcon
-                      iconKey={iconKey}
+                    <AnnotationIcon
+                      annotation={annotationTemplate}
                       spriteImage={spriteImage}
                       size={size}
                     />

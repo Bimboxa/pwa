@@ -10,7 +10,7 @@ import { useSelector, useDispatch } from "react-redux";
  *
  * Redux:
  * - s.mapEditor.drawingPolylinePoints: Array<{x:number,y:number}>  (relative coords 0..1)
- * - s.mapEditor.enabledDrawingMode === "EDITED_POLYLINE" to draw
+ * - s.mapEditor.enabledDrawingMode === "POLYLINE" to draw
  */
 export default function NodePolyline({
   polyline,
