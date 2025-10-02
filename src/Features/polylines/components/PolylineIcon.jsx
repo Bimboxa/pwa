@@ -1,8 +1,13 @@
 import { Box } from "@mui/material";
 
-import { Polyline } from "@mui/icons-material";
+import { Polyline, Pentagon as Polygon } from "@mui/icons-material";
 
-export default function PolylineIcon({ fillColor, strokeColor, size = 24 }) {
+export default function PolylineIcon({
+  fillColor,
+  strokeColor,
+  closeLine,
+  size = 24,
+}) {
   return (
     <Box
       sx={{
@@ -10,7 +15,7 @@ export default function PolylineIcon({ fillColor, strokeColor, size = 24 }) {
         justifyContent: "center",
         alignItems: "center",
         borderRadius: "50%",
-        bgcolor: fillColor ?? "white",
+        bgcolor: "white",
       }}
     >
       <Box
@@ -25,7 +30,7 @@ export default function PolylineIcon({ fillColor, strokeColor, size = 24 }) {
           color: strokeColor,
         }}
       >
-        <Polyline />
+        {closeLine ? <Polygon /> : <Polyline />}
       </Box>
     </Box>
   );

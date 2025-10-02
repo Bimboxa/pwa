@@ -7,7 +7,7 @@ export default async function getAppConfigDefault({ configCode }) {
 
   if (configCode) {
     try {
-      let url = `../data/appConfig_${configCode}.yaml?raw`;
+      let url = `../data/appConfig_${configCode}.yaml`;
       const { default: appConfigRawXxx } = await import(url);
       appConfigRaw = appConfigRawXxx;
     } catch (error) {

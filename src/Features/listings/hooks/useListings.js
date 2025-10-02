@@ -35,13 +35,6 @@ export default function useListings(options) {
       _listings = await db.listings.toArray();
     }
 
-    if (filterByScopeId) {
-      _listings = _listings.filter((listing) => {
-        const test = testObjectHasProp(listing, "scopeId");
-        return !test || (test && listing.scopeId === filterByScopeId);
-      });
-    }
-
     // add entityModel
 
     _listings = _listings.map((_listing) => {
@@ -50,6 +43,18 @@ export default function useListings(options) {
 
       return { ..._listing, entityModel };
     });
+
+    if (filterByScopeId) {
+      _listings = _listings.filter((listing) => {
+        const test = testObjectHasProp(listing, "scopeId");
+        const isLocatedEntities =
+          listing.entityModel?.type === "LOCATED_ENTITY";
+        return (
+          (!test && !isLocatedEntities) ||
+          (test && listing.scopeId === filterByScopeId)
+        );
+      });
+    }
 
     // filter by entityModelType
     if (filterByEntityModelType) {

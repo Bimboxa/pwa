@@ -15,6 +15,7 @@ import {
   Share,
   ListAlt,
   Wallpaper,
+  ShapeLine,
 } from "@mui/icons-material";
 import ExcelIcon from "Features/excel/utils/components/ExcelIcon";
 
@@ -34,5 +35,6 @@ iconsMap.set("excel", ExcelIcon);
 iconsMap.set("share", Share);
 iconsMap.set("legend", ListAlt);
 iconsMap.set("blueprint", Wallpaper);
+iconsMap.set("shapes", ShapeLine);
 
 export default iconsMap;
