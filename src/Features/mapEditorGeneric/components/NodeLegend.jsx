@@ -9,7 +9,7 @@ import {
 } from "react";
 import { Rnd } from "react-rnd";
 
-import { Polyline } from "@mui/icons-material";
+import { Polyline, Pentagon as Polygon } from "@mui/icons-material";
 
 export default memo(function NodeLegend({
   id = "legend",
@@ -119,9 +119,9 @@ export default memo(function NodeLegend({
     iconKeys = [],
   } = spriteImage || {};
 
-  function LegendIcon({ type, iconKey, fillColor, strokeColor }) {
+  function LegendIcon({ type, iconKey, fillColor, strokeColor, closeLine }) {
     // If type is POLYLINE, use MUI Polyline icon
-    if (type === "POLYLINE") {
+    if (type === "POLYLINE" && !closeLine) {
       return (
         <div
           style={{
@@ -138,6 +138,30 @@ export default memo(function NodeLegend({
           <Polyline
             style={{
               color: strokeColor || "#ffffff",
+              fontSize: ICON_PX * 0.6,
+            }}
+          />
+        </div>
+      );
+    }
+
+    if (type === "POLYLINE" && closeLine) {
+      return (
+        <div
+          style={{
+            width: ICON_PX,
+            height: ICON_PX,
+            borderRadius: ICON_PX / 2,
+            background: fillColor ?? "white",
+            display: "grid",
+            placeItems: "center",
+            overflow: "hidden",
+            border: `2px solid ${strokeColor}`,
+          }}
+        >
+          <Polygon
+            style={{
+              color: fillColor || "#ffffff",
               fontSize: ICON_PX * 0.6,
             }}
           />

@@ -3,16 +3,22 @@ import { useState, useEffect, useRef, useMemo } from "react";
 
 /**
  * Props:
- * - polyline: { points: Array<{x:number,y:number}> }   // points are relative (0..1)
- * - imageSize: { w:number, h:number }                  // base image size (px)
+ * - polyline: {
+ *     id?: string,
+ *     listingId?: string,
+ *     points: Array<{x:number,y:number}>, // relative 0..1
+ *     strokeColor?: string,
+ *     closeLine?: boolean,
+ *     fillColor?: string,
+ *     fillOpacity?: number,
+ *   }
+ * - imageSize: { w:number, h:number }                  // base image px
  * - toBaseFromClient: (clientX:number, clientY:number) => { x:number, y:number } // base-local px
- * - isDrawing?: boolean                                 // optional: if true, shows a moving preview segment (like "add next point")
- * - onComplete?: (points) => void                       // optional: called on dblclick when in drawing mode
- * - onPointsChange?: (points) => void                   // called when a drag finishes (drop)
- *
- * Notes:
- * - Dragging works on the circular anchors (bigger transparent hit area).
- * - While dragging we update a temp copy of points and paint it; on drop we call onPointsChange.
+ * - isDrawing?: boolean
+ * - onComplete?: (points) => void                      // finalize polygon
+ * - onPointsChange?: (points) => void                  // after anchor drag
+ * - onChange?: (polyline) => void                      // legacy (full object)
+ * - selected?: boolean                                 // show anchors when true
  */
 export default function NodePolyline({
   polyline,
@@ -20,28 +26,34 @@ export default function NodePolyline({
   toBaseFromClient,
   isDrawing = false,
   onComplete,
-  onPointsChange, // preferred name
-  onChange, // backward compatibility with your earlier prop
+  onPointsChange,
+  onChange,
   selected,
 }) {
-  // --- dataProps ---
-
+  // --- data props for hit-testing in your editor ---
   const dataProps = {
-    "data-node-id": polyline.id,
-    "data-node-listing-id": polyline.listingId,
+    "data-node-id": polyline?.id,
+    "data-node-listing-id": polyline?.listingId,
     "data-node-type": "ANNOTATION",
     "data-annotation-type": "POLYLINE",
   };
 
-  // --- polyline ---
-
+  // --- polyline config ---
   const basePoints = polyline?.points || [];
-  const { strokeColor = "green" } = polyline;
+  const {
+    strokeColor = "green",
+    closeLine = false,
+    fillColor = polyline?.strokeColor || "green",
+    fillOpacity = 0.8,
+  } = polyline || {};
 
-  // --- image ---
-
+  // --- image size ---
   const w = imageSize?.w || 1;
   const h = imageSize?.h || 1;
+
+  // --- UI constants ---
+  const HIT_R = 12; // px, anchor hit radius
+  const CLOSE_TOL_PX = 14; // px in *base* space (tweak/scale if needed)
 
   // ----- Hover + dragging state -----
   const [hoverIdx, setHoverIdx] = useState(null);
@@ -52,14 +64,15 @@ export default function NodePolyline({
   const [tempPoints, setTempPoints] = useState(null);
   const rafIdRef = useRef(null);
 
-  // optional preview for "next segment" when isDrawing = true
+  // drawing preview (moving mouse point)
   const [currentMousePos, setCurrentMousePos] = useState(null);
   const nextPosRef = useRef(null);
   const moveRafRef = useRef(null);
 
-  const effectiveOnChange = onChange;
+  // closing helper (near first point while drawing)
+  const [showCloseHelper, setShowCloseHelper] = useState(false);
 
-  // ---------- rAF setter for temp points (drag preview) ----------
+  // ---------- helpers ----------
   const scheduleTempCommit = () => {
     if (rafIdRef.current != null) return;
     rafIdRef.current = requestAnimationFrame(() => {
@@ -68,16 +81,31 @@ export default function NodePolyline({
     });
   };
 
-  // ---------- Pointer handlers for anchor drag ----------
+  // Constrain a base-local px point to H/V relative to a base-local px origin when Shift is pressed.
+  function constrainIfShift(e, ptPx, originPx) {
+    if (!e.shiftKey || !originPx) return ptPx;
+    const dx = ptPx.x - originPx.x;
+    const dy = ptPx.y - originPx.y;
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      // angle < 45° → horizontal
+      return { x: ptPx.x, y: originPx.y };
+    } else {
+      // angle > 45° → vertical
+      return { x: originPx.x, y: ptPx.y };
+    }
+  }
+
+  // ---------- Anchor drag ----------
   function onAnchorPointerDown(e, idx) {
-    // capture drag on this anchor; don’t let the map pan get it
     e.preventDefault();
     e.stopPropagation();
 
-    const id = e.pointerId ?? "mouse";
-    draggingRef.current = { active: true, idx, pointerId: id };
+    draggingRef.current = {
+      active: true,
+      idx,
+      pointerId: e.pointerId ?? "mouse",
+    };
 
-    // listen on the document so we track even if pointer leaves the svg
     document.addEventListener("pointermove", onDocPointerMove, {
       passive: false,
     });
@@ -86,7 +114,6 @@ export default function NodePolyline({
       passive: false,
     });
 
-    // start from current polyline points
     tempPointsRef.current = basePoints.map((p) => ({ ...p }));
     scheduleTempCommit();
   }
@@ -94,27 +121,33 @@ export default function NodePolyline({
   function onDocPointerMove(e) {
     if (!draggingRef.current.active) return;
 
-    // convert to base-local px, then to relative 0..1
-    const bl = toBaseFromClient(e.clientX, e.clientY);
+    // pick a reference anchor for Shift constraint: prefer previous, else next
+    const i = draggingRef.current.idx;
+    const prev = basePoints[i - 1] ?? null;
+    const next = basePoints[i + 1] ?? null;
+    const refRel = prev || next || null;
+    const refPx = refRel ? { x: refRel.x * w, y: refRel.y * h } : null;
+
+    // current mouse in base-local px
+    let bl = toBaseFromClient(e.clientX, e.clientY);
+    // apply Shift constrain if needed
+    bl = constrainIfShift(e, bl, refPx);
+
     const rx = Math.max(0, Math.min(1, bl.x / w));
     const ry = Math.max(0, Math.min(1, bl.y / h));
 
-    const i = draggingRef.current.idx;
     if (!tempPointsRef.current)
       tempPointsRef.current = basePoints.map((p) => ({ ...p }));
     tempPointsRef.current[i] = { x: rx, y: ry };
     scheduleTempCommit();
 
-    // prevent page scrolling while dragging on touchpads
-    e.preventDefault();
+    e.preventDefault(); // avoid scroll on touchpads while dragging
   }
 
-  function onDocPointerUp(e) {
+  function onDocPointerUp() {
     if (!draggingRef.current.active) return;
-
     draggingRef.current.active = false;
 
-    // finalize + notify
     const finalPoints = tempPointsRef.current
       ? tempPointsRef.current.map((p) => ({ ...p }))
       : basePoints.map((p) => ({ ...p }));
@@ -122,33 +155,60 @@ export default function NodePolyline({
     tempPointsRef.current = null;
     setTempPoints(null);
 
-    // clean up listeners
     document.removeEventListener("pointermove", onDocPointerMove);
     document.removeEventListener("pointerup", onDocPointerUp);
     document.removeEventListener("pointercancel", onDocPointerUp);
 
-    // callback after drop
-    if (effectiveOnChange)
-      effectiveOnChange({ ...polyline, points: finalPoints });
+    if (onPointsChange) onPointsChange(finalPoints);
+    if (onChange) onChange({ ...polyline, points: finalPoints });
   }
 
-  // ---------- Optional drawing preview (like "add next point") ----------
+  // ---------- Drawing mode: live mouse point + closing helper ----------
   useEffect(() => {
     if (!isDrawing) {
       setCurrentMousePos(null);
+      setShowCloseHelper(false);
       return;
     }
 
+    const lastRel = basePoints[basePoints.length - 1] || null;
+    const lastPx = lastRel ? { x: lastRel.x * w, y: lastRel.y * h } : null;
+
+    const firstRel = basePoints[0] || null;
+    const firstPx = firstRel ? { x: firstRel.x * w, y: firstRel.y * h } : null;
+
     function onMove(e) {
-      const bl = toBaseFromClient(e.clientX, e.clientY);
+      // base-local px
+      let bl = toBaseFromClient(e.clientX, e.clientY);
+      // Shift constrain vs LAST committed point while drawing
+      bl = constrainIfShift(e, bl, lastPx);
+
+      // update preview position (relative 0..1)
       const rx = bl.x / w;
       const ry = bl.y / h;
 
-      nextPosRef.current = { x: rx, y: ry };
+      // closing helper (distance test in base px)
+      let showClose = false;
+      if (closeLine && firstPx) {
+        const dx = bl.x - firstPx.x;
+        const dy = bl.y - firstPx.y;
+        if (Math.hypot(dx, dy) <= CLOSE_TOL_PX) {
+          showClose = true;
+        }
+      }
+
+      nextPosRef.current = { x: rx, y: ry, showClose };
+
       if (moveRafRef.current == null) {
         moveRafRef.current = requestAnimationFrame(() => {
           moveRafRef.current = null;
-          if (nextPosRef.current) setCurrentMousePos(nextPosRef.current);
+          if (nextPosRef.current) {
+            setCurrentMousePos({
+              x: nextPosRef.current.x,
+              y: nextPosRef.current.y,
+            });
+            setShowCloseHelper(nextPosRef.current.showClose);
+          }
         });
       }
     }
@@ -157,6 +217,7 @@ export default function NodePolyline({
       if (basePoints.length >= 2) {
         onComplete && onComplete(basePoints);
         setCurrentMousePos(null);
+        setShowCloseHelper(false);
       }
     }
 
@@ -169,44 +230,88 @@ export default function NodePolyline({
       if (moveRafRef.current != null) cancelAnimationFrame(moveRafRef.current);
       moveRafRef.current = null;
     };
-  }, [isDrawing, w, h, toBaseFromClient, basePoints, onComplete]);
+  }, [
+    isDrawing,
+    w,
+    h,
+    toBaseFromClient,
+    basePoints,
+    onComplete,
+    closeLine,
+    CLOSE_TOL_PX,
+  ]);
 
-  // ---------- What we actually render ----------
-  const renderPoints = useMemo(() => {
-    const pts = (tempPoints ?? basePoints).map((p) => ({
-      x: p.x * w,
-      y: p.y * h,
-    }));
-    if (isDrawing && currentMousePos && basePoints.length > 0) {
-      pts.push({ x: currentMousePos.x * w, y: currentMousePos.y * h });
+  // ---------- Build preview with moving vertex appended ----------
+  const committedRel = useMemo(
+    () => tempPoints ?? basePoints,
+    [tempPoints, basePoints]
+  );
+
+  const previewRel = useMemo(() => {
+    if (isDrawing && currentMousePos && committedRel.length > 0) {
+      return [...committedRel, currentMousePos];
     }
-    return pts;
-  }, [tempPoints, basePoints, w, h, isDrawing, currentMousePos]);
+    return committedRel;
+  }, [isDrawing, currentMousePos, committedRel]);
 
-  const lastCommitted = basePoints.length
-    ? basePoints[basePoints.length - 1]
+  const previewPx = useMemo(
+    () => previewRel.map((p) => ({ x: p.x * w, y: p.y * h })),
+    [previewRel, w, h]
+  );
+
+  // helper overlay path (polyline). If closeLine → include closing edge
+  const helperPointsStr = useMemo(() => {
+    if (previewPx.length === 0) return "";
+    const list =
+      closeLine && previewPx.length >= 2
+        ? [...previewPx, previewPx[0]]
+        : previewPx;
+    return list.map((p) => `${p.x},${p.y}`).join(" ");
+  }, [previewPx, closeLine]);
+
+  // polygon points (no duplicate of the first point)
+  const polygonPointsStr = useMemo(
+    () => previewPx.map((p) => `${p.x},${p.y}`).join(" "),
+    [previewPx]
+  );
+
+  const lastCommitted = committedRel.length
+    ? committedRel[committedRel.length - 1]
     : null;
+  const firstCommitted = committedRel.length ? committedRel[0] : null;
 
-  // cleanup any pending rAF when unmounting
+  // cleanup
   useEffect(() => {
     return () => {
       if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
       if (moveRafRef.current != null) cancelAnimationFrame(moveRafRef.current);
       moveRafRef.current = null;
-      // remove listeners just in case
       document.removeEventListener("pointermove", onDocPointerMove);
       document.removeEventListener("pointerup", onDocPointerUp);
       document.removeEventListener("pointercancel", onDocPointerUp);
     };
   }, []);
 
+  const showFill = closeLine && previewRel.length >= 3;
+
   return (
     <g {...dataProps}>
-      {/* Wide invisible path for easier hover on the line */}
-      {renderPoints.length >= 2 && (
+      {/* FILLED POLYGON (preview includes moving vertex) */}
+      {showFill && (
+        <polygon
+          points={polygonPointsStr}
+          fill={fillColor}
+          fillOpacity={fillOpacity ?? 0.8}
+          stroke="none"
+          style={{ pointerEvents: "none" }}
+        />
+      )}
+
+      {/* WIDE INVISIBLE OVERLAY (hover/click comfort) */}
+      {previewPx.length >= 2 && (
         <polyline
-          points={renderPoints.map((p) => `${p.x},${p.y}`).join(" ")}
+          points={helperPointsStr}
           fill="none"
           stroke="transparent"
           strokeWidth="12"
@@ -216,10 +321,20 @@ export default function NodePolyline({
         />
       )}
 
-      {/* Visible path */}
-      {renderPoints.length >= 2 && (
+      {/* VISIBLE OUTLINE */}
+      {previewPx.length >= 2 && !closeLine && (
         <polyline
-          points={renderPoints.map((p) => `${p.x},${p.y}`).join(" ")}
+          points={helperPointsStr}
+          fill="none"
+          stroke={hoverIdx != null ? "#0066cc" : strokeColor}
+          strokeWidth={hoverIdx != null ? 3 : 2}
+          strokeDasharray="5,5"
+          style={{ pointerEvents: "none" }}
+        />
+      )}
+      {previewPx.length >= 2 && closeLine && (
+        <polygon
+          points={polygonPointsStr}
           fill="none"
           stroke={hoverIdx != null ? "#0066cc" : strokeColor}
           strokeWidth={hoverIdx != null ? 3 : 2}
@@ -228,8 +343,8 @@ export default function NodePolyline({
         />
       )}
 
-      {/* Optional visible preview of the last segment while drawing */}
-      {isDrawing && lastCommitted && currentMousePos && (
+      {/* TEMP MOVING SEGMENTS */}
+      {isDrawing && currentMousePos && lastCommitted && (
         <line
           x1={lastCommitted.x * w}
           y1={lastCommitted.y * h}
@@ -238,14 +353,63 @@ export default function NodePolyline({
           stroke={strokeColor}
           strokeWidth="2"
           strokeDasharray="3,3"
-          opacity="0.7"
+          opacity="0.9"
           style={{ pointerEvents: "none" }}
         />
       )}
+      {isDrawing &&
+        closeLine &&
+        currentMousePos &&
+        firstCommitted &&
+        committedRel.length >= 1 && (
+          <line
+            x1={currentMousePos.x * w}
+            y1={currentMousePos.y * h}
+            x2={firstCommitted.x * w}
+            y2={firstCommitted.y * h}
+            stroke={strokeColor}
+            strokeWidth="2"
+            strokeDasharray="3,3"
+            opacity="0.9"
+            style={{ pointerEvents: "none" }}
+          />
+        )}
 
-      {/* Anchor handles (transparent big hit area) */}
+      {/* CLOSING HELPER ANCHOR (click to commit) */}
+      {isDrawing && closeLine && showCloseHelper && firstCommitted && (
+        <g
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation(); // prevent "add point" handler upstream
+            if (onComplete) onComplete(basePoints);
+            setCurrentMousePos(null);
+            setShowCloseHelper(false);
+          }}
+          style={{ cursor: "pointer" }}
+        >
+          <circle
+            cx={firstCommitted.x * w}
+            cy={firstCommitted.y * h}
+            r={HIT_R}
+            fill="rgba(0,0,0,0.05)"
+            stroke="#0066cc"
+            strokeWidth="2"
+          />
+          <circle
+            cx={firstCommitted.x * w}
+            cy={firstCommitted.y * h}
+            r={5}
+            fill="#0066cc"
+            stroke="#fff"
+            strokeWidth="2"
+            style={{ pointerEvents: "none" }}
+          />
+        </g>
+      )}
+
+      {/* ANCHOR HANDLES */}
       {selected &&
-        (tempPoints ?? basePoints).map((p, i) => {
+        committedRel.map((p, i) => {
           const px = p.x * w;
           const py = p.y * h;
           const hovered =
@@ -254,11 +418,10 @@ export default function NodePolyline({
 
           return (
             <g key={`anchor-${i}`}>
-              {/* Big transparent hit circle to make grabbing easy */}
               <circle
                 cx={px}
                 cy={py}
-                r={12}
+                r={HIT_R}
                 fill="transparent"
                 stroke="transparent"
                 style={{
@@ -270,7 +433,6 @@ export default function NodePolyline({
                 }
                 onPointerDown={(e) => onAnchorPointerDown(e, i)}
               />
-              {/* Visible small circle */}
               <circle
                 cx={px}
                 cy={py}
