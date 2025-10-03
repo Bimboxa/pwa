@@ -1,21 +1,30 @@
-import appConfigRawDefault from "../data/appConfig_default.yaml?raw";
-
 import yaml from "js-yaml";
 
-export default async function getAppConfigDefault({ configCode }) {
-  let appConfigRaw = appConfigRawDefault;
+// NOTE: The glob path must be *relative to this file*.
+// Adjust "../data/..." if your file lives elsewhere.
+const CONFIG_LOADERS = import.meta.glob("../data/appConfig_*.yaml", {
+  as: "raw", // return file contents as string
+  eager: false, // keep it lazy; call the function to load
+});
 
-  if (configCode) {
-    try {
-      let url = `../data/appConfig_${configCode}.yaml`;
-      const { default: appConfigRawXxx } = await import(url);
-      appConfigRaw = appConfigRawXxx;
-    } catch (error) {
-      console.warn("appConfig_xxx.yaml not found, using default config");
-      // Keep using appConfigRawDefault
-    }
+export default async function getAppConfigDefault({ configCode }) {
+  const code = (configCode ?? "default").toLowerCase();
+  const wantedKey = `../data/appConfig_${code}.yaml`;
+
+  let loader = CONFIG_LOADERS[wantedKey];
+
+  if (!loader) {
+    console.warn(`appConfig_${code}.yaml not found, using default config`);
+    loader = CONFIG_LOADERS["../data/appConfig_default.yaml"];
+  }
+  if (!loader) {
+    throw new Error(
+      'No default config found. Expected "../data/appConfig_default.yaml" to be bundled.'
+    );
   }
 
-  const appConfig = yaml.load(appConfigRaw);
+  const raw = await loader(); // string (because as:'raw')
+  console.log("raw", raw);
+  const appConfig = yaml.load(raw);
   return appConfig;
 }
