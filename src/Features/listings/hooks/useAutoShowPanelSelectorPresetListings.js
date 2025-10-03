@@ -6,15 +6,15 @@ export default function useAutoShowPanelSelectorPresetListings() {
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+  //const scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   const listings = useListings({
     filterByProjectId: projectId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    filterByScopeId: scopeId,
+    //filterByScopeId: scopeId,
   });
 
-  console.log("debug_2509_listings", listings, scopeId);
+  console.log("debug_2509_listings", listings);
 
   return !listings?.length > 0;
 }

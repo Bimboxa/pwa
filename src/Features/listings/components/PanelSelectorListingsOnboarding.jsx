@@ -56,8 +56,8 @@ export default function PanelSelectorListingsOnboarding() {
       }));
 
       const updates = {
-        id: scope.id,
-        sortedListings: [...(scope.sortedListings ?? []), ...newScopeListings],
+        id: scope?.id,
+        sortedListings: [...(scope?.sortedListings ?? []), ...newScopeListings],
       };
 
       // update scope

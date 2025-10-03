@@ -79,24 +79,24 @@ export default function TopBarBreadcrumbs() {
         <ButtonDialogOnboardingSelectProject />
       </Box>
     );
-  } else if (noScope) {
-    return (
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <Home />
-        <Separator />
-        <Project />
-        <Separator />
-        <ButtonDialogOnboardingSelectScope />
-      </Box>
-    );
+    // } else if (noScope) {
+    //   return (
+    //     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+    //       <Home />
+    //       <Separator />
+    //       <Project />
+    //       <Separator />
+    //       <ButtonDialogOnboardingSelectScope />
+    //     </Box>
+    //   );
   } else {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Home />
         <Separator />
         <Project />
-        <Separator />
-        <Scope />
+        {/* <Separator />
+        <Scope /> */}
       </Box>
     );
   }

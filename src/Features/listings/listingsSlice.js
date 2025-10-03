@@ -19,6 +19,8 @@ const listingsInitialState = {
   selectedListingId: null,
   //
   openListingSyncDetail: false,
+  //
+  hiddenListingsIds: [],
 };
 
 export const listingsSlice = createSlice({
@@ -64,6 +66,18 @@ export const listingsSlice = createSlice({
     setOpenListingSyncDetail: (state, action) => {
       state.openListingSyncDetail = action.payload;
     },
+    //
+    setHiddenListingsIds: (state, action) => {
+      state.hiddenListingsIds = action.payload;
+    },
+    hideListingId: (state, action) => {
+      state.hiddenListingsIds = [...state.hiddenListingsIds, action.payload];
+    },
+    showListingId: (state, action) => {
+      state.hiddenListingsIds = state.hiddenListingsIds.filter(
+        (id) => id !== action.payload
+      );
+    },
   },
 });
 
@@ -83,6 +97,10 @@ export const {
   updateListing,
   //
   setOpenListingSyncDetail,
+  //
+  hideListingId,
+  showListingId,
+  setHiddenListingsIds,
 } = listingsSlice.actions;
 
 export default listingsSlice.reducer;

@@ -12,6 +12,7 @@ export default function useAnnotations(options) {
   const addDemoAnnotations = options?.addDemoAnnotations;
   const filterByBaseMapId = options?.filterByBaseMapId;
   const filterByListingId = options?.filterByListingId;
+  const excludeListingsIds = options?.excludeListingsIds;
   const addBgImageTextAnnotations = options?.addBgImageTextAnnotations;
 
   // data
@@ -45,6 +46,12 @@ export default function useAnnotations(options) {
       );
     }
 
+    if (excludeListingsIds) {
+      _annotations = _annotations.filter(
+        (a) => !excludeListingsIds.includes(a.listingId)
+      );
+    }
+
     // edition
     if (isEditingAnnotation) {
       _annotations = _annotations.filter((a) => a.id !== editedAnnotation.id);
@@ -58,6 +65,7 @@ export default function useAnnotations(options) {
     editedAnnotation,
     filterByListingId,
     filterByBaseMapId,
+    excludeListingsIds,
   ]);
 
   // demo

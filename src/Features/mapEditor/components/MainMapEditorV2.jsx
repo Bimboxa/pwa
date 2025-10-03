@@ -66,6 +66,9 @@ export default function MainMapEditorV2() {
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const listingId = useSelector((s) => s.listings.selectedListingId);
   const { value: listing } = useSelectedListing();
+  const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
+
+  console.log("[MainMapEditor] hiddenListingsIds", hiddenListingsIds);
 
   const annotationSpriteImage = useAnnotationSpriteImage();
 
@@ -85,7 +88,8 @@ export default function MainMapEditorV2() {
   const annotations = useAnnotations({
     addDemoAnnotations: false,
     filterByBaseMapId: mainBaseMap?.id,
-    addBgImageTextAnnotations: true,
+    excludeListingsIds: hiddenListingsIds,
+    //addBgImageTextAnnotations: true,
   });
 
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
@@ -123,7 +127,7 @@ export default function MainMapEditorV2() {
 
   // helpers
 
-  const noBaseMaps = !baseMaps?.length > 0 || !scopeId;
+  const noBaseMaps = !baseMaps?.length > 0;
   const showScreenCursor = Boolean(enabledDrawingMode);
 
   let cursor;

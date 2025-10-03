@@ -11,11 +11,50 @@ export default function IconListingVariantSelectable({
   listing,
   onClick,
   selected,
+  hidden,
+
   size = "32px",
 }) {
-  const bgcolorSelected = listing?.color ?? red[500];
-  const bgcolorSelectedHover = lighten(bgcolorSelected, 0.2);
-  const bgcolorHover = lighten(bgcolorSelected, 0.3);
+  const isLocatedEntity = listing?.entityModel?.type === "LOCATED_ENTITY";
+  const listingColor = listing?.color ?? red[500];
+  const listingColorLight = lighten(listingColor, 0.2);
+  const listingColorLightest = lighten(listingColor, 0.5);
+  const _grey = grey[500];
+  const _greyLight = lighten(_grey, 0.2);
+
+  let bgcolor = null;
+  let color = _grey;
+  let border = `1px solid ${_grey}`;
+
+  let bgcolorHover = listingColorLight;
+  let borderHover = "none";
+  let colorHover = "white";
+
+  let bgcolorSelected = listingColor;
+  let colorSelected = "white";
+  let borderSelected = "none";
+
+  let bgcolorHoverSelected = listingColorLight;
+  let colorHoverSelected = "white";
+  let borderHoverSelected = "none";
+
+  if (isLocatedEntity) {
+    bgcolor = null;
+    color = hidden ? _grey : listingColor;
+    border = `1px solid ${hidden ? _grey : listingColor}`;
+
+    bgcolorHover = hidden ? _grey : listingColorLight;
+    borderHover = "none";
+    colorHover = hidden ? "primary.main" : "white";
+
+    bgcolorSelected = hidden ? _grey : listingColor;
+    colorSelected = hidden ? "primary.main" : "white";
+    borderSelected = "none";
+
+    bgcolorHoverSelected = hidden ? _greyLight : listingColorLight;
+    colorHoverSelected = hidden ? "primary.main" : "white";
+    borderHoverSelected = "none";
+  }
 
   const iconKey = listing?.iconKey;
   const icon = iconsMap.get(iconKey) ?? Circle;
@@ -30,17 +69,17 @@ export default function IconListingVariantSelectable({
         <Box
           sx={{
             borderRadius: 2,
-            ...(selected && { bgcolor: bgcolorSelected }),
-            ...(!selected && { border: `1px solid ${grey[500]}` }),
+            bgcolor: selected ? bgcolorSelected : bgcolor,
+            color: selected ? colorSelected : color,
+            border: selected ? borderSelected : border,
             display: "flex",
-            color: selected ? "white" : grey[500],
             alignItems: "center",
             justifyContent: "center",
 
             "&:hover": {
-              bgcolor: selected ? bgcolorSelectedHover : bgcolorHover,
-              color: "white",
-              border: "none",
+              bgcolor: selected ? bgcolorHoverSelected : bgcolorHover,
+              color: selected ? colorHoverSelected : colorHover,
+              border: selected ? borderHoverSelected : borderHover,
             },
             width: size,
             height: size,
