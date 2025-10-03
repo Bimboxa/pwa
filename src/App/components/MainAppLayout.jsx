@@ -82,9 +82,9 @@ export default function MainAppLayout() {
       </Box>
       <Toaster />
       <PageLanding />
-      {!openLandingPage && (warningWasShowed || !remoteContainer) && (
+      {/* {!openLandingPage && (warningWasShowed || !remoteContainer) && (
         <DialogAutoSelectScope />
-      )}
+      )} */}
       {!openLandingPage && <DialogAutoRemoteContainerConnexion />}
       {/*<DialogAutoListingsConfig />*/}
       <DialogAutoDownloadListingsData />
