@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { useSelector } from "react-redux";
+
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useAddListingToScope from "Features/scopes/hooks/useAddListingToScope";
 import useCreateListing from "Features/listings/hooks/useCreateListing";
@@ -18,6 +20,7 @@ export default function PanelCreateListing({ onListingCreated }) {
   const { value: scope } = useSelectedScope();
   const addListingToScope = useAddListingToScope();
   const createListing = useCreateListing();
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
 
   // state
 
@@ -28,20 +31,24 @@ export default function PanelCreateListing({ onListingCreated }) {
   async function handleSave() {
     const newListing = {
       ...tempListing,
+      projectId,
       entityModelKey: tempListing?.entityModel?.key,
       table: tempListing?.entityModel?.defaultTable,
     };
-    delete newListing.entityModel;
+    if (newListing.entityModel) delete newListing.entityModel;
 
     // create listing
     const _newListing = await createListing({ listing: newListing, scope });
     newListing.id = _newListing.id;
     // add listing to scope
-    await addListingToScope({
-      listingId: _newListing.id,
-      listingTable: _newListing.table,
-      scope,
-    });
+    if (scope) {
+      await addListingToScope({
+        listingId: _newListing.id,
+        listingTable: _newListing.table,
+        scope,
+      });
+    }
+
     //
     if (onListingCreated) onListingCreated();
   }

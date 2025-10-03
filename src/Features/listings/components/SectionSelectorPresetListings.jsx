@@ -26,9 +26,9 @@ export default function SectionSelectorPresetListings({
 
   // helpers
 
-  let keys = [];
-  const presetScope = appConfig?.presetScopesObject?.[scope?.presetScopeKey];
-  if (presetScope) keys = presetScope.listings;
+  const presetScope =
+    appConfig?.presetScopesObject?.[scope?.presetScopeKey ?? "all"];
+  const keys = presetScope ? presetScope.listings : [];
 
   // helpers
 

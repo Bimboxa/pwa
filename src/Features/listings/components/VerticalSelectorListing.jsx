@@ -1,27 +1,28 @@
 import { useSelector, useDispatch } from "react-redux";
 
-import { setSelectedListingId } from "../listingsSlice";
-
+import { setSelectedListingId, setHiddenListingsIds } from "../listingsSlice";
 import useListingsByScope from "../hooks/useListingsByScope";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import { Box, IconButton, Tooltip, Typography } from "@mui/material";
-import { ArrowForwardIos } from "@mui/icons-material";
+import {
+  ArrowForwardIos,
+  Visibility,
+  VisibilityOff,
+} from "@mui/icons-material";
 import { grey } from "@mui/material/colors";
 import theme from "Styles/theme";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import IconListingVariantSelectable from "./IconListingVariantSelectable";
 
+import getModulesAndListingsForLeftPanel from "../utils/getModulesAndListingsForLeftPanel";
+
 export default function VerticalSelectorListing({ onSeeAllClick }) {
   const dispatch = useDispatch();
 
-  // strings
-
   const seeAllS = "Voir les listes";
-
   const pinnedS = "Listes";
-
-  // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -33,16 +34,30 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
   const onboardingIsActive = useSelector(
     (s) => s.onboarding.onboardingIsActive
   );
+  const appConfig = useAppConfig();
+  const hiddenListingsIds = useSelector(
+    (s) => s.listings.hiddenListingsIds || []
+  );
 
-  // handlers
+  const entityModelTypes = appConfig?.features?.entityModelTypes;
+  const items = getModulesAndListingsForLeftPanel({
+    listings,
+    entityModelTypes,
+  });
 
   function handleListingClick(listing) {
     dispatch(setSelectedListingId(listing.id));
   }
 
-  // render
+  function toggleListingVisibility(id) {
+    const isHidden = hiddenListingsIds.includes(id);
+    const next = isHidden
+      ? hiddenListingsIds.filter((x) => x !== id)
+      : [...hiddenListingsIds, id];
+    dispatch(setHiddenListingsIds(next));
+  }
 
-  if (onboardingIsActive || !scopeId)
+  if (onboardingIsActive)
     return (
       <Box
         sx={{
@@ -75,24 +90,104 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
 
       <Box sx={{ borderBottom: `1px solid ${grey[500]}`, width: 1, my: 1 }} />
 
-      <Box sx={{ display: "flex", alignItems: "center", py: 1 }}>
-        <Typography sx={{ fontSize: 10 }} align="center" color="grey.300">
-          {pinnedS}
-        </Typography>
-      </Box>
+      <Box
+        sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+      >
+        {items.map((item) => {
+          const selected = item?.listing?.id === selectedListingId;
+          const id = item?.listing?.id;
+          const hidden = id ? hiddenListingsIds.includes(id) : false;
+          const showHideButton = item?.showHideButton;
 
-      <Box sx={{ display: "flex", flexDirection: "column" }}>
-        {listings.map((listing) => {
-          const selected = listing.id === selectedListingId;
-          return (
-            <IconListingVariantSelectable
-              key={listing.id}
-              listing={listing}
-              selected={selected}
-              onClick={() => handleListingClick(listing)}
-              bgcolor={theme.palette.background.default}
-            />
-          );
+          if (item.type === "ENTITY_MODEL_TYPE") {
+            return (
+              <Box
+                key={item?.entityModelType?.type}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  mt: 1,
+                  py: 1,
+                }}
+              >
+                <Typography
+                  sx={{ fontSize: 10 }}
+                  align="center"
+                  color="grey.300"
+                >
+                  {item?.entityModelType?.name}
+                </Typography>
+              </Box>
+            );
+          }
+
+          if (item.type === "LISTING") {
+            return (
+              <Box
+                key={id}
+                // Inline-block wrapper so it doesn't affect child centering/size
+                sx={{
+                  position: "relative",
+                  display: "inline-block",
+                  // show helper only on hover
+                  "&:hover .vis-btn": { opacity: 1, pointerEvents: "auto" },
+                }}
+              >
+                {/* Listing tile (unchanged layout, stays centered by the parent column) */}
+                <Box
+                  sx={
+                    {
+                      //transition: "opacity 120ms ease, filter 120ms ease",
+                      //opacity: hidden ? 0.6 : 1,
+                      //filter: hidden ? "grayscale(0.6)" : "none",
+                    }
+                  }
+                >
+                  <IconListingVariantSelectable
+                    listing={item.listing}
+                    selected={selected}
+                    hidden={hidden}
+                    onClick={() => handleListingClick(item.listing)}
+                  />
+                </Box>
+
+                {/* Visibility helper overlay (absolute; no layout impact) */}
+                {showHideButton && (
+                  <IconButton
+                    className="vis-btn"
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleListingVisibility(id);
+                    }}
+                    sx={{
+                      position: "absolute",
+                      top: -8,
+                      right: -8,
+                      zIndex: 3,
+                      bgcolor: "rgba(255,255,255,0.9)",
+                      border: "1px solid",
+                      borderColor: "divider",
+                      boxShadow: 1,
+                      opacity: 0,
+                      pointerEvents: "none", // disabled until hover via wrapper rule
+                      transition: "opacity 120ms ease",
+                      "&:hover": { bgcolor: "background.paper" },
+                    }}
+                  >
+                    {hidden ? (
+                      <VisibilityOff fontSize="inherit" />
+                    ) : (
+                      <Visibility fontSize="inherit" />
+                    )}
+                  </IconButton>
+                )}
+              </Box>
+            );
+          }
+
+          return null;
         })}
       </Box>
     </Box>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { useSelector } from "react-redux";
 
@@ -28,6 +28,14 @@ export default function ButtonSigninV2() {
 
   const userName = userProfile?.userName;
   const avatarS = getAvatarStringFromUserProfile(userProfile);
+
+  // effect
+
+  useEffect(() => {
+    if (!userName) {
+      setOpenSignin(true);
+    }
+  }, [userName]);
 
   // handlers
 

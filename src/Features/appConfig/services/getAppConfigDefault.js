@@ -24,7 +24,6 @@ export default async function getAppConfigDefault({ configCode }) {
   }
 
   const raw = await loader(); // string (because as:'raw')
-  console.log("raw", raw);
   const appConfig = yaml.load(raw);
   return appConfig;
 }

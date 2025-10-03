@@ -25,14 +25,25 @@ export default function useAutoLayout() {
   // effect - setStep
 
   useEffect(() => {
+    // if (!projectId) {
+    //   setStep("PROJECT");
+    // } else if (!scopeId) {
+    //   setStep("SCOPE");
+    // } else if (!presetListingsKeys) {
+    //   setStep("LISTINGS");
+    // } else if (!baseMap?.id) {
+    //   setStep("BASE_MAP");
+    // } else {
+    //   setStep("END");
+    // }
     if (!projectId) {
       setStep("PROJECT");
-    } else if (!scopeId) {
-      setStep("SCOPE");
     } else if (!presetListingsKeys) {
       setStep("LISTINGS");
     } else if (!baseMap?.id) {
       setStep("BASE_MAP");
+    } else if (!presetListingsKeys) {
+      setStep("LISTINGS");
     } else {
       setStep("END");
     }

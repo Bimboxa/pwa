@@ -29,7 +29,8 @@ export default function ScreenNoBaseMap() {
 
   // helpers
 
-  const disabled = !projectId || !scopeId || !annotationsListings?.length > 0;
+  //const disabled = !projectId || !scopeId || !annotationsListings?.length > 0;
+  const disabled = !projectId;
 
   // handlers
 

@@ -68,7 +68,7 @@ export default function HorizontalMenuRightPanel() {
 
   // render
 
-  if (!scopeId || !baseMapId) return null;
+  if (!baseMapId) return null;
 
   return (
     <Box
