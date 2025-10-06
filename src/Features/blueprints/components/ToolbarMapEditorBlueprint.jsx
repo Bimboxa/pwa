@@ -26,7 +26,7 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
 
   const createS = "Créer";
   const updateS = "Mettre à jour";
-  const placeholder = "Nom du plan";
+  const placeholder = "Nom de l'export";
 
   // state
 

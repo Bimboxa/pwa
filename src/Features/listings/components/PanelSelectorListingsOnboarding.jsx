@@ -30,7 +30,7 @@ export default function PanelSelectorListingsOnboarding() {
   );
   const appConfig = useAppConfig();
   const { value: scope } = useScope();
-  console.log("debug_2209_scope", scope);
+  console.log("debug_2209_scope", presetListingsKeys);
 
   // data - func
 

@@ -6,8 +6,13 @@ import {
   setOpenDialogDeleteEntity,
 } from "../entitiesSlice";
 
-import { Edit, Delete } from "@mui/icons-material";
 import useSelectedEntity from "./useSelectedEntity";
+import useEntities from "./useEntities";
+import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+
+import { Edit, Delete, PictureAsPdf as PdfIcon } from "@mui/icons-material";
+
+import createIssuesPdfReport from "Features/pdfReport/utils/createIssuesPdfReport";
 
 export default function useEntitiesActions() {
   const dispatch = useDispatch();
@@ -16,6 +21,11 @@ export default function useEntitiesActions() {
 
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
   const { value: selectedEntity } = useSelectedEntity({ withImage: true });
+  const { value: entities } = useEntities({
+    withImages: true,
+    withAnnotations: true,
+  });
+  const spriteImage = useAnnotationSpriteImage();
 
   // main
 
@@ -30,6 +40,13 @@ export default function useEntitiesActions() {
       },
       disabled: !selectedEntityId,
     },
+    // {
+    //   label: "PDF",
+    //   icon: PdfIcon,
+    //   handler: () => {
+    //     createIssuesPdfReport(entities, { spriteImage });
+    //   },
+    // },
     {
       label: "Supprimer",
       icon: Delete,

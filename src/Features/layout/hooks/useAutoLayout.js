@@ -38,8 +38,6 @@ export default function useAutoLayout() {
     // }
     if (!projectId) {
       setStep("PROJECT");
-    } else if (!presetListingsKeys) {
-      setStep("LISTINGS");
     } else if (!baseMap?.id) {
       setStep("BASE_MAP");
     } else if (!presetListingsKeys) {

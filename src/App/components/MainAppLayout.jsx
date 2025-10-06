@@ -37,7 +37,7 @@ export default function MainAppLayout() {
   useAutoFetchOrgaDataFolder();
   useAutoRedirect();
   useAutoSelectListing();
-  useAutoLayoutOnboarding();
+  //useAutoLayoutOnboarding();
   useAutoLayout();
 
   // data
