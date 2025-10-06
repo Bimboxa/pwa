@@ -89,7 +89,7 @@ export default function MainMapEditorV2() {
     addDemoAnnotations: false,
     filterByBaseMapId: mainBaseMap?.id,
     excludeListingsIds: hiddenListingsIds,
-    //addBgImageTextAnnotations: true,
+    addBgImageTextAnnotations: true,
   });
 
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);

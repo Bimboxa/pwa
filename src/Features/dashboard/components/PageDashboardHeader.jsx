@@ -1,7 +1,5 @@
 import { Box } from "@mui/material";
 
-import AuthButtons from "Features/auth/components/AuthButtons";
-
 import LogoApp from "App/components/LogoApp";
 
 export default function PageDashboardHeader() {
@@ -19,8 +17,6 @@ export default function PageDashboardHeader() {
       <Box sx={{}}>
         <LogoApp />
       </Box>
-
-      <AuthButtons />
     </Box>
   );
 }

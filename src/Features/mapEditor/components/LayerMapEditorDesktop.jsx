@@ -99,8 +99,8 @@ export default function LayerMapEditorDesktop({ svgElement }) {
         sx={{
           position: "absolute",
           bottom: "8px",
-          right: openRightPanel ? `${width + 8}px` : "8px",
-          //transform: "translateX(-100%)",
+          //right: openRightPanel ? `${width + 8}px` : "8px",
+          right: "8px",
           zIndex: 10000,
         }}
       >

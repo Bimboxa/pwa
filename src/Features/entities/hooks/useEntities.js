@@ -8,6 +8,7 @@ import db from "App/db/db";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import getSortedItems from "Features/misc/utils/getSortedItems";
+import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 
 export default function useEntities(options) {
   // options
@@ -42,6 +43,10 @@ export default function useEntities(options) {
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   const selectedListing = listings?.find((l) => l?.id === selectedListingId);
   const entitiesUpdatedAt = useSelector((s) => s.entities.entitiesUpdatedAt);
+  const annotationTemplates = useAnnotationTemplates();
+
+  // helpers
+  const annotationTemplatesById = getItemsByKey(annotationTemplates, "id");
 
   // helpers
 
@@ -179,7 +184,15 @@ export default function useEntities(options) {
 
         entities = entities.map((entity) => {
           const annotation = annotationsByEntityId[entity.id];
-          return { ...entity, annotation };
+          const annotationTemplate =
+            annotationTemplatesById[annotation?.annotationTemplateId];
+          return {
+            ...entity,
+            annotation: {
+              ...annotation,
+              label: annotationTemplate?.label,
+            },
+          };
         });
       }
 

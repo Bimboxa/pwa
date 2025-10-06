@@ -1,4 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setSelectedScopeId } from "Features/scopes/scopesSlice";
@@ -15,6 +16,7 @@ import ButtonDialogOnboardingSelectScope from "Features/scopes/components/Button
 
 export default function TopBarBreadcrumbs() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   // data
 
@@ -30,11 +32,13 @@ export default function TopBarBreadcrumbs() {
   const noScope = !Boolean(scopeId);
 
   console.log("projectId and scopeId", noProject, noScope, projectId);
+
   // handlers
 
   function handleClickHome() {
     dispatch(setSelectedProjectId(null));
     dispatch(setSelectedScopeId(null));
+    navigate("/dashboard");
   }
 
   // components

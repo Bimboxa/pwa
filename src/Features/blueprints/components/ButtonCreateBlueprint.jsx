@@ -34,7 +34,7 @@ export default function ButtonCreateBlueprint() {
 
   // helper
 
-  const defaultName = scope?.name + " • " + baseMap?.name;
+  let defaultName = scope ? scope?.name + " • " + baseMap?.name : baseMap?.name;
 
   // handlers
 

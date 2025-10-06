@@ -72,31 +72,30 @@ export default function ListEntities({
       <BoxFlexVStretch sx={{ overflow: "auto" }}>
         <List dense={!isMobile} disablePadding sx={{ bgcolor: "white" }}>
           {filteredEntities?.map((entity) => {
-            return (
-              <>
-                {variant === "DEFAULT" && (
-                  <ListItemEntityVariantDefault
-                    key={entity.id}
-                    entity={entity}
-                    listing={listing}
-                    onClick={handleEntityClick}
-                    selection={selection}
-                    listingColor={color}
-                    annotationTemplates={annotationTemplates}
-                    spriteImage={spriteImage}
-                  />
-                )}
-                {variant === "ANNOTATION_TEMPLATE" && (
-                  <ListItemEntityVariantAnnotationTemplate
-                    key={entity.id}
-                    entity={entity}
-                    onClick={handleEntityClick}
-                    selection={selection}
-                    listing={listing}
-                  />
-                )}
-              </>
-            );
+            if (variant === "DEFAULT") {
+              return (
+                <ListItemEntityVariantDefault
+                  key={entity.id}
+                  entity={entity}
+                  listing={listing}
+                  onClick={handleEntityClick}
+                  selection={selection}
+                  listingColor={color}
+                  annotationTemplates={annotationTemplates}
+                  spriteImage={spriteImage}
+                />
+              );
+            } else if (variant === "ANNOTATION_TEMPLATE") {
+              return (
+                <ListItemEntityVariantAnnotationTemplate
+                  key={entity.id}
+                  entity={entity}
+                  onClick={handleEntityClick}
+                  selection={selection}
+                  listing={listing}
+                />
+              );
+            }
           })}
         </List>
       </BoxFlexVStretch>
