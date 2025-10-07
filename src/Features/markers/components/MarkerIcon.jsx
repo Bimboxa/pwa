@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
 import getRowAndColFromIndex from "../utils/getRowAndColFromIndex";
 
@@ -21,6 +21,7 @@ export default function MarkerIcon({
 
   // helpers
 
+  const noIconKey = !iconKey;
   const index = iconKeys?.indexOf(iconKey);
 
   //
@@ -35,6 +36,20 @@ export default function MarkerIcon({
   const offsetX = col * tile;
   const offsetY = row * tile;
 
+  if (noIconKey)
+    return (
+      <Box
+        sx={{
+          width: size,
+          height: size,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Typography>?</Typography>
+      </Box>
+    );
   return (
     <Box
       sx={{

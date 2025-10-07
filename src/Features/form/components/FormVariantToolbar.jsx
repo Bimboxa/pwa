@@ -69,6 +69,7 @@ export default function FormVariantToolbar({
               <FieldIconVariantToolbar
                 key={field.key}
                 value={item[field.key]}
+                label={field.label}
                 onChange={(newValue) =>
                   handleFieldValueChange(field.key, newValue)
                 }

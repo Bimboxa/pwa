@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { IconButton, Menu, Box } from "@mui/material";
+import { IconButton, Menu, Box, Tooltip } from "@mui/material";
 import { FormatColorFill as ColorIcon } from "@mui/icons-material";
 import { grey } from "@mui/material/colors";
 
@@ -9,6 +9,7 @@ import MarkerIcon from "Features/markers/components/MarkerIcon";
 
 export default function FieldIconVariantToolbar({
   value,
+  label,
   onChange,
   spriteImage,
   options,
@@ -33,22 +34,24 @@ export default function FieldIconVariantToolbar({
 
   return (
     <>
-      <IconButton
-        onClick={(e) => setAnchorEl(e.currentTarget)}
-        sx={{
-          width: 32,
-          height: 32,
-          borderRadius: "8px",
-        }}
-      >
-        <MarkerIcon
-          iconKey={value}
-          spriteImage={spriteImage}
-          fillColor={fillColor}
-          size={32}
-          //square
-        />
-      </IconButton>
+      <Tooltip title={label}>
+        <IconButton
+          onClick={(e) => setAnchorEl(e.currentTarget)}
+          sx={{
+            width: 32,
+            height: 32,
+            borderRadius: "8px",
+          }}
+        >
+          <MarkerIcon
+            iconKey={value}
+            spriteImage={spriteImage}
+            fillColor={fillColor}
+            size={32}
+            //square
+          />
+        </IconButton>
+      </Tooltip>
 
       <Menu
         open={open}
