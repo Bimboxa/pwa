@@ -37,7 +37,7 @@ export default function useEntities(options) {
   });
   //console.log("[debug] listings", lTistings?.length, filterByListingsIds);
 
-  //const baseMapId = useSelector((s) => s.mapEditor.loadedMainBaseMapId);
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
@@ -175,10 +175,10 @@ export default function useEntities(options) {
       // }
 
       // add annotations
-      if (withAnnotations && baseMapId) {
+      if (withAnnotations && projectId) {
         const annotations = await db.annotations
-          .where("baseMapId")
-          .equals(baseMapId)
+          .where("projectId")
+          .equals(projectId)
           .toArray();
         const annotationsByEntityId = getItemsByKey(annotations, "entityId");
 
