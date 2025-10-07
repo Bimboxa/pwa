@@ -11,6 +11,8 @@ export default function useSelectedEntity(options) {
   // options
 
   const withImages = options?.withImages;
+  const fromListingId = options?.fromListingId;
+  const entityId = options?.entityId;
 
   // state
 
@@ -18,19 +20,29 @@ export default function useSelectedEntity(options) {
 
   // data
 
-  const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
-  const { value: listing } = useSelectedListing();
+  const _selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
+  const { value: _listing } = useSelectedListing();
 
   const entity = useLiveQuery(async () => {
-    if (!selectedEntityId || !listing?.table) {
+    // selectedId
+    const selectedEntityId = entityId ?? _selectedEntityId;
+
+    // listing & table
+    let listing = _listing;
+    if (fromListingId) {
+      listing = await db.listings.get(fromListingId);
+    }
+    const table = listing?.table;
+
+    /// edge case
+    if (!selectedEntityId || !table) {
       setLoading(false);
       return null;
     }
 
-    const table = listing?.table;
     const entity = await db[table].get(selectedEntityId);
 
-    let _entity = { ...entity };
+    let _entity = { ...entity, entityModelKey: listing.entityModelKey };
 
     // add images
     if (withImages) {
@@ -51,10 +63,8 @@ export default function useSelectedEntity(options) {
       );
     }
 
-    // add listing
-    _entity.listing = listing;
     return _entity;
-  }, [selectedEntityId, listing?.table]);
+  }, [_selectedEntityId, entityId, _listing?.table, fromListingId]);
 
   return { value: entity, loading };
 }

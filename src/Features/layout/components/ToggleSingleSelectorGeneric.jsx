@@ -1,4 +1,4 @@
-import { Box, ToggleButtonGroup, ToggleButton } from "@mui/material";
+import { Box, ToggleButtonGroup, ToggleButton, Tooltip } from "@mui/material";
 
 export default function ToggleSingleSelectorGeneric({
   options,
@@ -20,9 +20,11 @@ export default function ToggleSingleSelectorGeneric({
       >
         {options.map(({ key, label, icon }) => {
           return (
-            <ToggleButton key={key} value={key} size="small">
-              {icon ?? label}
-            </ToggleButton>
+            <Tooltip title={label}>
+              <ToggleButton key={key} value={key} size="small">
+                {icon ?? label}
+              </ToggleButton>
+            </Tooltip>
           );
         })}
       </ToggleButtonGroup>

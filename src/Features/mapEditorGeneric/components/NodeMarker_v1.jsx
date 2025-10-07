@@ -1,22 +1,16 @@
-import {
-  useState,
-  useRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useLayoutEffect,
-} from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import spriteImageUrl from "Features/markers/assets/spriteImage3x3.png";
 
 /**
  * Draggable SVG marker:
- * - marker: { id, x, y, iconKey, fillColor, listingId, entity? }
- * - spriteImage: { iconKeys, columns, rows, tile, url }
- * - imageSize: { w, h }
- * - containerK: number
- * - worldScale: number
- * - onDragEnd({id, x, y})
+ * - marker: { id, x, y, iconColor?, iconType? }   // x,y are ratios (0..1) of BG image
+ * - imageSize:  { w, h }                              // BG image intrinsic pixels
+ * - containerK: number                             // scale of container layer
+ * - worldScale: number                             // world.k (zoom)
+ * - iconColor: string (overrides marker.iconColor)
+ * - iconType:  number|string (index 0..8, or a name mapped below)
+ * - onDragEnd(id, {x,y}): x,y are ratios (0..1)
  * - onClick(marker)
- * - selected: boolean
  */
 export default function NodeMarker({
   marker,
@@ -28,6 +22,8 @@ export default function NodeMarker({
   onClick,
   selected,
 }) {
+  // --- dataProps ---
+
   const dataProps = {
     "data-node-id": marker.id,
     "data-node-listing-id": marker.listingId,
@@ -35,38 +31,47 @@ export default function NodeMarker({
     "data-annotation-type": "MARKER",
   };
 
-  // Label text
-  const labelText = (marker?.entity?.num ?? "").toString();
-  const showLabel = Boolean(labelText);
+  // --- markerProps ----
 
-  const [hide] = useState(false);
+  const label = marker?.entity?.num;
+
+  // --- hide when stop draging to avoid blink
+
+  const [hide, setHide] = useState(false);
+
+  // --- dragging/selection ----
+
   const draggingEnabled = selected;
 
-  // Sprite
+  // ---- sprite selection (3x3 grid) ----
   const {
     iconKeys,
     columns,
     rows,
     tile,
-    url: spriteSheetUrl,
+    url: spriteImageUrl,
   } = spriteImage ?? {};
 
-  const resolvedIndex = Math.max(0, iconKeys?.indexOf(marker?.iconKey) ?? 0);
-  const row = Math.floor(resolvedIndex / (columns || 1));
-  const col = columns ? resolvedIndex % columns : 0;
-  const sheetW = (columns || 1) * (tile || 0);
-  const sheetH = (rows || 1) * (tile || 0);
+  const resolvedIndex = iconKeys?.indexOf(marker?.iconKey) ?? 0;
+  const row = Math.floor(resolvedIndex / columns);
+  const col = resolvedIndex % columns;
+  const sheetW = columns * tile;
+  const sheetH = rows * tile; // 3x3
 
-  // Screen-constant sizing helpers
+  // ---- sizes that should look constant on screen ----
   const F = useMemo(
     () => (worldScale || 1) * (containerK || 1),
     [worldScale, containerK]
   );
   const invF = 1 / F;
 
-  const circleDiameterPx = 32;
-  const iconSizePx = 32;
-  const hitStrokePx = 24;
+  const circleDiameterPx = 32; // visual diameter in CSS px
+  const iconSizePx = 32; // visual icon size in CSS px
+  const hitStrokePx = 24; // easier grab ring in CSS px
+
+  // const rLocal = (circleDiameterPx / 2) * invF; // circle radius in BG-local px
+  // const iconLocal = iconSizePx * invF; // icon box size in BG-local px
+  // const hitStrokeLocal = Math.max(hitStrokePx * invF, 8 * invF);
 
   const rLocal = circleDiameterPx / 2;
   const iconLocal = iconSizePx;
@@ -74,7 +79,7 @@ export default function NodeMarker({
 
   const fillColor = marker?.fillColor ?? "#f44336";
 
-  // Position
+  // ---- position (convert ratio -> BG-local px) + live drag offset ----
   const pixelX = (marker.x || 0) * (imageSize?.w || 0);
   const pixelY = (marker.y || 0) * (imageSize?.h || 0);
 
@@ -90,6 +95,12 @@ export default function NodeMarker({
 
   const currentX = pixelX + offsetBgX;
   const currentY = pixelY + offsetBgY;
+
+  // ---- pointer handlers (SVG version of NodeMarkerVariantDot) ----
+
+  const handleClick = () => {
+    //if (onClick) onClick(marker);
+  };
 
   const handlePointerDown = useCallback(
     (e) => {
@@ -133,21 +144,26 @@ export default function NodeMarker({
         return;
       }
 
+      // delta in BG-local px
       const dxBg = dx * invF;
       const dyBg = dy * invF;
 
+      // new BG-local
       const newPx = dragStartRef.current.px + dxBg;
       const newPy = dragStartRef.current.py + dyBg;
 
+      // back to ratios
       const newRatioX = Math.max(0, Math.min(1, newPx / (imageSize?.w || 1)));
       const newRatioY = Math.max(0, Math.min(1, newPy / (imageSize?.h || 1)));
 
+      console.log("debug_1809_newRatio", newRatioX, newRatioY);
       onDragEnd?.({ id: marker.id, x: newRatioX, y: newRatioY });
       setDragOffsetScreen({ x: 0, y: 0 });
     },
     [invF, imageSize?.w, imageSize?.h, onDragEnd, onClick, marker]
   );
 
+  // global listeners like the dot variant
   useEffect(() => {
     if (!isDragging) return;
     const onMove = (e) => {
@@ -166,40 +182,11 @@ export default function NodeMarker({
     };
   }, [isDragging, handlePointerMoveLocal, commitDrag]);
 
-  /* ---------- Label measurement & layout ---------- */
-  const textRef = useRef(null);
-  const [labelSize, setLabelSize] = useState({ w: 0, h: 0 });
-
-  const labelFontPx = 11;
-  const labelPad = 4; // padding inside white rect
-  const gap = -2; // stick distance from circle (px) at bottom-right
-
-  useLayoutEffect(() => {
-    if (!showLabel || !textRef.current) {
-      setLabelSize({ w: 0, h: 0 });
-      return;
-    }
-    try {
-      const bb = textRef.current.getBBox();
-      setLabelSize({ w: Math.ceil(bb.width), h: Math.ceil(bb.height) });
-    } catch {
-      const approxW = labelText.length * (labelFontPx * 0.6);
-      setLabelSize({ w: Math.ceil(approxW), h: Math.ceil(labelFontPx * 1.2) });
-    }
-  }, [showLabel, labelText, labelFontPx, worldScale, containerK, selected]);
-
-  const rectW = labelSize.w + labelPad * 2;
-  const rectH = Math.max(labelSize.h, Math.ceil(labelFontPx * 1.2));
-
-  // 🔴 Anchor rule:
-  // Top-left corner of the label is stuck to the circle's BOTTOM-RIGHT side (bounding box),
-  // with a tiny gap of 2px outward.
-  const rectX = rLocal * 0.5 + gap; // to the right of the circle
-  const rectY = rLocal * 0.5 + gap; // below the circle
-
+  // ---- render ----
   return (
     <g
       transform={`translate(${currentX}, ${currentY})`}
+      onClick={handleClick}
       onPointerDown={handlePointerDown}
       style={{
         visibility: hide ? "hidden" : "visible",
@@ -209,7 +196,7 @@ export default function NodeMarker({
       }}
       {...dataProps}
     >
-      {/* Circle */}
+      {/* Filled circle background */}
       <circle
         cx={0}
         cy={0}
@@ -217,22 +204,22 @@ export default function NodeMarker({
         fill={fillColor}
         opacity={0.9}
         vectorEffect="non-scaling-stroke"
+        scale={selected ? 1.2 : 1}
+        {...dataProps}
       />
 
-      {/* Sprite icon */}
-      {spriteSheetUrl && (
+      {/* Icon from sprite, centered */}
+      {spriteImageUrl && (
         <svg
           x={-iconLocal / 2}
           y={-iconLocal / 2}
           width={iconLocal}
           height={iconLocal}
-          viewBox={`${(col || 0) * (tile || 0)} ${(row || 0) * (tile || 0)} ${
-            tile || 0
-          } ${tile || 0}`}
+          viewBox={`${col * tile} ${row * tile} ${tile} ${tile}`}
           style={{ pointerEvents: "none" }}
         >
           <image
-            href={spriteSheetUrl}
+            href={spriteImageUrl}
             width={sheetW}
             height={sheetH}
             preserveAspectRatio="none"
@@ -240,7 +227,7 @@ export default function NodeMarker({
         </svg>
       )}
 
-      {/* Wide hit ring */}
+      {/* Fat transparent ring for easy grab, doesn't change visual */}
       <circle
         cx={0}
         cy={0}
@@ -250,35 +237,6 @@ export default function NodeMarker({
         strokeWidth={hitStrokeLocal}
         pointerEvents="stroke"
       />
-
-      {/* Label: top-left stuck to circle's bottom-right, text vertically centered */}
-      {showLabel && (
-        <g style={{ pointerEvents: "none" }}>
-          <rect
-            x={rectX}
-            y={rectY}
-            rx={4}
-            ry={4}
-            width={rectW}
-            height={rectH}
-            fill="#fff"
-            stroke={fillColor}
-            strokeWidth={1}
-          />
-          <text
-            ref={textRef}
-            x={rectX + labelPad}
-            y={rectY + rectH / 2}
-            dominantBaseline="middle"
-            fontSize={labelFontPx}
-            fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
-            fill="#111"
-            fontWeight="600"
-          >
-            {labelText}
-          </text>
-        </g>
-      )}
     </g>
   );
 }

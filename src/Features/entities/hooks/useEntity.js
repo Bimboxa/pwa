@@ -4,11 +4,12 @@ import useEntityModel from "./useEntityModel";
 import useSelectedEntity from "./useSelectedEntity";
 import useNewEntity from "./useNewEntity";
 
-export default function useEntity() {
+export default function useEntity(options) {
   try {
     // data
 
-    const { value: selectedEntity } = useSelectedEntity({ withImages: true });
+    //const { value: selectedEntity } = useSelectedEntity({ withImages: true });
+    const { value: selectedEntity } = useSelectedEntity(options);
 
     const newEntity = useNewEntity();
     const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);
@@ -32,7 +33,7 @@ export default function useEntity() {
         //label: newEntity.label ?? entityModel?.strings?.labelNew, // we don't want to override the label key if it exists when creating a new entity.
       };
     } else if (isEditingEntity) {
-      label = editedEntity[entityModel?.labelKey];
+      label = editedEntity?.[entityModel?.labelKey];
       entity = { ...editedEntity, label };
     } else {
       label = entity[entityModel?.labelKey];

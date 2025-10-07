@@ -20,7 +20,7 @@ export default function useNewEntity() {
   // }, [selectedListingId]);
 
   const newEntity = useSelector((s) => s.entities.newEntity);
-  const template = useEntityFormTemplate();
+  const template = useEntityFormTemplate({ listingId: selectedListingId });
 
   const { value: entities } = useEntities();
 
@@ -37,8 +37,10 @@ export default function useNewEntity() {
     autoNew[fieldKey] = fieldValue.toString();
   });
 
-  return {
+  const result = {
     ...newEntity,
     ...autoNew,
   };
+
+  return result;
 }

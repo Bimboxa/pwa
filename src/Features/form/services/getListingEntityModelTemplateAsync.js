@@ -11,7 +11,8 @@ export default async function getListingEntityModelTemplateAsync({
 
   // helpers
 
-  const entityModel = listing?.entityModel;
+  const entityModel =
+    listing?.entityModel ?? entityModelsObject?.[listing?.entityModelKey];
 
   // main
 

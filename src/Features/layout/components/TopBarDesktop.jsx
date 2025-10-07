@@ -50,13 +50,13 @@ export default function TopBarDesktop() {
         {/* <TopBarProjectAndScope /> */}
       </Box>
 
-      {em?.type === "BASE_MAP" && <SelectorViewer />}
+      {/* {em?.type === "BASE_MAP" && <SelectorViewer />} */}
 
       {/* <AuthButtons /> */}
       <Box sx={{ display: "flex", alignItems: "center" }}>
-        <Box sx={{ mr: 3 }}>
+        {/* <Box sx={{ mr: 3 }}>
           <ToolbarDrawingTools />
-        </Box>
+        </Box> */}
         <HorizontalMenuRightPanel />
       </Box>
     </Box>

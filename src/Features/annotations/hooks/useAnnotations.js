@@ -5,6 +5,7 @@ import demoAnnotations from "../data/demoAnnotations";
 import useBgImageTextAnnotations from "Features/bgImage/hooks/useBgImageTextAnnotations";
 
 import db from "App/db/db";
+import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
 
 export default function useAnnotations(options) {
   // options
@@ -14,6 +15,8 @@ export default function useAnnotations(options) {
   const filterByListingId = options?.filterByListingId;
   const excludeListingsIds = options?.excludeListingsIds;
   const addBgImageTextAnnotations = options?.addBgImageTextAnnotations;
+  const withEntity = options?.withEntity;
+  const withLabel = options?.withLabel;
 
   // data
 
@@ -40,6 +43,35 @@ export default function useAnnotations(options) {
       _annotations = await db.annotations.toArray();
     }
 
+    if (withLabel) {
+      _annotations = await Promise.all(
+        _annotations.map(async (annotation) => {
+          const templateId = annotation?.annotationTemplateId;
+          if (templateId) {
+            const template = await db.annotationTemplates.get(templateId);
+            return { ...annotation, label: template.label };
+          } else {
+            return annotation;
+          }
+        })
+      );
+    }
+
+    if (withEntity) {
+      _annotations = await Promise.all(
+        _annotations.map(async (annotation) => {
+          const table = annotation?.listingTable;
+          if (table) {
+            const entity = await db[table].get(annotation.entityId);
+            const entityWithImages = await getEntityWithImagesAsync(entity);
+            return { ...annotation, entity: entityWithImages };
+          } else {
+            return annotation;
+          }
+        })
+      );
+    }
+
     if (filterByListingId) {
       _annotations = _annotations.filter(
         (a) => filterByListingId === a.listingId
@@ -47,7 +79,7 @@ export default function useAnnotations(options) {
     }
 
     if (excludeListingsIds) {
-      _annotations = _annotations.filter(
+      _annotations = _annotations?.filter(
         (a) => !excludeListingsIds.includes(a.listingId)
       );
     }

@@ -36,6 +36,7 @@ import threedEditorReducer from "Features/threedEditor/threedEditorSlice";
 import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
 import reportsReducer from "Features/reports/reportsSlice";
 import blueprintsReducer from "Features/blueprints/blueprintsSlice";
+import selectionReducer from "Features/selection/selectionSlice";
 //
 import chatReducer from "Features/chat/chatSlice";
 import showerReducer from "Features/shower/showerSlice";
@@ -84,6 +85,7 @@ const store = configureStore({
     threedEditor: threedEditorReducer,
     reports: reportsReducer,
     blueprints: blueprintsReducer,
+    selection: selectionReducer,
     //
     chat: chatReducer,
     shower: showerReducer,

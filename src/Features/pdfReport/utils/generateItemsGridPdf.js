@@ -6,66 +6,90 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
  *   label?: string,
  *   description?: string,
  *   imageUrl?: string,
- *   iconKey?: string,   // -> affiche l'icône sprite entre #number et label
- *   fillColor?: string  // -> couleur de fond circulaire (ex: "#7E57C2")
+ *   iconKey?: string,
+ *   fillColor?: string
  * }>
  *
  * opts.spriteImage = {
  *   url: string,
- *   iconKeys: string[],  // ordre des tuiles
+ *   iconKeys: string[],
  *   columns: number,
  *   rows: number,
- *   tile: number         // taille d’une tuile du sprite (px), ex: 64
+ *   tile: number // ex: 64
  * }
  *
- * Retourne un Blob PDF prêt à télécharger.
+ * opts.fontSizes = {
+ *   label?: number,       // bold label in the grey comments box
+ *   description?: number  // description in the grey comments box
+ * }
+ *
+ * opts.chipFontSize?: number    // font size for the number text inside the white pill
+ * opts.overlayIconSize?: number // icon size inside the pill (default 16)
  */
 export default async function generateItemsGridPdf(items, opts = {}) {
-  // ---- Mise en page
-  const pageSize = opts.pageSize || "A4";
-  const orientation = opts.orientation || "portrait";
-  const [pageW, pageH] = getPageWH(pageSize, orientation);
-
+  // ---- Page & grid
+  const [pageW, pageH] = getPageWH(
+    opts.pageSize || "A4",
+    opts.orientation || "portrait"
+  );
   const margin = opts.margin ?? 36;
   const contentW = pageW - margin * 2;
 
-  // image à droite: 25% de la largeur utile
-  const imgRatioW = 0.25;
-  const imgW = Math.floor(contentW * imgRatioW);
+  const cols = 3;
+  const gutter = opts.gutter ?? 12; // space between cards
+  const cardW = Math.floor((contentW - gutter * (cols - 1)) / cols);
 
-  const gapX = opts.gapX ?? 16; // espace texte <-> image
-  const padX = opts.padX ?? 12; // padding interne section (x)
-  const padY = opts.padY ?? 12; // padding interne section (y)
-  const sectionStroke = rgb(0.8, 0.8, 0.8);
-  const textColor = rgb(0.1, 0.1, 0.1);
-  const numberColor = rgb(0.6, 0.6, 0.6);
+  // Card styles
+  const cardBorder = opts.cardBorder ?? rgb(0.88, 0.88, 0.88);
+  const cardPad = opts.cardPad ?? 0;
 
-  const numberSize = opts.numberSize ?? 10;
-  const labelSize = opts.labelSize ?? 12;
-  const bodySize = opts.bodySize ?? 10;
-  const bodyLineH = Math.round(bodySize * 1.35);
-  const titleGap = 6;
+  // Pill overlay (number + icon) on image
+  const overlayPadX = 8;
+  const overlayPadXLeft = opts.chipPadXLeft ?? 6;
+  const overlayPadXRight = opts.chipPadXRight ?? 4;
+  const overlayPadY = opts.chipPadY ?? 2;
+  const overlayGapFromEdge = 8;
 
-  // icône (sprite)
-  const iconSize = opts.iconSize ?? 14;
-  const iconGap = opts.iconGap ?? 8;
-  // sur-échantillonnage pour netteté (2..4, basé sur DPR si dispo)
+  const chipTextSize = opts.chipFontSize ?? opts.numberSize ?? 12; // << new option
+  const overlayIconSize = opts.overlayIconSize ?? 16;
+  const overlayGapTextIcon = 8;
+  const overlayTextColor = rgb(0.1, 0.1, 0.1);
+  const chipBorder = Math.max(0, opts.chipBorder ?? 2);
+
+  // Comments block (below each row)
+  const notesGapAbove = 10;
+  const notesPadX = 10;
+  const notesPadY = 8;
+  const notesBg = rgb(0.96, 0.96, 0.96);
+  const notesTextColor = rgb(0.1, 0.1, 0.1);
+  const notesBoldColor = rgb(0.05, 0.05, 0.05);
+
+  // ---- Font sizes (label/description) configurable in comments box
+  const fontSizes = opts.fontSizes || {};
+  const notesLabelSize = fontSizes.label ?? 11; // bold “#num label”
+  const notesDescSize = fontSizes.description ?? 11; // regular description
+  const lhLabel = Math.round(notesLabelSize * 1.3);
+  const lhDesc = Math.round(notesDescSize * 1.3);
+  const firstLineLH = Math.max(lhLabel, lhDesc);
+
+  // Icons (sprite)
   const iconRasterScale =
     opts.iconRasterScale ??
     (typeof window !== "undefined"
       ? Math.max(2, Math.min(4, window.devicePixelRatio || 1))
       : 3);
-
-  // largeur colonne texte
-  const textW = contentW - padX * 2 - imgW - gapX;
+  const sprite = opts.spriteImage;
+  const spriteEl = sprite?.url ? await loadHtmlImage(sprite.url) : null;
 
   // ---- Init PDF
   const pdf = await PDFDocument.create();
   const fontRegular = await pdf.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
-  // ---- Cache photos
+  // ---- Caches
   const photoCache = new Map();
+  const iconCache = new Map();
+
   async function embedPhoto(url) {
     if (!url) return null;
     if (photoCache.has(url)) return photoCache.get(url);
@@ -80,12 +104,6 @@ export default async function generateItemsGridPdf(items, opts = {}) {
     }
   }
 
-  // ---- Sprite (HTMLImageElement pour recadrage via canvas)
-  const sprite = opts.spriteImage;
-  const spriteEl = sprite?.url ? await loadHtmlImage(sprite.url) : null;
-
-  // Cache des icônes PDF embarquées
-  const iconCache = new Map();
   async function embedIcon(iconKey, fillColor) {
     if (!sprite || !spriteEl || !iconKey) return null;
     const idx = sprite.iconKeys?.indexOf(iconKey);
@@ -93,18 +111,17 @@ export default async function generateItemsGridPdf(items, opts = {}) {
 
     const cacheKey = `${iconKey}|${
       fillColor || ""
-    }|${iconSize}|${iconRasterScale}`;
+    }|${overlayIconSize}|${iconRasterScale}`;
     if (iconCache.has(cacheKey)) return iconCache.get(cacheKey);
 
     const bytes = await makeSpriteIconPngBytes({
       spriteEl,
       spriteMeta: sprite,
       index: idx,
-      size: iconSize,
-      fillColor: fillColor || "#d32f2f",
+      size: overlayIconSize,
+      fillColor: fillColor || "#1976d2",
       rasterScale: iconRasterScale,
     });
-
     const embedded = await pdf.embedPng(bytes);
     iconCache.set(cacheKey, embedded);
     return embedded;
@@ -115,160 +132,297 @@ export default async function generateItemsGridPdf(items, opts = {}) {
   }
 
   let page = newPage();
-  let yCursor = pageH - margin; // on descend
+  let yCursor = pageH - margin;
 
   items = Array.isArray(items) ? items : [];
 
-  for (let i = 0; i < items.length; i++) {
-    const it = items[i] || {};
-    const label = it.label ?? it.title ?? "";
-    const numberText = `# ${it.number ?? ""}`;
-    const descText = it.description ? String(it.description) : "";
-    const hasIcon = Boolean(it.iconKey);
+  // Process by rows of 3 cards
+  for (let start = 0; start < items.length; start += cols) {
+    const rowItems = items.slice(start, start + cols);
 
-    // dimensions du titre
-    const numW = fontRegular.widthOfTextAtSize(numberText, numberSize);
-    const afterNumGap = 12;
+    // ---- Measure images per card & row height
+    const perCard = [];
+    let rowH = 0;
 
-    const iconWForLabel = hasIcon ? iconSize + iconGap : 0;
-    const maxLabelW = Math.max(0, textW - numW - afterNumGap - iconWForLabel);
-    const labelOneLine = fitOneLine(label, fontBold, labelSize, maxLabelW);
+    for (let c = 0; c < rowItems.length; c++) {
+      const it = rowItems[c] || {};
+      const photo = await embedPhoto(it.imageUrl);
+      let imgH;
 
-    // description (wrap)
-    let descLines = wrapText(descText, fontRegular, bodySize, textW, Infinity);
-    let textContentH = labelSize + titleGap + descLines.length * bodyLineH;
+      if (photo) {
+        const n = photo.scale(1);
+        imgH = Math.round((n.height / n.width) * (cardW - cardPad * 2));
+      } else {
+        // No background rectangle (as requested), keep a sane height:
+        imgH = Math.round((cardW - cardPad * 2) * 0.6);
+      }
 
-    // photo à droite
-    const photo = await embedPhoto(it.imageUrl);
-    let imgH = 0;
-    if (photo) {
-      const natural = photo.scale(1);
-      imgH = Math.round((natural.height / natural.width) * imgW);
+      perCard.push({ it, photo, imgH });
+      rowH = Math.max(rowH, imgH + cardPad * 2);
     }
 
-    // hauteur de la section
-    let contentH = Math.max(textContentH, imgH);
-    let sectionH = contentH + padY * 2;
+    // ---- Measure comments block (under the row)
+    const notesInnerW = contentW - notesPadX * 2;
+    const notesLinesByItem = [];
+    let notesH = notesPadY * 2;
 
-    // saut de page si nécessaire
-    if (yCursor - sectionH < margin) {
+    for (let c = 0; c < rowItems.length; c++) {
+      const it = rowItems[c] || {};
+      //const numberText = `#${it.number ?? ""}`;
+      const numberText = `#${it.number ?? ""}`;
+      const label = String(it.label ?? "");
+      const desc = String(it.description ?? "");
+
+      const prefix = label ? `${numberText} ${label}` : numberText;
+      const maxPrefixW = Math.min(notesInnerW * 0.5, notesInnerW - 30);
+      const prefixFitted = fitOneLine(
+        prefix,
+        fontBold,
+        notesLabelSize,
+        maxPrefixW
+      );
+      const prefixW = fontBold.widthOfTextAtSize(prefixFitted, notesLabelSize);
+
+      let descLines = [];
+      if (desc) {
+        const firstLineMax = Math.max(0, notesInnerW - prefixW - 8);
+        descLines = wrapTextWithFirstLineWidth(
+          desc,
+          fontRegular,
+          notesDescSize,
+          notesInnerW,
+          firstLineMax
+        );
+      }
+
+      let itemH = firstLineLH;
+      if (descLines.length > 1) itemH += (descLines.length - 1) * lhDesc;
+
+      notesLinesByItem.push({ prefixFitted, prefixW, descLines });
+      notesH += itemH;
+      if (c < rowItems.length - 1) notesH += 4;
+    }
+
+    // ---- Page break check (row + comments block together)
+    const requiredH = rowH + notesGapAbove + notesH;
+    if (yCursor - requiredH < margin) {
       page = newPage();
       yCursor = pageH - margin;
+    }
 
-      // si toujours trop haut: tronque la description pour tenir sur une page
-      const maxContentH = pageH - margin * 2 - padY * 2;
-      if (contentH > maxContentH) {
-        const maxDescLines = Math.max(
-          0,
-          Math.floor((maxContentH - labelSize - titleGap) / bodyLineH)
-        );
-        descLines = wrapText(
-          descText,
-          fontRegular,
-          bodySize,
-          textW,
-          maxDescLines
-        );
-        textContentH = labelSize + titleGap + descLines.length * bodyLineH;
-        contentH = Math.max(textContentH, imgH);
-        sectionH = contentH + padY * 2;
+    // ---- Draw row of cards
+    const rowTop = yCursor;
+    for (let c = 0; c < rowItems.length; c++) {
+      const { it, photo, imgH } = perCard[c];
+
+      const x = margin + c * (cardW + gutter);
+      const innerX = x + cardPad;
+      const innerYTop = rowTop - cardPad;
+
+      if (cardPad > 0) {
+        page.drawRectangle({
+          x,
+          y: innerYTop - (imgH + cardPad),
+          width: cardW,
+          height: imgH + cardPad * 2,
+          borderColor: cardBorder,
+          borderWidth: 1,
+          color: rgb(1, 1, 1),
+        });
+      }
+
+      const imgY = innerYTop - imgH;
+
+      if (photo) {
+        page.drawImage(photo, {
+          x: innerX,
+          y: imgY,
+          width: cardW - cardPad * 2,
+          height: imgH,
+        });
+      } else {
+        // minimal hint text
+        page.drawText("Image indisponible", {
+          x: innerX + 8,
+          y: imgY + 8,
+          size: 10,
+          font: fontRegular,
+          color: rgb(0.45, 0.45, 0.45),
+        });
+      }
+
+      // ===== WHITE PILL CHIP (number + optional icon) =====
+      //const numberText = `# ${it.number ?? ""}`;
+      const numberText = `${it.number ?? ""}`;
+      const numW = fontBold.widthOfTextAtSize(numberText, chipTextSize);
+      const iconW = it.iconKey ? overlayIconSize : 0;
+
+      const chipW =
+        overlayPadXLeft +
+        numW +
+        (iconW ? overlayGapTextIcon + iconW : 0) +
+        overlayPadXRight;
+      const textH = fontBold.heightAtSize(chipTextSize);
+      const chipH = overlayPadY * 2 + Math.max(textH, overlayIconSize);
+      const chipX = innerX + overlayGapFromEdge;
+      const chipY = imgY + imgH - chipH - overlayGapFromEdge;
+
+      // --- OUTER pill (acts as border), filled with fillColor
+      const outerColor = hexToRgb01(it.fillColor || "#1976d2");
+      drawPill(page, chipX, chipY, chipW, chipH, outerColor);
+
+      // --- INNER pill (white), inset by chipBorder
+      const inX = chipX + chipBorder;
+      const inY = chipY + chipBorder;
+      const inW = Math.max(1, chipW - chipBorder * 2);
+      const inH = Math.max(1, chipH - chipBorder * 2);
+      drawPill(page, inX, inY, inW, inH, rgb(1, 1, 1));
+
+      // number text (centered vertically inside inner pill)
+      const descent =
+        typeof fontBold.descentAtSize === "function"
+          ? fontBold.descentAtSize(chipTextSize) // negative value
+          : -textH * 0.2; // fallback approximation
+
+      const baselineY = Math.round(inY + (inH - textH) / 2 - descent);
+
+      page.drawText(numberText, {
+        x: Math.round(inX + overlayPadXLeft),
+        y: baselineY,
+        size: chipTextSize,
+        font: fontBold,
+        color: overlayTextColor,
+      });
+
+      // optional icon in pill (also relative to INNER pill)
+      if (it.iconKey) {
+        const embeddedIcon = await embedIcon(it.iconKey, it.fillColor);
+        if (embeddedIcon) {
+          const iconX = Math.round(
+            inX + overlayPadXLeft + numW + overlayGapTextIcon
+          );
+          const iconY = Math.round(inY + (inH - overlayIconSize) / 2);
+
+          page.drawImage(embeddedIcon, {
+            x: iconX,
+            y: iconY,
+            width: overlayIconSize,
+            height: overlayIconSize,
+          });
+        }
       }
     }
 
-    // container + ligne de séparation bas
-    const secX = margin;
-    const secY = yCursor - sectionH;
+    // advance cursor below row
+    yCursor = rowTop - rowH;
+
+    // ---- Comments block (grey, NO border)
+    const notesTop = yCursor - notesGapAbove;
+    const notesY = notesTop - notesH;
 
     page.drawRectangle({
-      x: secX,
-      y: secY,
+      x: margin,
+      y: notesY,
       width: contentW,
-      height: sectionH,
-      color: rgb(1, 1, 1),
-      borderColor: sectionStroke,
-      borderWidth: 1,
+      height: notesH,
+      color: notesBg,
+      borderWidth: 0,
     });
 
-    page.drawLine({
-      start: { x: secX, y: secY },
-      end: { x: secX + contentW, y: secY },
-      thickness: 1,
-      color: sectionStroke,
-    });
+    // Draw text lines
+    let lineY = notesTop - notesPadY - Math.max(notesLabelSize, notesDescSize);
+    for (let c = 0; c < rowItems.length; c++) {
+      const it = rowItems[c] || {};
+      const { prefixFitted, prefixW, descLines } = notesLinesByItem[c];
+      const baseX = margin + notesPadX;
 
-    // coordonnées internes
-    const innerLeft = secX + padX;
-    const innerTop = yCursor - padY;
+      // prefix (bold: "#num label")
+      page.drawText(prefixFitted, {
+        x: Math.round(baseX),
+        y: Math.round(lineY),
+        size: notesLabelSize,
+        font: fontBold,
+        color: notesBoldColor,
+      });
 
-    // Colonne texte
-    const textX = innerLeft;
-    const labelBaselineY = innerTop - labelSize;
-    const numberBaselineY = labelBaselineY;
+      if (!descLines.length) {
+        lineY -= firstLineLH + 4;
+      } else {
+        // first desc line on same baseline, to the right of prefix
+        const first = descLines[0];
+        const firstX = baseX + prefixW + 8;
 
-    // numéro (gris)
-    page.drawText(numberText, {
-      x: Math.round(textX),
-      y: Math.round(numberBaselineY),
-      size: numberSize,
-      font: fontRegular,
-      color: numberColor,
-    });
-
-    // icône optionnelle
-    let iconDrawnW = 0;
-    if (hasIcon) {
-      const embeddedIcon = await embedIcon(it.iconKey, it.fillColor);
-      if (embeddedIcon) {
-        const iconX = Math.round(textX + numW + afterNumGap);
-        const iconY = Math.round(labelBaselineY - (iconSize - labelSize) / 2);
-        page.drawImage(embeddedIcon, {
-          x: iconX,
-          y: iconY,
-          width: iconSize,
-          height: iconSize,
+        page.drawText(first, {
+          x: Math.round(firstX),
+          y: Math.round(lineY),
+          size: notesDescSize,
+          font: fontRegular,
+          color: notesTextColor,
         });
-        iconDrawnW = iconSize + iconGap;
+
+        // next lines full width
+        lineY -= firstLineLH;
+        for (let l = 1; l < descLines.length; l++) {
+          page.drawText(descLines[l], {
+            x: Math.round(baseX),
+            y: Math.round(lineY),
+            size: notesDescSize,
+            font: fontRegular,
+            color: notesTextColor,
+          });
+          lineY -= lhDesc;
+        }
+        lineY -= 4;
       }
     }
 
-    // label (gras)
-    page.drawText(labelOneLine, {
-      x: Math.round(textX + numW + afterNumGap + iconDrawnW),
-      y: Math.round(labelBaselineY),
-      size: labelSize,
-      font: fontBold,
-      color: textColor,
-    });
-
-    // description (wrap)
-    let descY = labelBaselineY - titleGap - bodySize; // baseline 1re ligne
-    for (const line of descLines) {
-      page.drawText(line, {
-        x: Math.round(textX),
-        y: Math.round(descY),
-        size: bodySize,
-        font: fontRegular,
-        color: textColor,
-      });
-      descY -= bodyLineH;
-    }
-
-    // Image (droite)
-    if (photo) {
-      const imgX = Math.round(secX + contentW - padX - imgW);
-      const imgY = Math.round(innerTop - imgH);
-      page.drawImage(photo, { x: imgX, y: imgY, width: imgW, height: imgH });
-    }
-
-    // avance le curseur
-    yCursor = secY;
+    // after notes block
+    yCursor = notesY - 16;
   }
 
   const pdfBytes = await pdf.save();
   return new Blob([pdfBytes], { type: "application/pdf" });
 }
 
-/* ---------- Helpers ---------- */
+/* ----------------- Helpers ----------------- */
+// Draw a pill by composing a center rect + two semicircular caps
+function drawPill(page, x, y, w, h, fillColorRgb) {
+  const r = h / 2;
+  const midW = Math.max(0, w - 2 * r);
+  if (midW > 0) {
+    page.drawRectangle({
+      x: x + r,
+      y,
+      width: midW,
+      height: h,
+      color: fillColorRgb,
+    });
+  }
+  page.drawEllipse({
+    x: x + r,
+    y: y + r,
+    xScale: r,
+    yScale: r,
+    color: fillColorRgb,
+  });
+  page.drawEllipse({
+    x: x + w - r,
+    y: y + r,
+    xScale: r,
+    yScale: r,
+    color: fillColorRgb,
+  });
+}
+
+// Convert hex like "#7E57C2" to pdf-lib rgb()
+function hexToRgb01(hex) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || "");
+  if (!m) return rgb(0, 0, 0);
+  const r = parseInt(m[1], 16) / 255;
+  const g = parseInt(m[2], 16) / 255;
+  const b = parseInt(m[3], 16) / 255;
+  return rgb(r, g, b);
+}
 
 function getPageWH(pageSize, orientation) {
   let w = 595.28,
@@ -296,40 +450,36 @@ async function fetchImageBytes(url) {
   return { bytes: buf, type: "png" };
 }
 
-function wrapText(text, font, size, maxWidth, maxLines = Infinity) {
-  const words = String(text || "")
-    .split(/\s+/)
-    .filter(Boolean);
-  const lines = [];
+function wrapTextWithFirstLineWidth(
+  text,
+  font,
+  size,
+  fullWidth,
+  firstLineMaxWidth
+) {
+  if (!text) return [];
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const out = [];
   let line = "";
+  let isFirst = true;
+  let curMax = Math.max(0, firstLineMaxWidth);
 
   for (let i = 0; i < words.length; i++) {
     const test = line ? line + " " + words[i] : words[i];
     const w = font.widthOfTextAtSize(test, size);
-    if (w <= maxWidth) {
+    if (w <= curMax) {
       line = test;
     } else {
-      if (line) lines.push(line);
+      if (line) out.push(line);
       line = words[i];
-      if (lines.length >= maxLines - 1) break;
+      if (isFirst) {
+        isFirst = false;
+        curMax = fullWidth; // next lines use full width
+      }
     }
   }
-  if (line && lines.length < maxLines) lines.push(line);
-
-  // ellipse si tronqué
-  const full = lines.join(" ").trim() === words.join(" ").trim();
-  if (!full && lines.length) {
-    const ellipsis = "…";
-    let last = lines[lines.length - 1];
-    while (
-      last.length &&
-      font.widthOfTextAtSize(last + ellipsis, size) > maxWidth
-    ) {
-      last = last.slice(0, -1);
-    }
-    lines[lines.length - 1] = last + ellipsis;
-  }
-  return lines;
+  if (line) out.push(line);
+  return out;
 }
 
 function fitOneLine(text, font, size, maxWidth) {
@@ -347,7 +497,7 @@ function fitOneLine(text, font, size, maxWidth) {
 function loadHtmlImage(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous"; // nécessite CORS si cross-origin
+    img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = url;
@@ -355,8 +505,7 @@ function loadHtmlImage(url) {
 }
 
 /**
- * Génère un PNG (ArrayBuffer) net en recadrant la tuile du sprite dans un canvas
- * sur-échantillonné, puis en l’exportant. Rendu dans un disque coloré (fillColor).
+ * Create a sharp PNG (ArrayBuffer) for the sprite icon, rendered inside a colored disk.
  */
 async function makeSpriteIconPngBytes({
   spriteEl,
@@ -372,7 +521,6 @@ async function makeSpriteIconPngBytes({
   const sx = col * tile;
   const sy = row * tile;
 
-  // Canvas haute résolution
   const W = Math.max(1, Math.round(size * rasterScale));
   const H = Math.max(1, Math.round(size * rasterScale));
 
@@ -381,20 +529,17 @@ async function makeSpriteIconPngBytes({
   canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  // qualité
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-
-  // Espace utilisateur en "px CSS"
   ctx.scale(rasterScale, rasterScale);
 
-  // fond circulaire
-  ctx.fillStyle = fillColor || "#d32f2f";
+  // colored circular background
+  ctx.fillStyle = fillColor || "#1976d2";
   ctx.beginPath();
   ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
   ctx.fill();
 
-  // clip cercle + tuile
+  // clip & draw sprite tile
   ctx.save();
   ctx.beginPath();
   ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
