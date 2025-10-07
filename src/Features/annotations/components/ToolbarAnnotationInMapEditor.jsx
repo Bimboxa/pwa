@@ -32,8 +32,11 @@ export default function ToolbarAnnotationInMapEditor() {
   const annotationTemplates = useAnnotationTemplatesBySelectedListing();
   const spriteImage = useAnnotationSpriteImage();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
+  const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
 
-  console.log("annotationTemplates", annotationTemplates);
+  // utils
+
+  const show = !Boolean(selectedNode?.nodeType);
 
   // handlers
 
@@ -50,6 +53,8 @@ export default function ToolbarAnnotationInMapEditor() {
     dispatch(setTempAnnotationTemplateLabel(annotationTemplate?.label));
     dispatch(setSelectedAnnotationTemplateId(annotationTemplate?.id));
   }
+
+  if (!show) return null;
 
   return (
     <Paper elevation={12}>
