@@ -63,8 +63,9 @@ export default function useAnnotations(options) {
           const table = annotation?.listingTable;
           if (table) {
             const entity = await db[table].get(annotation.entityId);
-            const entityWithImages = await getEntityWithImagesAsync(entity);
-            return { ...annotation, entity: entityWithImages };
+            const { entityWithImages, hasImages } =
+              await getEntityWithImagesAsync(entity);
+            return { ...annotation, entity: entityWithImages, hasImages };
           } else {
             return annotation;
           }

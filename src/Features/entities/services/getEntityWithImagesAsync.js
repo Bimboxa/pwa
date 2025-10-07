@@ -1,6 +1,7 @@
 import db from "App/db/db";
 
 export default async function getEntityWithImagesAsync(entity) {
+  let hasImages;
   const entityWithImages = { ...entity };
   const entriesWithImages = Object.entries(entity).filter(
     ([key, value]) => value?.isImage
@@ -16,9 +17,10 @@ export default async function getEntityWithImagesAsync(entity) {
             file,
             imageUrlClient: URL.createObjectURL(file.file),
           };
+          hasImages = true;
         }
       }
     })
   );
-  return entityWithImages;
+  return { entityWithImages, hasImages };
 }

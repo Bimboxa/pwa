@@ -7,6 +7,8 @@ import {
   useLayoutEffect,
 } from "react";
 
+import { grey } from "@mui/material/colors";
+
 /**
  * Draggable SVG marker:
  * - marker: { id, x, y, iconKey, fillColor, listingId, entity? }
@@ -34,6 +36,10 @@ export default function NodeMarker({
     "data-node-type": "ANNOTATION",
     "data-annotation-type": "MARKER",
   };
+
+  // Test has images
+
+  const hasImages = marker.hasImages;
 
   // Label text
   const labelText = (marker?.entity?.num ?? "").toString();
@@ -262,7 +268,7 @@ export default function NodeMarker({
             width={rectW}
             height={rectH}
             fill="#fff"
-            stroke={fillColor}
+            stroke={hasImages ? fillColor : grey[600]}
             strokeWidth={1}
           />
           <text
@@ -272,7 +278,7 @@ export default function NodeMarker({
             dominantBaseline="middle"
             fontSize={labelFontPx}
             fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
-            fill="#111"
+            fill={hasImages ? "#111" : grey[600]}
             fontWeight="600"
           >
             {labelText}
