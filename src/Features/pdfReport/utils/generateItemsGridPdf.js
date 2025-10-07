@@ -27,6 +27,10 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
  * opts.overlayIconSize?: number // icon size inside the pill (default 16)
  */
 export default async function generateItemsGridPdf(items, opts = {}) {
+  // strings
+
+  const noImageS = "Pas d'image";
+
   // ---- Page & grid
   const [pageW, pageH] = getPageWH(
     opts.pageSize || "A4",
@@ -242,7 +246,7 @@ export default async function generateItemsGridPdf(items, opts = {}) {
         });
       } else {
         // minimal hint text
-        page.drawText("Image indisponible", {
+        page.drawText(noImageS, {
           x: innerX + 8,
           y: imgY + 8,
           size: 10,
