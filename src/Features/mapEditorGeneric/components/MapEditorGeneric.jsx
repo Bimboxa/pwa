@@ -33,8 +33,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     baseMapImageUrl,
     baseMapPoseInBg, // {x:0,y:0,k:1,r:0}, pose of baseMap in bg local coords.
     onBaseMapPoseInBgChange,
-    baseMapIsSelected,
-    onBaseMapSelectionChange,
     annotations,
     initialScale = "fit",
     minScale = 0.1,
@@ -633,7 +631,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       if (hit && !enabledDrawingMode) {
         const { nodeId, nodeListingId, nodeType, annotationType } = hit.dataset;
         onNodeClick({ id: nodeId, nodeListingId, nodeType, annotationType });
-        onBaseMapSelectionChange(false);
         return;
       }
 
@@ -690,7 +687,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       screenToBgLocal,
       screenToBaseLocal,
       onNodeClick,
-      onBaseMapSelectionChange,
       attachTo,
       bgSize.w,
       bgSize.h,

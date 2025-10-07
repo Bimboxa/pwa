@@ -231,16 +231,19 @@ export default function MainMapEditorV2() {
 
   function handleAnnotationClick(annotation) {
     console.log("click on annotation", annotation);
-    dispatch(setSelectedAnnotationId(annotation.id));
+    // dispatch(setSelectedAnnotationId(annotation.id));
 
-    if (annotation.listingId === listingId) {
-      dispatch(setSelectedEntityId(annotation.entityId));
-    }
+    // if (annotation.listingId === listingId) {
+    //   dispatch(setSelectedEntityId(annotation.entityId));
+    // }
   }
 
   async function handleNodeClick(node) {
-    console.log("[CLICK] on node", node);
     node = node?.id === selectedNode?.id ? null : node;
+
+    // disable baseMap selection if !showBgImage
+    if (node.nodeType === "BASE_MAP" && !showBgImage) return;
+
     dispatch(setSelectedNode(node));
     if (node?.nodeType === "ANNOTATION") {
       dispatch(setSelectedMenuItemKey("NODE_FORMAT"));
@@ -336,8 +339,6 @@ export default function MainMapEditorV2() {
         baseMapImageUrl={mainBaseMap?.image?.imageUrlClient}
         baseMapPoseInBg={basePoseInBg}
         onBaseMapPoseInBgChange={(pose) => dispatch(setBaseMapPoseInBg(pose))}
-        baseMapIsSelected={baseMapIsSelected}
-        onBaseMapSelectionChange={handleBaseMapSelectionChange}
         bgImageUrl={bgImage?.url}
         showBgImage={showBgImage}
         //markers={markers}
