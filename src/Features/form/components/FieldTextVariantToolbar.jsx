@@ -24,7 +24,7 @@ export default function FieldTextVariantToolbar({
         readOnly={readOnly}
         fullWidth
         size="small"
-        value={value}
+        value={value ?? ""}
         onChange={handleChange}
         options={options ?? []}
         placeholder={placeholder}
