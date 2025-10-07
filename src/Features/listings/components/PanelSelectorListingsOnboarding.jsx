@@ -48,7 +48,11 @@ export default function PanelSelectorListingsOnboarding() {
 
     console.log("newListings", newListings);
 
-    if (newListings) {
+    // selected listing
+    dispatch(setSelectedListingId(newListings[0]?.id));
+
+    // update scope
+    if (newListings && scope) {
       const newScopeListings = newListings.map(({ id, table, type }) => ({
         id,
         table,
@@ -61,8 +65,7 @@ export default function PanelSelectorListingsOnboarding() {
       };
 
       // update scope
-      await updateScope(updates);
-      dispatch(setSelectedListingId(newListings[0]?.id));
+      if (scope) await updateScope(updates);
     }
   }
   return (
@@ -75,6 +78,7 @@ export default function PanelSelectorListingsOnboarding() {
       <SectionSelectorPresetListings
         selectedKeys={presetListingsKeys}
         onChange={handleChange}
+        multiselection={true}
       />
       <ButtonInPanelV2
         label={saveS}

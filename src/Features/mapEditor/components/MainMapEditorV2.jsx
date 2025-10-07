@@ -10,6 +10,7 @@ import {
   setSelectedNode,
   setLegendFormat,
 } from "../mapEditorSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import { setSelectedEntityId } from "Features/entities/entitiesSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
@@ -19,6 +20,7 @@ import { setDrawingPolylinePoints } from "../mapEditorSlice";
 
 import { clearDrawingPolylinePoints } from "Features/mapEditor/mapEditorSlice";
 
+import useNewEntity from "Features/entities/hooks/useNewEntity";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useBgImageInMapEditor from "Features/mapEditor/hooks/useBgImageInMapEditor";
@@ -83,6 +85,8 @@ export default function MainMapEditorV2() {
   const { value: baseMaps } = useBaseMaps({ filterByProjectId: projectId });
 
   const entity = useEntity();
+  const newEntity = useNewEntity();
+
   const bgImage = useBgImageInMapEditor();
   //const markers = useMarkers({ addDemoMarkers: false });
   const annotations = useAnnotations({
@@ -90,6 +94,7 @@ export default function MainMapEditorV2() {
     filterByBaseMapId: mainBaseMap?.id,
     excludeListingsIds: hiddenListingsIds,
     addBgImageTextAnnotations: true,
+    withEntity: true,
   });
 
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
@@ -160,6 +165,10 @@ export default function MainMapEditorV2() {
           dispatch(setSelectedAnnotationId(null));
           dispatch(setMainBaseMapIsSelected(false));
           dispatch(setSelectedNode(null));
+          dispatch(setSelectedItem(null));
+          dispatch(setSelectedEntityId(null));
+          dispatch(setIsEditingEntity(false));
+          dispatch(setEditedEntity(null));
         }
       }
     };
@@ -181,7 +190,7 @@ export default function MainMapEditorV2() {
         return;
 
       // main
-      const entity = await createEntity({});
+      const entity = await createEntity(newEntity);
       console.log("[MainMapEditor] create entity", entity);
       const _annotation = await createAnnotation(
         {
@@ -190,6 +199,7 @@ export default function MainMapEditorV2() {
           y: annotation.y,
           entityId: entity?.id,
           listingId: listingId,
+          listingTable: listing?.table,
           baseMapId: mainBaseMap?.id,
           type: "MARKER",
           annotationTemplateId: annotationTemplate?.id,
@@ -214,6 +224,7 @@ export default function MainMapEditorV2() {
         textValue: newAnnotation?.text ?? "Texte",
         entityId: entity?.id,
         listingId: listingId,
+        listingTable: listing?.table,
         baseMapId: mainBaseMap?.id,
       });
       dispatch(setEnabledDrawingMode(null));
@@ -246,13 +257,20 @@ export default function MainMapEditorV2() {
 
     dispatch(setSelectedNode(node));
     if (node?.nodeType === "ANNOTATION") {
-      dispatch(setSelectedMenuItemKey("NODE_FORMAT"));
+      //dispatch(setSelectedMenuItemKey("NODE_FORMAT"));
       const annotation = await db.annotations.get(node?.id);
       console.log("[CLICK] on annotation", annotation);
       const entityId = annotation.entityId;
       if (entityId) {
         //dispatch(setSelectedListingId(node.listingId));
         dispatch(setSelectedEntityId(entityId));
+        dispatch(
+          setSelectedItem({
+            type: "ENTITY",
+            id: entityId,
+            listingId: annotation.listingId,
+          })
+        );
       }
     }
   }

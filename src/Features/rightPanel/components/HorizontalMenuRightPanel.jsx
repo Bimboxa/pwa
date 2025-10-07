@@ -12,6 +12,7 @@ import {
   Palette,
   Layers,
   Edit,
+  Wallpaper,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -35,6 +36,16 @@ export default function HorizontalMenuRightPanel() {
       key: "NODE_FORMAT",
       label: "Format",
       icon: <Palette />,
+    },
+    {
+      key: "SELECTION",
+      label: "Sélection",
+      icon: <Info />,
+    },
+    {
+      key: "BLUEPRINT",
+      label: "Export",
+      icon: <Wallpaper />,
     },
     // {
     //   key: "ENTITY",

@@ -18,7 +18,7 @@ import getFoundItems from "Features/search/getFoundItems";
 import ListItemsGeneric from "Features/layout/components/ListItemsGeneric";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 
-export default function SectionSelectProject() {
+export default function SectionSelectProject({ onProjectSelected }) {
   const dispatch = useDispatch();
 
   // strings
@@ -68,6 +68,7 @@ export default function SectionSelectProject() {
 
   function handleProjectClick(project) {
     dispatch(setSelectedProjectId(project.id));
+    if (onProjectSelected) onProjectSelected(project);
   }
 
   async function handleCreateClick() {
@@ -82,6 +83,9 @@ export default function SectionSelectProject() {
     await createListing({
       listing: { ...defaultBaseMapsListingProps, projectId: newProject.id },
     });
+
+    // navigation
+    if (onProjectSelected) onProjectSelected(newProject);
   }
 
   // render

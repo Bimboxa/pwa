@@ -34,8 +34,10 @@ export default function useSaveEntity() {
     if (loading) return;
     setLoading(true);
     //
+    let result;
     if (!entity.id) {
       const newEntity = await create(entity, options);
+      result = newEntity;
       if (tempMarker) {
         const { id: entityId, listingId: listingId } = newEntity;
         await createMarker({ ...tempMarker, entityId, listingId });
@@ -44,12 +46,14 @@ export default function useSaveEntity() {
       dispatch(setNewEntity(null));
     } else {
       console.log("update entity", entity);
-      await update(entity.id, entity, options);
+      result = await update(entity.id, entity, options);
       dispatch(setIsEditingEntity(false));
       dispatch(setEditedEntity({}));
     }
     //
     setLoading(false);
+    //
+    return result;
   };
 
   // return

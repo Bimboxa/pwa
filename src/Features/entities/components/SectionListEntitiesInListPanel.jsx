@@ -14,6 +14,7 @@ import {
 import { setSelectedEntityId } from "../entitiesSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import { setOpenedPanel } from "Features/listings/listingsSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import ListEntities from "./ListEntities";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -84,6 +85,14 @@ export default function SectionListEntitiesInListPanel() {
     }
 
     dispatch(setSelectedEntityId(id));
+
+    dispatch(
+      setSelectedItem({
+        type: "ENTITY",
+        id: entity.id,
+        listingId: entity.listingId,
+      })
+    );
 
     onEntityClick(entity);
     //dispatch(setOpenedPanel("EDITED_ENTITY"));

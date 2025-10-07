@@ -7,9 +7,9 @@ export default async function createIssuesPdfReport(issues, opts = {}) {
   const items = issues.map((issue) => {
     return {
       ...issue,
-      number: issue.label,
+      number: issue.annotation?.num,
       label: issue.annotation?.label,
-      imageUrl: issue.image.imageUrlClient,
+      imageUrl: issue.image?.imageUrlClient,
       description: issue.subLabel,
       iconKey: issue.annotation?.iconKey,
       fillColor: issue.annotation?.fillColor,
@@ -23,5 +23,7 @@ export default async function createIssuesPdfReport(issues, opts = {}) {
     spriteImage: opts.spriteImage,
   });
 
-  downloadBlob(blob, "issues.pdf");
+  return blob;
+
+  //downloadBlob(blob, "issues.pdf");
 }

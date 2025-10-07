@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { useSelector } from "react-redux";
 
@@ -13,10 +13,14 @@ export default function ButtonDialogOnboardingSelectProject() {
 
   const appConfig = useAppConfig();
   const userProfile = useSelector((s) => s.auth.userProfile);
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
 
   // state
 
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (userProfile?.userName) setOpen(!projectId);
+  }, [projectId, userProfile?.userName]);
 
   // helpers
 

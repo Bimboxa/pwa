@@ -6,6 +6,7 @@ import {
   setNewEntity,
   setEditedEntity,
   setIsEditingEntity,
+  setSelectedEntityId,
 } from "Features/entities/entitiesSlice";
 import { setOpenedPanel } from "Features/listings/listingsSlice";
 
@@ -77,7 +78,17 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
       bgImageRawTextAnnotations,
     };
 
-    await saveEntity(_newEntity, { updateSyncFile: true });
+    const result = await saveEntity(_newEntity, { updateSyncFile: true });
+    dispatch(setSelectedEntityId(result.id));
+    dispatch(setIsEditingEntity(false));
+    dispatch(setEditedEntity(null));
+    dispatch(
+      setSelectedItem({
+        type: "ENTITY",
+        id: result.id,
+        listingId: result.listingId,
+      })
+    );
   }
 
   async function handleUpdateClick() {
@@ -94,6 +105,9 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
     };
 
     await saveEntity(_editedEntity, { updateSyncFile: true });
+
+    dispatch(setIsEditingEntity(false));
+    dispatch(setEditedEntity(null));
   }
 
   return (

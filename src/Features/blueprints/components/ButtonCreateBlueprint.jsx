@@ -14,6 +14,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import { setTempName } from "../blueprintsSlice";
+import { setShowBgImageInMapEditor } from "Features/bgImage/bgImageSlice";
 
 export default function ButtonCreateBlueprint() {
   const dispatch = useDispatch();
@@ -46,7 +47,8 @@ export default function ButtonCreateBlueprint() {
     dispatch(setIsEditingEntity(true));
     dispatch(setTempName(defaultName));
     //
-    dispatch(setSelectedMenuItemKey("NODE_FORMAT"));
+    dispatch(setSelectedMenuItemKey("BLUEPRINT"));
+    dispatch(setShowBgImageInMapEditor(true));
   }
 
   return (

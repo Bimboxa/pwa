@@ -64,13 +64,13 @@ export default function SelectorAnnotationTemplateVariantHorizontal({
           //flexWrap: "wrap",
         }}
       >
-        {items?.map((annotationTemplate) => {
+        {items?.map((annotationTemplate, idx) => {
           const { id, fillColor: bgcolor, iconKey, label } = annotationTemplate;
 
           const selected = id === selectedAnnotationTemplateId;
 
           if (annotationTemplate.isDivider)
-            return (
+            return idx === 0 ? null : (
               <Box
                 sx={{
                   display: "flex",

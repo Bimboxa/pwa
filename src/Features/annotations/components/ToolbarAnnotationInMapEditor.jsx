@@ -37,6 +37,8 @@ export default function ToolbarAnnotationInMapEditor() {
   // utils
 
   const show = !Boolean(selectedNode?.nodeType);
+  const noTemplates = !annotationTemplates?.length > 0;
+  const openNewToolbar = openNew || noTemplates;
 
   // handlers
 
@@ -58,7 +60,7 @@ export default function ToolbarAnnotationInMapEditor() {
 
   return (
     <Paper elevation={12}>
-      {!openNew && (
+      {!openNewToolbar && (
         <SelectorAnnotationTemplateVariantHorizontal
           annotationTemplates={annotationTemplates}
           spriteImage={spriteImage}
@@ -67,7 +69,7 @@ export default function ToolbarAnnotationInMapEditor() {
         />
       )}
 
-      {openNew && (
+      {openNewToolbar && (
         <ToolbarNewAnnotationInMapEditor onClose={() => setOpenNew(false)} />
       )}
     </Paper>
