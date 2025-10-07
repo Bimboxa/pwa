@@ -15,6 +15,7 @@ import NodeSvgImage from "./NodeSvgImage";
 import NodeAnnotation from "./NodeAnnotation";
 import NodeLegend from "./NodeLegend";
 import NodePolyline from "./NodePolyline";
+import LayerMarkerTooltip from "Features/mapEditor/components/LayerMarkerTooltip";
 
 import clamp from "Features/misc/utils/clamp";
 import {
@@ -79,6 +80,10 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
   // === Layer poses ===
   const [bgPose, setBgPose] = useState({ x: 0, y: 0, k: 1, r: 0 });
+
+  // === Hover state ===
+  const [hoveredMarker, setHoveredMarker] = useState(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   const basePose = {
     x: bgPose.x + (baseMapPoseInBg.x || 0) * (bgPose.k || 1),
@@ -579,6 +584,31 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     [screenToBaseLocal]
   );
 
+  // === MOUSE TRACKING FOR TOOLTIP ===
+  const updateMousePosition = useCallback((clientX, clientY) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setMousePos({
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    });
+  }, []);
+
+  // Track mouse position for tooltip
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleMouseMove = (e) => {
+      updateMousePosition(e.clientX, e.clientY);
+    };
+
+    container.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      container.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, [updateMousePosition]);
+
   // === CLICK ===
   const onAnyPointerDownCapture = useCallback((e) => {
     downRef.current = { x: e.clientX, y: e.clientY };
@@ -606,7 +636,108 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     }
   }, []);
 
+  // === HOVER DETECTION ===
+  const onSvgMouseMove = useCallback(
+    (e) => {
+      updateMousePosition(e.clientX, e.clientY);
+
+      const nativeTarget = e.nativeEvent?.target || e.target;
+      const hit = nativeTarget.closest?.("[data-node-type]");
+
+      if (
+        hit &&
+        hit.dataset.nodeType === "ANNOTATION" &&
+        hit.dataset.annotationType === "MARKER"
+      ) {
+        // Find the corresponding annotation
+        const annotationId = hit.dataset.nodeId;
+        const marker = annotations.find((ann) => ann.id === annotationId);
+        if (marker) {
+          setHoveredMarker(marker);
+          return;
+        }
+      }
+
+      setHoveredMarker(null);
+    },
+    [annotations, updateMousePosition]
+  );
+
+  const onSvgMouseLeave = useCallback(() => {
+    setHoveredMarker(null);
+  }, []);
+
   const dispatch = useDispatch();
+
+  // === DRAG AND DROP HANDLERS ===
+  const onDragOver = useCallback(
+    (e) => {
+      if (enabledDrawingMode === "MARKER") {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+      }
+    },
+    [enabledDrawingMode]
+  );
+
+  const onDrop = useCallback(
+    (e) => {
+      if (enabledDrawingMode !== "MARKER") return;
+
+      e.preventDefault();
+      const files = Array.from(e.dataTransfer.files);
+      const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+
+      if (imageFiles.length === 0) return;
+
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+
+      const p_inBg = screenToBgLocal(sx, sy);
+      const p_inBase = screenToBaseLocal(sx, sy);
+
+      // Use the first image file
+      const imageFile = imageFiles[0];
+
+      // Calculate position based on attachTo setting
+      let ratioX, ratioY;
+      if (attachTo === "bg") {
+        ratioX = p_inBg.x / (bgSize.w || 1);
+        ratioY = p_inBg.y / (bgSize.h || 1);
+      } else {
+        ratioX = p_inBase.x / (baseSize.w || 1);
+        ratioY = p_inBase.y / (baseSize.h || 1);
+      }
+
+      // Clamp to bounds
+      ratioX = Math.max(0, Math.min(1, ratioX));
+      ratioY = Math.max(0, Math.min(1, ratioY));
+
+      // Call onNewAnnotation with the image file
+      if (onNewAnnotation) {
+        onNewAnnotation({
+          type: enabledDrawingMode,
+          x: ratioX,
+          y: ratioY,
+          imageFile: imageFile,
+        });
+      }
+    },
+    [
+      enabledDrawingMode,
+      screenToBgLocal,
+      screenToBaseLocal,
+      attachTo,
+      bgSize.w,
+      bgSize.h,
+      baseSize.w,
+      baseSize.h,
+      onNewAnnotation,
+    ]
+  );
 
   const onSvgClick = useCallback(
     (e) => {
@@ -697,6 +828,18 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     ]
   );
 
+  // === DRAG AND DROP EVENT LISTENERS ===
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.addEventListener("dragover", onDragOver);
+    container.addEventListener("drop", onDrop);
+    return () => {
+      container.removeEventListener("dragover", onDragOver);
+      container.removeEventListener("drop", onDrop);
+    };
+  }, [onDragOver, onDrop]);
+
   // === ANNOTATION EVENTS ===
   function handleMarkerClick(annotation) {
     onAnnotationClick?.(annotation);
@@ -781,6 +924,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         onPointerUpCapture={onAnyPointerUpCapture}
         onClick={onSvgClick}
         onClickCapture={onSvgClickCapture}
+        onMouseMove={onSvgMouseMove}
+        onMouseLeave={onSvgMouseLeave}
         xmlns="http://www.w3.org/2000/svg"
         sx={{
           width: "100%",
@@ -967,6 +1112,14 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           )}
         </g>
       </svg>
+
+      {/* Marker tooltip layer */}
+      <LayerMarkerTooltip
+        containerEl={containerRef.current}
+        hoveredMarker={hoveredMarker}
+        mousePos={mousePos}
+        annotationSpriteImage={annotationSpriteImage}
+      />
     </Box>
   );
 });

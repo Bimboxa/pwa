@@ -12,6 +12,7 @@ import MarkerIconNewMarker from "Features/markers/components/MarkerIconNewMarker
 export default function LayerScreenCursor({ containerEl }) {
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const [isDragging, setIsDragging] = useState(false);
 
   // data
 
@@ -47,9 +48,39 @@ export default function LayerScreenCursor({ containerEl }) {
       });
     };
 
+    const handleDragOver = (e) => {
+      // Update cursor position during drag operations
+      const rect = containerEl.getBoundingClientRect();
+      setPos({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+      setIsDragging(true);
+    };
+
+    const handleDragEnter = () => {
+      setIsDragging(true);
+    };
+
+    const handleDragLeave = () => {
+      setIsDragging(false);
+    };
+
+    const handleDrop = () => {
+      setIsDragging(false);
+    };
+
     containerEl.addEventListener("mousemove", handleMouseMove);
+    containerEl.addEventListener("dragover", handleDragOver);
+    containerEl.addEventListener("dragenter", handleDragEnter);
+    containerEl.addEventListener("dragleave", handleDragLeave);
+    containerEl.addEventListener("drop", handleDrop);
     return () => {
       containerEl.removeEventListener("mousemove", handleMouseMove);
+      containerEl.removeEventListener("dragover", handleDragOver);
+      containerEl.removeEventListener("dragenter", handleDragEnter);
+      containerEl.removeEventListener("dragleave", handleDragLeave);
+      containerEl.removeEventListener("drop", handleDrop);
     };
   }, [containerEl]);
 
@@ -74,7 +105,9 @@ export default function LayerScreenCursor({ containerEl }) {
             pointerEvents: "none",
             top: `${pos.y}px`,
             left: `${pos.x}px`,
-            transform: "translate(-50%,-120%)",
+            transform: isDragging
+              ? "translate(-50%,-180%)" // Move higher when dragging
+              : "translate(-50%,-120%)", // Normal position
             zIndex: 2,
             display: "flex",
             flexDirection: "column",

@@ -54,6 +54,12 @@ export default function ToolbarNewAnnotationInMapEditor({ onClose }) {
     annotationTemplates,
   });
 
+  // helper - disable
+
+  const { type, fillColor, iconKey } = newAnnotation ?? {};
+  const disabled =
+    !tempLabel || !type || (type === "MARKER" && (!fillColor || !iconKey));
+
   // helper - template
 
   const template = {
@@ -66,6 +72,7 @@ export default function ToolbarNewAnnotationInMapEditor({ onClose }) {
       {
         key: "iconKey",
         type: "icon",
+        label: "Icône",
         spriteImage,
         options: { fillColor: newAnnotation?.fillColor },
         //hide: true,
@@ -133,6 +140,7 @@ export default function ToolbarNewAnnotationInMapEditor({ onClose }) {
         onClick={handleClick}
         variant="contained"
         sx={{ ml: 2 }}
+        disabled={disabled}
       />
       <IconButtonClose onClose={handleClose} sx={{ ml: 1 }} />
     </Box>

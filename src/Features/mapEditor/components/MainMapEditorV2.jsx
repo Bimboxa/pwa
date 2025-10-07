@@ -194,8 +194,14 @@ export default function MainMapEditorV2() {
       )
         return;
 
+      // Prepare entity data - include image if dropped
+      const entityData = { ...newEntity };
+      if (annotation.imageFile) {
+        entityData.image = { file: annotation.imageFile };
+      }
+
       // main
-      const entity = await createEntity(newEntity);
+      const entity = await createEntity(entityData);
       console.log("[MainMapEditor] create entity", entity);
       const _annotation = await createAnnotation(
         {
