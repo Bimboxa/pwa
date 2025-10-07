@@ -36,6 +36,12 @@ export default function getModulesAndListingsForLeftPanel({
           showHideButton: entityModelType.type === "LOCATED_ENTITY",
         });
       });
+      // add item create located_entity listing
+      if (entityModelType.type === "LOCATED_ENTITY") {
+        items.push({
+          type: "CREATE_LOCATED_LISTING",
+        });
+      }
     }
   });
 

@@ -13,6 +13,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 export default function SectionSelectorPresetListings({
   selectedKeys,
   onChange,
+  multiselection,
 }) {
   // strings
 
@@ -54,7 +55,11 @@ export default function SectionSelectorPresetListings({
     if (selection?.includes(key)) {
       selection = selection.filter((k) => k !== key);
     } else {
-      selection.push(key);
+      if (multiselection) {
+        selection.push(key);
+      } else {
+        selection = [key];
+      }
     }
     onChange(selection);
   }
@@ -72,6 +77,7 @@ export default function SectionSelectorPresetListings({
                 sx={{ p: 0, display: "flex", flexDirection: "column" }}
                 onClick={(e) => handleClick(e, listing)}
                 divider
+                selected={multiselection ? false : checked}
               >
                 <Box
                   sx={{
@@ -88,7 +94,7 @@ export default function SectionSelectorPresetListings({
                       {listing?.name}
                     </Typography>
                   </Box>
-                  {!listing?.comingSoon && (
+                  {!listing?.comingSoon && multiselection && (
                     <Box
                       color="secondary.main"
                       sx={{ display: "flex", alignItems: "center", mr: 1 }}

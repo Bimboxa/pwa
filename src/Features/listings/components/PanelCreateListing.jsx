@@ -9,11 +9,16 @@ import useCreateListing from "Features/listings/hooks/useCreateListing";
 import Panel from "Features/layout/components/Panel";
 import FormListing from "./FormListing";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
+import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
 
-export default function PanelCreateListing({ onListingCreated }) {
+export default function PanelCreateListing({
+  onListingCreated,
+  locatedListingOnly,
+}) {
   // strings
 
   const saveS = "Créer";
+  const title = locatedListingOnly ? "Nouveau repérage" : null;
 
   // data
 
@@ -58,7 +63,12 @@ export default function PanelCreateListing({ onListingCreated }) {
   }
   return (
     <Panel>
-      <FormListing listing={tempListing} onChange={handleChange} />
+      {title && <HeaderTitleClose title={title} />}
+      <FormListing
+        listing={tempListing}
+        onChange={handleChange}
+        locatedListingOnly={locatedListingOnly}
+      />
       <ButtonInPanel label={saveS} onClick={handleSave} />
     </Panel>
   );

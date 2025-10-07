@@ -1,3 +1,5 @@
+import { useRef, useEffect, useState } from "react";
+
 import { Box, IconButton } from "@mui/material";
 import theme from "Styles/theme";
 
@@ -8,10 +10,20 @@ export default function SelectorMarkerIcon({
   onChange,
   iconColor,
   spriteImage,
+  size = 40,
+  rows = 4,
 }) {
-  const size = 18;
+  // ref
 
-  // helper
+  const ref = useRef();
+
+  // helper - cardWidth
+
+  const [cardWidth, setCardWidth] = useState(20);
+  useEffect(() => {
+    const width = ref.current?.getBoundingClientRect()?.width;
+    setCardWidth(width / rows);
+  }, [ref.current]);
 
   //const bgcolor = theme.palette.primary.main;
   const bgcolorDefault = theme.palette.grey[400];
@@ -20,8 +32,15 @@ export default function SelectorMarkerIcon({
   if (!iconColor) iconColor = iconColorDefault;
 
   return (
-    <Box sx={{ width: 1, display: "flex", justifyContent: "center", p: 1 }}>
+    <Box
+      sx={{
+        width: 1,
+        display: "flex",
+        justifyContent: "center",
+      }}
+    >
       <Box
+        ref={ref}
         sx={{
           display: "flex",
           alignItems: "center",
@@ -35,22 +54,35 @@ export default function SelectorMarkerIcon({
             <Box
               key={_iconKey}
               sx={{
-                bgcolor,
-                borderRadius: "50%",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
                 mx: 1,
                 mb: 2,
+                width: cardWidth,
+                height: cardWidth,
               }}
             >
-              <IconButton size="small" onClick={() => onChange(_iconKey)}>
-                <MarkerIcon
-                  iconKey={_iconKey}
-                  spriteImage={spriteImage}
-                  size={size}
-                />
-              </IconButton>
+              <Box
+                sx={{
+                  bgcolor,
+                  borderRadius: "50%",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <IconButton
+                  sx={{ width: size, height: size }}
+                  onClick={() => onChange(_iconKey)}
+                >
+                  <MarkerIcon
+                    iconKey={_iconKey}
+                    spriteImage={spriteImage}
+                    size={size}
+                  />
+                </IconButton>
+              </Box>
             </Box>
           );
         })}

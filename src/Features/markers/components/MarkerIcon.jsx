@@ -7,6 +7,7 @@ export default function MarkerIcon({
   iconKey,
   fillColor,
   size = 24,
+  square,
 }) {
   // helpers - sprite image
 
@@ -24,7 +25,7 @@ export default function MarkerIcon({
 
   //
 
-  const scale = size / tile;
+  const scale = (size - 8) / tile;
   const spriteW = columns * tile;
   const spriteH = rows * tile; // 3x3
 
@@ -40,7 +41,7 @@ export default function MarkerIcon({
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        borderRadius: "50%",
+        borderRadius: square ? "8px" : "50%",
         bgcolor: fillColor,
       }}
     >

@@ -6,6 +6,10 @@ import getAnnotationTemplateCode from "../utils/getAnnotationTemplateCode";
 import getNewAnnotationTemplateFromAnnotation from "../utils/getNewAnnotationTemplateFromAnnotation";
 
 export default async function createAnnotationService(annotation, options) {
+  // debug
+
+  console.log("debug_610_createAnnotationService", annotation, options);
+
   // options
 
   const updateAnnotationTemplateId = options?.updateAnnotationTemplateId;

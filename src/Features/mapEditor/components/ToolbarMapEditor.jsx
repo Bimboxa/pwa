@@ -1,6 +1,7 @@
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import ToolbarMapEditorLocatedEntities from "./ToolbarMapEditorLocatedEntities";
 import ToolbarMapEditorBlueprint from "Features/blueprints/components/ToolbarMapEditorBlueprint";
+import ToolbarAnnotationInMapEditor from "Features/annotations/components/ToolbarAnnotationInMapEditor";
 
 export default function ToolbarMapEditor({ svgElement }) {
   // data
@@ -15,7 +16,8 @@ export default function ToolbarMapEditor({ svgElement }) {
 
   return (
     <>
-      {type === "LOCATED_ENTITY" && <ToolbarMapEditorLocatedEntities />}
+      {/* {type === "LOCATED_ENTITY" && <ToolbarMapEditorLocatedEntities />} */}
+      {type === "LOCATED_ENTITY" && <ToolbarAnnotationInMapEditor />}
       {type === "BLUEPRINT" && (
         <ToolbarMapEditorBlueprint svgElement={svgElement} />
       )}

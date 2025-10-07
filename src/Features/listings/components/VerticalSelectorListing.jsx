@@ -17,12 +17,15 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import IconListingVariantSelectable from "./IconListingVariantSelectable";
 
 import getModulesAndListingsForLeftPanel from "../utils/getModulesAndListingsForLeftPanel";
+import ButtonDialogCreateListingInVerticalSelector from "./ButtonDialogCreateListingInVerticalSelector";
 
 export default function VerticalSelectorListing({ onSeeAllClick }) {
   const dispatch = useDispatch();
 
   const seeAllS = "Voir les listes";
   const pinnedS = "Listes";
+  const newListingS = "Nouvelle liste";
+  const titleS = "Créer un repérage";
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -184,6 +187,27 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
                   </IconButton>
                 )}
               </Box>
+            );
+          }
+
+          if (item.type === "CREATE_LOCATED_LISTING") {
+            return (
+              <Tooltip title={titleS} placement="right">
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    my: 2,
+                  }}
+                >
+                  {/* <Typography sx={{ fontSize: 10 }} align="center" color="grey.300">
+                {newListingS}
+              </Typography> */}
+
+                  <ButtonDialogCreateListingInVerticalSelector />
+                </Box>
+              </Tooltip>
             );
           }
 
