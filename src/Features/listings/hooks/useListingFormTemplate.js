@@ -2,7 +2,11 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import iconsMap from "../data/iconsMap";
 
-export default function useListingFormTemplate(listing) {
+export default function useListingFormTemplate(listing, options) {
+  // options
+
+  const locatedListingOnly = options?.locatedListingOnly;
+
   // data
 
   const appConfig = useAppConfig();
@@ -28,6 +32,12 @@ export default function useListingFormTemplate(listing) {
   const template = {
     fields: [
       {
+        key: "name",
+        label: "Nom",
+        type: "text",
+        options: { showAsSection: true, fullWidth: true },
+      },
+      {
         key: "color",
         label: "Couleur",
         type: "color",
@@ -39,12 +49,7 @@ export default function useListingFormTemplate(listing) {
         type: "iconBasic",
         options: { iconsMap, iconColor },
       },
-      {
-        key: "name",
-        label: "Nom",
-        type: "text",
-        options: { showAsSection: true, fullWidth: true },
-      },
+
       {
         key: "entityModel",
         label: "Entité",

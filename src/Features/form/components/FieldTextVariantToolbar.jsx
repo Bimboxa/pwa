@@ -1,4 +1,4 @@
-import {Autocomplete, TextField, Box} from "@mui/material";
+import { TextField, Box } from "@mui/material";
 
 export default function FieldTextVariantToolbar({
   value,
@@ -8,23 +8,46 @@ export default function FieldTextVariantToolbar({
   width,
   placeholder,
 }) {
-  console.log("[FieldText] value", value);
+  // options
+
+  const readOnly = options?.readOnly;
+
   // handlers
 
-  function handleChange(event, newValue) {
-    console.log("[FieldText] newValue", newValue);
-    onChange(newValue);
+  function handleChange(e) {
+    onChange(e.target.value);
   }
 
   return (
-    <Box sx={{width}}>
-      <Autocomplete
-        freeSolo
+    <Box sx={{ width }}>
+      <TextField
+        readOnly={readOnly}
         fullWidth
-        inputValue={value}
-        onInputChange={handleChange}
+        size="small"
+        value={value}
+        onChange={handleChange}
         options={options ?? []}
-        renderInput={(params) => <TextField {...params} label={label} />}
+        placeholder={placeholder}
+        sx={{
+          "& .MuiOutlinedInput-root": {
+            "& fieldset": {
+              border: "none",
+            },
+            "&:hover fieldset": {
+              border: "none",
+            },
+            "&.Mui-focused fieldset": {
+              border: "none",
+            },
+          },
+          "& .MuiInputBase-input": {
+            fontSize: "12px",
+            ...(readOnly && {
+              cursor: "default",
+              caretColor: "transparent",
+            }),
+          },
+        }}
       />
     </Box>
   );

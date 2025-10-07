@@ -1,8 +1,8 @@
-import {useState} from "react";
+import { useState } from "react";
 
-import {IconButton, Menu, ListItemButton, Box} from "@mui/material";
+import { IconButton, Menu, ListItemButton, Box } from "@mui/material";
 
-export default function IconButtonMenuContainer({icon, children, sx}) {
+export default function IconButtonMenuContainer({ icon, children, sx }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
@@ -16,7 +16,7 @@ export default function IconButtonMenuContainer({icon, children, sx}) {
 
   return (
     <>
-      <Box sx={{borderRadius: 2, ...sx}}>
+      <Box sx={{ borderRadius: 2, ...sx }}>
         <IconButton onClick={handleClick}>{icon}</IconButton>
       </Box>
       <Menu open={open} anchorEl={anchorEl} onClose={handleClose}>

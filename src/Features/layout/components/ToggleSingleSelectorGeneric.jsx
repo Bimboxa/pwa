@@ -11,7 +11,7 @@ export default function ToggleSingleSelectorGeneric({
     onChange(v === selectedKey ? null : v);
   }
   return (
-    <Box sx={{ display: "flex", width: 1, justifyContent: "center" }}>
+    <Box sx={{ display: "flex", justifyContent: "center" }}>
       <ToggleButtonGroup
         onChange={handleChange}
         value={selectedKey}
