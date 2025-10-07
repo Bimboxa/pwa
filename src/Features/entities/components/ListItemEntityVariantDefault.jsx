@@ -38,10 +38,11 @@ export default function ListItemEntityVariantDefault({
 
   // helpers
 
-  let label = entity.label ?? annotation?.label;
+  //let label = entity.label ?? annotation?.label;
+  let label = annotation?.label ?? entity.label;
   const fontStyle = label ? "normal" : "italic";
   if (!label) label = "Libellé à définir";
-  const subLabel = entity.subLabel;
+  const subLabel = entity.num ? `#${entity.num}` : entity.subLabel;
   const isSelected = selection?.includes(entity.id);
   const mainImage = getEntityMainImage(entity);
   const hasMarker = entity.marker;

@@ -42,6 +42,12 @@ export default function ToolbarAnnotationInMapEditor() {
 
   // handlers
 
+  function handleNewClick() {
+    dispatch(setNewAnnotation(null));
+    dispatch(setTempAnnotationTemplateLabel(""));
+    setOpenNew(true);
+  }
+
   function handleAnnotationTemplateClick(annotationTemplate) {
     console.log("annotationTemplate", annotationTemplate);
     dispatch(setEnabledDrawingMode(annotationTemplate.type));
@@ -65,7 +71,7 @@ export default function ToolbarAnnotationInMapEditor() {
           annotationTemplates={annotationTemplates}
           spriteImage={spriteImage}
           onClick={handleAnnotationTemplateClick}
-          onNewClick={() => setOpenNew(true)}
+          onNewClick={handleNewClick}
         />
       )}
 

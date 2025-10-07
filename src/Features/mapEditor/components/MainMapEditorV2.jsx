@@ -169,6 +169,7 @@ export default function MainMapEditorV2() {
           dispatch(setSelectedEntityId(null));
           dispatch(setIsEditingEntity(false));
           dispatch(setEditedEntity(null));
+          dispatch(setNewAnnotation(null));
         }
       }
     };
