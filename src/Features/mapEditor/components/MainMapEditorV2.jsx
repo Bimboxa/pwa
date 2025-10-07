@@ -12,7 +12,11 @@ import {
 } from "../mapEditorSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
-import { setSelectedEntityId } from "Features/entities/entitiesSlice";
+import {
+  setSelectedEntityId,
+  setIsEditingEntity,
+  setEditedEntity,
+} from "Features/entities/entitiesSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { setOpenBaseMapSelector } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
