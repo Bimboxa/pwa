@@ -35,16 +35,6 @@ export default function ButtonDownloadMapEditorInPdf({ svgElement }) {
   const isOneBlueprintSelected =
     selectedEntity && selectedEntity?.listingId === listing?.id;
 
-  // handlers
-
-  async function handleClick() {
-    console.log("click");
-    const blob = await getImageFromSvg(svgElement);
-    const url = URL.createObjectURL(blob);
-    const pdf = await imageToPdfAsync({ url });
-    downloadBlob(pdf, baseMap?.name ?? "plan");
-  }
-
   // render
 
   if (

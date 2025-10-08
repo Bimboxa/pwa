@@ -9,7 +9,7 @@ import {
 } from "react";
 import { Rnd } from "react-rnd";
 
-import { Polyline, Pentagon as Polygon } from "@mui/icons-material";
+import { Polyline, Pentagon as Polygon, Rectangle } from "@mui/icons-material";
 
 export default memo(function NodeLegend({
   id = "legend",
@@ -164,6 +164,32 @@ export default memo(function NodeLegend({
               color: fillColor || "#ffffff",
               fontSize: ICON_PX * 0.6,
             }}
+          />
+        </div>
+      );
+    }
+    if (type === "RECTANGLE") {
+      return (
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            background: "white",
+            display: "grid",
+            placeItems: "center",
+            overflow: "hidden",
+            border: `2px solid ${fillColor}`,
+          }}
+        >
+          <Rectangle
+            style={{ fill: fillColor }}
+            // sx={{
+            //   fontSize: 28 * 0.6,
+            //   // ✅ make the color explicit for html-to-image
+            //   color: fillColor, // still good for screen
+            //   "& *": { fill: fillColor }, // <-- forces fill on <path>
+            // }}
           />
         </div>
       );

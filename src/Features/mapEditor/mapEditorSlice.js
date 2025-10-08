@@ -31,6 +31,9 @@ const mapEditorInitialState = {
 
   // polyline
   drawingPolylinePoints: [], // Array of {x, y} in relative coordinates (0-1)
+
+  // rectangle
+  drawingRectanglePoints: [], // Array of {x, y} with max 2 points (diagonal corners)
 };
 
 export const mapEditorSlice = createSlice({
@@ -114,6 +117,21 @@ export const mapEditorSlice = createSlice({
     clearDrawingPolylinePoints: (state) => {
       state.drawingPolylinePoints = [];
     },
+
+    // rectangle
+    setDrawingRectanglePoints: (state, action) => {
+      state.drawingRectanglePoints = action.payload;
+    },
+    addRectanglePoint: (state, action) => {
+      const point = action.payload;
+      // Only allow max 2 points for rectangle
+      if (state.drawingRectanglePoints.length < 2) {
+        state.drawingRectanglePoints.push(point);
+      }
+    },
+    clearDrawingRectanglePoints: (state) => {
+      state.drawingRectanglePoints = [];
+    },
   },
 });
 
@@ -151,6 +169,11 @@ export const {
   setDrawingPolylinePoints,
   addPolylinePoint,
   clearDrawingPolylinePoints,
+
+  // rectangle
+  setDrawingRectanglePoints,
+  addRectanglePoint,
+  clearDrawingRectanglePoints,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;

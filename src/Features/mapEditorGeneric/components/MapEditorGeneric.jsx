@@ -15,6 +15,7 @@ import NodeSvgImage from "./NodeSvgImage";
 import NodeAnnotation from "./NodeAnnotation";
 import NodeLegend from "./NodeLegend";
 import NodePolyline from "./NodePolyline";
+import NodeRectangle from "./NodeRectangle";
 import LayerMarkerTooltip from "Features/mapEditor/components/LayerMarkerTooltip";
 
 import clamp from "Features/misc/utils/clamp";
@@ -26,7 +27,10 @@ import {
 } from "Features/matrix/utils/matrixHelpers";
 
 import { useDispatch } from "react-redux";
-import { addPolylinePoint } from "Features/mapEditor/mapEditorSlice";
+import {
+  addPolylinePoint,
+  addRectanglePoint,
+} from "Features/mapEditor/mapEditorSlice";
 
 const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   let {
@@ -59,6 +63,11 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     onPolylineComplete,
     drawingPolylinePoints, // Array<{x,y}> in relative coords
     newPolylineProps,
+
+    // rectangle
+    onRectangleComplete,
+    drawingRectanglePoints, // Array<{x,y}> with max 2 points
+    newRectangleProps,
   } = props;
 
   // === REFS ===
@@ -797,6 +806,35 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         return;
       }
 
+      // ----- RECTANGLE MODE (2-click drawing) -----
+      if (enabledDrawingMode === "RECTANGLE") {
+        // always use BASE layer for rectangle points
+        const bx = p_inBase.x;
+        const by = p_inBase.y;
+
+        // Clamp to image bounds and convert to relative
+        const ratioX = Math.max(0, Math.min(1, bx / (baseSize.w || 1)));
+        const ratioY = Math.max(0, Math.min(1, by / (baseSize.h || 1)));
+
+        const currentPointCount = drawingRectanglePoints?.length || 0;
+
+        // Add the point
+        dispatch(addRectanglePoint({ x: ratioX, y: ratioY }));
+
+        // If this was the second point, complete the rectangle
+        if (currentPointCount === 1) {
+          // Second click - rectangle is complete
+          const finalPoints = [
+            ...drawingRectanglePoints,
+            { x: ratioX, y: ratioY },
+          ];
+          if (onRectangleComplete) {
+            onRectangleComplete(finalPoints);
+          }
+        }
+        return;
+      }
+
       // ----- OTHER ANNOTATIONS -----
       let ratioX, ratioY;
       if (attachTo === "bg") {
@@ -999,6 +1037,24 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               }}
               onComplete={onPolylineComplete}
             />
+
+            {/* Rectangle drawing/preview */}
+            {enabledDrawingMode === "RECTANGLE" &&
+              drawingRectanglePoints &&
+              drawingRectanglePoints.length > 0 && (
+                <NodeRectangle
+                  rectangle={{
+                    points: drawingRectanglePoints,
+                    ...(newRectangleProps ?? {}),
+                  }}
+                  imageSize={baseSize}
+                  containerK={basePose.k}
+                  worldScale={world.k}
+                  isDrawing={true}
+                  isPreview={drawingRectanglePoints.length < 2}
+                  toBaseFromClient={toBaseFromClient}
+                />
+              )}
 
             {!basePoseIsChanging && (
               <g>

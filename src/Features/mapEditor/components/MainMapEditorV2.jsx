@@ -20,9 +20,15 @@ import {
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { setOpenBaseMapSelector } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
-import { setDrawingPolylinePoints } from "../mapEditorSlice";
+import {
+  setDrawingPolylinePoints,
+  setDrawingRectanglePoints,
+} from "../mapEditorSlice";
 
-import { clearDrawingPolylinePoints } from "Features/mapEditor/mapEditorSlice";
+import {
+  clearDrawingPolylinePoints,
+  clearDrawingRectanglePoints,
+} from "Features/mapEditor/mapEditorSlice";
 
 import useNewEntity from "Features/entities/hooks/useNewEntity";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -127,6 +133,12 @@ export default function MainMapEditorV2() {
     dispatch(setDrawingPolylinePoints(points));
   }
 
+  // state - edited rectangle
+
+  const drawingRectanglePoints = useSelector(
+    (s) => s.mapEditor.drawingRectanglePoints
+  );
+
   // data - func
 
   const createEntity = useCreateEntity();
@@ -165,6 +177,7 @@ export default function MainMapEditorV2() {
           dispatch(setNewAnnotation({}));
           dispatch(setSelectedNode(null));
           dispatch(clearDrawingPolylinePoints());
+          dispatch(clearDrawingRectanglePoints());
         } else {
           dispatch(setSelectedAnnotationId(null));
           dispatch(setMainBaseMapIsSelected(false));
@@ -317,6 +330,43 @@ export default function MainMapEditorV2() {
     }
   }
 
+  // Add rectangle completion handler
+  async function handleRectangleComplete(points) {
+    if (points.length < 2) return;
+
+    try {
+      // Create entity for the rectangle
+      const entity = await createEntity({});
+
+      // Create annotation with rectangle data
+      const annotation = await createAnnotation(
+        {
+          ...newAnnotation,
+          type: "RECTANGLE",
+          points, // Store the points array (2 diagonal corners)
+          entityId: entity?.id,
+          listingId: listingId,
+          baseMapId: mainBaseMap?.id,
+          annotationTemplateId: annotationTemplate?.id,
+        },
+        {
+          listingKey: listing.id,
+          tempAnnotationTemplateLabel,
+        }
+      );
+
+      console.log("[MainMapEditor] new rectangle created", annotation, entity);
+
+      // Reset drawing mode
+      dispatch(setEnabledDrawingMode(null));
+      dispatch(setNewAnnotation({}));
+      dispatch(setSelectedNode(null));
+      dispatch(clearDrawingRectanglePoints()); // Clear rectangle points
+    } catch (error) {
+      console.error("Error creating rectangle:", error);
+    }
+  }
+
   async function handleClick() {
     console.log("click on svg", svgRef.current);
     //const dataUrl = await serializeSvgToPng(svgRef.current);
@@ -389,6 +439,10 @@ export default function MainMapEditorV2() {
         drawingPolylinePoints={drawingPolylinePoints}
         onPolylineComplete={handlePolylineComplete}
         newPolylineProps={{ ...(newAnnotation ?? {}) }}
+        // rectangle
+        drawingRectanglePoints={drawingRectanglePoints}
+        onRectangleComplete={handleRectangleComplete}
+        newRectangleProps={{ ...(newAnnotation ?? {}) }}
         ref={svgRef}
       />
 

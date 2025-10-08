@@ -37,7 +37,9 @@ export default function ToolbarMapEditorLocatedEntities() {
   // helpers - annotation types
 
   const { type } = annotationTemplate ?? {};
-  const annotationTypes = type ? [type] : ["MARKER", "POLYLINE", "TEXT"];
+  const annotationTypes = type
+    ? [type]
+    : ["MARKER", "POLYLINE", "RECTANGLE", "TEXT"];
 
   // helpers
 
@@ -53,6 +55,8 @@ export default function ToolbarMapEditorLocatedEntities() {
         return <ButtonAddText />;
       case "POLYLINE":
         return <ButtonDrawPolylineV2 />;
+      case "RECTANGLE":
+        return <Rectangle />;
     }
   };
 
