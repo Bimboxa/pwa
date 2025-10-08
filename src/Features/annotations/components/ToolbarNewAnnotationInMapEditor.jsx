@@ -14,7 +14,11 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useAnnotationTemplatesBySelectedListing from "../hooks/useAnnotationTemplatesBySelectedListing";
 
 import { Box } from "@mui/material";
-import { LocationPin as Marker, Polyline } from "@mui/icons-material";
+import {
+  LocationPin as Marker,
+  Polyline,
+  Rectangle,
+} from "@mui/icons-material";
 
 import FormVariantToolbar from "Features/form/components/FormVariantToolbar";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
@@ -44,6 +48,7 @@ export default function ToolbarNewAnnotationInMapEditor({ onClose }) {
   const annotationTypes = [
     { key: "MARKER", icon: <Marker /> },
     { key: "POLYLINE", icon: <Polyline /> },
+    { key: "RECTANGLE", icon: <Rectangle /> },
   ];
 
   // helper - existing template
@@ -53,6 +58,8 @@ export default function ToolbarNewAnnotationInMapEditor({ onClose }) {
     listing,
     annotationTemplates,
   });
+
+  console.log("debug_810_annotationTemplate", annotationTemplate);
 
   // helper - disable
 

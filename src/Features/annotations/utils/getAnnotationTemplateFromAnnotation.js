@@ -17,8 +17,12 @@ export default function getAnnotationTemplateFromAnnotation({
     listingKey: listingKey_2,
   });
 
-  const t1 = annotationTemplates?.find(({ code }) => code === code_1);
-  const t2 = annotationTemplates?.find(({ code }) => code === code_2);
+  const t1 = annotationTemplates?.find(
+    ({ code }) => Boolean(code_1) && code === code_1
+  );
+  const t2 = annotationTemplates?.find(
+    ({ code }) => Boolean(code_2) && code === code_2
+  );
 
   return t1 || t2;
 }

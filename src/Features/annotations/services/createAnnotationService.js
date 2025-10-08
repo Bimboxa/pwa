@@ -18,17 +18,17 @@ export default async function createAnnotationService(annotation, options) {
 
   let _annotation;
 
-  if (!updateAnnotationTemplateId) {
+  if (!updateAnnotationTemplateId && annotation?.annotationTemplateId) {
     _annotation = await db.annotations.put(annotation);
   } else {
     //annotation template
     if (tempAnnotationTemplateLabel) {
       const code = getAnnotationTemplateCode({ annotation, listingKey });
+      console.log("debug_810_code", code);
 
-      let annotationTemplate = await db.annotationTemplates
-        .where("code")
-        .equals(code)
-        .first();
+      let annotationTemplate = code
+        ? await db.annotationTemplates.where("code").equals(code).first()
+        : null;
 
       if (!annotationTemplate) {
         annotationTemplate = getNewAnnotationTemplateFromAnnotation({

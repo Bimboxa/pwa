@@ -1,5 +1,6 @@
 import MarkerIcon from "Features/markers/components/MarkerIcon";
 import PolylineIcon from "Features/polylines/components/PolylineIcon";
+import RectangleIcon from "Features/rectangles/components/RectangleIcon";
 
 export default function AnnotationIcon({ spriteImage, annotation, size }) {
   console.log("annotation", annotation);
@@ -11,6 +12,8 @@ export default function AnnotationIcon({ spriteImage, annotation, size }) {
       );
     case "POLYLINE":
       return <PolylineIcon {...annotation} size={size} />;
+    case "RECTANGLE":
+      return <RectangleIcon {...annotation} size={size} />;
     default:
       return <div>-</div>;
   }

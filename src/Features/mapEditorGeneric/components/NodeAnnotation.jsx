@@ -2,6 +2,7 @@ import NodePolygon from "./NodePolygon";
 import NodeText from "./NodeText";
 import NodeMarker from "./NodeMarker";
 import NodePolyline from "./NodePolyline";
+import NodeRectangle from "./NodeRectangle";
 
 export default function NodeAnnotation({
   annotation,
@@ -40,6 +41,9 @@ export default function NodeAnnotation({
 
     case "POLYLINE":
       return NodePolyline({ ...props, polyline: annotation });
+
+    case "RECTANGLE":
+      return NodeRectangle({ ...props, rectangle: annotation });
 
     default:
       return null;
