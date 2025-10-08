@@ -7,6 +7,12 @@ export default function LayerMarkerTooltip({
   mousePos,
   annotationSpriteImage,
 }) {
+  // strings
+
+  const noAdditionalInfoS = "Aucune information supplémentaire";
+
+  // state
+
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   // Update container size
@@ -158,7 +164,7 @@ export default function LayerMarkerTooltip({
             )}
             <Typography variant="subtitle2" sx={{ fontWeight: 600, flex: 1 }}>
               {hoveredMarker.entity?.num ? `#${hoveredMarker.entity.num}` : ""}{" "}
-              {hoveredMarker.entity?.label || "Marker"}
+              {hoveredMarker?.label || "-?-"}
             </Typography>
           </Stack>
         </Box>
@@ -213,7 +219,7 @@ export default function LayerMarkerTooltip({
             }}
           >
             <Typography variant="body2" color="text.secondary">
-              No additional info
+              {noAdditionalInfoS}
             </Typography>
           </Box>
         )}

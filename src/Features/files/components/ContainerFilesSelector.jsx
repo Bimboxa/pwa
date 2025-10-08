@@ -97,7 +97,7 @@ export default function ContainerFilesSelector({
               position: "relative",
               width: 1,
               height: 1,
-              minHeight: "140px",
+              minHeight: "40px",
               py: 1,
               px: 1,
               display: "flex",

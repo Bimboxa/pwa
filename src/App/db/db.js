@@ -1,10 +1,11 @@
 import Dexie from "dexie";
+import "dexie-export-import";
 
 const db = new Dexie("appDB");
 
-db.version(11).stores({
+db.version(12).stores({
   orgaData: "key", // {key,data,dataStructure,file}
-  projects: "id,clientRef",
+  projects: "id,clientRef,__importTag",
 
   projectFiles: "id",
 
@@ -14,9 +15,9 @@ db.version(11).stores({
   blueprints: "id,projectId,scopeId,listingId",
 
   listings: "id,key,uniqueByProject,projectId",
-  entities: "id,listingId,[listingId+createdBy]",
+  entities: "id,projectId,listingId,[listingId+createdBy]",
 
-  maps: "id,listingId,[listingId+createdBy]",
+  maps: "id,projectId,listingId,[listingId+createdBy]",
 
   zonings: "listingId", // {listingId,zonesTree}
   relsZoneEntity: "id,zoneId,listingId,entityId", // {id,zoneId,table,listingId,entityId}
@@ -29,7 +30,7 @@ db.version(11).stores({
   annotations: "id,projectId,baseMapId,listingId,entityId", // annotation = {id,mapId,listingId,entityId,...}
   annotationTemplates: "id,projectId,listingId,code,label", // annotationTemplate = {id,listingId,label} code = listingKey+MARKER+...
 
-  files: "fileName,listingId,itemId", // {fileName, listingId, itemId, fileType} fileType: "IMAGE", "VIDEO",...
+  files: "fileName,projectId,listingId,itemId", // {fileName, projectId, listingId, itemId, fileType} fileType: "IMAGE", "VIDEO",...
   relationsEntities: "id,listingId,sourceEntityId,targetEntityId,relationType",
   reports: "id,listingId", // {id,listingId}
   syncFiles: "path,scopeId", // {path,updatedAt,updatedAtRemote,syncAt,syncFileType,scopeId,table,config,pathToItemTemplate} // updatedAt = local updates when one table is updated.// syncFileType: "PROJECT", "SCOPE", "LISTING","ENTITY", "FILE" => related to syncConfig.

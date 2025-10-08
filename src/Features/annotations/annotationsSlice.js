@@ -6,6 +6,7 @@ import theme from "Styles/theme";
 const annotationsInitialState = {
   //
   annotationsUpdatedAt: null,
+  annotationTemplatesUpdatedAt: null,
   //
   selectedAnnotationId: null,
   //
@@ -34,6 +35,9 @@ export const annotationsSlice = createSlice({
     triggerAnnotationsUpdate: (state, action) => {
       state.annotationsUpdatedAt = Date.now();
     },
+    triggerAnnotationTemplatesUpdate: (state, action) => {
+      state.annotationTemplatesUpdatedAt = Date.now();
+    },
     //
     setNewAnnotation: (state, action) => {
       state.newAnnotation = action.payload;
@@ -58,6 +62,7 @@ export const annotationsSlice = createSlice({
 export const {
   setSelectedAnnotationId,
   triggerAnnotationsUpdate,
+  triggerAnnotationTemplatesUpdate,
   //
   createAnnotation,
   //

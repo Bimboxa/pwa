@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+
+import { setSelectedProjectId } from "Features/projects/projectsSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -9,6 +11,8 @@ import DialogGeneric from "Features/layout/components/DialogGeneric";
 import SectionSelectProject from "Features/projectSelector/components/SectionSelectProject";
 
 export default function ButtonDialogOnboardingSelectProject() {
+  const dispatch = useDispatch();
+
   // data
 
   const appConfig = useAppConfig();
@@ -33,6 +37,11 @@ export default function ButtonDialogOnboardingSelectProject() {
     setOpen(true);
   }
 
+  function handleProjectSelected(project) {
+    setOpen(false);
+    if (project) dispatch(setSelectedProjectId(project.id));
+  }
+
   return (
     <>
       <ButtonGeneric
@@ -49,7 +58,7 @@ export default function ButtonDialogOnboardingSelectProject() {
           width="300px"
           vh="70"
         >
-          <SectionSelectProject onProjectSelected={() => setOpen(false)} />
+          <SectionSelectProject onProjectSelected={handleProjectSelected} />
         </DialogGeneric>
       )}
     </>

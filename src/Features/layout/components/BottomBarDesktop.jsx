@@ -7,6 +7,7 @@ import ButtonDialogAppConfig from "Features/appConfig/components/ButtonDialogApp
 import HelperClickInBgPosition from "Features/mapEditor/components/HelperClickInBgPosition";
 import useHelperMessageInBottomBar from "Features/mapEditor/hooks/useHelperMessageInBottomBar";
 import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
+import ButtonsKrto from "Features/krtoFile/components/ButtonsKrto";
 
 export default function BottomBarDesktop() {
   // data
@@ -41,8 +42,9 @@ export default function BottomBarDesktop() {
         </Box>
       )}
 
-      <Box>
+      <Box sx={{ display: "flex" }}>
         <HelperClickInBgPosition />
+        <ButtonsKrto />
       </Box>
     </Box>
   );

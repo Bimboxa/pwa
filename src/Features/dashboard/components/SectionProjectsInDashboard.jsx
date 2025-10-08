@@ -57,8 +57,10 @@ export default function SectionProjectsInDashboard() {
   function handleProjectSelected(project) {
     console.log("selected project", project);
     setOpen(false);
-    dispatch(setSelectedProjectId(project.id));
-    navigate("/");
+    if (project) {
+      dispatch(setSelectedProjectId(project?.id));
+      navigate("/");
+    }
   }
 
   // return
