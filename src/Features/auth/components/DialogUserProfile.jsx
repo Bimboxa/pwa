@@ -18,7 +18,7 @@ export default function DialogUserProfile({ open, onClose }) {
 
   const descriptionS = "Modifiez le nom utilisé comme auteur des plans.";
 
-  const placeholder = "ex: Paul MAGNES";
+  const placeholder = "Prénom Nom";
 
   const saveS = "Modifier";
 

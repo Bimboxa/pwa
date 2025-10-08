@@ -2,7 +2,11 @@ import { useState } from "react";
 
 import { useDispatch } from "react-redux";
 
-import { setSelectedProjectId } from "Features/projects/projectsSlice";
+import {
+  setSelectedProjectId,
+  triggerProjectsUpdate,
+} from "Features/projects/projectsSlice";
+import { setOnboardingIsActive } from "Features/onboarding/onboardingSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useProjects from "Features/projects/hooks/useProjects";
@@ -13,10 +17,12 @@ import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBa
 import { Box, TextField, Typography } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
-import getFoundItems from "Features/search/getFoundItems";
-
 import ListItemsGeneric from "Features/layout/components/ListItemsGeneric";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
+import ContainerFilesSelector from "Features/files/components/ContainerFilesSelector";
+
+import getFoundItems from "Features/search/getFoundItems";
+import loadKrtoFile from "Features/krtoFile/services/loadKrtoFile";
 
 export default function SectionSelectProject({ onProjectSelected }) {
   const dispatch = useDispatch();
@@ -88,6 +94,17 @@ export default function SectionSelectProject({ onProjectSelected }) {
     if (onProjectSelected) onProjectSelected(newProject);
   }
 
+  async function handleLoadKrtoFile(files) {
+    const file = files?.[0];
+    if (file) {
+      console.log("file", file);
+      const project = await loadKrtoFile(file);
+      dispatch(triggerProjectsUpdate());
+      dispatch(setOnboardingIsActive(false));
+      if (onProjectSelected) onProjectSelected(project);
+    }
+  }
+
   // render
 
   return (
@@ -110,6 +127,15 @@ export default function SectionSelectProject({ onProjectSelected }) {
           value={projectRef}
           onChange={handleProjectRefChange}
         />
+      </Box>
+      <Box sx={{ width: 1, height: 150, p: 1 }}>
+        <Box sx={{ border: (theme) => `1px dashed ${theme.palette.divider}` }}>
+          <ContainerFilesSelector
+            callToActionLabel="Fichier .krto"
+            accept=".krto"
+            onFilesChange={handleLoadKrtoFile}
+          />
+        </Box>
       </Box>
 
       <Box

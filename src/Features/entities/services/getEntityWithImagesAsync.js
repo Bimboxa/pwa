@@ -1,6 +1,8 @@
 import db from "App/db/db";
 
 export default async function getEntityWithImagesAsync(entity) {
+  if (!entity) return {};
+
   let hasImages;
   const entityWithImages = { ...entity };
   const entriesWithImages = Object.entries(entity).filter(

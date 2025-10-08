@@ -18,7 +18,7 @@ export default function DialogSignin({ open, onClose }) {
 
   const descriptionS = "Précisez le nom utilisé comme auteur des plans.";
 
-  const placeholder = "ex: Paul MAGNES";
+  const placeholder = "Prénom Nom";
 
   const saveS = "Enregistrer";
 

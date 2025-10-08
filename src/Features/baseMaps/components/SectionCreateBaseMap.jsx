@@ -14,7 +14,7 @@ export default function SectionCreateBaseMap({ onClose }) {
 
   // strings
 
-  const title = "Nouveau fond de plan";
+  const title = "Nouveau fond de plan v2";
   const createS = "Créer";
 
   // data

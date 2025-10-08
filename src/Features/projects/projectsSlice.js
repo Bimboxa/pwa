@@ -44,6 +44,9 @@ export const projectsSlice = createSlice({
     setIsEditingProject: (state, action) => {
       state.isEditingProject = action.payload;
     },
+    triggerProjectsUpdate: (state) => {
+      state.projectsUpdatedAt = Date.now();
+    },
   },
 });
 
@@ -57,6 +60,8 @@ export const {
   setNewProject,
   setEditedProject,
   setIsEditingProject,
+  //
+  triggerProjectsUpdate,
   //
 } = projectsSlice.actions;
 

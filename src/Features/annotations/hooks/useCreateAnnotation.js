@@ -1,6 +1,9 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { triggerAnnotationsUpdate } from "../annotationsSlice";
+import {
+  triggerAnnotationsUpdate,
+  triggerAnnotationTemplatesUpdate,
+} from "../annotationsSlice";
 
 import createAnnotationService from "../services/createAnnotationService";
 
@@ -23,6 +26,7 @@ export default function useCreateAnnotation() {
 
     await createAnnotationService(_annotation, options);
     dispatch(triggerAnnotationsUpdate());
+    dispatch(triggerAnnotationTemplatesUpdate());
 
     return _annotation;
   };

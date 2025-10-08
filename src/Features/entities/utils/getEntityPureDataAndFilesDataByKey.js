@@ -49,6 +49,7 @@ export default function getEntityPureDataAndFilesDataByKey(entity, options) {
       const fileData = {
         fileName,
         file: value.file,
+        projectId,
         listingId,
         createdBy,
         createdAt,
