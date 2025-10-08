@@ -4,11 +4,13 @@ import {
   ListItemButton,
   ListItemText,
   ListItemAvatar,
+  Box,
+  Typography,
   Avatar,
   IconButton,
 } from "@mui/material";
 import { lighten } from "@mui/material/styles";
-import { NearMe as Focus } from "@mui/icons-material";
+import { NearMe as Focus, Image } from "@mui/icons-material";
 import theme from "Styles/theme";
 
 import AnnotationIcon from "Features/annotations/components/AnnotationIcon";
@@ -70,6 +72,8 @@ export default function ListItemEntityVariantDefault({
         onClick={handleClick}
         selected={isSelected}
         sx={{
+          display: "flex",
+          px: 1,
           "&:hover": {
             backgroundColor: lighten(listingColor, 0.9),
           },
@@ -82,17 +86,27 @@ export default function ListItemEntityVariantDefault({
           },
         }}
       >
-        {mainImage && (
-          <ListItemAvatar>
-            <Avatar src={mainImage.url} />
-          </ListItemAvatar>
+        {mainImage ? (
+          <Avatar src={mainImage?.url} sx={{ borderRadius: "4px", mr: 1 }} />
+        ) : (
+          <Avatar sx={{ borderRadius: "4px", mr: 1 }}>
+            <Image />
+          </Avatar>
         )}
-        {annotation && (
-          <ListItemIcon>
-            <AnnotationIcon annotation={annotation} spriteImage={spriteImage} />
-          </ListItemIcon>
-        )}
-        <ListItemText primary={label} sx={{ fontStyle }} secondary={subLabel} />
+
+        <Box>
+          <Typography variant="body2">{label}</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            {annotation && (
+              <AnnotationIcon
+                annotation={annotation}
+                spriteImage={spriteImage}
+                size={18}
+              />
+            )}
+            <Typography variant="caption">{subLabel}</Typography>
+          </Box>
+        </Box>
       </ListItemButton>
     </ListItem>
   );
