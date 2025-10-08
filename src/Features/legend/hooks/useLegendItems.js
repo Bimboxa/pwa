@@ -18,10 +18,12 @@ export default function useLegendItems() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const listings = useListings({ filterByProjectId: projectId });
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+  const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
 
   const annotationTemplates = useAnnotationTemplates();
   const annotations = useAnnotations({
     filterByBaseMapId: baseMapId,
+    excludeListingsIds: hiddenListingsIds,
   });
 
   // helpers - annotationTemplateById
