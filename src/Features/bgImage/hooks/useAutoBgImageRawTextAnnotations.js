@@ -26,12 +26,12 @@ export default function useAutoBgImageRawTextAnnotations() {
   useEffect(() => {
     const result = { ...oldRawTextAnnotations };
     //
-    bgImage?.textAnnotations.forEach(({ key, mappedTo }) => {
+    bgImage?.textAnnotations?.forEach(({ key, mappedTo }) => {
       if (!result[key] && mappedTo) {
-        result[key] = dataMapping.object[mappedTo];
+        result[key] = dataMapping?.object[mappedTo];
       }
     });
     //
     dispatch(setBgImageRawTextAnnotations(result));
-  }, [dataMapping.hash]);
+  }, [dataMapping?.hash]);
 }
