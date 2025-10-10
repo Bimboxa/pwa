@@ -1,8 +1,11 @@
 import downloadBlob from "Features/files/utils/downloadBlob";
 import generateItemsGridPdf from "./generateItemsGridPdf";
+import generateItemsGridPdfVariantH from "./generateItemsGridPdfVariantH";
 
 export default async function createIssuesPdfReport(issues, opts = {}) {
   // helpers issues => items
+
+  const variant = "VARIANT_H";
 
   const items = issues.map((issue) => {
     return {
@@ -17,11 +20,19 @@ export default async function createIssuesPdfReport(issues, opts = {}) {
   });
 
   console.log("[createIssuesPdfReport] items", items);
-  const blob = await generateItemsGridPdf(items, {
-    pageSize: "A4",
-    orientation: "portrait",
-    spriteImage: opts.spriteImage,
-  });
+
+  let blob;
+  if (variant === "VARIANT_H") {
+    blob = await generateItemsGridPdfVariantH(items, {
+      spriteImage: opts.spriteImage,
+    });
+  } else {
+    blob = await generateItemsGridPdf(items, {
+      pageSize: "A4",
+      orientation: "portrait",
+      spriteImage: opts.spriteImage,
+    });
+  }
 
   return blob;
 

@@ -1,9 +1,9 @@
 name: "Default"
-version: "29/09/2025"
+version: "08/10/2025 14:00"
 isDefault: true
 
 # APP
-appName: "Bimboxa"
+appName: "Krto"
 
 # COLORS
 
@@ -60,7 +60,7 @@ strings:
     noScope: "Aucun Krto"
 
   listing:
-    namePlural: "Modules"
+    namePlural: "Listes"
     locatedEntities: "Annotations"
 
   presetConfig:
@@ -100,57 +100,34 @@ orgaData:
 # FEATURES
 
 features:
-  entityModels:
+  entityModels: # used in create listing dialog
     keys:
       - baseMap
+      - annotation
       - issue
       - blueprint
+
+  entityModelTypes:
+    - type: BASE_MAP
+      name: Fonds de plan
+    - type: LOCATED_ENTITY
+      name: Calques
+    - type: BLUEPRINT
+      name: Exports
+
   bgImages:
     options:
-      - key: BASIC
+      - key: DEFAULT
         url: https://public.media.bimboxa.com/bg_image_A4_150dpi_default.png
         name: "A4 - 150dpi"
         width: 1740
         height: 1240
         bbox: [70, 70, 1670, 1170]
         isDefault: true
-      - key: DEFAULT
-        # url: https://public.media.bimboxa.com/bg_image_A4_150dpi_etandex_wS9kwOYWr2ltTF9l2L-bu.png
-        url: https://public.media.bimboxa.com/bg_image_A4_150dpi_etandex_2409wOYWr2ltTF9l2L-bu.png
-        name: "A4 - 150dpi - Cartouche Etandex"
-        width: 1740
-        height: 1240
-        bbox: [75, 215, 1600, 1100]
-        textAnnotations:
-          - key: projectName
-            label: "Chantier"
-            position: [570, 89]
-            fontSize: 18
-            mappedTo: projectName
-          - key: projectRef
-            label: "Réf. interne"
-            position: [1380, 89]
-            fontSize: 18
-            mappedTo: projectClientRef
-          - key: title
-            label: "Titre"
-            position: [570, 130]
-            fontSize: 18
-            fontWeight: "bold"
-            mappedTo: blueprintTitle
-          - key: authorName
-            label: "Auteur"
-            position: [1380, 129]
-            fontSize: 18
-            mappedTo: authorName
-          - key: date
-            label: "Date"
-            position: [1380, 171]
-            fontSize: 18
-            mappedTo: todayS
 
   presetScopes:
     templatesImageUrl: https://public.media.bimboxa.com/scope_templates_etandex.gif
+
   annotations:
     spriteImages:
       - key: DEFAULT
@@ -209,7 +186,7 @@ entityModelsObject:
 
   baseMap:
     key: baseMap
-    name: Fond de plan
+    name: Fonds de plan
     type: BASE_MAP
     defaultTable: baseMaps
     defaultColor: *purple700
@@ -236,6 +213,7 @@ entityModelsObject:
 
   annotation:
     key: annotation
+    name: Repérage
     type: LOCATED_ENTITY
     defaultTable: entities
     defaultIconKey: annotation
@@ -243,14 +221,31 @@ entityModelsObject:
     defaultSpriteImageKey: DEFAULT
     strings:
       labelNew: Nouvelle annotation
-    labelKey: text
+    labelKey: num
     fieldsObject:
+      num:
+        key: num
+        type: text
+        label: Numéro
+        options:
+          showAsSection: true
+          increment: auto
       text:
         key: text
         type: text
         label: Description
         options:
+          showAsSection: true
+          fullWidth: true
           multiline: true
+      image:
+        key: image
+        type: image
+        label: Image
+        options:
+          autoFocus: true
+          variant: auto
+          maxSize: 200
 
   annotationTemplate:
     key: annotationTemplate
@@ -313,13 +308,21 @@ entityModelsObject:
 
   issue:
     key: issue
-    name: Observation
+    name: Observations
     type: LOCATED_ENTITY
     defaultTable: entities
     strings:
       labelNew: Nouvelle observation
-    labelKey: text
+    labelKey: num
+    subLabelKey: text
     fieldsObject:
+      num:
+        key: num
+        type: text
+        label: Numéro
+        options:
+          showAsSection: true
+          increment: auto
       text:
         key: text
         type: text
@@ -352,9 +355,10 @@ presetListingsObject:
     iconKey: map
     canCreateItem: true
 
-  annotations:
-    key: annotations
-    name: Annotations
+  freeAnnotations:
+    key: freeAnnotations
+    name: Annotations libres
+    description: Ajouter librement des repères, lignes ou surfaces sur un fond de plan.
     entityModelKey: annotation
     table: entities
     color: *orange300
@@ -364,20 +368,32 @@ presetListingsObject:
       order: desc
     spriteImageKey: DEFAULT
     canCreateItem: true
+    #annotationTemplatesListingKey: templates-1
 
   issues:
     key: issues
-    name: Observations
+    name: Observations (réception de support)
     description: "Ex: Gaine annelée NC, fissure, eau stagnante,..."
     entityModelKey: issue
     table: entities
-    color: *blue700
+    color: *red500
     iconKey: info
     sortBy:
       key: num
       order: desc
     spriteImageKey: DEFAULT
     annotationTemplatesListingKey: templates-1
+    canCreateItem: true
+
+  picObjects:
+    key: picObjects
+    name: Objets pour PIC
+    description: Barrière de chantier, roulotte, zone d'accès, etc.
+    entityModelKey: issue
+    table: entities
+    color: *green500
+    iconKey: shapes
+    annotationTemplatesListingKey: templates-2
     canCreateItem: true
 
   photos:
@@ -421,6 +437,41 @@ presetListingsObject:
           fillColor: *purple500
           label: Fissure
 
+  templates-2:
+    key: templates-2
+    name: Bibliothèque PIC
+    entityModelKey: annotationTemplate
+    table: annotationTemplates
+    color: *blue700
+    iconKey: legend
+    spriteImageKey: DEFAULT
+    initialEntities:
+      sortedItems:
+        - type: POLYLINE
+          fillColor: "#E6763F"
+          strokeColor: "#E6763F"
+          label: Roulotte de chantier
+          closeLine: true
+        - type: POLYLINE
+          fillColor: "#4BA6F0"
+          strokeColor: "#4BA6F0"
+          label: WC de chantier
+          closeLine: true
+        - type: POLYLINE
+          fillColor: "#489F64"
+          strokeColor: "#489F64"
+          label: Benne de déchets
+          closeLine: true
+        - type: POLYLINE
+          fillColor: "#E93E29"
+          strokeColor: "#E93E29"
+          label: Zone maintenue libre
+          closeLine: true
+        - type: POLYLINE
+          fillColor: "#3477BF"
+          strokeColor: "#3477BF"
+          label: Barrière de chantier
+
   blueprints:
     key: blueprints
     name: Exports
@@ -434,13 +485,26 @@ presetListingsObject:
 
 presetScopesSortedKeys:
   - reception
+  - pic
   - other
 
 presetScopesObject:
+  all:
+    key: all
+    name: Toutes les listes
+    listings:
+      - picObjects
+      - issues
+      - freeAnnotations
+      - photos
+
   pic:
     key: pic
     name: "PIC"
     description: "Plan d'installations de chantier"
+    listings:
+      - picObjects
+      - photos
 
   reception:
     key: reception

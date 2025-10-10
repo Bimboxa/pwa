@@ -1,10 +1,13 @@
 import downloadBlob from "Features/files/utils/downloadBlob";
 import generateItemsGridPdf from "./generateItemsGridPdf";
+import generateItemsGridPdfVariantH from "./generateItemsGridPdfVariantH";
 
 export default async function createAnnotationsPdfReport(
   annotations,
   opts = {}
 ) {
+  const variant = "VARIANT_V";
+
   // helpers issues => items
 
   let items = annotations.map((annotation) => {
@@ -24,18 +27,25 @@ export default async function createAnnotationsPdfReport(
   });
 
   console.log("[createIssuesPdfReport] items", items);
-  const blob = await generateItemsGridPdf(items, {
-    pageSize: "A4",
-    orientation: "portrait",
-    spriteImage: opts.spriteImage,
-    chipFontSize: 10,
-    chipBorder: 1,
-    overlayIconSize: 12,
-    fontSizes: {
-      label: 11, // bold “#num label” in the comments box
-      description: 11, // description lines in the comments box
-    },
-  });
+  let blob;
+  if (variant === "VARIANT_H") {
+    blob = await generateItemsGridPdfVariantH(items, {
+      spriteImage: opts.spriteImage,
+    });
+  } else {
+    blob = await generateItemsGridPdf(items, {
+      pageSize: "A4",
+      orientation: "portrait",
+      spriteImage: opts.spriteImage,
+      chipFontSize: 10,
+      chipBorder: 1,
+      overlayIconSize: 12,
+      fontSizes: {
+        label: 11, // bold “#num label” in the comments box
+        description: 11, // description lines in the comments box
+      },
+    });
+  }
 
   return blob;
 
