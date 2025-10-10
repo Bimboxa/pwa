@@ -115,7 +115,7 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
                 }}
               >
                 <Typography
-                  sx={{ fontSize: 10 }}
+                  sx={{ fontSize: "10px !important" }}
                   align="center"
                   color="grey.300"
                 >

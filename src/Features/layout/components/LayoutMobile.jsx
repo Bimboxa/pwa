@@ -10,6 +10,7 @@ import TopBar from "./TopBar";
 import SectionViewer from "./SectionViewer";
 import BottomBarMobile from "./BottomBarMobile";
 import ListPanel from "Features/listPanel/components/ListPanel";
+import PanelListingContainerWithVerticalSelector from "Features/listings/components/PanelListingContainerWithVerticalSelector";
 import PanelChatContainer from "./PanelChatContainer";
 import PanelShowable from "./PanelShowable";
 import DialogAppConfig from "Features/appConfig/components/DialogAppConfig";
@@ -30,7 +31,7 @@ export default function LayoutMobile() {
 
   // helpers
 
-  const showViewer = viewModeInMobile === "BASE_MAP";
+  const showViewer = viewModeInMobile === "MAP";
   const showList = viewModeInMobile === "LIST";
 
   const transform = openPanelListItem
@@ -62,32 +63,11 @@ export default function LayoutMobile() {
               bottom: bottomBarHeight,
             }}
           >
-            <ListPanel />
+            <PanelListingContainerWithVerticalSelector />
           </PanelShowable>
         </BoxFlexVStretch>
         <BottomBarMobile />
         <PanelChatContainer />
-
-        {openPanelListItem && (
-          <Box
-            sx={{
-              position: "fixed",
-              top: 0,
-              bottom: 0,
-              left: 0,
-              width: 1,
-              //transform,
-              zIndex: 100,
-              boxSizing: "border-box",
-              bgcolor: "background.default",
-              display: "flex",
-              flexDirection: "column",
-              pb: 2,
-            }}
-          >
-            <PanelListItem />
-          </Box>
-        )}
       </BoxFlexV>
     </>
   );

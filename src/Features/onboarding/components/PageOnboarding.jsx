@@ -72,6 +72,7 @@ export default function PageOnboarding() {
           flexDirection: "column",
           alignItems: "center",
           gap: 2,
+          zIndex: 1,
         }}
       >
         <Typography

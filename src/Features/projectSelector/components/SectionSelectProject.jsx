@@ -16,6 +16,7 @@ import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBa
 
 import { Box, TextField, Typography } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import { ArrowDropDown as Down, ArrowDropUp as Up } from "@mui/icons-material";
 
 import ListItemsGeneric from "Features/layout/components/ListItemsGeneric";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
@@ -23,6 +24,7 @@ import ContainerFilesSelector from "Features/files/components/ContainerFilesSele
 
 import getFoundItems from "Features/search/getFoundItems";
 import loadKrtoFile from "Features/krtoFile/services/loadKrtoFile";
+import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 export default function SectionSelectProject({ onProjectSelected }) {
   const dispatch = useDispatch();
@@ -30,11 +32,13 @@ export default function SectionSelectProject({ onProjectSelected }) {
   // strings
 
   const existingProjectsS = "Projets existants";
+  const moreS = "Plus";
 
   // state
 
   const [projectRef, setProjectRef] = useState("");
   const [projectName, setProjectName] = useState("");
+  const [open, setOpen] = useState(false);
 
   // data
 
@@ -128,15 +132,6 @@ export default function SectionSelectProject({ onProjectSelected }) {
           onChange={handleProjectRefChange}
         />
       </Box>
-      <Box sx={{ width: 1, height: 150, p: 1 }}>
-        <Box sx={{ border: (theme) => `1px dashed ${theme.palette.divider}` }}>
-          <ContainerFilesSelector
-            callToActionLabel="Fichier .krto"
-            accept=".krto"
-            onFilesChange={handleLoadKrtoFile}
-          />
-        </Box>
-      </Box>
 
       <Box
         sx={{
@@ -164,6 +159,35 @@ export default function SectionSelectProject({ onProjectSelected }) {
           </Box>
         </BoxFlexVStretch>
       </Box>
+
+      <Box
+        sx={{
+          width: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "right",
+          px: 1,
+        }}
+      >
+        <ButtonGeneric
+          onClick={() => setOpen(!open)}
+          startIcon={open ? <Up /> : <Down />}
+        />
+      </Box>
+
+      {open && (
+        <Box sx={{ width: 1, height: 150, p: 1 }}>
+          <Box
+            sx={{ border: (theme) => `1px dashed ${theme.palette.divider}` }}
+          >
+            <ContainerFilesSelector
+              callToActionLabel="Fichier .krto"
+              accept=".krto"
+              onFilesChange={handleLoadKrtoFile}
+            />
+          </Box>
+        </Box>
+      )}
 
       <ButtonInPanelV2
         label={createS}

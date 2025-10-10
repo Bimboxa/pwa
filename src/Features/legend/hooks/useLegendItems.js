@@ -40,7 +40,7 @@ export default function useLegendItems() {
     const template = annotationTemplateById[templateId];
     if (!idsMap[templateId]) {
       idsMap[templateId] = annotation;
-      const { iconKey, fillColor, strokeColor, type } = annotation;
+      const { iconKey, fillColor, strokeColor, type, closeLine } = annotation;
       legendItems.push({
         id: templateId,
         type,
@@ -48,6 +48,7 @@ export default function useLegendItems() {
         strokeColor,
         fillColor,
         label: template?.label ?? "A définir",
+        closeLine,
       });
     }
   });

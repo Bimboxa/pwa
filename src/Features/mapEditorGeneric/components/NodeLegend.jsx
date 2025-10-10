@@ -128,7 +128,7 @@ export default memo(function NodeLegend({
             width: ICON_PX,
             height: ICON_PX,
             borderRadius: ICON_PX / 2,
-            background: fillColor ?? "white",
+            background: "white",
             display: "grid",
             placeItems: "center",
             overflow: "hidden",
@@ -152,7 +152,8 @@ export default memo(function NodeLegend({
             width: ICON_PX,
             height: ICON_PX,
             borderRadius: ICON_PX / 2,
-            background: fillColor ?? "white",
+            //background: fillColor ?? "white",
+            background: "white",
             display: "grid",
             placeItems: "center",
             overflow: "hidden",
@@ -182,15 +183,7 @@ export default memo(function NodeLegend({
             border: `2px solid ${fillColor}`,
           }}
         >
-          <Rectangle
-            style={{ fill: fillColor }}
-            // sx={{
-            //   fontSize: 28 * 0.6,
-            //   // ✅ make the color explicit for html-to-image
-            //   color: fillColor, // still good for screen
-            //   "& *": { fill: fillColor }, // <-- forces fill on <path>
-            // }}
-          />
+          <Rectangle style={{ fill: fillColor }} />
         </div>
       );
     }

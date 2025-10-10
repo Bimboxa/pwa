@@ -19,7 +19,7 @@ export default function LayerMapEditorMobile() {
       >
         <IconButtonListingSelector />
       </Box>
-      <Box
+      {/* <Box
         sx={{
           position: "absolute",
           left: "50%",
@@ -29,7 +29,7 @@ export default function LayerMapEditorMobile() {
         }}
       >
         <ButtonSelectorBaseMapInMapEditor />
-      </Box>
+      </Box> */}
 
       {/* <Box
         sx={{
