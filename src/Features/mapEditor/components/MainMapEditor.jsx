@@ -10,6 +10,7 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useAutoLoadMarkersInMapEditor from "../hooks/useAutoLoadMarkersInMapEditor";
 import useLoadedMainBaseMap from "../hooks/useLoadedMainBaseMap";
 import useAutoSelectMainBaseMap from "../hooks/useAutoSelectMainBaseMap";
+import useIsMobile from "Features/layout/hooks/useIsMobile";
 
 import { Box } from "@mui/material";
 
@@ -42,6 +43,7 @@ export default function MainMapEditor() {
 
   // data
 
+  const isMobile = useIsMobile();
   const loadedMainBaseMap = useLoadedMainBaseMap();
   const { value: baseMaps } = useBaseMaps();
   const showLayerScreenCursor = useSelector(
@@ -162,7 +164,7 @@ export default function MainMapEditor() {
         <LayerScreenCursor containerEl={containerRef.current} />
       )}
       {/*<DraggableFabMarker />*/}
-      <BlockEntityMarker top={16} right={16} />
+      {isMobile && <BlockEntityMarker top={16} right={16} />}
       <div
         id="container"
         ref={containerRef}

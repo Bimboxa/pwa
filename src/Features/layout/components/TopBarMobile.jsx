@@ -18,6 +18,7 @@ export default function TopBarMobile() {
         justifyContent: "space-between",
         alignItems: "center",
         bgcolor: "white",
+        borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
       }}
     >
       <TopBarBreadcrumbs />
