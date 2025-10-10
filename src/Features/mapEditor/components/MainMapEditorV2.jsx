@@ -418,8 +418,9 @@ export default function MainMapEditorV2() {
         outline: "none", // Remove focus outline since this is a container
       }}
     >
-      {isMobile && <BlockEntityMarker top={16} right={16} />}
+      {/* {isMobile && <BlockEntityMarker top={16} right={16} />} */}
       <MapEditorGeneric
+        isMobile={isMobile}
         baseMapImageUrl={mainBaseMap?.image?.imageUrlClient}
         baseMapPoseInBg={basePoseInBg}
         onBaseMapPoseInBgChange={(pose) => dispatch(setBaseMapPoseInBg(pose))}

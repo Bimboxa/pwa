@@ -58,7 +58,21 @@ export default function DraggableFabMarker({ bgcolor, onDropped }) {
       };
     }
 
-    if (onDropped) onDropped({ x: pointer.x, y: pointer.y });
+    const stage = editor.mapEditor.stage;
+    const pointInStage = getPointerPositionInStage(pointer, stage, {
+      coordsInWindow: true,
+    });
+    const x = pointInStage.x / loadedMainBaseMap.imageWidth;
+    const y = pointInStage.y / loadedMainBaseMap.imageHeight;
+
+    const newMarker = {
+      id: nanoid(),
+      x,
+      y,
+      mapId: loadedMainBaseMap.id,
+    };
+
+    if (onDropped) onDropped({ x, y, mapId: newMarker.mapId });
   }
 
   return (

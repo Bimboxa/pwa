@@ -17,6 +17,7 @@ import NodeLegend from "./NodeLegend";
 import NodePolyline from "./NodePolyline";
 import NodeRectangle from "./NodeRectangle";
 import LayerMarkerTooltip from "Features/mapEditor/components/LayerMarkerTooltip";
+import DraggableFabMarker from "Features/markers/components/DraggableFabMarker";
 
 import clamp from "Features/misc/utils/clamp";
 import {
@@ -34,6 +35,7 @@ import {
 
 const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   let {
+    isMobile,
     bgImageUrl,
     baseMapImageUrl,
     baseMapPoseInBg, // {x:0,y:0,k:1,r:0}, pose of baseMap in bg local coords.
@@ -748,6 +750,13 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     ]
   );
 
+  const onMarkerDropped = useCallback(
+    (event) => {
+      console.log("dropped", event);
+    },
+    [screenToBgLocal, screenToBaseLocal]
+  );
+
   const onSvgClick = useCallback(
     (e) => {
       if (isPanning || isPinching) return;
@@ -926,6 +935,19 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         cursor,
       }}
     >
+      {isMobile && (
+        <Box
+          sx={{
+            position: "absolute",
+            right: "8px",
+            top: "8px",
+            zIndex: 2,
+          }}
+        >
+          <DraggableFabMarker bgcolor={"red"} onDropped={onMarkerDropped} />
+        </Box>
+      )}
+
       {/* Global controls */}
       <Box
         sx={{
