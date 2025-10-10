@@ -44,7 +44,7 @@ export default function BlockStartButtons({ isMobile, onShowCreateData }) {
         onClick={handleStartOffline}
         color="secondary"
       >
-        <Typography noWrap>{startOfflineS}</Typography>
+        <Typography noWrap={!isMobile}>{startOfflineS}</Typography>
       </Button>
 
       {/* <Button
