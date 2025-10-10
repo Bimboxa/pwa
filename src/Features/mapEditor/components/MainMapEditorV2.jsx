@@ -30,6 +30,7 @@ import {
   clearDrawingRectanglePoints,
 } from "Features/mapEditor/mapEditorSlice";
 
+import useIsMobile from "Features/layout/hooks/useIsMobile";
 import useNewEntity from "Features/entities/hooks/useNewEntity";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -57,6 +58,7 @@ import ScreenNoBaseMap from "Features/mapEditor/components/ScreenNoBaseMap";
 import MapEditorGeneric from "Features/mapEditorGeneric/components/MapEditorGeneric";
 import LayerMapEditor from "./LayerMapEditor";
 import LayerScreenCursor from "./LayerScreenCursor";
+import BlockEntityMarker from "Features/markers/components/BlockEntityMarker";
 
 import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
@@ -69,6 +71,8 @@ export default function MainMapEditorV2() {
   const svgRef = useRef();
 
   // data
+
+  const isMobile = useIsMobile();
 
   const openBaseMapSelector = useSelector(
     (s) => s.mapEditor.openBaseMapSelector
@@ -414,6 +418,7 @@ export default function MainMapEditorV2() {
         outline: "none", // Remove focus outline since this is a container
       }}
     >
+      {isMobile && <BlockEntityMarker top={16} right={16} />}
       <MapEditorGeneric
         baseMapImageUrl={mainBaseMap?.image?.imageUrlClient}
         baseMapPoseInBg={basePoseInBg}

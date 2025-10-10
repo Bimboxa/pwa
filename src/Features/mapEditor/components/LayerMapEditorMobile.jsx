@@ -4,8 +4,9 @@ import { Box } from "@mui/material";
 // import SelectorMapInMapEditor from "Features/baseMaps/components/SelectorMapInMapEditor";
 import IconButtonListingSelector from "Features/listings/components/IconButtonListingSelector";
 import ButtonSelectorBaseMapInMapEditor from "Features/baseMaps/components/ButtonSelectorBaseMapInMapEditor";
+import ToolbarMapEditorContainer from "./ToolbarMapEditorContainer";
 
-export default function LayerMapEditorMobile() {
+export default function LayerMapEditorMobile({ svgElement }) {
   return (
     <>
       <Box
@@ -29,6 +30,18 @@ export default function LayerMapEditorMobile() {
         }}
       >
         <ButtonSelectorBaseMapInMapEditor />
+      </Box> */}
+
+      {/* <Box
+        sx={{
+          position: "absolute",
+          bottom: "8px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 10000,
+        }}
+      >
+        <ToolbarMapEditorContainer svgElement={svgElement} />
       </Box> */}
 
       {/* <Box
