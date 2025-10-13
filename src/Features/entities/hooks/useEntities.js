@@ -217,6 +217,7 @@ export default function useEntities(options) {
       } else {
         entities = getSortedItems(entities, "label");
       }
+
       // end
       setLoading(false);
       return entities;

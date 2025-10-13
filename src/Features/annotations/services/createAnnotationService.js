@@ -12,13 +12,12 @@ export default async function createAnnotationService(annotation, options) {
 
   // options
 
-  const updateAnnotationTemplateId = options?.updateAnnotationTemplateId;
   const tempAnnotationTemplateLabel = options?.tempAnnotationTemplateLabel;
   const listingKey = options?.listingKey;
 
   let _annotation;
 
-  if (!updateAnnotationTemplateId && annotation?.annotationTemplateId) {
+  if (annotation?.annotationTemplateId) {
     _annotation = await db.annotations.put(annotation);
   } else {
     //annotation template

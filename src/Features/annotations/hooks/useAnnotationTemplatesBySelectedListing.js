@@ -6,7 +6,11 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import db from "App/db/db";
 import useAnnotationTemplatesListingInMapEditor from "./useAnnotationTemplatesListingInMapEditor";
 
-export default function useAnnotationTemplatesBySelectedListing() {
+export default function useAnnotationTemplatesBySelectedListing(options) {
+  // options
+
+  const sortByLabel = options?.sortByLabel;
+
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
@@ -31,6 +35,11 @@ export default function useAnnotationTemplatesBySelectedListing() {
       );
     } else {
       templates = [];
+    }
+    if (sortByLabel) {
+      templates = templates.sort((a, b) =>
+        (a.label ?? "").localeCompare(b.label ?? "")
+      );
     }
     return templates;
   }, [projectId, listingId, atl?.id, annotationsUpdatedAt]);
