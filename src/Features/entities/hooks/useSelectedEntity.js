@@ -49,18 +49,22 @@ export default function useSelectedEntity(options) {
       const entriesWithImages = Object.entries(_entity).filter(
         ([key, value]) => value?.isImage
       );
-      await Promise.all(
-        entriesWithImages.map(async ([key, value]) => {
-          const file = await db.files.get(value.fileName);
-          if (file && file.file) {
-            _entity[key] = {
-              ...value,
-              file,
-              imageUrlClient: URL.createObjectURL(file.file),
-            };
-          }
-        })
-      );
+
+      if (entriesWithImages?.length > 0)
+        await Promise.all(
+          entriesWithImages.map(async ([key, value]) => {
+            const file = await db.files.get(value.fileName);
+            if (file && file.fileArrayBuffer) {
+              _entity[key] = {
+                ...value,
+                file,
+                imageUrlClient: URL.createObjectURL(
+                  new Blob([file.fileArrayBuffer], { type: file.fileMime })
+                ),
+              };
+            }
+          })
+        );
     }
 
     return _entity;

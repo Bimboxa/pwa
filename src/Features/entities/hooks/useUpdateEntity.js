@@ -27,14 +27,12 @@ export default function useUpdateEntity() {
     };
 
     // data
-    const { pureData, filesDataByKey } = getEntityPureDataAndFilesDataByKey(
-      changes,
-      {
+    const { pureData, filesDataByKey } =
+      await getEntityPureDataAndFilesDataByKey(changes, {
         entityId,
         listingId: listing?.id,
         createdBy: userEmail,
-      }
-    );
+      });
 
     console.log(
       "[useUpdateEntity] pureData-filesDataByKey",

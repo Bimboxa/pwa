@@ -36,15 +36,13 @@ export default function useCreateEntity() {
     let entityId = nanoid();
 
     // data
-    const { pureData, filesDataByKey } = getEntityPureDataAndFilesDataByKey(
-      data,
-      {
+    const { pureData, filesDataByKey } =
+      await getEntityPureDataAndFilesDataByKey(data, {
         entityId,
         projectId: listing.projectId,
         listingId: listing.id,
         createdBy: userEmail,
-      }
-    );
+      });
 
     console.log("[useCreateEntity] pureData", pureData, filesDataByKey);
 

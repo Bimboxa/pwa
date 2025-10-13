@@ -9,7 +9,7 @@ export default async function createBaseMapService({
   imageFile,
 }) {
   const baseMap = await BaseMap.create({ projectId, image, imageFile, name });
-  const { baseMapRecord, projectFileRecord } = baseMap.toDb();
+  const { baseMapRecord, projectFileRecord } = await baseMap.toDb();
 
   await db.transaction("rw", db.baseMaps, db.projectFiles, async () => {
     await db.baseMaps.add(baseMapRecord);

@@ -14,4 +14,15 @@ export default class ProjectFile {
     this.file = file;
     this.isImage = testIsImage(file);
   }
+
+  toDb = async () => {
+    return {
+      id: this.id,
+      fileArrayBuffer: await this.file.arrayBuffer(),
+      fileMime: this.file.type,
+      fileName: this.file.name,
+      itemId: this.itemId,
+      isImage: this.isImage,
+    };
+  };
 }

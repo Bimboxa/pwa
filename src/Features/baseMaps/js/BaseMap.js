@@ -36,13 +36,17 @@ export default class BaseMap {
 
       // the id of the file is computed from the field + id of the entity.
       //const fileRecord = await db.projectFiles.get(`image_${record.id}`);
-      let fileRecord;
+      let fileRecord, file;
       if (record?.image?.fileName) {
         fileRecord = await db.files.get(record.image.fileName);
+        if (fileRecord) {
+          const { fileArrayBuffer, fileMime, fileName } = fileRecord;
+          file = new File([fileArrayBuffer], fileName, { type: fileMime });
+        }
       }
 
       const bmImage = fileRecord
-        ? await ImageObject.create({ imageFile: fileRecord?.file })
+        ? await ImageObject.create({ imageFile: file })
         : null;
 
       const baseMap = new BaseMap({
@@ -90,14 +94,15 @@ export default class BaseMap {
     };
   }
 
-  toDb = () => {
+  toDb = async () => {
+    const projectFile = new ProjectFile({
+      file: this.image.file,
+      itemId: this.id,
+      itemField: "image",
+    });
     return {
       baseMapRecord: this.toJSON(),
-      projectFileRecord: new ProjectFile({
-        file: this.image.file,
-        itemId: this.id,
-        itemField: "image",
-      }),
+      projectFileRecord: await projectFile.toDb(),
     };
   };
 
