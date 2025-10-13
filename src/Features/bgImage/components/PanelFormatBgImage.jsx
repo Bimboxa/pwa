@@ -41,7 +41,7 @@ export default function PanelFormatBgImage() {
   // render
 
   return (
-    <BoxFlexVStretch>
+    <BoxFlexVStretch sx={{ bgcolor: "white" }}>
       <PanelTitle title={title} />
       <FormGenericV2
         template={template}

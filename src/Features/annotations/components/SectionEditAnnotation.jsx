@@ -27,7 +27,7 @@ import IconButtonClose from "Features/layout/components/IconButtonClose";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import SectionSelectorAnnotationTemplate from "./SectionSelectorAnnotationTemplate";
 
-export default function SectionEditAnnotation() {
+export default function SectionEditAnnotation({ onClose }) {
   const dispatch = useDispatch();
 
   // strings
@@ -109,6 +109,8 @@ export default function SectionEditAnnotation() {
     dispatch(setIsEditingAnnotation(false));
 
     dispatch(setSelectedNode(null));
+
+    if (onClose) onClose();
   }
 
   async function handleSave() {
@@ -117,6 +119,8 @@ export default function SectionEditAnnotation() {
       listingKey: listingId,
     });
     dispatch(setIsEditingAnnotation(false));
+
+    if (onClose) onClose();
   }
 
   return (

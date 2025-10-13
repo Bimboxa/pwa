@@ -11,6 +11,9 @@ export default function useSelectedAnnotation() {
   // data
 
   const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
+  const _selectedAnnotationId = useSelector(
+    (s) => s.annotations.selectedAnnotationId
+  );
 
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
@@ -18,8 +21,8 @@ export default function useSelectedAnnotation() {
 
   // helper
 
-  let selectedAnnotationId;
-  if (selectedNode.nodeType === "ANNOTATION")
+  let selectedAnnotationId = _selectedAnnotationId;
+  if (selectedNode?.nodeType === "ANNOTATION")
     selectedAnnotationId = selectedNode.id;
 
   // main
