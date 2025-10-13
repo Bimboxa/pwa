@@ -109,6 +109,7 @@ export default function MainMapEditorV2() {
     excludeListingsIds: hiddenListingsIds,
     addBgImageTextAnnotations: true,
     withEntity: true,
+    withLabel: true,
   });
 
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
@@ -230,14 +231,11 @@ export default function MainMapEditorV2() {
           listingTable: listing?.table,
           baseMapId: mainBaseMap?.id,
           type: "MARKER",
-          annotationTemplateId: annotationTemplate?.id,
+          //annotationTemplateId: annotationTemplate?.id,
         },
         {
-          tempAnnotationTemplateLabel: annotationTemplate
-            ? null
-            : tempAnnotationTemplateLabel,
+          tempAnnotationTemplateLabel,
           listingKey: listing.id,
-          updateAnnotationTemplateId: !Boolean(annotationTemplate?.id),
         }
       );
       console.log("[MainMapEditor] new entity created", _annotation, entity);

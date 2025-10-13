@@ -3,8 +3,6 @@ import PolylineIcon from "Features/polylines/components/PolylineIcon";
 import RectangleIcon from "Features/rectangles/components/RectangleIcon";
 
 export default function AnnotationIcon({ spriteImage, annotation, size }) {
-  console.log("annotation", annotation);
-
   switch (annotation?.type) {
     case "MARKER":
       return (

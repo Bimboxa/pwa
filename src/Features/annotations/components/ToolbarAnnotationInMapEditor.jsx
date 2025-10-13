@@ -12,6 +12,7 @@ import {
 
 import useResetSelection from "Features/selection/hooks/useResetSelection";
 import useAnnotationTemplatesByProject from "../hooks/useAnnotationTemplatesByProject";
+import useInitDefaultNewAnnotation from "../hooks/useInitDefaultNewAnnotation";
 
 import { Box, Paper } from "@mui/material";
 
@@ -30,11 +31,14 @@ export default function ToolbarAnnotationInMapEditor() {
 
   // data
 
-  const annotationTemplates = useAnnotationTemplatesBySelectedListing();
+  const annotationTemplates = useAnnotationTemplatesBySelectedListing({
+    sortByLabel: true,
+  });
   const spriteImage = useAnnotationSpriteImage();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
   const resetSelection = useResetSelection();
+  const initDefaultNewAnnotation = useInitDefaultNewAnnotation();
 
   // utils
 
@@ -47,7 +51,7 @@ export default function ToolbarAnnotationInMapEditor() {
   // handlers
 
   function handleNewClick() {
-    dispatch(setNewAnnotation(null));
+    initDefaultNewAnnotation();
     dispatch(setTempAnnotationTemplateLabel(""));
     setOpenNew(true);
   }

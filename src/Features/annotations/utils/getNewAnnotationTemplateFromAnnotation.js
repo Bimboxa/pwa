@@ -19,5 +19,7 @@ export default function getNewAnnotationTemplateFromAnnotation({
     isFromAnnotation: true,
   };
 
+  console.log("debug_1310_newAnnotationTemplate", annotationTemplate);
+
   return annotationTemplate;
 }

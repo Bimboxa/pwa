@@ -40,9 +40,7 @@ export default function ToolbarNewAnnotationInMapEditor({ onClose }) {
   const spriteImage = useAnnotationSpriteImage();
   const annotationTemplates = useAnnotationTemplatesBySelectedListing();
   const { value: listing } = useSelectedListing();
-  const tempLabel = useSelector(
-    (s) => s.annotations.tempAnnotationTemplateLabel
-  );
+  let tempLabel = useSelector((s) => s.annotations.tempAnnotationTemplateLabel);
 
   // data - func
 
@@ -63,6 +61,10 @@ export default function ToolbarNewAnnotationInMapEditor({ onClose }) {
     listing,
     annotationTemplates,
   });
+
+  if (annotationTemplate) {
+    tempLabel = annotationTemplate.label;
+  }
 
   console.log("debug_810_annotationTemplate", annotationTemplate);
 
