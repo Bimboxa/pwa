@@ -10,6 +10,7 @@ export default function useAnnotationTemplatesBySelectedListing(options) {
   // options
 
   const sortByLabel = options?.sortByLabel;
+  const splitByIsFromAnnotation = options?.splitByIsFromAnnotation;
 
   // data
 
@@ -40,6 +41,14 @@ export default function useAnnotationTemplatesBySelectedListing(options) {
       templates = templates.sort((a, b) =>
         (a.label ?? "").localeCompare(b.label ?? "")
       );
+    }
+
+    if (splitByIsFromAnnotation) {
+      // helpers - sorted items
+
+      const items1 = templates?.filter((t) => !t.isFromAnnotation) ?? [];
+      const items2 = templates?.filter((t) => t.isFromAnnotation) ?? [];
+      templates = [...items1, { isDivider: true }, ...items2];
     }
     return templates;
   }, [projectId, listingId, atl?.id, annotationsUpdatedAt]);
