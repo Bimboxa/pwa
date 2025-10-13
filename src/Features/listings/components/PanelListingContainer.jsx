@@ -13,6 +13,7 @@ import PanelSelectorListing from "./PanelSelectorListing";
 import PanelEditEntity from "Features/entities/components/PanelEditEntity";
 import PanelListingAnnotationTemplates from "Features/annotations/components/PanelListingAnnotationTemplates";
 import PanelSelectorListingsOnboarding from "./PanelSelectorListingsOnboarding";
+import PanelFormatBgImage from "Features/bgImage/components/PanelFormatBgImage";
 
 export default function PanelListingContainer() {
   const dispatch = useDispatch();
@@ -47,6 +48,7 @@ export default function PanelListingContainer() {
         />
       )}
 
+      {openedPanel === "BG_IMAGE_FORMAT" && <PanelFormatBgImage />}
       {openedPanel === "LISTING" && <PanelListing listing={listing} />}
       {openedPanel === "NEW_ENTITY" && <PanelEditEntity />}
       {openedPanel === "EDITED_ENTITY" && <PanelEditEntity />}

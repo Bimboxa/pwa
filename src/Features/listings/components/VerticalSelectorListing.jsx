@@ -1,6 +1,10 @@
 import { useSelector, useDispatch } from "react-redux";
 
-import { setSelectedListingId, setHiddenListingsIds } from "../listingsSlice";
+import {
+  setSelectedListingId,
+  setHiddenListingsIds,
+  setOpenedPanel,
+} from "../listingsSlice";
 import useListingsByScope from "../hooks/useListingsByScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -34,6 +38,7 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
     filterByProjectId: projectId ?? null,
   });
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
+  console.log("debug_1610_selectedListingId", selectedListingId);
   const onboardingIsActive = useSelector(
     (s) => s.onboarding.onboardingIsActive
   );
@@ -43,12 +48,34 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
   );
 
   const entityModelTypes = appConfig?.features?.entityModelTypes;
-  const items = getModulesAndListingsForLeftPanel({
+
+  let items = getModulesAndListingsForLeftPanel({
     listings,
     entityModelTypes,
   });
 
+  items = [
+    {
+      type: "ENTITY_MODEL_TYPE",
+      entityModelType: { name: "Gabarit" },
+    },
+    {
+      type: "LISTING",
+      listing: {
+        id: "bgImageFormat",
+        iconKey: "print",
+        color: theme.palette.secondary.light,
+      },
+    },
+    ...items,
+  ];
+
   function handleListingClick(listing) {
+    if (listing.id === "bgImageFormat") {
+      dispatch(setOpenedPanel("BG_IMAGE_FORMAT"));
+    } else {
+      dispatch(setOpenedPanel("LISTING"));
+    }
     dispatch(setSelectedListingId(listing.id));
   }
 

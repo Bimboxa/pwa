@@ -17,12 +17,12 @@ export default function useAutoSelectListing() {
 
   useEffect(() => {
     console.log("[EFFECT] useAutoSelectListing");
-    if (!selectedListing && listings?.length > 0) {
+    if (!selectedListingId && listings?.length > 0) {
       console.log("[EFFECT] useAutoSelectListing - set First listing");
       const firstListing = listings[0];
       if (firstListing) {
         dispatch(setSelectedListingId(firstListing.id));
       }
     }
-  }, [selectedScopeId, selectedListing?.id, listings?.length]);
+  }, [selectedScopeId, selectedListingId, listings?.length]);
 }

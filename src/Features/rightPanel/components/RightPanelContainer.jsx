@@ -15,7 +15,6 @@ import PanelAnnotationFormat from "Features/annotations/components/PanelAnnotati
 import PanelEditEntity from "Features/entities/components/PanelEditEntity";
 import PanelNodeFormat from "Features/mapEditor/components/PanelNodeFormat";
 import PanelSelection from "Features/selection/components/PanelSelection";
-import PanelBlueprint from "Features/blueprints/components/PanelBlueprint";
 
 export default function RightPanelContainer() {
   // data
@@ -64,7 +63,6 @@ export default function RightPanelContainer() {
           {selectedKey === "NODE_FORMAT" && <PanelNodeFormat />}
           {selectedKey === "ENTITY" && <PanelEditEntity />}
           {selectedKey === "SELECTION" && <PanelSelection />}
-          {selectedKey === "BLUEPRINT" && <PanelBlueprint />}
         </Box>
       )}
     </>

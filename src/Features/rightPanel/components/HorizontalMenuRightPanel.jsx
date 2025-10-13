@@ -32,21 +32,17 @@ export default function HorizontalMenuRightPanel() {
     //   label: "Calques",
     //   icon: <Layers />,
     // },
-    {
-      key: "NODE_FORMAT",
-      label: "Format",
-      icon: <Palette />,
-    },
+    // {
+    //   key: "NODE_FORMAT",
+    //   label: "Format",
+    //   icon: <Palette />,
+    // },
     {
       key: "SELECTION",
-      label: "Sélection",
-      icon: <Info />,
+      label: "Modifier la sélection",
+      icon: <Edit />,
     },
-    {
-      key: "BLUEPRINT",
-      label: "Export",
-      icon: <Wallpaper />,
-    },
+
     // {
     //   key: "ENTITY",
     //   label: "Edition",
