@@ -12,6 +12,7 @@ import {
 import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useAnnotationTemplatesBySelectedListing from "../hooks/useAnnotationTemplatesBySelectedListing";
+import useResetSelection from "Features/selection/hooks/useResetSelection";
 
 import { Box } from "@mui/material";
 import {
@@ -42,6 +43,10 @@ export default function ToolbarNewAnnotationInMapEditor({ onClose }) {
   const tempLabel = useSelector(
     (s) => s.annotations.tempAnnotationTemplateLabel
   );
+
+  // data - func
+
+  const resetSelection = useResetSelection();
 
   // helpers - annotationTypes
 
@@ -127,6 +132,7 @@ export default function ToolbarNewAnnotationInMapEditor({ onClose }) {
   }
 
   function handleClick() {
+    resetSelection();
     dispatch(setEnabledDrawingMode(newAnnotation.type));
   }
 
