@@ -13,11 +13,13 @@ export default async function getEntityWithImagesAsync(entity) {
       if (value.fileName) {
         const file = await db.files.get(value.fileName);
 
-        if (file && file.file) {
+        if (file && file.fileArrayBuffer) {
           entityWithImages[key] = {
             ...value,
             file,
-            imageUrlClient: URL.createObjectURL(file.file),
+            imageUrlClient: URL.createObjectURL(
+              new Blob([file.fileArrayBuffer], { type: file.fileMime })
+            ),
           };
           hasImages = true;
         }

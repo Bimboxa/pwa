@@ -5,7 +5,8 @@ export default async function updateBaseMapViewService({ updates }) {
 
   const _updates = { ...updates };
 
-  if (updates.baseMap) _updates.baseMap = updates.baseMap.toDb().baseMapRecord;
+  if (updates.baseMap)
+    _updates.baseMap = await updates.baseMap.toDb().baseMapRecord;
 
   return await db.baseMapViews.update(id, _updates);
 }

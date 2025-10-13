@@ -2,7 +2,10 @@ import testIsPngImage from "Features/files/utils/testIsPngImage";
 import getDateString from "Features/misc/utils/getDateString";
 import getFileIdFromEntityAndFile from "./getFileIdFromEntityAndFile";
 
-export default function getEntityPureDataAndFilesDataByKey(entity, options) {
+export default async function getEntityPureDataAndFilesDataByKey(
+  entity,
+  options
+) {
   // edge case
 
   if (!entity || (!entity.id && !options.entityId)) return;
@@ -22,7 +25,8 @@ export default function getEntityPureDataAndFilesDataByKey(entity, options) {
 
   // loop
 
-  Object.entries(entity).forEach(([key, value]) => {
+  const keyValues = Object.entries(entity) ?? [];
+  for (const [key, value] of keyValues) {
     if (value && value.file instanceof File) {
       // test
       testHasFiles = true;
@@ -46,9 +50,12 @@ export default function getEntityPureDataAndFilesDataByKey(entity, options) {
         file: value.file,
         key,
       });
+      const fileArrayBuffer = await value.file.arrayBuffer();
       const fileData = {
         fileName,
-        file: value.file,
+        //file: value.file,
+        fileMime: value.file.type,
+        fileArrayBuffer,
         projectId,
         listingId,
         createdBy,
@@ -69,7 +76,7 @@ export default function getEntityPureDataAndFilesDataByKey(entity, options) {
     } else {
       pureData[key] = value;
     }
-  });
+  }
 
   // add projectId
   pureData.projectId = projectId;
