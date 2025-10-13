@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setOpenedPanel } from "../listingsSlice";
 
 import useSelectedListing from "../hooks/useSelectedListing";
+import useAutoShowPanelSelectorPresetListings from "../hooks/useAutoShowPanelSelectorPresetListings";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
@@ -10,9 +11,8 @@ import PanelListing from "./PanelListing";
 import PanelSelectorListing from "./PanelSelectorListing";
 //import PanelCreateListingEntity from "Features/entities/components/PanelCreateListingEntity";
 import PanelEditEntity from "Features/entities/components/PanelEditEntity";
-
+import PanelListingAnnotationTemplates from "Features/annotations/components/PanelListingAnnotationTemplates";
 import PanelSelectorListingsOnboarding from "./PanelSelectorListingsOnboarding";
-import useAutoShowPanelSelectorPresetListings from "../hooks/useAutoShowPanelSelectorPresetListings";
 
 export default function PanelListingContainer() {
   const dispatch = useDispatch();
@@ -52,6 +52,9 @@ export default function PanelListingContainer() {
       {openedPanel === "EDITED_ENTITY" && <PanelEditEntity />}
       {openedPanel === "PRESET_LISTINGS_ONBOARDING" && (
         <PanelSelectorListingsOnboarding />
+      )}
+      {openedPanel === "LISTING_ANNOTATION_TEMPLATES" && (
+        <PanelListingAnnotationTemplates />
       )}
     </BoxFlexVStretch>
   );

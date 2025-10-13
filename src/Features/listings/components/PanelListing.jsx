@@ -13,6 +13,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import VerticalSelectorListing from "Features/listings/components/VerticalSelectorListing";
 import SectionListEntitiesInListPanel from "Features/entities/components/SectionListEntitiesInListPanel";
 import SectionLegendInListPanel from "Features/legend/components/SectionLegendEntityInListPanel";
+import ButtonShowListingAnnotationTemplatesInLeftPanel from "Features/listings/components/ButtonShowListingAnnotationTemplatesInLeftPanel";
 
 export default function PanelListing({ listing }) {
   const dispatch = useDispatch();
@@ -30,6 +31,10 @@ export default function PanelListing({ listing }) {
         {type === "DEFAULT" && <SectionListEntitiesInListPanel />}
         {type === "LEGEND" && <SectionLegendInListPanel listing={listing} />}
       </BoxFlexVStretch>
+
+      {listing?.annotationTemplatesListingKey && (
+        <ButtonShowListingAnnotationTemplatesInLeftPanel />
+      )}
     </BoxFlexVStretch>
   );
 }

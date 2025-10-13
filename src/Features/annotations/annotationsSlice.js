@@ -16,6 +16,8 @@ const annotationsInitialState = {
   //
   annotationTemplatesById: {}, // {id:MARKER_#234513_square,label}
   tempAnnotationTemplateLabel: null,
+  //
+  editedAnnotationTemplate: null, // used to update annotation template
 };
 
 export const annotationsSlice = createSlice({
