@@ -10,6 +10,7 @@ import {
   setTempAnnotationTemplateLabel,
 } from "../annotationsSlice";
 
+import useResetSelection from "Features/selection/hooks/useResetSelection";
 import useAnnotationTemplatesByProject from "../hooks/useAnnotationTemplatesByProject";
 
 import { Box, Paper } from "@mui/material";
@@ -33,10 +34,13 @@ export default function ToolbarAnnotationInMapEditor() {
   const spriteImage = useAnnotationSpriteImage();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
+  const resetSelection = useResetSelection();
 
   // utils
 
-  const show = !Boolean(selectedNode?.nodeType);
+  //const show = !Boolean(selectedNode?.nodeType);
+  const show = true;
+
   const noTemplates = !annotationTemplates?.length > 0;
   const openNewToolbar = openNew || noTemplates;
 
@@ -50,6 +54,7 @@ export default function ToolbarAnnotationInMapEditor() {
 
   function handleAnnotationTemplateClick(annotationTemplate) {
     console.log("annotationTemplate", annotationTemplate);
+    resetSelection();
     dispatch(setEnabledDrawingMode(annotationTemplate.type));
     dispatch(
       setNewAnnotation({
