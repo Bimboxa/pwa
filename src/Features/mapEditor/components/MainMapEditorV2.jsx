@@ -279,7 +279,7 @@ export default function MainMapEditorV2() {
     node = node?.id === selectedNode?.id ? null : node;
 
     // disable baseMap selection if !showBgImage
-    if (node.nodeType === "BASE_MAP" && !showBgImage) return;
+    if (node?.nodeType === "BASE_MAP" && !showBgImage) return;
 
     dispatch(setSelectedNode(node));
     if (node?.nodeType === "ANNOTATION") {
