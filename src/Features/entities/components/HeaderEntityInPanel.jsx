@@ -1,9 +1,15 @@
 import { useSelector, useDispatch } from "react-redux";
 
 import { setOpenPanelListItem } from "Features/listPanel/listPanelSlice";
-import { setSelectedEntityId } from "../entitiesSlice";
+import {
+  setSelectedEntityId,
+  setIsEditingEntity,
+  setEditedEntity,
+} from "../entitiesSlice";
 import { setOpenedPanel } from "Features/listings/listingsSlice";
 import { setTempMarkerProps } from "Features/markers/markersSlice";
+import { setSelectedNode } from "Features/mapEditor/mapEditorSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 import useEntity from "../hooks/useEntity";
@@ -50,8 +56,11 @@ export default function HeaderEntityInPanel() {
 
   function handleClose() {
     console.log("close");
+    dispatch(setSelectedNode(null));
+    dispatch(setSelectedItem(null));
     dispatch(setSelectedEntityId(null));
-    dispatch(setTempMarkerProps(null));
+    dispatch(setIsEditingEntity(false));
+    dispatch(setEditedEntity(null));
     dispatch(setOpenedPanel("LISTING"));
   }
 

@@ -90,7 +90,7 @@ export default function SelectorAnnotationTemplateVariantHorizontal({
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
-                    width: 70,
+                    width: 60,
                     px: 0.5,
                     py: 1,
                   }}
@@ -117,6 +117,7 @@ export default function SelectorAnnotationTemplateVariantHorizontal({
                     <Typography
                       sx={{ fontSize: 10 }}
                       align="center"
+                      noWrap
                       color={selected ? "text.primary" : "text.secondary"}
                     >
                       {label}

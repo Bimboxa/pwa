@@ -20,12 +20,10 @@ export default function useEntitiesActions() {
   // data
 
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
-  const { value: selectedEntity } = useSelectedEntity({ withImage: true });
-  const { value: entities } = useEntities({
+  const { value: selectedEntity } = useSelectedEntity({
     withImages: true,
     withAnnotations: true,
   });
-  const spriteImage = useAnnotationSpriteImage();
 
   // main
 
