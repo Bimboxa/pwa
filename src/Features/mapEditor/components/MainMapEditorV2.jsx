@@ -31,6 +31,7 @@ import {
 } from "Features/mapEditor/mapEditorSlice";
 
 import useIsMobile from "Features/layout/hooks/useIsMobile";
+import useInitDefaultNewAnnotation from "Features/annotations/hooks/useInitDefaultNewAnnotation";
 import useNewEntity from "Features/entities/hooks/useNewEntity";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -88,9 +89,8 @@ export default function MainMapEditorV2() {
 
   const annotationSpriteImage = useAnnotationSpriteImage();
 
-  const tempAnnotationTemplateLabel = useSelector(
-    (s) => s.annotations.tempAnnotationTemplateLabel
-  );
+  const tempAnnotationTemplateLabel =
+    useSelector((s) => s.annotations.tempAnnotationTemplateLabel) ?? "-?-";
   const annotationTemplate = useSelectedAnnotationTemplateInMapEditor();
 
   const mainBaseMap = useMainBaseMap();
@@ -150,6 +150,13 @@ export default function MainMapEditorV2() {
   //const createMarker = useCreateMarker();
   const createAnnotation = useCreateAnnotation();
   const updateAnnotation = useUpdateAnnotation();
+  const initDefaultNewAnnotation = useInitDefaultNewAnnotation();
+
+  // effet - init newAnnotation
+
+  useEffect(() => {
+    if (!newAnnotation?.type) initDefaultNewAnnotation();
+  }, [newAnnotation?.type]);
 
   // helpers
 
@@ -205,12 +212,12 @@ export default function MainMapEditorV2() {
   async function handleNewAnnotation(annotation) {
     if (annotation.type === "MARKER") {
       // edge
-      if (
-        !newAnnotation.iconKey ||
-        !newAnnotation.fillColor ||
-        !tempAnnotationTemplateLabel
-      )
-        return;
+      // if (
+      //   !newAnnotation.iconKey ||
+      //   !newAnnotation.fillColor ||
+      //   !tempAnnotationTemplateLabel
+      // )
+      //   return;
 
       // Prepare entity data - include image if dropped
       const entityData = { ...newEntity };
@@ -439,6 +446,8 @@ export default function MainMapEditorV2() {
         legendItems={legendItems}
         legendFormat={legendFormat}
         onLegendFormatChange={handleLegendFormatChange}
+        // annotation
+        newAnnotation={newAnnotation} // to display marker preview on mobile
         // polyline
         drawingPolylinePoints={drawingPolylinePoints}
         onPolylineComplete={handlePolylineComplete}

@@ -1,23 +1,13 @@
 import { useDndMonitor, useDraggable } from "@dnd-kit/core";
 
-import { useDispatch } from "react-redux";
-import { nanoid } from "@reduxjs/toolkit";
-
-import { createMarker } from "../markersSlice";
-
 import { Box } from "@mui/material";
 import FabMarker from "./FabMarker";
-import useLoadedMainBaseMap from "Features/mapEditor/hooks/useLoadedMainBaseMap";
-import getPointerPositionInStage from "Features/mapEditor/utils/getPointerPositionInStage";
 
-import editor from "App/editor";
-
-export default function DraggableFabMarker({ bgcolor, onDropped }) {
-  const dispatch = useDispatch();
-  // data
-
-  const loadedMainBaseMap = useLoadedMainBaseMap();
-
+export default function DraggableFabMarker({
+  bgcolor,
+  onDragStart,
+  onDropped,
+}) {
   // data - dnd
 
   const { attributes, listeners, setNodeRef, transform, isDragging } =
@@ -33,36 +23,50 @@ export default function DraggableFabMarker({ bgcolor, onDropped }) {
   const maxDelta = Math.max(deltaX, deltaY);
   const isCreating = maxDelta > 20; // start the creation process
 
+  // Visual offset to show marker above finger (in pixels)
+  const FINGER_OFFSET_Y = -80; // Show marker 80px above finger
+
   // handler
 
-  function handleDragStart(event) {}
+  function handleDragStart(event) {
+    if (onDragStart) onDragStart();
+  }
 
   function handleDragEnd(event) {
-    // edge case
     if (!isCreating) {
+      if (onDropped) {
+        onDropped(null);
+      }
       return;
     }
 
-    // main
-    const { activatorEvent, delta } = event;
-    let pointer = { x: 0, y: 0 };
-    if (activatorEvent.clientX || activatorEvent.clientY) {
-      pointer = {
-        x: activatorEvent.clientX + delta.x ?? 0,
-        y: activatorEvent.clientY + delta.y ?? 0,
-      };
-    } else if (activatorEvent.touches?.[0]) {
-      pointer = {
-        x: activatorEvent.touches[0].clientX + delta.x ?? 0,
-        y: activatorEvent.touches[0].clientY + delta.y ?? 0,
-      };
-    }
+    const { active, delta } = event;
+    const { initial } = active.rect.current;
 
-    if (onDropped) onDropped({ x: pointer.x, y: pointer.y });
+    // Largeur et hauteur de la Box au départ du drag
+    const { width, height, left, top } = initial;
+
+    // Position du coin supérieur gauche après déplacement
+    const baseX = left + delta.x;
+    const baseY = top + delta.y;
+
+    // Calcul du centre (ajout de la moitié de la largeur et de la hauteur)
+    let x = baseX + width / 2;
+    let y = baseY + height / 2;
+
+    // Appliquer votre offset vertical si vous décalez visuellement le marqueur
+    y += FINGER_OFFSET_Y;
+
+    if (onDropped) {
+      onDropped({ x, y });
+    }
   }
+
+  const visualOffsetY = isDragging ? FINGER_OFFSET_Y : 0;
 
   return (
     <Box>
+      {/* Draggable marker with offset above finger */}
       <Box
         ref={setNodeRef}
         {...attributes}
@@ -70,9 +74,8 @@ export default function DraggableFabMarker({ bgcolor, onDropped }) {
         sx={{
           display: "flex",
           justifyContent: "center",
-
           transform: `translate(${transform?.x ?? 0}px, ${
-            transform?.y ?? 0
+            (transform?.y ?? 0) + visualOffsetY
           }px)`,
           position: "relative",
           touchAction: "manipulation",
