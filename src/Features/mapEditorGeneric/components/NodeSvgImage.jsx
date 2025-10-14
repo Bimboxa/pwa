@@ -141,6 +141,9 @@ export default memo(function NodeSvgImage({
           width={width}
           height={height}
           preserveAspectRatio="none"
+          style={{
+            imageRendering: "optimizeSpeed",
+          }}
           {...dataProps}
         />
       )}
@@ -239,6 +242,7 @@ export default memo(function NodeSvgImage({
                   userSelect: "none",
                   pointerEvents: "none",
                   display: "block",
+                  imageRendering: "optimizeSpeed",
                 }}
               />
             </Rnd>
