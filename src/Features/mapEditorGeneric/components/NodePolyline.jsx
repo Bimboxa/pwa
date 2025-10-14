@@ -366,7 +366,7 @@ export default function NodePolyline({
           fill="none"
           stroke={hoverIdx != null ? "#0066cc" : strokeColor}
           strokeWidth={hoverStrokeWidth}
-          strokeDasharray="5,5"
+          //strokeDasharray="5,5"
           style={{ pointerEvents: "none" }}
         />
       )}
@@ -376,7 +376,7 @@ export default function NodePolyline({
           fill="none"
           stroke={hoverIdx != null ? "#0066cc" : strokeColor}
           strokeWidth={hoverStrokeWidth}
-          strokeDasharray="5,5"
+          //strokeDasharray="5,5"
           style={{ pointerEvents: "none" }}
         />
       )}
@@ -390,7 +390,7 @@ export default function NodePolyline({
           y2={currentMousePos.y * h}
           stroke={strokeColor}
           strokeWidth={tempStrokeWidth}
-          strokeDasharray="3,3"
+          //strokeDasharray="3,3"
           opacity="0.9"
           style={{ pointerEvents: "none" }}
         />
@@ -407,7 +407,7 @@ export default function NodePolyline({
             y2={firstCommitted.y * h}
             stroke={strokeColor}
             strokeWidth={tempStrokeWidth}
-            strokeDasharray="3,3"
+            //strokeDasharray="3,3"
             opacity="0.9"
             style={{ pointerEvents: "none" }}
           />
