@@ -108,7 +108,7 @@ export default memo(function NodeLegend({
   );
 
   // ===== visuals
-  const ICON_PX = 28;
+  const ICON_PX = 36;
   const ROW_GAP = 6;
   const PADDING = 10;
   const {
@@ -125,21 +125,24 @@ export default memo(function NodeLegend({
       return (
         <div
           style={{
-            width: ICON_PX,
-            height: ICON_PX,
-            borderRadius: ICON_PX / 2,
+            width: `${ICON_PX}px`,
+            height: `${ICON_PX}px`,
+            borderRadius: "50%",
             background: "white",
-            display: "grid",
-            placeItems: "center",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             overflow: "hidden",
             border: `2px solid ${strokeColor}`,
+            boxSizing: "border-box",
           }}
         >
           <Polyline
-            style={{
-              color: strokeColor || "#ffffff",
-              fontSize: ICON_PX * 0.6,
-            }}
+            // style={{
+            //   color: strokeColor || "#ffffff",
+            //   fontSize: ICON_PX * 0.6,
+            // }}
+            style={{ fill: fillColor, scale: 0.8 }}
           />
         </div>
       );
@@ -149,22 +152,24 @@ export default memo(function NodeLegend({
       return (
         <div
           style={{
-            width: ICON_PX,
-            height: ICON_PX,
-            borderRadius: ICON_PX / 2,
+            width: `${ICON_PX}px`,
+            height: `${ICON_PX}px`,
+            borderRadius: "50%",
             //background: fillColor ?? "white",
             background: "white",
             display: "grid",
             placeItems: "center",
             overflow: "hidden",
             border: `2px solid ${strokeColor}`,
+            boxSizing: "border-box",
           }}
         >
           <Polygon
-            style={{
-              color: fillColor || "#ffffff",
-              fontSize: ICON_PX * 0.6,
-            }}
+            // style={{
+            //   color: fillColor || "#ffffff",
+            //   fontSize: ICON_PX * 0.6,
+            // }}
+            style={{ fill: fillColor, scale: 0.8 }}
           />
         </div>
       );
@@ -173,17 +178,18 @@ export default memo(function NodeLegend({
       return (
         <div
           style={{
-            width: 28,
-            height: 28,
-            borderRadius: 14,
+            width: `${ICON_PX}px`,
+            height: `${ICON_PX}px`,
+            borderRadius: "50%",
             background: "white",
-            display: "grid",
-            placeItems: "center",
-            overflow: "hidden",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
             border: `2px solid ${fillColor}`,
+            boxSizing: "border-box",
           }}
         >
-          <Rectangle style={{ fill: fillColor }} />
+          <Rectangle style={{ fill: fillColor, scale: 0.7 }} />
         </div>
       );
     }
@@ -195,12 +201,13 @@ export default memo(function NodeLegend({
     return (
       <div
         style={{
-          width: ICON_PX,
-          height: ICON_PX,
-          borderRadius: ICON_PX / 2,
+          width: `${ICON_PX}px`,
+          height: `${ICON_PX}px`,
+          borderRadius: "50%",
           background: fillColor || "#f44336",
-          display: "grid",
-          placeItems: "center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           overflow: "hidden",
         }}
       >
@@ -240,7 +247,7 @@ export default memo(function NodeLegend({
         style={{
           display: "grid",
           gridTemplateColumns: `${ICON_PX}px 1fr`,
-          gridAutoRows: "minmax(20px,auto)",
+          //gridAutoRows: "minmax(20px,auto)",
           rowGap: ROW_GAP,
           columnGap: 10,
           alignContent: "start",
@@ -249,7 +256,16 @@ export default memo(function NodeLegend({
       >
         {legendItems.map((it, i) => (
           <div key={i} style={{ display: "contents" }}>
-            <div style={{ alignSelf: "start" }}>
+            <div
+              style={{
+                alignSelf: "start",
+                //display: "flex",
+                //alignItems: "center",
+                //justifyContent: "center",
+                //height: `${ICON_PX}px`,
+                //border: "1px solid black",
+              }}
+            >
               <LegendIcon
                 type={it.type}
                 iconKey={it.iconType ?? it.iconKey}
