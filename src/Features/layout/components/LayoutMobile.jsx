@@ -50,6 +50,8 @@ export default function LayoutMobile() {
               position: "fixed",
               top: topBarHeight,
               bottom: bottomBarHeight,
+              left: 0,
+              right: 0,
             }}
             //sx={{position: "absolute", top: 0}}
           >
