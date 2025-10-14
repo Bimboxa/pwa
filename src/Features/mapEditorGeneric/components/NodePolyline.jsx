@@ -1,5 +1,5 @@
 // NodePolyline.js
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 
 /**
  * Props:
@@ -81,6 +81,11 @@ export default function NodePolyline({
   const tempPointsRef = useRef(null);
   const [tempPoints, setTempPoints] = useState(null);
   const rafIdRef = useRef(null);
+
+  useLayoutEffect(() => {
+    tempPointsRef.current = null;
+    setTempPoints(null);
+  }, [polyline]);
 
   // drawing preview (moving mouse point)
   const [currentMousePos, setCurrentMousePos] = useState(null);
@@ -170,8 +175,8 @@ export default function NodePolyline({
       ? tempPointsRef.current.map((p) => ({ ...p }))
       : basePoints.map((p) => ({ ...p }));
 
-    tempPointsRef.current = null;
-    setTempPoints(null);
+    //tempPointsRef.current = null;
+    //setTempPoints(null);
 
     document.removeEventListener("pointermove", onDocPointerMove);
     document.removeEventListener("pointerup", onDocPointerUp);

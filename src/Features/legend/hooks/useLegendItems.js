@@ -15,8 +15,6 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 export default function useLegendItems() {
   // data
 
-  const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const listings = useListings({ filterByProjectId: projectId });
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
 
@@ -24,6 +22,7 @@ export default function useLegendItems() {
   const annotations = useAnnotations({
     filterByBaseMapId: baseMapId,
     excludeListingsIds: hiddenListingsIds,
+    withListingName: true,
   });
 
   // helpers - annotationTemplateById
@@ -34,29 +33,47 @@ export default function useLegendItems() {
 
   let legendItems = [];
   const idsMap = {};
+  let legendItemsByListingName = [];
 
   annotations?.forEach((annotation) => {
     const templateId = annotation.annotationTemplateId;
     const template = annotationTemplateById[templateId];
     if (!idsMap[templateId]) {
       idsMap[templateId] = annotation;
-      const { iconKey, fillColor, strokeColor, type, closeLine } = annotation;
-      legendItems.push({
+      const { iconKey, fillColor, strokeColor, type, closeLine, listingName } =
+        annotation;
+      const newLegendItem = {
         id: templateId,
+        listingName,
         type,
         iconKey,
         strokeColor,
         fillColor,
         label: template?.label ?? "A définir",
         closeLine,
-      });
+      };
+      //
+      //legendItems.push(newLegendItem);
+
+      //
+      if (!legendItemsByListingName[listingName]) {
+        legendItemsByListingName[listingName] = [newLegendItem];
+      } else {
+        legendItemsByListingName[listingName].push(newLegendItem);
+      }
     }
+  });
+
+  // legendItemsByListingName => legendItems
+  Object.entries(legendItemsByListingName).forEach(([listingName, items]) => {
+    legendItems.push({ type: "listingName", name: listingName });
+    const sortedItems = items.sort((a, b) => a.label.localeCompare(b.label));
+    legendItems.push(...sortedItems);
   });
 
   // sort
 
-  legendItems = legendItems.sort((a, b) => a.label.localeCompare(b.label));
-  console.log();
+  //legendItems = legendItems.sort((a, b) => a.label.localeCompare(b.label));
 
   // render
 
