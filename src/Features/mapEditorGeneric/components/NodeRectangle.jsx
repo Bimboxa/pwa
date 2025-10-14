@@ -1,4 +1,10 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import {
+  useRef,
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+} from "react";
 
 export default function NodeRectangle({
   rectangle,
@@ -29,6 +35,13 @@ export default function NodeRectangle({
   const draggingRef = useRef({ active: false, mode: null, corner: null });
   const [tempPoints, setTempPoints] = useState(null);
   const tempPointsRef = useRef(null);
+
+  // reset when first rendering
+
+  useLayoutEffect(() => {
+    setTempPoints(null);
+    tempPointsRef.current = null;
+  }, [rectangle]);
 
   // Mouse tracking for drawing preview - direct DOM manipulation
   useEffect(() => {
@@ -168,8 +181,8 @@ export default function NodeRectangle({
         if (tempPointsRef.current && onChange) {
           onChange({ ...rectangle, points: tempPointsRef.current });
         }
-        tempPointsRef.current = null;
-        setTempPoints(null);
+        //tempPointsRef.current = null;
+        //setTempPoints(null);
       };
 
       document.addEventListener("pointermove", onMove);
@@ -229,8 +242,8 @@ export default function NodeRectangle({
         if (tempPointsRef.current && onChange) {
           onChange({ ...rectangle, points: tempPointsRef.current });
         }
-        tempPointsRef.current = null;
-        setTempPoints(null);
+        //tempPointsRef.current = null;
+        //setTempPoints(null);
       };
 
       document.addEventListener("pointermove", onMove);

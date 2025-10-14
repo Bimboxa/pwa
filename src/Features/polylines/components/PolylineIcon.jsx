@@ -30,7 +30,11 @@ export default function PolylineIcon({
           color: strokeColor,
         }}
       >
-        {closeLine ? <Polygon /> : <Polyline />}
+        {closeLine ? (
+          <Polygon sx={{ fontSize: size * 0.7 }} />
+        ) : (
+          <Polyline sx={{ fontSize: size * 0.7 }} />
+        )}
       </Box>
     </Box>
   );

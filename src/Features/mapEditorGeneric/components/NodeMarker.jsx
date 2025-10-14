@@ -3,8 +3,8 @@ import {
   useRef,
   useCallback,
   useEffect,
-  useMemo,
   useLayoutEffect,
+  useMemo,
 } from "react";
 
 import { grey } from "@mui/material/colors";
@@ -92,6 +92,12 @@ export default function NodeMarker({
   const [dragOffsetScreen, setDragOffsetScreen] = useState({ x: 0, y: 0 });
   const dragStartRef = useRef({ x: 0, y: 0, px: 0, py: 0 });
 
+  // Reset dragOffsetScreen
+  useLayoutEffect(() => {
+    console.log("newMarker");
+    setDragOffsetScreen({ x: 0, y: 0 });
+  }, [marker]);
+
   const offsetBgX = dragOffsetScreen.x * invF;
   const offsetBgY = dragOffsetScreen.y * invF;
 
@@ -137,7 +143,7 @@ export default function NodeMarker({
 
       if (!movedRef.current) {
         onClick?.(marker);
-        setDragOffsetScreen({ x: 0, y: 0 });
+        //setDragOffsetScreen({ x: 0, y: 0 });
         return;
       }
 
@@ -151,7 +157,7 @@ export default function NodeMarker({
       const newRatioY = Math.max(0, Math.min(1, newPy / (imageSize?.h || 1)));
 
       onDragEnd?.({ id: marker.id, x: newRatioX, y: newRatioY });
-      setDragOffsetScreen({ x: 0, y: 0 });
+      //setDragOffsetScreen({ x: 0, y: 0 });
     },
     [invF, imageSize?.w, imageSize?.h, onDragEnd, onClick, marker]
   );
