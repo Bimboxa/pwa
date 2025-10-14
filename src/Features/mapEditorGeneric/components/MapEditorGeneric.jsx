@@ -95,6 +95,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   // === Hover state ===
   const [hoveredMarker, setHoveredMarker] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isDraggingAnnotation, setIsDraggingAnnotation] = useState(false);
 
   const basePose = {
     x: bgPose.x + (baseMapPoseInBg.x || 0) * (bgPose.k || 1),
@@ -652,6 +653,12 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     (e) => {
       updateMousePosition(e.clientX, e.clientY);
 
+      // Don't show tooltip while dragging an annotation
+      if (isDraggingAnnotation) {
+        setHoveredMarker(null);
+        return;
+      }
+
       const nativeTarget = e.nativeEvent?.target || e.target;
       const hit = nativeTarget.closest?.("[data-node-type]");
 
@@ -671,7 +678,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
       setHoveredMarker(null);
     },
-    [annotations, updateMousePosition]
+    [annotations, updateMousePosition, isDraggingAnnotation]
   );
 
   const onSvgMouseLeave = useCallback(() => {
@@ -894,7 +901,12 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   function handleAnnotationChange(annotation) {
     onAnnotationChange?.(annotation);
   }
+  function handleAnnotationDragStart() {
+    setIsDraggingAnnotation(true);
+    setHoveredMarker(null); // Hide tooltip immediately
+  }
   function handleAnnotationDragEnd(annotation) {
+    setIsDraggingAnnotation(false);
     suppressNextClickRef.current = true;
     onAnnotationChange?.(annotation);
   }
@@ -1019,6 +1031,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                   imageSize={bgSize}
                   containerK={bgPose.k}
                   worldScale={world.k}
+                  onDragStart={handleAnnotationDragStart}
                   onDragEnd={handleAnnotationDragEnd}
                   onChange={handleAnnotationChange}
                   onClick={handleMarkerClick}
@@ -1058,6 +1071,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                 ...(newPolylineProps ?? {}),
               }}
               onComplete={onPolylineComplete}
+              worldScale={world.k}
+              containerK={basePose.k}
             />
 
             {/* Rectangle drawing/preview */}
@@ -1087,6 +1102,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                     imageSize={baseSize}
                     containerK={basePose.k}
                     worldScale={world.k}
+                    onDragStart={handleAnnotationDragStart}
                     onDragEnd={handleAnnotationDragEnd}
                     onChange={handleAnnotationChange}
                     onClick={handleMarkerClick}
