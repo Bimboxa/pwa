@@ -26,7 +26,7 @@ export default function RectangleIcon({ fillColor, closeLine, size = 24 }) {
           color: fillColor,
         }}
       >
-        <Rectangle />
+        <Rectangle sx={{ fontSize: size * 0.7 }} />
       </Box>
     </Box>
   );
