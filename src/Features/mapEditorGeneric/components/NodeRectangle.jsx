@@ -31,16 +31,20 @@ export default function NodeRectangle({
   const previewRectRef = useRef(null);
   const mouseMoveHandlerRef = useRef(null);
 
-  // Dragging state for resize/move
+  // Dragging state for resize/move/rotate
   const draggingRef = useRef({ active: false, mode: null, corner: null });
   const [tempPoints, setTempPoints] = useState(null);
   const tempPointsRef = useRef(null);
+  const [tempRotation, setTempRotation] = useState(null);
+  const tempRotationRef = useRef(null);
 
   // reset when first rendering
 
   useLayoutEffect(() => {
     setTempPoints(null);
     tempPointsRef.current = null;
+    setTempRotation(null);
+    tempRotationRef.current = null;
   }, [rectangle]);
 
   // Mouse tracking for drawing preview - direct DOM manipulation
@@ -253,6 +257,62 @@ export default function NodeRectangle({
     [selected, points, toBaseFromClient, w, h, onChange, rectangle]
   );
 
+  // Handle rotation
+  const onRotatePointerDown = useCallback(
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const centerX = bounds.x + bounds.width / 2;
+      const centerY = bounds.y + bounds.height / 2;
+
+      draggingRef.current = { active: true, mode: "rotate", centerX, centerY };
+      tempRotationRef.current = rotation || 0;
+
+      const SNAP_THRESHOLD = 3; // Degrees - snap to 0° when within this range
+
+      const onMove = (e) => {
+        if (!draggingRef.current.active || !toBaseFromClient) return;
+
+        const bl = toBaseFromClient(e.clientX, e.clientY);
+
+        // Calculate angle from center to mouse position
+        const dx = bl.x - draggingRef.current.centerX;
+        const dy = bl.y - draggingRef.current.centerY;
+        let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+
+        angle = angle + 90; // +90 to align with top = 0°
+
+        // Normalize angle to 0-360 range
+        angle = ((angle % 360) + 360) % 360;
+
+        // Snap to 0° when close
+        if (angle <= SNAP_THRESHOLD || angle >= 360 - SNAP_THRESHOLD) {
+          angle = 0;
+        }
+
+        tempRotationRef.current = angle;
+        setTempRotation(tempRotationRef.current);
+      };
+
+      const onUp = () => {
+        draggingRef.current.active = false;
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", onUp);
+
+        if (tempRotationRef.current !== null && onChange) {
+          onChange({ ...rectangle, rotation: tempRotationRef.current });
+        }
+      };
+
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onUp);
+    },
+    [bounds, rotation, toBaseFromClient, onChange, rectangle]
+  );
+
   // Data attributes for node detection
   const dataProps = {
     "data-node-id": rectangle?.id,
@@ -262,6 +322,14 @@ export default function NodeRectangle({
   };
 
   const handleSize = 8 / (containerK * worldScale);
+  const currentRotation = tempRotation !== null ? tempRotation : rotation;
+
+  // Calculate rotation handle position (above center)
+  const rotateHandleDistance = 30 / (containerK * worldScale);
+  const centerX = bounds.x + bounds.width / 2;
+  const centerY = bounds.y + bounds.height / 2;
+  const rotateHandleX = centerX;
+  const rotateHandleY = bounds.y - rotateHandleDistance;
 
   // Render rectangle with optional resize handles
   return (
@@ -281,10 +349,8 @@ export default function NodeRectangle({
         strokeWidth={strokeWidth}
         strokeDasharray={selected ? "4,2" : undefined}
         transform={
-          rotation
-            ? `rotate(${rotation} ${bounds.x + bounds.width / 2} ${
-                bounds.y + bounds.height / 2
-              })`
+          currentRotation
+            ? `rotate(${currentRotation} ${centerX} ${centerY})`
             : undefined
         }
         style={{
@@ -318,7 +384,7 @@ export default function NodeRectangle({
             width={handleSize}
             height={handleSize}
             fill="white"
-            stroke="#2563eb"
+            stroke={fillColor}
             strokeWidth={1}
             style={{ cursor: "nesw-resize" }}
             vectorEffect="non-scaling-stroke"
@@ -331,7 +397,7 @@ export default function NodeRectangle({
             width={handleSize}
             height={handleSize}
             fill="white"
-            stroke="#2563eb"
+            stroke={fillColor}
             strokeWidth={1}
             style={{ cursor: "nesw-resize" }}
             vectorEffect="non-scaling-stroke"
@@ -350,6 +416,44 @@ export default function NodeRectangle({
             vectorEffect="non-scaling-stroke"
             onPointerDown={(e) => onCornerPointerDown(e, "br")}
           />
+
+          {/* Rotation handle - line connecting to center top */}
+          <line
+            x1={centerX}
+            y1={bounds.y}
+            x2={rotateHandleX}
+            y2={rotateHandleY}
+            stroke={fillColor}
+            strokeWidth={1}
+            strokeDasharray="2,2"
+            vectorEffect="non-scaling-stroke"
+            style={{ pointerEvents: "none" }}
+            transform={
+              currentRotation
+                ? `rotate(${currentRotation} ${centerX} ${centerY})`
+                : undefined
+            }
+          />
+
+          {/* Rotation handle - circle */}
+          <circle
+            cx={rotateHandleX}
+            cy={rotateHandleY}
+            r={handleSize * 0.8}
+            fill="white"
+            stroke={fillColor}
+            strokeWidth={2}
+            style={{ cursor: "grab" }}
+            vectorEffect="non-scaling-stroke"
+            onPointerDown={onRotatePointerDown}
+            transform={
+              currentRotation
+                ? `rotate(${currentRotation} ${centerX} ${centerY})`
+                : undefined
+            }
+          />
+
+          {/* Rotation handle - icon (curved arrow) */}
         </>
       )}
     </g>

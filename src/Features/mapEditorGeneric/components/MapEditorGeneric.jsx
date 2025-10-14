@@ -1022,9 +1022,10 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                 locked
               />
             )}
-            {bgImageAnnotations.map((annotation) => {
-              const selected = selectedNode?.id === annotation.id;
-              return (
+            {/* Render non-selected BG annotations first */}
+            {bgImageAnnotations
+              .filter((annotation) => annotation.id !== selectedNode?.id)
+              .map((annotation) => (
                 <NodeAnnotation
                   key={annotation.id}
                   annotation={annotation}
@@ -1036,10 +1037,29 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                   onChange={handleAnnotationChange}
                   onClick={handleMarkerClick}
                   spriteImage={annotationSpriteImage}
-                  selected={selected}
+                  selected={false}
                 />
-              );
-            })}
+              ))}
+
+            {/* Render selected BG annotation last (on top) */}
+            {selectedNode?.id &&
+              bgImageAnnotations
+                .filter((annotation) => annotation.id === selectedNode.id)
+                .map((annotation) => (
+                  <NodeAnnotation
+                    key={annotation.id}
+                    annotation={annotation}
+                    imageSize={bgSize}
+                    containerK={bgPose.k}
+                    worldScale={world.k}
+                    onDragStart={handleAnnotationDragStart}
+                    onDragEnd={handleAnnotationDragEnd}
+                    onChange={handleAnnotationChange}
+                    onClick={handleMarkerClick}
+                    spriteImage={annotationSpriteImage}
+                    selected={true}
+                  />
+                ))}
           </g>
 
           {/* BASE layer */}
@@ -1095,22 +1115,46 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
             {!basePoseIsChanging && (
               <g>
-                {baseMapAnnotations?.map((annotation) => (
-                  <NodeAnnotation
-                    key={annotation.id}
-                    annotation={annotation}
-                    imageSize={baseSize}
-                    containerK={basePose.k}
-                    worldScale={world.k}
-                    onDragStart={handleAnnotationDragStart}
-                    onDragEnd={handleAnnotationDragEnd}
-                    onChange={handleAnnotationChange}
-                    onClick={handleMarkerClick}
-                    spriteImage={annotationSpriteImage}
-                    selected={selectedNode?.id === annotation.id}
-                    toBaseFromClient={toBaseFromClient}
-                  />
-                ))}
+                {/* Render non-selected annotations first */}
+                {baseMapAnnotations
+                  ?.filter((annotation) => annotation.id !== selectedNode?.id)
+                  .map((annotation) => (
+                    <NodeAnnotation
+                      key={annotation.id}
+                      annotation={annotation}
+                      imageSize={baseSize}
+                      containerK={basePose.k}
+                      worldScale={world.k}
+                      onDragStart={handleAnnotationDragStart}
+                      onDragEnd={handleAnnotationDragEnd}
+                      onChange={handleAnnotationChange}
+                      onClick={handleMarkerClick}
+                      spriteImage={annotationSpriteImage}
+                      selected={false}
+                      toBaseFromClient={toBaseFromClient}
+                    />
+                  ))}
+
+                {/* Render selected annotation last (on top) */}
+                {selectedNode?.id &&
+                  baseMapAnnotations
+                    ?.filter((annotation) => annotation.id === selectedNode.id)
+                    .map((annotation) => (
+                      <NodeAnnotation
+                        key={annotation.id}
+                        annotation={annotation}
+                        imageSize={baseSize}
+                        containerK={basePose.k}
+                        worldScale={world.k}
+                        onDragStart={handleAnnotationDragStart}
+                        onDragEnd={handleAnnotationDragEnd}
+                        onChange={handleAnnotationChange}
+                        onClick={handleMarkerClick}
+                        spriteImage={annotationSpriteImage}
+                        selected={true}
+                        toBaseFromClient={toBaseFromClient}
+                      />
+                    ))}
               </g>
             )}
           </g>
