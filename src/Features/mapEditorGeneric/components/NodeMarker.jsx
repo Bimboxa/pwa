@@ -26,6 +26,7 @@ export default function NodeMarker({
   imageSize,
   containerK,
   worldScale,
+  onDragStart,
   onDragEnd,
   onClick,
   selected,
@@ -103,6 +104,7 @@ export default function NodeMarker({
       e.preventDefault();
       if (!draggingEnabled) return;
       setIsDragging(true);
+      onDragStart?.(); // Notify parent that dragging started
       movedRef.current = false;
       dragStartRef.current = {
         x: e.clientX,
@@ -112,7 +114,7 @@ export default function NodeMarker({
       };
       setDragOffsetScreen({ x: 0, y: 0 });
     },
-    [pixelX, pixelY, draggingEnabled]
+    [pixelX, pixelY, draggingEnabled, onDragStart]
   );
 
   const handlePointerMoveLocal = useCallback((clientX, clientY) => {

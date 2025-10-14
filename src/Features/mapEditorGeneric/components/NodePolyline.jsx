@@ -29,6 +29,8 @@ export default function NodePolyline({
   onPointsChange,
   onChange,
   selected,
+  worldScale = 1, // ← Add this
+  containerK = 1, // ← Add this
 }) {
   // --- data props for hit-testing in your editor ---
   const dataProps = {
@@ -52,8 +54,24 @@ export default function NodePolyline({
   const h = imageSize?.h || 1;
 
   // --- UI constants ---
-  const HIT_R = 12; // px, anchor hit radius
+  const HIT_R = 12; // px, anchor hit radius in SCREEN space
+  const ANCHOR_R = 4; // px, visual anchor radius in SCREEN space
+  const ANCHOR_R_HOVERED = 5; // px, hovered anchor radius in SCREEN space
+  const STROKE_WIDTH = 2; // px, base stroke width
+  const STROKE_WIDTH_HOVER = 3; // px, hovered stroke width
+  const HOVER_HIT_WIDTH = 12; // px, invisible hover area width
+  const TEMP_STROKE_WIDTH = 2; // px, temporary drawing lines width
   const CLOSE_TOL_PX = 14; // px in *base* space (tweak/scale if needed)
+
+  // Calculate the inverse scale to keep elements constant screen size
+  const totalScale = worldScale * containerK;
+  const invScale = totalScale > 0 ? 1 / totalScale : 1;
+
+  // Calculate stroke widths - always scale to maintain constant screen size
+  const baseStrokeWidth = STROKE_WIDTH * invScale;
+  const hoverStrokeWidth = STROKE_WIDTH_HOVER * invScale;
+  const hitStrokeWidth = HOVER_HIT_WIDTH * invScale;
+  const tempStrokeWidth = TEMP_STROKE_WIDTH * invScale;
 
   // ----- Hover + dragging state -----
   const [hoverIdx, setHoverIdx] = useState(null);
@@ -163,6 +181,22 @@ export default function NodePolyline({
     if (onChange) onChange({ ...polyline, points: finalPoints });
   }
 
+  // Add these refs at the top of the component (around line 70)
+  const toBaseFromClientRef = useRef(toBaseFromClient);
+  const basePointsRef = useRef(basePoints);
+  const wRef = useRef(w);
+  const hRef = useRef(h);
+  const closeLineRef = useRef(closeLine);
+
+  // Update refs on every render
+  useEffect(() => {
+    toBaseFromClientRef.current = toBaseFromClient;
+    basePointsRef.current = basePoints;
+    wRef.current = w;
+    hRef.current = h;
+    closeLineRef.current = closeLine;
+  });
+
   // ---------- Drawing mode: live mouse point + closing helper ----------
   useEffect(() => {
     if (!isDrawing) {
@@ -171,29 +205,41 @@ export default function NodePolyline({
       return;
     }
 
-    const lastRel = basePoints[basePoints.length - 1] || null;
-    const lastPx = lastRel ? { x: lastRel.x * w, y: lastRel.y * h } : null;
-
-    const firstRel = basePoints[0] || null;
-    const firstPx = firstRel ? { x: firstRel.x * w, y: firstRel.y * h } : null;
-
     function onMove(e) {
+      const currentW = wRef.current;
+      const currentH = hRef.current;
+      const currentBasePoints = basePointsRef.current;
+      const currentCloseLine = closeLineRef.current;
+      const currentToBaseFromClient = toBaseFromClientRef.current;
+
+      const lastRel = currentBasePoints[currentBasePoints.length - 1] || null;
+      const lastPx = lastRel
+        ? { x: lastRel.x * currentW, y: lastRel.y * currentH }
+        : null;
+
       // base-local px
-      let bl = toBaseFromClient(e.clientX, e.clientY);
+      let bl = currentToBaseFromClient(e.clientX, e.clientY);
       // Shift constrain vs LAST committed point while drawing
       bl = constrainIfShift(e, bl, lastPx);
 
       // update preview position (relative 0..1)
-      const rx = bl.x / w;
-      const ry = bl.y / h;
+      const rx = bl.x / currentW;
+      const ry = bl.y / currentH;
 
       // closing helper (distance test in base px)
       let showClose = false;
-      if (closeLine && firstPx) {
-        const dx = bl.x - firstPx.x;
-        const dy = bl.y - firstPx.y;
-        if (Math.hypot(dx, dy) <= CLOSE_TOL_PX) {
-          showClose = true;
+      if (currentCloseLine) {
+        const firstRel = currentBasePoints[0] || null;
+        const firstPx = firstRel
+          ? { x: firstRel.x * currentW, y: firstRel.y * currentH }
+          : null;
+
+        if (firstPx) {
+          const dx = bl.x - firstPx.x;
+          const dy = bl.y - firstPx.y;
+          if (Math.hypot(dx, dy) <= CLOSE_TOL_PX) {
+            showClose = true;
+          }
         }
       }
 
@@ -214,8 +260,9 @@ export default function NodePolyline({
     }
 
     function onDblClick() {
-      if (basePoints.length >= 2) {
-        onComplete && onComplete(basePoints);
+      const currentBasePoints = basePointsRef.current;
+      if (currentBasePoints.length >= 2) {
+        onComplete && onComplete(currentBasePoints);
         setCurrentMousePos(null);
         setShowCloseHelper(false);
       }
@@ -230,16 +277,7 @@ export default function NodePolyline({
       if (moveRafRef.current != null) cancelAnimationFrame(moveRafRef.current);
       moveRafRef.current = null;
     };
-  }, [
-    isDrawing,
-    w,
-    h,
-    toBaseFromClient,
-    basePoints,
-    onComplete,
-    closeLine,
-    CLOSE_TOL_PX,
-  ]);
+  }, [isDrawing, onComplete, CLOSE_TOL_PX]);
 
   // ---------- Build preview with moving vertex appended ----------
   const committedRel = useMemo(
@@ -314,8 +352,8 @@ export default function NodePolyline({
           points={helperPointsStr}
           fill="none"
           stroke="transparent"
-          strokeWidth="12"
-          style={{ cursor: "pointer" }}
+          strokeWidth={hitStrokeWidth}
+          style={{ cursor: isDrawing ? "inherit" : "pointer" }}
           onMouseEnter={() => setHoverIdx("line")}
           onMouseLeave={() => setHoverIdx(null)}
         />
@@ -327,7 +365,7 @@ export default function NodePolyline({
           points={helperPointsStr}
           fill="none"
           stroke={hoverIdx != null ? "#0066cc" : strokeColor}
-          strokeWidth={hoverIdx != null ? 3 : 2}
+          strokeWidth={hoverStrokeWidth}
           strokeDasharray="5,5"
           style={{ pointerEvents: "none" }}
         />
@@ -337,7 +375,7 @@ export default function NodePolyline({
           points={polygonPointsStr}
           fill="none"
           stroke={hoverIdx != null ? "#0066cc" : strokeColor}
-          strokeWidth={hoverIdx != null ? 3 : 2}
+          strokeWidth={hoverStrokeWidth}
           strokeDasharray="5,5"
           style={{ pointerEvents: "none" }}
         />
@@ -351,7 +389,7 @@ export default function NodePolyline({
           x2={currentMousePos.x * w}
           y2={currentMousePos.y * h}
           stroke={strokeColor}
-          strokeWidth="2"
+          strokeWidth={tempStrokeWidth}
           strokeDasharray="3,3"
           opacity="0.9"
           style={{ pointerEvents: "none" }}
@@ -368,7 +406,7 @@ export default function NodePolyline({
             x2={firstCommitted.x * w}
             y2={firstCommitted.y * h}
             stroke={strokeColor}
-            strokeWidth="2"
+            strokeWidth={tempStrokeWidth}
             strokeDasharray="3,3"
             opacity="0.9"
             style={{ pointerEvents: "none" }}
@@ -390,18 +428,18 @@ export default function NodePolyline({
           <circle
             cx={firstCommitted.x * w}
             cy={firstCommitted.y * h}
-            r={HIT_R}
+            r={HIT_R * invScale}
             fill="rgba(0,0,0,0.05)"
             stroke="#0066cc"
-            strokeWidth="2"
+            strokeWidth={2 * invScale}
           />
           <circle
             cx={firstCommitted.x * w}
             cy={firstCommitted.y * h}
-            r={5}
+            r={ANCHOR_R_HOVERED * invScale}
             fill="#0066cc"
             stroke="#fff"
-            strokeWidth="2"
+            strokeWidth={2 * invScale}
             style={{ pointerEvents: "none" }}
           />
         </g>
@@ -421,7 +459,7 @@ export default function NodePolyline({
               <circle
                 cx={px}
                 cy={py}
-                r={HIT_R}
+                r={HIT_R * invScale}
                 fill="transparent"
                 stroke="transparent"
                 style={{
@@ -436,10 +474,10 @@ export default function NodePolyline({
               <circle
                 cx={px}
                 cy={py}
-                r={hovered ? 5 : 4}
+                r={(hovered ? ANCHOR_R_HOVERED : ANCHOR_R) * invScale}
                 fill={hovered ? "#0066cc" : "#ff0000"}
                 stroke="#ffffff"
-                strokeWidth="2"
+                strokeWidth={2 * invScale}
                 style={{ pointerEvents: "none" }}
               />
             </g>

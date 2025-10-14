@@ -11,12 +11,13 @@ export default function RectangleIcon({ fillColor, closeLine, size = 24 }) {
         alignItems: "center",
         borderRadius: "50%",
         bgcolor: "white",
+        width: size,
+        height: size,
+        p: 1,
       }}
     >
       <Box
         sx={{
-          width: size,
-          height: size,
           borderRadius: "50%",
           display: "flex",
           justifyContent: "center",
