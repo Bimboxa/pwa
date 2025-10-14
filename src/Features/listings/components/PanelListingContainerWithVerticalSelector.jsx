@@ -31,6 +31,7 @@ export default function PanelListingContainerWithVerticalSelector() {
           minHeight: 0,
           height: 1,
           position: "relative",
+          flexGrow: 1,
         }}
       >
         <PanelListingContainer />

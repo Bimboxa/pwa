@@ -72,11 +72,11 @@ export default function BottomBarMobile() {
           // "& .Mui-selected .MuiSvgIcon-root": { color: customColor }, // pas nécessaire généralement
         }}
       >
-        <BottomNavigationAction
+        {/* <BottomNavigationAction
           label={settingsS}
           value="SETTINGS"
           icon={<Settings fontSize="large" />}
-        />
+        /> */}
         <BottomNavigationAction
           label={listLabel}
           value="LIST"
@@ -87,11 +87,11 @@ export default function BottomBarMobile() {
           value="MAP"
           icon={<Map fontSize="large" />}
         />
-        <BottomNavigationAction
+        {/* <BottomNavigationAction
           label={chatLabel}
           value="CHAT"
           icon={<Chat fontSize="large" />}
-        />
+        /> */}
       </BottomNavigation>
     </Paper>
   );

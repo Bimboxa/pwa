@@ -9,6 +9,8 @@ import {
 
 import { grey } from "@mui/material/colors";
 
+import useIsMobile from "Features/layout/hooks/useIsMobile";
+
 /**
  * Draggable SVG marker:
  * - marker: { id, x, y, iconKey, fillColor, listingId, entity? }
@@ -37,6 +39,10 @@ export default function NodeMarker({
     "data-node-type": "ANNOTATION",
     "data-annotation-type": "MARKER",
   };
+
+  // is mobile
+
+  const isMobile = useIsMobile();
 
   // Test has images
 
@@ -70,14 +76,18 @@ export default function NodeMarker({
     [worldScale, containerK]
   );
   const invF = 1 / F;
+  const localScale = isMobile ? invF : 1;
 
-  const circleDiameterPx = 32;
-  const iconSizePx = 32;
-  const hitStrokePx = 24;
+  const circleDiameterPx = 32 * localScale;
+  const iconSizePx = 32 * localScale;
+  const hitStrokePx = 24 * localScale;
 
   const rLocal = circleDiameterPx / 2;
   const iconLocal = iconSizePx;
-  const hitStrokeLocal = Math.max(hitStrokePx * invF, 8 * invF);
+  const hitStrokeLocal = Math.max(
+    hitStrokePx * (isMobile ? 1 : invF),
+    8 * (isMobile ? 1 : invF)
+  );
 
   const fillColor = marker?.fillColor ?? "#f44336";
 
@@ -184,9 +194,9 @@ export default function NodeMarker({
   const textRef = useRef(null);
   const [labelSize, setLabelSize] = useState({ w: 0, h: 0 });
 
-  const labelFontPx = 11;
-  const labelPad = 4; // padding inside white rect
-  const gap = -2; // stick distance from circle (px) at bottom-right
+  const labelFontPx = 11 * localScale;
+  const labelPad = 4 * localScale; // padding inside white rect
+  const gap = -2 * localScale; // stick distance from circle (px) at bottom-right
 
   useLayoutEffect(() => {
     if (!showLabel || !textRef.current) {
@@ -271,13 +281,13 @@ export default function NodeMarker({
           <rect
             x={rectX}
             y={rectY}
-            rx={4}
-            ry={4}
+            rx={4 * localScale}
+            ry={4 * localScale}
             width={rectW}
             height={rectH}
             fill="#fff"
             stroke={hasImages ? fillColor : grey[600]}
-            strokeWidth={1}
+            strokeWidth={1 * localScale}
           />
           <text
             ref={textRef}
