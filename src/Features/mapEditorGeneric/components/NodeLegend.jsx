@@ -254,38 +254,67 @@ export default memo(function NodeLegend({
           width: "100%",
         }}
       >
-        {legendItems.map((it, i) => (
-          <div key={i} style={{ display: "contents" }}>
-            <div
-              style={{
-                alignSelf: "start",
-                //display: "flex",
-                //alignItems: "center",
-                //justifyContent: "center",
-                //height: `${ICON_PX}px`,
-                //border: "1px solid black",
-              }}
-            >
-              <LegendIcon
-                type={it.type}
-                iconKey={it.iconType ?? it.iconKey}
-                fillColor={it.fillColor}
-                strokeColor={it.strokeColor}
-              />
+        {legendItems.map((it, i) => {
+          // Section title for listingName type
+          if (it.type === "listingName") {
+            return (
+              <div
+                key={i}
+                style={{
+                  display: "contents",
+                }}
+              >
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <div
+                    style={{
+                      fontWeight: "bold",
+                      fontSize,
+                      marginTop: i > 0 ? ROW_GAP * 2 : 0,
+                      marginBottom: ROW_GAP,
+                    }}
+                  >
+                    {it.name}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // Regular legend item
+          return (
+            <div key={i} style={{ display: "contents" }}>
+              <div
+                style={{
+                  alignSelf: "start",
+                  //display: "flex",
+                  //alignItems: "center",
+                  //justifyContent: "center",
+                  //height: `${ICON_PX}px`,
+                  //border: "1px solid black",
+                }}
+              >
+                <LegendIcon
+                  type={it.type}
+                  iconKey={it.iconType ?? it.iconKey}
+                  fillColor={it.fillColor}
+                  strokeColor={it.strokeColor}
+                  closeLine={it.closeLine}
+                />
+              </div>
+              <div
+                style={{
+                  alignSelf: "center",
+                  overflowWrap: "anywhere",
+                  wordBreak: "break-word",
+                  lineHeight: 1.25,
+                  fontSize,
+                }}
+              >
+                {it.label}
+              </div>
             </div>
-            <div
-              style={{
-                alignSelf: "center",
-                overflowWrap: "anywhere",
-                wordBreak: "break-word",
-                lineHeight: 1.25,
-                fontSize,
-              }}
-            >
-              {it.label}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

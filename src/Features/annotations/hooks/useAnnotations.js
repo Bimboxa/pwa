@@ -6,6 +6,7 @@ import useBgImageTextAnnotations from "Features/bgImage/hooks/useBgImageTextAnno
 
 import db from "App/db/db";
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
+import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 export default function useAnnotations(options) {
   // options
@@ -17,6 +18,7 @@ export default function useAnnotations(options) {
   const addBgImageTextAnnotations = options?.addBgImageTextAnnotations;
   const withEntity = options?.withEntity;
   const withLabel = options?.withLabel;
+  const withListingName = options?.withListingName;
 
   // data
 
@@ -41,6 +43,26 @@ export default function useAnnotations(options) {
         .toArray();
     } else {
       _annotations = await db.annotations.toArray();
+    }
+
+    if (withListingName) {
+      const listingsIds = _annotations.reduce(
+        (ac, cur) => [...new Set([...ac, cur.listingId])],
+        []
+      );
+      const listings = await db.listings
+        .where("id")
+        .anyOf(listingsIds)
+        .toArray();
+
+      // Create a map for quick lookup
+      const listingsMap = getItemsByKey(listings, "id");
+
+      // Add listing name to annotations
+      _annotations = _annotations.map((annotation) => ({
+        ...annotation,
+        listingName: listingsMap[annotation.listingId]?.name || "-?-",
+      }));
     }
 
     if (withLabel) {
