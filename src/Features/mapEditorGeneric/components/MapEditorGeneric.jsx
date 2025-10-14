@@ -174,12 +174,13 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   // 🟢 PINCH + INERTIA
   // ============================
 
-  const MIN_ZOOMV = 5e-5;
-  const MIN_PANV = 0.02;
-  const ZOOM_FRICTION = 0.0018;
-  const PAN_FRICTION = 0.002;
-  const PAN_SMOOTHING = 0.25;
+  const MIN_ZOOMV = 1e-6;
+  const MIN_PANV = 0.005;
+  const ZOOM_FRICTION = 0.0008;
+  const PAN_FRICTION = 0.0008;
+  const PAN_SMOOTHING = 0.15;
   const WHEEL_INERTIA_DELAY = 90;
+  const GESTURE_THROTTLE_MS = 8; // ~120fps max
 
   const [isPinching, setIsPinching] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
@@ -190,6 +191,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     lastDist: 0,
     lastMid: { x: 0, y: 0 },
     lastT: 0,
+    lastUpdateT: 0,
   });
 
   const inertiaRef = useRef({
@@ -202,12 +204,16 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     lastT: 0,
   });
 
+  const pendingUpdateRef = useRef(null);
+
   const panSpeedRef = useRef({
     lastX: 0,
     lastY: 0,
     lastT: 0,
     vX: 0,
     vY: 0,
+    lastUpdateT: 0,
+    samples: [], // Store last few velocity samples for better inertia
   });
 
   const wheelRef = useRef({
@@ -237,9 +243,10 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     const step = (t) => {
       const ref = inertiaRef.current;
       const lastT = ref.lastT || t;
-      const dt = Math.max(0, t - lastT);
+      const dt = Math.min(50, Math.max(0, t - lastT)); // Cap dt to prevent jumps
       ref.lastT = t;
 
+      // Apply friction with capped dt
       zoomV *= Math.exp(-ZOOM_FRICTION * dt);
       panVX *= Math.exp(-PAN_FRICTION * dt);
       panVY *= Math.exp(-PAN_FRICTION * dt);
@@ -300,6 +307,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       panSpeedRef.current.lastX = e.clientX;
       panSpeedRef.current.lastY = e.clientY;
       panSpeedRef.current.lastT = performance.now();
+      panSpeedRef.current.samples = []; // Clear old samples
 
       if (count === 2) {
         setIsPinching(true);
@@ -328,6 +336,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           tx: world.x,
           ty: world.y,
         };
+        panSpeedRef.current.lastUpdateT = 0; // Reset to allow immediate first update
       }
     },
     [world.x, world.y, cancelInertia]
@@ -339,13 +348,20 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       }
 
+      const now = performance.now();
+
       // PINCH
       if (isPinching && pointersRef.current.size >= 2) {
+        // Throttle updates for performance
+        if (now - pinchRef.current.lastUpdateT < GESTURE_THROTTLE_MS) {
+          return;
+        }
+        pinchRef.current.lastUpdateT = now;
+
         const [a, b] = Array.from(pointersRef.current.values());
         const dist = getDistance(a, b);
         const mid = getMidpoint(a, b);
 
-        const now = performance.now();
         const dt = Math.max(1, now - pinchRef.current.lastT);
 
         const factor =
@@ -353,29 +369,35 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
             ? dist / pinchRef.current.lastDist
             : 1;
 
+        const dxMid = mid.x - pinchRef.current.lastMid.x;
+        const dyMid = mid.y - pinchRef.current.lastMid.y;
+
+        // Batch zoom and pan into single state update
         const rect = containerRef.current?.getBoundingClientRect();
-        if (rect && factor !== 1) {
+        if (rect && (factor !== 1 || dxMid || dyMid)) {
           const px = mid.x - rect.left;
           const py = mid.y - rect.top;
 
-          const newK = clamp(world.k * factor, minScale, maxScale);
-          const wx = (px - world.x) / world.k;
-          const wy = (py - world.y) / world.k;
-          const newX = px - wx * newK;
-          const newY = py - wy * newK;
-          setWorld({ x: newX, y: newY, k: newK });
+          setWorld((prevWorld) => {
+            const newK = clamp(prevWorld.k * factor, minScale, maxScale);
+            const wx = (px - prevWorld.x) / prevWorld.k;
+            const wy = (py - prevWorld.y) / prevWorld.k;
+            let newX = px - wx * newK;
+            let newY = py - wy * newK;
+
+            // Apply pan offset
+            newX += dxMid;
+            newY += dyMid;
+
+            return { x: newX, y: newY, k: newK };
+          });
         }
 
-        const dxMid = mid.x - pinchRef.current.lastMid.x;
-        const dyMid = mid.y - pinchRef.current.lastMid.y;
-        if (dxMid || dyMid) {
-          setWorld((t) => ({ ...t, x: t.x + dxMid, y: t.y + dyMid }));
-        }
-
+        // Calculate velocities for inertia
         const vZoom = Math.log(factor) / dt;
         const vX = dxMid / dt;
         const vY = dyMid / dt;
-        inertiaRef.current.zoomV = isFinite(vZoom) ? vZoom : 0;
+        inertiaRef.current.zoomV = isFinite(vZoom) ? vZoom * 0.6 : 0; // Smooth out zoom velocity
         inertiaRef.current.panVX = isFinite(vX) ? vX : 0;
         inertiaRef.current.panVY = isFinite(vY) ? vY : 0;
 
@@ -387,6 +409,26 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
       // PAN (1 pointer)
       if (!isPanning) return;
+
+      // Throttle pan updates for better performance
+      if (now - panSpeedRef.current.lastUpdateT < GESTURE_THROTTLE_MS) {
+        // Still update velocity tracking even when throttling visual updates
+        const dt = Math.max(1, now - panSpeedRef.current.lastT);
+        const instVX = (e.clientX - panSpeedRef.current.lastX) / dt;
+        const instVY = (e.clientY - panSpeedRef.current.lastY) / dt;
+
+        panSpeedRef.current.vX =
+          panSpeedRef.current.vX * (1 - PAN_SMOOTHING) + instVX * PAN_SMOOTHING;
+        panSpeedRef.current.vY =
+          panSpeedRef.current.vY * (1 - PAN_SMOOTHING) + instVY * PAN_SMOOTHING;
+
+        panSpeedRef.current.lastX = e.clientX;
+        panSpeedRef.current.lastY = e.clientY;
+        panSpeedRef.current.lastT = now;
+        return;
+      }
+      panSpeedRef.current.lastUpdateT = now;
+
       const dx = e.clientX - panStart.current.x;
       const dy = e.clientY - panStart.current.y;
 
@@ -404,21 +446,27 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         y: panStart.current.ty + dy,
       }));
 
-      const now = performance.now();
       const dt = Math.max(1, now - panSpeedRef.current.lastT);
       const instVX = (e.clientX - panSpeedRef.current.lastX) / dt;
       const instVY = (e.clientY - panSpeedRef.current.lastY) / dt;
 
+      // Use exponential smoothing
       panSpeedRef.current.vX =
         panSpeedRef.current.vX * (1 - PAN_SMOOTHING) + instVX * PAN_SMOOTHING;
       panSpeedRef.current.vY =
         panSpeedRef.current.vY * (1 - PAN_SMOOTHING) + instVY * PAN_SMOOTHING;
 
+      // Store velocity sample for better end inertia (keep last 5 samples)
+      panSpeedRef.current.samples.push({ vX: instVX, vY: instVY, t: now });
+      if (panSpeedRef.current.samples.length > 5) {
+        panSpeedRef.current.samples.shift();
+      }
+
       panSpeedRef.current.lastX = e.clientX;
       panSpeedRef.current.lastY = e.clientY;
       panSpeedRef.current.lastT = now;
     },
-    [isPinching, isPanning, minScale, maxScale, world.k, world.x, world.y]
+    [isPinching, isPanning, minScale, maxScale, GESTURE_THROTTLE_MS]
   );
 
   const endPan = useCallback(
@@ -451,6 +499,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           panSpeedRef.current.lastX = p.x;
           panSpeedRef.current.lastY = p.y;
           panSpeedRef.current.lastT = performance.now();
+          panSpeedRef.current.samples = []; // Clear samples on transition
+          panSpeedRef.current.lastUpdateT = 0; // Reset throttle
           return;
         }
       } else {
@@ -458,8 +508,29 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           setIsPanning(false);
           if (movedRef.current) suppressNextClickRef.current = true;
 
-          const vX = panSpeedRef.current.vX;
-          const vY = panSpeedRef.current.vY;
+          // Calculate average velocity from recent samples for smoother inertia
+          let vX = panSpeedRef.current.vX;
+          let vY = panSpeedRef.current.vY;
+
+          const samples = panSpeedRef.current.samples;
+          if (samples.length >= 2) {
+            // Use weighted average of recent samples (more recent = more weight)
+            let totalVX = 0,
+              totalVY = 0,
+              totalWeight = 0;
+            samples.forEach((sample, idx) => {
+              const weight = idx + 1; // Linear weighting: more recent = higher weight
+              totalVX += sample.vX * weight;
+              totalVY += sample.vY * weight;
+              totalWeight += weight;
+            });
+            vX = totalVX / totalWeight;
+            vY = totalVY / totalWeight;
+          }
+
+          // Apply a boost factor to pan velocity for better inertia feel
+          vX *= 1.2;
+          vY *= 1.2;
 
           if (Math.hypot(vX, vY) >= MIN_PANV) {
             inertiaRef.current.zoomV = 0;
@@ -473,6 +544,9 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
             startInertia();
           }
+
+          // Clear samples for next pan
+          panSpeedRef.current.samples = [];
         }
       }
     },
@@ -1004,10 +1078,17 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           height: "100%",
           display: "block",
           pointerEvents: "auto",
+          willChange: isPinching || isPanning ? "transform" : "auto",
         }}
       >
         {/* WORLD */}
-        <g transform={`translate(${world.x}, ${world.y}) scale(${world.k})`}>
+        <g
+          transform={`translate(${world.x}, ${world.y}) scale(${world.k})`}
+          style={{
+            willChange: isPinching || isPanning ? "transform" : "auto",
+            transformBox: "fill-box",
+          }}
+        >
           {/* BG layer */}
           <g
             transform={`translate(${bgPose.x}, ${bgPose.y}) scale(${bgPose.k})`}
