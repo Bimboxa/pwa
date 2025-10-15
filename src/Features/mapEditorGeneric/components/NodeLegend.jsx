@@ -320,6 +320,8 @@ export default memo(function NodeLegend({
   );
 
   // ===== render
+  if (!legendItems?.length > 0) return null;
+
   if (!poseEditable) {
     return (
       <foreignObject

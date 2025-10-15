@@ -25,7 +25,7 @@ export default function DialogAppConfig() {
   }
 
   return (
-    <DialogGeneric open={open} onClose={handleClose} title={title} vw="40">
+    <DialogGeneric open={open} onClose={handleClose} title={title} width={350}>
       <PanelAppConfig onClose={handleClose} />
     </DialogGeneric>
   );

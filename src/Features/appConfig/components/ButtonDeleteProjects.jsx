@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 
-import ButtonInPanel from "Features/layout/components/ButtonInPanel";
+import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import useDeleteProjects from "Features/projects/hooks/useDeleteProjects";
 
 export default function ButtonDeleteProjects({ onDeleted }) {
@@ -12,7 +12,7 @@ export default function ButtonDeleteProjects({ onDeleted }) {
   const deleteProjects = useDeleteProjects();
 
   return (
-    <ButtonInPanel
+    <ButtonInPanelV2
       label={label}
       onClick={() => {
         dispatch(setSelectedProjectId(null));
@@ -20,8 +20,9 @@ export default function ButtonDeleteProjects({ onDeleted }) {
         deleteProjects();
         if (onDeleted) onDeleted();
       }}
-      color="red"
-      bgcolor="white"
+      color="error"
+      //bgcolor="white"
+      variant="outlined"
     />
   );
 }

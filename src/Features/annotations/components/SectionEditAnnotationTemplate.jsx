@@ -5,6 +5,7 @@ import FormAnnotationTemplate from "./FormAnnotationTemplate";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
+import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
 
 export default function SectionEditAnnotationTemplate({
   annotationTemplate,
@@ -13,6 +14,7 @@ export default function SectionEditAnnotationTemplate({
 }) {
   // strings
 
+  const title = "Editer l'annotation type";
   const saveS = "Enregistrer";
 
   // state
@@ -34,9 +36,8 @@ export default function SectionEditAnnotationTemplate({
 
   return (
     <BoxFlexVStretch>
-      <BoxAlignToRight>
-        <IconButtonClose onClose={onCloseClick} />
-      </BoxAlignToRight>
+      <HeaderTitleClose onClose={onCloseClick} title={title} />
+
       <FormAnnotationTemplate
         annotationTemplate={annotationTemplate}
         onChange={handleChange}

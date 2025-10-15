@@ -13,8 +13,9 @@ import {
 import useResetSelection from "Features/selection/hooks/useResetSelection";
 import useAnnotationTemplatesByProject from "../hooks/useAnnotationTemplatesByProject";
 import useInitDefaultNewAnnotation from "../hooks/useInitDefaultNewAnnotation";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
-import { Box, Paper } from "@mui/material";
+import { Box, Paper, Typography } from "@mui/material";
 
 import SelectorAnnotationTemplateVariantHorizontal from "./SelectorAnnotationTemplateVariantHorizontal";
 import useAnnotationTemplatesBySelectedListing from "../hooks/useAnnotationTemplatesBySelectedListing";
@@ -39,6 +40,7 @@ export default function ToolbarAnnotationInMapEditor() {
   const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
   const resetSelection = useResetSelection();
   const initDefaultNewAnnotation = useInitDefaultNewAnnotation();
+  const { value: listing } = useSelectedListing();
 
   // utils
 
@@ -76,12 +78,19 @@ export default function ToolbarAnnotationInMapEditor() {
   return (
     <Paper elevation={12}>
       {!openNewToolbar && (
-        <SelectorAnnotationTemplateVariantHorizontal
-          annotationTemplates={annotationTemplates}
-          spriteImage={spriteImage}
-          onClick={handleAnnotationTemplateClick}
-          onNewClick={handleNewClick}
-        />
+        <Box>
+          <Box sx={{ bgcolor: listing?.color, width: 1, px: 1 }}>
+            <Typography sx={{ color: "white" }} variant="caption">
+              {listing?.name}
+            </Typography>
+          </Box>
+          <SelectorAnnotationTemplateVariantHorizontal
+            annotationTemplates={annotationTemplates}
+            spriteImage={spriteImage}
+            onClick={handleAnnotationTemplateClick}
+            onNewClick={handleNewClick}
+          />
+        </Box>
       )}
 
       {openNewToolbar && (

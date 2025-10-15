@@ -70,10 +70,12 @@ export default function PanelSelectorListingsOnboarding() {
   }
   return (
     <BoxFlexVStretch sx={{ bgcolor: "white" }}>
-      <Box sx={{ p: 4 }}>
-        <Typography variant="body2" color="text.secondary">
-          {helperS}
-        </Typography>
+      <Box sx={{ p: 3 }}>
+        <Box sx={{ p: 1, bgcolor: "secondary.main", borderRadius: "4px" }}>
+          <Typography variant="body2" color="white">
+            {helperS}
+          </Typography>
+        </Box>
       </Box>
       <SectionSelectorPresetListings
         selectedKeys={presetListingsKeys}

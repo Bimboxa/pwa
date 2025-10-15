@@ -29,6 +29,7 @@ import {
   clearDrawingPolylinePoints,
   clearDrawingRectanglePoints,
 } from "Features/mapEditor/mapEditorSlice";
+import { setOpenDialogDeleteSelectedItem } from "Features/selection/selectionSlice";
 
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 import useInitDefaultNewAnnotation from "Features/annotations/hooks/useInitDefaultNewAnnotation";
@@ -65,6 +66,7 @@ import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
 
 import db from "App/db/db";
+import DialogDeleteSelectedItem from "Features/selection/components/DialogDeleteSelectedItem";
 
 export default function MainMapEditorV2() {
   const dispatch = useDispatch();
@@ -200,6 +202,8 @@ export default function MainMapEditorV2() {
           dispatch(setEditedEntity(null));
           dispatch(setNewAnnotation(null));
         }
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        dispatch(setOpenDialogDeleteSelectedItem(true));
       }
     };
     document.addEventListener("keydown", onKeyDown, { passive: false });
@@ -463,6 +467,7 @@ export default function MainMapEditorV2() {
       {showScreenCursor && (
         <LayerScreenCursor containerEl={containerRef?.current} />
       )}
+      <DialogDeleteSelectedItem />
 
       {/* <Button
         onClick={handleClick}
