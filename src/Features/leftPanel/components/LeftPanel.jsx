@@ -16,10 +16,12 @@ export default function LeftPanel() {
 
   const openLeftPanel = useSelector((s) => s.leftPanel.openLeftPanel);
   const panelWidth = useSelector((s) => s.leftPanel.width);
+  const isFullScreen = useSelector((s) => s.layout.isFullScreen);
 
   // helpers
 
-  const width = openLeftPanel ? panelWidth : 0;
+  let width = openLeftPanel ? panelWidth : 0;
+  if (isFullScreen) width = 0;
 
   // handler
 
@@ -32,9 +34,11 @@ export default function LeftPanel() {
 
   return (
     <Box sx={{ display: "flex" }}>
-      <VerticalBarInLeftPanel>
-        <VerticalSelectorListing onSeeAllClick={handleSeeAllClick} />
-      </VerticalBarInLeftPanel>
+      {!isFullScreen && (
+        <VerticalBarInLeftPanel>
+          <VerticalSelectorListing onSeeAllClick={handleSeeAllClick} />
+        </VerticalBarInLeftPanel>
+      )}
       <Box
         sx={{
           width,
@@ -48,7 +52,7 @@ export default function LeftPanel() {
         }}
       >
         <PanelListingContainer />
-        <Box
+        {/* <Box
           sx={{
             position: "absolute",
             top: 0,
@@ -58,7 +62,7 @@ export default function LeftPanel() {
           }}
         >
           <ButtonCloseLeftPanel />
-        </Box>
+        </Box> */}
       </Box>
     </Box>
   );

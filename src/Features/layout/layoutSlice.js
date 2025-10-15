@@ -17,6 +17,8 @@ const layoutInitialState = {
   chatWidth: 400,
   //
   toaster: {}, // {triggeredAt,isError,message}
+  //
+  isFullScreen: false,
 };
 
 export const layoutSlice = createSlice({
@@ -49,6 +51,9 @@ export const layoutSlice = createSlice({
         triggeredAt: Date.now(),
       };
     },
+    setIsFullScreen: (state, action) => {
+      state.isFullScreen = action.payload;
+    },
   },
 });
 
@@ -64,6 +69,8 @@ export const {
   setOpenChat,
   //
   setToaster,
+  //
+  setIsFullScreen,
 } = layoutSlice.actions;
 
 export default layoutSlice.reducer;
