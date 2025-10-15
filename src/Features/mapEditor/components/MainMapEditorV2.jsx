@@ -130,6 +130,8 @@ export default function MainMapEditorV2() {
   const legendFormat = useSelector((s) => s.mapEditor.legendFormat);
   const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
 
+  const selectedItem = useSelector((s) => s.selection.selectedItem);
+
   // state - edited polyline
 
   const drawingPolylinePoints = useSelector(
@@ -202,7 +204,10 @@ export default function MainMapEditorV2() {
           dispatch(setEditedEntity(null));
           dispatch(setNewAnnotation(null));
         }
-      } else if (e.key === "Delete" || e.key === "Backspace") {
+      } else if (
+        selectedItem?.type === "ENTITY" &&
+        (e.key === "Delete" || e.key === "Backspace")
+      ) {
         dispatch(setOpenDialogDeleteSelectedItem(true));
       }
     };
@@ -211,7 +216,7 @@ export default function MainMapEditorV2() {
     return () => {
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [enabledDrawingMode]);
+  }, [enabledDrawingMode, selectedItem?.type]);
 
   async function handleNewAnnotation(annotation) {
     if (annotation.type === "MARKER") {
