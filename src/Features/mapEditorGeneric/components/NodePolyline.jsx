@@ -347,7 +347,16 @@ export default function NodePolyline({
           fill={fillColor}
           fillOpacity={fillOpacity ?? 0.8}
           stroke="none"
-          style={{ pointerEvents: "none" }}
+          style={{
+            pointerEvents: isDrawing ? "none" : "inherit",
+            ...(closeLine && !isDrawing && { cursor: "pointer" }),
+          }}
+          onMouseEnter={() => {
+            if (!isDrawing) setHoverIdx("polygon");
+          }}
+          onMouseLeave={() => {
+            if (!isDrawing) setHoverIdx(null);
+          }}
         />
       )}
 
@@ -359,8 +368,12 @@ export default function NodePolyline({
           stroke="transparent"
           strokeWidth={hitStrokeWidth}
           style={{ cursor: isDrawing ? "inherit" : "pointer" }}
-          onMouseEnter={() => setHoverIdx("line")}
-          onMouseLeave={() => setHoverIdx(null)}
+          onMouseEnter={() => {
+            if (!isDrawing) setHoverIdx("line");
+          }}
+          onMouseLeave={() => {
+            if (!isDrawing) setHoverIdx(null);
+          }}
         />
       )}
 
