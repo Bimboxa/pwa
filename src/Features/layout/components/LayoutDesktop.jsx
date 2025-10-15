@@ -30,6 +30,7 @@ export default function LayoutDesktop() {
   const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
   const listPanelWidth = useSelector((s) => s.listPanel.width);
   const top = useSelector((s) => s.layout.topBarHeight);
+  const isFullScreen = useSelector((s) => s.layout.isFullScreen);
 
   // helpers
 
@@ -40,7 +41,7 @@ export default function LayoutDesktop() {
   return (
     <BoxFlexV sx={{ position: "relative" }}>
       {/* <LayerDesktop /> */}
-      <TopBarDesktop />
+      {!isFullScreen && <TopBarDesktop />}
       <Box sx={{ display: "flex", width: 1, flexGrow: 1, minHeight: 0 }}>
         <Box sx={{ display: "flex", width: 1, minWidth: 0, minHeight: 0 }}>
           <LeftPanel />

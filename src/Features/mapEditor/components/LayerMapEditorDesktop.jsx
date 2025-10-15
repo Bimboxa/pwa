@@ -13,6 +13,7 @@ import LeftPanelOverviewInEditor from "Features/leftPanel/components/LeftPanelOv
 import ButtonCreateBlueprint from "Features/blueprints/components/ButtonCreateBlueprint";
 import ButtonBlueprintInMapEditor from "Features/blueprints/components/ButtonBlueprintInMapEditor";
 import ButtonDownloadMapEditorInPdf from "./ButtonDownloadMapEditorInPdf";
+import ButtonFullScreen from "Features/layout/components/ButtonFullscreen";
 
 export default function LayerMapEditorDesktop({ svgElement }) {
   // data
@@ -23,7 +24,7 @@ export default function LayerMapEditorDesktop({ svgElement }) {
   return (
     <>
       {/* <LayerCreateLocatedEntity /> */}
-      <Box
+      {/* <Box
         sx={{
           position: "absolute",
           left: "0px",
@@ -32,13 +33,24 @@ export default function LayerMapEditorDesktop({ svgElement }) {
         }}
       >
         <LeftPanelOverviewInEditor />
+      </Box> */}
+
+      <Box
+        sx={{
+          position: "absolute",
+          left: "8px",
+          top: "8px",
+          zIndex: 10000,
+        }}
+      >
+        <ButtonFullScreen />
       </Box>
 
       <Box
         sx={{
           position: "absolute",
           left: "50%",
-          top: "16px",
+          top: "8px",
           transform: "translateX(-50%)",
           zIndex: 10000,
         }}
