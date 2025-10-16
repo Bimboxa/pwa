@@ -15,6 +15,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import uploadKrtoFile from "../services/uploadKrtoFile";
 import createKrtoFile from "../services/createKrtoFile";
+import createQrCodeImageData from "Features/qrcode/utils/createQrcodeImageData";
 
 export default function ButtonSyncKrto() {
   const API = "https://public.media.bimboxa.com";
@@ -24,6 +25,8 @@ export default function ButtonSyncKrto() {
 
   const title = "Partager votre Krto";
   const description = "Ce lien permet d'accéder à votre krto";
+  const mobileAccessS =
+    "Flashez ce QR pour accéder au Krto depuis votre mobile";
 
   const saveS = "Mettre à jour le fichier partagé";
 
@@ -37,6 +40,7 @@ export default function ButtonSyncKrto() {
   const [open, setOpen] = useState(false);
   const [sharedUrl, setSharedUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [qrcode, setQrcode] = useState(null);
 
   // helpers
 
@@ -52,7 +56,8 @@ export default function ButtonSyncKrto() {
     const origin = window.location.origin;
     const _sharedUrl = `${origin}/?dataPath=${encodedPath}`;
     setSharedUrl(_sharedUrl);
-    await navigator.clipboard.writeText(_sharedUrl);
+    const _qrcode = await createQrCodeImageData(_sharedUrl, { size: 256 });
+    setQrcode(_qrcode);
 
     //
 
@@ -101,6 +106,21 @@ export default function ButtonSyncKrto() {
                 variant="button"
               />
             </Box>
+          </Box>
+
+          <Box
+            sx={{
+              width: 1,
+              display: "flex",
+              justifyContent: "center",
+              mb: 3,
+              flexDirection: "column",
+            }}
+          >
+            <img src={qrcode} />
+            <Typography variant="caption" color="text.secondary">
+              {mobileAccessS}
+            </Typography>
           </Box>
 
           <ButtonGeneric

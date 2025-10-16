@@ -1,27 +1,25 @@
-import jsQR from "jsqr";
-import {createCanvas} from "canvas";
+import QRCode from "qrcode";
 
-export default function createQrCodeImageData(text) {
-  const size = 256;
-  const canvas = createCanvas(size, size);
-  const context = canvas.getContext("2d");
+export default async function createQrcodeImageData(text, options = {}) {
+  const size = options.size ?? 256;
+  const margin = options.margin ?? 4;
+  const errorCorrectionLevel = options.errorCorrectionLevel ?? "M";
 
-  const qrCode = jsQR(text, size, size);
-  if (!qrCode) {
+  try {
+    // Generate QR code as data URL
+    const dataUrl = await QRCode.toDataURL(text, {
+      width: size,
+      margin: margin,
+      errorCorrectionLevel: errorCorrectionLevel,
+      color: {
+        dark: options.darkColor ?? "#000000",
+        light: options.lightColor ?? "#FFFFFF",
+      },
+    });
+
+    return dataUrl;
+  } catch (error) {
+    console.error("Failed to generate QR code:", error);
     throw new Error("Failed to generate QR code");
   }
-
-  context.fillStyle = "white";
-  context.fillRect(0, 0, size, size);
-
-  context.fillStyle = "black";
-  qrCode.modules.forEach((row, y) => {
-    row.forEach((cell, x) => {
-      if (cell) {
-        context.fillRect(x * 4, y * 4, 4, 4);
-      }
-    });
-  });
-
-  return canvas.toDataURL();
 }
