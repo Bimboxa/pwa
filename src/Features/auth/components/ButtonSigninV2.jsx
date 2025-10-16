@@ -23,6 +23,9 @@ export default function ButtonSigninV2() {
   // data
 
   const userProfile = useSelector((s) => s.auth.userProfile);
+  const onboardingIsActive = useSelector(
+    (s) => s.onboarding.onboardingIsActive
+  );
 
   // helper
 
@@ -33,9 +36,9 @@ export default function ButtonSigninV2() {
 
   useEffect(() => {
     if (!userName) {
-      setOpenSignin(true);
+      //setOpenSignin(true);
     }
-  }, [userName]);
+  }, [userName, onboardingIsActive]);
 
   // handlers
 

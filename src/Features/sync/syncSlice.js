@@ -1,4 +1,4 @@
-import {createSlice} from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
 
 const syncInitialState = {
   //
@@ -31,6 +31,10 @@ const syncInitialState = {
 
   preparingSyncTasks: false,
   syncTasks: [], // {filePath, status, error}
+
+  // global data
+
+  tempGlobalDataPath: null,
 };
 
 export const syncSlice = createSlice({
@@ -76,7 +80,7 @@ export const syncSlice = createSlice({
       state.syncTasks = newTasks;
     },
     updateSyncTaskStatus: (state, action) => {
-      const {id, status} = action.payload;
+      const { id, status } = action.payload;
       const task = state.syncTasks.find((t) => t.id === id);
       if (task) task.status = status;
     },
@@ -85,6 +89,9 @@ export const syncSlice = createSlice({
     },
     setRcUserAccount: (state, action) => {
       state.rcUserAccount = action.payload;
+    },
+    setTempGlobalDataPath: (state, action) => {
+      state.tempGlobalDataPath = action.payload;
     },
   },
 });
@@ -107,6 +114,8 @@ export const {
   clearSyncTasks,
   //
   setRcUserAccount,
+  //
+  setTempGlobalDataPath,
 } = syncSlice.actions;
 
 export default syncSlice.reducer;

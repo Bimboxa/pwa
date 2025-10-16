@@ -1,5 +1,4 @@
 import db from "App/db/db";
-import {filter} from "jszip";
 
 export default async function getTableEntriesFromFilters(table, filters) {
   // edge case
