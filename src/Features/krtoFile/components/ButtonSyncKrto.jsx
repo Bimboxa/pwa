@@ -16,6 +16,8 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import uploadKrtoFile from "../services/uploadKrtoFile";
 import createKrtoFile from "../services/createKrtoFile";
 import createQrCodeImageData from "Features/qrcode/utils/createQrcodeImageData";
+import fetchAndLoadGlobalDataService from "Features/sync/services/fetchAndLoadGlobalDataService";
+import { triggerEntitiesUpdate } from "Features/entities/entitiesSlice";
 
 export default function ButtonSyncKrto() {
   const API = "https://public.media.bimboxa.com";
@@ -29,6 +31,7 @@ export default function ButtonSyncKrto() {
     "Flashez ce QR pour accéder au Krto depuis votre mobile";
 
   const saveS = "Mettre à jour le fichier partagé";
+  const downloadS = "Télécharger les dernières modifications";
 
   // data
 
@@ -40,6 +43,7 @@ export default function ButtonSyncKrto() {
   const [open, setOpen] = useState(false);
   const [sharedUrl, setSharedUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingDownload, setLoadingDownload] = useState(false);
   const [qrcode, setQrcode] = useState(null);
 
   // helpers
@@ -68,6 +72,19 @@ export default function ButtonSyncKrto() {
     setLoading(true);
     await uploadKrtoFile({ orgaCode, projectId });
     setLoading(false);
+  }
+
+  async function handleDownload() {
+    setLoadingDownload(true);
+    const { path } = await getKrtoFilePathAsync({
+      orgaCode,
+      projectId,
+    });
+
+    await fetchAndLoadGlobalDataService({ path });
+
+    setLoadingDownload(false);
+    dispatch(triggerEntitiesUpdate());
   }
 
   return (
@@ -127,6 +144,11 @@ export default function ButtonSyncKrto() {
             label={saveS}
             onClick={handleUpload}
             loading={loading}
+          />
+          <ButtonGeneric
+            label={downloadS}
+            onClick={handleDownload}
+            loading={loadingDownload}
           />
         </BoxFlexVStretch>
       </DialogGeneric>
