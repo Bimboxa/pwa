@@ -5,7 +5,12 @@ export default function ButtonGlobalSync() {
   // handlers
 
   async function handleClick() {
-    console.log("click");
+    const response = await fetch("https://bimboxa.com/session", {
+      method: "GET",
+      credentials: "include", // REQUIRED to accept Set-Cookie cross-site
+      headers: { Accept: "text/plain" },
+    });
+    console.log("response", response);
   }
 
   return (
