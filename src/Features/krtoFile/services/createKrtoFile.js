@@ -1,6 +1,13 @@
 import db from "App/db/db";
+import sanitizeName from "Features/misc/utils/sanitizeName";
+import JSZip from "jszip";
 
-export default async function createKrtoFile(projectId) {
+export default async function createKrtoFile(projectId, options) {
+  // options
+
+  const zip = options?.zip;
+  const nameFileWithTimestamp = options?.nameFileWithTimestamp;
+
   // Get project details for metadata
   const project = await db.projects.get(projectId);
   if (!project) {
@@ -18,9 +25,7 @@ export default async function createKrtoFile(projectId) {
   });
 
   // Create a readable filename from project name
-  const sanitizedName = (project.name || "project")
-    .replace(/[^a-z0-9]/gi, "_") // Replace non-alphanumeric with underscore
-    .toLowerCase();
+  const sanitizedName = sanitizeName(project.name || "project");
 
   const now = new Date();
   const date = now.toISOString().split("T")[0]; // YYYY-MM-DD
@@ -30,9 +35,24 @@ export default async function createKrtoFile(projectId) {
     .substring(0, 5)
     .replace(":", "h"); // HHhMM
   const timestamp = `${date}_${time}`;
-  const filename = `${sanitizedName}_${timestamp}.krto`;
+  const filename = nameFileWithTimestamp
+    ? `${sanitizedName}_${timestamp}.krto`
+    : `${sanitizedName}.krto`;
 
-  const file = new File([blob], filename, { type: blob.type });
+  // Dexie export returns a JSON blob, but we want to use a more generic MIME type
+  // that matches the ALLOWED_MIME set. Use 'application/octet-stream' as it's the most permissive
+  let file = new File([blob], filename, { type: blob.type });
+
+  if (zip) {
+    const zipFile = new JSZip();
+    zipFile.file(filename, blob);
+    const zipBlob = await zipFile.generateAsync({ type: "blob" });
+    const zipFilename = filename.replace(/\.krto$/, ".zip");
+    file = new File([zipBlob], zipFilename, { type: "application/zip" });
+  } else {
+    // Use application/octet-stream for non-zipped files to match ALLOWED_MIME
+    file = new File([blob], filename, { type: blob.type });
+  }
 
   return file;
 }

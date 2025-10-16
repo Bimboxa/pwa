@@ -9,6 +9,7 @@ import useDndSensors from "App/hooks/useDndSensors";
 import useAutoRedirect from "App/hooks/useAutoRedirect";
 import useAutoSelectListing from "Features/listings/hooks/useAutoSelectListing";
 import useAutoLayoutOnboarding from "Features/onboarding/hooks/useAutoLayoutOnboarding";
+import useAutoFetchAndLoadGlobalData from "Features/sync/hooks/useAutoFetchAndLoadGlobalData";
 
 import { Box } from "@mui/material";
 
@@ -39,6 +40,7 @@ export default function MainAppLayout() {
   useAutoSelectListing();
   //useAutoLayoutOnboarding();
   useAutoLayout();
+  useAutoFetchAndLoadGlobalData();
 
   // data
 
