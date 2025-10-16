@@ -13,7 +13,7 @@ import LeftPanelOverviewInEditor from "Features/leftPanel/components/LeftPanelOv
 import ButtonCreateBlueprint from "Features/blueprints/components/ButtonCreateBlueprint";
 import ButtonBlueprintInMapEditor from "Features/blueprints/components/ButtonBlueprintInMapEditor";
 import ButtonDownloadMapEditorInPdf from "./ButtonDownloadMapEditorInPdf";
-import ButtonFullScreen from "Features/layout/components/ButtonFullscreen";
+import ButtonFullScreen from "Features/layout/components/ButtonFullScreen";
 
 export default function LayerMapEditorDesktop({ svgElement }) {
   // data

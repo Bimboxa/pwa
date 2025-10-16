@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { useNavigate } from "react-router-dom";
 
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { setUserProfile, setToken } from "../authSlice";
 
@@ -27,6 +27,7 @@ export default function PageSignInVariantPhoneNumber() {
   // data
 
   const appConfig = useAppConfig();
+  const userProfile = useSelector((s) => s.auth.userProfile);
 
   // state
 
@@ -41,9 +42,9 @@ export default function PageSignInVariantPhoneNumber() {
   }
 
   function handleVerifyMfaSuccess({ jwt }) {
-    const userProfile = getUserProfileFromJwt({ appConfig, jwt });
+    const _userProfile = getUserProfileFromJwt({ appConfig, jwt });
     console.log("userProfile");
-    dispatch(setUserProfile(userProfile));
+    dispatch(setUserProfile({ ...userProfile, ..._userProfile }));
     dispatch(setToken(jwt));
 
     navigate("/");

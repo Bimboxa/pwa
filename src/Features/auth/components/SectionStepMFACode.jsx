@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import { Box, Typography } from "@mui/material";
 
 import FieldCode from "Features/form/components/FieldCode";
@@ -19,6 +21,10 @@ export default function SectionStepMFACode({ phoneNumber, onSuccess }) {
 
   const [locked, setLocked] = useState(false);
 
+  // data
+
+  const appConfig = useAppConfig();
+
   // helpers
 
   const descriptionS = `Saisissez le code envoyé au ${formatFrenchPhoneNumber(
@@ -33,7 +39,7 @@ export default function SectionStepMFACode({ phoneNumber, onSuccess }) {
       return;
     }
     setLocked(true);
-    const appConfig = await getAppConfigDefault();
+    //const appConfig = await getAppConfigDefault();
     const serviceUrl = appConfig.auth.verifyMfaCodeUrl;
     verifyingRef.current = true;
     const jwt = await verifyMFACodeService({
