@@ -1,9 +1,10 @@
-name: "Default"
-version: "08/10/2025 14:00"
+name: "Public"
+version: "16/10/2025 18:38"
 isDefault: true
+orgaCode: public
 
 # APP
-appName: "Krto"
+appName: "Bimboxa"
 
 # COLORS
 
@@ -70,9 +71,8 @@ strings:
 # AUTH
 
 auth:
-  service: PHONE_NUMBER
-  getMfaCodeUrl: https://auth.etandex.fr/api/Auth/Login
-  verifyMfaCodeUrl: https://auth.etandex.fr/api/Auth/CheckMfaCode
+  #service: PHONE_NUMBER
+  service: CLERK
   userProfile:
     firstName: given_name # Antoine
     lastName: familyName # Favreau
@@ -111,7 +111,7 @@ features:
     - type: BASE_MAP
       name: Fonds de plan
     - type: LOCATED_ENTITY
-      name: Calques
+      name: Listes d'objets
     - type: BLUEPRINT
       name: Exports
 
@@ -447,17 +447,17 @@ presetListingsObject:
     spriteImageKey: DEFAULT
     initialEntities:
       sortedItems:
-        - type: POLYLINE
+        - type: RECTANGLE
           fillColor: "#E6763F"
           strokeColor: "#E6763F"
           label: Roulotte de chantier
           closeLine: true
-        - type: POLYLINE
+        - type: RECTANGLE
           fillColor: "#4BA6F0"
           strokeColor: "#4BA6F0"
           label: WC de chantier
           closeLine: true
-        - type: POLYLINE
+        - type: RECTANGLE
           fillColor: "#489F64"
           strokeColor: "#489F64"
           label: Benne de déchets
