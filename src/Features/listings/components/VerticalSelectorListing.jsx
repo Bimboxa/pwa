@@ -22,6 +22,7 @@ import IconListingVariantSelectable from "./IconListingVariantSelectable";
 
 import getModulesAndListingsForLeftPanel from "../utils/getModulesAndListingsForLeftPanel";
 import ButtonDialogCreateListingInVerticalSelector from "./ButtonDialogCreateListingInVerticalSelector";
+import { setShowBgImageInMapEditor } from "Features/bgImage/bgImageSlice";
 
 export default function VerticalSelectorListing({ onSeeAllClick }) {
   const dispatch = useDispatch();
@@ -29,10 +30,11 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
   const seeAllS = "Voir les listes";
   const pinnedS = "Listes";
   const newListingS = "Nouvelle liste";
-  const titleS = "Créer un repérage";
+  const titleS = "Créer une liste d'objets";
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
 
   const { value: listings } = useListingsByScope({
     filterByProjectId: projectId ?? null,
@@ -57,15 +59,16 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
   items = [
     {
       type: "ENTITY_MODEL_TYPE",
-      entityModelType: { name: "Gabarit" },
+      entityModelType: { name: "Gabarit", type: "BACKGROUND" },
     },
     {
       type: "LISTING",
       listing: {
         id: "bgImageFormat",
-        iconKey: "print",
+        iconKey: "background",
         color: theme.palette.secondary.light,
       },
+      showHideButton: true,
     },
     ...items,
   ];
@@ -80,11 +83,15 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
   }
 
   function toggleListingVisibility(id) {
-    const isHidden = hiddenListingsIds.includes(id);
-    const next = isHidden
-      ? hiddenListingsIds.filter((x) => x !== id)
-      : [...hiddenListingsIds, id];
-    dispatch(setHiddenListingsIds(next));
+    if (id !== "bgImageFormat") {
+      const isHidden = hiddenListingsIds.includes(id);
+      const next = isHidden
+        ? hiddenListingsIds.filter((x) => x !== id)
+        : [...hiddenListingsIds, id];
+      dispatch(setHiddenListingsIds(next));
+    } else {
+      dispatch(setShowBgImageInMapEditor(!showBgImage));
+    }
   }
 
   if (onboardingIsActive)
@@ -126,7 +133,9 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
         {items.map((item) => {
           const selected = item?.listing?.id === selectedListingId;
           const id = item?.listing?.id;
-          const hidden = id ? hiddenListingsIds.includes(id) : false;
+          let hidden = id ? hiddenListingsIds.includes(id) : false;
+          if (id === "bgImageFormat") hidden = !showBgImage;
+
           const showHideButton = item?.showHideButton;
 
           if (item.type === "ENTITY_MODEL_TYPE") {

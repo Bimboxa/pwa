@@ -86,14 +86,6 @@ export default function SectionListEntitiesInListPanel() {
 
     dispatch(setSelectedEntityId(id));
 
-    dispatch(
-      setSelectedItem({
-        type: "ENTITY",
-        id: entity.id,
-        listingId: entity.listingId,
-      })
-    );
-
     onEntityClick(entity);
     //dispatch(setOpenedPanel("EDITED_ENTITY"));
   }

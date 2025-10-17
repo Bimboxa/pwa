@@ -7,10 +7,14 @@ import { setBgImageRawTextAnnotations } from "../bgImageSlice";
 import useBgImageFormItem from "../hooks/useBgImageFormItem";
 import useBgImageFormTemplate from "../hooks/useBgImageFormTemplate";
 
+import { Box, Typography } from "@mui/material";
+import theme from "Styles/theme";
+
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 import FormGenericV2 from "Features/form/components/FormGenericV2";
 import PanelTitle from "Features/layout/components/PanelTitle";
+import IconListingVariantBasic from "Features/listings/components/IconListingVariantBasic";
 
 export default function PanelFormatBgImage() {
   const dispatch = useDispatch();
@@ -42,7 +46,15 @@ export default function PanelFormatBgImage() {
 
   return (
     <BoxFlexVStretch sx={{ bgcolor: "white" }}>
-      <PanelTitle title={title} />
+      <Box sx={{ display: "flex", alignItems: "center", p: 1 }}>
+        <IconListingVariantBasic
+          listing={{
+            iconKey: "background",
+            color: theme.palette.secondary.light,
+          }}
+        />
+        <Typography sx={{ ml: 1, fontWeight: "bold" }}>{title}</Typography>
+      </Box>
       <FormGenericV2
         template={template}
         item={item}
