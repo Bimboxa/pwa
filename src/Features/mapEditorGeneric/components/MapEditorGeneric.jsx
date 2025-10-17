@@ -606,7 +606,12 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         const ratioY = p_inBase.y / (baseSize.h || 1);
 
         if (onNewAnnotation) {
-          onNewAnnotation({ type: "MARKER", x: ratioX, y: ratioY });
+          onNewAnnotation({
+            type: "MARKER",
+            x: ratioX,
+            y: ratioY,
+            annotationTemplateId: event.annotationTemplateId,
+          });
         }
       }
     },
