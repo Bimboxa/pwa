@@ -30,7 +30,7 @@ export default function ButtonSyncKrto() {
   const mobileAccessS =
     "Flashez ce QR pour accéder au Krto depuis votre mobile";
 
-  const saveS = "Mettre à jour le fichier partagé";
+  const saveS = "Sauvegarder le projet";
   const downloadS = "Télécharger les dernières modifications";
 
   // data

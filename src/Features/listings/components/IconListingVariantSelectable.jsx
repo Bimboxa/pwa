@@ -1,6 +1,6 @@
 import { createElement } from "react";
 
-import { Button, Paper, Box, Tooltip } from "@mui/material";
+import { Box, Tooltip } from "@mui/material";
 import { ArrowDropDown as Down, Circle } from "@mui/icons-material";
 import { red, grey } from "@mui/material/colors";
 import { lighten } from "@mui/material/styles";
@@ -15,7 +15,9 @@ export default function IconListingVariantSelectable({
 
   size = "32px",
 }) {
-  const isLocatedEntity = listing?.entityModel?.type === "LOCATED_ENTITY";
+  const isLocatedEntity =
+    listing?.entityModel?.type === "LOCATED_ENTITY" ||
+    listing.id === "bgImageFormat";
   const listingColor = listing?.color ?? red[500];
   const listingColorLight = lighten(listingColor, 0.2);
   const listingColorLightest = lighten(listingColor, 0.5);
