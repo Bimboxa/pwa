@@ -49,9 +49,9 @@ export default async function loadKrtoFile(blob) {
     .equals(importTag)
     .first();
 
-  if (!project) {
-    throw new Error("Imported project not found (unexpected).");
-  }
+  // if (!project) {
+  //   throw new Error("Imported project not found (unexpected).");
+  // }
 
   // Optional: clean the temporary tag
   await db

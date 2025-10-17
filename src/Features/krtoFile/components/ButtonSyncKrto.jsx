@@ -58,7 +58,8 @@ export default function ButtonSyncKrto() {
       projectId,
     });
     const origin = window.location.origin;
-    const _sharedUrl = `${origin}/?dataPath=${encodedPath}`;
+    //const _sharedUrl = `${origin}/?dataPath=${encodedPath}`;
+    const _sharedUrl = `${origin}/download/${encodedPath}`;
     setSharedUrl(_sharedUrl);
     const _qrcode = await createQrCodeImageData(_sharedUrl, { size: 256 });
     setQrcode(_qrcode);

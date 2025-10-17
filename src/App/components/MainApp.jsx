@@ -36,6 +36,7 @@ import PageScopes from "Features/scopes/components/PageScopes";
 
 import { startDexieSync } from "App/dexieSyncService";
 import useNetworkStatus from "Features/auth/hooks/useNetworkStatus";
+import PageDownloadKrtro from "Features/krtoFile/components/PageDownloadKrto";
 
 startDexieSync();
 
@@ -83,6 +84,10 @@ function App({ pca, runningIn }) {
                     <Route path="/onboarding" element={<PageOnboarding />} />
                     <Route path="/sign-in" element={<PageSignIn />} />
                     <Route path="/dashboard" element={<PageDashboard />} />
+                    <Route
+                      path="/download/:krtoPath"
+                      element={<PageDownloadKrtro />}
+                    />
                   </Routes>
                 </AuthGate>
               </ClerkProviderCustom>
