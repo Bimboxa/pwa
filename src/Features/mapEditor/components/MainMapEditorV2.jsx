@@ -296,9 +296,14 @@ export default function MainMapEditorV2() {
 
   async function handleNodeClick(node) {
     node = node?.id === selectedNode?.id ? null : node;
+    const activeListingType = listing?.entityModel?.type;
 
     // disable baseMap selection if !showBgImage
     if (node?.nodeType === "BASE_MAP" && !showBgImage) return;
+
+    // diable click in blueprint edition
+    if (activeListingType === "BLUEPRINT" && node.nodeType === "ANNOTATION")
+      return;
 
     dispatch(setSelectedNode(node));
     if (node?.nodeType === "ANNOTATION") {
