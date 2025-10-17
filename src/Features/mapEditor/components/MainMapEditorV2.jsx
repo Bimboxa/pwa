@@ -237,6 +237,7 @@ export default function MainMapEditorV2() {
       // main
       const entity = await createEntity(entityData);
       console.log("[MainMapEditor] create entity", entity);
+      console.log("[MainMapEditor] create annotation", newAnnotation);
       const _annotation = await createAnnotation(
         {
           ...newAnnotation,
@@ -247,7 +248,9 @@ export default function MainMapEditorV2() {
           listingTable: listing?.table,
           baseMapId: mainBaseMap?.id,
           type: "MARKER",
-          //annotationTemplateId: annotationTemplate?.id,
+          annotationTemplateId:
+            annotation.annotationTemplateId ??
+            newAnnotation.annotationTemplateId,
         },
         {
           tempAnnotationTemplateLabel,

@@ -1,13 +1,33 @@
+import { useState, useRef } from "react";
 import { useDndMonitor, useDraggable } from "@dnd-kit/core";
 
-import { Box } from "@mui/material";
+import { useDispatch, useSelector } from "react-redux";
+
+import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+
+import useAnnotationTemplatesBySelectedListing from "Features/annotations/hooks/useAnnotationTemplatesBySelectedListing";
+import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+
+import { Box, Typography } from "@mui/material";
 import FabMarker from "./FabMarker";
+
+import ButtonSelectorAnnotationTemplate from "Features/annotations/components/ButtonSelectorAnnotationTemplate";
+
+import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 
 export default function DraggableFabMarker({
   bgcolor,
   onDragStart,
   onDropped,
 }) {
+  const dispatch = useDispatch();
+
+  // data
+
+  const annotationTemplates = useAnnotationTemplatesBySelectedListing();
+  const spriteImage = useAnnotationSpriteImage();
+  const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
+
   // data - dnd
 
   const { attributes, listeners, setNodeRef, transform, isDragging } =
@@ -15,6 +35,17 @@ export default function DraggableFabMarker({
       id: "marker",
     });
   useDndMonitor({ onDragEnd: handleDragEnd, onDragStart: handleDragStart });
+
+  // state
+
+  const [annotationTemplateId, setAnnotationTemplateId] = useState(null);
+  const idRef = useRef();
+
+  // helper
+
+  const annotationTemplate = annotationTemplates?.find(
+    (t) => t.id === annotationTemplateId
+  );
 
   // helpers - dnd
 
@@ -58,14 +89,37 @@ export default function DraggableFabMarker({
     y += FINGER_OFFSET_Y;
 
     if (onDropped) {
-      onDropped({ x, y });
+      onDropped({
+        x,
+        y,
+      });
     }
   }
 
   const visualOffsetY = isDragging ? FINGER_OFFSET_Y : 0;
 
+  function handleChange(id) {
+    const annotationTemplate = annotationTemplates?.find((t) => t.id === id);
+    dispatch(
+      setNewAnnotation({
+        ...newAnnotation,
+        ...getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate),
+        isFromAnnotation: false,
+      })
+    );
+    setAnnotationTemplateId(id);
+  }
+
   return (
-    <Box>
+    <Box sx={{ display: "flex", alignItems: "center" }}>
+      {!isCreating && (
+        <ButtonSelectorAnnotationTemplate
+          annotationTemplateId={annotationTemplateId}
+          annotationTemplates={annotationTemplates}
+          spriteImage={spriteImage}
+          onChange={handleChange}
+        />
+      )}
       {/* Draggable marker with offset above finger */}
       <Box
         ref={setNodeRef}
@@ -75,13 +129,16 @@ export default function DraggableFabMarker({
           display: "flex",
           justifyContent: "center",
           transform: `translate(${transform?.x ?? 0}px, ${
-            (transform?.y ?? 0) + visualOffsetY
+            (transform?.y ?? 0) + (isCreating ? visualOffsetY : 0)
           }px)`,
           position: "relative",
           touchAction: "manipulation",
         }}
       >
-        <FabMarker bgcolor={bgcolor} isCreating={isCreating} />
+        <FabMarker
+          bgcolor={annotationTemplate?.fillColor ?? bgcolor}
+          isCreating={isCreating}
+        />
       </Box>
     </Box>
   );

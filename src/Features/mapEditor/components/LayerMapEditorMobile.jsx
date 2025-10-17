@@ -20,7 +20,7 @@ export default function LayerMapEditorMobile({ svgElement }) {
       >
         <IconButtonListingSelector />
       </Box>
-      {/* <Box
+      <Box
         sx={{
           position: "absolute",
           left: "50%",
@@ -30,7 +30,7 @@ export default function LayerMapEditorMobile({ svgElement }) {
         }}
       >
         <ButtonSelectorBaseMapInMapEditor />
-      </Box> */}
+      </Box>
 
       {/* <Box
         sx={{
