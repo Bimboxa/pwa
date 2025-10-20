@@ -9,6 +9,7 @@ import {
 
 export default function ListItemsGenericV2({
   items,
+  divider,
   selection,
   onClick,
   keyString = "id",
@@ -17,7 +18,9 @@ export default function ListItemsGenericV2({
 }) {
   // edge case
 
-  if (!items || items.length === 0) {
+  console.log("debug_2010_ListItemsGenericV2", items);
+
+  if (!items || items?.length === 0) {
     return (
       <Box sx={{ width: 1, justifyContent: "center", display: "flex", p: 2 }}>
         <Typography color="text.secondary">{noItemLabel}</Typography>
@@ -33,6 +36,7 @@ export default function ListItemsGenericV2({
           selected={selection?.includes(item.id)}
           key={item[keyString]}
           onClick={() => onClick(item)}
+          divider={divider}
         >
           {componentListItem &&
             React.createElement(componentListItem, { ...item })}

@@ -9,7 +9,11 @@ import getUserProfileFromLocalStorage from "../services/getUserProfileFromLocalS
 export default function useInitUserProfile() {
   const dispatch = useDispatch();
 
-  const userProfile = getUserProfileFromLocalStorage();
+  let userProfile = getUserProfileFromLocalStorage();
+  userProfile = {
+    ...(userProfile ?? {}),
+    userName: userProfile?.userName ?? "Anonyme",
+  };
 
   useEffect(() => {
     dispatch(setUserProfile(userProfile));

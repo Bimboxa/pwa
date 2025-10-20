@@ -15,13 +15,11 @@ export default function useAutoSelectListing() {
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   const { value: selectedListing } = useSelectedListing();
+
   useEffect(() => {
-    console.log(
-      "[EFFECT] useAutoSelectListing",
-      listings,
-      !Boolean(selectedListing?.id)
-    );
-    if (!selectedListing?.id && listings?.length > 0) {
+    const triggerAuto = !selectedListingId && listings?.length > 0;
+    console.log("[EFFECT] trigger useAutoSelectListing", triggerAuto);
+    if (triggerAuto) {
       console.log("[EFFECT] useAutoSelectListing - set First listing");
       const firstListing = listings[0];
       if (firstListing) {
