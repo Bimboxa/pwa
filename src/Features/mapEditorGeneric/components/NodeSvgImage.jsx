@@ -22,6 +22,8 @@ export default memo(function NodeSvgImage({
   enabledDrawingMode,
   locked = false,
   selected,
+  opacity,
+  grayScale = false,
 }) {
   const refSize = useRef();
 
@@ -143,6 +145,8 @@ export default memo(function NodeSvgImage({
           preserveAspectRatio="none"
           style={{
             imageRendering: "optimizeSpeed",
+            opacity: opacity,
+            filter: grayScale ? "grayscale(100%)" : "none",
           }}
           {...dataProps}
         />
@@ -243,6 +247,8 @@ export default memo(function NodeSvgImage({
                   pointerEvents: "none",
                   display: "block",
                   imageRendering: "optimizeSpeed",
+                  opacity: opacity,
+                  filter: grayScale ? "grayscale(100%)" : "none",
                 }}
               />
             </Rnd>

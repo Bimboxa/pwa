@@ -40,6 +40,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     baseMapImageUrl,
     baseMapPoseInBg, // {x:0,y:0,k:1,r:0}, pose of baseMap in bg local coords.
     onBaseMapPoseInBgChange,
+    baseMapOpacity,
+    baseMapGrayScale,
     annotations,
     initialScale = "fit",
     minScale = 0.1,
@@ -954,6 +956,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               onPoseChangeEnd={handleBasePoseChange}
               selected={selectedNode?.nodeType === "BASE_MAP"}
               enabledDrawingMode={enabledDrawingMode}
+              grayScale={baseMapGrayScale}
+              opacity={baseMapOpacity}
             />
 
             {/* Polyline drawing/preview */}
@@ -1096,6 +1100,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
             src={baseMapImageUrl}
             width={baseSize.w}
             height={baseSize.h}
+            grayScale={baseMapGrayScale}
+            opacity={baseMapOpacity}
           />
 
           {baseMapAnnotations.map((a) => (

@@ -15,6 +15,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import FormGenericV2 from "Features/form/components/FormGenericV2";
 import PanelTitle from "Features/layout/components/PanelTitle";
 import IconListingVariantBasic from "Features/listings/components/IconListingVariantBasic";
+import SectionBaseMapInMapEditorFormat from "Features/baseMaps/components/SectionBaseMapInMapEditorFormat";
 
 export default function PanelFormatBgImage() {
   const dispatch = useDispatch();
@@ -60,6 +61,7 @@ export default function PanelFormatBgImage() {
         item={item}
         onItemChange={handleItemChange}
       />
+      <SectionBaseMapInMapEditorFormat />
     </BoxFlexVStretch>
   );
 }

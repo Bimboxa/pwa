@@ -2,6 +2,8 @@ import { useDispatch } from "react-redux";
 
 import {
   setBaseMapPoseInBg,
+  setBaseMapOpacity,
+  setBaseMapGrayScale,
   setSelectedMainBaseMapId,
   setLegendFormat,
 } from "Features/mapEditor/mapEditorSlice";
@@ -30,8 +32,11 @@ export default function useOnEntityClick() {
         );
       case "BLUEPRINT":
         dispatch(setShowBgImageInMapEditor(true));
-        if (entity.baseMapPoseInBg)
+        if (entity.baseMapPoseInBg) {
           dispatch(setBaseMapPoseInBg(entity.baseMapPoseInBg));
+          dispatch(setBaseMapOpacity(entity.baseMapOpacity));
+          dispatch(setBaseMapGrayScale(entity.baseMapGrayScale));
+        }
 
         dispatch(setSelectedMainBaseMapId(entity.baseMapId));
 
