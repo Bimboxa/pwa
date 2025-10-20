@@ -4,8 +4,9 @@ import { useDispatch } from "react-redux";
 
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 
-import PageGeneric from "Features/layout/components/PageGeneric";
+import { Typography } from "@mui/material";
 
+import PageGeneric from "Features/layout/components/PageGeneric";
 import BoxCenter from "Features/layout/components/BoxCenter";
 import CircularProgressGeneric from "Features/layout/components/CircularProgressGeneric";
 import fetchMediaService from "Features/sync/services/fetchMediaService";
@@ -17,6 +18,10 @@ export default function PageDownloadKrtro() {
   const dispatch = useDispatch();
   const { krtoPath } = useParams();
   const navigate = useNavigate();
+
+  // strings
+
+  const loadingS = "Chargement Krto";
 
   // state
 
@@ -33,7 +38,7 @@ export default function PageDownloadKrtro() {
     const krtoFile = await krtoZipToKrtoFile(blob);
     const project = await loadKrtoFile(krtoFile);
     if (project) dispatch(setSelectedProjectId(project.id));
-    navigate("/");
+    //navigate("/");
   }
 
   // effect
@@ -47,8 +52,9 @@ export default function PageDownloadKrtro() {
 
   return (
     <PageGeneric>
-      <BoxCenter>
+      <BoxCenter sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <CircularProgressGeneric value={progress * 100} />
+        <Typography alignment="center">{loadingS}</Typography>
       </BoxCenter>
     </PageGeneric>
   );
