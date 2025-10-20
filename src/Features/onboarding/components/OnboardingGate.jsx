@@ -1,26 +1,25 @@
 import { useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import getIsOnboardedFromLocalStorage from "../services/getIsOnboardedFromLocalStorage";
 import setIsOnboardedInLocalStorage from "../services/setIsOnboardedInLocalStorage";
 
 export default function OnboardingGate({ children }) {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const isDownloadPage = window.location.pathname.includes("/download/");
 
   // effect
 
   const isOnboarded = getIsOnboardedFromLocalStorage();
-  const dataPath = searchParams.get("dataPath");
 
   useEffect(() => {
-    if (!isOnboarded && !dataPath) {
+    if (!isOnboarded && !isDownloadPage) {
       navigate("/onboarding");
       setIsOnboardedInLocalStorage("true");
-    } else if (dataPath && !isOnboarded) {
+    } else if (isDownloadPage && !isOnboarded) {
       setIsOnboardedInLocalStorage("true");
     }
-  }, [isOnboarded, dataPath]);
+  }, [isOnboarded, isDownloadPage]);
 
   return <>{children}</>;
 }
