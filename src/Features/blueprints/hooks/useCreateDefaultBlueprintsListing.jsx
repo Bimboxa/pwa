@@ -12,8 +12,14 @@ export default function useCreateDefaultBlueprintsListing() {
 
   const createListing = useCreateListing();
 
-  return async () => {
-    const listing = { projectId, scopeId, ...props };
+  return async (options) => {
+    // options
+
+    const _projectId = options?.projectId;
+
+    // main
+
+    const listing = { projectId: _projectId ?? projectId, scopeId, ...props };
     return await createListing({ listing });
   };
 }

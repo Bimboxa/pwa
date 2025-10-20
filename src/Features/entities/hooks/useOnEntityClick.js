@@ -13,6 +13,7 @@ import {
 } from "Features/bgImage/bgImageSlice";
 
 import { setSelectedItem } from "Features/selection/selectionSlice";
+import { setBlueprintIdInMapEditor } from "Features/blueprints/blueprintsSlice";
 
 import useEntityModel from "./useEntityModel";
 
@@ -32,6 +33,7 @@ export default function useOnEntityClick() {
         );
       case "BLUEPRINT":
         dispatch(setShowBgImageInMapEditor(true));
+        dispatch(setBlueprintIdInMapEditor(entity.id));
         if (entity.baseMapPoseInBg) {
           dispatch(setBaseMapPoseInBg(entity.baseMapPoseInBg));
           dispatch(setBaseMapOpacity(entity.baseMapOpacity));

@@ -161,8 +161,9 @@ export default function MainMapEditorV2() {
   // effet - init newAnnotation
 
   useEffect(() => {
-    if (!newAnnotation?.type) initDefaultNewAnnotation();
-  }, [newAnnotation?.type]);
+    if (!newAnnotation?.type && annotationSpriteImage)
+      initDefaultNewAnnotation();
+  }, [newAnnotation?.type, annotationSpriteImage]);
 
   // helpers
 

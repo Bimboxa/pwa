@@ -25,6 +25,7 @@ import ContainerFilesSelector from "Features/files/components/ContainerFilesSele
 import getFoundItems from "Features/search/getFoundItems";
 import loadKrtoFile from "Features/krtoFile/services/loadKrtoFile";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import useCreateDefaultBlueprintsListing from "Features/blueprints/hooks/useCreateDefaultBlueprintsListing";
 
 export default function SectionSelectProject({ onProjectSelected }) {
   const dispatch = useDispatch();
@@ -46,6 +47,7 @@ export default function SectionSelectProject({ onProjectSelected }) {
   const appConfig = useAppConfig();
   const defaultBaseMapsListingProps = useDefaultBaseMapsListingProps();
   const createListing = useCreateListing();
+  const createBlueprintsListing = useCreateDefaultBlueprintsListing();
 
   // data - func
 
@@ -93,6 +95,9 @@ export default function SectionSelectProject({ onProjectSelected }) {
     await createListing({
       listing: { ...defaultBaseMapsListingProps, projectId: newProject.id },
     });
+
+    // blueprints
+    await createBlueprintsListing({ projectId: newProject.id });
 
     // navigation
     if (onProjectSelected) onProjectSelected(newProject);

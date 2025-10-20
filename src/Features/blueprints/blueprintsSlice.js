@@ -5,6 +5,7 @@ import theme from "Styles/theme";
 
 const blueprintsInitialState = {
   tempName: "",
+  blueprintIdInMapEditor: null,
 };
 
 export const blueprintsSlice = createSlice({
@@ -14,9 +15,13 @@ export const blueprintsSlice = createSlice({
     setTempName: (state, action) => {
       state.tempName = action.payload;
     },
+    setBlueprintIdInMapEditor: (state, action) => {
+      state.blueprintIdInMapEditor = action.payload;
+    },
   },
 });
 
-export const { setTempName } = blueprintsSlice.actions;
+export const { setTempName, setBlueprintIdInMapEditor } =
+  blueprintsSlice.actions;
 
 export default blueprintsSlice.reducer;
