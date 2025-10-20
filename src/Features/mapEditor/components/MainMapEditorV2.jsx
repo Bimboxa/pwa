@@ -97,6 +97,8 @@ export default function MainMapEditorV2() {
 
   const mainBaseMap = useMainBaseMap();
   const basePoseInBg = useSelector((s) => s.mapEditor.baseMapPoseInBg);
+  const baseMapOpacity = useSelector((s) => s.mapEditor.baseMapOpacity);
+  const baseMapGrayScale = useSelector((s) => s.mapEditor.baseMapGrayScale);
 
   const { value: baseMaps } = useBaseMaps({ filterByProjectId: projectId });
 
@@ -295,14 +297,24 @@ export default function MainMapEditorV2() {
   }
 
   async function handleNodeClick(node) {
+    console.log("click on node", node);
     node = node?.id === selectedNode?.id ? null : node;
     const activeListingType = listing?.entityModel?.type;
 
     // disable baseMap selection if !showBgImage
-    if (node?.nodeType === "BASE_MAP" && !showBgImage) return;
+    if (node?.nodeType === "BASE_MAP" && !showBgImage) {
+      return;
+      // dispatch(
+      //   setSelectedItem({
+      //     type: "ENTITY",
+      //     id: mainBaseMap?.id,
+      //     listingId: mainBaseMap?.listingId,
+      //   })
+      // );
+    }
 
     // diable click in blueprint edition
-    if (activeListingType === "BLUEPRINT" && node.nodeType === "ANNOTATION")
+    if (activeListingType === "BLUEPRINT" && node?.nodeType === "ANNOTATION")
       return;
 
     dispatch(setSelectedNode(node));
@@ -445,6 +457,8 @@ export default function MainMapEditorV2() {
         isMobile={isMobile}
         baseMapImageUrl={mainBaseMap?.image?.imageUrlClient}
         baseMapPoseInBg={basePoseInBg}
+        baseMapGrayScale={baseMapGrayScale}
+        baseMapOpacity={baseMapOpacity}
         onBaseMapPoseInBgChange={(pose) => dispatch(setBaseMapPoseInBg(pose))}
         bgImageUrl={bgImage?.url}
         showBgImage={showBgImage}

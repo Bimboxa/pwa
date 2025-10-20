@@ -40,6 +40,10 @@ export default function NodeMarker({
     "data-annotation-type": "MARKER",
   };
 
+  // size
+
+  const SIZE = 46;
+
   // is mobile
 
   const isMobile = useIsMobile();
@@ -78,8 +82,8 @@ export default function NodeMarker({
   const invF = 1 / F;
   const localScale = isMobile ? invF : 1;
 
-  const circleDiameterPx = 32 * localScale;
-  const iconSizePx = 32 * localScale;
+  const circleDiameterPx = SIZE * localScale;
+  const iconSizePx = SIZE * localScale * 0.9;
   const hitStrokePx = 24 * localScale;
 
   const rLocal = circleDiameterPx / 2;

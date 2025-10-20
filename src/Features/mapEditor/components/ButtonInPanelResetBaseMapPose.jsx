@@ -1,6 +1,10 @@
 import { useDispatch } from "react-redux";
 
-import { setBaseMapPoseInBg } from "../mapEditorSlice";
+import {
+  setBaseMapPoseInBg,
+  setBaseMapOpacity,
+  setBaseMapGrayScale,
+} from "../mapEditorSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBgImageInMapEditor from "Features/mapEditor/hooks/useBgImageInMapEditor";

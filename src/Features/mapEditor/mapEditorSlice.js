@@ -20,6 +20,8 @@ const mapEditorInitialState = {
   //
   mainBaseMapIsSelected: false,
   baseMapPoseInBg: { x: 40, y: 40, k: 1 },
+  baseMapOpacity: 1,
+  baseMapGrayScale: false,
   //
   clickInBgPosition: null, // { x, y }
   //
@@ -91,6 +93,12 @@ export const mapEditorSlice = createSlice({
     setBaseMapPoseInBg: (state, action) => {
       state.baseMapPoseInBg = action.payload;
     },
+    setBaseMapOpacity: (state, action) => {
+      state.baseMapOpacity = action.payload;
+    },
+    setBaseMapGrayScale: (state, action) => {
+      state.baseMapGrayScale = action.payload;
+    },
     // Legend
     setLegendFormat: (state, action) => {
       state.legendFormat = action.payload;
@@ -158,6 +166,8 @@ export const {
   //
   setMainBaseMapIsSelected,
   setBaseMapPoseInBg,
+  setBaseMapGrayScale,
+  setBaseMapOpacity,
   //
   setSelectedNode,
   //
