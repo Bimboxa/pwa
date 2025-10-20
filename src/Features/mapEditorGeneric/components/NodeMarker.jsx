@@ -239,6 +239,8 @@ export default function NodeMarker({
         cy={0}
         r={selected ? rLocal * 1.2 : rLocal}
         fill={fillColor}
+        stroke="#fff"
+        strokeWidth={2 * localScale}
         opacity={0.9}
         vectorEffect="non-scaling-stroke"
       />
