@@ -85,7 +85,7 @@ function App({ pca, runningIn }) {
                     <Route path="/sign-in" element={<PageSignIn />} />
                     <Route path="/dashboard" element={<PageDashboard />} />
                     <Route
-                      path="/download/:krtoPath"
+                      path="/download/:mediaId"
                       element={<PageDownloadKrtro />}
                     />
                   </Routes>

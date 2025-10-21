@@ -15,6 +15,7 @@ import HorizontalMenuRightPanel from "Features/rightPanel/components/HorizontalM
 import TopBarBreadcrumbs from "./TopBarBreadcrumbs";
 import useSelectedEntityModel from "Features/listings/hooks/useSelectedEntityModel";
 import ToolbarDrawingTools from "Features/mapEditor/components/ToolbarDrawingTools";
+import BlockVersionInTopBar from "Features/versions/components/BlockVersionInTopBar";
 
 export default function TopBarDesktop() {
   const height = useSelector((s) => s.layout.topBarHeight);
@@ -45,8 +46,9 @@ export default function TopBarDesktop() {
         <ButtonSelectorScope />
       </BoxFlexH> */}
 
-      <Box sx={{ display: "flex", alignItems: "center" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
         <TopBarBreadcrumbs />
+        <BlockVersionInTopBar />
         {/* <TopBarProjectAndScope /> */}
       </Box>
 

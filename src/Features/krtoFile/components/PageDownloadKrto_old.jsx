@@ -3,21 +3,22 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
-import { setSelectedVersionId } from "Features/versions/versionsSlice";
 
-import { Typography } from "@mui/material";
+import { CircularProgress, Typography } from "@mui/material";
 
 import PageGeneric from "Features/layout/components/PageGeneric";
 import BoxCenter from "Features/layout/components/BoxCenter";
 import CircularProgressGeneric from "Features/layout/components/CircularProgressGeneric";
+import fetchMediaService from "Features/sync/services/fetchMediaService";
 
-import downloadAndLoadKrtoVersionService from "Features/versions/services/downloadAndLoadKrtoVersionService";
+import loadKrtoFile from "../services/loadKrtoFile";
+import krtoZipToKrtoFile from "../services/krtoZipToKrtoFile";
 
 export default function PageDownloadKrtro() {
   const syncingRef = useRef();
   const downloadingRef = useRef({});
   const dispatch = useDispatch();
-  const { mediaId } = useParams();
+  const { krtoPath } = useParams();
   const navigate = useNavigate();
   //const API = "https://public.media.bimboxa.com";
 
@@ -32,21 +33,22 @@ export default function PageDownloadKrtro() {
 
   // helper - download
 
-  async function downloadKrto(mediaId) {
-    if (syncingRef.current || downloadingRef?.current[mediaId]) return;
+  async function downloadKrto(krtoPath) {
+    if (syncingRef.current || downloadingRef?.current[krtoPath]) return;
 
     syncingRef.current = true;
-    downloadingRef.current[mediaId] = true;
+    downloadingRef.current[krtoPath] = true;
 
-    console.log("DOWNLOAD mediaId", mediaId);
+    console.log("DOWNLOAD krtoPath", krtoPath);
 
-    const project = await downloadAndLoadKrtoVersionService({
-      id: mediaId,
+    const blob = await fetchMediaService({
+      path: krtoPath,
       onProgress: setProgress,
     });
-    if (project) dispatch(setSelectedProjectId(project.id));
 
-    dispatch(setSelectedVersionId(mediaId));
+    const krtoFile = await krtoZipToKrtoFile(blob);
+    const project = await loadKrtoFile(krtoFile);
+    if (project) dispatch(setSelectedProjectId(project.id));
     navigate("/");
 
     syncingRef.current = false;
@@ -55,10 +57,10 @@ export default function PageDownloadKrtro() {
   // effect
 
   useEffect(() => {
-    if (mediaId && !syncingRef?.current) {
-      downloadKrto(mediaId);
+    if (krtoPath && !syncingRef?.current) {
+      downloadKrto(krtoPath);
     }
-  }, [mediaId, syncingRef?.current]);
+  }, [krtoPath, syncingRef?.current]);
 
   return (
     <PageGeneric>
