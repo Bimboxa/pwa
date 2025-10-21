@@ -4,6 +4,7 @@ const bgImageInitialState = {
   showBgImageInMapEditor: false,
   bgImageKeyInMapEditor: "DEFAULT",
   bgImageRawTextAnnotations: {}, // {key:value}
+  bgImageRawTextAnnotationsUpdatedAt: null,
 };
 
 export const bgImageSlice = createSlice({
@@ -18,6 +19,7 @@ export const bgImageSlice = createSlice({
     },
     setBgImageRawTextAnnotations: (state, action) => {
       state.bgImageRawTextAnnotations = action.payload;
+      state.bgImageRawTextAnnotationsUpdatedAt = Date.now();
     },
   },
 });
