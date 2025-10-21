@@ -10,12 +10,11 @@ import {
 import {
   setBgImageKeyInMapEditor,
   setShowBgImageInMapEditor,
+  setBgImageRawTextAnnotations,
 } from "Features/bgImage/bgImageSlice";
 
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setBlueprintIdInMapEditor } from "Features/blueprints/blueprintsSlice";
-
-import useEntityModel from "./useEntityModel";
 
 export default function useOnEntityClick() {
   const dispatch = useDispatch();

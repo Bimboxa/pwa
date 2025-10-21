@@ -16,6 +16,7 @@ export default function useAnnotations(options) {
   const filterByListingId = options?.filterByListingId;
   const excludeListingsIds = options?.excludeListingsIds;
   const addBgImageTextAnnotations = options?.addBgImageTextAnnotations;
+
   const withEntity = options?.withEntity;
   const withLabel = options?.withLabel;
   const withListingName = options?.withListingName;
@@ -31,6 +32,9 @@ export default function useAnnotations(options) {
     (s) => s.annotations.isEditingAnnotation
   );
   const bgImageTextAnnotations = useBgImageTextAnnotations();
+  const bgImageRawTextAnnotationsUpdatedAt = useSelector(
+    (s) => s.bgImage.bgImageRawTextAnnotationsUpdatedAt
+  );
 
   // main
 
@@ -121,6 +125,7 @@ export default function useAnnotations(options) {
     filterByListingId,
     filterByBaseMapId,
     excludeListingsIds,
+    bgImageRawTextAnnotationsUpdatedAt,
   ]);
 
   // demo

@@ -15,14 +15,15 @@ import CircularProgressGeneric from "Features/layout/components/CircularProgress
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 
 import downloadAndLoadKrtoVersionService from "../services/downloadAndLoadKrtoVersionService";
+import updateKrtoVersionService from "../services/updateKrtoVersionService";
 
 export default function DialogDownloadVersion({ open, onClose }) {
   const dispatch = useDispatch();
 
   // strings
 
-  const title = "Télécharger la version";
-  const downloadS = "Télécharger";
+  const downloadS = "Charger la version";
+  const saveS = "Mettre à jour la version";
 
   // data
 
@@ -30,9 +31,16 @@ export default function DialogDownloadVersion({ open, onClose }) {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const orgaCode = useSelector((s) => s.appConfig.orgaCode);
 
+  // helpers
+
+  const title =
+    `Version ${version?.mediaMetadata?.label}` ??
+    version?.id ??
+    "Sélectionner une version";
   // state
 
   const [loading, setLoading] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [progress, setProgress] = useState(0);
 
   // handlers
@@ -48,28 +56,47 @@ export default function DialogDownloadVersion({ open, onClose }) {
     onClose();
   }
 
+  async function handleSave() {
+    setUpdating(true);
+    const project = await updateKrtoVersionService({
+      id: version.id,
+      orgaCode,
+      projectId,
+      label: version?.mediaMetadata?.label,
+      author: version?.mediaMetadata?.author,
+      description: version?.mediaMetadata?.description,
+    });
+    setUpdating(false);
+    onClose();
+  }
+
   return (
     <DialogGeneric open={open} onClose={onClose} width="350px">
       <DialogTitle>{title}</DialogTitle>
+
       <Box
         sx={{
           width: 1,
           display: "flex",
+          visibility: progress > 0 ? "visible" : "hidden",
           justifyContent: "center",
           alignItems: "center",
+          my: 1,
         }}
       >
-        <Typography variant="body1">{version?.mediaMetadata?.label}</Typography>
+        <CircularProgressGeneric value={20} />
       </Box>
-
-      <BoxFlexVStretch>
-        <CircularProgressGeneric value={progress * 100} />
-      </BoxFlexVStretch>
       <ButtonInPanelV2
         label={downloadS}
         onClick={handleDownload}
         variant="contained"
         loading={loading}
+      />
+      <ButtonInPanelV2
+        label={saveS}
+        onClick={handleSave}
+        variant="outlined"
+        loading={updating}
       />
     </DialogGeneric>
   );

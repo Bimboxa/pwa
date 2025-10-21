@@ -63,7 +63,7 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
   const bgImageKey = useSelector((s) => s.bgImage.bgImageKeyInMapEditor);
   const legendFormat = useSelector((s) => s.mapEditor.legendFormat);
   const bgImageRawTextAnnotations = useSelector(
-    (s) => s.mapEditor.bgImageRawTextAnnotations
+    (s) => s.bgImage.bgImageRawTextAnnotations
   );
 
   const blueprints = useBlueprints();
