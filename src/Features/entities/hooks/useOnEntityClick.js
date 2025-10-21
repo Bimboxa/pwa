@@ -23,7 +23,7 @@ export default function useOnEntityClick() {
   const onEntityClick = (entity) => {
     console.log("debug_1609 click on entity", entity);
     switch (entity?.entityModelType) {
-      case "LOCATED_ENTITIES":
+      case "LOCATED_ENTITY":
         dispatch(
           setSelectedItem({
             type: "ENTITY",
