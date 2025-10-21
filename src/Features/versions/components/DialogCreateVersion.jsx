@@ -63,7 +63,7 @@ export default function DialogCreateVersion({ open, onClose }) {
 
     console.log("new krtoVersion", krtoVersion);
     dispatch(createVersion(krtoVersion?.metadata));
-    dispatch(setSelectedVersionId(krtoVersion.id));
+    dispatch(setSelectedVersionId(krtoVersion?.metadata.id));
 
     setLoading(false);
     onClose();

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { IconButton } from "@mui/material";
+import { IconButton, Tooltip } from "@mui/material";
 import { Save } from "@mui/icons-material";
 
 import DialogUpdateVersion from "./DialogUpdateVersion";
@@ -22,9 +22,11 @@ export default function IconButtonSaveVersion() {
 
   return (
     <>
-      <IconButton onClick={handleClick}>
-        <Save />
-      </IconButton>
+      <Tooltip title="Enregistrer les modifications">
+        <IconButton onClick={handleClick} size="small">
+          <Save fontSize="small" />
+        </IconButton>
+      </Tooltip>
       {open && <DialogUpdateVersion open={open} onClose={handleClose} />}
     </>
   );

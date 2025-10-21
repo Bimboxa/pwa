@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import useVersion from "../hooks/useVersion";
 
-import { IconButton, Typography, Box } from "@mui/material";
+import { IconButton, Typography, Box, Tooltip } from "@mui/material";
 import { Share, Sync } from "@mui/icons-material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
@@ -51,15 +51,17 @@ export default function IconButtonShareVersion() {
 
   return (
     <>
-      <IconButton
-        label="Partager"
-        onClick={handleClick}
-        startIcon={<Share />}
-        variant="outlined"
-        size="small"
-      >
-        <Share />
-      </IconButton>
+      <Tooltip title="Partager le Krto">
+        <IconButton
+          label="Partager"
+          onClick={handleClick}
+          startIcon={<Share />}
+          variant="outlined"
+          size="small"
+        >
+          <Share />
+        </IconButton>
+      </Tooltip>
 
       {open && (
         <DialogGeneric open={open} onClose={() => setOpen(false)} width={350}>
