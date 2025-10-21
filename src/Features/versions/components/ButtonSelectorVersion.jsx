@@ -24,6 +24,10 @@ export default function ButtonSelectorVersion() {
 
   useInitFetchProjectKrtoVersions();
 
+  // strings
+
+  const selectS = "Choisir une version";
+
   // data
 
   const version = useVersion();
@@ -96,7 +100,7 @@ export default function ButtonSelectorVersion() {
   }
   return (
     <>
-      <Tooltip title={label}>
+      <Tooltip title={selectS}>
         <ButtonGeneric
           label={label}
           onClick={() => setOpen(true)}
