@@ -9,8 +9,6 @@ import useHelperMessageInBottomBar from "Features/mapEditor/hooks/useHelperMessa
 import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
 import ButtonsKrto from "Features/krtoFile/components/ButtonsKrto";
 
-import ButtonSyncKrto from "Features/krtoFile/components/ButtonSyncKrto";
-
 export default function BottomBarDesktop() {
   // data
 
@@ -48,7 +46,6 @@ export default function BottomBarDesktop() {
       <Box sx={{ display: "flex" }}>
         <HelperClickInBgPosition />
         <ButtonsKrto />
-        <ButtonSyncKrto />
       </Box>
     </Box>
   );

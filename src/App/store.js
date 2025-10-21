@@ -16,6 +16,7 @@ import onboardingReducer from "Features/onboarding/onboardingSlice";
 import masterProjectsReducer from "Features/masterProjects/masterProjectsSlice";
 import projectsReducer from "Features/projects/projectsSlice";
 import scopesReducer from "Features/scopes/scopesSlice";
+import versionsReducer from "Features/versions/versionsSlice";
 import scopeCreatorReducer from "Features/scopeCreator/scopeCreatorSlice";
 import scopeSelectorReducer from "Features/scopeSelector/scopeSelectorSlice";
 import baseMapViewsReducer from "Features/baseMapViews/baseMapViewsSlice";
@@ -65,6 +66,7 @@ const store = configureStore({
     masterProjects: masterProjectsReducer,
     projects: projectsReducer,
     scopes: scopesReducer,
+    versions: versionsReducer,
     scopeCreator: scopeCreatorReducer,
     scopeSelector: scopeSelectorReducer,
     listingsConfig: listingsConfigReducer,

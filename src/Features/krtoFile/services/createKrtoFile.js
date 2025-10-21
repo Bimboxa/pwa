@@ -35,8 +35,9 @@ export default async function createKrtoFile(projectId, options) {
     .substring(0, 5)
     .replace(":", "h"); // HHhMM
   const timestamp = `${date}_${time}`;
+  const timestamp2 = Date.now();
   const filename = nameFileWithTimestamp
-    ? `${sanitizedName}_${timestamp}.krto`
+    ? `${sanitizedName}_${timestamp2}.krto`
     : `${sanitizedName}.krto`;
 
   // Dexie export returns a JSON blob, but we want to use a more generic MIME type
