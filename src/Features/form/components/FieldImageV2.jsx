@@ -51,6 +51,7 @@ export default function FieldImageV2({
   // helpers - func
 
   async function handleImageFileChange(file) {
+    console.log("debug_1707 handleImageFileChange", maxSize, file);
     if (maxSize) file = await resizeImageToLowResolution(file, maxSize * 1024);
     const imageObject = await ImageObject.create({ imageFile: file });
     onChange(imageObject.toEntityField());
