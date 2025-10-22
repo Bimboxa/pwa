@@ -14,6 +14,7 @@ import { ArrowDropDown as Down, Add } from "@mui/icons-material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import PanelSelectorBaseMap from "./PanelSelectorBaseMap";
+import ButtonCenterBaseMap from "Features/mapEditor/components/ButtonCenterBaseMap";
 
 export default function ButtonSelectorBaseMapInMapEditor() {
   const dispatch = useDispatch();
@@ -56,7 +57,7 @@ export default function ButtonSelectorBaseMapInMapEditor() {
           endIcon={<Down />}
           variant="contained"
           size={isMobile ? "medium" : "small"}
-          sx={{ borderRadius: 2 }}
+          sx={{ borderRadius: 2, mr: 1 }}
         >
           <Box
             sx={{
@@ -68,6 +69,8 @@ export default function ButtonSelectorBaseMapInMapEditor() {
             <Typography variant="body2">{buttonLabel}</Typography>
           </Box>
         </Button>
+
+        <ButtonCenterBaseMap />
         <Tooltip title={createS}>
           <Box
             sx={{

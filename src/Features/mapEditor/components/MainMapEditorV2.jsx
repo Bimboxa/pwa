@@ -100,6 +100,9 @@ export default function MainMapEditorV2() {
   const basePoseInBg = useSelector((s) => s.mapEditor.baseMapPoseInBg);
   const baseMapOpacity = useSelector((s) => s.mapEditor.baseMapOpacity);
   const baseMapGrayScale = useSelector((s) => s.mapEditor.baseMapGrayScale);
+  const centerBaseMapTriggeredAt = useSelector(
+    (s) => s.mapEditor.centerBaseMapTriggeredAt
+  );
 
   const { value: baseMaps } = useBaseMaps({ filterByProjectId: projectId });
 
@@ -491,6 +494,8 @@ export default function MainMapEditorV2() {
         onRectangleComplete={handleRectangleComplete}
         newRectangleProps={{ ...(newAnnotation ?? {}) }}
         ref={svgRef}
+        //
+        centerBaseMapTriggeredAt={centerBaseMapTriggeredAt}
       />
 
       <LayerMapEditor svgElement={svgRef.current} />

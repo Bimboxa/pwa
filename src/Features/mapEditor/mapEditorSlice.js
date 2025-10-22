@@ -36,6 +36,9 @@ const mapEditorInitialState = {
 
   // rectangle
   drawingRectanglePoints: [], // Array of {x, y} with max 2 points (diagonal corners)
+
+  // view
+  centerBaseMapTriggeredAt: null,
 };
 
 export const mapEditorSlice = createSlice({
@@ -140,6 +143,12 @@ export const mapEditorSlice = createSlice({
     clearDrawingRectanglePoints: (state) => {
       state.drawingRectanglePoints = [];
     },
+
+    // baseMap - view
+    triggerCenterBaseMap: (state) => {
+      console.log("[STATE] centerBaseMapTriggeredAt", Date.now());
+      state.centerBaseMapTriggeredAt = Date.now();
+    },
   },
 });
 
@@ -184,6 +193,9 @@ export const {
   setDrawingRectanglePoints,
   addRectanglePoint,
   clearDrawingRectanglePoints,
+
+  // view
+  triggerCenterBaseMap,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;
