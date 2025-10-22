@@ -50,6 +50,7 @@ import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation"
 import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgImageRawTextAnnotations";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useSelectedAnnotationTemplateInMapEditor from "../hooks/useSelectedAnnotationTemplateInMapEditor";
+import useAutoResetBaseMapPose from "Features/bgImage/hooks/useAutoResetBaseMapPose";
 
 import { Box } from "@mui/material";
 
@@ -183,6 +184,7 @@ export default function MainMapEditorV2() {
 
   useAutoSelectMainBaseMap();
   useAutoBgImageRawTextAnnotations();
+  useAutoResetBaseMapPose();
 
   // handlers
 

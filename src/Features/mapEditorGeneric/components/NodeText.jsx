@@ -91,7 +91,7 @@ export default function NodeText({
     const el = measureRef.current;
     el.textContent = measureText;
     const rect = el.getBoundingClientRect();
-    console.log("rect", el, rect);
+
     const paddedW = Math.max(rect.width + 10, minWidthPx) + paddingPx * 2;
     const paddedH = Math.max(rect.height, fontSizePx * 1.25) + paddingPx;
     setMeasuredPx({ w: paddedW, h: paddedH });
