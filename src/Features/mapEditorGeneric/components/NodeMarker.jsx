@@ -42,7 +42,7 @@ export default function NodeMarker({
 
   // size
 
-  const SIZE = 46;
+  const SIZE = 42;
 
   // is mobile
 
@@ -80,18 +80,21 @@ export default function NodeMarker({
     [worldScale, containerK]
   );
   const invF = 1 / F;
-  const localScale = isMobile ? invF : 1;
+  const localScale = isMobile ? invF : 1 / containerK;
 
+  //const circleDiameterPx = SIZE * localScale;
   const circleDiameterPx = SIZE * localScale;
   const iconSizePx = SIZE * localScale * 0.9;
-  const hitStrokePx = 24 * localScale;
+  const hitStrokePx = 2 * localScale;
+  const strokeWidth = 2 * localScale;
 
   const rLocal = circleDiameterPx / 2;
   const iconLocal = iconSizePx;
-  const hitStrokeLocal = Math.max(
-    hitStrokePx * (isMobile ? 1 : invF),
-    8 * (isMobile ? 1 : invF)
-  );
+  // const hitStrokeLocal = Math.max(
+  //   hitStrokePx * (isMobile ? 1 : invF),
+  //   8 * (isMobile ? 1 : invF)
+  // );
+  const hitStrokeLocal = hitStrokePx;
 
   const fillColor = marker?.fillColor ?? "#f44336";
 
@@ -244,9 +247,9 @@ export default function NodeMarker({
         r={selected ? rLocal * 1.2 : rLocal}
         fill={fillColor}
         stroke="#fff"
-        strokeWidth={2 * localScale}
+        strokeWidth={strokeWidth}
         opacity={0.9}
-        vectorEffect="non-scaling-stroke"
+        //vectorEffect="non-scaling-stroke"
       />
 
       {/* Sprite icon */}
@@ -277,6 +280,7 @@ export default function NodeMarker({
         r={rLocal}
         fill="transparent"
         stroke="transparent"
+        //stroke="white"
         strokeWidth={hitStrokeLocal}
         pointerEvents="stroke"
       />
