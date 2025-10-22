@@ -33,6 +33,8 @@ import {
   addRectanglePoint,
 } from "Features/mapEditor/mapEditorSlice";
 
+const PADDING = 15;
+
 const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   let {
     isMobile,
@@ -75,6 +77,9 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     onRectangleComplete,
     drawingRectanglePoints, // Array<{x,y}> with max 2 points
     newRectangleProps,
+
+    // refresh
+    centerBaseMapTriggeredAt,
   } = props;
 
   // === REFS ===
@@ -103,12 +108,37 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   const [isDraggingAnnotation, setIsDraggingAnnotation] = useState(false);
   const [isDraggingFabMarker, setIsDraggingFabMarker] = useState(false);
 
-  const basePose = {
-    x: bgPose.x + (baseMapPoseInBg.x || 0) * (bgPose.k || 1),
-    y: bgPose.y + (baseMapPoseInBg.y || 0) * (bgPose.k || 1),
-    k: (bgPose.k || 1) * (baseMapPoseInBg.k || 1),
-    r: (bgPose.r || 0) + (baseMapPoseInBg.r || 0),
-  };
+  const basePose = useMemo(() => {
+    if (!showBgImage) {
+      // When not showing bg image, center the baseMap in the viewport with padding
+      const availableWidth = viewport.w - PADDING * 2;
+      const availableHeight = viewport.h - PADDING * 2;
+      const scale =
+        baseSize.w && baseSize.h && availableWidth && availableHeight
+          ? Math.min(availableWidth / baseSize.w, availableHeight / baseSize.h)
+          : 1;
+      const k = clamp(scale, minScale, maxScale);
+      const x = (viewport.w - baseSize.w * k) / 2;
+      const y = (viewport.h - baseSize.h * k) / 2;
+      return { x, y, k, r: 0 };
+    } else {
+      // When showing bg image, use original calculation
+      return {
+        x: bgPose.x + (baseMapPoseInBg.x || 0) * (bgPose.k || 1),
+        y: bgPose.y + (baseMapPoseInBg.y || 0) * (bgPose.k || 1),
+        k: (bgPose.k || 1) * (baseMapPoseInBg.k || 1),
+        r: (bgPose.r || 0) + (baseMapPoseInBg.r || 0),
+      };
+    }
+  }, [
+    showBgImage,
+    baseSize,
+    viewport,
+    minScale,
+    maxScale,
+    bgPose,
+    baseMapPoseInBg,
+  ]);
 
   const [basePoseIsChanging, setBasePoseIsChanging] = useState(false);
 
@@ -154,27 +184,46 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   // === INIT VIEWPORT ===
 
   const fit = useCallback(() => {
-    const W = (showBgImage ? bgSize.w : 0) || baseSize.w;
-    const H = (showBgImage ? bgSize.h : 0) || baseSize.h;
-    if (!W || !H || !viewport.w || !viewport.h) return;
-    const scale = Math.min(viewport.w / W, viewport.h / H) || 1;
-    const k = clamp(scale, minScale, maxScale);
-    const x = (viewport.w - W * k) / 2;
-    const y = (viewport.h - H * k) / 2;
-    setWorld({ x, y, k });
+    if (!showBgImage) {
+      // When not showing bg image, the basePose calculation handles centering
+      // Just set world to origin since basePose will center the baseMap
+      setWorld({ x: 0, y: 0, k: 1 });
+    } else {
+      // When showing bg image, use original logic
+      const W = bgSize.w || baseSize.w;
+      const H = bgSize.h || baseSize.h;
+      if (!W || !H || !viewport.w || !viewport.h) return;
+      const scale = Math.min(viewport.w / W, viewport.h / H) || 1;
+      const k = clamp(scale, minScale, maxScale);
+      const x = (viewport.w - W * k) / 2;
+      const y = (viewport.h - H * k) / 2;
+      setWorld({ x, y, k });
+    }
   }, [bgSize, baseSize, viewport, minScale, maxScale, showBgImage]);
 
   useEffect(() => {
     if (initialScale === "fit") fit();
     else if (typeof initialScale === "number") {
       const k = clamp(initialScale, minScale, maxScale);
-      const W = (showBgImage ? bgSize.w : 0) || baseSize.w;
-      const H = (showBgImage ? bgSize.h : 0) || baseSize.h;
-      const x = (viewport.w - W * k) / 2;
-      const y = (viewport.h - H * k) / 2;
-      setWorld({ x, y, k });
+      if (!showBgImage) {
+        // When not showing bg image, the basePose calculation handles centering
+        setWorld({ x: 0, y: 0, k: 1 });
+      } else {
+        // When showing bg image, use original logic
+        const W = bgSize.w || baseSize.w;
+        const H = bgSize.h || baseSize.h;
+        const x = (viewport.w - W * k) / 2;
+        const y = (viewport.h - H * k) / 2;
+        setWorld({ x, y, k });
+      }
     }
   }, [initialScale, viewport, bgSize, baseSize, minScale, maxScale, fit, showBgImage]);
+
+  useEffect(() => {
+    if (centerBaseMapTriggeredAt) {
+      fit();
+    }
+  }, [centerBaseMapTriggeredAt]);
 
   // ============================
   // 🟢 PINCH + PAN (SIMPLIFIED - NO INERTIA)

@@ -37,12 +37,8 @@ export default function ButtonDownloadMapEditorInPdf({ svgElement }) {
 
   // render
 
-  if (
-    !showBgImage ||
-    listing?.entityModel?.type !== "BLUEPRINT" ||
-    !isOneBlueprintSelected
-  )
-    return null;
+  //if (!showBgImage || listing?.entityModel?.type !== "BLUEPRINT") return null;
+  if (!showBgImage) return null;
 
   return (
     <>

@@ -70,20 +70,6 @@ export default function LayerMapEditorDesktop({ svgElement }) {
         <ButtonOpenListPanel />
       </Box>
 
-      {/* <Box
-        sx={{
-          position: "absolute",
-          //top: "64px",
-          bottom: "8px",
-          right: "8px",
-          //left: "50%",
-          //transform: "translateX(-50%)",
-          zIndex: 2,
-        }}
-      >
-        <BlockSaveBaseMapViewInEditor />
-      </Box> */}
-
       <Box
         sx={{
           position: "absolute",

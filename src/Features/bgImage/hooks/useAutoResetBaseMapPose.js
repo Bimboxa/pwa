@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { useSelector } from "react-redux";
 
@@ -10,29 +10,47 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 export default function useAutoResetBaseMapPose() {
   const reset = useResetBaseMapPose();
 
+  // state
+
+  const [resetOnce, setResetOnce] = useState({});
+
   // data
 
   const mainBaseMap = useMainBaseMap();
   const bgImage = useBgImageInMapEditor();
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
   const { value: selectedListing } = useSelectedListing();
+  const blueprintId = useSelector((s) => s.blueprints.blueprintIdInMapEditor);
 
   // helper
 
   const isBlueprintListing = selectedListing?.entityModel?.type === "BLUEPRINT";
+  const once = resetOnce[mainBaseMap?.id];
 
+  // handlers
+
+  function handleResetOnce(mainBaseMapId) {
+    setResetOnce((reset) => ({ ...reset, [mainBaseMapId]: true }));
+  }
   // effect
 
   useEffect(() => {
-    console.log(
-      "RESET_",
-      showBgImage,
-      mainBaseMap?.id,
-      bgImage?.url,
-      isBlueprintListing
-    );
-    if (showBgImage && mainBaseMap?.id && bgImage?.url && !isBlueprintListing) {
+    if (
+      !once &&
+      showBgImage &&
+      mainBaseMap?.id &&
+      bgImage?.url &&
+      (!isBlueprintListing || !blueprintId)
+    ) {
       reset();
+      handleResetOnce(mainBaseMap?.id);
     }
-  }, [showBgImage, mainBaseMap?.id, bgImage?.url, isBlueprintListing]);
+  }, [
+    showBgImage,
+    mainBaseMap?.id,
+    bgImage?.url,
+    once,
+    blueprintId,
+    isBlueprintListing,
+  ]);
 }
