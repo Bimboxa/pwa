@@ -48,7 +48,7 @@ export default function TopBarDesktop() {
 
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
         <TopBarBreadcrumbs />
-        <BlockVersionInTopBar />
+        {/* <BlockVersionInTopBar /> */}
         {/* <TopBarProjectAndScope /> */}
       </Box>
 

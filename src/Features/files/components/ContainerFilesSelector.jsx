@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, CircularProgress, Typography, Button } from "@mui/material";
 import { CloudUpload } from "@mui/icons-material";
 
+import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import BoxCenter from "Features/layout/components/BoxCenter";
 import FilesSelectorButton from "Features/files/components/FilesSelectorButton";
 
@@ -19,10 +20,12 @@ export default function ContainerFilesSelector({
 
   const selectPdf = "Depuis mon ordinateur";
   const dragS = "Glisser & déposer des PDFs";
+  const pasteS = "Coller";
 
   // state
 
   const [hover, setHover] = useState();
+  const [hasImagesInClipboard, setHasImagesInClipboard] = useState(false);
 
   // handlers
 
@@ -32,6 +35,76 @@ export default function ContainerFilesSelector({
   function handleFilesChangeFromButton(files) {
     console.log("debug_1707 files", files);
     onFilesChange(files);
+  }
+
+  // Check clipboard for images
+  const checkClipboardForImages = async () => {
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.read) {
+        setHasImagesInClipboard(false);
+        return;
+      }
+
+      const clipboardItems = await navigator.clipboard.read();
+      let hasImages = false;
+
+      for (const clipboardItem of clipboardItems) {
+        for (const type of clipboardItem.types) {
+          if (type.startsWith("image/")) {
+            hasImages = true;
+            break;
+          }
+        }
+        if (hasImages) break;
+      }
+
+      setHasImagesInClipboard(hasImages);
+    } catch (error) {
+      setHasImagesInClipboard(false);
+    }
+  };
+
+  async function handlePaste() {
+    try {
+      // Check if clipboard API is available
+      if (!navigator.clipboard || !navigator.clipboard.read) {
+        console.log("Clipboard API not available");
+        return;
+      }
+
+      // Read clipboard contents
+      const clipboardItems = await navigator.clipboard.read();
+
+      const files = [];
+
+      for (const clipboardItem of clipboardItems) {
+        // Check if the clipboard item contains image data
+        for (const type of clipboardItem.types) {
+          if (type.startsWith("image/")) {
+            const blob = await clipboardItem.getType(type);
+            const file = new File(
+              [blob],
+              `pasted-image-${Date.now()}.${type.split("/")[1]}`,
+              {
+                type: type,
+              }
+            );
+            files.push(file);
+          }
+        }
+      }
+
+      if (files.length > 0) {
+        console.log("debug_1707 paste - found images:", files);
+        onFilesChange(files);
+        // Recheck clipboard after paste
+        setTimeout(checkClipboardForImages, 100);
+      } else {
+        console.log("debug_1707 paste - no images found in clipboard");
+      }
+    } catch (error) {
+      console.error("Error reading clipboard:", error);
+    }
   }
 
   const background = (theme) =>
@@ -68,6 +141,33 @@ export default function ContainerFilesSelector({
     e.preventDefault();
     e.stopPropagation();
   }
+
+  // Keyboard listener for Ctrl+V
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        e.preventDefault();
+        if (hasImagesInClipboard) {
+          handlePaste();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [hasImagesInClipboard]);
+
+  // Check clipboard on mount and when component becomes visible
+  useEffect(() => {
+    checkClipboardForImages();
+
+    // Check clipboard periodically (every 2 seconds) when component is visible
+    const interval = setInterval(checkClipboardForImages, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <Box
@@ -140,6 +240,7 @@ export default function ContainerFilesSelector({
             display: "flex",
             justifyContent: "left",
             color: "text.secondary",
+            gap: 1,
           }}
         >
           <FilesSelectorButton
@@ -150,6 +251,14 @@ export default function ContainerFilesSelector({
             buttonColor="inherit"
             multiple={multiple}
             accept={accept}
+          />
+          <ButtonGeneric
+            label={pasteS}
+            onClick={handlePaste}
+            size="small"
+            color="inherit"
+            variant="text"
+            disabled={!hasImagesInClipboard}
           />
         </Box>
       )}
