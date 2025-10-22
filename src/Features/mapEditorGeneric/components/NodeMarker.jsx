@@ -1,3 +1,5 @@
+import { useSelector } from "react-redux";
+
 import {
   useState,
   useRef,
@@ -40,13 +42,12 @@ export default function NodeMarker({
     "data-annotation-type": "MARKER",
   };
 
-  // size
-
-  const SIZE = 42;
-
-  // is mobile
+  // SIZE
 
   const isMobile = useIsMobile();
+  const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
+  const fixSize = isMobile || !showBgImage;
+  const SIZE = fixSize ? 32 : 42;
 
   // Test has images
 
@@ -80,7 +81,7 @@ export default function NodeMarker({
     [worldScale, containerK]
   );
   const invF = 1 / F;
-  const localScale = isMobile ? invF : 1 / containerK;
+  const localScale = isMobile || !showBgImage ? invF : 1 / containerK;
 
   //const circleDiameterPx = SIZE * localScale;
   const circleDiameterPx = SIZE * localScale;
