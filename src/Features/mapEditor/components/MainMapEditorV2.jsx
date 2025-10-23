@@ -38,6 +38,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useBgImageInMapEditor from "Features/mapEditor/hooks/useBgImageInMapEditor";
 import useAutoSelectMainBaseMap from "../hooks/useAutoSelectMainBaseMap";
+import useAutoShowBgImage from "Features/bgImage/hooks/useAutoShowBgImage";
 import useMarkers from "Features/markers/hooks/useMarkers";
 import useEntity from "Features/entities/hooks/useEntity";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
@@ -189,6 +190,7 @@ export default function MainMapEditorV2() {
   useAutoSelectMainBaseMap();
   useAutoBgImageRawTextAnnotations();
   useAutoResetBaseMapPose();
+  useAutoShowBgImage();
 
   // handlers
 

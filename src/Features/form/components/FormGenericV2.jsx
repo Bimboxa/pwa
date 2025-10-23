@@ -50,7 +50,7 @@ export default function FormGenericV2({
       sx={{
         display: "flex",
         width: 1,
-        height: 1,
+        //height: 1,
         flexDirection: "column",
         overflow: "auto",
       }}

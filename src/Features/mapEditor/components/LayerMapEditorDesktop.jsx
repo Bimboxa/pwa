@@ -35,7 +35,7 @@ export default function LayerMapEditorDesktop({ svgElement }) {
         <LeftPanelOverviewInEditor />
       </Box> */}
 
-      <Box
+      {/* <Box
         sx={{
           position: "absolute",
           left: "8px",
@@ -44,7 +44,7 @@ export default function LayerMapEditorDesktop({ svgElement }) {
         }}
       >
         <ButtonFullScreen />
-      </Box>
+      </Box> */}
 
       <Box
         sx={{

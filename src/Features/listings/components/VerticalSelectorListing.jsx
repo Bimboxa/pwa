@@ -11,6 +11,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import { Box, IconButton, Tooltip, Typography } from "@mui/material";
 import {
   ArrowForwardIos,
+  MoreHoriz,
   Visibility,
   VisibilityOff,
 } from "@mui/icons-material";
@@ -57,19 +58,19 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
   });
 
   items = [
-    {
-      type: "ENTITY_MODEL_TYPE",
-      entityModelType: { name: "Gabarit", type: "BACKGROUND" },
-    },
-    {
-      type: "LISTING",
-      listing: {
-        id: "bgImageFormat",
-        iconKey: "background",
-        color: theme.palette.secondary.light,
-      },
-      showHideButton: true,
-    },
+    // {
+    //   type: "ENTITY_MODEL_TYPE",
+    //   entityModelType: { name: "Gabarit", type: "BACKGROUND" },
+    // },
+    // {
+    //   type: "LISTING",
+    //   listing: {
+    //     id: "bgImageFormat",
+    //     iconKey: "background",
+    //     color: theme.palette.secondary.light,
+    //   },
+    //   showHideButton: true,
+    // },
     ...items,
   ];
 
@@ -114,21 +115,22 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
         display: "flex",
         flexDirection: "column",
         flexGrow: 1,
-        pt: 1,
+        //pt: 1,
+        pb: 2,
         alignItems: "center",
         minHeight: 0,
       }}
     >
-      <Tooltip title={seeAllS} placement="right">
-        <IconButton sx={{ color: "grey.500", py: 1 }} onClick={onSeeAllClick}>
-          <ArrowForwardIos />
-        </IconButton>
-      </Tooltip>
-
-      <Box sx={{ borderBottom: `1px solid ${grey[500]}`, width: 1, my: 1 }} />
+      {/* <Box sx={{ borderBottom: `1px solid ${grey[500]}`, width: 1, my: 1 }} /> */}
 
       <Box
-        sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          flex: 1,
+          pt: 5,
+        }}
       >
         {items.map((item) => {
           const selected = item?.listing?.id === selectedListingId;
@@ -153,7 +155,8 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
                 <Typography
                   sx={{ fontSize: "10px !important" }}
                   align="center"
-                  color="grey.300"
+                  //color="grey.300"
+                  color="white"
                 >
                   {item?.entityModelType?.name}
                 </Typography>
@@ -250,6 +253,11 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
           return null;
         })}
       </Box>
+      <Tooltip title={seeAllS} placement="right">
+        <IconButton sx={{ color: "grey.500", py: 1 }} onClick={onSeeAllClick}>
+          <MoreHoriz />
+        </IconButton>
+      </Tooltip>
     </Box>
   );
 }

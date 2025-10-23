@@ -19,6 +19,7 @@ export default function ListEntities({
   listing,
   entities,
   onClick,
+  onEditClick,
   selection,
   onCreateClick,
 }) {
@@ -63,6 +64,9 @@ export default function ListEntities({
   function handleEntityClick(entity) {
     if (onClick) onClick(entity);
   }
+  function handleEntityEdit(entity) {
+    if (onEditClick) onEditClick(entity);
+  }
 
   return (
     <BoxFlexVStretch>
@@ -74,7 +78,7 @@ export default function ListEntities({
           color={color}
         />
       </Box>
-      <SectionActions />
+      {/* <SectionActions /> */}
       {showFilterByMainBaseMap && <SectionFilterEntitiesByMainBaseMap />}
       <BoxFlexVStretch sx={{ overflow: "auto" }}>
         <List dense={!isMobile} disablePadding sx={{ bgcolor: "white" }}>
@@ -86,6 +90,7 @@ export default function ListEntities({
                   entity={entity}
                   listing={listing}
                   onClick={handleEntityClick}
+                  onEditClick={handleEntityEdit}
                   selection={selection}
                   listingColor={color}
                   annotationTemplates={annotationTemplates}
