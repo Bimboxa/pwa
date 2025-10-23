@@ -3,7 +3,9 @@ import { useDispatch, useSelector } from "react-redux";
 import useEntities from "../hooks/useEntities";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useIsMobile from "Features/layout/hooks/useIsMobile";
+
 import useOnEntityClick from "../hooks/useOnEntityClick";
+import useOnEntityEdit from "../hooks/useOnEntityEdit";
 
 import { setOpenPanelListItem } from "Features/listPanel/listPanelSlice";
 import {
@@ -46,6 +48,7 @@ export default function SectionListEntitiesInListPanel() {
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
 
   const onEntityClick = useOnEntityClick();
+  const onEntityEdit = useOnEntityEdit();
 
   // debug
 
@@ -63,6 +66,10 @@ export default function SectionListEntitiesInListPanel() {
     variant = "ANNOTATION_TEMPLATES";
 
   // handlers
+
+  function handleEditClick(entity) {
+    onEntityEdit(entity);
+  }
 
   function handleClick(entity) {
     let id = selectedEntityId === entity.id ? null : entity.id;
@@ -97,8 +104,13 @@ export default function SectionListEntitiesInListPanel() {
 
   function handleCreateClick() {
     //dispatch(setOpenPanelListItem(true));
+    console.log("createListingItem from listing", listing);
     dispatch(setSelectedEntityId(null));
-    dispatch(setOpenedPanel("NEW_ENTITY"));
+    if (listing.entityModel.type === "BLUEPRINT") {
+      dispatch(setOpenedPanel("NEW_BLUEPRINT"));
+    } else {
+      dispatch(setOpenedPanel("NEW_ENTITY"));
+    }
   }
 
   return (
@@ -107,6 +119,7 @@ export default function SectionListEntitiesInListPanel() {
         listing={listing}
         entities={entities}
         onClick={handleClick}
+        onEditClick={handleEditClick}
         selection={selection}
         onCreateClick={handleCreateClick}
       />

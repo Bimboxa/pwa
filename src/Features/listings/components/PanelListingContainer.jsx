@@ -14,6 +14,8 @@ import PanelEditEntity from "Features/entities/components/PanelEditEntity";
 import PanelListingAnnotationTemplates from "Features/annotations/components/PanelListingAnnotationTemplates";
 import PanelSelectorListingsOnboarding from "./PanelSelectorListingsOnboarding";
 import PanelFormatBgImage from "Features/bgImage/components/PanelFormatBgImage";
+import PanelCreateBlueprint from "Features/blueprints/components/PanelCreateBlueprint";
+import PanelEditBlueprint from "Features/blueprints/components/PanelEditBlueprint";
 
 export default function PanelListingContainer() {
   const dispatch = useDispatch();
@@ -58,6 +60,8 @@ export default function PanelListingContainer() {
       {openedPanel === "LISTING_ANNOTATION_TEMPLATES" && (
         <PanelListingAnnotationTemplates />
       )}
+      {openedPanel === "NEW_BLUEPRINT" && <PanelCreateBlueprint />}
+      {openedPanel === "EDITED_BLUEPRINT" && <PanelEditBlueprint />}
     </BoxFlexVStretch>
   );
 }

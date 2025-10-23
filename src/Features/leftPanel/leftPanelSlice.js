@@ -1,7 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 const leftPanelInitialState = {
-  verticalBarWidth: 56,
+  verticalBarWidth: 64,
   width: 320,
   openLeftPanel: true,
   //

@@ -71,7 +71,7 @@ export default function ButtonSelectorBaseMapInMapEditor() {
         </Button>
 
         <ButtonCenterBaseMap />
-        <Tooltip title={createS}>
+        {/* <Tooltip title={createS}>
           <Box
             sx={{
               ml: 1,
@@ -90,7 +90,7 @@ export default function ButtonSelectorBaseMapInMapEditor() {
               <Add />
             </IconButton>
           </Box>
-        </Tooltip>
+        </Tooltip> */}
       </Box>
 
       <DialogGeneric

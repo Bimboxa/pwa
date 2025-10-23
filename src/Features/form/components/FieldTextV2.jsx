@@ -97,7 +97,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
               tempValue && !readOnly ? (
                 <InputAdornment position="end">
                   <IconButton
-                    onClick={() => setTempValue("")}
+                    onClick={() => onChange("")}
                     //edge="start"
                     size="small"
                   >

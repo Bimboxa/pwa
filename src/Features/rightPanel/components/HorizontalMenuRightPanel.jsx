@@ -37,6 +37,7 @@ export default function HorizontalMenuRightPanel() {
     //   label: "Format",
     //   icon: <Palette />,
     // },
+
     {
       key: "SELECTION",
       label: "Modifier la sélection",

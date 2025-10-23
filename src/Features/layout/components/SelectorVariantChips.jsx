@@ -2,7 +2,12 @@ import { useEffect } from "react";
 
 import { Box, Typography } from "@mui/material";
 
-export default function SelectorVariantChips({ options, selection, onChange }) {
+export default function SelectorVariantChips({
+  options,
+  selection,
+  onChange,
+  bgcolor,
+}) {
   // handlers
 
   function handleClick(option) {
@@ -35,7 +40,7 @@ export default function SelectorVariantChips({ options, selection, onChange }) {
             size="small"
             key={option.key}
             sx={{
-              bgcolor: selected ? "secondary.main" : "default",
+              bgcolor: selected ? bgcolor ?? "secondary.main" : "default",
               color: selected ? "white" : "text.secondary",
               borderRadius: "8px",
               px: 0.5,

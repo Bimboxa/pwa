@@ -10,7 +10,7 @@ import {
   IconButton,
 } from "@mui/material";
 import { lighten } from "@mui/material/styles";
-import { NearMe as Focus, Image } from "@mui/icons-material";
+import { NearMe as Focus, Image, Edit } from "@mui/icons-material";
 import theme from "Styles/theme";
 
 import AnnotationIcon from "Features/annotations/components/AnnotationIcon";
@@ -22,6 +22,7 @@ export default function ListItemEntityVariantDefault({
   entity,
   listing,
   onClick,
+  onEditClick,
   selection,
   listingColor = theme.palette.primary.main,
   annotationTemplates,
@@ -54,6 +55,15 @@ export default function ListItemEntityVariantDefault({
   function handleClick() {
     console.log("[CLICK] entity", entity);
     if (onClick) onClick(entity);
+  }
+
+  function handleEditClick(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    console.log("[EDIT] entity", onEditClick);
+    if (onEditClick) {
+      onEditClick(entity);
+    }
   }
   return (
     <ListItem
@@ -94,7 +104,7 @@ export default function ListItemEntityVariantDefault({
           </Avatar>
         )}
 
-        <Box>
+        <Box sx={{ flex: 1 }}>
           <Typography variant="body2">{label}</Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             {annotation && (
@@ -107,6 +117,11 @@ export default function ListItemEntityVariantDefault({
             <Typography variant="caption">{subLabel}</Typography>
           </Box>
         </Box>
+        {isSelected && (
+          <IconButton onClick={handleEditClick} color="inherit">
+            <Edit />
+          </IconButton>
+        )}
       </ListItemButton>
     </ListItem>
   );

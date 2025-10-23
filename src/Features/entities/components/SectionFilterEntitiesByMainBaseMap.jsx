@@ -2,8 +2,10 @@ import { useDispatch, useSelector } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
+import { Box } from "@mui/material";
 import SelectorVariantChips from "Features/layout/components/SelectorVariantChips";
 import { setFilterByMainBaseMap } from "Features/mapEditor/mapEditorSlice";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 export default function SectionFilterEntitiesByMainBaseMap() {
   const dispatch = useDispatch();
@@ -18,6 +20,7 @@ export default function SectionFilterEntitiesByMainBaseMap() {
   const filterByMainBaseMap = useSelector(
     (s) => s.mapEditor.filterByMainBaseMap
   );
+  const { value: listing } = useSelectedListing();
 
   // helpers
 
@@ -37,10 +40,13 @@ export default function SectionFilterEntitiesByMainBaseMap() {
   // render
 
   return (
-    <SelectorVariantChips
-      options={options}
-      selection={selection}
-      onChange={handleChange}
-    />
+    <Box sx={{ width: 1, display: "flex", p: 1 }}>
+      <SelectorVariantChips
+        options={options}
+        selection={selection}
+        onChange={handleChange}
+        bgcolor={listing?.color}
+      />
+    </Box>
   );
 }
