@@ -17,6 +17,7 @@ import {
   Wallpaper,
   ShapeLine,
   Print,
+  CenterFocusStrong,
 } from "@mui/icons-material";
 import ExcelIcon from "Features/excel/utils/components/ExcelIcon";
 
@@ -39,4 +40,5 @@ iconsMap.set("blueprint", Print);
 iconsMap.set("shapes", ShapeLine);
 iconsMap.set("print", Print);
 iconsMap.set("background", Wallpaper);
+iconsMap.set("detail", CenterFocusStrong);
 export default iconsMap;

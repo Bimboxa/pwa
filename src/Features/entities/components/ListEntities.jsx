@@ -13,6 +13,7 @@ import SectionActions from "./SectionActions";
 import getFoundItems from "Features/search/getFoundItems";
 import ListItemEntityVariantAnnotationTemplate from "Features/annotations/components/ListItemEntityVariantAnnotationTemplate";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+import SectionFilterEntitiesByMainBaseMap from "./SectionFilterEntitiesByMainBaseMap";
 
 export default function ListEntities({
   listing,
@@ -69,6 +70,7 @@ export default function ListEntities({
         />
       </Box>
       <SectionActions />
+      <SectionFilterEntitiesByMainBaseMap />
       <BoxFlexVStretch sx={{ overflow: "auto" }}>
         <List dense={!isMobile} disablePadding sx={{ bgcolor: "white" }}>
           {filteredEntities?.map((entity) => {

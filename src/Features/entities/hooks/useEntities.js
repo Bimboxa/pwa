@@ -9,6 +9,7 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import getSortedItems from "Features/misc/utils/getSortedItems";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
+import { setFilterByMainBaseMap } from "Features/mapEditor/mapEditorSlice";
 
 export default function useEntities(options) {
   // options
@@ -21,6 +22,7 @@ export default function useEntities(options) {
 
   const filterByListingsKeys = options?.filterByListingsKeys;
   const filterByListingsIds = options?.filterByListingsIds;
+  const filterByMainBaseMap = options?.filterByMainBaseMap;
 
   const sortBy = options?.sortBy;
 
@@ -184,19 +186,36 @@ export default function useEntities(options) {
           .where("projectId")
           .equals(projectId)
           .toArray();
-        const annotationsByEntityId = getItemsByKey(annotations, "entityId");
-
-        entities = entities.map((entity) => {
-          const annotation = annotationsByEntityId[entity.id];
+        //const annotationsByEntityId = getItemsByKey(annotations, "entityId");
+        const annotationsByEntityId = annotations.reduce((acc, annotation) => {
           const annotationTemplate =
             annotationTemplatesById[annotation?.annotationTemplateId];
+          const _annotation = {
+            ...annotation,
+            label: annotationTemplate?.label,
+          };
+          if (!acc[annotation.entityId]) {
+            acc[annotation.entityId] = [_annotation];
+          } else {
+            acc[annotation.entityId].push(_annotation);
+          }
+          return acc;
+        }, {});
+
+        entities = entities.map((entity) => {
+          const annotations = annotationsByEntityId[entity.id];
           return {
             ...entity,
-            annotation: {
-              ...annotation,
-              label: annotationTemplate?.label,
-            },
+            annotations,
           };
+        });
+      }
+      // filter by baseMapId
+      if (filterByMainBaseMap) {
+        entities = entities.filter((entity) => {
+          return entity?.annotations
+            ?.map((a) => a.baseMapId)
+            .includes(baseMapId);
         });
       }
 
@@ -226,7 +245,13 @@ export default function useEntities(options) {
       setLoading(false);
       return [];
     }
-  }, [listingsIdsHash, entitiesUpdatedAt, baseMapId, withMarkers]);
+  }, [
+    listingsIdsHash,
+    entitiesUpdatedAt,
+    baseMapId,
+    withMarkers,
+    filterByMainBaseMap,
+  ]);
 
   return { value, loading };
 }

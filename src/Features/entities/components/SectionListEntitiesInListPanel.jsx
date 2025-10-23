@@ -31,12 +31,16 @@ export default function SectionListEntitiesInListPanel() {
   const { value: listing } = useSelectedListing({ withEntityModel: true });
   const entityModel = listing?.entityModel;
   const sortBy = entityModel?.sortBy ?? listing?.sortBy;
+  const filterByMainBaseMap = useSelector(
+    (s) => s.mapEditor.filterByMainBaseMap
+  );
 
   const { value: entities, loading } = useEntities({
     withImages: true,
     sortBy,
     withMarkers: entityModel?.type === "LOCATED_ENTITY",
     withAnnotations: entityModel?.type === "LOCATED_ENTITY",
+    filterByMainBaseMap,
   });
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
 

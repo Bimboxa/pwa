@@ -39,6 +39,7 @@ const mapEditorInitialState = {
 
   // view
   centerBaseMapTriggeredAt: null,
+  filterByMainBaseMap: true,
 };
 
 export const mapEditorSlice = createSlice({
@@ -149,6 +150,10 @@ export const mapEditorSlice = createSlice({
       console.log("[STATE] centerBaseMapTriggeredAt", Date.now());
       state.centerBaseMapTriggeredAt = Date.now();
     },
+
+    setFilterByMainBaseMap: (state, action) => {
+      state.filterByMainBaseMap = action.payload;
+    },
   },
 });
 
@@ -196,6 +201,7 @@ export const {
 
   // view
   triggerCenterBaseMap,
+  setFilterByMainBaseMap,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;
