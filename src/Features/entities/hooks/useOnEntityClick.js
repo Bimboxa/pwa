@@ -6,6 +6,8 @@ import {
   setBaseMapGrayScale,
   setSelectedMainBaseMapId,
   setLegendFormat,
+  setSelectedNode,
+  setZoomTo,
 } from "Features/mapEditor/mapEditorSlice";
 import {
   setBgImageKeyInMapEditor,
@@ -15,6 +17,7 @@ import {
 
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setBlueprintIdInMapEditor } from "Features/blueprints/blueprintsSlice";
+import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 
 export default function useOnEntityClick() {
   const dispatch = useDispatch();
@@ -35,11 +38,35 @@ export default function useOnEntityClick() {
           })
         );
         const annotations = entity.annotations;
+        const annotationInMapEditor = annotations.find(
+          (a) => a.baseMapId === baseMapId
+        );
         if (
           annotations?.length > 0 &&
           !annotations.map((a) => a.baseMapId).includes(baseMapId)
         ) {
           dispatch(setSelectedMainBaseMapId(annotations[0]?.baseMapId));
+        }
+
+        if (annotationInMapEditor) {
+          dispatch(
+            setSelectedNode({
+              id: annotationInMapEditor.id,
+              nodeType: "ANNOTATION",
+              annotationType: annotationInMapEditor.type,
+            })
+          );
+          let zoomTo;
+          if (annotationInMapEditor.type === "RECTANGLE") {
+            zoomTo = annotationInMapEditor.points[0];
+          } else {
+            zoomTo = {
+              x: annotationInMapEditor.x,
+              y: annotationInMapEditor.y,
+            };
+          }
+
+          dispatch(setZoomTo(zoomTo));
         }
         break;
       case "BLUEPRINT":

@@ -49,6 +49,11 @@ export default function ListEntities({
   if (listing?.entityModel?.type === "ANNOTATION_TEMPLATE")
     variant = "ANNOTATION_TEMPLATE";
 
+  // helper - showFilterByMainBaseMap
+
+  const showFilterByMainBaseMap =
+    listing?.entityModel?.type === "LOCATED_ENTITY";
+
   // handlers
 
   function handleSearchTextChange(text) {
@@ -70,7 +75,7 @@ export default function ListEntities({
         />
       </Box>
       <SectionActions />
-      <SectionFilterEntitiesByMainBaseMap />
+      {showFilterByMainBaseMap && <SectionFilterEntitiesByMainBaseMap />}
       <BoxFlexVStretch sx={{ overflow: "auto" }}>
         <List dense={!isMobile} disablePadding sx={{ bgcolor: "white" }}>
           {filteredEntities?.map((entity) => {

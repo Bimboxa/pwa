@@ -80,6 +80,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
     // refresh
     centerBaseMapTriggeredAt,
+    zoomTo, // {x,y,triggeredAt}
   } = props;
 
   // === REFS ===
@@ -224,6 +225,72 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       fit();
     }
   }, [centerBaseMapTriggeredAt]);
+
+  const triggerZoomTo = (x, y) => {
+    const baseMapX = x * baseSize.w;
+    const baseMapY = y * baseSize.h;
+
+    // Get current position of the baseMap point in screen coordinates
+    const currentScreenPos = baseLocalToScreen(baseMapX, baseMapY);
+
+    // Calculate the viewport center
+    const viewportCenter = {
+      x: viewport.w / 2,
+      y: viewport.h / 2,
+    };
+
+    // Calculate the offset needed to center the point
+    const delta = {
+      x: currentScreenPos.x - viewportCenter.x,
+      y: currentScreenPos.y - viewportCenter.y,
+    };
+
+    // Get current world state for animation
+    setWorld((currentWorld) => {
+      const targetWorld = {
+        x: currentWorld.x - delta.x,
+        y: currentWorld.y - delta.y,
+        k: currentWorld.k,
+      };
+
+      // Start smooth animation
+      const startTime = Date.now();
+      const duration = 500; // 500ms
+      const startWorld = { ...currentWorld };
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Easing function (ease-out)
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+
+        // Interpolate world transform
+        const animatedWorld = {
+          x: startWorld.x + (targetWorld.x - startWorld.x) * easeOut,
+          y: startWorld.y + (targetWorld.y - startWorld.y) * easeOut,
+          k: targetWorld.k, // Keep scale constant
+        };
+
+        setWorld(animatedWorld);
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+
+      requestAnimationFrame(animate);
+
+      // Return current world to avoid immediate state change
+      return currentWorld;
+    });
+  };
+
+  useEffect(() => {
+    if (zoomTo?.triggeredAt) {
+      triggerZoomTo(zoomTo.x, zoomTo.y);
+    }
+  }, [zoomTo?.triggeredAt]);
 
   // ============================
   // 🟢 PINCH + PAN (SIMPLIFIED - NO INERTIA)
@@ -438,14 +505,20 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     },
     [Mvw, Mbg]
   );
+
+  const baseLocalToScreen = useCallback(
+    (sx, sy) => {
+      const mat = mMul(Mvw, Mbase);
+      const result = mApply(mat, sx, sy);
+      return result;
+    },
+    [Mvw, Mbase, world, basePose]
+  );
+
   const screenToBaseLocal = useCallback(
     (sx, sy) => {
-      console.log("screenToBaseLocal - Input:", { sx, sy });
-      console.log("screenToBaseLocal - World:", world);
-      console.log("screenToBaseLocal - BasePose:", basePose);
       const inv = mInverse(mMul(Mvw, Mbase));
       const result = mApply(inv, sx, sy);
-      console.log("screenToBaseLocal - Output:", result);
       return result;
     },
     [Mvw, Mbase, world, basePose]
