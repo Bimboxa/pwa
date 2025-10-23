@@ -1,4 +1,4 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import {
   setBaseMapPoseInBg,
@@ -19,6 +19,10 @@ import { setBlueprintIdInMapEditor } from "Features/blueprints/blueprintsSlice";
 export default function useOnEntityClick() {
   const dispatch = useDispatch();
 
+  // data
+
+  const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+
   const onEntityClick = (entity) => {
     console.log("debug_1609 click on entity", entity);
     switch (entity?.entityModelType) {
@@ -30,6 +34,14 @@ export default function useOnEntityClick() {
             listingId: entity.listingId,
           })
         );
+        const annotations = entity.annotations;
+        if (
+          annotations?.length > 0 &&
+          !annotations.map((a) => a.baseMapId).includes(baseMapId)
+        ) {
+          dispatch(setSelectedMainBaseMapId(annotations[0]?.baseMapId));
+        }
+        break;
       case "BLUEPRINT":
         dispatch(setShowBgImageInMapEditor(true));
         dispatch(setBlueprintIdInMapEditor(entity.id));
