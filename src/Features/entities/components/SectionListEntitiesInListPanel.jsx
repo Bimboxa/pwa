@@ -40,7 +40,8 @@ export default function SectionListEntitiesInListPanel() {
     sortBy,
     withMarkers: entityModel?.type === "LOCATED_ENTITY",
     withAnnotations: entityModel?.type === "LOCATED_ENTITY",
-    filterByMainBaseMap: entityModel?.type === "LOCATED_ENTITY",
+    filterByMainBaseMap:
+      entityModel?.type === "LOCATED_ENTITY" && filterByMainBaseMap,
   });
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
 
