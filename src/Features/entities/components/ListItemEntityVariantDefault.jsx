@@ -30,11 +30,11 @@ export default function ListItemEntityVariantDefault({
   // helper - annotation
 
   let annotation;
-  if (entity.annotation)
+  if (entity.annotations?.length > 0)
     annotation = {
-      ...entity.annotation,
+      ...entity.annotations[0],
       label: annotationTemplates?.find(
-        ({ id }) => entity.annotation.annotationTemplateId === id
+        ({ id }) => entity.annotations[0].annotationTemplateId === id
       )?.label,
     };
 

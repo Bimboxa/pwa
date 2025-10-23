@@ -103,6 +103,7 @@ export default function MainMapEditorV2() {
   const centerBaseMapTriggeredAt = useSelector(
     (s) => s.mapEditor.centerBaseMapTriggeredAt
   );
+  const zoomTo = useSelector((s) => s.mapEditor.zoomTo);
 
   const { value: baseMaps } = useBaseMaps({ filterByProjectId: projectId });
 
@@ -496,6 +497,7 @@ export default function MainMapEditorV2() {
         ref={svgRef}
         //
         centerBaseMapTriggeredAt={centerBaseMapTriggeredAt}
+        zoomTo={zoomTo}
       />
 
       <LayerMapEditor svgElement={svgRef.current} />

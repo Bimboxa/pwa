@@ -40,6 +40,7 @@ const mapEditorInitialState = {
   // view
   centerBaseMapTriggeredAt: null,
   filterByMainBaseMap: true,
+  zoomTo: null,
 };
 
 export const mapEditorSlice = createSlice({
@@ -154,6 +155,10 @@ export const mapEditorSlice = createSlice({
     setFilterByMainBaseMap: (state, action) => {
       state.filterByMainBaseMap = action.payload;
     },
+    setZoomTo: (state, action) => {
+      const zoomTo = action.payload;
+      state.zoomTo = { ...zoomTo, triggeredAt: Date.now() };
+    },
   },
 });
 
@@ -202,6 +207,7 @@ export const {
   // view
   triggerCenterBaseMap,
   setFilterByMainBaseMap,
+  setZoomTo,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;
