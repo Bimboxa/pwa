@@ -1,15 +1,23 @@
 import { useSelector, useDispatch } from "react-redux";
 
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
+import { setOpenedPanel } from "Features/listings/listingsSlice";
 
 import { Typography, Box } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionCreateMarker from "Features/markers/components/SectionCreateMarker";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
+import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
+import SectionAnnotationTemplatesInPanelCreateLocatedEntity from "./SectionAnnotationTemplatesInPanelCreateLocatedEntity";
 
 export default function PanelCreateLocatedEntity() {
   const dispatch = useDispatch();
+  // strings
+
+  const title = "Créer un objet";
+
+  const selectToolS = "Sélectionnez un modèle";
 
   // data
 
@@ -23,17 +31,21 @@ export default function PanelCreateLocatedEntity() {
 
   function handleClose() {
     dispatch(setEnabledDrawingMode(null));
+    dispatch(setOpenedPanel("LISTING"));
   }
 
   // render
 
   return (
     <BoxFlexVStretch>
-      <Box sx={{ display: "flex", justifyContent: "end" }}>
-        <IconButtonClose onClose={handleClose} />
-      </Box>
+      <HeaderTitleClose title={title} onClose={handleClose} />
       {/* <Typography>{enabledDrawingMode}</Typography> */}
-      {showMarker && <SectionCreateMarker />}
+      <BoxFlexVStretch sx={{ overflow: "auto" }}>
+        <Typography sx={{ p: 2 }} variant="body2" color="text.secondary">
+          {selectToolS}
+        </Typography>
+        <SectionAnnotationTemplatesInPanelCreateLocatedEntity />
+      </BoxFlexVStretch>
     </BoxFlexVStretch>
   );
 }

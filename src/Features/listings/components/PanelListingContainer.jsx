@@ -16,6 +16,7 @@ import PanelSelectorListingsOnboarding from "./PanelSelectorListingsOnboarding";
 import PanelFormatBgImage from "Features/bgImage/components/PanelFormatBgImage";
 import PanelCreateBlueprint from "Features/blueprints/components/PanelCreateBlueprint";
 import PanelEditBlueprint from "Features/blueprints/components/PanelEditBlueprint";
+import PanelCreateLocatedEntity from "Features/locatedEntities/components/PanelCreateLocatedEntity";
 
 export default function PanelListingContainer() {
   const dispatch = useDispatch();
@@ -62,6 +63,7 @@ export default function PanelListingContainer() {
       )}
       {openedPanel === "NEW_BLUEPRINT" && <PanelCreateBlueprint />}
       {openedPanel === "EDITED_BLUEPRINT" && <PanelEditBlueprint />}
+      {openedPanel === "NEW_LOCATED_ENTITY" && <PanelCreateLocatedEntity />}
     </BoxFlexVStretch>
   );
 }

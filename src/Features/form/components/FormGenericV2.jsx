@@ -14,6 +14,7 @@ import FieldAnnotationTemplateId from "./FieldAnnotationTemplateId";
 import FieldIconBasic from "./FieldIconBasic";
 import FieldOptionSelector from "./FieldOptionSelector";
 import FieldOptionKey from "./FieldOptionKey";
+import FieldOptionKeyFromIconsVariantToolbar from "./FieldOptionKeyFromIconsVariantToolbar";
 import FieldCheck from "./FieldCheck";
 import FieldButton from "./FieldButton";
 
@@ -291,7 +292,20 @@ export default function FormGenericV2({
                 handleFieldValueChange(field.key, newValue)
               }
               valueOptions={field.valueOptions}
+              options={field.options}
               formContainerRef={formContainerRef}
+            />
+          );
+        }
+        if (field?.type === "optionKeyFromIcons") {
+          return (
+            <FieldOptionKeyFromIconsVariantToolbar
+              key={field.key}
+              value={item[field.key]}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              valueOptions={field.valueOptions}
             />
           );
         }

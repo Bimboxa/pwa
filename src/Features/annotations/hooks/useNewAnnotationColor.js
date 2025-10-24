@@ -15,7 +15,7 @@ export default function useNewAnnotationColor() {
     if (newAnnotation.closeLine) {
       color = newAnnotation.fillColor;
     } else {
-      color = newAnnotation.strokeColor;
+      color = newAnnotation.strokeColor ?? newAnnotation.fillColor;
     }
   }
 

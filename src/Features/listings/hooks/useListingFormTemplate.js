@@ -1,6 +1,7 @@
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import iconsMap from "../data/iconsMap";
+import theme from "Styles/theme";
 
 export default function useListingFormTemplate(listing, options) {
   // options
@@ -25,7 +26,16 @@ export default function useListingFormTemplate(listing, options) {
 
   // helpers
 
-  const iconColor = listing?.color ?? "white";
+  const iconColor = listing?.color ?? theme.palette.secondary.main;
+
+  // helpers - optionsEntityModels
+
+  let optionsEntityModels = entityModels;
+  if (locatedListingOnly) {
+    optionsEntityModels = optionsEntityModels.filter(
+      (entityModel) => entityModel.type === "LOCATED_ENTITY"
+    );
+  }
 
   // main
 
@@ -36,6 +46,16 @@ export default function useListingFormTemplate(listing, options) {
         label: "Nom",
         type: "text",
         options: { showAsSection: true, fullWidth: true },
+      },
+      {
+        key: "entityModel",
+        label: "Type d'objet",
+        type: "option",
+        valueOptions: optionsEntityModels,
+        options: {
+          firstOptionByDefault: optionsEntityModels?.length === 1,
+          displayNone: optionsEntityModels?.length === 1,
+        },
       },
       {
         key: "color",
@@ -51,15 +71,10 @@ export default function useListingFormTemplate(listing, options) {
       },
 
       {
-        key: "entityModel",
-        label: "Entité",
-        type: "option",
-        valueOptions: entityModels,
-      },
-      {
         key: "canCreateItem",
         label: "Créer des entités",
         type: "check",
+        ...(locatedListingOnly && { hidden: true }),
       },
     ],
   };

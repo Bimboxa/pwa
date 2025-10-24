@@ -23,8 +23,6 @@ export default function FieldIconVariantToolbar({
 
   const fillColor = options?.fillColor ?? grey[500];
 
-  console.log("fillColor", fillColor);
-
   // handlers
 
   function handleChange(iconKey) {

@@ -12,6 +12,12 @@ export default function FormListing({ listing, onChange, locatedListingOnly }) {
   // helper - item
 
   const item = { ...listing };
+  if (listing?.entityModel) {
+    item.entityModel = {
+      ...item.entityModel,
+      label: listing?.entityModel?.name,
+    };
+  }
 
   // handlers
 

@@ -15,7 +15,7 @@ export default function MenuActionsListing({ anchorEl, onClose, listing }) {
 
   const actions = [
     {
-      label: "Editer le module",
+      label: "Editer la liste",
       handler: () => {
         setOpenEdit(true);
       },

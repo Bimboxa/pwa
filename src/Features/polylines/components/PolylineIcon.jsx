@@ -27,7 +27,8 @@ export default function PolylineIcon({
           justifyContent: "center",
           alignItems: "center",
           //overflow: "hidden",
-          color: strokeColor,
+          //color: strokeColor,
+          color: fillColor,
         }}
       >
         {closeLine ? (
