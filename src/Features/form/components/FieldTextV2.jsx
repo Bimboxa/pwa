@@ -122,6 +122,9 @@ export default function FieldTextV2({ value, onChange, options, label }) {
                 },
               }
             : {},
+          "& .MuiInputBase-input": {
+            fontSize: (theme) => theme.typography.body2.fontSize,
+          },
         }}
       />
     </Box>

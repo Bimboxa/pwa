@@ -2,20 +2,24 @@ import { useState, useEffect } from "react";
 
 import useSelectedListing from "../hooks/useSelectedListing";
 import useUpdateListing from "../hooks/useUpdateListing";
+import useListingEntityModel from "../hooks/useListingEntityModel";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import FormListing from "./FormListing";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
+import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
 
 export default function DialogEditListing({ open, onClose, listing }) {
   // strings
 
-  const title = "Configuration du module";
+  const title = "Editer la liste";
   const saveS = "Enregistrer";
 
   // data
-  const { value: selectedListing } = useSelectedListing();
+  const { value: selectedListing } = useSelectedListing({
+    withEntityModel: true,
+  });
 
   // data - func
   const updateListing = useUpdateListing();
@@ -24,14 +28,18 @@ export default function DialogEditListing({ open, onClose, listing }) {
 
   listing = listing || selectedListing;
 
+  const entityModel = useListingEntityModel(listing);
+
   // state
 
   const [tempListing, setTempListing] = useState(listing);
   useEffect(() => {
-    setTempListing(listing);
-  }, [listing?.id]);
+    if (entityModel) {
+      setTempListing({ ...listing, entityModel });
+    }
+  }, [listing?.id, entityModel?.key]);
 
-  console.log("tempListing", tempListing);
+  console.log("entityModel", entityModel, tempListing);
 
   // handlers
 
@@ -52,13 +60,8 @@ export default function DialogEditListing({ open, onClose, listing }) {
   // render
 
   return (
-    <DialogGeneric
-      title={title}
-      open={open}
-      onClose={onClose}
-      width={350}
-      vh={70}
-    >
+    <DialogGeneric open={open} onClose={onClose} width={350} vh={70}>
+      <HeaderTitleClose title={title} />
       <BoxFlexVStretch>
         <FormListing listing={tempListing} onChange={handleChange} />
       </BoxFlexVStretch>

@@ -108,6 +108,8 @@ export default function SectionListEntitiesInListPanel() {
     dispatch(setSelectedEntityId(null));
     if (listing.entityModel.type === "BLUEPRINT") {
       dispatch(setOpenedPanel("NEW_BLUEPRINT"));
+    } else if (listing.entityModel.type === "LOCATED_ENTITY") {
+      dispatch(setOpenedPanel("NEW_LOCATED_ENTITY"));
     } else {
       dispatch(setOpenedPanel("NEW_ENTITY"));
     }

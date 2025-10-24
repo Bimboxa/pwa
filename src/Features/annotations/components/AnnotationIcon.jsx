@@ -10,6 +10,7 @@ export default function AnnotationIcon({ spriteImage, annotation, size }) {
       );
     case "POLYLINE":
       return <PolylineIcon {...annotation} size={size} />;
+
     case "RECTANGLE":
       return <RectangleIcon {...annotation} size={size} />;
     default:

@@ -27,8 +27,8 @@ export default function ToolbarMapEditor({ svgElement }) {
   return (
     <>
       {/* {type === "LOCATED_ENTITY" && <ToolbarMapEditorLocatedEntities />} */}
-      {toolbar === "SELECTED_ENTITY" && <ToolbarSelectedEntity />}
-      {toolbar === "LOCATED_ENTITY" && <ToolbarAnnotationInMapEditor />}
+      {/* {toolbar === "SELECTED_ENTITY" && <ToolbarSelectedEntity />} */}
+      {/* {toolbar === "LOCATED_ENTITY" && <ToolbarAnnotationInMapEditor />} */}
       {toolbar === "BLUEPRINT" && (
         <ToolbarMapEditorBlueprint svgElement={svgElement} />
       )}

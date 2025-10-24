@@ -11,6 +11,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 import SectionEditAnnotationTemplate from "./SectionEditAnnotationTemplate";
 import SectionListAnnotationTemplates from "./SectionListAnnotationTemplates";
+import useDeleteAnnotationTemplate from "../hooks/useDeleteAnnotationTemplate";
 
 export default function PanelListingAnnotationTemplates() {
   const dispatch = useDispatch();
@@ -25,6 +26,7 @@ export default function PanelListingAnnotationTemplates() {
   // data - func
 
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
+  const deleteAnnotationTemplate = useDeleteAnnotationTemplate();
 
   // state
 
@@ -50,6 +52,11 @@ export default function PanelListingAnnotationTemplates() {
     setSelectedAnnotationTemplate(null);
   }
 
+  async function handleDelete(annotationTemplate) {
+    await deleteAnnotationTemplate(annotationTemplate.id);
+    setSelectedAnnotationTemplate(null);
+  }
+
   function handleClose() {
     setSelectedAnnotationTemplate(null);
   }
@@ -60,6 +67,7 @@ export default function PanelListingAnnotationTemplates() {
         <SectionEditAnnotationTemplate
           annotationTemplate={selectedAnnotationTemplate}
           onSaveClick={handleSave}
+          onDeleteClick={handleDelete}
           onCloseClick={handleClose}
         />
       )}

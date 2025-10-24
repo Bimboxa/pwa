@@ -1,6 +1,8 @@
 // NodePolyline.js
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 
+import theme from "Styles/theme";
+
 /**
  * Props:
  * - polyline: {
@@ -43,9 +45,11 @@ export default function NodePolyline({
   // --- polyline config ---
   const basePoints = polyline?.points || [];
   const {
-    strokeColor = "green",
+    strokeColor = polyline?.strokeColor ??
+      polyline?.fillColor ??
+      theme.palette.secondary.main,
     closeLine = false,
-    fillColor = polyline?.strokeColor || "green",
+    fillColor = polyline?.fillColor ?? theme.palette.secondary.main,
     fillOpacity = 0.8,
   } = polyline || {};
 
