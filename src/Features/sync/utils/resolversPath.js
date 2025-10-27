@@ -46,7 +46,7 @@ const resolveTemplateWithIteration = (template, context, item, iteration) => {
 
   if (iteration && Array.isArray(iteration.in)) {
     return iteration.in.map((value) => {
-      return resolveSingle(template, {[iteration.key]: value});
+      return resolveSingle(template, { [iteration.key]: value });
     });
   }
 
@@ -54,13 +54,18 @@ const resolveTemplateWithIteration = (template, context, item, iteration) => {
   return [resolveSingle(template)];
 };
 
-export function resolveFilePath({folderTemplate, fileTemplate, context, item}) {
+export function resolveFilePath({
+  folderTemplate,
+  fileTemplate,
+  context,
+  item,
+}) {
   const folderPath = resolveTemplate(folderTemplate, context, item);
   const filePath = resolveTemplate(fileTemplate, context, item);
   return `${folderPath}/${filePath}`;
 }
 
-export function resolveFolderPath({folderTemplate, context, item}) {
+export function resolveFolderPath({ folderTemplate, context, item }) {
   return resolveTemplate(folderTemplate, context, item);
 }
 
@@ -84,7 +89,7 @@ export function resolveFilesPaths({
   return resolveTemplateWithIteration(template, context, item, iteration);
 }
 
-export function resolveFilesPathsFromItems({folderTemplate, context, items}) {
+export function resolveFilesPathsFromItems({ folderTemplate, context, items }) {
   const allPaths = items.map((item) => {
     const filePath = resolveTemplate(folderTemplate, context, item);
     return filePath;

@@ -26,7 +26,7 @@ export default function useRefreshAppConfig() {
       appConfig = await fetchOrgaAppConfigService({ accessToken });
     if (!appConfig) appConfig = await getAppConfigDefault({ configCode });
     //
-    appConfig = resolveAppConfig(appConfig);
+    appConfig = await resolveAppConfig(appConfig);
     //
     setAppConfigInLocalStorage(appConfig);
     dispatch(setAppConfig(appConfig));
