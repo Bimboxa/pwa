@@ -19,6 +19,7 @@ export default function FieldText({ value, onChange, options, label }) {
   const hideMic = options?.hideMic;
   const autoFocus = options?.autoFocus;
   const hideBorder = options?.hideBorder;
+  const showClose = options?.showClose;
 
   const [recording, setRecording] = useState(false);
 
@@ -73,17 +74,18 @@ export default function FieldText({ value, onChange, options, label }) {
       onKeyDown={(e) => e.stopPropagation()}
       slotProps={{
         input: {
-          endAdornment: tempValue ? (
-            <InputAdornment position="end">
-              <IconButton
-                onClick={() => setTempValue("")}
-                //edge="start"
-                size="small"
-              >
-                <Close fontSize="small" />
-              </IconButton>
-            </InputAdornment>
-          ) : null,
+          endAdornment:
+            tempValue && showClose ? (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={() => setTempValue("")}
+                  //edge="start"
+                  size="small"
+                >
+                  <Close fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : null,
           // endAdornment: !hideMic ? (
           //   <InputAdornment position="end">
           //     <IconButton onClick={handleMicClick} size="small">

@@ -17,6 +17,7 @@ import PanelFormatBgImage from "Features/bgImage/components/PanelFormatBgImage";
 import PanelCreateBlueprint from "Features/blueprints/components/PanelCreateBlueprint";
 import PanelEditBlueprint from "Features/blueprints/components/PanelEditBlueprint";
 import PanelCreateLocatedEntity from "Features/locatedEntities/components/PanelCreateLocatedEntity";
+import PanelHelperDrawAnnotation from "Features/annotations/components/PanelHelperDrawAnnotation";
 
 export default function PanelListingContainer() {
   const dispatch = useDispatch();
@@ -25,11 +26,13 @@ export default function PanelListingContainer() {
 
   const { value: listing } = useSelectedListing();
   let openedPanel = useSelector((s) => s.listings.openedPanel);
-  const showSelectorPresetListings = useAutoShowPanelSelectorPresetListings();
+  //const showSelectorPresetListings = useAutoShowPanelSelectorPresetListings();
+  const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
 
   // helpers
 
-  if (showSelectorPresetListings) openedPanel = "PRESET_LISTINGS_ONBOARDING";
+  //if (showSelectorPresetListings) openedPanel = "PRESET_LISTINGS_ONBOARDING";
+  if (enabledDrawingMode) openedPanel = "DRAW_ANNOTATION";
 
   // handlers
 
@@ -47,7 +50,7 @@ export default function PanelListingContainer() {
       {openedPanel === "LISTING_SELECTOR" && (
         <PanelSelectorListing
           selectedListingId={listing?.id}
-          onListingSelected={handleSelectListing}
+          //onListingSelected={handleSelectListing}
         />
       )}
 
@@ -64,6 +67,7 @@ export default function PanelListingContainer() {
       {openedPanel === "NEW_BLUEPRINT" && <PanelCreateBlueprint />}
       {openedPanel === "EDITED_BLUEPRINT" && <PanelEditBlueprint />}
       {openedPanel === "NEW_LOCATED_ENTITY" && <PanelCreateLocatedEntity />}
+      {openedPanel === "DRAW_ANNOTATION" && <PanelHelperDrawAnnotation />}
     </BoxFlexVStretch>
   );
 }

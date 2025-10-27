@@ -25,7 +25,7 @@ export default function ScreenNoBaseMap() {
 
   // state
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   // helpers
 

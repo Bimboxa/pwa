@@ -1,6 +1,8 @@
 import { useState } from "react";
 
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+
+import { setSelectedListingId } from "../listingsSlice";
 
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useAddListingToScope from "Features/scopes/hooks/useAddListingToScope";
@@ -18,6 +20,8 @@ export default function PanelCreateListing({
   onListingCreated,
   locatedListingOnly,
 }) {
+  const dispatch = useDispatch();
+
   // strings
 
   const saveS = "Créer";
@@ -51,7 +55,6 @@ export default function PanelCreateListing({
 
     // create listing
     const _newListing = await createListing({ listing: newListing, scope });
-    newListing.id = _newListing.id;
     // add listing to scope
     if (scope) {
       await addListingToScope({
@@ -62,7 +65,8 @@ export default function PanelCreateListing({
     }
 
     //
-    if (onListingCreated) onListingCreated();
+    dispatch(setSelectedListingId(_newListing.id));
+    if (onListingCreated) onListingCreated(_newListing);
   }
 
   function handleChange(listing) {

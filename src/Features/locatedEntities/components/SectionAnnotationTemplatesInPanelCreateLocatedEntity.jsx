@@ -38,11 +38,14 @@ import DialogCreateAnnotationTemplate from "Features/annotations/components/Dial
 import SectionCreateAnnotationTemplateVariantBlock from "Features/annotations/components/SectionCreateAnnotationTemplateVariantBlock.jsx";
 
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
+import { setOpenedPanel } from "Features/listings/listingsSlice";
 
 export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
   const dispatch = useDispatch();
 
-  const newS = "Nouveau modèle";
+  const helperNoTemplateS =
+    "Pour créer un objet, commencez par créer un modèle.";
+  const helperSelectS = "Sélectionnez un objet";
 
   // data
 
@@ -63,6 +66,10 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
 
   const [editedAnnotationTemplate, setEditedAnnotationTemplate] =
     useState(null);
+
+  // helpers
+
+  const noTemplates = !annotationTemplates?.length > 0;
 
   // handler
 
@@ -112,6 +119,14 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
 
   return (
     <BoxFlexVStretch>
+      <Box sx={{ p: 3, bgcolor: "background.default" }}>
+        <Box sx={{ p: 2, bgcolor: "white", borderRadius: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            {noTemplates ? helperNoTemplateS : helperSelectS}
+          </Typography>
+        </Box>
+      </Box>
+
       <List sx={{ bgcolor: "white" }}>
         {annotationTemplates?.map((annotationTemplate, idx) => {
           if (!annotationTemplate?.isDivider)
@@ -178,7 +193,7 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
                 </Collapse>
               </Box>
             );
-          if (annotationTemplate?.isDivider)
+          if (annotationTemplate?.isDivider && idx !== 0)
             return <Box key={idx} sx={{ my: 1 }} />;
         })}
         <ListItemButton onClick={() => setOpenCreate(true)} divider>

@@ -22,7 +22,6 @@ export default function PanelCreateLocatedEntity() {
   // data
 
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
-
   // helpers
 
   const showMarker = Boolean(enabledDrawingMode);
@@ -41,9 +40,6 @@ export default function PanelCreateLocatedEntity() {
       <HeaderTitleClose title={title} onClose={handleClose} />
       {/* <Typography>{enabledDrawingMode}</Typography> */}
       <BoxFlexVStretch sx={{ overflow: "auto" }}>
-        <Typography sx={{ p: 2 }} variant="body2" color="text.secondary">
-          {selectToolS}
-        </Typography>
         <SectionAnnotationTemplatesInPanelCreateLocatedEntity />
       </BoxFlexVStretch>
     </BoxFlexVStretch>

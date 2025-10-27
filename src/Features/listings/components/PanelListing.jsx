@@ -14,6 +14,7 @@ import VerticalSelectorListing from "Features/listings/components/VerticalSelect
 import SectionListEntitiesInListPanel from "Features/entities/components/SectionListEntitiesInListPanel";
 import SectionLegendInListPanel from "Features/legend/components/SectionLegendEntityInListPanel";
 import ButtonShowListingAnnotationTemplatesInLeftPanel from "Features/listings/components/ButtonShowListingAnnotationTemplatesInLeftPanel";
+import SectionHelperCreateFirstListing from "./SectionHelperCreateFirstListing";
 
 export default function PanelListing({ listing }) {
   const dispatch = useDispatch();
@@ -22,6 +23,10 @@ export default function PanelListing({ listing }) {
 
   let type = "DEFAULT";
   if (listing?.entityModel?.type === "LEGEND_ENTITY") type = "LEGEND";
+
+  // render
+
+  if (!listing?.projectId) return <SectionHelperCreateFirstListing />;
 
   return (
     <BoxFlexVStretch>

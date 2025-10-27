@@ -30,6 +30,7 @@ import {
   clearDrawingRectanglePoints,
 } from "Features/mapEditor/mapEditorSlice";
 import { setOpenDialogDeleteSelectedItem } from "Features/selection/selectionSlice";
+import { setOpenedPanel } from "Features/listings/listingsSlice";
 
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 import useInitDefaultNewAnnotation from "Features/annotations/hooks/useInitDefaultNewAnnotation";
@@ -82,6 +83,7 @@ export default function MainMapEditorV2() {
   const openBaseMapSelector = useSelector(
     (s) => s.mapEditor.openBaseMapSelector
   );
+  const openedPanel = useSelector((s) => s.listings.openedPanel);
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
