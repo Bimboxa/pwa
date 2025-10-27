@@ -9,6 +9,9 @@ import {
   setClickInBgPosition,
   setSelectedNode,
   setLegendFormat,
+  setScaleInPx,
+  setAnchorPositionScale,
+  setScaleAnnotationId,
 } from "../mapEditorSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
@@ -66,6 +69,7 @@ import MapEditorGeneric from "Features/mapEditorGeneric/components/MapEditorGene
 import LayerMapEditor from "./LayerMapEditor";
 import LayerScreenCursor from "./LayerScreenCursor";
 import BlockEntityMarker from "Features/markers/components/BlockEntityMarker";
+import PopperEditScale from "./PopperEditScale";
 
 import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
@@ -426,10 +430,34 @@ export default function MainMapEditorV2() {
   }
 
   // Add segment completion handler
-  async function handleSegmentComplete(points) {
+  async function handleSegmentComplete(points, anchorPositionScale) {
     if (points.length < 2) return;
 
     try {
+      // If this is a scale segment, compute the length in pixels
+      if (newAnnotation?.isScaleSegment) {
+        // Get baseMap dimensions
+        const baseMapW = mainBaseMap?.image?.width || 1;
+        const baseMapH = mainBaseMap?.image?.height || 1;
+
+        // Convert relative coordinates (0-1) to baseMap pixel coordinates
+        const p1x = points[0].x * baseMapW;
+        const p1y = points[0].y * baseMapH;
+        const p2x = points[1].x * baseMapW;
+        const p2y = points[1].y * baseMapH;
+
+        // Calculate distance in pixels (Euclidean distance)
+        const dx = p2x - p1x;
+        const dy = p2y - p1y;
+        const scaleInPx = Math.sqrt(dx * dx + dy * dy);
+
+        console.log("[MainMapEditor] Scale segment length:", scaleInPx, "px");
+
+        // Dispatch the scale in pixels
+        dispatch(setScaleInPx(scaleInPx));
+        dispatch(setAnchorPositionScale(anchorPositionScale));
+      }
+
       // Create entity for the segment
       const entity = await createEntity({});
 
@@ -457,6 +485,9 @@ export default function MainMapEditorV2() {
       dispatch(setNewAnnotation({}));
       dispatch(setSelectedNode(null));
       dispatch(clearDrawingSegmentPoints()); // Clear segment points
+
+      if (newAnnotation.isScaleSegment)
+        dispatch(setScaleAnnotationId(annotation?.id));
     } catch (error) {
       console.error("Error creating segment:", error);
     }
@@ -554,6 +585,7 @@ export default function MainMapEditorV2() {
         zoomTo={zoomTo}
       />
 
+      <PopperEditScale />
       <LayerMapEditor svgElement={svgRef.current} />
       {showScreenCursor && (
         <LayerScreenCursor containerEl={containerRef?.current} />

@@ -3,14 +3,21 @@ import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import {
+  setAnchorPositionScale,
+  setScaleAnnotationId,
+} from "../mapEditorSlice";
+
+import {
   triggerBaseMapsUpdate,
   updateMap,
 } from "Features/baseMaps/baseMapsSlice";
 
-import useLoadedMainBaseMap from "../hooks/useLoadedMainBaseMap";
+import useMainBaseMap from "../hooks/useMainBaseMap";
+
+import useDeleteAnnotation from "Features/annotations/hooks/useDeleteAnnotation";
 
 import { Paper, TextField, Button, Typography } from "@mui/material";
-import { setAnchorPositionScale } from "../mapEditorSlice";
+import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 
 export default function SectionEditScale() {
   const dispatch = useDispatch();
@@ -26,13 +33,18 @@ export default function SectionEditScale() {
 
   // data
 
-  const loadedMainBaseMap = useLoadedMainBaseMap();
+  const mainBaseMap = useMainBaseMap();
   const scaleInPx = useSelector((s) => s.mapEditor.scaleInPx);
+  const updateEntity = useUpdateEntity();
+  const scaleAnnotationId = useSelector((s) => s.mapEditor.scaleAnnotationId);
+  const deleteAnnotation = useDeleteAnnotation();
 
   // helper
 
-  const meterByPx = loadedMainBaseMap?.meterByPx ?? 1;
+  const meterByPx = mainBaseMap?.meterByPx ?? 1;
   const currentDistance = scaleInPx * meterByPx;
+
+  console.log("meterByPx", scaleInPx, meterByPx);
 
   // helper - disable
 
@@ -54,13 +66,15 @@ export default function SectionEditScale() {
     setTargetDistance(distanceS);
   }
 
-  function handleSave() {
+  async function handleSave() {
     const updates = {
-      id: loadedMainBaseMap.id,
       meterByPx: targetDistance / scaleInPx,
     };
-    dispatch(updateMap(updates));
-    dispatch(triggerBaseMapsUpdate());
+
+    await deleteAnnotation(scaleAnnotationId);
+    await updateEntity(mainBaseMap?.id, updates);
+
+    dispatch(setScaleAnnotationId(null));
     dispatch(setAnchorPositionScale(null));
   }
 
