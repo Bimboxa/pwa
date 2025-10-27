@@ -18,6 +18,7 @@ import useDeleteAnnotation from "Features/annotations/hooks/useDeleteAnnotation"
 
 import { Paper, TextField, Button, Typography } from "@mui/material";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
+import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
 
 export default function SectionEditScale() {
   const dispatch = useDispatch();
@@ -34,6 +35,7 @@ export default function SectionEditScale() {
   // data
 
   const mainBaseMap = useMainBaseMap();
+  const mainBaseMapListing = useMainBaseMapListing();
   const scaleInPx = useSelector((s) => s.mapEditor.scaleInPx);
   const updateEntity = useUpdateEntity();
   const scaleAnnotationId = useSelector((s) => s.mapEditor.scaleAnnotationId);
@@ -44,7 +46,7 @@ export default function SectionEditScale() {
   const meterByPx = mainBaseMap?.meterByPx ?? 1;
   const currentDistance = scaleInPx * meterByPx;
 
-  console.log("meterByPx", scaleInPx, meterByPx);
+  console.log("meterByPx", scaleInPx, meterByPx, "mainBaseMap", mainBaseMap);
 
   // helper - disable
 
@@ -72,7 +74,9 @@ export default function SectionEditScale() {
     };
 
     await deleteAnnotation(scaleAnnotationId);
-    await updateEntity(mainBaseMap?.id, updates);
+    await updateEntity(mainBaseMap?.id, updates, {
+      listing: mainBaseMapListing,
+    });
 
     dispatch(setScaleAnnotationId(null));
     dispatch(setAnchorPositionScale(null));

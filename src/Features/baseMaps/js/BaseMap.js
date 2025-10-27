@@ -13,13 +13,14 @@ export default class BaseMap {
   name;
   image;
 
-  constructor({ id, createdAt, projectId, listingId, name, image }) {
+  constructor({ id, createdAt, projectId, listingId, name, image, meterByPx }) {
     this.id = id;
     this.createdAt = createdAt;
     this.projectId = projectId;
     this.listingId = listingId;
     this.name = name;
     this.image = image;
+    this.meterByPx = meterByPx;
   }
 
   // STATIC METHOD
@@ -91,6 +92,7 @@ export default class BaseMap {
       projectId: this.projectId,
       name: this.name,
       image: this.image.toJSON(),
+      meterByPx: this.meterByPx,
     };
   }
 

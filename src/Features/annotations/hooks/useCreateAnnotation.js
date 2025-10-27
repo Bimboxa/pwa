@@ -24,6 +24,10 @@ export default function useCreateAnnotation() {
       listingId: annotation?.listingId ?? listing?.id,
     };
 
+    if (annotation.isScaleSegment) {
+      _annotation.listingId = null;
+    }
+
     await createAnnotationService(_annotation, options);
     dispatch(triggerAnnotationsUpdate());
     dispatch(triggerAnnotationTemplatesUpdate());

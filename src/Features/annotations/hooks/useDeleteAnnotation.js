@@ -8,7 +8,7 @@ export default function useDeleteAnnotation() {
   const dispatch = useDispatch();
 
   return async (annotationId) => {
-    await db.annotations.delete(annotationId);
+    if (annotationId) await db.annotations.delete(annotationId);
     dispatch(triggerAnnotationsUpdate());
   };
 }

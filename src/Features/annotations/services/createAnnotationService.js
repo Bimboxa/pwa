@@ -17,7 +17,7 @@ export default async function createAnnotationService(annotation, options) {
 
   let _annotation;
 
-  if (annotation?.annotationTemplateId) {
+  if (annotation?.annotationTemplateId || annotation?.isScaleSegment) {
     _annotation = await db.annotations.put(annotation);
   } else {
     //annotation template
