@@ -1,12 +1,16 @@
 import { nanoid } from "@reduxjs/toolkit";
 
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+
+import { triggerAnnotationTemplatesUpdate } from "../annotationsSlice";
 
 import db from "App/db/db";
 
 import getAnnotationTemplateCode from "../utils/getAnnotationTemplateCode";
 
 export default function useCreateAnnotationTemplate() {
+  const dispatch = useDispatch();
+
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
@@ -24,5 +28,7 @@ export default function useCreateAnnotationTemplate() {
       }),
     };
     await db.annotationTemplates.add(_annotationTemplate);
+
+    dispatch(triggerAnnotationTemplatesUpdate());
   };
 }

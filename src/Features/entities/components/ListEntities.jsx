@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { useSelector } from "react-redux";
+
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 
@@ -32,13 +34,14 @@ export default function ListEntities({
   const isMobile = useIsMobile();
   const annotationTemplates = useAnnotationTemplates();
   const spriteImage = useAnnotationSpriteImage();
+  const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
   // helpers
 
   const filteredEntities = getFoundItems({
     items: entities,
     searchText,
-    searchKeys: ["label"],
+    searchKeys: ["label", "name", "sublabel", "num"],
   });
 
   const color = listing?.color;
@@ -53,7 +56,7 @@ export default function ListEntities({
   // helper - showFilterByMainBaseMap
 
   const showFilterByMainBaseMap =
-    listing?.entityModel?.type === "LOCATED_ENTITY";
+    listing?.entityModel?.type === "LOCATED_ENTITY" && baseMapId;
 
   // handlers
 
@@ -74,7 +77,7 @@ export default function ListEntities({
         <SearchBar
           value={searchText}
           onChange={handleSearchTextChange}
-          onCreateClick={onCreateClick}
+          onCreateClick={baseMapId && onCreateClick}
           color={color}
         />
       </Box>

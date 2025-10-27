@@ -36,10 +36,10 @@ export default function FormAnnotationTemplateVariantBlock({
   // helpers - annotationTypes
 
   const annotationTypes = [
-    { key: "MARKER", icon: <Marker /> },
-    { key: "POLYLINE", icon: <Polyline /> },
-    { key: "POLYGON", icon: <Pentagon /> },
-    { key: "RECTANGLE", icon: <Rectangle /> },
+    { key: "MARKER", icon: <Marker />, label: "Repère" },
+    { key: "POLYLINE", icon: <Polyline />, label: "Ligne" },
+    { key: "POLYGON", icon: <Pentagon />, label: "Surface" },
+    { key: "RECTANGLE", icon: <Rectangle />, label: "Rectangle" },
   ];
 
   // helpers

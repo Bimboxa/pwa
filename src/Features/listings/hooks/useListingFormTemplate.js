@@ -37,6 +37,9 @@ export default function useListingFormTemplate(listing, options) {
     );
   }
 
+  let placeholder = "Liste XXX";
+  if (options.locatedListingOnly) placeholder = "PIC, réception, DAT,...";
+
   // main
 
   const template = {
@@ -45,7 +48,7 @@ export default function useListingFormTemplate(listing, options) {
         key: "name",
         label: "Nom",
         type: "text",
-        options: { showAsSection: true, fullWidth: true },
+        options: { showAsSection: true, fullWidth: true, placeholder },
       },
       {
         key: "entityModel",

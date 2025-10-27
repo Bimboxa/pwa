@@ -22,6 +22,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   const placeholder = options?.placeholder;
   const showAsSection = options?.showAsSection;
   const readOnly = options?.readOnly;
+  const showClose = options?.showClose;
 
   const [recording, setRecording] = useState(false);
 
@@ -94,7 +95,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
         slotProps={{
           input: {
             endAdornment:
-              tempValue && !readOnly ? (
+              tempValue && !readOnly && showClose ? (
                 <InputAdornment position="end">
                   <IconButton
                     onClick={() => onChange("")}

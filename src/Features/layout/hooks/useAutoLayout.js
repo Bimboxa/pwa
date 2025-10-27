@@ -50,10 +50,10 @@ export default function useAutoLayout() {
 
   useEffect(() => {
     if (step === "PROJECT" || step === "SCOPE") {
-      dispatch(setOpenLeftPanel(false));
+      //dispatch(setOpenLeftPanel(false));
       dispatch(setSelectedMenuItemKey(null));
     } else if (step === "LISTINGS") {
-      dispatch(setOpenLeftPanel(true));
+      //dispatch(setOpenLeftPanel(true));
     } else if (step === "END") {
       dispatch(setOnboardingIsActive(false));
     }
