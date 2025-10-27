@@ -33,11 +33,11 @@ export default function SectionFormatBgImage() {
     dispatch(setBgImageKeyInMapEditor(item.imageKey));
 
     // bgImageRawTextAnnotations
-    const raw = item.metadata.reduce((acc, cur) => {
+    const raw = item?.metadata?.reduce((acc, cur) => {
       if (cur.value) acc[cur.key] = cur.value;
       return acc;
     }, {});
-    dispatch(setBgImageRawTextAnnotations(raw));
+    if (raw) dispatch(setBgImageRawTextAnnotations(raw));
   }
   // render
 

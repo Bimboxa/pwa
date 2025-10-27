@@ -18,7 +18,12 @@ export default function useUpdateEntity() {
   const { value: listing } = useSelectedListing();
 
   const update = async (entityId, updates, options) => {
-    const table = listing?.table;
+    // options
+
+    const _listing = options.listing ?? listing;
+
+    // main
+    const table = _listing?.table;
 
     let changes = {
       ...updates,
@@ -30,8 +35,8 @@ export default function useUpdateEntity() {
     const { pureData, filesDataByKey } =
       await getEntityPureDataAndFilesDataByKey(changes, {
         entityId,
-        listingId: listing?.id,
-        projectId: listing?.projectId,
+        listingId: _listing?.id,
+        projectId: _listing?.projectId,
         createdBy: userEmail,
       });
 

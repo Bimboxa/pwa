@@ -4,7 +4,7 @@ import { setEnabledDrawingMode } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
 import { Architecture as Scale } from "@mui/icons-material";
-import { IconButton } from "@mui/material";
+import { IconButton, Box } from "@mui/material";
 
 export default function ButtonEditScale() {
   const dispatch = useDispatch();
@@ -21,8 +21,19 @@ export default function ButtonEditScale() {
   }
 
   return (
-    <IconButton onClick={handleClick} color="inherit">
-      <Scale />
-    </IconButton>
+    <Box
+      sx={{
+        bgcolor: "white",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: "50%",
+        border: (theme) => `1px solid ${theme.palette.divider}`,
+      }}
+    >
+      <IconButton onClick={handleClick} color="inherit">
+        <Scale />
+      </IconButton>
+    </Box>
   );
 }

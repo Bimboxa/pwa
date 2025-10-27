@@ -459,7 +459,10 @@ export default function MainMapEditorV2() {
       }
 
       // Create entity for the segment
-      const entity = await createEntity({});
+      let entity;
+      if (!newAnnotation.isScaleSegment) {
+        entity = await createEntity({});
+      }
 
       // Create annotation with segment data
       const annotation = await createAnnotation(

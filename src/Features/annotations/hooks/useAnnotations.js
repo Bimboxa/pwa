@@ -56,7 +56,7 @@ export default function useAnnotations(options) {
       );
       const listings = await db.listings
         .where("id")
-        .anyOf(listingsIds)
+        .anyOf(listingsIds.filter(Boolean))
         .toArray();
 
       // Create a map for quick lookup
