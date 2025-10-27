@@ -16,6 +16,7 @@ import NodeAnnotation from "./NodeAnnotation";
 import NodeLegend from "./NodeLegend";
 import NodePolyline from "./NodePolyline";
 import NodeRectangle from "./NodeRectangle";
+import NodeSegment from "./NodeSegment";
 import LayerMarkerTooltip from "Features/mapEditor/components/LayerMarkerTooltip";
 import DraggableFabMarker from "Features/markers/components/DraggableFabMarker";
 
@@ -31,6 +32,7 @@ import { useDispatch } from "react-redux";
 import {
   addPolylinePoint,
   addRectanglePoint,
+  addSegmentPoint,
 } from "Features/mapEditor/mapEditorSlice";
 
 const PADDING = 15;
@@ -77,6 +79,11 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     onRectangleComplete,
     drawingRectanglePoints, // Array<{x,y}> with max 2 points
     newRectangleProps,
+
+    // segment
+    onSegmentComplete,
+    drawingSegmentPoints, // Array<{x,y}> with max 2 points
+    newSegmentProps,
 
     // refresh
     centerBaseMapTriggeredAt,
@@ -838,6 +845,53 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         return;
       }
 
+      // ----- SEGMENT MODE (2-click drawing) -----
+      if (enabledDrawingMode === "SEGMENT") {
+        // always use BASE layer for segment points
+        let bx = p_inBase.x;
+        let by = p_inBase.y;
+
+        // Apply the SAME Shift constraint as the preview (against the FIRST committed point)
+        const first = drawingSegmentPoints?.[0];
+        if (e.shiftKey && first) {
+          const firstPx = {
+            x: (baseSize.w || 1) * first.x,
+            y: (baseSize.h || 1) * first.y,
+          };
+          const dx = bx - firstPx.x;
+          const dy = by - firstPx.y;
+          if (Math.abs(dx) >= Math.abs(dy)) {
+            // horizontal snap
+            by = firstPx.y;
+          } else {
+            // vertical snap
+            bx = firstPx.x;
+          }
+        }
+
+        // Clamp to image bounds and convert to relative
+        const ratioX = Math.max(0, Math.min(1, bx / (baseSize.w || 1)));
+        const ratioY = Math.max(0, Math.min(1, by / (baseSize.h || 1)));
+
+        const currentPointCount = drawingSegmentPoints?.length || 0;
+
+        // Add the point
+        dispatch(addSegmentPoint({ x: ratioX, y: ratioY }));
+
+        // If this was the second point, complete the segment
+        if (currentPointCount === 1) {
+          // Second click - segment is complete
+          const finalPoints = [
+            ...drawingSegmentPoints,
+            { x: ratioX, y: ratioY },
+          ];
+          if (onSegmentComplete) {
+            onSegmentComplete(finalPoints);
+          }
+        }
+        return;
+      }
+
       // ----- OTHER ANNOTATIONS -----
       let ratioX, ratioY;
       if (attachTo === "bg") {
@@ -1114,6 +1168,21 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                   toBaseFromClient={toBaseFromClient}
                 />
               )}
+
+            {/* Segment drawing/preview */}
+            <NodeSegment
+              imageSize={baseSize}
+              containerPose={basePose}
+              toBaseFromClient={toBaseFromClient}
+              isDrawing={enabledDrawingMode === "SEGMENT"}
+              segment={{
+                points: drawingSegmentPoints,
+                ...(newSegmentProps ?? {}),
+              }}
+              onComplete={onSegmentComplete}
+              worldScale={world.k}
+              containerK={basePose.k}
+            />
 
             {!basePoseIsChanging && (
               <g>

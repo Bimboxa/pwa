@@ -132,18 +132,17 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
           pt: 5,
         }}
       >
-        {items.map((item) => {
+        {items.map((item, idx) => {
           const selected = item?.listing?.id === selectedListingId;
           const id = item?.listing?.id;
           let hidden = id ? hiddenListingsIds.includes(id) : false;
           if (id === "bgImageFormat") hidden = !showBgImage;
-
           const showHideButton = item?.showHideButton;
 
           if (item.type === "ENTITY_MODEL_TYPE") {
             return (
               <Box
-                key={item?.entityModelType?.type}
+                key={`entity-model-type-${idx}`}
                 sx={{
                   display: "flex",
                   alignItems: "center",
@@ -231,22 +230,21 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
 
           if (item.type === "CREATE_LOCATED_LISTING") {
             return (
-              <Tooltip title={titleS} placement="right">
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    my: 2,
-                  }}
-                >
-                  {/* <Typography sx={{ fontSize: 10 }} align="center" color="grey.300">
-                {newListingS}
-              </Typography> */}
-
-                  <ButtonDialogCreateListingInVerticalSelector />
-                </Box>
-              </Tooltip>
+              <Box
+                key="create-located-listing"
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  my: 2,
+                }}
+              >
+                <Tooltip title={titleS} placement="right">
+                  <Box>
+                    <ButtonDialogCreateListingInVerticalSelector />
+                  </Box>
+                </Tooltip>
+              </Box>
             );
           }
 
