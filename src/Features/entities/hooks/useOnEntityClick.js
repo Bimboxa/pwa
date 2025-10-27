@@ -57,7 +57,11 @@ export default function useOnEntityClick() {
             })
           );
           let zoomTo;
-          if (annotationInMapEditor.type === "RECTANGLE") {
+          if (
+            ["RECTANGLE", "POLYLINE", "SEGMENT"].includes(
+              annotationInMapEditor.type
+            )
+          ) {
             zoomTo = annotationInMapEditor.points[0];
           } else {
             zoomTo = {

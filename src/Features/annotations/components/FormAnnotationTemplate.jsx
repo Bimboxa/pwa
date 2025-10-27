@@ -5,6 +5,7 @@ import {
   Polyline,
   Pentagon,
   Rectangle,
+  HorizontalRule,
 } from "@mui/icons-material";
 import FormGenericV2 from "Features/form/components/FormGenericV2";
 

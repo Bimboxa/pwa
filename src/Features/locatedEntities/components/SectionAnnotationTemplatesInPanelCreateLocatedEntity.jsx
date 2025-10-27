@@ -144,7 +144,7 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
                     spriteImage={spriteImage}
                     size={18}
                   />
-                  <Typography sx={{ ml: 1, flex: 1 }} variant="body2">
+                  <Typography sx={{ mx: 1 }} variant="body2">
                     {annotationTemplate.label}
                   </Typography>
 

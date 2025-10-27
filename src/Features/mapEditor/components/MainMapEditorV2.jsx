@@ -23,11 +23,13 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import {
   setDrawingPolylinePoints,
   setDrawingRectanglePoints,
+  setDrawingSegmentPoints,
 } from "../mapEditorSlice";
 
 import {
   clearDrawingPolylinePoints,
   clearDrawingRectanglePoints,
+  clearDrawingSegmentPoints,
 } from "Features/mapEditor/mapEditorSlice";
 import { setOpenDialogDeleteSelectedItem } from "Features/selection/selectionSlice";
 import { setOpenedPanel } from "Features/listings/listingsSlice";
@@ -158,6 +160,12 @@ export default function MainMapEditorV2() {
     (s) => s.mapEditor.drawingRectanglePoints
   );
 
+  // state - edited segment
+
+  const drawingSegmentPoints = useSelector(
+    (s) => s.mapEditor.drawingSegmentPoints
+  );
+
   // data - func
 
   const createEntity = useCreateEntity();
@@ -207,6 +215,7 @@ export default function MainMapEditorV2() {
           dispatch(setSelectedNode(null));
           dispatch(clearDrawingPolylinePoints());
           dispatch(clearDrawingRectanglePoints());
+          dispatch(clearDrawingSegmentPoints());
         } else {
           dispatch(setSelectedAnnotationId(null));
           dispatch(setMainBaseMapIsSelected(false));
@@ -416,6 +425,43 @@ export default function MainMapEditorV2() {
     }
   }
 
+  // Add segment completion handler
+  async function handleSegmentComplete(points) {
+    if (points.length < 2) return;
+
+    try {
+      // Create entity for the segment
+      const entity = await createEntity({});
+
+      // Create annotation with segment data
+      const annotation = await createAnnotation(
+        {
+          ...newAnnotation,
+          type: "SEGMENT",
+          points, // Store the points array (2 points: start and end)
+          entityId: entity?.id,
+          listingId: listingId,
+          baseMapId: mainBaseMap?.id,
+          annotationTemplateId: annotationTemplate?.id,
+        },
+        {
+          listingKey: listing.id,
+          tempAnnotationTemplateLabel,
+        }
+      );
+
+      console.log("[MainMapEditor] new segment created", annotation, entity);
+
+      // Reset drawing mode
+      dispatch(setEnabledDrawingMode(null));
+      dispatch(setNewAnnotation({}));
+      dispatch(setSelectedNode(null));
+      dispatch(clearDrawingSegmentPoints()); // Clear segment points
+    } catch (error) {
+      console.error("Error creating segment:", error);
+    }
+  }
+
   async function handleClick() {
     console.log("click on svg", svgRef.current);
     //const dataUrl = await serializeSvgToPng(svgRef.current);
@@ -498,6 +544,10 @@ export default function MainMapEditorV2() {
         drawingRectanglePoints={drawingRectanglePoints}
         onRectangleComplete={handleRectangleComplete}
         newRectangleProps={{ ...(newAnnotation ?? {}) }}
+        // segment
+        drawingSegmentPoints={drawingSegmentPoints}
+        onSegmentComplete={handleSegmentComplete}
+        newSegmentProps={{ ...(newAnnotation ?? {}) }}
         ref={svgRef}
         //
         centerBaseMapTriggeredAt={centerBaseMapTriggeredAt}

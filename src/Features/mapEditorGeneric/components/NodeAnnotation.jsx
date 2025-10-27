@@ -3,6 +3,7 @@ import NodeText from "./NodeText";
 import NodeMarker from "./NodeMarker";
 import NodePolyline from "./NodePolyline";
 import NodeRectangle from "./NodeRectangle";
+import NodeSegment from "./NodeSegment";
 
 export default function NodeAnnotation({
   annotation,
@@ -46,6 +47,9 @@ export default function NodeAnnotation({
 
     case "RECTANGLE":
       return NodeRectangle({ ...props, rectangle: annotation });
+
+    case "SEGMENT":
+      return NodeSegment({ ...props, segment: annotation });
 
     default:
       return null;

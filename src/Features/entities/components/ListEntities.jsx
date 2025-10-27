@@ -58,6 +58,11 @@ export default function ListEntities({
   const showFilterByMainBaseMap =
     listing?.entityModel?.type === "LOCATED_ENTITY" && baseMapId;
 
+  // helper - showCreateButton
+
+  const showCreateButton =
+    baseMapId || listing?.entityModel?.type !== "LOCATED_ENTITY";
+
   // handlers
 
   function handleSearchTextChange(text) {
@@ -77,7 +82,7 @@ export default function ListEntities({
         <SearchBar
           value={searchText}
           onChange={handleSearchTextChange}
-          onCreateClick={baseMapId && onCreateClick}
+          onCreateClick={showCreateButton && onCreateClick}
           color={color}
         />
       </Box>

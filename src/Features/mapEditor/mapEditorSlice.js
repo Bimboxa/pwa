@@ -37,6 +37,9 @@ const mapEditorInitialState = {
   // rectangle
   drawingRectanglePoints: [], // Array of {x, y} with max 2 points (diagonal corners)
 
+  // segment
+  drawingSegmentPoints: [], // Array of {x, y} with max 2 points (start and end)
+
   // view
   centerBaseMapTriggeredAt: null,
   filterByMainBaseMap: true,
@@ -146,6 +149,21 @@ export const mapEditorSlice = createSlice({
       state.drawingRectanglePoints = [];
     },
 
+    // segment
+    setDrawingSegmentPoints: (state, action) => {
+      state.drawingSegmentPoints = action.payload;
+    },
+    addSegmentPoint: (state, action) => {
+      const point = action.payload;
+      // Only allow max 2 points for segment
+      if (state.drawingSegmentPoints.length < 2) {
+        state.drawingSegmentPoints.push(point);
+      }
+    },
+    clearDrawingSegmentPoints: (state) => {
+      state.drawingSegmentPoints = [];
+    },
+
     // baseMap - view
     triggerCenterBaseMap: (state) => {
       console.log("[STATE] centerBaseMapTriggeredAt", Date.now());
@@ -203,6 +221,11 @@ export const {
   setDrawingRectanglePoints,
   addRectanglePoint,
   clearDrawingRectanglePoints,
+
+  // segment
+  setDrawingSegmentPoints,
+  addSegmentPoint,
+  clearDrawingSegmentPoints,
 
   // view
   triggerCenterBaseMap,
