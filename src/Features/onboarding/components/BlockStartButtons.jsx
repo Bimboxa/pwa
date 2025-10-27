@@ -21,7 +21,7 @@ export default function BlockStartButtons({ isMobile, onShowCreateData }) {
   function handleStartOffline() {
     //onShowCreateData();
     navigate("/");
-    dispatch(setOnboardingIsActive(true));
+    //dispatch(setOnboardingIsActive(true));
   }
 
   function handleStartOnline() {

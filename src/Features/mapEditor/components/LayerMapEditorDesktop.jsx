@@ -14,6 +14,7 @@ import ButtonCreateBlueprint from "Features/blueprints/components/ButtonCreateBl
 import ButtonBlueprintInMapEditor from "Features/blueprints/components/ButtonBlueprintInMapEditor";
 import ButtonDownloadMapEditorInPdf from "./ButtonDownloadMapEditorInPdf";
 import ButtonFullScreen from "Features/layout/components/ButtonFullScreen";
+import ButtonEditScale from "./ButtonEditScale";
 
 export default function LayerMapEditorDesktop({ svgElement }) {
   // data
@@ -45,6 +46,17 @@ export default function LayerMapEditorDesktop({ svgElement }) {
       >
         <ButtonFullScreen />
       </Box> */}
+
+      <Box
+        sx={{
+          position: "absolute",
+          left: "8px",
+          bottom: "8px",
+          zIndex: 10000,
+        }}
+      >
+        <ButtonEditScale />
+      </Box>
 
       <Box
         sx={{

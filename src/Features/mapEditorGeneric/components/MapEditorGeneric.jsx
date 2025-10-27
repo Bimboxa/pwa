@@ -886,7 +886,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
             { x: ratioX, y: ratioY },
           ];
           if (onSegmentComplete) {
-            onSegmentComplete(finalPoints);
+            const anchorPositionScale = { x: e.clientX, y: e.clientY };
+            onSegmentComplete(finalPoints, anchorPositionScale);
           }
         }
         return;

@@ -44,6 +44,11 @@ const mapEditorInitialState = {
   centerBaseMapTriggeredAt: null,
   filterByMainBaseMap: true,
   zoomTo: null,
+
+  // scale
+  scaleInPx: null,
+  scaleAnnotationId: null,
+  anchorPositionScale: null,
 };
 
 export const mapEditorSlice = createSlice({
@@ -78,6 +83,9 @@ export const mapEditorSlice = createSlice({
     },
     setScaleInPx: (state, action) => {
       state.scaleInPx = action.payload;
+    },
+    setScaleAnnotationId: (state, action) => {
+      state.scaleAnnotationId = action.payload;
     },
     // layers
     setShowLayerScreenCursor: (state, action) => {
@@ -193,6 +201,7 @@ export const {
   //
   setAnchorPositionScale,
   setScaleInPx,
+  setScaleAnnotationId,
   //
   setShowLayerScreenCursor,
   //
