@@ -2,25 +2,41 @@ import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
 
+import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
+
 export default function useAnnotationTemplates(options) {
-  // options
-
-  const filterByListingId = options?.filterByListingId;
-
   // data
 
-  const annotationsUpdatedAt = useSelector(
-    (s) => s.annotations.annotationsUpdatedAt
+  const annotationTemplatesUpdatedAt = useSelector(
+    (s) => s.annotations.annotationTemplatesUpdatedAt
   );
 
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const filterByListingId = options?.filterByListingId;
+
   return useLiveQuery(async () => {
+    let templates = [];
     if (filterByListingId) {
-      return await db.annotationTemplates
+      templates = await db.annotationTemplates
         .where("listingId")
         .equals(filterByListingId)
         .toArray();
-    } else {
-      return await db.annotationTemplates.toArray();
+    } else if (projectId) {
+      templates = await db.annotationTemplates
+        .where("projectId")
+        .equals(projectId)
+        .toArray();
     }
-  }, [filterByListingId, annotationsUpdatedAt]);
+    // add images
+    if (templates) {
+      templates = await Promise.all(
+        templates.map(async (template) => {
+          const { entityWithImages } = await getEntityWithImagesAsync(template);
+          return entityWithImages;
+        })
+      );
+    }
+
+    return templates;
+  }, [filterByListingId, annotationTemplatesUpdatedAt, projectId]);
 }

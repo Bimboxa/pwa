@@ -4,11 +4,13 @@ import NodeMarker from "./NodeMarker";
 import NodePolyline from "./NodePolyline";
 import NodeRectangle from "./NodeRectangle";
 import NodeSegment from "./NodeSegment";
+import NodeImageAnnotation from "./NodeImageAnnotation";
 
 export default function NodeAnnotation({
   annotation,
   spriteImage,
   imageSize,
+  baseMapMeterByPx,
   containerK,
   worldScale,
   onDragStart,
@@ -22,6 +24,7 @@ export default function NodeAnnotation({
   const props = {
     spriteImage,
     imageSize,
+    baseMapMeterByPx,
     containerK,
     worldScale,
     onChange,
@@ -50,6 +53,9 @@ export default function NodeAnnotation({
 
     case "SEGMENT":
       return NodeSegment({ ...props, segment: annotation });
+
+    case "IMAGE":
+      return NodeImageAnnotation({ ...props, imageAnnotation: annotation });
 
     default:
       return null;

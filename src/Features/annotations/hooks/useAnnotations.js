@@ -3,10 +3,12 @@ import { useLiveQuery } from "dexie-react-hooks";
 
 import demoAnnotations from "../data/demoAnnotations";
 import useBgImageTextAnnotations from "Features/bgImage/hooks/useBgImageTextAnnotations";
+import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 
 import db from "App/db/db";
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
 
 export default function useAnnotations(options) {
   // options
@@ -35,6 +37,12 @@ export default function useAnnotations(options) {
   const bgImageRawTextAnnotationsUpdatedAt = useSelector(
     (s) => s.bgImage.bgImageRawTextAnnotationsUpdatedAt
   );
+
+  const annotationTemplatesUpdatedAt = useSelector(
+    (s) => s.annotations.annotationTemplatesUpdatedAt
+  );
+  const annotationTemplates = useAnnotationTemplates();
+  const annotationTemplatesMap = getItemsByKey(annotationTemplates, "id");
 
   // main
 
@@ -69,19 +77,19 @@ export default function useAnnotations(options) {
       }));
     }
 
-    if (withLabel) {
-      _annotations = await Promise.all(
-        _annotations.map(async (annotation) => {
-          const templateId = annotation?.annotationTemplateId;
-          if (templateId) {
-            const template = await db.annotationTemplates.get(templateId);
-            return { ...annotation, label: template.label };
-          } else {
-            return annotation;
-          }
-        })
-      );
-    }
+    // if (withLabel) {
+    //   _annotations = await Promise.all(
+    //     _annotations.map(async (annotation) => {
+    //       const templateId = annotation?.annotationTemplateId;
+    //       if (templateId) {
+    //         const template = await db.annotationTemplates.get(templateId);
+    //         return { ...annotation, label: template.label };
+    //       } else {
+    //         return annotation;
+    //       }
+    //     })
+    //   );
+    // }
 
     if (withEntity) {
       _annotations = await Promise.all(
@@ -127,6 +135,14 @@ export default function useAnnotations(options) {
     excludeListingsIds,
     bgImageRawTextAnnotationsUpdatedAt,
   ]);
+
+  // add annotation templates
+  annotations = annotations?.map((annotation) => ({
+    ...annotation,
+    ...getAnnotationTemplateProps(
+      annotationTemplatesMap[annotation.annotationTemplateId]
+    ),
+  }));
 
   // demo
 

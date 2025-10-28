@@ -6,6 +6,8 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import db from "App/db/db";
 import useAnnotationTemplatesListingInMapEditor from "./useAnnotationTemplatesListingInMapEditor";
 
+import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
+
 export default function useAnnotationTemplatesBySelectedListing(options) {
   // options
 
@@ -37,6 +39,20 @@ export default function useAnnotationTemplatesBySelectedListing(options) {
     } else {
       templates = [];
     }
+
+    // add images
+
+    templates = await Promise.all(
+      templates.map(async (template) => {
+        const { entityWithImages, hasImages } = await getEntityWithImagesAsync(
+          template
+        );
+        return entityWithImages;
+      })
+    );
+
+    // sort
+
     if (sortByLabel) {
       templates = templates.sort((a, b) =>
         (a.label ?? "").localeCompare(b.label ?? "")

@@ -97,8 +97,6 @@ export default function MainMapEditorV2() {
   const { value: listing } = useSelectedListing();
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
 
-  console.log("[MainMapEditor] hiddenListingsIds", hiddenListingsIds);
-
   const annotationSpriteImage = useAnnotationSpriteImage();
 
   const tempAnnotationTemplateLabel =
@@ -299,6 +297,29 @@ export default function MainMapEditorV2() {
         baseMapId: mainBaseMap?.id,
       });
       dispatch(setEnabledDrawingMode(null));
+    } else if (annotation.type === "IMAGE") {
+      // Create entity - image will be stored in entity
+      const entity = await createEntity({});
+
+      // Create annotation - dimensions will be computed from scale factors in NodeImageAnnotation
+      const _annotation = await createAnnotation({
+        ...newAnnotation,
+        type: "IMAGE",
+        x: annotation.x, // center position
+        y: annotation.y,
+        //rotation: 0,
+        entityId: entity?.id,
+        listingId: listingId,
+        listingTable: listing?.table,
+        baseMapId: mainBaseMap?.id,
+        // width and height will be computed from image.meterByPx and baseMap.meterByPx
+      });
+      console.log(
+        "[MainMapEditor] new image annotation created",
+        _annotation,
+        entity
+      );
+      dispatch(setEnabledDrawingMode(null));
     }
   }
 
@@ -437,8 +458,9 @@ export default function MainMapEditorV2() {
       // If this is a scale segment, compute the length in pixels
       if (newAnnotation?.isScaleSegment) {
         // Get baseMap dimensions
-        const baseMapW = mainBaseMap?.image?.width || 1;
-        const baseMapH = mainBaseMap?.image?.height || 1;
+
+        const baseMapW = mainBaseMap?.image?.imageSize?.width || 1;
+        const baseMapH = mainBaseMap?.image?.imageSize?.height || 1;
 
         // Convert relative coordinates (0-1) to baseMap pixel coordinates
         const p1x = points[0].x * baseMapW;
@@ -547,6 +569,7 @@ export default function MainMapEditorV2() {
       <MapEditorGeneric
         isMobile={isMobile}
         baseMapImageUrl={mainBaseMap?.image?.imageUrlClient}
+        baseMapMeterByPx={mainBaseMap?.meterByPx}
         baseMapPoseInBg={basePoseInBg}
         baseMapGrayScale={baseMapGrayScale}
         baseMapOpacity={baseMapOpacity}

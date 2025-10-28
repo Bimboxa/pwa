@@ -112,9 +112,8 @@ export default function NodeMarker({
 
   // Reset dragOffsetScreen
   useLayoutEffect(() => {
-    console.log("newMarker");
     setDragOffsetScreen({ x: 0, y: 0 });
-  }, [marker]);
+  }, [marker.x + "_" + marker.y]);
 
   const offsetBgX = dragOffsetScreen.x * invF;
   const offsetBgY = dragOffsetScreen.y * invF;

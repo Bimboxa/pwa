@@ -42,6 +42,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     isMobile,
     bgImageUrl,
     baseMapImageUrl,
+    baseMapMeterByPx, // Scale factor of the baseMap (meters per pixel)
     baseMapPoseInBg, // {x:0,y:0,k:1,r:0}, pose of baseMap in bg local coords.
     onBaseMapPoseInBgChange,
     baseMapOpacity,
@@ -1195,6 +1196,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                       key={annotation.id}
                       annotation={annotation}
                       imageSize={baseSize}
+                      baseMapMeterByPx={baseMapMeterByPx}
                       containerK={basePose.k}
                       worldScale={world.k}
                       onDragStart={handleAnnotationDragStart}
@@ -1216,6 +1218,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                         key={annotation.id}
                         annotation={annotation}
                         imageSize={baseSize}
+                        baseMapMeterByPx={baseMapMeterByPx}
                         containerK={basePose.k}
                         worldScale={world.k}
                         onDragStart={handleAnnotationDragStart}
@@ -1301,6 +1304,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               key={a.id + "_"}
               annotation={a}
               imageSize={baseSize}
+              baseMapMeterByPx={baseMapMeterByPx}
               containerK={basePose.k}
               worldScale={1}
               onDragEnd={() => {}}

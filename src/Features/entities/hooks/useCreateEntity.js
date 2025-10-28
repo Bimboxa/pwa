@@ -48,20 +48,24 @@ export default function useCreateEntity() {
 
     // store files
     if (filesDataByKey) {
-      await Promise.all(
-        Object.entries(filesDataByKey).map(async ([key, fileData]) => {
-          await db.files.put(fileData);
-          //
-          if (options?.updateSyncFile) {
-            await updateItemSyncFile({
-              item: fileData,
-              type: "FILE",
-              updatedAt: fileData.updatedAt,
-              //syncAt: options.syncAt,
-            });
-          }
-        })
-      );
+      try {
+        await Promise.all(
+          Object.entries(filesDataByKey).map(async ([key, fileData]) => {
+            await db.files.put(fileData);
+            //
+            if (options?.updateSyncFile) {
+              await updateItemSyncFile({
+                item: fileData,
+                type: "FILE",
+                updatedAt: fileData.updatedAt,
+                //syncAt: options.syncAt,
+              });
+            }
+          })
+        );
+      } catch (e) {
+        console.log("[useCreateEntity] error storing files", e);
+      }
     }
 
     // store entity
@@ -73,6 +77,7 @@ export default function useCreateEntity() {
       listingId: listing.id,
       ...pureData,
     };
+
     try {
       console.log("[db] adding entity ...", entity);
       await db[table].add(entity);

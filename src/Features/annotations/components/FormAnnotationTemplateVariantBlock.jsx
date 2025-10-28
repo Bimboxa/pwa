@@ -6,6 +6,7 @@ import {
   Pentagon,
   Rectangle,
   HorizontalRule,
+  Image,
 } from "@mui/icons-material";
 
 import { Box, Typography } from "@mui/material";
@@ -16,6 +17,9 @@ import FieldOptionKeyFromIconsVariantToolbar from "Features/form/components/Fiel
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldColorVariantToolbar from "Features/form/components/FieldColorVariantToolbar";
 import FieldIconVariantToolbar from "Features/form/components/FieldIconVariantToolbar";
+import FieldImageV2 from "Features/form/components/FieldImageV2";
+
+import getImageAnnotationPropsFromFileName from "../utils/getImageAnnotationPropsFromFileName";
 
 export default function FormAnnotationTemplateVariantBlock({
   annotationTemplate,
@@ -31,8 +35,16 @@ export default function FormAnnotationTemplateVariantBlock({
 
   // helpers - item
 
-  const { type, fillColor, strokeColor, iconKey, label, closeLine } =
-    annotationTemplate ?? {};
+  const {
+    type,
+    fillColor,
+    strokeColor,
+    iconKey,
+    label,
+    closeLine,
+    image,
+    meterByPx,
+  } = annotationTemplate ?? {};
 
   // helpers - annotationTypes
 
@@ -42,6 +54,7 @@ export default function FormAnnotationTemplateVariantBlock({
     { key: "POLYLINE", icon: <Polyline />, label: "Ligne" },
     { key: "POLYGON", icon: <Pentagon />, label: "Surface" },
     { key: "RECTANGLE", icon: <Rectangle />, label: "Rectangle" },
+    { key: "IMAGE", icon: <Image />, label: "Image" },
   ];
 
   // helpers
@@ -70,6 +83,23 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, label });
   }
 
+  function handleImageChange(image) {
+    const { label, meterByPx } = getImageAnnotationPropsFromFileName(
+      image.fileName
+    );
+    const newAnnotationTemplate = { ...annotationTemplate, image };
+    if (!newAnnotationTemplate.label && label)
+      newAnnotationTemplate.label = label;
+    if (!newAnnotationTemplate.meterByPx && meterByPx)
+      newAnnotationTemplate.meterByPx = meterByPx;
+
+    onChange(newAnnotationTemplate);
+  }
+
+  function handleMeterByPxChange(meterByPx) {
+    onChange({ ...annotationTemplate, meterByPx });
+  }
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1 }}>
@@ -81,33 +111,75 @@ export default function FormAnnotationTemplateVariantBlock({
         />
       </Box>
 
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1 }}>
-        {type === "MARKER" ? (
-          <FieldIconVariantToolbar
-            value={iconKey}
-            onChange={handleIconKeyChange}
-            spriteImage={spriteImage}
-            options={{ fillColor }}
-          />
-        ) : (
-          <AnnotationIcon
-            spriteImage={spriteImage}
-            annotation={annotationTemplate}
-            size={32}
-          />
-        )}
-        <Box sx={{ flex: 1 }}>
-          <FieldTextV2
-            value={label}
-            onChange={handleLabelChange}
-            options={{ fullWidth: true, placeholder: "Libellé" }}
+      {type !== "IMAGE" && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1 }}>
+          {type === "MARKER" ? (
+            <FieldIconVariantToolbar
+              value={iconKey}
+              onChange={handleIconKeyChange}
+              spriteImage={spriteImage}
+              options={{ fillColor }}
+            />
+          ) : (
+            <AnnotationIcon
+              spriteImage={spriteImage}
+              annotation={annotationTemplate}
+              size={32}
+            />
+          )}
+          <Box sx={{ flex: 1 }}>
+            <FieldTextV2
+              value={label}
+              onChange={handleLabelChange}
+              options={{ fullWidth: true, placeholder: "Libellé" }}
+            />
+          </Box>
+          <FieldColorVariantToolbar
+            value={fillColor}
+            onChange={handleFillColorChange}
           />
         </Box>
-        <FieldColorVariantToolbar
-          value={fillColor}
-          onChange={handleFillColorChange}
-        />
-      </Box>
+      )}
+
+      {type === "IMAGE" && (
+        <Box sx={{ width: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              width: 1,
+            }}
+          >
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <FieldTextV2
+                value={label}
+                onChange={handleLabelChange}
+                options={{
+                  fullWidth: true,
+                  placeholder: "Libellé",
+                }}
+              />
+            </Box>
+            <Box
+              sx={{
+                width: "130px",
+                minWidth: 0,
+              }}
+            >
+              <FieldTextV2
+                value={meterByPx}
+                onChange={handleMeterByPxChange}
+                options={{
+                  fullWidth: true,
+                  placeholder: "Echelle m/px",
+                  isNumber: true,
+                }}
+              />
+            </Box>
+          </Box>
+          <FieldImageV2 value={image} onChange={handleImageChange} />
+        </Box>
+      )}
     </Box>
   );
 }
