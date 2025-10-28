@@ -1,6 +1,7 @@
 import MarkerIcon from "Features/markers/components/MarkerIcon";
 import PolylineIcon from "Features/polylines/components/PolylineIcon";
 import RectangleIcon from "Features/rectangles/components/RectangleIcon";
+import ImageAnnotationIcon from "Features/imageAnnotations/components/ImageAnnotationIcon";
 
 export default function AnnotationIcon({ spriteImage, annotation, size }) {
   switch (annotation?.type) {
@@ -13,6 +14,10 @@ export default function AnnotationIcon({ spriteImage, annotation, size }) {
 
     case "RECTANGLE":
       return <RectangleIcon {...annotation} size={size} />;
+
+    case "IMAGE":
+      return <ImageAnnotationIcon {...annotation} size={size} />;
+
     default:
       return <div>-</div>;
   }

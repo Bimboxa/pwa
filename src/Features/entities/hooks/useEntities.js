@@ -5,11 +5,14 @@ import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
 import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
-import getItemsByKey from "Features/misc/utils/getItemsByKey";
+
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import getSortedItems from "Features/misc/utils/getSortedItems";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import { setFilterByMainBaseMap } from "Features/mapEditor/mapEditorSlice";
+import useAnnotations from "Features/annotations/hooks/useAnnotations";
+
+import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 export default function useEntities(options) {
   // options
@@ -46,6 +49,7 @@ export default function useEntities(options) {
   const selectedListing = listings?.find((l) => l?.id === selectedListingId);
   const entitiesUpdatedAt = useSelector((s) => s.entities.entitiesUpdatedAt);
   const annotationTemplates = useAnnotationTemplates();
+  const annotations = useAnnotations();
 
   // helpers
   const annotationTemplatesById = getItemsByKey(annotationTemplates, "id");
@@ -101,7 +105,7 @@ export default function useEntities(options) {
 
   const listingsIdsHash = listingsIds?.sort().join(",");
 
-  const value = useLiveQuery(async () => {
+  let entities = useLiveQuery(async () => {
     try {
       // edge case
       if (listingsIds.length === 0 || wait) {
@@ -166,58 +170,36 @@ export default function useEntities(options) {
         );
       }
 
-      // add markers
-      // if (withMarkers && baseMapId) {
-      //   const markers = await db.markers
-      //     .where("baseMapId")
-      //     .equals(baseMapId)
+      // add annotations
+      // if (withAnnotations && projectId) {
+      //   const annotations = await db.annotations
+      //     .where("projectId")
+      //     .equals(projectId)
       //     .toArray();
-      //   const markersByEntityId = getItemsByKey(markers, "targetEntityId");
+      //   //const annotationsByEntityId = getItemsByKey(annotations, "entityId");
+      //   const annotationsByEntityId = annotations.reduce((acc, annotation) => {
+      //     const annotationTemplate =
+      //       annotationTemplatesById[annotation?.annotationTemplateId];
+      //     const _annotation = {
+      //       ...annotation,
+      //       label: annotationTemplate?.label,
+      //     };
+      //     if (!acc[annotation.entityId]) {
+      //       acc[annotation.entityId] = [_annotation];
+      //     } else {
+      //       acc[annotation.entityId].push(_annotation);
+      //     }
+      //     return acc;
+      //   }, {});
 
       //   entities = entities.map((entity) => {
-      //     const marker = markersByEntityId[entity.id];
-      //     return { ...entity, marker };
+      //     const annotations = annotationsByEntityId[entity.id];
+      //     return {
+      //       ...entity,
+      //       annotations,
+      //     };
       //   });
       // }
-
-      // add annotations
-      if (withAnnotations && projectId) {
-        const annotations = await db.annotations
-          .where("projectId")
-          .equals(projectId)
-          .toArray();
-        //const annotationsByEntityId = getItemsByKey(annotations, "entityId");
-        const annotationsByEntityId = annotations.reduce((acc, annotation) => {
-          const annotationTemplate =
-            annotationTemplatesById[annotation?.annotationTemplateId];
-          const _annotation = {
-            ...annotation,
-            label: annotationTemplate?.label,
-          };
-          if (!acc[annotation.entityId]) {
-            acc[annotation.entityId] = [_annotation];
-          } else {
-            acc[annotation.entityId].push(_annotation);
-          }
-          return acc;
-        }, {});
-
-        entities = entities.map((entity) => {
-          const annotations = annotationsByEntityId[entity.id];
-          return {
-            ...entity,
-            annotations,
-          };
-        });
-      }
-      // filter by baseMapId
-      if (filterByMainBaseMap) {
-        entities = entities.filter((entity) => {
-          return entity?.annotations
-            ?.map((a) => a.baseMapId)
-            .includes(baseMapId);
-        });
-      }
 
       // add label && listingKey
       entities = entities.map((entity) => {
@@ -253,5 +235,21 @@ export default function useEntities(options) {
     filterByMainBaseMap,
   ]);
 
-  return { value, loading };
+  if (withAnnotations) {
+    entities = entities?.map((entity) => {
+      return {
+        ...entity,
+        annotations: annotations?.filter((a) => a.entityId === entity.id),
+      };
+    });
+  }
+
+  // filter by baseMapId
+  if (filterByMainBaseMap) {
+    entities = entities.filter((entity) => {
+      return entity?.annotations?.map((a) => a.baseMapId).includes(baseMapId);
+    });
+  }
+
+  return { value: entities, loading };
 }

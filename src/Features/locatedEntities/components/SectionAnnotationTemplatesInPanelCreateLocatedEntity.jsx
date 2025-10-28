@@ -16,6 +16,7 @@ import useResetSelection from "Features/selection/hooks/useResetSelection";
 import useAnnotationTemplatesBySelectedListing from "Features/annotations/hooks/useAnnotationTemplatesBySelectedListing";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
+import useDeleteAnnotationTemplate from "Features/annotations/hooks/useDeleteAnnotationTemplate";
 
 import {
   List,
@@ -36,9 +37,11 @@ import FormAnnotationTemplateVariantBlock from "Features/annotations/components/
 
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import SectionCreateAnnotationTemplateVariantBlock from "Features/annotations/components/SectionCreateAnnotationTemplateVariantBlock.jsx";
+import IconButtonClose from "Features/layout/components/IconButtonClose";
 
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import { setOpenedPanel } from "Features/listings/listingsSlice";
+import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
 
 export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
   const dispatch = useDispatch();
@@ -50,13 +53,17 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
   // data
 
   const annotationTemplates = useAnnotationTemplatesBySelectedListing({
-    splitByIsFromAnnotation: true,
+    //splitByIsFromAnnotation: true,
     sortByLabel: true,
   });
+
+  console.log("debug_2810_annotationTemplates", annotationTemplates);
+
   const spriteImage = useAnnotationSpriteImage();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const resetSelection = useResetSelection();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
+  const deleteAnnotationTemplate = useDeleteAnnotationTemplate();
 
   // state
 
@@ -98,6 +105,12 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
     setEditedAnnotationTemplate(updatedTemplate);
   }
 
+  async function handleDelete(annotationTemplate) {
+    setEditingId(null);
+    setEditedAnnotationTemplate(null);
+    await deleteAnnotationTemplate(annotationTemplate.id);
+  }
+
   function handleClick(annotationTemplate) {
     console.log("annotationTemplate", annotationTemplate);
 
@@ -119,9 +132,13 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
 
   return (
     <BoxFlexVStretch>
-      <Box sx={{ p: 3, bgcolor: "background.default" }}>
-        <Box sx={{ p: 2, bgcolor: "white", borderRadius: 1 }}>
-          <Typography variant="body2" color="text.secondary">
+      <Box sx={{ p: 3 }}>
+        <Box sx={{ p: 2, borderRadius: 1 }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ userSelect: "none" }}
+          >
             {noTemplates ? helperNoTemplateS : helperSelectS}
           </Typography>
         </Box>
@@ -163,31 +180,48 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
                   </IconButton>
                 </ListItemButton>
                 <Collapse in={editingId === annotationTemplate.id}>
-                  <Box sx={{ p: 2, bgcolor: "background.default" }}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        p: 1,
-                        bgcolor: "white",
-                        borderRadius: 1,
-                      }}
-                    >
-                      <FormAnnotationTemplateVariantBlock
-                        annotationTemplate={editedAnnotationTemplate}
-                        onChange={handleFormChange}
-                      />
-                    </Box>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        gap: 1,
-                        alignItems: "center",
-                        justifyContent: "flex-end",
-                        mt: 1,
-                      }}
-                    >
-                      <ButtonGeneric label="Annuler" onClick={handleCancel} />
-                      <ButtonGeneric label="Enregistrer" onClick={handleSave} />
+                  <Box
+                    sx={{
+                      bgcolor: "background.default",
+                      position: "relative",
+                    }}
+                  >
+                    <BoxAlignToRight>
+                      <IconButtonClose onClose={handleCancel} />
+                    </BoxAlignToRight>
+
+                    <Box sx={{ p: 2, pt: 0 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          p: 1,
+                          bgcolor: "white",
+                          borderRadius: 1,
+                        }}
+                      >
+                        <FormAnnotationTemplateVariantBlock
+                          annotationTemplate={editedAnnotationTemplate}
+                          onChange={handleFormChange}
+                        />
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          gap: 1,
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          mt: 1,
+                        }}
+                      >
+                        <ButtonGeneric
+                          label="Supprimer"
+                          onClick={() => handleDelete(annotationTemplate)}
+                        />
+                        <ButtonGeneric
+                          label="Enregistrer"
+                          onClick={handleSave}
+                        />
+                      </Box>
                     </Box>
                   </Box>
                 </Collapse>

@@ -23,6 +23,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   const showAsSection = options?.showAsSection;
   const readOnly = options?.readOnly;
   const showClose = options?.showClose;
+  const isNumber = options?.isNumber;
 
   const [recording, setRecording] = useState(false);
 
@@ -61,7 +62,13 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   function handleOnBlur() {
     console.log("handleOnBlur", tempValue);
 
-    const newValue = tempValue.toString().trim();
+    let newValue = tempValue.toString().trim();
+
+    if (isNumber) {
+      newValue.replace(",", ".");
+      newValue = Number(newValue);
+      if (isNaN(newValue)) newValue = 0;
+    }
     onChange(newValue);
   }
 

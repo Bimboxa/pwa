@@ -36,8 +36,24 @@ export default function SectionCreateAnnotationTemplateVariantBlock({
   // handlers
 
   async function handleCreate() {
-    await createAnnotationTemplate(tempAnnotationTemplate);
-    if (onCreated) onCreated();
+    try {
+      await createAnnotationTemplate(tempAnnotationTemplate);
+    } catch (e) {
+      console.log(
+        "[SectionCreateAnnotationTemplateVariantBlock] error creating annotation template",
+        e,
+        tempAnnotationTemplate
+      );
+    } finally {
+      if (onCreated) onCreated();
+      setTempAnnotationTemplate({
+        type: "MARKER",
+        fillColor: theme.palette.secondary.main,
+        iconKey: "circle",
+        label: "",
+        isFromAnnotation: true,
+      });
+    }
   }
 
   return (

@@ -45,14 +45,11 @@ export default function SectionListEntitiesInListPanel() {
     filterByMainBaseMap:
       entityModel?.type === "LOCATED_ENTITY" && filterByMainBaseMap,
   });
+
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
 
   const onEntityClick = useOnEntityClick();
   const onEntityEdit = useOnEntityEdit();
-
-  // debug
-
-  console.log("debug_1509 entities", entities, listing?.id);
 
   // helpers
 

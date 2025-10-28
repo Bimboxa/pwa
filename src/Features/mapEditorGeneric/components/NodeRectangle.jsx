@@ -45,7 +45,17 @@ export default function NodeRectangle({
     tempPointsRef.current = null;
     setTempRotation(null);
     tempRotationRef.current = null;
-  }, [rectangle]);
+  }, [
+    rotation +
+      "_" +
+      points[0].x +
+      "_" +
+      points[0].y +
+      "_" +
+      points[1].x +
+      "_" +
+      points[1].y,
+  ]);
 
   // Mouse tracking for drawing preview - direct DOM manipulation
   useEffect(() => {

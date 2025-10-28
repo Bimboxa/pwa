@@ -12,7 +12,6 @@ export default function useAutoBgImageRawTextAnnotations() {
   // data
 
   const dataMapping = useDataMapping();
-  console.log("dataMapping", dataMapping);
 
   const oldRawTextAnnotations = useSelector(
     (s) => s.bgImage.bgImageRawTextAnnotations

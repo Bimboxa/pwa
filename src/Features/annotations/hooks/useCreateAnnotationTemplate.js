@@ -2,6 +2,8 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import { useSelector, useDispatch } from "react-redux";
 
+import useCreateEntity from "Features/entities/hooks/useCreateEntity";
+
 import { triggerAnnotationTemplatesUpdate } from "../annotationsSlice";
 
 import db from "App/db/db";
@@ -15,6 +17,7 @@ export default function useCreateAnnotationTemplate() {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const listingId = useSelector((s) => s.listings.selectedListingId);
+  const createEntity = useCreateEntity();
 
   return async (annotationTemplate) => {
     const _annotationTemplate = {
@@ -27,7 +30,10 @@ export default function useCreateAnnotationTemplate() {
         listingKey: listingId,
       }),
     };
-    await db.annotationTemplates.add(_annotationTemplate);
+
+    await createEntity(_annotationTemplate, {
+      listing: { id: listingId, projectId, table: "annotationTemplates" },
+    });
 
     dispatch(triggerAnnotationTemplatesUpdate());
   };

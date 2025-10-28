@@ -42,6 +42,7 @@ export default function MarkerIconNewMarker() {
 
   const isText = newAnnotation?.type === "TEXT";
   const isMarker = newAnnotation?.type === "MARKER";
+
   //const label = tempLabel ?? annotationTemplate?.label;
   const label = tempLabel;
 
