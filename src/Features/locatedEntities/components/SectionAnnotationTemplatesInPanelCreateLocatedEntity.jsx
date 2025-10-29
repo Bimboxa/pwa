@@ -43,11 +43,13 @@ import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/ut
 import { setOpenedPanel } from "Features/listings/listingsSlice";
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
 
+import IconButtonAnnotationTemplatesDownload from "Features/annotations/components/IconButtonAnnotationTemplatesDownload";
+import IconButtonAnnotationTemplatesUpload from "Features/annotations/components/IconButtonAnnotationTemplatesUpload";
+
 export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
   const dispatch = useDispatch();
 
-  const helperNoTemplateS =
-    "Pour créer un objet, commencez par créer un modèle.";
+  const helperNoTemplateS = "Aucun modèle";
   const helperSelectS = "Sélectionnez un objet";
 
   // data
@@ -132,16 +134,21 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
 
   return (
     <BoxFlexVStretch>
-      <Box sx={{ p: 3 }}>
-        <Box sx={{ p: 2, borderRadius: 1 }}>
+      {/* {noTemplates && (
+        <Box sx={{ p: 2 }}>
           <Typography
             variant="body2"
             color="text.secondary"
             sx={{ userSelect: "none" }}
           >
-            {noTemplates ? helperNoTemplateS : helperSelectS}
+            {helperNoTemplateS}
           </Typography>
         </Box>
+      )} */}
+
+      <Box sx={{ display: "flex", gap: 1, p: 1 }}>
+        <IconButtonAnnotationTemplatesDownload />
+        <IconButtonAnnotationTemplatesUpload />
       </Box>
 
       <List sx={{ bgcolor: "white" }}>
@@ -184,6 +191,8 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
                     sx={{
                       bgcolor: "background.default",
                       position: "relative",
+                      borderBottom: (theme) =>
+                        `1px solid ${theme.palette.divider}`,
                     }}
                   >
                     <BoxAlignToRight>
@@ -237,7 +246,12 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
           </Typography>
         </ListItemButton>
         <Collapse in={openCreate}>
-          <Box sx={{ p: 1, bgcolor: "background.default" }}>
+          <Box
+            sx={{
+              bgcolor: "background.default",
+              borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+            }}
+          >
             <SectionCreateAnnotationTemplateVariantBlock
               onCreated={() => setOpenCreate(false)}
               onCancel={() => setOpenCreate(false)}

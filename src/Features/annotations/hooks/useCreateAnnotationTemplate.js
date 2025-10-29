@@ -9,6 +9,7 @@ import { triggerAnnotationTemplatesUpdate } from "../annotationsSlice";
 import db from "App/db/db";
 
 import getAnnotationTemplateCode from "../utils/getAnnotationTemplateCode";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 export default function useCreateAnnotationTemplate() {
   const dispatch = useDispatch();
@@ -17,6 +18,7 @@ export default function useCreateAnnotationTemplate() {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const listingId = useSelector((s) => s.listings.selectedListingId);
+
   const createEntity = useCreateEntity();
 
   return async (annotationTemplate) => {
