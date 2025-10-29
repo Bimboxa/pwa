@@ -6,7 +6,7 @@ import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { Architecture as Scale } from "@mui/icons-material";
 import { IconButton, Box } from "@mui/material";
 
-export default function ButtonEditScale() {
+export default function ButtonEditScale({ size = "medium" }) {
   const dispatch = useDispatch();
 
   // data
@@ -31,8 +31,8 @@ export default function ButtonEditScale() {
         border: (theme) => `1px solid ${theme.palette.divider}`,
       }}
     >
-      <IconButton onClick={handleClick} color="inherit">
-        <Scale />
+      <IconButton onClick={handleClick} color="inherit" size={size}>
+        <Scale fontSize={size} />
       </IconButton>
     </Box>
   );
