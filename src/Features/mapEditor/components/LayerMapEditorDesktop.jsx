@@ -53,9 +53,12 @@ export default function LayerMapEditorDesktop({ svgElement }) {
           left: "8px",
           bottom: "8px",
           zIndex: 10000,
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
         }}
       >
-        <ButtonEditScale />
+        <ButtonEditScale size="small" />
       </Box>
 
       <Box

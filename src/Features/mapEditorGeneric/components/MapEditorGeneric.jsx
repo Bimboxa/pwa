@@ -19,6 +19,7 @@ import NodeRectangle from "./NodeRectangle";
 import NodeSegment from "./NodeSegment";
 import LayerMarkerTooltip from "Features/mapEditor/components/LayerMarkerTooltip";
 import DraggableFabMarker from "Features/markers/components/DraggableFabMarker";
+import HelperScale from "./HelperScale";
 
 import clamp from "Features/misc/utils/clamp";
 import {
@@ -994,6 +995,15 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         cursor,
       }}
     >
+      <Box
+        sx={{ position: "absolute", bottom: "8px", left: "42px", zIndex: 2 }}
+      >
+        <HelperScale
+          meterByPx={baseMapMeterByPx}
+          worldK={world.k}
+          basePoseK={basePose.k}
+        />
+      </Box>
       {isMobile && (
         <Box
           onPointerDown={(e) => e.stopPropagation()}
