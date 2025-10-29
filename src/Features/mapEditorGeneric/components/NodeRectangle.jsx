@@ -52,9 +52,9 @@ export default function NodeRectangle({
       "_" +
       points[0].y +
       "_" +
-      points[1].x +
+      points[1]?.x +
       "_" +
-      points[1].y,
+      points[1]?.y,
   ]);
 
   // Mouse tracking for drawing preview - direct DOM manipulation
