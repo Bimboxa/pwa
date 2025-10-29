@@ -246,7 +246,7 @@ export default function useEntities(options) {
 
   // filter by baseMapId
   if (filterByMainBaseMap) {
-    entities = entities.filter((entity) => {
+    entities = entities?.filter((entity) => {
       return entity?.annotations?.map((a) => a.baseMapId).includes(baseMapId);
     });
   }
