@@ -36,6 +36,7 @@ export default function useUpdateEntity() {
       await getEntityPureDataAndFilesDataByKey(changes, {
         entityId,
         listingId: _listing?.id,
+        listingTable: _listing?.table,
         projectId: _listing?.projectId,
         createdBy: userEmail,
       });

@@ -102,8 +102,15 @@ export default function FormAnnotationTemplateVariantBlock({
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1 }}>
-        <Typography variant="body2">{typeS}</Typography>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: 1,
+        }}
+      >
+        {/* <Typography variant="body2">{typeS}</Typography> */}
         <FieldOptionKeyFromIconsVariantToolbar
           value={optionKey}
           onChange={handleTypeChange}

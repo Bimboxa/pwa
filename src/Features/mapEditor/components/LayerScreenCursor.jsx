@@ -9,6 +9,7 @@ import { Box } from "@mui/material";
 import theme from "Styles/theme";
 import MarkerIconNewMarker from "Features/markers/components/MarkerIconNewMarker";
 import ImageAnnotationIcon from "Features/imageAnnotations/components/ImageAnnotationIcon";
+import ImageGeneric from "Features/images/components/ImageGeneric";
 
 export default function LayerScreenCursor({ containerEl }) {
   const [pos, setPos] = useState({ x: 0, y: 0 });
@@ -126,15 +127,16 @@ export default function LayerScreenCursor({ containerEl }) {
             pointerEvents: "none",
             top: `${pos.y}px`,
             left: `${pos.x}px`,
-            transform: isDragging
-              ? "translate(-50%,-180%)" // Move higher when dragging
-              : "translate(-50%,-120%)", // Normal position
+            transform: "translate(-50%,-50%)", // Normal position
             zIndex: 2,
             display: "flex",
             flexDirection: "column",
           }}
         >
-          <ImageAnnotationIcon image={newAnnotation?.image} size={24} />
+          <ImageGeneric
+            url={newAnnotation?.image?.imageUrlClient}
+            height="50px"
+          />
         </Box>
       )}
 

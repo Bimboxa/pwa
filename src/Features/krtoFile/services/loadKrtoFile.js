@@ -1,7 +1,7 @@
 import db from "App/db/db";
 import { nanoid } from "@reduxjs/toolkit";
 
-export default async function loadKrtoFile(blob) {
+export default async function loadKrtoFile(blob, options) {
   // Validate blob
   if (!blob || !(blob instanceof Blob)) {
     throw new Error("Invalid blob provided for import");
@@ -12,6 +12,13 @@ export default async function loadKrtoFile(blob) {
   // Unique tag to find the imported rows
   const importTag = nanoid();
 
+  // options
+
+  const loadAnnotationTemplatesToListingId =
+    options?.loadAnnotationTemplatesToListingId;
+
+  const loadDataToProjectId = options?.loadDataToProjectId;
+
   try {
     await db.import(blob, {
       overwriteValues: true,
@@ -21,10 +28,20 @@ export default async function loadKrtoFile(blob) {
       noTransaction: false, // Ensure transactions are used
       // Tag just the 'projects' row so we can find it after import
       transform: (table, value) => {
-        if (table === "projects" && value) {
-          return { value: { ...value, __importTag: importTag } };
+        if (loadAnnotationTemplatesToListingId && loadDataToProjectId) {
+          return {
+            value: {
+              ...value,
+              listingId: loadAnnotationTemplatesToListingId,
+              projectId: loadDataToProjectId,
+            },
+          };
+        } else {
+          if (table === "projects" && value) {
+            return { value: { ...value, __importTag: importTag } };
+          }
+          return { value };
         }
-        return { value };
       },
       progressCallback: (progress) => {
         console.log(

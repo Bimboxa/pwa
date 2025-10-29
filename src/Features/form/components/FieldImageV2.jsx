@@ -27,6 +27,7 @@ export default function FieldImageV2({
   const maxSize = options?.maxSize;
   const fromPdf = options?.fromPdf;
   const buttonLabel = options?.buttonLabel;
+  const showAsSection = options?.showAsSection;
 
   // strings
 
@@ -59,16 +60,18 @@ export default function FieldImageV2({
 
   return (
     <Box sx={{ width: 1 }}>
-      <Box
-        sx={{
-          p: 1,
-          borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-        }}
-      >
-        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-          {label}
-        </Typography>
-      </Box>
+      {showAsSection && (
+        <Box
+          sx={{
+            p: 1,
+            borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+            {label}
+          </Typography>
+        </Box>
+      )}
 
       <Box sx={{ p: 1 }}>
         <Box

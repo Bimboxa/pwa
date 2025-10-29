@@ -6,6 +6,7 @@ import { Box, Typography } from "@mui/material";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import FormAnnotationTemplateVariantBlock from "./FormAnnotationTemplateVariantBlock";
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
+import IconButtonClose from "Features/layout/components/IconButtonClose";
 
 import theme from "Styles/theme";
 
@@ -57,26 +58,34 @@ export default function SectionCreateAnnotationTemplateVariantBlock({
   }
 
   return (
-    <Box sx={{ p: 1 }}>
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          bgcolor: "white",
-          p: 1,
-          borderRadius: 1,
-        }}
-      >
-        <FormAnnotationTemplateVariantBlock
-          annotationTemplate={tempAnnotationTemplate}
-          onChange={setTempAnnotationTemplate}
-        />
-        <BoxAlignToRight>
-          <ButtonGeneric label={cancelS} onClick={onCancel} />
+    <Box sx={{}}>
+      <BoxAlignToRight>
+        <IconButtonClose onClose={onCancel} />
+      </BoxAlignToRight>
+      <Box sx={{ p: 2, pt: 0, pb: 1 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            bgcolor: "white",
+            p: 1,
+            borderRadius: 1,
+          }}
+        >
+          <FormAnnotationTemplateVariantBlock
+            annotationTemplate={tempAnnotationTemplate}
+            onChange={setTempAnnotationTemplate}
+          />
+        </Box>
+
+        <BoxAlignToRight sx={{ mt: 1 }}>
           <ButtonGeneric
             label={createS}
             onClick={handleCreate}
             disabled={!tempAnnotationTemplate.label}
+            variant="contained"
+            color="secondary"
+            size="small"
           />
         </BoxAlignToRight>
       </Box>

@@ -14,6 +14,7 @@ export default async function getEntityPureDataAndFilesDataByKey(
 
   const entityId = entity.id ?? options.entityId;
   const listingId = options?.listingId;
+  const listingTable = options?.listingTable;
   const createdBy = options?.createdBy;
   const projectId = options?.projectId;
 
@@ -58,6 +59,7 @@ export default async function getEntityPureDataAndFilesDataByKey(
         fileArrayBuffer,
         projectId,
         listingId,
+        listingTable,
         createdBy,
         createdAt,
         updatedAt: createdAt,

@@ -41,6 +41,7 @@ export default function useCreateEntity() {
         entityId,
         projectId: listing.projectId,
         listingId: listing.id,
+        listingTable: listing.table,
         createdBy: userEmail,
       });
 
