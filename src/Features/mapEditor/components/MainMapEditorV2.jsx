@@ -70,7 +70,8 @@ import LayerMapEditor from "./LayerMapEditor";
 import LayerScreenCursor from "./LayerScreenCursor";
 import BlockEntityMarker from "Features/markers/components/BlockEntityMarker";
 import PopperEditScale from "./PopperEditScale";
-
+import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
+import { setAnchorPosition } from "Features/contextMenu/contextMenuSlice";
 import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
 
@@ -205,6 +206,17 @@ export default function MainMapEditorV2() {
   useAutoShowBgImage();
 
   // handlers
+  // right-click context menu
+  function handleContextMenu(e) {
+    e.preventDefault();
+    // Use client coordinates for Popper anchor
+    dispatch(
+      setAnchorPosition({
+        x: e.clientX,
+        y: e.clientY,
+      })
+    );
+  }
 
   // global listeners like the dot variant
   useEffect(() => {
@@ -564,6 +576,7 @@ export default function MainMapEditorV2() {
         position: "relative",
         outline: "none", // Remove focus outline since this is a container
       }}
+      onContextMenu={handleContextMenu}
     >
       {/* {isMobile && <BlockEntityMarker top={16} right={16} />} */}
       <MapEditorGeneric
@@ -612,6 +625,7 @@ export default function MainMapEditorV2() {
       />
 
       <PopperEditScale />
+      <PopperContextMenu />
       <LayerMapEditor svgElement={svgRef.current} />
       {showScreenCursor && (
         <LayerScreenCursor containerEl={containerRef?.current} />
