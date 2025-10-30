@@ -46,7 +46,9 @@ import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
 import IconButtonAnnotationTemplatesDownload from "Features/annotations/components/IconButtonAnnotationTemplatesDownload";
 import IconButtonAnnotationTemplatesUpload from "Features/annotations/components/IconButtonAnnotationTemplatesUpload";
 
-export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
+export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity({
+  onClose,
+}) {
   const dispatch = useDispatch();
 
   const helperNoTemplateS = "Aucun modèle";
@@ -128,6 +130,9 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity() {
     );
     dispatch(setTempAnnotationTemplateLabel(annotationTemplate?.label));
     dispatch(setSelectedAnnotationTemplateId(annotationTemplate?.id));
+
+    // Close context menu if provided
+    if (onClose) onClose();
   }
 
   // render
