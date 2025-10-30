@@ -12,11 +12,11 @@ export default function useBgImageFormTemplate(bgImageItem) {
 
   const template = {
     fields: [
-      {
-        key: "show",
-        label: "Afficher",
-        type: "check",
-      },
+      // {
+      //   key: "show",
+      //   label: "Afficher",
+      //   type: "check",
+      // },
       {
         key: "buttonResetBaseMapPose",
         label: "Position du fond de plan",
