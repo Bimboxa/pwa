@@ -71,7 +71,10 @@ import LayerScreenCursor from "./LayerScreenCursor";
 import BlockEntityMarker from "Features/markers/components/BlockEntityMarker";
 import PopperEditScale from "./PopperEditScale";
 import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
-import { setAnchorPosition } from "Features/contextMenu/contextMenuSlice";
+import {
+  setAnchorPosition,
+  setClickedNode,
+} from "Features/contextMenu/contextMenuSlice";
 import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
 
@@ -209,6 +212,20 @@ export default function MainMapEditorV2() {
   // right-click context menu
   function handleContextMenu(e) {
     e.preventDefault();
+
+    // Detect if clicking on a node
+    const nativeTarget = e.nativeEvent?.target || e.target;
+    const hit = nativeTarget.closest?.("[data-node-type]");
+
+    if (hit) {
+      const { nodeId, nodeListingId, nodeType, annotationType } = hit.dataset;
+      dispatch(
+        setClickedNode({ id: nodeId, nodeListingId, nodeType, annotationType })
+      );
+    } else {
+      dispatch(setClickedNode(null));
+    }
+
     // Use client coordinates for Popper anchor
     dispatch(
       setAnchorPosition({
@@ -239,6 +256,7 @@ export default function MainMapEditorV2() {
           dispatch(setIsEditingEntity(false));
           dispatch(setEditedEntity(null));
           dispatch(setNewAnnotation(null));
+          dispatch(setAnchorPosition(null));
         }
       } else if (
         selectedItem?.type === "ENTITY" &&

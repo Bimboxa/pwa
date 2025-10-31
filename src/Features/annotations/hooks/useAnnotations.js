@@ -48,6 +48,9 @@ export default function useAnnotations(options) {
 
   let annotations = useLiveQuery(async () => {
     let _annotations;
+
+    // -- FILTER --
+
     if (filterByBaseMapId) {
       _annotations = await db.annotations
         .where("baseMapId")
@@ -57,23 +60,58 @@ export default function useAnnotations(options) {
       _annotations = await db.annotations.toArray();
     }
 
-    if (withListingName) {
-      const listingsIds = _annotations.reduce(
-        (ac, cur) => [...new Set([...ac, cur.listingId])],
-        []
+    if (filterByListingId) {
+      _annotations = _annotations.filter(
+        (a) => filterByListingId === a.listingId
       );
-      const listings = await db.listings
-        .where("id")
-        .anyOf(listingsIds.filter(Boolean))
-        .toArray();
+    }
 
-      // Create a map for quick lookup
-      const listingsMap = getItemsByKey(listings, "id");
+    if (excludeListingsIds) {
+      _annotations = _annotations?.filter(
+        (a) => !excludeListingsIds.includes(a.listingId)
+      );
+    }
 
+    // -- LISTINGS --
+
+    const listingsIds = _annotations.reduce(
+      (ac, cur) => [...new Set([...ac, cur.listingId])],
+      []
+    );
+    const listings = await db.listings
+      .where("id")
+      .anyOf(listingsIds.filter(Boolean))
+      .toArray();
+
+    // Create a map for quick lookup
+    const listingsMap = getItemsByKey(listings, "id");
+
+    // -- SORT --
+
+    const annotationById = getItemsByKey(_annotations, "id");
+
+    const sortedAnnotationIds = [];
+    listings.forEach((listing) => {
+      if (listing.sortedItemIds) {
+        sortedAnnotationIds.push(...listing.sortedItemIds);
+      } else {
+        sortedAnnotationIds.push(
+          ..._annotations
+            .filter((a) => a.listingId === listing.id)
+            .map((a) => a.id)
+        );
+      }
+    });
+    console.log("debug_3110_annotationIds", sortedAnnotationIds);
+    _annotations = sortedAnnotationIds.map((id) => annotationById[id]);
+
+    // -- RELATION --
+
+    if (withListingName) {
       // Add listing name to annotations
       _annotations = _annotations.map((annotation) => ({
         ...annotation,
-        listingName: listingsMap[annotation.listingId]?.name || "-?-",
+        listingName: listingsMap[annotation?.listingId]?.name || "-?-",
       }));
     }
 
@@ -107,18 +145,6 @@ export default function useAnnotations(options) {
       );
     }
 
-    if (filterByListingId) {
-      _annotations = _annotations.filter(
-        (a) => filterByListingId === a.listingId
-      );
-    }
-
-    if (excludeListingsIds) {
-      _annotations = _annotations?.filter(
-        (a) => !excludeListingsIds.includes(a.listingId)
-      );
-    }
-
     // edition
     if (isEditingAnnotation) {
       _annotations = _annotations.filter((a) => a.id !== editedAnnotation.id);
@@ -140,7 +166,7 @@ export default function useAnnotations(options) {
   annotations = annotations?.map((annotation) => ({
     ...annotation,
     ...getAnnotationTemplateProps(
-      annotationTemplatesMap[annotation.annotationTemplateId]
+      annotationTemplatesMap[annotation?.annotationTemplateId]
     ),
   }));
 
