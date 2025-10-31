@@ -72,6 +72,8 @@ export default function useAnnotations(options) {
       );
     }
 
+    _annotations = _annotations.filter((a) => Boolean(a.entityId));
+
     // -- LISTINGS --
 
     const listingsIds = _annotations.reduce(
@@ -92,8 +94,8 @@ export default function useAnnotations(options) {
 
     const sortedAnnotationIds = [];
     listings.forEach((listing) => {
-      if (listing.sortedItemIds) {
-        sortedAnnotationIds.push(...listing.sortedItemIds);
+      if (listing.sortedAnnotationIds) {
+        sortedAnnotationIds.push(...listing.sortedAnnotationIds);
       } else {
         sortedAnnotationIds.push(
           ..._annotations
@@ -102,7 +104,7 @@ export default function useAnnotations(options) {
         );
       }
     });
-    console.log("debug_3110_annotationIds", sortedAnnotationIds);
+
     _annotations = sortedAnnotationIds.map((id) => annotationById[id]);
 
     // -- RELATION --

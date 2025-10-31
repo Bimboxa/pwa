@@ -16,29 +16,30 @@ export default function useMoveAnnotation() {
 
     // sorted items
 
-    let sortedItemIds = listing?.sortedItemIds;
+    let sortedAnnotationIds = listing?.sortedAnnotationIds;
 
-    if (!Array.isArray(sortedItemIds) && listing) {
+    if (!Array.isArray(sortedAnnotationIds) && listing) {
       const items = await db.annotations
         .where("listingId")
         .equals(listing.id)
         .toArray();
 
-      sortedItemIds = items.map((i) => i.id);
+      sortedAnnotationIds = items.map((i) => i.id);
     }
 
     // sort
 
-    sortedItemIds = sortedItemIds?.filter((id) => id !== annotation.id) ?? [];
+    sortedAnnotationIds =
+      sortedAnnotationIds?.filter((id) => id !== annotation.id) ?? [];
 
     if (position === "top") {
-      sortedItemIds = [...sortedItemIds, annotation?.id];
+      sortedAnnotationIds = [...sortedAnnotationIds, annotation?.id];
     } else if (position === "bottom") {
-      sortedItemIds = [annotation?.id, ...sortedItemIds];
+      sortedAnnotationIds = [annotation?.id, ...sortedAnnotationIds];
     }
 
     // update listing
-    const updates = { id: annotation.listingId, sortedItemIds };
+    const updates = { id: annotation.listingId, sortedAnnotationIds };
     console.log("debug_3110_updates", updates);
     await updateListing(updates);
   };
