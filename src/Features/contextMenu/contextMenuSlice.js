@@ -3,6 +3,7 @@ import { createSlice } from "@reduxjs/toolkit";
 const contextMenuInitialState = {
   //
   anchorPosition: null,
+  clickedNode: null,
 };
 
 export const contextMenuSlice = createSlice({
@@ -12,9 +13,12 @@ export const contextMenuSlice = createSlice({
     setAnchorPosition: (state, action) => {
       state.anchorPosition = action.payload;
     },
+    setClickedNode: (state, action) => {
+      state.clickedNode = action.payload;
+    },
   },
 });
 
-export const { setAnchorPosition } = contextMenuSlice.actions;
+export const { setAnchorPosition, setClickedNode } = contextMenuSlice.actions;
 
 export default contextMenuSlice.reducer;

@@ -11,7 +11,9 @@ export default function PageSignIn() {
 
   //const signInVariant = "PHONE_NUMBER";
   const appConfig = useAppConfig();
-  const signInVariant = appConfig?.auth?.service;
+  let signInVariant = appConfig?.auth?.service;
+
+  signInVariant = "PHONE_NUMBER";
 
   if (signInVariant === "PHONE_NUMBER") {
     return <PageSignInVariantPhoneNumber />;
