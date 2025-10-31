@@ -18,7 +18,16 @@ export default async function createAnnotationService(annotation, options) {
   let _annotation;
 
   if (annotation?.annotationTemplateId || annotation?.isScaleSegment) {
-    _annotation = await db.annotations.put(annotation);
+    await db.annotations.put(annotation);
+
+    // update listing sortedAnnotationIds
+    const _listing = await db.listings.get(annotation?.listingId);
+    if (_listing?.sortedAnnotationIds) {
+      const updates = {
+        sortedAnnotationIds: [..._listing.sortedAnnotationIds, annotation.id],
+      };
+      await db.listings.update(annotation.listingId, updates);
+    }
   } else {
     //annotation template
     if (tempAnnotationTemplateLabel) {
@@ -43,6 +52,17 @@ export default async function createAnnotationService(annotation, options) {
         ...annotation,
         annotationTemplateId: annotationTemplate?.id,
       });
+
+      // listing
+      const _listing = await db.listings.get(_annotation?.listingId);
+      console.log("debug_3101_update_listing", _listing);
+      if (_listing?.sortedAnnotationIds) {
+        const updates = {
+          sortedAnnotationIds: [...sortedAnnotationIds, _annotation.id],
+        };
+
+        await db.listings.put(_annotation.listingId, updates);
+      }
     }
   }
 
