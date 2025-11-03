@@ -10,11 +10,14 @@ export default function useAnnotationTemplates(options) {
   const annotationTemplatesUpdatedAt = useSelector(
     (s) => s.annotations.annotationTemplatesUpdatedAt
   );
+  const editedAnnotationTemplate = useSelector(
+    (s) => s.annotations.editedAnnotationTemplate
+  );
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const filterByListingId = options?.filterByListingId;
 
-  return useLiveQuery(async () => {
+  let annotationTemplates = useLiveQuery(async () => {
     let templates = [];
     if (filterByListingId) {
       templates = await db.annotationTemplates
@@ -39,4 +42,16 @@ export default function useAnnotationTemplates(options) {
 
     return templates;
   }, [filterByListingId, annotationTemplatesUpdatedAt, projectId]);
+
+  // edition
+  if (editedAnnotationTemplate && annotationTemplates) {
+    annotationTemplates = annotationTemplates.map((template) => {
+      if (template.id === editedAnnotationTemplate.id) {
+        return editedAnnotationTemplate;
+      }
+      return template;
+    });
+  }
+
+  return annotationTemplates;
 }

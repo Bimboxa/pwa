@@ -56,6 +56,18 @@ export default memo(function NodeSvgImage({
   );
   const F = 1;
 
+  // Handle size: keep 8px visual size by inversely scaling with _F
+  const handleSize = useMemo(() => {
+    const DESIRED_VISUAL_SIZE = 8;
+    return DESIRED_VISUAL_SIZE / _F;
+  }, [_F]);
+
+  // Border width: keep 1px visual size by inversely scaling with _F
+  const handleBorderWidth = useMemo(() => {
+    const DESIRED_VISUAL_BORDER = 1;
+    return DESIRED_VISUAL_BORDER / _F;
+  }, [_F]);
+
   // Delta in CSS px for Rnd
   const cssPos = useMemo(
     () => ({ x: delta.x, y: delta.y }),
@@ -201,32 +213,28 @@ export default memo(function NodeSvgImage({
               }}
               resizeHandleStyles={{
                 topLeft: {
-                  width: 12,
-                  height: 12,
-                  border: "2px solid #1976d2",
+                  width: handleSize,
+                  height: handleSize,
+                  border: `${handleBorderWidth}px solid #1976d2`,
                   background: "#fff",
-                  borderRadius: 2,
                 },
                 topRight: {
-                  width: 12,
-                  height: 12,
-                  border: "2px solid #1976d2",
+                  width: handleSize,
+                  height: handleSize,
+                  border: `${handleBorderWidth}px solid #1976d2`,
                   background: "#fff",
-                  borderRadius: 2,
                 },
                 bottomLeft: {
-                  width: 12,
-                  height: 12,
-                  border: "2px solid #1976d2",
+                  width: handleSize,
+                  height: handleSize,
+                  border: `${handleBorderWidth}px solid #1976d2`,
                   background: "#fff",
-                  borderRadius: 2,
                 },
                 bottomRight: {
-                  width: 12,
-                  height: 12,
-                  border: "2px solid #1976d2",
+                  width: handleSize,
+                  height: handleSize,
+                  border: `${handleBorderWidth}px solid #1976d2`,
                   background: "#fff",
-                  borderRadius: 2,
                 },
               }}
               style={{

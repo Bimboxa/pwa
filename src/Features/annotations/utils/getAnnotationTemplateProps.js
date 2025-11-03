@@ -10,6 +10,9 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     meterByPx: annotationTemplate?.meterByPx,
 
     fillColor: annotationTemplate?.fillColor,
+    fillType: annotationTemplate?.fillType,
+    fillOpacity: annotationTemplate?.fillOpacity,
+
     iconKey: annotationTemplate?.iconKey,
   };
 

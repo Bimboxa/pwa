@@ -7,9 +7,9 @@ export default function FieldOptionKey({
   value,
   label,
   onChange,
-  valueOptions,
+  valueOptions = [],
+  options,
 }) {
-  const options = valueOptions ?? [];
   const arrowRef = useRef(null);
 
   console.log("debug_1509 valueOptions", valueOptions);
@@ -33,18 +33,22 @@ export default function FieldOptionKey({
     <>
       <Box
         sx={{
-          p: 1,
-          borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+          ...(options?.showAsSection
+            ? {
+                p: 1,
+                borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+              }
+            : {}),
         }}
       >
-        <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
+        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
           {label}
         </Typography>
         <Button
           endIcon={<Down ref={arrowRef} />}
           onClick={(e) => setAnchorEl(e.currentTarget)}
         >
-          <Typography>{buttonLabel}</Typography>
+          <Typography variant="body2">{buttonLabel}</Typography>
         </Button>
       </Box>
       <Menu
@@ -52,7 +56,7 @@ export default function FieldOptionKey({
         open={open}
         onClose={() => setAnchorEl(null)}
       >
-        {options.map((option) => (
+        {valueOptions.map((option) => (
           <MenuItem
             key={option?.key}
             onClick={() => {

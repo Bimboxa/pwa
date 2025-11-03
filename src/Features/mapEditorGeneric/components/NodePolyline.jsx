@@ -1,6 +1,8 @@
 // NodePolyline.js
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 
+import { useSelector } from "react-redux";
+
 import theme from "Styles/theme";
 
 /**
@@ -34,6 +36,10 @@ export default function NodePolyline({
   worldScale = 1, // ← Add this
   containerK = 1, // ← Add this
 }) {
+  // data
+
+  const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
+
   // --- data props for hit-testing in your editor ---
   const dataProps = {
     "data-node-id": polyline?.id,
@@ -50,7 +56,8 @@ export default function NodePolyline({
       theme.palette.secondary.main,
     closeLine = false,
     fillColor = polyline?.fillColor ?? theme.palette.secondary.main,
-    fillOpacity = 0.8,
+    fillOpacity = polyline?.fillOpacity ?? 0.8,
+    fillType = polyline?.fillType ?? "SOLID",
   } = polyline || {};
 
   // --- image size ---
@@ -66,10 +73,11 @@ export default function NodePolyline({
   const HOVER_HIT_WIDTH = 12; // px, invisible hover area width
   const TEMP_STROKE_WIDTH = 2; // px, temporary drawing lines width
   const CLOSE_TOL_PX = 14; // px in *base* space (tweak/scale if needed)
+  const HATCHING_SPACING = 12; // px, fixed spacing in world reference when showBgImage is true
 
   // Calculate the inverse scale to keep elements constant screen size
-  const totalScale = worldScale * containerK;
-  const invScale = totalScale > 0 ? 1 / totalScale : 1;
+  const totalScale = showBgImage ? 1 : worldScale * containerK;
+  const invScale = totalScale > 0 ? (showBgImage ? 1 : 1 / totalScale) : 1;
 
   // Calculate stroke widths - always scale to maintain constant screen size
   const baseStrokeWidth = STROKE_WIDTH * invScale;
@@ -342,13 +350,50 @@ export default function NodePolyline({
 
   const showFill = closeLine && previewRel.length >= 3;
 
+  // Pattern ID for hatching
+  const patternIdRef = useRef(
+    `hatch-polyline-${polyline?.id ?? Math.random().toString(36).slice(2)}`
+  );
+  const patternId = patternIdRef.current;
+
+  // Hatching pattern parameters
+  // If showBgImage is true: compensate for containerK scaling to keep fixed world reference
+  // If showBgImage is false: scale inversely to keep constant screen size
+  const hatchSize = showBgImage
+    ? HATCHING_SPACING / containerK
+    : HATCHING_SPACING * invScale;
+  const hatchStroke = showBgImage ? 1.5 / containerK : 1.5 * invScale;
+
   return (
     <g {...dataProps}>
+      {/* SVG definitions for hatching pattern */}
+      {showFill && fillType === "HATCHING" && (
+        <defs>
+          <pattern
+            id={patternId}
+            patternUnits="userSpaceOnUse"
+            width={hatchSize}
+            height={hatchSize}
+          >
+            <path
+              d={`M 0 0 L ${hatchSize} ${hatchSize}`}
+              stroke={fillColor}
+              strokeWidth={hatchStroke}
+            />
+            {/* <path
+              d={`M 0 ${hatchSize} L ${hatchSize} 0`}
+              stroke={fillColor}
+              strokeWidth={hatchStroke}
+            /> */}
+          </pattern>
+        </defs>
+      )}
+
       {/* FILLED POLYGON (preview includes moving vertex) */}
       {showFill && (
         <polygon
           points={polygonPointsStr}
-          fill={fillColor}
+          fill={fillType === "HATCHING" ? `url(#${patternId})` : fillColor}
           fillOpacity={fillOpacity ?? 0.8}
           stroke="none"
           style={{
