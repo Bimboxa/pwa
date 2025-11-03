@@ -17,7 +17,7 @@ export default function IconButtonActionCreateAnnotationTemplate() {
       onClick: handleOpenCreateTemplate,
     },
     {
-      label: "Bibliothèque de modèles",
+      label: "Ajouter des modèles d'une bibliothèque",
       onClick: handleOpenLibraryTemplates,
     },
   ];

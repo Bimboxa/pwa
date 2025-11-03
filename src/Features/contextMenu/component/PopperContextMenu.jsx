@@ -7,8 +7,9 @@ import {
 
 import { Box } from "@mui/material";
 import PopperBox from "Features/layout/components/PopperBox";
-import SectionAnnotationTemplatesInPanelCreateLocatedEntity from "Features/locatedEntities/components/SectionAnnotationTemplatesInPanelCreateLocatedEntity";
+
 import ContextMenuAnnotation from "Features/annotations/components/ContextMenuAnnotation";
+import ContextMenuCreateEntity from "Features/entities/components/ContextMenuCreateEntity";
 
 export default function PopupContextMenu() {
   // data
@@ -41,13 +42,7 @@ export default function PopupContextMenu() {
       anchorPosition={anchorPosition}
       onClose={handleClose}
     >
-      {mode === "CREATE" && (
-        <Box sx={{ width: 300, maxHeight: 600, overflow: "auto" }}>
-          <SectionAnnotationTemplatesInPanelCreateLocatedEntity
-            onClose={handleClose}
-          />
-        </Box>
-      )}
+      {mode === "CREATE" && <ContextMenuCreateEntity />}
       {mode === "ANNOTATION" && <ContextMenuAnnotation />}
     </PopperBox>
   );

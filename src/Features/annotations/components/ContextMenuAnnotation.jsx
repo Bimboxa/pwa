@@ -5,6 +5,7 @@ import {
   setAnchorPosition,
   setClickedNode,
 } from "Features/contextMenu/contextMenuSlice";
+import { setOpenDialogAutoSelectAnnotationTemplateToCreateEntity } from "Features/mapEditor/mapEditorSlice";
 
 import useMoveAnnotation from "../hooks/useMoveAnnotation";
 
@@ -21,11 +22,17 @@ export default function ContextMenuAnnotation() {
   // helpers
 
   const actions = [
+    { label: "Ajouter un objet", handler: handleAddEntity },
     { label: "Avancer au 1er plan", handler: handleMoveTop },
     { label: "Reculer à l'arrière plan", handler: handleMoveBottom },
   ];
 
   // handlers
+
+  function handleAddEntity() {
+    dispatch(setOpenDialogAutoSelectAnnotationTemplateToCreateEntity(true));
+    dispatch(setAnchorPosition(null));
+  }
 
   async function handleMoveTop(e) {
     await moveAnnotation(

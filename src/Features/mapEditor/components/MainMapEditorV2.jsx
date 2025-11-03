@@ -37,6 +37,11 @@ import {
 import { setOpenDialogDeleteSelectedItem } from "Features/selection/selectionSlice";
 import { setOpenedPanel } from "Features/listings/listingsSlice";
 
+import {
+  setAnchorPosition,
+  setClickedNode,
+} from "Features/contextMenu/contextMenuSlice";
+
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 import useInitDefaultNewAnnotation from "Features/annotations/hooks/useInitDefaultNewAnnotation";
 import useNewEntity from "Features/entities/hooks/useNewEntity";
@@ -71,16 +76,14 @@ import LayerScreenCursor from "./LayerScreenCursor";
 import BlockEntityMarker from "Features/markers/components/BlockEntityMarker";
 import PopperEditScale from "./PopperEditScale";
 import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
-import {
-  setAnchorPosition,
-  setClickedNode,
-} from "Features/contextMenu/contextMenuSlice";
+
+import DialogDeleteSelectedItem from "Features/selection/components/DialogDeleteSelectedItem";
+import DialogAutoSelectAnnotationTemplateToCreateEntity from "Features/entities/components/DialogAutoSelectAnnotationTemplateToCreateEntity";
+
 import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
 
 import db from "App/db/db";
-import DialogDeleteSelectedItem from "Features/selection/components/DialogDeleteSelectedItem";
-
 export default function MainMapEditorV2() {
   const dispatch = useDispatch();
   const containerRef = useRef();
@@ -649,6 +652,7 @@ export default function MainMapEditorV2() {
         <LayerScreenCursor containerEl={containerRef?.current} />
       )}
       <DialogDeleteSelectedItem />
+      <DialogAutoSelectAnnotationTemplateToCreateEntity />
 
       {/* <Button
         onClick={handleClick}

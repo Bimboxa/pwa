@@ -12,6 +12,7 @@ import {
   setSelectedBaseMapsListingId,
   setSelectedMainBaseMapId,
   setSelectedNode,
+  setOpenDialogAutoSelectAnnotationTemplateToCreateEntity,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedEntityId } from "../entitiesSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
@@ -106,7 +107,8 @@ export default function SectionListEntitiesInListPanel() {
     if (listing.entityModel.type === "BLUEPRINT") {
       dispatch(setOpenedPanel("NEW_BLUEPRINT"));
     } else if (listing.entityModel.type === "LOCATED_ENTITY") {
-      dispatch(setOpenedPanel("NEW_LOCATED_ENTITY"));
+      //dispatch(setOpenedPanel("NEW_LOCATED_ENTITY"));
+      dispatch(setOpenDialogAutoSelectAnnotationTemplateToCreateEntity(true));
     } else {
       dispatch(setOpenedPanel("NEW_ENTITY"));
     }
