@@ -15,6 +15,7 @@ const mapEditorInitialState = {
   //
   showLayerScreenCursor: false,
   printModeEnabled: false,
+  openDialogAutoSelectAnnotationTemplateToCreateEntity: false,
   //
   bgImageKey: "DEFAULT", // "DEFAULT"
   //
@@ -91,6 +92,7 @@ export const mapEditorSlice = createSlice({
     setShowLayerScreenCursor: (state, action) => {
       state.showLayerScreenCursor = action.payload;
     },
+
     // print mode
     setPrintModeEnabled: (state, action) => {
       state.printModeEnabled = action.payload;
@@ -185,6 +187,15 @@ export const mapEditorSlice = createSlice({
       const zoomTo = action.payload;
       state.zoomTo = { ...zoomTo, triggeredAt: Date.now() };
     },
+
+    // dialogs
+    setOpenDialogAutoSelectAnnotationTemplateToCreateEntity: (
+      state,
+      action
+    ) => {
+      state.openDialogAutoSelectAnnotationTemplateToCreateEntity =
+        action.payload;
+    },
   },
 });
 
@@ -240,6 +251,9 @@ export const {
   triggerCenterBaseMap,
   setFilterByMainBaseMap,
   setZoomTo,
+
+  // dialogs
+  setOpenDialogAutoSelectAnnotationTemplateToCreateEntity,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;

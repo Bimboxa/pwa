@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 export default function useHelperMessageInBottomBar() {
   // strings
 
+  const defaultS = "[Click droit] Ajoutez un objet";
   const quitCreationModeS = "[ESC] Quittez le mode création";
   const selectedEntityS = "Sélection : [ESC] Quitter,  [DELETE] Supprimer";
 
@@ -13,7 +14,7 @@ export default function useHelperMessageInBottomBar() {
 
   // return
 
-  let string = "";
+  let string = defaultS;
 
   if (enabledDrawingMode) {
     string = quitCreationModeS;

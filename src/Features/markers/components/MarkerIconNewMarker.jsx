@@ -34,7 +34,11 @@ export default function MarkerIconNewMarker() {
     annotation: newAnnotation,
     listingKey: listing?.annotationTemplatesListingKey,
   });
-  const annotationTemplate = annotationTemplates?.find((t) => t.code === code);
+  //const annotationTemplate = annotationTemplates?.find((t) => t.code === code);
+
+  const annotationTemplate = annotationTemplates?.find(
+    (t) => t.id === newAnnotation?.annotationTemplateId
+  );
 
   // helper
 
@@ -44,7 +48,8 @@ export default function MarkerIconNewMarker() {
   const isMarker = newAnnotation?.type === "MARKER";
 
   //const label = tempLabel ?? annotationTemplate?.label;
-  const label = tempLabel;
+  //const label = tempLabel;
+  const label = annotationTemplate?.label;
 
   // helper - unvalidMarker
 
