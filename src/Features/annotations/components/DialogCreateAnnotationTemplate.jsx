@@ -2,14 +2,18 @@ import { useState } from "react";
 
 import useCreateAnnotationTemplate from "../hooks/useCreateAnnotationTemplate";
 
-import FormAnnotationTemplate from "./FormAnnotationTemplate";
+import FormAnnotationTemplateVariantBlock from "./FormAnnotationTemplateVariantBlock";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
+
+import theme from "Styles/theme";
+import { DialogTitle } from "@mui/material";
 
 export default function DialogCreateAnnotationTemplate({ open, onClose }) {
   // strings
 
   const createS = "Créer";
+  const title = "Nouveau modèle";
 
   // data
 
@@ -17,7 +21,11 @@ export default function DialogCreateAnnotationTemplate({ open, onClose }) {
 
   // state
 
-  const [tempAnnotationTemplate, setTempAnnotationTemplate] = useState(null);
+  const [tempAnnotationTemplate, setTempAnnotationTemplate] = useState({
+    type: "MARKER",
+    fillColor: theme.palette.secondary.main,
+    iconKey: "circle",
+  });
 
   // handlers
 
@@ -38,7 +46,8 @@ export default function DialogCreateAnnotationTemplate({ open, onClose }) {
 
   return (
     <DialogGeneric open={open} onClose={onClose} width="350px">
-      <FormAnnotationTemplate
+      <DialogTitle>{title}</DialogTitle>
+      <FormAnnotationTemplateVariantBlock
         annotationTemplate={tempAnnotationTemplate}
         onChange={handleChange}
       />

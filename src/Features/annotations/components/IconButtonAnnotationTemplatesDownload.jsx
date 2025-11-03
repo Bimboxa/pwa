@@ -9,7 +9,7 @@ import downloadBlob from "Features/files/utils/downloadBlob";
 export default function IconButtonAnnotationTemplatesDownload() {
   // strings
 
-  const label = "Télécharger la bibliothèque";
+  const label = "Télécharger les modèles";
 
   // data
 
