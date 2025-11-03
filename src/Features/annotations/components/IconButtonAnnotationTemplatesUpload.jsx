@@ -19,7 +19,7 @@ export default function IconButtonAnnotationTemplatesUpload() {
   const dispatch = useDispatch();
   // strings
 
-  const loadS = "Charger une bibliothèque d'objets";
+  const loadS = "Charger des modèles";
 
   // data
 

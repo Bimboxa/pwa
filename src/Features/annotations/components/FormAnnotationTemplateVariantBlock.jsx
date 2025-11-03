@@ -112,7 +112,9 @@ export default function FormAnnotationTemplateVariantBlock({
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 1, width: 1 }}>
+    <Box
+      sx={{ display: "flex", flexDirection: "column", gap: 1, width: 1, p: 1 }}
+    >
       <Box
         sx={{
           display: "flex",
@@ -129,23 +131,16 @@ export default function FormAnnotationTemplateVariantBlock({
         />
       </Box>
 
-      {type !== "IMAGE" && (
+      {type === "MARKER" && (
         <Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            {type === "MARKER" ? (
-              <FieldIconVariantToolbar
-                value={iconKey}
-                onChange={handleIconKeyChange}
-                spriteImage={spriteImage}
-                options={{ fillColor }}
-              />
-            ) : (
-              <AnnotationIcon
-                spriteImage={spriteImage}
-                annotation={annotationTemplate}
-                size={32}
-              />
-            )}
+            <FieldIconVariantToolbar
+              value={iconKey}
+              onChange={handleIconKeyChange}
+              spriteImage={spriteImage}
+              options={{ fillColor }}
+            />
+
             <Box sx={{ flex: 1 }}>
               <FieldTextV2
                 value={label}
@@ -153,11 +148,32 @@ export default function FormAnnotationTemplateVariantBlock({
                 options={{ fullWidth: true, placeholder: "Libellé" }}
               />
             </Box>
-            {/* <FieldColorVariantToolbar
+            <FieldColorVariantToolbar
               value={fillColor}
               onChange={handleFillColorChange}
-            /> */}
+            />
           </Box>
+        </Box>
+      )}
+
+      {["SEGMENT", "POLYLINE", "POLYGON", "RECTANGLE"].includes(type) && (
+        <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <AnnotationIcon
+              spriteImage={spriteImage}
+              annotation={annotationTemplate}
+              size={32}
+            />
+
+            <Box sx={{ flex: 1 }}>
+              <FieldTextV2
+                value={label}
+                onChange={handleLabelChange}
+                options={{ fullWidth: true, placeholder: "Libellé" }}
+              />
+            </Box>
+          </Box>
+
           <FieldFill value={fill} onChange={handleFillChange} />
         </Box>
       )}

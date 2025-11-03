@@ -12,7 +12,6 @@ export default function FieldOptionKey({
 }) {
   const arrowRef = useRef(null);
 
-  console.log("debug_1509 valueOptions", valueOptions);
   // state
 
   const [anchorEl, setAnchorEl] = useState(null);

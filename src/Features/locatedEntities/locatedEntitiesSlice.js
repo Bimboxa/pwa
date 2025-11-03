@@ -1,4 +1,4 @@
-import {createSlice, createAsyncThunk} from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
 // import randomLocatedEntitiesMap from "./data/randomLocatedEntitiesMap";
 //import demoLocatedEntity from "./data/demoLocatedEntity";
@@ -6,6 +6,8 @@ import {createSlice, createAsyncThunk} from "@reduxjs/toolkit";
 import theme from "Styles/theme";
 
 const locatedEntitiesInitialState = {
+  //
+  selectedTabInLeftPanel: "ANNOTATION_TEMPLATES",
   //
   locatedEntitiesMap: new Map(),
   locatedEntitiesUpdatedAt: null,
@@ -23,6 +25,10 @@ export const locatedEntityEditorSlice = createSlice({
   name: "locatedEntities",
   initialState: locatedEntitiesInitialState,
   reducers: {
+    setSelectedTabInLeftPanel: (state, action) => {
+      state.selectedTabInLeftPanel = action.payload;
+    },
+    //
     setSelectedLocatedEntityId: (state, action) => {
       state.selectedLocatedEntityId = action.payload;
     },
@@ -46,12 +52,17 @@ export const locatedEntityEditorSlice = createSlice({
     updateLocatedEntity: (state, action) => {
       const updates = action.payload;
       const oldLocatedEntity = state.locatedEntitiesMap[updates.id];
-      state.locatedEntitiesMap[updates.id] = {...oldLocatedEntity, ...updates};
+      state.locatedEntitiesMap[updates.id] = {
+        ...oldLocatedEntity,
+        ...updates,
+      };
     },
   },
 });
 
 export const {
+  setSelectedTabInLeftPanel,
+  //
   setSelectedLocatedEntityId,
   triggerLocatedEntitiesUpdate,
   //

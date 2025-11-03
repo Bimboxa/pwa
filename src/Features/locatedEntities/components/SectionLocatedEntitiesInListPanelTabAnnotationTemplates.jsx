@@ -46,8 +46,9 @@ import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
 
 import IconButtonAnnotationTemplatesDownload from "Features/annotations/components/IconButtonAnnotationTemplatesDownload";
 import IconButtonAnnotationTemplatesUpload from "Features/annotations/components/IconButtonAnnotationTemplatesUpload";
+import IconButtonActionCreateAnnotationTemplate from "Features/annotations/components/IconButtonActionCreateAnnotationTemplate";
 
-export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity({
+export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates({
   onClose,
 }) {
   const dispatch = useDispatch();
@@ -147,119 +148,136 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity({
         </Box>
       )} */}
 
-      <Box sx={{ display: "flex", gap: 1, p: 1 }}>
-        <IconButtonAnnotationTemplatesDownload />
-        <IconButtonAnnotationTemplatesUpload />
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          p: 1,
+        }}
+      >
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+          <IconButtonAnnotationTemplatesDownload />
+          <IconButtonAnnotationTemplatesUpload />
+        </Box>
+        <IconButtonActionCreateAnnotationTemplate />
       </Box>
 
-      <List sx={{}}>
-        {annotationTemplates?.map((annotationTemplate, idx) => {
-          if (!annotationTemplate?.isDivider)
-            return (
-              <Box key={annotationTemplate.id}>
-                <ListItemButton
-                  onClick={() => handleClick(annotationTemplate)}
-                  divider
-                  onMouseEnter={() => setHoveredId(annotationTemplate.id)}
-                  onMouseLeave={() => setHoveredId(null)}
-                  sx={{ position: "relative", bgcolor: "white" }}
-                >
-                  <AnnotationIcon
-                    annotation={annotationTemplate}
-                    spriteImage={spriteImage}
-                    size={18}
-                  />
-                  <Typography sx={{ mx: 1 }} variant="body2">
-                    {annotationTemplate.label}
-                  </Typography>
-
-                  <IconButton
-                    size="small"
+      <BoxFlexVStretch sx={{ overflow: "auto" }}>
+        <List sx={{}}>
+          {annotationTemplates?.map((annotationTemplate, idx) => {
+            if (!annotationTemplate?.isDivider)
+              return (
+                <Box key={annotationTemplate.id}>
+                  <ListItemButton
+                    //onClick={() => handleClick(annotationTemplate)}
                     onClick={(e) => handleEditClick(e, annotationTemplate)}
-                    sx={{
-                      ml: 1,
-                      visibility:
-                        hoveredId === annotationTemplate.id
-                          ? "visible"
-                          : "hidden",
-                    }}
+                    divider
+                    //onMouseEnter={() => setHoveredId(annotationTemplate.id)}
+                    //onMouseLeave={() => setHoveredId(null)}
+                    sx={{ position: "relative", bgcolor: "white" }}
                   >
-                    <Edit fontSize="small" />
-                  </IconButton>
-                </ListItemButton>
-                <Collapse in={editingId === annotationTemplate.id}>
-                  <Box
-                    sx={{
-                      bgcolor: "background.default",
-                      position: "relative",
-                      borderBottom: (theme) =>
-                        `1px solid ${theme.palette.divider}`,
-                    }}
-                  >
-                    <BoxAlignToRight>
-                      <IconButtonClose onClose={handleCancel} />
-                    </BoxAlignToRight>
+                    <AnnotationIcon
+                      annotation={annotationTemplate}
+                      spriteImage={spriteImage}
+                      size={18}
+                    />
+                    <Typography sx={{ mx: 1 }} variant="body2">
+                      {annotationTemplate.label}
+                    </Typography>
 
-                    <Box sx={{ p: 2, pt: 0 }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          p: 1,
-                          bgcolor: "white",
-                          borderRadius: 1,
-                        }}
-                      >
-                        <FormAnnotationTemplateVariantBlock
-                          annotationTemplate={editedAnnotationTemplate}
-                          onChange={handleFormChange}
-                        />
-                      </Box>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          gap: 1,
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          mt: 1,
-                        }}
-                      >
-                        <ButtonGeneric
-                          label="Supprimer"
-                          onClick={() => handleDelete(annotationTemplate)}
-                        />
-                        <ButtonGeneric
-                          label="Enregistrer"
-                          onClick={handleSave}
-                        />
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleEditClick(e, annotationTemplate)}
+                      sx={{
+                        ml: 1,
+                        visibility:
+                          hoveredId === annotationTemplate.id
+                            ? "visible"
+                            : "hidden",
+                      }}
+                    >
+                      <Edit fontSize="small" />
+                    </IconButton>
+                  </ListItemButton>
+                  <Collapse in={editingId === annotationTemplate.id}>
+                    <Box
+                      sx={{
+                        bgcolor: "background.default",
+                        position: "relative",
+                        borderBottom: (theme) =>
+                          `1px solid ${theme.palette.divider}`,
+                      }}
+                    >
+                      <BoxAlignToRight>
+                        <IconButtonClose onClose={handleCancel} />
+                      </BoxAlignToRight>
+
+                      <Box sx={{ p: 2, pt: 0 }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            p: 1,
+                            bgcolor: "white",
+                            borderRadius: 1,
+                          }}
+                        >
+                          <FormAnnotationTemplateVariantBlock
+                            annotationTemplate={editedAnnotationTemplate}
+                            onChange={handleFormChange}
+                          />
+                        </Box>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            gap: 1,
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            mt: 1,
+                          }}
+                        >
+                          <ButtonGeneric
+                            label="Supprimer"
+                            onClick={() => handleDelete(annotationTemplate)}
+                          />
+                          <ButtonGeneric
+                            label="Enregistrer"
+                            onClick={handleSave}
+                          />
+                        </Box>
                       </Box>
                     </Box>
-                  </Box>
-                </Collapse>
-              </Box>
-            );
-          if (annotationTemplate?.isDivider && idx !== 0)
-            return <Box key={idx} sx={{ my: 1 }} />;
-        })}
-        <ListItemButton onClick={() => setOpenCreate(true)} divider>
-          <Add fontSize="small" />
-          <Typography sx={{ ml: 1 }} variant="body2" color="secondary.main">
-            Nouveau modèle
-          </Typography>
-        </ListItemButton>
-        <Collapse in={openCreate}>
-          <Box
-            sx={{
-              bgcolor: "background.default",
-              borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-            }}
+                  </Collapse>
+                </Box>
+              );
+            if (annotationTemplate?.isDivider && idx !== 0)
+              return <Box key={idx} sx={{ my: 1 }} />;
+          })}
+          {/* <ListItemButton
+            onClick={() => setOpenCreate(true)}
+            divider
+            sx={{ color: "secondary.main" }}
           >
-            <SectionCreateAnnotationTemplateVariantBlock
-              onCreated={() => setOpenCreate(false)}
-              onCancel={() => setOpenCreate(false)}
-            />
-          </Box>
-        </Collapse>
-      </List>
+            <Add fontSize="small" fill="secondary.main" />
+            <Typography sx={{ ml: 1 }} variant="body2">
+              Nouveau modèle
+            </Typography>
+          </ListItemButton>
+          <Collapse in={openCreate}>
+            <Box
+              sx={{
+                bgcolor: "background.default",
+                borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              <SectionCreateAnnotationTemplateVariantBlock
+                onCreated={() => setOpenCreate(false)}
+                onCancel={() => setOpenCreate(false)}
+              />
+            </Box>
+          </Collapse> */}
+        </List>
+      </BoxFlexVStretch>
     </BoxFlexVStretch>
   );
 }

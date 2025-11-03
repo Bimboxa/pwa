@@ -18,11 +18,12 @@ export default function IconButtonAction({
   return (
     <Box
       sx={{
-        bgcolor,
+        bgcolor: bgcolor ?? "white",
         borderRadius: "50%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        border: `1px solid ${theme.palette.divider}`,
       }}
     >
       <Tooltip title={label}>
