@@ -18,6 +18,7 @@ import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldColorVariantToolbar from "Features/form/components/FieldColorVariantToolbar";
 import FieldIconVariantToolbar from "Features/form/components/FieldIconVariantToolbar";
 import FieldImageV2 from "Features/form/components/FieldImageV2";
+import FieldFill from "Features/form/components/FieldFill";
 
 import getImageAnnotationPropsFromFileName from "../utils/getImageAnnotationPropsFromFileName";
 
@@ -38,6 +39,8 @@ export default function FormAnnotationTemplateVariantBlock({
   const {
     type,
     fillColor,
+    fillType = "SOLID",
+    fillOpacity = 1,
     strokeColor,
     iconKey,
     label,
@@ -45,6 +48,10 @@ export default function FormAnnotationTemplateVariantBlock({
     image,
     meterByPx,
   } = annotationTemplate ?? {};
+
+  // helper - fill
+
+  const fill = { fillColor, fillType, fillOpacity };
 
   // helpers - annotationTypes
 
@@ -100,8 +107,12 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, meterByPx });
   }
 
+  function handleFillChange(fill) {
+    onChange({ ...annotationTemplate, ...fill });
+  }
+
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1, width: 1 }}>
       <Box
         sx={{
           display: "flex",
@@ -119,32 +130,35 @@ export default function FormAnnotationTemplateVariantBlock({
       </Box>
 
       {type !== "IMAGE" && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1 }}>
-          {type === "MARKER" ? (
-            <FieldIconVariantToolbar
-              value={iconKey}
-              onChange={handleIconKeyChange}
-              spriteImage={spriteImage}
-              options={{ fillColor }}
-            />
-          ) : (
-            <AnnotationIcon
-              spriteImage={spriteImage}
-              annotation={annotationTemplate}
-              size={32}
-            />
-          )}
-          <Box sx={{ flex: 1 }}>
-            <FieldTextV2
-              value={label}
-              onChange={handleLabelChange}
-              options={{ fullWidth: true, placeholder: "Libellé" }}
-            />
+        <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            {type === "MARKER" ? (
+              <FieldIconVariantToolbar
+                value={iconKey}
+                onChange={handleIconKeyChange}
+                spriteImage={spriteImage}
+                options={{ fillColor }}
+              />
+            ) : (
+              <AnnotationIcon
+                spriteImage={spriteImage}
+                annotation={annotationTemplate}
+                size={32}
+              />
+            )}
+            <Box sx={{ flex: 1 }}>
+              <FieldTextV2
+                value={label}
+                onChange={handleLabelChange}
+                options={{ fullWidth: true, placeholder: "Libellé" }}
+              />
+            </Box>
+            {/* <FieldColorVariantToolbar
+              value={fillColor}
+              onChange={handleFillColorChange}
+            /> */}
           </Box>
-          <FieldColorVariantToolbar
-            value={fillColor}
-            onChange={handleFillColorChange}
-          />
+          <FieldFill value={fill} onChange={handleFillChange} />
         </Box>
       )}
 

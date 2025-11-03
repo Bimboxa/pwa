@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setNewAnnotation,
   setTempAnnotationTemplateLabel,
+  setEditedAnnotationTemplate,
 } from "Features/annotations/annotationsSlice";
 
 import {
@@ -68,51 +69,46 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity({
   const resetSelection = useResetSelection();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
   const deleteAnnotationTemplate = useDeleteAnnotationTemplate();
+  const editedAnnotationTemplate = useSelector(
+    (s) => s.annotations.editedAnnotationTemplate
+  );
 
   // state
 
   const [openCreate, setOpenCreate] = useState(false);
   const [hoveredId, setHoveredId] = useState(null);
-  const [editingId, setEditingId] = useState(null);
 
-  const [editedAnnotationTemplate, setEditedAnnotationTemplate] =
-    useState(null);
+  // helper - editingId
 
-  // helpers
-
-  const noTemplates = !annotationTemplates?.length > 0;
+  const editingId = editedAnnotationTemplate?.id;
 
   // handler
 
   async function handleSave() {
     await updateAnnotationTemplate(editedAnnotationTemplate);
-    setEditingId(null);
-    setEditedAnnotationTemplate(null);
+    dispatch(setEditedAnnotationTemplate(null));
   }
 
   function handleCancel() {
-    setEditingId(null);
-    setEditedAnnotationTemplate(null);
+    dispatch(setEditedAnnotationTemplate(null));
   }
 
   function handleEditClick(e, annotationTemplate) {
     e.stopPropagation();
-    if (editingId === annotationTemplate.id) {
-      setEditingId(null);
-    } else {
-      setEditingId(annotationTemplate.id);
-      setEditedAnnotationTemplate(annotationTemplate);
-    }
+    dispatch(
+      setEditedAnnotationTemplate(
+        editingId === annotationTemplate.id ? null : annotationTemplate
+      )
+    );
   }
 
   function handleFormChange(updatedTemplate) {
-    setEditedAnnotationTemplate(updatedTemplate);
+    dispatch(setEditedAnnotationTemplate(updatedTemplate));
   }
 
   async function handleDelete(annotationTemplate) {
-    setEditingId(null);
-    setEditedAnnotationTemplate(null);
     await deleteAnnotationTemplate(annotationTemplate.id);
+    dispatch(setEditedAnnotationTemplate(null));
   }
 
   function handleClick(annotationTemplate) {
