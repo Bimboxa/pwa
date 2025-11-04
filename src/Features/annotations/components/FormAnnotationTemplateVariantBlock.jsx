@@ -18,7 +18,9 @@ import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldColorVariantToolbar from "Features/form/components/FieldColorVariantToolbar";
 import FieldIconVariantToolbar from "Features/form/components/FieldIconVariantToolbar";
 import FieldImageV2 from "Features/form/components/FieldImageV2";
+
 import FieldFill from "Features/form/components/FieldFill";
+import FieldStroke from "Features/form/components/FieldStroke";
 
 import getImageAnnotationPropsFromFileName from "../utils/getImageAnnotationPropsFromFileName";
 
@@ -42,6 +44,10 @@ export default function FormAnnotationTemplateVariantBlock({
     fillType = "SOLID",
     fillOpacity = 1,
     strokeColor,
+    strokeType = "SOLID",
+    strokeOpacity = 1,
+    strokeWidth = 2,
+    strokeWidthUnit = "PX",
     iconKey,
     label,
     closeLine,
@@ -52,6 +58,13 @@ export default function FormAnnotationTemplateVariantBlock({
   // helper - fill
 
   const fill = { fillColor, fillType, fillOpacity };
+  const stroke = {
+    strokeColor,
+    strokeType,
+    strokeOpacity,
+    strokeWidth,
+    strokeWidthUnit,
+  };
 
   // helpers - annotationTypes
 
@@ -67,6 +80,11 @@ export default function FormAnnotationTemplateVariantBlock({
   // helpers
 
   const optionKey = type === "POLYLINE" && closeLine ? "POLYGON" : type;
+
+  // helpers - show fill and stroke
+
+  const showFill = (type === "POLYLINE" && closeLine) || type === "RECTANGLE";
+  const showStroke = type !== "MARKER";
 
   // handlers
 
@@ -111,10 +129,12 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, ...fill });
   }
 
+  function handleStrokeChange(stroke) {
+    onChange({ ...annotationTemplate, ...stroke });
+  }
+
   return (
-    <Box
-      sx={{ display: "flex", flexDirection: "column", gap: 1, width: 1, p: 1 }}
-    >
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1, width: 1 }}>
       <Box
         sx={{
           display: "flex",
@@ -174,7 +194,29 @@ export default function FormAnnotationTemplateVariantBlock({
             </Box>
           </Box>
 
-          <FieldFill value={fill} onChange={handleFillChange} />
+          {showFill && (
+            <Box
+              sx={{
+                width: 1,
+                borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+                p: 2,
+              }}
+            >
+              <FieldFill value={fill} onChange={handleFillChange} />
+            </Box>
+          )}
+
+          {showStroke && (
+            <Box
+              sx={{
+                width: 1,
+                borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+                p: 2,
+              }}
+            >
+              <FieldStroke value={stroke} onChange={handleStrokeChange} />
+            </Box>
+          )}
         </Box>
       )}
 

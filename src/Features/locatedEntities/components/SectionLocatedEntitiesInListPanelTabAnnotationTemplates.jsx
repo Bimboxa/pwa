@@ -65,8 +65,6 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates(
     sortByLabel: true,
   });
 
-  console.log("debug_2810_annotationTemplates", annotationTemplates);
-
   const spriteImage = useAnnotationSpriteImage();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const resetSelection = useResetSelection();
@@ -246,7 +244,6 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates(
                         <Box
                           sx={{
                             display: "flex",
-                            p: 1,
                             bgcolor: "white",
                             borderRadius: 1,
                           }}
