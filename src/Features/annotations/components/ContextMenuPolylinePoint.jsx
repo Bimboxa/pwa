@@ -8,6 +8,7 @@ import {
 import { setOpenDialogAutoSelectAnnotationTemplateToCreateEntity } from "Features/mapEditor/mapEditorSlice";
 
 import useDeleteAnnotationPoint from "../hooks/useDeleteAnnotationPoint";
+import useChangeAnnotationPointType from "../hooks/useChangeAnnotationPointType";
 
 import { Paper, ListItemButton, List, Typography } from "@mui/material";
 
@@ -18,16 +19,26 @@ export default function ContextMenuPolylinePoint() {
 
   const clickedNode = useSelector((s) => s.contextMenu.clickedNode);
   const deleteAnnotationPoint = useDeleteAnnotationPoint();
+  const changeAnnotationPointType = useChangeAnnotationPointType();
 
   // helpers
 
-  const actions = [{ label: "Supprimer le point", handler: handleDeletePoint }];
+  const actions = [
+    { label: "Rond <=> Carré", handler: handleChangePointType },
+    { label: "Supprimer le point", handler: handleDeletePoint },
+  ];
 
   // handlers
+  async function handleChangePointType(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    await changeAnnotationPointType(clickedNode.id, clickedNode.pointIndex);
+    dispatch(setClickedNode(null));
+    dispatch(setAnchorPosition(null));
+  }
 
   async function handleDeletePoint() {
     await deleteAnnotationPoint(clickedNode.id, clickedNode.pointIndex);
-    dispatch(setSelectedNode(null));
     dispatch(setClickedNode(null));
     dispatch(setAnchorPosition(null));
   }

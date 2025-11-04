@@ -13,6 +13,7 @@ const entitiesInitialState = {
   newEntity: null,
   isEditingEntity: false,
   editedEntity: null,
+  entityEditedAt: null,
   //
   entityTemplateUpdatedAt: null,
   //
@@ -42,6 +43,7 @@ export const entitiesSlice = createSlice({
     },
     setEditedEntity: (state, action) => {
       state.editedEntity = action.payload;
+      state.entityEditedAt = Date.now();
     },
     //
     triggerEntitiesUpdate: (state) => {

@@ -17,6 +17,7 @@ import FieldOptionKey from "./FieldOptionKey";
 import FieldOptionKeyFromIconsVariantToolbar from "./FieldOptionKeyFromIconsVariantToolbar";
 import FieldCheck from "./FieldCheck";
 import FieldButton from "./FieldButton";
+import FieldSlider from "./FieldSlider";
 
 import FieldZonesVariantGrid from "./FieldZonesVariantGrid";
 import FieldZoneVariantGrid from "./FieldZoneVariantGrid";
@@ -100,6 +101,20 @@ export default function FormGenericV2({
               onChange={(newValue) =>
                 handleFieldValueChange(field.key, newValue)
               }
+            />
+          );
+        }
+
+        if (field?.type === "slider") {
+          return (
+            <FieldSlider
+              key={field.key}
+              label={field.label}
+              value={value}
+              onChange={(newValue) =>
+                handleFieldValueChange(field.key, newValue)
+              }
+              options={field.options}
             />
           );
         }

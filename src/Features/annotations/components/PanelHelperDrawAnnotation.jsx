@@ -5,6 +5,8 @@ import { Box, Typography } from "@mui/material";
 import Panel from "Features/layout/components/Panel";
 import BoxCenter from "Features/layout/components/BoxCenter";
 
+import SectionEditedAnnotationNextPoint from "./SectionEditedAnnotationNextPoint";
+
 export default function PanelHelperDrawAnnotation() {
   const dispatch = useDispatch();
 
@@ -16,7 +18,7 @@ export default function PanelHelperDrawAnnotation() {
 
   const helperMap = {
     MARKER: "1 click = 1 annotation",
-    POLYLINE: "Dbl click = fin du dessin",
+    POLYLINE: "Dbl click / ENTER = fin du dessin",
     POLYGONE: "1 click = 1 point",
     RECTANGLE: "1er click = 1er point, 2nd click = fin du dessin",
   };
@@ -25,8 +27,16 @@ export default function PanelHelperDrawAnnotation() {
 
   return (
     <Panel>
-      <BoxCenter>
-        <Typography>{helperS}</Typography>
+      <BoxCenter sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        {["POLYLINE", "RECTANGLE"].includes(enabledDrawingMode) && (
+          <Box sx={{ p: 1 }}>
+            <Box sx={{ bgcolor: "white" }}>
+              <SectionEditedAnnotationNextPoint />
+            </Box>
+          </Box>
+        )}
+
+        <Typography sx={{ mt: 2 }}>{helperS}</Typography>
       </BoxCenter>
     </Panel>
   );

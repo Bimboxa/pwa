@@ -13,7 +13,17 @@ export default class BaseMap {
   name;
   image;
 
-  constructor({ id, createdAt, projectId, listingId, name, image, meterByPx }) {
+  constructor({
+    id,
+    createdAt,
+    projectId,
+    listingId,
+    name,
+    image,
+    meterByPx,
+    opacity,
+    grayScale,
+  }) {
     this.id = id;
     this.createdAt = createdAt;
     this.projectId = projectId;
@@ -21,12 +31,29 @@ export default class BaseMap {
     this.name = name;
     this.image = image;
     this.meterByPx = meterByPx;
+    this.opacity = opacity;
+    this.grayScale = grayScale;
   }
 
   // STATIC METHOD
 
-  static async create({ projectId, name, imageFile, image }) {
-    const baseMap = new BaseMap({ projectId, name, image });
+  static async create({
+    projectId,
+    name,
+    imageFile,
+    image,
+    opacity,
+    grayScale,
+    meterByPx,
+  }) {
+    const baseMap = new BaseMap({
+      projectId,
+      name,
+      image,
+      opacity,
+      grayScale,
+      meterByPx,
+    });
     await baseMap.initialize({ imageFile });
     return baseMap;
   }
@@ -93,6 +120,8 @@ export default class BaseMap {
       name: this.name,
       image: this.image.toJSON(),
       meterByPx: this.meterByPx,
+      opacity: this.opacity,
+      grayScale: this.grayScale,
     };
   }
 

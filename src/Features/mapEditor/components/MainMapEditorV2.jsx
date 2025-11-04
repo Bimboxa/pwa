@@ -112,8 +112,13 @@ export default function MainMapEditorV2() {
 
   const mainBaseMap = useMainBaseMap();
   const basePoseInBg = useSelector((s) => s.mapEditor.baseMapPoseInBg);
-  const baseMapOpacity = useSelector((s) => s.mapEditor.baseMapOpacity);
-  const baseMapGrayScale = useSelector((s) => s.mapEditor.baseMapGrayScale);
+  //const baseMapOpacity = useSelector((s) => s.mapEditor.baseMapOpacity);
+  //const baseMapGrayScale = useSelector((s) => s.mapEditor.baseMapGrayScale);
+  const baseMapOpacity = mainBaseMap?.opacity;
+  const baseMapGrayScale = mainBaseMap?.grayScale;
+
+  console.log("debug_411_baseMapOpacity", baseMapOpacity);
+
   const centerBaseMapTriggeredAt = useSelector(
     (s) => s.mapEditor.centerBaseMapTriggeredAt
   );
@@ -159,9 +164,7 @@ export default function MainMapEditorV2() {
     (s) => s.mapEditor.drawingPolylinePoints
   );
 
-  function handlePolylineComplete(points) {
-    dispatch(setDrawingPolylinePoints(points));
-  }
+  const handlePolylineCompleteRef = useRef();
 
   // state - edited rectangle
 
@@ -268,6 +271,13 @@ export default function MainMapEditorV2() {
           dispatch(setNewAnnotation(null));
           dispatch(setAnchorPosition(null));
         }
+      } else if (e.key === "Enter") {
+        if (
+          enabledDrawingMode === "POLYLINE" &&
+          drawingPolylinePoints?.length >= 2
+        ) {
+          handlePolylineCompleteRef.current?.(drawingPolylinePoints);
+        }
       } else if (
         selectedItem?.type === "ENTITY" &&
         (e.key === "Delete" || e.key === "Backspace")
@@ -280,7 +290,7 @@ export default function MainMapEditorV2() {
     return () => {
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [enabledDrawingMode, selectedItem?.type]);
+  }, [enabledDrawingMode, selectedItem?.type, drawingPolylinePoints]);
 
   async function handleNewAnnotation(annotation) {
     if (annotation.type === "MARKER") {
@@ -452,6 +462,9 @@ export default function MainMapEditorV2() {
       console.error("Error creating polyline:", error);
     }
   }
+
+  // Store the function in ref for use in useEffect
+  handlePolylineCompleteRef.current = handlePolylineComplete;
 
   // Add rectangle completion handler
   async function handleRectangleComplete(points) {

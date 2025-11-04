@@ -61,7 +61,7 @@ export default function ListItemEntityVariantDefault({
   function handleEditClick(e) {
     e.stopPropagation();
     e.preventDefault();
-    console.log("[EDIT] entity", onEditClick);
+
     if (onEditClick) {
       onEditClick(entity);
     }
