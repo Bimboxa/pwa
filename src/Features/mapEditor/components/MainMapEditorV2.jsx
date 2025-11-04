@@ -221,9 +221,16 @@ export default function MainMapEditorV2() {
     const hit = nativeTarget.closest?.("[data-node-type]");
 
     if (hit) {
-      const { nodeId, nodeListingId, nodeType, annotationType } = hit.dataset;
+      const { nodeId, nodeListingId, nodeType, annotationType, pointIndex } =
+        hit.dataset;
       dispatch(
-        setClickedNode({ id: nodeId, nodeListingId, nodeType, annotationType })
+        setClickedNode({
+          id: nodeId,
+          nodeListingId,
+          nodeType,
+          annotationType,
+          pointIndex,
+        })
       );
     } else {
       dispatch(setClickedNode(null));

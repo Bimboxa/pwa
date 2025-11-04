@@ -184,6 +184,8 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates(
                       bgcolor: "white",
                       alignItems: "center",
                       justifyContent: "space-between",
+                      px: 1,
+                      py: 0.5,
                     }}
                   >
                     <Box sx={{ display: "flex", alignItems: "center" }}>
