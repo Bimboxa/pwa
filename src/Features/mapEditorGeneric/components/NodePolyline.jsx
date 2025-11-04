@@ -1,7 +1,12 @@
 // NodePolyline.js
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+
+import {
+  setAnchorPosition,
+  setClickedNode,
+} from "Features/contextMenu/contextMenuSlice";
 
 import theme from "Styles/theme";
 
@@ -39,6 +44,7 @@ export default function NodePolyline({
 }) {
   // data
 
+  const dispatch = useDispatch();
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
 
   // --- data props for hit-testing in your editor ---
@@ -135,11 +141,25 @@ export default function NodePolyline({
 
   // Calculate other stroke widths - always scale to maintain constant screen size
   const hoverStrokeWidth = STROKE_WIDTH_HOVER * invScale;
-  const hitStrokeWidth = HOVER_HIT_WIDTH * invScale;
+
+  // Fixed 10px visual hit area width regardless of world/container scale
+  const FIXED_HIT_WIDTH_VISUAL = 10; // px
+  const hitStrokeWidth = useMemo(() => {
+    if (showBgImage) {
+      // When showBgImage is true, scale with containerK to maintain fixed visual size
+      return FIXED_HIT_WIDTH_VISUAL / containerK;
+    } else {
+      // When showBgImage is false, use invScale to maintain fixed visual size
+      return FIXED_HIT_WIDTH_VISUAL * invScale;
+    }
+  }, [showBgImage, containerK, invScale]);
 
   // ----- Hover + dragging state -----
   const [hoverIdx, setHoverIdx] = useState(null);
   const draggingRef = useRef({ active: false, idx: -1, pointerId: null });
+
+  // Point insertion on hover
+  const [segmentProjection, setSegmentProjection] = useState(null); // { segmentIdx: number, point: { x: number, y: number } (relative 0..1) }
 
   // temp points while dragging (and rAF throttle)
   const tempPointsRef = useRef(null);
@@ -150,6 +170,13 @@ export default function NodePolyline({
     tempPointsRef.current = null;
     setTempPoints(null);
   }, [polyline?.points?.reduce((acc, p) => acc + p.x + p.y, 0).toString()]);
+
+  // Clear segment projection when selection or drawing state changes
+  useEffect(() => {
+    if (!selected || isDrawing || draggingRef.current.active) {
+      setSegmentProjection(null);
+    }
+  }, [selected, isDrawing]);
 
   // drawing preview (moving mouse point)
   const [currentMousePos, setCurrentMousePos] = useState(null);
@@ -182,6 +209,77 @@ export default function NodePolyline({
     }
   }
 
+  // Calculate orthogonal projection of point onto line segment and distance
+  // Returns { projection: {x, y}, t: number (0..1), distSq: number } or null if no valid projection
+  function projectOntoSegment(pointPx, segStartPx, segEndPx) {
+    const dx = segEndPx.x - segStartPx.x;
+    const dy = segEndPx.y - segStartPx.y;
+    const lenSq = dx * dx + dy * dy;
+
+    if (lenSq < 1e-10) {
+      // Degenerate segment (start === end)
+      return null;
+    }
+
+    // t is the parametric position along the segment (0 = start, 1 = end)
+    const t = Math.max(
+      0,
+      Math.min(
+        1,
+        ((pointPx.x - segStartPx.x) * dx + (pointPx.y - segStartPx.y) * dy) /
+          lenSq
+      )
+    );
+
+    const projection = {
+      x: segStartPx.x + t * dx,
+      y: segStartPx.y + t * dy,
+    };
+
+    const distSq =
+      (pointPx.x - projection.x) ** 2 + (pointPx.y - projection.y) ** 2;
+
+    return { projection, t, distSq };
+  }
+
+  // Find closest segment and projection point
+  function findClosestSegmentAndProjection(mousePx, points) {
+    if (points.length < 2) return null;
+
+    let closestSegmentIdx = -1;
+    let closestProjection = null;
+    let minDistSq = Infinity;
+
+    // Check each segment (including closing segment if closeLine)
+    const numSegments = closeLine ? points.length : points.length - 1;
+
+    for (let i = 0; i < numSegments; i++) {
+      const p1 = points[i];
+      const p2 = points[(i + 1) % points.length];
+
+      const segStartPx = { x: p1.x * w, y: p1.y * h };
+      const segEndPx = { x: p2.x * w, y: p2.y * h };
+
+      const proj = projectOntoSegment(mousePx, segStartPx, segEndPx);
+      if (proj && proj.distSq < minDistSq) {
+        minDistSq = proj.distSq;
+        closestSegmentIdx = i;
+        closestProjection = {
+          x: proj.projection.x / w,
+          y: proj.projection.y / h,
+          t: proj.t,
+        };
+      }
+    }
+
+    if (closestSegmentIdx === -1) return null;
+
+    return {
+      segmentIdx: closestSegmentIdx,
+      point: { x: closestProjection.x, y: closestProjection.y },
+    };
+  }
+
   // ---------- Anchor drag ----------
   function onAnchorPointerDown(e, idx) {
     e.preventDefault();
@@ -203,6 +301,26 @@ export default function NodePolyline({
 
     tempPointsRef.current = basePoints.map((p) => ({ ...p }));
     scheduleTempCommit();
+  }
+
+  // ---------- Anchor right-click ----------
+  function onAnchorContextMenu(e, idx) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Dispatch actions to open context menu with point info
+    dispatch(
+      setClickedNode({
+        id: polyline?.id,
+        pointIndex: idx,
+      })
+    );
+    dispatch(
+      setAnchorPosition({
+        x: e.clientX,
+        y: e.clientY,
+      })
+    );
   }
 
   function onDocPointerMove(e) {
@@ -416,8 +534,48 @@ export default function NodePolyline({
     : HATCHING_SPACING * invScale;
   const hatchStroke = showBgImage ? 1.5 / containerK : 1.5 * invScale;
 
+  // Shared mouse move handler for tracking segment projection
+  // This is attached to the parent group to ensure continuous tracking
+  function handleMouseMoveForProjection(e) {
+    if (isDrawing || !selected || draggingRef.current.active) {
+      setSegmentProjection(null);
+      return;
+    }
+
+    // Convert mouse position to base-local px
+    const mousePx = toBaseFromClient(e.clientX, e.clientY);
+
+    // Check distance to existing anchors - if too close, don't show projection
+    const ANCHOR_PROXIMITY_THRESHOLD = HIT_R * invScale * 2;
+    let tooCloseToAnchor = false;
+
+    for (const p of committedRel) {
+      const anchorPx = { x: p.x * w, y: p.y * h };
+      const distSq =
+        (mousePx.x - anchorPx.x) ** 2 + (mousePx.y - anchorPx.y) ** 2;
+      if (distSq < ANCHOR_PROXIMITY_THRESHOLD ** 2) {
+        tooCloseToAnchor = true;
+        break;
+      }
+    }
+
+    if (tooCloseToAnchor) {
+      setSegmentProjection(null);
+      return;
+    }
+
+    // Find closest segment and projection
+    const result = findClosestSegmentAndProjection(mousePx, committedRel);
+
+    if (result) {
+      setSegmentProjection(result);
+    } else {
+      setSegmentProjection(null);
+    }
+  }
+
   return (
-    <g {...dataProps}>
+    <g {...dataProps} onMouseMove={handleMouseMoveForProjection}>
       {/* SVG definitions for hatching pattern */}
       {showFill && fillType === "HATCHING" && (
         <defs>
@@ -461,19 +619,23 @@ export default function NodePolyline({
         />
       )}
 
-      {/* WIDE INVISIBLE OVERLAY (hover/click comfort) */}
+      {/* WIDE INVISIBLE OVERLAY (hover/click comfort) - RED FOR DEBUG */}
       {previewPx.length >= 2 && (
         <polyline
           points={helperPointsStr}
           fill="none"
-          stroke="transparent"
+          stroke="red"
           strokeWidth={hitStrokeWidth}
+          strokeOpacity={0}
           style={{ cursor: isDrawing ? "inherit" : "pointer" }}
           onMouseEnter={() => {
             if (!isDrawing) setHoverIdx("line");
           }}
           onMouseLeave={() => {
-            if (!isDrawing) setHoverIdx(null);
+            if (!isDrawing) {
+              setHoverIdx(null);
+              // Projection tracking is handled at parent level
+            }
           }}
         />
       )}
@@ -597,6 +759,7 @@ export default function NodePolyline({
                   !draggingRef.current.active && setHoverIdx(null)
                 }
                 onPointerDown={(e) => onAnchorPointerDown(e, i)}
+                onContextMenu={(e) => onAnchorContextMenu(e, i)}
               />
               <circle
                 cx={px}
@@ -610,6 +773,50 @@ export default function NodePolyline({
             </g>
           );
         })}
+
+      {/* POINT INSERTION INDICATOR */}
+      {selected &&
+        segmentProjection &&
+        !isDrawing &&
+        !draggingRef.current.active && (
+          <g
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+
+              // Insert the point at the correct position
+              const newPoints = [...committedRel];
+              const insertIdx = segmentProjection.segmentIdx + 1;
+              newPoints.splice(insertIdx, 0, segmentProjection.point);
+
+              // Update the polyline
+              if (onPointsChange) onPointsChange(newPoints);
+              if (onChange) onChange({ ...polyline, points: newPoints });
+
+              // Clear the projection
+              setSegmentProjection(null);
+            }}
+            style={{ cursor: "pointer" }}
+          >
+            <circle
+              cx={segmentProjection.point.x * w}
+              cy={segmentProjection.point.y * h}
+              r={HIT_R * invScale}
+              fill="rgba(0,102,204,0.1)"
+              stroke="#0066cc"
+              strokeWidth={2 * invScale}
+            />
+            <circle
+              cx={segmentProjection.point.x * w}
+              cy={segmentProjection.point.y * h}
+              r={ANCHOR_R_HOVERED * invScale}
+              fill="#0066cc"
+              stroke="#fff"
+              strokeWidth={2 * invScale}
+              style={{ pointerEvents: "none" }}
+            />
+          </g>
+        )}
     </g>
   );
 }
