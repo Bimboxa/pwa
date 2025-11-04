@@ -1,34 +1,12 @@
 // NodePolyline.js
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
-
 import { useSelector, useDispatch } from "react-redux";
-
 import {
   setAnchorPosition,
   setClickedNode,
 } from "Features/contextMenu/contextMenuSlice";
-
 import theme from "Styles/theme";
 
-/**
- * Props:
- * - polyline: {
- *     id?: string,
- *     listingId?: string,
- *     points: Array<{x:number,y:number}>, // relative 0..1
- *     strokeColor?: string,
- *     closeLine?: boolean,
- *     fillColor?: string,
- *     fillOpacity?: number,
- *   }
- * - imageSize: { w:number, h:number }                  // base image px
- * - toBaseFromClient: (clientX:number, clientY:number) => { x:number, y:number } // base-local px
- * - isDrawing?: boolean
- * - onComplete?: (points) => void                      // finalize polygon
- * - onPointsChange?: (points) => void                  // after anchor drag
- * - onChange?: (polyline) => void                      // legacy (full object)
- * - selected?: boolean                                 // show anchors when true
- */
 export default function NodePolyline({
   polyline,
   imageSize,
@@ -39,15 +17,12 @@ export default function NodePolyline({
   onPointsChange,
   onChange,
   selected,
-  worldScale = 1, // ← Add this
-  containerK = 1, // ← Add this
+  worldScale = 1,
+  containerK = 1,
 }) {
-  // data
-
   const dispatch = useDispatch();
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
 
-  // --- data props for hit-testing in your editor ---
   const dataProps = {
     "data-node-id": polyline?.id,
     "data-node-listing-id": polyline?.listingId,
@@ -55,113 +30,67 @@ export default function NodePolyline({
     "data-annotation-type": "POLYLINE",
   };
 
-  // --- polyline config ---
   const basePoints = polyline?.points || [];
   const {
     strokeColor = polyline?.strokeColor ??
       polyline?.fillColor ??
       theme.palette.secondary.main,
-    closeLine = false,
+    closeLine = polyline?.closeLine ?? false,
     fillColor = polyline?.fillColor ?? theme.palette.secondary.main,
     fillOpacity = polyline?.fillOpacity ?? 0.8,
     fillType = polyline?.fillType ?? "SOLID",
-
     strokeType = polyline?.strokeType ?? "SOLID",
     strokeOpacity = polyline?.strokeOpacity ?? 1,
     strokeWidth = polyline?.strokeWidth ?? 2,
     strokeWidthUnit = polyline?.strokeWidthUnit ?? "PX",
   } = polyline || {};
 
-  // --- image size ---
   const w = imageSize?.w || 1;
   const h = imageSize?.h || 1;
 
-  // --- UI constants ---
-  const HIT_R = 12; // px, anchor hit radius in SCREEN space
-  const ANCHOR_R = 4; // px, visual anchor radius in SCREEN space
-  const ANCHOR_R_HOVERED = 5; // px, hovered anchor radius in SCREEN space
-  const STROKE_WIDTH_HOVER = 3; // px, hovered stroke width
-  const HOVER_HIT_WIDTH = 12; // px, invisible hover area width
-  const TEMP_STROKE_WIDTH = 2; // px, temporary drawing lines width
-  const CLOSE_TOL_PX = 14; // px in *base* space (tweak/scale if needed)
-  const HATCHING_SPACING = 12; // px, fixed spacing in world reference when showBgImage is true
+  // UI
+  const HIT_R = 12;
+  const ANCHOR_R = 4;
+  const ANCHOR_R_HOVERED = 5;
+  const CLOSE_TOL_PX = 14;
+  const HATCHING_SPACING = 12;
 
-  // Calculate the inverse scale to keep elements constant screen size
+  // keep UI constant on screen
   const totalScale = showBgImage ? 1 : worldScale * containerK;
   const invScale = totalScale > 0 ? (showBgImage ? 1 : 1 / totalScale) : 1;
 
-  // Compute actual stroke width in px based on strokeWidth, strokeWidthUnit, and baseMapMeterByPx
   const computedStrokeWidthPx = useMemo(() => {
     let widthInPx = strokeWidth;
     const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx;
-
-    // Convert cm to px if needed
-    if (isCmUnit) {
-      // Convert cm to meters (1 cm = 0.01 m), then divide by meters per pixel
-      const widthInMeters = strokeWidth * 0.01;
-      widthInPx = widthInMeters / baseMapMeterByPx;
-    }
-
-    // If strokeWidthUnit is "CM" and baseMapMeterByPx is not null, keep the width consistent with baseMap
-    // (don't scale inversely to keep constant screen size)
-    if (isCmUnit) {
-      return widthInPx;
-    }
-
-    // Apply scaling based on showBgImage for PX units
-    // If showBgImage is false: scale inversely to keep constant screen size
-    // If showBgImage is true: use the px value directly (already in base/world reference)
+    if (isCmUnit) return (strokeWidth * 0.01) / baseMapMeterByPx;
     return showBgImage ? widthInPx : widthInPx * invScale;
   }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, showBgImage, invScale]);
 
-  // Compute stroke attributes based on strokeType
   const strokeProps = useMemo(() => {
-    if (strokeType === "NONE") {
-      return {
-        stroke: "none",
-        strokeOpacity: 0,
-      };
-    }
-
+    if (strokeType === "NONE") return { stroke: "none", strokeOpacity: 0 };
     const props = {
       stroke: strokeColor,
       strokeOpacity: strokeOpacity ?? 1,
       strokeWidth: computedStrokeWidthPx,
     };
-
     if (strokeType === "DASHED") {
-      // Create a dash array proportional to stroke width
-      const dashLength = computedStrokeWidthPx * 3;
-      const gapLength = computedStrokeWidthPx * 2;
-      props.strokeDasharray = `${dashLength} ${gapLength}`;
+      const dash = computedStrokeWidthPx * 3;
+      const gap = computedStrokeWidthPx * 2;
+      props.strokeDasharray = `${dash} ${gap}`;
     }
-
     return props;
   }, [strokeType, strokeColor, strokeOpacity, computedStrokeWidthPx]);
 
-  // Calculate other stroke widths - always scale to maintain constant screen size
-  const hoverStrokeWidth = STROKE_WIDTH_HOVER * invScale;
+  const hitStrokeWidth = useMemo(
+    () => (showBgImage ? 10 / containerK : 10 * invScale),
+    [showBgImage, containerK, invScale]
+  );
 
-  // Fixed 10px visual hit area width regardless of world/container scale
-  const FIXED_HIT_WIDTH_VISUAL = 10; // px
-  const hitStrokeWidth = useMemo(() => {
-    if (showBgImage) {
-      // When showBgImage is true, scale with containerK to maintain fixed visual size
-      return FIXED_HIT_WIDTH_VISUAL / containerK;
-    } else {
-      // When showBgImage is false, use invScale to maintain fixed visual size
-      return FIXED_HIT_WIDTH_VISUAL * invScale;
-    }
-  }, [showBgImage, containerK, invScale]);
-
-  // ----- Hover + dragging state -----
+  // state
   const [hoverIdx, setHoverIdx] = useState(null);
   const draggingRef = useRef({ active: false, idx: -1, pointerId: null });
+  const [segmentProjection, setSegmentProjection] = useState(null);
 
-  // Point insertion on hover
-  const [segmentProjection, setSegmentProjection] = useState(null); // { segmentIdx: number, point: { x: number, y: number } (relative 0..1) }
-
-  // temp points while dragging (and rAF throttle)
   const tempPointsRef = useRef(null);
   const [tempPoints, setTempPoints] = useState(null);
   const rafIdRef = useRef(null);
@@ -169,24 +98,22 @@ export default function NodePolyline({
   useLayoutEffect(() => {
     tempPointsRef.current = null;
     setTempPoints(null);
-  }, [polyline?.points?.reduce((acc, p) => acc + p.x + p.y, 0).toString()]);
+  }, [
+    polyline?.points?.map((p) => `${p.x},${p.y},${p.type ?? ""}`).join("|") ??
+      "",
+  ]);
 
-  // Clear segment projection when selection or drawing state changes
   useEffect(() => {
-    if (!selected || isDrawing || draggingRef.current.active) {
+    if (!selected || isDrawing || draggingRef.current.active)
       setSegmentProjection(null);
-    }
   }, [selected, isDrawing]);
 
-  // drawing preview (moving mouse point)
+  // drawing preview
   const [currentMousePos, setCurrentMousePos] = useState(null);
   const nextPosRef = useRef(null);
   const moveRafRef = useRef(null);
-
-  // closing helper (near first point while drawing)
   const [showCloseHelper, setShowCloseHelper] = useState(false);
 
-  // ---------- helpers ----------
   const scheduleTempCommit = () => {
     if (rafIdRef.current != null) return;
     rafIdRef.current = requestAnimationFrame(() => {
@@ -195,102 +122,212 @@ export default function NodePolyline({
     });
   };
 
-  // Constrain a base-local px point to H/V relative to a base-local px origin when Shift is pressed.
   function constrainIfShift(e, ptPx, originPx) {
     if (!e.shiftKey || !originPx) return ptPx;
     const dx = ptPx.x - originPx.x;
     const dy = ptPx.y - originPx.y;
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      // angle < 45° → horizontal
-      return { x: ptPx.x, y: originPx.y };
-    } else {
-      // angle > 45° → vertical
-      return { x: originPx.x, y: ptPx.y };
-    }
+    return Math.abs(dx) >= Math.abs(dy)
+      ? { x: ptPx.x, y: originPx.y }
+      : { x: originPx.x, y: ptPx.y };
   }
 
-  // Calculate orthogonal projection of point onto line segment and distance
-  // Returns { projection: {x, y}, t: number (0..1), distSq: number } or null if no valid projection
-  function projectOntoSegment(pointPx, segStartPx, segEndPx) {
-    const dx = segEndPx.x - segStartPx.x;
-    const dy = segEndPx.y - segStartPx.y;
-    const lenSq = dx * dx + dy * dy;
+  // ===== Geometry helpers (SVG y-down)
+  const toPx = (p) => ({ x: p.x * w, y: p.y * h });
+  const typeOf = (p) => (p?.type === "circle" ? "circle" : "square");
+  const wrap = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  const angDown = (c, p) => Math.atan2(p.y - c.y, p.x - c.x);
 
-    if (lenSq < 1e-10) {
-      // Degenerate segment (start === end)
-      return null;
+  function circleFromThreePoints(p0, p1, p2) {
+    const ax = p1.x - p0.x,
+      ay = p1.y - p0.y;
+    const bx = p2.x - p0.x,
+      by = p2.y - p0.y;
+    const cross = ax * by - ay * bx;
+    if (Math.abs(cross) < 1e-9) return null;
+    const m1 = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
+    const m2 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+    const d1 = { x: -ay, y: ax };
+    const d2 = { x: -by, y: bx };
+    const denom = d1.x * d2.y - d1.y * d2.x;
+    if (Math.abs(denom) < 1e-9) return null;
+    const t = ((m2.x - m1.x) * d2.y - (m2.y - m1.y) * d2.x) / denom;
+    const center = { x: m1.x + t * d1.x, y: m1.y + t * d1.y };
+    const r = Math.hypot(p0.x - center.x, p0.y - center.y);
+    return { center, r };
+  }
+
+  // angle utilities to keep a0 -> a1 -> a2 monotonic in one direction
+  function betweenCW(a0, a1, a2) {
+    a0 = wrap(a0);
+    a1 = wrap(a1);
+    a2 = wrap(a2);
+    return a0 <= a2 ? a1 >= a0 && a1 <= a2 : a1 >= a0 || a1 <= a2;
+  }
+  function unwrapMonotonic(a0, a1, a2, dirCW) {
+    let A0 = wrap(a0),
+      A1 = wrap(a1),
+      A2 = wrap(a2);
+    if (dirCW) {
+      if (A1 < A0) A1 += 2 * Math.PI;
+      if (A2 < A1) A2 += 2 * Math.PI;
+    } else {
+      if (A1 > A0) A1 -= 2 * Math.PI;
+      if (A2 > A1) A2 -= 2 * Math.PI;
+    }
+    return [A0, A1, A2];
+  }
+
+  // ----- Path builder (includes the fixed S–C–S arc logic)
+  function buildPathAndMap(relPoints, close) {
+    const res = { d: "", segmentMap: [] };
+    if (!relPoints?.length) return res;
+
+    const pts = relPoints.map(toPx);
+    const types = relPoints.map(typeOf);
+    const n = pts.length;
+
+    const dParts = [`M ${pts[0].x} ${pts[0].y}`];
+    if (n === 1) {
+      res.d = dParts.join(" ");
+      return res;
     }
 
-    // t is the parametric position along the segment (0 = start, 1 = end)
+    const idx = (i) => (close ? (i + n) % n : i);
+    const limit = close ? n : n - 1;
+
+    let i = 0;
+    while (i < limit) {
+      const i0 = idx(i);
+      const i1 = idx(i + 1);
+      const t0 = types[i0];
+      const t1 = types[i1];
+
+      if (t0 === "square" && t1 === "circle") {
+        // find next square
+        let j = i + 1;
+        while (j < i + n && types[idx(j)] === "circle") j += 1;
+        const i2 = idx(j);
+
+        if (!close && i2 >= n) {
+          dParts.push(`L ${pts[i1].x} ${pts[i1].y}`);
+          res.segmentMap.push({ startPointIdx: i0, endPointIdx: i1 });
+          i += 1;
+          continue;
+        }
+
+        if (i2 === i0 + 2) {
+          // exact S–C–S → draw TWO arc commands on the SAME circle
+          const P0 = pts[i0],
+            P1 = pts[i0 + 1],
+            P2 = pts[i2];
+          const circ = circleFromThreePoints(P0, P1, P2);
+
+          if (!circ || !isFinite(circ.r) || circ.r <= 0) {
+            // fall back to lines
+            dParts.push(`L ${P1.x} ${P1.y}`);
+            dParts.push(`L ${P2.x} ${P2.y}`);
+            res.segmentMap.push({ startPointIdx: i0, endPointIdx: i0 + 1 });
+            res.segmentMap.push({ startPointIdx: i0 + 1, endPointIdx: i2 });
+          } else {
+            const { center: C, r } = circ;
+
+            // angles (SVG y-down)
+            const a0 = angDown(C, P0);
+            const a1 = angDown(C, P1);
+            const a2 = angDown(C, P2);
+
+            // choose direction so P1 is between P0 and P2
+            const dirCW = betweenCW(a0, a1, a2);
+            const [A0, A1, A2] = unwrapMonotonic(a0, a1, a2, dirCW);
+
+            const span01 = Math.abs(A1 - A0);
+            const span12 = Math.abs(A2 - A1);
+
+            // flags for both sub-arcs — SAME sweep for both, large-arc per span
+            const sweep = dirCW ? 1 : 0;
+            const large01 = span01 > Math.PI ? 1 : 0;
+            const large12 = span12 > Math.PI ? 1 : 0;
+
+            // emit two true circle arcs sharing r & sweep → same center
+            dParts.push(`A ${r} ${r} 0 ${large01} ${sweep} ${P1.x} ${P1.y}`);
+            dParts.push(`A ${r} ${r} 0 ${large12} ${sweep} ${P2.x} ${P2.y}`);
+
+            res.segmentMap.push({
+              startPointIdx: i0,
+              endPointIdx: i0 + 1,
+              isArc: true,
+            });
+            res.segmentMap.push({
+              startPointIdx: i0 + 1,
+              endPointIdx: i2,
+              isArc: true,
+            });
+          }
+
+          i += 2; // consumed 3 points
+          continue;
+        }
+
+        // several circles between squares → simple smooth fallback (unchanged)
+        let k = i;
+        dParts.push(`L ${pts[i0].x} ${pts[i0].y}`);
+        while (k < i2) {
+          const p0 = pts[idx(k)];
+          const p1 = pts[idx(k + 1)];
+          const cp1 = {
+            x: p0.x + (p1.x - p0.x) / 3,
+            y: p0.y + (p1.y - p0.y) / 3,
+          };
+          const cp2 = {
+            x: p1.x - (p1.x - p0.x) / 3,
+            y: p1.y - (p1.y - p0.y) / 3,
+          };
+          dParts.push(`C ${cp1.x},${cp1.y} ${cp2.x},${cp2.y} ${p1.x},${p1.y}`);
+          res.segmentMap.push({
+            startPointIdx: idx(k),
+            endPointIdx: idx(k + 1),
+          });
+          k += 1;
+        }
+        i = i2;
+        continue;
+      }
+
+      // default straight
+      dParts.push(`L ${pts[i1].x} ${pts[i1].y}`);
+      res.segmentMap.push({ startPointIdx: i0, endPointIdx: i1 });
+      i += 1;
+    }
+
+    if (close) dParts.push("Z");
+    res.d = dParts.join(" ");
+    return res;
+  }
+
+  // projection helpers (unchanged; arcs are regular path segments here)
+  function projectOntoSegment(pointPx, a, b) {
+    const dx = b.x - a.x,
+      dy = b.y - a.y,
+      len2 = dx * dx + dy * dy;
+    if (len2 < 1e-9) return null;
     const t = Math.max(
       0,
-      Math.min(
-        1,
-        ((pointPx.x - segStartPx.x) * dx + (pointPx.y - segStartPx.y) * dy) /
-          lenSq
-      )
+      Math.min(1, ((pointPx.x - a.x) * dx + (pointPx.y - a.y) * dy) / len2)
     );
-
-    const projection = {
-      x: segStartPx.x + t * dx,
-      y: segStartPx.y + t * dy,
-    };
-
-    const distSq =
-      (pointPx.x - projection.x) ** 2 + (pointPx.y - projection.y) ** 2;
-
-    return { projection, t, distSq };
+    const proj = { x: a.x + t * dx, y: a.y + t * dy };
+    const d2 = (pointPx.x - proj.x) ** 2 + (pointPx.y - proj.y) ** 2;
+    return { projection: proj, t, distSq: d2 };
   }
 
-  // Find closest segment and projection point
-  function findClosestSegmentAndProjection(mousePx, points) {
-    if (points.length < 2) return null;
-
-    let closestSegmentIdx = -1;
-    let closestProjection = null;
-    let minDistSq = Infinity;
-
-    // Check each segment (including closing segment if closeLine)
-    const numSegments = closeLine ? points.length : points.length - 1;
-
-    for (let i = 0; i < numSegments; i++) {
-      const p1 = points[i];
-      const p2 = points[(i + 1) % points.length];
-
-      const segStartPx = { x: p1.x * w, y: p1.y * h };
-      const segEndPx = { x: p2.x * w, y: p2.y * h };
-
-      const proj = projectOntoSegment(mousePx, segStartPx, segEndPx);
-      if (proj && proj.distSq < minDistSq) {
-        minDistSq = proj.distSq;
-        closestSegmentIdx = i;
-        closestProjection = {
-          x: proj.projection.x / w,
-          y: proj.projection.y / h,
-          t: proj.t,
-        };
-      }
-    }
-
-    if (closestSegmentIdx === -1) return null;
-
-    return {
-      segmentIdx: closestSegmentIdx,
-      point: { x: closestProjection.x, y: closestProjection.y },
-    };
-  }
-
-  // ---------- Anchor drag ----------
+  // dragging
   function onAnchorPointerDown(e, idx) {
     e.preventDefault();
     e.stopPropagation();
-
     draggingRef.current = {
       active: true,
       idx,
       pointerId: e.pointerId ?? "mouse",
     };
-
     document.addEventListener("pointermove", onDocPointerMove, {
       passive: false,
     });
@@ -298,44 +335,24 @@ export default function NodePolyline({
     document.addEventListener("pointercancel", onDocPointerUp, {
       passive: false,
     });
-
     tempPointsRef.current = basePoints.map((p) => ({ ...p }));
     scheduleTempCommit();
   }
-
-  // ---------- Anchor right-click ----------
   function onAnchorContextMenu(e, idx) {
     e.preventDefault();
     e.stopPropagation();
-
-    // Dispatch actions to open context menu with point info
-    dispatch(
-      setClickedNode({
-        id: polyline?.id,
-        pointIndex: idx,
-      })
-    );
-    dispatch(
-      setAnchorPosition({
-        x: e.clientX,
-        y: e.clientY,
-      })
-    );
+    dispatch(setClickedNode({ id: polyline?.id, pointIndex: idx }));
+    dispatch(setAnchorPosition({ x: e.clientX, y: e.clientY }));
   }
-
   function onDocPointerMove(e) {
     if (!draggingRef.current.active) return;
-
-    // pick a reference anchor for Shift constraint: prefer previous, else next
     const i = draggingRef.current.idx;
     const prev = basePoints[i - 1] ?? null;
     const next = basePoints[i + 1] ?? null;
     const refRel = prev || next || null;
     const refPx = refRel ? { x: refRel.x * w, y: refRel.y * h } : null;
 
-    // current mouse in base-local px
     let bl = toBaseFromClient(e.clientX, e.clientY);
-    // apply Shift constrain if needed
     bl = constrainIfShift(e, bl, refPx);
 
     const rx = Math.max(0, Math.min(1, bl.x / w));
@@ -343,39 +360,30 @@ export default function NodePolyline({
 
     if (!tempPointsRef.current)
       tempPointsRef.current = basePoints.map((p) => ({ ...p }));
-    tempPointsRef.current[i] = { x: rx, y: ry };
+    const original = basePoints[i] || tempPointsRef.current[i];
+    tempPointsRef.current[i] = { ...original, x: rx, y: ry };
     scheduleTempCommit();
-
-    e.preventDefault(); // avoid scroll on touchpads while dragging
+    e.preventDefault();
   }
-
   function onDocPointerUp() {
     if (!draggingRef.current.active) return;
     draggingRef.current.active = false;
-
-    const finalPoints = tempPointsRef.current
-      ? tempPointsRef.current.map((p) => ({ ...p }))
-      : basePoints.map((p) => ({ ...p }));
-
-    //tempPointsRef.current = null;
-    //setTempPoints(null);
-
+    const finalPoints = (tempPointsRef.current ?? basePoints).map((p) => ({
+      ...p,
+    }));
     document.removeEventListener("pointermove", onDocPointerMove);
     document.removeEventListener("pointerup", onDocPointerUp);
     document.removeEventListener("pointercancel", onDocPointerUp);
-
-    if (onPointsChange) onPointsChange(finalPoints);
-    if (onChange) onChange({ ...polyline, points: finalPoints });
+    onPointsChange && onPointsChange(finalPoints);
+    onChange && onChange({ ...polyline, points: finalPoints });
   }
 
-  // Add these refs at the top of the component (around line 70)
+  // drawing-mode refs
   const toBaseFromClientRef = useRef(toBaseFromClient);
   const basePointsRef = useRef(basePoints);
   const wRef = useRef(w);
   const hRef = useRef(h);
   const closeLineRef = useRef(closeLine);
-
-  // Update refs on every render
   useEffect(() => {
     toBaseFromClientRef.current = toBaseFromClient;
     basePointsRef.current = basePoints;
@@ -384,55 +392,45 @@ export default function NodePolyline({
     closeLineRef.current = closeLine;
   });
 
-  // ---------- Drawing mode: live mouse point + closing helper ----------
+  // drawing preview / close helper
   useEffect(() => {
     if (!isDrawing) {
       setCurrentMousePos(null);
       setShowCloseHelper(false);
       return;
     }
-
     function onMove(e) {
-      const currentW = wRef.current;
-      const currentH = hRef.current;
-      const currentBasePoints = basePointsRef.current;
-      const currentCloseLine = closeLineRef.current;
-      const currentToBaseFromClient = toBaseFromClientRef.current;
+      const W = wRef.current,
+        H = hRef.current;
+      const pts = basePointsRef.current;
+      const isClosed = closeLineRef.current;
+      const tbf = toBaseFromClientRef.current;
 
-      const lastRel = currentBasePoints[currentBasePoints.length - 1] || null;
-      const lastPx = lastRel
-        ? { x: lastRel.x * currentW, y: lastRel.y * currentH }
-        : null;
+      const lastRel = pts[pts.length - 1] || null;
+      const lastPx = lastRel ? { x: lastRel.x * W, y: lastRel.y * H } : null;
 
-      // base-local px
-      let bl = currentToBaseFromClient(e.clientX, e.clientY);
-      // Shift constrain vs LAST committed point while drawing
+      let bl = tbf(e.clientX, e.clientY);
       bl = constrainIfShift(e, bl, lastPx);
 
-      // update preview position (relative 0..1)
-      const rx = bl.x / currentW;
-      const ry = bl.y / currentH;
+      const rx = bl.x / W;
+      const ry = bl.y / H;
 
-      // closing helper (distance test in base px)
       let showClose = false;
-      if (currentCloseLine) {
-        const firstRel = currentBasePoints[0] || null;
+      if (isClosed) {
+        const firstRel = pts[0] || null;
         const firstPx = firstRel
-          ? { x: firstRel.x * currentW, y: firstRel.y * currentH }
+          ? { x: firstRel.x * W, y: firstRel.y * H }
           : null;
-
-        if (firstPx) {
-          const dx = bl.x - firstPx.x;
-          const dy = bl.y - firstPx.y;
-          if (Math.hypot(dx, dy) <= CLOSE_TOL_PX) {
-            showClose = true;
-          }
-        }
+        if (
+          firstPx &&
+          Math.hypot(bl.x - firstPx.x, bl.y - firstPx.y) <= CLOSE_TOL_PX
+        )
+          showClose = true;
       }
 
       nextPosRef.current = { x: rx, y: ry, showClose };
 
-      if (moveRafRef.current == null) {
+      if (!moveRafRef.current) {
         moveRafRef.current = requestAnimationFrame(() => {
           moveRafRef.current = null;
           if (nextPosRef.current) {
@@ -445,72 +443,51 @@ export default function NodePolyline({
         });
       }
     }
-
     function onDblClick() {
-      const currentBasePoints = basePointsRef.current;
-      if (currentBasePoints.length >= 2) {
-        onComplete && onComplete(currentBasePoints);
+      const pts = basePointsRef.current;
+      if (pts.length >= 2) {
+        onComplete && onComplete(pts);
         setCurrentMousePos(null);
         setShowCloseHelper(false);
       }
     }
-
     document.addEventListener("mousemove", onMove);
     document.addEventListener("dblclick", onDblClick);
-
     return () => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("dblclick", onDblClick);
-      if (moveRafRef.current != null) cancelAnimationFrame(moveRafRef.current);
+      if (moveRafRef.current) cancelAnimationFrame(moveRafRef.current);
       moveRafRef.current = null;
     };
   }, [isDrawing, onComplete, CLOSE_TOL_PX]);
 
-  // ---------- Build preview with moving vertex appended ----------
+  // preview arrays
   const committedRel = useMemo(
     () => tempPoints ?? basePoints,
     [tempPoints, basePoints]
   );
-
-  const previewRel = useMemo(() => {
-    if (isDrawing && currentMousePos && committedRel.length > 0) {
-      return [...committedRel, currentMousePos];
-    }
-    return committedRel;
-  }, [isDrawing, currentMousePos, committedRel]);
-
+  const previewRel = useMemo(
+    () =>
+      isDrawing && currentMousePos && committedRel.length > 0
+        ? [...committedRel, currentMousePos]
+        : committedRel,
+    [isDrawing, currentMousePos, committedRel]
+  );
   const previewPx = useMemo(
     () => previewRel.map((p) => ({ x: p.x * w, y: p.y * h })),
     [previewRel, w, h]
   );
 
-  // helper overlay path (polyline). If closeLine → include closing edge
-  const helperPointsStr = useMemo(() => {
-    if (previewPx.length === 0) return "";
-    const list =
-      closeLine && previewPx.length >= 2
-        ? [...previewPx, previewPx[0]]
-        : previewPx;
-    return list.map((p) => `${p.x},${p.y}`).join(" ");
-  }, [previewPx, closeLine]);
-
-  // polygon points (no duplicate of the first point)
-  const polygonPointsStr = useMemo(
-    () => previewPx.map((p) => `${p.x},${p.y}`).join(" "),
-    [previewPx]
+  const { d: pathD, segmentMap } = useMemo(
+    () => buildPathAndMap(previewRel, closeLine),
+    [previewRel, closeLine]
   );
 
-  const lastCommitted = committedRel.length
-    ? committedRel[committedRel.length - 1]
-    : null;
-  const firstCommitted = committedRel.length ? committedRel[0] : null;
-
-  // cleanup
   useEffect(() => {
     return () => {
-      if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current);
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
-      if (moveRafRef.current != null) cancelAnimationFrame(moveRafRef.current);
+      if (moveRafRef.current) cancelAnimationFrame(moveRafRef.current);
       moveRafRef.current = null;
       document.removeEventListener("pointermove", onDocPointerMove);
       document.removeEventListener("pointerup", onDocPointerUp);
@@ -520,63 +497,131 @@ export default function NodePolyline({
 
   const showFill = closeLine && previewRel.length >= 3;
 
-  // Pattern ID for hatching
+  // hatching
   const patternIdRef = useRef(
     `hatch-polyline-${polyline?.id ?? Math.random().toString(36).slice(2)}`
   );
   const patternId = patternIdRef.current;
-
-  // Hatching pattern parameters
-  // If showBgImage is true: compensate for containerK scaling to keep fixed world reference
-  // If showBgImage is false: scale inversely to keep constant screen size
   const hatchSize = showBgImage
     ? HATCHING_SPACING / containerK
     : HATCHING_SPACING * invScale;
   const hatchStroke = showBgImage ? 1.5 / containerK : 1.5 * invScale;
 
-  // Shared mouse move handler for tracking segment projection
-  // This is attached to the parent group to ensure continuous tracking
+  // projection for insertion (approx; treat path as lines/cubics/arcs)
+  function findClosestSegmentAndProjection(mousePx) {
+    if (previewRel.length < 2) return null;
+    const cmds = pathD.match(/[MmLlCcAa][^MmLlCcAaZz]*/g) || [];
+    let current = { x: 0, y: 0 };
+    let segIdx = -1;
+    let best = { d2: Infinity, proj: null, segIdx: -1 };
+
+    for (const cmd of cmds) {
+      const t = cmd[0];
+      const nums = cmd
+        .slice(1)
+        .trim()
+        .split(/[\s,]+/)
+        .map(parseFloat)
+        .filter((n) => !isNaN(n));
+      if (t === "M") {
+        current = { x: nums[0], y: nums[1] };
+      } else if (t === "L") {
+        segIdx++;
+        const end = { x: nums[0], y: nums[1] };
+        const proj = projectOntoSegment(mousePx, current, end);
+        if (proj && proj.distSq < best.d2) {
+          best = { d2: proj.distSq, proj: proj.projection, segIdx };
+        }
+        current = end;
+      } else if (t === "C") {
+        segIdx++;
+        const cp1 = { x: nums[0], y: nums[1] };
+        const cp2 = { x: nums[2], y: nums[3] };
+        const end = { x: nums[4], y: nums[5] };
+        const B = (tt, p0, c1, c2, p1) => {
+          const mt = 1 - tt,
+            mt2 = mt * mt,
+            mt3 = mt2 * mt,
+            t2 = tt * tt,
+            t3 = t2 * tt;
+          return {
+            x:
+              mt3 * p0.x + 3 * mt2 * tt * c1.x + 3 * mt * t2 * c2.x + t3 * p1.x,
+            y:
+              mt3 * p0.y + 3 * mt2 * tt * c1.y + 3 * mt * t2 * c2.y + t3 * p1.y,
+          };
+        };
+        let bestLocal = { d2: Infinity, pt: null };
+        for (let tt = 0; tt <= 1; tt += 1 / 60) {
+          const p = B(tt, current, cp1, cp2, end);
+          const d2 = (mousePx.x - p.x) ** 2 + (mousePx.y - p.y) ** 2;
+          if (d2 < bestLocal.d2) bestLocal = { d2, pt: p };
+        }
+        if (bestLocal.pt && bestLocal.d2 < best.d2) {
+          best = { d2: bestLocal.d2, proj: bestLocal.pt, segIdx };
+        }
+        current = end;
+      } else if (t === "A") {
+        // Arc command - approximate with sampled points for projection
+        segIdx++;
+        const rx = nums[0];
+        const ry = nums[1];
+        const xAxisRotation = nums[2];
+        const largeArcFlag = nums[3];
+        const sweepFlag = nums[4];
+        const end = { x: nums[5], y: nums[6] };
+        // Sample arc points for projection (simplified)
+        let bestLocal = { d2: Infinity, pt: null };
+        for (let tt = 0; tt <= 1; tt += 0.01) {
+          // Linear interpolation as approximation
+          const p = {
+            x: current.x + (end.x - current.x) * tt,
+            y: current.y + (end.y - current.y) * tt,
+          };
+          const d2 = (mousePx.x - p.x) ** 2 + (mousePx.y - p.y) ** 2;
+          if (d2 < bestLocal.d2) bestLocal = { d2, pt: p };
+        }
+        if (bestLocal.pt && bestLocal.d2 < best.d2) {
+          best = { d2: bestLocal.d2, proj: bestLocal.pt, segIdx };
+        }
+        current = end;
+      }
+    }
+
+    if (best.proj && best.segIdx >= 0 && segmentMap[best.segIdx]) {
+      const segmentInfo = segmentMap[best.segIdx];
+      // Insert after the start point of the segment
+      return {
+        segmentIdx: segmentInfo.startPointIdx,
+        point: { x: best.proj.x / w, y: best.proj.y / h },
+      };
+    }
+    return null;
+  }
+
   function handleMouseMoveForProjection(e) {
     if (isDrawing || !selected || draggingRef.current.active) {
       setSegmentProjection(null);
       return;
     }
-
-    // Convert mouse position to base-local px
     const mousePx = toBaseFromClient(e.clientX, e.clientY);
-
-    // Check distance to existing anchors - if too close, don't show projection
-    const ANCHOR_PROXIMITY_THRESHOLD = HIT_R * invScale * 2;
-    let tooCloseToAnchor = false;
-
+    const threshold = HIT_R * invScale * 2;
     for (const p of committedRel) {
-      const anchorPx = { x: p.x * w, y: p.y * h };
-      const distSq =
-        (mousePx.x - anchorPx.x) ** 2 + (mousePx.y - anchorPx.y) ** 2;
-      if (distSq < ANCHOR_PROXIMITY_THRESHOLD ** 2) {
-        tooCloseToAnchor = true;
-        break;
+      const ap = { x: p.x * w, y: p.y * h };
+      const d2 = (mousePx.x - ap.x) ** 2 + (mousePx.y - ap.y) ** 2;
+      if (d2 < threshold ** 2) {
+        setSegmentProjection(null);
+        return;
       }
     }
-
-    if (tooCloseToAnchor) {
-      setSegmentProjection(null);
-      return;
-    }
-
-    // Find closest segment and projection
-    const result = findClosestSegmentAndProjection(mousePx, committedRel);
-
-    if (result) {
-      setSegmentProjection(result);
-    } else {
-      setSegmentProjection(null);
-    }
+    const resProj = findClosestSegmentAndProjection(mousePx);
+    setSegmentProjection(resProj || null);
   }
 
+  // ---- render
   return (
     <g {...dataProps} onMouseMove={handleMouseMoveForProjection}>
-      {/* SVG definitions for hatching pattern */}
+      {/* hatching */}
       {showFill && fillType === "HATCHING" && (
         <defs>
           <pattern
@@ -590,19 +635,14 @@ export default function NodePolyline({
               stroke={fillColor}
               strokeWidth={hatchStroke}
             />
-            {/* <path
-              d={`M 0 ${hatchSize} L ${hatchSize} 0`}
-              stroke={fillColor}
-              strokeWidth={hatchStroke}
-            /> */}
           </pattern>
         </defs>
       )}
 
-      {/* FILLED POLYGON (preview includes moving vertex) */}
-      {showFill && (
-        <polygon
-          points={polygonPointsStr}
+      {/* FILL */}
+      {closeLine && previewRel.length >= 3 && (
+        <path
+          d={pathD}
           fill={fillType === "HATCHING" ? `url(#${patternId})` : fillColor}
           fillOpacity={fillOpacity ?? 0.8}
           stroke="none"
@@ -610,51 +650,29 @@ export default function NodePolyline({
             pointerEvents: isDrawing ? "none" : "inherit",
             ...(closeLine && !isDrawing && { cursor: "pointer" }),
           }}
-          onMouseEnter={() => {
-            if (!isDrawing) setHoverIdx("polygon");
-          }}
-          onMouseLeave={() => {
-            if (!isDrawing) setHoverIdx(null);
-          }}
+          onMouseEnter={() => !isDrawing && setHoverIdx("polygon")}
+          onMouseLeave={() => !isDrawing && setHoverIdx(null)}
         />
       )}
 
-      {/* WIDE INVISIBLE OVERLAY (hover/click comfort) - RED FOR DEBUG */}
+      {/* INVISIBLE HOVER OVERLAY */}
       {previewPx.length >= 2 && (
-        <polyline
-          points={helperPointsStr}
+        <path
+          d={pathD}
           fill="none"
           stroke="red"
           strokeWidth={hitStrokeWidth}
           strokeOpacity={0}
           style={{ cursor: isDrawing ? "inherit" : "pointer" }}
-          onMouseEnter={() => {
-            if (!isDrawing) setHoverIdx("line");
-          }}
-          onMouseLeave={() => {
-            if (!isDrawing) {
-              setHoverIdx(null);
-              // Projection tracking is handled at parent level
-            }
-          }}
+          onMouseEnter={() => !isDrawing && setHoverIdx("line")}
+          onMouseLeave={() => !isDrawing && setHoverIdx(null)}
         />
       )}
 
-      {/* VISIBLE OUTLINE */}
-      {previewPx.length >= 2 && !closeLine && strokeType !== "NONE" && (
-        <polyline
-          points={helperPointsStr}
-          fill="none"
-          stroke={hoverIdx != null ? "#0066cc" : strokeProps.stroke}
-          strokeWidth={strokeProps.strokeWidth}
-          strokeOpacity={strokeProps.strokeOpacity}
-          strokeDasharray={strokeProps.strokeDasharray}
-          style={{ pointerEvents: "none" }}
-        />
-      )}
-      {previewPx.length >= 2 && closeLine && strokeType !== "NONE" && (
-        <polygon
-          points={polygonPointsStr}
+      {/* OUTLINE */}
+      {previewPx.length >= 2 && strokeType !== "NONE" && (
+        <path
+          d={pathD}
           fill="none"
           stroke={hoverIdx != null ? "#0066cc" : strokeProps.stroke}
           strokeWidth={strokeProps.strokeWidth}
@@ -664,14 +682,14 @@ export default function NodePolyline({
         />
       )}
 
-      {/* TEMP MOVING SEGMENTS */}
+      {/* TEMP DRAW SEGMENTS */}
       {isDrawing &&
         currentMousePos &&
-        lastCommitted &&
+        committedRel.length > 0 &&
         strokeType !== "NONE" && (
           <line
-            x1={lastCommitted.x * w}
-            y1={lastCommitted.y * h}
+            x1={committedRel[committedRel.length - 1].x * w}
+            y1={committedRel[committedRel.length - 1].y * h}
             x2={currentMousePos.x * w}
             y2={currentMousePos.y * h}
             stroke={strokeProps.stroke}
@@ -685,14 +703,13 @@ export default function NodePolyline({
       {isDrawing &&
         closeLine &&
         currentMousePos &&
-        firstCommitted &&
         committedRel.length >= 1 &&
         strokeType !== "NONE" && (
           <line
             x1={currentMousePos.x * w}
             y1={currentMousePos.y * h}
-            x2={firstCommitted.x * w}
-            y2={firstCommitted.y * h}
+            x2={committedRel[0].x * w}
+            y2={committedRel[0].y * h}
             stroke={strokeProps.stroke}
             strokeWidth={computedStrokeWidthPx}
             strokeOpacity={strokeProps.strokeOpacity}
@@ -702,53 +719,23 @@ export default function NodePolyline({
           />
         )}
 
-      {/* CLOSING HELPER ANCHOR (click to commit) */}
-      {isDrawing && closeLine && showCloseHelper && firstCommitted && (
-        <g
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation(); // prevent "add point" handler upstream
-            if (onComplete) onComplete(basePoints);
-            setCurrentMousePos(null);
-            setShowCloseHelper(false);
-          }}
-          style={{ cursor: "pointer" }}
-        >
-          <circle
-            cx={firstCommitted.x * w}
-            cy={firstCommitted.y * h}
-            r={HIT_R * invScale}
-            fill="rgba(0,0,0,0.05)"
-            stroke="#0066cc"
-            strokeWidth={2 * invScale}
-          />
-          <circle
-            cx={firstCommitted.x * w}
-            cy={firstCommitted.y * h}
-            r={ANCHOR_R_HOVERED * invScale}
-            fill="#0066cc"
-            stroke="#fff"
-            strokeWidth={2 * invScale}
-            style={{ pointerEvents: "none" }}
-          />
-        </g>
-      )}
-
-      {/* ANCHOR HANDLES */}
+      {/* ANCHORS */}
       {selected &&
         committedRel.map((p, i) => {
-          const px = p.x * w;
-          const py = p.y * h;
+          const px = p.x * w,
+            py = p.y * h;
+          const isSquare = p?.type !== "circle";
           const hovered =
             hoverIdx === i ||
             (draggingRef.current.active && draggingRef.current.idx === i);
-
+          const anchorSize = (hovered ? ANCHOR_R_HOVERED : ANCHOR_R) * invScale;
+          const hitRadius = HIT_R * invScale;
           return (
             <g key={`anchor-${i}`}>
               <circle
                 cx={px}
                 cy={py}
-                r={HIT_R * invScale}
+                r={hitRadius}
                 fill="transparent"
                 stroke="transparent"
                 style={{
@@ -761,20 +748,33 @@ export default function NodePolyline({
                 onPointerDown={(e) => onAnchorPointerDown(e, i)}
                 onContextMenu={(e) => onAnchorContextMenu(e, i)}
               />
-              <circle
-                cx={px}
-                cy={py}
-                r={(hovered ? ANCHOR_R_HOVERED : ANCHOR_R) * invScale}
-                fill={hovered ? "#0066cc" : "#ff0000"}
-                stroke="#ffffff"
-                strokeWidth={2 * invScale}
-                style={{ pointerEvents: "none" }}
-              />
+              {isSquare ? (
+                <rect
+                  x={px - anchorSize}
+                  y={py - anchorSize}
+                  width={anchorSize * 2}
+                  height={anchorSize * 2}
+                  fill={hovered ? "#0066cc" : "#ff0000"}
+                  stroke="#ffffff"
+                  strokeWidth={2 * invScale}
+                  style={{ pointerEvents: "none" }}
+                />
+              ) : (
+                <circle
+                  cx={px}
+                  cy={py}
+                  r={anchorSize}
+                  fill={hovered ? "#0066cc" : "#ff0000"}
+                  stroke="#ffffff"
+                  strokeWidth={2 * invScale}
+                  style={{ pointerEvents: "none" }}
+                />
+              )}
             </g>
           );
         })}
 
-      {/* POINT INSERTION INDICATOR */}
+      {/* INSERTION INDICATOR */}
       {selected &&
         segmentProjection &&
         !isDrawing &&
@@ -783,17 +783,11 @@ export default function NodePolyline({
             onPointerDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
-
-              // Insert the point at the correct position
               const newPoints = [...committedRel];
               const insertIdx = segmentProjection.segmentIdx + 1;
               newPoints.splice(insertIdx, 0, segmentProjection.point);
-
-              // Update the polyline
-              if (onPointsChange) onPointsChange(newPoints);
-              if (onChange) onChange({ ...polyline, points: newPoints });
-
-              // Clear the projection
+              onPointsChange && onPointsChange(newPoints);
+              onChange && onChange({ ...polyline, points: newPoints });
               setSegmentProjection(null);
             }}
             style={{ cursor: "pointer" }}

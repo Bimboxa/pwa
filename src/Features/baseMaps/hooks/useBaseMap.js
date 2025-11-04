@@ -12,6 +12,6 @@ export default function useBaseMap(options) {
     if (!id) return null;
     const record = await db.baseMaps.get(id);
     if (!record) return null;
-    return BaseMap.createFromRecord(record);
+    return await BaseMap.createFromRecord(record);
   }, [id]);
 }

@@ -1,11 +1,12 @@
 import { Box, Typography, Slider } from "@mui/material";
 
-export default function FieldCheck({ value, onChange, label, options }) {
+export default function FieldSlider({ value, onChange, label, options }) {
   function handleChange(e, value) {
     onChange(value / 100);
   }
 
   const showAsSection = options?.showAsSection;
+
   return (
     <Box
       sx={{
@@ -13,7 +14,7 @@ export default function FieldCheck({ value, onChange, label, options }) {
         alignItems: "center",
         px: 0.5,
         ...(showAsSection
-          ? { borderTop: (theme) => `1px solid ${theme.palette.divider}` }
+          ? { borderTop: (theme) => `1px solid ${theme.palette.divider}`, p: 1 }
           : {}),
       }}
     >
@@ -24,7 +25,7 @@ export default function FieldCheck({ value, onChange, label, options }) {
       <Slider
         size="small"
         sx={{ flex: 1 }}
-        value={value * 100}
+        value={value != null ? value * 100 : 100}
         onChange={handleChange}
       />
     </Box>
