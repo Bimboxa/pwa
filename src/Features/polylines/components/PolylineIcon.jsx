@@ -8,6 +8,8 @@ export default function PolylineIcon({
   closeLine,
   size = 24,
 }) {
+  const color = closeLine ? fillColor : strokeColor;
+
   return (
     <Box
       sx={{
@@ -28,7 +30,7 @@ export default function PolylineIcon({
           alignItems: "center",
           //overflow: "hidden",
           //color: strokeColor,
-          color: fillColor,
+          color,
         }}
       >
         {closeLine ? (

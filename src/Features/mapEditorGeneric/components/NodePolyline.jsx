@@ -27,6 +27,7 @@ import theme from "Styles/theme";
 export default function NodePolyline({
   polyline,
   imageSize,
+  baseMapMeterByPx,
   toBaseFromClient,
   isDrawing = false,
   onComplete,
@@ -58,6 +59,11 @@ export default function NodePolyline({
     fillColor = polyline?.fillColor ?? theme.palette.secondary.main,
     fillOpacity = polyline?.fillOpacity ?? 0.8,
     fillType = polyline?.fillType ?? "SOLID",
+
+    strokeType = polyline?.strokeType ?? "SOLID",
+    strokeOpacity = polyline?.strokeOpacity ?? 1,
+    strokeWidth = polyline?.strokeWidth ?? 2,
+    strokeWidthUnit = polyline?.strokeWidthUnit ?? "PX",
   } = polyline || {};
 
   // --- image size ---
@@ -68,7 +74,6 @@ export default function NodePolyline({
   const HIT_R = 12; // px, anchor hit radius in SCREEN space
   const ANCHOR_R = 4; // px, visual anchor radius in SCREEN space
   const ANCHOR_R_HOVERED = 5; // px, hovered anchor radius in SCREEN space
-  const STROKE_WIDTH = 2; // px, base stroke width
   const STROKE_WIDTH_HOVER = 3; // px, hovered stroke width
   const HOVER_HIT_WIDTH = 12; // px, invisible hover area width
   const TEMP_STROKE_WIDTH = 2; // px, temporary drawing lines width
@@ -79,11 +84,58 @@ export default function NodePolyline({
   const totalScale = showBgImage ? 1 : worldScale * containerK;
   const invScale = totalScale > 0 ? (showBgImage ? 1 : 1 / totalScale) : 1;
 
-  // Calculate stroke widths - always scale to maintain constant screen size
-  const baseStrokeWidth = STROKE_WIDTH * invScale;
+  // Compute actual stroke width in px based on strokeWidth, strokeWidthUnit, and baseMapMeterByPx
+  const computedStrokeWidthPx = useMemo(() => {
+    let widthInPx = strokeWidth;
+    const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx;
+
+    // Convert cm to px if needed
+    if (isCmUnit) {
+      // Convert cm to meters (1 cm = 0.01 m), then divide by meters per pixel
+      const widthInMeters = strokeWidth * 0.01;
+      widthInPx = widthInMeters / baseMapMeterByPx;
+    }
+
+    // If strokeWidthUnit is "CM" and baseMapMeterByPx is not null, keep the width consistent with baseMap
+    // (don't scale inversely to keep constant screen size)
+    if (isCmUnit) {
+      return widthInPx;
+    }
+
+    // Apply scaling based on showBgImage for PX units
+    // If showBgImage is false: scale inversely to keep constant screen size
+    // If showBgImage is true: use the px value directly (already in base/world reference)
+    return showBgImage ? widthInPx : widthInPx * invScale;
+  }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, showBgImage, invScale]);
+
+  // Compute stroke attributes based on strokeType
+  const strokeProps = useMemo(() => {
+    if (strokeType === "NONE") {
+      return {
+        stroke: "none",
+        strokeOpacity: 0,
+      };
+    }
+
+    const props = {
+      stroke: strokeColor,
+      strokeOpacity: strokeOpacity ?? 1,
+      strokeWidth: computedStrokeWidthPx,
+    };
+
+    if (strokeType === "DASHED") {
+      // Create a dash array proportional to stroke width
+      const dashLength = computedStrokeWidthPx * 3;
+      const gapLength = computedStrokeWidthPx * 2;
+      props.strokeDasharray = `${dashLength} ${gapLength}`;
+    }
+
+    return props;
+  }, [strokeType, strokeColor, strokeOpacity, computedStrokeWidthPx]);
+
+  // Calculate other stroke widths - always scale to maintain constant screen size
   const hoverStrokeWidth = STROKE_WIDTH_HOVER * invScale;
   const hitStrokeWidth = HOVER_HIT_WIDTH * invScale;
-  const tempStrokeWidth = TEMP_STROKE_WIDTH * invScale;
 
   // ----- Hover + dragging state -----
   const [hoverIdx, setHoverIdx] = useState(null);
@@ -97,7 +149,7 @@ export default function NodePolyline({
   useLayoutEffect(() => {
     tempPointsRef.current = null;
     setTempPoints(null);
-  }, [polyline]);
+  }, [polyline?.points?.reduce((acc, p) => acc + p.x + p.y, 0).toString()]);
 
   // drawing preview (moving mouse point)
   const [currentMousePos, setCurrentMousePos] = useState(null);
@@ -427,54 +479,62 @@ export default function NodePolyline({
       )}
 
       {/* VISIBLE OUTLINE */}
-      {previewPx.length >= 2 && !closeLine && (
+      {previewPx.length >= 2 && !closeLine && strokeType !== "NONE" && (
         <polyline
           points={helperPointsStr}
           fill="none"
-          stroke={hoverIdx != null ? "#0066cc" : strokeColor}
-          strokeWidth={hoverStrokeWidth}
-          //strokeDasharray="5,5"
+          stroke={hoverIdx != null ? "#0066cc" : strokeProps.stroke}
+          strokeWidth={strokeProps.strokeWidth}
+          strokeOpacity={strokeProps.strokeOpacity}
+          strokeDasharray={strokeProps.strokeDasharray}
           style={{ pointerEvents: "none" }}
         />
       )}
-      {previewPx.length >= 2 && closeLine && (
+      {previewPx.length >= 2 && closeLine && strokeType !== "NONE" && (
         <polygon
           points={polygonPointsStr}
           fill="none"
-          stroke={hoverIdx != null ? "#0066cc" : strokeColor}
-          strokeWidth={hoverStrokeWidth}
-          //strokeDasharray="5,5"
+          stroke={hoverIdx != null ? "#0066cc" : strokeProps.stroke}
+          strokeWidth={strokeProps.strokeWidth}
+          strokeOpacity={strokeProps.strokeOpacity}
+          strokeDasharray={strokeProps.strokeDasharray}
           style={{ pointerEvents: "none" }}
         />
       )}
 
       {/* TEMP MOVING SEGMENTS */}
-      {isDrawing && currentMousePos && lastCommitted && (
-        <line
-          x1={lastCommitted.x * w}
-          y1={lastCommitted.y * h}
-          x2={currentMousePos.x * w}
-          y2={currentMousePos.y * h}
-          stroke={strokeColor}
-          strokeWidth={tempStrokeWidth}
-          //strokeDasharray="3,3"
-          opacity="0.9"
-          style={{ pointerEvents: "none" }}
-        />
-      )}
+      {isDrawing &&
+        currentMousePos &&
+        lastCommitted &&
+        strokeType !== "NONE" && (
+          <line
+            x1={lastCommitted.x * w}
+            y1={lastCommitted.y * h}
+            x2={currentMousePos.x * w}
+            y2={currentMousePos.y * h}
+            stroke={strokeProps.stroke}
+            strokeWidth={computedStrokeWidthPx}
+            strokeOpacity={strokeProps.strokeOpacity}
+            strokeDasharray={strokeProps.strokeDasharray}
+            opacity="0.9"
+            style={{ pointerEvents: "none" }}
+          />
+        )}
       {isDrawing &&
         closeLine &&
         currentMousePos &&
         firstCommitted &&
-        committedRel.length >= 1 && (
+        committedRel.length >= 1 &&
+        strokeType !== "NONE" && (
           <line
             x1={currentMousePos.x * w}
             y1={currentMousePos.y * h}
             x2={firstCommitted.x * w}
             y2={firstCommitted.y * h}
-            stroke={strokeColor}
-            strokeWidth={tempStrokeWidth}
-            //strokeDasharray="3,3"
+            stroke={strokeProps.stroke}
+            strokeWidth={computedStrokeWidthPx}
+            strokeOpacity={strokeProps.strokeOpacity}
+            strokeDasharray={strokeProps.strokeDasharray}
             opacity="0.9"
             style={{ pointerEvents: "none" }}
           />

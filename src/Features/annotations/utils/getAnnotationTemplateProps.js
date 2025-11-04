@@ -13,6 +13,12 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     fillType: annotationTemplate?.fillType,
     fillOpacity: annotationTemplate?.fillOpacity,
 
+    strokeColor: annotationTemplate?.strokeColor,
+    strokeType: annotationTemplate?.strokeType,
+    strokeOpacity: annotationTemplate?.strokeOpacity,
+    strokeWidth: annotationTemplate?.strokeWidth,
+    strokeWidthUnit: annotationTemplate?.strokeWidthUnit,
+
     iconKey: annotationTemplate?.iconKey,
   };
 

@@ -62,8 +62,6 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity({
     sortByLabel: true,
   });
 
-  console.log("debug_2810_annotationTemplates", annotationTemplates);
-
   const spriteImage = useAnnotationSpriteImage();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const resetSelection = useResetSelection();
