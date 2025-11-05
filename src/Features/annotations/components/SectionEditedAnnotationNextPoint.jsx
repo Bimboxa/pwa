@@ -1,21 +1,14 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useCreateAnnotation from "../hooks/useCreateAnnotation";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
+import useCreateAnnotationAndEntityFromPoints from "Features/mapEditor/hooks/useCreateAnnotationAndEntityFromPoints";
 
-import {
-  setDrawingPolylinePoints,
-  setEnabledDrawingMode,
-  setSelectedNode,
-} from "Features/mapEditor/mapEditorSlice";
-import { setNewAnnotation } from "../annotationsSlice";
+import { setDrawingPolylinePoints } from "Features/mapEditor/mapEditorSlice";
 
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, TextField } from "@mui/material";
 
-import FieldTextV2 from "Features/form/components/FieldTextV2";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
 
@@ -29,23 +22,44 @@ export default function SectionEditedAnnotationNextPoint() {
   // data
 
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
-  const points = useSelector((s) => s.mapEditor.drawingPolylinePoints);
   const baseMap = useMainBaseMap();
-  const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
-  const listingId = useSelector((s) => s.listings.selectedListingId);
-  const annotationTemplateId = useSelector(
-    (s) => s.mapEditor.selectedAnnotationTemplateId
+
+  const pointsPolyline = useSelector((s) => s.mapEditor.drawingPolylinePoints);
+  const pointsRectangle = useSelector(
+    (s) => s.mapEditor.drawingRectanglePoints
   );
 
   // data - func
 
-  const createAnnotation = useCreateAnnotation();
-  const createEntity = useCreateEntity();
+  const createFromPoints = useCreateAnnotationAndEntityFromPoints();
 
   // state
 
-  const [x, setX] = useState(0);
-  const [y, setY] = useState(0);
+  const [x, setX] = useState("");
+  const [y, setY] = useState("");
+
+  const [comment, setComment] = useState("");
+
+  // refs for focusable elements (x, y, add button, terminate button) to maintain focus cycle
+  const xInputRef = useRef(null);
+  const yInputRef = useRef(null);
+  const buttonRef = useRef(null);
+  const terminateButtonRef = useRef(null);
+
+  // Track current focus index: 0=x, 1=y, 2=add button, 3=terminate button (when POLYLINE)
+  const focusIndexRef = useRef(0);
+
+  // Get the number of focusable elements (4 for POLYLINE, 3 otherwise)
+  const getFocusableCount = () => {
+    return enabledDrawingMode === "POLYLINE" ? 4 : 3;
+  };
+
+  // helpers - points
+
+  let points = pointsPolyline;
+  if (enabledDrawingMode === "RECTANGLE") {
+    points = pointsRectangle;
+  }
 
   // helpers
 
@@ -53,10 +67,141 @@ export default function SectionEditedAnnotationNextPoint() {
   const mx = baseMap?.meterByPx;
   const { x: x0, y: y0 } = points?.[points?.length - 1] ?? {};
 
+  // Helper function to get the current focusable element based on index
+  const getFocusableElement = (index) => {
+    switch (index) {
+      case 0:
+        return xInputRef.current;
+      case 1:
+        return yInputRef.current;
+      case 2:
+        return buttonRef.current;
+      case 3:
+        return terminateButtonRef.current;
+      default:
+        return xInputRef.current;
+    }
+  };
+
+  // Check if an element is one of our focusable elements
+  const isFocusableElement = (element) => {
+    return (
+      element === xInputRef.current ||
+      element === yInputRef.current ||
+      element === buttonRef.current ||
+      (enabledDrawingMode === "POLYLINE" &&
+        element === terminateButtonRef.current)
+    );
+  };
+
+  // Helper function to focus on the element at the current index
+  const focusCurrentElement = () => {
+    // Ensure index is within valid range
+    const count = getFocusableCount();
+    if (focusIndexRef.current >= count) {
+      focusIndexRef.current = 0;
+    }
+    const element = getFocusableElement(focusIndexRef.current);
+    if (element) {
+      element.focus();
+    }
+  };
+
+  // Focus on x input on mount
+  useEffect(() => {
+    setTimeout(() => {
+      if (xInputRef.current) {
+        xInputRef.current.focus();
+        focusIndexRef.current = 0;
+      }
+    }, 0);
+  }, []);
+
+  // Reset focus index when mode changes (if currently on terminate button which becomes unavailable)
+  useEffect(() => {
+    if (enabledDrawingMode !== "POLYLINE" && focusIndexRef.current === 3) {
+      focusIndexRef.current = 0;
+      focusCurrentElement();
+    }
+  }, [enabledDrawingMode]);
+
+  // Refocus when points change (user clicked on map)
+  useEffect(() => {
+    if (points?.length > 0) {
+      setTimeout(() => {
+        // Check if focus is outside our focusable elements
+        const activeElement = document.activeElement;
+        if (!isFocusableElement(activeElement)) {
+          focusCurrentElement();
+        }
+      }, 100);
+    }
+  }, [points?.length, enabledDrawingMode]);
+
+  // Global click handler to refocus when clicking outside (like on map)
+  useEffect(() => {
+    const handleDocumentClick = (e) => {
+      // Check if click was on one of our focusable elements or their containers
+      const target = e.target;
+      const clickedOnOurElement =
+        isFocusableElement(target) ||
+        (xInputRef.current && xInputRef.current.contains(target)) ||
+        (yInputRef.current && yInputRef.current.contains(target)) ||
+        (buttonRef.current && buttonRef.current.contains(target)) ||
+        (terminateButtonRef.current &&
+          terminateButtonRef.current.contains(target));
+
+      // Only refocus if click was outside our elements
+      if (!clickedOnOurElement) {
+        // Small delay to check if focus moved outside our elements
+        setTimeout(() => {
+          const activeElement = document.activeElement;
+          // If focus is not on our elements, refocus back
+          if (!isFocusableElement(activeElement)) {
+            focusCurrentElement();
+          }
+        }, 100);
+      }
+    };
+
+    document.addEventListener("click", handleDocumentClick, true);
+    return () => {
+      document.removeEventListener("click", handleDocumentClick, true);
+    };
+  }, [enabledDrawingMode]);
+
+  // Handle Tab key to cycle through focusable elements
+  const handleKeyDown = (e, currentIndex) => {
+    if (e.key === "Tab" && !e.shiftKey) {
+      e.preventDefault();
+      const count = getFocusableCount();
+      focusIndexRef.current = (currentIndex + 1) % count;
+      focusCurrentElement();
+    } else if (e.key === "Tab" && e.shiftKey) {
+      e.preventDefault();
+      const count = getFocusableCount();
+      focusIndexRef.current = (currentIndex - 1 + count) % count;
+      focusCurrentElement();
+    }
+  };
+
+  // handlers
+
+  function handleChange(e, coordinate) {
+    let value = e.target.value;
+    value = value.replace(",", ".");
+
+    if (coordinate === "x") {
+      setX(value);
+    } else if (coordinate === "y") {
+      setY(value);
+    }
+  }
+
   async function handleClick() {
     const nextPoint = {
-      x: x0 + x / width / mx,
-      y: y0 - y / height / mx,
+      x: x0 + parseFloat(x.length > 0 ? x : 0) / width / mx,
+      y: y0 - parseFloat(y.length > 0 ? y : 0) / height / mx,
       type: "square",
     };
     const newPoints = [...points, nextPoint];
@@ -64,59 +209,98 @@ export default function SectionEditedAnnotationNextPoint() {
     if (enabledDrawingMode === "POLYLINE") {
       dispatch(setDrawingPolylinePoints(newPoints));
     } else if (enabledDrawingMode === "RECTANGLE") {
-      const entity = await createEntity({});
-
-      // Create annotation with rectangle data
-      const annotation = await createAnnotation(
-        {
-          ...newAnnotation,
-          type: "RECTANGLE",
-          points, // Store the points array (2 diagonal corners)
-          entityId: entity?.id,
-          listingId: listingId,
-          baseMapId: baseMap?.id,
-          annotationTemplateId,
-        },
-        {
-          listingKey: listingId,
-        }
-      );
-
-      console.log("[MainMapEditor] new rectangle created", annotation, entity);
-
-      // Reset drawing mode
-      dispatch(setEnabledDrawingMode(null));
-      dispatch(setNewAnnotation({}));
-      dispatch(setSelectedNode(null));
-      dispatch(clearDrawingRectanglePoints()); // Clear rectangle points
+      await createFromPoints({ points: newPoints, type: "RECTANGLE" });
     }
 
-    setX(0);
-    setY(0);
+    setX("");
+    setY("");
+
+    // Refocus on X input after adding point
+    setTimeout(() => {
+      if (xInputRef.current) {
+        xInputRef.current.focus();
+        focusIndexRef.current = 0;
+      }
+    }, 0);
+  }
+
+  async function handleCreatePolyline() {
+    await createFromPoints({ points: pointsPolyline, type: "POLYLINE" });
+    setX("");
+    setY("");
   }
 
   return (
     <Box sx={{ p: 1 }}>
-      <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
+      <Typography variant="body2" sx={{ fontWeight: "bold", mb: 2 }}>
         {title}
       </Typography>
       <Box sx={{ display: "flex", gap: 1 }}>
-        <FieldTextV2
-          label="ΔX (m)"
+        <TextField
+          inputRef={xInputRef}
+          label="ΔX(m)"
+          size="small"
           value={x}
-          onChange={setX}
-          options={{ isNumber: true, showLabel: true }}
+          onChange={(e) => handleChange(e, "x")}
+          onKeyDown={(e) => handleKeyDown(e, 0)}
+          onFocus={() => {
+            focusIndexRef.current = 0;
+          }}
+          sx={{
+            "& .MuiInputBase-input": {
+              fontSize: (theme) => theme.typography.body2.fontSize,
+            },
+          }}
         />
-        <FieldTextV2
+        <TextField
+          inputRef={yInputRef}
           label="ΔY(m)"
+          size="small"
           value={y}
-          onChange={setY}
-          options={{ isNumber: true, showLabel: true }}
+          onChange={(e) => handleChange(e, "y")}
+          onKeyDown={(e) => handleKeyDown(e, 1)}
+          onFocus={() => {
+            focusIndexRef.current = 1;
+          }}
+          sx={{
+            "& .MuiInputBase-input": {
+              fontSize: (theme) => theme.typography.body2.fontSize,
+            },
+          }}
+        />
+        <ButtonGeneric
+          ref={buttonRef}
+          label="Ajouter"
+          onClick={handleClick}
+          onKeyDown={(e) => handleKeyDown(e, 2)}
+          onFocus={() => {
+            focusIndexRef.current = 2;
+          }}
+          size="small"
         />
       </Box>
-      <BoxAlignToRight>
-        <ButtonGeneric label="Ajouter" onClick={handleClick} />
-      </BoxAlignToRight>
+
+      {enabledDrawingMode === "POLYLINE" && (
+        <Box sx={{ width: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: "bold", mt: 2, mb: 1 }}>
+            Terminer le dessin
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Double-click ou bouton "Arrêter"
+          </Typography>
+          <ButtonGeneric
+            ref={terminateButtonRef}
+            label="Arrêter"
+            onClick={handleCreatePolyline}
+            onKeyDown={(e) => handleKeyDown(e, 3)}
+            onFocus={() => {
+              focusIndexRef.current = 3;
+            }}
+            fullWidth
+            variant="outlined"
+          />
+        </Box>
+      )}
     </Box>
   );
 }

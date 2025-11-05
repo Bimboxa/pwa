@@ -276,11 +276,12 @@ export default function MainMapEditorV2() {
           enabledDrawingMode === "POLYLINE" &&
           drawingPolylinePoints?.length >= 2
         ) {
-          handlePolylineCompleteRef.current?.(drawingPolylinePoints);
+          //handlePolylineCompleteRef.current?.(drawingPolylinePoints); // /!\ triggered when Enter from "Section Next Points"
         }
       } else if (
         selectedItem?.type === "ENTITY" &&
-        (e.key === "Delete" || e.key === "Backspace")
+        (e.key === "Delete" || e.key === "Backspace") &&
+        !enabledDrawingMode
       ) {
         dispatch(setOpenDialogDeleteSelectedItem(true));
       }
@@ -450,14 +451,6 @@ export default function MainMapEditorV2() {
         baseMapId: mainBaseMap?.id,
         annotationTemplateId: annotationTemplate?.id,
       });
-
-      console.log("[MainMapEditor] new polyline created", annotation, entity);
-
-      // Reset drawing mode
-      dispatch(setEnabledDrawingMode(null));
-      dispatch(setNewAnnotation({}));
-      dispatch(setSelectedNode(null));
-      dispatch(clearDrawingPolylinePoints()); // Clear polyline points
     } catch (error) {
       console.error("Error creating polyline:", error);
     }
