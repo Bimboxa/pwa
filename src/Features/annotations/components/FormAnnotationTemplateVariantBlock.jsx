@@ -70,7 +70,7 @@ export default function FormAnnotationTemplateVariantBlock({
 
   const annotationTypes = [
     { key: "MARKER", icon: <Marker />, label: "Repère" },
-    { key: "SEGMENT", icon: <HorizontalRule />, label: "Segment" },
+    //{ key: "SEGMENT", icon: <HorizontalRule />, label: "Segment" },
     { key: "POLYLINE", icon: <Polyline />, label: "Ligne" },
     { key: "POLYGON", icon: <Pentagon />, label: "Surface" },
     { key: "RECTANGLE", icon: <Rectangle />, label: "Rectangle" },
