@@ -18,9 +18,9 @@ export default function PanelHelperDrawAnnotation() {
 
   const helperMap = {
     MARKER: "1 click = 1 annotation",
-    POLYLINE: "Dbl click / ENTER = fin du dessin",
+    POLYLINE: "",
     POLYGONE: "1 click = 1 point",
-    RECTANGLE: "1er click = 1er point, 2nd click = fin du dessin",
+    RECTANGLE: `1er click = 1er point \n2nd click = fin du dessin`,
   };
 
   const helperS = helperMap[enabledDrawingMode];
@@ -36,7 +36,9 @@ export default function PanelHelperDrawAnnotation() {
           </Box>
         )}
 
-        <Typography sx={{ mt: 2 }}>{helperS}</Typography>
+        <Typography variant="body2" sx={{ mt: 2, px: 2, whiteSpace: "pre" }}>
+          {helperS}
+        </Typography>
       </BoxCenter>
     </Panel>
   );

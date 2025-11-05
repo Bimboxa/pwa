@@ -4,11 +4,15 @@ import {
   useEffect,
   useLayoutEffect,
   useCallback,
+  useMemo,
 } from "react";
+import { useSelector } from "react-redux";
+import theme from "Styles/theme";
 
 export default function NodeRectangle({
   rectangle,
   imageSize,
+  baseMapMeterByPx,
   containerK = 1,
   worldScale = 1,
   isDrawing = false,
@@ -19,11 +23,19 @@ export default function NodeRectangle({
   onClick,
   toBaseFromClient,
 }) {
+  const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
   const {
     points = [],
     fillColor = "#3b82f6",
+    fillOpacity = 0.8,
+    fillType = "SOLID",
+    strokeColor = rectangle?.strokeColor ??
+      rectangle?.fillColor ??
+      theme.palette.secondary.main,
+    strokeType = "SOLID",
+    strokeOpacity = 1,
     strokeWidth = 2,
-    opacity = 0.3,
+    strokeWidthUnit = "PX",
     rotation = 0,
   } = rectangle;
 
@@ -108,6 +120,54 @@ export default function NodeRectangle({
 
   const w = imageSize?.w || 1;
   const h = imageSize?.h || 1;
+
+  // UI
+  const HATCHING_SPACING = 12;
+
+  // keep UI constant on screen
+  const totalScale = showBgImage ? 1 : worldScale * containerK;
+  const invScale = totalScale > 0 ? (showBgImage ? 1 : 1 / totalScale) : 1;
+
+  // Compute stroke width based on unit and scaling
+  // Note: vectorEffect="non-scaling-stroke" means stroke is in screen pixels
+  const computedStrokeWidthPx = useMemo(() => {
+    const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx;
+    if (isCmUnit) {
+      // Convert cm to meters, then to pixels in base map coordinates
+      const widthInMeters = strokeWidth * 0.01;
+      const widthInBasePx = widthInMeters / baseMapMeterByPx;
+      // Since vectorEffect="non-scaling-stroke" is used, we need to convert to screen pixels
+      return showBgImage
+        ? widthInBasePx
+        : widthInBasePx * (worldScale * containerK);
+    }
+    // For PX unit: stroke should appear as strokeWidth pixels on screen
+    // Since vectorEffect="non-scaling-stroke" is used, return strokeWidth directly
+    return strokeWidth;
+  }, [
+    strokeWidth,
+    strokeWidthUnit,
+    baseMapMeterByPx,
+    showBgImage,
+    worldScale,
+    containerK,
+  ]);
+
+  // Compute stroke props based on strokeType
+  const strokeProps = useMemo(() => {
+    if (strokeType === "NONE") return { stroke: "none", strokeOpacity: 0 };
+    const props = {
+      stroke: strokeColor,
+      strokeOpacity: strokeOpacity ?? 1,
+      strokeWidth: computedStrokeWidthPx,
+    };
+    if (strokeType === "DASHED") {
+      const dash = computedStrokeWidthPx * 3;
+      const gap = computedStrokeWidthPx * 2;
+      props.strokeDasharray = `${dash} ${gap}`;
+    }
+    return props;
+  }, [strokeType, strokeColor, strokeOpacity, computedStrokeWidthPx]);
 
   // Get current points (temp or base)
   const currentPoints = tempPoints || points;
@@ -341,9 +401,37 @@ export default function NodeRectangle({
   const rotateHandleX = centerX;
   const rotateHandleY = bounds.y - rotateHandleDistance;
 
+  // Hatching pattern
+  const patternIdRef = useRef(
+    `hatch-rectangle-${rectangle?.id ?? Math.random().toString(36).slice(2)}`
+  );
+  const patternId = patternIdRef.current;
+  const hatchSize = showBgImage
+    ? HATCHING_SPACING / containerK
+    : HATCHING_SPACING * invScale;
+  const hatchStroke = showBgImage ? 1.5 / containerK : 1.5 * invScale;
+
   // Render rectangle with optional resize handles
   return (
     <g>
+      {/* Hatching pattern definition */}
+      {fillType === "HATCHING" && (
+        <defs>
+          <pattern
+            id={patternId}
+            patternUnits="userSpaceOnUse"
+            width={hatchSize}
+            height={hatchSize}
+          >
+            <path
+              d={`M 0 0 L ${hatchSize} ${hatchSize}`}
+              stroke={fillColor}
+              strokeWidth={hatchStroke}
+            />
+          </pattern>
+        </defs>
+      )}
+
       {/* Main rectangle */}
       <rect
         ref={isPreview ? previewRectRef : null}
@@ -352,12 +440,18 @@ export default function NodeRectangle({
         y={bounds.y}
         width={bounds.width}
         height={bounds.height}
-        fill={fillColor}
-        fillOpacity={opacity}
-        stroke={fillColor}
-        strokeOpacity={1}
-        strokeWidth={strokeWidth}
-        strokeDasharray={selected ? "4,2" : undefined}
+        fill={fillType === "HATCHING" ? `url(#${patternId})` : fillColor}
+        fillOpacity={fillOpacity}
+        stroke={strokeProps.stroke}
+        strokeOpacity={strokeProps.strokeOpacity}
+        strokeWidth={strokeProps.strokeWidth}
+        strokeDasharray={
+          strokeType === "DASHED"
+            ? strokeProps.strokeDasharray
+            : selected
+            ? "4,2"
+            : strokeProps.strokeDasharray
+        }
         transform={
           currentRotation
             ? `rotate(${currentRotation} ${centerX} ${centerY})`
