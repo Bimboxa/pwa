@@ -101,6 +101,7 @@ export default function FormGenericV2({
               onChange={(newValue) =>
                 handleFieldValueChange(field.key, newValue)
               }
+              options={field.options}
             />
           );
         }

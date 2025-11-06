@@ -1,8 +1,16 @@
-import { Box, Typography, FormControlLabel, Checkbox } from "@mui/material";
+import {
+  Box,
+  Typography,
+  FormControlLabel,
+  Checkbox,
+  Switch,
+} from "@mui/material";
 
 import SelectorIconGeneric from "Features/layout/components/SelectorIconGeneric";
 
-export default function FieldCheck({ value, onChange, label }) {
+export default function FieldCheck({ value, onChange, label, options }) {
+  const type = options?.type ?? "check";
+
   function handleChange(e, checked) {
     onChange(checked);
   }
@@ -17,8 +25,22 @@ export default function FieldCheck({ value, onChange, label }) {
     >
       <FormControlLabel
         sx={{ pl: 1 }}
-        control={<Checkbox checked={Boolean(value)} onChange={handleChange} />}
-        label={<Typography>{label}</Typography>}
+        control={
+          type === "switch" ? (
+            <Switch
+              size="small"
+              checked={Boolean(value)}
+              onChange={handleChange}
+            />
+          ) : (
+            <Checkbox
+              size="small"
+              checked={Boolean(value)}
+              onChange={handleChange}
+            />
+          )
+        }
+        label={<Typography variant="body2">{label}</Typography>}
       />
     </Box>
   );
