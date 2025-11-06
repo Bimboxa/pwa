@@ -18,7 +18,8 @@ export default function useAnnotationTemplatesBySelectedListing(options) {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const listingId = useSelector((s) => s.listings.selectedListingId);
-  const atl = useAnnotationTemplatesListingInMapEditor();
+  //const atl = useAnnotationTemplatesListingInMapEditor();
+  const atl = null;
 
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
@@ -34,7 +35,8 @@ export default function useAnnotationTemplatesBySelectedListing(options) {
 
       templates = templates.filter(
         (template) =>
-          template.listingId === atl?.id || template.listingId === listingId
+          (atl?.id && template.listingId === atl.id) ||
+          (listingId && template.listingId === listingId)
       );
     } else {
       templates = [];

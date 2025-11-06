@@ -1,5 +1,7 @@
 import { useSelector, useDispatch } from "react-redux";
 
+import { useDndMonitor, useDroppable } from "@dnd-kit/core";
+
 import {
   setSelectedListingId,
   setHiddenListingsIds,
@@ -7,8 +9,9 @@ import {
 } from "../listingsSlice";
 import useListingsByScope from "../hooks/useListingsByScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useMoveAnnotationTemplateToListing from "Features/annotations/hooks/useMoveAnnotationTemplateToListing";
 
-import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography, keyframes } from "@mui/material";
 import {
   ArrowForwardIos,
   MoreHoriz,
@@ -25,6 +28,59 @@ import getModulesAndListingsForLeftPanel from "../utils/getModulesAndListingsFor
 import ButtonDialogCreateListingInVerticalSelector from "./ButtonDialogCreateListingInVerticalSelector";
 import { setShowBgImageInMapEditor } from "Features/bgImage/bgImageSlice";
 
+// Animation keyframes for drop target
+const pulseAnimation = keyframes`
+  0%, 100% {
+    transform: scale(1.15);
+  }
+  50% {
+    transform: scale(1.25);
+  }
+`;
+
+// Droppable component for listing item
+function DroppableListingItem({
+  listing,
+  children,
+  selected,
+  hidden,
+  showHideButton,
+  onListingClick,
+  onToggleVisibility,
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `listing-${listing.id}`,
+    data: {
+      type: "listing",
+      listingId: listing.id,
+    },
+  });
+
+  return (
+    <Box
+      ref={setNodeRef}
+      // Inline-block wrapper so it doesn't affect child centering/size
+      sx={{
+        position: "relative",
+        display: "inline-block",
+        // show helper only on hover
+        "&:hover .vis-btn": { opacity: 1, pointerEvents: "auto" },
+        bgcolor: isOver ? "action.hover" : "transparent",
+        borderRadius: 1,
+        transition: isOver ? "none" : "all 0.3s ease-in-out",
+        transform: isOver ? undefined : "scale(1)",
+        zIndex: isOver ? 10 : "auto",
+        boxShadow: isOver ? 3 : 0,
+        ...(isOver && {
+          animation: `${pulseAnimation} 0.8s ease-in-out infinite`,
+        }),
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
+
 export default function VerticalSelectorListing({ onSeeAllClick }) {
   const dispatch = useDispatch();
 
@@ -36,6 +92,8 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
+
+  const moveAnnotationTemplateToListing = useMoveAnnotationTemplateToListing();
 
   const { value: listings } = useListingsByScope({
     filterByProjectId: projectId ?? null,
@@ -51,6 +109,34 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
   );
 
   const entityModelTypes = appConfig?.features?.entityModelTypes;
+
+  // Handle drag and drop
+  useDndMonitor({
+    onDragEnd(event) {
+      const { active, over } = event;
+
+      if (!over || !active) return;
+
+      // Check if we're dragging an annotation template
+      const activeData = active.data.current;
+      const overData = over.data.current;
+
+      if (
+        activeData?.type === "annotationTemplate" &&
+        overData?.type === "listing" &&
+        activeData?.annotationTemplateId &&
+        overData?.listingId
+      ) {
+        // Prevent dropping on the same listing (will be handled in the hook, but we can check here too)
+        moveAnnotationTemplateToListing(
+          activeData.annotationTemplateId,
+          overData.listingId
+        ).catch((error) => {
+          console.error("Error moving annotation template to listing:", error);
+        });
+      }
+    },
+  });
 
   let items = getModulesAndListingsForLeftPanel({
     listings,
@@ -165,15 +251,14 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
 
           if (item.type === "LISTING") {
             return (
-              <Box
+              <DroppableListingItem
                 key={id}
-                // Inline-block wrapper so it doesn't affect child centering/size
-                sx={{
-                  position: "relative",
-                  display: "inline-block",
-                  // show helper only on hover
-                  "&:hover .vis-btn": { opacity: 1, pointerEvents: "auto" },
-                }}
+                listing={item.listing}
+                selected={selected}
+                hidden={hidden}
+                showHideButton={showHideButton}
+                onListingClick={() => handleListingClick(item.listing)}
+                onToggleVisibility={() => toggleListingVisibility(id)}
               >
                 {/* Listing tile (unchanged layout, stays centered by the parent column) */}
                 <Box
@@ -224,7 +309,7 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
                     )}
                   </IconButton>
                 )}
-              </Box>
+              </DroppableListingItem>
             );
           }
 

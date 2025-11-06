@@ -27,7 +27,7 @@ db.version(12).stores({
   legends: "id,listingId",
   markers: "id,mapId,listingId,targetEntityId", // marker = {id,mapId,x,y,listingId,targetEntityId,createdBy,createdAt,updatedAt}
 
-  annotations: "id,projectId,baseMapId,listingId,entityId", // annotation = {id,mapId,listingId,entityId,...}
+  annotations: "id,projectId,baseMapId,listingId,entityId,annotationTemplateId", // annotation = {id,mapId,listingId,entityId,...}
   annotationTemplates: "id,projectId,listingId,code,label", // annotationTemplate = {id,listingId,label} code = listingKey+MARKER+...
 
   files: "fileName,projectId,listingId,itemId", // {id,fileName, projectId, listingId, itemId, fileType} fileType: "IMAGE", "VIDEO",...
