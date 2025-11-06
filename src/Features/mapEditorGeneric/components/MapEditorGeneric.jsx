@@ -42,6 +42,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   let {
     isMobile,
     bgImageUrl,
+    baseMapId,
     baseMapImageUrl,
     baseMapMeterByPx, // Scale factor of the baseMap (meters per pixel)
     baseMapPoseInBg, // {x:0,y:0,k:1,r:0}, pose of baseMap in bg local coords.
@@ -160,13 +161,48 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     img.src = bgImageUrl;
   }, [bgImageUrl]);
 
+  // Track previous baseMapId to preserve size when only switching images (regular/enhanced)
+  const prevBaseMapIdRef = useRef(null);
+  const preservedBaseSizeRef = useRef({ w: 0, h: 0 });
+
   useEffect(() => {
     if (!baseMapImageUrl) return;
-    const img = new Image();
-    img.onload = () =>
-      setBaseSize({ w: img.naturalWidth, h: img.naturalHeight });
-    img.src = baseMapImageUrl;
-  }, [baseMapImageUrl]);
+
+    // Check if baseMapId has changed (new baseMap selected)
+    const baseMapIdChanged = baseMapId !== prevBaseMapIdRef.current;
+
+    if (baseMapIdChanged) {
+      // New baseMap - update the preserved size and load the image
+      prevBaseMapIdRef.current = baseMapId;
+      const img = new Image();
+      img.onload = () => {
+        const newSize = { w: img.naturalWidth, h: img.naturalHeight };
+        preservedBaseSizeRef.current = newSize;
+        setBaseSize(newSize);
+      };
+      img.src = baseMapImageUrl;
+    } else {
+      // Same baseMap, just switching between regular/enhanced images
+      // Preserve the existing baseSize to avoid resetting worldScale/pose
+      if (
+        preservedBaseSizeRef.current.w > 0 &&
+        preservedBaseSizeRef.current.h > 0
+      ) {
+        // Keep the preserved size - image will render with these dimensions
+        // This ensures worldScale and pose remain unchanged
+        setBaseSize(preservedBaseSizeRef.current);
+      } else {
+        // First load of this baseMap - load the image to get its size
+        const img = new Image();
+        img.onload = () => {
+          const newSize = { w: img.naturalWidth, h: img.naturalHeight };
+          preservedBaseSizeRef.current = newSize;
+          setBaseSize(newSize);
+        };
+        img.src = baseMapImageUrl;
+      }
+    }
+  }, [baseMapImageUrl, baseMapId]);
 
   // Observe container size
   useLayoutEffect(() => {

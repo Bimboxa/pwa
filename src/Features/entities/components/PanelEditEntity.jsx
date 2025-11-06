@@ -29,7 +29,6 @@ export default function PanelEditEntity() {
   // data
 
   const entity = useEntity();
-  console.log("[SectionEntity] entity", entity);
 
   const template = useEntityFormTemplate();
 
@@ -40,6 +39,7 @@ export default function PanelEditEntity() {
   // handlers
 
   function handleEntityChange(entity) {
+    console.log("entityChange", entity);
     if (!entity.id) {
       dispatch(setNewEntity(entity));
     } else {

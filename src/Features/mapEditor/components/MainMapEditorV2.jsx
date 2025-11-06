@@ -207,6 +207,15 @@ export default function MainMapEditorV2() {
     ? [selectedAnnotationId]
     : [];
 
+  // helpers - baseMapUrl
+
+  const baseMapImageUrl =
+    mainBaseMap?.showEnhanced && mainBaseMap?.imageEnhanced
+      ? mainBaseMap.imageEnhanced.imageUrlClient ??
+        mainBaseMap.imageEnhanced.imageUrlRemote
+      : mainBaseMap?.image?.imageUrlClient ??
+        mainBaseMap?.image?.imageUrlRemote;
+
   // effects
 
   useAutoSelectMainBaseMap();
@@ -615,7 +624,8 @@ export default function MainMapEditorV2() {
       {/* {isMobile && <BlockEntityMarker top={16} right={16} />} */}
       <MapEditorGeneric
         isMobile={isMobile}
-        baseMapImageUrl={mainBaseMap?.image?.imageUrlClient}
+        baseMapImageUrl={baseMapImageUrl}
+        baseMapId={mainBaseMap?.id}
         baseMapMeterByPx={mainBaseMap?.meterByPx}
         baseMapPoseInBg={basePoseInBg}
         baseMapGrayScale={baseMapGrayScale}

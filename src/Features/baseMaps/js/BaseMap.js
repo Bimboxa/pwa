@@ -6,13 +6,6 @@ import ProjectFile from "Features/projectFiles/js/ProjectFile";
 import db from "App/db/db";
 
 export default class BaseMap {
-  id;
-  createdAt;
-  projectId;
-  listingId;
-  name;
-  image;
-
   constructor({
     id,
     createdAt,
@@ -20,6 +13,8 @@ export default class BaseMap {
     listingId,
     name,
     image,
+    imageEnhanced,
+    showEnhanced,
     meterByPx,
     opacity,
     grayScale,
@@ -30,6 +25,8 @@ export default class BaseMap {
     this.listingId = listingId;
     this.name = name;
     this.image = image;
+    this.imageEnhanced = imageEnhanced;
+    this.showEnhanced = showEnhanced;
     this.meterByPx = meterByPx;
     this.opacity = opacity;
     this.grayScale = grayScale;
@@ -42,6 +39,9 @@ export default class BaseMap {
     name,
     imageFile,
     image,
+    imageEnhancedFile,
+    imageEnhanced,
+    showEnhanced,
     opacity,
     grayScale,
     meterByPx,
@@ -50,11 +50,13 @@ export default class BaseMap {
       projectId,
       name,
       image,
+      imageEnhanced,
+      showEnhanced,
       opacity,
       grayScale,
       meterByPx,
     });
-    await baseMap.initialize({ imageFile });
+    await baseMap.initialize({ imageFile, imageEnhancedFile });
     return baseMap;
   }
 
@@ -65,6 +67,7 @@ export default class BaseMap {
       // the id of the file is computed from the field + id of the entity.
       //const fileRecord = await db.projectFiles.get(`image_${record.id}`);
       let fileRecord, file;
+      let fileEnhancedRecord, fileEnhanced;
       if (record?.image?.fileName) {
         fileRecord = await db.files.get(record.image.fileName);
         if (fileRecord) {
@@ -73,13 +76,28 @@ export default class BaseMap {
         }
       }
 
+      if (record?.imageEnhanced?.fileName) {
+        fileEnhancedRecord = await db.files.get(record.imageEnhanced.fileName);
+        if (fileEnhancedRecord) {
+          const { fileArrayBuffer, fileMime, fileName } = fileEnhancedRecord;
+          fileEnhanced = new File([fileArrayBuffer], fileName, {
+            type: fileMime,
+          });
+        }
+      }
+
       const bmImage = fileRecord
         ? await ImageObject.create({ imageFile: file })
+        : null;
+
+      const bmImageEnhanced = fileEnhancedRecord
+        ? await ImageObject.create({ imageFile: fileEnhanced })
         : null;
 
       const baseMap = new BaseMap({
         ...record,
         image: bmImage,
+        imageEnhanced: bmImageEnhanced,
       });
 
       return baseMap;
@@ -91,7 +109,7 @@ export default class BaseMap {
 
   // INIT
 
-  async initialize({ imageFile }) {
+  async initialize({ imageFile, imageEnhancedFile }) {
     if (!this.id) this.id = nanoid();
 
     if (!this.createdAt) this.createdAt = getDateString(Date.now());
@@ -101,13 +119,22 @@ export default class BaseMap {
       this.image = await ImageObject.create({ imageFile: imageFile });
     }
 
+    // imageEnhancedFile
+    if (!this.imageEnhanced && imageEnhancedFile) {
+      this.imageEnhanced = await ImageObject.create({
+        imageFile: imageEnhancedFile,
+      });
+    }
+
     if (!this.name && this.image) this.name = this.image.fileName;
   }
 
   // GETTERS
 
   getUrl = () => {
-    return this.image.imageUrlClient ?? this.image.imageUrlRemote;
+    const imageToUse =
+      this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
+    return imageToUse?.imageUrlClient ?? imageToUse?.imageUrlRemote;
   };
 
   // SERIALIZER
@@ -118,7 +145,9 @@ export default class BaseMap {
       createdAt: this.createdAt,
       projectId: this.projectId,
       name: this.name,
-      image: this.image.toJSON(),
+      image: this.image?.toJSON(),
+      imageEnhanced: this.imageEnhanced?.toJSON(),
+      showEnhanced: this.showEnhanced,
       meterByPx: this.meterByPx,
       opacity: this.opacity,
       grayScale: this.grayScale,
@@ -126,23 +155,40 @@ export default class BaseMap {
   }
 
   toDb = async () => {
-    const projectFile = new ProjectFile({
-      file: this.image.file,
-      itemId: this.id,
-      itemField: "image",
-    });
+    const projectFiles = [];
+
+    if (this.image?.file) {
+      const projectFile = new ProjectFile({
+        file: this.image.file,
+        itemId: this.id,
+        itemField: "image",
+      });
+      projectFiles.push(await projectFile.toDb());
+    }
+
+    if (this.imageEnhanced?.file) {
+      const projectFileEnhanced = new ProjectFile({
+        file: this.imageEnhanced.file,
+        itemId: this.id,
+        itemField: "imageEnhanced",
+      });
+      projectFiles.push(await projectFileEnhanced.toDb());
+    }
+
     return {
       baseMapRecord: this.toJSON(),
-      projectFileRecord: await projectFile.toDb(),
+      projectFileRecords: projectFiles,
     };
   };
 
   toKonva = () => {
+    const imageToUse =
+      this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
     return {
       id: this.id,
-      url: this.image.imageUrlClient,
-      width: this.image.imageSize.width,
-      height: this.image.imageSize.height,
+      url: imageToUse?.imageUrlClient ?? imageToUse?.imageUrlRemote,
+      width: imageToUse?.imageSize?.width,
+      height: imageToUse?.imageSize?.height,
       nodeType: "MAP",
     };
   };

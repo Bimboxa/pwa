@@ -36,6 +36,7 @@ export default function SectionEntity() {
   // handlers
 
   function handleEntityChange(entity) {
+    console.log("entityChanged", entity);
     if (!entity.id) {
       dispatch(setNewEntity(entity));
     } else {
