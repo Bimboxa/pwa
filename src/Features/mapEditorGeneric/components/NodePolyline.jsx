@@ -52,7 +52,7 @@ export default function NodePolyline({
   const HIT_R = 12;
   const ANCHOR_R = 4;
   const ANCHOR_R_HOVERED = 5;
-  const CLOSE_TOL_PX = 14;
+  const CLOSE_TOL_SCREEN_PX = 10; // Fixed 10px screen distance
   const HATCHING_SPACING = 12;
 
   // keep UI constant on screen
@@ -384,12 +384,20 @@ export default function NodePolyline({
   const wRef = useRef(w);
   const hRef = useRef(h);
   const closeLineRef = useRef(closeLine);
+  const containerKRef = useRef(containerK);
+  const worldScaleRef = useRef(worldScale);
+  const showBgImageRef = useRef(showBgImage);
+  const onCompleteRef = useRef(onComplete);
   useEffect(() => {
     toBaseFromClientRef.current = toBaseFromClient;
     basePointsRef.current = basePoints;
     wRef.current = w;
     hRef.current = h;
     closeLineRef.current = closeLine;
+    containerKRef.current = containerK;
+    worldScaleRef.current = worldScale;
+    showBgImageRef.current = showBgImage;
+    onCompleteRef.current = onComplete;
   });
 
   // drawing preview / close helper
@@ -421,11 +429,19 @@ export default function NodePolyline({
         const firstPx = firstRel
           ? { x: firstRel.x * W, y: firstRel.y * H }
           : null;
-        if (
-          firstPx &&
-          Math.hypot(bl.x - firstPx.x, bl.y - firstPx.y) <= CLOSE_TOL_PX
-        )
-          showClose = true;
+        if (firstPx) {
+          // Calculate distance in base-local px
+          const distBaseLocal = Math.hypot(bl.x - firstPx.x, bl.y - firstPx.y);
+          // Convert screen threshold (10px) to base-local px
+          // Scale from base-local to screen: showBgImage ? containerK : worldScale * containerK
+          const screenScale = showBgImageRef.current
+            ? containerKRef.current
+            : worldScaleRef.current * containerKRef.current;
+          const thresholdBaseLocal = CLOSE_TOL_SCREEN_PX / screenScale;
+          if (distBaseLocal <= thresholdBaseLocal) {
+            showClose = true;
+          }
+        }
       }
 
       nextPosRef.current = { x: rx, y: ry, showClose };
@@ -459,7 +475,7 @@ export default function NodePolyline({
       if (moveRafRef.current) cancelAnimationFrame(moveRafRef.current);
       moveRafRef.current = null;
     };
-  }, [isDrawing, onComplete, CLOSE_TOL_PX]);
+  }, [isDrawing, onComplete]);
 
   // preview arrays
   const committedRel = useMemo(
@@ -718,6 +734,40 @@ export default function NodePolyline({
             style={{ pointerEvents: "none" }}
           />
         )}
+
+      {/* CLOSE HELPER INDICATOR */}
+      {isDrawing && showCloseHelper && closeLine && committedRel.length > 0 && (
+        <g
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (committedRel.length >= 2 && onComplete) {
+              onComplete(committedRel);
+              setCurrentMousePos(null);
+              setShowCloseHelper(false);
+            }
+          }}
+          style={{ cursor: "pointer" }}
+        >
+          <circle
+            cx={committedRel[0].x * w}
+            cy={committedRel[0].y * h}
+            r={HIT_R * invScale}
+            fill="rgba(0,102,204,0.1)"
+            stroke="#0066cc"
+            strokeWidth={2 * invScale}
+          />
+          <circle
+            cx={committedRel[0].x * w}
+            cy={committedRel[0].y * h}
+            r={ANCHOR_R_HOVERED * invScale}
+            fill="#0066cc"
+            stroke="#fff"
+            strokeWidth={2 * invScale}
+            style={{ pointerEvents: "none" }}
+          />
+        </g>
+      )}
 
       {/* ANCHORS */}
       {selected &&
