@@ -18,6 +18,7 @@ import NodePolyline from "./NodePolyline";
 import NodeRectangle from "./NodeRectangle";
 import NodeSegment from "./NodeSegment";
 import LayerMarkerTooltip from "Features/mapEditor/components/LayerMarkerTooltip";
+import LayerAnnotationTooltip from "Features/mapEditor/components/LayerAnnotationTooltip";
 import DraggableFabMarker from "Features/markers/components/DraggableFabMarker";
 import HelperScale from "./HelperScale";
 
@@ -119,6 +120,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
   // === Hover state ===
   const [hoveredMarker, setHoveredMarker] = useState(null);
+  const [hoveredAnnotation, setHoveredAnnotation] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isDraggingAnnotation, setIsDraggingAnnotation] = useState(false);
   const [isDraggingFabMarker, setIsDraggingFabMarker] = useState(false);
@@ -656,6 +658,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       // Don't show tooltip while dragging an annotation
       if (isDraggingAnnotation) {
         setHoveredMarker(null);
+        setHoveredAnnotation(null);
         return;
       }
 
@@ -672,17 +675,30 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         const marker = annotations.find((ann) => ann.id === annotationId);
         if (marker) {
           setHoveredMarker(marker);
+          setHoveredAnnotation(null);
+          return;
+        }
+      }
+
+      if (hit && hit.dataset.nodeType === "ANNOTATION") {
+        const annotationId = hit.dataset.nodeId;
+        const annotation = annotations.find((ann) => ann.id === annotationId);
+        if (annotation) {
+          setHoveredAnnotation(annotation);
+          setHoveredMarker(null);
           return;
         }
       }
 
       setHoveredMarker(null);
+      setHoveredAnnotation(null);
     },
     [annotations, updateMousePosition, isDraggingAnnotation]
   );
 
   const onSvgMouseLeave = useCallback(() => {
     setHoveredMarker(null);
+    setHoveredAnnotation(null);
   }, []);
 
   const fixedLength = useSelector((s) => s.mapEditor.fixedLength);
@@ -1010,6 +1026,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   function handleAnnotationDragStart() {
     setIsDraggingAnnotation(true);
     setHoveredMarker(null); // Hide tooltip immediately
+    setHoveredAnnotation(null);
   }
   function handleAnnotationDragEnd(annotation) {
     setIsDraggingAnnotation(false);
@@ -1404,6 +1421,11 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         hoveredMarker={hoveredMarker}
         mousePos={mousePos}
         annotationSpriteImage={annotationSpriteImage}
+      />
+      <LayerAnnotationTooltip
+        containerEl={containerRef.current}
+        hoveredAnnotation={hoveredAnnotation}
+        mousePos={mousePos}
       />
     </Box>
   );

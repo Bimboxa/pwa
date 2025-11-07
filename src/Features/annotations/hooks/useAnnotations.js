@@ -166,10 +166,10 @@ export default function useAnnotations(options) {
 
   // add annotation templates
   annotations = annotations?.map((annotation) => ({
+    ...annotation,
     ...getAnnotationTemplateProps(
       annotationTemplatesMap[annotation?.annotationTemplateId]
     ),
-    ...annotation,
   }));
 
   // demo
