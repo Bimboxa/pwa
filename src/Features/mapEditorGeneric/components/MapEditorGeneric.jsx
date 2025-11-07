@@ -29,12 +29,14 @@ import {
   mMul,
 } from "Features/matrix/utils/matrixHelpers";
 
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   addPolylinePoint,
   addRectanglePoint,
   addSegmentPoint,
+  setFixedLength,
 } from "Features/mapEditor/mapEditorSlice";
+import applyFixedLengthConstraint from "Features/mapEditorGeneric/utils/applyFixedLengthConstraint";
 
 const PADDING = 15;
 
@@ -92,6 +94,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     centerBaseMapTriggeredAt,
     zoomTo, // {x,y,triggeredAt}
   } = props;
+
+  const dispatch = useDispatch();
 
   // === REFS ===
   const containerRef = useRef();
@@ -681,7 +685,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     setHoveredMarker(null);
   }, []);
 
-  const dispatch = useDispatch();
+  const fixedLength = useSelector((s) => s.mapEditor.fixedLength);
 
   // === DRAG AND DROP HANDLERS ===
   const onDragOver = useCallback(
@@ -824,26 +828,41 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
       // ----- POLYLINE MODE (Shift-constrained commit) -----
       if (enabledDrawingMode === "POLYLINE") {
+        if (e.detail > 1) {
+          return;
+        }
         // always use BASE layer for polyline points
         let bx = p_inBase.x;
         let by = p_inBase.y;
 
         // Apply the SAME Shift constraint as the preview (against the LAST committed point)
         const last = drawingPolylinePoints?.[drawingPolylinePoints.length - 1];
-        if (e.shiftKey && last) {
-          const lastPx = {
-            x: (baseSize.w || 1) * last.x,
-            y: (baseSize.h || 1) * last.y,
-          };
+        const lastPx = last
+          ? {
+              x: (baseSize.w || 1) * last.x,
+              y: (baseSize.h || 1) * last.y,
+            }
+          : null;
+
+        if (e.shiftKey && lastPx) {
           const dx = bx - lastPx.x;
           const dy = by - lastPx.y;
           if (Math.abs(dx) >= Math.abs(dy)) {
-            // horizontal snap
             by = lastPx.y;
           } else {
-            // vertical snap
             bx = lastPx.x;
           }
+        }
+
+        if (lastPx) {
+          const constrainedPoint = applyFixedLengthConstraint({
+            lastPointPx: lastPx,
+            candidatePointPx: { x: bx, y: by },
+            fixedLengthMeters: fixedLength,
+            meterPerPixel: baseMapMeterByPx,
+          });
+          bx = constrainedPoint.x;
+          by = constrainedPoint.y;
         }
 
         // Clamp to image bounds and convert to relative
@@ -851,6 +870,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         const ratioY = Math.max(0, Math.min(1, by / (baseSize.h || 1)));
 
         dispatch(addPolylinePoint({ x: ratioX, y: ratioY }));
+        dispatch(setFixedLength(""));
         return;
       }
 
@@ -963,6 +983,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       baseSize.h,
       dispatch,
       drawingPolylinePoints, // include so last point is fresh
+      fixedLength,
+      baseMapMeterByPx,
     ]
   );
 
@@ -1197,6 +1219,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               onComplete={onPolylineComplete}
               worldScale={world.k}
               containerK={basePose.k}
+              baseMapMeterByPx={baseMapMeterByPx}
             />
 
             {/* Rectangle drawing/preview */}

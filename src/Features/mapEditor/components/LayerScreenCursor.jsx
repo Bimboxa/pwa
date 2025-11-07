@@ -10,6 +10,7 @@ import theme from "Styles/theme";
 import MarkerIconNewMarker from "Features/markers/components/MarkerIconNewMarker";
 import ImageAnnotationIcon from "Features/imageAnnotations/components/ImageAnnotationIcon";
 import ImageGeneric from "Features/images/components/ImageGeneric";
+import SectionFixedLengthToNextPoint from "Features/annotations/components/SectionFixedLengthToNextPoint";
 
 export default function LayerScreenCursor({ containerEl }) {
   const [pos, setPos] = useState({ x: 0, y: 0 });
