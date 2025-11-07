@@ -48,6 +48,7 @@ export default function FormAnnotationTemplateVariantBlock({
     strokeOpacity = 1,
     strokeWidth = 2,
     strokeWidthUnit = "PX",
+    strokeOffset = null,
     iconKey,
     label,
     closeLine,
@@ -64,6 +65,7 @@ export default function FormAnnotationTemplateVariantBlock({
     strokeOpacity,
     strokeWidth,
     strokeWidthUnit,
+    strokeOffset: strokeOffset === 0 ? true : false,
   };
 
   // helpers - annotationTypes

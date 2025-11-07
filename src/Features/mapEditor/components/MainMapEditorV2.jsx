@@ -263,6 +263,12 @@ export default function MainMapEditorV2() {
       if (e.key === "Escape") {
         console.log("ESCAPE");
         if (enabledDrawingMode) {
+          if (
+            enabledDrawingMode === "POLYLINE" &&
+            drawingPolylinePoints?.length >= 2
+          ) {
+            handlePolylineCompleteRef.current?.(drawingPolylinePoints);
+          }
           dispatch(setEnabledDrawingMode(null));
           dispatch(setNewAnnotation({}));
           dispatch(setSelectedNode(null));
