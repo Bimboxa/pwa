@@ -60,6 +60,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     onPolylineComplete,
     drawingPolylinePoints,
     newPolylineProps,
+    baseMapMeterByPx,
   } = props;
 
   // === REFS ===
@@ -868,6 +869,9 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                 ...(newPolylineProps ?? {}),
               }}
               onComplete={onPolylineComplete}
+              worldScale={world.k}
+              containerK={basePose.k}
+              baseMapMeterByPx={baseMapMeterByPx}
             />
 
             {!basePoseIsChanging && (

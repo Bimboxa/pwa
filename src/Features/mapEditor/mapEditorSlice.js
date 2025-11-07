@@ -50,6 +50,9 @@ const mapEditorInitialState = {
   scaleInPx: null,
   scaleAnnotationId: null,
   anchorPositionScale: null,
+
+  // fixed length
+  fixedLength: null,
 };
 
 export const mapEditorSlice = createSlice({
@@ -196,6 +199,11 @@ export const mapEditorSlice = createSlice({
       state.openDialogAutoSelectAnnotationTemplateToCreateEntity =
         action.payload;
     },
+
+    // fixed length
+    setFixedLength: (state, action) => {
+      state.fixedLength = action.payload;
+    },
   },
 });
 
@@ -236,6 +244,7 @@ export const {
   setDrawingPolylinePoints,
   addPolylinePoint,
   clearDrawingPolylinePoints,
+  setFixedLength,
 
   // rectangle
   setDrawingRectanglePoints,

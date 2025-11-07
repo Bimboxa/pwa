@@ -35,10 +35,9 @@ export default function SectionEditedAnnotationNextPoint() {
 
   // state
 
+  const [length, setLength] = useState("");
   const [x, setX] = useState("");
   const [y, setY] = useState("");
-
-  const [comment, setComment] = useState("");
 
   // refs for focusable elements (x, y, add button, terminate button) to maintain focus cycle
   const xInputRef = useRef(null);
@@ -195,6 +194,8 @@ export default function SectionEditedAnnotationNextPoint() {
       setX(value);
     } else if (coordinate === "y") {
       setY(value);
+    } else if (coordinate === "length") {
+      setLength(value);
     }
   }
 
@@ -214,6 +215,7 @@ export default function SectionEditedAnnotationNextPoint() {
 
     setX("");
     setY("");
+    setLength("");
 
     // Refocus on X input after adding point
     setTimeout(() => {
@@ -228,6 +230,7 @@ export default function SectionEditedAnnotationNextPoint() {
     await createFromPoints({ points: pointsPolyline, type: "POLYLINE" });
     setX("");
     setY("");
+    setLength("");
   }
 
   return (
@@ -235,6 +238,7 @@ export default function SectionEditedAnnotationNextPoint() {
       <Typography variant="body2" sx={{ fontWeight: "bold", mb: 2 }}>
         {title}
       </Typography>
+      <SectionFixedLengthToNextPoint />
       <Box sx={{ display: "flex", gap: 1 }}>
         <TextField
           inputRef={xInputRef}

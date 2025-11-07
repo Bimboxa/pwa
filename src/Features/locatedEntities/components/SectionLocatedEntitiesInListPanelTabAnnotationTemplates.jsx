@@ -21,6 +21,7 @@ import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSp
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
 import useDeleteAnnotationTemplate from "Features/annotations/hooks/useDeleteAnnotationTemplate";
 import useAnnotationTemplateCountById from "Features/annotations/hooks/useAnnotationTemplateCountById";
+import useAnnotationTemplateQtiesById from "Features/annotations/hooks/useAnnotationTemplateQtiesById";
 
 import {
   List,
@@ -56,6 +57,7 @@ function DraggableAnnotationTemplateItem({
   annotationTemplate,
   editedAnnotationTemplate,
   count,
+  qtyLabel,
   showAdd,
   editingId,
   hoveredId,
@@ -134,7 +136,7 @@ function DraggableAnnotationTemplateItem({
             height: "32px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent: "flex-end",
           }}
         >
           {showAdd ? (
@@ -147,10 +149,12 @@ function DraggableAnnotationTemplateItem({
           ) : (
             <Box>
               <Typography
-                variant="body2"
+                align="right"
+                noWrap
+                sx={{ fontSize: "12px" }}
                 color={count > 0 ? "secondary.main" : "grey.200"}
               >
-                {count}
+                {qtyLabel}
               </Typography>
             </Box>
           )}
@@ -214,6 +218,7 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates(
   // data
 
   const annotationTemplateCountById = useAnnotationTemplateCountById();
+  const annotationTemplateQtiesById = useAnnotationTemplateQtiesById();
   const annotationTemplates = useAnnotationTemplatesBySelectedListing({
     //splitByIsFromAnnotation: true,
     sortByLabel: true,
@@ -343,6 +348,9 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates(
           {annotationTemplates?.map((annotationTemplate, idx) => {
             const count =
               annotationTemplateCountById?.[annotationTemplate.id] || 0;
+            const qtyLabel =
+              annotationTemplateQtiesById?.[annotationTemplate.id]
+                ?.mainQtyLabel;
             const showAdd = hoveredId === annotationTemplate.id;
             if (!annotationTemplate?.isDivider)
               return (
@@ -351,6 +359,7 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates(
                   annotationTemplate={annotationTemplate}
                   editedAnnotationTemplate={editedAnnotationTemplate}
                   count={count}
+                  qtyLabel={qtyLabel}
                   showAdd={showAdd}
                   editingId={editingId}
                   hoveredId={hoveredId}

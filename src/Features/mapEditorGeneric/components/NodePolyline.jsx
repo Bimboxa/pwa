@@ -6,6 +6,7 @@ import {
   setClickedNode,
 } from "Features/contextMenu/contextMenuSlice";
 import theme from "Styles/theme";
+import applyFixedLengthConstraint from "Features/mapEditorGeneric/utils/applyFixedLengthConstraint";
 
 export default function NodePolyline({
   polyline,
@@ -22,6 +23,7 @@ export default function NodePolyline({
 }) {
   const dispatch = useDispatch();
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
+  const fixedLength = useSelector((s) => s.mapEditor.fixedLength);
 
   const dataProps = {
     "data-node-id": polyline?.id,
@@ -388,6 +390,8 @@ export default function NodePolyline({
   const worldScaleRef = useRef(worldScale);
   const showBgImageRef = useRef(showBgImage);
   const onCompleteRef = useRef(onComplete);
+  const fixedLengthRef = useRef(fixedLength);
+  const meterByPxRef = useRef(baseMapMeterByPx);
   useEffect(() => {
     toBaseFromClientRef.current = toBaseFromClient;
     basePointsRef.current = basePoints;
@@ -398,6 +402,8 @@ export default function NodePolyline({
     worldScaleRef.current = worldScale;
     showBgImageRef.current = showBgImage;
     onCompleteRef.current = onComplete;
+    fixedLengthRef.current = fixedLength;
+    meterByPxRef.current = baseMapMeterByPx;
   });
 
   // drawing preview / close helper
@@ -419,6 +425,15 @@ export default function NodePolyline({
 
       let bl = tbf(e.clientX, e.clientY);
       bl = constrainIfShift(e, bl, lastPx);
+
+      const constrainedWithFixedLength = applyFixedLengthConstraint({
+        lastPointPx: lastPx,
+        candidatePointPx: bl,
+        fixedLengthMeters: fixedLengthRef.current,
+        meterPerPixel: meterByPxRef.current,
+      });
+
+      bl = constrainedWithFixedLength || bl;
 
       const rx = bl.x / W;
       const ry = bl.y / H;

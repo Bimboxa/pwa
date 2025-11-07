@@ -6,6 +6,7 @@ import Panel from "Features/layout/components/Panel";
 import BoxCenter from "Features/layout/components/BoxCenter";
 
 import SectionEditedAnnotationNextPoint from "./SectionEditedAnnotationNextPoint";
+import SectionFixedLengthToNextPoint from "./SectionFixedLengthToNextPoint";
 
 export default function PanelHelperDrawAnnotation() {
   const dispatch = useDispatch();
@@ -31,7 +32,8 @@ export default function PanelHelperDrawAnnotation() {
         {["POLYLINE", "RECTANGLE"].includes(enabledDrawingMode) && (
           <Box sx={{ p: 1 }}>
             <Box sx={{ bgcolor: "white" }}>
-              <SectionEditedAnnotationNextPoint />
+              {/* <SectionEditedAnnotationNextPoint /> */}
+              <SectionFixedLengthToNextPoint />
             </Box>
           </Box>
         )}

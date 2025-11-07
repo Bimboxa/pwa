@@ -285,7 +285,7 @@ export default function MainMapEditorV2() {
           enabledDrawingMode === "POLYLINE" &&
           drawingPolylinePoints?.length >= 2
         ) {
-          //handlePolylineCompleteRef.current?.(drawingPolylinePoints); // /!\ triggered when Enter from "Section Next Points"
+          handlePolylineCompleteRef.current?.(drawingPolylinePoints); // /!\ triggered when Enter from "Section Next Points"
         }
       } else if (
         selectedItem?.type === "ENTITY" &&
@@ -451,7 +451,7 @@ export default function MainMapEditorV2() {
       const entity = await createEntity({});
 
       // Create annotation with polyline data
-      const annotation = await createAnnotation({
+      await createAnnotation({
         ...newAnnotation,
         type: "POLYLINE",
         points, // Store the points array
@@ -462,6 +462,11 @@ export default function MainMapEditorV2() {
       });
     } catch (error) {
       console.error("Error creating polyline:", error);
+    } finally {
+      dispatch(setEnabledDrawingMode(null));
+      dispatch(setNewAnnotation({}));
+      dispatch(setSelectedNode(null));
+      dispatch(clearDrawingPolylinePoints());
     }
   }
 
