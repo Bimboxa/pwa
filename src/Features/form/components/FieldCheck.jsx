@@ -10,6 +10,7 @@ import SelectorIconGeneric from "Features/layout/components/SelectorIconGeneric"
 
 export default function FieldCheck({ value, onChange, label, options }) {
   const type = options?.type ?? "check";
+  const showAsSection = options?.showAsSection ?? false;
 
   function handleChange(e, checked) {
     onChange(checked);
@@ -20,7 +21,9 @@ export default function FieldCheck({ value, onChange, label, options }) {
         display: "flex",
         alignItems: "center",
         p: 1,
-        borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+        ...(showAsSection && {
+          borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+        }),
       }}
     >
       <FormControlLabel

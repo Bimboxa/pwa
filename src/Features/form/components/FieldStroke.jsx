@@ -4,6 +4,7 @@ import FieldColorVariantToolbar from "./FieldColorVariantToolbar";
 import FieldOptionKey from "./FieldOptionKey";
 import FieldSlider from "./FieldSlider";
 import FieldTextV2 from "./FieldTextV2";
+import FieldCheck from "./FieldCheck";
 
 export default function FieldStroke({ value, onChange }) {
   // strings
@@ -11,6 +12,7 @@ export default function FieldStroke({ value, onChange }) {
   const strokeS = "Contour";
   const opacityS = "Opacité";
   const widthS = "Épaisseur";
+  const offsetS = "Décalage";
 
   // helpers
 
@@ -20,6 +22,7 @@ export default function FieldStroke({ value, onChange }) {
     strokeOpacity,
     strokeWidth,
     strokeWidthUnit,
+    strokeOffset,
   } = value ?? {};
 
   // hepers options
@@ -56,6 +59,9 @@ export default function FieldStroke({ value, onChange }) {
 
   function handleWidthUnitChange(widthUnit) {
     onChange({ ...value, strokeWidthUnit: widthUnit });
+  }
+  function handleOffsetChange(offset) {
+    onChange({ ...value, strokeOffset: offset ? 0 : null });
   }
 
   return (
@@ -96,6 +102,12 @@ export default function FieldStroke({ value, onChange }) {
         label={opacityS}
         value={strokeOpacity}
         onChange={handleOpacityChange}
+      />
+      <FieldCheck
+        label={offsetS}
+        value={strokeOffset}
+        onChange={handleOffsetChange}
+        options={{ type: "switch" }}
       />
     </Box>
   );

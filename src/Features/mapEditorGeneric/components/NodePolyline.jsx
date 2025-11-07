@@ -8,6 +8,8 @@ import {
 import theme from "Styles/theme";
 import applyFixedLengthConstraint from "Features/mapEditorGeneric/utils/applyFixedLengthConstraint";
 
+import offsetPolyline from "Features/geometry/utils/offsetPolyline";
+
 export default function NodePolyline({
   polyline,
   imageSize,
@@ -32,19 +34,17 @@ export default function NodePolyline({
     "data-annotation-type": "POLYLINE",
   };
 
-  const basePoints = polyline?.points || [];
   const {
-    strokeColor = polyline?.strokeColor ??
-      polyline?.fillColor ??
-      theme.palette.secondary.main,
-    closeLine = polyline?.closeLine ?? false,
-    fillColor = polyline?.fillColor ?? theme.palette.secondary.main,
-    fillOpacity = polyline?.fillOpacity ?? 0.8,
-    fillType = polyline?.fillType ?? "SOLID",
-    strokeType = polyline?.strokeType ?? "SOLID",
-    strokeOpacity = polyline?.strokeOpacity ?? 1,
-    strokeWidth = polyline?.strokeWidth ?? 2,
-    strokeWidthUnit = polyline?.strokeWidthUnit ?? "PX",
+    strokeColor = theme.palette.secondary.main,
+    closeLine = false,
+    fillColor = theme.palette.secondary.main,
+    fillOpacity = 0.8,
+    fillType = "SOLID",
+    strokeType = "SOLID",
+    strokeOpacity = 1,
+    strokeWidth = 2,
+    strokeWidthUnit = "PX",
+    strokeOffset,
   } = polyline || {};
 
   const w = imageSize?.w || 1;
@@ -61,12 +61,34 @@ export default function NodePolyline({
   const totalScale = showBgImage ? 1 : worldScale * containerK;
   const invScale = totalScale > 0 ? (showBgImage ? 1 : 1 / totalScale) : 1;
 
+  // stroke width
+  const hasOffset =
+    strokeOffset === 1 || strokeOffset === -1 || strokeOffset === 0;
+
   const computedStrokeWidthPx = useMemo(() => {
     let widthInPx = strokeWidth;
+
+    const fixWidth = hasOffset && (isDrawing || selected);
+    if (fixWidth) widthInPx = 4 * invScale;
+
     const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx;
-    if (isCmUnit) return (strokeWidth * 0.01) / baseMapMeterByPx;
-    return showBgImage ? widthInPx : widthInPx * invScale;
-  }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, showBgImage, invScale]);
+    if (isCmUnit && !fixWidth)
+      widthInPx = (widthInPx * 0.01) / baseMapMeterByPx;
+
+    if (showBgImage) widthInPx *= invScale;
+
+    return widthInPx;
+  }, [
+    strokeWidth,
+    strokeWidthUnit,
+    baseMapMeterByPx,
+    showBgImage,
+    invScale,
+    strokeOffset,
+    isDrawing,
+    selected,
+    hasOffset,
+  ]);
 
   const strokeProps = useMemo(() => {
     if (strokeType === "NONE") return { stroke: "none", strokeOpacity: 0 };
@@ -87,6 +109,36 @@ export default function NodePolyline({
     () => (showBgImage ? 10 / containerK : 10 * invScale),
     [showBgImage, containerK, invScale]
   );
+
+  const rawPoints = polyline?.points || [];
+
+  const applyOffset =
+    !selected && hasOffset && Boolean(baseMapMeterByPx) && !isDrawing;
+
+  const basePoints = useMemo(() => {
+    if (!applyOffset || rawPoints.length < 2 || !w || !h) return rawPoints;
+
+    const strokeOffsetFactor =
+      typeof strokeOffset === "number" && strokeOffset !== 0 ? strokeOffset : 0;
+
+    const pointsPx = rawPoints.map((p) => ({ x: p.x * w, y: p.y * h }));
+    const offsetDistance = (computedStrokeWidthPx / 2) * strokeOffsetFactor;
+    const offsetPx = offsetPolyline(pointsPx, offsetDistance, {
+      isClosed: closeLine,
+    });
+
+    if (!offsetPx?.length) return rawPoints;
+
+    return offsetPx.map((p) => ({ x: p.x / w, y: p.y / h }));
+  }, [
+    applyOffset,
+    rawPoints,
+    w,
+    h,
+    computedStrokeWidthPx,
+    strokeOffset,
+    closeLine,
+  ]);
 
   // state
   const [hoverIdx, setHoverIdx] = useState(null);
@@ -492,7 +544,6 @@ export default function NodePolyline({
     };
   }, [isDrawing, onComplete]);
 
-  // preview arrays
   const committedRel = useMemo(
     () => tempPoints ?? basePoints,
     [tempPoints, basePoints]
@@ -504,10 +555,32 @@ export default function NodePolyline({
         : committedRel,
     [isDrawing, currentMousePos, committedRel]
   );
+
+  const committedPx = useMemo(
+    () => committedRel.map((p) => ({ x: p.x * w, y: p.y * h })),
+    [committedRel, w, h]
+  );
+
   const previewPx = useMemo(
     () => previewRel.map((p) => ({ x: p.x * w, y: p.y * h })),
     [previewRel, w, h]
   );
+
+  const currentMousePosPx = useMemo(() => {
+    if (!currentMousePos) return null;
+    return { x: currentMousePos.x * w, y: currentMousePos.y * h };
+  }, [currentMousePos, w, h]);
+
+  const segmentProjectionPx = useMemo(() => {
+    if (!segmentProjection) return null;
+    return {
+      ...segmentProjection,
+      point: {
+        x: segmentProjection.point.x * w,
+        y: segmentProjection.point.y * h,
+      },
+    };
+  }, [segmentProjection, w, h]);
 
   const { d: pathD, segmentMap } = useMemo(
     () => buildPathAndMap(previewRel, closeLine),
@@ -719,10 +792,10 @@ export default function NodePolyline({
         committedRel.length > 0 &&
         strokeType !== "NONE" && (
           <line
-            x1={committedRel[committedRel.length - 1].x * w}
-            y1={committedRel[committedRel.length - 1].y * h}
-            x2={currentMousePos.x * w}
-            y2={currentMousePos.y * h}
+            x1={committedPx[committedPx.length - 1]?.x}
+            y1={committedPx[committedPx.length - 1]?.y}
+            x2={currentMousePosPx?.x}
+            y2={currentMousePosPx?.y}
             stroke={strokeProps.stroke}
             strokeWidth={computedStrokeWidthPx}
             strokeOpacity={strokeProps.strokeOpacity}
@@ -737,10 +810,10 @@ export default function NodePolyline({
         committedRel.length >= 1 &&
         strokeType !== "NONE" && (
           <line
-            x1={currentMousePos.x * w}
-            y1={currentMousePos.y * h}
-            x2={committedRel[0].x * w}
-            y2={committedRel[0].y * h}
+            x1={currentMousePosPx?.x}
+            y1={currentMousePosPx?.y}
+            x2={committedPx[0]?.x}
+            y2={committedPx[0]?.y}
             stroke={strokeProps.stroke}
             strokeWidth={computedStrokeWidthPx}
             strokeOpacity={strokeProps.strokeOpacity}
@@ -765,16 +838,16 @@ export default function NodePolyline({
           style={{ cursor: "pointer" }}
         >
           <circle
-            cx={committedRel[0].x * w}
-            cy={committedRel[0].y * h}
+            cx={committedPx[0]?.x}
+            cy={committedPx[0]?.y}
             r={HIT_R * invScale}
             fill="rgba(0,102,204,0.1)"
             stroke="#0066cc"
             strokeWidth={2 * invScale}
           />
           <circle
-            cx={committedRel[0].x * w}
-            cy={committedRel[0].y * h}
+            cx={committedPx[0]?.x}
+            cy={committedPx[0]?.y}
             r={ANCHOR_R_HOVERED * invScale}
             fill="#0066cc"
             stroke="#fff"
@@ -787,8 +860,9 @@ export default function NodePolyline({
       {/* ANCHORS */}
       {selected &&
         committedRel.map((p, i) => {
-          const px = p.x * w,
-            py = p.y * h;
+          const pointPx = committedPx[i];
+          const px = pointPx?.x;
+          const py = pointPx?.y;
           const isSquare = p?.type !== "circle";
           const hovered =
             hoverIdx === i ||
@@ -858,16 +932,16 @@ export default function NodePolyline({
             style={{ cursor: "pointer" }}
           >
             <circle
-              cx={segmentProjection.point.x * w}
-              cy={segmentProjection.point.y * h}
+              cx={segmentProjectionPx?.point.x}
+              cy={segmentProjectionPx?.point.y}
               r={HIT_R * invScale}
               fill="rgba(0,102,204,0.1)"
               stroke="#0066cc"
               strokeWidth={2 * invScale}
             />
             <circle
-              cx={segmentProjection.point.x * w}
-              cy={segmentProjection.point.y * h}
+              cx={segmentProjectionPx?.point.x}
+              cy={segmentProjectionPx?.point.y}
               r={ANCHOR_R_HOVERED * invScale}
               fill="#0066cc"
               stroke="#fff"

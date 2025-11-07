@@ -18,6 +18,7 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     strokeOpacity: annotationTemplate?.strokeOpacity,
     strokeWidth: annotationTemplate?.strokeWidth,
     strokeWidthUnit: annotationTemplate?.strokeWidthUnit,
+    strokeOffset: annotationTemplate?.strokeOffset,
 
     iconKey: annotationTemplate?.iconKey,
   };
