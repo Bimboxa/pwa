@@ -31,6 +31,7 @@ export default function PanelEditEntity() {
   const entity = useEntity();
 
   const template = useEntityFormTemplate();
+  console.log("debug_1011_template", template);
 
   // helper
 
@@ -61,6 +62,7 @@ export default function PanelEditEntity() {
         flexDirection: "column",
         flexGrow: 1,
         minHeight: 0,
+        position: "relative",
       }}
     >
       <HeaderEntityInPanel />
@@ -79,7 +81,7 @@ export default function PanelEditEntity() {
             template={template}
             entity={entity}
             onEntityChange={handleEntityChange}
-            selectorContainerRef={selectorContainerRef}
+            sectionContainerEl={selectorContainerRef?.current}
           />
         </Box>
       </Box>

@@ -9,6 +9,7 @@ import { Typography, Button, Tooltip } from "@mui/material";
 import { ArrowDropDown as Down } from "@mui/icons-material";
 
 import DialogSelectorScope from "Features/scopes/components/DialogSelectorScope";
+import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 export default function ButtonSelectorScope() {
   const dispatch = useDispatch();
@@ -37,9 +38,11 @@ export default function ButtonSelectorScope() {
   return (
     <>
       <Tooltip title={selectS}>
-        <Button onClick={handleClick} endIcon={<Down />}>
-          <Typography>{scopeName}</Typography>
-        </Button>
+        <ButtonGeneric
+          onClick={handleClick}
+          endIcon={<Down />}
+          label={scopeName}
+        />
       </Tooltip>
       <DialogSelectorScope />
     </>

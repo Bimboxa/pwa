@@ -2,7 +2,7 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useListingEntityModel from "Features/listings/hooks/useListingEntityModel";
 import useAutoSelectListing from "Features/listings/hooks/useAutoSelectListing";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 
 import SectionListEntitiesInListPanel from "Features/entities/components/SectionListEntitiesInListPanel";
 import SectionTreeZonesInListPanel from "Features/zones/components/SectionTreeZonesInListPanel";
@@ -14,7 +14,7 @@ import SectionRelsZoneEntityInListPanel from "Features/relsZoneEntity/components
 
 export default function ListPanelListItems() {
   // data
-  const {value: listing} = useSelectedListing({withEntityModel: true});
+  const { value: listing } = useSelectedListing({ withEntityModel: true });
   const entityModel = listing?.entityModel;
 
   // effect
@@ -24,7 +24,7 @@ export default function ListPanelListItems() {
   // helpers
 
   const componentByType = {
-    ZONE_ENTITY_MODEL: <SectionTreeZonesInListPanel />,
+    ZONE_ENTITY: <SectionTreeZonesInListPanel />,
     REL_ZONE_ENTITY: <SectionRelsZoneEntityInListPanel />,
     ENTITY_PROPS: <SectionListEntityPropsInListPanel />,
     KEY_VALUE: <SectionDataObjectInListPanel />,

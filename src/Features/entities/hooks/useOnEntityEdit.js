@@ -20,6 +20,10 @@ export default function useOnEntityEdit() {
         dispatch(setOpenedPanel("EDITED_ENTITY"));
         break;
 
+      case "MATERIAL_ENTITY":
+        dispatch(setOpenedPanel("EDITED_ENTITY"));
+        break;
+
       case "LOCATED_ENTITY":
         dispatch(setOpenedPanel("EDITED_ENTITY"));
         break;

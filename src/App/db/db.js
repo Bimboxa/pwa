@@ -20,6 +20,8 @@ db.version(12).stores({
   maps: "id,projectId,listingId,[listingId+createdBy]",
 
   zonings: "listingId", // {listingId,zonesTree}
+  materials: "id,projectId,listingId,[listingId+createdBy]",
+
   relsZoneEntity: "id,zoneId,listingId,entityId", // {id,zoneId,table,listingId,entityId}
   entitiesProps:
     "id,[listingKey+targetEntityId],listingKey,targetListingKey,targetEntityId", // entityProps = {id,tarketListingKey,targetEntityId,props}

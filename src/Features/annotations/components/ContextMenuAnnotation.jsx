@@ -8,9 +8,14 @@ import {
 import { setOpenDialogAutoSelectAnnotationTemplateToCreateEntity } from "Features/mapEditor/mapEditorSlice";
 
 import useMoveAnnotation from "../hooks/useMoveAnnotation";
+import useOnEntityEdit from "Features/entities/hooks/useOnEntityEdit";
 
 import { useLiveQuery } from "dexie-react-hooks";
+
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import db from "App/db/db";
+import getAnnotationEntityAsync from "Features/entities/services/getAnnotationEntityAsync";
 
 import {
   Paper,
@@ -29,6 +34,9 @@ export default function ContextMenuAnnotation() {
 
   const clickedNode = useSelector((s) => s.contextMenu.clickedNode);
   const moveAnnotation = useMoveAnnotation();
+  const appConfig = useAppConfig();
+
+  const onEntityEdit = useOnEntityEdit();
 
   // helpers - annotation
 
@@ -40,13 +48,29 @@ export default function ContextMenuAnnotation() {
   // helpers
 
   const actions = [
+    { label: "Editer", handler: handleEdit },
+    { isDivider: true },
     { label: "Avancer au 1er plan", handler: handleMoveTop },
     { label: "Reculer à l'arrière plan", handler: handleMoveBottom },
     { isDivider: true },
     { label: "Ajouter un objet", handler: handleAddEntity },
   ];
 
+  // helpers - show
+
+  const showStrokeOffset =
+    annotation?.type === "POLYLINE" && !annotation?.closeLine;
+
   // handlers
+
+  async function handleEdit() {
+    const entity = await getAnnotationEntityAsync(annotation, appConfig);
+    console.log("debug_1311_entity", entity);
+    if (entity) {
+      onEntityEdit(entity);
+    }
+    dispatch(setAnchorPosition(null));
+  }
 
   function handleAddEntity() {
     dispatch(setOpenDialogAutoSelectAnnotationTemplateToCreateEntity(true));
@@ -85,16 +109,18 @@ export default function ContextMenuAnnotation() {
 
   return (
     <Paper>
-      <Box
-        sx={{
-          p: 1,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <SectionAnnotationStrokeOffset annotation={annotation} />
-      </Box>
+      {showStrokeOffset && (
+        <Box
+          sx={{
+            p: 1,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <SectionAnnotationStrokeOffset annotation={annotation} />
+        </Box>
+      )}
 
       <List dense>
         {actions.map(({ label, handler, isDivider }, idx) => {

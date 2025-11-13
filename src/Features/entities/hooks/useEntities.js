@@ -13,6 +13,7 @@ import { setFilterByMainBaseMap } from "Features/mapEditor/mapEditorSlice";
 import useAnnotations from "Features/annotations/hooks/useAnnotations";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import getEntityComputedFieldsAsync from "../services/getEntityComputedFieldsAsync";
 
 export default function useEntities(options) {
   // options
@@ -22,6 +23,7 @@ export default function useEntities(options) {
   const withImages = options?.withImages;
   const withMarkers = options?.withMarkers;
   const withAnnotations = options?.withAnnotations;
+  const withComputedFields = options?.withComputedFields;
 
   const filterByListingsKeys = options?.filterByListingsKeys;
   const filterByListingsIds = options?.filterByListingsIds;
@@ -56,6 +58,7 @@ export default function useEntities(options) {
 
   // helpers
 
+  let listingsById = {};
   let labelKeyByListingId = {};
   let subLabelKeyByListingId = {};
   let listingKeyByListingId = {};
@@ -69,6 +72,8 @@ export default function useEntities(options) {
       }
       return acc;
     }, {});
+
+    listingsById = getItemsByKey(allListings ?? {}, "id");
 
     labelKeyByListingId = allListings.reduce((acc, listing) => {
       if (listing?.id) {
@@ -200,6 +205,24 @@ export default function useEntities(options) {
       //     };
       //   });
       // }
+
+      // add computedFields
+
+      if (withComputedFields) {
+        entities = await Promise.all(
+          entities.map(async (entity) => {
+            const listing = listingsById[entity.listingId];
+            const _computedFields = listing?.entityModel?.computedFields;
+
+            const computedFields = await getEntityComputedFieldsAsync(
+              _computedFields,
+              entity,
+              entities
+            );
+            return { ...entity, ...computedFields };
+          })
+        );
+      }
 
       // add label && listingKey
       entities = entities.map((entity) => {

@@ -35,12 +35,15 @@ export default function FormScope({ scope, onChange }) {
       //   label: "Réf.",
       //   type: "text",
       // },
-      // {
-      //   key: "presetConfig",
-      //   label: appConfig?.strings?.presetConfig?.title,
-      //   type: "option",
-      //   valueOptions: configOptions,
-      // },
+      {
+        key: "presetConfig",
+        label: appConfig?.strings?.presetConfig?.title,
+        type: "optionKey",
+        valueOptions: configOptions,
+        options: {
+          showAsSection: true,
+        },
+      },
     ],
   };
 

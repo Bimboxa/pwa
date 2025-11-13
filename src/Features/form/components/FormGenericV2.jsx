@@ -23,7 +23,8 @@ import FieldZonesVariantGrid from "./FieldZonesVariantGrid";
 import FieldZoneVariantGrid from "./FieldZoneVariantGrid";
 import FieldOptionVariantGrid from "./FieldOptionVariantGrid";
 import FieldEntityVariantGrid from "./FieldEntityVariantGrid";
-import FieldCategoryVariantGrid from "./FieldCategoryVariantGrid";
+import FieldEntityV2 from "./FieldEntityV2";
+import FieldCategoryV2 from "./FieldCategoryV2";
 import FieldQrcodeVariantGrid from "./FieldQrcodeVariantGrid";
 
 import getTemplateFields from "../utils/getTemplateFields";
@@ -33,6 +34,7 @@ export default function FormGenericV2({
   item,
   onItemChange,
   createContainerEl,
+  sectionContainerEl,
 }) {
   const formContainerRef = useRef(null);
 
@@ -267,7 +269,7 @@ export default function FormGenericV2({
 
         if (field?.type === "entity") {
           return (
-            <FieldEntityVariantGrid
+            <FieldEntityV2
               key={field.key}
               label={field.label}
               width={field.width}
@@ -277,7 +279,8 @@ export default function FormGenericV2({
               }
               entities={field.entities}
               entitiesListing={field.entitiesListing}
-              formContainerRef={formContainerRef}
+              sectionContainerEl={sectionContainerEl}
+              options={field.options}
             />
           );
         }
@@ -293,6 +296,7 @@ export default function FormGenericV2({
                 handleFieldValueChange(field.key, newValue)
               }
               valueOptions={field.valueOptions}
+              options={field.options}
             />
           );
         }
@@ -310,6 +314,7 @@ export default function FormGenericV2({
               valueOptions={field.valueOptions}
               options={field.options}
               formContainerRef={formContainerRef}
+              sectionContainerEl={sectionContainerEl}
             />
           );
         }
@@ -328,7 +333,7 @@ export default function FormGenericV2({
 
         if (field?.type === "category") {
           return (
-            <FieldCategoryVariantGrid
+            <FieldCategoryV2
               key={field.key}
               label={field.label}
               width={field.width}
@@ -337,7 +342,8 @@ export default function FormGenericV2({
                 handleFieldValueChange(field.key, newValue)
               }
               nomenclature={field.nomenclature}
-              formContainerRef={formContainerRef}
+              sectionContainerEl={sectionContainerEl}
+              options={field.options}
             />
           );
         }

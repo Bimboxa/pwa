@@ -7,6 +7,7 @@ export default function useListingFormTemplate(listing, options) {
   // options
 
   const locatedListingOnly = options?.locatedListingOnly;
+  const relatedListings = options?.relatedListings;
 
   // data
 
@@ -40,6 +41,30 @@ export default function useListingFormTemplate(listing, options) {
   let placeholder = "Liste XXX";
   if (options.locatedListingOnly) placeholder = "PIC, réception, DAT,...";
 
+  // helpers - relatedListings selectors for models with listingKey
+
+  const entityModel = listing?.entityModel ?? {};
+  const selectorFields = [];
+  if (entityModel?.fieldsObject) {
+    Object.entries(entityModel?.fieldsObject)?.forEach(([key, field]) => {
+      // key: category,field: {nomenclature:{listingKey,selectorLabel,entityModelType,entityModelKey}}
+      Object.entries(field)?.forEach(([key, value]) => {
+        if (value.listingKey) {
+          selectorFields.push({
+            key: value.listingKey,
+            type: "option",
+            valueOptions: relatedListings?.filter(
+              (listing) => listing.entityModel?.type === value.entityModelType
+            ),
+            label: value.selectorLabel,
+            parentObject: "relatedListings",
+            options: { labelKey: "name" },
+          });
+        }
+      });
+    });
+  }
+
   // main
 
   const template = {
@@ -58,8 +83,10 @@ export default function useListingFormTemplate(listing, options) {
         options: {
           firstOptionByDefault: optionsEntityModels?.length === 1,
           displayNone: optionsEntityModels?.length === 1,
+          labelKey: "name",
         },
       },
+      ...selectorFields,
       {
         key: "color",
         label: "Couleur",

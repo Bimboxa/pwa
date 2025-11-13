@@ -20,6 +20,7 @@ export default function FieldCategoryVariantGrid({
   label,
   size = 8,
   formContainerRef,
+  sectionContainerEl,
 }) {
   // helpers
 
@@ -31,8 +32,8 @@ export default function FieldCategoryVariantGrid({
   const [open, setOpen] = useState(false);
 
   // helpers
-
-  const bbox = formContainerRef?.current?.getBoundingClientRect();
+  const el = sectionContainerEl ?? formContainerRef?.current;
+  const bbox = el?.getBoundingClientRect();
 
   // helpers
 
@@ -64,11 +65,13 @@ export default function FieldCategoryVariantGrid({
             sx={{
               position: "absolute",
               top: 0,
-              left: bbox.left,
+              left: 0,
               width: bbox.width,
               bottom: 0,
               bgcolor: "background.paper",
               zIndex: 2000,
+              display: "flex",
+              flexDirection: "column",
             }}
           >
             <SelectorVariantTree

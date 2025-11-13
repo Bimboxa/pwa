@@ -1,5 +1,7 @@
 import { useSelector } from "react-redux";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import { Box, Divider } from "@mui/material";
 
 import BoxFlexH from "Features/layout/components/BoxFlexH";
@@ -18,8 +20,14 @@ import ToolbarDrawingTools from "Features/mapEditor/components/ToolbarDrawingToo
 import BlockVersionInTopBar from "Features/versions/components/BlockVersionInTopBar";
 
 export default function TopBarDesktop() {
+  // data
+
   const height = useSelector((s) => s.layout.topBarHeight);
-  const em = useSelectedEntityModel();
+  const appConfig = useAppConfig();
+
+  // helpers
+
+  const scopesEnabled = appConfig?.features?.scopes?.enabled;
 
   return (
     <Box
@@ -50,6 +58,7 @@ export default function TopBarDesktop() {
         <TopBarBreadcrumbs />
         {/* <BlockVersionInTopBar /> */}
         {/* <TopBarProjectAndScope /> */}
+        {scopesEnabled && <ButtonSelectorScope />}
       </Box>
 
       {/* {em?.type === "BASE_MAP" && <SelectorViewer />} */}

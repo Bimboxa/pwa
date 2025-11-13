@@ -1,4 +1,4 @@
-import {useState} from "react";
+import { useState } from "react";
 
 import useCreateScope from "../hooks/useCreateScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -8,7 +8,9 @@ import FormScope from "./FormScope";
 import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
-import getListingsToCreateFromAppConfig from "Features/listings/utils/getListingsToCreateFromAppConfig";
+import resolveListingsToCreateFromPresetListings from "Features/listings/services/resolveListingsToCreateFromPresetListings";
+import getPresetListingsFromPresetScope from "Features/listings/utils/getPresetListingsFromPresetScope";
+import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 
 export default function SectionCreateScope({
   projectId,
@@ -36,11 +38,17 @@ export default function SectionCreateScope({
   // handlers
 
   async function handleCreateScope() {
+    setLoading(true);
+
     // 1 - listings
 
-    const newListings = getListingsToCreateFromAppConfig(
-      appConfig,
-      tempScope?.presetConfig?.key
+    const presetListings = getPresetListingsFromPresetScope(
+      tempScope?.presetConfig,
+      appConfig
+    );
+    const newListings = await resolveListingsToCreateFromPresetListings(
+      presetListings,
+      appConfig
     );
 
     // 2 - scope
@@ -51,10 +59,13 @@ export default function SectionCreateScope({
     };
 
     // 3 - create
-    setLoading(true);
-    const newScope = await createScope(props, {updateSyncFile});
+
+    const newScope = await createScope(props, { updateSyncFile });
+    //const newScope = {};
+    console.log("newListings", newListings);
+
     setLoading(false);
-    if (onCreated) onCreated({...newScope, isNew: true});
+    if (onCreated) onCreated({ ...newScope, isNew: true });
   }
 
   return (
@@ -63,10 +74,12 @@ export default function SectionCreateScope({
 
       <FormScope scope={tempScope} onChange={setTempScope} />
 
-      <ButtonInPanel
+      <ButtonInPanelV2
         label={createS}
         onClick={handleCreateScope}
         loading={loading}
+        variant="contained"
+        color="secondary"
       />
     </BoxFlexVStretch>
   );

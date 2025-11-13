@@ -1,4 +1,6 @@
-import {nanoid} from "@reduxjs/toolkit";
+// THE FILE TO RESOLVE LISTINGS TO CREATE FROM PRESET LISTINGS
+
+import { nanoid } from "@reduxjs/toolkit";
 import updateListingRelatedEntitiesWithListingsIds from "../utils/updateListingRelatedEntitiesWithListingsIds";
 
 import db from "App/db/db";
@@ -6,7 +8,8 @@ import resolveListingNomenclature from "Features/appConfig/services/resolveListi
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 export default async function resolveListingsToCreateFromPresetListings(
-  presetListings
+  presetListings,
+  appConfig
 ) {
   // edge case
   if (!presetListings) return [];
@@ -16,6 +19,9 @@ export default async function resolveListingsToCreateFromPresetListings(
   for (let presetListing of presetListings) {
     let shouldAdd = true;
     presetListing = structuredClone(presetListing);
+
+    // add id
+    presetListing.id = nanoid();
 
     // edge case, existing unique by project listings
     if (presetListing.uniqueByProject) {
@@ -28,11 +34,11 @@ export default async function resolveListingsToCreateFromPresetListings(
 
     // resolve nomenclature listings
     if (presetListing.type === "NOMENCLATURE") {
-      presetListing = await resolveListingNomenclature(presetListing);
+      presetListing = await resolveListingNomenclature(
+        presetListing,
+        appConfig
+      );
     }
-
-    // add id
-    presetListing.id = nanoid();
 
     // return
     if (shouldAdd) listings.push(presetListing);
@@ -43,13 +49,23 @@ export default async function resolveListingsToCreateFromPresetListings(
   const listingByKey = getItemsByKey(listings, "key");
 
   listings = listings.map((listing) => {
-    let newListing = {...listing};
+    let newListing = { ...listing };
     if (listing.relatedEntities) {
       const relatedEntities = updateListingRelatedEntitiesWithListingsIds(
         listing.relatedEntities,
         listingByKey
       );
       newListing.relatedEntities = relatedEntities;
+    }
+
+    if (listing.relatedListings) {
+      const relatedListings = {};
+      Object.entries(listing.relatedListings).forEach(
+        ([fieldKey, listingKey]) => {
+          relatedListings[fieldKey] = listingByKey[listingKey];
+        }
+      );
+      newListing.relatedListings = relatedListings;
     }
 
     if (listing.relatedListing) {

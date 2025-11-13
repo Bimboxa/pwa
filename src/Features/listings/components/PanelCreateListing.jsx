@@ -7,6 +7,7 @@ import { setSelectedListingId } from "../listingsSlice";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useAddListingToScope from "Features/scopes/hooks/useAddListingToScope";
 import useCreateListing from "Features/listings/hooks/useCreateListing";
+import useListings from "Features/listings/hooks/useListings";
 
 import Panel from "Features/layout/components/Panel";
 import FormListing from "./FormListing";
@@ -33,6 +34,7 @@ export default function PanelCreateListing({
   const addListingToScope = useAddListingToScope();
   const createListing = useCreateListing();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const listings = useListings({ filterByProjectId: projectId });
 
   // state
 
@@ -78,6 +80,7 @@ export default function PanelCreateListing({
       <BoxFlexVStretch>
         <FormListing
           listing={tempListing}
+          relatedListings={listings}
           onChange={handleChange}
           locatedListingOnly={locatedListingOnly}
         />

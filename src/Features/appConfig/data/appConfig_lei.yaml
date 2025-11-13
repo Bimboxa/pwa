@@ -1,4 +1,4 @@
-name: "LEI - Rapports amiante"
+name: "Etandex"
 version: "16/07/2025"
 isDefault: true
 
@@ -75,17 +75,21 @@ remoteContainer:
   name: "Serveur de sauvegarde"
   showSignInWarning: false
 
+# orgaData:
+#   pathRelative: "/_data/_orga"
+#   files:
+#     - key: nomenclature1
+#       fileName: _nomenclature_nfx-46-020_v1.json
+#       dataStructure: "NOMENCLATURE"
+#       description: "Nomenclature NFX 46-020. Objet {name,ranks,items:[{num,label,children}]}"
+#     - key: reportTemplate1
+#       fileName: SGS - Bon de commande Générique AMIANTE rev 1123.xlsx
+#       dataStructure: "FILE"
+#       description: "Bordereau d'envoi SGS pour les prélèvement"
+
 orgaData:
-  pathRelative: "/_data/_orga"
-  files:
-    - key: nomenclature1
-      fileName: _nomenclature_nfx-46-020_v1.json
-      dataStructure: "NOMENCLATURE"
-      description: "Nomenclature NFX 46-020. Objet {name,ranks,items:[{num,label,children}]}"
-    - key: reportTemplate1
-      fileName: SGS - Bon de commande Générique AMIANTE rev 1123.xlsx
-      dataStructure: "FILE"
-      description: "Bordereau d'envoi SGS pour les prélèvement"
+  nom_NFX_46_020:
+    url: https://public.storage.bimboxa.com/lei/orgaData/_nomenclature_nfx-46-020_v1.json
 
 sync:
   canSyncLocalProject: false
@@ -94,6 +98,28 @@ sync:
 # FEATURES
 
 features:
+  scopes:
+    enabled: true
+  entityModels: # used in create listing dialog
+    keys:
+      - zone
+      - material
+      - baseMap
+      - annotation
+      #- issue
+      - blueprint
+  entityModelTypes: # used in left sidebar
+    - type: ZONE_ENTITY
+      name: Pièces
+    - type: MATERIAL_ENTITY
+      name: Matériaux
+    - type: BASE_MAP
+      name: Fonds de plan
+    - type: LOCATED_ENTITY
+      name: Listes d'objets
+    - type: BLUEPRINT
+      name: Exports
+
   bgImages:
     options:
       - key: DEFAULT
@@ -138,15 +164,20 @@ entityModelsObject:
     key: projectData
     type: KEY_VALUE
 
-  map:
-    key: map
-    type: MAP
+  baseMap:
+    key: baseMap
+    name: Fonds de plan
+    type: BASE_MAP
+    defaultTable: baseMaps
+    defaultColor: *purple700
+    defaultIconKey: map
+    defaultListingName: Fonds de plan
     strings:
       labelNew: Nouveau fond de plan
-    labelKey: label
+    labelKey: name
     fieldsObject:
-      label:
-        key: label
+      name:
+        key: name
         type: text
         label: Nom
       image:
@@ -155,10 +186,35 @@ entityModelsObject:
         label: Image
         options:
           maxSize: 5000
+      imageEnhanced:
+        key: imageEnhanced
+        type: image
+        label: Image traitée
+        options:
+          maxSize: 5000
+          showAsSection: true
+      showEnhanced:
+        key: showEnhanced
+        type: check
+        label: Utiliser l'image traitée
+        options:
+          type: switch
+      opacity:
+        key: opacity
+        type: slider
+        options:
+          showAsSection: true
+        label: Opacité
+      grayScale:
+        key: grayScale
+        type: check
+        label: Niveau de gris
 
   zone:
     key: zone
-    type: ZONE_ENTITY_MODEL
+    name: Pièces
+    type: ZONE_ENTITY
+    defaultTable: zonings
     strings:
       labelNew: Nouvelle pièce
 
@@ -176,19 +232,29 @@ entityModelsObject:
         needListingItems: true
 
   material:
+    # listingKeys are specified in the listing relatedListings.
     key: material
-    type: "ENTITY"
+    type: "MATERIAL_ENTITY"
+    name: "Matériaux"
+    defaultTable: materials
+    defaultColor: *orange300
+    defaultIconKey: material
+    defaultListingName: Matériaux
     strings:
       labelEntity: Matériau
       labelNew: Nouveau matériau
       labelSelect: Sélectionnez un matériau
     labelKey: description
+    subLabelKey: code
     fieldsObject:
       category:
         key: "category"
         type: category
         label: "Catégorie"
-        nomenclatureKey: "nomenclature_1"
+        nomenclature:
+          listingKey: nomenclature_1
+          selectorLabel: Nomenclature
+          entityModelType: NOMENCLATURE_ITEM # used to select listing with this entityModelType.
       description:
         key: description
         type: text
@@ -205,6 +271,8 @@ entityModelsObject:
       #   type: zones
       #   label: Pièces
     computedFields:
+      code:
+        scriptKey: getEntityMaterialCode
       fullLabelWithCategory:
         computationType: "TEMPLATE_BASED"
         template: "{{category.fullName}} - {{description}}"
@@ -256,8 +324,10 @@ entityModelsObject:
         type: "entity"
         relationKey: "material1" # used in the list specification.
         entities:
-          - id: "wait"
-            label: "..."
+          listingKey: nomenclature_1
+          selectorLabel: Nomenclature
+          entityModelType: NOMENCLATURE_ITEM
+
       zone:
         key: zone
         label: Pièce
@@ -386,7 +456,7 @@ presetListingsObject:
 
   nom_NFX_46_020:
     key: nom_NFX_46_020
-    uniqueByProject: true
+    uniqueByProject: false # used to manage nomenclatures by scope.
     name: "NFX 46-020"
     type: "NOMENCLATURE"
     entityModelKey: materialCategory
@@ -396,7 +466,7 @@ presetListingsObject:
     metadata:
       nomenclature:
         srcType: "ORGA_DATA"
-        srcKey: "nomenclature1" # path: orgaData.nomenclature1
+        srcKey: nom_NFX_46_020 # path: orgaData.srcKey
 
   materials:
     key: materials
@@ -407,7 +477,7 @@ presetListingsObject:
     #relatedNomenclatures: # relation from the key of the nomenclature.
     #nomenclature_1: "nomenclature1" # we use the key related to the orgadata.
     #nomenclature_1: nom_NFX_46_020"
-    table: entities
+    table: materials
     color: *orange300
     iconKey: material
     zoningKey: zones
@@ -513,6 +583,7 @@ presetScopesObject:
       - mapsFromPhotos
       - mapsFromPdf
       - zones
+      - nom_NFX_46_020
       - materials
       - relsZoneMaterial
       - samples

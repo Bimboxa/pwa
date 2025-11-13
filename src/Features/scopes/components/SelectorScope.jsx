@@ -1,10 +1,12 @@
 import ItemsList from "Features/itemsList/components/ItemsList";
+import ListItemsGeneric from "Features/layout/components/ListItemsGeneric";
 
 export default function SelectorScope({
   scopes,
   selection,
   onSelectionChange,
 }) {
+  console.log("scopes", scopes);
   // helpers
 
   const items = scopes.map((scope) => {
@@ -25,10 +27,12 @@ export default function SelectorScope({
   const selectedIds = selection ? [selection] : [];
 
   return (
-    <ItemsList
-      items={items}
+    <ListItemsGeneric
+      items={scopes}
       selection={selectedIds}
       onClick={handleClick}
+      keyString="id"
+      labelKey="name"
       //disableCreation={true}
     />
   );
