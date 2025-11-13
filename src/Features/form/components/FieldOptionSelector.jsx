@@ -11,12 +11,12 @@ export default function FieldOptionSelector({
   options,
 }) {
   const arrowRef = useRef(null);
-  console.log("debug_1509 valueOptions", valueOptions);
 
   // options
 
   const firstOptionByDefault = options?.firstOptionByDefault;
   const displayNone = options?.displayNone;
+  const labelKey = options?.labelKey;
 
   // use
 
@@ -33,7 +33,7 @@ export default function FieldOptionSelector({
 
   // helpers
 
-  const buttonLabel = value?.label ?? "Choisir une option";
+  const buttonLabel = value?.[labelKey] ?? "Choisir une option";
 
   // handlers
 
@@ -67,13 +67,13 @@ export default function FieldOptionSelector({
       >
         {valueOptions.map((option) => (
           <MenuItem
-            key={option?.id}
+            key={option?.id ?? option?.key}
             onClick={() => {
               handleChange(option);
               setAnchorEl(null);
             }}
           >
-            <Typography>{option?.label}</Typography>
+            <Typography>{option?.[labelKey]}</Typography>
           </MenuItem>
         ))}
       </Menu>

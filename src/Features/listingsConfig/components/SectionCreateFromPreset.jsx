@@ -1,6 +1,6 @@
-import {useDispatch} from "react-redux";
+import { useDispatch } from "react-redux";
 
-import {setTempListings} from "../listingsConfigSlice";
+import { setTempListings } from "../listingsConfigSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -11,7 +11,7 @@ import {
   ListItemText,
   ListItemButton,
 } from "@mui/material";
-import getListingsToCreateFromAppConfig from "Features/listings/utils/getListingsToCreateFromAppConfig";
+
 import useResolvedPresetListings from "Features/listings/hooks/useResolvedPresetListings";
 
 export default function SectionCreateFromPreset() {
@@ -45,7 +45,7 @@ export default function SectionCreateFromPreset() {
 
   return (
     <Box>
-      <Box sx={{p: 2}}>
+      <Box sx={{ p: 2 }}>
         <Typography variant="body2" color="text.secondary">
           {messageS}
         </Typography>

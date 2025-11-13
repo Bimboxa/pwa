@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 
+import { useSelector } from "react-redux";
+
+import useListings from "../hooks/useListings";
 import useSelectedListing from "../hooks/useSelectedListing";
 import useUpdateListing from "../hooks/useUpdateListing";
 import useListingEntityModel from "../hooks/useListingEntityModel";
@@ -17,9 +20,11 @@ export default function DialogEditListing({ open, onClose, listing }) {
   const saveS = "Enregistrer";
 
   // data
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
   const { value: selectedListing } = useSelectedListing({
     withEntityModel: true,
   });
+  const listings = useListings({ filterByProjectId: projectId });
 
   // data - func
   const updateListing = useUpdateListing();
@@ -38,8 +43,6 @@ export default function DialogEditListing({ open, onClose, listing }) {
       setTempListing({ ...listing, entityModel });
     }
   }, [listing?.id, entityModel?.key]);
-
-  console.log("entityModel", entityModel, tempListing);
 
   // handlers
 
@@ -63,7 +66,11 @@ export default function DialogEditListing({ open, onClose, listing }) {
     <DialogGeneric open={open} onClose={onClose} width={350} vh={70}>
       <HeaderTitleClose title={title} />
       <BoxFlexVStretch>
-        <FormListing listing={tempListing} onChange={handleChange} />
+        <FormListing
+          listing={tempListing}
+          relatedListings={listings}
+          onChange={handleChange}
+        />
       </BoxFlexVStretch>
       <ButtonInPanel label={saveS} onClick={handleSave} />
     </DialogGeneric>

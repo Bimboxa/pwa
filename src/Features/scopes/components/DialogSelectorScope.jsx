@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { setOpenSelectorScope } from "../scopesSlice";
 import { setSelectedScopeId } from "../scopesSlice";
+
+import { setOpenScopeCreator } from "Features/scopeCreator/scopeCreatorSlice";
 
 import useScopes from "Features/scopes/hooks/useScopes";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -11,9 +14,21 @@ import { Typography, Box } from "@mui/material";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import BlockSelectedScope from "Features/scopes/components/BlockSelectedScope";
 import SelectorScope from "Features/scopes/components/SelectorScope";
+import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
+import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import SectionCreateScope from "Features/scopes/components/SectionCreateScope";
 
 export default function DialogSelectorScope() {
   const dispatch = useDispatch();
+
+  // strings
+
+  const createS = "Nouveau";
+
+  // state
+
+  const [openCreateScope, setOpenCreateScope] = useState(false);
 
   // data
 
@@ -38,20 +53,49 @@ export default function DialogSelectorScope() {
     dispatch(setOpenSelectorScope(false));
   }
 
+  function handleCreate() {
+    setOpenCreateScope(true);
+  }
+
+  function handleScopeCreated(scope) {
+    dispatch(setSelectedScopeId(scope.id));
+    dispatch(setOpenSelectorScope(false));
+    setOpenCreateScope(false);
+  }
+
   // return
+
+  if (openCreateScope) {
+    return (
+      <DialogGeneric
+        open={openCreateScope}
+        onClose={() => setOpenCreateScope(false)}
+      >
+        <SectionCreateScope
+          onClose={() => setOpenCreateScope(false)}
+          onCreated={handleScopeCreated}
+          projectId={projectId}
+        />
+      </DialogGeneric>
+    );
+  }
 
   return (
     <DialogGeneric open={open} onClose={handleClose} width={"350px"}>
-      <BlockSelectedScope />
-      <Box sx={{ mt: 2, p: 1 }}>
-        <Typography variant="body2" color="text.secondary">
-          {selectS}
-        </Typography>
-      </Box>
-      <SelectorScope
-        scopes={scopes}
-        selection={selectedScopeId}
-        onSelectionChange={handleSelectionChange}
+      {/* <BlockSelectedScope /> */}
+
+      <HeaderTitleClose title={selectS} onClose={handleClose} />
+      <BoxFlexVStretch>
+        <SelectorScope
+          scopes={scopes}
+          selection={selectedScopeId}
+          onSelectionChange={handleSelectionChange}
+        />
+      </BoxFlexVStretch>
+      <ButtonInPanelV2
+        label={createS}
+        onClick={handleCreate}
+        variant="outlined"
       />
     </DialogGeneric>
   );

@@ -1,6 +1,6 @@
-import db from "App/db/db";
+import addIdToNodes from "Features/tree/utils/addIdToNodes";
 
-export default async function resolveListingNomenclature(listing) {
+export default async function resolveListingNomenclature(listing, appConfig) {
   // helpers
 
   const _nomenclature = listing?.metadata?.nomenclature;
@@ -9,14 +9,22 @@ export default async function resolveListingNomenclature(listing) {
   if (listing?.type !== "NOMENCLATURE" || !_nomenclature) return listing;
 
   // main
-  const {srcKey, srcType} = _nomenclature;
+  const { srcKey, srcType } = _nomenclature;
 
   let nomenclature = {};
   if (srcType === "ORGA_DATA") {
-    const orgaData = await db.orgaData.get(srcKey);
-    nomenclature = orgaData.data;
+    //const orgaData = await db.orgaData.get(srcKey);
+    //nomenclature = orgaData.data;
+    const url = appConfig.orgaData[srcKey].url;
+    const result = await fetch(url);
+    nomenclature = await result.json();
+    nomenclature = {
+      ...nomenclature,
+      listingId: listing.id,
+      items: addIdToNodes(nomenclature.items),
+    };
   }
 
   // result
-  return {...listing, metadata: {...listing.metadata, nomenclature}};
+  return { ...listing, metadata: { ...listing.metadata, nomenclature } };
 }

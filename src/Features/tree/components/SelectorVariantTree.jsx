@@ -1,7 +1,7 @@
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 
-import {Box} from "@mui/material";
-import {RichTreeViewPro} from "@mui/x-tree-view-pro";
+import { Box } from "@mui/material";
+import { RichTreeViewPro } from "@mui/x-tree-view-pro";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
 import SwitchSeeSelectionOnly from "./SwitchSeeSelectionOnly";
@@ -12,6 +12,8 @@ import getNodesToExpand from "../utils/getNodesToExpand";
 import getSelectedNodesWithParents from "../utils/getSelectedNodesWithParents";
 import getNodesFromSearchText from "../utils/getNodesFromSearchText";
 import getAllNodesIds from "../utils/getAllNodesIds";
+import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 export default function SelectorVariantTree({
   items,
@@ -31,10 +33,17 @@ export default function SelectorVariantTree({
 
   // state
 
-  const [tempSelection, setTempSelection] = useState(selection ?? []);
+  let initSelection = selection ?? [];
+  initSelection = Array.isArray(initSelection)
+    ? initSelection
+    : [initSelection];
+
+  const [tempSelection, setTempSelection] = useState(initSelection);
   const [expandedNodes, setExpandedNodes] = useState([]);
 
   const [seeSelectionOnly, setSeeSelectionOnly] = useState(false);
+
+  console.log("debug_1211_tempSelection", tempSelection);
 
   useEffect(() => {
     setTempSelection(selection);
@@ -71,26 +80,18 @@ export default function SelectorVariantTree({
   }
 
   function handleCreateClick() {
-    onCreateClick({tempSelection});
+    onCreateClick({ tempSelection });
   }
 
   return (
-    <Box
-      sx={{
-        width: 1,
-        height: 1,
-        minHeight: 0,
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <BoxFlexVStretch>
       <SectionSearch
         searchText={searchText}
         onChange={setSearchText}
         color={color}
         onCreateClick={handleCreateClick}
       />
-      <Box sx={{flex: 1, overflow: "auto"}}>
+      <Box sx={{ flex: 1, overflow: "auto" }}>
         <RichTreeViewPro
           checkboxSelection={multiSelect}
           multiSelect={multiSelect}
@@ -99,14 +100,20 @@ export default function SelectorVariantTree({
           onSelectedItemsChange={handleSelectionChange}
           expandedItems={expandedNodes}
           onExpandedItemsChange={(e, ids) => setExpandedNodes(ids)}
-          slots={{item: TreeItemGeneric}}
+          slots={{ item: TreeItemGeneric }}
         />
       </Box>
       <SwitchSeeSelectionOnly
         checked={seeSelectionOnly}
         onChange={setSeeSelectionOnly}
       />
-      <ButtonInPanel label={saveS} onClick={handleSave} />
-    </Box>
+      <ButtonInPanelV2
+        label={saveS}
+        onClick={handleSave}
+        variant="contained"
+        color="secondary"
+        disabled={!tempSelection?.length > 0}
+      />
+    </BoxFlexVStretch>
   );
 }

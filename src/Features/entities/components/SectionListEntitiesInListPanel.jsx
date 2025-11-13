@@ -19,6 +19,8 @@ import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import { setOpenedPanel } from "Features/listings/listingsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 
+import { Typography } from "@mui/material";
+
 import ListEntities from "./ListEntities";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionActions from "./SectionActions";
@@ -32,6 +34,9 @@ export default function SectionListEntitiesInListPanel() {
   const isMobile = useIsMobile();
 
   const { value: listing } = useSelectedListing({ withEntityModel: true });
+
+  console.log("debug_1011_listing", listing);
+
   const entityModel = listing?.entityModel;
   const sortBy = entityModel?.sortBy ?? listing?.sortBy;
   const filterByMainBaseMap = useSelector(
@@ -43,6 +48,7 @@ export default function SectionListEntitiesInListPanel() {
     sortBy,
     withMarkers: entityModel?.type === "LOCATED_ENTITY",
     withAnnotations: entityModel?.type === "LOCATED_ENTITY",
+    withComputedFields: true,
     filterByMainBaseMap:
       entityModel?.type === "LOCATED_ENTITY" && filterByMainBaseMap,
   });
@@ -116,6 +122,7 @@ export default function SectionListEntitiesInListPanel() {
 
   return (
     <BoxFlexVStretch>
+      <Typography sx={{ color: "text.secondary", fontSize: 10 }}>--</Typography>
       <ListEntities
         listing={listing}
         entities={entities}

@@ -20,6 +20,9 @@ import SelectorImage from "Features/images/components/SelectorImage";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
+import a3_1_50 from "App/assets/a3_1_50.png";
+import imageUrlToPng from "Features/images/utils/imageUrlToPng";
+
 export default function SectionCreateBaseMapFullscreen({ onClose }) {
   const dispatch = useDispatch();
 
@@ -30,6 +33,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
   const nameS = "Plan 01";
   const placeholder = "Nom du fond de plan";
   const createS = "Créer le fond de plan";
+  const defaultS = "Page blanche A3 1:50";
 
   // state
 
@@ -37,6 +41,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
 
   const [imageFile, setImageFile] = useState(null);
   const [name, setName] = useState("");
+  const [meterByPx, setMeterByPx] = useState(null);
 
   // effect
 
@@ -67,6 +72,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
       const entity = {
         name,
         image: { file },
+        meterByPx,
       };
       const _entity = await createEntity(entity, { listing });
 
@@ -93,6 +99,12 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
 
   async function handleCreateClick() {
     await _createBaseMap(imageFile);
+  }
+
+  async function handleCreateDefault() {
+    const file = await imageUrlToPng({ url: a3_1_50, name: "A3 - 1:50" });
+    setImageFile(file);
+    setMeterByPx(0.011975);
   }
 
   return (
@@ -136,6 +148,9 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
           />
         </Box>
       </Box>
+
+      <ButtonGeneric onClick={handleCreateDefault} label={defaultS} />
+
       <Box
         sx={{
           width: 1,

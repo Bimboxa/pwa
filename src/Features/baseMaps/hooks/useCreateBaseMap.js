@@ -4,7 +4,7 @@ import { triggerBaseMapsUpdate } from "../baseMapsSlice";
 
 import createBaseMapService from "../services/createBaseMapService";
 
-export default function useCreateBaseMap() {
+export default function useCreateBaseMap(options) {
   const dispatch = useDispatch();
 
   // data
@@ -14,11 +14,13 @@ export default function useCreateBaseMap() {
   // main
 
   return async ({ projectId, name, image, imageFile }) => {
+    let _imageFile = imageFile;
+
     const baseMap = await createBaseMapService({
       projectId: projectId ?? _projectId,
       name: name ?? image?.name ?? imageFile.name,
       image,
-      imageFile,
+      imageFile: _imageFile,
     });
     dispatch(triggerBaseMapsUpdate());
     return baseMap;

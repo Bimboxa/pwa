@@ -6,7 +6,7 @@ export default function FormEntity({
   template,
   entity,
   onEntityChange,
-  selectorContainerRef,
+  sectionContainerEl,
 }) {
   // handlers
 
@@ -20,7 +20,7 @@ export default function FormEntity({
         template={template}
         item={entity}
         onItemChange={handleItemChange}
-        selectorContainerRef={selectorContainerRef}
+        sectionContainerEl={sectionContainerEl}
       />
     </Box>
   );

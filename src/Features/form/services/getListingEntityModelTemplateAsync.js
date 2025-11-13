@@ -26,17 +26,22 @@ export default async function getListingEntityModelTemplateAsync({
       await Promise.all(
         Object.entries(field).map(async ([key, value]) => {
           if (value.listingKey) {
+            // example value.listingKey = "nfx_46_020"
             const _relatedListing = listing.relatedListings?.[value.listingKey];
-            console.log("debug_3050 _relatedListing", _relatedListing);
+            console.log(
+              "debug_3050_relatedListing",
+              listing[value.listingKey],
+              _relatedListing
+            );
             if (listing[value.listingKey]) {
               _field[key] = listing[value.listingKey]; // example value.listingKey = "spriteImage"
             } else if (_relatedListing) {
-              console.log("debug_3005 _relatedListing", _relatedListing);
               let relatedListing = await db.listings.get(_relatedListing.id);
               relatedListing = resolveListingWithEntityModel({
                 listing: relatedListing,
                 entityModelsObject,
               });
+              console.log("debug_1011_relatedListing_v2", _relatedListing);
               if (key === "nomenclature") {
                 _field[key] = relatedListing?.metadata?.nomenclature;
               } else if (key === "zonesTree") {
@@ -45,7 +50,7 @@ export default async function getListingEntityModelTemplateAsync({
                 );
                 _field[key] = zoning?.zonesTree;
                 _field["zonesListing"] = relatedListing;
-              } else if (key === "entities") {
+              } else if (key === "entities" || key === "entity") {
                 let entities = await db[relatedListing.table]
                   .where("listingId")
                   .equals(relatedListing.id)
@@ -55,7 +60,7 @@ export default async function getListingEntityModelTemplateAsync({
                   listing: relatedListing,
                 });
                 console.log("debug_3050 entities", entities);
-                _field[key] = entities;
+                _field["entities"] = entities;
                 _field["entitiesListing"] = relatedListing;
               }
             } else {

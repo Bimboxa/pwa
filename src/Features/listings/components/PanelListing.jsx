@@ -16,6 +16,7 @@ import SectionLegendInListPanel from "Features/legend/components/SectionLegendEn
 import ButtonShowListingAnnotationTemplatesInLeftPanel from "Features/listings/components/ButtonShowListingAnnotationTemplatesInLeftPanel";
 import SectionHelperCreateFirstListing from "./SectionHelperCreateFirstListing";
 import SectionLocatedEntitiesInListPanel from "Features/locatedEntities/components/SectionLocatedEntitiesInListPanel";
+import SectionTreeZonesInListPanel from "Features/zones/components/SectionTreeZonesInListPanel";
 
 export default function PanelListing({ listing }) {
   const dispatch = useDispatch();
@@ -25,6 +26,7 @@ export default function PanelListing({ listing }) {
   let type = "DEFAULT";
   if (listing?.entityModel?.type === "LEGEND_ENTITY") type = "LEGEND";
   if (listing?.entityModel?.type === "LOCATED_ENTITY") type = "LOCATED_ENTITY";
+  if (listing?.entityModel?.type === "ZONE_ENTITY") type = "ZONE_ENTITY";
 
   // render
 
@@ -40,6 +42,7 @@ export default function PanelListing({ listing }) {
         {type === "LOCATED_ENTITY" && (
           <SectionLocatedEntitiesInListPanel listing={listing} />
         )}
+        {type === "ZONE_ENTITY" && <SectionTreeZonesInListPanel />}
       </BoxFlexVStretch>
 
       {listing?.annotationTemplatesListingKey && (
