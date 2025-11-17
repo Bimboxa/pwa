@@ -6,6 +6,7 @@ import useSelectedEntity from "Features/entities/hooks/useSelectedEntity";
 import useAnnotations from "Features/annotations/hooks/useAnnotations";
 import useMainBaseMap from "../hooks/useMainBaseMap";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+import useOrgaLogoUrl from "Features/orgaData/hooks/useOrgaLogoUrl";
 
 import { Typography } from "@mui/material";
 
@@ -29,6 +30,7 @@ export default function DialogDownloadBlueprint({ svgElement, open, onClose }) {
   const messageS = "Télécharger le rapport au format PDF";
   const addTableS = "Inclure le rapport photos";
   const nameLabel = "Nom du fichier";
+  const title = "Rapport photos";
 
   // data
 
@@ -36,6 +38,7 @@ export default function DialogDownloadBlueprint({ svgElement, open, onClose }) {
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
   const mainBaseMap = useMainBaseMap();
   const spriteImage = useAnnotationSpriteImage();
+  const orgaLogoUrl = useOrgaLogoUrl();
 
   const annotations = useAnnotations({
     addDemoAnnotations: false,
@@ -68,8 +71,12 @@ export default function DialogDownloadBlueprint({ svgElement, open, onClose }) {
     if (addTable) {
       const issuesPdf = await createAnnotationsPdfReport(annotations, {
         spriteImage,
+        logoImage: { url: orgaLogoUrl },
+        title,
       });
-      finalPdf = await mergePdfs([blueprintPdf, issuesPdf]);
+      finalPdf = await mergePdfs([blueprintPdf, issuesPdf], {
+        addPageNumber: true,
+      });
     } else {
       // If no table is requested, just use the blueprint PDF
       finalPdf = blueprintPdf;

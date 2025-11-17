@@ -6,7 +6,7 @@ export default async function createAnnotationsPdfReport(
   annotations,
   opts = {}
 ) {
-  const variant = "VARIANT_V";
+  const variant = "VARIANT_H";
 
   // helpers issues => items
 
@@ -14,7 +14,7 @@ export default async function createAnnotationsPdfReport(
     return {
       ...annotation,
       description: annotation.entity?.text || annotation.entity?.description,
-      number: annotation.entity?.num ?? "",
+      number: annotation.entity?.num ? Number(annotation.entity?.num) : "",
       imageUrl: annotation.entity?.image?.imageUrlClient,
     };
   });
@@ -31,6 +31,13 @@ export default async function createAnnotationsPdfReport(
   if (variant === "VARIANT_H") {
     blob = await generateItemsGridPdfVariantH(items, {
       spriteImage: opts.spriteImage,
+      logoImage: opts.logoImage,
+      title: opts.title,
+      headerTitleSize: 14,
+      fontSizes: {
+        label: 11, // bold “#num label” in the comments box
+        description: 11, // description lines in the comments box
+      },
     });
   } else {
     blob = await generateItemsGridPdf(items, {

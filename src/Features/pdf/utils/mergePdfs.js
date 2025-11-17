@@ -1,11 +1,11 @@
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, StandardFonts } from "pdf-lib";
 
 /**
  * Merges multiple PDF files into a single PDF document
  * @param {Array<Blob|File>} pdfs - Array of PDF files to merge
  * @returns {Promise<Blob>} - Merged PDF as a Blob
  */
-export default async function mergePdfs(pdfs) {
+export default async function mergePdfs(pdfs, options = {}) {
   if (!pdfs || pdfs.length === 0) {
     throw new Error("No PDFs provided for merging");
   }
@@ -31,6 +31,31 @@ export default async function mergePdfs(pdfs) {
 
     // Add all pages to the merged PDF
     pages.forEach((page) => mergedPdf.addPage(page));
+  }
+
+  if (options?.addPageNumber) {
+    const pages = mergedPdf.getPages();
+    const totalPages = pages.length;
+    if (totalPages > 0) {
+      const fontName = options.pageNumberFont ?? StandardFonts.Helvetica;
+      const font = await mergedPdf.embedFont(fontName);
+      const fontSize = options.pageNumberFontSize ?? 10;
+      const margin = options.pageNumberMargin ?? 20;
+
+      pages.forEach((page, index) => {
+        const { width } = page.getSize();
+        const text = `${index + 1} / ${totalPages}`;
+        const textWidth = font.widthOfTextAtSize(text, fontSize);
+        const x = width - textWidth - margin;
+        const y = margin;
+        page.drawText(text, {
+          x,
+          y,
+          size: fontSize,
+          font,
+        });
+      });
+    }
   }
 
   // Generate the final merged PDF

@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { useSelector, useDispatch } from "react-redux";
 
 import { setFilesDrop } from "Features/mapEditor/mapEditorSlice";
@@ -8,8 +10,12 @@ import useAnnotationTemplatesBySelectedListing from "Features/annotations/hooks/
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useNewEntity from "Features/entities/hooks/useNewEntity";
 
+import Box from "@mui/material/Box";
+import ImageGeneric from "Features/images/components/ImageGeneric";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import ListAnnotationTemplates from "Features/annotations/components/ListAnnotationTemplates";
+import FieldTextV2 from "Features/form/components/FieldTextV2";
+import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 
@@ -26,9 +32,21 @@ export default function DialogAutoSetNewAnnotationFromFilesDrop() {
 
   const createEntity = useCreateEntity();
 
+  // state
+
+  const [description, setDescription] = useState("");
+  const [annotationTemplate, setAnnotationTemplate] = useState(null);
+
   // helper - open
 
   const open = Boolean(filesDrop);
+
+  // helper - imageUrl;
+
+  let imageUrl = null;
+  if (filesDrop?.files?.[0]) {
+    imageUrl = URL.createObjectURL(filesDrop?.files?.[0]);
+  }
 
   // handlers
 
@@ -36,7 +54,7 @@ export default function DialogAutoSetNewAnnotationFromFilesDrop() {
     dispatch(setFilesDrop(null));
   }
 
-  async function handleClick(annotationTemplate) {
+  async function handleClick() {
     const imageFile = filesDrop?.files?.[0];
     const x = filesDrop?.x;
     const y = filesDrop?.y;
@@ -49,7 +67,12 @@ export default function DialogAutoSetNewAnnotationFromFilesDrop() {
       ...getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate),
     };
 
-    const entity = await createEntity(newEntity, { annotation: newAnnotation });
+    const entityData = { ...newEntity };
+    if (description) entityData.description = description;
+
+    const entity = await createEntity(entityData, {
+      annotation: newAnnotation,
+    });
 
     console.log("debug_2106_created_entity", entity);
 
@@ -59,10 +82,28 @@ export default function DialogAutoSetNewAnnotationFromFilesDrop() {
   if (!open) return null;
 
   return (
-    <DialogGeneric open={open} onClose={handleClose}>
+    <DialogGeneric open={open} onClose={handleClose} width="300px">
+      <ImageGeneric url={imageUrl} />
       <ListAnnotationTemplates
         annotationTemplates={annotationTemplates}
+        onClick={setAnnotationTemplate}
+        selection={annotationTemplate ? [annotationTemplate.id] : []}
+      />
+      <Box sx={{ py: 2, width: 1 }}>
+        <FieldTextV2
+          label="Description"
+          value={description}
+          onChange={setDescription}
+          options={{ fullWidth: true, showLabel: true }}
+        />
+      </Box>
+
+      <ButtonInPanelV2
+        label="Créer"
         onClick={handleClick}
+        variant="contained"
+        color="secondary"
+        disabled={!annotationTemplate}
       />
     </DialogGeneric>
   );
