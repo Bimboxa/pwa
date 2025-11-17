@@ -13,6 +13,7 @@ import {
   Layers,
   Edit,
   Wallpaper,
+  Room,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -42,6 +43,12 @@ export default function HorizontalMenuRightPanel() {
       key: "SELECTION",
       label: "Modifier la sélection",
       icon: <Edit />,
+    },
+
+    {
+      key: "ENTITY_ZONES",
+      label: "Localisation",
+      icon: <Room />,
     },
 
     // {

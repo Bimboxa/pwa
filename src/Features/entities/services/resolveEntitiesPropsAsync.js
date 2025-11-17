@@ -2,7 +2,9 @@
  * resolve entity props (label, subLabel, relatedObject,..) from entityModel & db data
  */
 
-export default async function resolveEntitiesPropsAsync({entities, listing}) {
+import getEntityComputedFieldsAsync from "./getEntityComputedFieldsAsync";
+
+export default async function resolveEntitiesPropsAsync({ entities, listing }) {
   // edge case
 
   if (!entities) return null;
@@ -10,17 +12,34 @@ export default async function resolveEntitiesPropsAsync({entities, listing}) {
   // helpers
 
   const entityModel = listing?.entityModel;
+  console.log("debug_1311_entityModel", entityModel);
 
   // main
 
-  const resolvedEntities = entities.map((entity) => {
-    // label
-    let label;
-    if (entityModel) label = entity[entityModel.labelKey];
+  const resolvedEntities = await Promise.all(
+    entities.map(async (entity) => {
+      // computedFields
 
-    // return
-    return {...entity, label};
-  });
+      // const computedFields = await getEntityComputedFieldsAsync(
+      //   _computedFields,
+      //   entity,
+      //   entities
+      // );
+
+      const computedFields = await getEntityComputedFieldsAsync(entity);
+
+      entity = { ...entity, ...computedFields };
+
+      // labels
+      let label, subLabel;
+      if (entityModel) {
+        label = entity[entityModel.labelKey];
+        subLabel = entity[entityModel.subLabelKey];
+      }
+      // return
+      return { ...entity, label, subLabel };
+    })
+  );
 
   return resolvedEntities;
 }

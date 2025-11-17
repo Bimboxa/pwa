@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -12,11 +12,13 @@ import {
   setScaleInPx,
   setAnchorPositionScale,
   setScaleAnnotationId,
+  setFilesDrop,
 } from "../mapEditorSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import {
   setSelectedEntityId,
+  setOpenDialogCreateEntity,
   setIsEditingEntity,
   setEditedEntity,
 } from "Features/entities/entitiesSlice";
@@ -79,11 +81,14 @@ import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu"
 
 import DialogDeleteSelectedItem from "Features/selection/components/DialogDeleteSelectedItem";
 import DialogAutoSelectAnnotationTemplateToCreateEntity from "Features/entities/components/DialogAutoSelectAnnotationTemplateToCreateEntity";
+import DialogAutoCreateEntity from "Features/entities/components/DialogAutoCreateEntity";
+import DialogAutoSetNewAnnotationFromFilesDrop from "Features/annotations/components/DialogAutoSetNewAnnotationFromFilesDrop";
 
 import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
 
 import db from "App/db/db";
+
 export default function MainMapEditorV2() {
   const dispatch = useDispatch();
   const containerRef = useRef();
@@ -186,6 +191,10 @@ export default function MainMapEditorV2() {
   const updateAnnotation = useUpdateAnnotation();
   const initDefaultNewAnnotation = useInitDefaultNewAnnotation();
 
+  // state - escape
+
+  const [escapeTriggeredAt, setEscapeTriggeredAt] = useState(null);
+
   // effet - init newAnnotation
 
   useEffect(() => {
@@ -262,6 +271,7 @@ export default function MainMapEditorV2() {
     const onKeyDown = (e) => {
       if (e.key === "Escape") {
         console.log("ESCAPE");
+        setEscapeTriggeredAt(Date.now());
         if (enabledDrawingMode) {
           if (
             enabledDrawingMode === "POLYLINE" &&
@@ -308,46 +318,46 @@ export default function MainMapEditorV2() {
     };
   }, [enabledDrawingMode, selectedItem?.type, drawingPolylinePoints]);
 
+  function handleFilesDrop(filesDrop) {
+    console.log("file drop", filesDrop);
+    dispatch(setFilesDrop({ ...filesDrop, baseMapId: mainBaseMap?.id }));
+  }
+
   async function handleNewAnnotation(annotation) {
+    dispatch(setEnabledDrawingMode(null));
+
     if (annotation.type === "MARKER") {
-      // edge
-      // if (
-      //   !newAnnotation.iconKey ||
-      //   !newAnnotation.fillColor ||
-      //   !tempAnnotationTemplateLabel
-      // )
-      //   return;
+      const _annotation = {
+        ...newAnnotation,
+        ...annotation,
+        baseMapId: mainBaseMap?.id,
+      };
+      dispatch(setNewAnnotation(_annotation));
+      dispatch(setOpenDialogCreateEntity(true));
 
       // Prepare entity data - include image if dropped
-      const entityData = { ...newEntity };
-      if (annotation.imageFile) {
-        entityData.image = { file: annotation.imageFile };
-      }
+      // const entityData = { ...newEntity };
+      // if (annotation.imageFile) {
+      //   entityData.image = { file: annotation.imageFile };
+      // }
 
       // main
-      const entity = await createEntity(entityData);
-      console.log("[MainMapEditor] create entity", entity);
-      console.log("[MainMapEditor] create annotation", newAnnotation);
-      const _annotation = await createAnnotation(
-        {
-          ...newAnnotation,
-          x: annotation.x,
-          y: annotation.y,
-          entityId: entity?.id,
-          listingId: listingId,
-          listingTable: listing?.table,
-          baseMapId: mainBaseMap?.id,
-          type: "MARKER",
-          annotationTemplateId:
-            annotation.annotationTemplateId ??
-            newAnnotation.annotationTemplateId,
-        },
-        {
-          tempAnnotationTemplateLabel,
-          listingKey: listing.id,
-        }
-      );
-      console.log("[MainMapEditor] new entity created", _annotation, entity);
+      // const entity = await createEntity(entityData);
+      // console.log("[MainMapEditor] create entity", entity, entityData);
+      // console.log("[MainMapEditor] create annotation", newAnnotation);
+      // const _annotation = await createAnnotation({
+      //   ...newAnnotation,
+      //   x: annotation.x,
+      //   y: annotation.y,
+      //   entityId: entity?.id,
+      //   listingId: listingId,
+      //   listingTable: listing?.table,
+      //   baseMapId: mainBaseMap?.id,
+      //   type: "MARKER",
+      //   annotationTemplateId:
+      //     annotation.annotationTemplateId ?? newAnnotation.annotationTemplateId,
+      // });
+      // console.log("[MainMapEditor] new entity created", _annotation, entity);
 
       //
     } else if (annotation.type === "TEXT") {
@@ -584,14 +594,6 @@ export default function MainMapEditorV2() {
     }
   }
 
-  async function handleClick() {
-    console.log("click on svg", svgRef.current);
-    //const dataUrl = await serializeSvgToPng(svgRef.current);
-
-    const blob = await getImageFromSvg(svgRef.current);
-    downloadBlob(blob, "map.png");
-  }
-
   function handleBaseMapSelectionChange(isSelected) {
     dispatch(setMainBaseMapIsSelected(isSelected));
   }
@@ -677,6 +679,9 @@ export default function MainMapEditorV2() {
         //
         centerBaseMapTriggeredAt={centerBaseMapTriggeredAt}
         zoomTo={zoomTo}
+        escapeTriggeredAt={escapeTriggeredAt}
+        //
+        onFilesDrop={handleFilesDrop}
       />
 
       <PopperEditScale />
@@ -687,7 +692,8 @@ export default function MainMapEditorV2() {
       )}
       <DialogDeleteSelectedItem />
       <DialogAutoSelectAnnotationTemplateToCreateEntity />
-
+      <DialogAutoCreateEntity />
+      <DialogAutoSetNewAnnotationFromFilesDrop />
       {/* <Button
         onClick={handleClick}
         sx={{ position: "absolute", bottom: 10, right: 10 }}

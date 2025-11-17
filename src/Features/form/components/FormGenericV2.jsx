@@ -21,6 +21,9 @@ import FieldSlider from "./FieldSlider";
 
 import FieldZonesVariantGrid from "./FieldZonesVariantGrid";
 import FieldZoneVariantGrid from "./FieldZoneVariantGrid";
+
+import FieldZoneV2 from "./FieldZoneV2";
+
 import FieldOptionVariantGrid from "./FieldOptionVariantGrid";
 import FieldEntityVariantGrid from "./FieldEntityVariantGrid";
 import FieldEntityV2 from "./FieldEntityV2";
@@ -236,7 +239,7 @@ export default function FormGenericV2({
         }
         if (field?.type === "zone") {
           return (
-            <FieldZoneVariantGrid
+            <FieldZoneV2
               key={field.key}
               label={field.label}
               width={field.width}
@@ -246,7 +249,8 @@ export default function FormGenericV2({
               }
               zonesTree={field.zonesTree}
               zonesListing={field.zonesListing}
-              formContainerRef={formContainerRef}
+              sectionContainerEl={sectionContainerEl}
+              options={field.options}
             />
           );
         }

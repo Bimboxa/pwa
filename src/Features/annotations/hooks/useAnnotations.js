@@ -61,6 +61,7 @@ export default function useAnnotations(options) {
     }
 
     if (filterByListingId) {
+      _;
       _annotations = _annotations.filter(
         (a) => filterByListingId === a.listingId
       );

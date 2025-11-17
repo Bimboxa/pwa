@@ -93,6 +93,27 @@ const annotationTemplatesLibrary = [
     group: "PIC",
     fillColor: purple[500],
   },
+
+  // Observations
+  {
+    isGroup: true,
+    label: "Contrôles",
+    group: "CONTROL",
+  },
+  {
+    type: "MARKER",
+    iconKey: "triangle",
+    fillColor: purple[500],
+    label: "Sondage",
+    group: "CONTROL",
+  },
+  {
+    type: "MARKER",
+    iconKey: "triangle",
+    fillColor: blue[500],
+    label: "Prélèvement",
+    group: "CONTROL",
+  },
 ];
 
 export default annotationTemplatesLibrary;

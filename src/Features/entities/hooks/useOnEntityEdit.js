@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import { setOpenedPanel } from "Features/listings/listingsSlice";
-import { setIsEditingEntity } from "../entitiesSlice";
+import { setIsEditingEntity, setSelectedEntityId } from "../entitiesSlice";
 import { setEditedEntity } from "../entitiesSlice";
 
 export default function useOnEntityEdit() {
@@ -15,6 +15,7 @@ export default function useOnEntityEdit() {
     console.log("debug_2310 edit entity", entity);
     dispatch(setIsEditingEntity(true));
     dispatch(setEditedEntity(entity));
+    dispatch(setSelectedEntityId(entity?.id));
     switch (entity?.entityModelType) {
       case "BASE_MAP":
         dispatch(setOpenedPanel("EDITED_ENTITY"));

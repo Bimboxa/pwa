@@ -11,8 +11,6 @@ export default function SectionAnnotationQties({ annotation }) {
 
   const baseMap = useMainBaseMap();
 
-  console.log("debug_711_annotation", annotation?.points);
-
   const qties = getAnnotationQties(annotation, baseMap);
 
   if (!qties) return null;

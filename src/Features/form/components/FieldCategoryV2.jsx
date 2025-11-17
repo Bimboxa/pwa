@@ -113,7 +113,10 @@ export default function FieldCategoryV2({
           </Typography>
         </Box>
       )}
-      <ListItemButton onClick={handleOpenSelector}>
+      <ListItemButton
+        onClick={handleOpenSelector}
+        sx={{ mb: showAsSection ? 1 : 0 }}
+      >
         <Box>
           {labels?.contextLabel && (
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>

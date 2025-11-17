@@ -22,7 +22,7 @@ db.version(12).stores({
   zonings: "listingId", // {listingId,zonesTree}
   materials: "id,projectId,listingId,[listingId+createdBy]",
 
-  relsZoneEntity: "id,zoneId,listingId,entityId", // {id,zoneId,table,listingId,entityId}
+  relsZoneEntity: "id,zoneId,listingId,entityId", // {id,projectId,zoningId,zoneId,listingId,entityId,relListingId,relId}
   entitiesProps:
     "id,[listingKey+targetEntityId],listingKey,targetListingKey,targetEntityId", // entityProps = {id,tarketListingKey,targetEntityId,props}
 

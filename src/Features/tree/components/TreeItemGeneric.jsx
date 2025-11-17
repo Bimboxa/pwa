@@ -1,9 +1,9 @@
 import * as React from "react";
 
-import {Typography, IconButton} from "@mui/material";
-import {MoreHoriz as More} from "@mui/icons-material";
+import { Typography, IconButton } from "@mui/material";
+import { MoreHoriz as More } from "@mui/icons-material";
 
-import {useTreeItem} from "@mui/x-tree-view/useTreeItem";
+import { useTreeItem } from "@mui/x-tree-view/useTreeItem";
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 
 import {
@@ -14,13 +14,13 @@ import {
   TreeItemRoot,
   TreeItemGroupTransition,
 } from "@mui/x-tree-view/TreeItem";
-import {TreeItemIcon} from "@mui/x-tree-view/TreeItemIcon";
-import {TreeItemProvider} from "@mui/x-tree-view/TreeItemProvider";
-import {TreeItemDragAndDropOverlay} from "@mui/x-tree-view/TreeItemDragAndDropOverlay";
-import {TreeItemLabelInput} from "@mui/x-tree-view/TreeItemLabelInput";
+import { TreeItemIcon } from "@mui/x-tree-view/TreeItemIcon";
+import { TreeItemProvider } from "@mui/x-tree-view/TreeItemProvider";
+import { TreeItemDragAndDropOverlay } from "@mui/x-tree-view/TreeItemDragAndDropOverlay";
+import { TreeItemLabelInput } from "@mui/x-tree-view/TreeItemLabelInput";
 
 const TreeItemGeneric = React.forwardRef(function CustomTreeItem(
-  {id, itemId, label, disabled, children, onMoreClick},
+  { id, itemId, label, disabled, children, onMoreClick, count },
   ref
 ) {
   // data
@@ -43,7 +43,7 @@ const TreeItemGeneric = React.forwardRef(function CustomTreeItem(
     getGroupTransitionProps,
     getDragAndDropOverlayProps,
     status,
-  } = useTreeItem({id, itemId, children, label, disabled, rootRef: ref});
+  } = useTreeItem({ id, itemId, children, label, disabled, rootRef: ref });
 
   const hasChildren = Array.isArray(children) && children.length > 0;
 
@@ -56,7 +56,7 @@ const TreeItemGeneric = React.forwardRef(function CustomTreeItem(
           </TreeItemIconContainer>
           <TreeItemCheckbox {...getCheckboxProps()} />
           <Typography
-            sx={{flexGrow: 1}}
+            sx={{ flexGrow: 1 }}
             color={hasChildren ? "text.secondary" : "text.primary"}
           >
             {label}

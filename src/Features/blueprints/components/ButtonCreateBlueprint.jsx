@@ -50,7 +50,7 @@ export default function ButtonCreateBlueprint() {
     dispatch(setSelectedMenuItemKey("BLUEPRINT"));
     dispatch(setShowBgImageInMapEditor(true));
   }
-
+  return null;
   return (
     <ButtonGeneric
       label={label}

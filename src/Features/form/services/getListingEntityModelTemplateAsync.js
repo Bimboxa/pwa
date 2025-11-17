@@ -2,7 +2,7 @@ import db from "App/db/db";
 import resolveEntitiesPropsAsync from "Features/entities/services/resolveEntitiesPropsAsync";
 import resolveListingWithEntityModel from "Features/listings/utils/resolveListingWithEntityModel";
 
-export default async function getListingEntityModelTemplateAsync({
+export default async function _getListingEntityModelTemplateAsync({
   listing,
   entityModelsObject,
 }) {
@@ -59,7 +59,7 @@ export default async function getListingEntityModelTemplateAsync({
                   entities,
                   listing: relatedListing,
                 });
-                console.log("debug_3050 entities", entities);
+                console.log("debug_3050_entities", entities);
                 _field["entities"] = entities;
                 _field["entitiesListing"] = relatedListing;
               }

@@ -5,6 +5,8 @@ import { useDispatch } from "react-redux";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setOnboardingIsActive } from "Features/onboarding/onboardingSlice";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import { Box, Tooltip } from "@mui/material";
 import { Upload } from "@mui/icons-material";
 
@@ -18,14 +20,20 @@ import loadKrtoFile from "../services/loadKrtoFile";
 
 export default function ButtonLoadKrtoFile() {
   const dispatch = useDispatch();
-  // strings
-
-  const loadS = "Charger un fichier KRTO";
-  const krtoS = ".krto";
 
   // state
 
   const [open, setOpen] = useState(false);
+
+  // data
+
+  const appConfig = useAppConfig();
+
+  // helpers
+
+  const extension = appConfig?.features?.krto?.extension;
+  const krtoS = "." + extension ?? ".krto";
+  const loadS = `Charger un fichier ${krtoS}`;
 
   // handlers
 

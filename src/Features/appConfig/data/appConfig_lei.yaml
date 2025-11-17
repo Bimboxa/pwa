@@ -1,5 +1,5 @@
-name: "Etandex"
-version: "16/07/2025"
+name: "LEI"
+version: "14/09/2025"
 isDefault: true
 
 # APP
@@ -54,8 +54,8 @@ strings:
     select: "Sélectionnez un type de mission"
 
   presetConfig:
-    title: "Type de dossier"
-    select: "Sélectionnez un type de dossier"
+    title: "Type de mission"
+    select: "Sélectionnez un type de mission"
 
 # AUTH
 
@@ -98,23 +98,26 @@ sync:
 # FEATURES
 
 features:
+  krto:
+    extension: bbx
   scopes:
     enabled: true
   entityModels: # used in create listing dialog
     keys:
+      - baseMap
       - zone
       - material
-      - baseMap
+      - sample
       - annotation
       #- issue
       - blueprint
   entityModelTypes: # used in left sidebar
+    - type: BASE_MAP
+      name: Fonds de plan
     - type: ZONE_ENTITY
       name: Pièces
     - type: MATERIAL_ENTITY
       name: Matériaux
-    - type: BASE_MAP
-      name: Fonds de plan
     - type: LOCATED_ENTITY
       name: Listes d'objets
     - type: BLUEPRINT
@@ -255,10 +258,15 @@ entityModelsObject:
           listingKey: nomenclature_1
           selectorLabel: Nomenclature
           entityModelType: NOMENCLATURE_ITEM # used to select listing with this entityModelType.
+        options:
+          showAsSection: true
       description:
         key: description
         type: text
         label: Description
+        options:
+          multiline: true
+          fullWidth: true
       photo:
         key: photo
         type: image
@@ -273,9 +281,7 @@ entityModelsObject:
     computedFields:
       code:
         scriptKey: getEntityMaterialCode
-      fullLabelWithCategory:
-        computationType: "TEMPLATE_BASED"
-        template: "{{category.fullName}} - {{description}}"
+
   comment:
     key: comment
     type: LOCATED_ENTITY
@@ -297,11 +303,12 @@ entityModelsObject:
   sample:
     type: LOCATED_ENTITY
     key: sample
+    name: Prélèvements
     label: Prélèvement
     strings:
       labelNew: Nouveau prélèvement
     labelKey: num
-    subLabelKey: description
+    subLabelKey: materialCode
     fieldsObject:
       num:
         key: num
@@ -310,6 +317,7 @@ entityModelsObject:
         options:
           autoFocus: true
           increment: auto
+          showAsField: true
       photo:
         key: photo
         label: Photo
@@ -324,22 +332,32 @@ entityModelsObject:
         type: "entity"
         relationKey: "material1" # used in the list specification.
         entities:
-          listingKey: nomenclature_1
-          selectorLabel: Nomenclature
-          entityModelType: NOMENCLATURE_ITEM
-
+          listingKey: materials_1
+          selectorLabel: Liste de matériaux
+          entityModelType: MATERIAL_ENTITY
+        options:
+          showAsSection: true
       zone:
         key: zone
         label: Pièce
         type: zone
-        relationKey: "zone1" # used in the list specification.
+        zonesTree:
+          listingKey: zones
+          selectorLabel: Pièces
+          entityModelType: ZONE_ENTITY
+        options:
+          showAsSection: true
       comment:
         key: comment
         label: Commentaire
         type: text
         options:
-          autoFocus: true
+          fullWidth: true
+          showAsSection: true
           multiline: true
+    computedFields:
+      materialCode:
+        entityProp: material.code
   inspection:
     type: LOCATED_ENTITY
     key: inspection
@@ -370,6 +388,49 @@ entityModelsObject:
         options:
           autoFocus: true
           variant: auto
+      decision:
+        key: decision
+        label: Critère de décision
+        type: text
+        options:
+          autoFocus: true
+          multiline: true
+
+  shape:
+    key: shape
+    name: Forme
+    type: LOCATED_ENTITY
+    defaultTable: entities
+    defaultIconKey: shapes
+    defaultColor: *orange300
+    defaultSpriteImageKey: DEFAULT
+    strings:
+      labelNew: Nouvelle forme
+    labelKey: num
+    fieldsObject:
+      num:
+        key: num
+        type: text
+        label: Numéro
+        options:
+          showAsField: true
+          increment: auto
+      text:
+        key: text
+        type: text
+        label: Description
+        options:
+          showAsSection: true
+          fullWidth: true
+          multiline: true
+      image:
+        key: image
+        type: image
+        label: Image
+        options:
+          autoFocus: true
+          variant: auto
+          maxSize: 200
 
   laboOrder:
     label: Commande labo
@@ -409,7 +470,7 @@ presetListingsObject:
   mapsGeneric:
     key: mapsGeneric
     name: Fonds de plan
-    entityModelKey: map
+    entityModelKey: baseMap
     table: baseMaps
     color: *purple700
     iconKey: map
@@ -468,6 +529,19 @@ presetListingsObject:
         srcType: "ORGA_DATA"
         srcKey: nom_NFX_46_020 # path: orgaData.srcKey
 
+  nomenclatureExample:
+    key: nomenclatureExample
+    uniqueByProject: false # used to manage nomenclatures by scope.
+    name: "Liste A"
+    type: "NOMENCLATURE"
+    entityModelKey: materialCategory
+    mainTableKey: materialCategories
+    color: *orange800
+    iconKey: nomenclature
+    metadata:
+      nomenclature:
+        srcType: "EXAMPLE"
+
   materials:
     key: materials
     name: Matériaux
@@ -483,17 +557,14 @@ presetListingsObject:
     zoningKey: zones
     canCreateItem: true
 
-  relsZoneMaterial:
-    key: relsZoneMaterial
-    type: "RELS_ZONE_ENTITY"
-    name: "ZPSO"
-    entityModelKey: relZoneEntity
-    table: relsZoneEntity
-    color: *orange700
-    iconKey: "share"
-    relatedListing:
-      key: materials
-      id: COMPUTED # this is a computed value when creating the list.
+  # relsZoneMaterial:
+  #   key: relsZoneMaterial
+  #   type: "RELS_ZONE_ENTITY"
+  #   name: "ZPSO"
+  #   entityModelKey: relZoneEntity
+  #   table: relsZoneEntity
+  #   color: *orange700
+  #   iconKey: "share"
 
   samples:
     key: samples
@@ -509,17 +580,17 @@ presetListingsObject:
     sortBy:
       key: num
       order: desc
-    relatedEntities: # list the modelEntityKey of the related entities
-      material1:
-        listingsKeys:
-          - materials
-        listingsIds:
-          - COMPUTED # this is a computed value when creating the list.
-      zone1:
-        listingsKeys:
-          - zones
-        listingsIds:
-          - COMPUTED # this is a computed value when creating the list.
+    # relatedEntities: # list the modelEntityKey of the related entities
+    #   material1:
+    #     listingsKeys:
+    #       - materials
+    #     listingsIds:
+    #       - COMPUTED # this is a computed value when creating the list.
+    #   zone1:
+    #     listingsKeys:
+    #       - zones
+    #     listingsIds:
+    #       - COMPUTED # this is a computed value when creating the list.
     canCreateItem: true
     spriteImageKey: DEFAULT
 
@@ -550,6 +621,15 @@ presetListingsObject:
     iconKey: comment
     canCreateItem: true
 
+  shapes:
+    key: shapes
+    name: Métré
+    entityModelKey: shape
+    table: entities
+    color: *orange300
+    iconKey: shapes
+    canCreateItem: true
+
   laboOrders:
     key: laboOrders
     name: Commandes labo
@@ -576,7 +656,35 @@ presetListingsObject:
 presetScopesObject:
   preset1:
     key: preset1
-    name: Diagnostic amiante (WIP)
+    name: Diag amiante - NFX_46_020
+    description: Enregistrer vos prélèvements et sondages
+    listings:
+      #- projectDataset
+      #- mapsGeneric
+      - zones
+      - nom_NFX_46_020
+      - materials
+      - samples
+      - observations
+      - shapes
+
+  presetExample:
+    key: presetExample
+    name: Diag amiante - Norme générique
+    description: Enregistrer vos prélèvements et sondages
+    listings:
+      #- projectDataset
+      - mapsGeneric
+      - zones
+      - nomenclatureExample
+      - materials
+      - samples
+      - observations
+      - shapes
+
+  preset2:
+    key: preset1
+    name: Diagnostic amiante
     description: Enregistrer vos prélèvements et sondages
     listings:
       #- projectDataset
@@ -591,24 +699,6 @@ presetScopesObject:
       - comments
       - laboOrders
       - laboOrderReports
-
-  preset2:
-    key: preset2
-    name: Notes libres
-    description: Enregistrer vos commentaires
-    listings:
-      - comments
-
-  presetDebug:
-    key: presetDebug
-    name: Diagnostic amiante
-    listings:
-      - mapsGeneric
-      - zones
-      - nom_NFX_46_020
-      - materials
-      - samples
-      - relsZoneMaterial
 
 # REPORT TABLES
 

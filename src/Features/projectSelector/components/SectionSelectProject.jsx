@@ -55,7 +55,7 @@ export default function SectionSelectProject({ onProjectSelected }) {
 
   // helpers - strings
 
-  const selectProjectS = "Votre projet";
+  const selectProjectS = appConfig?.strings?.project?.select ?? "Projet";
   const projectRefS = appConfig?.strings?.project?.clientRef ?? "Référence";
   const projectNameS = appConfig?.strings?.project?.name ?? "Nom";
   const createS = "Créer";

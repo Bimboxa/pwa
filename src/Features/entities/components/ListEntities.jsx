@@ -25,6 +25,8 @@ export default function ListEntities({
   selection,
   onCreateClick,
 }) {
+  console.log("debug_1311_entities", entities);
+
   // state
 
   const [searchText, setSearchText] = useState("");

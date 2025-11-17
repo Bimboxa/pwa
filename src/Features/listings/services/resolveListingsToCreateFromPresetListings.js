@@ -32,6 +32,12 @@ export default async function resolveListingsToCreateFromPresetListings(
       if (existingListing) shouldAdd = false;
     }
 
+    // add entityModel
+
+    const entityModel =
+      appConfig.entityModelsObject[presetListing.entityModelKey];
+    presetListing.entityModel = entityModel;
+
     // resolve nomenclature listings
     if (presetListing.type === "NOMENCLATURE") {
       presetListing = await resolveListingNomenclature(
