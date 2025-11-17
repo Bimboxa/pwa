@@ -39,6 +39,7 @@ export default function useSelectedEntity(options) {
       listing = await db.listings.get(fromListingId);
     }
     const table = listing?.table;
+    const entityModel = listing?.entityModel;
 
     /// edge case
     if (!selectedEntityId || !table) {
@@ -49,6 +50,13 @@ export default function useSelectedEntity(options) {
     const entity = await db[table].get(selectedEntityId);
 
     let _entity = { ...entity, entityModelKey: listing.entityModelKey };
+
+    // label & subLabel
+
+    if (entityModel?.labelKey && _entity)
+      _entity[entityModel.labelKey] = _entity[entityModel.labelKey];
+    if (entityModel?.subLabelKey && _entity)
+      _entity[entityModel.subLabelKey] = _entity[entityModel.subLabelKey];
 
     // add images
     if (withImages) {

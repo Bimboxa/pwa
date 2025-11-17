@@ -94,6 +94,10 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     // refresh
     centerBaseMapTriggeredAt,
     zoomTo, // {x,y,triggeredAt}
+    escapeTriggeredAt,
+
+    // image
+    onFilesDrop,
   } = props;
 
   const dispatch = useDispatch();
@@ -124,6 +128,10 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isDraggingAnnotation, setIsDraggingAnnotation] = useState(false);
   const [isDraggingFabMarker, setIsDraggingFabMarker] = useState(false);
+
+  useEffect(() => {
+    setIsDraggingAnnotation(false);
+  }, [escapeTriggeredAt]);
 
   const basePose = useMemo(() => {
     if (!showBgImage) {
@@ -706,58 +714,94 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   // === DRAG AND DROP HANDLERS ===
   const onDragOver = useCallback(
     (e) => {
-      if (enabledDrawingMode === "MARKER") {
+      const hasFiles = e.dataTransfer?.types?.includes?.("Files");
+      if (
+        hasFiles &&
+        (enabledDrawingMode === "MARKER" || typeof onFilesDrop === "function")
+      ) {
         e.preventDefault();
         e.dataTransfer.dropEffect = "copy";
       }
     },
-    [enabledDrawingMode]
+    [enabledDrawingMode, onFilesDrop]
+  );
+
+  const handleFilesDrop = useCallback(
+    (files, clientX, clientY) => {
+      if (!onFilesDrop || !files?.length) return;
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const sx = clientX - rect.left;
+      const sy = clientY - rect.top;
+      const p_inBase = screenToBaseLocal(sx, sy);
+
+      const ratioX = Math.max(0, Math.min(1, p_inBase.x / (baseSize.w || 1)));
+      const ratioY = Math.max(0, Math.min(1, p_inBase.y / (baseSize.h || 1)));
+
+      onFilesDrop({
+        x: ratioX,
+        y: ratioY,
+        files,
+      });
+    },
+    [onFilesDrop, screenToBaseLocal, baseSize.w, baseSize.h]
   );
 
   const onDrop = useCallback(
     (e) => {
-      if (enabledDrawingMode !== "MARKER") return;
+      const files = Array.from(e.dataTransfer?.files || []);
+      const hasFiles = files.length > 0;
 
-      e.preventDefault();
-      const files = Array.from(e.dataTransfer.files);
-      const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+      if (enabledDrawingMode === "MARKER") {
+        e.preventDefault();
+        const imageFiles = files.filter((file) =>
+          file.type.startsWith("image/")
+        );
 
-      if (imageFiles.length === 0) return;
+        if (imageFiles.length === 0) return;
 
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return;
 
-      const sx = e.clientX - rect.left;
-      const sy = e.clientY - rect.top;
+        const sx = e.clientX - rect.left;
+        const sy = e.clientY - rect.top;
 
-      const p_inBg = screenToBgLocal(sx, sy);
-      const p_inBase = screenToBaseLocal(sx, sy);
+        const p_inBg = screenToBgLocal(sx, sy);
+        const p_inBase = screenToBaseLocal(sx, sy);
 
-      // Use the first image file
-      const imageFile = imageFiles[0];
+        // Use the first image file
+        const imageFile = imageFiles[0];
 
-      // Calculate position based on attachTo setting
-      let ratioX, ratioY;
-      if (attachTo === "bg") {
-        ratioX = p_inBg.x / (bgSize.w || 1);
-        ratioY = p_inBg.y / (bgSize.h || 1);
-      } else {
-        ratioX = p_inBase.x / (baseSize.w || 1);
-        ratioY = p_inBase.y / (baseSize.h || 1);
+        // Calculate position based on attachTo setting
+        let ratioX, ratioY;
+        if (attachTo === "bg") {
+          ratioX = p_inBg.x / (bgSize.w || 1);
+          ratioY = p_inBg.y / (bgSize.h || 1);
+        } else {
+          ratioX = p_inBase.x / (baseSize.w || 1);
+          ratioY = p_inBase.y / (baseSize.h || 1);
+        }
+
+        // Clamp to bounds
+        ratioX = Math.max(0, Math.min(1, ratioX));
+        ratioY = Math.max(0, Math.min(1, ratioY));
+
+        // Call onNewAnnotation with the image file
+        if (onNewAnnotation) {
+          onNewAnnotation({
+            type: enabledDrawingMode,
+            x: ratioX,
+            y: ratioY,
+            imageFile: imageFile,
+          });
+        }
+        return;
       }
 
-      // Clamp to bounds
-      ratioX = Math.max(0, Math.min(1, ratioX));
-      ratioY = Math.max(0, Math.min(1, ratioY));
-
-      // Call onNewAnnotation with the image file
-      if (onNewAnnotation) {
-        onNewAnnotation({
-          type: enabledDrawingMode,
-          x: ratioX,
-          y: ratioY,
-          imageFile: imageFile,
-        });
+      if (hasFiles && typeof onFilesDrop === "function") {
+        e.preventDefault();
+        handleFilesDrop(files, e.clientX, e.clientY);
       }
     },
     [
@@ -770,6 +814,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       baseSize.w,
       baseSize.h,
       onNewAnnotation,
+      onFilesDrop,
+      handleFilesDrop,
     ]
   );
 

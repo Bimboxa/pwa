@@ -7,21 +7,24 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 import createKrtoFile from "../services/createKrtoFile";
 import downloadBlob from "Features/files/utils/downloadBlob";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function ButtonSaveKrtoFile() {
-  // strings
-
-  const saveS = "Enregistrer un fichier KRTO";
-  const krtoS = ".krto";
-
   // data
 
+  const appConfig = useAppConfig();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+
+  // helpers
+
+  const extension = appConfig?.features?.krto?.extension;
+  const krtoS = "." + extension ?? ".krto";
+  const saveS = `Enregistrer un fichier ${krtoS}`;
 
   // handlers
 
   async function handleSave() {
-    const file = await createKrtoFile(projectId);
+    const file = await createKrtoFile(projectId, { krtoExtension: extension });
     downloadBlob(file, file.name);
   }
   return (

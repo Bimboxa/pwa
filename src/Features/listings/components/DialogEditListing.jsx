@@ -53,8 +53,8 @@ export default function DialogEditListing({ open, onClose, listing }) {
   async function handleSave() {
     const _listing = { ...tempListing };
     _listing.entityModelKey = _listing?.entityModel?.key;
-    _listing.table = _listing?.entityModel?.defaultTable;
-    delete _listing.entityModel;
+    _listing.table = _listing?.table ?? _listing?.entityModel?.defaultTable;
+    //delete _listing.entityModel; => KEEP entityModel
 
     console.log("[DialogEditListing] _listing", _listing);
     await updateListing(_listing, { updateSyncFile: true });

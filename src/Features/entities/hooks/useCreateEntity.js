@@ -1,9 +1,10 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
 
 import { triggerEntitiesTableUpdate } from "../entitiesSlice";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
+import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 
 import db from "App/db/db";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
@@ -17,15 +18,26 @@ export default function useCreateEntity() {
 
   const { value: userEmail } = useUserEmail();
   const { value: _listing } = useSelectedListing();
+  const createAnnotation = useCreateAnnotation();
 
   // helper
 
   const create = async (data, options) => {
-    console.log("[useCreateEntity] data", data, options);
+    // options
 
-    // listing
+    const listingOption = options?.listing;
+    const updateSyncFile = options?.updateSyncFile;
+    const annotation = options?.annotation;
 
-    const listing = options?.listing || _listing;
+    // data
+
+    if (annotation?.imageFile) {
+      data.image = { file: annotation.imageFile };
+    }
+
+    // listingP
+
+    const listing = listingOption || _listing;
 
     // table
 
@@ -33,7 +45,7 @@ export default function useCreateEntity() {
 
     // ids
 
-    let entityId = nanoid();
+    let entityId = data?.id ?? nanoid();
 
     // data
     const { pureData, filesDataByKey } =
@@ -54,7 +66,7 @@ export default function useCreateEntity() {
           Object.entries(filesDataByKey).map(async ([key, fileData]) => {
             await db.files.put(fileData);
             //
-            if (options?.updateSyncFile) {
+            if (updateSyncFile) {
               await updateItemSyncFile({
                 item: fileData,
                 type: "FILE",
@@ -83,7 +95,15 @@ export default function useCreateEntity() {
       console.log("[db] adding entity ...", entity);
       await db[table].add(entity);
 
-      if (options?.updateSyncFile) {
+      if (annotation) {
+        await createAnnotation({
+          ...annotation,
+          entityId: entity.id,
+          listingId: listing.id,
+          listingTable: listing.table,
+        });
+      }
+      if (updateSyncFile) {
         await updateItemSyncFile({
           item: entity,
           type: "ENTITY",
@@ -91,6 +111,7 @@ export default function useCreateEntity() {
           //syncAt: options.syncAt,
         });
       }
+
       return entity;
     } catch (e) {
       console.log("[db] error adding entity", entity);

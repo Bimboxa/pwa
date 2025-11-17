@@ -15,6 +15,7 @@ import PanelAnnotationFormat from "Features/annotations/components/PanelAnnotati
 import PanelEditEntity from "Features/entities/components/PanelEditEntity";
 import PanelNodeFormat from "Features/mapEditor/components/PanelNodeFormat";
 import PanelSelection from "Features/selection/components/PanelSelection";
+import PanelEntityZones from "Features/relsZoneEntity/components/PanelEntityZones";
 
 export default function RightPanelContainer() {
   // data
@@ -63,6 +64,7 @@ export default function RightPanelContainer() {
           {selectedKey === "NODE_FORMAT" && <PanelNodeFormat />}
           {selectedKey === "ENTITY" && <PanelEditEntity />}
           {selectedKey === "SELECTION" && <PanelSelection />}
+          {selectedKey === "ENTITY_ZONES" && <PanelEntityZones />}
         </Box>
       )}
     </>

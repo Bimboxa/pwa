@@ -42,12 +42,12 @@ export default function ListItemEntityVariantDefault({
 
   // helpers
 
-  //let label = entity.label ?? annotation?.label;
-  let label = annotation?.label ?? entity.label;
+  let label = entity.label ?? annotation?.label;
+  //let label = annotation?.label ?? entity.label;
   const fontStyle = label ? "normal" : "italic";
   if (!label) label = "Libellé à définir";
   //const subLabel = entity.num ? `#${entity.num}` : entity.subLabel;
-  const subLabel = entity.subLabel ?? "-";
+  const subLabel = entity.subLabel ?? annotation?.label;
 
   const isSelected = selection?.includes(entity.id);
   const mainImage = getEntityMainImage(entity);
@@ -117,7 +117,9 @@ export default function ListItemEntityVariantDefault({
                 size={18}
               />
             )}
-            <Typography variant="caption">{subLabel}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {subLabel}
+            </Typography>
           </Box>
         </Box>
         {isSelected && (

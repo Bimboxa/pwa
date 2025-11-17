@@ -1,5 +1,5 @@
-import {useState} from "react";
-import {useSelector, useDispatch} from "react-redux";
+import { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
 
 import {
   setSelectedItems,
@@ -11,23 +11,24 @@ import useZonesTree from "../hooks/useZonesTree";
 import useCreateOrUpdateZonesTree from "../hooks/useCreateOrUpdateZonesTree";
 import useSelectedZone from "../hooks/useSelectedZone";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 
 import TreeZones from "./TreeZones";
 import MenuGeneric from "Features/layout/components/MenuGeneric";
 
-import {removeNodeById} from "Features/tree/utils/nodesManagementUtils";
+import { removeNodeById } from "Features/tree/utils/nodesManagementUtils";
 import manageTree from "Features/tree/utils/manageTree";
 
 import MenuActionsZone from "./MenuActionsZone";
 import SectionCreateFirstZone from "./SectionCreateFirstZone";
+import IconButtonMoreZones from "./IconButtonMoreZones";
 
 export default function SectionTreeZonesInListPanel() {
   const dispatch = useDispatch();
 
   // data
 
-  const {value: zonesTree, loading} = useZonesTree();
+  const { value: zonesTree, loading } = useZonesTree();
 
   const selectedItems = useSelector((state) => state.zones.selectedItems);
   const expandedItems = useSelector((state) => state.zones.expandedItems);
@@ -69,10 +70,10 @@ export default function SectionTreeZonesInListPanel() {
     ids.forEach((id) => {
       removeNodeById(items, id);
     });
-    createOrUpdate({zonesTree: items}, {updateSyncFile: true});
+    createOrUpdate({ zonesTree: items }, { updateSyncFile: true });
   }
 
-  function handleItemPositionChange({itemId, oldPosition, newPosition}) {
+  function handleItemPositionChange({ itemId, oldPosition, newPosition }) {
     const targetId = itemId;
     const newParentId = newPosition.parentId;
     const position = newPosition.index;
@@ -85,7 +86,7 @@ export default function SectionTreeZonesInListPanel() {
       position,
     });
     items = result.tree;
-    createOrUpdate({zonesTree: items}, {updateSyncFile: true});
+    createOrUpdate({ zonesTree: items }, { updateSyncFile: true });
   }
 
   function handleMoreClick(e, zoneId) {
@@ -105,6 +106,9 @@ export default function SectionTreeZonesInListPanel() {
         zone={selectedZone}
         zonesTree={zonesTree}
       />
+      <Box sx={{ width: 1, p: 1 }}>
+        <IconButtonMoreZones />
+      </Box>
       {noZones ? (
         <SectionCreateFirstZone />
       ) : (

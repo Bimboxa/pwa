@@ -18,6 +18,7 @@ const entitiesInitialState = {
   entityTemplateUpdatedAt: null,
   //
   openDialogDeleteEntity: false,
+  openDialogCreateEntity: false,
 };
 
 export const entitiesSlice = createSlice({
@@ -72,6 +73,9 @@ export const entitiesSlice = createSlice({
     setOpenDialogDeleteEntity: (state, action) => {
       state.openDialogDeleteEntity = action.payload;
     },
+    setOpenDialogCreateEntity: (state, action) => {
+      state.openDialogCreateEntity = action.payload;
+    },
   },
 });
 
@@ -92,6 +96,7 @@ export const {
   triggerEntityTemplateUpdate,
   //
   setOpenDialogDeleteEntity,
+  setOpenDialogCreateEntity,
 } = entitiesSlice.actions;
 
 export default entitiesSlice.reducer;

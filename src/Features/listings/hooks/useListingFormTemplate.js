@@ -106,6 +106,14 @@ export default function useListingFormTemplate(listing, options) {
         type: "check",
         ...(locatedListingOnly && { hidden: true }),
       },
+      {
+        key: "table",
+        label: "Table",
+        type: "optionKey",
+        valueOptions: [{ key: "entities", label: "Défault" }],
+        options: { showAsSection: true },
+        ...(locatedListingOnly && { hidden: true }),
+      },
     ],
   };
 

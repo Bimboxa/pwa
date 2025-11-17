@@ -9,63 +9,53 @@ import {
   ListItemButton,
 } from "@mui/material";
 import { ArrowForwardIos as Forward, ArrowDropDown } from "@mui/icons-material";
-import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
-import PanelSelectorEntity from "Features/entities/components/PanelSelectorEntity";
-import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
-export default function FieldEntityV2({
+import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
+import PanelSelectorZone from "Features/zones/components/PanelSelectorZone";
+
+import getNodeById from "Features/tree/utils/getNodeById";
+
+export default function FieldZoneV2({
   value,
   onChange,
-  entities,
-  entitiesListing,
+  zonesTree,
+  zonesListing,
   label,
   size = 8,
   sectionContainerEl,
   options,
 }) {
-  // strings
-
-  //const selectS = "Sélectionner une entité";
-  const selectS = entitiesListing?.name;
-  console.log("debug_1211_entitiesListing", options);
+  zonesTree = zonesTree || [];
 
   // options
 
-  const showAsSection = options?.showAsSection;
+  const showAsSection = options.showAsSection;
 
   // state
 
   const [open, setOpen] = useState(false);
 
-  // helpers - entities
-
-  const entityById = getItemsByKey(entities, "id");
-
   // helpers
 
-  const valueWithProps = entityById[value?.id];
-  const valueLabel = valueWithProps?.label ?? selectS;
+  const node = getNodeById(value?.id, zonesTree);
+
+  const valueLabel = node ? node.label : zonesListing?.name;
   const bbox = sectionContainerEl?.getBoundingClientRect();
 
   // helpers
 
-  const selectedEntityId = value?.id;
+  const selection = value?.id ?? [];
 
   // handlers
 
-  function handleSelectionChange(id) {
-    // const newZones = {ids: zoneIds};
-    onChange({ id, listingId: entitiesListing?.id });
+  function handleChange(zoneId) {
+    onChange({ id: zoneId });
     setOpen(false);
   }
 
   function handleOpenSelector(e) {
     e.stopPropagation();
     setOpen(true);
-  }
-
-  function handlePanelClose() {
-    setOpen(false);
   }
 
   return (
@@ -79,21 +69,22 @@ export default function FieldEntityV2({
               left: 0,
               width: bbox.width,
               bottom: 0,
-              zIndex: 2000,
-              bgcolor: "background.default",
+              bgcolor: "background.paper",
+              zIndex: 1000,
             }}
           >
-            <PanelSelectorEntity
-              title={selectS}
-              entities={entities}
-              entitiesListing={entitiesListing}
-              selectedEntityId={selectedEntityId}
-              onSelectionChange={handleSelectionChange}
-              onClose={handlePanelClose}
+            <PanelSelectorZone
+              zonesListing={zonesListing}
+              zonesTree={zonesTree}
+              selection={selection}
+              onSelectionChange={handleChange}
+              multiSelect={false}
+              onClose={() => setOpen(false)}
             />
           </Box>
         </ClickAwayListener>
       )}
+
       {showAsSection && (
         <Box
           sx={{

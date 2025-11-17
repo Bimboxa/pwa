@@ -41,6 +41,10 @@ const mapEditorInitialState = {
   // segment
   drawingSegmentPoints: [], // Array of {x, y} with max 2 points (start and end)
 
+  // files drop
+
+  filesDrop: null, // {x, y, files}
+
   // view
   centerBaseMapTriggeredAt: null,
   filterByMainBaseMap: true,
@@ -177,6 +181,11 @@ export const mapEditorSlice = createSlice({
       state.drawingSegmentPoints = [];
     },
 
+    // files drop
+    setFilesDrop: (state, action) => {
+      state.filesDrop = action.payload;
+    },
+
     // baseMap - view
     triggerCenterBaseMap: (state) => {
       console.log("[STATE] centerBaseMapTriggeredAt", Date.now());
@@ -255,6 +264,9 @@ export const {
   setDrawingSegmentPoints,
   addSegmentPoint,
   clearDrawingSegmentPoints,
+
+  // files drop
+  setFilesDrop,
 
   // view
   triggerCenterBaseMap,

@@ -23,7 +23,6 @@ export default function getAnnotationQties(annotation, baseMap) {
   }
 
   const imageSize = baseMap?.image?.imageSize;
-  console.log("debug_711_imageSize", baseMap);
 
   let pointsInPx = validPoints;
   // const hasRelativeCoords = validPoints.every(

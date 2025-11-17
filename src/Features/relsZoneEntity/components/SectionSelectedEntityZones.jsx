@@ -1,51 +1,37 @@
-import {useSelector, useDispatch} from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
-import {setSelectedEntity} from "../relsZoneEntitySlice";
+import { setSelectedEntity } from "../relsZoneEntitySlice";
 
-import useEntities from "Features/entities/hooks/useEntities";
+import useAddZoneToEntity from "../hooks/useAddZoneToEntity";
+import useRemoveZoneFromEntity from "../hooks/useRemoveZoneFromEntity";
 
-import {Box, Paper} from "@mui/material";
+import useSelectedEntity from "Features/entities/hooks/useSelectedEntity";
+import useRelsZoneEntity from "../hooks/useRelsZoneEntity";
 
-import FormGeneric from "Features/form/components/FormGeneric";
-import useSelectedListing from "Features/listings/hooks/useSelectedListing";
-import useListingsByScope from "Features/listings/hooks/useListingsByScope";
+import { Box, Paper } from "@mui/material";
+
+import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
+
 import useZonesTree from "Features/zones/hooks/useZonesTree";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 export default function SectionSelectedEntityZones() {
   const dispatch = useDispatch();
 
   // data
 
-  const {value: zonesTree} = useZonesTree();
-  const {value: listing} = useSelectedListing({withEntityModel: true});
-  const {value: listings} = useListingsByScope({withEntityModel: true});
+  const { value: zonesTree, zoningId } = useZonesTree();
 
-  const selectedEntity = useSelector((s) => s.relsZoneEntity.selectedEntity);
+  const { value: selectedEntity } = useSelectedEntity();
 
-  // data - entities
+  const relsZoneEntity = useRelsZoneEntity({ entityId: selectedEntity?.id });
 
-  const {value: entities} = useEntities({
-    filterByListingsIds: [listing?.relatedListing?.id],
-  });
+  const zoneIds = [...new Set(relsZoneEntity?.map((rel) => rel.zoneId))];
 
-  const relatedListing = listings?.find(
-    (l) => l.id === listing?.relatedListing?.id
-  );
+  // data - func
 
-  // helper - form
-
-  console.log("[SectionSelectedEntityZones] zonesTree", zonesTree);
-
-  const template = {
-    fields: [
-      {
-        key: "zones",
-        label: "Zones",
-        type: "treeItems",
-        tree: zonesTree,
-      },
-    ],
-  };
+  const addZoneToEntity = useAddZoneToEntity();
+  const removeZoneFromEntity = useRemoveZoneFromEntity();
 
   // handlers
 
@@ -54,15 +40,32 @@ export default function SectionSelectedEntityZones() {
     dispatch(setSelectedEntity(item));
   }
 
+  async function handleToggleItem(toggleItem) {
+    const { itemId, wasChecked } = toggleItem;
+    if (wasChecked) {
+      await addZoneToEntity({
+        zoningId,
+        zoneId: itemId,
+        listingId: selectedEntity?.listingId,
+        entityId: selectedEntity?.id,
+      });
+    } else {
+      await removeZoneFromEntity({
+        zoneId: itemId,
+        entityId: selectedEntity?.id,
+      });
+    }
+  }
+
   return (
-    <Box sx={{flexGrow: 1, p: 2}}>
-      <Paper elevation={0}>
-        <FormGeneric
-          template={template}
-          item={selectedEntity}
-          onItemChange={handleItemChange}
-        />
-      </Paper>
-    </Box>
+    <BoxFlexVStretch sx={{ p: 2 }}>
+      <SelectorVariantTree
+        items={zonesTree}
+        multiSelect
+        onToggleItem={handleToggleItem}
+        selection={zoneIds ?? []}
+        //onChange={handleChange}
+      />
+    </BoxFlexVStretch>
   );
 }

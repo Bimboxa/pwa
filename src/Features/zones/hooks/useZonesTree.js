@@ -52,5 +52,5 @@ export default function useZonesTree() {
     return tree;
   }, [zonesListing?.id, zonesUpdatedAt]);
 
-  return { value: zonesTree, loading };
+  return { value: zonesTree, loading, zoningId: zonesListing?.id };
 }

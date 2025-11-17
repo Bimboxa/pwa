@@ -17,6 +17,11 @@ export default function useCreateAnnotation() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
   return async (annotation, options) => {
+    // options
+
+    const entityId = options?.entityId;
+
+    // main
     const _annotation = {
       ...annotation,
       id: nanoid(),
@@ -24,11 +29,13 @@ export default function useCreateAnnotation() {
       listingId: annotation?.listingId ?? listing?.id,
     };
 
+    if (entityId) _annotation.entityId = entityId;
+
     if (annotation.isScaleSegment) {
       _annotation.listingId = null;
     }
 
-    await createAnnotationService(_annotation, options);
+    await createAnnotationService(_annotation);
     dispatch(triggerAnnotationsUpdate());
     dispatch(triggerAnnotationTemplatesUpdate());
 

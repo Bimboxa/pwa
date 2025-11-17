@@ -13,7 +13,7 @@ import { Stop, Mic as MicIcon, Close } from "@mui/icons-material";
 import useRecognition from "../hooks/useRecognition";
 
 export default function FieldTextV2({ value, onChange, options, label }) {
-  const fullWidth = options ? options?.fullWidth : true; // to consider default value from entities model
+  const fullWidth = options?.fullWidth; // to consider default value from entities model
   const multiline = options?.multiline;
   const showLabel = options ? options?.showLabel : true;
   const hideMic = options?.hideMic;
@@ -21,6 +21,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   const hideBorder = options?.hideBorder;
   const placeholder = options?.placeholder;
   const showAsSection = options?.showAsSection;
+  const showAsField = options?.showAsField;
   const readOnly = options?.readOnly;
   const showClose = options?.showClose;
   const isNumber = options?.isNumber;
@@ -87,54 +88,80 @@ export default function FieldTextV2({ value, onChange, options, label }) {
           {label}
         </Typography>
       )}
-      <TextField
-        size="small"
-        readOnly={readOnly}
-        autoFocus={autoFocus}
-        label={showLabel ? label : null}
-        placeholder={placeholder}
-        fullWidth={fullWidth}
-        multiline={multiline}
-        value={tempValue}
-        onChange={handleChange}
-        onBlur={handleOnBlur}
-        onKeyDown={(e) => e.stopPropagation()}
-        slotProps={{
-          input: {
-            endAdornment:
-              tempValue && !readOnly && showClose ? (
-                <InputAdornment position="end">
-                  <IconButton
-                    onClick={() => onChange("")}
-                    //edge="start"
-                    size="small"
-                  >
-                    <Close fontSize="small" />
-                  </IconButton>
-                </InputAdornment>
-              ) : null,
-            // endAdornment: !hideMic ? (
-            //   <InputAdornment position="end">
-            //     <IconButton onClick={handleMicClick} size="small">
-            //       {recording ? <Stop sx={{color: "red"}} /> : <MicIcon />}
-            //     </IconButton>
-            //   </InputAdornment>
-            // ) : null,
-          },
-        }}
+      <Box
         sx={{
-          "& .MuiOutlinedInput-root": hideBorder
-            ? {
-                "& fieldset": {
-                  border: "none",
-                },
-              }
-            : {},
-          "& .MuiInputBase-input": {
-            fontSize: (theme) => theme.typography.body2.fontSize,
-          },
+          width: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: showAsField ? "space-between" : null,
         }}
-      />
+      >
+        {showAsField && (
+          <Typography
+            variant="body2"
+            //color="text.secondary"
+            sx={{ fontWeight: "bold", mr: 1, flexGrow: 1, minWidth: 0 }}
+          >
+            {label}
+          </Typography>
+        )}
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+          }}
+        >
+          <TextField
+            size="small"
+            readOnly={readOnly}
+            autoFocus={autoFocus}
+            label={showLabel ? label : null}
+            placeholder={placeholder}
+            fullWidth={fullWidth}
+            multiline={multiline}
+            value={tempValue}
+            onChange={handleChange}
+            onBlur={handleOnBlur}
+            onKeyDown={(e) => e.stopPropagation()}
+            slotProps={{
+              input: {
+                endAdornment:
+                  tempValue && !readOnly && showClose ? (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => onChange("")}
+                        //edge="start"
+                        size="small"
+                      >
+                        <Close fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null,
+                // endAdornment: !hideMic ? (
+                //   <InputAdornment position="end">
+                //     <IconButton onClick={handleMicClick} size="small">
+                //       {recording ? <Stop sx={{color: "red"}} /> : <MicIcon />}
+                //     </IconButton>
+                //   </InputAdornment>
+                // ) : null,
+              },
+            }}
+            sx={{
+              "& .MuiOutlinedInput-root": hideBorder
+                ? {
+                    "& fieldset": {
+                      border: "none",
+                    },
+                  }
+                : {},
+              "& .MuiInputBase-input": {
+                fontSize: (theme) => theme.typography.body2.fontSize,
+              },
+            }}
+          />
+        </Box>
+      </Box>
     </Box>
   );
 }

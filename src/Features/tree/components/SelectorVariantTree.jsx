@@ -22,6 +22,7 @@ export default function SelectorVariantTree({
   multiSelect = false,
   color,
   onCreateClick,
+  onToggleItem,
 }) {
   // strings
 
@@ -39,6 +40,11 @@ export default function SelectorVariantTree({
     : [initSelection];
 
   const [tempSelection, setTempSelection] = useState(initSelection);
+
+  useEffect(() => {
+    setTempSelection(initSelection);
+  }, [initSelection.join(".")]);
+
   const [expandedNodes, setExpandedNodes] = useState([]);
 
   const [seeSelectionOnly, setSeeSelectionOnly] = useState(false);
@@ -46,8 +52,13 @@ export default function SelectorVariantTree({
   console.log("debug_1211_tempSelection", tempSelection);
 
   useEffect(() => {
-    setTempSelection(selection);
-    const expanded = getNodesToExpand(items, selection);
+    const normalizedSelection = Array.isArray(selection)
+      ? selection
+      : selection != null
+      ? [selection]
+      : [];
+    setTempSelection(normalizedSelection);
+    const expanded = getNodesToExpand(items, normalizedSelection);
     setExpandedNodes(expanded);
   }, []);
 
@@ -72,11 +83,48 @@ export default function SelectorVariantTree({
   // handlers
 
   function handleSelectionChange(event, ids) {
-    setTempSelection(ids);
+    console.log("debug_1211_handleSelectionChange", ids);
+
+    if (multiSelect) {
+      const prevSelection = Array.isArray(tempSelection) ? tempSelection : [];
+      const newSelection = Array.isArray(ids) ? ids : [];
+
+      // Find which item was added (checked) or removed (unchecked)
+      const added = newSelection.filter((id) => !prevSelection.includes(id));
+      const removed = prevSelection.filter((id) => !newSelection.includes(id));
+
+      // Determine which item was toggled
+      const toggledItemId = added[0] || removed[0] || null;
+      const wasChecked = added.length > 0;
+      const wasUnchecked = removed.length > 0;
+
+      if (toggledItemId) {
+        console.log("Toggled item:", {
+          itemId: toggledItemId,
+          wasChecked,
+          wasUnchecked,
+        });
+        if (onToggleItem)
+          onToggleItem({
+            itemId: toggledItemId,
+            wasChecked: wasChecked,
+          });
+        // You can emit this information if needed
+        // onChange?.({ itemId: toggledItemId, checked: wasChecked, selection: newSelection });
+      }
+
+      setTempSelection(newSelection);
+    } else {
+      setTempSelection(ids ? [ids] : []);
+    }
   }
 
   function handleSave() {
-    onChange(tempSelection);
+    let selection = tempSelection;
+    if (!multiSelect) selection = selection?.[0];
+    if (onChange) {
+      onChange(selection);
+    }
   }
 
   function handleCreateClick() {
@@ -107,13 +155,15 @@ export default function SelectorVariantTree({
         checked={seeSelectionOnly}
         onChange={setSeeSelectionOnly}
       />
-      <ButtonInPanelV2
-        label={saveS}
-        onClick={handleSave}
-        variant="contained"
-        color="secondary"
-        disabled={!tempSelection?.length > 0}
-      />
+      {onChange && (
+        <ButtonInPanelV2
+          label={saveS}
+          onClick={handleSave}
+          variant="contained"
+          color="secondary"
+          disabled={!Array.isArray(tempSelection) || tempSelection.length === 0}
+        />
+      )}
     </BoxFlexVStretch>
   );
 }

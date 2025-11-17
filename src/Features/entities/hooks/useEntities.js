@@ -214,11 +214,12 @@ export default function useEntities(options) {
             const listing = listingsById[entity.listingId];
             const _computedFields = listing?.entityModel?.computedFields;
 
-            const computedFields = await getEntityComputedFieldsAsync(
-              _computedFields,
-              entity,
-              entities
-            );
+            // const computedFields = await getEntityComputedFieldsAsync(
+            //   _computedFields,
+            //   entity,
+            //   entities
+            // );
+            const computedFields = await getEntityComputedFieldsAsync(entity);
             return { ...entity, ...computedFields };
           })
         );

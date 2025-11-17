@@ -9,6 +9,7 @@ export default async function createKrtoFile(projectId, options) {
   const nameFileWithTimestamp = options?.nameFileWithTimestamp;
   const getAnnotationTemplatesFromListingId =
     options?.getAnnotationTemplatesFromListingId;
+  const krtoExtension = options?.krtoExtension ?? ".krto";
 
   // Get project details for metadata
   const project = await db.projects.get(projectId);
@@ -42,7 +43,9 @@ export default async function createKrtoFile(projectId, options) {
   // Create a readable filename from project name
   const sanitizedName = sanitizeName(project.name || "project");
 
-  const extension = getAnnotationTemplatesFromListingId ? "krtol" : "krto";
+  const extension = getAnnotationTemplatesFromListingId
+    ? "krtol"
+    : krtoExtension;
 
   const now = new Date();
   const date = now.toISOString().split("T")[0]; // YYYY-MM-DD
