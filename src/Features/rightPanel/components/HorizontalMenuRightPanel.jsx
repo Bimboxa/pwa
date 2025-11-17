@@ -2,6 +2,8 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedMenuItemKey } from "../rightPanelSlice";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import VerticalMenu from "Features/layout/components/VerticalMenu";
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
@@ -14,6 +16,7 @@ import {
   Edit,
   Wallpaper,
   Room,
+  PictureAsPdf,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -25,9 +28,27 @@ import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMap
 export default function HorizontalMenuRightPanel() {
   const dispatch = useDispatch();
 
+  const appConfig = useAppConfig();
+
+  // helpers
+
+  const toolsMap = {
+    PDF_REPORT: {
+      label: "Export PDF",
+      icon: <PictureAsPdf />,
+    },
+    ENTITY_ZONES: {
+      label: "Localisation",
+      icon: <Room />,
+    },
+  };
+
+  const toolsKeys = appConfig?.features?.tools ?? [];
+  const menuItems = toolsKeys.map((key) => ({ ...toolsMap[key], key }));
+
   // const
 
-  const menuItems = [
+  const _menuItems = [
     // {
     //   key: "SHOWER",
     //   label: "Calques",
@@ -49,6 +70,12 @@ export default function HorizontalMenuRightPanel() {
       key: "ENTITY_ZONES",
       label: "Localisation",
       icon: <Room />,
+    },
+
+    {
+      key: "PDF_REPORT",
+      label: "Export PDF",
+      icon: <PictureAsPdf />,
     },
 
     // {

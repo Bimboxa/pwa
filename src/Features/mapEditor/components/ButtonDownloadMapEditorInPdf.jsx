@@ -22,7 +22,7 @@ export default function ButtonDownloadMapEditorInPdf({ svgElement }) {
   // data
 
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
-  const baseMap = useMainBaseMap();
+
   const { value: listing } = useSelectedListing();
   const { value: selectedEntity } = useSelectedEntity();
 
@@ -37,8 +37,8 @@ export default function ButtonDownloadMapEditorInPdf({ svgElement }) {
 
   // render
 
-  //if (!showBgImage || listing?.entityModel?.type !== "BLUEPRINT") return null;
-  if (!showBgImage) return null;
+  if (!showBgImage || listing?.entityModel?.type !== "BLUEPRINT") return null;
+  //if (!showBgImage) return null;
 
   return (
     <>

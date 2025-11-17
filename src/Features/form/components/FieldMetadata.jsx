@@ -54,6 +54,10 @@ export default function FieldMetadata({ value, onChange, label }) {
               value={_value}
               label={_label}
               onChange={(newValue) => handleKeyValueChange(key, newValue)}
+              options={{
+                fullWidth: true,
+                showLabel: true,
+              }}
             />
           );
         })}

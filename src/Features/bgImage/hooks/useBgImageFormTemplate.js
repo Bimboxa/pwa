@@ -17,21 +17,21 @@ export default function useBgImageFormTemplate(bgImageItem) {
       //   label: "Afficher",
       //   type: "check",
       // },
-      {
-        key: "buttonResetBaseMapPose",
-        label: "Position du fond de plan",
-        type: "button",
-        options: {
-          buttonLabel: "Réinitialiser",
-          buttonVariant: "outlined",
-          buttonColor: "primary",
+      // {
+      //   key: "buttonResetBaseMapPose",
+      //   label: "Position du fond de plan",
+      //   type: "button",
+      //   options: {
+      //     buttonLabel: "Réinitialiser",
+      //     buttonVariant: "outlined",
+      //     buttonColor: "primary",
 
-          onClick: onClick,
-        },
-      },
+      //     onClick: onClick,
+      //   },
+      // },
       {
         key: "imageKey",
-        label: "Image",
+        label: "Arrière plan",
         type: "imageKeyFromOptions",
         options: {
           images: bgImages,

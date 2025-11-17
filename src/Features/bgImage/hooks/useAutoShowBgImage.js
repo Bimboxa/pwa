@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { setShowBgImageInMapEditor } from "../bgImageSlice";
 
@@ -12,14 +12,16 @@ export default function useAutoShowBgImage() {
   // data
 
   const { value: listing } = useSelectedListing();
+  const mode = useSelector((s) => s.rightPanel.selectedMenuItemKey);
 
   // helpers
 
   const isBlueprintListing = listing?.entityModel?.type === "BLUEPRINT";
 
+  const show = isBlueprintListing || mode === "PDF_REPORT";
   // effect
 
   useEffect(() => {
-    dispatch(setShowBgImageInMapEditor(isBlueprintListing));
-  }, [isBlueprintListing]);
+    dispatch(setShowBgImageInMapEditor(show));
+  }, [show]);
 }

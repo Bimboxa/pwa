@@ -88,11 +88,16 @@ import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
 
 import db from "App/db/db";
+import editor from "App/editor";
 
 export default function MainMapEditorV2() {
   const dispatch = useDispatch();
   const containerRef = useRef();
   const svgRef = useRef();
+
+  useEffect(() => {
+    editor.mapEditorSvgElement = svgRef.current;
+  }, [svgRef.current]);
 
   // data
 
