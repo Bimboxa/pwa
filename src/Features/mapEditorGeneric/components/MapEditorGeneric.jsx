@@ -72,6 +72,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     annotationSpriteImage,
     selectedAnnotationIds = [],
     onClickInBg,
+    onClickInBaseMap,
     legendItems,
     legendFormat,
     onLegendFormatChange,
@@ -1135,6 +1136,11 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
       const p_inBg = screenToBgLocal(sx, sy);
       const p_inBase = screenToBaseLocal(sx, sy);
+
+      onClickInBaseMap?.({
+        x: p_inBase.x / baseSize.w,
+        y: p_inBase.y / baseSize.h,
+      });
 
       console.log("onSvgClick - Base local:", p_inBase);
 

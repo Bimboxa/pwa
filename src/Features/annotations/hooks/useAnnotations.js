@@ -25,6 +25,8 @@ export default function useAnnotations(options) {
 
   // data
 
+  const tempAnnotations = useSelector((s) => s.annotations.tempAnnotations);
+
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
   );
@@ -180,6 +182,11 @@ export default function useAnnotations(options) {
 
   if (addBgImageTextAnnotations) {
     annotations = [...(annotations ?? []), ...bgImageTextAnnotations];
+  }
+
+  // temp annotations
+  if (tempAnnotations.length > 0) {
+    annotations = [...(annotations ?? []), ...tempAnnotations];
   }
 
   // return

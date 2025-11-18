@@ -32,6 +32,9 @@ const mapEditorInitialState = {
   //
   selectedAnnotationTemplateId: null,
 
+  // baseMap
+  clickInBaseMapPosition: null, // { x, y }
+
   // polyline
   drawingPolylinePoints: [], // Array of {x, y} in relative coordinates (0-1)
 
@@ -137,6 +140,10 @@ export const mapEditorSlice = createSlice({
     // Annotation template
     setSelectedAnnotationTemplateId: (state, action) => {
       state.selectedAnnotationTemplateId = action.payload;
+    },
+    // baseMap
+    setClickInBaseMapPosition: (state, action) => {
+      state.clickInBaseMapPosition = action.payload;
     },
 
     // polyline
@@ -248,6 +255,8 @@ export const {
   setLegendFormat,
   //
   setSelectedAnnotationTemplateId,
+  // baseMap
+  setClickInBaseMapPosition,
 
   // polyline
   setDrawingPolylinePoints,

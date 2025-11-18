@@ -18,6 +18,8 @@ const annotationsInitialState = {
   tempAnnotationTemplateLabel: null,
   //
   editedAnnotationTemplate: null, // used to update annotation template
+  //
+  tempAnnotations: [],
 };
 
 export const annotationsSlice = createSlice({
@@ -61,6 +63,10 @@ export const annotationsSlice = createSlice({
     setEditedAnnotationTemplate: (state, action) => {
       state.editedAnnotationTemplate = action.payload;
     },
+    // temp annotations
+    setTempAnnotations: (state, action) => {
+      state.tempAnnotations = action.payload;
+    },
   },
 });
 
@@ -77,6 +83,8 @@ export const {
   //
   setTempAnnotationTemplateLabel,
   setEditedAnnotationTemplate,
+  //
+  setTempAnnotations,
 } = annotationsSlice.actions;
 
 export default annotationsSlice.reducer;
