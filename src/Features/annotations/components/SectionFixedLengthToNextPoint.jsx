@@ -49,7 +49,7 @@ export default function SectionFixedLengthToNextPoint() {
       <TextField
         inputRef={inputRef}
         label="Longueur fixe"
-        value={fixedLength}
+        value={fixedLength ?? ""}
         onChange={handleChange}
         size="small"
         sx={{
