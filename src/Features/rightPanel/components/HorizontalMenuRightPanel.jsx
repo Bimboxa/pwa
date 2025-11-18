@@ -17,6 +17,7 @@ import {
   Wallpaper,
   Room,
   PictureAsPdf,
+  Insights as OpencvIcon,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -40,6 +41,10 @@ export default function HorizontalMenuRightPanel() {
     ENTITY_ZONES: {
       label: "Localisation",
       icon: <Room />,
+    },
+    OPENCV: {
+      label: "OpenCV",
+      icon: <OpencvIcon />,
     },
   };
 

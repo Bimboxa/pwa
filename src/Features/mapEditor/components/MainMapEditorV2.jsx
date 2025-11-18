@@ -7,6 +7,7 @@ import {
   setMainBaseMapIsSelected,
   setBaseMapPoseInBg,
   setClickInBgPosition,
+  setClickInBaseMapPosition,
   setSelectedNode,
   setLegendFormat,
   setScaleInPx,
@@ -22,7 +23,10 @@ import {
   setIsEditingEntity,
   setEditedEntity,
 } from "Features/entities/entitiesSlice";
-import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import {
+  setNewAnnotation,
+  setTempAnnotations,
+} from "Features/annotations/annotationsSlice";
 import { setOpenBaseMapSelector } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import {
@@ -89,6 +93,9 @@ import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
 
 import db from "App/db/db";
 import editor from "App/editor";
+import cv from "Features/opencv/services/opencvService";
+import cleanPolylinePoints from "Features/geometry/utils/cleanPolylinePoints";
+import theme from "Styles/theme";
 
 export default function MainMapEditorV2() {
   const dispatch = useDispatch();
@@ -607,6 +614,39 @@ export default function MainMapEditorV2() {
     dispatch(setClickInBgPosition(p));
   }
 
+  async function handleClickInBaseMap(p) {
+    dispatch(setClickInBaseMapPosition(p));
+
+    if (enabledDrawingMode === "OPENCV") {
+      await cv.load();
+      const color = await cv.getPixelColorAsync({
+        imageUrl: baseMapImageUrl,
+        x: p.x,
+        y: p.y,
+      });
+      console.log("color", color);
+      const _color = theme.palette.secondary.main;
+      const cleanedPoints = cleanPolylinePoints(color.polylines[0]);
+      const annotation = {
+        id: "temp-",
+        type: "POLYLINE",
+        points: cleanedPoints,
+        fillColor: _color,
+        strokeColor: _color,
+        strokeWidth: 10,
+        strokeOpacity: 1,
+        strokeType: "SOLID",
+        strokeWidthUnit: "PX",
+        strokeOffset: 0,
+        closeLine: true,
+        fillOpacity: 0.8,
+        baseMapId: mainBaseMap?.id,
+      };
+      dispatch(setTempAnnotations([annotation]));
+      console.log("temp_annotation", annotation);
+    }
+  }
+
   function handleLegendFormatChange(newLegendFormat) {
     dispatch(setLegendFormat(newLegendFormat));
   }
@@ -663,6 +703,7 @@ export default function MainMapEditorV2() {
         annotationSpriteImage={annotationSpriteImage}
         selectedAnnotationIds={selectedAnnotationIds}
         onClickInBg={handleClickInBg}
+        onClickInBaseMap={handleClickInBaseMap}
         legendItems={legendItems}
         legendFormat={legendFormat}
         onLegendFormatChange={handleLegendFormatChange}

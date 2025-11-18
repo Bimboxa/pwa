@@ -17,6 +17,7 @@ import PanelNodeFormat from "Features/mapEditor/components/PanelNodeFormat";
 import PanelSelection from "Features/selection/components/PanelSelection";
 import PanelEntityZones from "Features/relsZoneEntity/components/PanelEntityZones";
 import PanelPdfReport from "Features/pdfReport/components/PanelPdfReport.jsx";
+import PanelOpencv from "Features/opencv/components/PanelOpencv.jsx";
 
 export default function RightPanelContainer() {
   // data
@@ -67,6 +68,7 @@ export default function RightPanelContainer() {
           {selectedKey === "SELECTION" && <PanelSelection />}
           {selectedKey === "ENTITY_ZONES" && <PanelEntityZones />}
           {selectedKey === "PDF_REPORT" && <PanelPdfReport />}
+          {selectedKey === "OPENCV" && <PanelOpencv />}
         </Box>
       )}
     </>
