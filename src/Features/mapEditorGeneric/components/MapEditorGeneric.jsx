@@ -40,6 +40,9 @@ import {
 import applyFixedLengthConstraint from "Features/mapEditorGeneric/utils/applyFixedLengthConstraint";
 
 const PADDING = 15;
+const SNAP_THRESHOLD_PX = 10;
+const SNAP_COLOR = "#ff4dd9";
+const SNAP_GRID_CELL_SIZE = 200;
 
 const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   let {
@@ -128,6 +131,12 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isDraggingAnnotation, setIsDraggingAnnotation] = useState(false);
   const [isDraggingFabMarker, setIsDraggingFabMarker] = useState(false);
+  const [snapHelper, setSnapHelper] = useState(null);
+  const snapHelperRef = useRef(null);
+
+  useEffect(() => {
+    snapHelperRef.current = snapHelper;
+  }, [snapHelper]);
 
   useEffect(() => {
     setIsDraggingAnnotation(false);
@@ -240,6 +249,85 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   const baseMapAnnotations = annotations.filter(({ baseMapId }) =>
     Boolean(baseMapId)
   );
+
+  const snapTargets = useMemo(() => {
+    if (
+      enabledDrawingMode !== "POLYLINE" ||
+      !baseMapAnnotations?.length ||
+      !baseSize.w ||
+      !baseSize.h
+    )
+      return null;
+
+    const baseW = baseSize.w || 1;
+    const baseH = baseSize.h || 1;
+    const cellSize = SNAP_GRID_CELL_SIZE;
+    const cells = new Map();
+
+    const addCandidate = (candidate) => {
+      const cx = Math.floor(candidate.x / cellSize);
+      const cy = Math.floor(candidate.y / cellSize);
+      const key = `${cx}:${cy}`;
+      if (!cells.has(key)) cells.set(key, []);
+      cells.get(key).push(candidate);
+    };
+
+    const addSegment = (seg) => {
+      const midX = (seg.x1 + seg.x2) / 2;
+      const midY = (seg.y1 + seg.y2) / 2;
+      addCandidate({ ...seg, x: midX, y: midY, type: "segment" });
+    };
+
+    baseMapAnnotations.forEach((annotation) => {
+      if (
+        annotation &&
+        (annotation.type === "POLYLINE" || annotation.type === "RECTANGLE")
+      ) {
+        const sourcePoints =
+          annotation.points ||
+          annotation.polyline?.points ||
+          annotation.rectangle?.points ||
+          annotation?.shape?.points;
+
+        if (!Array.isArray(sourcePoints) || sourcePoints.length === 0) return;
+
+        const pts = sourcePoints
+          .map((p) => ({
+            x: (p.x ?? 0) * baseW,
+            y: (p.y ?? 0) * baseH,
+          }))
+          .filter(
+            (p) =>
+              Number.isFinite(p.x) &&
+              Number.isFinite(p.y) &&
+              !Number.isNaN(p.x) &&
+              !Number.isNaN(p.y)
+          );
+
+        if (pts.length === 0) return;
+
+        pts.forEach((pt) => {
+          addCandidate({ type: "vertex", x: pt.x, y: pt.y });
+        });
+
+        for (let i = 0; i < pts.length - 1; i++) {
+          const p1 = pts[i];
+          const p2 = pts[i + 1];
+          addSegment({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y });
+        }
+
+        const shouldClose =
+          annotation.closeLine || annotation.type === "RECTANGLE";
+        if (shouldClose && pts.length > 1) {
+          const first = pts[0];
+          const last = pts[pts.length - 1];
+          addSegment({ x1: last.x, y1: last.y, x2: first.x, y2: first.y });
+        }
+      }
+    });
+
+    return { cells, cellSize };
+  }, [enabledDrawingMode, baseMapAnnotations, baseSize.w, baseSize.h]);
 
   // === INIT VIEWPORT ===
 
@@ -594,6 +682,155 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
   cursor = isPinching ? "grabbing" : isPanning ? "grabbing" : cursor;
 
+  useEffect(() => {
+    if (enabledDrawingMode !== "POLYLINE") {
+      setSnapHelper(null);
+    }
+  }, [enabledDrawingMode]);
+
+  const snapFrameRef = useRef(null);
+  const pendingSnapPointRef = useRef(null);
+
+  const handlePolylinePointerMove = useCallback(
+    (basePoint) => {
+      if (!basePoint) return;
+      pendingSnapPointRef.current = basePoint;
+      if (snapFrameRef.current) return;
+
+      snapFrameRef.current = requestAnimationFrame(() => {
+        snapFrameRef.current = null;
+        const point = pendingSnapPointRef.current;
+        pendingSnapPointRef.current = null;
+
+        if (
+          enabledDrawingMode !== "POLYLINE" ||
+          !snapTargets ||
+          !point ||
+          !baseSize.w ||
+          !baseSize.h
+        ) {
+          if (snapHelperRef.current) setSnapHelper(null);
+          return;
+        }
+
+        const screenPos = baseLocalToScreen(point.x, point.y);
+        const baseAtThreshold = screenToBaseLocal(
+          screenPos.x + SNAP_THRESHOLD_PX,
+          screenPos.y
+        );
+        let thresholdBase = Math.hypot(
+          baseAtThreshold.x - point.x,
+          baseAtThreshold.y - point.y
+        );
+        if (!Number.isFinite(thresholdBase)) {
+          thresholdBase = SNAP_THRESHOLD_PX;
+        }
+
+        const cellSize = snapTargets.cellSize;
+        const cx = Math.floor(point.x / cellSize);
+        const cy = Math.floor(point.y / cellSize);
+        const radius = Math.max(
+          1,
+          Math.ceil((thresholdBase + cellSize) / cellSize)
+        );
+
+        let bestVertex = null;
+        let bestSegment = null;
+
+        const considerCandidate = (candidate) => {
+          if (candidate.type === "segment") {
+            const proj = projectPointOnSegment(point.x, point.y, candidate);
+            const screen = baseLocalToScreen(proj.x, proj.y);
+            const dist = Math.hypot(
+              screen.x - screenPos.x,
+              screen.y - screenPos.y
+            );
+            if (dist <= SNAP_THRESHOLD_PX) {
+              if (!bestSegment || dist < bestSegment.screenDistance) {
+                bestSegment = {
+                  type: "segment",
+                  x: proj.x,
+                  y: proj.y,
+                  screenDistance: dist,
+                };
+              }
+            }
+          } else {
+            const screen = baseLocalToScreen(candidate.x, candidate.y);
+            const dist = Math.hypot(
+              screen.x - screenPos.x,
+              screen.y - screenPos.y
+            );
+            if (dist <= SNAP_THRESHOLD_PX) {
+              if (!bestVertex || dist < bestVertex.screenDistance) {
+                bestVertex = {
+                  type: "vertex",
+                  x: candidate.x,
+                  y: candidate.y,
+                  screenDistance: dist,
+                };
+              }
+            }
+          }
+        };
+
+        for (let ix = cx - radius; ix <= cx + radius; ix++) {
+          for (let iy = cy - radius; iy <= cy + radius; iy++) {
+            const key = `${ix}:${iy}`;
+            const candidates = snapTargets.cells.get(key);
+            if (candidates) {
+              candidates.forEach(considerCandidate);
+            }
+          }
+        }
+
+        let best = bestVertex ?? bestSegment;
+
+        if (!best && snapHelperRef.current) {
+          const prev = snapHelperRef.current;
+          const snapScreen = baseLocalToScreen(prev.x, prev.y);
+          const dist = Math.hypot(
+            snapScreen.x - screenPos.x,
+            snapScreen.y - screenPos.y
+          );
+          if (dist <= SNAP_THRESHOLD_PX) {
+            best = prev;
+          }
+        }
+
+        if (best) {
+          setSnapHelper({
+            type: best.type,
+            x: best.x,
+            y: best.y,
+            relX: best.x / baseSize.w,
+            relY: best.y / baseSize.h,
+          });
+        } else if (snapHelperRef.current) {
+          setSnapHelper(null);
+        }
+      });
+    },
+    [
+      enabledDrawingMode,
+      snapTargets,
+      baseLocalToScreen,
+      screenToBaseLocal,
+      baseSize.w,
+      baseSize.h,
+    ]
+  );
+
+  useEffect(
+    () => () => {
+      if (snapFrameRef.current) {
+        cancelAnimationFrame(snapFrameRef.current);
+        snapFrameRef.current = null;
+      }
+    },
+    []
+  );
+
   // Convert client → container → base local px
   const toBaseFromClient = useCallback(
     (clientX, clientY) => {
@@ -663,6 +900,24 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     (e) => {
       updateMousePosition(e.clientX, e.clientY);
 
+      if (enabledDrawingMode === "POLYLINE") {
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (rect) {
+          const sx = e.clientX - rect.left;
+          const sy = e.clientY - rect.top;
+          const basePoint = screenToBaseLocal(sx, sy);
+          handlePolylinePointerMove(basePoint);
+        }
+      } else if (snapHelperRef.current) {
+        setSnapHelper(null);
+      }
+
+      if (enabledDrawingMode) {
+        if (hoveredMarker) setHoveredMarker(null);
+        if (hoveredAnnotation) setHoveredAnnotation(null);
+        return;
+      }
+
       // Don't show tooltip while dragging an annotation
       if (isDraggingAnnotation) {
         setHoveredMarker(null);
@@ -701,7 +956,16 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       setHoveredMarker(null);
       setHoveredAnnotation(null);
     },
-    [annotations, updateMousePosition, isDraggingAnnotation]
+    [
+      annotations,
+      updateMousePosition,
+      isDraggingAnnotation,
+      enabledDrawingMode,
+      hoveredMarker,
+      hoveredAnnotation,
+      screenToBaseLocal,
+      handlePolylinePointerMove,
+    ]
   );
 
   const onSvgMouseLeave = useCallback(() => {
@@ -927,9 +1191,16 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           by = constrainedPoint.y;
         }
 
-        // Clamp to image bounds and convert to relative
-        const ratioX = Math.max(0, Math.min(1, bx / (baseSize.w || 1)));
-        const ratioY = Math.max(0, Math.min(1, by / (baseSize.h || 1)));
+        const baseW = baseSize.w || 1;
+        const baseH = baseSize.h || 1;
+        let ratioX = Math.max(0, Math.min(1, bx / baseW));
+        let ratioY = Math.max(0, Math.min(1, by / baseH));
+
+        if (snapHelper?.relX != null && snapHelper?.relY != null) {
+          ratioX = snapHelper.relX;
+          ratioY = snapHelper.relY;
+          setSnapHelper(null);
+        }
 
         dispatch(addPolylinePoint({ x: ratioX, y: ratioY }));
         dispatch(setFixedLength(""));
@@ -1283,6 +1554,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               worldScale={world.k}
               containerK={basePose.k}
               baseMapMeterByPx={baseMapMeterByPx}
+              snapHelper={snapHelper}
             />
 
             {/* Rectangle drawing/preview */}
@@ -1478,3 +1750,18 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 });
 
 export default MapEditorGeneric;
+
+function projectPointOnSegment(px, py, seg) {
+  const vx = seg.x2 - seg.x1;
+  const vy = seg.y2 - seg.y1;
+  const lenSq = vx * vx + vy * vy;
+  if (lenSq === 0) {
+    return { x: seg.x1, y: seg.y1 };
+  }
+  let t = ((px - seg.x1) * vx + (py - seg.y1) * vy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return {
+    x: seg.x1 + vx * t,
+    y: seg.y1 + vy * t,
+  };
+}

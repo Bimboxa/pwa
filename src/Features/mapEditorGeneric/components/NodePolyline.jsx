@@ -22,6 +22,7 @@ export default function NodePolyline({
   selected,
   worldScale = 1,
   containerK = 1,
+  snapHelper,
 }) {
   const dispatch = useDispatch();
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
@@ -56,6 +57,7 @@ export default function NodePolyline({
   const ANCHOR_R_HOVERED = 5;
   const CLOSE_TOL_SCREEN_PX = 10; // Fixed 10px screen distance
   const HATCHING_SPACING = 12;
+  const SNAP_COLOR = "#ff4dd9";
 
   // keep UI constant on screen
   const totalScale = showBgImage ? 1 : worldScale * containerK;
@@ -487,8 +489,8 @@ export default function NodePolyline({
 
       bl = constrainedWithFixedLength || bl;
 
-      const rx = bl.x / W;
-      const ry = bl.y / H;
+      let rx = bl.x / W;
+      let ry = bl.y / H;
 
       let showClose = false;
       if (isClosed) {
@@ -509,6 +511,12 @@ export default function NodePolyline({
             showClose = true;
           }
         }
+      }
+
+      if (snapHelper && !showClose) {
+        const { relX, relY } = snapHelper;
+        rx = relX;
+        ry = relY;
       }
 
       nextPosRef.current = { x: rx, y: ry, showClose };
@@ -853,6 +861,27 @@ export default function NodePolyline({
             stroke="#fff"
             strokeWidth={2 * invScale}
             style={{ pointerEvents: "none" }}
+          />
+        </g>
+      )}
+
+      {isDrawing && snapHelper && (
+        <g style={{ pointerEvents: "none" }}>
+          <circle
+            cx={snapHelper.x}
+            cy={snapHelper.y}
+            r={HIT_R * invScale * 0.8}
+            fill="rgba(255, 77, 217, 0.15)"
+            stroke={SNAP_COLOR}
+            strokeWidth={2 * invScale}
+          />
+          <circle
+            cx={snapHelper.x}
+            cy={snapHelper.y}
+            r={ANCHOR_R_HOVERED * invScale}
+            fill={SNAP_COLOR}
+            stroke="#fff"
+            strokeWidth={2 * invScale}
           />
         </g>
       )}
