@@ -54,8 +54,13 @@ export default function PanelOpencv() {
   }
 
   return (
-    <BoxFlexVStretch>
-      <ButtonGeneric onClick={detectContours} label={contoursS} />
+    <BoxFlexVStretch sx={{ p: 1 }}>
+      <ButtonGeneric
+        onClick={detectContours}
+        label={contoursS}
+        variant="contained"
+        color="secondary"
+      />
     </BoxFlexVStretch>
   );
 }
