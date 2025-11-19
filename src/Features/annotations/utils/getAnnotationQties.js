@@ -37,13 +37,13 @@ export default function getAnnotationQties(annotation, baseMap) {
     }));
   }
 
-  const lengthPx = getPointsLength(pointsInPx);
-  let surfacePx = 0;
-
   const closeLine =
     annotation.closeLine ||
     annotation?.polyline?.closeLine ||
     annotation?.annotationTemplate?.closeLine;
+
+  const lengthPx = getPointsLength(pointsInPx, closeLine);
+  let surfacePx = 0;
 
   if (closeLine && pointsInPx.length >= 3) {
     surfacePx = getPointsSurface(pointsInPx);

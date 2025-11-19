@@ -36,7 +36,7 @@ export default function BottomBarDesktop() {
       </Box>
 
       {helperMessage && (
-        <Box sx={{ bgcolor: "secondary.main", borderRadius: "4px", px: 1 }}>
+        <Box sx={{ bgcolor: "warning.main", borderRadius: "0px", px: 1 }}>
           <Typography color="white" variant="caption">
             {helperMessage}
           </Typography>

@@ -60,8 +60,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     baseMapGrayScale,
     annotations,
     initialScale = "fit",
-    minScale = 0.1,
-    maxScale = 10,
+    minScale = 0.01,
+    maxScale = 50,
     attachTo = "base", // "bg" or "base"
     showBgImage = true,
     cursor = "grab",
@@ -282,6 +282,42 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       addCandidate({ ...seg, x: midX, y: midY, type: "segment" });
     };
 
+    // Helper to calculate circle from three points
+    const circleFromThreePoints = (p0, p1, p2) => {
+      const x1 = p0.x;
+      const y1 = p0.y;
+      const x2 = p1.x;
+      const y2 = p1.y;
+      const x3 = p2.x;
+      const y3 = p2.y;
+
+      const d = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+      if (Math.abs(d) < 1e-9) return null;
+
+      const x1sq_y1sq = x1 * x1 + y1 * y1;
+      const x2sq_y2sq = x2 * x2 + y2 * y2;
+      const x3sq_y3sq = x3 * x3 + y3 * y3;
+
+      const ux =
+        (x1sq_y1sq * (y2 - y3) +
+          x2sq_y2sq * (y3 - y1) +
+          x3sq_y3sq * (y1 - y2)) /
+        d;
+
+      const uy =
+        (x1sq_y1sq * (x3 - x2) +
+          x2sq_y2sq * (x1 - x3) +
+          x3sq_y3sq * (x2 - x1)) /
+        d;
+
+      const center = { x: ux, y: uy };
+      const r = Math.hypot(x1 - ux, y1 - uy);
+
+      return { center, r };
+    };
+
+    const typeOf = (p) => (p?.type === "circle" ? "circle" : "square");
+
     baseMapAnnotations.forEach((annotation) => {
       if (
         annotation &&
@@ -295,37 +331,155 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
         if (!Array.isArray(sourcePoints) || sourcePoints.length === 0) return;
 
-        const pts = sourcePoints
-          .map((p) => ({
-            x: (p.x ?? 0) * baseW,
-            y: (p.y ?? 0) * baseH,
-          }))
-          .filter(
-            (p) =>
-              Number.isFinite(p.x) &&
-              Number.isFinite(p.y) &&
-              !Number.isNaN(p.x) &&
-              !Number.isNaN(p.y)
-          );
+        const pts = sourcePoints.map((p, idx) => ({
+          x: (p.x ?? 0) * baseW,
+          y: (p.y ?? 0) * baseH,
+          type: typeOf(p),
+          originalIndex: idx,
+        })).filter(
+          (p) =>
+            Number.isFinite(p.x) &&
+            Number.isFinite(p.y) &&
+            !Number.isNaN(p.x) &&
+            !Number.isNaN(p.y)
+        );
 
         if (pts.length === 0) return;
+
+        const n = pts.length;
+        const shouldClose =
+          annotation.closeLine || annotation.type === "RECTANGLE";
+        const idx = (i) => (shouldClose ? (i + n) % n : i);
+        const limit = shouldClose ? n : n - 1;
 
         pts.forEach((pt) => {
           addCandidate({ type: "vertex", x: pt.x, y: pt.y });
         });
 
-        for (let i = 0; i < pts.length - 1; i++) {
-          const p1 = pts[i];
-          const p2 = pts[i + 1];
-          addSegment({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y });
-        }
+        let i = 0;
+        while (i < limit) {
+          const i0 = idx(i);
+          const i1 = idx(i + 1);
+          const p0 = pts[i0];
+          const p1 = pts[i1];
+          const t0 = p0.type;
+          const t1 = p1.type;
 
-        const shouldClose =
-          annotation.closeLine || annotation.type === "RECTANGLE";
-        if (shouldClose && pts.length > 1) {
-          const first = pts[0];
-          const last = pts[pts.length - 1];
-          addSegment({ x1: last.x, y1: last.y, x2: first.x, y2: first.y });
+          // Check for S–C–S pattern (square → circle → square)
+          if (t0 === "square" && t1 === "circle") {
+            let j = i + 1;
+            while (j < i + n && pts[idx(j)].type === "circle") j += 1;
+            const i2 = idx(j);
+
+            if (!shouldClose && j >= n) {
+              // Open path: ran off the end, use straight line
+              addSegment({ x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y });
+              i += 1;
+              continue;
+            }
+
+            // Check if we have exactly one circle between two squares (S–C–S)
+            if (j === i + 2 && pts[i2].type === "square") {
+              const p2 = pts[i2];
+
+              const circ = circleFromThreePoints(p0, p1, p2);
+
+              if (circ && Number.isFinite(circ.r) && circ.r > 0) {
+                // Determine winding order (CW vs CCW)
+                const cross =
+                  (p1.x - p0.x) * (p2.y - p0.y) -
+                  (p1.y - p0.y) * (p2.x - p0.x);
+                const isCW = cross > 0;
+
+                // Calculate angles to determine large arc flags
+                const angleFromCenter = (c, p) =>
+                  Math.atan2(p.y - c.y, p.x - c.x);
+                const getLargeArcFlag = (center, pStart, pEnd, isCW) => {
+                  const aStart = angleFromCenter(center, pStart);
+                  const aEnd = angleFromCenter(center, pEnd);
+                  let diff = aEnd - aStart;
+                  const TWO_PI = Math.PI * 2;
+
+                  if (isCW) {
+                    while (diff < 0) diff += TWO_PI;
+                    while (diff >= TWO_PI) diff -= TWO_PI;
+                  } else {
+                    while (diff > 0) diff -= TWO_PI;
+                    while (diff <= -TWO_PI) diff += TWO_PI;
+                  }
+
+                  return Math.abs(diff) > Math.PI ? 1 : 0;
+                };
+
+                const large01 = getLargeArcFlag(circ.center, p0, p1, isCW);
+                const large12 = getLargeArcFlag(circ.center, p1, p2, isCW);
+                const sweep = isCW ? 1 : 0;
+
+                // Add arc segments for snapping
+                const mid01 = {
+                  x: (p0.x + p1.x) / 2,
+                  y: (p0.y + p1.y) / 2,
+                };
+                addCandidate({
+                  type: "arc",
+                  x: mid01.x,
+                  y: mid01.y,
+                  start: p0,
+                  end: p1,
+                  center: circ.center,
+                  radius: circ.r,
+                  largeArcFlag: large01,
+                  sweepFlag: sweep,
+                });
+
+                const mid12 = {
+                  x: (p1.x + p2.x) / 2,
+                  y: (p1.y + p2.y) / 2,
+                };
+                addCandidate({
+                  type: "arc",
+                  x: mid12.x,
+                  y: mid12.y,
+                  start: p1,
+                  end: p2,
+                  center: circ.center,
+                  radius: circ.r,
+                  largeArcFlag: large12,
+                  sweepFlag: sweep,
+                });
+
+                i += 2; // consumed S–C–S
+                continue;
+              } else {
+                // Degenerate case: straight lines
+                addSegment({ x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y });
+                addSegment({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y });
+                i += 2;
+                continue;
+              }
+            }
+
+            // Generic case: S–C–…–C–S with > 1 circle in between
+            let k = i;
+            while (k < j) {
+              const pk0 = pts[idx(k)];
+              const pk1 = pts[idx(k + 1)];
+              addSegment({
+                x1: pk0.x,
+                y1: pk0.y,
+                x2: pk1.x,
+                y2: pk1.y,
+              });
+              k += 1;
+            }
+
+            i = j;
+            continue;
+          }
+
+          // Default: straight line segment
+          addSegment({ x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y });
+          i += 1;
         }
       }
     });
@@ -741,8 +895,114 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         let bestVertex = null;
         let bestSegment = null;
 
+        // Project a point onto a circular arc
+        const projectOntoArc = (
+          pointPx,
+          startPx,
+          endPx,
+          centerPx,
+          radiusPx,
+          largeArcFlag,
+          sweepFlag
+        ) => {
+          const angleStart = Math.atan2(
+            startPx.y - centerPx.y,
+            startPx.x - centerPx.x
+          );
+          const angleEnd = Math.atan2(
+            endPx.y - centerPx.y,
+            endPx.x - centerPx.x
+          );
+
+          const TWO_PI = Math.PI * 2;
+
+          const normalizeAngle = (a) => {
+            let normalized = a;
+            while (normalized < 0) normalized += TWO_PI;
+            while (normalized >= TWO_PI) normalized -= TWO_PI;
+            return normalized;
+          };
+
+          let normStart = normalizeAngle(angleStart);
+          let normEnd = normalizeAngle(angleEnd);
+
+          let angleSpan;
+          if (sweepFlag === 1) {
+            angleSpan =
+              normEnd >= normStart
+                ? normEnd - normStart
+                : normEnd - normStart + TWO_PI;
+          } else {
+            angleSpan =
+              normStart >= normEnd
+                ? normStart - normEnd
+                : normStart - normEnd + TWO_PI;
+          }
+
+          if (largeArcFlag === 1 && angleSpan < Math.PI) {
+            angleSpan = TWO_PI - angleSpan;
+          } else if (largeArcFlag === 0 && angleSpan > Math.PI) {
+            angleSpan = TWO_PI - angleSpan;
+          }
+
+          // Sample points along the arc and find closest
+          let bestLocal = { d2: Infinity, pt: null };
+          const numSamples = 100;
+
+          for (let i = 0; i <= numSamples; i++) {
+            const t = i / numSamples;
+            let angle;
+
+            if (sweepFlag === 1) {
+              angle = normStart + t * angleSpan;
+              if (angle >= TWO_PI) angle -= TWO_PI;
+            } else {
+              angle = normStart - t * angleSpan;
+              if (angle < 0) angle += TWO_PI;
+            }
+
+            const p = {
+              x: centerPx.x + radiusPx * Math.cos(angle),
+              y: centerPx.y + radiusPx * Math.sin(angle),
+            };
+
+            const d2 =
+              (pointPx.x - p.x) ** 2 + (pointPx.y - p.y) ** 2;
+            if (d2 < bestLocal.d2) {
+              bestLocal = { d2, pt: p };
+            }
+          }
+
+          return bestLocal.pt || startPx;
+        };
+
         const considerCandidate = (candidate) => {
-          if (candidate.type === "segment") {
+          if (candidate.type === "arc") {
+            const proj = projectOntoArc(
+              point,
+              candidate.start,
+              candidate.end,
+              candidate.center,
+              candidate.radius,
+              candidate.largeArcFlag,
+              candidate.sweepFlag
+            );
+            const screen = baseLocalToScreen(proj.x, proj.y);
+            const dist = Math.hypot(
+              screen.x - screenPos.x,
+              screen.y - screenPos.y
+            );
+            if (dist <= SNAP_THRESHOLD_PX) {
+              if (!bestSegment || dist < bestSegment.screenDistance) {
+                bestSegment = {
+                  type: "segment",
+                  x: proj.x,
+                  y: proj.y,
+                  screenDistance: dist,
+                };
+              }
+            }
+          } else if (candidate.type === "segment") {
             const proj = projectPointOnSegment(point.x, point.y, candidate);
             const screen = baseLocalToScreen(proj.x, proj.y);
             const dist = Math.hypot(
