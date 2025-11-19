@@ -102,16 +102,32 @@ async function getPixelColorAsync({ msg, payload }) {
       cv.CHAIN_APPROX_SIMPLE
     );
 
+    const MIN_PERIMETER_PX = 5; // Ignore tiny contours
+
     // Convert contours to polylines with normalized coordinates (0-1 range)
     const polylines = [];
     for (let i = 0; i < contours.size(); i++) {
       const contour = contours.get(i);
+      const perimeter = cv.arcLength(contour, true);
+
+      // Skip very small contours or invalid results
+      if (!Number.isFinite(perimeter) || perimeter < MIN_PERIMETER_PX) {
+        contour.delete();
+        continue;
+      }
+
+      const EPSILON_PX = 5; // fixed smoothing distance in pixels
+      const epsilon = Math.max(EPSILON_PX, 1);
+      const approx = new cv.Mat();
+      cv.approxPolyDP(contour, approx, epsilon, true);
+
+      const pointsMat = approx.rows > 0 ? approx : contour;
       const points = [];
-      for (let j = 0; j < contour.rows; j++) {
+      for (let j = 0; j < pointsMat.rows; j++) {
         // Convert pixel coordinates to normalized coordinates (0-1 range)
         // 0,0 is top-left, 1,1 is bottom-right
-        const pixelX = contour.data32S[j * 2];
-        const pixelY = contour.data32S[j * 2 + 1];
+        const pixelX = pointsMat.data32S[j * 2];
+        const pixelY = pointsMat.data32S[j * 2 + 1];
         points.push({
           x: pixelX / imageWidth,
           y: pixelY / imageHeight,
@@ -120,6 +136,9 @@ async function getPixelColorAsync({ msg, payload }) {
       if (points.length > 0) {
         polylines.push(points);
       }
+
+      approx.delete();
+      contour.delete();
     }
 
     // Cleanup

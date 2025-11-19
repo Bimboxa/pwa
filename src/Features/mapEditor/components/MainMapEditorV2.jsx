@@ -627,6 +627,7 @@ export default function MainMapEditorV2() {
       console.log("color", color);
       const _color = theme.palette.secondary.main;
       const cleanedPoints = cleanPolylinePoints(color.polylines[0]);
+      //const cleanedPoints = color.polylines[0];
       const annotation = {
         id: "temp-",
         type: "POLYLINE",
