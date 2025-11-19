@@ -66,7 +66,13 @@ export default function useAnnotationTemplateQtiesById() {
         }));
       }
 
-      const lengthPx = getPointsLength(points);
+      const closeLine =
+        annotation.closeLine ||
+        annotation?.polyline?.closeLine ||
+        annotation?.annotationTemplate?.closeLine ||
+        false;
+
+      const lengthPx = getPointsLength(points, closeLine);
       let surfacePx = 0;
 
       if (points.length >= 3) {

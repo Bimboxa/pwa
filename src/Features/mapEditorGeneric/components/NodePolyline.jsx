@@ -190,47 +190,39 @@ export default function NodePolyline({
   // ===== Geometry helpers (SVG y-down)
   const toPx = (p) => ({ x: p.x * w, y: p.y * h });
   const typeOf = (p) => (p?.type === "circle" ? "circle" : "square");
-  const wrap = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+
   const angDown = (c, p) => Math.atan2(p.y - c.y, p.x - c.x);
 
   function circleFromThreePoints(p0, p1, p2) {
-    const ax = p1.x - p0.x,
-      ay = p1.y - p0.y;
-    const bx = p2.x - p0.x,
-      by = p2.y - p0.y;
-    const cross = ax * by - ay * bx;
-    if (Math.abs(cross) < 1e-9) return null;
-    const m1 = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
-    const m2 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-    const d1 = { x: -ay, y: ax };
-    const d2 = { x: -by, y: bx };
-    const denom = d1.x * d2.y - d1.y * d2.x;
-    if (Math.abs(denom) < 1e-9) return null;
-    const t = ((m2.x - m1.x) * d2.y - (m2.y - m1.y) * d2.x) / denom;
-    const center = { x: m1.x + t * d1.x, y: m1.y + t * d1.y };
-    const r = Math.hypot(p0.x - center.x, p0.y - center.y);
-    return { center, r };
-  }
+    const x1 = p0.x,
+      y1 = p0.y;
+    const x2 = p1.x,
+      y2 = p1.y;
+    const x3 = p2.x,
+      y3 = p2.y;
 
-  // angle utilities to keep a0 -> a1 -> a2 monotonic in one direction
-  function betweenCW(a0, a1, a2) {
-    a0 = wrap(a0);
-    a1 = wrap(a1);
-    a2 = wrap(a2);
-    return a0 <= a2 ? a1 >= a0 && a1 <= a2 : a1 >= a0 || a1 <= a2;
-  }
-  function unwrapMonotonic(a0, a1, a2, dirCW) {
-    let A0 = wrap(a0),
-      A1 = wrap(a1),
-      A2 = wrap(a2);
-    if (dirCW) {
-      if (A1 < A0) A1 += 2 * Math.PI;
-      if (A2 < A1) A2 += 2 * Math.PI;
-    } else {
-      if (A1 > A0) A1 -= 2 * Math.PI;
-      if (A2 > A1) A2 -= 2 * Math.PI;
-    }
-    return [A0, A1, A2];
+    // Determinant (twice the signed area of the triangle)
+    const d = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+
+    // If the area is ~0, the points are collinear → no unique circle
+    if (Math.abs(d) < 1e-9) return null;
+
+    const x1sq_y1sq = x1 * x1 + y1 * y1;
+    const x2sq_y2sq = x2 * x2 + y2 * y2;
+    const x3sq_y3sq = x3 * x3 + y3 * y3;
+
+    const ux =
+      (x1sq_y1sq * (y2 - y3) + x2sq_y2sq * (y3 - y1) + x3sq_y3sq * (y1 - y2)) /
+      d;
+
+    const uy =
+      (x1sq_y1sq * (x3 - x2) + x2sq_y2sq * (x1 - x3) + x3sq_y3sq * (x2 - x1)) /
+      d;
+
+    const center = { x: ux, y: uy };
+    const r = Math.hypot(x1 - ux, y1 - uy); // distance from center to any point
+
+    return { center, r };
   }
 
   // ----- Path builder (includes the fixed S–C–S arc logic)
@@ -238,11 +230,100 @@ export default function NodePolyline({
     const res = { d: "", segmentMap: [] };
     if (!relPoints?.length) return res;
 
-    const pts = relPoints.map(toPx);
-    const types = relPoints.map(typeOf);
+    // ---------- small helpers -------------------------------------------------
+
+    const TWO_PI = Math.PI * 2;
+
+    function normAngle(a) {
+      a = a % TWO_PI;
+      if (a < 0) a += TWO_PI;
+      return a;
+    }
+
+    // CCW angular distance from aStart to aEnd in (0, 2π]
+    function ccwDelta(aStart, aEnd) {
+      const s = normAngle(aStart);
+      const e = normAngle(aEnd);
+      let d = e - s;
+      if (d <= 0) d += TWO_PI;
+      return d;
+    }
+
+    // True if angle aMid lies strictly between a0 and a2 when moving CCW
+    // from a0 to a2 on the circle.
+    function isBetweenCCW(a0, a1, a2) {
+      const d02 = ccwDelta(a0, a2);
+      const d01 = ccwDelta(a0, a1);
+      return d01 > 1e-6 && d01 < d02 - 1e-6;
+    }
+
+    /**
+     * Compute the center of the circle for a given SVG arc, assuming:
+     *   - rx = ry = r
+     *   - x-axis rotation = 0
+     * This is a simplified version of the SVG spec formulas.
+     *
+     * fa = large-arc-flag (0 | 1)
+     * fs = sweep-flag     (0 | 1)
+     */
+    function svgArcCenterForFlags(P0, P1, r, fa, fs) {
+      const x1 = P0.x;
+      const y1 = P0.y;
+      const x2 = P1.x;
+      const y2 = P1.y;
+
+      // Step 1: transform into midpoint coordinates
+      const dx2 = (x1 - x2) / 2;
+      const dy2 = (y1 - y2) / 2;
+      const x1p = dx2; // because rotation = 0
+      const y1p = dy2;
+
+      const r2 = r * r;
+      const x1p2 = x1p * x1p;
+      const y1p2 = y1p * y1p;
+      const d = x1p2 + y1p2;
+
+      if (d === 0) {
+        return null; // start = end
+      }
+
+      // Ensure radius large enough – we assume r is valid (from the true circle),
+      // but guard against tiny numeric issues.
+      if (d > r2) {
+        // radii too small, SVG would scale them up;
+        // here we just say "no valid center" for this combo.
+        return null;
+      }
+
+      // From SVG spec (simplified for rx = ry = r, φ = 0):
+      // sign = (fa == fs ? -1 : 1)
+      // * sqrt( (r^2 - d) / d )
+      const num = r2 - d;
+      const den = d;
+      if (den === 0) return null;
+
+      let factor = Math.sqrt(Math.max(0, num / den));
+      const paritySign = fa === fs ? -1 : 1;
+      factor *= paritySign;
+
+      const cxp = factor * y1p;
+      const cyp = factor * -x1p;
+
+      // Transform back to original coordinates
+      const cx = cxp + (x1 + x2) / 2;
+      const cy = cyp + (y1 + y2) / 2;
+
+      return { x: cx, y: cy };
+    }
+
+    // ---------- prepare points & types ---------------------------------------
+
+    const pts = relPoints.map(toPx); // [{ x, y }, ...]
+    const types = relPoints.map(typeOf); // ["square" | "circle", ...]
     const n = pts.length;
 
     const dParts = [`M ${pts[0].x} ${pts[0].y}`];
+
     if (n === 1) {
       res.d = dParts.join(" ");
       return res;
@@ -251,6 +332,8 @@ export default function NodePolyline({
     const idx = (i) => (close ? (i + n) % n : i);
     const limit = close ? n : n - 1;
 
+    // ---------- main loop ----------------------------------------------------
+
     let i = 0;
     while (i < limit) {
       const i0 = idx(i);
@@ -258,78 +341,125 @@ export default function NodePolyline({
       const t0 = types[i0];
       const t1 = types[i1];
 
+      // Special branch: square → circle
       if (t0 === "square" && t1 === "circle") {
-        // find next square
+        // Find the next square after one or more circle points
         let j = i + 1;
         while (j < i + n && types[idx(j)] === "circle") j += 1;
         const i2 = idx(j);
 
-        if (!close && i2 >= n) {
-          dParts.push(`L ${pts[i1].x} ${pts[i1].y}`);
+        if (!close && j >= n) {
+          // Open path: ran off the end, just draw a line to the first circle
+          const P1 = pts[i1];
+          dParts.push(`L ${P1.x} ${P1.y}`);
           res.segmentMap.push({ startPointIdx: i0, endPointIdx: i1 });
           i += 1;
           continue;
         }
 
-        if (i2 === i0 + 2) {
-          // exact S–C–S → draw TWO arc commands on the SAME circle
-          const P0 = pts[i0],
-            P1 = pts[i0 + 1],
-            P2 = pts[i2];
+        // Exact S–C–S : 3 points: P0 (square), P1 (circle), P2 (square)
+        // Check if we have exactly one circle between two squares
+        // i1 is already the circle point (from line 340), i2 is the next square found
+        const i2_expected = idx(i + 2);
+        const isExactSCS =
+          j === i + 2 && types[i1] === "circle" && types[i2] === "square";
+
+        if (isExactSCS) {
+          const P0 = pts[i0];
+          const P1 = pts[i1];
+          const P2 = pts[i2];
+
           const circ = circleFromThreePoints(P0, P1, P2);
 
-          if (!circ || !isFinite(circ.r) || circ.r <= 0) {
-            // fall back to lines
+          if (!circ || !Number.isFinite(circ.r) || circ.r <= 0) {
+            // Degenerate case: straight lines
             dParts.push(`L ${P1.x} ${P1.y}`);
             dParts.push(`L ${P2.x} ${P2.y}`);
-            res.segmentMap.push({ startPointIdx: i0, endPointIdx: i0 + 1 });
-            res.segmentMap.push({ startPointIdx: i0 + 1, endPointIdx: i2 });
+            res.segmentMap.push({ startPointIdx: i0, endPointIdx: i1 });
+            res.segmentMap.push({ startPointIdx: i1, endPointIdx: i2 });
           } else {
             const { center: C, r } = circ;
 
-            // angles (SVG y-down)
-            const a0 = angDown(C, P0);
-            const a1 = angDown(C, P1);
-            const a2 = angDown(C, P2);
+            // 1. Determine Winding Order (CW vs CCW)
+            // Cross product of vectors (P0->P1) and (P0->P2)
+            // In SVG (y-down): Cross > 0 is Clockwise, Cross < 0 is Counter-Clockwise
+            const cross =
+              (P1.x - P0.x) * (P2.y - P0.y) - (P1.y - P0.y) * (P2.x - P0.x);
+            const isCW = cross > 0;
+            const sweep = isCW ? 1 : 0;
 
-            // choose direction so P1 is between P0 and P2
-            const dirCW = betweenCW(a0, a1, a2);
-            const [A0, A1, A2] = unwrapMonotonic(a0, a1, a2, dirCW);
+            // 2. Helper to calculate angular distance and Large Arc Flag
+            // We calculate exact angles to ensure flags are perfect
+            const getLargeArcFlag = (pStart, pEnd) => {
+              const aStart = angDown(C, pStart);
+              const aEnd = angDown(C, pEnd);
 
-            const span01 = Math.abs(A1 - A0);
-            const span12 = Math.abs(A2 - A1);
+              // Calculate raw difference
+              let diff = aEnd - aStart;
+              const TWO_PI = Math.PI * 2;
 
-            // flags for both sub-arcs — SAME sweep for both, large-arc per span
-            const sweep = dirCW ? 1 : 0;
-            const large01 = span01 > Math.PI ? 1 : 0;
-            const large12 = span12 > Math.PI ? 1 : 0;
+              // Normalize diff based on desired direction (sweep)
+              if (isCW) {
+                // We need a positive angle delta (0 to 2PI)
+                while (diff < 0) diff += TWO_PI;
+                while (diff >= TWO_PI) diff -= TWO_PI;
+              } else {
+                // We need a negative angle delta (0 to -2PI)
+                while (diff > 0) diff -= TWO_PI;
+                while (diff <= -TWO_PI) diff += TWO_PI;
+              }
 
-            // emit two true circle arcs sharing r & sweep → same center
-            dParts.push(`A ${r} ${r} 0 ${large01} ${sweep} ${P1.x} ${P1.y}`);
-            dParts.push(`A ${r} ${r} 0 ${large12} ${sweep} ${P2.x} ${P2.y}`);
+              // If the absolute angular travel is > PI, it's a large arc
+              return Math.abs(diff) > Math.PI ? 1 : 0;
+            };
 
+            const large01 = getLargeArcFlag(P0, P1);
+            const large12 = getLargeArcFlag(P1, P2);
+
+            // 3. THE FIX: Pad the radius slightly!
+            // If 'r' is barely too small due to float rounding, SVG scales it up
+            // and moves the center to the midpoint, causing the kink.
+            // Multiplier 1.0005 ensures the radius is definitely valid for the points.
+            const rSafe = r * 1.0005;
+
+            dParts.push(
+              `A ${rSafe} ${rSafe} 0 ${large01} ${sweep} ${P1.x} ${P1.y}`
+            );
+            dParts.push(
+              `A ${rSafe} ${rSafe} 0 ${large12} ${sweep} ${P2.x} ${P2.y}`
+            );
+
+            const arcGroupId = `${i0}-${i2}`;
             res.segmentMap.push({
               startPointIdx: i0,
-              endPointIdx: i0 + 1,
+              endPointIdx: i1,
               isArc: true,
+              arcGroupId,
+              arcCenter: { x: C.x / w, y: C.y / h }, // Store center in relative coords
+              arcRadius: rSafe / w, // Store radius normalized by width
             });
             res.segmentMap.push({
-              startPointIdx: i0 + 1,
+              startPointIdx: i1,
               endPointIdx: i2,
               isArc: true,
+              arcGroupId,
+              arcCenter: { x: C.x / w, y: C.y / h }, // Store center in relative coords
+              arcRadius: rSafe / w, // Store radius normalized by width
             });
           }
 
-          i += 2; // consumed 3 points
+          i += 2; // consumed S–C–S
           continue;
         }
 
-        // several circles between squares → simple smooth fallback (unchanged)
+        // Generic case: S–C–…–C–S with > 1 circle in between → cubic smoothing
         let k = i;
         dParts.push(`L ${pts[i0].x} ${pts[i0].y}`);
+
         while (k < i2) {
           const p0 = pts[idx(k)];
           const p1 = pts[idx(k + 1)];
+
           const cp1 = {
             x: p0.x + (p1.x - p0.x) / 3,
             y: p0.y + (p1.y - p0.y) / 3,
@@ -338,29 +468,34 @@ export default function NodePolyline({
             x: p1.x - (p1.x - p0.x) / 3,
             y: p1.y - (p1.y - p0.y) / 3,
           };
-          dParts.push(`C ${cp1.x},${cp1.y} ${cp2.x},${cp2.y} ${p1.x},${p1.y}`);
+
+          dParts.push(`C ${cp1.x} ${cp1.y} ${cp2.x} ${cp2.y} ${p1.x} ${p1.y}`);
           res.segmentMap.push({
             startPointIdx: idx(k),
             endPointIdx: idx(k + 1),
           });
+
           k += 1;
         }
+
         i = i2;
         continue;
       }
 
-      // default straight
-      dParts.push(`L ${pts[i1].x} ${pts[i1].y}`);
+      // Default: straight line from pts[i0] to pts[i1]
+      const P1 = pts[i1];
+      dParts.push(`L ${P1.x} ${P1.y}`);
       res.segmentMap.push({ startPointIdx: i0, endPointIdx: i1 });
       i += 1;
     }
 
     if (close) dParts.push("Z");
+
     res.d = dParts.join(" ");
     return res;
   }
 
-  // projection helpers (unchanged; arcs are regular path segments here)
+  // projection helpers
   function projectOntoSegment(pointPx, a, b) {
     const dx = b.x - a.x,
       dy = b.y - a.y,
@@ -373,6 +508,97 @@ export default function NodePolyline({
     const proj = { x: a.x + t * dx, y: a.y + t * dy };
     const d2 = (pointPx.x - proj.x) ** 2 + (pointPx.y - proj.y) ** 2;
     return { projection: proj, t, distSq: d2 };
+  }
+
+  // Project a point onto a circular arc by sampling points along the actual arc
+  function projectOntoArc(
+    pointPx,
+    startPx,
+    endPx,
+    centerPx,
+    radiusPx,
+    largeArcFlag,
+    sweepFlag
+  ) {
+    // Calculate angles from center to start and end points
+    const angleStart = Math.atan2(
+      startPx.y - centerPx.y,
+      startPx.x - centerPx.x
+    );
+    const angleEnd = Math.atan2(endPx.y - centerPx.y, endPx.x - centerPx.x);
+
+    const TWO_PI = Math.PI * 2;
+
+    // Normalize angles to [0, 2π)
+    const normalizeAngle = (a) => {
+      let normalized = a;
+      while (normalized < 0) normalized += TWO_PI;
+      while (normalized >= TWO_PI) normalized -= TWO_PI;
+      return normalized;
+    };
+
+    let normStart = normalizeAngle(angleStart);
+    let normEnd = normalizeAngle(angleEnd);
+
+    // Calculate angular span
+    let angleSpan;
+    if (sweepFlag === 1) {
+      // Clockwise
+      angleSpan =
+        normEnd >= normStart
+          ? normEnd - normStart
+          : normEnd - normStart + TWO_PI;
+    } else {
+      // Counter-clockwise
+      angleSpan =
+        normStart >= normEnd
+          ? normStart - normEnd
+          : normStart - normEnd + TWO_PI;
+    }
+
+    // Adjust for large arc flag
+    if (largeArcFlag === 1 && angleSpan < Math.PI) {
+      angleSpan = TWO_PI - angleSpan;
+    } else if (largeArcFlag === 0 && angleSpan > Math.PI) {
+      angleSpan = TWO_PI - angleSpan;
+    }
+
+    // Sample points along the actual arc and find the closest one
+    let bestLocal = { d2: Infinity, pt: null };
+    const numSamples = 100; // More samples for better accuracy
+
+    for (let i = 0; i <= numSamples; i++) {
+      const t = i / numSamples;
+      let angle;
+
+      if (sweepFlag === 1) {
+        // Clockwise from start
+        angle = normStart + t * angleSpan;
+        if (angle >= TWO_PI) angle -= TWO_PI;
+      } else {
+        // Counter-clockwise from start
+        angle = normStart - t * angleSpan;
+        if (angle < 0) angle += TWO_PI;
+      }
+
+      const p = {
+        x: centerPx.x + radiusPx * Math.cos(angle),
+        y: centerPx.y + radiusPx * Math.sin(angle),
+      };
+
+      const d2 = (pointPx.x - p.x) ** 2 + (pointPx.y - p.y) ** 2;
+      if (d2 < bestLocal.d2) {
+        bestLocal = { d2, pt: p };
+      }
+    }
+
+    if (bestLocal.pt) {
+      return { projection: bestLocal.pt, distSq: bestLocal.d2 };
+    }
+
+    // Fallback to start point
+    const d2 = (pointPx.x - startPx.x) ** 2 + (pointPx.y - startPx.y) ** 2;
+    return { projection: startPx, distSq: d2 };
   }
 
   // dragging
@@ -674,7 +900,7 @@ export default function NodePolyline({
         }
         current = end;
       } else if (t === "A") {
-        // Arc command - approximate with sampled points for projection
+        // Arc command - use proper arc projection
         segIdx++;
         const rx = nums[0];
         const ry = nums[1];
@@ -682,19 +908,50 @@ export default function NodePolyline({
         const largeArcFlag = nums[3];
         const sweepFlag = nums[4];
         const end = { x: nums[5], y: nums[6] };
-        // Sample arc points for projection (simplified)
-        let bestLocal = { d2: Infinity, pt: null };
-        for (let tt = 0; tt <= 1; tt += 0.01) {
-          // Linear interpolation as approximation
-          const p = {
-            x: current.x + (end.x - current.x) * tt,
-            y: current.y + (end.y - current.y) * tt,
+
+        // Check if this segment has arc information in segmentMap
+        const segmentInfo = segmentMap[segIdx];
+        if (
+          segmentInfo?.isArc &&
+          segmentInfo?.arcCenter &&
+          segmentInfo?.arcRadius
+        ) {
+          // Convert stored relative coordinates to pixel coordinates
+          const centerPx = {
+            x: segmentInfo.arcCenter.x * w,
+            y: segmentInfo.arcCenter.y * h,
           };
-          const d2 = (mousePx.x - p.x) ** 2 + (mousePx.y - p.y) ** 2;
-          if (d2 < bestLocal.d2) bestLocal = { d2, pt: p };
-        }
-        if (bestLocal.pt && bestLocal.d2 < best.d2) {
-          best = { d2: bestLocal.d2, proj: bestLocal.pt, segIdx };
+          const radiusPx = segmentInfo.arcRadius * w;
+
+          // Project onto the arc
+          const proj = projectOntoArc(
+            mousePx,
+            current,
+            end,
+            centerPx,
+            radiusPx,
+            largeArcFlag,
+            sweepFlag
+          );
+
+          if (proj && proj.distSq < best.d2) {
+            best = { d2: proj.distSq, proj: proj.projection, segIdx };
+          }
+        } else {
+          // Fallback: sample arc points for projection (if arc info not available)
+          let bestLocal = { d2: Infinity, pt: null };
+          for (let tt = 0; tt <= 1; tt += 0.01) {
+            // Linear interpolation as approximation
+            const p = {
+              x: current.x + (end.x - current.x) * tt,
+              y: current.y + (end.y - current.y) * tt,
+            };
+            const d2 = (mousePx.x - p.x) ** 2 + (mousePx.y - p.y) ** 2;
+            if (d2 < bestLocal.d2) bestLocal = { d2, pt: p };
+          }
+          if (bestLocal.pt && bestLocal.d2 < best.d2) {
+            best = { d2: bestLocal.d2, proj: bestLocal.pt, segIdx };
+          }
         }
         current = end;
       }

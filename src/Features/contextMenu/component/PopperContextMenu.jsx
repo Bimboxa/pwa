@@ -11,6 +11,7 @@ import PopperBox from "Features/layout/components/PopperBox";
 import ContextMenuAnnotation from "Features/annotations/components/ContextMenuAnnotation";
 import ContextMenuCreateEntity from "Features/entities/components/ContextMenuCreateEntity";
 import ContextMenuPolylinePoint from "Features/annotations/components/ContextMenuPolylinePoint";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 export default function PopupContextMenu() {
   // data
@@ -18,6 +19,7 @@ export default function PopupContextMenu() {
   const dispatch = useDispatch();
   const anchorPosition = useSelector((s) => s.contextMenu.anchorPosition);
   const node = useSelector((s) => s.contextMenu.clickedNode);
+  const { value: listing } = useSelectedListing();
 
   // helpers
 
@@ -25,11 +27,15 @@ export default function PopupContextMenu() {
 
   // helpers - mode
 
-  let mode = "CREATE";
-  if (node?.pointIndex !== undefined) {
+  let mode = null;
+  if (listing?.entityModel?.type !== "LOCATED_ENTITY") {
+    mode = null;
+  } else if (node?.pointIndex !== undefined) {
     mode = "POLYLINE_POINT";
   } else if (node?.nodeType && node?.nodeType === "ANNOTATION") {
     mode = "ANNOTATION";
+  } else {
+    mode = "CREATE";
   }
 
   // handlers

@@ -53,6 +53,10 @@ export default function SectionSelectProject({ onProjectSelected }) {
 
   const createProject = useCreateProject();
 
+  // helper - file extension
+
+  const extension = appConfig?.features?.krto?.extension;
+
   // helpers - strings
 
   const selectProjectS = appConfig?.strings?.project?.select ?? "Projet";
@@ -176,7 +180,8 @@ export default function SectionSelectProject({ onProjectSelected }) {
       >
         <ButtonGeneric
           onClick={() => setOpen(!open)}
-          startIcon={open ? <Up /> : <Down />}
+          endIcon={open ? <Up /> : <Down />}
+          label={`Charger un fichier .${extension}`}
         />
       </Box>
 
@@ -186,8 +191,8 @@ export default function SectionSelectProject({ onProjectSelected }) {
             sx={{ border: (theme) => `1px dashed ${theme.palette.divider}` }}
           >
             <ContainerFilesSelector
-              callToActionLabel="Fichier .krto"
-              accept=".krto"
+              callToActionLabel={`Fichier .${extension}`}
+              accept={`.${extension}`}
               onFilesChange={handleLoadKrtoFile}
             />
           </Box>
