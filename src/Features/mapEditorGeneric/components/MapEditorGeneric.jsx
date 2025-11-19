@@ -36,8 +36,11 @@ import {
   addRectanglePoint,
   addSegmentPoint,
   setFixedLength,
+  setFixedDims,
 } from "Features/mapEditor/mapEditorSlice";
 import applyFixedLengthConstraint from "Features/mapEditorGeneric/utils/applyFixedLengthConstraint";
+import applyFixedDimsConstraint from "Features/mapEditorGeneric/utils/applyFixedDimsConstraint";
+import getFixedDimsMeterFromString from "Features/mapEditorGeneric/utils/getFixedDimsMeterFromString";
 
 const PADDING = 15;
 const SNAP_THRESHOLD_PX = 10;
@@ -975,6 +978,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
   }, []);
 
   const fixedLength = useSelector((s) => s.mapEditor.fixedLength);
+  const fixedDims = useSelector((s) => s.mapEditor.fixedDims);
 
   // === DRAG AND DROP HANDLERS ===
   const onDragOver = useCallback(
@@ -1216,14 +1220,37 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       // ----- RECTANGLE MODE (2-click drawing) -----
       if (enabledDrawingMode === "RECTANGLE") {
         // always use BASE layer for rectangle points
-        const bx = p_inBase.x;
-        const by = p_inBase.y;
+        let bx = p_inBase.x;
+        let by = p_inBase.y;
+
+        const currentPointCount = drawingRectanglePoints?.length || 0;
+        const fixedDimsMeter = getFixedDimsMeterFromString(fixedDims);
+
+        // Apply fixedDims constraint when adding the second point
+        if (
+          currentPointCount === 1 &&
+          fixedDimsMeter?.x != null &&
+          fixedDimsMeter?.y != null &&
+          baseMapMeterByPx
+        ) {
+          const firstPoint = drawingRectanglePoints[0];
+          const firstPointPx = {
+            x: (baseSize.w || 1) * firstPoint.x,
+            y: (baseSize.h || 1) * firstPoint.y,
+          };
+          const constrainedPoint = applyFixedDimsConstraint({
+            firstPointPx,
+            candidatePointPx: { x: bx, y: by },
+            fixedDimsMeters: fixedDimsMeter,
+            meterPerPixel: baseMapMeterByPx,
+          });
+          bx = constrainedPoint.x;
+          by = constrainedPoint.y;
+        }
 
         // Clamp to image bounds and convert to relative
         const ratioX = Math.max(0, Math.min(1, bx / (baseSize.w || 1)));
         const ratioY = Math.max(0, Math.min(1, by / (baseSize.h || 1)));
-
-        const currentPointCount = drawingRectanglePoints?.length || 0;
 
         // Add the point
         dispatch(addRectanglePoint({ x: ratioX, y: ratioY }));
@@ -1238,6 +1265,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           if (onRectangleComplete) {
             onRectangleComplete(finalPoints);
           }
+          // Clear fixedDims after completion
+          dispatch(setFixedDims(null));
         }
         return;
       }
@@ -1575,6 +1604,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                   imageSize={baseSize}
                   containerK={basePose.k}
                   worldScale={world.k}
+                  baseMapMeterByPx={baseMapMeterByPx}
                   isDrawing={true}
                   isPreview={drawingRectanglePoints.length < 2}
                   toBaseFromClient={toBaseFromClient}

@@ -8,6 +8,8 @@ import {
 } from "react";
 import { useSelector } from "react-redux";
 import theme from "Styles/theme";
+import applyFixedDimsConstraint from "Features/mapEditorGeneric/utils/applyFixedDimsConstraint";
+import getFixedDimsMeterFromString from "Features/mapEditorGeneric/utils/getFixedDimsMeterFromString";
 
 export default function NodeRectangle({
   rectangle,
@@ -24,6 +26,7 @@ export default function NodeRectangle({
   toBaseFromClient,
 }) {
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
+  const fixedDims = useSelector((s) => s.mapEditor.fixedDims);
   const {
     points = [],
     fillColor = "#3b82f6",
@@ -78,12 +81,37 @@ export default function NodeRectangle({
     const w = imageSize?.w || 1;
     const h = imageSize?.h || 1;
     const firstPoint = points[0];
+    const fixedDimsRef = { current: getFixedDimsMeterFromString(fixedDims) };
+    const baseMapMeterByPxRef = { current: baseMapMeterByPx };
+
+    // Update refs when values change
+    fixedDimsRef.current = getFixedDimsMeterFromString(fixedDims);
+    baseMapMeterByPxRef.current = baseMapMeterByPx;
 
     function onMove(e) {
       if (!previewRectRef.current) return;
 
       // Convert client coordinates to base-local px
-      const bl = toBaseFromClient(e.clientX, e.clientY);
+      let bl = toBaseFromClient(e.clientX, e.clientY);
+
+      // Apply fixedDims constraint if enabled
+      if (
+        fixedDimsRef.current?.x != null &&
+        fixedDimsRef.current?.y != null &&
+        baseMapMeterByPxRef.current
+      ) {
+        const firstPointPx = {
+          x: firstPoint.x * w,
+          y: firstPoint.y * h,
+        };
+        const constrainedPoint = applyFixedDimsConstraint({
+          firstPointPx,
+          candidatePointPx: bl,
+          fixedDimsMeters: fixedDimsRef.current,
+          meterPerPixel: baseMapMeterByPxRef.current,
+        });
+        bl = constrainedPoint;
+      }
 
       // Convert to relative coordinates (0..1)
       const rx = bl.x / w;
@@ -116,7 +144,15 @@ export default function NodeRectangle({
         mouseMoveHandlerRef.current = null;
       }
     };
-  }, [isDrawing, isPreview, points, toBaseFromClient, imageSize]);
+  }, [
+    isDrawing,
+    isPreview,
+    points,
+    toBaseFromClient,
+    imageSize,
+    fixedDims,
+    baseMapMeterByPx,
+  ]);
 
   const w = imageSize?.w || 1;
   const h = imageSize?.h || 1;

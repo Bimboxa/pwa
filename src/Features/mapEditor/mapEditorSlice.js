@@ -60,6 +60,7 @@ const mapEditorInitialState = {
 
   // fixed length
   fixedLength: null,
+  fixedDims: null, // "x; y"
 };
 
 export const mapEditorSlice = createSlice({
@@ -220,6 +221,9 @@ export const mapEditorSlice = createSlice({
     setFixedLength: (state, action) => {
       state.fixedLength = action.payload;
     },
+    setFixedDims: (state, action) => {
+      state.fixedDims = action.payload;
+    },
   },
 });
 
@@ -262,7 +266,10 @@ export const {
   setDrawingPolylinePoints,
   addPolylinePoint,
   clearDrawingPolylinePoints,
+
+  // fixed
   setFixedLength,
+  setFixedDims,
 
   // rectangle
   setDrawingRectanglePoints,
