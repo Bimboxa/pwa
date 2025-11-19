@@ -46,7 +46,27 @@ export default function getAnnotationQties(annotation, baseMap) {
   let surfacePx = 0;
 
   if (closeLine && pointsInPx.length >= 3) {
-    surfacePx = getPointsSurface(pointsInPx);
+    // Get cuts from annotation if available and convert their points to pixels
+    const cutsRaw = annotation.cuts || annotation?.polyline?.cuts || [];
+    const cuts = cutsRaw.map((cut) => {
+      if (!cut || !Array.isArray(cut.points)) return cut;
+      
+      // Convert cut points to pixels if needed
+      let cutPointsInPx = cut.points;
+      if (imageSize?.width && imageSize?.height) {
+        cutPointsInPx = cut.points.map((p) => ({
+          x: p.x * imageSize.width,
+          y: p.y * imageSize.height,
+        }));
+      }
+      
+      return {
+        ...cut,
+        points: cutPointsInPx,
+      };
+    });
+    
+    surfacePx = getPointsSurface(pointsInPx, closeLine, cuts);
   }
 
   const meterByPx = baseMap?.meterByPx;

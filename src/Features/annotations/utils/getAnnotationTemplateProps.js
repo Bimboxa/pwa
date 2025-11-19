@@ -20,6 +20,8 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     strokeWidthUnit: annotationTemplate?.strokeWidthUnit,
     //strokeOffset: annotationTemplate?.strokeOffset,
 
+    cutHost: annotationTemplate?.cutHost,
+
     iconKey: annotationTemplate?.iconKey,
   };
 

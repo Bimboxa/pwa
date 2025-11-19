@@ -75,8 +75,33 @@ export default function useAnnotationTemplateQtiesById() {
       const lengthPx = getPointsLength(points, closeLine);
       let surfacePx = 0;
 
-      if (points.length >= 3) {
-        surfacePx = getPointsSurface(points);
+      if (points.length >= 3 && closeLine) {
+        // Get cuts from annotation if available and convert their points to pixels if needed
+        const cutsRaw = annotation.cuts || annotation?.polyline?.cuts || [];
+        const cuts = cutsRaw.map((cut) => {
+          if (!cut || !Array.isArray(cut.points)) return cut;
+          
+          // Convert cut points to pixels if needed (points are already converted above)
+          // But cuts might still be in relative coordinates
+          let cutPointsInPx = cut.points;
+          const hasRelativeCoords = cut.points.every(
+            (p) => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1
+          );
+          
+          if (hasRelativeCoords && imageSize?.width && imageSize?.height) {
+            cutPointsInPx = cut.points.map((p) => ({
+              x: p.x * imageSize.width,
+              y: p.y * imageSize.height,
+            }));
+          }
+          
+          return {
+            ...cut,
+            points: cutPointsInPx,
+          };
+        });
+        
+        surfacePx = getPointsSurface(points, closeLine, cuts);
       }
 
       const meterByPx = baseMap?.meterByPx;

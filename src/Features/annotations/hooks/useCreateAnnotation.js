@@ -17,28 +17,33 @@ export default function useCreateAnnotation() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
   return async (annotation, options) => {
-    // options
+    try {
+      // options
 
-    const entityId = options?.entityId;
+      const entityId = options?.entityId;
 
-    // main
-    const _annotation = {
-      ...annotation,
-      id: nanoid(),
-      projectId,
-      listingId: annotation?.listingId ?? listing?.id,
-    };
+      // main
+      const _annotation = {
+        ...annotation,
+        id: nanoid(),
+        projectId,
+        listingId: annotation?.listingId ?? listing?.id,
+      };
 
-    if (entityId) _annotation.entityId = entityId;
+      if (entityId) _annotation.entityId = entityId;
 
-    if (annotation.isScaleSegment) {
-      _annotation.listingId = null;
+      if (annotation.isScaleSegment) {
+        _annotation.listingId = null;
+      }
+
+      await createAnnotationService(_annotation);
+      dispatch(triggerAnnotationsUpdate());
+      dispatch(triggerAnnotationTemplatesUpdate());
+
+      return _annotation;
+    } catch (e) {
+      console.log("[useCreateAnnotation] error creating annotation", e);
+      return null;
     }
-
-    await createAnnotationService(_annotation);
-    dispatch(triggerAnnotationsUpdate());
-    dispatch(triggerAnnotationTemplatesUpdate());
-
-    return _annotation;
   };
 }
