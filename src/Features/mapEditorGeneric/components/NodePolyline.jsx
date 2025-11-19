@@ -28,6 +28,9 @@ export default function NodePolyline({
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
   const fixedLength = useSelector((s) => s.mapEditor.fixedLength);
 
+  // Editing cut state
+  const [editingCutId, setEditingCutId] = useState(null);
+
   const dataProps = {
     "data-node-id": polyline?.id,
     "data-node-listing-id": polyline?.listingId,
@@ -46,6 +49,7 @@ export default function NodePolyline({
     strokeWidth = 2,
     strokeWidthUnit = "PX",
     strokeOffset,
+    cuts = [], // Array of cut polylines (holes)
   } = polyline || {};
 
   const w = imageSize?.w || 1;
@@ -149,14 +153,21 @@ export default function NodePolyline({
 
   const tempPointsRef = useRef(null);
   const [tempPoints, setTempPoints] = useState(null);
+  const [tempCuts, setTempCuts] = useState(null);
   const rafIdRef = useRef(null);
 
   useLayoutEffect(() => {
     tempPointsRef.current = null;
     setTempPoints(null);
+    setTempCuts(null);
   }, [
     polyline?.points?.map((p) => `${p.x},${p.y},${p.type ?? ""}`).join("|") ??
       "",
+    polyline?.cuts
+      ?.map((cut) =>
+        cut?.points?.map((p) => `${p.x},${p.y},${p.type ?? ""}`).join(",")
+      )
+      .join("|") ?? "",
   ]);
 
   useEffect(() => {
@@ -175,6 +186,17 @@ export default function NodePolyline({
     rafIdRef.current = requestAnimationFrame(() => {
       rafIdRef.current = null;
       setTempPoints(tempPointsRef.current ? [...tempPointsRef.current] : null);
+      // Update temp cuts if they exist
+      if (tempPointsRef.current?.cuts) {
+        setTempCuts(
+          tempPointsRef.current.cuts.map((c) => ({
+            ...c,
+            points: c.points.map((pt) => ({ ...pt })),
+          }))
+        );
+      } else {
+        setTempCuts(null);
+      }
     });
   };
 
@@ -226,7 +248,7 @@ export default function NodePolyline({
   }
 
   // ----- Path builder (includes the fixed S–C–S arc logic)
-  function buildPathAndMap(relPoints, close) {
+  function buildPathAndMap(relPoints, close, cuts = []) {
     const res = { d: "", segmentMap: [] };
     if (!relPoints?.length) return res;
 
@@ -491,7 +513,130 @@ export default function NodePolyline({
 
     if (close) dParts.push("Z");
 
-    res.d = dParts.join(" ");
+    // Build paths for cuts (holes)
+    const cutPaths = [];
+    if (cuts && Array.isArray(cuts) && cuts.length > 0) {
+      cuts.forEach((cut) => {
+        if (!cut || !Array.isArray(cut.points) || cut.points.length < 2) return;
+        const cutRelPoints = cut.points || [];
+        const cutPts = cutRelPoints.map(toPx);
+        const cutTypes = cutRelPoints.map(typeOf);
+        const cutN = cutPts.length;
+
+        const cutDParts = [`M ${cutPts[0].x} ${cutPts[0].y}`];
+        if (cutN === 1) {
+          return; // Skip single-point cuts
+        }
+
+        const cutIdx = (i) => (cut.closeLine !== false ? (i + cutN) % cutN : i);
+        const cutLimit = cut.closeLine !== false ? cutN : cutN - 1;
+
+        let cutI = 0;
+        while (cutI < cutLimit) {
+          const cutI0 = cutIdx(cutI);
+          const cutI1 = cutIdx(cutI + 1);
+          const cutT0 = cutTypes[cutI0];
+          const cutT1 = cutTypes[cutI1];
+
+          // Handle S-C-S pattern in cuts (same logic as main path)
+          if (cutT0 === "square" && cutT1 === "circle") {
+            let cutJ = cutI + 1;
+            while (cutJ < cutI + cutN && cutTypes[cutIdx(cutJ)] === "circle")
+              cutJ += 1;
+            const cutI2 = cutIdx(cutJ);
+
+            if (cut.closeLine === false && cutJ >= cutN) {
+              const cutP1 = cutPts[cutI1];
+              cutDParts.push(`L ${cutP1.x} ${cutP1.y}`);
+              cutI += 1;
+              continue;
+            }
+
+            if (cutJ === cutI + 2 && cutTypes[cutI2] === "square") {
+              const cutP0 = cutPts[cutI0];
+              const cutP1 = cutPts[cutI1];
+              const cutP2 = cutPts[cutI2];
+
+              const cutCirc = circleFromThreePoints(cutP0, cutP1, cutP2);
+
+              if (cutCirc && Number.isFinite(cutCirc.r) && cutCirc.r > 0) {
+                const cutCross =
+                  (cutP1.x - cutP0.x) * (cutP2.y - cutP0.y) -
+                  (cutP1.y - cutP0.y) * (cutP2.x - cutP0.x);
+                const cutIsCW = cutCross > 0;
+                const cutSweep = cutIsCW ? 1 : 0;
+
+                const getCutLargeArcFlag = (pStart, pEnd) => {
+                  const aStart = angDown(cutCirc.center, pStart);
+                  const aEnd = angDown(cutCirc.center, pEnd);
+                  let diff = aEnd - aStart;
+                  const TWO_PI = Math.PI * 2;
+
+                  if (cutIsCW) {
+                    while (diff < 0) diff += TWO_PI;
+                    while (diff >= TWO_PI) diff -= TWO_PI;
+                  } else {
+                    while (diff > 0) diff -= TWO_PI;
+                    while (diff <= -TWO_PI) diff += TWO_PI;
+                  }
+
+                  return Math.abs(diff) > Math.PI ? 1 : 0;
+                };
+
+                const cutLarge01 = getCutLargeArcFlag(cutP0, cutP1);
+                const cutLarge12 = getCutLargeArcFlag(cutP1, cutP2);
+                const cutRSafe = cutCirc.r * 1.0005;
+
+                cutDParts.push(
+                  `A ${cutRSafe} ${cutRSafe} 0 ${cutLarge01} ${cutSweep} ${cutP1.x} ${cutP1.y}`
+                );
+                cutDParts.push(
+                  `A ${cutRSafe} ${cutRSafe} 0 ${cutLarge12} ${cutSweep} ${cutP2.x} ${cutP2.y}`
+                );
+
+                cutI += 2;
+                continue;
+              } else {
+                cutDParts.push(`L ${cutP1.x} ${cutP1.y}`);
+                cutDParts.push(`L ${cutP2.x} ${cutP2.y}`);
+                cutI += 2;
+                continue;
+              }
+            }
+
+            let cutK = cutI;
+            while (cutK < cutJ) {
+              const cutPk0 = cutPts[cutIdx(cutK)];
+              const cutPk1 = cutPts[cutIdx(cutK + 1)];
+              const cutCp1 = {
+                x: cutPk0.x + (cutPk1.x - cutPk0.x) / 3,
+                y: cutPk0.y + (cutPk1.y - cutPk0.y) / 3,
+              };
+              const cutCp2 = {
+                x: cutPk1.x - (cutPk1.x - cutPk0.x) / 3,
+                y: cutPk1.y - (cutPk1.y - cutPk0.y) / 3,
+              };
+              cutDParts.push(
+                `C ${cutCp1.x} ${cutCp1.y} ${cutCp2.x} ${cutCp2.y} ${cutPk1.x} ${cutPk1.y}`
+              );
+              cutK += 1;
+            }
+            cutI = cutJ;
+            continue;
+          }
+
+          const cutP1 = cutPts[cutI1];
+          cutDParts.push(`L ${cutP1.x} ${cutP1.y}`);
+          cutI += 1;
+        }
+
+        if (cut.closeLine !== false) cutDParts.push("Z");
+        cutPaths.push(cutDParts.join(" "));
+      });
+    }
+
+    // Combine main path with cut paths
+    res.d = [dParts.join(" "), ...cutPaths].join(" ");
     return res;
   }
 
@@ -629,6 +774,51 @@ export default function NodePolyline({
   function onDocPointerMove(e) {
     if (!draggingRef.current.active) return;
     const i = draggingRef.current.idx;
+    const cutId = draggingRef.current.cutId;
+
+    // Handle cut editing
+    if (cutId) {
+      // Get cuts from temp storage if editing, otherwise use actual cuts
+      const currentCuts = tempPointsRef.current?.cuts || cuts;
+      const cut = currentCuts.find((c) => c.id === cutId);
+      if (!cut || !Array.isArray(cut.points)) return;
+
+      const cutPoints = cut.points.map((p) => ({ x: p.x * w, y: p.y * h }));
+      const prev = cutPoints[i - 1] ?? null;
+      const next = cutPoints[i + 1] ?? null;
+      const refRel = prev || next || null;
+      const refPx = refRel ? { x: refRel.x, y: refRel.y } : null;
+
+      let bl = toBaseFromClient(e.clientX, e.clientY);
+      bl = constrainIfShift(e, bl, refPx);
+
+      const rx = Math.max(0, Math.min(1, bl.x / w));
+      const ry = Math.max(0, Math.min(1, bl.y / h));
+
+      // Update cut points in temp storage
+      if (!tempPointsRef.current) {
+        tempPointsRef.current = basePoints.map((p) => ({ ...p }));
+      }
+      if (!tempPointsRef.current.cuts) {
+        tempPointsRef.current.cuts = cuts.map((c) => ({
+          ...c,
+          points: c.points.map((pt) => ({ ...pt })),
+        }));
+        setTempCuts(tempPointsRef.current.cuts);
+      }
+
+      const cutToEdit = tempPointsRef.current.cuts.find((c) => c.id === cutId);
+      if (cutToEdit) {
+        const original = cut.points[i] || cutToEdit.points[i];
+        cutToEdit.points[i] = { ...original, x: rx, y: ry };
+        scheduleTempCommit();
+      }
+
+      e.preventDefault();
+      return;
+    }
+
+    // Handle main polyline editing (existing logic)
     const prev = basePoints[i - 1] ?? null;
     const next = basePoints[i + 1] ?? null;
     const refRel = prev || next || null;
@@ -649,7 +839,33 @@ export default function NodePolyline({
   }
   function onDocPointerUp() {
     if (!draggingRef.current.active) return;
+    const cutId = draggingRef.current.cutId;
     draggingRef.current.active = false;
+
+    // Handle cut editing
+    if (cutId && tempPointsRef.current?.cuts) {
+      const updatedCuts = tempPointsRef.current.cuts.map((c) => ({
+        ...c,
+        points: c.points.map((pt) => ({ ...pt })),
+      }));
+
+      document.removeEventListener("pointermove", onDocPointerMove);
+      document.removeEventListener("pointerup", onDocPointerUp);
+      document.removeEventListener("pointercancel", onDocPointerUp);
+
+      // Update the annotation with new cuts
+      onChange && onChange({ ...polyline, cuts: updatedCuts });
+
+      // Clear temp state
+      if (tempPointsRef.current) {
+        tempPointsRef.current.cuts = null;
+      }
+      setTempCuts(null);
+      draggingRef.current = { active: false, idx: -1, pointerId: null };
+      return;
+    }
+
+    // Handle main polyline editing (existing logic)
     const finalPoints = (tempPointsRef.current ?? basePoints).map((p) => ({
       ...p,
     }));
@@ -816,9 +1032,12 @@ export default function NodePolyline({
     };
   }, [segmentProjection, w, h]);
 
+  // Use temp cuts if editing, otherwise use actual cuts
+  const activeCuts = tempCuts ?? cuts;
+
   const { d: pathD, segmentMap } = useMemo(
-    () => buildPathAndMap(previewRel, closeLine),
-    [previewRel, closeLine]
+    () => buildPathAndMap(previewRel, closeLine, activeCuts),
+    [previewRel, closeLine, activeCuts]
   );
 
   useEffect(() => {
@@ -1014,6 +1233,7 @@ export default function NodePolyline({
           d={pathD}
           fill={fillType === "HATCHING" ? `url(#${patternId})` : fillColor}
           fillOpacity={fillOpacity ?? 0.8}
+          fillRule={cuts && cuts.length > 0 ? "evenodd" : "nonzero"}
           stroke="none"
           style={{
             pointerEvents: isDrawing ? "none" : "inherit",
@@ -1094,11 +1314,18 @@ export default function NodePolyline({
           onPointerDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (committedRel.length >= 2 && onComplete) {
-              onComplete(committedRel);
+            // Use the same pattern as double-click handler
+            const pts = basePointsRef.current;
+            if (pts.length >= 2 && onComplete) {
+              onComplete(pts);
               setCurrentMousePos(null);
               setShowCloseHelper(false);
             }
+          }}
+          onClick={(e) => {
+            // Prevent click from propagating to onSvgClick (which would add a point)
+            e.preventDefault();
+            e.stopPropagation();
           }}
           style={{ cursor: "pointer" }}
         >
@@ -1236,6 +1463,164 @@ export default function NodePolyline({
             />
           </g>
         )}
+
+      {/* CUT POLYLINES (HOLES) - Render separately for editing */}
+      {activeCuts &&
+        Array.isArray(activeCuts) &&
+        activeCuts.length > 0 &&
+        activeCuts.map((cut, cutIdx) => {
+          if (!cut || !Array.isArray(cut.points) || cut.points.length < 2) {
+            return null;
+          }
+
+          const cutRel = cut.points || [];
+          const cutPx = cutRel.map((p) => ({ x: p.x * w, y: p.y * h }));
+          const isEditingCut = editingCutId === cut.id;
+
+          // Build path for this cut
+          const cutPathResult = buildPathAndMap(
+            cutRel,
+            cut.closeLine !== false,
+            []
+          );
+          const cutPathD = cutPathResult.d;
+
+          return (
+            <g key={`cut-${cut.id || cutIdx}`}>
+              {/* Cut outline - different style to distinguish from main */}
+              {cutPx.length >= 2 && strokeType !== "NONE" && (
+                <path
+                  d={cutPathD}
+                  fill="none"
+                  stroke={isEditingCut ? "#ff6600" : "#ffaa00"}
+                  strokeWidth={computedStrokeWidthPx}
+                  strokeOpacity={strokeProps.strokeOpacity * 0.8}
+                  strokeDasharray={
+                    isEditingCut
+                      ? undefined
+                      : `${computedStrokeWidthPx} ${computedStrokeWidthPx}`
+                  }
+                  style={{ pointerEvents: "none" }}
+                />
+              )}
+
+              {/* Cut anchors - only show when editing this cut or selected */}
+              {selected &&
+                isEditingCut &&
+                cutRel.map((p, i) => {
+                  const pointPx = cutPx[i];
+                  const px = pointPx?.x;
+                  const py = pointPx?.y;
+                  const isSquare = p?.type !== "circle";
+                  const hovered =
+                    hoverIdx === `cut-${cut.id}-${i}` ||
+                    (draggingRef.current.active &&
+                      draggingRef.current.idx === i &&
+                      draggingRef.current.cutId === cut.id);
+                  const anchorSize =
+                    (hovered ? ANCHOR_R_HOVERED : ANCHOR_R) * invScale;
+                  const hitRadius = HIT_R * invScale;
+
+                  return (
+                    <g key={`cut-anchor-${cut.id}-${i}`}>
+                      <circle
+                        cx={px}
+                        cy={py}
+                        r={hitRadius}
+                        fill="transparent"
+                        stroke="transparent"
+                        style={{
+                          cursor: draggingRef.current.active
+                            ? "grabbing"
+                            : "grab",
+                        }}
+                        onMouseEnter={() => setHoverIdx(`cut-${cut.id}-${i}`)}
+                        onMouseLeave={() =>
+                          !draggingRef.current.active && setHoverIdx(null)
+                        }
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          draggingRef.current = {
+                            active: true,
+                            idx: i,
+                            cutId: cut.id,
+                            pointerId: e.pointerId ?? "mouse",
+                          };
+                          document.addEventListener(
+                            "pointermove",
+                            onDocPointerMove,
+                            { passive: false }
+                          );
+                          document.addEventListener(
+                            "pointerup",
+                            onDocPointerUp,
+                            { passive: false }
+                          );
+                          document.addEventListener(
+                            "pointercancel",
+                            onDocPointerUp,
+                            { passive: false }
+                          );
+                          // Create temp points for cut editing
+                          // Initialize tempPointsRef if needed
+                          if (!tempPointsRef.current) {
+                            tempPointsRef.current = basePoints.map((p) => ({
+                              ...p,
+                            }));
+                          }
+                          // Store cut points for editing
+                          const currentCuts = (activeCuts || cuts).map((c) => ({
+                            ...c,
+                            points: c.points.map((pt) => ({ ...pt })),
+                          }));
+                          tempPointsRef.current.cuts = currentCuts;
+                          setTempCuts(currentCuts);
+                          scheduleTempCommit();
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          dispatch(
+                            setClickedNode({
+                              id: polyline?.id,
+                              pointIndex: i,
+                              cutId: cut.id,
+                            })
+                          );
+                          dispatch(
+                            setAnchorPosition({ x: e.clientX, y: e.clientY })
+                          );
+                        }}
+                      />
+                      {isSquare ? (
+                        <rect
+                          x={px - anchorSize}
+                          y={py - anchorSize}
+                          width={anchorSize * 2}
+                          height={anchorSize * 2}
+                          fill={hovered ? "#ff6600" : "#ffaa00"}
+                          stroke="#ffffff"
+                          strokeWidth={2 * invScale}
+                          style={{ pointerEvents: "none" }}
+                        />
+                      ) : (
+                        <circle
+                          cx={px}
+                          cy={py}
+                          r={anchorSize}
+                          fill={hovered ? "#ff6600" : "#ffaa00"}
+                          stroke="#ffffff"
+                          strokeWidth={2 * invScale}
+                          style={{ pointerEvents: "none" }}
+                        />
+                      )}
+                    </g>
+                  );
+                })}
+            </g>
+          );
+        })}
     </g>
   );
 }

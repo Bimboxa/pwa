@@ -21,6 +21,7 @@ import FieldImageV2 from "Features/form/components/FieldImageV2";
 
 import FieldFill from "Features/form/components/FieldFill";
 import FieldStroke from "Features/form/components/FieldStroke";
+import FieldCheck from "Features/form/components/FieldCheck";
 
 import getImageAnnotationPropsFromFileName from "../utils/getImageAnnotationPropsFromFileName";
 
@@ -54,6 +55,7 @@ export default function FormAnnotationTemplateVariantBlock({
     closeLine,
     image,
     meterByPx,
+    cutHost,
   } = annotationTemplate ?? {};
 
   // helper - fill
@@ -133,6 +135,10 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handleStrokeChange(stroke) {
     onChange({ ...annotationTemplate, ...stroke });
+  }
+
+  function handleCutHostChange(cutHost) {
+    onChange({ ...annotationTemplate, cutHost });
   }
 
   return (
@@ -219,6 +225,18 @@ export default function FormAnnotationTemplateVariantBlock({
               <FieldStroke value={stroke} onChange={handleStrokeChange} />
             </Box>
           )}
+
+          <Box>
+            <FieldCheck
+              value={cutHost}
+              onChange={handleCutHostChange}
+              label="Couper l'hôte"
+              options={{
+                type: "switch",
+                showAsSection: true,
+              }}
+            />
+          </Box>
         </Box>
       )}
 

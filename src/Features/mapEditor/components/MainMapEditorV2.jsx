@@ -26,6 +26,7 @@ import {
 import {
   setNewAnnotation,
   setTempAnnotations,
+  triggerAnnotationsUpdate,
 } from "Features/annotations/annotationsSlice";
 import { setOpenBaseMapSelector } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
@@ -96,6 +97,8 @@ import editor from "App/editor";
 import cv from "Features/opencv/services/opencvService";
 import cleanPolylinePoints from "Features/geometry/utils/cleanPolylinePoints";
 import theme from "Styles/theme";
+import doesPolylineCutClosedPolyline from "Features/geometry/utils/doesPolylineCutClosedPolyline";
+import { nanoid } from "@reduxjs/toolkit";
 
 export default function MainMapEditorV2() {
   const dispatch = useDispatch();
@@ -415,6 +418,109 @@ export default function MainMapEditorV2() {
     try {
       console.log("annotation change", _annotation);
       await updateAnnotation(_annotation);
+
+      // Handle cutHost updates: if this is a cutHost polyline and its points changed,
+      // detect the hosts and update their cuts
+      if (
+        _annotation.type === "POLYLINE" &&
+        Array.isArray(_annotation.points) &&
+        _annotation.points.length >= 2 &&
+        _annotation.baseMapId
+      ) {
+        // Check if annotationTemplate has cutHost property
+        let annotationTemplateCutHost = false;
+        if (_annotation.annotationTemplateId) {
+          const annotationTemplate = await db.annotationTemplates.get(
+            _annotation.annotationTemplateId
+          );
+          annotationTemplateCutHost = annotationTemplate?.cutHost === true;
+        }
+
+        const isCutHost =
+          _annotation.cutHost === true || annotationTemplateCutHost;
+
+        if (isCutHost && mainBaseMap) {
+          const imageSize =
+            mainBaseMap.imageEnhanced?.imageSize ??
+            mainBaseMap.image?.imageSize;
+
+          if (imageSize?.width && imageSize?.height) {
+            // Find all annotations on the same baseMap
+            const allAnnotations = await db.annotations
+              .where("baseMapId")
+              .equals(_annotation.baseMapId)
+              .toArray();
+
+            // Update existing cuts that reference this cutHost (update points)
+            for (const ann of allAnnotations) {
+              if (ann.cuts && Array.isArray(ann.cuts) && ann.cuts.length > 0) {
+                const hasCutHost = ann.cuts.some(
+                  (cut) => cut.cutHostId === _annotation.id
+                );
+
+                if (hasCutHost) {
+                  // Update the cut's points
+                  const updatedCuts = ann.cuts.map((cut) =>
+                    cut.cutHostId === _annotation.id
+                      ? { ...cut, points: _annotation.points }
+                      : cut
+                  );
+
+                  await db.annotations.update(ann.id, {
+                    cuts: updatedCuts,
+                  });
+                }
+              }
+            }
+
+            // Re-check which closed polylines now contain this cutHost
+            const closedPolylines = allAnnotations.filter(
+              (ann) =>
+                ann.type === "POLYLINE" &&
+                ann.id !== _annotation.id &&
+                ann.closeLine === true &&
+                Array.isArray(ann.points) &&
+                ann.points.length >= 3
+            );
+
+            for (const closedPolyline of closedPolylines) {
+              const containsCutHost = doesPolylineCutClosedPolyline(
+                _annotation.points, // cutHost points
+                closedPolyline.points, // closed polyline points
+                { w: imageSize.width, h: imageSize.height }
+              );
+
+              const existingCuts = closedPolyline.cuts || [];
+              const cutExists = existingCuts.some(
+                (cut) => cut.cutHostId === _annotation.id
+              );
+
+              if (containsCutHost && !cutExists) {
+                // Add cut to this polyline (closed polyline contains the cutHost)
+                const newCut = {
+                  id: nanoid(),
+                  cutHostId: _annotation.id,
+                  points: _annotation.points,
+                  closeLine: true,
+                };
+
+                await db.annotations.update(closedPolyline.id, {
+                  cuts: [...existingCuts, newCut],
+                });
+              } else if (!containsCutHost && cutExists) {
+                // Remove cut from this polyline (closed polyline no longer contains the cutHost)
+                const updatedCuts = existingCuts.filter(
+                  (cut) => cut.cutHostId !== _annotation.id
+                );
+
+                await db.annotations.update(closedPolyline.id, {
+                  cuts: updatedCuts.length > 0 ? updatedCuts : undefined,
+                });
+              }
+            }
+          }
+        }
+      }
     } catch (e) {
       console.log("error handling annotation", e);
     }
@@ -479,7 +585,7 @@ export default function MainMapEditorV2() {
       const entity = await createEntity({});
 
       // Create annotation with polyline data
-      await createAnnotation({
+      const createdAnnotation = await createAnnotation({
         ...newAnnotation,
         type: "POLYLINE",
         points, // Store the points array
@@ -487,10 +593,100 @@ export default function MainMapEditorV2() {
         listingId: listingId,
         baseMapId: mainBaseMap?.id,
         annotationTemplateId: annotationTemplate?.id,
+        // Pass cutHost from annotationTemplate if it exists
+        ...(annotationTemplate?.cutHost === true ? { cutHost: true } : {}),
       });
+
+      // Handle cutHost: if this polyline has cutHost from annotationTemplate,
+      // detect which closed polylines contain it and add it as a cut
+      // Wrap in try-catch to ensure cleanup always happens even if detection fails
+      const isCutHost =
+        createdAnnotation?.cutHost === true ||
+        annotationTemplate?.cutHost === true;
+      if (
+        createdAnnotation &&
+        isCutHost &&
+        Array.isArray(points) &&
+        points.length >= 2 &&
+        mainBaseMap?.id
+      ) {
+        try {
+          // Get baseMap for image size
+          if (mainBaseMap) {
+            const imageSize =
+              mainBaseMap.imageEnhanced?.imageSize ??
+              mainBaseMap.image?.imageSize;
+
+            if (imageSize?.width && imageSize?.height) {
+              // Find all closed polylines on the same baseMap
+              const allAnnotations = await db.annotations
+                .where("baseMapId")
+                .equals(mainBaseMap.id)
+                .toArray();
+
+              const closedPolylines = allAnnotations.filter(
+                (ann) =>
+                  ann.type === "POLYLINE" &&
+                  ann.id !== createdAnnotation.id &&
+                  ann.closeLine === true &&
+                  Array.isArray(ann.points) &&
+                  ann.points.length >= 3
+              );
+
+              // Check each closed polyline to see if it contains the cutHost
+              for (const closedPolyline of closedPolylines) {
+                try {
+                  const containsCutHost = doesPolylineCutClosedPolyline(
+                    points, // cutHost points
+                    closedPolyline.points, // closed polyline points
+                    { w: imageSize.width, h: imageSize.height }
+                  );
+
+                  if (containsCutHost) {
+                    // Add this cutHost as a cut to the closed polyline
+                    const existingCuts = closedPolyline.cuts || [];
+
+                    // Check if this cut already exists (by cutHost id)
+                    const cutExists = existingCuts.some(
+                      (cut) => cut.cutHostId === createdAnnotation.id
+                    );
+
+                    if (!cutExists) {
+                      // Create a new cut entry referencing the cutHost
+                      const newCut = {
+                        id: nanoid(),
+                        cutHostId: createdAnnotation.id, // Reference to the cutHost annotation
+                        points: points, // Copy of points
+                        closeLine: true, // Cuts should always be closed
+                      };
+
+                      await db.annotations.update(closedPolyline.id, {
+                        cuts: [...existingCuts, newCut],
+                      });
+                    }
+                  }
+                } catch (polylineError) {
+                  console.error(
+                    "Error processing polyline for cutHost:",
+                    polylineError
+                  );
+                  // Continue with next polyline
+                }
+              }
+
+              // Trigger annotations update after modifying cuts
+              dispatch(triggerAnnotationsUpdate());
+            }
+          }
+        } catch (cutHostError) {
+          console.error("Error in cutHost detection:", cutHostError);
+          // Don't throw - allow cleanup to proceed
+        }
+      }
     } catch (error) {
       console.error("Error creating polyline:", error);
     } finally {
+      // Always cleanup drawing state, even if cutHost detection fails
       dispatch(setEnabledDrawingMode(null));
       dispatch(setNewAnnotation({}));
       dispatch(setSelectedNode(null));

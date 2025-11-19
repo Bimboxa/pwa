@@ -1835,23 +1835,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               opacity={baseMapOpacity}
             />
 
-            {/* Polyline drawing/preview */}
-            <NodePolyline
-              imageSize={baseSize}
-              containerPose={basePose}
-              toBaseFromClient={toBaseFromClient}
-              isDrawing={enabledDrawingMode === "POLYLINE"} // ← only when drawing
-              polyline={{
-                points: drawingPolylinePoints,
-                ...(newPolylineProps ?? {}),
-              }}
-              onComplete={onPolylineComplete}
-              worldScale={world.k}
-              containerK={basePose.k}
-              baseMapMeterByPx={baseMapMeterByPx}
-              snapHelper={snapHelper}
-            />
-
             {/* Rectangle drawing/preview */}
             {enabledDrawingMode === "RECTANGLE" &&
               drawingRectanglePoints &&
@@ -1932,6 +1915,23 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                     ))}
               </g>
             )}
+
+            {/* Polyline drawing/preview - rendered last so it's on top of all annotations */}
+            <NodePolyline
+              imageSize={baseSize}
+              containerPose={basePose}
+              toBaseFromClient={toBaseFromClient}
+              isDrawing={enabledDrawingMode === "POLYLINE"} // ← only when drawing
+              polyline={{
+                points: drawingPolylinePoints,
+                ...(newPolylineProps ?? {}),
+              }}
+              onComplete={onPolylineComplete}
+              worldScale={world.k}
+              containerK={basePose.k}
+              baseMapMeterByPx={baseMapMeterByPx}
+              snapHelper={snapHelper}
+            />
           </g>
 
           {/* LEGEND layer */}
