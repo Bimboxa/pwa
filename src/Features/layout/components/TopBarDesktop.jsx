@@ -18,12 +18,18 @@ import TopBarBreadcrumbs from "./TopBarBreadcrumbs";
 import useSelectedEntityModel from "Features/listings/hooks/useSelectedEntityModel";
 import ToolbarDrawingTools from "Features/mapEditor/components/ToolbarDrawingTools";
 import BlockVersionInTopBar from "Features/versions/components/BlockVersionInTopBar";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 export default function TopBarDesktop() {
   // data
 
   const height = useSelector((s) => s.layout.topBarHeight);
   const appConfig = useAppConfig();
+  const { value: listing } = useSelectedListing();
+
+  // helper - em
+
+  const em = listing?.entityModel;
 
   // helpers
 
@@ -61,7 +67,7 @@ export default function TopBarDesktop() {
         {scopesEnabled && <ButtonSelectorScope />}
       </Box>
 
-      {/* {em?.type === "BASE_MAP" && <SelectorViewer />} */}
+      {em?.type === "BASE_MAP" && <SelectorViewer />}
 
       {/* <AuthButtons /> */}
       <Box sx={{ display: "flex", alignItems: "center" }}>
