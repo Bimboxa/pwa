@@ -5,6 +5,9 @@ self.importScripts("./handlers/imageProcessing.js");
 self.importScripts("./handlers/highlightDifferences.js");
 self.importScripts("./handlers/findPattern.js");
 self.importScripts("./handlers/getPixelColorAsync.js");
+self.importScripts("./handlers/getWhiteContoursAsync.js");
+self.importScripts("./handlers/removeTextAsync.js");
+self.importScripts("./handlers/removeColoredContentAsync.js");
 /**
  * This exists to capture all the events that are thrown out of the worker
  * into the worker. Without this, there would be no communication possible
@@ -36,6 +39,15 @@ onmessage = function (e) {
 
     case "getPixelColorAsync":
       return getPixelColorAsync(e.data);
+
+    case "getWhiteContoursAsync":
+      return getWhiteContoursAsync(e.data);
+
+    case "removeTextAsync":
+      return removeTextAsync(e.data);
+
+    case "removeColoredContentAsync":
+      return removeColoredContentAsync(e.data);
 
     default:
       break;

@@ -186,6 +186,7 @@ export default function useAnnotations(options) {
 
   // temp annotations
   if (tempAnnotations.length > 0) {
+    console.log("tempAnnotations", tempAnnotations);
     annotations = [...(annotations ?? []), ...tempAnnotations];
   }
 

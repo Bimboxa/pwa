@@ -161,7 +161,7 @@ export default function FormAnnotationTemplateVariantBlock({
 
       {type === "MARKER" && (
         <Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1 }}>
             <FieldIconVariantToolbar
               value={iconKey}
               onChange={handleIconKeyChange}
@@ -186,7 +186,7 @@ export default function FormAnnotationTemplateVariantBlock({
 
       {["SEGMENT", "POLYLINE", "POLYGON", "RECTANGLE"].includes(type) && (
         <Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1 }}>
             <AnnotationIcon
               spriteImage={spriteImage}
               annotation={annotationTemplate}

@@ -28,6 +28,7 @@ import {
   setTempAnnotations,
   triggerAnnotationsUpdate,
 } from "Features/annotations/annotationsSlice";
+import { setMaskImageUrl } from "Features/opencv/opencvSlice";
 import { setOpenBaseMapSelector } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import {
@@ -99,6 +100,7 @@ import cleanPolylinePoints from "Features/geometry/utils/cleanPolylinePoints";
 import theme from "Styles/theme";
 import doesPolylineCutClosedPolyline from "Features/geometry/utils/doesPolylineCutClosedPolyline";
 import { nanoid } from "@reduxjs/toolkit";
+import getPolylinesFromContours from "Features/annotations/utils/getPolylinesFromContours";
 
 export default function MainMapEditorV2() {
   const dispatch = useDispatch();
@@ -561,7 +563,7 @@ export default function MainMapEditorV2() {
       //dispatch(setSelectedMenuItemKey("NODE_FORMAT"));
       const annotation = await db.annotations.get(node?.id);
       console.log("[CLICK] on annotation", annotation);
-      const entityId = annotation.entityId;
+      const entityId = annotation?.entityId;
       if (entityId) {
         //dispatch(setSelectedListingId(node.listingId));
         dispatch(setSelectedEntityId(entityId));
@@ -815,32 +817,42 @@ export default function MainMapEditorV2() {
 
     if (enabledDrawingMode === "OPENCV") {
       await cv.load();
-      const color = await cv.getPixelColorAsync({
-        imageUrl: baseMapImageUrl,
-        x: p.x,
-        y: p.y,
-      });
-      console.log("color", color);
+      // const color = await cv.getPixelColorAsync({
+      //   imageUrl: baseMapImageUrl,
+      //   x: p.x,
+      //   y: p.y,
+      // });
+      const { polylines: contours, maskImageBase64 } =
+        await cv.getWhiteContoursAsync({
+          imageUrl: baseMapImageUrl,
+          x: p.x,
+          y: p.y,
+        });
+
+      console.log("debug_2011_polylines", contours);
+
+      // Convert base64 to blob and create object URL
+      if (maskImageBase64) {
+        const binaryString = atob(maskImageBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: "image/png" });
+        const objectUrl = URL.createObjectURL(blob);
+        dispatch(setMaskImageUrl(objectUrl));
+      }
+
       const _color = theme.palette.secondary.main;
-      const cleanedPoints = cleanPolylinePoints(color.polylines[0]);
+      const annotations = getPolylinesFromContours(
+        contours,
+        _color,
+        mainBaseMap
+      );
+      // const cleanedPoints = cleanPolylinePoints(color.polylines[0]);
       //const cleanedPoints = color.polylines[0];
-      const annotation = {
-        id: "temp-",
-        type: "POLYLINE",
-        points: cleanedPoints,
-        fillColor: _color,
-        strokeColor: _color,
-        strokeWidth: 10,
-        strokeOpacity: 1,
-        strokeType: "SOLID",
-        strokeWidthUnit: "PX",
-        strokeOffset: 0,
-        closeLine: true,
-        fillOpacity: 0.8,
-        baseMapId: mainBaseMap?.id,
-      };
-      dispatch(setTempAnnotations([annotation]));
-      console.log("temp_annotation", annotation);
+
+      dispatch(setTempAnnotations(annotations));
     }
   }
 

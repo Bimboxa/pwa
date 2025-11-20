@@ -64,9 +64,55 @@ async function getPixelColorAsync({ msg, payload }) {
     mask.create(src.rows + 2, src.cols + 2, cv.CV_8UC1);
     mask.setTo(new cv.Scalar(0, 0, 0, 0));
 
-    // Define the tolerance for color matching in HSV
-    const loDiff = new cv.Scalar(tolerance, tolerance, tolerance, 0);
-    const upDiff = new cv.Scalar(tolerance, tolerance, tolerance, 0);
+    // Define the tolerance for color matching in HSV, adapting for near-white colors
+    const hueTolerance = Math.min(
+      179,
+      Math.max(Math.round(tolerance * 1.5), 10)
+    );
+    let saturationTolerance = Math.min(255, Math.max(tolerance * 3, 40));
+    let valueTolerance = Math.min(255, Math.max(tolerance * 3, 40));
+
+    const isSeedNearWhite = seedS < 40 && seedV > 215;
+    if (isSeedNearWhite) {
+      saturationTolerance = Math.min(255, Math.max(saturationTolerance, 140));
+      valueTolerance = Math.min(255, Math.max(valueTolerance, 140));
+    }
+
+    let valueLowTolerance = Math.min(valueTolerance, Math.max(tolerance, 5));
+    if (isSeedNearWhite) {
+      const minWhiteValue = 205;
+      valueLowTolerance = Math.min(
+        valueTolerance,
+        Math.max(seedV - minWhiteValue, 10)
+      );
+    }
+
+    const loDiff = new cv.Scalar(
+      hueTolerance,
+      saturationTolerance,
+      valueLowTolerance,
+      0
+    );
+    const upDiff = new cv.Scalar(
+      hueTolerance,
+      saturationTolerance,
+      valueTolerance,
+      0
+    );
+
+    // Apply morphology on HSV before flood fill to close gaps
+    const morphKernelSize = isSeedNearWhite ? 5 : 3;
+    const morphKernel = cv.Mat.ones(morphKernelSize, morphKernelSize, cv.CV_8U);
+    const morphIterations = isSeedNearWhite ? 2 : 1;
+    const preprocessedHsv = new cv.Mat();
+    cv.morphologyEx(
+      hsv,
+      preprocessedHsv,
+      cv.MORPH_CLOSE,
+      morphKernel,
+      new cv.Point(-1, -1),
+      morphIterations
+    );
 
     // Create a seed point
     // Note: when using floodFill with mask, the mask has 2px border, so seed point uses image coordinates
@@ -78,7 +124,7 @@ async function getPixelColorAsync({ msg, payload }) {
     // Perform flood fill to find all connected pixels with similar color
     // Using FLOODFILL_FIXED_RANGE to match within tolerance from seed color
     cv.floodFill(
-      hsv,
+      preprocessedHsv,
       mask,
       seedPoint,
       new cv.Scalar(255, 255, 255, 0),
@@ -146,6 +192,8 @@ async function getPixelColorAsync({ msg, payload }) {
     hsv.delete();
     mask.delete();
     maskRoi.delete();
+    preprocessedHsv.delete();
+    morphKernel.delete();
     contours.delete();
     hierarchy.delete();
 

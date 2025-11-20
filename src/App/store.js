@@ -45,6 +45,8 @@ import showerReducer from "Features/shower/showerSlice";
 //
 import gapiReducer from "Features/gapi/gapiSlice";
 import dropboxReducer from "Features/dropbox/dropboxSlice";
+//
+import opencvReducer from "Features/opencv/opencvSlice";
 
 //import syncTabsMiddleware from "./syncTabsMiddleware";
 //import webrtcMiddleware from "Features/webrtc/webrtcMiddleware";
@@ -90,6 +92,7 @@ const store = configureStore({
     reports: reportsReducer,
     blueprints: blueprintsReducer,
     selection: selectionReducer,
+    opencv: opencvReducer,
     //
     chat: chatReducer,
     shower: showerReducer,

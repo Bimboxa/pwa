@@ -1,12 +1,19 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import { setTempAnnotations } from "Features/annotations/annotationsSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
+import { Paper, Box } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import ButtonEnhanceBaseMap from "Features/baseMaps/components/ButtonEnhanceBaseMap";
+import ButtonRemoveText from "./ButtonRemoveText";
+import ButtonRemoveColoredContent from "./ButtonRemoveColoredContent";
+import ButtonToggleShowEnhanced from "./ButtonToggleShowEnhanced";
 
 import getPolylinesFromContours from "Features/annotations/utils/getPolylinesFromContours";
 
@@ -21,46 +28,57 @@ export default function PanelOpencv() {
 
   // data
 
-  const baseMap = useMainBaseMap();
+  const { value: listing } = useSelectedListing();
+  const maskImageUrl = useSelector((s) => s.opencv.maskImageUrl);
+
+  // helpers
+
+  const em = listing?.entityModel?.type;
+  console.log("em", em);
 
   // handlers
 
   async function detectContours() {
     dispatch(setEnabledDrawingMode("OPENCV"));
-    // const image = baseMap?.image;
-    // console.log("image", image);
-    // await cv.load();
-    // const countsByColor = await cv.getPixelsCountByColorAsync({
-    //   imageUrl: image.imageUrlClient,
-    // });
-    // console.log("countsByColor", countsByColor);
-    // //
-    // let contours = [];
-    // Object.entries(countsByColor).forEach(([color, count]) => {
-    //   let _contours = count.contours;
-    //   _contours.forEach((contour) => {
-    //     if (contour.length > 3) {
-    //       contours.push(contour);
-    //     }
-    //   });
-    // });
-    // const polylines = getPolylinesFromContours(
-    //   contours,
-    //   theme.palette.secondary.main,
-    //   baseMap?.id
-    // );
-    // console.log("polylines", polylines);
-    // dispatch(setTempAnnotations(polylines));
   }
 
   return (
-    <BoxFlexVStretch sx={{ p: 1 }}>
-      <ButtonGeneric
-        onClick={detectContours}
-        label={contoursS}
-        variant="contained"
-        color="secondary"
-      />
-    </BoxFlexVStretch>
+    <Paper>
+      <BoxFlexVStretch sx={{ p: 1 }}>
+        <ButtonToggleShowEnhanced />
+        {em === "LOCATED_ENTITY" && (
+          <ButtonGeneric
+            onClick={detectContours}
+            label={contoursS}
+            variant="contained"
+            color="secondary"
+          />
+        )}
+
+        {em === "BASE_MAP" && (
+          <>
+            <ButtonEnhanceBaseMap />
+            <ButtonRemoveText />
+            <ButtonRemoveColoredContent />
+          </>
+        )}
+
+        {maskImageUrl && (
+          <Box
+            component="img"
+            src={maskImageUrl}
+            alt="OpenCV mask preview"
+            sx={{
+              width: "100%",
+              maxWidth: 280,
+              borderRadius: 1,
+              border: "1px solid",
+              borderColor: "divider",
+              mt: 2,
+            }}
+          />
+        )}
+      </BoxFlexVStretch>
+    </Paper>
   );
 }
