@@ -81,6 +81,15 @@ class CV {
   getPixelColorAsync(payload) {
     return this._dispatch({ msg: "getPixelColorAsync", payload });
   }
+  getWhiteContoursAsync(payload) {
+    return this._dispatch({ msg: "getWhiteContoursAsync", payload });
+  }
+  removeTextAsync(payload) {
+    return this._dispatch({ msg: "removeTextAsync", payload });
+  }
+  removeColoredContentAsync(payload) {
+    return this._dispatch({ msg: "removeColoredContentAsync", payload });
+  }
   getPixelsCountByColorAsync(payload) {
     return this._dispatch({ msg: "getPixelsCountByColorAsync", payload });
   }

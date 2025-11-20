@@ -14,13 +14,14 @@ export default function getPolylinesFromContours(contours, color, baseMapId) {
       points: contour,
       fillColor: color,
       strokeColor: color,
-      strokeWidth: 10,
-      strokeOpacity: 1,
+      strokeWidth: 1,
+      strokeOpacity: 0.8,
       strokeType: "SOLID",
       strokeWidthUnit: "PX",
       strokeOffset: 0,
       closeLine: true,
-      fillOpacity: 0.8,
+      fillOpacity: 0.5,
+      isTemp: true,
     };
 
     polylines.push(polyline);

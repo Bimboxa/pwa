@@ -3,8 +3,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import L, { map } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-import useInitLoadGeoportailPlugin from "../hooks/useInitLoadGeoportailPlugin";
-
 import { Box, Button } from "@mui/material";
 
 import {
@@ -14,6 +12,7 @@ import {
   EsriWorldImagery,
 } from "../data/tileLayers";
 import getImageFromElement from "../../misc/utils/getImageFromElement";
+import ButtonCreateBaseMapFromLeaflet from "./ButtonCreateBaseMapFromLeaflet";
 
 export default function MainLeafletEditor() {
   console.log("[debug] MainLeafletEditor");
@@ -21,7 +20,6 @@ export default function MainLeafletEditor() {
 
   const mapRef = useRef();
   const containerRef = useRef(); // Add container ref
-  const [isCapturing, setIsCapturing] = useState(false);
 
   // init
 
@@ -37,6 +35,8 @@ export default function MainLeafletEditor() {
       zoom: 19,
       center: [48.683619, 2.192905],
       layers: [OrthoIGN],
+      zoomControl: false,
+      attributionControl: false,
     });
 
     mapRef.current = mainMap;
@@ -67,35 +67,6 @@ export default function MainLeafletEditor() {
     };
   }, []);
 
-  const handleDownloadImage = useCallback(async () => {
-    if (isCapturing) return;
-
-    const mapElement = document.getElementById("leafletMap");
-
-    if (!mapElement) {
-      console.warn("Leaflet map element not found");
-      return;
-    }
-
-    try {
-      setIsCapturing(true);
-      const result = await getImageFromElement(mapElement);
-
-      if (result?.url) {
-        const link = document.createElement("a");
-        link.href = result.url;
-        link.download = `leaflet-view-${Date.now()}.png`;
-        link.click();
-      } else {
-        console.warn("No image data returned from capture");
-      }
-    } catch (error) {
-      console.error("Failed to download map image:", error);
-    } finally {
-      setIsCapturing(false);
-    }
-  }, [isCapturing]);
-
   return (
     <Box
       ref={containerRef} // Add ref to the container
@@ -106,15 +77,10 @@ export default function MainLeafletEditor() {
         position: "relative",
       }}
     >
-      <Button
-        variant="contained"
-        size="small"
-        onClick={handleDownloadImage}
-        disabled={isCapturing}
-        sx={{ position: "absolute", top: 16, right: 16, zIndex: 1000 }}
-      >
-        {isCapturing ? "Preparing..." : "Download view"}
-      </Button>
+      <Box sx={{ position: "absolute", top: 16, right: 16, zIndex: 1000 }}>
+        <ButtonCreateBaseMapFromLeaflet mapRef={mapRef} />
+      </Box>
+
       <div
         id="leafletMap"
         style={{

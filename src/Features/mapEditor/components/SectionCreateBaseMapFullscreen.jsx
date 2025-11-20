@@ -30,7 +30,6 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
 
   const dragS = "Glissez déposez une image / PDF / photo";
   const selectFileS = "Choisir un fichier";
-  const nameS = "Plan 01";
   const placeholder = "Nom du fond de plan";
   const createS = "Créer le fond de plan";
   const defaultS = "Page blanche A3 1:50";
@@ -102,7 +101,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
   }
 
   async function handleCreateDefault() {
-    const file = await imageUrlToPng({ url: a3_1_50, name: "A3 - 1:50" });
+    const file = await imageUrlToPng({ url: a3_1_50, name: "A3 - 1:50.png" });
     setImageFile(file);
     setMeterByPx(0.011975);
   }

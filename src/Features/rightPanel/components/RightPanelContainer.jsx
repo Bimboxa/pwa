@@ -46,10 +46,11 @@ export default function RightPanelContainer() {
       {openPanel && (
         <Box
           sx={{
-            //position: "absolute",
-            //top: topBarHeight,
+            position: "absolute",
+            top: `${topBarHeight + 8}px`,
             //bottom: bottomBarHeight,
-            //right: 0,
+            right: "8px",
+
             width,
             minWidth: 0,
             bgcolor: "white",

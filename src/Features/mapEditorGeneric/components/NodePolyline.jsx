@@ -70,6 +70,7 @@ export default function NodePolyline({
   // stroke width
   const hasOffset =
     strokeOffset === 1 || strokeOffset === -1 || strokeOffset === 0;
+  const allowsOffsetShift = strokeOffset === 1 || strokeOffset === -1;
 
   const computedStrokeWidthPx = useMemo(() => {
     let widthInPx = strokeWidth;
@@ -119,7 +120,7 @@ export default function NodePolyline({
   const rawPoints = polyline?.points || [];
 
   const applyOffset =
-    !selected && hasOffset && Boolean(baseMapMeterByPx) && !isDrawing;
+    !selected && allowsOffsetShift && Boolean(baseMapMeterByPx) && !isDrawing;
 
   const basePoints = useMemo(() => {
     if (!applyOffset || rawPoints.length < 2 || !w || !h) return rawPoints;

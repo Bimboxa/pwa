@@ -20,7 +20,7 @@ export default function useUpdateEntity() {
   const update = async (entityId, updates, options) => {
     // options
 
-    const _listing = options.listing ?? listing;
+    const _listing = options?.listing ?? listing;
 
     // main
     const table = _listing?.table;
