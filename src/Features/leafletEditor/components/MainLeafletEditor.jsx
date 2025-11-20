@@ -1,13 +1,19 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import L, { map } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 import useInitLoadGeoportailPlugin from "../hooks/useInitLoadGeoportailPlugin";
 
-import { Box, Typography } from "@mui/material";
+import { Box, Button } from "@mui/material";
 
-import { OrthoIGN, PlanIGN } from "../data/tileLayers";
+import {
+  OpenStreetMapCors,
+  OrthoIGN,
+  PlanIGN,
+  EsriWorldImagery,
+} from "../data/tileLayers";
+import getImageFromElement from "../../misc/utils/getImageFromElement";
 
 export default function MainLeafletEditor() {
   console.log("[debug] MainLeafletEditor");
@@ -15,6 +21,7 @@ export default function MainLeafletEditor() {
 
   const mapRef = useRef();
   const containerRef = useRef(); // Add container ref
+  const [isCapturing, setIsCapturing] = useState(false);
 
   // init
 
@@ -27,9 +34,8 @@ export default function MainLeafletEditor() {
     }
 
     const mainMap = L.map("leafletMap", {
-      zoom: 24,
+      zoom: 19,
       center: [48.683619, 2.192905],
-      //layers: [OrthoIGN, PlanIGN],
       layers: [OrthoIGN],
     });
 
@@ -61,11 +67,54 @@ export default function MainLeafletEditor() {
     };
   }, []);
 
+  const handleDownloadImage = useCallback(async () => {
+    if (isCapturing) return;
+
+    const mapElement = document.getElementById("leafletMap");
+
+    if (!mapElement) {
+      console.warn("Leaflet map element not found");
+      return;
+    }
+
+    try {
+      setIsCapturing(true);
+      const result = await getImageFromElement(mapElement);
+
+      if (result?.url) {
+        const link = document.createElement("a");
+        link.href = result.url;
+        link.download = `leaflet-view-${Date.now()}.png`;
+        link.click();
+      } else {
+        console.warn("No image data returned from capture");
+      }
+    } catch (error) {
+      console.error("Failed to download map image:", error);
+    } finally {
+      setIsCapturing(false);
+    }
+  }, [isCapturing]);
+
   return (
     <Box
       ref={containerRef} // Add ref to the container
-      sx={{ width: 1, height: 1, border: "1px solid red" }}
+      sx={{
+        width: 1,
+        height: 1,
+        border: "1px solid red",
+        position: "relative",
+      }}
     >
+      <Button
+        variant="contained"
+        size="small"
+        onClick={handleDownloadImage}
+        disabled={isCapturing}
+        sx={{ position: "absolute", top: 16, right: 16, zIndex: 1000 }}
+      >
+        {isCapturing ? "Preparing..." : "Download view"}
+      </Button>
       <div
         id="leafletMap"
         style={{
