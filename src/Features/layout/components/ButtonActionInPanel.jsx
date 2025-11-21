@@ -33,6 +33,7 @@ export default function ButtonActionInPanel({
           alignItems: "center",
           justifyContent: "space-between",
           width: 1,
+          p: 0.5,
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center" }}>

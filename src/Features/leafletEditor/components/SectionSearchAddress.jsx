@@ -25,7 +25,7 @@ export default function SectionSearchAddress({ onLatLongChange }) {
           .then((response) => response.json())
           .then((data) => {
             // Transformation du GeoJSON en format utilisable par l'Autocomplete
-            const formattedOptions = data.features.map((feature) => ({
+            const formattedOptions = data.features?.map((feature) => ({
               label: feature.properties.label,
               city: feature.properties.city,
               postcode: feature.properties.postcode,
@@ -90,6 +90,7 @@ export default function SectionSearchAddress({ onLatLongChange }) {
       loadingText="Chargement..."
       // Gestion du changement de texte (ce que l'utilisateur tape)
       onInputChange={(event, newInputValue) => {
+        event.stopPropagation();
         setInputValue(newInputValue);
       }}
       // Gestion de la sélection finale
@@ -142,6 +143,9 @@ export default function SectionSearchAddress({ onLatLongChange }) {
           placeholder="Rechercher une adresse"
           //label="Rechercher une adresse"
           fullWidth
+          onKeyDown={(event) => {
+            event.stopPropagation();
+          }}
           InputProps={{
             ...params.InputProps,
             endAdornment: (

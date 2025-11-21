@@ -69,7 +69,7 @@ export default function PanelOpencv() {
         </IconButton>
       </Box>
       {open && (
-        <BoxFlexVStretch sx={{ p: 1 }}>
+        <BoxFlexVStretch>
           {em === "LOCATED_ENTITY" && (
             <ButtonGeneric
               onClick={detectContours}

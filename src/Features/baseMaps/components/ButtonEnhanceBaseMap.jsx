@@ -130,7 +130,7 @@ export default function ButtonEnhanceBaseMap() {
   const previewUrl = enhancedResult?.objectUrl;
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <Box sx={{ display: "flex", flexDirection: "column" }}>
       {enhancedError && (
         <Box sx={{ color: "error.main", fontSize: "0.875rem" }}>
           Erreur: {enhancedError.error}
@@ -145,20 +145,35 @@ export default function ButtonEnhanceBaseMap() {
         triggerOpenAt={triggerOpenAt}
       >
         {previewUrl && (
-          <Box sx={{ position: "relative" }}>
+          <Box
+            sx={{ position: "relative", bgcolor: "background.default", p: 1 }}
+          >
             <Box
               sx={{
-                maxWidth: 280,
-                borderRadius: 1,
-                border: "1px solid",
-                borderColor: "divider",
+                //maxWidth: 280,
+                width: 1,
                 overflow: "hidden",
+                p: 1,
               }}
             >
               <ImageGeneric url={previewUrl} />
             </Box>
-            <Box sx={{ mt: 1 }}>
-              <ButtonGeneric label="Enregistrer" onClick={handleSave} />
+            <Box
+              sx={{
+                mt: 1,
+                display: "flex",
+                alignItems: "center",
+                width: 1,
+                justifyContent: "center",
+              }}
+            >
+              <ButtonGeneric
+                label="Appliquer"
+                onClick={handleSave}
+                size="small"
+                variant="contained"
+                color="secondary"
+              />
             </Box>
           </Box>
         )}
