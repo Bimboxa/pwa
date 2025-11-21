@@ -23,7 +23,7 @@ export default function ButtonEnhanceBaseMap() {
 
   // strings
 
-  const labelS = "Améliorer l'image";
+  const labelS = "Satellite => Plan masse";
 
   // data
 

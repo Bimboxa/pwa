@@ -43,7 +43,7 @@ export default function HorizontalMenuRightPanel() {
       icon: <Room />,
     },
     OPENCV: {
-      label: "OpenCV",
+      label: "Traitement d'image",
       icon: <OpencvIcon />,
     },
   };

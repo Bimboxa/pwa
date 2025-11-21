@@ -102,7 +102,7 @@ export default function ButtonRemoveColoredContent() {
         onClick={handleClick}
         loading={loading}
         variant="contained"
-        color="secondary"
+        color="action"
         triggerOpenAt={triggerOpenAt}
       >
         {previewUrl && (

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import L, { map } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-import { Box, Button } from "@mui/material";
+import { Box, Button, Paper } from "@mui/material";
 
 import {
   OpenStreetMapCors,
@@ -13,6 +13,7 @@ import {
 } from "../data/tileLayers";
 import getImageFromElement from "../../misc/utils/getImageFromElement";
 import ButtonCreateBaseMapFromLeaflet from "./ButtonCreateBaseMapFromLeaflet";
+import SectionSearchAddress from "./SectionSearchAddress";
 
 export default function MainLeafletEditor() {
   console.log("[debug] MainLeafletEditor");
@@ -20,6 +21,17 @@ export default function MainLeafletEditor() {
 
   const mapRef = useRef();
   const containerRef = useRef(); // Add container ref
+
+  // handler
+
+  const handleLatLongChange = useCallback((lat, lng) => {
+    if (!lat || !lng || !mapRef.current) return;
+
+    mapRef.current.flyTo([lat, lng], mapRef.current.getZoom(), {
+      animate: true,
+      duration: 1.5,
+    });
+  }, []);
 
   // init
 
@@ -77,6 +89,12 @@ export default function MainLeafletEditor() {
         position: "relative",
       }}
     >
+      <Box sx={{ position: "absolute", top: 16, left: 16, zIndex: 1000 }}>
+        <Paper>
+          <SectionSearchAddress onLatLongChange={handleLatLongChange} />
+        </Paper>
+      </Box>
+
       <Box sx={{ position: "absolute", top: 16, right: 16, zIndex: 1000 }}>
         <ButtonCreateBaseMapFromLeaflet mapRef={mapRef} />
       </Box>
