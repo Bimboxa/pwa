@@ -4,8 +4,10 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
 } from "react";
 import { Box, Paper, InputBase, Portal } from "@mui/material";
+import { Rnd } from "react-rnd";
 
 // quick, decent first-pass width estimate (screen px)
 function estimateWidthPx(str, fontSizePx) {
@@ -31,6 +33,13 @@ export default function NodeText({
   const fontSizePx = text.fontSize ?? 16;
   const paddingPx = 8;
   const minWidthPx = 28;
+  const minHeightPx = fontSizePx * 1.25;
+  const fillColor = text.fillColor;
+  const fillOpacity = text.fillOpacity ?? 1;
+
+  // Resize state - use stored width/height or measure from content
+  const storedWidth = text.width;
+  const storedHeight = text.height;
 
   // dataProps
 
@@ -75,34 +84,42 @@ export default function NodeText({
   const measureText = textOrPh + " ";
 
   // --- sizing ---
-  const measureRef = useRef(null);
+  const contentRef = useRef(null);
+  const [measuredCssH, setMeasuredCssH] = useState(minHeightPx);
 
-  // 🔧 first-pass: estimate width/height in *screen px* so first paint isn't 0
-  const initialW =
-    Math.max(minWidthPx, estimateWidthPx(textOrPh, fontSizePx)) + paddingPx * 2;
-  const initialH = Math.max(fontSizePx * 1.25, 1) + paddingPx;
+  // Use stored dimensions or measure from content
+  const initialW = storedWidth
+    ? storedWidth
+    : Math.max(minWidthPx, estimateWidthPx(textOrPh, fontSizePx)) +
+      paddingPx * 2;
+  const initialH = storedHeight
+    ? storedHeight
+    : Math.max(minHeightPx, 1) + paddingPx;
 
-  // measuredPx is refined by the effect below, but starts with a good estimate
-  const [measuredPx, setMeasuredPx] = useState({ w: initialW, h: initialH });
+  // Measure content height when text changes (for auto-height when not resized)
+  useLayoutEffect(() => {
+    if (!contentRef.current || storedHeight) return;
+    const el = contentRef.current;
+    const ro = new ResizeObserver(() => {
+      setMeasuredCssH(Math.max(el.scrollHeight, minHeightPx));
+    });
+    ro.observe(el);
+    setMeasuredCssH(Math.max(el.scrollHeight, minHeightPx));
+    return () => ro.disconnect();
+  }, [text.textValue, storedHeight, minHeightPx]);
 
-  useEffect(() => {
-    if (!measureRef.current) return;
-    // refine with real DOM measurement (screen px)
-    const el = measureRef.current;
-    el.textContent = measureText;
-    const rect = el.getBoundingClientRect();
+  // Resize delta state (CSS px)
+  const [delta, setDelta] = useState({ x: 0, y: 0, w: 0, h: 0 });
+  const cssPos = useMemo(
+    () => ({ x: delta.x, y: delta.y }),
+    [delta.x, delta.y]
+  );
 
-    const paddedW = Math.max(rect.width + 10, minWidthPx) + paddingPx * 2;
-    const paddedH = Math.max(rect.height, fontSizePx * 1.25) + paddingPx;
-    setMeasuredPx({ w: paddedW, h: paddedH });
-  }, [measureRef?.current, measureText, fontSizePx, paddingPx, minWidthPx]);
-
-  // convert screen px -> bg-local units for foreignObject
-  //const boxW = Math.max(measuredPx.w / scaleFactor, 0.5); // tiny guard so it never collapses
-  //const boxH = Math.max(measuredPx.h / scaleFactor, 0.5);
-
-  const boxW = measuredPx.w;
-  const boxH = measuredPx.h;
+  // Final dimensions: use stored or measured, plus any resize delta
+  const boxW = storedWidth ? storedWidth + delta.w : initialW + delta.w;
+  const boxH = storedHeight
+    ? storedHeight + delta.h
+    : Math.max(measuredCssH, initialH) + delta.h;
 
   // autofocus on edit
   useEffect(() => {
@@ -119,7 +136,21 @@ export default function NodeText({
   // drag handlers
   const handlePointerDown = useCallback(
     (e) => {
-      if (isEditing) return;
+      // Don't interfere with input when editing
+      if (isEditing) {
+        e.stopPropagation();
+        return;
+      }
+      // Don't start drag if clicking on input or its container
+      const target = e.target;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.closest("input") ||
+        target.closest("textarea")
+      ) {
+        return;
+      }
       e.stopPropagation();
       e.preventDefault();
       setIsDragging(true);
@@ -132,7 +163,7 @@ export default function NodeText({
 
   const handlePointerMove = useCallback(
     (e) => {
-      if (!isDragging) return;
+      if (!isDragging || isEditing) return;
       e.stopPropagation();
       e.preventDefault();
       const dx = e.clientX - dragStartRef.current.x;
@@ -145,7 +176,7 @@ export default function NodeText({
       }
       setDragOffset({ x: dx, y: dy });
     },
-    [isDragging]
+    [isDragging, isEditing]
   );
 
   const finishDragAtPointer = useCallback(
@@ -154,9 +185,13 @@ export default function NodeText({
       const dx = clientX - dragStartRef.current.x;
       const dy = clientY - dragStartRef.current.y;
 
-      // If movement was tiny, treat as no-op and don't call onDragEnd
+      // If movement was tiny, treat as click (not drag) and enter edit mode if selected
       if (Math.hypot(dx, dy) < DRAG_END_TOL_PX || !movedRef.current) {
         setDragOffset({ x: 0, y: 0 });
+        // If selected and not already editing, enter edit mode
+        if (selected && !isEditing) {
+          setIsEditing(true);
+        }
         return;
       }
 
@@ -176,21 +211,29 @@ export default function NodeText({
       onDragEnd?.({ id: text.id, x: newRatioX, y: newRatioY });
       setDragOffset({ x: 0, y: 0 });
     },
-    [scaleFactor, imageSize?.w, imageSize?.h, onDragEnd, text.id]
+    [
+      scaleFactor,
+      imageSize?.w,
+      imageSize?.h,
+      onDragEnd,
+      text.id,
+      selected,
+      isEditing,
+    ]
   );
 
   const handlePointerUp = useCallback(
     (e) => {
-      if (!isDragging) return;
+      if (!isDragging || isEditing) return;
       e.stopPropagation();
       e.preventDefault();
       finishDragAtPointer(e.clientX, e.clientY);
     },
-    [isDragging, finishDragAtPointer]
+    [isDragging, isEditing, finishDragAtPointer]
   );
 
   useEffect(() => {
-    if (!isDragging) return;
+    if (!isDragging || isEditing) return;
     const onMove = (e) => {
       e.preventDefault();
       const dx = e.clientX - dragStartRef.current.x;
@@ -213,16 +256,30 @@ export default function NodeText({
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", onUp);
     };
-  }, [isDragging, finishDragAtPointer]);
+  }, [isDragging, isEditing, finishDragAtPointer]);
 
-  //click/edit
+  //click/edit - this is a fallback, but edit mode is mainly triggered in finishDragAtPointer
   const handleClick = useCallback(
     (e) => {
-      //e.stopPropagation();
-      if (isDragging || movedRef.current || !selected) return;
-      setIsEditing(true);
+      // Only enter edit mode if we're not dragging and text is selected
+      if (!isDragging && !movedRef.current && selected && !isEditing) {
+        e.stopPropagation();
+        setIsEditing(true);
+      }
     },
-    [isDragging, text, selected]
+    [isDragging, selected, isEditing]
+  );
+
+  // Double-click to edit
+  const handleDoubleClick = useCallback(
+    (e) => {
+      if (selected && !isEditing) {
+        e.stopPropagation();
+        e.preventDefault();
+        setIsEditing(true);
+      }
+    },
+    [selected, isEditing]
   );
 
   const commitIfChanged = useCallback(() => {
@@ -237,7 +294,12 @@ export default function NodeText({
 
   const handleKeyDown = useCallback(
     (e) => {
-      if (e.key === "Enter") {
+      // Stop propagation for Delete, Backspace, and Escape keys
+      if (e.key === "Delete" || e.key === "Backspace" || e.key === "Escape") {
+        e.stopPropagation();
+      }
+
+      if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         commitIfChanged();
         setIsEditing(false);
@@ -250,138 +312,293 @@ export default function NodeText({
     [commitIfChanged, text.textValue]
   );
 
+  // Resize handlers (similar to NodeLegend)
+  const onResize = useCallback(
+    (_e, _dir, ref, _delta, pos) => {
+      setDelta((p) => ({
+        ...p,
+        w: ref.offsetWidth - (storedWidth || initialW),
+        h: ref.offsetHeight - (storedHeight || initialH),
+      }));
+    },
+    [storedWidth, storedHeight, initialW, initialH]
+  );
+
+  const onResizeStop = useCallback(
+    (_e, _dir, ref, _delta, pos) => {
+      const newWidth = ref.offsetWidth;
+      const newHeight = ref.offsetHeight;
+      onChange?.({
+        id: text.id,
+        width: newWidth,
+        height: newHeight,
+      });
+      setDelta({ x: 0, y: 0, w: 0, h: 0 });
+    },
+    [onChange, text.id]
+  );
+
+  // Stop event propagation when editing/resizing
+  const stopIfEditing = useCallback(
+    (e) => {
+      if (selected) e.stopPropagation();
+    },
+    [selected]
+  );
+
   const containerCursor = isEditing ? "text" : isDragging ? "grabbing" : "grab";
+  const poseEditable = selected;
 
-  return (
-    <>
-      {/* Hidden measurer in the document (screen layer) */}
+  // Helper to convert hex color to rgba with opacity
+  const getBackgroundColor = () => {
+    if (fillColor) {
+      // Convert hex to rgba
+      const hex = fillColor.replace("#", "");
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${fillOpacity})`;
+    }
+    return selected ? "white" : "transparent";
+  };
 
-      <Portal container={document.body}>
-        <span
-          ref={measureRef}
-          style={{
-            position: "absolute",
-            top: -99999,
-            left: -99999,
-            visibility: "hidden",
-            whiteSpace: "nowrap",
-            display: "inline-block",
-            fontSize: `${fontSizePx}px`,
-            lineHeight: 1.25,
-            fontFamily,
-            fontWeight,
-            letterSpacing: "inherit",
-            pointerEvents: "none",
-          }}
-        >
-          {measureText}
-        </span>
-      </Portal>
-
-      <foreignObject
-        x={currentX}
-        //y={currentY}
-        y={currentY - boxH / 2}
-        width={boxW}
-        height={boxH}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        style={{
-          pointerEvents: "auto",
-          userSelect: "none",
-        }}
-        {...dataProps}
-      >
-        <Box
+  const TextBoxInner = (
+    <Box
+      ref={contentRef}
+      sx={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "flex-start",
+        cursor: containerCursor,
+        boxSizing: "border-box",
+        bgcolor: getBackgroundColor(),
+        ...(selected && {
+          border: (theme) => `1px solid ${theme.palette.divider}`,
+        }),
+      }}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
+      {...dataProps}
+    >
+      {isEditing ? (
+        <InputBase
+          inputRef={inputRef}
+          multiline={true}
+          value={isEditing ? localValue : text.textValue ?? ""}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+          readOnly={!isEditing}
+          placeholder={placeholder}
           sx={{
             width: "100%",
             height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-start",
-            cursor: containerCursor,
-            ...(selected && {
-              bgcolor: "white",
-              border: (theme) => `1px solid ${theme.palette.divider}`,
-            }),
+            fontSize,
+            fontWeight,
+            lineHeight: 1.25,
+            // Match exact padding as the span
+            padding: `${padding / 2}px ${padding}px`,
+            margin: 0,
+            bgcolor: "transparent", // Background is handled by parent Box
+            borderRadius: `${borderRadius}px`,
+            border: "none !important",
+            borderColor: "transparent !important",
+            outline: "none !important",
+            boxShadow: "none !important",
+            pointerEvents: "auto",
+            whiteSpace: "pre-wrap",
+            wordWrap: "break-word",
+            overflow: "hidden",
+            display: "block",
+            boxSizing: "border-box",
+            // Match font rendering
+            fontFamily,
+            letterSpacing: "inherit",
+            "& textarea": {
+              cursor: isEditing ? "text" : "pointer",
+              resize: "none",
+              overflow: "hidden",
+              padding: 0,
+              margin: 0,
+              lineHeight: 1.25,
+              fontSize,
+              fontWeight,
+              fontFamily,
+              letterSpacing: "inherit",
+              whiteSpace: "pre-wrap",
+              wordWrap: "break-word",
+            },
+            "& .MuiInputBase-input": {
+              cursor: isEditing ? "text" : "pointer",
+              padding: 0,
+              margin: 0,
+              lineHeight: 1.25,
+              fontSize,
+              fontWeight,
+              fontFamily,
+              letterSpacing: "inherit",
+              whiteSpace: "pre-wrap",
+              wordWrap: "break-word",
+            },
           }}
-          onClick={handleClick}
+          inputProps={{
+            readOnly: !isEditing,
+            style: {
+              fontSize,
+              fontWeight,
+              fontFamily,
+              lineHeight: 1.25,
+              whiteSpace: "pre-wrap",
+              wordWrap: "break-word",
+              borderColor: "transparent",
+              padding: 0,
+              margin: 0,
+              letterSpacing: "inherit",
+            },
+            onKeyDown: (e) => {
+              // Stop propagation for Delete, Backspace, and Escape keys
+              if (
+                e.key === "Delete" ||
+                e.key === "Backspace" ||
+                e.key === "Escape"
+              ) {
+                e.stopPropagation();
+              }
+            },
+          }}
+          onClick={(e) => {
+            // Prevent click from bubbling to parent handlers
+            e.stopPropagation();
+          }}
+          onPointerDown={(e) => {
+            // Prevent pointer events from bubbling to foreignObject drag handlers
+            e.stopPropagation();
+          }}
+        />
+      ) : (
+        <span
+          style={{
+            display: "block",
+            whiteSpace: "pre-wrap",
+            wordWrap: "break-word",
+            fontSize,
+            fontWeight,
+            fontFamily,
+            lineHeight: 1.25,
+            padding: `${padding / 2}px ${padding}px`,
+            margin: 0,
+            width: "100%",
+            height: "100%",
+            overflow: "hidden",
+            cursor: selected ? "text" : "default",
+            boxSizing: "border-box",
+            letterSpacing: "inherit",
+          }}
+          onClick={(e) => {
+            if (selected && !isEditing) {
+              e.stopPropagation();
+              setIsEditing(true);
+            }
+          }}
+          onDoubleClick={(e) => {
+            if (selected && !isEditing) {
+              e.stopPropagation();
+              e.preventDefault();
+              setIsEditing(true);
+            }
+          }}
           {...dataProps}
         >
-          {isEditing ? (
-            <InputBase
-              inputRef={inputRef}
-              multiline={false}
-              value={isEditing ? localValue : text.textValue ?? ""}
-              //value={"AAAAAAAAAAAAAAA"}
-              onChange={(e) => setLocalValue(e.target.value)}
-              onBlur={handleBlur}
-              onKeyDown={handleKeyDown}
-              readOnly={!isEditing}
-              placeholder={placeholder}
-              sx={{
-                width: "100%",
-                height: "100%",
-                //width: boxW,
-                //height: boxH,
-                fontSize,
-                fontWeight,
-                lineHeight: 1.25,
-                px: padding + "px",
-                py: padding / 2 + "px",
-                bgcolor: isEditing ? "background.paper" : "transparent",
-                //bgcolor: "white",
-
-                borderRadius: `${borderRadius}px`,
-                //border: isEditing ? "1px solid" : "1px solid transparent",
-                //borderColor: isEditing ? "divider" : "transparent",
-
-                // Complete border removal
-                border: "none !important",
-                borderColor: "transparent !important",
-                outline: "none !important",
-                boxShadow: "none !important",
-
-                pointerEvents: "auto",
-                whiteSpace: "nowrap",
-                //overflow: "hidden",
-                textOverflow: "clip",
-                // Ensure visible text even if theme CSS vars don't propagate into foreignObject
-                //color: "#111",
-                "& input": {
-                  cursor: isEditing ? "text" : "pointer",
-                },
-                "& .MuiInputBase-input": {
-                  cursor: isEditing ? "text" : "pointer",
-                },
-              }}
-              inputProps={{
-                readOnly: !isEditing,
-                style: {
-                  fontSize,
-                  fontWeight,
-                  whiteSpace: "nowrap",
-                  borderColor: "transparent",
-                },
-              }}
-            />
-          ) : (
-            <span
-              style={{
-                display: "inline-block",
-                whiteSpace: "nowrap",
-                fontSize,
-                fontWeight,
-                padding: `${padding / 2}px ${padding}px`,
-              }}
-              {...dataProps}
-            >
-              {text.textValue ?? placeholder}
-            </span>
-          )}
-        </Box>
-      </foreignObject>
-    </>
+          {text.textValue ?? placeholder}
+        </span>
+      )}
+    </Box>
   );
+
+  return (
+    <foreignObject
+      x={currentX}
+      y={currentY - boxH / 2}
+      width={boxW}
+      height={boxH}
+      onPointerDown={!isEditing ? handlePointerDown : undefined}
+      onPointerMove={!isEditing ? handlePointerMove : undefined}
+      onPointerUp={!isEditing ? handlePointerUp : undefined}
+      onPointerDownCapture={stopIfEditing}
+      onPointerMoveCapture={stopIfEditing}
+      onPointerUpCapture={stopIfEditing}
+      style={{
+        pointerEvents: "auto",
+        userSelect: isEditing ? "text" : "none",
+        overflow: "visible",
+      }}
+      {...dataProps}
+    >
+      {!poseEditable ? (
+        <div style={{ width: "100%", height: "100%" }}>{TextBoxInner}</div>
+      ) : (
+        <div style={{ width: "100%", height: "100%", position: "relative" }}>
+          <Rnd
+            position={cssPos}
+            size={{ width: "100%", height: "100%" }}
+            scale={scaleFactor}
+            onResize={onResize}
+            onResizeStop={onResizeStop}
+            lockAspectRatio={false}
+            enableResizing={{
+              left: true,
+              right: true,
+              top: false,
+              bottom: true,
+              topLeft: false,
+              topRight: false,
+              bottomLeft: false,
+              bottomRight: false,
+            }}
+            resizeHandleStyles={handleStyles}
+            style={{
+              border: "1px dashed rgba(25,118,210,.7)",
+              background: "transparent",
+              boxSizing: "border-box",
+            }}
+            minWidth={minWidthPx}
+            minHeight={minHeightPx}
+            onMouseDown={(e) => {
+              // Don't interfere with clicks on the text content
+              const target = e.target;
+              if (
+                target.tagName === "SPAN" ||
+                target.closest("span") ||
+                target.tagName === "INPUT" ||
+                target.tagName === "TEXTAREA" ||
+                target.closest("input") ||
+                target.closest("textarea")
+              ) {
+                e.stopPropagation();
+              }
+            }}
+          >
+            <div style={{ width: "100%", height: "100%" }}>{TextBoxInner}</div>
+          </Rnd>
+        </div>
+      )}
+    </foreignObject>
+  );
+}
+
+const handleStyles = {
+  left: knob(),
+  right: knob(),
+  bottom: knob(),
+};
+function knob() {
+  return {
+    width: 18,
+    height: 18,
+    border: "2px solid #1976d2",
+    background: "#fff",
+    borderRadius: 2,
+  };
 }

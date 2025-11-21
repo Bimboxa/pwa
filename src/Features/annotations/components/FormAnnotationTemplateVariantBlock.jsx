@@ -7,6 +7,7 @@ import {
   Rectangle,
   HorizontalRule,
   Image,
+  TextFields,
 } from "@mui/icons-material";
 
 import { Box, Typography } from "@mui/material";
@@ -79,6 +80,7 @@ export default function FormAnnotationTemplateVariantBlock({
     { key: "POLYGON", icon: <Pentagon />, label: "Surface" },
     { key: "RECTANGLE", icon: <Rectangle />, label: "Rectangle" },
     { key: "IMAGE", icon: <Image />, label: "Image" },
+    { key: "TEXT", icon: <TextFields />, label: "Texte" },
   ];
 
   // helpers
@@ -159,6 +161,24 @@ export default function FormAnnotationTemplateVariantBlock({
         />
       </Box>
 
+      {type === "TEXT" && (
+        <Box>
+          <FieldTextV2
+            value={label}
+            onChange={handleLabelChange}
+            options={{ fullWidth: true, placeholder: "Libellé" }}
+          />
+          <Box
+            sx={{
+              width: 1,
+              borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+              p: 2,
+            }}
+          >
+            <FieldFill value={fill} onChange={handleFillChange} />
+          </Box>
+        </Box>
+      )}
       {type === "MARKER" && (
         <Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1 }}>

@@ -6,6 +6,7 @@ import {
   Pentagon,
   Rectangle,
   HorizontalRule,
+  TextFields,
 } from "@mui/icons-material";
 import FormGenericV2 from "Features/form/components/FormGenericV2";
 
@@ -20,6 +21,7 @@ export default function FormAnnotationTemplate({
     { key: "POLYLINE", icon: <Polyline /> },
     { key: "POLYGON", icon: <Pentagon /> },
     { key: "RECTANGLE", icon: <Rectangle /> },
+    { key: "TEXT", icon: <TextFields /> },
   ];
 
   // helpers -template
