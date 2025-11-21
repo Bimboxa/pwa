@@ -46,7 +46,11 @@ export default function LayerAnnotationTooltip({
     return { left, top, width: tooltipWidth, height: tooltipHeight };
   }, [hoveredAnnotation, mousePos, containerSize]);
 
-  if (!hoveredAnnotation || !tooltipPosition) {
+  if (
+    !hoveredAnnotation ||
+    !tooltipPosition ||
+    hoveredAnnotation.type === "TEXT"
+  ) {
     return null;
   }
 
