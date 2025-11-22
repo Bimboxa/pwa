@@ -90,6 +90,9 @@ class CV {
   removeColoredContentAsync(payload) {
     return this._dispatch({ msg: "removeColoredContentAsync", payload });
   }
+  calculateOverlayTransformAsync(payload) {
+    return this._dispatch({ msg: "calculateOverlayTransformAsync", payload });
+  }
   getPixelsCountByColorAsync(payload) {
     return this._dispatch({ msg: "getPixelsCountByColorAsync", payload });
   }

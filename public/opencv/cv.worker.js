@@ -8,6 +8,7 @@ self.importScripts("./handlers/getPixelColorAsync.js");
 self.importScripts("./handlers/getWhiteContoursAsync.js");
 self.importScripts("./handlers/removeTextAsync.js");
 self.importScripts("./handlers/removeColoredContentAsync.js");
+self.importScripts("./handlers/calculateOverlayTransformAsync.js");
 /**
  * This exists to capture all the events that are thrown out of the worker
  * into the worker. Without this, there would be no communication possible
@@ -48,6 +49,9 @@ onmessage = function (e) {
 
     case "removeColoredContentAsync":
       return removeColoredContentAsync(e.data);
+
+    case "calculateOverlayTransformAsync":
+      return calculateOverlayTransformAsync(e.data);
 
     default:
       break;
