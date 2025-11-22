@@ -17,6 +17,7 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ButtonEnhanceBaseMap from "Features/baseMaps/components/ButtonEnhanceBaseMap";
 import ButtonRemoveText from "./ButtonRemoveText";
 import ButtonRemoveColoredContent from "./ButtonRemoveColoredContent";
+import ButtonCalculateOverlayTransform from "./ButtonCalculateOverlayTransform";
 import ButtonToggleShowEnhanced from "./ButtonToggleShowEnhanced";
 
 import getPolylinesFromContours from "Features/annotations/utils/getPolylinesFromContours";
@@ -84,6 +85,7 @@ export default function PanelOpencv() {
               <ButtonEnhanceBaseMap />
               <ButtonRemoveText />
               <ButtonRemoveColoredContent />
+              <ButtonCalculateOverlayTransform />
             </>
           )}
 
