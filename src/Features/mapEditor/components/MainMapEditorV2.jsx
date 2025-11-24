@@ -28,7 +28,10 @@ import {
   setTempAnnotations,
   triggerAnnotationsUpdate,
 } from "Features/annotations/annotationsSlice";
-import { setMaskImageUrl } from "Features/opencv/opencvSlice";
+import {
+  setOpencvPreviewUrl,
+  addSelectedColor,
+} from "Features/opencv/opencvSlice";
 import { setOpenBaseMapSelector } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import {
@@ -92,6 +95,7 @@ import DialogAutoSetNewAnnotationFromFilesDrop from "Features/annotations/compon
 
 import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
+import base64ToBlob from "Features/images/utils/base64ToBlob";
 
 import db from "App/db/db";
 import editor from "App/editor";
@@ -164,6 +168,9 @@ export default function MainMapEditorV2() {
 
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  const opencvClickMode = useSelector((s) => s.opencv.opencvClickMode);
+  const bboxDims = useSelector((s) => s.opencv.bboxDims);
+  const selectedColors = useSelector((s) => s.opencv.selectedColors);
 
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const selectedAnnotationId = useSelector(
@@ -235,12 +242,15 @@ export default function MainMapEditorV2() {
 
   // helpers - baseMapUrl
 
-  const baseMapImageUrl =
+  const opencvPreviewUrl = useSelector((s) => s.opencv.opencvPreviewUrl);
+  const showOpencvPreview = useSelector((s) => s.opencv.showOpencvPreview);
+  let baseMapImageUrl =
     mainBaseMap?.showEnhanced && mainBaseMap?.imageEnhanced
       ? mainBaseMap.imageEnhanced.imageUrlClient ??
         mainBaseMap.imageEnhanced.imageUrlRemote
       : mainBaseMap?.image?.imageUrlClient ??
         mainBaseMap?.image?.imageUrlRemote;
+  if (opencvPreviewUrl && showOpencvPreview) baseMapImageUrl = opencvPreviewUrl;
 
   // effects
 
@@ -814,6 +824,7 @@ export default function MainMapEditorV2() {
 
   async function handleClickInBaseMap(p) {
     dispatch(setClickInBaseMapPosition(p));
+    console.log("debug_2411_p", p);
 
     if (enabledDrawingMode === "OPENCV") {
       await cv.load();
@@ -822,37 +833,77 @@ export default function MainMapEditorV2() {
       //   x: p.x,
       //   y: p.y,
       // });
-      const { polylines: contours, maskImageBase64 } =
-        await cv.getWhiteContoursAsync({
+      if (opencvClickMode === "COLOR_PICKER") {
+        const { colorHex } = await cv.getPixelColorAsync({
           imageUrl: baseMapImageUrl,
           x: p.x,
           y: p.y,
         });
-
-      console.log("debug_2011_polylines", contours);
-
-      // Convert base64 to blob and create object URL
-      if (maskImageBase64) {
-        const binaryString = atob(maskImageBase64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
+        if (colorHex) {
+          dispatch(addSelectedColor(colorHex));
         }
-        const blob = new Blob([bytes], { type: "image/png" });
-        const objectUrl = URL.createObjectURL(blob);
-        dispatch(setMaskImageUrl(objectUrl));
+      } else if (opencvClickMode === "KEEP_COLORS") {
+        const { x_absolute, y_absolute, scaleToBaseLocal, scaleToBgLocal } = p;
+        const pxToBase =
+          ((typeof scaleToBaseLocal === "number"
+            ? scaleToBaseLocal
+            : scaleToBgLocal) || 0) / 10;
+
+        if (pxToBase <= 0) {
+          console.warn(
+            "[KEEP_COLORS] Unable to determine scale factor. Aborting keep-colored-content."
+          );
+          return;
+        }
+
+        const bbox = {
+          x: x_absolute - (pxToBase * bboxDims.width) / 2,
+          y: y_absolute - (pxToBase * bboxDims.height) / 2,
+          width: pxToBase * bboxDims.width,
+          height: pxToBase * bboxDims.height,
+        };
+        console.log("debug_2011_bbox", bbox);
+        const { resultImageBase64 } = await cv.keepColoredContentAsync({
+          imageUrl: baseMapImageUrl,
+          colors: selectedColors,
+          bbox,
+        });
+        if (resultImageBase64) {
+          const blob = base64ToBlob(resultImageBase64, "image/png");
+          if (blob) {
+            const objectUrl = URL.createObjectURL(blob);
+            dispatch(setOpencvPreviewUrl(objectUrl));
+          }
+        }
+      } else {
+        const { polylines: contours, maskImageBase64 } =
+          await cv.getWhiteContoursAsync({
+            imageUrl: baseMapImageUrl,
+            x: p.x,
+            y: p.y,
+          });
+
+        console.log("debug_2011_polylines", contours);
+
+        if (maskImageBase64) {
+          const blob = base64ToBlob(maskImageBase64, "image/png");
+          if (blob) {
+            const objectUrl = URL.createObjectURL(blob);
+            dispatch(setOpencvPreviewUrl(objectUrl));
+          }
+        }
+
+        const _color = theme.palette.secondary.main;
+        const annotations = getPolylinesFromContours(
+          contours,
+          _color,
+          mainBaseMap
+        );
+        // const cleanedPoints = cleanPolylinePoints(color.polylines[0]);
+        //const cleanedPoints = color.polylines[0];
+
+        dispatch(setTempAnnotations(annotations));
       }
-
-      const _color = theme.palette.secondary.main;
-      const annotations = getPolylinesFromContours(
-        contours,
-        _color,
-        mainBaseMap
-      );
-      // const cleanedPoints = cleanPolylinePoints(color.polylines[0]);
-      //const cleanedPoints = color.polylines[0];
-
-      dispatch(setTempAnnotations(annotations));
     }
   }
 

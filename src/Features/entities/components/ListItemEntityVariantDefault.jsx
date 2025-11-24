@@ -51,6 +51,7 @@ export default function ListItemEntityVariantDefault({
 
   const isSelected = selection?.includes(entity.id);
   const mainImage = getEntityMainImage(entity);
+
   const hasMarker = entity.marker;
 
   // handlers

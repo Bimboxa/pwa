@@ -1,154 +1,235 @@
+/**
+ * Enhanced Text Removal for Floor Plans/CAD
+ */
 async function removeTextAsync({ msg, payload }) {
+  const matList = [];
+  const track = (mat) => {
+    if (mat) matList.push(mat);
+    return mat;
+  };
+
   try {
     const {
       imageUrl,
-      textThreshold = 127,
-      morphKernelSize = 3,
-      morphIterations = 1,
-      minTextArea = 50,
-      maxTextArea = 5000,
+      bbox,
+      // --- Configuration ---
+      // Inpainting radius
       inpaintRadius = 3,
+      // Area filters (min/max size of text blobs)
+      minTextArea = 15, // Lowered for small punctuation/letters
+      maxTextArea = 1500,
+      // Geometric filters to distinguish text from walls
+      minSolidity = 0.2, // Text is usually somewhat dense
+      maxAspectRatio = 4.0, // Text isn't usually 10x wider than tall
+      // Morphological settings
+      morphKernelSize = 3,
+      // Set this to true to see the mask being used for debugging (returns mask instead of result)
+      debugMask = false,
     } = payload ?? {};
 
-    if (!imageUrl) {
-      throw new Error("imageUrl is required");
-    }
+    if (!imageUrl) throw new Error("imageUrl is required");
 
-    console.log("[removeTextAsync] Processing image");
+    console.log("[removeTextAsync] Processing CAD/Floorplan image");
 
     const imageData = await loadImageDataFromUrl(imageUrl);
-    const src = cv.matFromImageData(imageData);
+    const src = track(cv.matFromImageData(imageData));
 
-    const imageWidth = src.cols;
-    const imageHeight = src.rows;
+    // --- ROI Setup ---
+    let workingMat;
+    let roiRect = null;
+    let roiX = 0,
+      roiY = 0;
 
-    // Convert to grayscale
-    const gray = new cv.Mat();
-    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    if (bbox && bbox.width && bbox.height) {
+      const x = Math.max(0, Math.floor(bbox.x));
+      const y = Math.max(0, Math.floor(bbox.y));
+      const w = Math.min(src.cols - x, Math.floor(bbox.width));
+      const h = Math.min(src.rows - y, Math.floor(bbox.height));
 
-    // Create binary image to detect text
-    const binary = new cv.Mat();
-    cv.threshold(gray, binary, textThreshold, 255, cv.THRESH_BINARY_INV);
+      if (w > 0 && h > 0) {
+        roiRect = new cv.Rect(x, y, w, h);
+        workingMat = track(src.roi(roiRect));
+        roiX = x;
+        roiY = y;
+      } else {
+        workingMat = src;
+      }
+    } else {
+      workingMat = src;
+    }
 
-    // Use morphological operations to detect text regions
-    // Text typically appears as small connected components
-    const kernelSize = Math.max(3, morphKernelSize | 0);
-    const kernel = cv.Mat.ones(kernelSize, kernelSize, cv.CV_8U);
+    // --- 1. Pre-processing ---
+    const gray = track(new cv.Mat());
+    cv.cvtColor(workingMat, gray, cv.COLOR_RGBA2GRAY);
 
-    // Close operation to connect nearby text pixels
-    const closed = new cv.Mat();
-    cv.morphologyEx(
+    // Use Adaptive Thresholding for CAD drawings
+    // This is better for clear lines vs white background
+    const binary = track(new cv.Mat());
+    cv.adaptiveThreshold(
+      gray,
       binary,
-      closed,
-      cv.MORPH_CLOSE,
-      kernel,
-      new cv.Point(-1, -1),
-      Math.max(1, morphIterations | 0)
+      255,
+      cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+      cv.THRESH_BINARY_INV,
+      11,
+      2
     );
 
-    // Find contours to identify text regions
-    const contours = new cv.MatVector();
-    const hierarchy = new cv.Mat();
+    // --- 2. Line Isolation (The "Wall Protection" Step) ---
+    // We detect long horizontal and vertical lines and REMOVE them from the binary map
+    // so they don't get detected as text.
+
+    const linesMask = track(
+      new cv.Mat.zeros(binary.rows, binary.cols, cv.CV_8UC1)
+    );
+
+    // Detect Horizontal Lines
+    const hKernel = track(
+      cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(20, 1))
+    );
+    const hLines = track(new cv.Mat());
+    cv.morphologyEx(binary, hLines, cv.MORPH_OPEN, hKernel);
+
+    // Detect Vertical Lines
+    const vKernel = track(
+      cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(1, 20))
+    );
+    const vLines = track(new cv.Mat());
+    cv.morphologyEx(binary, vLines, cv.MORPH_OPEN, vKernel);
+
+    // Combine lines
+    cv.add(hLines, vLines, linesMask);
+
+    // Subtract lines from the original binary image
+    // 'textCandidates' will now contain text, noise, and diagonal hatching, but NOT main walls
+    const textCandidates = track(new cv.Mat());
+    cv.subtract(binary, linesMask, textCandidates);
+
+    // --- 3. Morphological Connection ---
+    // Connect nearby letters into words
+    const connectKernel = track(
+      cv.getStructuringElement(
+        cv.MORPH_ELLIPSE,
+        new cv.Size(morphKernelSize, morphKernelSize)
+      )
+    );
+    const connected = track(new cv.Mat());
+    cv.morphologyEx(textCandidates, connected, cv.MORPH_CLOSE, connectKernel);
+
+    // --- 4. Contour Filtering ---
+    const contours = track(new cv.MatVector());
+    const hierarchy = track(new cv.Mat());
     cv.findContours(
-      closed,
+      connected,
       contours,
       hierarchy,
       cv.RETR_EXTERNAL,
       cv.CHAIN_APPROX_SIMPLE
     );
 
-    // Create mask for text regions
-    const textMask = new cv.Mat();
-    textMask.create(imageHeight, imageWidth, cv.CV_8UC1);
-    textMask.setTo(new cv.Scalar(0, 0, 0, 0));
+    // Create the final inpainting mask
+    const mask = track(
+      new cv.Mat.zeros(workingMat.rows, workingMat.cols, cv.CV_8UC1)
+    );
 
-    // Filter contours by area to identify text regions
     for (let i = 0; i < contours.size(); i++) {
-      const contour = contours.get(i);
-      const area = cv.contourArea(contour);
+      const cnt = contours.get(i);
+      const area = cv.contourArea(cnt);
+      const rect = cv.boundingRect(cnt);
 
-      // Text regions are typically small to medium sized
-      if (area >= minTextArea && area <= maxTextArea) {
-        // Draw filled contour on mask (single channel, so use single value scalar)
-        cv.drawContours(textMask, contours, i, new cv.Scalar(255), -1);
+      // heuristic 1: Area
+      if (area < minTextArea || area > maxTextArea) {
+        cnt.delete();
+        continue;
       }
-      contour.delete();
+
+      // heuristic 2: Aspect Ratio
+      // Text usually fits in a box. Walls are extremely long and thin.
+      const aspectRatio = rect.width / rect.height;
+      if (aspectRatio > maxAspectRatio || aspectRatio < 1 / maxAspectRatio) {
+        cnt.delete(); // It's likely a leftover line fragment
+        continue;
+      }
+
+      // heuristic 3: Solidity
+      // (Area of shape) / (Area of bounding box).
+      // Noise is often sparse. Text is dense.
+      const rectArea = rect.width * rect.height;
+      const solidity = area / rectArea;
+      if (solidity < minSolidity) {
+        cnt.delete();
+        continue;
+      }
+
+      // If it passes, draw it on the mask
+      // We draw the CONVEX HULL or the Bounding Rect to ensure we cover the whole word
+      // For CAD text, drawing the rectangle is often safer to cover anti-aliasing edges
+      const point1 = new cv.Point(rect.x, rect.y);
+      const point2 = new cv.Point(rect.x + rect.width, rect.y + rect.height);
+      cv.rectangle(mask, point1, point2, new cv.Scalar(255), -1);
+
+      cnt.delete();
     }
 
-    // Dilate the mask slightly to ensure complete text removal
-    const dilatedMask = new cv.Mat();
-    const dilateKernel = cv.Mat.ones(3, 3, cv.CV_8U);
-    cv.dilate(textMask, dilatedMask, dilateKernel, new cv.Point(-1, -1), 1);
+    // Dilate mask slightly to grab edge artifacts
+    const dilateKernel = track(cv.Mat.ones(3, 3, cv.CV_8U));
+    cv.dilate(mask, mask, dilateKernel, new cv.Point(-1, -1), 1);
 
-    // Convert source to RGB for inpainting (inpaint requires 8UC3, not 8UC4)
-    const srcRgb = new cv.Mat();
-    cv.cvtColor(src, srcRgb, cv.COLOR_RGBA2RGB);
+    // --- 5. Inpainting ---
+    // Convert to RGB (OpenCV inpaint expects 3 channels)
+    const srcRgb = track(new cv.Mat());
+    cv.cvtColor(workingMat, srcRgb, cv.COLOR_RGBA2RGB);
 
-    // Use inpainting to fill text regions
-    const resultRgb = new cv.Mat();
-    cv.inpaint(srcRgb, dilatedMask, resultRgb, inpaintRadius, cv.INPAINT_TELEA);
+    const resRgb = track(new cv.Mat());
 
-    // Convert back to RGBA for output
-    const result = new cv.Mat();
-    cv.cvtColor(resultRgb, result, cv.COLOR_RGB2RGBA);
+    if (debugMask) {
+      // If debugging, return the B&W mask to see what we are trying to delete
+      cv.cvtColor(mask, resRgb, cv.COLOR_GRAY2RGB);
+    } else {
+      // Telea is usually good, but sometimes NS (Navier-Stokes) preserves lines better.
+      // For simple text removal, Telea is faster.
+      cv.inpaint(srcRgb, mask, resRgb, inpaintRadius, cv.INPAINT_TELEA);
+    }
 
-    // Convert result to image blob
+    // Convert back to RGBA
+    const resRgba = track(new cv.Mat());
+    cv.cvtColor(resRgb, resRgba, cv.COLOR_RGB2RGBA);
+
+    // Copy result back to workingMat (which updates src due to ROI linkage)
+    resRgba.copyTo(workingMat);
+
+    // --- 6. Output ---
     let resultImageBlob = null;
     try {
-      const resultImageData = imageDataFromMat(result);
-
+      const resultImageData = imageDataFromMat(src);
       const canvas = new OffscreenCanvas(
         resultImageData.width,
         resultImageData.height
       );
       const ctx = canvas.getContext("2d");
       ctx.putImageData(resultImageData, 0, 0);
-
       resultImageBlob = await canvas.convertToBlob({ type: "image/png" });
-    } catch (error) {
-      console.error("[removeTextAsync] Failed to create result image:", error);
+    } catch (err) {
+      console.error("Blob creation failed", err);
     }
 
-    // Cleanup
-    src.delete();
-    gray.delete();
-    binary.delete();
-    kernel.delete();
-    closed.delete();
-    contours.delete();
-    hierarchy.delete();
-    textMask.delete();
-    dilatedMask.delete();
-    dilateKernel.delete();
-    srcRgb.delete();
-    resultRgb.delete();
-    result.delete();
-
-    // Convert blob to base64 for transfer (chunked to avoid stack overflow)
     let resultImageBase64 = null;
     if (resultImageBlob) {
-      const arrayBuffer = await resultImageBlob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      
-      // Process in chunks to avoid stack overflow with large images
-      const chunkSize = 8192; // Process 8KB at a time
-      let binaryString = "";
-      for (let i = 0; i < uint8Array.length; i += chunkSize) {
-        const chunk = uint8Array.slice(i, i + chunkSize);
-        binaryString += String.fromCharCode.apply(null, chunk);
+      const buf = await resultImageBlob.arrayBuffer();
+      const arr = new Uint8Array(buf);
+      const CHUNK = 8192;
+      let bin = "";
+      for (let i = 0; i < arr.length; i += CHUNK) {
+        bin += String.fromCharCode.apply(null, arr.slice(i, i + CHUNK));
       }
-      resultImageBase64 = btoa(binaryString);
+      resultImageBase64 = btoa(bin);
     }
 
-    postMessage({
-      msg,
-      payload: {
-        resultImageBase64, // Base64 encoded PNG
-      },
-    });
+    postMessage({ msg, payload: { resultImageBase64 } });
   } catch (error) {
-    console.error("[opencv worker] removeTextAsync failed", error);
-    postMessage({ msg, error: error?.message || String(error) });
+    console.error(error);
+    postMessage({ msg, error: error.message });
+  } finally {
+    matList.forEach((m) => m && !m.isDeleted() && m.delete());
   }
 }
-

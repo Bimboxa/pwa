@@ -72,7 +72,9 @@ export default function ButtonActionInPanel({
         </Box>
       </Box>
       <Collapse in={open} timeout="auto">
-        {children}
+        <Box sx={{ p: 1, pl: "40px", pr: "16px" }}>
+          <Box sx={{ bgcolor: "background.default" }}>{children}</Box>
+        </Box>
       </Collapse>
     </Box>
   );
