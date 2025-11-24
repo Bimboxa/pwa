@@ -21,6 +21,7 @@ export default function ButtonCalculateOverlayTransform() {
   // state
   const [loading, setLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewBlob, setPreviewBlob] = useState(null); // Store blob for saving
   const [transformData, setTransformData] = useState(null);
   const [triggerOpenAt, setTriggerOpenAt] = useState(false);
 
@@ -77,6 +78,7 @@ export default function ButtonCalculateOverlayTransform() {
         const resultBlob = new Blob([bytes], { type: "image/png" });
         const objectUrl = URL.createObjectURL(resultBlob);
 
+        setPreviewBlob(resultBlob); // Store blob for saving
         setPreviewUrl((prev) => {
           if (prev) URL.revokeObjectURL(prev);
           return objectUrl;
@@ -95,9 +97,17 @@ export default function ButtonCalculateOverlayTransform() {
     if (
       !transformData ||
       !mainBaseMap?.id ||
-      !planMasseBaseMap?.image?.meterByPx
+      !planMasseBaseMap?.id ||
+      !planMasseBaseMap?.image?.meterByPx ||
+      !previewBlob
     )
       return;
+
+    // Convert blob to File
+    const file = new File([previewBlob], "overlay.png", { type: "image/png" });
+
+    // Update planMasseBaseMap with the preview image
+    await update(planMasseBaseMap.id, { image: { file } });
 
     // Calculate new meterByPx based on transform scale
     // The transform scale tells us how much the detail image was scaled to match the main image
@@ -120,6 +130,7 @@ export default function ButtonCalculateOverlayTransform() {
       URL.revokeObjectURL(previewUrl);
     }
     setPreviewUrl(null);
+    setPreviewBlob(null);
     setTransformData(null);
   }
 
