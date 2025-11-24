@@ -6,11 +6,13 @@ import { Image as ImageIcon } from "@mui/icons-material";
 
 import SelectorImage from "Features/images/components/SelectorImage";
 import PanelPdfConverter from "Features/pdf/components/PanelPdfConverter";
+import FieldCheck from "Features/form/components/FieldCheck";
 
 import testIsPngImage from "Features/files/utils/testIsPngImage";
 import getImageSizeAsync from "Features/misc/utils/getImageSize";
 import resizeImageToLowResolution from "Features/images/utils/resizeImageToLowResolution";
 import ImageObject from "Features/images/js/ImageObject";
+import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
 export default function FieldImageV2({
   label,
@@ -35,19 +37,18 @@ export default function FieldImageV2({
 
   // state
 
-  const [openPdfConverter, setOpenPdfConverter] = useState(false);
-  const [pdfFile, setPdfFile] = useState();
-
-  // effect - init
-
-  useEffect(() => {
-    //if (!value) handleClick();
-  }, []);
+  const [fileSizeAsString, setFileSizeAsString] = useState(null);
+  const [applyMaxSize, setApplyMaxSize] = useState(true);
 
   // helpers
 
   const imageSrc = value?.imageUrlClient;
   console.log("imageSrc", imageSrc);
+
+  // helpers - file size
+
+  const sizeLabel = `Taille finale: ${fileSizeAsString}`;
+  const maxSizeLabel = `Compresser si > ${stringifyFileSize(maxSize * 1024)}`;
 
   // helpers - func
 
@@ -56,9 +57,10 @@ export default function FieldImageV2({
 
     if (!file) return onChange(null);
 
-    if (maxSize && file) {
+    if (maxSize && file && applyMaxSize) {
       file = await resizeImageToLowResolution(file, maxSize * 1024);
     }
+    setFileSizeAsString(stringifyFileSize(file.size));
     const imageObject = await ImageObject.create({ imageFile: file });
     onChange(imageObject.toEntityField());
   }
@@ -78,7 +80,7 @@ export default function FieldImageV2({
         </Box>
       )}
 
-      <Box sx={{ p: 1 }}>
+      <Box sx={{ p: 1, pb: 0.0 }}>
         <Box
           sx={{
             //border: (theme) => `1px solid ${theme.palette.divider}`,
@@ -91,6 +93,26 @@ export default function FieldImageV2({
           />
         </Box>
       </Box>
+
+      {maxSize && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          {maxSize && (
+            <FieldCheck
+              label={maxSizeLabel}
+              value={applyMaxSize}
+              onChange={(value) => setApplyMaxSize(value)}
+            />
+          )}
+          {/* {fileSizeAsString && (
+            <Typography
+              variant="body2"
+              sx={{ fontSize: 12, color: "text.secondary", px: 2 }}
+            >
+              {sizeLabel}
+            </Typography>
+          )} */}
+        </Box>
+      )}
     </Box>
   );
 }

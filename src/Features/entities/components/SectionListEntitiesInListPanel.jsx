@@ -115,6 +115,8 @@ export default function SectionListEntitiesInListPanel() {
     } else if (listing.entityModel.type === "LOCATED_ENTITY") {
       //dispatch(setOpenedPanel("NEW_LOCATED_ENTITY"));
       dispatch(setOpenDialogAutoSelectAnnotationTemplateToCreateEntity(true));
+    } else if (listing.entityModel.type === "BASE_MAP") {
+      dispatch(setOpenedPanel("NEW_BASE_MAP"));
     } else {
       dispatch(setOpenedPanel("NEW_ENTITY"));
     }
