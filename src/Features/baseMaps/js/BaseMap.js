@@ -4,6 +4,18 @@ import getDateString from "Features/misc/utils/getDateString";
 import ProjectFile from "Features/projectFiles/js/ProjectFile";
 
 import db from "App/db/db";
+import editor from "App/editor";
+
+function getImageCacheKey(image) {
+  if (!image) return null;
+  return (
+    image.fileName ||
+    image.imageUrlClient ||
+    image.imageUrlRemote ||
+    image.url ||
+    null
+  );
+}
 
 export default class BaseMap {
   constructor({
@@ -64,40 +76,58 @@ export default class BaseMap {
     try {
       if (!record) return null;
 
-      // the id of the file is computed from the field + id of the entity.
-      //const fileRecord = await db.projectFiles.get(`image_${record.id}`);
-      let fileRecord, file;
-      let fileEnhancedRecord, fileEnhanced;
-      if (record?.image?.fileName) {
-        fileRecord = await db.files.get(record.image.fileName);
+      editor.baseMapsCache = editor.baseMapsCache || {};
+      const cacheEntry = editor.baseMapsCache[record.id];
+
+      const imageKey = getImageCacheKey(record.image);
+      const imageEnhancedKey = getImageCacheKey(record.imageEnhanced);
+
+      let bmImage =
+        cacheEntry && cacheEntry.imageKey === imageKey
+          ? cacheEntry.image
+          : null;
+      let bmImageEnhanced =
+        cacheEntry && cacheEntry.imageEnhancedKey === imageEnhancedKey
+          ? cacheEntry.imageEnhanced
+          : null;
+
+      if (!bmImage && record?.image?.fileName) {
+        const fileRecord = await db.files.get(record.image.fileName);
         if (fileRecord) {
           const { fileArrayBuffer, fileMime, fileName } = fileRecord;
-          file = new File([fileArrayBuffer], fileName, { type: fileMime });
+          const file = new File([fileArrayBuffer], fileName, {
+            type: fileMime,
+          });
+          bmImage = await ImageObject.create({ imageFile: file });
         }
       }
 
-      if (record?.imageEnhanced?.fileName) {
-        fileEnhancedRecord = await db.files.get(record.imageEnhanced.fileName);
+      if (!bmImageEnhanced && record?.imageEnhanced?.fileName) {
+        const fileEnhancedRecord = await db.files.get(
+          record.imageEnhanced.fileName
+        );
         if (fileEnhancedRecord) {
           const { fileArrayBuffer, fileMime, fileName } = fileEnhancedRecord;
-          fileEnhanced = new File([fileArrayBuffer], fileName, {
+          const fileEnhanced = new File([fileArrayBuffer], fileName, {
             type: fileMime,
+          });
+          bmImageEnhanced = await ImageObject.create({
+            imageFile: fileEnhanced,
           });
         }
       }
 
-      const bmImage = fileRecord
-        ? await ImageObject.create({ imageFile: file })
-        : null;
-
-      const bmImageEnhanced = fileEnhancedRecord
-        ? await ImageObject.create({ imageFile: fileEnhanced })
-        : null;
+      editor.baseMapsCache[record.id] = {
+        imageKey,
+        imageEnhancedKey,
+        image: bmImage,
+        imageEnhanced: bmImageEnhanced,
+      };
 
       const baseMap = new BaseMap({
         ...record,
-        image: bmImage,
-        imageEnhanced: bmImageEnhanced,
+        image: bmImage ?? record.image,
+        imageEnhanced: bmImageEnhanced ?? record.imageEnhanced,
       });
 
       return baseMap;

@@ -17,13 +17,16 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ButtonEnhanceBaseMap from "Features/baseMaps/components/ButtonEnhanceBaseMap";
 import ButtonRemoveText from "./ButtonRemoveText";
 import ButtonRemoveColoredContent from "./ButtonRemoveColoredContent";
+import ButtonKeepColoredContent from "./ButtonKeepColoredContent";
 import ButtonCalculateOverlayTransform from "./ButtonCalculateOverlayTransform";
+import SectionShowEnhanced from "Features/baseMaps/components/SectionShowEnhanced";
+import SectionSaveOpencvPreview from "./SectionSaveOpencvPreview";
+
 import ButtonToggleShowEnhanced from "./ButtonToggleShowEnhanced";
-
-import getPolylinesFromContours from "Features/annotations/utils/getPolylinesFromContours";
-
-import cv from "../services/opencvService";
-import theme from "Styles/theme";
+import ButtonOpencvDebug from "./ButtonOpencvDebug";
+import ButtonFillHatch from "./ButtonFillHatch";
+import ButtonRemoveThinRegions from "./ButtonRemoveThinRegions";
+import ButtonToggleShowOpencvPreview from "./ButtonToggleShowOpencvPreview";
 
 export default function PanelOpencv() {
   const dispatch = useDispatch();
@@ -39,7 +42,7 @@ export default function PanelOpencv() {
   // data
 
   const { value: listing } = useSelectedListing();
-  const maskImageUrl = useSelector((s) => s.opencv.maskImageUrl);
+  const opencvPreviewUrl = useSelector((s) => s.opencv.opencvPreviewUrl);
 
   // helpers
 
@@ -71,6 +74,7 @@ export default function PanelOpencv() {
       </Box>
       {open && (
         <BoxFlexVStretch>
+          <SectionShowEnhanced />
           {em === "LOCATED_ENTITY" && (
             <ButtonGeneric
               onClick={detectContours}
@@ -84,28 +88,17 @@ export default function PanelOpencv() {
             <>
               <ButtonEnhanceBaseMap />
               <ButtonRemoveText />
+              <ButtonKeepColoredContent />
               <ButtonRemoveColoredContent />
+              <ButtonFillHatch />
+              <ButtonOpencvDebug />
+              <ButtonRemoveThinRegions />
               <ButtonCalculateOverlayTransform />
             </>
           )}
 
-          {maskImageUrl && (
-            <Box
-              component="img"
-              src={maskImageUrl}
-              alt="OpenCV mask preview"
-              sx={{
-                width: "100%",
-                maxWidth: 280,
-                borderRadius: 1,
-                border: "1px solid",
-                borderColor: "divider",
-                mt: 2,
-              }}
-            />
-          )}
-          <Divider sx={{ my: 1 }} />
-          <ButtonToggleShowEnhanced />
+          <SectionSaveOpencvPreview />
+          <ButtonToggleShowOpencvPreview />
         </BoxFlexVStretch>
       )}
     </Paper>

@@ -90,6 +90,9 @@ class CV {
   removeColoredContentAsync(payload) {
     return this._dispatch({ msg: "removeColoredContentAsync", payload });
   }
+  keepColoredContentAsync(payload) {
+    return this._dispatch({ msg: "keepColoredContentAsync", payload });
+  }
   calculateOverlayTransformAsync(payload) {
     return this._dispatch({ msg: "calculateOverlayTransformAsync", payload });
   }
@@ -105,6 +108,15 @@ class CV {
   }
   findPattern(payload) {
     return this._dispatch({ msg: "findPattern", payload });
+  }
+  opencvDebugAsync(payload) {
+    return this._dispatch({ msg: "opencvDebugAsync", payload });
+  }
+  fillHatchAsync(payload) {
+    return this._dispatch({ msg: "fillHatchAsync", payload });
+  }
+  removeThinRegionsAsync(payload) {
+    return this._dispatch({ msg: "removeThinRegionsAsync", payload });
   }
 }
 

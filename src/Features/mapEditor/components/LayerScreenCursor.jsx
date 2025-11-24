@@ -20,8 +20,14 @@ export default function LayerScreenCursor({ containerEl }) {
   // data
 
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  const mode = useSelector((s) => s.opencv.opencvClickMode);
   const color = useNewAnnotationColor();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
+  const bboxDims = useSelector((s) => s.opencv.bboxDims);
+
+  // helper - show bbox
+
+  const showBbox = mode === "KEEP_COLORS" && enabledDrawingMode === "OPENCV";
 
   // effect
 
@@ -167,6 +173,22 @@ export default function LayerScreenCursor({ containerEl }) {
           zIndex: 1,
         }}
       />
+      {showBbox && (
+        <Box
+          sx={{
+            position: "absolute",
+            pointerEvents: "none",
+            top: `${pos.y - bboxDims.height / 2}px`,
+            left: `${pos.x - bboxDims.width / 2}px`,
+            width: `${bboxDims.width}px`,
+            height: `${bboxDims.height}px`,
+            border: "2px solid",
+            borderColor: theme.palette.error.main,
+            boxSizing: "border-box",
+            zIndex: 1,
+          }}
+        />
+      )}
     </>
   );
 }

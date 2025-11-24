@@ -11,6 +11,8 @@ import {
 import { Box, Tooltip, IconButton } from "@mui/material";
 import { CenterFocusStrong as CenterFocusStrongIcon } from "@mui/icons-material";
 
+import editor from "App/editor";
+
 import NodeSvgImage from "./NodeSvgImage";
 import NodeAnnotation from "./NodeAnnotation";
 import NodeLegend from "./NodeLegend";
@@ -331,18 +333,20 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
         if (!Array.isArray(sourcePoints) || sourcePoints.length === 0) return;
 
-        const pts = sourcePoints.map((p, idx) => ({
-          x: (p.x ?? 0) * baseW,
-          y: (p.y ?? 0) * baseH,
-          type: typeOf(p),
-          originalIndex: idx,
-        })).filter(
-          (p) =>
-            Number.isFinite(p.x) &&
-            Number.isFinite(p.y) &&
-            !Number.isNaN(p.x) &&
-            !Number.isNaN(p.y)
-        );
+        const pts = sourcePoints
+          .map((p, idx) => ({
+            x: (p.x ?? 0) * baseW,
+            y: (p.y ?? 0) * baseH,
+            type: typeOf(p),
+            originalIndex: idx,
+          }))
+          .filter(
+            (p) =>
+              Number.isFinite(p.x) &&
+              Number.isFinite(p.y) &&
+              !Number.isNaN(p.x) &&
+              !Number.isNaN(p.y)
+          );
 
         if (pts.length === 0) return;
 
@@ -387,8 +391,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               if (circ && Number.isFinite(circ.r) && circ.r > 0) {
                 // Determine winding order (CW vs CCW)
                 const cross =
-                  (p1.x - p0.x) * (p2.y - p0.y) -
-                  (p1.y - p0.y) * (p2.x - p0.x);
+                  (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
                 const isCW = cross > 0;
 
                 // Calculate angles to determine large arc flags
@@ -829,6 +832,52 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     [Mvw, Mbase, world, basePose]
   );
 
+  useEffect(() => {
+    if (
+      !viewport.w ||
+      !viewport.h ||
+      !baseSize.w ||
+      !baseSize.h ||
+      typeof screenToBaseLocal !== "function"
+    ) {
+      return;
+    }
+
+    const corners = {
+      topLeft: screenToBaseLocal(0, 0),
+      topRight: screenToBaseLocal(viewport.w, 0),
+      bottomLeft: screenToBaseLocal(0, viewport.h),
+      bottomRight: screenToBaseLocal(viewport.w, viewport.h),
+    };
+
+    if (
+      !corners.topLeft ||
+      !corners.topRight ||
+      !corners.bottomLeft ||
+      !corners.bottomRight
+    ) {
+      return;
+    }
+
+    const xs = Object.values(corners).map((c) => c.x);
+    const ys = Object.values(corners).map((c) => c.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    editor.viewportInBase = {
+      corners,
+      bounds: {
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+      },
+      updatedAt: Date.now(),
+    };
+  }, [screenToBaseLocal, viewport.w, viewport.h, baseSize.w, baseSize.h, world, basePose]);
+
   const relBase = useMemo(() => {
     const kbg = bgPose.k || 1;
     return {
@@ -966,8 +1015,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               y: centerPx.y + radiusPx * Math.sin(angle),
             };
 
-            const d2 =
-              (pointPx.x - p.x) ** 2 + (pointPx.y - p.y) ** 2;
+            const d2 = (pointPx.x - p.x) ** 2 + (pointPx.y - p.y) ** 2;
             if (d2 < bestLocal.d2) {
               bestLocal = { d2, pt: p };
             }
@@ -1401,9 +1449,18 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       const p_inBg = screenToBgLocal(sx, sy);
       const p_inBase = screenToBaseLocal(sx, sy);
 
+      const p_delta_inBg = screenToBgLocal(sx + 10, sy);
+      const scaleToBgLocal = p_delta_inBg.x - p_inBg.x;
+      const p_delta_inBase = screenToBaseLocal(sx + 10, sy);
+      const scaleToBaseLocal = p_delta_inBase.x - p_inBase.x;
+
       onClickInBaseMap?.({
         x: p_inBase.x / baseSize.w,
         y: p_inBase.y / baseSize.h,
+        scaleToBgLocal: scaleToBgLocal,
+        scaleToBaseLocal: scaleToBaseLocal,
+        x_absolute: p_inBase.x,
+        y_absolute: p_inBase.y,
       });
 
       console.log("onSvgClick - Base local:", p_inBase);
