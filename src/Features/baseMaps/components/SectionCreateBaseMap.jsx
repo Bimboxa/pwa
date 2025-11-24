@@ -1,60 +1,114 @@
+import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
-import { setEditedBaseMap, setIsCreatingBaseMap } from "../baseMapsSlice";
+import { setSelectedEntityId } from "Features/entities/entitiesSlice";
+import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
-import useCreateBaseMap from "../hooks/useCreateBaseMap";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import useCreateEntity from "Features/entities/hooks/useCreateEntity";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
+import Box from "@mui/material/Box";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import FormBaseMapVariantCreate from "./FormBaseMapVariantCreate";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
+import FormGenericV2 from "Features/form/components/FormGenericV2";
 
 export default function SectionCreateBaseMap({ onClose }) {
   const dispatch = useDispatch();
 
   // strings
 
-  const title = "Nouveau fond de plan v2";
+  const title = "Nouveau fond de plan.";
   const createS = "Créer";
 
   // data
 
-  const baseMap = useSelector((s) => s.baseMaps.editedBaseMap);
-  const createBaseMap = useCreateBaseMap();
+  const { value: listing } = useSelectedListing();
+  const appConfig = useAppConfig();
+
+  // data - func
+
+  const createEntity = useCreateEntity();
+
+  // state
+
+  const [item, setItem] = useState({});
+
+  // helper - max size
+
+  const maxSize =
+    appConfig?.entityModelsObject?.baseMap?.fieldsObject?.image?.options
+      ?.maxSize;
+
+  //  helper - template
+
+  const template = {
+    fields: [
+      {
+        key: "name",
+        type: "text",
+        label: "Nom",
+        options: {
+          showLabel: true,
+          fullWidth: true,
+        },
+      },
+      {
+        key: "image",
+        type: "image",
+        label: "Image",
+        options: {
+          maxSize,
+        },
+      },
+    ],
+  };
 
   // handler
 
-  function handleBaseMapChange(bm) {
-    console.log("change bm", bm);
-    dispatch(setEditedBaseMap(bm));
+  function handleItemChange(item) {
+    setItem(item);
   }
 
   async function handleCreateClick() {
-    console.log("editedBaseMap", baseMap);
-    await createBaseMap(baseMap);
-    dispatch(setEditedBaseMap(null));
-    dispatch(setIsCreatingBaseMap(false));
+    const entity = {
+      name: item.name,
+      image: { file: item.image.file },
+    };
+    const result = await createEntity(entity, { listing });
+
+    dispatch(setSelectedEntityId(result.id));
+    dispatch(setSelectedMainBaseMapId(result.id));
+
+    if (onClose) onClose();
   }
 
   function handleClose() {
     console.log("closing");
-    dispatch(setIsCreatingBaseMap(false));
+
     if (onClose) onClose();
   }
 
   return (
     <BoxFlexVStretch>
       <HeaderTitleClose title={title} onClose={handleClose} />
-      <FormBaseMapVariantCreate
-        baseMap={baseMap}
-        onChange={handleBaseMapChange}
-      />
-      <ButtonInPanelV2
-        label={createS}
-        onClick={handleCreateClick}
-        color="secondary"
-        variant="contained"
-      />
+      <Box sx={{ bgcolor: "white" }}>
+        <FormGenericV2
+          item={item}
+          onItemChange={handleItemChange}
+          template={template}
+        />
+      </Box>
+      <Box>
+        <ButtonInPanelV2
+          label={createS}
+          onClick={handleCreateClick}
+          color="secondary"
+          variant="contained"
+        />
+      </Box>
     </BoxFlexVStretch>
   );
 }

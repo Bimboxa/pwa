@@ -18,6 +18,7 @@ import PanelCreateBlueprint from "Features/blueprints/components/PanelCreateBlue
 import PanelEditBlueprint from "Features/blueprints/components/PanelEditBlueprint";
 import PanelCreateLocatedEntity from "Features/locatedEntities/components/PanelCreateLocatedEntity";
 import PanelHelperDrawAnnotation from "Features/annotations/components/PanelHelperDrawAnnotation";
+import PanelCreateBaseMap from "Features/baseMaps/components/PanelCreateBaseMap";
 
 export default function PanelListingContainer() {
   const dispatch = useDispatch();
@@ -64,6 +65,7 @@ export default function PanelListingContainer() {
       {openedPanel === "LISTING_ANNOTATION_TEMPLATES" && (
         <PanelListingAnnotationTemplates />
       )}
+      {openedPanel === "NEW_BASE_MAP" && <PanelCreateBaseMap />}
       {openedPanel === "NEW_BLUEPRINT" && <PanelCreateBlueprint />}
       {openedPanel === "EDITED_BLUEPRINT" && <PanelEditBlueprint />}
       {openedPanel === "NEW_LOCATED_ENTITY" && <PanelCreateLocatedEntity />}

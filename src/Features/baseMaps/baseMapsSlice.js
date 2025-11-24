@@ -11,6 +11,7 @@ const baseMapsInitialState = {
   //
   selectedBaseMapId: null,
   isCreatingBaseMap: false,
+  editedBaseMap: null,
   // Enhanced image results (background fetch results)
   enhancedImageResults: {}, // { [baseMapId]: { blob, objectUrl, completedAt } }
   enhancedImageErrors: {}, // { [baseMapId]: { error, failedAt } }
