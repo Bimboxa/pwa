@@ -1726,6 +1726,111 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     onLegendFormatChange(_legendFormat);
   }
 
+  // === ARROW KEY NAVIGATION ===
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Only handle arrow keys if not in an input field
+      if (
+        e.target.tagName === "INPUT" ||
+        e.target.tagName === "TEXTAREA" ||
+        e.target.isContentEditable
+      ) {
+        return;
+      }
+
+      // Check if any arrow key is pressed (check key, code, and keyCode for compatibility)
+      const isArrowKey =
+        ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key) ||
+        ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.code) ||
+        [37, 38, 39, 40].includes(e.keyCode); // Left, Up, Right, Down
+
+      if (!isArrowKey) {
+        return;
+      }
+
+      console.log("[Arrow Key] Pressed:", {
+        key: e.key,
+        code: e.code,
+        keyCode: e.keyCode,
+      });
+
+      e.preventDefault();
+
+      // Determine movement amount: 1px with Shift, 50px without Shift
+      const movementPixels = e.shiftKey ? 1 : 50;
+
+      // To move the pointer N pixels right in baseMap, we need to move the world transform
+      // left by N pixels in baseMap coordinates, which is N * basePose.k pixels in screen space
+      const basePoseK = basePose.k || 1;
+
+      // Movement in baseMap coordinates (negative because we move the world/viewport, not the pointer)
+      let deltaXBase = 0;
+      let deltaYBase = 0;
+
+      // Check by key, code, or keyCode
+      const isRight =
+        e.key === "ArrowRight" ||
+        e.code === "ArrowRight" ||
+        e.keyCode === 39;
+      const isLeft =
+        e.key === "ArrowLeft" ||
+        e.code === "ArrowLeft" ||
+        e.keyCode === 37;
+      const isDown =
+        e.key === "ArrowDown" ||
+        e.code === "ArrowDown" ||
+        e.keyCode === 40;
+      const isUp =
+        e.key === "ArrowUp" || e.code === "ArrowUp" || e.keyCode === 38;
+
+      if (isRight) {
+        deltaXBase = -movementPixels; // Move world left to make pointer appear to move right
+      } else if (isLeft) {
+        deltaXBase = movementPixels; // Move world right to make pointer appear to move left
+      } else if (isDown) {
+        deltaYBase = -movementPixels; // Move world up to make pointer appear to move down
+      } else if (isUp) {
+        deltaYBase = movementPixels; // Move world down to make pointer appear to move up
+      }
+
+      // Convert from baseMap coordinates to screen coordinates
+      // 1 pixel in baseMap = basePose.k pixels in screen space
+      const deltaXScreen = deltaXBase * basePoseK;
+      const deltaYScreen = deltaYBase * basePoseK;
+
+      console.log("[Arrow Key] Movement:", {
+        shiftKey: e.shiftKey,
+        movementPixels,
+        deltaXBase,
+        deltaYBase,
+        basePoseK,
+        deltaXScreen,
+        deltaYScreen,
+      });
+
+      // Update the world transform (this is what controls the viewport pan/zoom)
+      setWorld((currentWorld) => {
+        const newWorld = {
+          ...currentWorld,
+          x: currentWorld.x + deltaXScreen,
+          y: currentWorld.y + deltaYScreen,
+        };
+
+        console.log("[Arrow Key] New world:", {
+          oldWorld: currentWorld,
+          newWorld,
+        });
+
+        return newWorld;
+      });
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [basePose.k]);
+
   return (
     <Box
       ref={containerRef}

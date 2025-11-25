@@ -14,8 +14,6 @@ import cv from "Features/opencv/services/opencvService";
 import editor from "App/editor";
 import TextOverlay from "./TextOverlay";
 
-const DEFAULT_SCALE_FACTOR = 10;
-const DISPLAY_SIZE = 200;
 const CV_THROTTLE_MS = 100;
 
 // --- Helper Functions (omitted for brevity) ---
@@ -30,15 +28,21 @@ function isNearWhite(hexColor, tolerance = 12) {
   /* ... */ return false;
 }
 
-function convertLineToDisplayCoords(line, bbox, imageWidth, imageHeight) {
+function convertLineToDisplayCoords(
+  line,
+  bbox,
+  imageWidth,
+  imageHeight,
+  displaySize
+) {
   if (!line || !bbox || !imageWidth || !imageHeight) return null;
   const x1 = line.x1 * imageWidth;
   const y1 = line.y1 * imageHeight;
   const x2 = line.x2 * imageWidth;
   const y2 = line.y2 * imageHeight;
 
-  const scaleX = DISPLAY_SIZE / bbox.width;
-  const scaleY = DISPLAY_SIZE / bbox.height;
+  const scaleX = displaySize / bbox.width;
+  const scaleY = displaySize / bbox.height;
 
   const localX1 = (x1 - bbox.x) * scaleX;
   const localY1 = (y1 - bbox.y) * scaleY;
@@ -68,6 +72,7 @@ export default function ZoomWindow({
   enableOcr = false,
   opencvMode = null,
   screenToBaseLocalUpdatedAt = null,
+  variant = null,
 }) {
   const canvasRef = useRef(null);
 
@@ -84,6 +89,15 @@ export default function ZoomWindow({
   const bitmapRef = useRef(null);
   const isMountedRef = useRef(true);
   const cvTimeoutRef = useRef(null);
+
+  // Compute display size and scale factor based on variant
+  const displaySize = useMemo(() => {
+    return variant === "HATCH_PREVIEW" ? 100 : 200;
+  }, [variant]);
+
+  const scaleFactor = useMemo(() => {
+    return variant === "HATCH_PREVIEW" ? 20 : 10;
+  }, [variant]);
 
   // 1. Lifecycle & Image Loading (same as before)
   useEffect(() => {
@@ -178,7 +192,8 @@ export default function ZoomWindow({
                 detectionResult.line,
                 bbox,
                 baseMapSize.width,
-                baseMapSize.height
+                baseMapSize.height,
+                displaySize
               );
               if (overlay) {
                 setLineOverlay({ ...overlay, token: Date.now() });
@@ -219,7 +234,7 @@ export default function ZoomWindow({
         console.warn("CV operations failed", err);
       }
     },
-    [baseMapImageUrl, baseMapSize?.width, enableOcr, opencvMode]
+    [baseMapImageUrl, baseMapSize?.width, enableOcr, opencvMode, displaySize]
   );
 
   // 4. Drawing Logic (useCallback)
@@ -237,10 +252,7 @@ export default function ZoomWindow({
     const imageHeight = baseMapSize.height;
 
     // --- DYNAMIC SCALING CALCULATION (using stable viewportZoom) ---
-    const boxSize = Math.max(
-      1,
-      DISPLAY_SIZE / (DEFAULT_SCALE_FACTOR * viewportZoom)
-    );
+    const boxSize = Math.max(1, displaySize / (scaleFactor * viewportZoom));
     const halfWindow = boxSize / 2;
 
     const startX = Math.max(
@@ -276,13 +288,13 @@ export default function ZoomWindow({
       bbox.height,
       0,
       0,
-      DISPLAY_SIZE,
-      DISPLAY_SIZE
+      displaySize,
+      displaySize
     );
 
     // Color Pick & Crosshair
-    const centerX = DISPLAY_SIZE / 2;
-    const centerY = DISPLAY_SIZE / 2;
+    const centerX = displaySize / 2;
+    const centerY = displaySize / 2;
     const p = ctx.getImageData(centerX, centerY, 1, 1).data;
     const hexColor = rgbToHex(p[0], p[1], p[2]);
     setBorderColor(hexColor);
@@ -307,6 +319,8 @@ export default function ZoomWindow({
     screenToBaseLocal,
     screenToBaseLocalUpdatedAt,
     viewportZoom,
+    displaySize,
+    scaleFactor,
     // Other dependencies for draw:
     bitmapRef.current,
     canvasRef.current,
@@ -352,11 +366,11 @@ export default function ZoomWindow({
   if (!baseMapImageUrl) return null;
 
   const getPosition = () => {
-    let top = screenY - DISPLAY_SIZE - 10;
+    let top = screenY - displaySize - 10;
     let left = screenX + 10;
     if (top < 10) top = screenY + 10;
-    if (left + DISPLAY_SIZE > window.innerWidth - 20)
-      left = screenX - DISPLAY_SIZE - 10;
+    if (left + displaySize > window.innerWidth - 20)
+      left = screenX - displaySize - 10;
     return { top, left };
   };
 
@@ -369,8 +383,8 @@ export default function ZoomWindow({
         pointerEvents: "none",
         top: `${position.top}px`,
         left: `${position.left}px`,
-        width: `${DISPLAY_SIZE}px`,
-        height: `${DISPLAY_SIZE}px`,
+        width: `${displaySize}px`,
+        height: `${displaySize}px`,
         border: "4px solid",
         borderColor: borderColor,
         borderRadius: 1,
@@ -383,8 +397,8 @@ export default function ZoomWindow({
       <Box sx={{ position: "relative", width: "100%", height: "100%" }}>
         <canvas
           ref={canvasRef}
-          width={DISPLAY_SIZE}
-          height={DISPLAY_SIZE}
+          width={displaySize}
+          height={displaySize}
           style={{
             width: "100%",
             height: "100%",
@@ -398,7 +412,7 @@ export default function ZoomWindow({
           <>
             <Box
               component="svg"
-              viewBox={`0 0 ${DISPLAY_SIZE} ${DISPLAY_SIZE}`}
+              viewBox={`0 0 ${displaySize} ${displaySize}`}
               sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}
             >
               <line

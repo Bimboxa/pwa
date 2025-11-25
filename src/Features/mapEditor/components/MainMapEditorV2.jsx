@@ -31,6 +31,7 @@ import {
 import {
   setOpencvPreviewUrl,
   addSelectedColor,
+  setOpencvClickMode,
 } from "Features/opencv/opencvSlice";
 import { setOpenBaseMapSelector } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
@@ -306,6 +307,10 @@ export default function MainMapEditorV2() {
             drawingPolylinePoints?.length >= 2
           ) {
             handlePolylineCompleteRef.current?.(drawingPolylinePoints);
+          }
+          // Reset OPENCV mode and click mode together
+          if (enabledDrawingMode === "OPENCV") {
+            dispatch(setOpencvClickMode(null));
           }
           dispatch(setEnabledDrawingMode(null));
           dispatch(setNewAnnotation({}));
@@ -1016,6 +1021,72 @@ export default function MainMapEditorV2() {
             mainBaseMap
           );
           dispatch(setTempAnnotations(annotations));
+        }
+      } else if (opencvClickMode === "FILL_HATCH") {
+        // Get the bbox from ZoomWindow (set by ZoomWindow component)
+        const zoomWindowBBox = editor.zoomWindowBBox;
+        
+        if (!zoomWindowBBox) {
+          console.warn(
+            "[FILL_HATCH] ZoomWindow bbox not available. Make sure ZoomWindow is visible."
+          );
+          return;
+        }
+
+        // Extract the hatch pattern region from the baseMap image
+        try {
+          // Load the baseMap image
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = baseMapImageUrl;
+          });
+
+          // Create a canvas to extract the region
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.floor(zoomWindowBBox.width));
+          canvas.height = Math.max(1, Math.floor(zoomWindowBBox.height));
+          const ctx = canvas.getContext("2d");
+
+          // Draw the cropped region
+          ctx.drawImage(
+            img,
+            Math.max(0, Math.floor(zoomWindowBBox.x)),
+            Math.max(0, Math.floor(zoomWindowBBox.y)),
+            Math.max(1, Math.floor(zoomWindowBBox.width)),
+            Math.max(1, Math.floor(zoomWindowBBox.height)),
+            0,
+            0,
+            canvas.width,
+            canvas.height
+          );
+
+          // Convert canvas to data URL (more reliable for worker)
+          const hatchPatternUrl = canvas.toDataURL("image/png");
+
+          if (!hatchPatternUrl) {
+            console.warn("[FILL_HATCH] Failed to create data URL from canvas");
+            return;
+          }
+
+          // Call fillHatchAsync
+          const { resultImageBase64 } = await cv.fillHatchAsync({
+            imageUrl: baseMapImageUrl,
+            hatchPatternUrl: hatchPatternUrl,
+            threshold: 0.8,
+          });
+
+          if (resultImageBase64) {
+            const resultBlob = base64ToBlob(resultImageBase64, "image/png");
+            if (resultBlob) {
+              const objectUrl = URL.createObjectURL(resultBlob);
+              dispatch(setOpencvPreviewUrl(objectUrl));
+            }
+          }
+        } catch (error) {
+          console.error("[FILL_HATCH] Error filling hatch pattern:", error);
         }
       }
     }
