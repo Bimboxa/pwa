@@ -876,33 +876,54 @@ export default function MainMapEditorV2() {
           }
         }
       } else if (opencvClickMode === "DETECT_CONTOURS") {
-        const { polylines: contours, maskImageBase64 } =
-          await cv.getWhiteContoursAsync({
-            imageUrl: baseMapImageUrl,
-            x: p.x,
-            y: p.y,
-          });
-
-        console.log("debug_2011_polylines", contours);
-
-        if (maskImageBase64) {
-          const blob = base64ToBlob(maskImageBase64, "image/png");
-          if (blob) {
-            const objectUrl = URL.createObjectURL(blob);
-            dispatch(setOpencvPreviewUrl(objectUrl));
-          }
+        const viewportBounds = editor.viewportInBase?.bounds;
+        let viewportBBox;
+        if (
+          viewportBounds &&
+          Number.isFinite(viewportBounds.x) &&
+          Number.isFinite(viewportBounds.y) &&
+          Number.isFinite(viewportBounds.width) &&
+          Number.isFinite(viewportBounds.height)
+        ) {
+          viewportBBox = {
+            x: viewportBounds.x,
+            y: viewportBounds.y,
+            width: Math.max(1, viewportBounds.width),
+            height: Math.max(1, viewportBounds.height),
+          };
         }
 
-        const _color = theme.palette.secondary.main;
-        const annotations = getPolylinesFromContours(
-          contours,
-          _color,
-          mainBaseMap
-        );
-        // const cleanedPoints = cleanPolylinePoints(color.polylines[0]);
-        //const cleanedPoints = color.polylines[0];
+        const { points, cuts } = await cv.detectContoursAsync({
+          imageUrl: baseMapImageUrl,
+          x: p.x,
+          y: p.y,
+          viewportBBox,
+        });
 
-        dispatch(setTempAnnotations(annotations));
+        console.log("debug_detectContours", { points, cuts });
+
+        if (points && points.length >= 2) {
+          const _color = theme.palette.secondary.main;
+          const polyline = {
+            id: nanoid(),
+            baseMapId: mainBaseMap?.id,
+            type: "POLYLINE",
+            points: points,
+            cuts: cuts && cuts.length > 0 ? cuts : undefined,
+            fillColor: _color,
+            strokeColor: _color,
+            strokeWidth: 1,
+            strokeOpacity: 0.8,
+            strokeType: "SOLID",
+            strokeWidthUnit: "PX",
+            strokeOffset: 0,
+            closeLine: true,
+            fillOpacity: 0.5,
+            isTemp: true,
+          };
+
+          dispatch(setTempAnnotations([polyline]));
+        }
       } else if (opencvClickMode === "GET_ORTHO_LINES") {
         const { x_absolute, y_absolute, scaleToBaseLocal, scaleToBgLocal } = p;
         const pxToBase =

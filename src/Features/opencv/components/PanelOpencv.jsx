@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from "react-redux";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
-import { setTempAnnotations } from "Features/annotations/annotationsSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -20,6 +19,7 @@ import ButtonRemoveColoredContent from "./ButtonRemoveColoredContent";
 import ButtonKeepColoredContent from "./ButtonKeepColoredContent";
 import ButtonGetHorizontalAndVerticalLines from "./ButtonGetHorizontalAndVerticalLines";
 import ButtonCalculateOverlayTransform from "./ButtonCalculateOverlayTransform";
+import ButtonDetectContours from "./ButtonDetectContours";
 import SectionShowEnhanced from "Features/baseMaps/components/SectionShowEnhanced";
 import SectionSaveOpencvPreview from "./SectionSaveOpencvPreview";
 
@@ -92,6 +92,7 @@ export default function PanelOpencv() {
               <ButtonKeepColoredContent />
               <ButtonRemoveColoredContent />
               <ButtonGetHorizontalAndVerticalLines />
+              <ButtonDetectContours />
               <ButtonFillHatch />
               <ButtonOpencvDebug />
               <ButtonRemoveThinRegions />
