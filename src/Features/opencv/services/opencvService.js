@@ -121,6 +121,9 @@ class CV {
   detectLinesAsync(payload) {
     return this._dispatch({ msg: "detectLinesAsync", payload });
   }
+  detectTextAsync(payload) {
+    return this._dispatch({ msg: "detectTextAsync", payload });
+  }
 }
 
 // Export the same instant everywhere

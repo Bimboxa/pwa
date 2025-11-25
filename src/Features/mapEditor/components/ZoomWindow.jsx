@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Box } from "@mui/material";
 import cv from "Features/opencv/services/opencvService";
 import editor from "App/editor";
+import TextOverlay from "./TextOverlay";
 
 const ZOOM_WINDOW_SIZE = 50; // pixels in baseMap coordinates
 const DISPLAY_SIZE = 200; // pixels on screen
@@ -30,10 +31,15 @@ export default function ZoomWindow({
   screenY,
   baseMapImageUrl,
   screenToBaseLocal,
+  baseMapSize = null,
+  enableOcr = false,
 }) {
   const canvasRef = useRef(null);
   const [borderColor, setBorderColor] = useState("#1976d2"); // Default primary color
+  const [detectedText, setDetectedText] = useState("");
+  const [ocrStatus, setOcrStatus] = useState("none"); // none | running | success
   const lastUpdateRef = useRef(0);
+  const textUpdateRef = useRef(0);
   const pendingUpdateRef = useRef(null);
   const isMountedRef = useRef(true);
 
@@ -46,6 +52,18 @@ export default function ZoomWindow({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!enableOcr && detectedText) {
+      setDetectedText("");
+      setOcrStatus("none");
+    }
+    if (!enableOcr) {
+      setOcrStatus("none");
+    }
+  }, [enableOcr, detectedText]);
+
+  const hasDetectedText = Boolean(detectedText?.trim());
 
   // Convert screen coordinates to baseMap coordinates
   const getBaseMapCoords = useCallback(() => {
@@ -62,6 +80,31 @@ export default function ZoomWindow({
 
     const baseCoords = getBaseMapCoords();
     if (!baseCoords) return;
+
+    const imageWidth = baseMapSize?.width;
+    const imageHeight = baseMapSize?.height;
+    if (!imageWidth || !imageHeight) return;
+
+    const windowSizePx = ZOOM_WINDOW_SIZE;
+    const halfWindow = Math.floor(windowSizePx / 2);
+    const startX = Math.max(
+      0,
+      Math.min(imageWidth - windowSizePx, Math.floor(baseCoords.x - halfWindow))
+    );
+    const startY = Math.max(
+      0,
+      Math.min(
+        imageHeight - windowSizePx,
+        Math.floor(baseCoords.y - halfWindow)
+      )
+    );
+    const bbox = {
+      x: startX,
+      y: startY,
+      width: Math.min(windowSizePx, imageWidth - startX),
+      height: Math.min(windowSizePx, imageHeight - startY),
+    };
+    editor.zoomWindowBBox = bbox;
 
     const now = Date.now();
     if (now - lastUpdateRef.current < UPDATE_THROTTLE_MS) {
@@ -92,6 +135,35 @@ export default function ZoomWindow({
         setBorderColor(pixelColorResult.colorHex);
       }
 
+      if (enableOcr) {
+        const textNow = Date.now();
+        if (textNow - textUpdateRef.current > 500) {
+          // Throttle text detection to every 500ms
+          textUpdateRef.current = textNow;
+          setOcrStatus("running");
+          cv.detectTextAsync({
+            imageUrl: baseMapImageUrl,
+            x: baseCoords.x,
+            y: baseCoords.y,
+            windowSize: bbox.width,
+            bbox,
+          })
+            .then((result) => {
+              if (isMountedRef.current) {
+                const text = result?.text ?? "";
+                setDetectedText(text);
+                setOcrStatus(text.trim() ? "success" : "none");
+              }
+            })
+            .catch(() => {
+              if (isMountedRef.current) {
+                setDetectedText("");
+                setOcrStatus("none");
+              }
+            });
+        }
+      }
+
       if (!isMountedRef.current) return;
 
       // Get the pixel color for cross contrast calculation
@@ -106,27 +178,11 @@ export default function ZoomWindow({
         img.onload = () => {
           if (!isMountedRef.current) return;
 
-          const halfWindow = ZOOM_WINDOW_SIZE / 2;
-          const sourceX = Math.max(
-            0,
-            Math.min(
-              img.naturalWidth - ZOOM_WINDOW_SIZE,
-              baseCoords.x - halfWindow
-            )
-          );
-          const sourceY = Math.max(
-            0,
-            Math.min(
-              img.naturalHeight - ZOOM_WINDOW_SIZE,
-              baseCoords.y - halfWindow
-            )
-          );
-          const sourceWidth = Math.min(
-            ZOOM_WINDOW_SIZE,
-            img.naturalWidth - sourceX
-          );
+          const sourceX = Math.max(0, Math.min(img.naturalWidth, bbox.x));
+          const sourceY = Math.max(0, Math.min(img.naturalHeight, bbox.y));
+          const sourceWidth = Math.min(bbox.width, img.naturalWidth - sourceX);
           const sourceHeight = Math.min(
-            ZOOM_WINDOW_SIZE,
+            bbox.height,
             img.naturalHeight - sourceY
           );
 
@@ -236,17 +292,48 @@ export default function ZoomWindow({
         overflow: "hidden",
       }}
     >
-      <canvas
-        ref={canvasRef}
-        width={DISPLAY_SIZE}
-        height={DISPLAY_SIZE}
-        style={{
+      <Box
+        sx={{
+          position: "relative",
           width: "100%",
           height: "100%",
-          display: "block",
-          imageRendering: "pixelated", // Keep pixelated for zoom effect
         }}
-      />
+      >
+        <canvas
+          ref={canvasRef}
+          width={DISPLAY_SIZE}
+          height={DISPLAY_SIZE}
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "block",
+            imageRendering: "pixelated",
+          }}
+        />
+        {enableOcr && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              width: 14,
+              height: 14,
+              borderRadius: "50%",
+              border: "2px solid rgba(0,0,0,0.2)",
+              bgcolor:
+                ocrStatus === "running"
+                  ? "warning.main"
+                  : ocrStatus === "success"
+                  ? "success.main"
+                  : "grey.500",
+              boxShadow: 1,
+            }}
+          />
+        )}
+        {enableOcr && hasDetectedText && (
+          <TextOverlay text={detectedText} anchor />
+        )}
+      </Box>
     </Box>
   );
 }
