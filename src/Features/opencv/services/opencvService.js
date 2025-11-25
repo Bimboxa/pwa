@@ -118,6 +118,9 @@ class CV {
   removeThinRegionsAsync(payload) {
     return this._dispatch({ msg: "removeThinRegionsAsync", payload });
   }
+  detectLinesAsync(payload) {
+    return this._dispatch({ msg: "detectLinesAsync", payload });
+  }
 }
 
 // Export the same instant everywhere
