@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 
 import useNewAnnotationColor from "Features/annotations/hooks/useNewAnnotationColor";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import { Box } from "@mui/material";
 
@@ -11,6 +12,8 @@ import MarkerIconNewMarker from "Features/markers/components/MarkerIconNewMarker
 import ImageAnnotationIcon from "Features/imageAnnotations/components/ImageAnnotationIcon";
 import ImageGeneric from "Features/images/components/ImageGeneric";
 import SectionFixedLengthToNextPoint from "Features/annotations/components/SectionFixedLengthToNextPoint";
+import ZoomWindow from "./ZoomWindow";
+import editor from "App/editor";
 
 export default function LayerScreenCursor({ containerEl }) {
   const [pos, setPos] = useState({ x: 0, y: 0 });
@@ -24,10 +27,19 @@ export default function LayerScreenCursor({ containerEl }) {
   const color = useNewAnnotationColor();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const bboxDims = useSelector((s) => s.opencv.bboxDims);
+  const baseMap = useMainBaseMap();
 
   // helper - show bbox
 
   const showBbox = mode === "KEEP_COLORS" && enabledDrawingMode === "OPENCV";
+  const showZoomWindow = enabledDrawingMode === "OPENCV";
+
+  // Get baseMap image URL
+  const baseMapImageUrl =
+    baseMap?.showEnhanced && baseMap?.imageEnhanced
+      ? baseMap.imageEnhanced.imageUrlClient ??
+        baseMap.imageEnhanced.imageUrlRemote
+      : baseMap?.image?.imageUrlClient ?? baseMap?.image?.imageUrlRemote;
 
   // effect
 
@@ -187,6 +199,14 @@ export default function LayerScreenCursor({ containerEl }) {
             boxSizing: "border-box",
             zIndex: 1,
           }}
+        />
+      )}
+      {showZoomWindow && baseMapImageUrl && editor.screenToBaseLocal && (
+        <ZoomWindow
+          screenX={pos.x}
+          screenY={pos.y}
+          baseMapImageUrl={baseMapImageUrl}
+          screenToBaseLocal={editor.screenToBaseLocal}
         />
       )}
     </>

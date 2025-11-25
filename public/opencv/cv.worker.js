@@ -13,6 +13,7 @@ self.importScripts("./handlers/calculateOverlayTransformAsync.js");
 self.importScripts("./handlers/opencvDebugAsync.js");
 self.importScripts("./handlers/fillHatchAsync.js");
 self.importScripts("./handlers/removeThinRegionsAsync.js");
+self.importScripts("./handlers/detectLinesAsync.js");
 /**
  * This exists to capture all the events that are thrown out of the worker
  * into the worker. Without this, there would be no communication possible
@@ -68,6 +69,9 @@ onmessage = function (e) {
 
   case "removeThinRegionsAsync":
     return removeThinRegionsAsync(e.data);
+
+  case "detectLinesAsync":
+    return detectLinesAsync(e.data);
 
     default:
       break;

@@ -876,6 +876,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
       },
       updatedAt: Date.now(),
     };
+    // Store conversion function for use by other components
+    editor.screenToBaseLocal = screenToBaseLocal;
   }, [screenToBaseLocal, viewport.w, viewport.h, baseSize.w, baseSize.h, world, basePose]);
 
   const relBase = useMemo(() => {
