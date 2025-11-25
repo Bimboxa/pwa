@@ -15,6 +15,7 @@ export default function ButtonActionInPanel({
   checked,
   triggerOpenAt,
   onChange,
+  helperText,
   ...buttonProps
 }) {
   const [open, setOpen] = useState(false);
@@ -71,6 +72,15 @@ export default function ButtonActionInPanel({
           )}
         </Box>
       </Box>
+      {helperText && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ pl: "40px", pr: "16px" }}
+        >
+          {helperText}
+        </Typography>
+      )}
       <Collapse in={open} timeout="auto">
         <Box sx={{ p: 1, pl: "40px", pr: "16px" }}>
           <Box sx={{ bgcolor: "background.default" }}>{children}</Box>
