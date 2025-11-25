@@ -39,6 +39,7 @@ import {
   addSegmentPoint,
   setFixedLength,
   setFixedDims,
+  triggerScreenToBaseLocalUpdate,
 } from "Features/mapEditor/mapEditorSlice";
 import applyFixedLengthConstraint from "Features/mapEditorGeneric/utils/applyFixedLengthConstraint";
 import applyFixedDimsConstraint from "Features/mapEditorGeneric/utils/applyFixedDimsConstraint";
@@ -878,6 +879,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
     };
     // Store conversion function for use by other components
     editor.screenToBaseLocal = screenToBaseLocal;
+    dispatch(triggerScreenToBaseLocalUpdate());
   }, [screenToBaseLocal, viewport.w, viewport.h, baseSize.w, baseSize.h, world, basePose]);
 
   const relBase = useMemo(() => {
@@ -1226,7 +1228,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         setSnapHelper(null);
       }
 
-      if (enabledDrawingMode) {
+      if (enabledDrawingMode || selectedNode?.nodeType === "ANNOTATION") {
         if (hoveredMarker) setHoveredMarker(null);
         if (hoveredAnnotation) setHoveredAnnotation(null);
         return;

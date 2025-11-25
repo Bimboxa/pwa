@@ -17,6 +17,7 @@ self.importScripts("./handlers/removeThinRegionsAsync.js");
 self.importScripts("./handlers/detectLinesAsync.js");
 self.importScripts("./handlers/detectTextAsync.js");
 self.importScripts("./handlers/detectContoursAsync.js");
+self.importScripts("./handlers/detectStraightLineAsync.js");
 /**
  * This exists to capture all the events that are thrown out of the worker
  * into the worker. Without this, there would be no communication possible
@@ -84,6 +85,9 @@ onmessage = function (e) {
 
   case "detectContoursAsync":
     return detectContoursAsync(e.data);
+
+  case "detectStraightLineAsync":
+    return detectStraightLineAsync(e.data);
 
     default:
       break;
