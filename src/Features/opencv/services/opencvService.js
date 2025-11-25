@@ -130,6 +130,12 @@ class CV {
       payload,
     });
   }
+  detectContoursAsync(payload) {
+    return this._dispatch({
+      msg: "detectContoursAsync",
+      payload,
+    });
+  }
 }
 
 // Export the same instant everywhere

@@ -16,6 +16,7 @@ self.importScripts("./handlers/fillHatchAsync.js");
 self.importScripts("./handlers/removeThinRegionsAsync.js");
 self.importScripts("./handlers/detectLinesAsync.js");
 self.importScripts("./handlers/detectTextAsync.js");
+self.importScripts("./handlers/detectContoursAsync.js");
 /**
  * This exists to capture all the events that are thrown out of the worker
  * into the worker. Without this, there would be no communication possible
@@ -80,6 +81,9 @@ onmessage = function (e) {
 
   case "getHorizontalAndVerticalLinesAsync":
     return getHorizontalAndVerticalLinesAsync(e.data);
+
+  case "detectContoursAsync":
+    return detectContoursAsync(e.data);
 
     default:
       break;
