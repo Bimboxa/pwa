@@ -6,6 +6,7 @@ self.importScripts("./handlers/highlightDifferences.js");
 self.importScripts("./handlers/findPattern.js");
 self.importScripts("./handlers/getPixelColorAsync.js");
 self.importScripts("./handlers/getWhiteContoursAsync.js");
+self.importScripts("./handlers/getHorizontalAndVerticalLinesAsync.js");
 self.importScripts("./handlers/removeTextAsync.js");
 self.importScripts("./handlers/removeColoredContentAsync.js");
 self.importScripts("./handlers/keepColoredContentAsync.js");
@@ -76,6 +77,9 @@ onmessage = function (e) {
 
   case "detectTextAsync":
     return detectTextAsync(e.data);
+
+  case "getHorizontalAndVerticalLinesAsync":
+    return getHorizontalAndVerticalLinesAsync(e.data);
 
     default:
       break;

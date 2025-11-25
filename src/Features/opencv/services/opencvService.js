@@ -124,6 +124,12 @@ class CV {
   detectTextAsync(payload) {
     return this._dispatch({ msg: "detectTextAsync", payload });
   }
+  getHorizontalAndVerticalLinesAsync(payload) {
+    return this._dispatch({
+      msg: "getHorizontalAndVerticalLinesAsync",
+      payload,
+    });
+  }
 }
 
 // Export the same instant everywhere
