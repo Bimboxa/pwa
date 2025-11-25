@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -8,7 +8,7 @@ import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
-import { Paper, Box, Divider, Typography, IconButton } from "@mui/material";
+import { Paper, Box, Typography, IconButton, Tabs, Tab } from "@mui/material";
 import { ArrowDropDown as Down, ArrowDropUp as Up } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -28,6 +28,17 @@ import ButtonOpencvDebug from "./ButtonOpencvDebug";
 import ButtonFillHatch from "./ButtonFillHatch";
 import ButtonRemoveThinRegions from "./ButtonRemoveThinRegions";
 import ButtonToggleShowOpencvPreview from "./ButtonToggleShowOpencvPreview";
+
+import { Divider } from "@mui/material";
+
+function TabPanel({ children, value, index }) {
+  if (value !== index) return null;
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+      {children}
+    </Box>
+  );
+}
 
 export default function PanelOpencv() {
   const dispatch = useDispatch();
@@ -50,11 +61,110 @@ export default function PanelOpencv() {
   const em = listing?.entityModel?.type;
   console.log("em", em);
 
-  // handlers
+  // helpers - buttons
 
-  async function detectContours() {
-    dispatch(setEnabledDrawingMode("OPENCV"));
+  const buttons = useMemo(
+    () => [
+      {
+        key: "btn-enhance",
+        component: <ButtonEnhanceBaseMap />,
+        ems: ["BASE_MAP"],
+        group: "Sat.",
+      },
+      {
+        key: "btn-remove-text",
+        component: <ButtonRemoveText />,
+        ems: ["BASE_MAP"],
+        group: "Prépa",
+      },
+      {
+        key: "btn-keep-colored",
+        component: <ButtonKeepColoredContent />,
+        ems: ["BASE_MAP"],
+        group: "Prépa",
+      },
+      {
+        key: "btn-remove-colored",
+        component: <ButtonRemoveColoredContent />,
+        ems: ["BASE_MAP"],
+        group: "Prépa",
+      },
+
+      {
+        key: "btn-get-lines",
+        component: <ButtonGetHorizontalAndVerticalLines />,
+        ems: ["BASE_MAP"],
+        group: "Prépa",
+      },
+      {
+        key: "btn-fill-hatch",
+        component: <ButtonFillHatch />,
+        ems: ["BASE_MAP"],
+        group: "Prépa",
+      },
+      {
+        key: "btn-remove-thin",
+        component: <ButtonRemoveThinRegions />,
+        ems: ["BASE_MAP"],
+        group: "Prépa",
+      },
+
+      {
+        key: "btn-detect-contours",
+        component: <ButtonDetectContours />,
+        ems: ["BASE_MAP", "LOCATED_ENTITY"],
+        group: "Zones",
+      },
+      {
+        key: "btn-overlay",
+        component: <ButtonCalculateOverlayTransform />,
+        ems: ["BASE_MAP"],
+        group: "Autres",
+      },
+      {
+        key: "btn-debug",
+        component: <ButtonOpencvDebug />,
+        ems: ["BASE_MAP"],
+        group: "Autres",
+      },
+    ],
+    [contoursS]
+  );
+
+  const availableGroups = useMemo(() => {
+    return buttons
+      .filter((btn) => btn.ems.includes(em))
+      .reduce((acc, btn) => {
+        if (!acc[btn.group]) acc[btn.group] = [];
+        acc[btn.group].push(btn);
+        return acc;
+      }, {});
+  }, [buttons, em]);
+
+  const groupNames = useMemo(
+    () => Object.keys(availableGroups),
+    [availableGroups]
+  );
+  const [activeGroup, setActiveGroup] = useState(null);
+
+  useEffect(() => {
+    if (!groupNames.length) {
+      setActiveGroup(null);
+      return;
+    }
+    setActiveGroup((prev) =>
+      prev && groupNames.includes(prev) ? prev : groupNames[0]
+    );
+  }, [groupNames]);
+
+  function handleTabChange(_evt, newValue) {
+    setActiveGroup(newValue);
   }
+
+  const tabValue = useMemo(() => {
+    if (!groupNames.length) return null;
+    return activeGroup ?? groupNames[0];
+  }, [activeGroup, groupNames]);
 
   return (
     <Paper>
@@ -76,30 +186,33 @@ export default function PanelOpencv() {
       {open && (
         <BoxFlexVStretch>
           <SectionShowEnhanced />
-          {em === "LOCATED_ENTITY" && (
-            <ButtonGeneric
-              onClick={detectContours}
-              label={contoursS}
-              variant="contained"
-              color="secondary"
-            />
-          )}
-
-          {em === "BASE_MAP" && (
+          {groupNames.length > 0 && tabValue && (
             <>
-              <ButtonEnhanceBaseMap />
-              <ButtonRemoveText />
-              <ButtonKeepColoredContent />
-              <ButtonRemoveColoredContent />
-              <ButtonGetHorizontalAndVerticalLines />
-              <ButtonDetectContours />
-              <ButtonFillHatch />
-              <ButtonOpencvDebug />
-              <ButtonRemoveThinRegions />
-              <ButtonCalculateOverlayTransform />
+              <Tabs
+                value={tabValue}
+                onChange={handleTabChange}
+                variant="scrollable"
+                scrollButtons="auto"
+                sx={{ bgcolor: "background.default" }}
+              >
+                {groupNames.map((group) => (
+                  <Tab key={group} value={group} label={group} />
+                ))}
+              </Tabs>
+
+              {groupNames.map((group) => (
+                <TabPanel key={`panel-${group}`} value={tabValue} index={group}>
+                  <Box sx={{ py: 2 }}>
+                    {availableGroups[group].map((btn) => (
+                      <Box key={btn.key}>{btn.component}</Box>
+                    ))}
+                  </Box>
+                </TabPanel>
+              ))}
             </>
           )}
 
+          <Divider sx={{ my: 2 }} />
           <SectionSaveOpencvPreview />
           <ButtonToggleShowOpencvPreview />
         </BoxFlexVStretch>
