@@ -217,6 +217,7 @@ export default function LayerScreenCursor({ containerEl }) {
           enableOcr={isRemoveTextMode}
           opencvMode={mode}
           screenToBaseLocalUpdatedAt={screenToBaseLocalUpdatedAt}
+          variant={mode === "FILL_HATCH" ? "HATCH_PREVIEW" : null}
         />
       )}
     </>
