@@ -875,7 +875,7 @@ export default function MainMapEditorV2() {
             dispatch(setOpencvPreviewUrl(objectUrl));
           }
         }
-      } else {
+      } else if (opencvClickMode === "DETECT_CONTOURS") {
         const { polylines: contours, maskImageBase64 } =
           await cv.getWhiteContoursAsync({
             imageUrl: baseMapImageUrl,

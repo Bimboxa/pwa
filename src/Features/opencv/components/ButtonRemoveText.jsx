@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
 
 import { setOpencvPreviewUrl } from "../opencvSlice";
-
+import { setOpencvClickMode } from "../opencvSlice";
+import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 import { Box } from "@mui/material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -31,6 +32,10 @@ export default function ButtonRemoveText() {
   const opencvPreviewUrl = useSelector(
     (state) => state.opencv.opencvPreviewUrl
   );
+  const enabledDrawingMode = useSelector(
+    (state) => state.mapEditor.enabledDrawingMode
+  );
+  const opencvClickMode = useSelector((state) => state.opencv.opencvClickMode);
 
   // helpers
 
@@ -45,29 +50,38 @@ export default function ButtonRemoveText() {
   async function handleClick() {
     if (!baseMapImageUrl || !baseMap?.id) return;
 
+    dispatch(setEnabledDrawingMode("OPENCV"));
+    dispatch(setOpencvClickMode("REMOVE_TEXT"));
+
     setLoading(true);
-    try {
-      const bbox = editor?.viewportInBase?.bounds;
+    // try {
+    //   const bbox = editor?.viewportInBase?.bounds;
 
-      await cv.load();
-      const { resultImageBase64 } = await cv.removeTextAsync({
-        imageUrl: opencvPreviewUrl ?? baseMapImageUrl,
-        bbox,
-      });
+    //   await cv.load();
+    //   const { resultImageBase64 } = await cv.removeTextAsync({
+    //     imageUrl: opencvPreviewUrl ?? baseMapImageUrl,
+    //     bbox,
+    //   });
 
-      if (resultImageBase64) {
-        const blob = base64ToBlob(resultImageBase64, "image/png");
-        if (blob) {
-          const objectUrl = URL.createObjectURL(blob);
-          dispatch(setOpencvPreviewUrl(objectUrl));
-        }
-      }
-    } catch (error) {
-      console.error("Failed to remove text:", error);
-    } finally {
+    //   if (resultImageBase64) {
+    //     const blob = base64ToBlob(resultImageBase64, "image/png");
+    //     if (blob) {
+    //       const objectUrl = URL.createObjectURL(blob);
+    //       dispatch(setOpencvPreviewUrl(objectUrl));
+    //     }
+    //   }
+    // } catch (error) {
+    //   console.error("Failed to remove text:", error);
+    // } finally {
+    //   setLoading(false);
+    // }
+  }
+
+  useEffect(() => {
+    if (enabledDrawingMode !== "OPENCV" || opencvClickMode !== "REMOVE_TEXT") {
       setLoading(false);
     }
-  }
+  }, [enabledDrawingMode, opencvClickMode]);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>

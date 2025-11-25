@@ -32,6 +32,7 @@ export default function LayerScreenCursor({ containerEl }) {
   // helper - show bbox
 
   const showBbox = mode === "KEEP_COLORS" && enabledDrawingMode === "OPENCV";
+  const isRemoveTextMode = mode === "REMOVE_TEXT";
   const showZoomWindow = enabledDrawingMode === "OPENCV";
 
   // Get baseMap image URL
@@ -207,6 +208,10 @@ export default function LayerScreenCursor({ containerEl }) {
           screenY={pos.y}
           baseMapImageUrl={baseMapImageUrl}
           screenToBaseLocal={editor.screenToBaseLocal}
+          baseMapSize={
+            baseMap?.imageEnhanced?.imageSize ?? baseMap?.image?.imageSize
+          }
+          enableOcr={isRemoveTextMode}
         />
       )}
     </>
