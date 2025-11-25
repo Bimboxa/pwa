@@ -18,6 +18,7 @@ import ButtonEnhanceBaseMap from "Features/baseMaps/components/ButtonEnhanceBase
 import ButtonRemoveText from "./ButtonRemoveText";
 import ButtonRemoveColoredContent from "./ButtonRemoveColoredContent";
 import ButtonKeepColoredContent from "./ButtonKeepColoredContent";
+import ButtonGetHorizontalAndVerticalLines from "./ButtonGetHorizontalAndVerticalLines";
 import ButtonCalculateOverlayTransform from "./ButtonCalculateOverlayTransform";
 import SectionShowEnhanced from "Features/baseMaps/components/SectionShowEnhanced";
 import SectionSaveOpencvPreview from "./SectionSaveOpencvPreview";
@@ -90,6 +91,7 @@ export default function PanelOpencv() {
               <ButtonRemoveText />
               <ButtonKeepColoredContent />
               <ButtonRemoveColoredContent />
+              <ButtonGetHorizontalAndVerticalLines />
               <ButtonFillHatch />
               <ButtonOpencvDebug />
               <ButtonRemoveThinRegions />

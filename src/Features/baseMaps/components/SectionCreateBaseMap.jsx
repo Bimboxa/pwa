@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
+import { useNavigate } from "react-router-dom";
+
 import { setSelectedEntityId } from "Features/entities/entitiesSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
@@ -14,9 +16,11 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
 import FormGenericV2 from "Features/form/components/FormGenericV2";
+import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 export default function SectionCreateBaseMap({ onClose }) {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   // strings
 
@@ -91,6 +95,11 @@ export default function SectionCreateBaseMap({ onClose }) {
     if (onClose) onClose();
   }
 
+  function handleOpenPageGmap() {
+    const url = `${window.location.origin}/gmap`;
+    window.open(url, "_blank", "noopener");
+  }
+
   return (
     <BoxFlexVStretch>
       <HeaderTitleClose title={title} onClose={handleClose} />
@@ -107,6 +116,12 @@ export default function SectionCreateBaseMap({ onClose }) {
           onClick={handleCreateClick}
           color="secondary"
           variant="contained"
+        />
+      </Box>
+      <Box>
+        <ButtonGeneric
+          label="Ouvrir Google Maps"
+          onClick={handleOpenPageGmap}
         />
       </Box>
     </BoxFlexVStretch>

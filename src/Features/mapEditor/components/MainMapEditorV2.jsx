@@ -903,6 +903,43 @@ export default function MainMapEditorV2() {
         //const cleanedPoints = color.polylines[0];
 
         dispatch(setTempAnnotations(annotations));
+      } else if (opencvClickMode === "GET_ORTHO_LINES") {
+        const { x_absolute, y_absolute, scaleToBaseLocal, scaleToBgLocal } = p;
+        const pxToBase =
+          ((typeof scaleToBaseLocal === "number"
+            ? scaleToBaseLocal
+            : scaleToBgLocal) || 0) / 10;
+
+        if (pxToBase <= 0) {
+          console.warn(
+            "[GET_ORTHO_LINES] Unable to determine scale factor. Aborting."
+          );
+          return;
+        }
+
+        const bbox = {
+          x: x_absolute - (pxToBase * bboxDims.width) / 2,
+          y: y_absolute - (pxToBase * bboxDims.height) / 2,
+          width: pxToBase * bboxDims.width,
+          height: pxToBase * bboxDims.height,
+        };
+
+        const { polylines } = await cv.getHorizontalAndVerticalLinesAsync({
+          imageUrl: baseMapImageUrl,
+          x: x_absolute,
+          y: y_absolute,
+          bbox,
+        });
+
+        if (polylines?.length) {
+          const color = theme.palette.secondary.main;
+          const annotations = getPolylinesFromContours(
+            polylines,
+            color,
+            mainBaseMap
+          );
+          dispatch(setTempAnnotations(annotations));
+        }
       }
     }
   }
