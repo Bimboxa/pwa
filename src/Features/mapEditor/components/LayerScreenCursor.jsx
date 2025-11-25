@@ -28,6 +28,9 @@ export default function LayerScreenCursor({ containerEl }) {
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const bboxDims = useSelector((s) => s.opencv.bboxDims);
   const baseMap = useMainBaseMap();
+  const screenToBaseLocalUpdatedAt = useSelector(
+    (s) => s.mapEditor.screenToBaseLocalUpdatedAt
+  );
 
   // helper - show bbox
 
@@ -212,6 +215,8 @@ export default function LayerScreenCursor({ containerEl }) {
             baseMap?.imageEnhanced?.imageSize ?? baseMap?.image?.imageSize
           }
           enableOcr={isRemoveTextMode}
+          opencvMode={mode}
+          screenToBaseLocalUpdatedAt={screenToBaseLocalUpdatedAt}
         />
       )}
     </>

@@ -20,6 +20,7 @@ import ButtonKeepColoredContent from "./ButtonKeepColoredContent";
 import ButtonGetHorizontalAndVerticalLines from "./ButtonGetHorizontalAndVerticalLines";
 import ButtonCalculateOverlayTransform from "./ButtonCalculateOverlayTransform";
 import ButtonDetectContours from "./ButtonDetectContours";
+import ButtonDetectStraightLine from "./ButtonDetectStraightLine";
 import SectionShowEnhanced from "Features/baseMaps/components/SectionShowEnhanced";
 import SectionSaveOpencvPreview from "./SectionSaveOpencvPreview";
 
@@ -72,6 +73,12 @@ export default function PanelOpencv() {
         group: "Sat.",
       },
       {
+        key: "btn-detect-straight-line",
+        component: <ButtonDetectStraightLine />,
+        ems: ["BASE_MAP"],
+        group: "Prépa",
+      },
+      {
         key: "btn-remove-text",
         component: <ButtonRemoveText />,
         ems: ["BASE_MAP"],
@@ -115,6 +122,7 @@ export default function PanelOpencv() {
         ems: ["BASE_MAP", "LOCATED_ENTITY"],
         group: "Zones",
       },
+
       {
         key: "btn-overlay",
         component: <ButtonCalculateOverlayTransform />,

@@ -52,6 +52,7 @@ import {
   setAnchorPosition,
   setClickedNode,
 } from "Features/contextMenu/contextMenuSlice";
+import { updateTempAnnotation } from "Features/annotations/annotationsSlice";
 
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 import useInitDefaultNewAnnotation from "Features/annotations/hooks/useInitDefaultNewAnnotation";
@@ -429,6 +430,11 @@ export default function MainMapEditorV2() {
   async function handleAnnotationChange(_annotation) {
     try {
       console.log("annotation change", _annotation);
+
+      if (_annotation?.isTemp) {
+        dispatch(updateTempAnnotation(_annotation));
+        return;
+      }
       await updateAnnotation(_annotation);
 
       // Handle cutHost updates: if this is a cutHost polyline and its points changed,
@@ -923,6 +929,56 @@ export default function MainMapEditorV2() {
           };
 
           dispatch(setTempAnnotations([polyline]));
+        }
+      } else if (opencvClickMode === "DETECT_STRAIGHT_LINE") {
+        const viewportBounds = editor.viewportInBase?.bounds;
+        let viewportBBox;
+        if (
+          viewportBounds &&
+          Number.isFinite(viewportBounds.x) &&
+          Number.isFinite(viewportBounds.y) &&
+          Number.isFinite(viewportBounds.width) &&
+          Number.isFinite(viewportBounds.height)
+        ) {
+          viewportBBox = {
+            x: viewportBounds.x,
+            y: viewportBounds.y,
+            width: Math.max(1, viewportBounds.width),
+            height: Math.max(1, viewportBounds.height),
+          };
+        }
+
+        const { line, angle } = await cv.detectStraightLineAsync({
+          imageUrl: baseMapImageUrl,
+          x: p.x,
+          y: p.y,
+          viewportBBox,
+        });
+
+        if (line) {
+          const color = "#00ff7f";
+          const polyline = {
+            id: nanoid(),
+            baseMapId: mainBaseMap?.id,
+            type: "POLYLINE",
+            points: [
+              { x: line.x1, y: line.y1 },
+              { x: line.x2, y: line.y2 },
+            ],
+            strokeColor: color,
+            strokeWidth: 3,
+            strokeOpacity: 0.95,
+            strokeType: "SOLID",
+            strokeWidthUnit: "PX",
+            closeLine: false,
+            fillOpacity: 0,
+            isTemp: true,
+            meta: angle != null ? { angle } : undefined,
+          };
+
+          dispatch(setTempAnnotations([polyline]));
+        } else {
+          dispatch(setTempAnnotations([]));
         }
       } else if (opencvClickMode === "GET_ORTHO_LINES") {
         const { x_absolute, y_absolute, scaleToBaseLocal, scaleToBgLocal } = p;

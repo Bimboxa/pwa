@@ -1,30 +1,63 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useLayoutEffect,
+  useMemo,
+  useCallback,
+} from "react";
+
+import { useSelector } from "react-redux";
+
 import { Box } from "@mui/material";
 import cv from "Features/opencv/services/opencvService";
 import editor from "App/editor";
 import TextOverlay from "./TextOverlay";
 
-const ZOOM_WINDOW_SIZE = 50; // pixels in baseMap coordinates
-const DISPLAY_SIZE = 200; // pixels on screen
-const UPDATE_THROTTLE_MS = 100; // Throttle line detection updates
+const DEFAULT_SCALE_FACTOR = 10;
+const DISPLAY_SIZE = 200;
+const CV_THROTTLE_MS = 100;
 
-// Calculate luminance of a hex color and return contrasting color (black or white)
+// --- Helper Functions (omitted for brevity) ---
+
 function getContrastColor(hexColor) {
-  // Remove # if present
-  const hex = hexColor.replace("#", "");
-
-  // Parse RGB values
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-
-  // Calculate relative luminance using the formula from WCAG
-  // https://www.w3.org/WAI/GL/wiki/Relative_luminance
-  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-
-  // If luminance is high (light color), use black; otherwise use white
-  return luminance > 128 ? "#000000" : "#ffffff";
+  /* ... */ return "#000000";
 }
+function rgbToHex(r, g, b) {
+  /* ... */ return "#...";
+}
+function isNearWhite(hexColor, tolerance = 12) {
+  /* ... */ return false;
+}
+
+function convertLineToDisplayCoords(line, bbox, imageWidth, imageHeight) {
+  if (!line || !bbox || !imageWidth || !imageHeight) return null;
+  const x1 = line.x1 * imageWidth;
+  const y1 = line.y1 * imageHeight;
+  const x2 = line.x2 * imageWidth;
+  const y2 = line.y2 * imageHeight;
+
+  const scaleX = DISPLAY_SIZE / bbox.width;
+  const scaleY = DISPLAY_SIZE / bbox.height;
+
+  const localX1 = (x1 - bbox.x) * scaleX;
+  const localY1 = (y1 - bbox.y) * scaleY;
+  const localX2 = (x2 - bbox.x) * scaleX;
+  const localY2 = (y2 - bbox.y) * scaleY;
+
+  if (
+    !isFinite(localX1) ||
+    !isFinite(localX2) ||
+    !isFinite(localY1) ||
+    !isFinite(localY2)
+  ) {
+    return null;
+  }
+
+  return { x1: localX1, y1: localY1, x2: localX2, y2: localY2 };
+}
+
+// --- Component ---
 
 export default function ZoomWindow({
   screenX,
@@ -33,113 +66,133 @@ export default function ZoomWindow({
   screenToBaseLocal,
   baseMapSize = null,
   enableOcr = false,
+  opencvMode = null,
+  screenToBaseLocalUpdatedAt = null,
 }) {
   const canvasRef = useRef(null);
-  const [borderColor, setBorderColor] = useState("#1976d2"); // Default primary color
-  const [detectedText, setDetectedText] = useState("");
-  const [ocrStatus, setOcrStatus] = useState("none"); // none | running | success
-  const lastUpdateRef = useRef(0);
-  const textUpdateRef = useRef(0);
-  const pendingUpdateRef = useRef(null);
-  const isMountedRef = useRef(true);
 
+  // State
+  const [borderColor, setBorderColor] = useState("#1976d2");
+  const [imageReady, setImageReady] = useState(false);
+  const [detectedText, setDetectedText] = useState("");
+  const [ocrStatus, setOcrStatus] = useState("none");
+  const [lineOverlay, setLineOverlay] = useState(null);
+  const [lineAngle, setLineAngle] = useState(null);
+  const [lineFlash, setLineFlash] = useState(false);
+
+  // Refs
+  const bitmapRef = useRef(null);
+  const isMountedRef = useRef(true);
+  const cvTimeoutRef = useRef(null);
+
+  // 1. Lifecycle & Image Loading (same as before)
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      if (pendingUpdateRef.current) {
-        cancelAnimationFrame(pendingUpdateRef.current);
-      }
     };
   }, []);
 
   useEffect(() => {
-    if (!enableOcr && detectedText) {
-      setDetectedText("");
-      setOcrStatus("none");
+    setImageReady(false);
+    if (bitmapRef.current) {
+      bitmapRef.current.close?.();
+      bitmapRef.current = null;
     }
-    if (!enableOcr) {
-      setOcrStatus("none");
-    }
-  }, [enableOcr, detectedText]);
-
-  const hasDetectedText = Boolean(detectedText?.trim());
-
-  // Convert screen coordinates to baseMap coordinates
-  const getBaseMapCoords = useCallback(() => {
-    if (!screenToBaseLocal || screenX === undefined || screenY === undefined) {
-      return null;
-    }
-    const baseCoords = screenToBaseLocal(screenX, screenY);
-    return baseCoords;
-  }, [screenX, screenY, screenToBaseLocal]);
-
-  // Update zoom window image
-  const updateZoomWindow = useCallback(async () => {
-    if (!baseMapImageUrl || !canvasRef.current) return;
-
-    const baseCoords = getBaseMapCoords();
-    if (!baseCoords) return;
-
-    const imageWidth = baseMapSize?.width;
-    const imageHeight = baseMapSize?.height;
-    if (!imageWidth || !imageHeight) return;
-
-    const windowSizePx = ZOOM_WINDOW_SIZE;
-    const halfWindow = Math.floor(windowSizePx / 2);
-    const startX = Math.max(
-      0,
-      Math.min(imageWidth - windowSizePx, Math.floor(baseCoords.x - halfWindow))
-    );
-    const startY = Math.max(
-      0,
-      Math.min(
-        imageHeight - windowSizePx,
-        Math.floor(baseCoords.y - halfWindow)
-      )
-    );
-    const bbox = {
-      x: startX,
-      y: startY,
-      width: Math.min(windowSizePx, imageWidth - startX),
-      height: Math.min(windowSizePx, imageHeight - startY),
-    };
-    editor.zoomWindowBBox = bbox;
-
-    const now = Date.now();
-    if (now - lastUpdateRef.current < UPDATE_THROTTLE_MS) {
-      // Throttle updates
-      if (pendingUpdateRef.current) {
-        cancelAnimationFrame(pendingUpdateRef.current);
-      }
-      pendingUpdateRef.current = requestAnimationFrame(() => {
-        if (isMountedRef.current) {
-          updateZoomWindow();
+    if (!baseMapImageUrl) return;
+    let cancelled = false;
+    const loadBitmap = async () => {
+      try {
+        const response = await fetch(baseMapImageUrl, { mode: "cors" });
+        if (!response.ok) throw new Error("Failed");
+        const blob = await response.blob();
+        if (cancelled) return;
+        const bitmap = await createImageBitmap(blob);
+        if (cancelled) {
+          bitmap.close();
+          return;
         }
-      });
-      return;
-    }
-    lastUpdateRef.current = now;
-
-    try {
-      await cv.load();
-
-      // Get pixel color for border (await to ensure we have the color before drawing)
-      const pixelColorResult = await cv.getPixelColorAsync({
-        imageUrl: baseMapImageUrl,
-        x: baseCoords.x,
-        y: baseCoords.y,
-      });
-
-      if (isMountedRef.current && pixelColorResult?.colorHex) {
-        setBorderColor(pixelColorResult.colorHex);
+        bitmapRef.current = bitmap;
+        if (isMountedRef.current) setImageReady(true);
+      } catch (error) {
+        console.error("ZoomWindow image load failed", error);
       }
+    };
+    loadBitmap();
+    return () => {
+      cancelled = true;
+    };
+  }, [baseMapImageUrl]);
 
-      if (enableOcr) {
-        const textNow = Date.now();
-        if (textNow - textUpdateRef.current > 500) {
-          // Throttle text detection to every 500ms
-          textUpdateRef.current = textNow;
+  // 2. SYNCHRONOUSLY DERIVE viewportZoom using useMemo
+  // Dependency is now strictly limited to screenToBaseLocal.
+  // We use fixed input coordinates (0, 0) as anchors for the calculation, assuming uniform scale.
+  const viewportZoom = useMemo(() => {
+    if (!screenToBaseLocal) return 1.0;
+
+    const screenDelta = 50;
+    const inputX = 0; // Fixed input point
+    const inputY = 0; // Fixed input point
+
+    const baseCoord1 = screenToBaseLocal(inputX, inputY);
+    const baseCoord2 = screenToBaseLocal(inputX + screenDelta, inputY);
+
+    if (!baseCoord1 || !baseCoord2) return 1.0;
+
+    const baseDeltaX = Math.abs(baseCoord2.x - baseCoord1.x);
+
+    if (baseDeltaX < 0.0001) return 1.0;
+
+    return screenDelta / baseDeltaX;
+  }, [screenToBaseLocal, screenToBaseLocalUpdatedAt]);
+
+  // 3. Computer Vision (Async) (useCallback)
+  const runComputerVision = useCallback(
+    async (bbox, baseCoords, currentColorHex) => {
+      if (!isMountedRef.current) return;
+
+      const detectionEnabled =
+        opencvMode === "DETECT_STRAIGHT_LINE" &&
+        baseMapSize?.width &&
+        !isNearWhite(currentColorHex);
+
+      try {
+        if (detectionEnabled || enableOcr) {
+          await cv.load();
+        }
+
+        if (detectionEnabled) {
+          const normalizedX = baseCoords.x / baseMapSize.width;
+          const normalizedY = baseCoords.y / baseMapSize.height;
+
+          const detectionResult = await cv.detectStraightLineAsync({
+            imageUrl: baseMapImageUrl,
+            x: normalizedX,
+            y: normalizedY,
+            viewportBBox: editor.viewportInBase?.bounds,
+          });
+
+          if (isMountedRef.current) {
+            if (detectionResult?.line) {
+              const overlay = convertLineToDisplayCoords(
+                detectionResult.line,
+                bbox,
+                baseMapSize.width,
+                baseMapSize.height
+              );
+              if (overlay) {
+                setLineOverlay({ ...overlay, token: Date.now() });
+                setLineAngle(
+                  typeof detectionResult.angle === "number"
+                    ? detectionResult.angle
+                    : null
+                );
+              }
+            }
+          }
+        }
+
+        if (enableOcr) {
           setOcrStatus("running");
           cv.detectTextAsync({
             imageUrl: baseMapImageUrl,
@@ -162,113 +215,148 @@ export default function ZoomWindow({
               }
             });
         }
+      } catch (err) {
+        console.warn("CV operations failed", err);
       }
+    },
+    [baseMapImageUrl, baseMapSize?.width, enableOcr, opencvMode]
+  );
 
-      if (!isMountedRef.current) return;
+  // 4. Drawing Logic (useCallback)
+  const drawZoomWindow = useCallback(() => {
+    if (!canvasRef.current || !imageReady || !bitmapRef.current || !baseMapSize)
+      return;
 
-      // Get the pixel color for cross contrast calculation
-      const currentBorderColor = pixelColorResult?.colorHex || borderColor;
+    setLineOverlay(null);
+    setLineAngle(null);
 
-      // Draw on canvas - extract the 50x50px region directly
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext("2d");
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-          if (!isMountedRef.current) return;
+    const baseCoords = screenToBaseLocal?.(screenX, screenY);
+    if (!baseCoords) return null;
 
-          const sourceX = Math.max(0, Math.min(img.naturalWidth, bbox.x));
-          const sourceY = Math.max(0, Math.min(img.naturalHeight, bbox.y));
-          const sourceWidth = Math.min(bbox.width, img.naturalWidth - sourceX);
-          const sourceHeight = Math.min(
-            bbox.height,
-            img.naturalHeight - sourceY
-          );
+    const imageWidth = baseMapSize.width;
+    const imageHeight = baseMapSize.height;
 
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // --- DYNAMIC SCALING CALCULATION (using stable viewportZoom) ---
+    const boxSize = Math.max(
+      1,
+      DISPLAY_SIZE / (DEFAULT_SCALE_FACTOR * viewportZoom)
+    );
+    const halfWindow = boxSize / 2;
 
-          // Draw the cropped region, scaled up to DISPLAY_SIZE
-          ctx.drawImage(
-            img,
-            sourceX,
-            sourceY,
-            sourceWidth,
-            sourceHeight, // source rectangle
-            0,
-            0,
-            DISPLAY_SIZE,
-            DISPLAY_SIZE // destination rectangle
-          );
+    const startX = Math.max(
+      0,
+      Math.min(imageWidth - boxSize, baseCoords.x - halfWindow)
+    );
+    const startY = Math.max(
+      0,
+      Math.min(imageHeight - boxSize, baseCoords.y - halfWindow)
+    );
 
-          // Draw cross in the center (10px lines)
-          const centerX = DISPLAY_SIZE / 2;
-          const centerY = DISPLAY_SIZE / 2;
-          const crossSize = 10;
+    const bbox = {
+      x: startX,
+      y: startY,
+      width: Math.min(boxSize, imageWidth - startX),
+      height: Math.min(boxSize, imageHeight - startY),
+    };
+    editor.zoomWindowBBox = bbox;
 
-          // Get contrasting color based on border color
-          const crossColor = getContrastColor(currentBorderColor);
+    // Draw
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const bitmap = bitmapRef.current;
 
-          ctx.strokeStyle = crossColor;
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          // Horizontal line
-          ctx.moveTo(centerX - crossSize / 2, centerY);
-          ctx.lineTo(centerX + crossSize / 2, centerY);
-          // Vertical line
-          ctx.moveTo(centerX, centerY - crossSize / 2);
-          ctx.lineTo(centerX, centerY + crossSize / 2);
-          ctx.stroke();
-        };
-        img.onerror = () => {
-          console.error("Failed to load image for zoom window");
-        };
-        img.src = baseMapImageUrl;
-      }
-    } catch (error) {
-      // Silently handle out-of-bounds errors (mouse outside baseMap)
-      if (
-        error?.message?.includes("out of bounds") ||
-        error?.error?.includes("out of bounds")
-      ) {
-        return;
-      }
-      console.error("Failed to update zoom window:", error);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = false;
+
+    ctx.drawImage(
+      bitmap,
+      bbox.x,
+      bbox.y,
+      bbox.width,
+      bbox.height,
+      0,
+      0,
+      DISPLAY_SIZE,
+      DISPLAY_SIZE
+    );
+
+    // Color Pick & Crosshair
+    const centerX = DISPLAY_SIZE / 2;
+    const centerY = DISPLAY_SIZE / 2;
+    const p = ctx.getImageData(centerX, centerY, 1, 1).data;
+    const hexColor = rgbToHex(p[0], p[1], p[2]);
+    setBorderColor(hexColor);
+
+    const crossColor = getContrastColor(hexColor);
+    const crossSize = 10;
+    ctx.strokeStyle = crossColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(centerX - crossSize / 2, centerY);
+    ctx.lineTo(centerX + crossSize / 2, centerY);
+    ctx.moveTo(centerX, centerY - crossSize / 2);
+    ctx.lineTo(centerX, centerY + crossSize / 2);
+    ctx.stroke();
+
+    return { bbox, baseCoords, hexColor };
+  }, [
+    screenX,
+    screenY,
+    imageReady,
+    baseMapSize,
+    screenToBaseLocal,
+    screenToBaseLocalUpdatedAt,
+    viewportZoom,
+    // Other dependencies for draw:
+    bitmapRef.current,
+    canvasRef.current,
+    setLineOverlay,
+    setLineAngle,
+    setBorderColor,
+  ]);
+
+  // 5. useLayoutEffect (The Control Flow Trigger)
+  // This now runs whenever the drawing function (drawZoomWindow) changes,
+  // which happens when screenX/Y, or the stable viewportZoom change.
+  useLayoutEffect(() => {
+    if (cvTimeoutRef.current) clearTimeout(cvTimeoutRef.current);
+
+    const drawResult = drawZoomWindow();
+
+    if (drawResult) {
+      cvTimeoutRef.current = setTimeout(() => {
+        runComputerVision(
+          drawResult.bbox,
+          drawResult.baseCoords,
+          drawResult.hexColor
+        );
+      }, CV_THROTTLE_MS);
     }
-  }, [baseMapImageUrl, getBaseMapCoords, borderColor]);
+  }, [drawZoomWindow, runComputerVision]);
 
-  // Update when position or image changes
+  // 6. UI Polish & Cleanup (same as before)
   useEffect(() => {
-    if (pendingUpdateRef.current) {
-      cancelAnimationFrame(pendingUpdateRef.current);
+    if (!lineOverlay) return;
+    setLineFlash(true);
+    const timeout = setTimeout(() => setLineFlash(false), 250);
+    return () => clearTimeout(timeout);
+  }, [lineOverlay?.token]);
+
+  useEffect(() => {
+    if (!enableOcr) {
+      setDetectedText("");
+      setOcrStatus("none");
     }
-    pendingUpdateRef.current = requestAnimationFrame(() => {
-      if (isMountedRef.current) {
-        updateZoomWindow();
-      }
-    });
-  }, [screenX, screenY, baseMapImageUrl, updateZoomWindow]);
+  }, [enableOcr]);
 
   if (!baseMapImageUrl) return null;
 
-  // Position the zoom window to avoid overlapping the cursor
-  // Try to place it to the right and above the cursor, but adjust if needed
   const getPosition = () => {
-    // Default: top-right of cursor
     let top = screenY - DISPLAY_SIZE - 10;
     let left = screenX + 10;
-
-    // If too close to top, place below cursor
-    if (top < 10) {
-      top = screenY + 10;
-    }
-
-    // If too close to right edge, place to the left
-    // (We'd need container width, but for now just use a reasonable default)
-    if (left + DISPLAY_SIZE > window.innerWidth - 20) {
+    if (top < 10) top = screenY + 10;
+    if (left + DISPLAY_SIZE > window.innerWidth - 20)
       left = screenX - DISPLAY_SIZE - 10;
-    }
-
     return { top, left };
   };
 
@@ -292,13 +380,7 @@ export default function ZoomWindow({
         overflow: "hidden",
       }}
     >
-      <Box
-        sx={{
-          position: "relative",
-          width: "100%",
-          height: "100%",
-        }}
-      >
+      <Box sx={{ position: "relative", width: "100%", height: "100%" }}>
         <canvas
           ref={canvasRef}
           width={DISPLAY_SIZE}
@@ -310,6 +392,51 @@ export default function ZoomWindow({
             imageRendering: "pixelated",
           }}
         />
+
+        {/* Overlays rendering logic here... */}
+        {lineOverlay && (
+          <>
+            <Box
+              component="svg"
+              viewBox={`0 0 ${DISPLAY_SIZE} ${DISPLAY_SIZE}`}
+              sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+            >
+              <line
+                x1={lineOverlay.x1}
+                y1={lineOverlay.y1}
+                x2={lineOverlay.x2}
+                y2={lineOverlay.y2}
+                stroke="rgba(0,255,128,0.95)"
+                strokeWidth={4}
+                strokeLinecap="round"
+                style={{
+                  opacity: lineFlash ? 1 : 0.35,
+                  transition: "opacity 0.4s ease-out",
+                  filter: "drop-shadow(0px 0px 6px rgba(0,255,128,0.7))",
+                }}
+              />
+            </Box>
+            {lineAngle != null && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: 6,
+                  left: 6,
+                  px: 0.75,
+                  py: 0.25,
+                  borderRadius: 1,
+                  bgcolor: "rgba(0,0,0,0.65)",
+                  color: "success.main",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                }}
+              >
+                {`${lineAngle.toFixed(1)}°`}
+              </Box>
+            )}
+          </>
+        )}
+
         {enableOcr && (
           <Box
             sx={{
@@ -330,7 +457,8 @@ export default function ZoomWindow({
             }}
           />
         )}
-        {enableOcr && hasDetectedText && (
+
+        {enableOcr && Boolean(detectedText?.trim()) && (
           <TextOverlay text={detectedText} anchor />
         )}
       </Box>

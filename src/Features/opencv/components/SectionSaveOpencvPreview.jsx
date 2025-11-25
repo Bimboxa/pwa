@@ -2,6 +2,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setOpencvPreviewUrl } from "../opencvSlice";
 import { clearKeepColorsPreviewUrl } from "../opencvSlice";
+import { setTempAnnotations } from "Features/annotations/annotationsSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useUpdateBaseMapWithImageEnhanced from "Features/baseMaps/hooks/useUpdateBaseMapWithImageEnhanced";
@@ -38,6 +39,7 @@ export default function SectionSaveOpencvPreview() {
 
   function handleCancel() {
     dispatch(setOpencvPreviewUrl(null));
+    dispatch(setTempAnnotations([]));
   }
 
   // render

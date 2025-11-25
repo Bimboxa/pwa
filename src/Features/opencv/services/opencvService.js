@@ -136,6 +136,12 @@ class CV {
       payload,
     });
   }
+  detectStraightLineAsync(payload) {
+    return this._dispatch({
+      msg: "detectStraightLineAsync",
+      payload,
+    });
+  }
 }
 
 // Export the same instant everywhere

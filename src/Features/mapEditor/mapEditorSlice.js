@@ -52,6 +52,7 @@ const mapEditorInitialState = {
   centerBaseMapTriggeredAt: null,
   filterByMainBaseMap: true,
   zoomTo: null,
+  screenToBaseLocalUpdatedAt: null,
 
   // scale
   scaleInPx: null,
@@ -207,6 +208,9 @@ export const mapEditorSlice = createSlice({
       const zoomTo = action.payload;
       state.zoomTo = { ...zoomTo, triggeredAt: Date.now() };
     },
+    triggerScreenToBaseLocalUpdate: (state) => {
+      state.screenToBaseLocalUpdatedAt = Date.now();
+    },
 
     // dialogs
     setOpenDialogAutoSelectAnnotationTemplateToCreateEntity: (
@@ -288,7 +292,7 @@ export const {
   triggerCenterBaseMap,
   setFilterByMainBaseMap,
   setZoomTo,
-
+  triggerScreenToBaseLocalUpdate,
   // dialogs
   setOpenDialogAutoSelectAnnotationTemplateToCreateEntity,
 } = mapEditorSlice.actions;
