@@ -1,4 +1,4 @@
-import {PlaneGeometry, MeshBasicMaterial, Mesh, DoubleSide} from "three";
+import { PlaneGeometry, MeshBasicMaterial, Mesh, DoubleSide } from "three";
 
 import getTextureAsync from "./getTextureAsync";
 

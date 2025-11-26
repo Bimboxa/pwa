@@ -1,6 +1,6 @@
-// WORKING VERSION (without segments selection)
 // NodePolyline.js
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
+import { darken } from "@mui/material/styles";
 import { useSelector, useDispatch } from "react-redux";
 import {
   setAnchorPosition,
@@ -21,6 +21,7 @@ export default function NodePolyline({
   onPointsChange,
   onChange,
   selected,
+  edited = false,
   worldScale = 1,
   containerK = 1,
   snapHelper,
@@ -28,6 +29,9 @@ export default function NodePolyline({
   const dispatch = useDispatch();
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
   const fixedLength = useSelector((s) => s.mapEditor.fixedLength);
+
+  const isSelected = Boolean(selected);
+  const isEditable = isSelected && edited;
 
   // Editing cut state
   const [editingCutId, setEditingCutId] = useState(null);
@@ -53,6 +57,17 @@ export default function NodePolyline({
     cuts = [], // Array of cut polylines (holes)
   } = polyline || {};
 
+  const activeStrokeColor = isSelected
+    ? theme.palette.annotation.selected
+    : strokeColor;
+  const hoverStrokeColor = useMemo(() => {
+    try {
+      return darken(activeStrokeColor, 0.2);
+    } catch {
+      return activeStrokeColor;
+    }
+  }, [activeStrokeColor]);
+
   const w = imageSize?.w || 1;
   const h = imageSize?.h || 1;
 
@@ -76,7 +91,7 @@ export default function NodePolyline({
   const computedStrokeWidthPx = useMemo(() => {
     let widthInPx = strokeWidth;
 
-    const fixWidth = hasOffset && (isDrawing || selected);
+    const fixWidth = hasOffset && (isDrawing || isEditable);
     if (fixWidth) widthInPx = 4 * invScale;
 
     const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx;
@@ -94,14 +109,14 @@ export default function NodePolyline({
     invScale,
     strokeOffset,
     isDrawing,
-    selected,
+    isEditable,
     hasOffset,
   ]);
 
   const strokeProps = useMemo(() => {
     if (strokeType === "NONE") return { stroke: "none", strokeOpacity: 0 };
     const props = {
-      stroke: strokeColor,
+      stroke: activeStrokeColor,
       strokeOpacity: strokeOpacity ?? 1,
       strokeWidth: computedStrokeWidthPx,
     };
@@ -111,7 +126,7 @@ export default function NodePolyline({
       props.strokeDasharray = `${dash} ${gap}`;
     }
     return props;
-  }, [strokeType, strokeColor, strokeOpacity, computedStrokeWidthPx]);
+  }, [strokeType, activeStrokeColor, strokeOpacity, computedStrokeWidthPx]);
 
   const hitStrokeWidth = useMemo(
     () => (showBgImage ? 10 / containerK : 10 * invScale),
@@ -121,7 +136,7 @@ export default function NodePolyline({
   const rawPoints = polyline?.points || [];
 
   const applyOffset =
-    !selected && allowsOffsetShift && Boolean(baseMapMeterByPx) && !isDrawing;
+    !isEditable && allowsOffsetShift && Boolean(baseMapMeterByPx) && !isDrawing;
 
   const basePoints = useMemo(() => {
     if (!applyOffset || rawPoints.length < 2 || !w || !h) return rawPoints;
@@ -173,9 +188,9 @@ export default function NodePolyline({
   ]);
 
   useEffect(() => {
-    if (!selected || isDrawing || draggingRef.current.active)
+    if (!isEditable || isDrawing || draggingRef.current.active)
       setSegmentProjection(null);
-  }, [selected, isDrawing]);
+  }, [isEditable, isDrawing]);
 
   // drawing preview
   const [currentMousePos, setCurrentMousePos] = useState(null);
@@ -1190,7 +1205,7 @@ export default function NodePolyline({
   }
 
   function handleMouseMoveForProjection(e) {
-    if (isDrawing || !selected || draggingRef.current.active) {
+    if (isDrawing || !isEditable || draggingRef.current.active) {
       setSegmentProjection(null);
       return;
     }
@@ -1265,7 +1280,7 @@ export default function NodePolyline({
         <path
           d={pathD}
           fill="none"
-          stroke={hoverIdx != null ? "#0066cc" : strokeProps.stroke}
+          stroke={hoverIdx != null ? hoverStrokeColor : strokeProps.stroke}
           strokeWidth={strokeProps.strokeWidth}
           strokeOpacity={strokeProps.strokeOpacity}
           strokeDasharray={strokeProps.strokeDasharray}
@@ -1373,7 +1388,7 @@ export default function NodePolyline({
       )}
 
       {/* ANCHORS */}
-      {selected &&
+      {isEditable &&
         committedRel.map((p, i) => {
           const pointPx = committedPx[i];
           const px = pointPx?.x;
@@ -1429,7 +1444,7 @@ export default function NodePolyline({
         })}
 
       {/* INSERTION INDICATOR */}
-      {selected &&
+      {isEditable &&
         segmentProjection &&
         !isDrawing &&
         !draggingRef.current.active && (
@@ -1507,7 +1522,7 @@ export default function NodePolyline({
               )}
 
               {/* Cut anchors - only show when editing this cut or selected */}
-              {selected &&
+              {isEditable &&
                 isEditingCut &&
                 cutRel.map((p, i) => {
                   const pointPx = cutPx[i];

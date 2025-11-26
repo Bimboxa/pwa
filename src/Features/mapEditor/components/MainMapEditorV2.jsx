@@ -348,7 +348,8 @@ export default function MainMapEditorV2() {
       } else if (
         selectedItem?.type === "ENTITY" &&
         (e.key === "Delete" || e.key === "Backspace") &&
-        !enabledDrawingMode
+        !enabledDrawingMode &&
+        !editedNode // Don't delete entity if we're editing an annotation (e.g., deleting a segment)
       ) {
         dispatch(setOpenDialogDeleteSelectedItem(true));
       }
@@ -363,6 +364,7 @@ export default function MainMapEditorV2() {
     selectedItem?.type,
     drawingPolylinePoints,
     selectedNode,
+    editedNode?.id,
   ]);
 
   function handleFilesDrop(filesDrop) {
@@ -573,6 +575,9 @@ export default function MainMapEditorV2() {
   }
 
   async function handleNodeClick(node, event) {
+    // disable node click if we're editing a node.
+    if (editedNode) return;
+
     console.log("click on node", node, "event:", event);
     const targetNode = node;
     const wasSameNode = node?.id === selectedNode?.id;

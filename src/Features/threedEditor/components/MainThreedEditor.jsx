@@ -1,9 +1,10 @@
-import React, {useRef, useState, useEffect} from "react";
+import React, { useRef, useState, useEffect } from "react";
 
 import useAutoLoadShapesInThreedEditor from "Features/threedEditor/hooks/useAutoLoadShapesInThreedEditor";
 import useAutoLoadMapsInThreedEditor from "../hooks/useAutoLoadMapsInThreedEditor";
+import useAutoLoadAnnotationsInThreedEditor from "../hooks/useAutoLoadAnnotationsInThreedEditor";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 
 import ThreedEditor from "Features/threedEditor/js/ThreedEditor";
 
@@ -61,6 +62,11 @@ export default function MainThreedEditor() {
     rendererIsReady,
   });
 
+  useAutoLoadAnnotationsInThreedEditor({
+    threedEditor: threedEditorRef.current,
+    rendererIsReady,
+  });
+
   return (
     <Box
       sx={{
@@ -72,7 +78,7 @@ export default function MainThreedEditor() {
         border: "1px solid grey",
       }}
     >
-      <Box sx={{width: 1, height: 1}} ref={containerRef} />
+      <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
     </Box>
   );
 }
