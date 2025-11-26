@@ -100,6 +100,9 @@ let theme = createTheme(
         article: green[500],
         shape: blueGrey[500],
       },
+      annotation: {
+        selected: "#39FF14", // Flash green tone
+      },
     },
     typography: {
       fontSize: 11,

@@ -9,11 +9,13 @@ import {
   setClickInBgPosition,
   setClickInBaseMapPosition,
   setSelectedNode,
+  setEditedNode,
   setLegendFormat,
   setScaleInPx,
   setAnchorPositionScale,
   setScaleAnnotationId,
   setFilesDrop,
+  setAnnotationToolbarPosition,
 } from "../mapEditorSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
@@ -88,6 +90,7 @@ import LayerMapEditor from "./LayerMapEditor";
 import LayerScreenCursor from "./LayerScreenCursor";
 import BlockEntityMarker from "Features/markers/components/BlockEntityMarker";
 import PopperEditScale from "./PopperEditScale";
+import PopperEditAnnotation from "./PopperEditAnnotation";
 import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 
 import DialogDeleteSelectedItem from "Features/selection/components/DialogDeleteSelectedItem";
@@ -186,9 +189,8 @@ export default function MainMapEditorV2() {
   const legendItems = useLegendItems();
   const legendFormat = useSelector((s) => s.mapEditor.legendFormat);
   const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
-
+  const editedNode = useSelector((s) => s.mapEditor.editedNode);
   const selectedItem = useSelector((s) => s.selection.selectedItem);
-
   // state - edited polyline
 
   const drawingPolylinePoints = useSelector(
@@ -315,6 +317,8 @@ export default function MainMapEditorV2() {
           dispatch(setEnabledDrawingMode(null));
           dispatch(setNewAnnotation({}));
           dispatch(setSelectedNode(null));
+          dispatch(setEditedNode(null));
+          dispatch(setAnnotationToolbarPosition(null));
           dispatch(clearDrawingPolylinePoints());
           dispatch(clearDrawingRectanglePoints());
           dispatch(clearDrawingSegmentPoints());
@@ -322,6 +326,8 @@ export default function MainMapEditorV2() {
           dispatch(setSelectedAnnotationId(null));
           dispatch(setMainBaseMapIsSelected(false));
           dispatch(setSelectedNode(null));
+          dispatch(setEditedNode(null));
+          dispatch(setAnnotationToolbarPosition(null));
           dispatch(setSelectedItem(null));
           dispatch(setSelectedEntityId(null));
           dispatch(setIsEditingEntity(false));
@@ -335,6 +341,9 @@ export default function MainMapEditorV2() {
           drawingPolylinePoints?.length >= 2
         ) {
           handlePolylineCompleteRef.current?.(drawingPolylinePoints); // /!\ triggered when Enter from "Section Next Points"
+        } else if (!enabledDrawingMode && selectedNode) {
+          console.log("[Enter] editing node", selectedNode);
+          dispatch(setEditedNode(selectedNode));
         }
       } else if (
         selectedItem?.type === "ENTITY" &&
@@ -349,7 +358,12 @@ export default function MainMapEditorV2() {
     return () => {
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [enabledDrawingMode, selectedItem?.type, drawingPolylinePoints]);
+  }, [
+    enabledDrawingMode,
+    selectedItem?.type,
+    drawingPolylinePoints,
+    selectedNode,
+  ]);
 
   function handleFilesDrop(filesDrop) {
     console.log("file drop", filesDrop);
@@ -558,10 +572,21 @@ export default function MainMapEditorV2() {
     // }
   }
 
-  async function handleNodeClick(node) {
-    console.log("click on node", node);
-    node = node?.id === selectedNode?.id ? null : node;
+  async function handleNodeClick(node, event) {
+    console.log("click on node", node, "event:", event);
+    const targetNode = node;
+    const wasSameNode = node?.id === selectedNode?.id;
+    node = wasSameNode ? null : node;
     const activeListingType = listing?.entityModel?.type;
+
+    console.log(
+      "[handleNodeClick] targetNode:",
+      targetNode,
+      "final node:",
+      node,
+      "wasSameNode:",
+      wasSameNode
+    );
 
     // disable baseMap selection if !showBgImage
     if (node?.nodeType === "BASE_MAP" && !showBgImage) {
@@ -579,7 +604,27 @@ export default function MainMapEditorV2() {
     if (activeListingType === "BLUEPRINT" && node?.nodeType === "ANNOTATION")
       return;
 
+    // Update selectedNode first
     dispatch(setSelectedNode(node));
+
+    // Update toolbar position: set it if we clicked an annotation and it's still selected
+    // (i.e., not deselected by clicking the same node twice)
+    if (
+      targetNode?.nodeType === "ANNOTATION" &&
+      event &&
+      node?.nodeType === "ANNOTATION"
+    ) {
+      console.log("[handleNodeClick] Setting toolbar position:", {
+        x: event.clientX,
+        y: event.clientY,
+      });
+      dispatch(
+        setAnnotationToolbarPosition({ x: event.clientX, y: event.clientY })
+      );
+    } else {
+      console.log("[handleNodeClick] Clearing toolbar position");
+      dispatch(setAnnotationToolbarPosition(null));
+    }
     if (node?.nodeType === "ANNOTATION") {
       //dispatch(setSelectedMenuItemKey("NODE_FORMAT"));
       const annotation = await db.annotations.get(node?.id);
@@ -1025,7 +1070,7 @@ export default function MainMapEditorV2() {
       } else if (opencvClickMode === "FILL_HATCH") {
         // Get the bbox from ZoomWindow (set by ZoomWindow component)
         const zoomWindowBBox = editor.zoomWindowBBox;
-        
+
         if (!zoomWindowBBox) {
           console.warn(
             "[FILL_HATCH] ZoomWindow bbox not available. Make sure ZoomWindow is visible."
@@ -1142,6 +1187,7 @@ export default function MainMapEditorV2() {
         enabledDrawingMode={enabledDrawingMode}
         onNewAnnotation={handleNewAnnotation}
         selectedNode={selectedNode}
+        editedNode={editedNode}
         onNodeClick={handleNodeClick}
         onAnnotationClick={handleAnnotationClick}
         onAnnotationChange={handleAnnotationChange}
@@ -1174,6 +1220,8 @@ export default function MainMapEditorV2() {
         //
         onFilesDrop={handleFilesDrop}
       />
+
+      <PopperEditAnnotation />
 
       <PopperEditScale />
       <PopperContextMenu />

@@ -18,6 +18,7 @@ export default function NodeAnnotation({
   onChange,
   onClick,
   selected,
+  edited = false,
   onPolylineComplete,
   toBaseFromClient,
 }) {
@@ -32,6 +33,7 @@ export default function NodeAnnotation({
     onDragEnd,
     onClick,
     selected,
+    edited,
     onPolylineComplete,
     toBaseFromClient,
   };
