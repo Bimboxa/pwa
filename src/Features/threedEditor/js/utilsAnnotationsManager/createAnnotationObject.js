@@ -7,6 +7,7 @@ import {
 import getPointsIn3dFromPointsInBaseMap from "./getPointsIn3dFromPointsInBaseMap";
 import createObject_floorAndWalls from "./createObject_floorAndWalls";
 import createObject_volume from "./createObject_volume";
+import createObject_cone from "./createObject_cone";
 
 export default function createAnnotationObject(annotation, options) {
   // options
@@ -67,6 +68,15 @@ export default function createAnnotationObject(annotation, options) {
       depthWrite: fillOpacity < 1 ? false : true,
     });
 
+  // Helper function to apply position and rotation
+  const applyTransform = (object, pos, rot) => {
+    object.position.set(pos.x, pos.y, pos.z);
+    object.rotation.set(rot.x, rot.y, rot.z);
+  };
+
+  const pos = map.position ?? { x: 0, y: 0, z: 0 };
+  const rot = map.rotation ?? { x: -Math.PI / 2, y: 0, z: 0 };
+
   // Check if this is a FLOOR_AND_WALLS annotation
   if (annotation.shapeCode === "FLOOR_AND_WALLS") {
     const height = annotation.height ? Number(annotation.height) || 1 : 1;
@@ -83,14 +93,53 @@ export default function createAnnotationObject(annotation, options) {
 
     if (!floorAndWallsObject) return null;
 
-    // position & rotation
-    const pos = map.position ?? { x: 0, y: 0, z: 0 };
-    const rot = map.rotation ?? { x: -Math.PI / 2, y: 0, z: 0 };
-
-    floorAndWallsObject.position.set(pos.x, pos.y, pos.z);
-    floorAndWallsObject.rotation.set(rot.x, rot.y, rot.z);
-
+    applyTransform(floorAndWallsObject, pos, rot);
     return floorAndWallsObject;
+  }
+
+  // Check if this is a CONE annotation
+  if (annotation.shapeCode === "CONE") {
+    const height = annotation.height ? Number(annotation.height) || 1 : 1;
+    const cuts = annotation.cuts || [];
+
+    // Validate that we have at least one cut
+    if (!cuts.length || !cuts[0]?.points || cuts[0].points.length < 3) {
+      console.warn(
+        "[createAnnotationObject] CONE annotation missing valid first cut",
+        annotation
+      );
+      return null;
+    }
+
+    // Convert cut points to 3D coordinates and preserve type information
+    const cuts3d = cuts.map((cut) => {
+      if (!cut.points || !Array.isArray(cut.points)) return cut;
+
+      const cutPoints3d = getPointsIn3dFromPointsInBaseMap(cut.points, map);
+      const cutPointsWithType = cutPoints3d.map((point3d, idx) => ({
+        ...point3d,
+        type: cut.points[idx]?.type,
+      }));
+
+      return {
+        ...cut,
+        points: cutPointsWithType,
+      };
+    });
+
+    // Create polyline object with 3D points (including type), segments, and cuts
+    const polyline = {
+      points: pointsWithType,
+      segments: annotation.segments || [],
+      cuts: cuts3d,
+    };
+
+    const coneObject = createObject_cone(polyline, height, material);
+
+    if (!coneObject) return null;
+
+    applyTransform(coneObject, pos, rot);
+    return coneObject;
   }
 
   // Default behavior: create extruded volume
@@ -104,13 +153,6 @@ export default function createAnnotationObject(annotation, options) {
 
   if (!volumeObject) return null;
 
-  // position & rotation
-  const pos = map.position ?? { x: 0, y: 0, z: 0 };
-  const rot = map.rotation ?? { x: -Math.PI / 2, y: 0, z: 0 };
-
-  volumeObject.position.set(pos.x, pos.y, pos.z);
-  volumeObject.rotation.set(rot.x, rot.y, rot.z);
-
-  // return
+  applyTransform(volumeObject, pos, rot);
   return volumeObject;
 }
