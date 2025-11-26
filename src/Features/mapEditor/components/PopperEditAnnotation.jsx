@@ -4,25 +4,36 @@ import PopperBox from "Features/layout/components/PopperBox";
 import ToolbarEditAnnotation from "Features/annotations/components/ToolbarEditAnnotation";
 import { setAnnotationToolbarPosition } from "../mapEditorSlice";
 
-export default function PopperEditAnnotation() {
+export default function PopperEditAnnotation({ viewerKey = null }) {
   const dispatch = useDispatch();
   const anchorPosition = useSelector(
     (s) => s.mapEditor.annotationToolbarPosition
   );
   const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
+  const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+
+  // Only show popper if viewerKey matches active viewer (or if viewerKey is not specified, show for MAP)
+  const shouldShow = viewerKey
+    ? activeViewerKey === viewerKey
+    : activeViewerKey === "MAP";
 
   const open =
-    Boolean(anchorPosition) && selectedNode?.nodeType === "ANNOTATION";
+    shouldShow &&
+    Boolean(anchorPosition) &&
+    selectedNode?.nodeType === "ANNOTATION";
 
   const handleClose = () => {
-    dispatch(setAnnotationToolbarPosition(null));
+    // Only close if this popper's viewer is active
+    if (shouldShow) {
+      dispatch(setAnnotationToolbarPosition(null));
+    }
   };
 
   return (
     <>
       {open && (
         <PopperBox
-          key={`annotation-toolbar-${selectedNode?.id || "none"}`}
+          key={`annotation-toolbar-${selectedNode?.id || "none"}-${viewerKey || "MAP"}`}
           open={open}
           anchorPosition={anchorPosition}
           onClose={handleClose}
