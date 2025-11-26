@@ -41,7 +41,7 @@ export default function useViewers() {
       label: "3D",
       bgcolor: theme.palette.viewers.threed,
       icon: <Typography>3D</Typography>,
-      disabled: true,
+      //disabled: true,
     },
     {
       key: "LEAFLET",

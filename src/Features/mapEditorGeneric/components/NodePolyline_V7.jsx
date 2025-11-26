@@ -88,14 +88,6 @@ export default function NodePolyline({
     ? theme.palette.annotation.selected
     : strokeColor;
 
-  const hoverStrokeColor = useMemo(() => {
-    try {
-      return darken(activeStrokeColor, 0.2);
-    } catch {
-      return activeStrokeColor;
-    }
-  }, [activeStrokeColor]);
-
   const w = imageSize?.w || 1;
   const h = imageSize?.h || 1;
 
@@ -111,7 +103,6 @@ export default function NodePolyline({
   const invScale = totalScale > 0 ? (showBgImage ? 1 : 1 / totalScale) : 1;
 
   // Widths
-  // Wider stroke for easier catching of segments
   const hitStrokeWidth = Math.max(14 * invScale, strokeWidth * 3);
 
   const hasOffset =
@@ -667,15 +658,18 @@ export default function NodePolyline({
   function onDocPointerMove(e) {
     if (!draggingRef.current.active) return;
 
+    // Logic for Cuts Dragging
     const cutId = draggingRef.current.cutId;
     if (cutId) {
       const i = draggingRef.current.idx;
       const currentCuts = tempPointsRef.current?.cuts || cuts;
       const cut = currentCuts.find((c) => c.id === cutId);
       if (!cut) return;
+
       let bl = toBaseFromClient(e.clientX, e.clientY);
       const rx = Math.max(0, Math.min(1, bl.x / w));
       const ry = Math.max(0, Math.min(1, bl.y / h));
+
       if (!tempPointsRef.current)
         tempPointsRef.current = basePoints.map((p) => ({ ...p }));
       if (!tempPointsRef.current.cuts)
@@ -683,6 +677,7 @@ export default function NodePolyline({
           ...c,
           points: c.points.map((pt) => ({ ...pt })),
         }));
+
       const cutToEdit = tempPointsRef.current.cuts.find((c) => c.id === cutId);
       if (cutToEdit) {
         cutToEdit.points[i] = { ...cutToEdit.points[i], x: rx, y: ry };
@@ -821,6 +816,7 @@ export default function NodePolyline({
       const pts = basePointsRef.current;
       let bl = toBaseFromClientRef.current(e.clientX, e.clientY);
 
+      // Snap helper logic during draw
       const lastRel = pts[pts.length - 1] || null;
       const lastPx = lastRel ? { x: lastRel.x * W, y: lastRel.y * H } : null;
 
@@ -835,6 +831,7 @@ export default function NodePolyline({
         ry = bl.y / H;
       let showClose = false;
 
+      // Close detection
       if (closeLineRef.current && pts.length > 0) {
         const firstRel = pts[0];
         const firstPx = { x: firstRel.x * W, y: firstRel.y * H };
@@ -967,40 +964,22 @@ export default function NodePolyline({
       {!isEditable &&
         strokeType !== "NONE" &&
         segmentMap.map((seg, idx) => {
-          if (segmentsData[idx]?.isDeleted) return null;
-
-          // Use Hover Color or Normal Color
-          const isHovered = hoverIdx === "polyline" || hoverIdx === "polygon";
-          const color = isHovered ? hoverStrokeColor : activeStrokeColor;
-
+          if (segmentsData[idx]?.isDeleted) return null; // Ne pas dessiner si deleted en mode view
           return (
-            <g key={`view-seg-${idx}`}>
-              {/* Hit Helper for View Mode Hover */}
-              <path
-                d={seg.d}
-                fill="none"
-                stroke="transparent"
-                strokeWidth={hitStrokeWidth}
-                style={{ cursor: "pointer" }}
-                onMouseEnter={() => !isDrawing && setHoverIdx("polyline")}
-                onMouseLeave={() => !isDrawing && setHoverIdx(null)}
-              />
-              <path
-                d={seg.d}
-                fill="none"
-                stroke={color}
-                strokeWidth={computedStrokeWidthPx}
-                strokeOpacity={strokeOpacity}
-                strokeDasharray={
-                  strokeType === "DASHED"
-                    ? `${computedStrokeWidthPx * 3} ${
-                        computedStrokeWidthPx * 2
-                      }`
-                    : undefined
-                }
-                style={{ pointerEvents: "none" }}
-              />
-            </g>
+            <path
+              key={`view-seg-${idx}`}
+              d={seg.d}
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={computedStrokeWidthPx}
+              strokeOpacity={strokeOpacity}
+              strokeDasharray={
+                strokeType === "DASHED"
+                  ? `${computedStrokeWidthPx * 3} ${computedStrokeWidthPx * 2}`
+                  : undefined
+              }
+              style={{ pointerEvents: "none" }}
+            />
           );
         })}
 

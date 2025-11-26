@@ -1,9 +1,9 @@
 import SceneManager from "./SceneManager";
 
-import getEditorImageFromMap from "./utilsImagesManager/getEditorImageFromMap";
+import getEditorImageFromBaseMap from "./utilsImagesManager/getEditorImageFromBaseMap";
 
 export default class ThreedEditor {
-  constructor({containerEl, onRendererIsReady}) {
+  constructor({ containerEl, onRendererIsReady }) {
     this.containerEl = containerEl;
 
     this.sceneManager = new SceneManager({
@@ -29,9 +29,9 @@ export default class ThreedEditor {
 
   loadMaps = (maps) => {
     try {
-      const images = maps.map(getEditorImageFromMap);
+      const images = maps.map(getEditorImageFromBaseMap);
       this.sceneManager.imagesManager.deleteAllImagesObjects();
-      this.sceneManager.imagesManager.createImagesObjects(images);
+      this.sceneManager.imagesManager.createImagesObjects(images, maps);
       this.renderScene();
     } catch (e) {
       console.log("Error", e);
@@ -43,6 +43,20 @@ export default class ThreedEditor {
   loadShapes = (shapes) => {
     try {
       this.sceneManager.shapesManager.createShapesObjects(shapes);
+      this.renderScene();
+    } catch (e) {
+      console.log("Error", e);
+    }
+  };
+
+  // annotations
+
+  loadAnnotations = (annotations) => {
+    try {
+      this.sceneManager.annotationsManager.deleteAllAnnotationsObjects();
+      this.sceneManager.annotationsManager.createAnnotationsObjects(
+        annotations
+      );
       this.renderScene();
     } catch (e) {
       console.log("Error", e);

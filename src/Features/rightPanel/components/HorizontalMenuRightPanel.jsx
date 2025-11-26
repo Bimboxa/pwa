@@ -51,50 +51,6 @@ export default function HorizontalMenuRightPanel() {
   const toolsKeys = appConfig?.features?.tools ?? [];
   const menuItems = toolsKeys.map((key) => ({ ...toolsMap[key], key }));
 
-  // const
-
-  const _menuItems = [
-    // {
-    //   key: "SHOWER",
-    //   label: "Calques",
-    //   icon: <Layers />,
-    // },
-    // {
-    //   key: "NODE_FORMAT",
-    //   label: "Format",
-    //   icon: <Palette />,
-    // },
-
-    {
-      key: "SELECTION",
-      label: "Modifier la sélection",
-      icon: <Edit />,
-    },
-
-    {
-      key: "ENTITY_ZONES",
-      label: "Localisation",
-      icon: <Room />,
-    },
-
-    {
-      key: "PDF_REPORT",
-      label: "Export PDF",
-      icon: <PictureAsPdf />,
-    },
-
-    // {
-    //   key: "ENTITY",
-    //   label: "Edition",
-    //   icon: <Edit />,
-    // },
-    // {
-    //   key: "EDITOR_EXPORT",
-    //   label: "Export",
-    //   icon: <Download />,
-    // },
-  ];
-
   // data
 
   const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);

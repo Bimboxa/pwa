@@ -13,6 +13,7 @@ import { Box, IconButton, Paper } from "@mui/material";
 import { Lock, LockOpen } from "@mui/icons-material";
 
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
+import FieldAnnotationShapeCode from "./FieldAnnotationShapeCode";
 
 export default function ToolbarEditAnnotation() {
   const dispatch = useDispatch();
@@ -53,6 +54,10 @@ export default function ToolbarEditAnnotation() {
         )}
       </IconButton>
       <FieldAnnotationHeight
+        annotation={selectedAnnotation}
+        onChange={handleChange}
+      />
+      <FieldAnnotationShapeCode
         annotation={selectedAnnotation}
         onChange={handleChange}
       />

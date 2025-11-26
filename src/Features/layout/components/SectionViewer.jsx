@@ -1,7 +1,8 @@
 import { useSelector } from "react-redux";
 
-import BoxCenter from "./BoxCenter";
+import { Box } from "@mui/material";
 
+import BoxCenter from "./BoxCenter";
 import PanelShowable from "./PanelShowable";
 import MainMapEditor from "Features/mapEditor/components/MainMapEditor";
 import MainMapEditorV2 from "Features/mapEditor/components/MainMapEditorV2";
@@ -9,6 +10,7 @@ import MainThreedEditor from "Features/threedEditor/components/MainThreedEditor"
 import MainLeafletEditor from "Features/leafletEditor/components/MainLeafletEditor";
 import MainGoogleMapEditor from "Features/gmap/components/MainGoogleMapEditor";
 import TableViewer from "Features/tables/components/ViewerTable";
+import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 
 export default function SectionViewer() {
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
@@ -38,6 +40,10 @@ export default function SectionViewer() {
       <PanelShowable show={showTable} sx={{ position: "absolute", zIndex: 0 }}>
         <TableViewer />
       </PanelShowable>
+
+      <Box sx={{ position: "absolute", bottom: "8px", right: "8px" }}>
+        <ButtonToggleThreedViewer />
+      </Box>
     </BoxCenter>
   );
 }

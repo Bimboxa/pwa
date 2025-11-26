@@ -10,11 +10,12 @@ import {
 import ControlsManager from "./ControlsManager";
 import ShapesManager from "./ShapesManager";
 import ImagesManager from "./ImagesManager";
+import AnnotationsManager from "./AnnotationsManager";
 
 import createRandomObjects from "./utilsShapesManager/createRandomObjects";
 
 export default class SceneManager {
-  constructor({containerEl, onRendererIsReady}) {
+  constructor({ containerEl, onRendererIsReady }) {
     this.containerEl = containerEl;
     this.onRendererIsReady = onRendererIsReady;
 
@@ -31,9 +32,10 @@ export default class SceneManager {
     this.camera = null;
     this.addGrid = null;
 
-    this.imagesManager = new ImagesManager({sceneManager: this});
-    this.shapesManager = new ShapesManager({sceneManager: this});
-    this.controlsManager = new ControlsManager({sceneManager: this});
+    this.imagesManager = new ImagesManager({ sceneManager: this });
+    this.shapesManager = new ShapesManager({ sceneManager: this });
+    this.annotationsManager = new AnnotationsManager({ sceneManager: this });
+    this.controlsManager = new ControlsManager({ sceneManager: this });
 
     window.addEventListener("resize", this.resizeScene);
   }
@@ -56,7 +58,7 @@ export default class SceneManager {
     const height = this.containerEl.clientHeight;
 
     this.renderer.setSize(width, height);
-    this._updateCamera({width, height});
+    this._updateCamera({ width, height });
   };
 
   renderScene = () => {
@@ -122,7 +124,7 @@ export default class SceneManager {
 
   ///////////   UPDATE   ///////////
 
-  _updateCamera = ({width, height}) => {
+  _updateCamera = ({ width, height }) => {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
   };

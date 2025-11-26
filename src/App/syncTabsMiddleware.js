@@ -20,9 +20,10 @@ broadcastChannel.onmessage = (event) => {
   if (
     action.type.startsWith("markers/") ||
     action.type.startsWith("shapes/") ||
-    action.type.startsWith("maps/")
+    action.type.startsWith("maps/") ||
+    action.type.startsWith("annotations/")
   ) {
-    store.dispatch({...action, meta: {fromBroadcast: true}}); // Prevent rebroadcast
+    store.dispatch({ ...action, meta: { fromBroadcast: true } }); // Prevent rebroadcast
   }
 };
 export default syncTabsMiddleware;
