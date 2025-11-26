@@ -21,11 +21,18 @@ export default function DialogCreateAnnotationTemplate({ open, onClose }) {
 
   // state
 
-  const [tempAnnotationTemplate, setTempAnnotationTemplate] = useState({
+  const initialAnnotationTemplate = {
     type: "MARKER",
     fillColor: theme.palette.secondary.main,
+    strokeColor: theme.palette.secondary.main,
     iconKey: "circle",
-  });
+    label: "",
+    isFromAnnotation: true,
+  };
+
+  const [tempAnnotationTemplate, setTempAnnotationTemplate] = useState(
+    initialAnnotationTemplate
+  );
 
   // handlers
 

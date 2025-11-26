@@ -1,4 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
+
+import { useSelector } from "react-redux";
+
 import { Paper, Typography, Box } from "@mui/material";
 
 import SectionAnnotationQties from "Features/annotations/components/SectionAnnotationQties";
@@ -10,6 +13,12 @@ export default function LayerAnnotationTooltip({
   mousePos,
 }) {
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+  // data
+
+  const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
+
+  // useEffect
 
   useEffect(() => {
     if (!containerEl) return;
@@ -49,7 +58,8 @@ export default function LayerAnnotationTooltip({
   if (
     !hoveredAnnotation ||
     !tooltipPosition ||
-    hoveredAnnotation.type === "TEXT"
+    hoveredAnnotation.type === "TEXT" ||
+    selectedNode?.nodeType
   ) {
     return null;
   }

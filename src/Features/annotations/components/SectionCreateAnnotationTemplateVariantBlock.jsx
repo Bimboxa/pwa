@@ -26,13 +26,20 @@ export default function SectionCreateAnnotationTemplateVariantBlock({
 
   // state
 
-  const [tempAnnotationTemplate, setTempAnnotationTemplate] = useState({
+  const initialAnnotationTemplate = {
     type: "MARKER",
     fillColor: theme.palette.secondary.main,
+    strokeColor: theme.palette.secondary.main,
     iconKey: "circle",
     label: "",
     isFromAnnotation: true,
-  });
+  };
+
+  const [tempAnnotationTemplate, setTempAnnotationTemplate] = useState(
+    initialAnnotationTemplate
+  );
+
+  console.log("debug_2611_tempAnnotationTemplate", tempAnnotationTemplate);
 
   // handlers
 
@@ -47,13 +54,7 @@ export default function SectionCreateAnnotationTemplateVariantBlock({
       );
     } finally {
       if (onCreated) onCreated();
-      setTempAnnotationTemplate({
-        type: "MARKER",
-        fillColor: theme.palette.secondary.main,
-        iconKey: "circle",
-        label: "",
-        isFromAnnotation: true,
-      });
+      setTempAnnotationTemplate(initialAnnotationTemplate);
     }
   }
 

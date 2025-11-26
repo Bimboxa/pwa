@@ -27,6 +27,9 @@ const mapEditorInitialState = {
   clickInBgPosition: null, // { x, y }
   //
   selectedNode: null, // {id,nodeType,annotationType,entityId}
+  editedNode: null, // {id,nodeType,annotationType,entityId}
+  canTransformNode: false, // boolean
+  annotationToolbarPosition: null,
   //
   legendFormat: { x: 1320, y: 216, width: 200, height: 50 },
   //
@@ -137,6 +140,15 @@ export const mapEditorSlice = createSlice({
     // Nodes
     setSelectedNode: (state, action) => {
       state.selectedNode = action.payload;
+    },
+    setEditedNode: (state, action) => {
+      state.editedNode = action.payload;
+    },
+    setCanTransformNode: (state, action) => {
+      state.canTransformNode = action.payload;
+    },
+    setAnnotationToolbarPosition: (state, action) => {
+      state.annotationToolbarPosition = action.payload;
     },
 
     // Annotation template
@@ -259,6 +271,9 @@ export const {
   setBaseMapOpacity,
   //
   setSelectedNode,
+  setEditedNode,
+  setCanTransformNode,
+  setAnnotationToolbarPosition,
   //
   setLegendFormat,
   //
