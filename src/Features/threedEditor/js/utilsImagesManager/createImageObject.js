@@ -14,8 +14,8 @@ export default async function createImageObjectAsync(image) {
   const material = new MeshBasicMaterial({
     map: texture,
     side: DoubleSide,
-    transparent: true,
-    opacity: 0.8,
+    //transparent: true,
+    //opacity: 0.8,
   });
 
   const object = new Mesh(plane, material);

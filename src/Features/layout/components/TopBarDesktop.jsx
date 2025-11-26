@@ -67,9 +67,9 @@ export default function TopBarDesktop() {
         {scopesEnabled && <ButtonSelectorScope />}
       </Box>
 
-      {(em?.type === "BASE_MAP" || em?.type === "LOCATED_ENTITY") && (
+      {/* {(em?.type === "BASE_MAP" || em?.type === "LOCATED_ENTITY") && (
         <SelectorViewer />
-      )}
+      )} */}
 
       {/* <AuthButtons /> */}
       <Box sx={{ display: "flex", alignItems: "center" }}>
