@@ -1226,7 +1226,7 @@ export default function MainMapEditorV2() {
         onFilesDrop={handleFilesDrop}
       />
 
-      <PopperEditAnnotation />
+      <PopperEditAnnotation viewerKey="MAP" />
 
       <PopperEditScale />
       <PopperContextMenu />

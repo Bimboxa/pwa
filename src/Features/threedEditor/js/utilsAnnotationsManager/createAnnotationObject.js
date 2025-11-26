@@ -74,6 +74,18 @@ export default function createAnnotationObject(annotation, options) {
     object.rotation.set(rot.x, rot.y, rot.z);
   };
 
+  // Helper function to set userData for raycasting
+  const setUserData = (object) => {
+    if (object) {
+      object.userData = {
+        nodeId: annotation.id,
+        nodeType: "ANNOTATION",
+        annotationType: annotation.type || "POLYLINE",
+        listingId: annotation.listingId,
+      };
+    }
+  };
+
   const pos = map.position ?? { x: 0, y: 0, z: 0 };
   const rot = map.rotation ?? { x: -Math.PI / 2, y: 0, z: 0 };
 
@@ -94,6 +106,7 @@ export default function createAnnotationObject(annotation, options) {
     if (!floorAndWallsObject) return null;
 
     applyTransform(floorAndWallsObject, pos, rot);
+    setUserData(floorAndWallsObject);
     return floorAndWallsObject;
   }
 
@@ -139,6 +152,7 @@ export default function createAnnotationObject(annotation, options) {
     if (!coneObject) return null;
 
     applyTransform(coneObject, pos, rot);
+    setUserData(coneObject);
     return coneObject;
   }
 
@@ -154,5 +168,6 @@ export default function createAnnotationObject(annotation, options) {
   if (!volumeObject) return null;
 
   applyTransform(volumeObject, pos, rot);
+  setUserData(volumeObject);
   return volumeObject;
 }
