@@ -4,6 +4,7 @@ export default function FieldAnnotationShapeCode({ annotation, onChange }) {
   const valueOptions = [
     { key: "FLOOR_AND_WALLS", label: "Sol et murs" },
     { key: "VOLUME", label: "Volume" },
+    { key: "CONE", label: "Cône" },
   ];
 
   //console.log("debug_2611_annotation", annotation);
