@@ -112,8 +112,8 @@ export default function PanelOpencv() {
       {
         key: "btn-remove-thin",
         component: <ButtonRemoveThinRegions />,
-        ems: ["BASE_MAP"],
-        group: "Prépa",
+        ems: ["BASE_MAP", "LOCATED_ENTITY"],
+        group: "Zones",
       },
 
       {

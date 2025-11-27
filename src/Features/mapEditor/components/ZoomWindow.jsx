@@ -92,11 +92,15 @@ export default function ZoomWindow({
 
   // Compute display size and scale factor based on variant
   const displaySize = useMemo(() => {
-    return variant === "HATCH_PREVIEW" ? 100 : 200;
+    if (variant === "HATCH_PREVIEW") return 100;
+    if (variant === "REMOVE_TEXT") return 300;
+    return 200;
   }, [variant]);
 
   const scaleFactor = useMemo(() => {
-    return variant === "HATCH_PREVIEW" ? 20 : 10;
+    if (variant === "HATCH_PREVIEW") return 20;
+    if (variant === "REMOVE_TEXT") return 2;
+    return 10;
   }, [variant]);
 
   // 1. Lifecycle & Image Loading (same as before)

@@ -48,8 +48,25 @@ class CV {
       return this.loadedPromise;
     }
 
+    const baseUrl =
+      (typeof import.meta !== "undefined" && import.meta.env?.BASE_URL) || "/";
+    const normalizedBaseUrl = baseUrl.endsWith("/")
+      ? baseUrl
+      : `${baseUrl}/`;
+    const workerUrl = new URL(
+      `${normalizedBaseUrl}opencv/cv.worker.js`,
+      typeof window !== "undefined" ? window.location.origin : ""
+    );
+
     this._status = {};
-    this.worker = new Worker("../../../opencv/cv.worker.js"); // load worker
+
+    try {
+      this.worker = new Worker(workerUrl, { name: "opencv-worker" });
+    } catch (error) {
+      console.error("[opencv worker] failed to init", error);
+      this._resetWorkerState();
+      return Promise.reject(error);
+    }
 
     this.worker.onmessage = (e) => {
       const data = e?.data || {};
@@ -62,20 +79,46 @@ class CV {
     };
 
     this.worker.onerror = (e) => {
-      console.error("[opencv worker] error", e);
+      console.error(
+        "[opencv worker] error",
+        e?.message ?? e,
+        e?.filename,
+        e?.lineno,
+        e?.colno
+      );
       Object.keys(this._status).forEach((key) => {
         if (this._status[key]?.[0] === "loading") {
           this._status[key] = ["error", e];
         }
       });
+      this._resetWorkerState();
     };
 
-    this.loadedPromise = this._dispatch({ msg: "load" }).then((result) => {
-      this.isLoaded = true;
-      return result;
-    });
+    this.loadedPromise = this._dispatch({ msg: "load" })
+      .then((result) => {
+        this.isLoaded = true;
+        return result;
+      })
+      .catch((error) => {
+        this._resetWorkerState();
+        throw error;
+      });
 
     return this.loadedPromise;
+  }
+
+  _resetWorkerState() {
+    if (this.worker) {
+      try {
+        this.worker.terminate();
+      } catch (err) {
+        console.warn("[opencv worker] terminate failed", err);
+      }
+    }
+    this.worker = null;
+    this.loadedPromise = null;
+    this.isLoaded = false;
+    this._status = {};
   }
 
   getPixelColorAsync(payload) {
