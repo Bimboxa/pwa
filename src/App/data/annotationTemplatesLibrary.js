@@ -6,11 +6,12 @@ import {
   purple,
   orange,
 } from "@mui/material/colors";
+import theme from "Styles/theme";
 
 import chariotImageUrl from "App/assets/lib - chariot - 1cm.png";
 
 const annotationTemplatesLibrary = [
-  // RECEPTION DE SUPPORTS
+  // STANDARD
   {
     isGroup: true,
     label: "Standard",
@@ -41,6 +42,12 @@ const annotationTemplatesLibrary = [
     group: "Standard",
     strokeColor: purple[800],
     closeLine: false,
+  },
+  {
+    type: "TEXT",
+    label: "Texte",
+    group: "Standard",
+    fillColor: theme.palette.background.default,
   },
   {
     type: "MARKER",
