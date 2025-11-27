@@ -25,6 +25,7 @@ const DialogGeneric = forwardRef(function DialogGeneric(
           ref,
         },
       }}
+      disableEnforceFocus
     >
       {Boolean(title) && !isMobile && <DialogTitle>{title}</DialogTitle>}
       {Boolean(onClose || title) && isMobile && (
