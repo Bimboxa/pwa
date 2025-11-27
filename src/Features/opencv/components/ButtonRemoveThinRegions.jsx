@@ -25,7 +25,7 @@ export default function ButtonRemoveThinRegions() {
         baseMap.imageEnhanced.imageUrlRemote
       : baseMap?.image?.imageUrlClient ?? baseMap?.image?.imageUrlRemote;
 
-  const label = "Supprimer les régions fines";
+  const label = "Nettoyer les pièces";
 
   async function handleClick() {
     if (!baseMapImageUrl) return;
@@ -65,4 +65,3 @@ export default function ButtonRemoveThinRegions() {
     </Box>
   );
 }
-
