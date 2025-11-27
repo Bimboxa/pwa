@@ -11,12 +11,14 @@ import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
 import FormGenericV2 from "Features/form/components/FormGenericV2";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import ButtonDialogCreateBaseMapFromJson from "./ButtonDialogCreateBaseMapFromJson";
 
 export default function SectionCreateBaseMap({ onClose }) {
   const dispatch = useDispatch();
@@ -103,26 +105,34 @@ export default function SectionCreateBaseMap({ onClose }) {
   return (
     <BoxFlexVStretch>
       <HeaderTitleClose title={title} onClose={handleClose} />
-      <Box sx={{ bgcolor: "white" }}>
-        <FormGenericV2
-          item={item}
-          onItemChange={handleItemChange}
-          template={template}
-        />
-      </Box>
-      <Box>
+      <BoxFlexVStretch>
+        <Box sx={{ bgcolor: "white" }}>
+          <FormGenericV2
+            item={item}
+            onItemChange={handleItemChange}
+            template={template}
+          />
+        </Box>
+        <Box>
+          <ButtonInPanelV2
+            label={createS}
+            onClick={handleCreateClick}
+            color="secondary"
+            variant="contained"
+          />
+        </Box>
+      </BoxFlexVStretch>
+      <Box sx={{ p: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          Création avancée
+        </Typography>
         <ButtonInPanelV2
-          label={createS}
-          onClick={handleCreateClick}
-          color="secondary"
-          variant="contained"
-        />
-      </Box>
-      <Box>
-        <ButtonGeneric
           label="Ouvrir Google Maps"
           onClick={handleOpenPageGmap}
+          size="small"
+          variant="outlined"
         />
+        <ButtonDialogCreateBaseMapFromJson />
       </Box>
     </BoxFlexVStretch>
   );
