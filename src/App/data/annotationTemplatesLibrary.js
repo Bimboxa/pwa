@@ -13,6 +13,45 @@ const annotationTemplatesLibrary = [
   // RECEPTION DE SUPPORTS
   {
     isGroup: true,
+    label: "Standard",
+    group: "Standard",
+  },
+  {
+    type: "POLYLINE",
+    label: "Surface",
+    group: "Standard",
+    fillColor: orange[500],
+    fillOpacity: 0.8,
+    strokeColor: orange[800],
+    closeLine: true,
+  },
+  {
+    type: "POLYLINE",
+    label: "Ouverture",
+    group: "Standard",
+    fillColor: blue[500],
+    fillOpacity: 0.1,
+    strokeColor: blue[800],
+    closeLine: true,
+    cutHost: true,
+  },
+  {
+    type: "POLYLINE",
+    label: "Ligne",
+    group: "Standard",
+    strokeColor: purple[800],
+    closeLine: false,
+  },
+  {
+    type: "MARKER",
+    iconKey: "ring",
+    fillColor: red[500],
+    label: "Traversée NC",
+    group: "Réception de support",
+  },
+  // RECEPTION DE SUPPORTS
+  {
+    isGroup: true,
     label: "Réception de support",
     group: "Réception de support",
   },
