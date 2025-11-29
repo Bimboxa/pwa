@@ -17,6 +17,9 @@ export default function LayerAnnotationTooltip({
   // data
 
   const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
+  const rightPanelSelectedKey = useSelector(
+    (s) => s.rightPanel.selectedMenuItemKey
+  );
 
   // useEffect
 
@@ -61,6 +64,16 @@ export default function LayerAnnotationTooltip({
     hoveredAnnotation.type === "TEXT" ||
     selectedNode?.nodeType
   ) {
+    return null;
+  }
+
+  // helpers
+
+  const showRightPanel = rightPanelSelectedKey !== "PDF_REPORT";
+
+  // render
+
+  if (!showRightPanel) {
     return null;
   }
 

@@ -62,6 +62,10 @@ const mapEditorInitialState = {
   scaleAnnotationId: null,
   anchorPositionScale: null,
 
+  // latlng
+  anchorPositionLatLng: null,
+  latLng: null,
+
   // fixed length
   fixedLength: null,
   fixedDims: null, // "x; y"
@@ -102,6 +106,13 @@ export const mapEditorSlice = createSlice({
     },
     setScaleAnnotationId: (state, action) => {
       state.scaleAnnotationId = action.payload;
+    },
+    // latlng
+    setAnchorPositionLatLng: (state, action) => {
+      state.anchorPositionLatLng = action.payload;
+    },
+    setLatLng: (state, action) => {
+      state.latLng = action.payload;
     },
     // layers
     setShowLayerScreenCursor: (state, action) => {
@@ -257,6 +268,9 @@ export const {
   setAnchorPositionScale,
   setScaleInPx,
   setScaleAnnotationId,
+  //
+  setAnchorPositionLatLng,
+  setLatLng,
   //
   setShowLayerScreenCursor,
   //

@@ -13,6 +13,7 @@ import {
   setLegendFormat,
   setScaleInPx,
   setAnchorPositionScale,
+  setAnchorPositionLatLng,
   setScaleAnnotationId,
   setFilesDrop,
   setAnnotationToolbarPosition,
@@ -90,6 +91,7 @@ import LayerMapEditor from "./LayerMapEditor";
 import LayerScreenCursor from "./LayerScreenCursor";
 import BlockEntityMarker from "Features/markers/components/BlockEntityMarker";
 import PopperEditScale from "./PopperEditScale";
+import PopperEditLatLng from "./PopperEditLatLng";
 import PopperEditAnnotation from "./PopperEditAnnotation";
 import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 
@@ -322,6 +324,7 @@ export default function MainMapEditorV2() {
           dispatch(clearDrawingPolylinePoints());
           dispatch(clearDrawingRectanglePoints());
           dispatch(clearDrawingSegmentPoints());
+          dispatch(setAnchorPositionLatLng(null));
         } else {
           dispatch(setSelectedAnnotationId(null));
           dispatch(setMainBaseMapIsSelected(false));
@@ -334,6 +337,7 @@ export default function MainMapEditorV2() {
           dispatch(setEditedEntity(null));
           dispatch(setNewAnnotation(null));
           dispatch(setAnchorPosition(null));
+          dispatch(setAnchorPositionLatLng(null));
         }
       } else if (e.key === "Enter") {
         if (
@@ -835,6 +839,7 @@ export default function MainMapEditorV2() {
         // Dispatch the scale in pixels
         dispatch(setScaleInPx(scaleInPx));
         dispatch(setAnchorPositionScale(anchorPositionScale));
+        dispatch(setAnchorPositionLatLng(null));
       }
 
       // Create entity for the segment
@@ -870,6 +875,7 @@ export default function MainMapEditorV2() {
 
       if (newAnnotation.isScaleSegment)
         dispatch(setScaleAnnotationId(annotation?.id));
+      dispatch(setAnchorPositionLatLng(null));
     } catch (error) {
       console.error("Error creating segment:", error);
     }
@@ -886,6 +892,18 @@ export default function MainMapEditorV2() {
   async function handleClickInBaseMap(p) {
     dispatch(setClickInBaseMapPosition(p));
     console.log("debug_2411_p", p);
+
+    if (enabledDrawingMode === "LAT_LNG") {
+      dispatch(
+        setAnchorPositionLatLng({
+          x: p.clientX,
+          y: p.clientY,
+          x_baseMap: p.x,
+          y_baseMap: p.y,
+        })
+      );
+      return;
+    }
 
     if (enabledDrawingMode === "OPENCV") {
       await cv.load();
@@ -1229,6 +1247,7 @@ export default function MainMapEditorV2() {
       <PopperEditAnnotation viewerKey="MAP" />
 
       <PopperEditScale />
+      <PopperEditLatLng />
       <PopperContextMenu />
       <LayerMapEditor svgElement={svgRef.current} />
       {showScreenCursor && (

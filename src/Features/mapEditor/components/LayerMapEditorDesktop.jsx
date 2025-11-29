@@ -1,5 +1,7 @@
 import { useSelector } from "react-redux";
 
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+
 import { Box } from "@mui/material";
 
 import ButtonOpenListPanel from "Features/listPanel/components/ButtonOpenListPanel";
@@ -15,12 +17,18 @@ import ButtonBlueprintInMapEditor from "Features/blueprints/components/ButtonBlu
 import ButtonDownloadMapEditorInPdf from "./ButtonDownloadMapEditorInPdf";
 import ButtonFullScreen from "Features/layout/components/ButtonFullScreen";
 import ButtonEditScale from "./ButtonEditScale";
+import ButtonEditLatLng from "./ButtonEditLatLng";
 
 export default function LayerMapEditorDesktop({ svgElement }) {
   // data
 
   const openRightPanel = useSelector((s) => s.rightPanel.selectedMenuItemKey);
   const width = useSelector((s) => s.rightPanel.width);
+  const { value: listing } = useSelectedListing();
+
+  // helpers
+
+  const showLatLngButton = listing?.entityModel?.type === "BASE_MAP";
 
   return (
     <>
@@ -60,6 +68,22 @@ export default function LayerMapEditorDesktop({ svgElement }) {
       >
         <ButtonEditScale size="small" />
       </Box>
+
+      {showLatLngButton && (
+        <Box
+          sx={{
+            position: "absolute",
+            right: "8px",
+            bottom: "8px",
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <ButtonEditLatLng size="small" />
+        </Box>
+      )}
 
       <Box
         sx={{
