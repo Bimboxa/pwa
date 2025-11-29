@@ -13,6 +13,8 @@ import TableViewer from "Features/tables/components/ViewerTable";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 
 export default function SectionViewer() {
+  // data
+  const enabled = useSelector((s) => s.threedEditor.enabled);
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
   // helpers
@@ -27,14 +29,19 @@ export default function SectionViewer() {
       <PanelShowable show={showMap} sx={{ position: "absolute", zIndex: 0 }}>
         <MainMapEditorV2 />
       </PanelShowable>
-      <PanelShowable show={showThreed} sx={{ position: "absolute", zIndex: 0 }}>
-        <MainThreedEditor />
-      </PanelShowable>
+      {enabled && (
+        <PanelShowable
+          show={showThreed}
+          sx={{ position: "absolute", zIndex: 0 }}
+        >
+          <MainThreedEditor />
+        </PanelShowable>
+      )}
       <PanelShowable
         show={showLeaflet}
         sx={{ position: "absolute", zIndex: 0 }}
       >
-        <MainLeafletEditor />
+        {/* <MainLeafletEditor /> */}
         {/* <MainGoogleMapEditor /> */}
       </PanelShowable>
       <PanelShowable show={showTable} sx={{ position: "absolute", zIndex: 0 }}>
