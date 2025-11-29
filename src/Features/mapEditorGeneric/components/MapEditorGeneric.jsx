@@ -1468,6 +1468,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         scaleToBaseLocal: scaleToBaseLocal,
         x_absolute: p_inBase.x,
         y_absolute: p_inBase.y,
+        clientX: e.clientX,
+        clientY: e.clientY,
       });
 
       console.log("onSvgClick - Base local:", p_inBase);

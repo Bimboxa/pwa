@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+
 import { Box, Paper, Typography, Stack } from "@mui/material";
 
 export default function LayerMarkerTooltip({
@@ -10,6 +12,12 @@ export default function LayerMarkerTooltip({
   // strings
 
   const noAdditionalInfoS = "Aucune information supplémentaire";
+
+  // data
+
+  const rightPanelSelectedKey = useSelector(
+    (s) => s.rightPanel.selectedMenuItemKey
+  );
 
   // state
 
@@ -82,6 +90,16 @@ export default function LayerMarkerTooltip({
   };
 
   const spriteData = getSpriteIcon();
+
+  // helpers
+
+  const showRightPanel = rightPanelSelectedKey !== "PDF_REPORT";
+
+  // render
+
+  if (!showRightPanel) {
+    return null;
+  }
 
   return (
     <Paper
