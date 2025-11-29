@@ -1,6 +1,6 @@
 import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 
-import { Box } from "@mui/material";
+import { Box, Divider } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 //import BlockEditableAppConfigItem from "./BlockEditableAppConfigItem";
 //import SectionOrgaData from "Features/orgaData/components/SectionOrgaData";
@@ -10,6 +10,7 @@ import SectionRemoteContainerOverview from "Features/sync/components/SectionRemo
 
 import ButtonDeleteProjects from "./ButtonDeleteProjects";
 import SwitchDisableRemoteContainer from "Features/sync/components/SwitchDisableRemoteContainer";
+import SectionEnableThreed from "./SectionEnableThreed";
 
 export default function PanelAppConfig({ onClose }) {
   // data
@@ -18,7 +19,10 @@ export default function PanelAppConfig({ onClose }) {
 
   return (
     <BoxFlexVStretch>
+      <SectionEnableThreed />
+      <Divider sx={{ my: 2 }} />
       <SectionAppConfigTitle />
+
       <SectionUpdateAppConfigFromFile />
       <BoxFlexVStretch sx={{ overflow: "auto", flexGrow: 1 }}>
         {/* {remoteContainer && <SectionRemoteContainerOverview />} */}

@@ -8,12 +8,15 @@ export default function ButtonToggleThreedViewer() {
   const dispatch = useDispatch();
 
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const enabled = useSelector((s) => s.threedEditor.enabled);
 
   const isThreed = selectedViewerKey === "THREED";
 
   function handleClick() {
     dispatch(setSelectedViewerKey(isThreed ? "MAP" : "THREED"));
   }
+
+  if (!enabled) return null;
 
   return (
     <Paper
