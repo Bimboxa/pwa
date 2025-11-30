@@ -1,3 +1,5 @@
+import { useSelector } from "react-redux";
+
 import { Typography } from "@mui/material";
 import {
   Map,
@@ -10,6 +12,8 @@ import {
 import theme from "Styles/theme";
 
 export default function useViewers() {
+  const enabledTreed = useSelector((s) => s.threedEditor.enabled);
+
   const viewers = [
     // {
     //   key: "BLUEPRINT",
@@ -41,7 +45,7 @@ export default function useViewers() {
       label: "3D",
       bgcolor: theme.palette.viewers.threed,
       icon: <Typography>3D</Typography>,
-      //disabled: true,
+      disabled: !enabledTreed,
     },
     {
       key: "LEAFLET",

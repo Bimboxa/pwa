@@ -28,6 +28,7 @@ export default class BaseMap {
     imageEnhanced,
     showEnhanced,
     meterByPx,
+    latLng,
     opacity,
     grayScale,
   }) {
@@ -40,6 +41,7 @@ export default class BaseMap {
     this.imageEnhanced = imageEnhanced;
     this.showEnhanced = showEnhanced;
     this.meterByPx = meterByPx;
+    this.latLng = latLng;
     this.opacity = opacity;
     this.grayScale = grayScale;
   }
@@ -57,6 +59,7 @@ export default class BaseMap {
     opacity,
     grayScale,
     meterByPx,
+    latLng,
   }) {
     const baseMap = new BaseMap({
       projectId,
@@ -67,6 +70,7 @@ export default class BaseMap {
       opacity,
       grayScale,
       meterByPx,
+      latLng,
     });
     await baseMap.initialize({ imageFile, imageEnhancedFile });
     return baseMap;
@@ -181,6 +185,7 @@ export default class BaseMap {
       meterByPx: this.meterByPx,
       opacity: this.opacity,
       grayScale: this.grayScale,
+      latLng: this.latLng,
     };
   }
 

@@ -41,7 +41,7 @@ export default function SectionViewer() {
         show={showLeaflet}
         sx={{ position: "absolute", zIndex: 0 }}
       >
-        {/* <MainLeafletEditor /> */}
+        <MainLeafletEditor />
         {/* <MainGoogleMapEditor /> */}
       </PanelShowable>
       <PanelShowable show={showTable} sx={{ position: "absolute", zIndex: 0 }}>
