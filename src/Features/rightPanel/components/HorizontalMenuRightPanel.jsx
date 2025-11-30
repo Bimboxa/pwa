@@ -18,6 +18,7 @@ import {
   Room,
   PictureAsPdf,
   Insights as OpencvIcon,
+  MoreHoriz as More,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -45,6 +46,10 @@ export default function HorizontalMenuRightPanel() {
     OPENCV: {
       label: "Traitement d'image",
       icon: <OpencvIcon />,
+    },
+    TOOLS: {
+      label: "Autres outils",
+      icon: <More />,
     },
   };
 

@@ -6,6 +6,7 @@ import {
   Add,
   KeyboardArrowDown as Down,
   KeyboardArrowRight as Right,
+  Download as DownloadIcon,
 } from "@mui/icons-material";
 
 export default function ButtonActionInPanel({
@@ -26,6 +27,10 @@ export default function ButtonActionInPanel({
     }
   }, [triggerOpenAt]);
 
+
+  let icon = <AutoAwesome />;
+  if (variant==="download") icon = <DownloadIcon />;
+  if (variant==="add") icon = <Add />;
   return (
     <Box>
       <Box
@@ -67,7 +72,7 @@ export default function ButtonActionInPanel({
             />
           ) : (
             <IconButton {...buttonProps}>
-              <AutoAwesome />
+              {icon}
             </IconButton>
           )}
         </Box>

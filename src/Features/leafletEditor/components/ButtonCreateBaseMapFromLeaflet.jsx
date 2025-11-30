@@ -94,6 +94,12 @@ export default function ButtonCreateBaseMapFromLeaflet({ mapRef }) {
           name,
           image: { file },
           meterByPx,
+          latLng:{
+            lat: topLeftLatLng.lat,
+            lng: topLeftLatLng.lng,
+            x:0,
+            y:0
+          }
         };
         const _entity = await createEntity(entity, { listing });
 

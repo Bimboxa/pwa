@@ -18,6 +18,7 @@ import PanelSelection from "Features/selection/components/PanelSelection";
 import PanelEntityZones from "Features/relsZoneEntity/components/PanelEntityZones";
 import PanelPdfReport from "Features/pdfReport/components/PanelPdfReport.jsx";
 import PanelOpencv from "Features/opencv/components/PanelOpencv.jsx";
+import PanelTools from "Features/tools/components/PanelTools";
 
 export default function RightPanelContainer() {
   // data
@@ -70,6 +71,7 @@ export default function RightPanelContainer() {
           {selectedKey === "ENTITY_ZONES" && <PanelEntityZones />}
           {selectedKey === "PDF_REPORT" && <PanelPdfReport />}
           {selectedKey === "OPENCV" && <PanelOpencv />}
+          {selectedKey === "TOOLS" && <PanelTools />}
         </Box>
       )}
     </>
