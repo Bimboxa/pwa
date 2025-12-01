@@ -171,7 +171,7 @@ export default async function annotationsToKmzAsync({
           const iconSize = size * 0.6; // Sprite icon takes 60% of circle
           const iconX = centerX - iconSize / 2;
           const iconY = centerY - iconSize / 2;
-          
+
           ctx.drawImage(spriteCanvas, iconX, iconY, iconSize, iconSize);
         }
       }
@@ -264,9 +264,7 @@ export default async function annotationsToKmzAsync({
     // Get name and description for KML
     // Name: use entity.num if available, otherwise fallback to label or index
     const placemarkName =
-      entityData?.num ||
-      annotation.label ||
-      `Annotation ${index + 1}`;
+      entityData?.num || annotation.label || `Annotation ${index + 1}`;
 
     // Description: combine annotation.label and entity.text
     const descriptionParts = [];
@@ -323,12 +321,12 @@ export default async function annotationsToKmzAsync({
 
     // Build description HTML
     let description = `<![CDATA[<div>`;
-    
+
     // Add the combined description (label + text)
     if (placemarkDescription) {
       // Split by newlines and wrap each part in a paragraph
       const descLines = String(placemarkDescription).split("\n");
-      descLines.forEach(line => {
+      descLines.forEach((line) => {
         if (line.trim()) {
           description += `<p>${escapeXml(line)}</p>`;
         }
@@ -336,7 +334,10 @@ export default async function annotationsToKmzAsync({
     }
 
     // Add additional entity description if available and different
-    if (entityData?.description && !descriptionParts.includes(entityData.description)) {
+    if (
+      entityData?.description &&
+      !descriptionParts.includes(entityData.description)
+    ) {
       description += `<p>${escapeXml(String(entityData.description))}</p>`;
     }
 
@@ -356,8 +357,8 @@ export default async function annotationsToKmzAsync({
     if (annotation.type === "MARKER" && coordinates.length === 1) {
       // Point/Placemark - elevate above ground to stay visible above buildings
       const [lng, lat] = coordinates[0].split(",");
-      const elevatedCoord = `${lng},${lat},50`; // 50 meters above ground
-      
+      const elevatedCoord = `${lng},${lat},1`; // 50 meters above ground
+
       kmlContent = `
     <Placemark>
       <name>${escapeXml(String(placemarkName))}</name>
