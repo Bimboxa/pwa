@@ -20,6 +20,8 @@ import FormGenericV2 from "Features/form/components/FormGenericV2";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ButtonDialogCreateBaseMapFromJson from "./ButtonDialogCreateBaseMapFromJson";
 
+import getImageSizeAsync from "Features/misc/utils/getImageSize";
+
 export default function SectionCreateBaseMap({ onClose }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -69,6 +71,17 @@ export default function SectionCreateBaseMap({ onClose }) {
           maxSize,
         },
       },
+      {
+        key: "geoProps",
+        type: "text",
+        label: "Géolocalisation",
+        options: {
+          showLabel: false,
+          fullWidth: true,
+          placeholder: "geo::latitude::longitude::meterByPx",
+
+        }
+      }
     ],
   };
 
@@ -79,10 +92,36 @@ export default function SectionCreateBaseMap({ onClose }) {
   }
 
   async function handleCreateClick() {
+
+    const file = item.image.file;
+    if (!file) return;
+
+    // edge case
+    let latLng, widthInM;
+    const geoProps = item.geoProps?.split("::");
+    if (geoProps?.length === 4) {
+      latLng = {
+        lat: parseFloat(geoProps[1]),
+        lng: parseFloat(geoProps[2]),
+        x: 0.5,
+        y: 0.5
+      };
+      widthInM = geoProps[3];
+    }
+
+    // file width
+
+    const size = await getImageSizeAsync({ file });
+
+    // main
+
     const entity = {
       name: item.name,
       image: { file: item.image.file },
     };
+    if (latLng) entity.latLng = latLng;
+    if (widthInM) entity.meterByPx = widthInM / size.width;
+
     const result = await createEntity(entity, { listing });
 
     dispatch(setSelectedEntityId(result.id));
@@ -131,6 +170,7 @@ export default function SectionCreateBaseMap({ onClose }) {
           onClick={handleOpenPageGmap}
           size="small"
           variant="outlined"
+          color="secondary"
         />
         <ButtonDialogCreateBaseMapFromJson />
       </Box>

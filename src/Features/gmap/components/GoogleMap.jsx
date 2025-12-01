@@ -1,7 +1,11 @@
 import { useRef, useEffect, useState } from "react";
+
+import { IconButton, Box } from "@mui/material";
+import { ContentCopy, Public } from "@mui/icons-material";
+
 import getMapsApiAsync from "../services/getMapsApiAsync";
 
-export default function GoogleMap({ onGmapChange, onGmapContainerChange }) {
+export default function GoogleMap({ onGmapChange, onGmapContainerChange, hideButtons, onBoundsChange }) {
   const mapsRef = useRef();
   const mapInstanceRef = useRef(null);
   const mapRef = useRef(null);
@@ -40,6 +44,10 @@ export default function GoogleMap({ onGmapChange, onGmapContainerChange }) {
         zoom: 18,
         fullscreenControl: false,
         mapTypeControl: false,
+        streetViewControl: false,  // Removes the Street View pegman
+        zoomControl: false,         // Removes zoom +/- buttons
+        rotateControl: false,       // Removes rotate control
+        scaleControl: false,        // Removes scale control
         mapTypeId: "satellite",
         tilt: 0,
       });
@@ -49,7 +57,10 @@ export default function GoogleMap({ onGmapChange, onGmapContainerChange }) {
       // --- SEARCH BAR LOGIC ---
 
       // 2. Check if the Places library is loaded
-      if (googleMaps.places) {
+      console.log("googleMaps.places", googleMaps.places);
+      console.log("searchInputRef.current", searchInputRef.current);
+
+      if (googleMaps.places && searchInputRef.current) {
         // Create the SearchBox
         const searchBox = new googleMaps.places.SearchBox(
           searchInputRef.current
@@ -60,9 +71,13 @@ export default function GoogleMap({ onGmapChange, onGmapContainerChange }) {
           searchInputRef.current
         );
 
+        console.log("Search input added to map controls");
+
         // Bias the SearchBox results towards current map's viewport.
         map.addListener("bounds_changed", () => {
+          console.log("bounds_changed");
           searchBox.setBounds(map.getBounds());
+          if (onBoundsChange) onBoundsChange(map.getBounds());
         });
 
         // Listen for the event fired when the user selects a prediction
@@ -108,6 +123,11 @@ export default function GoogleMap({ onGmapChange, onGmapContainerChange }) {
     }
   }, [mapsLoaded, onGmapChange, onGmapContainerChange]);
 
+
+  // handlers
+
+
+
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       {/* 3. The Search Input 
@@ -117,8 +137,9 @@ export default function GoogleMap({ onGmapChange, onGmapContainerChange }) {
       <input
         ref={searchInputRef}
         type="text"
-        placeholder="Search Box"
+        placeholder="Rechercher"
         style={{
+          visibility: hideButtons ? "hidden" : "visible",
           boxSizing: "border-box",
           border: "1px solid transparent",
           width: "240px",
@@ -134,6 +155,8 @@ export default function GoogleMap({ onGmapChange, onGmapContainerChange }) {
           backgroundColor: "white",
         }}
       />
+
+
 
       <div
         ref={mapRef}

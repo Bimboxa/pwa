@@ -40,8 +40,10 @@ export default async function annotationsToKmzAsync({
     // Note: In image coordinates, Y=0 is at top and increases downward
     // In geographic coordinates, latitude increases northward
     // So we need to flip the Y-axis
-    const offsetXMeters = (pixelX - latLng.x) * meterByPx;
-    const offsetYMeters = -(pixelY - latLng.y) * meterByPx; // Negative to flip Y-axis
+    // const offsetXMeters = (pixelX - latLng.x) * meterByPx;
+    // const offsetYMeters = -(pixelY - latLng.y) * meterByPx; // Negative to flip Y-axis
+    const offsetXMeters = (relativeX - latLng.x) * meterByPx * imageWidth;
+    const offsetYMeters = -(relativeY - latLng.y) * meterByPx * imageHeight; // Negative to flip Y-axis
 
     // Convert meters to degrees
     // 1 degree latitude ≈ 111,000 meters
@@ -344,9 +346,8 @@ export default async function annotationsToKmzAsync({
     // Add entity images to description using file references from the ZIP
     // Note: Some KMZ viewers may not support local file references and will show warnings
     entityImages.forEach((img, idx) => {
-      description += `<p><img src="files/${img.fileName}" alt="Image ${
-        idx + 1
-      }" style="max-width: 500px;"/></p>`;
+      description += `<p><img src="files/${img.fileName}" alt="Image ${idx + 1
+        }" style="max-width: 500px;"/></p>`;
     });
 
     description += `</div>]]>`;
@@ -363,11 +364,10 @@ export default async function annotationsToKmzAsync({
     <Placemark>
       <name>${escapeXml(String(placemarkName))}</name>
       <description>${description}</description>
-      ${
-        iconFileName
+      ${iconFileName
           ? `<Style><IconStyle><Icon><href>files/${iconFileName}</href></Icon></IconStyle></Style>`
           : ""
-      }
+        }
       <Point>
         <altitudeMode>relativeToGround</altitudeMode>
         <coordinates>${elevatedCoord}</coordinates>
