@@ -7,6 +7,7 @@ import {
   triggerProjectsUpdate,
 } from "Features/projects/projectsSlice";
 import { setOnboardingIsActive } from "Features/onboarding/onboardingSlice";
+import { setSelectedListingId } from "Features/listings/listingsSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useProjects from "Features/projects/hooks/useProjects";
@@ -96,12 +97,14 @@ export default function SectionSelectProject({ onProjectSelected }) {
     dispatch(setSelectedProjectId(newProject.id));
 
     // baseMaps listing
-    await createListing({
+    const baseMapsListing = await createListing({
       listing: { ...defaultBaseMapsListingProps, projectId: newProject.id },
     });
+    dispatch(setSelectedListingId(baseMapsListing.id));
 
     // blueprints
     await createBlueprintsListing({ projectId: newProject.id });
+
 
     // navigation
     if (onProjectSelected) onProjectSelected(newProject);

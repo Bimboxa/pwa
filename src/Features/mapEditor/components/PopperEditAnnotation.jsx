@@ -20,7 +20,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   const open =
     shouldShow &&
     Boolean(anchorPosition) &&
-    selectedNode.annotationType === "POLYLINE" &&
+    selectedNode?.annotationType === "POLYLINE" &&
     selectedNode?.nodeType === "ANNOTATION";
 
   console.log("selectedNode", selectedNode);
@@ -36,9 +36,8 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
     <>
       {open && (
         <PopperBox
-          key={`annotation-toolbar-${selectedNode?.id || "none"}-${
-            viewerKey || "MAP"
-          }`}
+          key={`annotation-toolbar-${selectedNode?.id || "none"}-${viewerKey || "MAP"
+            }`}
           open={open}
           anchorPosition={anchorPosition}
           onClose={handleClose}

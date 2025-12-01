@@ -49,13 +49,7 @@ const annotationTemplatesLibrary = [
     group: "Standard",
     fillColor: theme.palette.background.default,
   },
-  {
-    type: "MARKER",
-    iconKey: "ring",
-    fillColor: red[500],
-    label: "Traversée NC",
-    group: "Réception de support",
-  },
+
   // RECEPTION DE SUPPORTS
   {
     isGroup: true,
