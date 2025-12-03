@@ -2,6 +2,8 @@
 import { memo, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Rnd } from "react-rnd";
 
+import theme from "Styles/theme";
+
 /**
  * Renders an <image> normally, or a react-rnd editor when poseEditable is true.
  * - Manages a LOCAL delta pose starting at { x:0, y:0, k:1 }
@@ -22,6 +24,7 @@ export default memo(function NodeSvgImage({
   enabledDrawingMode,
   locked = false,
   selected,
+  hovered,
   opacity,
   grayScale = false,
 }) {
@@ -55,6 +58,12 @@ export default memo(function NodeSvgImage({
     [worldScale, containerK]
   );
   const F = 1;
+
+  // Border width for hover effect: keep 2px visual size
+  const hoverBorderWidth = useMemo(() => {
+    const DESIRED_VISUAL_BORDER = 2;
+    return DESIRED_VISUAL_BORDER / _F;
+  }, [_F]);
 
   // Handle size: keep 8px visual size by inversely scaling with _F
   const handleSize = useMemo(() => {
@@ -145,23 +154,53 @@ export default memo(function NodeSvgImage({
 
   if (!src || !width || !height) return null;
 
+
+
   return (
     <>
       {!poseEditable && (
-        <image
-          href={src}
-          x={0}
-          y={0}
-          width={width}
-          height={height}
-          preserveAspectRatio="none"
-          style={{
-            imageRendering: "optimizeSpeed",
-            opacity: opacity,
-            filter: grayScale ? "grayscale(100%)" : "none",
-          }}
-          {...dataProps}
-        />
+        <g>
+          <image
+            href={src}
+            x={0}
+            y={0}
+            width={width}
+            height={height}
+            preserveAspectRatio="none"
+            style={{
+              imageRendering: "optimizeSpeed",
+              opacity: opacity,
+              filter: grayScale ? "grayscale(100%)" : "none",
+            }}
+            {...dataProps}
+          />
+          {hovered && !selected && (
+            <rect
+              x={0}
+              y={0}
+              width={width}
+              height={height}
+              fill="none"
+              stroke={theme.palette.baseMap.hovered}
+              strokeWidth={hoverBorderWidth}
+              pointerEvents="none"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+          {selected && (
+            <rect
+              x={0}
+              y={0}
+              width={width}
+              height={height}
+              fill="none"
+              stroke={theme.palette.baseMap.selected}
+              strokeWidth={hoverBorderWidth}
+              pointerEvents="none"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+        </g>
       )}
 
       {poseEditable && (

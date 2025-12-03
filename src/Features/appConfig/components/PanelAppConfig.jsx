@@ -11,6 +11,7 @@ import SectionRemoteContainerOverview from "Features/sync/components/SectionRemo
 import ButtonDeleteProjects from "./ButtonDeleteProjects";
 import SwitchDisableRemoteContainer from "Features/sync/components/SwitchDisableRemoteContainer";
 import SectionEnableThreed from "./SectionEnableThreed";
+import SectionEnableMapEditorLegacy from "Features/mapEditor/components/SectionEnableMapEditorLegacy";
 
 export default function PanelAppConfig({ onClose }) {
   // data
@@ -19,6 +20,8 @@ export default function PanelAppConfig({ onClose }) {
 
   return (
     <BoxFlexVStretch>
+      <SectionEnableMapEditorLegacy />
+
       <SectionEnableThreed />
       <Divider sx={{ my: 2 }} />
       <SectionAppConfigTitle />

@@ -171,6 +171,12 @@ export default class BaseMap {
     return imageToUse?.imageUrlClient ?? imageToUse?.imageUrlRemote;
   };
 
+  getImageSize = () => {
+    const imageToUse =
+      this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
+    return imageToUse?.imageSize;
+  };
+
   // SERIALIZER
 
   toJSON() {

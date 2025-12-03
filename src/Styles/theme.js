@@ -100,11 +100,18 @@ let theme = createTheme(
         article: green[500],
         shape: blueGrey[500],
       },
+      baseMap: {
+        hovered: "#9CFF8A", // Light flash green
+      },
       annotation: {
         selected: "#39FF14", // Flash green tone
         segmentHover: "#FFB6C1", // Light pink flash
         segmentSelected: "#FF1493", // Flash pink (DeepPink)
       },
+      anchor: {
+        passive: grey[500],
+        active: red[500],
+      }
     },
     typography: {
       fontSize: 11,

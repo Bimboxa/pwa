@@ -4,8 +4,9 @@ import { Box } from "@mui/material";
 
 import BoxCenter from "./BoxCenter";
 import PanelShowable from "./PanelShowable";
-import MainMapEditor from "Features/mapEditor/components/MainMapEditor";
+//import MainMapEditor from "Features/mapEditor/components/MainMapEditor";
 import MainMapEditorV2 from "Features/mapEditor/components/MainMapEditorV2";
+import MainMapEditorV3 from "Features/mapEditor/components/MainMapEditorV3";
 import MainThreedEditor from "Features/threedEditor/components/MainThreedEditor";
 import MainLeafletEditor from "Features/leafletEditor/components/MainLeafletEditor";
 import MainGoogleMapEditor from "Features/gmap/components/MainGoogleMapEditor";
@@ -16,6 +17,7 @@ export default function SectionViewer() {
   // data
   const enabled = useSelector((s) => s.threedEditor.enabled);
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
 
   // helpers
 
@@ -27,7 +29,7 @@ export default function SectionViewer() {
   return (
     <BoxCenter sx={{ position: "relative" }}>
       <PanelShowable show={showMap} sx={{ position: "absolute", zIndex: 0 }}>
-        <MainMapEditorV2 />
+        {legacy ? <MainMapEditorV2 /> : <MainMapEditorV3 />}
       </PanelShowable>
       {enabled && (
         <PanelShowable

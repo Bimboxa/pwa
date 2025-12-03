@@ -71,7 +71,6 @@ export default function FormAnnotationTemplateVariantBlock({
     strokeOffset: strokeOffset === 0 ? true : false,
   };
 
-  console.log("debug_2611_stroke", strokeColor);
 
   // helpers - annotationTypes
 
