@@ -1509,9 +1509,9 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         const last = drawingPolylinePoints?.[drawingPolylinePoints.length - 1];
         const lastPx = last
           ? {
-              x: (baseSize.w || 1) * last.x,
-              y: (baseSize.h || 1) * last.y,
-            }
+            x: (baseSize.w || 1) * last.x,
+            y: (baseSize.h || 1) * last.y,
+          }
           : null;
 
         if (e.shiftKey && lastPx) {
@@ -2197,17 +2197,16 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               imageSize={bgSize}
               containerK={bgPose.k}
               worldScale={1}
-              onDragEnd={() => {}}
-              onClick={() => {}}
+              onDragEnd={() => { }}
+              onClick={() => { }}
               spriteImage={annotationSpriteImage}
             />
           ))}
         </g>
 
         <g
-          transform={`translate(${(basePose.x - bgPose.x) / (bgPose.k || 1)}, ${
-            (basePose.y - bgPose.y) / (bgPose.k || 1)
-          }) scale(${(basePose.k || 1) / (bgPose.k || 1)})`}
+          transform={`translate(${(basePose.x - bgPose.x) / (bgPose.k || 1)}, ${(basePose.y - bgPose.y) / (bgPose.k || 1)
+            }) scale(${(basePose.k || 1) / (bgPose.k || 1)})`}
         >
           <NodeSvgImage
             src={baseMapImageUrl}
@@ -2225,8 +2224,8 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
               baseMapMeterByPx={baseMapMeterByPx}
               containerK={basePose.k}
               worldScale={1}
-              onDragEnd={() => {}}
-              onClick={() => {}}
+              onDragEnd={() => { }}
+              onClick={() => { }}
               spriteImage={annotationSpriteImage}
             />
           ))}

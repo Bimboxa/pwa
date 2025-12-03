@@ -1,12 +1,7 @@
 import { IconButton, Tooltip } from "@mui/material";
 import { ZoomOutMap as CenterIcon } from "@mui/icons-material";
 
-import { useDispatch } from "react-redux";
-
-import { triggerCenterBaseMap } from "../mapEditorSlice";
-
-export default function ButtonCenterBaseMap() {
-  const dispatch = useDispatch();
+export default function ButtonCenterBaseMap({ onResetCamera }) {
 
   // strings
 
@@ -15,7 +10,7 @@ export default function ButtonCenterBaseMap() {
   // handler
 
   function handleClick() {
-    dispatch(triggerCenterBaseMap());
+    onResetCamera();
   }
 
   return (

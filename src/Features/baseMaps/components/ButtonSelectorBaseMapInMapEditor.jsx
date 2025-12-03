@@ -16,7 +16,7 @@ import DialogGeneric from "Features/layout/components/DialogGeneric";
 import PanelSelectorBaseMap from "./PanelSelectorBaseMap";
 import ButtonCenterBaseMap from "Features/mapEditor/components/ButtonCenterBaseMap";
 
-export default function ButtonSelectorBaseMapInMapEditor() {
+export default function ButtonSelectorBaseMapInMapEditor({ onResetCamera }) {
   const dispatch = useDispatch();
 
   // strings
@@ -70,7 +70,7 @@ export default function ButtonSelectorBaseMapInMapEditor() {
           </Box>
         </Button>
 
-        <ButtonCenterBaseMap />
+        <ButtonCenterBaseMap onResetCamera={onResetCamera} />
         {/* <Tooltip title={createS}>
           <Box
             sx={{

@@ -1,4 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
+import setInitSelectedMainBaseMapId from "Features/init/services/setInitSelectedMainBaseMapId";
 
 const mapEditorInitialState = {
   // selector
@@ -85,6 +86,7 @@ export const mapEditorSlice = createSlice({
     setSelectedMainBaseMapId: (state, action) => {
       console.log("[STATE] selectedBaseMapId", action.payload);
       state.selectedBaseMapId = action.payload;
+      setInitSelectedMainBaseMapId(action.payload);
     },
     setLoadedMainBaseMapId: (state, action) => {
       state.loadedMainBaseMapId = action.payload;

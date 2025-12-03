@@ -3,13 +3,14 @@ import { createSlice } from "@reduxjs/toolkit";
 const appConfigSlice = createSlice({
   name: "appConfig",
   initialState: {
-    appVersion: "1.1.16",
+    appVersion: "1.1.17",
     configCode: "edx",
     newVersionAvailable: false,
     value: null,
     openAppConfig: false,
     forceUpdateAt: null,
     useDefault: false, // use default config
+    enableMapEditorLegacy: true
   },
   reducers: {
     setConfigCode: (state, action) => {
@@ -31,6 +32,9 @@ const appConfigSlice = createSlice({
       state.useDefault = action.payload;
       state.forceUpdateAt = Date.now();
     },
+    setEnableMapEditorLegacy: (state, action) => {
+      state.enableMapEditorLegacy = action.payload;
+    },
   },
 });
 
@@ -41,5 +45,6 @@ export const {
   setNewVersionAvailable,
   forceUpdate,
   setUseDefault,
+  setEnableMapEditorLegacy
 } = appConfigSlice.actions;
 export default appConfigSlice.reducer;
