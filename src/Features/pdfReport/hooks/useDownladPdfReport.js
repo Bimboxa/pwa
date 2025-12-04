@@ -39,6 +39,7 @@ export default function useDownladPdfReport() {
     let finalPdf;
 
     if (addTable) {
+      console.log("[DownloadPdfReport]annotations", annotations);
       const issuesPdf = await createAnnotationsPdfReport(annotations, {
         spriteImage,
         logoImage: { url: orgaLogoUrl },

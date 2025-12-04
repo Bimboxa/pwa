@@ -914,12 +914,12 @@ export default function NodePolyline({
     () =>
       segmentProjection
         ? {
-            ...segmentProjection,
-            point: {
-              x: segmentProjection.point.x * w,
-              y: segmentProjection.point.y * h,
-            },
-          }
+          ...segmentProjection,
+          point: {
+            x: segmentProjection.point.x * w,
+            y: segmentProjection.point.y * h,
+          },
+        }
         : null,
     [segmentProjection, w, h]
   );
@@ -939,9 +939,8 @@ export default function NodePolyline({
             height={HATCHING_SPACING * invScale}
           >
             <path
-              d={`M 0 0 L ${HATCHING_SPACING * invScale} ${
-                HATCHING_SPACING * invScale
-              }`}
+              d={`M 0 0 L ${HATCHING_SPACING * invScale} ${HATCHING_SPACING * invScale
+                }`}
               stroke={fillColor}
               strokeWidth={1.5 * invScale}
             />
@@ -988,6 +987,8 @@ export default function NodePolyline({
                 style={{ cursor: "pointer" }}
                 onMouseEnter={() => !isDrawing && setHoverIdx("polyline")}
                 onMouseLeave={() => !isDrawing && setHoverIdx(null)}
+              //strokeLinecap="round"
+              //strokeLinejoin="round"
               />
               <path
                 d={seg.d}
@@ -997,12 +998,13 @@ export default function NodePolyline({
                 strokeOpacity={strokeOpacity}
                 strokeDasharray={
                   strokeType === "DASHED"
-                    ? `${computedStrokeWidthPx * 3} ${
-                        computedStrokeWidthPx * 2
-                      }`
+                    ? `${computedStrokeWidthPx * 3} ${computedStrokeWidthPx * 2
+                    }`
                     : undefined
                 }
                 style={{ pointerEvents: "none" }}
+                strokeLinecap="round"
+              //strokeLinejoin="round"
               />
             </g>
           );

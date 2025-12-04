@@ -137,7 +137,8 @@ export default function useAnnotations(options) {
     if (withEntity) {
       _annotations = await Promise.all(
         _annotations.map(async (annotation) => {
-          const table = annotation?.listingTable;
+          let table = annotation?.listingTable;
+          if (!table) table = listingsMap?.[annotation?.listingId]?.table;
           if (table) {
             const entity = await db[table].get(annotation.entityId);
             const { entityWithImages, hasImages } =
