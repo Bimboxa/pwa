@@ -10,7 +10,7 @@ const appConfigSlice = createSlice({
     openAppConfig: false,
     forceUpdateAt: null,
     useDefault: false, // use default config
-    enableMapEditorLegacy: true
+    enableMapEditorLegacy: false
   },
   reducers: {
     setConfigCode: (state, action) => {

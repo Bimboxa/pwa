@@ -8,6 +8,7 @@ import { useInteraction } from '../context/InteractionContext';
 
 import { setEnabledDrawingMode } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode } from 'Features/mapEditor/mapEditorSlice';
+import { setOpenDialogDeleteSelectedAnnotation } from 'Features/annotations/annotationsSlice';
 
 import Box from '@mui/material/Box';
 import MapEditorViewport from 'Features/mapEditorGeneric/components/MapEditorViewport';
@@ -15,7 +16,7 @@ import DrawingLayer from 'Features/mapEditorGeneric/components/DrawingLayer';
 import ScreenCursorV2 from 'Features/mapEditorGeneric/components/ScreenCursorV2';
 import SnappingLayer from 'Features/mapEditorGeneric/components/SnappingLayer';
 import TransientTopologyLayer from 'Features/mapEditorGeneric/components/TransientTopologyLayer';
-
+import ClosingMarker from 'Features/mapEditorGeneric/components/ClosingMarker';
 
 
 import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
@@ -24,6 +25,7 @@ import getBestSnap from 'Features/mapEditor/utils/getBestSnap';
 const InteractionLayer = forwardRef(({
   children,
   enabledDrawingMode,
+  newAnnotation,
   onCommitDrawing,
   basePose,
   activeContext = "BASE_MAP",
@@ -45,6 +47,7 @@ const InteractionLayer = forwardRef(({
   const drawingLayerRef = useRef(null);
   const screenCursorRef = useRef(null);
   const snappingLayerRef = useRef(null);
+  const closingMarkerRef = useRef(null);
 
   // context
 
@@ -112,6 +115,35 @@ const InteractionLayer = forwardRef(({
 
   const [virtualInsertion, setVirtualInsertion] = useState(null);
 
+  // is closing
+  const isClosingRef = useRef(false);
+
+  const handleHoverFirstPoint = (pointCoordinates) => {
+    isClosingRef.current = true;
+
+    // Optionnel : Afficher le ClosingMarker visuel (le rond vert)
+    // On doit convertir les coords locales du point en écran pour l'overlay
+    const pose = getTargetPose();
+    const worldX = pointCoordinates.x * pose.k + pose.x;
+    const worldY = pointCoordinates.y * pose.k + pose.y;
+
+    //const screenPos = viewportRef.current?.worldToViewport(pointCoordinates.x, pointCoordinates.y);
+    const screenPos = viewportRef.current?.worldToViewport(worldX, worldY);
+
+    if (screenPos) {
+      closingMarkerRef.current?.update(screenPos);
+    }
+
+    // Magnétiser le trait de dessin sur le premier point
+    drawingLayerRef.current?.updatePreview(pointCoordinates);
+  };
+
+  const handleLeaveFirstPoint = () => {
+    isClosingRef.current = false;
+    closingMarkerRef.current?.update(null);
+  };
+
+
   // syncRef
 
   const enabledDrawingModeRef = useRef(enabledDrawingMode);
@@ -165,11 +197,15 @@ const InteractionLayer = forwardRef(({
         // 1. ESCAPE : Reset Selection
         case 'Escape':
           console.log("Action: Reset Selection & Tool");
+          dispatch(setEnabledDrawingMode(null));
+          dispatch(setSelectedNode(null));
+          setHiddenAnnotationIds([]);
+          setDrawingPoints([]);
+          break;
+
+        case "Enter":
           if (enabledDrawingModeRef.current === "POLYLINE") {
             commitPolyline();
-          } else {
-            dispatch(setEnabledDrawingMode(null));
-            dispatch(setSelectedNode(null));
           }
           break;
 
@@ -177,7 +213,7 @@ const InteractionLayer = forwardRef(({
         case 'Delete':
         case 'Backspace':
           console.log("Action: Delete Selected");
-          //dispatch(deleteSelected());
+          dispatch(setOpenDialogDeleteSelectedAnnotation(true));
           break;
 
         // 3. FLÈCHES : Pan Caméra (Délégué au Viewport)
@@ -206,6 +242,7 @@ const InteractionLayer = forwardRef(({
 
   // --- GESTION DES CLICS (Ajout de point) ---
   const handleWorldClick = ({ worldPos, viewportPos, event }) => {
+
     //Déclencher le flash visuel au clic
     if (enabledDrawingMode) {
       screenCursorRef.current?.triggerFlash();
@@ -216,7 +253,7 @@ const InteractionLayer = forwardRef(({
       let finalPos = toLocalCoords(worldPos);
       if (event.shiftKey && drawingPoints.length > 0) {
         const lastPoint = drawingPoints[drawingPoints.length - 1];
-        finalPos = snapToAngle(worldPos, lastPoint);
+        finalPos = snapToAngle(finalPos, lastPoint);
       }
 
       // 1. Ajouter le point (Déclenche un re-render de DrawingLayer pour la partie statique)
@@ -231,10 +268,14 @@ const InteractionLayer = forwardRef(({
     if (!enabledDrawingMode) {
       const nativeTarget = event.nativeEvent?.target || event.target;
       const hit = nativeTarget.closest?.("[data-node-type]");
+
       if (hit) {
+        console.log("[InteractionLayer] selected node", hit?.dataset)
         dispatch(setSelectedNode(hit?.dataset));
+        setHiddenAnnotationIds([hit?.dataset.nodeId]);
       } else {
         dispatch(setSelectedNode(null));
+        setHiddenAnnotationIds([]);
       }
     }
 
@@ -242,7 +283,17 @@ const InteractionLayer = forwardRef(({
   };
 
   // --- GESTION DU MOUVEMENT (Feedback visuel) ---
-  const handleWorldMouseMove = ({ worldPos, viewportPos, event }) => {
+  const handleWorldMouseMove = ({ worldPos, viewportPos, event, isPanning }) => {
+
+    if (isPanning) {
+      closingMarkerRef.current?.update(null);
+      snappingLayerRef.current?.update(null);
+      // We don't set isClosingRef.current = false here because 
+      // we might want to resume the state after panning, 
+      // but usually reseting is safer:
+      //isClosingRef.current = false;
+    }
+
     const imageScale = getTargetScale(); // From basePose props
     const cameraZoom = viewportRef.current?.getZoom() || 1; // From Viewport
     const scale = imageScale * cameraZoom;
@@ -426,6 +477,12 @@ const InteractionLayer = forwardRef(({
     }
   };
 
+  // --- HANDLER DU CLIC SUR LE CLOSING MARKER ---
+  const handleClosingClick = () => {
+    console.log("Closing Polygon via Marker Click");
+    commitPolyline(); // Votre fonction existante qui ferme et sauvegarde
+  };
+
   // render
 
   const targetPose = getTargetPose();
@@ -462,6 +519,10 @@ const InteractionLayer = forwardRef(({
               onMouseDown={handleMarkerMouseDown}
               isDrawing={Boolean(enabledDrawingMode)}
             />
+            <ClosingMarker
+              ref={closingMarkerRef}
+              onClick={handleClosingClick}
+            />
           </>
         }
       >
@@ -487,6 +548,9 @@ const InteractionLayer = forwardRef(({
             <DrawingLayer
               ref={drawingLayerRef} // <--- On branche la télécommande ici
               points={drawingPoints}
+              newAnnotation={newAnnotation}
+              onHoverFirstPoint={handleHoverFirstPoint}
+              onLeaveFirstPoint={handleLeaveFirstPoint}
             />
           </g>
 

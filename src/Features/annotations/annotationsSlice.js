@@ -20,6 +20,8 @@ const annotationsInitialState = {
   editedAnnotationTemplate: null, // used to update annotation template
   //
   tempAnnotations: [],
+  //
+  openDialogDeleteSelectedAnnotation: false,
 };
 
 export const annotationsSlice = createSlice({
@@ -74,6 +76,10 @@ export const annotationsSlice = createSlice({
         Object.assign(tempAnnotation, props);
       }
     },
+    //
+    setOpenDialogDeleteSelectedAnnotation: (state, action) => {
+      state.openDialogDeleteSelectedAnnotation = action.payload;
+    },
   },
 });
 
@@ -93,6 +99,8 @@ export const {
   //
   setTempAnnotations,
   updateTempAnnotation,
+  //
+  setOpenDialogDeleteSelectedAnnotation,
 } = annotationsSlice.actions;
 
 export default annotationsSlice.reducer;
