@@ -4,9 +4,13 @@ import theme from "Styles/theme";
 
 export default function NodePolylineStatic({
     annotation,
+    annotationOverride,
     hovered,
     baseMapMeterByPx,
 }) {
+
+    annotation = { ...annotation, ...annotationOverride };
+
     const {
         points = [],
         strokeColor = theme.palette.secondary.main,
@@ -40,7 +44,16 @@ export default function NodePolylineStatic({
         }
     }, [strokeColor]);
 
+    const hoverFillColor = useMemo(() => {
+        try {
+            return darken(fillColor, 0.2);
+        } catch {
+            return fillColor;
+        }
+    }, [fillColor]);
+
     const displayStrokeColor = hovered ? hoverStrokeColor : strokeColor;
+    const displayFillColor = hovered ? hoverFillColor : fillColor;
 
     // Compute stroke width
     const computedStrokeWidthPx = useMemo(() => {
@@ -200,11 +213,13 @@ export default function NodePolylineStatic({
             {showFill && (
                 <path
                     d={pathD}
-                    fill={fillType === "HATCHING" ? `url(#${patternIdRef.current})` : fillColor}
+                    fill={fillType === "HATCHING" ? `url(#${patternIdRef.current})` : displayFillColor}
                     fillOpacity={fillOpacity ?? 0.8}
                     fillRule="evenodd"
                     stroke="none"
-                    style={{ pointerEvents: "none" }}
+                    //style={{ pointerEvents: "none" }}
+                    style={{ cursor: "pointer" }}
+                    {...dataProps}
                 />
             )}
 

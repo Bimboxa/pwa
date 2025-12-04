@@ -156,7 +156,8 @@ const MapEditorViewport = forwardRef(({ children, onWorldMouseMove, onWorldClick
                 onWorldMouseMove({
                     worldPos,
                     viewportPos,
-                    event: e
+                    event: e,
+                    isPanning: true
                 });
             }
         }
@@ -198,7 +199,7 @@ const MapEditorViewport = forwardRef(({ children, onWorldMouseMove, onWorldClick
         const viewportPos = _screenToViewport(e.clientX, e.clientY);
 
         if (onWorldMouseMove) {
-            onWorldMouseMove({ worldPos, viewportPos, event: e });
+            onWorldMouseMove({ worldPos, viewportPos, event: e, isPanning: false });
         }
     };
 

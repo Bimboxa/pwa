@@ -20,9 +20,12 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import { Box } from "@mui/material";
 
 import InteractionLayer from "./InteractionLayer";
-import DummySvg from "Features/mapEditorGeneric/components/DummySvg";
+
 import UILayer from "./UILayer";
 import StaticMapContent from "./StaticMapContent";
+import EditedObjectLayer from "./EditedObjectLayer";
+
+import DialogDeleteSelectedAnnotation from "Features/annotations/components/DialogDeleteSelectedAnnotation";
 
 import { InteractionProvider } from "../context/InteractionContext";
 
@@ -84,7 +87,6 @@ export default function MainMapEditorV3() {
     // annotations
 
     const annotations = useAnnotationsV2();
-    console.log("annotations", annotations);
 
 
     // default camera matrix
@@ -203,6 +205,7 @@ export default function MainMapEditorV3() {
             <InteractionProvider>
                 <InteractionLayer
                     enabledDrawingMode={enabledDrawingMode}
+                    newAnnotation={newAnnotation}
                     ref={interactionLayerRef}
                     showBgImage={showBgImage}
                     onCommitDrawing={handleCommitDrawing}
@@ -212,7 +215,7 @@ export default function MainMapEditorV3() {
                     onPointMoveCommit={handlePointMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
                 >
-                    <DummySvg />
+
                     <StaticMapContent
                         selectedNode={selectedNode}
                         bgImageUrl={bgImage?.url}
@@ -223,12 +226,20 @@ export default function MainMapEditorV3() {
                         baseMapImageSize={baseMap?.getImageSize()}
                         annotations={annotations}
                     />
+                    <EditedObjectLayer
+                        basePose={basePose}
+                        annotations={annotations}
+                        selectedNode={selectedNode}
+                        baseMapMeterByPx={baseMap?.meterByPx} // If needed for width calc
+                    />
 
                 </InteractionLayer>
 
                 <UILayer mapController={interactionLayerRef.current} onResetCamera={handleResetCamera} />
 
             </InteractionProvider>
+
+            <DialogDeleteSelectedAnnotation />
         </Box>
 
     );
