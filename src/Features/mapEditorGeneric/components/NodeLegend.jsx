@@ -142,7 +142,7 @@ export default memo(function NodeLegend({
             //   color: strokeColor || "#ffffff",
             //   fontSize: ICON_PX * 0.6,
             // }}
-            style={{ fill: fillColor, scale: 0.8 }}
+            style={{ fill: strokeColor, scale: 0.8 }}
           />
         </div>
       );

@@ -13,7 +13,7 @@ import { Rnd } from "react-rnd";
 function estimateWidthPx(str, fontSizePx) {
   // ~0.56–0.62 works for latin text in many UIs; tweak if needed
   const avgChar = 0.6 * fontSizePx;
-  return Math.max(1, Math.ceil(str.length * avgChar));
+  return Math.max(1, Math.ceil((str.length + 1) * avgChar));
 }
 
 export default function NodeText({
@@ -40,6 +40,8 @@ export default function NodeText({
   // Resize state - use stored width/height or measure from content
   const storedWidth = text.width;
   const storedHeight = text.height;
+
+
 
   // dataProps
 
@@ -91,7 +93,7 @@ export default function NodeText({
   const initialW = storedWidth
     ? storedWidth
     : Math.max(minWidthPx, estimateWidthPx(textOrPh, fontSizePx)) +
-      paddingPx * 2;
+    paddingPx * 2;
   const initialH = storedHeight
     ? storedHeight
     : Math.max(minHeightPx, 1) + paddingPx;
@@ -427,8 +429,8 @@ export default function NodeText({
               fontWeight,
               fontFamily,
               letterSpacing: "inherit",
-              whiteSpace: "pre-wrap",
-              wordWrap: "break-word",
+              whiteSpace: "nowrap",
+              wordWrap: "normal",
             },
             "& .MuiInputBase-input": {
               cursor: isEditing ? "text" : "pointer",
@@ -439,8 +441,8 @@ export default function NodeText({
               fontWeight,
               fontFamily,
               letterSpacing: "inherit",
-              whiteSpace: "pre-wrap",
-              wordWrap: "break-word",
+              whiteSpace: "nowrap",
+              wordWrap: "normal",
             },
           }}
           inputProps={{
@@ -450,8 +452,8 @@ export default function NodeText({
               fontWeight,
               fontFamily,
               lineHeight: 1.25,
-              whiteSpace: "pre-wrap",
-              wordWrap: "break-word",
+              whiteSpace: "nowrap",
+              wordWrap: "normal",
               borderColor: "transparent",
               padding: 0,
               margin: 0,
@@ -481,17 +483,18 @@ export default function NodeText({
         <span
           style={{
             display: "block",
-            whiteSpace: "pre-wrap",
-            wordWrap: "break-word",
+            whiteSpace: "nowrap",
+            wordWrap: "normal",
             fontSize,
             fontWeight,
             fontFamily,
             lineHeight: 1.25,
             padding: `${padding / 2}px ${padding}px`,
             margin: 0,
-            width: "100%",
+            width: "auto", // Allow auto width
+            minWidth: "100%",
             height: "100%",
-            overflow: "hidden",
+            overflow: "visible",
             cursor: selected ? "text" : "default",
             boxSizing: "border-box",
             letterSpacing: "inherit",

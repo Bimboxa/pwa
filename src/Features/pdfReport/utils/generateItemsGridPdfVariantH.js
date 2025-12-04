@@ -80,14 +80,35 @@ export default async function generateItemsGridPdfVariantH(items, opts = {}) {
     }
   }
 
-  async function embedIcon(iconKey, fillColor) {
+  async function embedIcon(item) {
+    // 1. Vector Icon (POLYLINE / POLYGON)
+    if (item.type === "POLYLINE" || item.type === "POLYGON") {
+      const isPentagon = item.closeLine || item.type === "POLYGON";
+      const color = isPentagon ? item.fillColor : item.strokeColor;
+      const shape = isPentagon ? "PENTAGON" : "POLYLINE";
+
+      const cacheKey = `VECTOR|${shape}|${color}|${overlayIconSize}|${iconRasterScale}`;
+      if (iconCache.has(cacheKey)) return iconCache.get(cacheKey);
+
+      const bytes = await makeVectorIconPngBytes({
+        shape,
+        color: color || "#000000",
+        size: overlayIconSize,
+        rasterScale: iconRasterScale,
+      });
+      const embedded = await pdf.embedPng(bytes);
+      iconCache.set(cacheKey, embedded);
+      return embedded;
+    }
+
+    // 2. Sprite Icon
+    const { iconKey, fillColor } = item;
     if (!sprite || !spriteEl || !iconKey) return null;
     const idx = sprite.iconKeys?.indexOf(iconKey);
     if (idx == null || idx < 0) return null;
 
-    const cacheKey = `${iconKey}|${
-      fillColor || ""
-    }|${overlayIconSize}|${iconRasterScale}`;
+    const cacheKey = `${iconKey}|${fillColor || ""
+      }|${overlayIconSize}|${iconRasterScale}`;
     if (iconCache.has(cacheKey)) return iconCache.get(cacheKey);
 
     const bytes = await makeSpriteIconPngBytes({
@@ -336,7 +357,7 @@ export default async function generateItemsGridPdfVariantH(items, opts = {}) {
     const item = items[idx];
 
     const photo = await embedPhoto(item.imageUrl);
-    const icon = await embedIcon(item.iconKey, item.fillColor);
+    const icon = await embedIcon(item);
     const meas = measureIssue(item, photo);
 
     // si la prochaine issue ne tient pas, nouvelle page
@@ -434,6 +455,61 @@ async function makeSpriteIconPngBytes({
   ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
   ctx.clip();
   ctx.drawImage(spriteEl, sx, sy, tile, tile, 0, 0, size, size);
+  ctx.restore();
+
+  const blob = await new Promise((res) =>
+    canvas.toBlob((b) => res(b), "image/png")
+  );
+  if (!blob) throw new Error("toBlob() failed");
+  return await blob.arrayBuffer();
+}
+
+async function makeVectorIconPngBytes({
+  shape,
+  color,
+  size,
+  rasterScale = 3,
+}) {
+  const W = Math.max(1, Math.round(size * rasterScale));
+  const H = Math.max(1, Math.round(size * rasterScale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2D context unavailable");
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.scale(rasterScale, rasterScale);
+
+  // White background circle
+  ctx.fillStyle = "white";
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw Icon
+  ctx.save();
+  // Scale from 24x24 coordinate system to 'size'
+  // We want some padding, so scale to size*0.7
+  const iconSize = size * 0.7;
+  const scale = iconSize / 24;
+
+  // Center it
+  const offset = (size - iconSize) / 2;
+  ctx.translate(offset, offset);
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = color;
+  const pathString =
+    shape === "PENTAGON"
+      ? "M2 9l4-7h12l4 7-6 13H8z" // MUI Pentagon
+      : "M15 16v1.26l-6-3v-3.17L11.7 8H16V2h-6v4.9L7.3 10H3v6h5l7 3.5V22h6v-6z"; // MUI Polyline
+
+  const p = new Path2D(pathString);
+  ctx.fill(p);
+
   ctx.restore();
 
   const blob = await new Promise((res) =>
