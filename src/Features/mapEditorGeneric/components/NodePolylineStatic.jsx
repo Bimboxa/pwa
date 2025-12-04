@@ -11,10 +11,11 @@ export default function NodePolylineStatic({
 
     annotation = { ...annotation, ...annotationOverride };
 
-    const {
+    let {
+        type,
         points = [],
         strokeColor = theme.palette.secondary.main,
-        closeLine = false,
+        closeLine = type === "POLYGON",
         fillColor = theme.palette.secondary.main,
         fillOpacity = 0.8,
         fillType = "SOLID",
@@ -28,14 +29,16 @@ export default function NodePolylineStatic({
 
     const dataProps = {
         "data-node-id": annotation.id,
-        "data-node-type": "POLYLINE",
+        "data-node-type": "ANNOTATION",
         "data-annotation-type": "POLYLINE",
     };
 
 
     const patternIdRef = useRef(`hatching-${Math.random().toString(36).substr(2, 9)}`);
 
-    // Hover color
+
+    strokeColor = type === "POLYGON" ? fillColor : strokeColor;
+
     const hoverStrokeColor = useMemo(() => {
         try {
             return darken(strokeColor, 0.2);

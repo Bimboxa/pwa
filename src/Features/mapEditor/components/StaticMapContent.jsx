@@ -57,7 +57,7 @@ function StaticMapContent({
                         return null;
                     }
 
-                    if (annotation.type === "POLYLINE") {
+                    if (annotation.type === "POLYLINE" || annotation.type === "POLYGON") {
                         return <NodePolylineStatic
                             key={annotation.id}
                             annotation={annotation}

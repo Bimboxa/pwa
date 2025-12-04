@@ -41,6 +41,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
           open={open}
           anchorPosition={anchorPosition}
           onClose={handleClose}
+          disableClickAway={true}
         >
           <ToolbarEditAnnotation />
         </PopperBox>

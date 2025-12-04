@@ -1,29 +1,39 @@
-import { useSelector } from "react-redux";
+import { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
 
-import { Pentagon as Polygon } from "@mui/icons-material";
+import { setEnabledDrawingMode } from "../mapEditorSlice";
+import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+
 import { IconButton } from "@mui/material";
+import PolygonIcon from "Features/polygons/components/PolygonIcon";
 
-import editor from "App/editor";
-import useLoadedMainBaseMap from "../hooks/useLoadedMainBaseMap";
+import theme from "Styles/theme";
 
 export default function ButtonDrawPolygon() {
-  // data
+  const dispatch = useDispatch();
 
-  const mapId = useSelector((s) => s.mapEditor.loadedMainBaseMapId);
-  const newShape = useSelector((s) => s.shapes.newShape);
+  // state
+
+  const [annotationProps, setAnnotationProps] = useState({
+    type: "POLYGON",
+    fillColor: theme.palette.secondary.main,
+    fillType: "SOLID",
+    fillOpacity: 0.8,
+    strokeColor: theme.palette.secondary.main,
+    strokeWidth: 1,
+    strokeWidthUnit: "PX",
+  })
 
   // handler
 
   function handleClick() {
-    editor.mapEditor.enableDrawingMode("POLYGON", {
-      presetProps: { mapId, ...newShape },
-      updateRedux: true,
-    });
+    dispatch(setNewAnnotation(annotationProps))
+    dispatch(setEnabledDrawingMode("POLYLINE"))
   }
 
   return (
     <IconButton onClick={handleClick} color="inherit">
-      <Polygon />
+      <PolygonIcon {...annotationProps} />
     </IconButton>
   );
 }
