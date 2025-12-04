@@ -285,6 +285,10 @@ const InteractionLayer = forwardRef(({
   // --- GESTION DU MOUVEMENT (Feedback visuel) ---
   const handleWorldMouseMove = ({ worldPos, viewportPos, event, isPanning }) => {
 
+    if (enabledDrawingMode || dragState?.active) {
+      screenCursorRef.current?.move(viewportPos.x, viewportPos.y);
+    }
+
     if (isPanning) {
       closingMarkerRef.current?.update(null);
       snappingLayerRef.current?.update(null);
@@ -333,10 +337,6 @@ const InteractionLayer = forwardRef(({
     }
 
     // hover
-
-    if (enabledDrawingMode) {
-      screenCursorRef.current?.move(viewportPos.x, viewportPos.y);
-    }
 
     if (enabledDrawingMode === 'POLYLINE') {
       // A. Convert World Mouse -> Local Image Mouse
@@ -509,8 +509,8 @@ const InteractionLayer = forwardRef(({
         staticOverlay={
           <><ScreenCursorV2
             ref={screenCursorRef}
-            visible={!!enabledDrawingMode}
-            color="cyan"
+            visible={!!enabledDrawingMode || dragState?.active}
+            newAnnotation={newAnnotation}
           />
             <SnappingLayer
               ref={snappingLayerRef}

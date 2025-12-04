@@ -26,6 +26,10 @@ export default function getModulesAndListingsForLeftPanel({
 
   const items = [];
   entityModelTypes?.forEach((entityModelType) => {
+
+    // edge case
+    if (entityModelType.type === "BLUEPRINT") return;
+
     const listings = itemsMap[entityModelType.type]?.listings ?? [];
     if (listings.length > 0 || entityModelType.type === "LOCATED_ENTITY") {
       items.push({ type: "ENTITY_MODEL_TYPE", entityModelType });
