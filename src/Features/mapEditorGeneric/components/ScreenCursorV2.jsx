@@ -1,10 +1,12 @@
 // components/layers/ScreenCursor.jsx
 import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 
-const ScreenCursorV2 = forwardRef(({ color = "rgba(255, 255, 255, 0.8)", visible }, ref) => {
+const ScreenCursorV2 = forwardRef(({ newAnnotation, visible }, ref) => {
     const vLineRef = useRef(null);
     const hLineRef = useRef(null);
     const groupRef = useRef(null);
+
+    const color = newAnnotation?.strokeColor ?? newAnnotation?.fillColor ?? "red";
 
     useImperativeHandle(ref, () => ({
         move: (x, y) => {

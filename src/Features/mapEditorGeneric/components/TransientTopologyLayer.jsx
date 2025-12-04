@@ -60,13 +60,20 @@ export default function TransientTopologyLayer({
     if (modifiedAnnotations.length === 0) return null;
 
     return (
-        <g className="transient-layer" style={{ pointerEvents: 'none' }}>
+        <g
+            className="transient-layer"
+        //style={{ pointerEvents: 'none' }}
+        >
             {modifiedAnnotations.map(ann => (
                 <NodePolylineStatic
                     key={ann.id}
                     annotation={ann}
                     // Style visuel pendant le drag (ex: trait bleu)
-                    annotationOverride={{ strokeColor: "#2196f3", strokeWidth: ann.strokeWidth }}
+                    annotationOverride={{
+                        strokeColor: "#2196f3",
+                        strokeWidth: ann.strokeWidth,
+                        strokeOpacity: 0.5
+                    }}
                     baseMapMeterByPx={baseMapMeterByPx}
                 />
             ))}
@@ -76,9 +83,11 @@ export default function TransientTopologyLayer({
                 cx={currentPos.x}
                 cy={currentPos.y}
                 r={6 / viewportScale}
-                fill="white"
+                fill="transparent"
                 stroke="#2196f3"
                 strokeWidth={2 / viewportScale}
+                strokeOpacity={0.5}
+                style={{ cursor: 'crosshair' }}
             />
         </g>
     );

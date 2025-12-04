@@ -33,7 +33,7 @@ import {
   IconButton,
   Collapse,
 } from "@mui/material";
-import { Add, Edit } from "@mui/icons-material";
+import { Add, Edit, ArrowDropDown } from "@mui/icons-material";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -82,8 +82,8 @@ function DraggableAnnotationTemplateItem({
 
   const style = transform
     ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-      }
+      transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    }
     : undefined;
 
   return (
@@ -95,7 +95,7 @@ function DraggableAnnotationTemplateItem({
       }}
     >
       <ListItemButton
-        onClick={(e) => onEditClick(e, annotationTemplate)}
+        onClick={(e) => onCreateClick(e, annotationTemplate)}
         divider
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
@@ -142,9 +142,9 @@ function DraggableAnnotationTemplateItem({
           {showAdd ? (
             <IconButton
               size="small"
-              onClick={(e) => onCreateClick(e, annotationTemplate)}
+              onClick={(e) => onEditClick(e, annotationTemplate)}
             >
-              <Add fontSize="small" />
+              <ArrowDropDown fontSize="small" />
             </IconButton>
           ) : (
             <Box>
