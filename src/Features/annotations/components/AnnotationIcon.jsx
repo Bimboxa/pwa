@@ -1,5 +1,6 @@
 import MarkerIcon from "Features/markers/components/MarkerIcon";
 import PolylineIcon from "Features/polylines/components/PolylineIcon";
+import PolygonIcon from "Features/polygons/components/PolygonIcon";
 import RectangleIcon from "Features/rectangles/components/RectangleIcon";
 import ImageAnnotationIcon from "Features/imageAnnotations/components/ImageAnnotationIcon";
 
@@ -11,6 +12,9 @@ export default function AnnotationIcon({ spriteImage, annotation, size }) {
       );
     case "POLYLINE":
       return <PolylineIcon {...annotation} size={size} />;
+
+    case "POLYGON":
+      return <PolygonIcon {...annotation} size={size} />;
 
     case "RECTANGLE":
       return <RectangleIcon {...annotation} size={size} />;

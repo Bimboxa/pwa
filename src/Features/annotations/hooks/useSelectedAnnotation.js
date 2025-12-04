@@ -23,7 +23,7 @@ export default function useSelectedAnnotation() {
 
   let selectedAnnotationId = _selectedAnnotationId;
   if (selectedNode?.nodeType === "ANNOTATION")
-    selectedAnnotationId = selectedNode.id;
+    selectedAnnotationId = selectedNode.nodeId;
 
   // main
 

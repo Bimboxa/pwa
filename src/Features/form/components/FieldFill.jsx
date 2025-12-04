@@ -3,12 +3,13 @@ import { Box, Typography } from "@mui/material";
 import FieldColorVariantToolbar from "./FieldColorVariantToolbar";
 import FieldOptionKey from "./FieldOptionKey";
 import FieldSlider from "./FieldSlider";
+import FieldTextV2 from "./FieldTextV2";
 
 export default function FieldFill({ value, onChange }) {
   // strings
 
   const fillS = "Remplissage";
-  const opacityS = "Opacité";
+  const opacityS = "Opacité 0-1";
 
   // helpers
 
@@ -33,6 +34,7 @@ export default function FieldFill({ value, onChange }) {
   }
 
   function handleOpacityChange(opacity) {
+    opacity = parseFloat(opacity ?? 0.8);
     onChange({ ...value, fillOpacity: opacity });
   }
 
@@ -52,13 +54,21 @@ export default function FieldFill({ value, onChange }) {
           onChange={handleTypeChange}
           valueOptions={fillTypeOptions}
         />
+        <Box sx={{ width: 120, flexShrink: 0 }}>
+          <FieldTextV2
+            value={fillOpacity}
+            onChange={handleOpacityChange}
+            label={opacityS}
+            options={{
+              showLabel: true,
+              fullWidth: true,
+            }}
+          />
+        </Box>
+
       </Box>
 
-      <FieldSlider
-        label={opacityS}
-        value={fillOpacity}
-        onChange={handleOpacityChange}
-      />
+
     </Box>
   );
 }

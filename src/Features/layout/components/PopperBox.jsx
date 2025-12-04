@@ -1,8 +1,8 @@
-import {useRef} from "react";
+import { useRef } from "react";
 
-import {Popper, ClickAwayListener, Box} from "@mui/material";
+import { Popper, ClickAwayListener, Box } from "@mui/material";
 
-export default function PopperBox({anchorPosition, children, open, onClose}) {
+export default function PopperBox({ anchorPosition, children, open, onClose, disableClickAway = false }) {
   // virtual ref
 
   function generateBBCR(x, y) {
@@ -15,7 +15,7 @@ export default function PopperBox({anchorPosition, children, open, onClose}) {
       left: x,
     });
   }
-  const virtualElementRef = useRef({getBoundingClientRect: generateBBCR});
+  const virtualElementRef = useRef({ getBoundingClientRect: generateBBCR });
 
   virtualElementRef.current.getBoundingClientRect = generateBBCR(
     anchorPosition?.x,
@@ -32,7 +32,7 @@ export default function PopperBox({anchorPosition, children, open, onClose}) {
     <>
       {open && (
         <Box>
-          <ClickAwayListener onClickAway={handleClose}>
+          <ClickAwayListener onClickAway={e => disableClickAway ? null : handleClose(e)}>
             <Popper
               disablePortal={false}
               open={open}

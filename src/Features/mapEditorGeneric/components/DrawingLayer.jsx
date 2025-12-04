@@ -9,7 +9,7 @@ const DrawingLayer = forwardRef(({
     const previewFillRef = useRef(null); // <--- NEW: For the polygon surface
 
     const { strokeColor, fillColor, type, closeLine } = newAnnotation || {};
-    const isPolygon = type === "POLYGON" || closeLine;
+    const isPolygon = type === "POLYGON";
     const firstPoint = points?.[0];
 
     useImperativeHandle(ref, () => ({
@@ -58,6 +58,7 @@ const DrawingLayer = forwardRef(({
                     fill={fillColor || "rgba(0, 0, 255, 0.1)"}
                     fillRule="evenodd"
                     stroke="none"
+                    opacity={0.5}
                     style={{ display: 'none', pointerEvents: 'none' }}
                 />
             )}

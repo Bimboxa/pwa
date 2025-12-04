@@ -14,6 +14,7 @@ import { Lock, LockOpen } from "@mui/icons-material";
 
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import FieldAnnotationShapeCode from "./FieldAnnotationShapeCode";
+import FieldAnnotationFillAndStroke from "./FieldAnnotationFillAndStroke";
 
 export default function ToolbarEditAnnotation() {
   const dispatch = useDispatch();
@@ -22,6 +23,8 @@ export default function ToolbarEditAnnotation() {
 
   const selectedAnnotation = useSelectedAnnotation();
   const canTransformNode = useSelector((s) => s.mapEditor.canTransformNode);
+
+  console.log("selectedAnnotation", selectedAnnotation);
 
   // data
 
@@ -46,18 +49,23 @@ export default function ToolbarEditAnnotation() {
 
   return (
     <Paper elevation={6} sx={{ display: "flex", alignItems: "center" }}>
-      <IconButton onClick={handleCanTransformChange} size="small">
+      {/* <IconButton onClick={handleCanTransformChange} size="small">
         {canTransformNode ? (
           <LockOpen fontSize="small" />
         ) : (
           <Lock fontSize="small" />
         )}
-      </IconButton>
-      <FieldAnnotationHeight
+      </IconButton> */}
+
+      <FieldAnnotationFillAndStroke
         annotation={selectedAnnotation}
         onChange={handleChange}
       />
       <FieldAnnotationShapeCode
+        annotation={selectedAnnotation}
+        onChange={handleChange}
+      />
+      <FieldAnnotationHeight
         annotation={selectedAnnotation}
         onChange={handleChange}
       />

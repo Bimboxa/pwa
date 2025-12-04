@@ -26,6 +26,7 @@ import StaticMapContent from "./StaticMapContent";
 import EditedObjectLayer from "./EditedObjectLayer";
 
 import DialogDeleteSelectedAnnotation from "Features/annotations/components/DialogDeleteSelectedAnnotation";
+import PopperEditAnnotation from "./PopperEditAnnotation";
 
 import { InteractionProvider } from "../context/InteractionContext";
 
@@ -197,6 +198,9 @@ export default function MainMapEditorV3() {
     };
 
 
+    // snapping
+
+    const isSnappingEnabled = enabledDrawingMode || !selectedNode;
 
 
 
@@ -214,6 +218,7 @@ export default function MainMapEditorV3() {
                     annotations={annotations}
                     onPointMoveCommit={handlePointMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
+                    snappingEnabled={isSnappingEnabled}
                 >
 
                     <StaticMapContent
@@ -240,6 +245,7 @@ export default function MainMapEditorV3() {
             </InteractionProvider>
 
             <DialogDeleteSelectedAnnotation />
+            <PopperEditAnnotation viewerKey="MAP" />
         </Box>
 
     );

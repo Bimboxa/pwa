@@ -8,7 +8,9 @@ import { useInteraction } from '../context/InteractionContext';
 
 import { setEnabledDrawingMode } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode } from 'Features/mapEditor/mapEditorSlice';
+import { setAnnotationToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setOpenDialogDeleteSelectedAnnotation } from 'Features/annotations/annotationsSlice';
+
 
 import Box from '@mui/material/Box';
 import MapEditorViewport from 'Features/mapEditorGeneric/components/MapEditorViewport';
@@ -32,7 +34,7 @@ const InteractionLayer = forwardRef(({
   annotations, // <= snapping source.
   onPointMoveCommit,
   onSegmentSplit,
-  enabled
+  snappingEnabled = true,
 }
   , ref) => {
   const dispatch = useDispatch();
@@ -273,6 +275,12 @@ const InteractionLayer = forwardRef(({
         console.log("[InteractionLayer] selected node", hit?.dataset)
         dispatch(setSelectedNode(hit?.dataset));
         setHiddenAnnotationIds([hit?.dataset.nodeId]);
+        if (hit?.dataset?.nodeType === "ANNOTATION") {
+          dispatch(
+            setAnnotationToolbarPosition({ x: event.clientX, y: event.clientY })
+          );
+        }
+
       } else {
         dispatch(setSelectedNode(null));
         setHiddenAnnotationIds([]);
@@ -311,9 +319,11 @@ const InteractionLayer = forwardRef(({
     }
 
     // snap
-
-    const snapThreshold = SNAP_THRESHOLD_ABSOLUTE / scale;
-    const snapResult = getBestSnap(localPos, annotations, snapThreshold, true); // true = forceCenter
+    let snapResult;
+    if (snappingEnabled) {
+      const snapThreshold = SNAP_THRESHOLD_ABSOLUTE / scale;
+      snapResult = getBestSnap(localPos, annotations, snapThreshold, true); // true = forceCenter
+    }
     if (snapResult) {
 
       currentSnapRef.current = snapResult;
