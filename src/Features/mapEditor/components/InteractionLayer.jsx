@@ -1,5 +1,5 @@
 // components/InteractionLayer.jsx
-import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef, useMemo } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { nanoid } from '@reduxjs/toolkit';
@@ -11,6 +11,7 @@ import { setSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setOpenDialogDeleteSelectedAnnotation } from 'Features/annotations/annotationsSlice';
 
+import useResetNewAnnotation from 'Features/annotations/hooks/useResetNewAnnotation';
 
 import Box from '@mui/material/Box';
 import MapEditorViewport from 'Features/mapEditorGeneric/components/MapEditorViewport';
@@ -18,6 +19,7 @@ import DrawingLayer from 'Features/mapEditorGeneric/components/DrawingLayer';
 import ScreenCursorV2 from 'Features/mapEditorGeneric/components/ScreenCursorV2';
 import SnappingLayer from 'Features/mapEditorGeneric/components/SnappingLayer';
 import TransientTopologyLayer from 'Features/mapEditorGeneric/components/TransientTopologyLayer';
+import TransientAnnotationLayer from 'Features/mapEditorGeneric/components/TransientAnnotationLayer';
 import ClosingMarker from 'Features/mapEditorGeneric/components/ClosingMarker';
 
 
@@ -33,8 +35,10 @@ const InteractionLayer = forwardRef(({
   activeContext = "BASE_MAP",
   annotations, // <= snapping source.
   onPointMoveCommit,
+  onAnnotationMoveCommit,
   onSegmentSplit,
   snappingEnabled = true,
+  selectedNode,
 }
   , ref) => {
   const dispatch = useDispatch();
@@ -53,7 +57,7 @@ const InteractionLayer = forwardRef(({
 
   // context
 
-  const { setHoveredNode, setHiddenAnnotationIds } = useInteraction();
+  const { setHoveredNode, setHiddenAnnotationIds, setDraggingAnnotationId } = useInteraction();
 
   // expose handlers
 
@@ -64,6 +68,16 @@ const InteractionLayer = forwardRef(({
       }
     },
   }));
+
+  // newAnnotation
+
+  const resetNewAnnotation = useResetNewAnnotation();
+
+  // selectedAnnotation
+
+  const selectedAnnotation = useMemo(() => {
+    return annotations?.find((annotation) => annotation.id === selectedNode?.nodeId);
+  }, [annotations, selectedNode?.nodeId]);
 
   // cameraZoom
 
@@ -100,6 +114,9 @@ const InteractionLayer = forwardRef(({
 
   const [dragState, setDragState] = useState(null);
   // Structure: { active: boolean, pointId: string, currentPos: {x,y} }
+
+  const [dragAnnotationState, setDragAnnotationState] = useState(null);
+  // Structure: { active: boolean, annotationId: string, currentPos: {x,y} }
 
   const currentSnapRef = useRef(null); // Stocke le résultat du getBestSnap
 
@@ -167,6 +184,20 @@ const InteractionLayer = forwardRef(({
   };
 
   // --- LOGIQUE DE COMMIT (Sauvegarde) ---
+  const commitPoint = () => {
+    const pointsToSave = drawingPointsRef.current; // On lit la Ref, pas le State !
+    console.log("💾 COMMIT EN BASE:_1", pointsToSave);
+    if (pointsToSave.length === 1) {
+      onCommitDrawingRef.current(pointsToSave);
+    } else {
+      console.log("⚠️ erreur création d'un point.");
+    }
+
+    // Nettoyage
+    setDrawingPoints([]);
+    dispatch(setEnabledDrawingMode(null));
+  };
+
   const commitPolyline = () => {
     const pointsToSave = drawingPointsRef.current; // On lit la Ref, pas le State !
     console.log("💾 COMMIT EN BASE:_1", pointsToSave);
@@ -199,6 +230,7 @@ const InteractionLayer = forwardRef(({
         // 1. ESCAPE : Reset Selection
         case 'Escape':
           console.log("Action: Reset Selection & Tool");
+          resetNewAnnotation();
           dispatch(setEnabledDrawingMode(null));
           dispatch(setSelectedNode(null));
           setHiddenAnnotationIds([]);
@@ -206,7 +238,7 @@ const InteractionLayer = forwardRef(({
           break;
 
         case "Enter":
-          if (enabledDrawingModeRef.current === "POLYLINE") {
+          if (enabledDrawingModeRef.current === "CLICK") {
             commitPolyline();
           }
           break;
@@ -245,12 +277,13 @@ const InteractionLayer = forwardRef(({
   // --- GESTION DES CLICS (Ajout de point) ---
   const handleWorldClick = ({ worldPos, viewportPos, event }) => {
 
+
     //Déclencher le flash visuel au clic
     if (enabledDrawingMode) {
       screenCursorRef.current?.triggerFlash();
     }
 
-    if (enabledDrawingMode === 'POLYLINE') {
+    if (enabledDrawingMode === 'CLICK') {
       // Apply snapping if Shift is pressed
       let finalPos = toLocalCoords(worldPos);
       if (event.shiftKey && drawingPoints.length > 0) {
@@ -263,14 +296,21 @@ const InteractionLayer = forwardRef(({
 
       // 2. Si on a fini (ex: double clic ou fermeture), on commit
       // if (isClosing) { saveToDb(drawingPoints); setDrawingPoints([]); }
-    }
+    } else if (enabledDrawingMode === 'ONE_CLICK') {
+      // Apply snapping if Shift is pressed
+      let finalPos = toLocalCoords(worldPos);
+      if (event.shiftKey && drawingPoints.length > 0) {
+        const lastPoint = drawingPoints[drawingPoints.length - 1];
+        finalPos = snapToAngle(finalPos, lastPoint);
+      }
 
-    // selection
-
-    if (!enabledDrawingMode) {
+      // 1. Ajouter le point (Déclenche un re-render de DrawingLayer pour la partie statique)
+      setDrawingPoints(prev => [...prev, finalPos]);
+      drawingPointsRef.current = [finalPos];
+      commitPoint();
+    } else if (!enabledDrawingMode) {
       const nativeTarget = event.nativeEvent?.target || event.target;
       const hit = nativeTarget.closest?.("[data-node-type]");
-
       if (hit) {
         console.log("[InteractionLayer] selected node", hit?.dataset)
         dispatch(setSelectedNode(hit?.dataset));
@@ -293,7 +333,7 @@ const InteractionLayer = forwardRef(({
   // --- GESTION DU MOUVEMENT (Feedback visuel) ---
   const handleWorldMouseMove = ({ worldPos, viewportPos, event, isPanning }) => {
 
-    if (enabledDrawingMode || dragState?.active) {
+    if (enabledDrawingMode || dragState?.active || dragAnnotationState?.active) {
       screenCursorRef.current?.move(viewportPos.x, viewportPos.y);
     }
 
@@ -315,6 +355,17 @@ const InteractionLayer = forwardRef(({
       // On met à jour la position virtuelle du point
       // Note: On peut aussi appliquer du snapping ici si on veut !
       setDragState(prev => ({ ...prev, currentPos: localPos }));
+      return;
+    }
+
+    if (dragAnnotationState?.active) {
+      const currentMouseInWorld = viewportRef.current?.screenToWorld(event.clientX, event.clientY);
+      const currentMouseInLocal = toLocalCoords(currentMouseInWorld);
+      const deltaPos = {
+        x: currentMouseInLocal.x - dragAnnotationState.startMouseInLocal.x,
+        y: currentMouseInLocal.y - dragAnnotationState.startMouseInLocal.y
+      };
+      setDragAnnotationState(prev => ({ ...prev, deltaPos }));
       return;
     }
 
@@ -348,7 +399,7 @@ const InteractionLayer = forwardRef(({
 
     // hover
 
-    if (enabledDrawingMode === 'POLYLINE') {
+    if (['CLICK', 'ONE_CLICK'].includes(enabledDrawingMode)) {
       // A. Convert World Mouse -> Local Image Mouse
       const localPos = toLocalCoords(worldPos);
 
@@ -380,7 +431,12 @@ const InteractionLayer = forwardRef(({
     e.stopPropagation();
     e.preventDefault();
 
+    // ==================
+    // Dessin
+    // ==================
+
     const snap = currentSnapRef.current;
+    console.log("[InteractionLayer] snap", snap);
     if (!snap) return;
 
     // =======================================================
@@ -484,6 +540,15 @@ const InteractionLayer = forwardRef(({
       setVirtualInsertion(null);
       setTimeout(() => setHiddenAnnotationIds([]), 30);
       document.body.style.cursor = '';
+    } else if (dragAnnotationState?.active) {
+
+      if (onAnnotationMoveCommit) {
+        onAnnotationMoveCommit(dragAnnotationState.selectedAnnotationId, dragAnnotationState.deltaPos);
+      }
+
+      setDragAnnotationState(null);
+      setTimeout(() => setDraggingAnnotationId(null), 30);
+      document.body.style.cursor = '';
     }
   };
 
@@ -493,6 +558,38 @@ const InteractionLayer = forwardRef(({
     commitPolyline(); // Votre fonction existante qui ferme et sauvegarde
   };
 
+  const handleMouseDownCapture = (e) => {
+    if (!selectedNode) return;
+    // ==================
+    // Annotation
+    // ==================
+
+    const target = e.nativeEvent?.target || e.target;
+    const draggableGroup = target.closest('[data-interaction="draggable"]');
+
+    console.log("[InteractionLayer] mouse down on node", draggableGroup)
+
+    if (draggableGroup) {
+
+      e.stopPropagation();
+      e.preventDefault();
+
+      console.log("[InteractionLayer] mouse down on node", draggableGroup?.dataset)
+      const { nodeId } = draggableGroup.dataset;
+
+      const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
+      const startMouseInLocal = toLocalCoords(worldPos);
+
+      setDragAnnotationState({
+        active: true,
+        selectedAnnotationId: nodeId,
+        startMouseInLocal,
+      });
+      setDraggingAnnotationId(nodeId);
+    }
+  }
+
+
   // render
 
   const targetPose = getTargetPose();
@@ -500,6 +597,7 @@ const InteractionLayer = forwardRef(({
   return (
     <Box
       onMouseUp={handleMouseUp}
+      onMouseDownCapture={handleMouseDownCapture}
       sx={{
         width: 1, height: 1, // A. Le curseur de base du conteneur
         cursor: getCursorStyle(),
@@ -548,6 +646,15 @@ const InteractionLayer = forwardRef(({
               currentPos={dragState.currentPos}
               viewportScale={targetPose.k * cameraZoom}
               virtualInsertion={virtualInsertion}
+            />
+          </g>
+        )}
+
+        {dragAnnotationState?.active && (
+          <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
+            <TransientAnnotationLayer
+              annotation={selectedAnnotation}
+              deltaPos={dragAnnotationState.deltaPos}
             />
           </g>
         )}

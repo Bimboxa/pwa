@@ -1,11 +1,15 @@
-import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+
 import { useLiveQuery } from "dexie-react-hooks";
+
+import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 
 import db from "App/db/db";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import getAnnotationTemplateProps from "Features/annotations/utils/getAnnotationTemplateProps";
 
 export default function useAnnotationsV2() {
 
@@ -13,8 +17,11 @@ export default function useAnnotationsV2() {
 
     const baseMap = useMainBaseMap();
 
+    const annotationTemplates = useAnnotationTemplates();
+    const annotationTemplatesMap = getItemsByKey(annotationTemplates, "id");
+
     // main
-    return useLiveQuery(async () => {
+    let annotations = useLiveQuery(async () => {
         if (baseMap?.id) {
 
 
@@ -24,14 +31,35 @@ export default function useAnnotationsV2() {
 
             // annotations
             let _annotations = await db.annotations.where("baseMapId").equals(baseMap?.id).toArray();
-            _annotations = _annotations.map(annotation => ({
-                ...annotation,
-                points: resolvePoints({ points: annotation.points, pointsIndex, imageSize: baseMap.image.imageSize })
+            _annotations = _annotations.map(annotation => {
+                const _annotation = {
+                    ...annotation,
+                }
 
-            }))
+                if (_annotation.type === "MARKER") {
+                    _annotation.point = resolvePoints({ points: annotation.points, pointsIndex, imageSize: baseMap.image.imageSize })[0];
+                } else {
+                    _annotation.points = resolvePoints({ points: annotation.points, pointsIndex, imageSize: baseMap.image.imageSize });
+                }
+
+                return _annotation;
+
+
+            })
 
             return _annotations;
         }
 
     }, [baseMap?.id]);
+
+    // override with annotation templates
+    annotations = annotations?.map(annotation => ({
+        ...annotation,
+        ...getAnnotationTemplateProps(annotationTemplatesMap[annotation?.annotationTemplateId])
+    }))
+
+
+    // return 
+
+    return annotations;
 }

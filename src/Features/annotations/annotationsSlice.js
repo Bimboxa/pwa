@@ -10,7 +10,11 @@ const annotationsInitialState = {
   //
   selectedAnnotationId: null,
   //
-  newAnnotation: {}, // props used when adding a annotation
+  newAnnotation: {
+    fillColor: theme.palette.secondary.main,
+    strokeColor: theme.palette.secondary.main,
+  },
+  // props used when adding a annotation
   editedAnnotation: null,
   isEditingAnnotation: false,
   //

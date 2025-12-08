@@ -3,8 +3,11 @@ import { nanoid } from "@reduxjs/toolkit";
 import { useSelector } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 
 import db from "App/db/db";
+import getAnnotationTemplateFromNewAnnotation from "Features/annotations/utils/getAnnotationTemplateFromNewAnnotation";
+
 
 export default function useHandleCommitDrawing() {
 
@@ -14,12 +17,14 @@ export default function useHandleCommitDrawing() {
     const projectId = useSelector(s => s.projects.selectedProjectId);
     const listingId = useSelector(s => s.listings.selectedListingId);
     const newAnnotation = useSelector(s => s.annotations.newAnnotation);
+    const createEntity = useCreateEntity();
 
     const baseMap = useMainBaseMap();
 
     // main
 
     const handleDrawingCommit = async (rawPoints) => {
+
         // rawPoints = [{x,y, existingPointId?}, {x,y}, ...]
 
         const { width, height } = baseMap?.image?.imageSize ?? {}
@@ -43,6 +48,7 @@ export default function useHandleCommitDrawing() {
                     baseMapId,
                     projectId,
                     listingId,
+                    forMarker: newAnnotation?.type === "MARKER",
                 };
 
                 newPointsToSave.push(newPointEntity);
@@ -58,9 +64,38 @@ export default function useHandleCommitDrawing() {
             await db.points.bulkAdd(newPointsToSave);
         }
 
+        let annotationTemplateId;
+        // ÉTAPE 2.5 : Enregistrement de l'annotation template
+        if (newAnnotation) {
+            const existingAnnotationTemplates = await db.annotationTemplates.where("listingId").equals(listingId).toArray();
+            const existingAnnotationTemplate = getAnnotationTemplateFromNewAnnotation({
+                newAnnotation,
+                annotationTemplates: existingAnnotationTemplates,
+            });
+            if (existingAnnotationTemplate) {
+                annotationTemplateId = existingAnnotationTemplate.id;
+            } else {
+                annotationTemplateId = nanoid();
+                const _annotationTemplate = {
+                    id: annotationTemplateId,
+                    projectId,
+                    listingId,
+                    ...newAnnotation,
+                }
+                await db.annotationTemplates.add(_annotationTemplate);
+
+            }
+        }
+
+        // ETAPE : création de l'entité.
+
+        const entity = await createEntity({})
+
         // ÉTAPE 3 : Création de l'Annotation (Topologie)
         const _newAnnotation = {
             id: nanoid(),
+            annotationTemplateId,
+            entityId: entity.id,
             points: finalPointIds.map(id => ({ id })), // Référence uniquement les IDs !
             baseMapId,
             projectId,
@@ -68,6 +103,14 @@ export default function useHandleCommitDrawing() {
             ...newAnnotation,
             // ... props de style
         };
+
+        if (["POLYGON", "POLYLINE", "MARKER"].includes(newAnnotation?.type)) {
+            _newAnnotation.points = finalPointIds.map(id => ({ id }));
+        }
+
+        if (newAnnotation?.type === "MARKER") {
+            _newAnnotation.point = { id: finalPointIds[0] };
+        }
 
         // Mise à jour Optimiste Redux
         //dispatch(addAnnotation(newAnnotation));

@@ -12,7 +12,7 @@ const mapEditorInitialState = {
   //
   showShapes: true,
   //
-  enabledDrawingMode: null, // "MARKER"
+  enabledDrawingMode: null, // "CLICK", "RECTANGLE", "DROP_FILL",
   //
   showLayerScreenCursor: false,
   printModeEnabled: false,
