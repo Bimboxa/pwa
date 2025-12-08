@@ -224,6 +224,7 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates(
     sortByLabel: true,
   });
 
+
   const spriteImage = useAnnotationSpriteImage();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const resetSelection = useResetSelection();

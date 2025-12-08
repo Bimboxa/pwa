@@ -86,12 +86,13 @@ export default function FormAnnotationTemplateVariantBlock({
 
   // helpers
 
-  const optionKey = type === "POLYLINE" && closeLine ? "POLYGON" : type;
+  //const optionKey = type === "POLYLINE" && closeLine ? "POLYGON" : type;
+  const optionKey = type;
 
   // helpers - show fill and stroke
 
-  const showFill = (type === "POLYLINE" && closeLine) || type === "RECTANGLE";
-  const showStroke = type !== "MARKER";
+  const showFill = ["RECTANGLE", "POLYGON"].includes(type);
+  const showStroke = ["POLYLNE"].includes(type);
 
   // handlers
 

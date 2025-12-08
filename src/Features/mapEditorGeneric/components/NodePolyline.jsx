@@ -1003,8 +1003,8 @@ export default function NodePolyline({
                     : undefined
                 }
                 style={{ pointerEvents: "none" }}
-                strokeLinecap="round"
-              //strokeLinejoin="round"
+                strokeLinecap="butt"
+                strokeLinejoin="round"
               />
             </g>
           );

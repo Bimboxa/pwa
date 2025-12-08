@@ -4,36 +4,30 @@ import { useSelector, useDispatch } from "react-redux";
 import { setEnabledDrawingMode } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
-import { IconButton } from "@mui/material";
+import { IconButton, Tooltip } from "@mui/material";
 import PolygonIcon from "Features/polygons/components/PolygonIcon";
-
-import theme from "Styles/theme";
 
 export default function ButtonDrawPolygon() {
   const dispatch = useDispatch();
 
-  // state
+  // data
 
-  const [annotationProps, setAnnotationProps] = useState({
-    type: "POLYGON",
-    fillColor: theme.palette.secondary.main,
-    fillType: "SOLID",
-    fillOpacity: 0.8,
-    strokeColor: theme.palette.secondary.main,
-    strokeWidth: 1,
-    strokeWidthUnit: "PX",
-  })
+  const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
 
   // handler
 
   function handleClick() {
-    dispatch(setNewAnnotation(annotationProps))
-    dispatch(setEnabledDrawingMode("POLYLINE"))
+    dispatch(setNewAnnotation({ ...newAnnotation, type: "POLYGON" }))
+    dispatch(setEnabledDrawingMode("CLICK"))
   }
 
   return (
-    <IconButton onClick={handleClick} color="inherit">
-      <PolygonIcon {...annotationProps} />
-    </IconButton>
+    <Tooltip title="Polygone">
+      <IconButton size="small" onClick={handleClick} color="inherit"
+        sx={{ borderRadius: "8px", border: theme => `1px solid ${theme.palette.divider}` }}
+      >
+        <PolygonIcon {...newAnnotation} />
+      </IconButton>
+    </Tooltip>
   );
 }

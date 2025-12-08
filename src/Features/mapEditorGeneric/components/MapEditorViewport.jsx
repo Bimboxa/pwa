@@ -111,6 +111,7 @@ const MapEditorViewport = forwardRef(({ children, onWorldMouseMove, onWorldClick
 
     // 1. Début du clic
     const handleMouseDown = (e) => {
+        console.log("[VIEWPORT] _DOWN_", e);
         // On n'accepte que le Clic Gauche (button 0) pour le Pan ici
         if (e.button !== 0) return;
 

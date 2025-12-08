@@ -16,6 +16,9 @@ import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgIm
 import useDefaultCameraMatrix from "../hooks/useDefaultCameraMatrix";
 import useHandleCommitDrawing from "../hooks/useHandleCommitDrawing";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
+import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationType";
+import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
+import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 
 import { Box } from "@mui/material";
 
@@ -47,8 +50,12 @@ export default function MainMapEditorV3() {
 
     const projectId = useSelector((state) => state.projects.selectedProjectId);
     const listingId = useSelector((state) => state.listings.selectedListingId);
+    const spriteImage = useAnnotationSpriteImage();
     const enabledDrawingMode = useSelector((state) => state.mapEditor.enabledDrawingMode);
     const selectedNode = useSelector((state) => state.mapEditor.selectedNode);
+    const newAnnotationType = useNewAnnotationType();
+    const resetNewAnnotation = useResetNewAnnotation();
+
 
     // viewport
 
@@ -197,6 +204,26 @@ export default function MainMapEditorV3() {
         }
     };
 
+    const handleAnnotationMoveCommit = async (annotationId, detaPos) => {
+        const imageSize = baseMap?.image?.imageSize;
+        if (!imageSize) return;
+
+        const annotation = annotations.find(a => a.id === annotationId);
+        if (!annotation) return;
+        console.log("handleAnnotationMoveCommit", annotationId, annotation);
+        if (annotation.type === "MARKER") {
+            const point = await db.points.get(annotation.point.id);
+            const x = point.x + detaPos.x / imageSize.width;
+            const y = point.y + detaPos.y / imageSize.height;
+            console.log("save_point", point.id, { x, y });
+            await db.points.update(point.id, { x, y });
+        } else {
+            //const newPoints = annotation.points.map(pt => ({ ...pt, x: pt.x + detaPos.x, y: pt.y + detaPos.y }));
+            console.log("TODO: save annotation points")
+        }
+
+    };
+
 
     // snapping
 
@@ -209,6 +236,7 @@ export default function MainMapEditorV3() {
             <InteractionProvider>
                 <InteractionLayer
                     enabledDrawingMode={enabledDrawingMode}
+                    selectedNode={selectedNode}
                     newAnnotation={newAnnotation}
                     ref={interactionLayerRef}
                     showBgImage={showBgImage}
@@ -217,6 +245,7 @@ export default function MainMapEditorV3() {
                     activeContext={activeContext}
                     annotations={annotations}
                     onPointMoveCommit={handlePointMoveCommit}
+                    onAnnotationMoveCommit={handleAnnotationMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
                     snappingEnabled={isSnappingEnabled}
                 >
@@ -234,6 +263,7 @@ export default function MainMapEditorV3() {
                     <EditedObjectLayer
                         basePose={basePose}
                         annotations={annotations}
+                        spriteImage={spriteImage}
                         selectedNode={selectedNode}
                         baseMapMeterByPx={baseMap?.meterByPx} // If needed for width calc
                     />
