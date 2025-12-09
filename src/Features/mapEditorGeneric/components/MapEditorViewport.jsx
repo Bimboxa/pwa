@@ -5,7 +5,7 @@ import screenToWorld from '../utils/screenToWorld';
 // Zoom sensitivity constant (same as MapEditorGeneric.jsx)
 const ZOOM_SENSITIVITY = 1.0015;
 
-const MapEditorViewport = forwardRef(({ children, onWorldMouseMove, onWorldClick, staticOverlay }, ref) => {
+const MapEditorViewport = forwardRef(({ children, onWorldMouseMove, onWorldClick, onCameraChange, staticOverlay, htmlOverlay }, ref) => {
     const svgRef = useRef(null);
     const cameraGroupRef = useRef(null);
 
@@ -27,6 +27,10 @@ const MapEditorViewport = forwardRef(({ children, onWorldMouseMove, onWorldClick
         if (cameraGroupRef.current) {
             const { x, y, k } = cameraMatrix.current;
             cameraGroupRef.current.setAttribute('transform', `matrix(${k}, 0, 0, ${k}, ${x}, ${y})`);
+
+            if (onCameraChange) {
+                onCameraChange(cameraMatrix.current);
+            }
         }
     };
 
@@ -205,7 +209,7 @@ const MapEditorViewport = forwardRef(({ children, onWorldMouseMove, onWorldClick
     };
 
     return (
-        <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+        <div style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
             <svg
                 ref={svgRef}
                 width="100%"
@@ -223,6 +227,9 @@ const MapEditorViewport = forwardRef(({ children, onWorldMouseMove, onWorldClick
 
                 {staticOverlay}
             </svg>
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                {htmlOverlay}
+            </div>
         </div>
     );
 });

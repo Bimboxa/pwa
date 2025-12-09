@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -6,19 +6,21 @@ import {
   setAnchorPositionScale,
   setScaleAnnotationId,
 } from "../mapEditorSlice";
-
-import {
-  triggerBaseMapsUpdate,
-  updateMap,
-} from "Features/baseMaps/baseMapsSlice";
+import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
+import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
 
 import useMainBaseMap from "../hooks/useMainBaseMap";
 
 import useDeleteAnnotation from "Features/annotations/hooks/useDeleteAnnotation";
+import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 
-import { Paper, TextField, Button, Typography } from "@mui/material";
-import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
-import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
+import { Paper, Button, Typography, Box, TextField } from "@mui/material";
+
+import FieldTextV2 from "Features/form/components/FieldTextV2";
+import IconButtonClose from "Features/layout/components/IconButtonClose";
+import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
+import { setTempAnnotations } from "Features/annotations/annotationsSlice";
 
 export default function SectionEditScale() {
   const dispatch = useDispatch();
@@ -28,10 +30,6 @@ export default function SectionEditScale() {
   const label = "Distance (m)";
   const saveS = "Enregistrer";
 
-  // state
-
-  const [targetDistance, setTargetDistance] = useState();
-
   // data
 
   const mainBaseMap = useMainBaseMap();
@@ -40,37 +38,39 @@ export default function SectionEditScale() {
   const updateEntity = useUpdateEntity();
   const scaleAnnotationId = useSelector((s) => s.mapEditor.scaleAnnotationId);
   const deleteAnnotation = useDeleteAnnotation();
+  const resetNewAnnotation = useResetNewAnnotation();
+
+  const meterByPx = mainBaseMap?.meterByPx;
+
+  // state
+
+  const [distance, setDistance] = useState("");
+  useEffect(() => {
+    if (scaleInPx && meterByPx) {
+      const _distance = scaleInPx * meterByPx
+      setDistance(_distance.toFixed(3));
+    }
+  }, [scaleInPx, meterByPx])
+
+  // helper - disabled
+
+  const disabled = !distance;
 
   // helper
 
-  const meterByPx = mainBaseMap?.meterByPx ?? 1;
-  const currentDistance = scaleInPx * meterByPx;
-
-  console.log("meterByPx", scaleInPx, meterByPx, "mainBaseMap", mainBaseMap);
-
-  // helper - disable
-
-  let delta = 0;
-  if (targetDistance) {
-    delta = Math.abs(currentDistance - targetDistance) / currentDistance;
-  }
-  const disabled = !targetDistance || delta < 0.0001;
-
-  // helper
-
-  const value = targetDistance ?? currentDistance.toFixed(3);
+  let value = distance ?? "";
 
   // handlers
 
-  function handleChange(e) {
-    let distanceS = e.target.value;
+  function handleChange(distanceS) {
+    //let distanceS = e.target.value;
     distanceS = distanceS.replace(",", ".");
-    setTargetDistance(distanceS);
+    setDistance(distanceS);
   }
 
   async function handleSave() {
     const updates = {
-      meterByPx: targetDistance / scaleInPx,
+      meterByPx: distance / scaleInPx,
     };
 
     await deleteAnnotation(scaleAnnotationId);
@@ -80,24 +80,24 @@ export default function SectionEditScale() {
 
     dispatch(setScaleAnnotationId(null));
     dispatch(setAnchorPositionScale(null));
+    resetNewAnnotation();
+    dispatch(setTempAnnotations([]));
   }
 
   return (
-    <Paper sx={{ display: "flex", alignItems: "center", p: 2 }}>
-      <TextField
-        sx={{ width: 100 }}
-        value={value}
-        onChange={handleChange}
-        label={label}
-      />
-      <Button
-        disabled={disabled}
-        onClick={handleSave}
-        sx={{ ml: 2 }}
-        variant="contained"
-      >
-        <Typography>{saveS}</Typography>
-      </Button>
-    </Paper>
+
+    <Box sx={{ width: 1, p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
+      <FieldTextV2 value={value} onChange={handleChange} label={label} options={{ showAsLabelAndField: true }} />
+      <BoxAlignToRight>
+        <ButtonGeneric
+          label={saveS}
+          disabled={disabled}
+          onClick={handleSave}
+          sx={{ ml: 2 }}
+          variant="contained"
+          color="secondary"
+        />
+      </BoxAlignToRight>
+    </Box>
   );
 }

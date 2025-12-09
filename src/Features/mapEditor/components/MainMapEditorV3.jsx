@@ -1,7 +1,11 @@
 import { useRef, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
 import { nanoid } from "@reduxjs/toolkit";
+
+
+import { setAnchorPositionScale, setScaleInPx } from "../mapEditorSlice";
+import { setTempAnnotations } from "Features/annotations/annotationsSlice";
 
 import useMeasure from "react-use-measure";
 
@@ -30,12 +34,14 @@ import EditedObjectLayer from "./EditedObjectLayer";
 
 import DialogDeleteSelectedAnnotation from "Features/annotations/components/DialogDeleteSelectedAnnotation";
 import PopperEditAnnotation from "./PopperEditAnnotation";
+import PopperEditScale from "./PopperEditScale";
 
 import { InteractionProvider } from "../context/InteractionContext";
 
 import db from "App/db/db";
 
 export default function MainMapEditorV3() {
+    const dispatch = useDispatch();
 
     // const
 
@@ -90,7 +96,7 @@ export default function MainMapEditorV3() {
 
     // annotation
 
-    const newAnnotation = useSelector(s => s.annotations.newAnnotation);
+    let newAnnotation = useSelector(s => s.annotations.newAnnotation);
 
     // annotations
 
@@ -114,6 +120,25 @@ export default function MainMapEditorV3() {
     // handler - commit drawing
 
     const handleCommitDrawing = useHandleCommitDrawing();
+
+    // handlers - measure
+
+    const handleMeasureCommit = (points, event) => {
+        console.log("handleMeasureCommit", points)
+        const anchorPositionScale = { x: event.clientX, y: event.clientY }
+        dispatch(setAnchorPositionScale(anchorPositionScale))
+        dispatch(setTempAnnotations([{
+            id: nanoid(),
+            type: "POLYLINE",
+            points,
+            outOfSnapScope: true
+        }]))
+        const p1 = points[0];
+        const p2 = points[points.length - 1];
+        const distance = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        console.log("distance", distance)
+        dispatch(setScaleInPx(distance));
+    };
 
     // handlers 
 
@@ -240,7 +265,13 @@ export default function MainMapEditorV3() {
                     newAnnotation={newAnnotation}
                     ref={interactionLayerRef}
                     showBgImage={showBgImage}
-                    onCommitDrawing={handleCommitDrawing}
+                    onCommitDrawing={(points, event) => {
+                        if (enabledDrawingMode === 'MEASURE') {
+                            handleMeasureCommit(points, event);
+                        } else {
+                            handleCommitDrawing(points, event);
+                        }
+                    }}
                     basePose={basePose}
                     activeContext={activeContext}
                     annotations={annotations}
@@ -248,6 +279,7 @@ export default function MainMapEditorV3() {
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
                     snappingEnabled={isSnappingEnabled}
+                    baseMapMeterByPx={baseMap?.meterByPx}
                 >
 
                     <StaticMapContent
@@ -276,6 +308,7 @@ export default function MainMapEditorV3() {
 
             <DialogDeleteSelectedAnnotation />
             <PopperEditAnnotation viewerKey="MAP" />
+            <PopperEditScale />
         </Box>
 
     );
