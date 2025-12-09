@@ -76,10 +76,11 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   return (
     <Box
       sx={{
-        p: 1,
+        // p: 1,
         width: 1,
         ...(showAsSection && {
           borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+          p: 1,
         }),
       }}
     >
@@ -150,10 +151,10 @@ export default function FieldTextV2({ value, onChange, options, label }) {
             sx={{
               "& .MuiOutlinedInput-root": hideBorder
                 ? {
-                    "& fieldset": {
-                      border: "none",
-                    },
-                  }
+                  "& fieldset": {
+                    border: "none",
+                  },
+                }
                 : {},
               "& .MuiInputBase-input": {
                 fontSize: (theme) => theme.typography.body2.fontSize,

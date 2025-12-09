@@ -8,7 +8,7 @@ import {
 } from "Features/annotations/annotationsSlice";
 
 import { AddLocationAlt as Marker } from "@mui/icons-material";
-import { IconButton, Tooltip } from "@mui/material";
+import IconButtonToolbarGeneric from "Features/layout/components/IconButtonToolbarGeneric";
 
 // import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 
@@ -38,12 +38,9 @@ export default function ButtonDrawMarker() {
   }
 
   return (
-    <Tooltip title={title}>
-      <IconButton size="small" onClick={handleClick} color="inherit"
-        sx={{ borderRadius: "8px", border: theme => `1px solid ${theme.palette.divider}` }}
-      >
-        <Marker sx={{ color: newAnnotation?.fillColor }} />
-      </IconButton>
-    </Tooltip>
+    <IconButtonToolbarGeneric label={title} size={32} onClick={handleClick} showBorder={true}>
+      <Marker fontSize="small" sx={{ color: newAnnotation?.fillColor }} />
+    </IconButtonToolbarGeneric>
+
   );
 }
