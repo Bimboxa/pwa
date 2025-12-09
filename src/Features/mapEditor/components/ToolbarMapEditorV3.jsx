@@ -34,7 +34,7 @@ export default function ToolbarMapEditorV3() {
         return <ToolbarEnabledDrawingMode />
     }
 
-    return <Paper sx={{ display: "flex", alignItems: "center", px: 1 }}>
+    return <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, pr: 1, borderRadius: 2 }}>
         <FieldNewAnnotationLabel />
         <FieldNewAnnotationColor />
 
