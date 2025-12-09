@@ -5,35 +5,34 @@ import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
 import { Architecture as Scale } from "@mui/icons-material";
 import { IconButton, Box } from "@mui/material";
+import IconButtonToolbarGeneric from "Features/layout/components/IconButtonToolbarGeneric";
 
-export default function ButtonEditScale({ size = "medium" }) {
+
+import theme from "Styles/theme";
+
+export default function ButtonEditScale() {
   const dispatch = useDispatch();
 
-  // data
-
-  const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
 
   // handler
 
   function handleClick() {
-    dispatch(setEnabledDrawingMode("SEGMENT"));
-    dispatch(setNewAnnotation({ ...newAnnotation, isScaleSegment: true }));
+    dispatch(setEnabledDrawingMode("MEASURE"));
+    dispatch(setNewAnnotation(
+      {
+        type: "POLYLINE",
+        strokeColor: theme.palette.secondary.main,
+        strokeWidth: 2,
+        strokeWidthUnit: "PX",
+      }
+    ));
   }
 
   return (
-    <Box
-      sx={{
-        bgcolor: "white",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: "50%",
-        border: (theme) => `1px solid ${theme.palette.divider}`,
-      }}
-    >
-      <IconButton onClick={handleClick} color="inherit" size={size}>
-        <Scale fontSize={size} />
-      </IconButton>
-    </Box>
+
+    <IconButtonToolbarGeneric onClick={handleClick} size={32} label={"Prendre une cote"}>
+      <Scale fontSize="small" />
+    </IconButtonToolbarGeneric>
+
   );
 }

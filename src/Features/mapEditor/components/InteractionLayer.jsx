@@ -21,6 +21,7 @@ import SnappingLayer from 'Features/mapEditorGeneric/components/SnappingLayer';
 import TransientTopologyLayer from 'Features/mapEditorGeneric/components/TransientTopologyLayer';
 import TransientAnnotationLayer from 'Features/mapEditorGeneric/components/TransientAnnotationLayer';
 import ClosingMarker from 'Features/mapEditorGeneric/components/ClosingMarker';
+import HelperScale from 'Features/mapEditorGeneric/components/HelperScale';
 
 
 import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
@@ -39,6 +40,7 @@ const InteractionLayer = forwardRef(({
   onSegmentSplit,
   snappingEnabled = true,
   selectedNode,
+  baseMapMeterByPx,
 }
   , ref) => {
   const dispatch = useDispatch();
@@ -54,6 +56,7 @@ const InteractionLayer = forwardRef(({
   const screenCursorRef = useRef(null);
   const snappingLayerRef = useRef(null);
   const closingMarkerRef = useRef(null);
+  const helperScaleRef = useRef(null);
 
   // context
 
@@ -82,6 +85,12 @@ const InteractionLayer = forwardRef(({
   // cameraZoom
 
   const cameraZoom = viewportRef.current?.getZoom() || 1;
+
+  // update helper scale
+
+  function handleCameraChange(cameraMatrix) {
+    helperScaleRef.current?.updateZoom(cameraMatrix.k);
+  }
 
   // target pose & scale
 
@@ -198,12 +207,12 @@ const InteractionLayer = forwardRef(({
     dispatch(setEnabledDrawingMode(null));
   };
 
-  const commitPolyline = () => {
+  const commitPolyline = (event) => {
     const pointsToSave = drawingPointsRef.current; // On lit la Ref, pas le State !
     console.log("💾 COMMIT EN BASE:_1", pointsToSave);
     if (pointsToSave.length >= 2) {
 
-      onCommitDrawingRef.current(pointsToSave);
+      onCommitDrawingRef.current(pointsToSave, event);
 
       // EXEMPLE D'ACTION :
       // onNewAnnotation({ type: 'POLYLINE', points: pointsToSave });
@@ -296,7 +305,10 @@ const InteractionLayer = forwardRef(({
 
       // 2. Si on a fini (ex: double clic ou fermeture), on commit
       // if (isClosing) { saveToDb(drawingPoints); setDrawingPoints([]); }
-    } else if (enabledDrawingMode === 'ONE_CLICK') {
+    }
+
+    // --- CASE 2: ONE_CLICK (Auto-commit after 1 point) ---
+    else if (enabledDrawingMode === 'ONE_CLICK') {
       // Apply snapping if Shift is pressed
       let finalPos = toLocalCoords(worldPos);
       if (event.shiftKey && drawingPoints.length > 0) {
@@ -308,7 +320,36 @@ const InteractionLayer = forwardRef(({
       setDrawingPoints(prev => [...prev, finalPos]);
       drawingPointsRef.current = [finalPos];
       commitPoint();
-    } else if (!enabledDrawingMode) {
+    }
+
+    // --- CASE 3: MEASURE / SEGMENT (Auto-commit after 2 points) ---
+    else if (enabledDrawingMode === 'MEASURE' || enabledDrawingMode === 'SEGMENT') {
+      let finalPos = toLocalCoords(worldPos);
+
+      // Apply Angle Snap (Ortho) if Shift is held and it's the 2nd point
+      if (event.shiftKey && drawingPoints.length > 0) {
+        const lastPoint = drawingPoints[drawingPoints.length - 1];
+        finalPos = snapToAngle(finalPos, lastPoint);
+      }
+
+      // Calculate the new list of points
+      const nextPoints = [...drawingPoints, finalPos];
+
+      // Update State (for visual feedback if it doesn't close immediately)
+      setDrawingPoints(nextPoints);
+
+      // Check if finished
+      if (nextPoints.length === 2) {
+        // 1. Force Ref Update immediately (React state is too slow)
+        drawingPointsRef.current = nextPoints;
+
+        // 2. Trigger Commit
+        // This will call onCommitDrawingRef.current(points) inside InteractionLayer
+        commitPolyline(event);
+      }
+    }
+
+    else if (!enabledDrawingMode) {
       const nativeTarget = event.nativeEvent?.target || event.target;
       const hit = nativeTarget.closest?.("[data-node-type]");
       if (hit) {
@@ -399,7 +440,7 @@ const InteractionLayer = forwardRef(({
 
     // hover
 
-    if (['CLICK', 'ONE_CLICK'].includes(enabledDrawingMode)) {
+    if (['CLICK', 'ONE_CLICK', "MEASURE"].includes(enabledDrawingMode)) {
       // A. Convert World Mouse -> Local Image Mouse
       const localPos = toLocalCoords(worldPos);
 
@@ -614,6 +655,7 @@ const InteractionLayer = forwardRef(({
         ref={viewportRef}
         onWorldClick={handleWorldClick}
         onWorldMouseMove={handleWorldMouseMove}
+        onCameraChange={handleCameraChange}
         staticOverlay={
           <><ScreenCursorV2
             ref={screenCursorRef}
@@ -631,6 +673,19 @@ const InteractionLayer = forwardRef(({
               ref={closingMarkerRef}
               onClick={handleClosingClick}
             />
+
+          </>
+        }
+        htmlOverlay={
+          <>
+            <Box sx={{ position: 'absolute', bottom: "4px", left: "4px", zIndex: 1 }}>
+              <HelperScale
+                ref={helperScaleRef} // <--- Brancher la ref
+                meterByPx={baseMapMeterByPx} // Passer la prop statique venant de baseMap
+                basePoseK={basePose?.k || 1}
+                initialWorldK={1}
+              />
+            </Box>
           </>
         }
       >

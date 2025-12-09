@@ -1,10 +1,23 @@
+// components/HelperScale.jsx
+import { useState, useImperativeHandle, forwardRef } from "react";
 import { Box, Typography } from "@mui/material";
 
-export default function HelperScale({ meterByPx, worldK, basePoseK }) {
-  // strings
-  const noScaleS = "Echelle non définie";
+const HelperScale = forwardRef(({ meterByPx, basePoseK = 1, initialWorldK = 1 }, ref) => {
 
-  // Define scale steps in meters (from smallest to largest)
+
+  // 1. État LOCAL (Seul ce composant se re-rendra quand le zoom change)
+  const [worldK, setWorldK] = useState(initialWorldK);
+
+  // 2. Exposer la commande de mise à jour
+  useImperativeHandle(ref, () => ({
+    updateZoom: (newK) => {
+      // Optimisation : ne pas re-rendre si le changement est infime ou identique
+      setWorldK(prev => (prev === newK ? prev : newK));
+    }
+  }));
+
+  // --- LOGIQUE DE CALCUL (inchangée) ---
+  const noScaleS = "Echelle non définie";
   const scaleSteps = [
     { meters: 0.01, label: "1 cm" },
     { meters: 0.05, label: "5 cm" },
@@ -19,72 +32,30 @@ export default function HelperScale({ meterByPx, worldK, basePoseK }) {
     { meters: 1000, label: "1 km" },
   ];
 
-  // Calculate effective scale factor (screen pixels per baseMap pixel)
+  // Calculate effective scale factor
   const totalScale = (worldK || 1) * (basePoseK || 1);
-
-  // Target width in screen pixels
   const targetWidthPx = 200;
 
-  // Calculate which scale step to show
-  let selectedStep = scaleSteps[0];
   let width = "100px";
-  let label = selectedStep.label;
+  let label = scaleSteps[0].label;
 
   if (meterByPx && totalScale > 0) {
-    // Calculate how many screen pixels are needed to represent each scale step
-    // For each meter value, calculate: pixels in baseMap = meters / meterByPx
-    // Then convert to screen pixels = baseMap pixels * totalScale
-
-    // Find the scale step that results in width closest to targetWidthPx
     let bestDiff = Infinity;
-
     for (const step of scaleSteps) {
-      // How many pixels in baseMap for this many meters
       const baseMapPixels = step.meters / meterByPx;
-      // How many screen pixels
       const screenPixels = baseMapPixels * totalScale;
-
-      // Find the step closest to target width
       const diff = Math.abs(screenPixels - targetWidthPx);
       if (diff < bestDiff) {
         bestDiff = diff;
-        selectedStep = step;
         width = `${Math.round(screenPixels)}px`;
         label = step.label;
       }
-
-      // If we're past the target and getting further, stop
-      if (screenPixels > targetWidthPx && diff > bestDiff) {
-        break;
-      }
+      if (screenPixels > targetWidthPx && diff > bestDiff) break;
     }
   }
 
-  // render
-
-  if (!meterByPx)
-    return (
-      <Box
-        sx={{
-          borderRadius: "14px",
-          height: "28px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          px: 1,
-          bgcolor: "white",
-          border: (theme) => `1px solid ${theme.palette.divider}`,
-        }}
-      >
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ userSelect: "none" }}
-        >
-          {noScaleS}
-        </Typography>
-      </Box>
-    );
+  // --- RENDER ---
+  if (!meterByPx) return null; // Version simplifiée
 
   return (
     <Box
@@ -92,32 +63,20 @@ export default function HelperScale({ meterByPx, worldK, basePoseK }) {
         display: "flex",
         alignItems: "center",
         flexDirection: "column",
-        height: "28px",
+        pointerEvents: "auto", // Important pour que l'utilisateur puisse interagir si besoin
+        userSelect: "none"
       }}
     >
-      <Typography sx={{ fontSize: "12px", color: "text.secondary" }}>
+      <Typography sx={{ fontSize: "12px", color: "text.secondary", textShadow: "0px 0px 2px white" }}>
         {label}
       </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", position: "relative" }}>
-        {/* Left vertical segment */}
-        <Box
-          sx={{
-            width: "1px",
-            height: "5px",
-            bgcolor: "black",
-          }}
-        />
-        {/* Horizontal line */}
+      <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Box sx={{ width: "1px", height: "6px", bgcolor: "black" }} />
         <Box sx={{ width, height: "1px", bgcolor: "black" }} />
-        {/* Right vertical segment */}
-        <Box
-          sx={{
-            width: "1px",
-            height: "5px",
-            bgcolor: "black",
-          }}
-        />
+        <Box sx={{ width: "1px", height: "6px", bgcolor: "black" }} />
       </Box>
     </Box>
   );
-}
+});
+
+export default HelperScale;

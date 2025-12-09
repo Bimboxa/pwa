@@ -2,6 +2,7 @@ import { Box } from "@mui/material";
 
 import ButtonSelectorBaseMapInMapEditor from "Features/baseMaps/components/ButtonSelectorBaseMapInMapEditor";
 import ToolbarMapEditorV3 from "./ToolbarMapEditorV3";
+//import ButtonEditScale from "./ButtonEditScale";
 
 export default function UILayerDesktop({ mapController, onResetCamera }) {
     return (
@@ -27,6 +28,19 @@ export default function UILayerDesktop({ mapController, onResetCamera }) {
             }}>
                 <ToolbarMapEditorV3 />
             </Box>
+
+            {/* <Box
+                sx={{
+                    position: "absolute",
+                    left: "8px",
+                    bottom: "8px",
+                    zIndex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                }}
+            >
+                <ButtonEditScale size="small" />
+            </Box> */}
         </>
     );
 }

@@ -1,6 +1,8 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 
+import { useSelector } from "react-redux";
+
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
@@ -19,6 +21,8 @@ export default function useAnnotationsV2() {
 
     const annotationTemplates = useAnnotationTemplates();
     const annotationTemplatesMap = getItemsByKey(annotationTemplates, "id");
+
+    const tempAnnotations = useSelector((s) => s.annotations.tempAnnotations);
 
     // main
     let annotations = useLiveQuery(async () => {
@@ -57,6 +61,9 @@ export default function useAnnotationsV2() {
         ...annotation,
         ...getAnnotationTemplateProps(annotationTemplatesMap[annotation?.annotationTemplateId])
     }))
+
+    // override with temp annotations
+    annotations = [...(annotations ?? []), ...(tempAnnotations ?? [])];
 
 
     // return 

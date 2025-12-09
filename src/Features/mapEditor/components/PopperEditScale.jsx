@@ -1,8 +1,9 @@
 import { useSelector, useDispatch } from "react-redux";
 
 import { setAnchorPositionScale } from "../mapEditorSlice";
+import { setTempAnnotations } from "Features/annotations/annotationsSlice";
 
-import useDeleteAnnotation from "Features/annotations/hooks/useDeleteAnnotation";
+import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 
 import PopperBox from "Features/layout/components/PopperBox";
 import SectionEditScale from "./SectionEditScale";
@@ -15,7 +16,7 @@ export default function PopperEditScale() {
   const anchorPosition = useSelector((s) => s.mapEditor.anchorPositionScale);
   const scaleAnnotationId = useSelector((s) => s.mapEditor.scaleAnnotationId);
 
-  const deleteAnnotation = useDeleteAnnotation();
+  const resetNewAnnotation = useResetNewAnnotation();
 
   // helper
 
@@ -25,7 +26,8 @@ export default function PopperEditScale() {
 
   async function handleClose() {
     dispatch(setAnchorPositionScale(null));
-    if (scaleAnnotationId) deleteAnnotation(scaleAnnotationId);
+    resetNewAnnotation();
+    dispatch(setTempAnnotations([]));
   }
 
   return (
@@ -33,6 +35,8 @@ export default function PopperEditScale() {
       open={open}
       anchorPosition={anchorPosition}
       onClose={handleClose}
+      disableClickAway
+      addHeader
     >
       <SectionEditScale />
     </PopperBox>
