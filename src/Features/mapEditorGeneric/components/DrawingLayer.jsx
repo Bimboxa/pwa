@@ -2,23 +2,67 @@
 import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 
 const DrawingLayer = forwardRef(({
-    points, newAnnotation,
-    onHoverFirstPoint, onLeaveFirstPoint
+    points,
+    newAnnotation,
+    enabledDrawingMode, // <--- NOUVELLE PROP
+    onHoverFirstPoint,
+    onLeaveFirstPoint
 }, ref) => {
-    const previewLineRef = useRef(null);
-    const previewFillRef = useRef(null); // <--- NEW: For the polygon surface
 
-    const { strokeColor, fillColor, type, closeLine } = newAnnotation || {};
+    console.log("[DrawingLayer]", enabledDrawingMode);
+
+    // Refs pour l'accès DOM direct (Performance)
+    const previewLineRef = useRef(null);
+    const previewFillRef = useRef(null);
+    const previewRectRef = useRef(null); // <--- NOUVELLE REF
+
+    const { strokeColor, fillColor, type } = newAnnotation || {};
+
+    // Détection des types
     const isPolygon = type === "POLYGON";
+    const isRectangle = enabledDrawingMode === "RECTANGLE";
+
     const firstPoint = points?.[0];
 
     useImperativeHandle(ref, () => ({
         updatePreview: (cursorPos) => {
+            // S'il n'y a pas encore de point posé, on ne dessine rien
             if (points.length === 0) return;
 
             const lastPoint = points[points.length - 1];
 
-            // 1. Update Rubber Band Line (Existing)
+            // ------------------------------------------------
+            // CAS 1 : RECTANGLE (1er point fixe -> Curseur)
+            // ------------------------------------------------
+            if (isRectangle && previewRectRef.current) {
+                // On cache les éléments inutiles pour ce mode
+                if (previewLineRef.current) previewLineRef.current.style.display = 'none';
+                if (previewFillRef.current) previewFillRef.current.style.display = 'none';
+
+                // Calcul de la géométrie du rectangle
+                // SVG demande x, y (coin haut-gauche) + width, height (positifs)
+                const x = Math.min(lastPoint.x, cursorPos.x);
+                const y = Math.min(lastPoint.y, cursorPos.y);
+                const width = Math.abs(cursorPos.x - lastPoint.x);
+                const height = Math.abs(cursorPos.y - lastPoint.y);
+
+                previewRectRef.current.setAttribute('x', x);
+                previewRectRef.current.setAttribute('y', y);
+                previewRectRef.current.setAttribute('width', width);
+                previewRectRef.current.setAttribute('height', height);
+                previewRectRef.current.style.display = 'block';
+
+                return; // On arrête ici pour le rectangle
+            }
+
+            // ------------------------------------------------
+            // CAS 2 : POLYLINE / POLYGON / SEGMENT
+            // ------------------------------------------------
+
+            // On s'assure que le rectangle est caché
+            if (previewRectRef.current) previewRectRef.current.style.display = 'none';
+
+            // 1. Mise à jour de la ligne élastique
             if (previewLineRef.current) {
                 previewLineRef.current.setAttribute('x1', lastPoint.x);
                 previewLineRef.current.setAttribute('y1', lastPoint.y);
@@ -27,23 +71,24 @@ const DrawingLayer = forwardRef(({
                 previewLineRef.current.style.display = 'block';
             }
 
-            // 2. Update Polygon Fill (NEW)
+            // 2. Mise à jour du remplissage dynamique (Polygone uniquement)
             if (isPolygon && previewFillRef.current) {
-                // Construct path: Start -> ...Points -> Cursor -> Start (Z)
                 const staticPart = points.map(p => `${p.x} ${p.y}`).join(' L ');
                 const d = `M ${staticPart} L ${cursorPos.x} ${cursorPos.y} Z`;
-
                 previewFillRef.current.setAttribute('d', d);
                 previewFillRef.current.style.display = 'block';
             }
         },
+
         clearPreview: () => {
             if (previewLineRef.current) previewLineRef.current.style.display = 'none';
             if (previewFillRef.current) previewFillRef.current.style.display = 'none';
+            if (previewRectRef.current) previewRectRef.current.style.display = 'none'; // Clean
         }
     }));
 
-    // Static path construction
+    // Construction du chemin statique (ce qui est déjà cliqué)
+    // Pour le rectangle, "points" ne contient qu'un seul point pendant le dessin, donc staticPath sera vide, ce qui est correct.
     const staticPath = points.length > 1
         ? `M ${points.map(p => `${p.x} ${p.y}`).join(' L ')}`
         : '';
@@ -51,7 +96,7 @@ const DrawingLayer = forwardRef(({
     return (
         <g className="drawing-layer">
 
-            {/* A. Dynamic Fill (Polygon Only) - Rendered FIRST to be behind */}
+            {/* A. Dynamic Fill (Polygon) */}
             {isPolygon && (
                 <path
                     ref={previewFillRef}
@@ -63,7 +108,20 @@ const DrawingLayer = forwardRef(({
                 />
             )}
 
-            {/* B. Static Stroke */}
+            {/* B. Dynamic Rectangle (NEW) */}
+            {isRectangle && (
+                <rect
+                    ref={previewRectRef}
+                    fill="none"
+                    //fill={fillColor || "rgba(33, 150, 243, 0.2)"} // Bleu semi-transparent par défaut
+                    stroke={strokeColor || "#2196f3"}
+                    strokeWidth={2}
+                    vectorEffect="non-scaling-stroke" // Garde l'épaisseur constante au zoom
+                    style={{ display: 'none', pointerEvents: 'none' }}
+                />
+            )}
+
+            {/* C. Static Stroke (Traits déjà validés) */}
             <path
                 d={staticPath}
                 stroke={strokeColor || "blue"}
@@ -72,41 +130,45 @@ const DrawingLayer = forwardRef(({
                 vectorEffect="non-scaling-stroke"
             />
 
-            {/* C. Vertices */}
+            {/* D. Vertices (Points déjà validés) */}
             {points.map((p, i) => (
-                <circle key={i} cx={p.x} cy={p.y} r={3} fill={strokeColor || "blue"} vectorEffect="non-scaling-stroke" />
+                <circle
+                    key={i}
+                    cx={p.x}
+                    cy={p.y}
+                    r={3}
+                    fill={strokeColor || "blue"}
+                    vectorEffect="non-scaling-stroke"
+                />
             ))}
 
-            {/* ZONE DE DÉTECTION "CLOSING" (Uniquement pour le premier point d'un polygone) */}
+            {/* E. Zone Closing (Polygon uniquement) */}
             {isPolygon && firstPoint && points.length >= 3 && (
                 <circle
                     cx={firstPoint.x}
                     cy={firstPoint.y}
-                    r={10} // Rayon visuel (ou invisible)
-
-                    // STYLE MAGIQUE POUR LE HIT-TESTING
+                    r={18}
                     fill="transparent"
                     stroke="transparent"
-                    strokeWidth={20} // Zone de clic large (20px)
-                    vectorEffect="non-scaling-stroke" // Reste 20px écran peu importe le zoom !
-
+                    strokeWidth={20}
+                    vectorEffect="non-scaling-stroke"
                     style={{ cursor: 'pointer', pointerEvents: 'all' }}
-
-                    // Événements DOM natifs
                     onMouseEnter={() => onHoverFirstPoint && onHoverFirstPoint(firstPoint)}
                     onMouseLeave={() => onLeaveFirstPoint && onLeaveFirstPoint()}
                 />
             )}
 
-            {/* D. Dynamic Rubber Band */}
-            <line
-                ref={previewLineRef}
-                stroke={strokeColor || "blue"}
-                strokeWidth={1}
-                strokeDasharray="5,5"
-                vectorEffect="non-scaling-stroke"
-                style={{ display: 'none', pointerEvents: 'none' }}
-            />
+            {/* F. Dynamic Rubber Band (Ligne élastique pour polyline/segment) */}
+            {!isRectangle && (
+                <line
+                    ref={previewLineRef}
+                    stroke={strokeColor || "blue"}
+                    strokeWidth={2}
+                    strokeDasharray="5,5"
+                    vectorEffect="non-scaling-stroke"
+                    style={{ display: 'none', pointerEvents: 'none' }}
+                />
+            )}
         </g>
     );
 });

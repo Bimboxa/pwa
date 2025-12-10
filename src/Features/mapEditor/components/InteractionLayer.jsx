@@ -10,6 +10,10 @@ import { setEnabledDrawingMode } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setOpenDialogDeleteSelectedAnnotation } from 'Features/annotations/annotationsSlice';
+import {
+  setAnchorPosition,
+  setClickedNode,
+} from "Features/contextMenu/contextMenuSlice";
 
 import useResetNewAnnotation from 'Features/annotations/hooks/useResetNewAnnotation';
 
@@ -22,6 +26,8 @@ import TransientTopologyLayer from 'Features/mapEditorGeneric/components/Transie
 import TransientAnnotationLayer from 'Features/mapEditorGeneric/components/TransientAnnotationLayer';
 import ClosingMarker from 'Features/mapEditorGeneric/components/ClosingMarker';
 import HelperScale from 'Features/mapEditorGeneric/components/HelperScale';
+import MapTooltip from 'Features/mapEditorGeneric/components/MapTooltip';
+
 
 
 import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
@@ -33,6 +39,10 @@ const InteractionLayer = forwardRef(({
   newAnnotation,
   onCommitDrawing,
   basePose,
+  onBaseMapPoseChange,
+  onBaseMapPoseCommit,
+  baseMapImageSize,
+  bgPose = { x: 0, y: 0, k: 1 },
   activeContext = "BASE_MAP",
   annotations, // <= snapping source.
   onPointMoveCommit,
@@ -41,6 +51,7 @@ const InteractionLayer = forwardRef(({
   snappingEnabled = true,
   selectedNode,
   baseMapMeterByPx,
+  showBgImage,
 }
   , ref) => {
   const dispatch = useDispatch();
@@ -92,6 +103,11 @@ const InteractionLayer = forwardRef(({
     helperScaleRef.current?.updateZoom(cameraMatrix.k);
   }
 
+  // tooltip
+
+  const [tooltipData, setTooltipData] = useState(null);
+  const tooltipRef = useRef(null);
+
   // target pose & scale
 
   const basePoseRef = useRef(basePose);
@@ -126,6 +142,10 @@ const InteractionLayer = forwardRef(({
 
   const [dragAnnotationState, setDragAnnotationState] = useState(null);
   // Structure: { active: boolean, annotationId: string, currentPos: {x,y} }
+
+  // State pour le drag de la BaseMap
+  const [dragBaseMapState, setDragBaseMapState] = useState(null);
+  // { active: true, handleType: 'MOVE'|'SE'..., startMouseScreen: {x,y}, startBasePose: {x,y,k} }
 
   const currentSnapRef = useRef(null); // Stocke le résultat du getBestSnap
 
@@ -323,7 +343,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- CASE 3: MEASURE / SEGMENT (Auto-commit after 2 points) ---
-    else if (enabledDrawingMode === 'MEASURE' || enabledDrawingMode === 'SEGMENT') {
+    else if (["MEASURE", "SEGMENT", "RECTANGLE"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
       // Apply Angle Snap (Ortho) if Shift is held and it's the 2nd point
@@ -354,12 +374,20 @@ const InteractionLayer = forwardRef(({
       const hit = nativeTarget.closest?.("[data-node-type]");
       if (hit) {
         console.log("[InteractionLayer] selected node", hit?.dataset)
-        dispatch(setSelectedNode(hit?.dataset));
-        setHiddenAnnotationIds([hit?.dataset.nodeId]);
-        if (hit?.dataset?.nodeType === "ANNOTATION") {
+        if (!showBgImage && hit?.dataset?.nodeType === "BASE_MAP") {
+          dispatch(setSelectedNode(null))
+          setHiddenAnnotationIds([]);
+          dispatch(setAnnotationToolbarPosition(null));
+        } else if (hit?.dataset?.nodeType === "ANNOTATION" && !showBgImage) {
+          dispatch(setSelectedNode(hit?.dataset));
+          setHiddenAnnotationIds([hit?.dataset.nodeId]);
           dispatch(
             setAnnotationToolbarPosition({ x: event.clientX, y: event.clientY })
           );
+          if (tooltipData) setTooltipData(null);
+        } else if (showBgImage && hit?.dataset?.nodeType !== "ANNOTATION") {
+          dispatch(setSelectedNode(hit?.dataset));
+          setHiddenAnnotationIds([hit?.dataset.nodeId]);
         }
 
       } else {
@@ -374,31 +402,117 @@ const InteractionLayer = forwardRef(({
   // --- GESTION DU MOUVEMENT (Feedback visuel) ---
   const handleWorldMouseMove = ({ worldPos, viewportPos, event, isPanning }) => {
 
+    // --- 1. DÉTECTION DE L'ÉTAT D'INTERACTION ---
+    // Est-ce qu'une action prioritaire est en cours ?
+    const isInteracting =
+      isPanning ||
+      dragState?.active ||
+      dragAnnotationState?.active ||
+      dragBaseMapState?.active ||
+      enabledDrawingMode ||
+      selectedNode;
+
+    // --- 2. MISE À JOUR VISUELLE (Tooltip Position) ---
+    // On met à jour la position DOM directement pour la fluidité (60fps), 
+    // même si on va peut-être le cacher juste après.
+    if (tooltipRef.current) {
+      const x = viewportPos.x + 15;
+      const y = viewportPos.y + 15;
+      tooltipRef.current.style.transform = `translate(${x}px, ${y}px)`;
+    }
+
+    // --- 3. GESTION DE LA VISIBILITÉ DU TOOLTIP ---
+    // Si on interagit, on cache le tooltip via le State React.
+    // IMPORTANT : On ne fait PAS de return ici, pour laisser le code de drag s'exécuter.
+    if (isInteracting) {
+      if (tooltipData) setTooltipData(null);
+    }
+
+    // --- 4. EXÉCUTION DES ACTIONS (Drag, Draw, Pan) ---
+
+    // Mise à jour du curseur visuel (ScreenCursor)
     if (enabledDrawingMode || dragState?.active || dragAnnotationState?.active) {
       screenCursorRef.current?.move(viewportPos.x, viewportPos.y);
     }
 
+    // Nettoyage visuel pendant le Pan
     if (isPanning) {
       closingMarkerRef.current?.update(null);
       snappingLayerRef.current?.update(null);
-      // We don't set isClosingRef.current = false here because 
-      // we might want to resume the state after panning, 
-      // but usually reseting is safer:
-      //isClosingRef.current = false;
     }
 
-    const imageScale = getTargetScale(); // From basePose props
-    const cameraZoom = viewportRef.current?.getZoom() || 1; // From Viewport
-    const scale = imageScale * cameraZoom;
-    const localPos = toLocalCoords(worldPos);
-
+    // A. DRAG POINT (Vertex)
     if (dragState?.active) {
-      // On met à jour la position virtuelle du point
-      // Note: On peut aussi appliquer du snapping ici si on veut !
+      const localPos = toLocalCoords(worldPos);
       setDragState(prev => ({ ...prev, currentPos: localPos }));
-      return;
+      return; // Action exclusive, on arrête ici
     }
 
+    // B. DRAG BASEMAP (Image de fond)
+    if (dragBaseMapState?.active) {
+      const { startMouseWorld, startBasePose, handleType } = dragBaseMapState;
+
+      // Calcul du Delta en UNITÉS MONDE
+      const dxWorld = worldPos.x - startMouseWorld.x;
+      const dyWorld = worldPos.y - startMouseWorld.y;
+
+      let newBasePoseWorld = { ...startBasePose };
+
+      // Cas 1 : Déplacement
+      if (handleType === 'MOVE') {
+        newBasePoseWorld.x += dxWorld;
+        newBasePoseWorld.y += dyWorld;
+      }
+      // Cas 2 : Redimensionnement
+      else if (['SE', 'SW', 'NE', 'NW'].includes(handleType)) {
+        if (baseMapImageSize?.width && baseMapImageSize?.height) {
+          const w = baseMapImageSize.width;
+          const h = baseMapImageSize.height;
+
+          // Calcul du changement d'échelle (Delta K)
+          let deltaK = 0;
+          if (handleType.includes('E')) {
+            deltaK = dxWorld / w;
+          } else {
+            deltaK = -dxWorld / w;
+          }
+
+          const newK = Math.max(0.001, startBasePose.k + deltaK);
+          newBasePoseWorld.k = newK;
+
+          // Compensation de la position pour les coins Ouest/Nord
+          const kDiff = newK - startBasePose.k;
+          const widthChange = w * kDiff;
+          const heightChange = h * kDiff;
+
+          if (handleType.includes('W')) {
+            newBasePoseWorld.x = startBasePose.x - widthChange;
+          }
+          if (handleType.includes('N')) {
+            newBasePoseWorld.y = startBasePose.y - heightChange;
+          }
+        }
+      }
+
+      // Rétro-projection vers le référentiel du BG
+      const bgK = bgPose?.k || 1;
+      const bgX = bgPose?.x || 0;
+      const bgY = bgPose?.y || 0;
+
+      const newPoseInBg = {
+        x: (newBasePoseWorld.x - bgX) / bgK,
+        y: (newBasePoseWorld.y - bgY) / bgK,
+        k: newBasePoseWorld.k / bgK,
+        r: newBasePoseWorld.r
+      };
+
+      if (onBaseMapPoseChange) {
+        onBaseMapPoseChange(newPoseInBg);
+      }
+      return; // Action exclusive
+    }
+
+    // C. DRAG ANNOTATION (Objet entier)
     if (dragAnnotationState?.active) {
       const currentMouseInWorld = viewportRef.current?.screenToWorld(event.clientX, event.clientY);
       const currentMouseInLocal = toLocalCoords(currentMouseInWorld);
@@ -407,60 +521,81 @@ const InteractionLayer = forwardRef(({
         y: currentMouseInLocal.y - dragAnnotationState.startMouseInLocal.y
       };
       setDragAnnotationState(prev => ({ ...prev, deltaPos }));
-      return;
+      return; // Action exclusive
     }
 
-    // snap
+    // D. SNAPPING (Seulement si pas d'interaction lourde en cours)
     let snapResult;
-    if (snappingEnabled) {
+    if (snappingEnabled && !isInteracting) {
+      const imageScale = getTargetScale();
+      const scale = imageScale * cameraZoom;
+      const localPos = toLocalCoords(worldPos);
       const snapThreshold = SNAP_THRESHOLD_ABSOLUTE / scale;
-      snapResult = getBestSnap(localPos, annotations, snapThreshold, true); // true = forceCenter
-    }
-    if (snapResult) {
 
-      currentSnapRef.current = snapResult;
-      // 2. CONVERT BACK TO SCREEN SPACE
-      // Local -> World -> Screen
+      snapResult = getBestSnap(localPos, annotations, snapThreshold, true);
 
-      // Local -> World (Apply Image Transform)
-      const pose = getTargetPose();
-      const worldSnapX = snapResult.x * pose.k + pose.x;
-      const worldSnapY = snapResult.y * pose.k + pose.y;
+      if (snapResult) {
+        currentSnapRef.current = snapResult;
+        const pose = getTargetPose();
+        const worldSnapX = snapResult.x * pose.k + pose.x;
+        const worldSnapY = snapResult.y * pose.k + pose.y;
+        const screenSnap = viewportRef.current?.worldToViewport(worldSnapX, worldSnapY);
 
-      // World -> Screen (Apply Camera Transform)
-      // You need a helper from viewportRef for this direction
-      const screenSnap = viewportRef.current?.worldToViewport(worldSnapX, worldSnapY);
-
-      if (screenSnap) {
-        snappingLayerRef.current?.update({ ...screenSnap, type: snapResult.type });
+        if (screenSnap) {
+          snappingLayerRef.current?.update({ ...screenSnap, type: snapResult.type });
+        }
+      } else {
+        snappingLayerRef.current?.update(null);
       }
     } else {
+      // Nettoyage si on ne snap pas
       snappingLayerRef.current?.update(null);
     }
 
-    // hover
-
-    if (['CLICK', 'ONE_CLICK', "MEASURE"].includes(enabledDrawingMode)) {
-      // A. Convert World Mouse -> Local Image Mouse
+    // E. DRAWING PREVIEW
+    if (['CLICK', 'ONE_CLICK', "MEASURE", "RECTANGLE"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
-
-      // B. Apply Snapping (Logic should now work with Local Coords!)
-      // Make sure your snapToAngle uses local coords too
       let previewPos = localPos;
+
+      // Angle snap drawing
       if (event.shiftKey && drawingPoints.length > 0) {
         const lastPoint = drawingPoints[drawingPoints.length - 1];
         previewPos = snapToAngle(localPos, lastPoint);
       }
-
-      // C. Update Preview
       drawingLayerRef.current?.updatePreview(previewPos);
     }
 
-    const nativeTarget = event.nativeEvent?.target || event.target;
-    const hit = nativeTarget.closest?.("[data-node-type]");
-    if (hit) {
-      setHoveredNode(hit?.dataset);
+    // --- 5. DÉTECTION DU HOVER (HIT TEST) ---
+    // Le Correctif est ici : On ne cherche ce qu'il y a sous la souris 
+    // QUE si on est "au repos" (!isInteracting).
+
+    if (!isInteracting) {
+      const nativeTarget = event.nativeEvent?.target || event.target;
+      const hit = nativeTarget.closest?.("[data-node-type]");
+
+      if (hit) {
+        setHoveredNode(hit?.dataset);
+
+        // Tooltip Logic
+        if (tooltipData?.nodeId !== hit.dataset.nodeId) {
+          setTooltipData(hit.dataset);
+
+          // Force immediate update to avoid jump at (0,0)
+          requestAnimationFrame(() => {
+            if (tooltipRef.current) {
+              const x = viewportPos.x + 15;
+              const y = viewportPos.y + 15;
+              tooltipRef.current.style.transform = `translate(${x}px, ${y}px)`;
+            }
+          });
+        }
+      } else {
+        // Rien sous la souris
+        setHoveredNode(null);
+        if (tooltipData) setTooltipData(null);
+      }
     } else {
+      // Si on interagit, on s'assure de nettoyer l'état survolé
       setHoveredNode(null);
     }
   };
@@ -560,6 +695,21 @@ const InteractionLayer = forwardRef(({
 
 
   const handleMouseUp = () => {
+    if (dragBaseMapState?.active) {
+      // Comme on a mis à jour Redux en temps réel via onBaseMapPoseChange,
+      // on peut soit passer la dernière valeur calculée, soit (mieux) laisser
+      // le parent récupérer la valeur courante du store pour la sauvegarder.
+      // Mais pour être explicite, recalculons-la ou passons null pour dire "Commit ce que tu as".
+
+      // Ici, on suppose que le parent sait quelle est la valeur courante via Redux
+      if (onBaseMapPoseCommit) {
+        onBaseMapPoseCommit();
+      }
+
+      setDragBaseMapState(null);
+      document.body.style.cursor = '';
+    }
+
     if (dragState?.active) {
 
       // CAS A : SPLIT (Si on a une insertion virtuelle)
@@ -606,9 +756,10 @@ const InteractionLayer = forwardRef(({
     // ==================
 
     const target = e.nativeEvent?.target || e.target;
-    const draggableGroup = target.closest('[data-interaction="draggable"]');
 
-    console.log("[InteractionLayer] mouse down on node", draggableGroup)
+    const draggableGroup = target.closest('[data-interaction="draggable"]');
+    const basemapHandle = target.closest('[data-interaction="transform-basemap"]');
+
 
     if (draggableGroup) {
 
@@ -628,8 +779,69 @@ const InteractionLayer = forwardRef(({
       });
       setDraggingAnnotationId(nodeId);
     }
+
+    if (basemapHandle) {
+      e.stopPropagation();
+      e.preventDefault();
+
+      const handleType = basemapHandle.dataset.handleType;
+
+      // 1. CONVERSION ÉCRAN -> MONDE (Prend en compte la CameraMatrix)
+      // On utilise le helper du viewport pour obtenir la position exacte dans le monde
+      const startMouseWorld = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
+
+      if (!startMouseWorld) return;
+
+      setDragBaseMapState({
+        active: true,
+        handleType,
+        // On stocke le point de départ en MONDE
+        startMouseWorld: startMouseWorld,
+        // On stocke la pose de l'objet en MONDE (copie de la prop basePose)
+        startBasePose: { ...basePose }
+      });
+
+      document.body.style.cursor = handleType === 'MOVE' ? 'grabbing' : 'crosshair';
+    }
+
   }
 
+  const handleMouseLeave = () => {
+    setTooltipData(null);
+  };
+
+
+  function handleContextMenu(e) {
+    e.preventDefault();
+
+    // Detect if clicking on a node
+    const nativeTarget = e.nativeEvent?.target || e.target;
+    const hit = nativeTarget.closest?.("[data-node-type]");
+
+    if (hit) {
+      const { nodeId, nodeListingId, nodeType, annotationType, pointIndex } =
+        hit.dataset;
+      dispatch(
+        setClickedNode({
+          id: nodeId,
+          nodeListingId,
+          nodeType,
+          annotationType,
+          pointIndex,
+        })
+      );
+    } else {
+      dispatch(setClickedNode(null));
+    }
+
+    // Use client coordinates for Popper anchor
+    dispatch(
+      setAnchorPosition({
+        x: e.clientX,
+        y: e.clientY,
+      })
+    );
+  }
 
   // render
 
@@ -639,6 +851,8 @@ const InteractionLayer = forwardRef(({
     <Box
       onMouseUp={handleMouseUp}
       onMouseDownCapture={handleMouseDownCapture}
+      onMouseLeave={handleMouseLeave}
+      onContextMenu={handleContextMenu}
       sx={{
         width: 1, height: 1, // A. Le curseur de base du conteneur
         cursor: getCursorStyle(),
@@ -678,7 +892,7 @@ const InteractionLayer = forwardRef(({
         }
         htmlOverlay={
           <>
-            <Box sx={{ position: 'absolute', bottom: "4px", left: "4px", zIndex: 1 }}>
+            <Box sx={{ position: 'absolute', bottom: "4px", left: "40px", zIndex: 1 }}>
               <HelperScale
                 ref={helperScaleRef} // <--- Brancher la ref
                 meterByPx={baseMapMeterByPx} // Passer la prop statique venant de baseMap
@@ -686,6 +900,14 @@ const InteractionLayer = forwardRef(({
                 initialWorldK={1}
               />
             </Box>
+            {/* Render conditionally based on Data State */}
+            {tooltipData && (
+              <MapTooltip
+                ref={tooltipRef} // Pass the Ref
+                hoveredNode={tooltipData}
+                annotations={annotations}
+              />
+            )}
           </>
         }
       >
@@ -710,6 +932,8 @@ const InteractionLayer = forwardRef(({
             <TransientAnnotationLayer
               annotation={selectedAnnotation}
               deltaPos={dragAnnotationState.deltaPos}
+              basePose={basePose}
+              baseMapMeterByPx={baseMapMeterByPx}
             />
           </g>
         )}
@@ -723,6 +947,7 @@ const InteractionLayer = forwardRef(({
               newAnnotation={newAnnotation}
               onHoverFirstPoint={handleHoverFirstPoint}
               onLeaveFirstPoint={handleLeaveFirstPoint}
+              enabledDrawingMode={enabledDrawingMode}
             />
           </g>
 

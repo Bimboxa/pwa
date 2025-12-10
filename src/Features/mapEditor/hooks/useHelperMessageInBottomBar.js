@@ -1,4 +1,5 @@
 import { useSelector } from "react-redux";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 export default function useHelperMessageInBottomBar() {
   // strings
@@ -11,15 +12,22 @@ export default function useHelperMessageInBottomBar() {
 
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   const selectedItem = useSelector((s) => s.selection.selectedItem);
+  const { value: listing } = useSelectedListing()
+
+  // helpers
+
+  const emType = listing?.entityModel?.type;
 
   // return
 
-  let string = defaultS;
+  let string = "";
 
   if (enabledDrawingMode) {
     string = quitCreationModeS;
   } else if (selectedItem?.type === "ENTITY") {
     string = selectedEntityS;
+  } else if (emType === "LOCATED_ENTITY") {
+    //string = defaultS;
   }
 
   return string;

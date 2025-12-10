@@ -10,6 +10,10 @@ export default function useResetNewAnnotation() {
         dispatch(setNewAnnotation({
             fillColor: theme.palette.secondary.main,
             strokeColor: theme.palette.secondary.main,
+            fillOpacity: 0.5,
+            strokeOpacity: 1,
+            strokeWidth: 2,
+            iconKey: "circle",
         }));
     }
 

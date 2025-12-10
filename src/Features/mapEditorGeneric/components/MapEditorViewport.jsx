@@ -28,6 +28,10 @@ const MapEditorViewport = forwardRef(({ children, onWorldMouseMove, onWorldClick
             const { x, y, k } = cameraMatrix.current;
             cameraGroupRef.current.setAttribute('transform', `matrix(${k}, 0, 0, ${k}, ${x}, ${y})`);
 
+            // 2. INJECTER LE ZOOM DANS UNE VARIABLE CSS (Nouveau)
+            // Cela permet aux enfants de lire "k" sans re-render React !
+            cameraGroupRef.current.style.setProperty('--map-zoom', k);
+
             if (onCameraChange) {
                 onCameraChange(cameraMatrix.current);
             }
@@ -227,10 +231,13 @@ const MapEditorViewport = forwardRef(({ children, onWorldMouseMove, onWorldClick
 
                 {staticOverlay}
             </svg>
-            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            <div style={{
+                position: 'absolute', inset: 0,
+                pointerEvents: 'none'
+            }}>
                 {htmlOverlay}
             </div>
-        </div>
+        </div >
     );
 });
 

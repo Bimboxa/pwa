@@ -17,7 +17,7 @@ export default function getAnnotationTemplateMainQtyLabel(
   if (type === "POLYLINE" && !closeLine) {
     qty = qties?.length;
     unit = unitMap.METER;
-  } else if (type === "POLYLINE" && closeLine) {
+  } else if (type === "POLYLINE" && closeLine || type === "POLYGON") {
     qty = qties?.surface;
     unit = unitMap.SQUARE_METER;
   }

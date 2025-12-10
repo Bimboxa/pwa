@@ -17,7 +17,7 @@ export default function useBgImageMetadata() {
 
   const metadata = bgImageInMapEditor?.textAnnotations?.map(
     (textAnnotation) => {
-      return { ...textAnnotation, value: rawAnnotations[textAnnotation.key] };
+      return { ...textAnnotation, value: rawAnnotations?.[textAnnotation.key] };
     }
   );
 

@@ -101,6 +101,9 @@ export default function FieldImageV2({
               label={maxSizeLabel}
               value={applyMaxSize}
               onChange={(value) => setApplyMaxSize(value)}
+              options={{
+                textColor: "text.secondary",
+              }}
             />
           )}
           {/* {fileSizeAsString && (

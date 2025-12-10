@@ -1,0 +1,272 @@
+import {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+} from "react";
+
+import { grey } from "@mui/material/colors";
+import { darken } from "@mui/material/styles";
+
+import useIsMobile from "Features/layout/hooks/useIsMobile";
+
+/**
+ * Draggable SVG marker:
+ * - marker: { id, x, y, iconKey, fillColor, listingId, entity? }
+ * - spriteImage: { iconKeys, columns, rows, tile, url }
+ * - imageSize: { w, h }
+ * - containerK: number
+ * - worldScale: number
+ * - onDragEnd({id, x, y})
+ * - onClick(marker)
+ * - selected: boolean
+ */
+export default function NodeMarkerStatic({
+  marker,
+  annotationOverride,
+  spriteImage,
+  containerK,
+  worldScale,
+  selected,
+  hovered,
+  dragged,
+}) {
+  const dataProps = {
+    "data-node-id": marker.id,
+    "data-node-listing-id": marker.listingId,
+    "data-node-type": "ANNOTATION",
+    "data-annotation-type": "MARKER",
+  };
+
+  // override
+
+  marker = { ...marker, ...annotationOverride }
+
+  // SIZE
+
+  const isMobile = useIsMobile();
+  const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
+  const fixSize = isMobile || !showBgImage;
+  let SIZE = fixSize ? 32 : 42;
+
+
+  // Test has images
+
+  const hasImages = marker.hasImages;
+
+  // Label text
+  const labelText = (marker?.entity?.num ?? "").toString();
+  const showLabel = Boolean(labelText);
+
+  // Sprite
+  const {
+    iconKeys,
+    columns,
+    rows,
+    tile,
+    url: spriteSheetUrl,
+  } = spriteImage ?? {};
+
+  const resolvedIndex = Math.max(0, iconKeys?.indexOf(marker?.iconKey) ?? 0);
+  const row = Math.floor(resolvedIndex / (columns || 1));
+  const col = columns ? resolvedIndex % columns : 0;
+  const sheetW = (columns || 1) * (tile || 0);
+  const sheetH = (rows || 1) * (tile || 0);
+
+  // Screen-constant sizing helpers
+  const F = useMemo(
+    () => (worldScale || 1) * (containerK || 1),
+    [worldScale, containerK]
+  );
+  const invF = 1 / F;
+  const localScale = isMobile || !showBgImage ? invF : 1 / containerK;
+
+
+  //const circleDiameterPx = SIZE * localScale;
+  const circleDiameterPx = SIZE * localScale;
+  const iconSizePx = SIZE * localScale * 0.9;
+  const hitStrokePx = 2 * localScale;
+  const strokeWidth = 2 * localScale;
+
+  const rLocal = circleDiameterPx / 2;
+  const iconLocal = iconSizePx;
+  // const hitStrokeLocal = Math.max(
+  //   hitStrokePx * (isMobile ? 1 : invF),
+  //   8 * (isMobile ? 1 : invF)
+  // );
+  const hitStrokeLocal = hitStrokePx;
+
+  // fillColor
+  let fillColor = marker?.fillColor ?? "#f44336";
+
+  const hoverFillColor = useMemo(() => {
+    try {
+      return darken(fillColor, 0.2);
+    } catch {
+      return fillColor;
+    }
+  }, [fillColor]);
+
+  fillColor = hovered ? hoverFillColor : fillColor;
+
+
+
+  // Position
+  const pixelX = marker.point?.x || 0
+  const pixelY = marker.point?.y || 0
+
+  const currentX = pixelX;
+  const currentY = pixelY;
+
+
+  /* ---------- Label measurement & layout ---------- */
+  const textRef = useRef(null);
+  const [labelSize, setLabelSize] = useState({ w: 0, h: 0 });
+
+  const labelFontPx = 11 * localScale;
+  const labelPad = 4 * localScale; // padding inside white rect
+  const gap = -2 * localScale; // stick distance from circle (px) at bottom-right
+
+  useLayoutEffect(() => {
+    if (!showLabel || !textRef.current) {
+      setLabelSize({ w: 0, h: 0 });
+      return;
+    }
+    try {
+      const bb = textRef.current.getBBox();
+      setLabelSize({ w: Math.ceil(bb.width), h: Math.ceil(bb.height) });
+    } catch {
+      const approxW = labelText.length * (labelFontPx * 0.6);
+      setLabelSize({ w: Math.ceil(approxW), h: Math.ceil(labelFontPx * 1.2) });
+    }
+  }, [showLabel, labelText, labelFontPx, worldScale, containerK, selected]);
+
+  const rectW = labelSize.w + labelPad * 2;
+  const rectH = Math.max(labelSize.h, Math.ceil(labelFontPx * 1.2));
+
+  // 🔴 Anchor rule:
+  // Top-left corner of the label is stuck to the circle's BOTTOM-RIGHT side (bounding box),
+  // with a tiny gap of 2px outward.
+  const rectX = rLocal * 0.5 + gap; // to the right of the circle
+  const rectY = rLocal * 0.5 + gap; // below the circle
+
+  return (
+    <g
+      transform={`translate(${currentX}, ${currentY})`}
+      style={{
+        cursor: dragged ? "grabbing" : "pointer",
+        //pointerEvents: "none",
+        filter: selected ? "drop-shadow(0 4px 8px rgba(0,0,0,0.3))" : "none",
+      }}
+      {...dataProps}
+    >
+      {/* Circle */}
+      <circle
+        cx={0}
+        cy={0}
+        r={selected ? rLocal * 1.2 : rLocal}
+        fill={fillColor}
+        stroke="#fff"
+        strokeWidth={strokeWidth}
+        opacity={dragged ? 0.5 : 0.9}
+      //vectorEffect="non-scaling-stroke"
+      />
+
+      {/* Sprite icon */}
+      {spriteSheetUrl && (
+        <svg
+          x={-iconLocal / 2}
+          y={-iconLocal / 2}
+          width={iconLocal}
+          height={iconLocal}
+          viewBox={`${(col || 0) * (tile || 0)} ${(row || 0) * (tile || 0)} ${tile || 0
+            } ${tile || 0}`}
+          style={{ pointerEvents: "none" }}
+        >
+          <image
+            href={spriteSheetUrl}
+            width={sheetW}
+            height={sheetH}
+            preserveAspectRatio="none"
+          />
+        </svg>
+      )}
+
+      {/* Wide hit ring */}
+      <circle
+        cx={0}
+        cy={0}
+        r={rLocal}
+        fill="transparent"
+        stroke="transparent"
+        //stroke="white"
+        strokeWidth={hitStrokeLocal}
+        pointerEvents="stroke"
+      />
+
+      {/* Label: top-left stuck to circle's bottom-right, text vertically centered */}
+      {showLabel && (
+        <g style={{ pointerEvents: "none" }}>
+          <rect
+            x={rectX}
+            y={rectY}
+            rx={4 * localScale}
+            ry={4 * localScale}
+            width={rectW}
+            height={rectH}
+            fill="#fff"
+            stroke={hasImages ? fillColor : grey[600]}
+            strokeWidth={1 * localScale}
+          />
+          <text
+            ref={textRef}
+            x={rectX + labelPad}
+            y={rectY + rectH / 2}
+            dominantBaseline="middle"
+            fontSize={labelFontPx}
+            fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+            fill={hasImages ? "#111" : grey[600]}
+            fontWeight="600"
+          >
+            {labelText}
+          </text>
+        </g>
+      )}
+
+      {/* ------------------------------------------- */}
+      {/* CROSSHAIR                   */}
+      {/* ------------------------------------------- */}
+      {dragged && (
+        <g style={{ pointerEvents: "none" }}>
+          {/* Ligne Horizontale */}
+          <line
+            x1={-rLocal * 0.5}
+            y1={0}
+            x2={rLocal * 0.5}
+            y2={0}
+            stroke="#000" // Couleur noire
+            strokeWidth={1}
+            strokeOpacity={0.7}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+          {/* Ligne Verticale */}
+          <line
+            x1={0}
+            y1={-rLocal * 0.5}
+            x2={0}
+            y2={rLocal * 0.5}
+            stroke="#000" // Couleur noire
+            strokeWidth={1}
+            strokeOpacity={0.7}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+
+        </g>
+      )}
+    </g>
+  );
+}

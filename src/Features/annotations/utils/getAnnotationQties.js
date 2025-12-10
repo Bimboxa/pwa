@@ -9,7 +9,7 @@ export default function getAnnotationQties(annotation, baseMap) {
   }
 
   const { type, points } = annotation;
-  if (type !== "POLYLINE" || !Array.isArray(points) || points.length < 2) {
+  if (!["POLYLINE", "POLYGON"].includes(type) || !Array.isArray(points) || points.length < 2) {
     return { length: 0, surface: 0 };
   }
 
@@ -38,6 +38,7 @@ export default function getAnnotationQties(annotation, baseMap) {
   }
 
   const closeLine =
+    type === "POLYGON" ||
     annotation.closeLine ||
     annotation?.polyline?.closeLine ||
     annotation?.annotationTemplate?.closeLine;
@@ -50,7 +51,7 @@ export default function getAnnotationQties(annotation, baseMap) {
     const cutsRaw = annotation.cuts || annotation?.polyline?.cuts || [];
     const cuts = cutsRaw.map((cut) => {
       if (!cut || !Array.isArray(cut.points)) return cut;
-      
+
       // Convert cut points to pixels if needed
       let cutPointsInPx = cut.points;
       if (imageSize?.width && imageSize?.height) {
@@ -59,13 +60,13 @@ export default function getAnnotationQties(annotation, baseMap) {
           y: p.y * imageSize.height,
         }));
       }
-      
+
       return {
         ...cut,
         points: cutPointsInPx,
       };
     });
-    
+
     surfacePx = getPointsSurface(pointsInPx, closeLine, cuts);
   }
 

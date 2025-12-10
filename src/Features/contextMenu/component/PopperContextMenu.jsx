@@ -53,7 +53,7 @@ export default function PopupContextMenu() {
       anchorPosition={anchorPosition}
       onClose={handleClose}
     >
-      {mode === "CREATE" && <ContextMenuCreateEntity />}
+      {/* {mode === "CREATE" && <ContextMenuCreateEntity />} */}
       {mode === "ANNOTATION" && <ContextMenuAnnotation />}
       {mode === "POLYLINE_POINT" && <ContextMenuPolylinePoint />}
     </PopperBox>

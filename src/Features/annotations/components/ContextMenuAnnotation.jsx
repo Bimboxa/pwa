@@ -45,15 +45,16 @@ export default function ContextMenuAnnotation() {
     return await db.annotations.get(clickedNode.id);
   }, [clickedNode?.id]);
 
+  console.log("[ContextMenuAnnotation] clicked annotation", annotation)
+
   // helpers
 
   const actions = [
-    { label: "Editer", handler: handleEdit },
-    { isDivider: true },
     { label: "Avancer au 1er plan", handler: handleMoveTop },
     { label: "Reculer à l'arrière plan", handler: handleMoveBottom },
     { isDivider: true },
-    { label: "Ajouter un objet", handler: handleAddEntity },
+    { label: "Editer les propriétés", handler: handleEdit },
+    //{ label: "Ajouter un objet", handler: handleAddEntity },
   ];
 
   // helpers - show

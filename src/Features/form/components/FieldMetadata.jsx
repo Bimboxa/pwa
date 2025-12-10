@@ -45,6 +45,7 @@ export default function FieldMetadata({ value, onChange, label }) {
           justifyContent: "center",
           p: 1,
           flexDirection: "column",
+          gap: 2,
         }}
       >
         {value?.map(({ key, value: _value, label: _label }) => {

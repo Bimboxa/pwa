@@ -10,6 +10,7 @@ export default function useMoveAnnotation() {
   // main
 
   const move = async (annotation, position) => {
+    console.log("debug_0912_moveAnnotation", annotation);
     if (!annotation?.id || !annotation.listingId) return;
 
     const listing = await db.listings.get(annotation.listingId);

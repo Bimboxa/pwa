@@ -4,6 +4,8 @@ import { useSelector } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
+import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
+import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 
 import db from "App/db/db";
 import getAnnotationTemplateFromNewAnnotation from "Features/annotations/utils/getAnnotationTemplateFromNewAnnotation";
@@ -17,13 +19,20 @@ export default function useHandleCommitDrawing() {
     const projectId = useSelector(s => s.projects.selectedProjectId);
     const listingId = useSelector(s => s.listings.selectedListingId);
     const newAnnotation = useSelector(s => s.annotations.newAnnotation);
+
     const createEntity = useCreateEntity();
+    const createAnnotation = useCreateAnnotation();
 
     const baseMap = useMainBaseMap();
+    const resetNewAnnotation = useResetNewAnnotation();
 
     // main
 
-    const handleDrawingCommit = async (rawPoints) => {
+    const handleDrawingCommit = async (rawPoints, options) => {
+
+        // options
+
+        const closeLine = options?.closeLine;
 
         // rawPoints = [{x,y, existingPointId?}, {x,y}, ...]
 
@@ -93,6 +102,7 @@ export default function useHandleCommitDrawing() {
 
         // ÉTAPE 3 : Création de l'Annotation (Topologie)
         const _newAnnotation = {
+            ...newAnnotation,
             id: nanoid(),
             annotationTemplateId,
             entityId: entity.id,
@@ -100,9 +110,11 @@ export default function useHandleCommitDrawing() {
             baseMapId,
             projectId,
             listingId,
-            ...newAnnotation,
+
             // ... props de style
         };
+
+        if (closeLine) _newAnnotation.closeLine = true;
 
         if (["POLYGON", "POLYLINE", "MARKER"].includes(newAnnotation?.type)) {
             _newAnnotation.points = finalPointIds.map(id => ({ id }));
@@ -115,9 +127,12 @@ export default function useHandleCommitDrawing() {
         // Mise à jour Optimiste Redux
         //dispatch(addAnnotation(newAnnotation));
         // Sauvegarde DB
-        await db.annotations.add(_newAnnotation);
+        await createAnnotation(_newAnnotation);
 
         console.log("Annotation créée avec succès !");
+
+        // Reset
+        resetNewAnnotation();
     }
 
     return handleDrawingCommit

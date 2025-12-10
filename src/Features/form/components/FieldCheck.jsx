@@ -11,6 +11,7 @@ import SelectorIconGeneric from "Features/layout/components/SelectorIconGeneric"
 export default function FieldCheck({ value, onChange, label, options }) {
   const type = options?.type ?? "check";
   const showAsSection = options?.showAsSection ?? false;
+  const textColor = options?.textColor ?? "text.primary";
 
   function handleChange(e, checked) {
     onChange(checked);
@@ -43,7 +44,7 @@ export default function FieldCheck({ value, onChange, label, options }) {
             />
           )
         }
-        label={<Typography variant="body2">{label}</Typography>}
+        label={<Typography variant="body2" color={textColor}>{label}</Typography>}
       />
     </Box>
   );

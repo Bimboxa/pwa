@@ -12,6 +12,9 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import IconButton from "@mui/material/IconButton";
+import ExpandMore from "@mui/icons-material/ExpandMore";
+import ExpandLess from "@mui/icons-material/ExpandLess";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
@@ -43,6 +46,7 @@ export default function SectionCreateBaseMap({ onClose }) {
   // state
 
   const [item, setItem] = useState({});
+  const [openAdvanced, setOpenAdvanced] = useState(false);
 
   // helper - max size
 
@@ -59,8 +63,8 @@ export default function SectionCreateBaseMap({ onClose }) {
         type: "text",
         label: "Nom",
         options: {
-          showLabel: true,
           fullWidth: true,
+          showAsSection: true,
         },
       },
       {
@@ -69,19 +73,20 @@ export default function SectionCreateBaseMap({ onClose }) {
         label: "Image",
         options: {
           maxSize,
+          showAsSection: true,
         },
       },
-      {
-        key: "geoProps",
-        type: "text",
-        label: "Géolocalisation",
-        options: {
-          showLabel: false,
-          fullWidth: true,
-          placeholder: "geo::latitude::longitude::meterByPx",
+      // {
+      //   key: "geoProps",
+      //   type: "text",
+      //   label: "Géolocalisation",
+      //   options: {
+      //     showLabel: false,
+      //     fullWidth: true,
+      //     placeholder: "geo::latitude::longitude::meterByPx",
 
-        }
-      }
+      //   }
+      // }
     ],
   };
 
@@ -161,18 +166,26 @@ export default function SectionCreateBaseMap({ onClose }) {
           />
         </Box>
       </BoxFlexVStretch>
+
       <Box sx={{ p: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          Création avancée
-        </Typography>
-        <ButtonInPanelV2
-          label="Ouvrir Google Maps"
-          onClick={handleOpenPageGmap}
-          size="small"
-          variant="outlined"
-          color="secondary"
-        />
-        <ButtonDialogCreateBaseMapFromJson />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            Création avancée
+          </Typography>
+          <IconButton size="small" onClick={() => setOpenAdvanced(!openAdvanced)}>{openAdvanced ? <ExpandLess /> : <ExpandMore />}</IconButton>
+        </Box>
+        <Box sx={{ display: openAdvanced ? "flex" : "none", flexDirection: "column", gap: 1 }}>
+
+
+          <ButtonInPanelV2
+            label="Ouvrir Google Maps"
+            onClick={handleOpenPageGmap}
+            size="small"
+            variant="outlined"
+            color="secondary"
+          />
+          <ButtonDialogCreateBaseMapFromJson />
+        </Box>
       </Box>
     </BoxFlexVStretch>
   );

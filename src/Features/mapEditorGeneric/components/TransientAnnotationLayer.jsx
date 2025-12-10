@@ -1,13 +1,13 @@
 // components/layers/TransientTopologyLayer.jsx
 import React, { useMemo } from 'react';
 
-import NodeMarkerStatic from './NodeMarkerStatic';
-import NodePolylineStatic from './NodePolylineStatic';
+import NodeAnnotationStatic from './NodeAnnotationStatic';
 
 export default function TransientAnnotationLayer({
     annotation,
     deltaPos,
-    baseMapMeterByPx
+    baseMapMeterByPx,
+    basePose,
 }) {
 
     const modifiedAnnotation = useMemo(() => {
@@ -44,17 +44,13 @@ export default function TransientAnnotationLayer({
                 cursor: "grabbing"
             }}
         >
-            {annotation?.type === "MARKER" && <NodeMarkerStatic
-                marker={modifiedAnnotation}
+            <NodeAnnotationStatic
+                annotation={modifiedAnnotation}
                 baseMapMeterByPx={baseMapMeterByPx}
                 dragged={true}
+                sizeVariant="FIXED_IN_SCREEN"
+                containerK={basePose.k}
             />
-
-            }
-            {["POLYLINE", "POLYGON"].includes(annotation?.type) && <NodePolylineStatic
-                annotation={modifiedAnnotation}
-                baseMapMeterByPx={baseMapMeterByPx} />
-            }
         </g>
     );
 }
