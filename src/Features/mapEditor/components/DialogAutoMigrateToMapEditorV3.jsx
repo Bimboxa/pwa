@@ -58,13 +58,13 @@ export default function DialogAutoMigrateToMapEditorV3() {
     return (
         <DialogGeneric
             title={"Migration vers Krto 1.2"}
-            open={isLegacy}
-            onClose={() => { }}
+            open={open}
+            onClose={() => setOpen(false)}
         >
             <Box sx={{ p: 3 }}>
                 <ButtonGeneric label="Migrer" onClick={handleMigrate} loading={loading} />
             </Box>
 
-        </DialogGeneric>
+        </DialogGeneric >
     );
 }
