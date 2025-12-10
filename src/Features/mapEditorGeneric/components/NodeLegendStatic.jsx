@@ -68,7 +68,7 @@ export default memo(function NodeLegendStatic({
             boxSizing: "border-box",
         };
 
-        if (type === "POLYLINE" && !closeLine) {
+        if (type === "POLYLINE") {
             return (
                 <div style={{ ...commonStyle, background: "white", border: `2px solid ${strokeColor}` }}>
                     <Polyline style={{ fill: strokeColor, scale: 0.8 }} />
@@ -76,7 +76,7 @@ export default memo(function NodeLegendStatic({
             );
         }
 
-        if (type === "POLYLINE" && closeLine) {
+        if (type === "POLYGON") {
             return (
                 <div style={{ ...commonStyle, background: "white", border: `2px solid ${strokeColor}` }}>
                     <Polygon style={{ fill: fillColor, scale: 0.8 }} />

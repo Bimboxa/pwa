@@ -391,6 +391,8 @@ export default function MainMapEditorV3() {
                 annotations={annotations}
                 spriteImage={spriteImage}
                 baseMapMeterByPx={baseMap?.meterByPx}
+                legendItems={legendItems}
+                legendFormat={legendFormat}
             />
 
             <DialogDeleteSelectedAnnotation />

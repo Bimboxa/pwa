@@ -64,7 +64,7 @@ export default function NodePolylineStatic({
 
     // 1. Calculate the Stroke Width (in Map Pixels) if using physical units
     const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx > 0;
-    console.log("isCmUnit", isCmUnit, strokeWidthUnit === "CM", baseMapMeterByPx);
+
 
     const computedStrokeWidth = useMemo(() => {
         if (isCmUnit) {
