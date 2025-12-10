@@ -33,8 +33,8 @@ export default function DialogAutoMigrateToMapEditorV3() {
     annotations?.forEach((annotation) => {
         if (annotation.points?.length > 0) {
             const pointO = annotation.points[0];
-            if (testObjectHasProp(pointO, "x")) legacyAnnotations.push(annotation);
-        } else if (testObjectHasProp(annotation, "x")) {
+            if (!testObjectHasProp(pointO, "id")) legacyAnnotations.push(annotation);
+        } else if (testObjectHasProp(annotation, x)) {
             legacyAnnotations.push(annotation);
         }
     });
