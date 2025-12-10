@@ -524,9 +524,13 @@ const InteractionLayer = forwardRef(({
       return; // Action exclusive
     }
 
-    // D. SNAPPING (Seulement si pas d'interaction lourde en cours)
+    // D. SNAPPING
+    // Correction : On autorise le snapping pendant le dessin (enabledDrawingMode)
+    // On l'interdit seulement pour le Pan ou le Drag d'objets lourds
+    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active;
+
     let snapResult;
-    if (snappingEnabled && !isInteracting) {
+    if (snappingEnabled && !preventSnapping) {
       const imageScale = getTargetScale();
       const scale = imageScale * cameraZoom;
       const localPos = toLocalCoords(worldPos);
