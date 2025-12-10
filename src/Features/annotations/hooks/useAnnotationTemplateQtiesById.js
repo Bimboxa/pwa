@@ -9,12 +9,13 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getPointsLength from "Features/geometry/utils/getPointsLength";
 import getPointsSurface from "Features/geometry/utils/getPointsSurface";
 import getAnnotationTemplateMainQtyLabel from "Features/annotations/utils/getAnnotationTemplateMainQtyLabel";
+import useAnnotationsV2 from "./useAnnotationsV2";
 
 export default function useAnnotationTemplateQtiesById() {
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const annotations = useAnnotations({ filterByProjectId: projectId });
+  const annotations = useAnnotationsV2({ filterByProjectId: projectId });
   const annotationTemplates = useAnnotationTemplates();
   const { value: baseMaps } =
     useBaseMaps({ filterByProjectId: projectId }) ?? {};
@@ -67,6 +68,7 @@ export default function useAnnotationTemplateQtiesById() {
       }
 
       const closeLine =
+        annotation.type === "POLYGON" ||
         annotation.closeLine ||
         annotation?.polyline?.closeLine ||
         annotation?.annotationTemplate?.closeLine ||
@@ -80,27 +82,27 @@ export default function useAnnotationTemplateQtiesById() {
         const cutsRaw = annotation.cuts || annotation?.polyline?.cuts || [];
         const cuts = cutsRaw.map((cut) => {
           if (!cut || !Array.isArray(cut.points)) return cut;
-          
+
           // Convert cut points to pixels if needed (points are already converted above)
           // But cuts might still be in relative coordinates
           let cutPointsInPx = cut.points;
           const hasRelativeCoords = cut.points.every(
             (p) => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1
           );
-          
+
           if (hasRelativeCoords && imageSize?.width && imageSize?.height) {
             cutPointsInPx = cut.points.map((p) => ({
               x: p.x * imageSize.width,
               y: p.y * imageSize.height,
             }));
           }
-          
+
           return {
             ...cut,
             points: cutPointsInPx,
           };
         });
-        
+
         surfacePx = getPointsSurface(points, closeLine, cuts);
       }
 
@@ -141,13 +143,13 @@ export default function useAnnotationTemplateQtiesById() {
       stats.count += 1;
       stats.unit = stats.count;
 
-      if (annotation?.type === "POLYLINE") {
+      if (annotation?.type === "POLYLINE" || annotation?.type === "POLYGON") {
         const template = annotationTemplateById?.[templateId];
         const { length, surface } = computePolylineMetrics(annotation);
 
         stats.length += length;
 
-        if (template?.type === "POLYLINE" && template?.closeLine) {
+        if (template?.type === "POLYLINE" && template?.closeLine || annotation?.type === "POLYGON") {
           stats.surface += surface;
         }
       }

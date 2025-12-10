@@ -80,9 +80,20 @@ export default function FieldStroke({ value, onChange }) {
           onChange={handleTypeChange}
           valueOptions={strokeTypeOptions}
         />
+        <Box sx={{ width: 120, flexShrink: 0 }}>
+          <FieldTextV2
+            value={strokeOpacity}
+            onChange={handleOpacityChange}
+            label={opacityS}
+            options={{
+              showLabel: true,
+              fullWidth: true,
+            }}
+          />
+        </Box>
       </Box>
 
-      <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+      <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 2 }}>
         <Typography variant="body2" color="text.secondary">
           {widthS}
         </Typography>
@@ -96,19 +107,15 @@ export default function FieldStroke({ value, onChange }) {
           onChange={handleWidthUnitChange}
           valueOptions={strokeWidthUnitsOptions}
         />
+
       </Box>
 
-      <FieldSlider
-        label={opacityS}
-        value={strokeOpacity}
-        onChange={handleOpacityChange}
-      />
-      <FieldCheck
+      {/* <FieldCheck
         label={offsetS}
         value={strokeOffset}
         onChange={handleOffsetChange}
         options={{ type: "switch" }}
-      />
+      /> */}
     </Box>
   );
 }

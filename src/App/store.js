@@ -40,6 +40,7 @@ import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
 import reportsReducer from "Features/reports/reportsSlice";
 import blueprintsReducer from "Features/blueprints/blueprintsSlice";
 import selectionReducer from "Features/selection/selectionSlice";
+import fwcReducer from "Features/fwc/fwcSlice";
 //
 import chatReducer from "Features/chat/chatSlice";
 import showerReducer from "Features/shower/showerSlice";
@@ -81,6 +82,7 @@ const store = configureStore({
     entities: entitiesReducer,
     entityProps: entityPropsReducer,
     zones: zonesReducer,
+    fwc: fwcReducer,
     relsZoneEntity: relsZoneEntityReducer,
     locatedEntities: locatedEntitiesReducer,
     viewers: viewersReducer,

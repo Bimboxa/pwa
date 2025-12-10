@@ -92,7 +92,7 @@ export default function FormAnnotationTemplateVariantBlock({
   // helpers - show fill and stroke
 
   const showFill = ["RECTANGLE", "POLYGON"].includes(type);
-  const showStroke = ["POLYLNE"].includes(type);
+  const showStroke = ["POLYLINE"].includes(type);
 
   // handlers
 
@@ -183,7 +183,7 @@ export default function FormAnnotationTemplateVariantBlock({
       )}
       {type === "MARKER" && (
         <Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
             <FieldIconVariantToolbar
               value={iconKey}
               onChange={handleIconKeyChange}
@@ -208,7 +208,7 @@ export default function FormAnnotationTemplateVariantBlock({
 
       {["SEGMENT", "POLYLINE", "POLYGON", "RECTANGLE"].includes(type) && (
         <Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
             <AnnotationIcon
               spriteImage={spriteImage}
               annotation={annotationTemplate}
@@ -248,7 +248,7 @@ export default function FormAnnotationTemplateVariantBlock({
             </Box>
           )}
 
-          <Box>
+          {/* <Box>
             <FieldCheck
               value={cutHost}
               onChange={handleCutHostChange}
@@ -258,7 +258,7 @@ export default function FormAnnotationTemplateVariantBlock({
                 showAsSection: true,
               }}
             />
-          </Box>
+          </Box> */}
         </Box>
       )}
 

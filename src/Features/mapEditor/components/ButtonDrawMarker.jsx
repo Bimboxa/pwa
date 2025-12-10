@@ -12,7 +12,7 @@ import IconButtonToolbarGeneric from "Features/layout/components/IconButtonToolb
 
 // import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 
-export default function ButtonDrawMarker() {
+export default function ButtonDrawMarker({ disabled }) {
   const dispatch = useDispatch();
 
   // strings
@@ -38,8 +38,8 @@ export default function ButtonDrawMarker() {
   }
 
   return (
-    <IconButtonToolbarGeneric label={title} size={32} onClick={handleClick} showBorder={true}>
-      <Marker fontSize="small" sx={{ color: newAnnotation?.fillColor }} />
+    <IconButtonToolbarGeneric label={title} size={32} onClick={handleClick} showBorder={true} disabled={disabled}>
+      <Marker fontSize="small" sx={{ color: disabled ? "grey.300" : newAnnotation?.fillColor }} />
     </IconButtonToolbarGeneric>
 
   );

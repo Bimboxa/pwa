@@ -6,6 +6,7 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import { setAnchorPositionScale, setScaleInPx } from "../mapEditorSlice";
 import { setTempAnnotations } from "Features/annotations/annotationsSlice";
+import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
 
 import useMeasure from "react-use-measure";
 
@@ -23,22 +24,31 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationType";
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+import useLegendItems from "Features/legend/hooks/useLegendItems";
 
 import { Box } from "@mui/material";
 
 import InteractionLayer from "./InteractionLayer";
+import PrintableMap from "./PrintableMap";
 
 import UILayer from "./UILayer";
 import StaticMapContent from "./StaticMapContent";
 import EditedObjectLayer from "./EditedObjectLayer";
+import EditedBaseMapLayer from "./EditedBaseMapLayer";
 
+import DialogAutoCreateEntity from "Features/entities/components/DialogAutoCreateEntity";
 import DialogDeleteSelectedAnnotation from "Features/annotations/components/DialogDeleteSelectedAnnotation";
 import PopperEditAnnotation from "./PopperEditAnnotation";
 import PopperEditScale from "./PopperEditScale";
+import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
+import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
+import ScreenNoBaseMap from "./ScreenNoBaseMap";
 
 import { InteractionProvider } from "../context/InteractionContext";
 
 import db from "App/db/db";
+import editor from "App/editor";
+import getPolylinePointsFromRectangle from "Features/geometry/utils/getPolylinePointsFromRectangle";
 
 export default function MainMapEditorV3() {
     const dispatch = useDispatch();
@@ -51,6 +61,15 @@ export default function MainMapEditorV3() {
 
     const [containerRef, bounds] = useMeasure();
     const interactionLayerRef = useRef(null);
+    const printableMapRef = useRef(null);
+
+    // init ref
+    useEffect(() => {
+        if (printableMapRef?.current) {
+            editor.printableMapSvgElement = printableMapRef.current;
+        }
+    }, [printableMapRef?.current]);
+
 
     // data
 
@@ -61,7 +80,6 @@ export default function MainMapEditorV3() {
     const selectedNode = useSelector((state) => state.mapEditor.selectedNode);
     const newAnnotationType = useNewAnnotationType();
     const resetNewAnnotation = useResetNewAnnotation();
-
 
     // viewport
 
@@ -93,14 +111,30 @@ export default function MainMapEditorV3() {
         viewport,
         basePoseInBg,
     });
+    const handleBaseMapPoseChange = (newPose) => {
+        // newPose = { x, y, k, r }
+        dispatch(setBaseMapPoseInBg(newPose));
+    };
+    const isBaseMapSelected = showBgImage && selectedNode?.nodeType === "BASE_MAP";
+    console.log("isBaseMapSelected", isBaseMapSelected, selectedNode);
 
     // annotation
 
     let newAnnotation = useSelector(s => s.annotations.newAnnotation);
+    const type = newAnnotation?.type;
 
     // annotations
 
-    const annotations = useAnnotationsV2();
+    const annotations = useAnnotationsV2({ withEntity: true });
+
+    // legend
+
+    const legendItems = useLegendItems();
+    const legendFormat = useSelector((s) => s.mapEditor.legendFormat);
+
+    function handleLegendFormatChange(newFormat) {
+        dispatch(setLegendFormat(newFormat));
+    }
 
 
     // default camera matrix
@@ -121,6 +155,16 @@ export default function MainMapEditorV3() {
 
     const handleCommitDrawing = useHandleCommitDrawing();
 
+    // handlers - rectangle
+
+    const handleCommitDrawingFromRectangle = (points, event) => {
+        if (["POLYGON", "POLYLINE"].includes(type)) {
+            points = getPolylinePointsFromRectangle(points)
+        }
+        const options = {}
+        if (type === "POLYLINE") options.closeLine = true;
+        handleCommitDrawing(points, options)
+    }
     // handlers - measure
 
     const handleMeasureCommit = (points, event) => {
@@ -131,7 +175,9 @@ export default function MainMapEditorV3() {
             id: nanoid(),
             type: "POLYLINE",
             points,
-            outOfSnapScope: true
+            outOfSnapScope: true,
+            baseMapId: baseMap.id,
+            projectId,
         }]))
         const p1 = points[0];
         const p2 = points[points.length - 1];
@@ -254,10 +300,16 @@ export default function MainMapEditorV3() {
 
     const isSnappingEnabled = enabledDrawingMode || !selectedNode;
 
+    // helper - sizeVariant
 
+    const sizeVariant = showBgImage ? "FIXED_IN_CONTAINER_PARENT" : "FIXED_IN_SCREEN";
+
+    // render
+
+    if (!baseMap) return <ScreenNoBaseMap />;
 
     return (
-        <Box ref={containerRef} sx={{ width: '100%', height: '100%', border: '1px solid red', position: "relative" }}>
+        <Box ref={containerRef} sx={{ width: '100%', height: '100%', position: "relative", bgcolor: "background.default" }}>
             <InteractionProvider>
                 <InteractionLayer
                     enabledDrawingMode={enabledDrawingMode}
@@ -268,11 +320,15 @@ export default function MainMapEditorV3() {
                     onCommitDrawing={(points, event) => {
                         if (enabledDrawingMode === 'MEASURE') {
                             handleMeasureCommit(points, event);
+                        } else if (enabledDrawingMode === 'RECTANGLE') {
+                            handleCommitDrawingFromRectangle(points, event);
                         } else {
                             handleCommitDrawing(points, event);
                         }
                     }}
+                    baseMapImageSize={baseMap?.getImageSize()}
                     basePose={basePose}
+                    onBaseMapPoseChange={handleBaseMapPoseChange}
                     activeContext={activeContext}
                     annotations={annotations}
                     onPointMoveCommit={handlePointMoveCommit}
@@ -291,14 +347,31 @@ export default function MainMapEditorV3() {
                         baseMapImageUrl={baseMap?.getUrl()}
                         baseMapImageSize={baseMap?.getImageSize()}
                         annotations={annotations}
+                        legendItems={legendItems}
+                        legendFormat={legendFormat}
+                        sizeVariant={sizeVariant}
+                        isEditingBaseMap={isBaseMapSelected}
                     />
-                    <EditedObjectLayer
+                    {/* 2. LAYER ÉDITION BASEMAP (Exclusif) */}
+                    {isBaseMapSelected && (
+                        <EditedBaseMapLayer
+                            basePose={basePose} // La pose qui vient du hook (et donc de Redux)
+                            baseMapImageUrl={baseMap?.getUrl()}
+                            baseMapImageSize={baseMap?.getImageSize()}
+                        // Pas besoin de passer onChange ici car InteractionLayer 
+                        // intercepte les événements via data-interaction="transform-basemap"
+                        // et appelle onBaseMapPoseChange du InteractionLayer
+                        />
+                    )}
+
+                    {!isBaseMapSelected && <EditedObjectLayer
                         basePose={basePose}
                         annotations={annotations}
                         spriteImage={spriteImage}
                         selectedNode={selectedNode}
                         baseMapMeterByPx={baseMap?.meterByPx} // If needed for width calc
-                    />
+                    />}
+
 
                 </InteractionLayer>
 
@@ -306,9 +379,26 @@ export default function MainMapEditorV3() {
 
             </InteractionProvider>
 
+            <PrintableMap
+                ref={printableMapRef}
+                bgImageUrl={bgImage?.url}
+                bgImageSize={bgImage?.imageSize}
+                showBgImage={showBgImage}
+                basePose={basePose}
+                baseMapImageUrl={baseMap?.getUrl()}
+                baseMapImageSize={baseMap?.getImageSize()}
+                annotations={annotations}
+                spriteImage={spriteImage}
+                baseMapMeterByPx={baseMap?.meterByPx}
+            />
+
             <DialogDeleteSelectedAnnotation />
-            <PopperEditAnnotation viewerKey="MAP" />
+            <DialogAutoCreateEntity />
+            {/* <PopperEditAnnotation viewerKey="MAP" /> */}
             <PopperEditScale />
+            <PopperContextMenu />
+
+            <DialogAutoMigrateToMapEditorV3 />
         </Box>
 
     );

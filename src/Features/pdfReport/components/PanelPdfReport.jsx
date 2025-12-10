@@ -56,7 +56,7 @@ export default function PanelPdfReport() {
     setLoading(true);
     console.log("handleGenerateClick");
     await exportPdf({
-      svgElement: editor.mapEditorSvgElement,
+      svgElement: editor.printableMapSvgElement,
       name: title,
       addTable: true,
     });

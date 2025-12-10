@@ -18,7 +18,7 @@ export default function useBgImageTextAnnotations() {
   const textAnnotations = [];
 
   bgImageInMapEditor?.textAnnotations?.forEach((textAnnotation) => {
-    if (rawAnnotations[textAnnotation.key]) {
+    if (rawAnnotations?.[textAnnotation.key]) {
       textAnnotations.push({
         id: textAnnotation.key,
         x: textAnnotation.position[0] / bgImageInMapEditor.width,
@@ -27,7 +27,7 @@ export default function useBgImageTextAnnotations() {
         fontWeight: textAnnotation.fontWeight,
         type: "TEXT",
         nodeType: "BG_IMAGE_TEXT",
-        textValue: rawAnnotations[textAnnotation.key],
+        textValue: rawAnnotations?.[textAnnotation.key],
       });
     }
   });

@@ -34,7 +34,6 @@ export default function FieldFill({ value, onChange }) {
   }
 
   function handleOpacityChange(opacity) {
-    opacity = parseFloat(opacity ?? 0.8);
     onChange({ ...value, fillOpacity: opacity });
   }
 

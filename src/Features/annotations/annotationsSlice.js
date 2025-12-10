@@ -13,6 +13,10 @@ const annotationsInitialState = {
   newAnnotation: {
     fillColor: theme.palette.secondary.main,
     strokeColor: theme.palette.secondary.main,
+    fillOpacity: 0.6,
+    strokeOpacity: 0.8,
+    strokeWidth: 1,
+    strokeWidthUnit: "PX",
   },
   // props used when adding a annotation
   editedAnnotation: null,

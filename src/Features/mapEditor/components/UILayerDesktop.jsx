@@ -1,10 +1,27 @@
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+
 import { Box } from "@mui/material";
 
 import ButtonSelectorBaseMapInMapEditor from "Features/baseMaps/components/ButtonSelectorBaseMapInMapEditor";
 import ToolbarMapEditorV3 from "./ToolbarMapEditorV3";
-//import ButtonEditScale from "./ButtonEditScale";
+import ButtonEditScaleVariantFirst from "./ButtonEditScaleVariantFirst";
 
 export default function UILayerDesktop({ mapController, onResetCamera }) {
+
+    // data
+
+    const { value: listing } = useSelectedListing();
+
+    // helpers
+
+    const emType = listing?.entityModel?.type;
+
+    // helpers - show
+
+    const showDrawingTools = emType === "LOCATED_ENTITY";
+    const showEditScale = true;
+
+
     return (
         <>
             <Box
@@ -19,28 +36,28 @@ export default function UILayerDesktop({ mapController, onResetCamera }) {
                 <ButtonSelectorBaseMapInMapEditor onResetCamera={onResetCamera} />
             </Box>
 
-            <Box sx={{
+            {showDrawingTools && <Box sx={{
                 position: "absolute",
                 left: "50%",
-                bottom: "16px",
+                bottom: "24px",
                 transform: "translateX(-50%)",
                 zIndex: 1,
             }}>
                 <ToolbarMapEditorV3 />
-            </Box>
+            </Box>}
 
-            {/* <Box
+            {showEditScale && <Box
                 sx={{
                     position: "absolute",
-                    left: "8px",
-                    bottom: "8px",
+                    left: "4px",
+                    bottom: "4px",
                     zIndex: 1,
                     display: "flex",
                     alignItems: "center",
                 }}
             >
-                <ButtonEditScale size="small" />
-            </Box> */}
+                <ButtonEditScaleVariantFirst size="small" />
+            </Box>}
         </>
     );
 }

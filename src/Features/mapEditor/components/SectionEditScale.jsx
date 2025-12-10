@@ -54,7 +54,9 @@ export default function SectionEditScale() {
 
   // helper - disabled
 
-  const disabled = !distance;
+  const delta = distance - scaleInPx * meterByPx;
+  const disabled = !distance || Math.abs(delta) < 0.0005;
+  console.log("delta", delta)
 
   // helper
 

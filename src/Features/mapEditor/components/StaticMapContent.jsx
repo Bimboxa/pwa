@@ -3,10 +3,11 @@ import { memo } from "react";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 
 import NodeSvgImage from "Features/mapEditorGeneric/components/NodeSvgImage";
-import NodePolylineStatic from "Features/mapEditorGeneric/components/NodePolylineStatic";
-import NodeMarkerStatic from "Features/mapEditorGeneric/components/NodeMarkerStatic";
+import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
+import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
 
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
+
 
 function StaticMapContent({
     bgImageUrl,
@@ -17,9 +18,12 @@ function StaticMapContent({
     baseMapImageUrl,
     baseMapImageSize,
     annotations,
+    legendItems,
+    legendFormat,
     selectedNode,
+    sizeVariant,
+    isEditingBaseMap = false
 }) {
-
 
     // data
 
@@ -30,10 +34,22 @@ function StaticMapContent({
 
     const baseMapIsHovered = showBgImage && hoveredNode?.nodeType === "BASE_MAP";
     const baseMapIsSelected = showBgImage && selectedNode?.nodeType === "BASE_MAP";
+    const legendIsHovered = showBgImage && hoveredNode?.nodeType === "LEGEND";
+    const legendIsSelected = showBgImage && selectedNode?.nodeType === "LEGEND";
+
+    // helpers - annotations
+
+    const bgImageAnnotations = showBgImage
+        ? annotations.filter(({ nodeType }) => nodeType === "BG_IMAGE_TEXT")
+        : [];
+    const baseMapAnnotations = annotations.filter(({ baseMapId }) =>
+        Boolean(baseMapId)
+    );
+
 
     return (
         <>
-            {/* --- BG LAYER --- */}
+            {/* --- BG LAYER  --- */}
             <g transform={`translate(${bgPose.x}, ${bgPose.y}) scale(${bgPose.k})`}>
                 {showBgImage && <NodeSvgImage
                     src={bgImageUrl}
@@ -41,11 +57,24 @@ function StaticMapContent({
                     dataNodeId={bgImageUrl}
                     width={bgImageSize?.width}
                     height={bgImageSize?.height} />}
+
+                {bgImageAnnotations.map((annotation) => (
+                    <NodeAnnotationStatic
+                        key={annotation.id}
+                        annotation={annotation}
+                        spriteImage={spriteImage}
+                        imageSize={bgImageSize}
+                        hovered={annotation.id === hoveredNode?.nodeId}
+                        selected={annotation.id === selectedNode?.id}
+                        sizeVariant={sizeVariant}
+                        containerK={bgPose.k}
+                    />
+                ))}
             </g>
 
             {/* --- BASE MAP LAYER --- */}
             <g transform={`translate(${basePose.x}, ${basePose.y}) scale(${basePose.k})`} style={{ pointerEvents: 'auto' }}>
-                <NodeSvgImage
+                {!isEditingBaseMap && <NodeSvgImage
                     src={baseMapImageUrl}
                     dataNodeType="BASE_MAP"
                     dataNodeId={baseMapImageUrl}
@@ -53,35 +82,38 @@ function StaticMapContent({
                     height={baseMapImageSize?.height}
                     hovered={baseMapIsHovered}
                     selected={baseMapIsSelected}
-                />
+                />}
 
-                {annotations?.map(annotation => {
+                {baseMapAnnotations?.map(annotation => {
 
                     if (hiddenAnnotationIds?.includes(annotation.id)) {
                         return null;
                     }
 
-                    if (annotation.type === "MARKER") {
-                        return <NodeMarkerStatic
-                            key={annotation.id}
-                            marker={annotation}
-                            spriteImage={spriteImage}
-                            hovered={annotation.id === hoveredNode?.nodeId}
-                            selected={annotation.id === selectedNode?.id}
-                        />
-                    } else if (annotation.type === "POLYLINE" || annotation.type === "POLYGON") {
-                        return <NodePolylineStatic
-                            key={annotation.id}
-                            annotation={annotation}
-                            hovered={annotation.id === hoveredNode?.nodeId}
-                            selected={annotation.id === selectedNode?.id}
-                        />
-                    }
+                    return <NodeAnnotationStatic
+                        key={annotation.id}
+                        annotation={annotation}
+                        spriteImage={spriteImage}
+                        hovered={annotation.id === hoveredNode?.nodeId}
+                        selected={annotation.id === selectedNode?.id}
+                        sizeVariant={sizeVariant}
+                        containerK={basePose.k}
+                    />
                 })}
 
+            </g>
 
-
-
+            {/* --- LEGEND --- */}
+            <g transform={`translate(${bgPose.x}, ${bgPose.y}) scale(${bgPose.k})`}>
+                {legendItems && showBgImage && (
+                    <NodeLegendStatic
+                        selected={legendIsSelected}
+                        legendItems={legendItems}
+                        spriteImage={spriteImage}
+                        legendFormat={legendFormat}
+                        hovered={legendIsHovered}
+                    />
+                )}
             </g>
         </>
     );

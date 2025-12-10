@@ -298,16 +298,22 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates(
 
     resetSelection();
 
-    dispatch(setEnabledDrawingMode(annotationTemplate.type));
+    // drawing mode
+
+    let mode = "CLICK";
+    if (annotationTemplate.type === "MARKER") mode = "ONE_CLICK";
+    dispatch(setEnabledDrawingMode(mode));
+
+    // new annotation
+
     dispatch(
       setNewAnnotation({
         ...newAnnotation,
         ...getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate),
-        isFromAnnotation: false,
       })
     );
 
-    dispatch(setSelectedAnnotationTemplateId(annotationTemplate?.id));
+    //dispatch(setSelectedAnnotationTemplateId(annotationTemplate?.id));
 
     // Close context menu if provided
     if (onClose) onClose();

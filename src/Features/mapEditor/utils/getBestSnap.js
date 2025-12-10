@@ -164,6 +164,9 @@ const projectOnArc = (px, py, center, r, start, end, isCW, forceCenter) => {
 const getBestSnap = (mousePos, annotations, threshold, forceCenter = false) => {
     if (!annotations || !annotations.length) return null;
 
+    // remote outOfScope annotations
+    annotations = annotations.filter((ann) => !ann.outOfSnapScope);
+
     let bestSnap = null;
     let minDistSq = threshold * threshold;
 

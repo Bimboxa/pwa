@@ -7,6 +7,7 @@ export default function NodePolylineStatic({
     annotationOverride,
     hovered,
     baseMapMeterByPx,
+    containerK,
 }) {
 
     annotation = { ...annotation, ...annotationOverride };
@@ -29,6 +30,7 @@ export default function NodePolylineStatic({
 
     const dataProps = {
         "data-node-id": annotation.id,
+        "data-node-listing-id": annotation.listingId, // key for context menu
         "data-node-type": "ANNOTATION",
         "data-annotation-type": "POLYLINE",
     };
@@ -38,6 +40,8 @@ export default function NodePolylineStatic({
 
 
     strokeColor = type === "POLYGON" ? fillColor : strokeColor;
+    if (!strokeColor) strokeColor = theme.palette.secondary.main;
+    if (!fillColor) fillColor = theme.palette.secondary.main;
 
     const hoverStrokeColor = useMemo(() => {
         try {
@@ -62,9 +66,13 @@ export default function NodePolylineStatic({
     const computedStrokeWidthPx = useMemo(() => {
         let widthInPx = strokeWidth;
         const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx;
-        if (isCmUnit) widthInPx = (widthInPx * 0.01) / baseMapMeterByPx;
+        if (isCmUnit) {
+            widthInPx = (widthInPx * 0.01) / baseMapMeterByPx;
+        } else {
+            //widthInPx = widthInPx / containerK;
+        }
         return widthInPx;
-    }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx]);
+    }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, containerK]);
 
     // Helper functions - points are already in absolute coordinates
     const typeOf = (p) => (p?.type === "circle" ? "circle" : "square");
@@ -188,7 +196,8 @@ export default function NodePolylineStatic({
         [points, closeLine]
     );
 
-    const showFill = closeLine && fillType !== "NONE";
+    //const showFill = closeLine && fillType !== "NONE";
+    const showFill = type === "POLYGON";
     const HATCHING_SPACING = 12;
 
     if (!points?.length) return null;
@@ -257,6 +266,7 @@ export default function NodePolylineStatic({
                                 }
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
+                                vectorEffect="non-scaling-stroke"
                                 style={{ pointerEvents: "none" }}
                             />
                         </g>

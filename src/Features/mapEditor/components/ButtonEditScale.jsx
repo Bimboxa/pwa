@@ -1,9 +1,9 @@
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { setEnabledDrawingMode } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
-import { Architecture as Scale } from "@mui/icons-material";
+import { Straighten } from "@mui/icons-material";
 import { IconButton, Box } from "@mui/material";
 import IconButtonToolbarGeneric from "Features/layout/components/IconButtonToolbarGeneric";
 
@@ -31,7 +31,7 @@ export default function ButtonEditScale() {
   return (
 
     <IconButtonToolbarGeneric onClick={handleClick} size={32} label={"Prendre une cote"}>
-      <Scale fontSize="small" />
+      <Straighten fontSize="small" />
     </IconButtonToolbarGeneric>
 
   );

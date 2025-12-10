@@ -99,7 +99,7 @@ export default function ButtonDialogCreateBaseMapFromJson() {
           />
         </Box>
       </Box>
-      <BoxAlignToRight>
+      <BoxAlignToRight sx={{ mt: 2 }}>
         <ButtonGeneric
           label="Créer"
           onClick={handleCreate}

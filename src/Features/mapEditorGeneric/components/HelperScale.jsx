@@ -55,27 +55,31 @@ const HelperScale = forwardRef(({ meterByPx, basePoseK = 1, initialWorldK = 1 },
   }
 
   // --- RENDER ---
-  if (!meterByPx) return null; // Version simplifiée
+  if (!meterByPx) return null;
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        flexDirection: "column",
-        pointerEvents: "auto", // Important pour que l'utilisateur puisse interagir si besoin
-        userSelect: "none"
-      }}
-    >
-      <Typography sx={{ fontSize: "12px", color: "text.secondary", textShadow: "0px 0px 2px white" }}>
-        {label}
-      </Typography>
-      <Box sx={{ display: "flex", alignItems: "center" }}>
-        <Box sx={{ width: "1px", height: "6px", bgcolor: "black" }} />
-        <Box sx={{ width, height: "1px", bgcolor: "black" }} />
-        <Box sx={{ width: "1px", height: "6px", bgcolor: "black" }} />
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          flexDirection: "column",
+          pointerEvents: "auto", // Important pour que l'utilisateur puisse interagir si besoin
+          userSelect: "none"
+        }}
+      >
+        <Typography sx={{ fontSize: "12px", color: "text.secondary", textShadow: "0px 0px 2px white" }}>
+          {label}
+        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <Box sx={{ width: "1px", height: "6px", bgcolor: "black" }} />
+          <Box sx={{ width, height: "1px", bgcolor: "black" }} />
+          <Box sx={{ width: "1px", height: "6px", bgcolor: "black" }} />
+        </Box>
       </Box>
     </Box>
+
   );
 });
 
