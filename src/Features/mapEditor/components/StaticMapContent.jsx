@@ -17,6 +17,7 @@ function StaticMapContent({
     basePose,
     baseMapImageUrl,
     baseMapImageSize,
+    baseMapMeterByPx,
     annotations,
     legendItems,
     legendFormat,
@@ -68,6 +69,7 @@ function StaticMapContent({
                         selected={annotation.id === selectedNode?.id}
                         sizeVariant={sizeVariant}
                         containerK={bgPose.k}
+                        baseMapMeterByPx={baseMapMeterByPx}
                     />
                 ))}
             </g>
@@ -98,6 +100,7 @@ function StaticMapContent({
                         selected={annotation.id === selectedNode?.id}
                         sizeVariant={sizeVariant}
                         containerK={basePose.k}
+                        baseMapMeterByPx={baseMapMeterByPx}
                     />
                 })}
 

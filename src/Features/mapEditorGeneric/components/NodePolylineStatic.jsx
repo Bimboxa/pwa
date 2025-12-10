@@ -62,17 +62,22 @@ export default function NodePolylineStatic({
     const displayStrokeColor = hovered ? hoverStrokeColor : strokeColor;
     const displayFillColor = hovered ? hoverFillColor : fillColor;
 
-    // Compute stroke width
-    const computedStrokeWidthPx = useMemo(() => {
-        let widthInPx = strokeWidth;
-        const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx;
+    // 1. Calculate the Stroke Width (in Map Pixels) if using physical units
+    const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx > 0;
+    console.log("isCmUnit", isCmUnit, strokeWidthUnit === "CM", baseMapMeterByPx);
+
+    const computedStrokeWidth = useMemo(() => {
         if (isCmUnit) {
-            widthInPx = (widthInPx * 0.01) / baseMapMeterByPx;
-        } else {
-            //widthInPx = widthInPx / containerK;
+            // CM -> Meters -> Pixels
+            // e.g. 20cm = 0.2m. If 1px = 0.01m, then width = 20px.
+            return (strokeWidth * 0.01) / baseMapMeterByPx;
         }
-        return widthInPx;
-    }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, containerK]);
+        // If PX unit, we pass the raw value (e.g., 2)
+        // The browser applies this as screen pixels thanks to non-scaling-stroke
+        return strokeWidth;
+    }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit]);
+
+
 
     // Helper functions - points are already in absolute coordinates
     const typeOf = (p) => (p?.type === "circle" ? "circle" : "square");
@@ -243,12 +248,16 @@ export default function NodePolylineStatic({
                     return (
                         <g key={`seg-${idx}`}>
                             {/* Hit Area (Transparent & Wider) */}
+                            {/* For hit testing, we want a minimum usable size on screen */}
                             <path
                                 d={seg.d}
                                 fill="none"
                                 stroke="transparent"
-                                strokeWidth={Math.max(14, computedStrokeWidthPx * 3)}
+                                // If Physical: Scale hit area too? Or keep screen-based?
+                                // Usually screen-based hit area (14px) is better for UX.
+                                strokeWidth={Math.max(14, isCmUnit ? computedStrokeWidth : 14)}
                                 style={{ cursor: "pointer" }}
+                                vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
                                 {...dataProps}
                             />
 
@@ -257,16 +266,19 @@ export default function NodePolylineStatic({
                                 d={seg.d}
                                 fill="none"
                                 stroke={displayStrokeColor}
-                                strokeWidth={computedStrokeWidthPx}
+                                strokeWidth={computedStrokeWidth}
                                 strokeOpacity={strokeOpacity}
                                 strokeDasharray={
                                     strokeType === "DASHED"
-                                        ? `${computedStrokeWidthPx * 3} ${computedStrokeWidthPx * 2}`
+                                        ? `${computedStrokeWidth * 3} ${computedStrokeWidth * 2}`
                                         : undefined
                                 }
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
-                                vectorEffect="non-scaling-stroke"
+
+                                // THE FIX: Conditional vector-effect
+                                vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
+
                                 style={{ pointerEvents: "none" }}
                             />
                         </g>

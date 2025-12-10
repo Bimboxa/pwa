@@ -351,6 +351,7 @@ export default function MainMapEditorV3() {
                         legendFormat={legendFormat}
                         sizeVariant={sizeVariant}
                         isEditingBaseMap={isBaseMapSelected}
+                        baseMapMeterByPx={baseMap?.meterByPx}
                     />
                     {/* 2. LAYER ÉDITION BASEMAP (Exclusif) */}
                     {isBaseMapSelected && (
