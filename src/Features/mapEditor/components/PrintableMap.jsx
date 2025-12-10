@@ -24,7 +24,14 @@ const PrintableMap = forwardRef(({
     const width = bgImageSize?.width || baseMapImageSize?.width || 1000;
     const height = bgImageSize?.height || baseMapImageSize?.height || 1000;
 
-    console.log("[PrintableMap] width height", width, height);
+    // helpers
+
+    const bgImageAnnotations = showBgImage
+        ? annotations.filter(({ nodeType }) => nodeType === "BG_IMAGE_TEXT")
+        : [];
+    const baseMapAnnotations = annotations.filter(({ baseMapId }) =>
+        Boolean(baseMapId)
+    );
 
     return (
         <svg
@@ -51,7 +58,16 @@ const PrintableMap = forwardRef(({
                         width={bgImageSize?.width}
                         height={bgImageSize?.height}
                     />
-                    {/* Annotations liées au BG si besoin */}
+                    {bgImageAnnotations.map((annotation) => (
+                        <NodeAnnotationStatic
+                            key={annotation.id}
+                            annotation={annotation}
+                            spriteImage={spriteImage}
+                            imageSize={bgImageSize}
+                            containerK={bgPose.k}
+                            baseMapMeterByPx={baseMapMeterByPx}
+                        />
+                    ))}
                 </g>
             )}
 
@@ -67,7 +83,7 @@ const PrintableMap = forwardRef(({
                         height={baseMapImageSize?.height}
                     />
 
-                    {annotations?.map(ann => (
+                    {baseMapAnnotations?.map(ann => (
                         <NodeAnnotationStatic
                             key={ann.id}
                             annotation={ann}
@@ -86,7 +102,7 @@ const PrintableMap = forwardRef(({
                     <NodeLegendStatic
                         id="legend-2"
                         legendItems={legendItems}
-                        spriteImage={annotationSpriteImage}
+                        spriteImage={spriteImage}
                         legendFormat={legendFormat}
                     />
                 )}
