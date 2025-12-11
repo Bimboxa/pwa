@@ -35,6 +35,7 @@ import UILayer from "./UILayer";
 import StaticMapContent from "./StaticMapContent";
 import EditedObjectLayer from "./EditedObjectLayer";
 import EditedBaseMapLayer from "./EditedBaseMapLayer";
+import EditedLegendLayer from "./EditedLegendLayer";
 
 import DialogAutoCreateEntity from "Features/entities/components/DialogAutoCreateEntity";
 import DialogDeleteSelectedAnnotation from "Features/annotations/components/DialogDeleteSelectedAnnotation";
@@ -131,6 +132,8 @@ export default function MainMapEditorV3() {
 
     const legendItems = useLegendItems();
     const legendFormat = useSelector((s) => s.mapEditor.legendFormat);
+
+    const isLegendSelected = showBgImage && selectedNode?.nodeType === "LEGEND";
 
     function handleLegendFormatChange(newFormat) {
         dispatch(setLegendFormat(newFormat));
@@ -336,6 +339,8 @@ export default function MainMapEditorV3() {
                     onSegmentSplit={handleSegmentSplit}
                     snappingEnabled={isSnappingEnabled}
                     baseMapMeterByPx={baseMap?.meterByPx}
+                    legendFormat={legendFormat}
+                    onLegendFormatChange={handleLegendFormatChange}
                 >
 
                     <StaticMapContent
@@ -362,6 +367,13 @@ export default function MainMapEditorV3() {
                         // Pas besoin de passer onChange ici car InteractionLayer 
                         // intercepte les événements via data-interaction="transform-basemap"
                         // et appelle onBaseMapPoseChange du InteractionLayer
+                        />
+                    )}
+                    {isLegendSelected && (
+                        <EditedLegendLayer
+                            legendItems={legendItems}
+                            spriteImage={spriteImage}
+                            legendFormat={legendFormat}
                         />
                     )}
 

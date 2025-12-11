@@ -52,6 +52,8 @@ const InteractionLayer = forwardRef(({
   selectedNode,
   baseMapMeterByPx,
   showBgImage,
+  legendFormat,
+  onLegendFormatChange,
 }
   , ref) => {
   const dispatch = useDispatch();
@@ -146,6 +148,9 @@ const InteractionLayer = forwardRef(({
   // State pour le drag de la BaseMap
   const [dragBaseMapState, setDragBaseMapState] = useState(null);
   // { active: true, handleType: 'MOVE'|'SE'..., startMouseScreen: {x,y}, startBasePose: {x,y,k} }
+
+  const [dragLegendState, setDragLegendState] = useState(null);
+  // { active: true, handleType: 'MOVE'|'SE'..., startMouseScreen: {x,y}, startFormat }
 
   const currentSnapRef = useRef(null); // Stocke le résultat du getBestSnap
 
@@ -374,7 +379,10 @@ const InteractionLayer = forwardRef(({
       const hit = nativeTarget.closest?.("[data-node-type]");
       if (hit) {
         console.log("[InteractionLayer] selected node", hit?.dataset)
-        if (!showBgImage && hit?.dataset?.nodeType === "BASE_MAP") {
+        if (
+          !showBgImage && hit?.dataset?.nodeType === "BASE_MAP"
+          || showBgImage && hit?.dataset?.nodeType === "BG_IMAGE"
+        ) {
           dispatch(setSelectedNode(null))
           setHiddenAnnotationIds([]);
           dispatch(setAnnotationToolbarPosition(null));
@@ -409,6 +417,7 @@ const InteractionLayer = forwardRef(({
       dragState?.active ||
       dragAnnotationState?.active ||
       dragBaseMapState?.active ||
+      dragLegendState?.active ||
       enabledDrawingMode ||
       selectedNode;
 
@@ -448,7 +457,7 @@ const InteractionLayer = forwardRef(({
       return; // Action exclusive, on arrête ici
     }
 
-    // B. DRAG BASEMAP (Image de fond)
+    // B1. DRAG BASEMAP (Image de fond)
     if (dragBaseMapState?.active) {
       const { startMouseWorld, startBasePose, handleType } = dragBaseMapState;
 
@@ -510,6 +519,49 @@ const InteractionLayer = forwardRef(({
         onBaseMapPoseChange(newPoseInBg);
       }
       return; // Action exclusive
+    }
+
+    // B2. DRAG LEGEND (Légende)
+    if (dragLegendState?.active) {
+      const { startMouseWorld, startFormat, handleType } = dragLegendState;
+
+      // Conversion delta écran -> delta local BG
+      // (Assumant que la légende est dans le BG, donc affectée par bgPose)
+      const dxWorld = worldPos.x - startMouseWorld.x;
+      const dyWorld = worldPos.y - startMouseWorld.y;
+
+      const dxLocal = dxWorld / bgPose.k;
+      const dyLocal = dyWorld / bgPose.k;
+
+      let newX = startFormat.x;
+      let newY = startFormat.y;
+      let newWidth = startFormat.width;
+
+      // --- GESTION POSITION (Move) ---
+      if (handleType === 'MOVE') {
+        newX += dxLocal;
+        newY += dyLocal;
+      }
+      // --- GESTION LARGEUR (Principale) ---
+      else if (handleType.includes('E')) {
+        newWidth = Math.max(50, startFormat.width + dxLocal);
+      }
+      else if (handleType.includes('W')) {
+        const possibleWidth = startFormat.width - dxLocal;
+        if (possibleWidth > 50) {
+          newWidth = possibleWidth;
+          newX = startFormat.x + dxLocal;
+        }
+      }
+
+
+
+      // Note: On ignore généralement le resize hauteur pour du texte fluide
+      // car cela créerait un décalage entre la souris et le bord si le texte
+      // ne remplit pas exactement la nouvelle hauteur.
+
+      if (onLegendFormatChange) onLegendFormatChange({ x: newX, y: newY, width: newWidth });
+      return;
     }
 
     // C. DRAG ANNOTATION (Objet entier)
@@ -714,6 +766,11 @@ const InteractionLayer = forwardRef(({
       document.body.style.cursor = '';
     }
 
+    if (dragLegendState?.active) {
+      setDragLegendState(null);
+      document.body.style.cursor = '';
+    }
+
     if (dragState?.active) {
 
       // CAS A : SPLIT (Si on a une insertion virtuelle)
@@ -763,6 +820,7 @@ const InteractionLayer = forwardRef(({
 
     const draggableGroup = target.closest('[data-interaction="draggable"]');
     const basemapHandle = target.closest('[data-interaction="transform-basemap"]');
+    const legendHandle = target.closest('[data-interaction="transform-legend"]');
 
 
     if (draggableGroup) {
@@ -784,11 +842,11 @@ const InteractionLayer = forwardRef(({
       setDraggingAnnotationId(nodeId);
     }
 
-    if (basemapHandle) {
+    if (basemapHandle || legendHandle) {
       e.stopPropagation();
       e.preventDefault();
 
-      const handleType = basemapHandle.dataset.handleType;
+      const handleType = basemapHandle?.dataset?.handleType || legendHandle?.dataset?.handleType;
 
       // 1. CONVERSION ÉCRAN -> MONDE (Prend en compte la CameraMatrix)
       // On utilise le helper du viewport pour obtenir la position exacte dans le monde
@@ -796,14 +854,20 @@ const InteractionLayer = forwardRef(({
 
       if (!startMouseWorld) return;
 
-      setDragBaseMapState({
+      const initDragState = {
         active: true,
         handleType,
-        // On stocke le point de départ en MONDE
-        startMouseWorld: startMouseWorld,
-        // On stocke la pose de l'objet en MONDE (copie de la prop basePose)
-        startBasePose: { ...basePose }
-      });
+        startMouseWorld,
+      }
+
+      if (basemapHandle) {
+        initDragState.startBasePose = { ...basePose }
+        setDragBaseMapState(initDragState);
+      }
+      if (legendHandle) {
+        initDragState.startFormat = { ...legendFormat }
+        setDragLegendState(initDragState);
+      }
 
       document.body.style.cursor = handleType === 'MOVE' ? 'grabbing' : 'crosshair';
     }
