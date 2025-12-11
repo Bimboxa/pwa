@@ -12,6 +12,7 @@ import FieldNewAnnotationColor from "./FieldNewAnnotationColor";
 import ButtonDrawMarker from "./ButtonDrawMarker";
 import ButtonDrawPolygon from "./ButtonDrawPolygon";
 import ButtonDrawPolyline from "./ButtonDrawPolyline";
+import ButtonDrawLabel from "./ButtonDrawLabel";
 import ToolbarEnabledDrawingMode from "./ToolbarEnabledDrawingMode";
 import ButtonEditScale from "./ButtonEditScale";
 
@@ -32,6 +33,7 @@ export default function ToolbarMapEditorV3() {
         <ButtonDrawMarker disabled={!newAnnotation?.label} />,
         <ButtonDrawPolyline disabled={!newAnnotation?.label} />,
         <ButtonDrawPolygon disabled={!newAnnotation?.label} />,
+        <ButtonDrawLabel disabled={!newAnnotation?.label} />,
     ]
 
 

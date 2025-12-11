@@ -34,7 +34,7 @@ export default function DialogAutoMigrateToMapEditorV3() {
         if (annotation.points?.length > 0) {
             const pointO = annotation.points[0];
             if (!testObjectHasProp(pointO, "id")) legacyAnnotations.push(annotation);
-        } else if (testObjectHasProp(annotation, x)) {
+        } else if (testObjectHasProp(annotation, "x")) {
             legacyAnnotations.push(annotation);
         }
     });
