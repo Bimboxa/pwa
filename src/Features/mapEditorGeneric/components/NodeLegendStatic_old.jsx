@@ -10,7 +10,6 @@ export default memo(function NodeLegendStatic({
     legendFormat, // { x, y, width, fontSize? } in BG-local units
     hovered,
     selected,
-    onSizeChange,
 }) {
     const { x = 16, y = 16, width = 260, fontSize = 18 } = legendFormat ?? {};
 
@@ -22,44 +21,23 @@ export default memo(function NodeLegendStatic({
 
     // ===== measure content height to set foreignObject height correctly
     const contentRef = useRef(null);
-
-    const lastNotifiedSize = useRef({ width: 0, height: 0 });
-
     const [measuredCssH, setMeasuredCssH] = useState(1);
 
     useLayoutEffect(() => {
         if (!contentRef.current) return;
         const el = contentRef.current;
 
-        const updateSize = () => {
-            // On mesure la boîte réelle
-            const realWidth = el.offsetWidth;
-            const realHeight = el.offsetHeight; // ou el.scrollHeight si overflow
+        // Mesure immédiate
+        setMeasuredCssH(el.scrollHeight);
 
-            // On compare avec la dernière valeur envoyée
-            if (
-                Math.abs(lastNotifiedSize.current.width - realWidth) > 1 ||
-                Math.abs(lastNotifiedSize.current.height - realHeight) > 1
-            ) {
-                // Seulement si ça a changé significativement (>1px)
-                lastNotifiedSize.current = { width: realWidth, height: realHeight };
-                setMeasuredCssH(realHeight);
-
-                if (onSizeChange) {
-                    onSizeChange({ width: realWidth, height: realHeight });
-                }
-            }
-        };
-
-        // Mesure initiale
-        updateSize();
-
-        // On observe
-        const ro = new ResizeObserver(updateSize);
+        // Observer pour réagir aux changements de layout (ex: chargement fonts)
+        const ro = new ResizeObserver(() => {
+            if (el) setMeasuredCssH(el.scrollHeight);
+        });
         ro.observe(el);
 
         return () => ro.disconnect();
-    }, [legendItems, width, fontSize, onSizeChange]); // width est la prop imposée
+    }, [legendItems, width, fontSize]); // Dépendances importantes pour recalculer la hauteur
 
     const widthLocal = width;
     const heightLocal = Math.max(1, measuredCssH);
