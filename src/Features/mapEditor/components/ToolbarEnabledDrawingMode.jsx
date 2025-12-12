@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { setEnabledDrawingMode } from "../mapEditorSlice";
 
 import { Paper } from "@mui/material";
-import { Mouse, Rectangle } from "@mui/icons-material";
+import { Mouse, Rectangle, WaterDrop } from "@mui/icons-material";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
@@ -27,6 +27,11 @@ export default function ToolbarEnabledDrawingMode() {
             key: "RECTANGLE",
             label: "Rectangle",
             icon: <Rectangle />
+        },
+        {
+            key: "DROP_FILL",
+            label: "Remplissage",
+            icon: <WaterDrop />
         }
     ]
     // handlers

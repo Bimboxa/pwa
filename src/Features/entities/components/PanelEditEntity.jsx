@@ -31,7 +31,7 @@ export default function PanelEditEntity() {
   const entity = useEntity();
 
   const template = useEntityFormTemplate();
-  console.log("debug_1011_template", template);
+  console.log("debug_1011_entity", entity, template);
 
   // helper
 

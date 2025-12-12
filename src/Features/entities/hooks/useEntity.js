@@ -34,10 +34,10 @@ export default function useEntity(options) {
       };
     } else if (isEditingEntity) {
       label = editedEntity?.[entityModel?.labelKey];
-      entity = { ...editedEntity, label };
+      entity = { ...editedEntity, label, entityModel };
     } else {
       label = entity[entityModel?.labelKey];
-      entity = { ...entity, label };
+      entity = { ...entity, label, entityModel };
     }
 
     //console.log("debug_1509 [useEntity] entity", entity);

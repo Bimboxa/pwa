@@ -18,7 +18,6 @@ import useAutoSelectMainBaseMap from "../hooks/useAutoSelectMainBaseMap";
 import useAutoResetBaseMapPose from "Features/bgImage/hooks/useAutoResetBaseMapPose";
 import useAutoShowBgImage from "Features/bgImage/hooks/useAutoShowBgImage";
 import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgImageRawTextAnnotations";
-import useDefaultCameraMatrix from "../hooks/useDefaultCameraMatrix";
 import useHandleCommitDrawing from "../hooks/useHandleCommitDrawing";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationType";
@@ -50,6 +49,7 @@ import { InteractionProvider } from "../context/InteractionContext";
 import db from "App/db/db";
 import editor from "App/editor";
 import getPolylinePointsFromRectangle from "Features/geometry/utils/getPolylinePointsFromRectangle";
+import getDefaultCameraMatrix from "../utils/getDefaultCameraMatrix";
 
 export default function MainMapEditorV3() {
     const dispatch = useDispatch();
@@ -117,7 +117,6 @@ export default function MainMapEditorV3() {
         dispatch(setBaseMapPoseInBg(newPose));
     };
     const isBaseMapSelected = showBgImage && selectedNode?.nodeType === "BASE_MAP";
-    console.log("isBaseMapSelected", isBaseMapSelected, selectedNode);
 
     // annotation
 
@@ -142,21 +141,41 @@ export default function MainMapEditorV3() {
 
     // default camera matrix
 
-    const defaultCameraMatrix = useDefaultCameraMatrix({
+    const defaultCameraMatrixRef = useRef(null);
+
+    defaultCameraMatrixRef.current = getDefaultCameraMatrix({
         showBgImage,
         bgSize: bgImage?.imageSize,
         baseSize: baseMap?.getImageSize(),
         viewport,
+        basePose,
     });
 
+
     useEffect(() => {
-        interactionLayerRef.current?.setCameraMatrix(defaultCameraMatrix);
-    }, [showBgImage]);
+        console.log("[EFFECT_RESET_CAMERA]")
+        if (defaultCameraMatrixRef.current) {
+            interactionLayerRef.current?.setCameraMatrix(defaultCameraMatrixRef.current);
+        }
+    }, [
+        //showBgImage
+        basePose?.k,
+        baseMap?.getImageSize()?.width,
+        bgImage?.imageSize?.width,
+        viewport?.w,
+    ]);
 
 
     // handler - commit drawing
 
     const handleCommitDrawing = useHandleCommitDrawing();
+
+    // handler - commit points from drop_fill
+
+    const handleCommitPointsFromDropFill = (points, event) => {
+        const tempAnnotation = { ...newAnnotation, baseMapId: baseMap.id, points, id: "temp" };
+        dispatch(setTempAnnotations([tempAnnotation]));
+    }
 
     // handlers - rectangle
 
@@ -192,7 +211,7 @@ export default function MainMapEditorV3() {
     // handlers 
 
     const handleResetCamera = () => {
-        interactionLayerRef.current?.setCameraMatrix(defaultCameraMatrix);
+        interactionLayerRef.current?.setCameraMatrix(defaultCameraMatrixRef.current);
     };
 
     // handlers - move point
@@ -278,7 +297,7 @@ export default function MainMapEditorV3() {
         }
     };
 
-    const handleAnnotationMoveCommit = async (annotationId, detaPos) => {
+    const handleAnnotationMoveCommit = async (annotationId, deltaPos, partType) => {
         const imageSize = baseMap?.image?.imageSize;
         if (!imageSize) return;
 
@@ -287,12 +306,47 @@ export default function MainMapEditorV3() {
         console.log("handleAnnotationMoveCommit", annotationId, annotation);
         if (annotation.type === "MARKER") {
             const point = await db.points.get(annotation.point.id);
-            const x = point.x + detaPos.x / imageSize.width;
-            const y = point.y + detaPos.y / imageSize.height;
+            const x = point.x + deltaPos.x / imageSize.width;
+            const y = point.y + deltaPos.y / imageSize.height;
             console.log("save_point", point.id, { x, y });
             await db.points.update(point.id, { x, y });
-        } else {
-            //const newPoints = annotation.points.map(pt => ({ ...pt, x: pt.x + detaPos.x, y: pt.y + detaPos.y }));
+        }
+
+        else if (annotation.type === "LABEL") {
+            const { targetPoint, labelPoint } = annotation;
+
+            const updates = {};
+
+            // 1. Déplacement de la cible (Target) uniquement
+            if (partType === 'TARGET') {
+                updates.targetPoint = {
+                    x: (targetPoint.x + deltaPos.x) / imageSize.width,
+                    y: (targetPoint.y + deltaPos.y) / imageSize.height
+                };
+            }
+            // 2. Déplacement du Label uniquement
+            else if (partType === 'LABEL_BOX') {
+                updates.labelPoint = {
+                    x: (labelPoint.x + deltaPos.x) / imageSize.width,
+                    y: (labelPoint.y + deltaPos.y) / imageSize.height
+                };
+            }
+            // 3. Cas général (Déplacement global)
+            else {
+                updates.targetPoint = {
+                    x: (targetPoint.x + deltaPos.x) / imageSize.width,
+                    y: (targetPoint.y + deltaPos.y) / imageSize.height
+                };
+                updates.labelPoint = {
+                    x: (labelPoint.x + deltaPos.x) / imageSize.width,
+                    y: (labelPoint.y + deltaPos.y) / imageSize.height
+                };
+            }
+
+            await db.annotations.update(annotation.id, updates);
+        }
+        else {
+            //const newPoints = annotation.points.map(pt => ({ ...pt, x: pt.x + deltaPos.x, y: pt.y + deltaPos.y }));
             console.log("TODO: save annotation points")
         }
 
@@ -329,7 +383,9 @@ export default function MainMapEditorV3() {
                             handleCommitDrawing(points, event);
                         }
                     }}
+                    onCommitPointsFromDropFill={handleCommitPointsFromDropFill}
                     baseMapImageSize={baseMap?.getImageSize()}
+                    baseMapImageUrl={baseMap?.getUrl()}
                     basePose={basePose}
                     onBaseMapPoseChange={handleBaseMapPoseChange}
                     activeContext={activeContext}

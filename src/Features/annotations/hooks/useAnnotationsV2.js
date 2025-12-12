@@ -32,13 +32,15 @@ export default function useAnnotationsV2(options) {
 
         const tempAnnotations = useSelector((s) => s.annotations.tempAnnotations);
 
-        console.log("tempAnnotations", tempAnnotations);
-
         const bgImageTextAnnotations = useBgImageTextAnnotations();
 
         // main
         let annotations = useLiveQuery(async () => {
             if (baseMap?.id) {
+
+                // imageSize
+                const imageSize = baseMap.image.imageSize;
+                const { width, height } = imageSize;
 
 
                 // points index
@@ -47,21 +49,43 @@ export default function useAnnotationsV2(options) {
 
                 // annotations
                 let _annotations = await db.annotations.where("baseMapId").equals(baseMap?.id).toArray();
+
+                console.log("_annotations", _annotations);
+
                 _annotations = _annotations.map(annotation => {
                     const _annotation = {
                         ...annotation,
                     }
 
                     let annotationPoints = annotation?.points;
+
+
+                    // legacy conversion
+
                     const isMarkerLegacy = testObjectHasProp(annotation, "x") || testObjectHasProp(annotation, "y");
                     if (isMarkerLegacy) {
                         annotationPoints = [{ x: annotation.x, y: annotation.y }];
                     }
 
+                    // markers, labels, ....
 
                     if (_annotation.type === "MARKER") {
                         _annotation.point = resolvePoints({ points: annotationPoints, pointsIndex, imageSize: baseMap.image.imageSize })[0];
-                    } else {
+                    }
+                    // --- LABELS
+                    else if (annotation.type === "LABEL") {
+                        _annotation.targetPoint = {
+                            x: annotation.targetPoint.x * width,
+                            y: annotation.targetPoint.y * height
+                        }
+                        _annotation.labelPoint = {
+                            x: annotation.labelPoint.x * width,
+                            y: annotation.labelPoint.y * height
+                        }
+                    }
+
+                    // --- OTHER CASES
+                    else {
                         _annotation.points = resolvePoints({ points: annotationPoints, pointsIndex, imageSize: baseMap.image.imageSize });
                     }
 

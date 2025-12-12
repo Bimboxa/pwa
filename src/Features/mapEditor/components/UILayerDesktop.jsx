@@ -1,16 +1,21 @@
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import { useInteraction } from "../context/InteractionContext";
 
 import { Box } from "@mui/material";
 
 import ButtonSelectorBaseMapInMapEditor from "Features/baseMaps/components/ButtonSelectorBaseMapInMapEditor";
 import ToolbarMapEditorV3 from "./ToolbarMapEditorV3";
 import ButtonEditScaleVariantFirst from "./ButtonEditScaleVariantFirst";
+import ButtonAutoLayoutLabels from "Features/tools/components/ButtonAutoLayoutLabels";
+import SectionShowedFWC from "Features/fwc/components/SectionShowedFWC";
 
 export default function UILayerDesktop({ mapController, onResetCamera }) {
 
     // data
 
     const { value: listing } = useSelectedListing();
+
+    const { basePose } = useInteraction();
 
     // helpers
 
@@ -58,6 +63,30 @@ export default function UILayerDesktop({ mapController, onResetCamera }) {
             >
                 <ButtonEditScaleVariantFirst size="small" />
             </Box>}
+
+            {/* <Box
+                sx={{
+                    position: "absolute",
+                    right: "4px",
+                    top: "4px",
+                    zIndex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                }}
+            >
+                <ButtonAutoLayoutLabels basePose={basePose} />
+            </Box> */}
+
+            <Box sx={{
+                position: "absolute",
+                left: "8px",
+                top: "8px",
+                zIndex: 1,
+                display: "flex",
+                alignItems: "center",
+            }}>
+                <SectionShowedFWC />
+            </Box>
         </>
     );
 }

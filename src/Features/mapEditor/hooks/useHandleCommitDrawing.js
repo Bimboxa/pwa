@@ -40,14 +40,19 @@ export default function useHandleCommitDrawing() {
 
         const { width, height } = baseMap?.image?.imageSize ?? {}
 
+
+        // ETAPE : création de l'entité.
+
+        const entity = await createEntity({})
+
         // edge case
         if (newAnnotation.type === "LABEL" && rawPoints.length === 1) {
+            console.log("[CommitDrawing] add label", newAnnotation)
             const { x: _x, y: _y } = rawPoints[0];
             // on calcule le point central
             _newAnnotation = {
                 ...newAnnotation,
                 id: nanoid(),
-                annotationTemplateId,
                 entityId: entity.id,
                 targetPoint: { x: _x / width, y: _y / height },
                 labelPoint: { x: (_x - 50) / width, y: (_y + 0) / height },
@@ -120,9 +125,7 @@ export default function useHandleCommitDrawing() {
                 }
             }
 
-            // ETAPE : création de l'entité.
 
-            const entity = await createEntity({})
 
             // ÉTAPE 3 : Création de l'Annotation (Topologie)
             _newAnnotation = {
@@ -154,7 +157,7 @@ export default function useHandleCommitDrawing() {
         // Sauvegarde DB
         await createAnnotation(_newAnnotation);
 
-        console.log("Annotation créée avec succès !");
+        console.log("Annotation créée avec succès !", _newAnnotation);
 
         // Reset
         resetNewAnnotation();

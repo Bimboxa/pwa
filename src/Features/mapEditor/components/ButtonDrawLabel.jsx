@@ -24,7 +24,7 @@ export default function ButtonDrawLabel({ disabled }) {
 
   function handleClick() {
     dispatch(setNewAnnotation({ ...newAnnotation, type: "LABEL" }))
-    dispatch(setEnabledDrawingMode("CLICK"))
+    dispatch(setEnabledDrawingMode("ONE_CLICK"))
   }
 
   return (

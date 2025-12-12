@@ -6,6 +6,7 @@ export function InteractionProvider({ children }) {
     const [hoveredNode, setHoveredNode] = useState(null);
     const [hiddenAnnotationIds, setHiddenAnnotationIds] = useState([]); // <= pour masquer les annotations en cours de modification
     const [draggingAnnotationId, setDraggingAnnotationId] = useState(null);
+    const [basePose, setBasePose] = useState(null);
 
     // On peut ajouter d'autres états UI volatiles ici (ex: coordonnées curseur écran)
     // const [cursorPos, setCursorPos] = useState({x:0, y:0});
@@ -16,8 +17,10 @@ export function InteractionProvider({ children }) {
         hiddenAnnotationIds,
         setHiddenAnnotationIds,
         draggingAnnotationId,
-        setDraggingAnnotationId
-    }), [hoveredNode, hiddenAnnotationIds, draggingAnnotationId]);
+        setDraggingAnnotationId,
+        basePose,
+        setBasePose,
+    }), [hoveredNode, hiddenAnnotationIds, draggingAnnotationId, basePose]);
 
     return (
         <InteractionContext.Provider value={value}>

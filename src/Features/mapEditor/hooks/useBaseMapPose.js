@@ -3,7 +3,6 @@ import clamp from "Features/misc/utils/clamp"; // Votre utilitaire existant
 
 export default function useBaseMapPose({
     baseMap,
-    showBgImage,
     viewport,
     basePoseInBg,
     bgPose = { x: 0, y: 0, k: 1 }
@@ -36,33 +35,15 @@ export default function useBaseMapPose({
             return { x: 0, y: 0, k: 1, r: 0 };
         }
 
-        if (!showBgImage) {
-            const PADDING = 15;
-            const minScale = 0.01;
-            const maxScale = 50;
+        return {
+            x: bgPose.x + (basePoseInBg.x || 0) * (bgPose.k || 1),
+            y: bgPose.y + (basePoseInBg.y || 0) * (bgPose.k || 1),
+            k: (bgPose.k || 1) * (basePoseInBg.k || 1),
+            r: (bgPose.r || 0) + (basePoseInBg.r || 0),
+        };
 
-            const availableWidth = viewport.w - PADDING * 2;
-            const availableHeight = viewport.h - PADDING * 2;
 
-            const scale = Math.min(
-                availableWidth / imageSize.w,
-                availableHeight / imageSize.h
-            );
-
-            const k = clamp(scale, minScale, maxScale);
-            const x = (viewport.w - imageSize.w * k) / 2;
-            const y = (viewport.h - imageSize.h * k) / 2;
-
-            return { x, y, k, r: 0 };
-        } else {
-            return {
-                x: bgPose.x + (basePoseInBg.x || 0) * (bgPose.k || 1),
-                y: bgPose.y + (basePoseInBg.y || 0) * (bgPose.k || 1),
-                k: (bgPose.k || 1) * (basePoseInBg.k || 1),
-                r: (bgPose.r || 0) + (basePoseInBg.r || 0),
-            };
-        }
-    }, [showBgImage, imageSize, viewport, basePoseInBg, bgPose]);
+    }, [imageSize, viewport, basePoseInBg, bgPose]);
 
     return { pose, imageSize };
 }
