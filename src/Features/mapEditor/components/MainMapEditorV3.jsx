@@ -31,6 +31,7 @@ import InteractionLayer from "./InteractionLayer";
 import PrintableMap from "./PrintableMap";
 
 import UILayer from "./UILayer";
+import LayerTools from "./LayerTools";
 import StaticMapContent from "./StaticMapContent";
 import EditedObjectLayer from "./EditedObjectLayer";
 import EditedBaseMapLayer from "./EditedBaseMapLayer";
@@ -483,6 +484,8 @@ export default function MainMapEditorV3() {
             <PopperContextMenu />
 
             <DialogAutoMigrateToMapEditorV3 />
+
+            <LayerTools />
         </Box>
 
     );
