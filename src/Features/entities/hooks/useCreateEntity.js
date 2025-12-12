@@ -41,7 +41,7 @@ export default function useCreateEntity() {
 
     // table
 
-    const table = listing.table;
+    const table = listing.table ?? listing?.entityModel.defaultTable;
 
     // ids
 

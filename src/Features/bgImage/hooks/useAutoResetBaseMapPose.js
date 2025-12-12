@@ -17,7 +17,7 @@ export default function useAutoResetBaseMapPose() {
   // data
 
   const mainBaseMap = useMainBaseMap();
-  const bgImage = useBgImageInMapEditor();
+  const bgImage = useBgImageInMapEditor(); // {url, width, height, bbox}
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
   const { value: selectedListing } = useSelectedListing();
   const blueprintId = useSelector((s) => s.blueprints.blueprintIdInMapEditor);

@@ -42,7 +42,7 @@ export default function FieldCategoryV2({
   const [open, setOpen] = useState(false);
 
   // helpers
-  const el = sectionContainerEl ?? formContainerRef?.current;
+  const el = sectionContainerEl ?? null;
   const bbox = el?.getBoundingClientRect();
 
   // helpers
@@ -78,7 +78,7 @@ export default function FieldCategoryV2({
               position: "absolute",
               top: 0,
               left: 0,
-              width: bbox.width,
+              width: bbox?.width,
               bottom: 0,
               bgcolor: "background.paper",
               zIndex: 2000,

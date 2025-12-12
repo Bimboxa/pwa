@@ -5,7 +5,7 @@ import { setShowedFWC } from "../fwcSlice";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 import { Box, IconButton, Tooltip, Typography } from "@mui/material";
-import { VerticalAlignBottom as FloorIcon, VerticalAlignTop as CeilingIcon, } from "@mui/icons-material";
+import { VerticalAlignBottom as FloorIcon, VerticalAlignTop as CeilingIcon, FilterAlt as FilterAltIcon } from "@mui/icons-material";
 
 export default function SectionShowedFWC() {
 
@@ -29,6 +29,10 @@ export default function SectionShowedFWC() {
         }
         return ac;
     }, {})
+
+    // helpers - show
+
+    const show = Object.values(fwcCountMap).some(count => count > 0);
 
     // helpers
 
@@ -67,8 +71,11 @@ export default function SectionShowedFWC() {
         }
     };
 
+    if (!show) return null;
+
     return (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <FilterAltIcon sx={{ fontSize: 12 }} color="action" />
             <Typography sx={{ fontSize: 12 }}>{title}</Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 {items.filter(item => item.count).map((item) => (

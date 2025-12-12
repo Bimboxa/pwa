@@ -1,77 +1,92 @@
+import { useState, useRef } from "react";
+
 import {
   ListItem,
-  ListItemIcon,
   ListItemButton,
-  ListItemText,
-  ListItemAvatar,
   Box,
   Typography,
   Avatar,
   IconButton,
+  Popper,
+  Paper,
+  Fade
 } from "@mui/material";
 import { lighten } from "@mui/material/styles";
 import { NearMe as Focus, Image, Edit } from "@mui/icons-material";
 import theme from "Styles/theme";
 
 import AnnotationIcon from "Features/annotations/components/AnnotationIcon";
+import ToolbarCreateAnnotationFromListItemEntity from "Features/annotations/components/ToolbarCreateAnnotationFromListItemEntity";
 
 import getEntityMainImage from "../utils/getEntityMainImage";
-import getAnnotationTemplateCode from "Features/annotations/utils/getAnnotationTemplateCode";
 
 export default function ListItemEntityVariantDefault({
   entity,
-  listing,
   onClick,
   onEditClick,
   selection,
   listingColor = theme.palette.primary.main,
-  annotationTemplates,
   spriteImage,
+  annotationEnabled,
 }) {
-  // helper - annotation
+  // --- Gestion du Hover Robuste ---
+  const [anchorEl, setAnchorEl] = useState(null);
+  const hoverTimeoutRef = useRef(null);
 
+  const isOpen = Boolean(anchorEl);
+
+  // 1. Entrée sur le LIST ITEM : On ouvre et on définit l'ancre
+  const handleListItemEnter = (event) => {
+    if (!annotationEnabled) return;
+
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    setAnchorEl(event.currentTarget);
+  };
+
+  // 2. Entrée sur le POPPER : On annule juste la fermeture (on garde l'ancre existante)
+  const handlePopperEnter = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+  };
+
+  // 3. Sortie (Commune) : On lance le compte à rebours de fermeture
+  const handleMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setAnchorEl(null);
+    }, 10); // 200ms est plus confortable que 100ms
+  };
+
+  // --- Helpers ---
   let annotation;
   if (entity.annotations?.length > 0)
-    // annotation = {
-    //   ...entity.annotations[0],
-    //   label: annotationTemplates?.find(
-    //     ({ id }) => entity.annotations[0].annotationTemplateId === id
-    //   )?.label,
-    // };
     annotation = entity.annotations[0];
 
-  // helpers
-
   let label = entity.label ?? annotation?.label;
-  //let label = annotation?.label ?? entity.label;
-  const fontStyle = label ? "normal" : "italic";
   if (!label) label = "Libellé à définir";
-  //const subLabel = entity.num ? `#${entity.num}` : entity.subLabel;
   const subLabel = entity.subLabel ?? annotation?.label;
 
   const isSelected = selection?.includes(entity.id);
   const mainImage = getEntityMainImage(entity);
-
   const hasMarker = entity.marker;
 
-  // handlers
-
+  // --- Handlers Click ---
   function handleClick() {
-    console.log("[CLICK] entity", entity);
     if (onClick) onClick(entity);
   }
 
   function handleEditClick(e) {
     e.stopPropagation();
     e.preventDefault();
-
-    if (onEditClick) {
-      onEditClick(entity);
-    }
+    if (onEditClick) onEditClick(entity);
   }
+
+  const overlapAmount = "8px";
+
   return (
     <ListItem
-      //dense
       divider
       disablePadding
       secondaryAction={
@@ -81,13 +96,19 @@ export default function ListItemEntityVariantDefault({
           </IconButton>
         )
       }
+      sx={{ zIndex: 1, position: 'relative' }}
     >
       <ListItemButton
         onClick={handleClick}
         selected={isSelected}
+        // Événements sur le BOUTON
+        onMouseEnter={handleListItemEnter}
+        onMouseLeave={handleMouseLeave}
         sx={{
           display: "flex",
           px: 1,
+          position: "relative",
+          zIndex: 'auto',
           "&:hover": {
             backgroundColor: lighten(listingColor, 0.9),
           },
@@ -123,12 +144,54 @@ export default function ListItemEntityVariantDefault({
             </Typography>
           </Box>
         </Box>
+
         {isSelected && (
           <IconButton onClick={handleEditClick} color="inherit">
             <Edit />
           </IconButton>
         )}
       </ListItemButton>
+
+      <Popper
+        open={isOpen}
+        anchorEl={anchorEl}
+        placement="right"
+        transition
+        modifiers={[
+          {
+            name: 'offset',
+            options: {
+              offset: [0, -8],
+            },
+          },
+          {
+            name: 'preventOverflow',
+            options: { padding: 8 },
+          },
+        ]}
+        style={{ zIndex: 1500, pointerEvents: 'auto' }} // pointerEvents auto est crucial
+        // Événements sur le POPPER (Distincts !)
+        onMouseEnter={handlePopperEnter}
+        onMouseLeave={handleMouseLeave}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {({ TransitionProps }) => (
+          <Fade {...TransitionProps} timeout={10}>
+            <Paper
+              elevation={4}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                borderRadius: 1,
+                bgcolor: 'background.paper'
+              }}
+            >
+              <ToolbarCreateAnnotationFromListItemEntity entityId={entity.id} />
+            </Paper>
+          </Fade>
+        )}
+      </Popper>
+
     </ListItem>
   );
 }

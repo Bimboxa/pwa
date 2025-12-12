@@ -123,6 +123,11 @@ features:
     - type: BLUEPRINT
       name: Exports
 
+  tools:
+    - "ENTITY_ZONES"
+    - "PDF_REPORT"
+    - "TOOLS"
+
   bgImages:
     options:
       - key: DEFAULT
@@ -249,6 +254,8 @@ entityModelsObject:
       labelSelect: Sélectionnez un matériau
     labelKey: description
     subLabelKey: code
+    fwcEnabled: true
+    annotationEnabled: true
     fieldsObject:
       category:
         key: "category"
@@ -267,6 +274,7 @@ entityModelsObject:
         options:
           multiline: true
           fullWidth: true
+          showAsSection: true
       photo:
         key: photo
         type: image

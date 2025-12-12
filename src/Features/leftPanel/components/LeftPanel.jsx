@@ -33,7 +33,7 @@ export default function LeftPanel() {
   // render
 
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box sx={{ display: "flex", zIndex: 2 }}>
       {!isFullScreen && (
         <VerticalBarInLeftPanel>
           <VerticalSelectorListing onSeeAllClick={handleSeeAllClick} />

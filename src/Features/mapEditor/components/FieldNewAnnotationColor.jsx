@@ -27,7 +27,7 @@ export default function FieldNewAnnotationColor() {
     // render
 
     return <FieldColorVariantToolbar
-        value={newAnnotation.fillColor || newAnnotation.strokeColor}
+        value={newAnnotation?.fillColor || newAnnotation?.strokeColor}
         onChange={handleColorChange}
     />
 }
