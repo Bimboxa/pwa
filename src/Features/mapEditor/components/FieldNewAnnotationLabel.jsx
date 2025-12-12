@@ -6,17 +6,13 @@ import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 
 
-export default function FieldNewAnnotationLabel() {
+export default function FieldNewAnnotationLabel({ labelS = "Libellé du repérage" }) {
 
     const dispatch = useDispatch();
 
     // data
 
     const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
-
-    // strings
-
-    const labelS = "Libellé";
 
     // handlers
 
@@ -27,7 +23,7 @@ export default function FieldNewAnnotationLabel() {
     // render
 
     return <FieldTextV2
-        value={newAnnotation.label}
+        value={newAnnotation?.label ?? ""}
         onChange={handleLabelChange}
         label={labelS}
 

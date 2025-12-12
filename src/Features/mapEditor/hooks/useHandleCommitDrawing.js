@@ -1,17 +1,24 @@
 import { nanoid } from "@reduxjs/toolkit";
 
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 
+import { setOpenDialogCreateEntity } from "Features/entities/entitiesSlice";
+import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+
 import db from "App/db/db";
 import getAnnotationTemplateFromNewAnnotation from "Features/annotations/utils/getAnnotationTemplateFromNewAnnotation";
 
 
 export default function useHandleCommitDrawing() {
+
+    // dispatch
+
+    const dispatch = useDispatch();
 
     // data
 
@@ -36,24 +43,40 @@ export default function useHandleCommitDrawing() {
 
         const closeLine = options?.closeLine;
 
+
         // image size
 
         const { width, height } = baseMap?.image?.imageSize ?? {}
 
 
-        // ETAPE : création de l'entité.
+        // ETAPE : création de l'entité ou non
 
-        const entity = await createEntity({})
+        let entityId = newAnnotation?.entityId;
+        if (!entityId && newAnnotation?.type !== "LABEL") {
+            const entity = await createEntity({})
+            entityId = entity.id;
+        }
 
         // edge case
         if (newAnnotation.type === "LABEL" && rawPoints.length === 1) {
+            // dispatch(setOpenDialogCreateEntity(true))
+            // dispatch(setNewAnnotation({
+            //     ...newAnnotation,
+            //     entityId,
+            //     targetPoint: { x: _x / width, y: _y / height },
+            //     labelPoint: { x: (_x - 50) / width, y: (_y + 0) / height },
+            //     baseMapId,
+            //     projectId,
+            //     listingId,
+            // }))
+            // return;
             console.log("[CommitDrawing] add label", newAnnotation)
             const { x: _x, y: _y } = rawPoints[0];
             // on calcule le point central
             _newAnnotation = {
                 ...newAnnotation,
                 id: nanoid(),
-                entityId: entity.id,
+                entityId,
                 targetPoint: { x: _x / width, y: _y / height },
                 labelPoint: { x: (_x - 50) / width, y: (_y + 0) / height },
                 baseMapId,
@@ -132,7 +155,7 @@ export default function useHandleCommitDrawing() {
                 ...newAnnotation,
                 id: nanoid(),
                 annotationTemplateId,
-                entityId: entity.id,
+                entityId,
                 points: finalPointIds.map(id => ({ id })), // Référence uniquement les IDs !
                 baseMapId,
                 projectId,
@@ -152,6 +175,8 @@ export default function useHandleCommitDrawing() {
             }
         }
 
+
+
         // Mise à jour Optimiste Redux
         //dispatch(addAnnotation(newAnnotation));
         // Sauvegarde DB
@@ -161,6 +186,8 @@ export default function useHandleCommitDrawing() {
 
         // Reset
         resetNewAnnotation();
+
+
     }
 
     return handleDrawingCommit

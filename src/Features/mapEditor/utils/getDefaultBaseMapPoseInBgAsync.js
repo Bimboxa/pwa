@@ -6,13 +6,13 @@ import getImageSizeAsync from "Features/images/utils/getImageSizeAsync";
  * - If bbox is not provided, use the full BG image rect.
  * Returns { x, y, k } in BG-local coordinates.
  */
-export default function getDefaultBaseMapPoseInBg({
-  baseMap,
-  bgImage,
+export default async function getDefaultBaseMapPoseInBgAsync({
+  baseMapUrl,
+  bgUrl,
+  bbox,
 }) {
-
-  const { bbox, imageSize: bgSize } = bgImage || {};
-  const baseMapSize = baseMap.getImageSize();
+  const baseMapSize = await getImageSizeAsync(baseMapUrl);
+  const bgSize = await getImageSizeAsync(bgUrl);
 
   const bmW = Math.max(1, Number(baseMapSize.width) || 1);
   const bmH = Math.max(1, Number(baseMapSize.height) || 1);

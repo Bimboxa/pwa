@@ -20,7 +20,7 @@ import { setOpenPanelListItem } from "Features/listPanel/listPanelSlice";
 
 export default function SectionEntity() {
   const dispatch = useDispatch();
-  const selectorContainerRef = useRef(null);
+  const containerRef = useRef(null);
 
   // data
 
@@ -51,7 +51,7 @@ export default function SectionEntity() {
 
   return (
     <Box
-      ref={selectorContainerRef}
+      ref={containerRef}
       sx={{
         width: 1,
         display: "flex",
@@ -84,7 +84,7 @@ export default function SectionEntity() {
             template={template}
             entity={entity}
             onEntityChange={handleEntityChange}
-            selectorContainerRef={selectorContainerRef}
+            sectionContainerEl={containerRef?.current}
           />
         </Box>
       </Box>

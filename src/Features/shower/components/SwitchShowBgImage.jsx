@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
-import { setShowBgImage } from "../showerSlice";
+import { setShowBgImageInMapEditor } from "Features/bgImage/bgImageSlice";
 
 import { Box } from "@mui/material";
 
@@ -18,7 +18,7 @@ export default function SwitchShowBgImage() {
 
   // data
 
-  const checked = useSelector((s) => s.shower.showBgImage);
+  const checked = useSelector((s) => s.bgImage.showBgImageInMapEditor);
 
   // state
 
@@ -27,8 +27,8 @@ export default function SwitchShowBgImage() {
 
   // handler
 
-  function handleChange() {
-    dispatch(setShowBgImage(!checked));
+  function handleChange(value) {
+    dispatch(setShowBgImageInMapEditor(value));
   }
 
   return (
@@ -44,7 +44,7 @@ export default function SwitchShowBgImage() {
         onMouseLeave={() => setShowAction(false)}
       >
         <SwitchGeneric
-          checked={checked}
+          value={checked}
           onChange={handleChange}
           label={label}
         />

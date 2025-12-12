@@ -61,7 +61,7 @@ export default function PanelCreateListingEntity({
   }
 
   async function handleCreateClick() {
-    console.log("Create listing entity");
+    console.log("Create listing entity - annotation", newAnnotation);
     // Logic to create a new listing entity goes here
     const entity = await createEntity(tempItem, {
       listing,

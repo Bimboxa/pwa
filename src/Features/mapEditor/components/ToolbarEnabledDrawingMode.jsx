@@ -2,10 +2,11 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { setEnabledDrawingMode } from "../mapEditorSlice";
 
-import { Paper } from "@mui/material";
+import { Paper, Box } from "@mui/material";
 import { Mouse, Rectangle, WaterDrop } from "@mui/icons-material";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
+import ToolbarNewAnnotation from "Features/annotations/components/ToolbarNewAnnotation";
 
 export default function ToolbarEnabledDrawingMode() {
 
@@ -14,6 +15,8 @@ export default function ToolbarEnabledDrawingMode() {
     // data
 
     const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+    const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
+    const type = newAnnotation?.type;
 
     // options
 
@@ -34,6 +37,11 @@ export default function ToolbarEnabledDrawingMode() {
             icon: <WaterDrop />
         }
     ]
+
+    // helpers - show mode
+
+    const showMode = ["POLYLINE", "POLYGONE"].includes(type);
+
     // handlers
 
     function handleChange(mode) {
@@ -42,11 +50,16 @@ export default function ToolbarEnabledDrawingMode() {
 
     // render
 
-    return <Paper sx={{ display: "flex", alignItems: "center", p: 1 }}>
+    if (!showMode) return null;
+
+    return <Paper
+        sx={{ display: "flex", alignItems: "center", p: 1 }
+        }>
         <ToggleSingleSelectorGeneric
             options={options}
             selectedKey={enabledDrawingMode}
             onChange={handleChange}
         />
     </Paper >
+
 }

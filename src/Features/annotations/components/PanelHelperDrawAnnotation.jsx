@@ -26,6 +26,7 @@ export default function PanelHelperDrawAnnotation() {
 
   const helperS = helperMap[enabledDrawingMode];
 
+  return null
   return (
     <Panel>
       <BoxCenter sx={{ display: "flex", flexDirection: "column", gap: 1 }}>

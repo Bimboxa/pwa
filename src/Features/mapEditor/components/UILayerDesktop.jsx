@@ -8,6 +8,7 @@ import ToolbarMapEditorV3 from "./ToolbarMapEditorV3";
 import ButtonEditScaleVariantFirst from "./ButtonEditScaleVariantFirst";
 import ButtonAutoLayoutLabels from "Features/tools/components/ButtonAutoLayoutLabels";
 import SectionShowedFWC from "Features/fwc/components/SectionShowedFWC";
+import ButtonMenuMapEditorSettings from "./ButtonMenuMapEditorSettings";
 
 export default function UILayerDesktop({ mapController, onResetCamera }) {
 
@@ -23,7 +24,7 @@ export default function UILayerDesktop({ mapController, onResetCamera }) {
 
     // helpers - show
 
-    const showDrawingTools = emType === "LOCATED_ENTITY";
+    const showDrawingTools = emType === "LOCATED_ENTITY" || listing?.entityModel?.annotationEnabled;
     const showEditScale = true;
 
 
@@ -39,6 +40,17 @@ export default function UILayerDesktop({ mapController, onResetCamera }) {
                 }}
             >
                 <ButtonSelectorBaseMapInMapEditor onResetCamera={onResetCamera} />
+            </Box>
+
+            <Box
+                sx={{
+                    position: "absolute",
+                    right: "8px",
+                    bottom: "8px",
+                    zIndex: 1,
+                }}
+            >
+                <ButtonMenuMapEditorSettings />
             </Box>
 
             {showDrawingTools && <Box sx={{

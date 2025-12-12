@@ -50,6 +50,7 @@ import db from "App/db/db";
 import editor from "App/editor";
 import getPolylinePointsFromRectangle from "Features/geometry/utils/getPolylinePointsFromRectangle";
 import getDefaultCameraMatrix from "../utils/getDefaultCameraMatrix";
+import getDefaultBaseMapPoseInBg from "../utils/getDefaultBaseMapPoseInBg";
 
 export default function MainMapEditorV3() {
     const dispatch = useDispatch();
@@ -79,8 +80,6 @@ export default function MainMapEditorV3() {
     const spriteImage = useAnnotationSpriteImage();
     const enabledDrawingMode = useSelector((state) => state.mapEditor.enabledDrawingMode);
     const selectedNode = useSelector((state) => state.mapEditor.selectedNode);
-    const newAnnotationType = useNewAnnotationType();
-    const resetNewAnnotation = useResetNewAnnotation();
 
     // viewport
 
@@ -101,17 +100,31 @@ export default function MainMapEditorV3() {
 
 
     // baseMap
+    const baseMap = useMainBaseMap();
+
+    useEffect(() => {
+        if (baseMap && bgImage) {
+            const defaultBaseMapPoseInBg = getDefaultBaseMapPoseInBg({
+                baseMap,
+                bgImage,
+            });
+            dispatch(setBaseMapPoseInBg(defaultBaseMapPoseInBg));
+        }
+    }, [baseMap?.getUrl(), bgImage?.url]);
 
     useAutoSelectMainBaseMap();
-    useAutoResetBaseMapPose();
+    //useAutoResetBaseMapPose();
     const basePoseInBg = useSelector((s) => s.mapEditor.baseMapPoseInBg);
-    const baseMap = useMainBaseMap();
+
+
     const { pose: basePose } = useBaseMapPose({
         baseMap,
-        showBgImage,
         viewport,
         basePoseInBg,
     });
+
+
+    // handlers
     const handleBaseMapPoseChange = (newPose) => {
         // newPose = { x, y, k, r }
         dispatch(setBaseMapPoseInBg(newPose));

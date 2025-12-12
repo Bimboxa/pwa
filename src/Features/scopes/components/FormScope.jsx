@@ -27,7 +27,7 @@ export default function FormScope({ scope, onChange }) {
         type: "text",
         options: {
           fullWidth: true,
-          showLabel: true,
+          showAsSection: true,
         },
       },
       // {

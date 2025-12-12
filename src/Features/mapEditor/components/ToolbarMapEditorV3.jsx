@@ -13,8 +13,10 @@ import ButtonDrawMarker from "./ButtonDrawMarker";
 import ButtonDrawPolygon from "./ButtonDrawPolygon";
 import ButtonDrawPolyline from "./ButtonDrawPolyline";
 import ButtonDrawLabel from "./ButtonDrawLabel";
-import ToolbarEnabledDrawingMode from "./ToolbarEnabledDrawingMode";
 import ButtonEditScale from "./ButtonEditScale";
+
+import ToolbarEnabledDrawingMode from "./ToolbarEnabledDrawingMode";
+import ToolbarNewAnnotation from "Features/annotations/components/ToolbarNewAnnotation";
 
 
 export default function ToolbarMapEditorV3() {
@@ -30,32 +32,46 @@ export default function ToolbarMapEditorV3() {
     // helpers
 
     const tools = [
-        <ButtonDrawMarker disabled={!newAnnotation?.label} />,
-        <ButtonDrawPolyline disabled={!newAnnotation?.label} />,
-        <ButtonDrawPolygon disabled={!newAnnotation?.label} />,
-        <ButtonDrawLabel disabled={!newAnnotation?.label} />,
+        <ButtonDrawMarker key={1} disabled={!newAnnotation?.label} />,
+        <ButtonDrawPolyline key={2} disabled={!newAnnotation?.label} />,
+        <ButtonDrawPolygon key={3} disabled={!newAnnotation?.label} />,
     ]
 
 
     // render
 
     if (enabledDrawingMode) {
-        return <ToolbarEnabledDrawingMode />
+        return <Box sx={{ display: "flex", gap: 1 }}>
+            <ToolbarNewAnnotation />
+            <ToolbarEnabledDrawingMode />
+
+        </Box>
     }
 
-    return <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, pr: 1, borderRadius: 2 }}>
-        <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
+    return <Box sx={{ display: "flex", gap: 1 }}>
+        <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, pr: 1, borderRadius: 2 }}>
+            <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
 
 
-            <FieldNewAnnotationLabel />
-            <FieldNewAnnotationColor />
-        </Box>
+                <FieldNewAnnotationLabel />
+                <FieldNewAnnotationColor />
+            </Box>
 
-        <Box sx={{ display: "flex", gap: 0.5, ml: 2 }}>
-            {tools.map(tool => tool)}
-        </Box>
-        {meterByPx && <Box sx={{ ml: 1 }}>
+            <Box sx={{ display: "flex", gap: 0.5, ml: 2 }}>
+                {tools.map(tool => tool)}
+            </Box>
+
+        </Paper >
+
+        <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, px: 1, borderRadius: 2 }}>
+            <ButtonDrawLabel />
+
+        </Paper>
+
+        {meterByPx && < Paper sx={{ display: "flex", alignItems: "center", p: 0.5, px: 1, borderRadius: 2 }}>
             <ButtonEditScale />
-        </Box>}
-    </Paper >
+        </Paper>
+
+        }
+    </Box >
 }
