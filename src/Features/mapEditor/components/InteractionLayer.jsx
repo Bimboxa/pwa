@@ -33,15 +33,20 @@ import MapTooltip from 'Features/mapEditorGeneric/components/MapTooltip';
 import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
 import getBestSnap from 'Features/mapEditor/utils/getBestSnap';
 
+import cv from "Features/opencv/services/opencvService";
+import editor from "App/editor";
+
 const InteractionLayer = forwardRef(({
   children,
   enabledDrawingMode,
   newAnnotation,
   onCommitDrawing,
+  onCommitPointsFromDropFill,
   basePose,
   onBaseMapPoseChange,
   onBaseMapPoseCommit,
   baseMapImageSize,
+  baseMapImageUrl,
   bgPose = { x: 0, y: 0, k: 1 },
   activeContext = "BASE_MAP",
   annotations, // <= snapping source.
@@ -61,6 +66,7 @@ const InteractionLayer = forwardRef(({
   // constants
 
   const SNAP_THRESHOLD_ABSOLUTE = 24;
+  const DRAG_THRESHOLD_PX = 3; // Seuil de déplacement pour activer le drag
 
   // refs
 
@@ -73,7 +79,7 @@ const InteractionLayer = forwardRef(({
 
   // context
 
-  const { setHoveredNode, setHiddenAnnotationIds, setDraggingAnnotationId } = useInteraction();
+  const { setHoveredNode, setHiddenAnnotationIds, setDraggingAnnotationId, setBasePose } = useInteraction();
 
   // expose handlers
 
@@ -103,6 +109,46 @@ const InteractionLayer = forwardRef(({
 
   function handleCameraChange(cameraMatrix) {
     helperScaleRef.current?.updateZoom(cameraMatrix.k);
+
+    // 2. Update Viewport Bounds in BaseMap Reference
+    // On demande la taille directement au viewportRef
+    const size = viewportRef.current?.getViewportSize();
+
+    if (size && size.width > 0 && size.height > 0) {
+      const { width: w, height: h } = size;
+
+      // A. Screen -> World (Standard Viewport Math)
+      // World = (Screen - CameraTrans) / CameraScale
+      const worldLeft = (0 - cameraMatrix.x) / cameraMatrix.k;
+      const worldTop = (0 - cameraMatrix.y) / cameraMatrix.k;
+      const worldRight = (w - cameraMatrix.x) / cameraMatrix.k;
+      const worldBottom = (h - cameraMatrix.y) / cameraMatrix.k;
+
+      // B. World -> Local BaseMap (Inverse Transform)
+      // Local = (World - BasePose) / BaseScale
+      const pose = getTargetPose();
+
+      // Sécurité pour éviter division par zéro
+      const baseK = pose.k || 1;
+
+      const localLeft = (worldLeft - pose.x) / baseK;
+      const localTop = (worldTop - pose.y) / baseK;
+      const localRight = (worldRight - pose.x) / baseK;
+      const localBottom = (worldBottom - pose.y) / baseK;
+
+      const bounds = {
+        x: localLeft,
+        y: localTop,
+        width: localRight - localLeft,
+        height: localBottom - localTop
+      };
+
+      // Mise à jour de l'objet global editor pour le service OpenCV
+      if (editor) {
+        editor.viewportInBase = { bounds };
+      }
+    }
+
   }
 
   // tooltip
@@ -115,6 +161,7 @@ const InteractionLayer = forwardRef(({
   const basePoseRef = useRef(basePose);
   useEffect(() => {
     basePoseRef.current = basePose;
+    setBasePose(basePose);
   }, [basePose]);
 
   const getTargetPose = () => {
@@ -143,7 +190,13 @@ const InteractionLayer = forwardRef(({
   // Structure: { active: boolean, pointId: string, currentPos: {x,y} }
 
   const [dragAnnotationState, setDragAnnotationState] = useState(null);
-  // Structure: { active: boolean, annotationId: string, currentPos: {x,y} }
+  // Structure: { 
+  //   active: boolean, 
+  //   pending: boolean, // <--- Nouveau flag
+  //   annotationId: string, 
+  //   currentPos: {x,y}, 
+  //   startMouseScreen: {x,y} // <--- Pour calculer le seuil
+  // }
 
   // State pour le drag de la BaseMap
   const [dragBaseMapState, setDragBaseMapState] = useState(null);
@@ -309,7 +362,7 @@ const InteractionLayer = forwardRef(({
 
 
   // --- GESTION DES CLICS (Ajout de point) ---
-  const handleWorldClick = ({ worldPos, viewportPos, event }) => {
+  const handleWorldClick = async ({ worldPos, viewportPos, event }) => {
 
 
     //Déclencher le flash visuel au clic
@@ -372,6 +425,41 @@ const InteractionLayer = forwardRef(({
         // This will call onCommitDrawingRef.current(points) inside InteractionLayer
         commitPolyline(event);
       }
+    }
+
+    // -- CASE 4: DROP_FIIL
+    else if (enabledDrawingMode === "DROP_FILL") {
+      await cv.load();
+      let finalPos = toLocalCoords(worldPos);
+      const viewportBounds = editor.viewportInBase?.bounds;
+      let viewportBBox;
+      if (
+        viewportBounds &&
+        Number.isFinite(viewportBounds.x) &&
+        Number.isFinite(viewportBounds.y) &&
+        Number.isFinite(viewportBounds.width) &&
+        Number.isFinite(viewportBounds.height)
+      ) {
+        viewportBBox = {
+          x: viewportBounds.x,
+          y: viewportBounds.y,
+          width: Math.max(1, viewportBounds.width),
+          height: Math.max(1, viewportBounds.height),
+        };
+      }
+
+      const { points, cuts } = await cv.detectContoursAsync({
+        imageUrl: baseMapImageUrl,
+        x: finalPos.x,
+        y: finalPos.y,
+        viewportBBox,
+      });
+
+
+      if (onCommitPointsFromDropFill) {
+        onCommitPointsFromDropFill(points);
+      }
+      dispatch(setEnabledDrawingMode(null));
     }
 
     else if (!enabledDrawingMode) {
@@ -565,6 +653,27 @@ const InteractionLayer = forwardRef(({
     }
 
     // C. DRAG ANNOTATION (Objet entier)
+    // --- GESTION DU THRESHOLD 3PX ICI ---
+    if (dragAnnotationState?.pending) {
+      // Calcul de la distance parcourue depuis le clic initial
+      const dx = event.clientX - dragAnnotationState.startMouseScreen.x;
+      const dy = event.clientY - dragAnnotationState.startMouseScreen.y;
+      const dist = Math.hypot(dx, dy);
+
+      // Si on dépasse le seuil, on active le drag
+      if (dist > DRAG_THRESHOLD_PX) {
+        setDragAnnotationState(prev => ({
+          ...prev,
+          pending: false,
+          active: true
+        }));
+        setDraggingAnnotationId(dragAnnotationState.selectedAnnotationId);
+      } else {
+        // Sinon, on ne fait rien (on absorbe le mouvement sans déplacer l'objet)
+        return;
+      }
+    }
+
     if (dragAnnotationState?.active) {
       const currentMouseInWorld = viewportRef.current?.screenToWorld(event.clientX, event.clientY);
       const currentMouseInLocal = toLocalCoords(currentMouseInWorld);
@@ -792,10 +901,19 @@ const InteractionLayer = forwardRef(({
       setVirtualInsertion(null);
       setTimeout(() => setHiddenAnnotationIds([]), 30);
       document.body.style.cursor = '';
-    } else if (dragAnnotationState?.active) {
+    }
 
-      if (onAnnotationMoveCommit) {
-        onAnnotationMoveCommit(dragAnnotationState.selectedAnnotationId, dragAnnotationState.deltaPos);
+    // --- MODIFICATION ICI : On ne commit que si c'était réellement actif ---
+    else if (dragAnnotationState) {
+      // Si on était en 'pending' (juste un clic) ou 'active' (vrai drag)
+      if (dragAnnotationState.active) {
+        if (onAnnotationMoveCommit) {
+          onAnnotationMoveCommit(
+            dragAnnotationState.selectedAnnotationId,
+            dragAnnotationState.deltaPos,
+            dragAnnotationState.partType
+          );
+        }
       }
 
       setDragAnnotationState(null);
@@ -812,13 +930,23 @@ const InteractionLayer = forwardRef(({
 
   const handleMouseDownCapture = (e) => {
     if (!selectedNode) return;
+
     // ==================
     // Annotation
     // ==================
 
     const target = e.nativeEvent?.target || e.target;
 
+    // --- permet la modif de l'input/textarea d'un label
+
+    if (['INPUT', 'TEXTAREA'].includes(target.tagName)) {
+      return;
+    }
+
     const draggableGroup = target.closest('[data-interaction="draggable"]');
+    const partNode = target.closest('[data-part-type]');
+    const partType = partNode?.dataset?.partType;
+
     const basemapHandle = target.closest('[data-interaction="transform-basemap"]');
     const legendHandle = target.closest('[data-interaction="transform-legend"]');
 
@@ -834,12 +962,17 @@ const InteractionLayer = forwardRef(({
       const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
       const startMouseInLocal = toLocalCoords(worldPos);
 
+      // --- MODIFICATION ICI ---
+      // On initialise en 'pending' (attente de mouvement)
       setDragAnnotationState({
-        active: true,
+        active: false, // Pas encore visuellement actif
+        pending: true, // Nouveau flag
         selectedAnnotationId: nodeId,
         startMouseInLocal,
+        partType,
+        startMouseScreen: { x: e.clientX, y: e.clientY } // Stocker la position écran initiale
       });
-      setDraggingAnnotationId(nodeId);
+      // On NE met PAS setDraggingAnnotationId tout de suite !
     }
 
     if (basemapHandle || legendHandle) {
@@ -995,11 +1128,13 @@ const InteractionLayer = forwardRef(({
           </g>
         )}
 
+        {/* --- Affichage conditionnel : Seulement si 'active' est vrai --- */}
         {dragAnnotationState?.active && (
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
             <TransientAnnotationLayer
               annotation={selectedAnnotation}
               deltaPos={dragAnnotationState.deltaPos}
+              partType={dragAnnotationState.partType}
               basePose={basePose}
               baseMapMeterByPx={baseMapMeterByPx}
             />
@@ -1029,5 +1164,3 @@ const InteractionLayer = forwardRef(({
 });
 
 export default InteractionLayer;
-
-

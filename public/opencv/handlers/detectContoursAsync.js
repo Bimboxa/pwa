@@ -200,9 +200,13 @@ async function detectContoursAsync({ msg, payload }) {
       for (let j = 0; j < pointsMat.rows; j++) {
         const contourX = pointsMat.data32S[j * 2] + roiX;
         const contourY = pointsMat.data32S[j * 2 + 1] + roiY;
+        // points.push({
+        //   x: contourX / imageWidth,
+        //   y: contourY / imageHeight,
+        // });
         points.push({
-          x: contourX / imageWidth,
-          y: contourY / imageHeight,
+          x: contourX,
+          y: contourY,
         });
       }
 

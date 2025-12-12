@@ -1,6 +1,7 @@
 import NodeMarkerStatic from "./NodeMarkerStatic";
 import NodePolylineStatic from "./NodePolylineStatic";
 import NodeTextStatic from "./NodeTextStatic";
+import NodeLabelStatic from "./NodeLabelStatic";
 
 export default function NodeAnnotationStatic({
   annotation,
@@ -13,6 +14,7 @@ export default function NodeAnnotationStatic({
   imageSize, // for text annotations
   containerK,
   sizeVariant,
+  showBgImage,
 }) {
   annotation = { ...annotation ?? {}, ...annotationOverride ?? {} };
 
@@ -25,6 +27,7 @@ export default function NodeAnnotationStatic({
     containerK,
     sizeVariant,
     imageSize,
+    showBgImage,
   };
 
   switch (annotation.type) {
@@ -39,6 +42,9 @@ export default function NodeAnnotationStatic({
 
     case "TEXT":
       return <NodeTextStatic {...props} text={annotation} />;
+
+    case "LABEL":
+      return <NodeLabelStatic {...props} annotation={annotation} sizeVariant="FIXED_IN_BG_IMAGE" />;
 
     // case "RECTANGLE":
     //   return NodeRectangle({ ...props, rectangle: annotation });

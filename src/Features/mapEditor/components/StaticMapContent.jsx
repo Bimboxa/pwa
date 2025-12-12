@@ -1,5 +1,7 @@
 import { memo } from "react";
 
+import { useSelector } from "react-redux";
+
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 
 import NodeSvgImage from "Features/mapEditorGeneric/components/NodeSvgImage";
@@ -30,6 +32,19 @@ function StaticMapContent({
 
     const { hoveredNode, hiddenAnnotationIds } = useInteraction();
     const spriteImage = useAnnotationSpriteImage();
+    const _showedFWC = useSelector(s => s.fwc.showedFWC);
+
+    // helpers
+
+    const fwcCountMap = annotations.reduce((acc, { entity }) => {
+        if (entity?.fwc) {
+            acc[entity.fwc] = (acc[entity.fwc] || 0) + 1;
+        }
+        return acc;
+    }, {});
+    const activeFWC = Object.keys(fwcCountMap).filter(fwc => fwcCountMap[fwc] > 0);
+    const showedFWC = _showedFWC.filter(fwc => fwcCountMap[fwc] > 0);
+    const fwcEnabled = annotations.filter(({ entity }) => Boolean(entity?.fwc)).length > 0;
 
     // helpers
 
@@ -43,8 +58,9 @@ function StaticMapContent({
     const bgImageAnnotations = showBgImage
         ? annotations.filter(({ nodeType }) => nodeType === "BG_IMAGE_TEXT")
         : [];
-    const baseMapAnnotations = annotations.filter(({ baseMapId }) =>
-        Boolean(baseMapId)
+    const baseMapAnnotations = annotations.filter(({ baseMapId, entity }) =>
+        Boolean(baseMapId) &&
+        (showedFWC.includes(entity?.fwc) || !fwcEnabled || (!entity?.fwc && showedFWC.length === activeFWC.length))
     );
 
 
@@ -101,6 +117,7 @@ function StaticMapContent({
                         sizeVariant={sizeVariant}
                         containerK={basePose.k}
                         baseMapMeterByPx={baseMapMeterByPx}
+                        showBgImage={showBgImage}
                     />
                 })}
 

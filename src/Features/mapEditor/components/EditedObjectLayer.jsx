@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
 
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
+import EditedLabelLayer from "./EditedLabelLayer";
 
 import theme from 'Styles/theme';
 
@@ -16,7 +17,7 @@ export default function EditedObjectLayer({
 }) {
 
 
-    const isDraggable = selectedNode?.annotationType === "MARKER";
+    const isDraggable = selectedNode?.annotationType === "MARKER" || selectedNode?.annotationType === "LABEL";
 
     const { hoveredNode, hiddenAnnotationIds, draggingAnnotationId } = useInteraction();
 

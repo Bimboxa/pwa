@@ -9,8 +9,6 @@ export default async function getEntityComputedFieldsAsync(entity) {
 
   const computedFields = listing?.entityModel?.computedFields;
 
-  console.log("computedFields", computedFields, listing);
-
   if (!computedFields || typeof computedFields !== "object") {
     return {};
   }
