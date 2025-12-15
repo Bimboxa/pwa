@@ -13,11 +13,21 @@ export default function EditedObjectLayer({
     annotations,
     spriteImage,
     selectedNode,
-    baseMapMeterByPx
+    baseMapMeterByPx,
+    onTextValueChange,
 }) {
 
 
     const isDraggable = selectedNode?.annotationType === "MARKER" || selectedNode?.annotationType === "LABEL";
+    const isBgContext = selectedNode?.nodeContext === "BG_IMAGE";
+
+
+
+    basePose = isBgContext ? {
+        x: 0,
+        y: 0,
+        k: 1
+    } : basePose;
 
     const { hoveredNode, hiddenAnnotationIds, draggingAnnotationId } = useInteraction();
 
@@ -27,12 +37,17 @@ export default function EditedObjectLayer({
         return annotations.find(a => a.id === selectedNode.nodeId);
     }, [selectedNode, annotations]);
 
+    console.log("selectedAnnotation", selectedAnnotation)
+
 
     // 2. Define the "Selected" style overrides
+
+    const addFillColor = selectedNode?.annotationType !== "TEXT";
+
     const overrideStyle = {
         strokeColor: theme.palette.annotation.selected, // e.g., Bright Blue or Orange
         strokeWidth: (selectedAnnotation?.strokeWidth || 0) + 1, // Make it pop
-        fillColor: theme.palette.annotation.selected,
+        ...(addFillColor ? { fillColor: theme.palette.annotation.selected } : {}),
         fillOpacity: 0.5 // Make it solid
     };
 
@@ -62,6 +77,7 @@ export default function EditedObjectLayer({
                 selected={true}
                 sizeVariant="FIXED_IN_SCREEN"
                 containerK={basePose.k}
+                onTextValueChange={onTextValueChange}
             />
 
 

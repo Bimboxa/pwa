@@ -205,6 +205,9 @@ const InteractionLayer = forwardRef(({
   const [dragLegendState, setDragLegendState] = useState(null);
   // { active: true, handleType: 'MOVE'|'SE'..., startMouseScreen: {x,y}, startFormat }
 
+  const [dragTextState, setDragTextState] = useState(null);
+  // { active: true, handleType: 'MOVE'|'SE'..., startMouseScreen: {x,y}, startText }
+
   const currentSnapRef = useRef(null); // Stocke le résultat du getBestSnap
 
   // drawing points
@@ -470,11 +473,15 @@ const InteractionLayer = forwardRef(({
         if (
           !showBgImage && hit?.dataset?.nodeType === "BASE_MAP"
           || showBgImage && hit?.dataset?.nodeType === "BG_IMAGE"
+
         ) {
           dispatch(setSelectedNode(null))
           setHiddenAnnotationIds([]);
           dispatch(setAnnotationToolbarPosition(null));
-        } else if (hit?.dataset?.nodeType === "ANNOTATION" && !showBgImage) {
+        } else if (
+          hit?.dataset?.nodeType === "ANNOTATION" && !showBgImage
+          || hit?.dataset?.nodeContext === "BG_IMAGE"
+        ) {
           dispatch(setSelectedNode(hit?.dataset));
           setHiddenAnnotationIds([hit?.dataset.nodeId]);
           dispatch(
@@ -506,6 +513,7 @@ const InteractionLayer = forwardRef(({
       dragAnnotationState?.active ||
       dragBaseMapState?.active ||
       dragLegendState?.active ||
+      dragTextState?.active ||
       enabledDrawingMode ||
       selectedNode;
 
@@ -652,6 +660,47 @@ const InteractionLayer = forwardRef(({
       return;
     }
 
+    if (dragTextState?.active) {
+      const { startMouseWorld, handleType, startWidth } = dragTextState;
+
+      // Calcul du delta.
+      // Attention : NodeTextStatic affiche le texte en taille écran fixe (inversé au zoom) ?
+      // NON, dans votre NodeTextStatic fourni, vous avez commenté le 'scaleStyle'.
+      // Cela veut dire que le texte grossit quand on zoome la carte.
+      // Donc 'width' est probablement en unités "Image" ou "Monde".
+
+      // Si le texte est dans le repère image (comme BaseMap) :
+      const dxWorld = worldPos.x - startMouseWorld.x;
+
+      // Il faut convertir ce delta Monde en delta "Pixels stockés".
+      // Si 'text.width' est en pixels écran absolus (ce qui semble être le cas vu estimateWidthPx),
+      // alors il faut projeter le delta monde -> écran -> échelle 1.
+
+      // Cependant, NodeTextStatic utilise : pixelX = x * imageWidth.
+      // Et foreignObject width={storedWidth}.
+      // Donc storedWidth est en PIXELS de l'espace SVG (qui correspond aux pixels de l'image de fond si zoom=1).
+
+      // Donc DeltaWidth = dxWorld / bgPose.k (pour revenir au référentiel image).
+      const dxLocal = dxWorld / bgPose.k;
+
+      let newWidth = startWidth;
+
+      // Si startWidth était null (auto), on doit l'initialiser avec la taille actuelle mesurée
+      // C'est complexe sans ref. On peut assumer une valeur par défaut ou forcer l'init au mousedown.
+
+      if (newWidth === 0) newWidth = 100; // Fallback
+
+      if (handleType === 'E') newWidth += dxLocal;
+      else if (handleType === 'W') newWidth -= dxLocal;
+
+      newWidth = Math.max(20, newWidth);
+
+      // Update Redux/DB
+      // onUpdateAnnotation(id, { width: newWidth });
+
+      return;
+    }
+
     // C. DRAG ANNOTATION (Objet entier)
     // --- GESTION DU THRESHOLD 3PX ICI ---
     if (dragAnnotationState?.pending) {
@@ -739,6 +788,7 @@ const InteractionLayer = forwardRef(({
       const hit = nativeTarget.closest?.("[data-node-type]");
 
       if (hit) {
+        //console.log("hovered node", hit?.dataset);
         setHoveredNode(hit?.dataset);
 
         // Tooltip Logic
@@ -949,6 +999,7 @@ const InteractionLayer = forwardRef(({
 
     const basemapHandle = target.closest('[data-interaction="transform-basemap"]');
     const legendHandle = target.closest('[data-interaction="transform-legend"]');
+    const textHandle = target.closest('[data-interaction="transform-text"]');
 
 
     if (draggableGroup) {
@@ -1000,6 +1051,11 @@ const InteractionLayer = forwardRef(({
       if (legendHandle) {
         initDragState.startFormat = { ...legendFormat }
         setDragLegendState(initDragState);
+      }
+      if (textHandle) {
+        initDragState.startWidth = annotation.width;
+        initDragState.startX = annotation.x;
+        setDragTextState(initDragState);
       }
 
       document.body.style.cursor = handleType === 'MOVE' ? 'grabbing' : 'crosshair';
@@ -1135,7 +1191,7 @@ const InteractionLayer = forwardRef(({
               annotation={selectedAnnotation}
               deltaPos={dragAnnotationState.deltaPos}
               partType={dragAnnotationState.partType}
-              basePose={basePose}
+              basePose={targetPose}
               baseMapMeterByPx={baseMapMeterByPx}
             />
           </g>

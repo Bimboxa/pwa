@@ -1,6 +1,6 @@
 import { useSelector } from "react-redux";
 
-import useAnnotations from "Features/annotations/hooks/useAnnotations";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useOrgaLogoUrl from "Features/orgaData/hooks/useOrgaLogoUrl";
@@ -20,13 +20,16 @@ export default function useDownladPdfReport() {
   const spriteImage = useAnnotationSpriteImage();
   const orgaLogoUrl = useOrgaLogoUrl();
 
-  const annotations = useAnnotations({
+  const annotations = useAnnotationsV2({
     addDemoAnnotations: false,
     filterByBaseMapId: mainBaseMap?.id,
     excludeListingsIds: hiddenListingsIds,
     withEntity: true,
     withLabel: true,
   });
+
+  const annotationsWithDetails = annotations.filter(a => a.entity?.description || a.entity?.image)
+
 
   // handlers
 
@@ -38,9 +41,9 @@ export default function useDownladPdfReport() {
 
     let finalPdf;
 
-    if (addTable) {
+    if (addTable && annotationsWithDetails.length > 0) {
       console.log("[DownloadPdfReport]annotations", annotations);
-      const issuesPdf = await createAnnotationsPdfReport(annotations, {
+      const issuesPdf = await createAnnotationsPdfReport(annotationsWithDetails, {
         spriteImage,
         logoImage: { url: orgaLogoUrl },
         title: "Rapport photos",

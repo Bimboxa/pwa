@@ -1,7 +1,10 @@
-import { useLayoutEffect, useRef, useState, useMemo } from "react";
+import React, { useLayoutEffect, useRef, useState, useEffect } from "react";
 import { Box } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+// Adaptez le chemin d'import selon votre structure
+import db from "App/db/db";
 
-// Quick estimate helper (same as original)
+// Helper pour estimer la largeur initiale
 function estimateWidthPx(str, fontSizePx) {
     const avgChar = 0.6 * fontSizePx;
     return Math.max(1, Math.ceil((str.length + 1) * avgChar));
@@ -9,10 +12,17 @@ function estimateWidthPx(str, fontSizePx) {
 
 export default function NodeTextStatic({
     text,
-    imageSize,
+    context,
+    hovered,
+    selected,
+    onTextValueChange,
 }) {
+    const theme = useTheme();
 
-    // --- PROPERTIES ---
+    // --- CONFIGURATION ---
+    const BORDER_WIDTH = 2;
+
+    // --- PROPS & DEFAULTS ---
     const fontFamily = text.fontFamily ?? "inherit";
     const fontWeight = text.fontWeight ?? "normal";
     const placeholder = text.placeholder ?? "Texte";
@@ -22,70 +32,113 @@ export default function NodeTextStatic({
     const minHeightPx = fontSizePx * 1.25;
     const fillColor = text.fillColor;
     const fillOpacity = text.fillOpacity ?? 1;
+    const textColor = text.textColor || "#000000";
+
+    // --- COULEURS ---
+    const selectedColor = theme.palette.annotation?.selected || theme.palette.primary.main;
+
+    // --- DATA PROPS ---
+    const dataProps = {
+        "data-node-id": text.id,
+        "data-node-type": "ANNOTATION",
+        "data-annotation-type": "TEXT",
+        "data-node-context": context,
+    };
+
+    // --- STATE ÉDITION ---
+    const [localValue, setLocalValue] = useState(text.textValue || "");
+
+    useEffect(() => {
+        setLocalValue(text.textValue || "");
+    }, [text.textValue]);
+
+    const textOrPh = localValue?.length > 0 ? localValue : placeholder;
 
     // --- DIMENSIONS ---
     const storedWidth = text.width;
     const storedHeight = text.height;
 
-    // Text content
-    const displayValue = text.textValue ?? "";
-    const textOrPh = displayValue?.length ? displayValue : placeholder;
-
-    // Auto-size calculation
-    const initialW = storedWidth
+    const contentW = storedWidth
         ? storedWidth
         : Math.max(minWidthPx, estimateWidthPx(textOrPh, fontSizePx)) + paddingPx * 2;
 
-    const initialH = storedHeight
-        ? storedHeight
-        : Math.max(minHeightPx, 1) + paddingPx;
-
-    // --- MEASURE HEIGHT (for ForeignObject) ---
     const contentRef = useRef(null);
-    const [measuredCssH, setMeasuredCssH] = useState(initialH);
+    const [measuredCssH, setMeasuredCssH] = useState(minHeightPx + paddingPx);
 
     useLayoutEffect(() => {
-        if (!contentRef.current || storedHeight) return;
+        if (!contentRef.current) return;
         const el = contentRef.current;
-        // Mesure immédiate
-        setMeasuredCssH(Math.max(el.scrollHeight, minHeightPx));
-
-        // Observer pour les changements de police/layout
-        const ro = new ResizeObserver(() => {
-            setMeasuredCssH(Math.max(el.scrollHeight, minHeightPx));
-        });
+        const updateHeight = () => {
+            setMeasuredCssH(Math.max(el.scrollHeight, minHeightPx + paddingPx));
+        };
+        updateHeight();
+        const ro = new ResizeObserver(updateHeight);
         ro.observe(el);
         return () => ro.disconnect();
-    }, [text.textValue, storedHeight, minHeightPx, fontSizePx]);
+    }, [localValue, storedWidth, minHeightPx, paddingPx, fontSizePx]);
 
-    const boxW = storedWidth || initialW;
-    const boxH = storedHeight || measuredCssH;
+    const finalBoxW = contentW + (BORDER_WIDTH * 2);
+    const baseH = storedHeight || measuredCssH;
+    const finalBoxH = baseH + (BORDER_WIDTH * 2);
 
-    // --- POSITION ---
-    // Calcul de la position absolue dans l'image
-    const pixelX = (text.x ?? 0) * (imageSize?.width ?? 0);
-    const pixelY = (text.y ?? 0) * (imageSize?.height ?? 0);
+    const pixelX = text.textPoint?.x ?? 0;
+    const pixelY = text.textPoint?.y ?? 0;
 
-    // --- SCALE COMPENSATION ---
-    // Si on veut que le texte reste lisible (taille fixe écran), on applique l'inverse du zoom
-    // Si on veut qu'il zoome avec la carte, on laisse scale(1).
-    // Ici, je reprends la logique "Static" vue précédemment :
-    // On annule le zoom caméra et le zoom container.
+    const adjustedX = pixelX - BORDER_WIDTH;
+    const adjustedY = pixelY - (finalBoxH / 2);
 
-    const scaleStyle = {
-        // transformBox: "fill-box",
-        // transformOrigin: "center", 
-        // transform: `translate(${pixelX}px, ${pixelY}px) scale(calc(1 / (var(--map-zoom, 1) * ${containerK})))`
-
-        // ATTENTION : Pour un foreignObject, le transform CSS peut être délicat.
-        // Souvent, on laisse le foreignObject subir le zoom SVG (pour qu'il reste accroché au point)
-        // mais on scale son CONTENU HTML inversement si on veut une taille fixe.
-        // OU BIEN : On suppose que ce texte DOIT zoomer (c'est une annotation sur le plan).
-        // Dans votre code original, 'scaleFactor' était utilisé pour le Drag, pas le rendu.
-        // Le rendu utilisait fontSizePx brut. Donc il semble que le texte DOIT zoomer avec la carte.
+    // --- HANDLERS ---
+    const handleBlur = async () => {
+        if (localValue !== text.textValue) {
+            console.log("💾 Commit Text:", text.id);
+            if (onTextValueChange) {
+                onTextValueChange({ annotationId: text.id, textValue: localValue });
+            } else {
+                try {
+                    await db.annotations.update(text.id, { textValue: localValue });
+                } catch (e) { console.error(e); }
+            }
+        }
     };
 
-    // Helper Background Color
+    const handleKeyDown = (e) => {
+        e.stopPropagation();
+        if (e.key === "Escape") {
+            e.target.blur();
+        }
+    };
+
+    const handleMouseDown = (e) => {
+        if (selected) e.stopPropagation();
+    };
+
+    // --- NOUVEAU : GESTION DU FOCUS ---
+    const handleFocus = (e) => {
+        // On récupère la longueur du texte actuel
+        const val = e.target.value;
+        // On place la sélection (le curseur) à la fin
+        e.target.setSelectionRange(val.length, val.length);
+    };
+
+    // --- STYLES PARTAGÉS ---
+    const commonTextStyle = {
+        fontFamily,
+        fontWeight,
+        fontSize: `${fontSizePx}px`,
+        lineHeight: 1.25,
+        letterSpacing: "inherit",
+        color: textColor,
+        padding: `${paddingPx / 2}px ${paddingPx}px`,
+        margin: 0,
+        width: "100%",
+        height: "100%",
+        boxSizing: 'border-box',
+        display: "block",
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+        overflowWrap: "break-word",
+    };
+
     const getBackgroundColor = () => {
         if (fillColor) {
             const hex = fillColor.replace("#", "");
@@ -99,48 +152,89 @@ export default function NodeTextStatic({
 
     return (
         <foreignObject
-            x={pixelX}
-            y={pixelY - boxH / 2} // Centré verticalement sur le point d'ancrage Y
-            width={boxW}
-            height={boxH}
-            style={{ overflow: "visible", pointerEvents: "none" }} // Static
-            data-node-id={text.id}
-            data-node-type="ANNOTATION"
-            data-annotation-type="TEXT"
+            x={adjustedX}
+            y={adjustedY}
+            width={finalBoxW}
+            height={finalBoxH}
+            style={{ overflow: "visible", pointerEvents: "auto" }}
+            {...dataProps}
         >
             <Box
-                ref={contentRef}
                 sx={{
                     width: "100%",
                     height: "100%",
+                    position: "relative",
                     display: "flex",
                     alignItems: "flex-start",
                     justifyContent: "flex-start",
                     boxSizing: "border-box",
                     bgcolor: getBackgroundColor(),
-                    // Pas de bordure ni curseur spécifique en mode static
+                    borderStyle: "solid",
+                    borderWidth: `${BORDER_WIDTH}px`,
+                    borderColor: hovered
+                        ? selectedColor
+                        : selected
+                            ? "rgba(0,0,0,0.1)"
+                            : "transparent",
+                    borderRadius: "4px",
+                    transition: "border-color 0.2s ease",
                 }}
             >
+                {/* 1. SHADOW SPAN */}
                 <span
+                    ref={contentRef}
                     style={{
-                        display: "block",
-                        whiteSpace: "pre-wrap", // Support des sauts de ligne
-                        wordWrap: "break-word",
-                        fontSize: fontSizePx,
-                        fontWeight,
-                        fontFamily,
-                        lineHeight: 1.25,
-                        padding: `${paddingPx / 2}px ${paddingPx}px`,
-                        margin: 0,
-                        width: "100%",
-                        height: "100%",
-                        overflow: "hidden", // On coupe ce qui dépasse en mode static
-                        color: "black", // Couleur par défaut si non spécifiée
-                        letterSpacing: "inherit",
+                        ...commonTextStyle,
+                        visibility: "hidden",
+                        color: 'transparent',
+                        minHeight: `${minHeightPx}px`,
+                        pointerEvents: 'none',
+                        width: contentW ? `${contentW}px` : '100%',
                     }}
                 >
                     {textOrPh}
+                    {localValue && localValue.endsWith('\n') && <br />}
                 </span>
+
+                {/* 2. OVERLAY (Input ou Texte) */}
+                {selected ? (
+                    <textarea
+                        value={localValue}
+                        onChange={(e) => setLocalValue(e.target.value)}
+                        onBlur={handleBlur}
+                        onKeyDown={handleKeyDown}
+                        onMouseDown={handleMouseDown}
+
+                        // --- AJOUT ICI ---
+                        onFocus={handleFocus} // Déclenche le déplacement du curseur
+                        autoFocus             // Focus automatique au montage
+
+                        style={{
+                            ...commonTextStyle,
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            background: 'transparent',
+                            border: 'none',
+                            outline: 'none',
+                            resize: 'none',
+                            overflow: 'hidden',
+                        }}
+                        spellCheck="false"
+                    />
+                ) : (
+                    <span
+                        style={{
+                            ...commonTextStyle,
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            pointerEvents: "none"
+                        }}
+                    >
+                        {textOrPh}
+                    </span>
+                )}
             </Box>
         </foreignObject>
     );
