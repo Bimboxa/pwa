@@ -95,6 +95,11 @@ export default function MainMapEditorV3() {
     useAutoShowBgImage();
     const bgImage = useBgImageInMapEditor();
     const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
+    const showBgImageRef = useRef(showBgImage);
+    useEffect(() => {
+        showBgImageRef.current = showBgImage;
+    }, [showBgImage]);
+
 
     // bgImage annotations
 
@@ -186,7 +191,7 @@ export default function MainMapEditorV3() {
         baseMap?.getImageSize()?.width,
         bgImage?.imageSize?.width,
         viewport?.w,
-        showBgImage,
+        //showBgImage,
     ]);
 
 

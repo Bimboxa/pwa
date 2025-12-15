@@ -76,6 +76,7 @@ const InteractionLayer = forwardRef(({
   const snappingLayerRef = useRef(null);
   const closingMarkerRef = useRef(null);
   const helperScaleRef = useRef(null);
+  const baseMapRafRef = useRef(null); // Raf = requestAnimationFrame, pour contrôle du resize de la map.
 
   // context
 
@@ -612,7 +613,17 @@ const InteractionLayer = forwardRef(({
       };
 
       if (onBaseMapPoseChange) {
-        onBaseMapPoseChange(newPoseInBg);
+        // 1. Si une mise à jour est déjà prévue pour la prochaine frame, on l'annule
+        // (car on a une donnée plus fraîche maintenant)
+        if (baseMapRafRef.current) {
+          cancelAnimationFrame(baseMapRafRef.current);
+        }
+
+        // 2. On planifie la mise à jour pour le prochain rafraîchissement écran
+        baseMapRafRef.current = requestAnimationFrame(() => {
+          onBaseMapPoseChange(newPoseInBg);
+          baseMapRafRef.current = null; // Nettoyage
+        });
       }
       return; // Action exclusive
     }

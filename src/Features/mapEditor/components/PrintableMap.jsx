@@ -66,6 +66,7 @@ const PrintableMap = forwardRef(({
                             imageSize={bgImageSize}
                             containerK={bgPose.k}
                             baseMapMeterByPx={baseMapMeterByPx}
+                            printMode={true}
                         />
                     ))}
                 </g>

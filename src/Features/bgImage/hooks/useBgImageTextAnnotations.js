@@ -18,19 +18,19 @@ export default function useBgImageTextAnnotations() {
   const textAnnotations = [];
 
   bgImageInMapEditor?.textAnnotations?.forEach((textAnnotation) => {
-    if (rawAnnotations?.[textAnnotation.key]) {
-      textAnnotations.push({
-        id: textAnnotation.key,
-        x: textAnnotation.position[0] / bgImageInMapEditor.width,
-        y: textAnnotation.position[1] / bgImageInMapEditor.height,
-        textPoint: { x: textAnnotation.position[0], y: textAnnotation.position[1] },
-        fontSize: textAnnotation.fontSize,
-        fontWeight: textAnnotation.fontWeight,
-        type: "TEXT",
-        nodeType: "BG_IMAGE_TEXT",
-        textValue: rawAnnotations?.[textAnnotation.key] ?? "-",
-      });
-    }
+
+    textAnnotations.push({
+      id: textAnnotation.key,
+      x: textAnnotation.position[0] / bgImageInMapEditor.width,
+      y: textAnnotation.position[1] / bgImageInMapEditor.height,
+      textPoint: { x: textAnnotation.position[0], y: textAnnotation.position[1] },
+      fontSize: textAnnotation.fontSize,
+      fontWeight: textAnnotation.fontWeight,
+      type: "TEXT",
+      nodeType: "BG_IMAGE_TEXT",
+      textValue: rawAnnotations?.[textAnnotation.key],
+    });
+
   });
 
   return textAnnotations;

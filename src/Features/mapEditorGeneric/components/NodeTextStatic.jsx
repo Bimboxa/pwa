@@ -16,11 +16,14 @@ export default function NodeTextStatic({
     hovered,
     selected,
     onTextValueChange,
+    printMode,
 }) {
     const theme = useTheme();
 
     // --- CONFIGURATION ---
     const BORDER_WIDTH = 2;
+
+    const notText = !(text?.textValue?.length > 0);
 
     // --- PROPS & DEFAULTS ---
     const fontFamily = text.fontFamily ?? "inherit";
@@ -32,7 +35,9 @@ export default function NodeTextStatic({
     const minHeightPx = fontSizePx * 1.25;
     const fillColor = text.fillColor;
     const fillOpacity = text.fillOpacity ?? 1;
-    const textColor = text.textColor || "#000000";
+
+    let textColor = text.textColor || "#000000";
+    if (notText) textColor = "#888888";
 
     // --- COULEURS ---
     const selectedColor = theme.palette.annotation?.selected || theme.palette.primary.main;
@@ -49,10 +54,13 @@ export default function NodeTextStatic({
     const [localValue, setLocalValue] = useState(text.textValue || "");
 
     useEffect(() => {
-        setLocalValue(text.textValue || "");
+        setLocalValue(text.textValue);
     }, [text.textValue]);
 
-    const textOrPh = localValue?.length > 0 ? localValue : placeholder;
+    let textOrPh = localValue?.length > 0 ? localValue : placeholder;
+    if (printMode && notText) textOrPh = "";
+
+
 
     // --- DIMENSIONS ---
     const storedWidth = text.width;
