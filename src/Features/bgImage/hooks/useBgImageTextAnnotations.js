@@ -23,11 +23,12 @@ export default function useBgImageTextAnnotations() {
         id: textAnnotation.key,
         x: textAnnotation.position[0] / bgImageInMapEditor.width,
         y: textAnnotation.position[1] / bgImageInMapEditor.height,
+        textPoint: { x: textAnnotation.position[0], y: textAnnotation.position[1] },
         fontSize: textAnnotation.fontSize,
         fontWeight: textAnnotation.fontWeight,
         type: "TEXT",
         nodeType: "BG_IMAGE_TEXT",
-        textValue: rawAnnotations?.[textAnnotation.key],
+        textValue: rawAnnotations?.[textAnnotation.key] ?? "-",
       });
     }
   });

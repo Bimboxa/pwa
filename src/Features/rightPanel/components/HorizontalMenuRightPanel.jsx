@@ -35,10 +35,10 @@ export default function HorizontalMenuRightPanel() {
   // helpers
 
   const toolsMap = {
-    PDF_REPORT: {
-      label: "Export PDF",
-      icon: <PictureAsPdf />,
-    },
+    // PDF_REPORT: {
+    //   label: "Export PDF",
+    //   icon: <PictureAsPdf />,
+    // },
     ENTITY_ZONES: {
       label: "Localisation",
       icon: <Room />,
@@ -54,7 +54,7 @@ export default function HorizontalMenuRightPanel() {
   };
 
   const toolsKeys = appConfig?.features?.tools ?? [];
-  const menuItems = toolsKeys.map((key) => ({ ...toolsMap[key], key }));
+  let menuItems = toolsKeys.map((key) => ({ ...toolsMap[key], key, enabled: Boolean(toolsMap[key]) })).filter(t => t.enabled);
 
   // data
 

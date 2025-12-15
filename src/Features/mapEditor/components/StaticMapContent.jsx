@@ -75,8 +75,13 @@ function StaticMapContent({
                     width={bgImageSize?.width}
                     height={bgImageSize?.height} />}
 
-                {bgImageAnnotations.map((annotation) => (
-                    <NodeAnnotationStatic
+                {bgImageAnnotations.map((annotation) => {
+
+                    if (hiddenAnnotationIds?.includes(annotation.id)) {
+                        return null;
+                    }
+
+                    return <NodeAnnotationStatic
                         key={annotation.id}
                         annotation={annotation}
                         spriteImage={spriteImage}
@@ -86,8 +91,9 @@ function StaticMapContent({
                         sizeVariant={sizeVariant}
                         containerK={bgPose.k}
                         baseMapMeterByPx={baseMapMeterByPx}
+                        context="BG_IMAGE"
                     />
-                ))}
+                })}
             </g>
 
             {/* --- BASE MAP LAYER --- */}
@@ -132,6 +138,7 @@ function StaticMapContent({
                         spriteImage={spriteImage}
                         legendFormat={legendFormat}
                         hovered={legendIsHovered}
+                        context="BG_IMAGE"
                     />
                 )}
             </g>

@@ -51,6 +51,11 @@ export default function NodeText({
     "data-annotation-type": "TEXT",
   };
 
+
+  // color
+
+  const selectedColor = theme.palette.annotation.selected;
+
   // bg-local anchor position
   const pixelX = (text.x ?? 0) * (imageSize?.w ?? 0);
   const pixelY = (text.y ?? 0) * (imageSize?.h ?? 0);

@@ -7,6 +7,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import { setAnchorPositionScale, setScaleInPx } from "../mapEditorSlice";
 import { setTempAnnotations } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
+import { setBgImageRawTextAnnotations } from "Features/bgImage/bgImageSlice";
 
 import useMeasure from "react-use-measure";
 
@@ -98,6 +99,14 @@ export default function MainMapEditorV3() {
     // bgImage annotations
 
     useAutoBgImageRawTextAnnotations();
+    const bgImageRawTextAnnotations = useSelector((s) => s.bgImage.bgImageRawTextAnnotations);
+
+    function _updateBgImageRawTextAnnotation({ key, value }) {
+        dispatch(setBgImageRawTextAnnotations({
+            ...bgImageRawTextAnnotations,
+            [key]: value,
+        }));
+    }
 
 
     // baseMap
@@ -168,7 +177,7 @@ export default function MainMapEditorV3() {
 
     useEffect(() => {
         console.log("[EFFECT_RESET_CAMERA]")
-        if (defaultCameraMatrixRef.current) {
+        if (defaultCameraMatrixRef.current && !showBgImage) {
             interactionLayerRef.current?.setCameraMatrix(defaultCameraMatrixRef.current);
         }
     }, [
@@ -177,6 +186,7 @@ export default function MainMapEditorV3() {
         baseMap?.getImageSize()?.width,
         bgImage?.imageSize?.width,
         viewport?.w,
+        showBgImage,
     ]);
 
 
@@ -367,6 +377,15 @@ export default function MainMapEditorV3() {
     };
 
 
+    // handlers - text value change
+
+    const handleTextValueChange = ({ annotationId, textValue }) => {
+        _updateBgImageRawTextAnnotation({
+            key: annotationId,
+            value: textValue,
+        });
+    };
+
     // snapping
 
     const isSnappingEnabled = enabledDrawingMode || !selectedNode;
@@ -453,6 +472,7 @@ export default function MainMapEditorV3() {
                         spriteImage={spriteImage}
                         selectedNode={selectedNode}
                         baseMapMeterByPx={baseMap?.meterByPx} // If needed for width calc
+                        onTextValueChange={handleTextValueChange}
                     />}
 
 
