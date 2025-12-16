@@ -221,12 +221,19 @@ const InteractionLayer = forwardRef(({
   // drawing points
 
   const [drawingPoints, setDrawingPoints] = useState([]);
-
   const drawingPointsRef = useRef([]);
   useEffect(() => {
     drawingPointsRef.current = drawingPoints;
   }, [drawingPoints]);
 
+
+  // cutHostId
+
+  const [cutHostId, setCutHostId] = useState(null);
+  const cutHostIdRef = useRef(null);
+  useEffect(() => {
+    cutHostIdRef.current = cutHostId;
+  }, [cutHostId]);
 
   // virtual insertion
 
@@ -284,9 +291,8 @@ const InteractionLayer = forwardRef(({
   // --- LOGIQUE DE COMMIT (Sauvegarde) ---
   const commitPoint = () => {
     const pointsToSave = drawingPointsRef.current; // On lit la Ref, pas le State !
-    console.log("💾 COMMIT EN BASE:_1", pointsToSave);
     if (pointsToSave.length === 1) {
-      onCommitDrawingRef.current(pointsToSave);
+      onCommitDrawingRef.current({ points: pointsToSave });
     } else {
       console.log("⚠️ erreur création d'un point.");
     }
@@ -297,11 +303,11 @@ const InteractionLayer = forwardRef(({
   };
 
   const commitPolyline = (event) => {
-    const pointsToSave = drawingPointsRef.current; // On lit la Ref, pas le State !
-    console.log("💾 COMMIT EN BASE:_1", pointsToSave);
+    const pointsToSave = drawingPointsRef.current; // On lit la Ref, pas le State ! 
+    const _cutHostId = cutHostIdRef.current;
     if (pointsToSave.length >= 2) {
 
-      onCommitDrawingRef.current(pointsToSave, event);
+      onCommitDrawingRef.current({ points: pointsToSave, event, cutHostId: _cutHostId });
 
       // EXEMPLE D'ACTION :
       // onNewAnnotation({ type: 'POLYLINE', points: pointsToSave });
@@ -312,6 +318,7 @@ const InteractionLayer = forwardRef(({
 
     // Nettoyage
     setDrawingPoints([]);
+    setCutHostId(null);
     dispatch(setEnabledDrawingMode(null));
   };
 
@@ -333,6 +340,7 @@ const InteractionLayer = forwardRef(({
           dispatch(setSelectedNode(null));
           setHiddenAnnotationIds([]);
           setDrawingPoints([]);
+          setCutHostId(null);
           break;
 
         case "Enter":
@@ -379,6 +387,20 @@ const InteractionLayer = forwardRef(({
     //Déclencher le flash visuel au clic
     if (enabledDrawingMode) {
       screenCursorRef.current?.triggerFlash();
+    }
+
+    if (newAnnotation.type === "CUT") {
+      const target = event.target;
+      const hit = target.closest?.("[data-node-type]");
+      if (hit) {
+        const { nodeId, annotationType } =
+          hit.dataset;
+        console.log("[InteractionLayer] CUT HOST ID", annotationType, cutHostId)
+        if (annotationType === "POLYGON" && !cutHostId) {
+          console.log("[InteractionLayer] CUT HOST ID", nodeId)
+          setCutHostId(nodeId)
+        }
+      }
     }
 
     if (enabledDrawingMode === 'CLICK') {
@@ -1031,6 +1053,7 @@ const InteractionLayer = forwardRef(({
 
     const target = e.nativeEvent?.target || e.target;
 
+
     // --- permet la modif de l'input/textarea d'un label
 
     if (['INPUT', 'TEXTAREA'].includes(target.tagName)) {
@@ -1097,8 +1120,8 @@ const InteractionLayer = forwardRef(({
         setDragLegendState(initDragState);
       }
       if (textHandle) {
-        initDragState.startWidth = annotation.width;
-        initDragState.startX = annotation.x;
+        initDragState.startWidth = selectedAnnotation.width;
+        initDragState.startX = selectedAnnotation.x;
         setDragTextState(initDragState);
       }
 

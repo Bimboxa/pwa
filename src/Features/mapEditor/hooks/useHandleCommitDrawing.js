@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from "react-redux";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
+import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 
 import { setOpenDialogCreateEntity } from "Features/entities/entitiesSlice";
@@ -28,6 +29,7 @@ export default function useHandleCommitDrawing() {
     const newAnnotation = useSelector(s => s.annotations.newAnnotation);
 
     const createEntity = useCreateEntity();
+    const updateAnnotation = useUpdateAnnotation();
     const createAnnotation = useCreateAnnotation();
 
     const baseMap = useMainBaseMap();
@@ -38,15 +40,24 @@ export default function useHandleCommitDrawing() {
     const handleDrawingCommit = async (rawPoints, options) => {
 
         let _newAnnotation; // created at the end.
+        let _updatedAnnotation;
 
         // options
 
         const closeLine = options?.closeLine;
+        const cutHostId = options?.cutHostId;
 
 
         // image size
 
         const { width, height } = baseMap?.image?.imageSize ?? {}
+
+        // cuts
+
+        if (newAnnotation.type === "CUT") {
+            console.log("[CommitDrawing] cutHostId", cutHostId, rawPoints)
+            _updatedAnnotation = { ...await db.annotations.get(cutHostId) }
+        }
 
 
         // ETAPE : création de l'entité ou non
@@ -127,7 +138,7 @@ export default function useHandleCommitDrawing() {
 
             let annotationTemplateId;
             // ÉTAPE 2.5 : Enregistrement de l'annotation template
-            if (newAnnotation) {
+            if (newAnnotation && !_updatedAnnotation) {
                 const existingAnnotationTemplates = await db.annotationTemplates.where("listingId").equals(listingId).toArray();
                 const existingAnnotationTemplate = getAnnotationTemplateFromNewAnnotation({
                     newAnnotation,
@@ -149,6 +160,16 @@ export default function useHandleCommitDrawing() {
             }
 
 
+            // ETAPE 3 : update annotation cuts
+
+            if (_updatedAnnotation) {
+                const cut = finalPointIds.map(id => ({ id }));
+                const newCuts = _updatedAnnotation?.cuts ? [..._updatedAnnotation?.cuts, cut] : cut;
+                _updatedAnnotation = {
+                    ..._updatedAnnotation,
+                    cuts: newCuts,
+                };
+            }
 
             // ÉTAPE 3 : Création de l'Annotation (Topologie)
             _newAnnotation = {
@@ -156,7 +177,7 @@ export default function useHandleCommitDrawing() {
                 id: nanoid(),
                 annotationTemplateId,
                 entityId,
-                points: finalPointIds.map(id => ({ id })), // Référence uniquement les IDs !
+                //points: finalPointIds.map(id => ({ id })), // Référence uniquement les IDs !
                 baseMapId,
                 projectId,
                 listingId,
@@ -180,9 +201,15 @@ export default function useHandleCommitDrawing() {
         // Mise à jour Optimiste Redux
         //dispatch(addAnnotation(newAnnotation));
         // Sauvegarde DB
-        await createAnnotation(_newAnnotation);
+        if (_updatedAnnotation) {
+            await updateAnnotation(_updatedAnnotation);
+            console.log("Annotation mise à jour avec succès !", _updatedAnnotation);
+        } else {
+            await createAnnotation(_newAnnotation);
+            console.log("Annotation créée avec succès !", _newAnnotation);
+        }
 
-        console.log("Annotation créée avec succès !", _newAnnotation);
+
 
         // Reset
         resetNewAnnotation();

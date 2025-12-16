@@ -45,7 +45,7 @@ export default function NodePolylineStatic({
         "data-node-id": annotation.id,
         "data-node-listing-id": annotation.listingId, // key for context menu
         "data-node-type": "ANNOTATION",
-        "data-annotation-type": "POLYLINE",
+        "data-annotation-type": type,
     };
 
 
