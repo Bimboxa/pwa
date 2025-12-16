@@ -12,6 +12,7 @@ import FieldNewAnnotationColor from "./FieldNewAnnotationColor";
 import ButtonDrawMarker from "./ButtonDrawMarker";
 import ButtonDrawPolygon from "./ButtonDrawPolygon";
 import ButtonDrawPolyline from "./ButtonDrawPolyline";
+import ButtonDrawCut from "./ButtonDrawCut";
 import ButtonDrawLabel from "./ButtonDrawLabel";
 import ButtonEditScale from "./ButtonEditScale";
 
@@ -53,17 +54,21 @@ export default function ToolbarMapEditorV3() {
             <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
 
 
-                <FieldNewAnnotationLabel />
+                <Box sx={{ minWidth: 100 }}>
+                    <FieldNewAnnotationLabel />
+                </Box>
+
                 <FieldNewAnnotationColor />
             </Box>
 
-            <Box sx={{ display: "flex", gap: 0.5, ml: 2 }}>
+            <Box sx={{ display: "flex", gap: 0.5, ml: 2, minWidth: 0 }}>
                 {tools.map(tool => tool)}
             </Box>
 
         </Paper >
 
-        <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, px: 1, borderRadius: 2 }}>
+        <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, px: 1, borderRadius: 2, gap: 0.5 }}>
+            <ButtonDrawCut />
             <ButtonDrawLabel />
 
         </Paper>

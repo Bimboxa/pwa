@@ -422,13 +422,18 @@ export default function MainMapEditorV3() {
                     newAnnotation={newAnnotation}
                     ref={interactionLayerRef}
                     showBgImage={showBgImage}
-                    onCommitDrawing={(points, event) => {
+                    onCommitDrawing={({ points, event, cutHostId }) => {
                         if (enabledDrawingMode === 'MEASURE') {
                             handleMeasureCommit(points, event);
-                        } else if (enabledDrawingMode === 'RECTANGLE') {
+                        }
+                        else if (enabledDrawingMode === 'RECTANGLE') {
                             handleCommitDrawingFromRectangle(points, event);
-                        } else {
-                            handleCommitDrawing(points, event);
+                        }
+                        else if (cutHostId) {
+                            handleCommitDrawing(points, { cutHostId });
+                        }
+                        else {
+                            handleCommitDrawing(points);
                         }
                     }}
                     onCommitPointsFromDropFill={handleCommitPointsFromDropFill}
