@@ -38,7 +38,7 @@ export default function EditedObjectLayer({
     const selectedAnnotation = useMemo(() => {
         if (!selectedNode || !annotations) return null;
 
-        if (selectedNode.nodeId.startsWith("label::")) {
+        if (selectedNode?.nodeId?.startsWith("label::")) {
             const annotationId = selectedNode.nodeId.replace("label::", "");
             const annotation = annotations.find(a => a.id === annotationId);
             return getAnnotationLabelPropsFromAnnotation(annotation);

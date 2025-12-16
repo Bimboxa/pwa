@@ -101,7 +101,7 @@ const InteractionLayer = forwardRef(({
   // selectedAnnotation
 
   const selectedAnnotation = useMemo(() => {
-    if (selectedNode?.nodeId.startsWith("label::")) {
+    if (selectedNode?.nodeId?.startsWith("label::")) {
       const annotationId = selectedNode?.nodeId.replace("label::", "");
       return getAnnotationLabelPropsFromAnnotation(annotations?.find((annotation) => annotation.id === annotationId));
     } else {

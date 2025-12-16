@@ -22,6 +22,9 @@ export default function useAnnotationsV2(options) {
         // options
 
         const withEntity = options?.withEntity;
+        const filterByBaseMapId = options?.filterByBaseMapId;
+        const excludeListingsIds = options?.excludeListingsIds;
+        const withListingName = options?.withListingName;
 
         // data
 
@@ -33,6 +36,7 @@ export default function useAnnotationsV2(options) {
         const tempAnnotations = useSelector((s) => s.annotations.tempAnnotations);
 
         const bgImageTextAnnotations = useBgImageTextAnnotations();
+
 
         // main
         let annotations = useLiveQuery(async () => {
@@ -107,6 +111,17 @@ export default function useAnnotationsV2(options) {
 
                 // Create a map for quick lookup
                 const listingsMap = getItemsByKey(listings, "id");
+
+                // -- LISTING NAME --
+
+                if (withListingName) {
+                    // Add listing name to annotations
+                    _annotations = _annotations.map((annotation) => ({
+                        ...annotation,
+                        listingName: listingsMap[annotation?.listingId]?.name || "-?-",
+                    }));
+                }
+
 
                 // -- SORT --
 

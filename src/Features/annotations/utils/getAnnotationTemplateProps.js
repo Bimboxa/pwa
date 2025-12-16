@@ -23,6 +23,8 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     cutHost: annotationTemplate?.cutHost,
 
     iconKey: annotationTemplate?.iconKey,
+
+    hidden: annotationTemplate?.hidden,
   };
 
   return props;
