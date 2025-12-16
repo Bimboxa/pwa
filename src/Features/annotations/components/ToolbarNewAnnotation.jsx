@@ -2,6 +2,8 @@
 import { useSelector } from "react-redux";
 
 import ToolbarNewLabel from "Features/labels/components/ToolbarNewLabel";
+import ToolbarNewPolyline from "Features/polylines/components/ToolbarNewPolyline";
+import ToolbarNewPolygon from "Features/polygons/components/ToolbarNewPolygon";
 
 export default function ToolbarNewAnnotation() {
 
@@ -10,5 +12,7 @@ export default function ToolbarNewAnnotation() {
 
     return <>
         {type === "LABEL" && <ToolbarNewLabel />}
+        {type === "POLYLINE" && <ToolbarNewPolyline />}
+        {type === "POLYGON" && <ToolbarNewPolygon />}
     </>
 }

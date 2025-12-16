@@ -21,6 +21,7 @@ export default function NodeAnnotation({
   edited = false,
   onPolylineComplete,
   toBaseFromClient,
+  hidden = false,
 }) {
   const props = {
     spriteImage,
@@ -36,6 +37,7 @@ export default function NodeAnnotation({
     edited,
     onPolylineComplete,
     toBaseFromClient,
+    hidden,
   };
   switch (annotation.type) {
     case "MARKER":

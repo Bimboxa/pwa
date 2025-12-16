@@ -32,6 +32,8 @@ import MapTooltip from 'Features/mapEditorGeneric/components/MapTooltip';
 
 import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
 import getBestSnap from 'Features/mapEditor/utils/getBestSnap';
+import getAnnotationEditionPanelAnchor from 'Features/annotations/utils/getAnnotationEditionPanelAnchor';
+import getAnnotationLabelPropsFromAnnotation from 'Features/annotations/utils/getAnnotationLabelPropsFromAnnotation';
 
 import cv from "Features/opencv/services/opencvService";
 import editor from "App/editor";
@@ -99,7 +101,12 @@ const InteractionLayer = forwardRef(({
   // selectedAnnotation
 
   const selectedAnnotation = useMemo(() => {
-    return annotations?.find((annotation) => annotation.id === selectedNode?.nodeId);
+    if (selectedNode?.nodeId.startsWith("label::")) {
+      const annotationId = selectedNode?.nodeId.replace("label::", "");
+      return getAnnotationLabelPropsFromAnnotation(annotations?.find((annotation) => annotation.id === annotationId));
+    } else {
+      return annotations?.find((annotation) => annotation.id === selectedNode?.nodeId);
+    }
   }, [annotations, selectedNode?.nodeId]);
 
   // cameraZoom
@@ -479,15 +486,40 @@ const InteractionLayer = forwardRef(({
           dispatch(setSelectedNode(null))
           setHiddenAnnotationIds([]);
           dispatch(setAnnotationToolbarPosition(null));
-        } else if (
+        }
+
+        // --- 2. GESTION DES ANNOTATIONS ---
+        else if (
           hit?.dataset?.nodeType === "ANNOTATION" && !showBgImage
           || hit?.dataset?.nodeContext === "BG_IMAGE"
         ) {
+          const annotation = annotations.find((a) => a.id === hit?.dataset.nodeId);
+          const topMiddlePoint = getAnnotationEditionPanelAnchor(annotation);
+
+
+
+          // --- 2.1. GESTION DES ANNOTATIONS ---
           dispatch(setSelectedNode(hit?.dataset));
           setHiddenAnnotationIds([hit?.dataset.nodeId]);
-          dispatch(
-            setAnnotationToolbarPosition({ x: event.clientX, y: event.clientY })
-          );
+
+          // -- Afichage du toolbar pour édition --
+          if (topMiddlePoint) {
+            // 2. Convertir LOCAL -> MONDE
+            // Il faut savoir dans quel contexte est l'annotation
+            const isBgContext = hit?.dataset?.nodeContext === "BG_IMAGE";
+            const pose = isBgContext ? bgPose : getTargetPose(); // getTargetPose retourne basePose par défaut
+
+            const worldX = topMiddlePoint.x * pose.k + pose.x;
+            const worldY = topMiddlePoint.y * pose.k + pose.y;
+
+            // 3. Convertir MONDE -> ÉCRAN (Viewport)
+            // On utilise la ref du viewport
+            const screenPos = viewportRef.current?.worldToScreen(worldX, worldY);
+            dispatch(
+              setAnnotationToolbarPosition({ x: screenPos?.x, y: screenPos?.y })
+            );
+          }
+
           if (tooltipData) setTooltipData(null);
         } else if (showBgImage && hit?.dataset?.nodeType !== "ANNOTATION") {
           dispatch(setSelectedNode(hit?.dataset));
@@ -741,7 +773,7 @@ const InteractionLayer = forwardRef(({
         x: currentMouseInLocal.x - dragAnnotationState.startMouseInLocal.x,
         y: currentMouseInLocal.y - dragAnnotationState.startMouseInLocal.y
       };
-      setDragAnnotationState(prev => ({ ...prev, deltaPos }));
+      setDragAnnotationState(prev => ({ ...prev, deltaPos, localPos: currentMouseInLocal }));
       return; // Action exclusive
     }
 
@@ -972,7 +1004,8 @@ const InteractionLayer = forwardRef(({
           onAnnotationMoveCommit(
             dragAnnotationState.selectedAnnotationId,
             dragAnnotationState.deltaPos,
-            dragAnnotationState.partType
+            dragAnnotationState.partType,
+            dragAnnotationState.localPos
           );
         }
       }

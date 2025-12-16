@@ -23,7 +23,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
     selectedNode?.annotationType === "POLYLINE" &&
     selectedNode?.nodeType === "ANNOTATION";
 
-  console.log("selectedNode", selectedNode);
+
 
   const handleClose = () => {
     // Only close if this popper's viewer is active
@@ -42,8 +42,12 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
           anchorPosition={anchorPosition}
           onClose={handleClose}
           disableClickAway={true}
+          anchorPlacement="bottomMiddle"
+          showGrabHandle={true}
         >
+
           <ToolbarEditAnnotation />
+
         </PopperBox>
       )}
     </>

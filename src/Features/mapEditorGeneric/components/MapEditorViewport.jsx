@@ -60,6 +60,17 @@ const MapEditorViewport = forwardRef(({ children, onWorldMouseMove, onWorldClick
                 y: wy * k + y
             };
         },
+        worldToScreen: (wx, wy) => {
+            if (!svgRef.current) return { x: 0, y: 0 };
+            const { x, y, k } = cameraMatrix.current;
+            const viewportX = wx * k + x;
+            const viewportY = wy * k + y;
+            const rect = svgRef.current.getBoundingClientRect();
+            return {
+                x: viewportX + rect.left,
+                y: viewportY + rect.top
+            };
+        },
         getZoom: () => {
             return cameraMatrix.current.k;
         },

@@ -2,15 +2,28 @@ import { useMemo, useRef } from "react";
 import { darken } from "@mui/material/styles";
 import theme from "Styles/theme";
 
+import getBarycenter from "Features/geometry/utils/getBarycenter";
+import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
+
+import NodeLabelStatic from "./NodeLabelStatic";
+
 export default function NodePolylineStatic({
     annotation,
     annotationOverride,
     hovered,
+    selected,
     baseMapMeterByPx,
     containerK,
+    forceHideLabel,
 }) {
 
     annotation = { ...annotation, ...annotationOverride };
+
+    const showLabel = (annotation.showLabel || selected) && !forceHideLabel;
+
+
+    // ===== label Annotation =====
+    const labelAnnotation = getAnnotationLabelPropsFromAnnotation(annotation);
 
     let {
         type,
@@ -284,6 +297,12 @@ export default function NodePolylineStatic({
                         </g>
                     );
                 })}
+
+            {showLabel && <NodeLabelStatic
+                annotation={labelAnnotation}
+                containerK={containerK}
+                hidden={!annotation.showLabel}
+            />}
         </g>
     );
 }

@@ -92,6 +92,7 @@ function StaticMapContent({
                         containerK={bgPose.k}
                         baseMapMeterByPx={baseMapMeterByPx}
                         context="BG_IMAGE"
+                        forceHideLabel={hiddenAnnotationIds?.includes("label::" + annotation.id)}
                     />
                 })}
             </g>
@@ -124,6 +125,7 @@ function StaticMapContent({
                         containerK={basePose.k}
                         baseMapMeterByPx={baseMapMeterByPx}
                         showBgImage={showBgImage}
+                        forceHideLabel={hiddenAnnotationIds?.includes("label::" + annotation.id)}
                     />
                 })}
 
