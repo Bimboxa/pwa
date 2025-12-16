@@ -6,6 +6,7 @@ import { useSelector } from "react-redux";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBgImageTextAnnotations from "Features/bgImage/hooks/useBgImageTextAnnotations";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 
@@ -28,6 +29,7 @@ export default function useAnnotationsV2(options) {
 
         // data
 
+        const appConfig = useAppConfig();
         const baseMap = useMainBaseMap();
 
         const annotationTemplates = useAnnotationTemplates();
@@ -154,9 +156,14 @@ export default function useAnnotationsV2(options) {
                                 const entity = await db[table].get(annotation.entityId);
                                 const { entityWithImages, hasImages } =
                                     await getEntityWithImagesAsync(entity);
+                                const listing = listingsMap[annotation?.listingId];
+                                const em = appConfig?.entityModelsObject?.[listing.entityModelKey];
+                                const labelKey = em?.labelKey || "label";
+                                const label = entity[labelKey];
                                 return {
                                     ...annotation,
-                                    entity: entityWithImages, hasImages
+                                    entity: entityWithImages, hasImages,
+                                    label,
                                 };
                             } else {
                                 return annotation;
@@ -173,17 +180,14 @@ export default function useAnnotationsV2(options) {
 
 
         // override with annotation templates
-        annotations = annotations?.map(annotation => ({
-            ...annotation,
-            ...getAnnotationTemplateProps(annotationTemplatesMap[annotation?.annotationTemplateId])
-        }))
-
-        // label
-
-        annotations = annotations?.map(annotation => ({
-            ...annotation,
-            label: annotation?.entity?.label ?? annotation?.label
-        }));
+        annotations = annotations?.map(annotation => {
+            const templateProps = getAnnotationTemplateProps(annotationTemplatesMap[annotation?.annotationTemplateId])
+            return {
+                ...annotation,
+                ...templateProps,
+                label: annotation?.label ?? templateProps?.label
+            }
+        })
 
 
         // override with temp annotations
