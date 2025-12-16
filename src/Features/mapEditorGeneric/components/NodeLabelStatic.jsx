@@ -5,6 +5,7 @@ import { Refresh, Visibility, VisibilityOff } from "@mui/icons-material";
 
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import db from "App/db/db";
 
@@ -30,6 +31,7 @@ export default function NodeLabelStatic({
 
     const updateEntity = useUpdateEntity();
     const updateAnnotation = useUpdateAnnotation();
+    const appConfig = useAppConfig();
 
 
     // helpers
@@ -82,7 +84,10 @@ export default function NodeLabelStatic({
                 if (id.startsWith("label::")) {
                     const annotationId = id.replace("label::", "");
                     const annotation = await db.annotations.get(annotationId);
-                    await updateEntity(annotation.entityId, { label: localValue });
+                    const listing = await db.listings.get(annotation.listingId);
+                    const em = appConfig?.entityModelsObject?.[listing.entityModelKey];
+                    const labelKey = em?.labelKey || "label";
+                    await updateEntity(annotation.entityId, { [labelKey]: localValue });
                 } else {
                     await db.annotations.update(id, { label: localValue });
                 }
