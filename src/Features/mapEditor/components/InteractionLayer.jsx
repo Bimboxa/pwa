@@ -331,6 +331,8 @@ const InteractionLayer = forwardRef(({
         //return;
       }
 
+      if (e.repeat) return;
+
       switch (e.key) {
         // 1. ESCAPE : Reset Selection
         case 'Escape':
@@ -389,7 +391,7 @@ const InteractionLayer = forwardRef(({
       screenCursorRef.current?.triggerFlash();
     }
 
-    if (newAnnotation.type === "CUT") {
+    if (newAnnotation.type === "CUT" && enabledDrawingMode) {
       const target = event.target;
       const hit = target.closest?.("[data-node-type]");
       if (hit) {

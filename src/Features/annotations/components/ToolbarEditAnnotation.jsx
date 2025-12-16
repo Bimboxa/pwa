@@ -69,9 +69,9 @@ export default function ToolbarEditAnnotation() {
 
 
   return (
-    <Paper elevation={6} sx={{ display: "flex", alignItems: "center" }}>
+    <Paper elevation={6} sx={{ display: "flex", alignItems: "center", p: 0.5 }}>
       <PopperDragHandle>
-        <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Box sx={{ display: "flex", alignItems: "center", mr: 1 }}>
           <DragIndicatorIcon fontSize="small" />
         </Box>
 
@@ -101,7 +101,10 @@ export default function ToolbarEditAnnotation() {
         annotation={selectedAnnotation}
         onChange={handleChange}
       /> */}
-      <IconButtonDialogCloneAnnotation annotation={selectedAnnotation} />
+      <Box sx={{ ml: 2 }}>
+        <IconButtonDialogCloneAnnotation annotation={selectedAnnotation} />
+      </Box>
+
     </Paper>
   );
 }
