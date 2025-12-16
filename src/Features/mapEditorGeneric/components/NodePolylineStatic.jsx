@@ -80,6 +80,11 @@ export default function NodePolylineStatic({
 
 
     const computedStrokeWidth = useMemo(() => {
+
+        if (type === "POLYGON") {
+            return 0.5;
+        }
+
         if (isCmUnit) {
             // CM -> Meters -> Pixels
             // e.g. 20cm = 0.2m. If 1px = 0.01m, then width = 20px.
@@ -88,7 +93,7 @@ export default function NodePolylineStatic({
         // If PX unit, we pass the raw value (e.g., 2)
         // The browser applies this as screen pixels thanks to non-scaling-stroke
         return strokeWidth;
-    }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit]);
+    }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit, type]);
 
 
 

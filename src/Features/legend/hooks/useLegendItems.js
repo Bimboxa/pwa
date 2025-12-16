@@ -1,7 +1,7 @@
 import { useSelector } from "react-redux";
 
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
-import useAnnotations from "Features/annotations/hooks/useAnnotations";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 import useListings from "Features/listings/hooks/useListings";
 
@@ -19,7 +19,8 @@ export default function useLegendItems() {
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
 
   const annotationTemplates = useAnnotationTemplates();
-  const annotations = useAnnotations({
+
+  const annotations = useAnnotationsV2({
     filterByBaseMapId: baseMapId,
     excludeListingsIds: hiddenListingsIds,
     withListingName: true,
@@ -37,31 +38,34 @@ export default function useLegendItems() {
 
   annotations?.forEach((annotation) => {
     const templateId = annotation.annotationTemplateId;
-    const template = annotationTemplateById[templateId];
-    if (!idsMap[templateId]) {
-      idsMap[templateId] = annotation;
-      const { iconKey, fillColor, strokeColor, type, closeLine, listingName } =
-        annotation;
-      const newLegendItem = {
-        id: templateId,
-        listingName,
-        type,
-        iconKey,
-        strokeColor,
-        fillColor,
-        label: template?.label ?? "A définir",
-        closeLine,
-      };
-      //
-      //legendItems.push(newLegendItem);
+    if (templateId) {
+      const template = annotationTemplateById[templateId];
+      if (!idsMap[templateId] && !template?.hidden) {
+        idsMap[templateId] = annotation;
+        const { iconKey, fillColor, strokeColor, type, closeLine, listingName } =
+          annotation;
+        const newLegendItem = {
+          id: templateId,
+          listingName,
+          type,
+          iconKey,
+          strokeColor,
+          fillColor,
+          label: template?.label ?? "A définir",
+          closeLine,
+        };
+        //
+        //legendItems.push(newLegendItem);
 
-      //
-      if (!legendItemsByListingName[listingName]) {
-        legendItemsByListingName[listingName] = [newLegendItem];
-      } else {
-        legendItemsByListingName[listingName].push(newLegendItem);
+        //
+        if (!legendItemsByListingName[listingName]) {
+          legendItemsByListingName[listingName] = [newLegendItem];
+        } else {
+          legendItemsByListingName[listingName].push(newLegendItem);
+        }
       }
     }
+
   });
 
   // legendItemsByListingName => legendItems

@@ -33,7 +33,7 @@ import {
   IconButton,
   Collapse,
 } from "@mui/material";
-import { Add, Edit, ArrowDropDown } from "@mui/icons-material";
+import { Add, Edit, ArrowDropDown, VisibilityOff, Visibility } from "@mui/icons-material";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -70,6 +70,7 @@ function DraggableAnnotationTemplateItem({
   onCancel,
   onFormChange,
   onDelete,
+  onToggleVisibility,
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -85,6 +86,9 @@ function DraggableAnnotationTemplateItem({
       transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
     }
     : undefined;
+
+  const isHovered = hoveredId === annotationTemplate.id;
+  const isHidden = annotationTemplate.hidden;
 
   return (
     <Box
@@ -117,15 +121,46 @@ function DraggableAnnotationTemplateItem({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              width: "24px",
+              height: "24px",
+              // --- MODIFICATION ICI (Icone) ---
+              // Si c'est caché et qu'on ne survole pas, on grise l'icone via l'opacité
+              // (opacity fonctionne bien pour les sprites/images comme pour les icones vectorielles)
+              opacity: isHidden && !isHovered ? 0.3 : 1,
+              // Si vous préférez colorer via CSS filter pour du gris strict :
+              // filter: isHidden && !isHovered ? "grayscale(100%)" : "none",
             }}
           >
-            <AnnotationIcon
-              annotation={annotationTemplate}
-              spriteImage={spriteImage}
-              size={18}
-            />
+            {isHovered ? (
+              <IconButton
+                size="small"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleVisibility(annotationTemplate);
+                }}
+              >
+                {isHidden ? (
+                  <VisibilityOff fontSize="small" sx={{ fontSize: 18 }} />
+                ) : (
+                  <Visibility fontSize="small" sx={{ fontSize: 18 }} />
+                )}
+              </IconButton>
+            ) : (
+              <AnnotationIcon
+                annotation={annotationTemplate}
+                spriteImage={spriteImage}
+                size={18}
+              />
+            )}
           </Box>
-          <Typography sx={{ mx: 1 }} variant="body2">
+
+          {/* --- MODIFICATION ICI (Texte) --- */}
+          <Typography
+            sx={{ mx: 1 }}
+            variant="body2"
+            color={isHidden ? "text.secondary" : "text.primary"}
+          >
             {annotationTemplate.label}
           </Typography>
         </Box>
@@ -319,22 +354,15 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates(
     if (onClose) onClose();
   }
 
+  async function handleToggleAnnotationTemplateVisibility(annotationTemplate) {
+    const hidden = !annotationTemplate.hidden;
+    await updateAnnotationTemplate({ ...annotationTemplate, hidden });
+  }
+
   // render
 
   return (
     <BoxFlexVStretch>
-      {/* {noTemplates && (
-        <Box sx={{ p: 2 }}>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ userSelect: "none" }}
-          >
-            {helperNoTemplateS}
-          </Typography>
-        </Box>
-      )} */}
-
       <Box
         sx={{
           display: "flex",
@@ -379,6 +407,7 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates(
                   onCancel={handleCancel}
                   onFormChange={handleFormChange}
                   onDelete={handleDelete}
+                  onToggleVisibility={handleToggleAnnotationTemplateVisibility} // Prop passing
                 />
               );
             if (annotationTemplate?.isDivider && idx !== 0)

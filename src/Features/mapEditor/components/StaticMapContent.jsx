@@ -58,8 +58,9 @@ function StaticMapContent({
     const bgImageAnnotations = showBgImage
         ? annotations.filter(({ nodeType }) => nodeType === "BG_IMAGE_TEXT")
         : [];
-    const baseMapAnnotations = annotations.filter(({ baseMapId, entity }) =>
+    const baseMapAnnotations = annotations.filter(({ baseMapId, entity, hidden }) =>
         Boolean(baseMapId) &&
+        !hidden &&
         (showedFWC.includes(entity?.fwc) || !fwcEnabled || (!entity?.fwc && showedFWC.length === activeFWC.length))
     );
 
