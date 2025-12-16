@@ -9,19 +9,18 @@ import { VerticalAlignBottom as FloorIcon, VerticalAlignTop as CeilingIcon, Filt
 
 export default function SectionShowedFWC() {
 
+    console.log("[SectionShowedFWC] render");
+
     const dispatch = useDispatch();
 
     // strings
-
     const title = "Sol, mur, plafond";
 
     // data
-
     const showedFWC = useSelector((state) => state.fwc.showedFWC);
     const annotations = useAnnotationsV2({ withEntity: true });
 
     // helpers
-
     const entities = annotations.map(a => a.entity);
     const fwcCountMap = entities.reduce((ac, cur) => {
         if (cur?.fwc) {
@@ -31,11 +30,9 @@ export default function SectionShowedFWC() {
     }, {})
 
     // helpers - show
-
     const show = Object.values(fwcCountMap).some(count => count > 0);
 
     // helpers
-
     const items = [
         {
             key: "CEILING",
@@ -58,16 +55,34 @@ export default function SectionShowedFWC() {
             icon: <FloorIcon fontSize="small" sx={{ color: "inherit" }} />,
             count: fwcCountMap?.FLOOR
         }
-
     ]
 
-    // handlers
+    // --- MODIFICATION ICI ---
+    const handleClick = (key, e) => {
+        e.stopPropagation();
 
-    const handleClick = (key) => {
-        if (showedFWC.includes(key)) {
-            dispatch(setShowedFWC(showedFWC.filter((item) => item !== key)));
-        } else {
-            dispatch(setShowedFWC([...showedFWC, key]));
+        // CAS 1 : SHIFT est pressé -> Mode "Add/Remove" (Multi-select)
+        if (e.shiftKey) {
+            if (showedFWC.includes(key)) {
+                // On retire uniquement cet item
+                dispatch(setShowedFWC(showedFWC.filter((item) => item !== key)));
+            } else {
+                // On ajoute cet item aux existants
+                dispatch(setShowedFWC([...showedFWC, key]));
+            }
+        }
+        // CAS 2 : Pas de SHIFT -> Mode "Single Select"
+        else {
+            // Est-ce que cet item est DÉJÀ sélectionné et est-il le SEUL ?
+            const isOnlySelected = showedFWC.length === 1 && showedFWC[0] === key;
+
+            if (isOnlySelected) {
+                // Si c'est le seul sélectionné et qu'on reclique dessus -> On désélectionne tout
+                dispatch(setShowedFWC([]));
+            } else {
+                // Sinon (soit il n'était pas sélectionné, soit il y en avait d'autres) -> On ne sélectionne QUE lui
+                dispatch(setShowedFWC([key]));
+            }
         }
     };
 
@@ -79,7 +94,11 @@ export default function SectionShowedFWC() {
             <Typography sx={{ fontSize: 12 }}>{title}</Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 {items.filter(item => item.count).map((item) => (
-                    <Tooltip title={item.label} key={item.key} >
+                    <Tooltip
+                        // Optionnel : Indiquer le raccourci dans le tooltip
+                        title={`${item.label} (Shift+Click pour ajouter)`}
+                        key={item.key}
+                    >
                         <Box sx={{
                             bgcolor: item.enabled ? "white" : "transparent",
                             color: item.enabled ? "text.secondary" : "action.disabled",
@@ -90,9 +109,10 @@ export default function SectionShowedFWC() {
                             height: "24px",
                             borderRadius: "50%",
                             border: theme => `1px solid ${theme.palette.divider}`,
-
+                            // Petit ajout UX : changer le curseur si clickable
+                            cursor: "pointer"
                         }}>
-                            <IconButton size="small" onClick={() => handleClick(item.key)} color="inherit">
+                            <IconButton size="small" onClick={(e) => handleClick(item.key, e)} color="inherit">
                                 {item.icon}
                             </IconButton>
 

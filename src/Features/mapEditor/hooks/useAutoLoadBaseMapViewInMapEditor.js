@@ -15,6 +15,5 @@ export default function useAutoLoadBaseMapViewInMapEditor({
       mapEditor.loadBaseMapView(baseMapView);
     }
   }, [mapEditorIsReady, baseMapView?.id]);
-
   // BASE MAP VIEW
 }

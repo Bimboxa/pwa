@@ -12,19 +12,27 @@ import {
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import MarkerIcon from "Features/markers/components/MarkerIcon";
 import AnnotationIcon from "./AnnotationIcon";
+import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 
 export default function SelectorAnnotationTemplateVariantList({
   selectedAnnotationTemplateId,
   onChange,
   annotationTemplates,
-  spriteImage,
   title = "Bibliothèque d'annotations",
   size = 18,
+  showTitle = false,
 }) {
+
+  console.log("debug_1612_templateId", selectedAnnotationTemplateId);
+
   // strings
 
   const noTemplateS = "Aucun style prédéfini";
   const otherS = "Autre";
+
+  // data
+
+  const spriteImage = useAnnotationSpriteImage();
 
   // helpers
 
@@ -69,7 +77,7 @@ export default function SelectorAnnotationTemplateVariantList({
   };
   return (
     <BoxFlexVStretch>
-      <Typography sx={{ p: 2 }}>{title}</Typography>
+      {showTitle && <Typography sx={{ p: 2 }}>{title}</Typography>}
       <BoxFlexVStretch sx={{ overflow: "auto" }}>
         <List dense>
           {annotationTemplates

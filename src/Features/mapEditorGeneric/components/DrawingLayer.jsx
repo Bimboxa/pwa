@@ -20,7 +20,7 @@ const DrawingLayer = forwardRef(({
 
     // Détection des types
     const isPolygon = type === "POLYGON";
-    const isRectangle = enabledDrawingMode === "RECTANGLE";
+    const drawRectangle = enabledDrawingMode === "RECTANGLE";
 
     const firstPoint = points?.[0];
 
@@ -34,7 +34,7 @@ const DrawingLayer = forwardRef(({
             // ------------------------------------------------
             // CAS 1 : RECTANGLE (1er point fixe -> Curseur)
             // ------------------------------------------------
-            if (isRectangle && previewRectRef.current) {
+            if (drawRectangle && previewRectRef.current) {
                 // On cache les éléments inutiles pour ce mode
                 if (previewLineRef.current) previewLineRef.current.style.display = 'none';
                 if (previewFillRef.current) previewFillRef.current.style.display = 'none';
@@ -109,11 +109,13 @@ const DrawingLayer = forwardRef(({
             )}
 
             {/* B. Dynamic Rectangle (NEW) */}
-            {isRectangle && (
+            {drawRectangle && (
                 <rect
                     ref={previewRectRef}
                     fill="none"
                     //fill={fillColor || "rgba(33, 150, 243, 0.2)"} // Bleu semi-transparent par défaut
+                    {...(isPolygon && { fill: fillColor || "rgba(92, 92, 236, 0.1)" })}
+                    fillOpacity={newAnnotation?.fillOpacity ?? 0.8}
                     stroke={strokeColor || "#2196f3"}
                     strokeWidth={2}
                     vectorEffect="non-scaling-stroke" // Garde l'épaisseur constante au zoom
@@ -159,7 +161,7 @@ const DrawingLayer = forwardRef(({
             )}
 
             {/* F. Dynamic Rubber Band (Ligne élastique pour polyline/segment) */}
-            {!isRectangle && (
+            {!drawRectangle && (
                 <line
                     ref={previewLineRef}
                     stroke={strokeColor || "blue"}

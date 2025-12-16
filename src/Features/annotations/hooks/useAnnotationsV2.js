@@ -139,7 +139,10 @@ export default function useAnnotationsV2(options) {
                                 const entity = await db[table].get(annotation.entityId);
                                 const { entityWithImages, hasImages } =
                                     await getEntityWithImagesAsync(entity);
-                                return { ...annotation, entity: entityWithImages, hasImages };
+                                return {
+                                    ...annotation,
+                                    entity: entityWithImages, hasImages
+                                };
                             } else {
                                 return annotation;
                             }
@@ -159,6 +162,14 @@ export default function useAnnotationsV2(options) {
             ...annotation,
             ...getAnnotationTemplateProps(annotationTemplatesMap[annotation?.annotationTemplateId])
         }))
+
+        // label
+
+        annotations = annotations?.map(annotation => ({
+            ...annotation,
+            label: annotation?.entity?.label ?? annotation?.label
+        }));
+
 
         // override with temp annotations
         annotations = [...(annotations ?? []), ...(tempAnnotations ?? [])];

@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 
+import NodeLabelStatic from "./NodeLabelStatic";
+
 export default function NodePolygon({
   polygon, // {id,points}
   imageSize,
@@ -188,6 +190,7 @@ export default function NodePolygon({
           pointerEvents="stroke"
         />
       </g>
+
     </g>
   );
 }

@@ -8,13 +8,20 @@ import { setCanTransformNode } from "Features/mapEditor/mapEditorSlice";
 
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
+import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 
 import { Box, IconButton, Paper } from "@mui/material";
-import { Lock, LockOpen } from "@mui/icons-material";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 
+
+import FieldAnnotationEntityLabel from "./FieldAnnotationEntityLabel";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import FieldAnnotationShapeCode from "./FieldAnnotationShapeCode";
 import FieldAnnotationFillAndStroke from "./FieldAnnotationFillAndStroke";
+import FieldToggleFWC from "Features/fwc/components/FieldToggleFWC";
+import IconButtonDialogCloneAnnotation from "./IconButtonDialogCloneAnnotation";
+
+import { PopperDragHandle } from "Features/layout/components/PopperBox";
 
 export default function ToolbarEditAnnotation() {
   const dispatch = useDispatch();
@@ -29,6 +36,7 @@ export default function ToolbarEditAnnotation() {
   // data
 
   const updateAnnotation = useUpdateAnnotation();
+  const updateEntity = useUpdateEntity();
 
   // useEffect
 
@@ -47,8 +55,27 @@ export default function ToolbarEditAnnotation() {
     await updateAnnotation(newAnnotation);
   }
 
+  async function handleEntityLabelChange(label) {
+    const entityId = selectedAnnotation?.entityId;
+    if (!entityId) return;
+    await updateEntity(entityId, { label });
+  }
+
+  async function handleToggleFWC(fwc) {
+    const entityId = selectedAnnotation?.entityId;
+    if (!entityId) return;
+    await updateEntity(entityId, { fwc });
+  }
+
+
   return (
     <Paper elevation={6} sx={{ display: "flex", alignItems: "center" }}>
+      <PopperDragHandle>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <DragIndicatorIcon fontSize="small" />
+        </Box>
+
+      </PopperDragHandle>
       {/* <IconButton onClick={handleCanTransformChange} size="small">
         {canTransformNode ? (
           <LockOpen fontSize="small" />
@@ -56,19 +83,25 @@ export default function ToolbarEditAnnotation() {
           <Lock fontSize="small" />
         )}
       </IconButton> */}
+      {/* <FieldAnnotationEntityLabel
+        value={selectedAnnotation?.entity?.label}
+        onChange={handleEntityLabelChange}
+      /> */}
 
-      <FieldAnnotationFillAndStroke
+      <FieldToggleFWC value={selectedAnnotation?.entity?.fwc} onChange={handleToggleFWC} />
+      {/* <FieldAnnotationFillAndStroke
         annotation={selectedAnnotation}
         onChange={handleChange}
-      />
-      <FieldAnnotationShapeCode
+      /> */}
+      {/* <FieldAnnotationShapeCode
         annotation={selectedAnnotation}
         onChange={handleChange}
-      />
-      <FieldAnnotationHeight
+      /> */}
+      {/* <FieldAnnotationHeight
         annotation={selectedAnnotation}
         onChange={handleChange}
-      />
+      /> */}
+      <IconButtonDialogCloneAnnotation annotation={selectedAnnotation} />
     </Paper>
   );
 }

@@ -18,6 +18,7 @@ export default function NodeAnnotationStatic({
   context, // BG_IMAGE or BASE_MAP
   printMode,
   onTextValueChange,
+  forceHideLabel,
 }) {
   annotation = { ...annotation ?? {}, ...annotationOverride ?? {} };
 
@@ -34,6 +35,7 @@ export default function NodeAnnotationStatic({
     context,
     onTextValueChange,
     printMode,
+    forceHideLabel,
   };
 
   switch (annotation.type) {

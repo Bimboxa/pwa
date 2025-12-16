@@ -40,7 +40,7 @@ export default function ToolbarEnabledDrawingMode() {
 
     // helpers - show mode
 
-    const showMode = ["POLYLINE", "POLYGONE"].includes(type);
+    const showMode = ["POLYLINE", "POLYGON"].includes(type);
 
     // handlers
 

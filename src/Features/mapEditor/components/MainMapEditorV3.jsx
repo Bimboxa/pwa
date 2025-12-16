@@ -53,6 +53,7 @@ import editor from "App/editor";
 import getPolylinePointsFromRectangle from "Features/geometry/utils/getPolylinePointsFromRectangle";
 import getDefaultCameraMatrix from "../utils/getDefaultCameraMatrix";
 import getDefaultBaseMapPoseInBg from "../utils/getDefaultBaseMapPoseInBg";
+import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getAnnotationLabelDeltaFromDeltaPos";
 
 export default function MainMapEditorV3() {
     const dispatch = useDispatch();
@@ -326,57 +327,66 @@ export default function MainMapEditorV3() {
         }
     };
 
-    const handleAnnotationMoveCommit = async (annotationId, deltaPos, partType) => {
+    const handleAnnotationMoveCommit = async (annotationId, deltaPos, partType, localPos) => {
         const imageSize = baseMap?.image?.imageSize;
         if (!imageSize) return;
 
-        const annotation = annotations.find(a => a.id === annotationId);
-        if (!annotation) return;
-        console.log("handleAnnotationMoveCommit", annotationId, annotation);
-        if (annotation.type === "MARKER") {
-            const point = await db.points.get(annotation.point.id);
-            const x = point.x + deltaPos.x / imageSize.width;
-            const y = point.y + deltaPos.y / imageSize.height;
-            console.log("save_point", point.id, { x, y });
-            await db.points.update(point.id, { x, y });
-        }
+        if (annotationId.startsWith("label::")) {
+            const annotation = annotations.find(a => a.id === annotationId.replace("label::", ""));
+            console.log("handleAnnotationMoveCommit", annotationId, annotation);
+            if (!annotation) return;
+            const labelDelta = getAnnotationLabelDeltaFromDeltaPos(annotation, deltaPos, partType);
+            await db.annotations.update(annotation.id, { labelDelta });
+        } else {
 
-        else if (annotation.type === "LABEL") {
-            const { targetPoint, labelPoint } = annotation;
-
-            const updates = {};
-
-            // 1. Déplacement de la cible (Target) uniquement
-            if (partType === 'TARGET') {
-                updates.targetPoint = {
-                    x: (targetPoint.x + deltaPos.x) / imageSize.width,
-                    y: (targetPoint.y + deltaPos.y) / imageSize.height
-                };
+            const annotation = annotations.find(a => a.id === annotationId);
+            if (!annotation) return;
+            console.log("handleAnnotationMoveCommit", annotationId, annotation);
+            if (annotation.type === "MARKER") {
+                const point = await db.points.get(annotation.point.id);
+                const x = point.x + deltaPos.x / imageSize.width;
+                const y = point.y + deltaPos.y / imageSize.height;
+                console.log("save_point", point.id, { x, y });
+                await db.points.update(point.id, { x, y });
             }
-            // 2. Déplacement du Label uniquement
-            else if (partType === 'LABEL_BOX') {
-                updates.labelPoint = {
-                    x: (labelPoint.x + deltaPos.x) / imageSize.width,
-                    y: (labelPoint.y + deltaPos.y) / imageSize.height
-                };
+
+            else if (annotation.type === "LABEL") {
+                const { targetPoint, labelPoint } = annotation;
+
+                const updates = {};
+
+                // 1. Déplacement de la cible (Target) uniquement
+                if (partType === 'TARGET') {
+                    updates.targetPoint = {
+                        x: (targetPoint.x + deltaPos.x) / imageSize.width,
+                        y: (targetPoint.y + deltaPos.y) / imageSize.height
+                    };
+                }
+                // 2. Déplacement du Label uniquement
+                else if (partType === 'LABEL_BOX') {
+                    updates.labelPoint = {
+                        x: (labelPoint.x + deltaPos.x) / imageSize.width,
+                        y: (labelPoint.y + deltaPos.y) / imageSize.height
+                    };
+                }
+                // 3. Cas général (Déplacement global)
+                else {
+                    updates.targetPoint = {
+                        x: (targetPoint.x + deltaPos.x) / imageSize.width,
+                        y: (targetPoint.y + deltaPos.y) / imageSize.height
+                    };
+                    updates.labelPoint = {
+                        x: (labelPoint.x + deltaPos.x) / imageSize.width,
+                        y: (labelPoint.y + deltaPos.y) / imageSize.height
+                    };
+                }
+
+                await db.annotations.update(annotation.id, updates);
             }
-            // 3. Cas général (Déplacement global)
             else {
-                updates.targetPoint = {
-                    x: (targetPoint.x + deltaPos.x) / imageSize.width,
-                    y: (targetPoint.y + deltaPos.y) / imageSize.height
-                };
-                updates.labelPoint = {
-                    x: (labelPoint.x + deltaPos.x) / imageSize.width,
-                    y: (labelPoint.y + deltaPos.y) / imageSize.height
-                };
+                //const newPoints = annotation.points.map(pt => ({ ...pt, x: pt.x + deltaPos.x, y: pt.y + deltaPos.y }));
+                console.log("TODO: save annotation points")
             }
-
-            await db.annotations.update(annotation.id, updates);
-        }
-        else {
-            //const newPoints = annotation.points.map(pt => ({ ...pt, x: pt.x + deltaPos.x, y: pt.y + deltaPos.y }));
-            console.log("TODO: save annotation points")
         }
 
     };
@@ -504,7 +514,7 @@ export default function MainMapEditorV3() {
 
             <DialogDeleteSelectedAnnotation />
             <DialogAutoCreateEntity />
-            {/* <PopperEditAnnotation viewerKey="MAP" /> */}
+            <PopperEditAnnotation viewerKey="MAP" />
             <PopperEditScale />
             <PopperContextMenu />
 

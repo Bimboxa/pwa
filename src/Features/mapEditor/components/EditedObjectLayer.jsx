@@ -4,7 +4,8 @@ import { useMemo } from 'react';
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
 
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
-import EditedLabelLayer from "./EditedLabelLayer";
+
+import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 
 import theme from 'Styles/theme';
 
@@ -17,6 +18,8 @@ export default function EditedObjectLayer({
     onTextValueChange,
 }) {
 
+
+    console.log("[EditedObjectLayer] selectedNode", selectedNode);
 
     const isDraggable = selectedNode?.annotationType === "MARKER" || selectedNode?.annotationType === "LABEL";
     const isBgContext = selectedNode?.nodeContext === "BG_IMAGE";
@@ -34,10 +37,18 @@ export default function EditedObjectLayer({
     // 1. Find the actual data object for the selected ID
     const selectedAnnotation = useMemo(() => {
         if (!selectedNode || !annotations) return null;
-        return annotations.find(a => a.id === selectedNode.nodeId);
+
+        if (selectedNode.nodeId.startsWith("label::")) {
+            const annotationId = selectedNode.nodeId.replace("label::", "");
+            const annotation = annotations.find(a => a.id === annotationId);
+            return getAnnotationLabelPropsFromAnnotation(annotation);
+
+        } else {
+            return annotations.find(a => a.id === selectedNode.nodeId);
+        }
     }, [selectedNode, annotations]);
 
-    console.log("selectedAnnotation", selectedAnnotation)
+
 
 
     // 2. Define the "Selected" style overrides
@@ -61,7 +72,7 @@ export default function EditedObjectLayer({
             className="edited-layer"
             style={{ pointerEvents: 'auto' }}
             data-interaction={isDraggable ? "draggable" : undefined}
-            data-node-id={selectedNode?.nodeId}
+            data-node-id={selectedAnnotation?.id}
             transform={`translate(${basePose.x}, ${basePose.y}) scale(${basePose.k})`}
         >
             {/* We render the STATIC component but with overrides.
