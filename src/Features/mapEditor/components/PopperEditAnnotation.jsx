@@ -20,10 +20,8 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   const open =
     shouldShow &&
     Boolean(anchorPosition) &&
-    selectedNode?.annotationType === "POLYLINE" &&
+    ["POLYLINE", "POLYGON"].includes(selectedNode?.annotationType) &&
     selectedNode?.nodeType === "ANNOTATION";
-
-
 
   const handleClose = () => {
     // Only close if this popper's viewer is active
