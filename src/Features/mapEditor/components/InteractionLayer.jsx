@@ -408,7 +408,7 @@ const InteractionLayer = forwardRef(({
     if (enabledDrawingMode === 'CLICK') {
       // Apply snapping if Shift is pressed
       let finalPos = toLocalCoords(worldPos);
-      if (event.shiftKey && drawingPoints.length > 0) {
+      if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
         const lastPoint = drawingPoints[drawingPoints.length - 1];
         finalPos = snapToAngle(finalPos, lastPoint);
       }
@@ -424,7 +424,7 @@ const InteractionLayer = forwardRef(({
     else if (enabledDrawingMode === 'ONE_CLICK') {
       // Apply snapping if Shift is pressed
       let finalPos = toLocalCoords(worldPos);
-      if (event.shiftKey && drawingPoints.length > 0) {
+      if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
         const lastPoint = drawingPoints[drawingPoints.length - 1];
         finalPos = snapToAngle(finalPos, lastPoint);
       }
@@ -440,7 +440,7 @@ const InteractionLayer = forwardRef(({
       let finalPos = toLocalCoords(worldPos);
 
       // Apply Angle Snap (Ortho) if Shift is held and it's the 2nd point
-      if (event.shiftKey && drawingPoints.length > 0) {
+      if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
         const lastPoint = drawingPoints[drawingPoints.length - 1];
         finalPos = snapToAngle(finalPos, lastPoint);
       }
@@ -839,7 +839,7 @@ const InteractionLayer = forwardRef(({
       let previewPos = localPos;
 
       // Angle snap drawing
-      if (event.shiftKey && drawingPoints.length > 0) {
+      if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
         const lastPoint = drawingPoints[drawingPoints.length - 1];
         previewPos = snapToAngle(localPos, lastPoint);
       }
