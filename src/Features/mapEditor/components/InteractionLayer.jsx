@@ -929,7 +929,17 @@ const InteractionLayer = forwardRef(({
     if (snap.type === 'VERTEX') {
       const pointId = snap.id;
       const affectedIds = annotations
-        .filter(ann => ann.points?.some(pt => pt.id === pointId))
+        .filter(ann => {
+          // 1. Est-ce dans le contour principal ?
+          const inMain = ann.points?.some(pt => pt.id === pointId);
+
+          // 2. Est-ce dans un des trous (cuts) ?
+          const inCuts = ann.cuts?.some(cut =>
+            cut.points?.some(pt => pt.id === pointId)
+          );
+
+          return inMain || inCuts;
+        })
         .map(ann => ann.id);
 
       setDragState({
@@ -959,6 +969,7 @@ const InteractionLayer = forwardRef(({
         // Pour le visuel immédiat (on en montre qu'un seul qui bouge pour pas alourdir le DOM)
         annotationId: snap.previewAnnotationId,
         segmentIndex: snap.previewSegmentIndex,
+        cutIndex: snap.cutIndex,
 
         // Pour la logique finale
         segmentStartId: snap.segmentStartId,
@@ -1013,10 +1024,18 @@ const InteractionLayer = forwardRef(({
         onPointMoveCommit(dragState.pointId, dragState.currentPos);
       }
 
+      // to avoid blink effect
+      setDragState(prev => ({ ...prev, active: false, frozen: true }));
+
       // Cleanup
-      setDragState(null);
-      setVirtualInsertion(null);
-      setTimeout(() => setHiddenAnnotationIds([]), 30);
+
+
+      // Nettoyage différé synchronisé avec l'apparition de l'annotation réelle
+      setTimeout(() => {
+        setDragState(null); // On supprime le transient
+        setHiddenAnnotationIds([]); // On réaffiche le réel
+        setVirtualInsertion(null);
+      }, 100);
       document.body.style.cursor = '';
     }
 
@@ -1241,7 +1260,7 @@ const InteractionLayer = forwardRef(({
         {/* Ou mieux : Les enfants écoutent un store/context dédié aux interactions */}
         {children}
 
-        {dragState?.active && (
+        {(dragState?.active || dragState?.frozen) && (
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
             <TransientTopologyLayer
               annotations={annotations}

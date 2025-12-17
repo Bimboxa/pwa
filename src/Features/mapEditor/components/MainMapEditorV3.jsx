@@ -255,7 +255,7 @@ export default function MainMapEditorV3() {
     // handlers - split line
 
     const handleSegmentSplit = async (segment) => {
-        console.log("splitSegment", segment)
+        console.log("splitSegment", segment);
         const { segmentStartId, segmentEndId, x, y } = segment;
         const imageSize = baseMap?.image?.imageSize;
         if (!imageSize) return;
@@ -273,36 +273,73 @@ export default function MainMapEditorV3() {
             // ...other default point props
         };
 
-        // 2. Find ALL annotations affected by this segment
-        const annotationsToUpdate = [];
+        const newPointObject = { id: newPointId, type: 'square' };
 
-        annotations.forEach(ann => {
-            const pts = ann.points;
-            if (!pts || pts.length < 2) return;
+        // Helper function to try inserting point in a specific list of points
+        // Returns the new array if insertion happened, or null if segment not found
+        const insertPointInPath = (pointsList) => {
+            if (!pointsList || pointsList.length < 2) return null;
 
-            let newPointsList = null;
-
-            for (let i = 0; i < pts.length; i++) {
-                const currentPt = pts[i];
-                const nextPt = pts[(i + 1) % pts.length]; // Handle closed loop
+            for (let i = 0; i < pointsList.length; i++) {
+                const currentPt = pointsList[i];
+                const nextPt = pointsList[(i + 1) % pointsList.length]; // Handle closed loop
 
                 // CASE 1: Sequence A -> B
                 if (currentPt.id === segmentStartId && nextPt.id === segmentEndId) {
-                    newPointsList = [...pts];
-                    newPointsList.splice(i + 1, 0, { id: newPointId, type: 'square' });
-                    break;
+                    const newPoints = [...pointsList];
+                    newPoints.splice(i + 1, 0, newPointObject);
+                    return newPoints;
                 }
 
                 // CASE 2: Sequence B -> A (Reverse direction)
                 if (currentPt.id === segmentEndId && nextPt.id === segmentStartId) {
-                    newPointsList = [...pts];
-                    newPointsList.splice(i + 1, 0, { id: newPointId, type: 'square' });
-                    break;
+                    const newPoints = [...pointsList];
+                    newPoints.splice(i + 1, 0, newPointObject);
+                    return newPoints;
+                }
+            }
+            return null;
+        };
+
+        // 2. Find ALL annotations affected by this segment (Main contour OR Cuts)
+        const annotationsToUpdate = [];
+
+        annotations.forEach(ann => {
+            let hasChanges = false;
+            const updates = { id: ann.id };
+
+            // A. Check Main Contour
+            const newMainPoints = insertPointInPath(ann.points);
+            if (newMainPoints) {
+                updates.points = newMainPoints;
+                hasChanges = true;
+            }
+
+            // B. Check Cuts (Holes)
+            if (ann.cuts && Array.isArray(ann.cuts)) {
+                let cutsChanged = false;
+
+                // On mappe sur les cuts pour voir si l'un d'eux contient le segment
+                const newCuts = ann.cuts.map(cut => {
+                    const newCutPoints = insertPointInPath(cut.points);
+
+                    if (newCutPoints) {
+                        cutsChanged = true;
+                        // On retourne le cut mis à jour
+                        return { ...cut, points: newCutPoints };
+                    }
+                    // Sinon on retourne le cut tel quel
+                    return cut;
+                });
+
+                if (cutsChanged) {
+                    updates.cuts = newCuts;
+                    hasChanges = true;
                 }
             }
 
-            if (newPointsList) {
-                annotationsToUpdate.push({ id: ann.id, points: newPointsList });
+            if (hasChanges) {
+                annotationsToUpdate.push(updates);
             }
         });
 
@@ -312,15 +349,16 @@ export default function MainMapEditorV3() {
                 // A. Add the new point
                 await db.points.add(newPointEntity);
 
-                // B. Update all affected annotations in parallel
-                // Using Promise.all is the standard alternative to transaction for batching
+                // B. Update annotations (Updating 'points' or 'cuts' or both)
                 await Promise.all(
-                    annotationsToUpdate.map(update =>
-                        db.annotations.update(update.id, { points: update.points })
-                    )
+                    annotationsToUpdate.map(update => {
+                        // On extrait l'ID et on passe le reste (points et/ou cuts) à l'update
+                        const { id, ...changes } = update;
+                        return db.annotations.update(id, changes);
+                    })
                 );
 
-                console.log("Segment split successfully committed.");
+                console.log("Segment split successfully committed (Main or Cut).");
             } catch (error) {
                 console.error("Failed to split segment:", error);
             }

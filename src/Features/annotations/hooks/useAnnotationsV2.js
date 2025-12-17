@@ -9,6 +9,7 @@ import useBgImageTextAnnotations from "Features/bgImage/hooks/useBgImageTextAnno
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import resolvePoints from "Features/annotations/utils/resolvePoints";
+import resolveCuts from "Features/annotations/utils/resolveCuts";
 
 import db from "App/db/db";
 
@@ -93,6 +94,8 @@ export default function useAnnotationsV2(options) {
                     // --- OTHER CASES
                     else {
                         _annotation.points = resolvePoints({ points: annotationPoints, pointsIndex, imageSize: baseMap.image.imageSize });
+                        if (_annotation.cuts) _annotation.cuts = resolveCuts({ cuts: annotation.cuts, pointsIndex, imageSize: baseMap.image.imageSize });
+
                     }
 
                     return _annotation;

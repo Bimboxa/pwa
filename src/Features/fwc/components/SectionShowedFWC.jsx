@@ -9,8 +9,6 @@ import { VerticalAlignBottom as FloorIcon, VerticalAlignTop as CeilingIcon, Filt
 
 export default function SectionShowedFWC() {
 
-    console.log("[SectionShowedFWC] render");
-
     const dispatch = useDispatch();
 
     // strings
