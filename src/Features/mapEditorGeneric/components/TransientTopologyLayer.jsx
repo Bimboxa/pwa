@@ -5,9 +5,9 @@ import NodePolylineStatic from './NodePolylineStatic';
 export default function TransientTopologyLayer({
     annotations,
     movingPointId,
+    originalPointIdForDuplication, // Présent si mode "Duplication"
+    selectedAnnotationId,          // Présent si mode "Duplication" (ID de l'élue)
     currentPos,
-    // virtualInsertion: { annotationId, segmentIndex, cutIndex? } 
-    // cutIndex (number) est présent si on split un segment d'un trou
     virtualInsertion,
     viewportScale,
     baseMapMeterByPx,
@@ -20,6 +20,7 @@ export default function TransientTopologyLayer({
         // CAS 1 : INSERTION VIRTUELLE (Split Segment)
         // =========================================================
         if (virtualInsertion) {
+            // (Code inchangé pour l'insertion...)
             const targetAnn = annotations.find(a => a.id === virtualInsertion.annotationId);
             if (!targetAnn) return [];
 
@@ -30,25 +31,17 @@ export default function TransientTopologyLayer({
                 type: 'square'
             };
 
-            // A. Insertion dans un TROU (via cutIndex)
-            // On vérifie si cutIndex est défini (attention, 0 est falsy, donc check type ou undefined)
             if (typeof virtualInsertion.cutIndex === 'number' && targetAnn.cuts) {
                 const newCuts = targetAnn.cuts.map((cut, index) => {
-                    // On cible le trou par son index
                     if (index === virtualInsertion.cutIndex) {
                         const newPoints = [...cut.points];
-                        // Insertion après le point de début du segment
                         newPoints.splice(virtualInsertion.segmentIndex + 1, 0, virtualPoint);
                         return { ...cut, points: newPoints };
                     }
                     return cut;
                 });
-
                 return [{ ...targetAnn, cuts: newCuts }];
-            }
-
-            // B. Insertion dans le CONTOUR PRINCIPAL (Défaut)
-            else {
+            } else {
                 const newPoints = [...targetAnn.points];
                 newPoints.splice(virtualInsertion.segmentIndex + 1, 0, virtualPoint);
                 return [{ ...targetAnn, points: newPoints }];
@@ -56,16 +49,56 @@ export default function TransientTopologyLayer({
         }
 
         // =========================================================
-        // CAS 2 : DÉPLACEMENT STANDARD (Point existant)
+        // CAS 2 : DUPLICATION (Mode Annotation Sélectionnée)
+        // =========================================================
+        if (originalPointIdForDuplication && selectedAnnotationId) {
+
+            // 1. On ne cherche QUE l'annotation sélectionnée
+            // Les autres annotations connectées ne sont pas touchées (elles restent dans StaticMapContent)
+            const targetAnn = annotations.find(a => a.id === selectedAnnotationId);
+
+            if (!targetAnn) return [];
+
+            // On clone l'objet pour modifier ses points sans muter
+            const _ann = { ...targetAnn };
+
+            // A. Mise à jour du contour principal
+            if (_ann.points) {
+                _ann.points = _ann.points.map(pt =>
+                    pt.id === originalPointIdForDuplication
+                        ? { ...pt, x: currentPos.x, y: currentPos.y, id: movingPointId } // Nouvel ID temporaire + Nouvelle Pos
+                        : pt
+                );
+            }
+
+            // B. Mise à jour des trous (Cuts)
+            if (_ann.cuts) {
+                _ann.cuts = _ann.cuts.map(cut => {
+                    // Si le cut contient le point original, on le remplace par le clone déplacé
+                    if (cut.points?.some(p => p.id === originalPointIdForDuplication)) {
+                        const newCutPoints = cut.points.map(pt =>
+                            pt.id === originalPointIdForDuplication
+                                ? { ...pt, x: currentPos.x, y: currentPos.y, id: movingPointId }
+                                : pt
+                        );
+                        return { ...cut, points: newCutPoints };
+                    }
+                    return cut;
+                });
+            }
+
+            return [_ann];
+        }
+
+        // =========================================================
+        // CAS 3 : DÉPLACEMENT STANDARD (Mode Topologique / Point Partagé)
         // =========================================================
         if (!movingPointId) return [];
 
-        // On cherche l'annotation qui contient ce point (Main ou Cut)
+        // On cherche TOUTES les annotations qui contiennent ce point
         const affected = annotations.filter(ann => {
             const inMain = ann.points?.some(pt => pt.id === movingPointId);
             if (inMain) return true;
-
-            // Vérification dans les cuts
             if (ann.cuts) {
                 return ann.cuts.some(cut => cut.points?.some(pt => pt.id === movingPointId));
             }
@@ -75,7 +108,7 @@ export default function TransientTopologyLayer({
         return affected.map(ann => {
             const _ann = { ...ann };
 
-            // A. Est-ce dans le main ?
+            // A. Main Points
             if (_ann.points?.some(pt => pt.id === movingPointId)) {
                 _ann.points = _ann.points.map(pt =>
                     pt.id === movingPointId
@@ -84,10 +117,9 @@ export default function TransientTopologyLayer({
                 );
             }
 
-            // B. Est-ce dans un cut ?
+            // B. Cuts
             if (_ann.cuts) {
                 _ann.cuts = _ann.cuts.map(cut => {
-                    // Si le cut contient le point, on met à jour ses points
                     if (cut.points?.some(pt => pt.id === movingPointId)) {
                         return {
                             ...cut,
@@ -105,7 +137,7 @@ export default function TransientTopologyLayer({
             return _ann;
         });
 
-    }, [annotations, movingPointId, currentPos, virtualInsertion]);
+    }, [annotations, movingPointId, currentPos, virtualInsertion, originalPointIdForDuplication, selectedAnnotationId]);
 
     if (modifiedAnnotations.length === 0) return null;
 
@@ -115,13 +147,10 @@ export default function TransientTopologyLayer({
                 <NodePolylineStatic
                     key={ann.id}
                     annotation={ann}
-                    // On passe le style visuel "en cours d'édition"
                     annotationOverride={{
                         strokeColor: "#2196f3",
                         strokeWidth: ann.strokeWidth,
                         strokeOpacity: 0.5,
-                        // Force selected=true pour voir le remplissage des trous (opacity 0.2)
-                        // défini dans votre NodePolylineStatic
                         selected: true
                     }}
                     baseMapMeterByPx={baseMapMeterByPx}
@@ -130,7 +159,7 @@ export default function TransientTopologyLayer({
                 />
             ))}
 
-            {/* Le Point sous la souris */}
+            {/* Le Point sous la souris (Feedback visuel) */}
             <circle
                 cx={currentPos.x}
                 cy={currentPos.y}

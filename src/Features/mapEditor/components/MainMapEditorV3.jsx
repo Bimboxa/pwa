@@ -55,6 +55,7 @@ import getDefaultCameraMatrix from "../utils/getDefaultCameraMatrix";
 import getDefaultBaseMapPoseInBg from "../utils/getDefaultBaseMapPoseInBg";
 import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getAnnotationLabelDeltaFromDeltaPos";
 import { deletePointAsync } from "../services/deletePointAsync";
+import duplicateAndMovePoint from "../services/duplicateAndMovePoint";
 
 export default function MainMapEditorV3() {
     const dispatch = useDispatch();
@@ -254,6 +255,11 @@ export default function MainMapEditorV3() {
         db.points.update(pointId, { x: newPos.x / imageSize.width, y: newPos.y / imageSize.height });
     };
 
+    const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
+        const imageSize = baseMap?.image?.imageSize;
+        await duplicateAndMovePoint({ originalPointId, annotationId, newPos, imageSize, annotations });
+    };
+
     // handlers - split line
 
     const handleSegmentSplit = async (segment) => {
@@ -450,7 +456,12 @@ export default function MainMapEditorV3() {
 
     // snapping
 
-    const isSnappingEnabled = enabledDrawingMode || !selectedNode;
+    //const isSnappingEnabled = enabledDrawingMode || !selectedNode;
+    const isSnappingEnabled =
+        enabledDrawingMode ||
+        !selectedNode ||
+        (selectedNode && selectedNode.nodeType === "ANNOTATION");
+
 
     // helper - sizeVariant
 
@@ -491,6 +502,7 @@ export default function MainMapEditorV3() {
                     activeContext={activeContext}
                     annotations={annotations}
                     onPointMoveCommit={handlePointMoveCommit}
+                    onPointDuplicateAndMoveCommit={handleDuplicateAndMovePoint}
                     onDeletePoint={handleDeletePoint}
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
