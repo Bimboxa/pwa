@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useMemo } from "react"; // Assurez-vous d'avoir useMemo
 
 import { useSelector } from "react-redux";
 
@@ -30,7 +30,8 @@ function StaticMapContent({
 
     // data
 
-    const { hoveredNode, hiddenAnnotationIds } = useInteraction();
+    // [MODIF 1] Récupérer selectedPointId
+    const { hoveredNode, hiddenAnnotationIds, selectedPointId } = useInteraction();
     const spriteImage = useAnnotationSpriteImage();
     const _showedFWC = useSelector(s => s.fwc.showedFWC);
 
@@ -64,6 +65,24 @@ function StaticMapContent({
         (showedFWC.includes(entity?.fwc) || !fwcEnabled || (!entity?.fwc && showedFWC.length === activeFWC.length))
     );
 
+    // [MODIF 2] Calculer les annotations touchées par le point sélectionné (Topologie)
+    const idsAffectedBySelectedPoint = useMemo(() => {
+        if (!selectedPointId) return new Set();
+        const affectedIds = new Set();
+
+        // On cherche dans TOUTES les annotations, pas seulement les filtrées
+        annotations.forEach(ann => {
+            const inMain = ann.points?.some(pt => pt.id === selectedPointId);
+            const inCuts = ann.cuts?.some(cut => cut.points?.some(pt => pt.id === selectedPointId));
+
+            if (inMain || inCuts) {
+                affectedIds.add(ann.id);
+            }
+        });
+
+        return affectedIds;
+    }, [selectedPointId, annotations]);
+
 
     return (
         <>
@@ -77,10 +96,9 @@ function StaticMapContent({
                     height={bgImageSize?.height} />}
 
                 {bgImageAnnotations.map((annotation) => {
-
-                    if (hiddenAnnotationIds?.includes(annotation.id)) {
-                        return null;
-                    }
+                    // Pour le texte BG, on garde la logique simple (ou on adapte si besoin)
+                    if (hiddenAnnotationIds?.includes(annotation.id)) return null;
+                    if (selectedNode?.nodeId === annotation.id) return null; // Masquer si édité
 
                     return <NodeAnnotationStatic
                         key={annotation.id}
@@ -88,7 +106,7 @@ function StaticMapContent({
                         spriteImage={spriteImage}
                         imageSize={bgImageSize}
                         hovered={annotation.id === hoveredNode?.nodeId}
-                        selected={annotation.id === selectedNode?.id}
+                        selected={false} // Toujours false car c'est le statique
                         sizeVariant={sizeVariant}
                         containerK={bgPose.k}
                         baseMapMeterByPx={baseMapMeterByPx}
@@ -112,7 +130,21 @@ function StaticMapContent({
 
                 {baseMapAnnotations?.map(annotation => {
 
-                    if (hiddenAnnotationIds?.includes(annotation.id)) {
+                    // [MODIF 3] Logique de masquage avancée pour éviter les doublons avec EditedLayer
+
+                    // A. Caché par le Drag (TransientLayer)
+                    const isHiddenByDrag = hiddenAnnotationIds?.includes(annotation.id);
+
+                    // B. Caché par la Sélection Globale (EditedLayer mode Objet)
+                    const isSelectedGlobal = selectedNode?.nodeId === annotation.id;
+
+                    // C. Caché par la Sélection de Point (EditedLayer mode Topologie)
+                    // On ne cache les voisins QUE si on n'a PAS de sélection globale.
+                    // Si on a une sélection globale, les voisins restent statiques.
+                    const isConnectedToPoint = idsAffectedBySelectedPoint.has(annotation.id);
+                    const hideDueToTopology = !selectedNode && isConnectedToPoint;
+
+                    if (isHiddenByDrag || isSelectedGlobal || hideDueToTopology) {
                         return null;
                     }
 
@@ -121,7 +153,8 @@ function StaticMapContent({
                         annotation={annotation}
                         spriteImage={spriteImage}
                         hovered={annotation.id === hoveredNode?.nodeId}
-                        selected={annotation.id === selectedNode?.id}
+                        // selected est toujours false ici, car si c'était true, on aurait return null au-dessus
+                        selected={false}
                         sizeVariant={sizeVariant}
                         containerK={basePose.k}
                         baseMapMeterByPx={baseMapMeterByPx}
