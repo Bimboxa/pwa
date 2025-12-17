@@ -54,6 +54,7 @@ import getPolylinePointsFromRectangle from "Features/geometry/utils/getPolylineP
 import getDefaultCameraMatrix from "../utils/getDefaultCameraMatrix";
 import getDefaultBaseMapPoseInBg from "../utils/getDefaultBaseMapPoseInBg";
 import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getAnnotationLabelDeltaFromDeltaPos";
+import { deletePointAsync } from "../services/deletePointAsync";
 
 export default function MainMapEditorV3() {
     const dispatch = useDispatch();
@@ -83,6 +84,7 @@ export default function MainMapEditorV3() {
     const spriteImage = useAnnotationSpriteImage();
     const enabledDrawingMode = useSelector((state) => state.mapEditor.enabledDrawingMode);
     const selectedNode = useSelector((state) => state.mapEditor.selectedNode);
+    const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
 
     // viewport
 
@@ -154,7 +156,7 @@ export default function MainMapEditorV3() {
 
     // annotations
 
-    const annotations = useAnnotationsV2({ withEntity: true });
+    const annotations = useAnnotationsV2({ withEntity: true, excludeListingsIds: hiddenListingsIds });
 
     // legend
 
@@ -439,6 +441,13 @@ export default function MainMapEditorV3() {
         });
     };
 
+    // handlers - delete point
+
+    const handleDeletePoint = async ({ annotationId, pointId }) => {
+        console.log("handleDeletePoint", annotationId, pointId, annotations);
+        await deletePointAsync({ pointId, annotationId, annotations });
+    };
+
     // snapping
 
     const isSnappingEnabled = enabledDrawingMode || !selectedNode;
@@ -482,6 +491,7 @@ export default function MainMapEditorV3() {
                     activeContext={activeContext}
                     annotations={annotations}
                     onPointMoveCommit={handlePointMoveCommit}
+                    onDeletePoint={handleDeletePoint}
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
                     snappingEnabled={isSnappingEnabled}

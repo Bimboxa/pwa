@@ -8,6 +8,7 @@ export default function NodeAnnotationStatic({
   annotationOverride,
   hovered,
   selected,
+  selectedPointId,
   dragged,
   baseMapMeterByPx,
   spriteImage,
@@ -19,12 +20,14 @@ export default function NodeAnnotationStatic({
   printMode,
   onTextValueChange,
   forceHideLabel,
+
 }) {
   annotation = { ...annotation ?? {}, ...annotationOverride ?? {} };
 
   const props = {
     hovered,
     selected,
+    selectedPointId,
     dragged,
     baseMapMeterByPx,
     spriteImage,
