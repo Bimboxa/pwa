@@ -58,6 +58,7 @@ const InteractionLayer = forwardRef(({
   activeContext = "BASE_MAP",
   annotations, // <= snapping source.
   onPointMoveCommit,
+  onPointDuplicateAndMoveCommit,
   onDeletePoint,
   onAnnotationMoveCommit,
   onSegmentSplit,
@@ -116,6 +117,11 @@ const InteractionLayer = forwardRef(({
       return annotations?.find((annotation) => annotation.id === selectedNode?.nodeId);
     }
   }, [annotations, selectedNode?.nodeId]);
+
+  // annotations for Snap
+
+  let annotationsForSnap = annotations;
+  if (selectedAnnotation) annotationsForSnap = [selectedAnnotation];
 
   // cameraZoom
 
@@ -300,16 +306,18 @@ const InteractionLayer = forwardRef(({
     selectedNode,
     selectedPointId,
     enabledDrawingMode: enabledDrawingMode, // Si besoin dans le listener
-    onDeletePoint
+    onDeletePoint,
+    onPointDuplicateAndMoveCommit,
   });
   useEffect(() => {
     stateRef.current = {
       selectedNode,
       selectedPointId,
       onDeletePoint,
-      enabledDrawingMode // Assurez-vous d'avoir accès à cette variable
+      enabledDrawingMode,
+      onPointDuplicateAndMoveCommit
     };
-  }, [selectedNode, selectedPointId, onDeletePoint, enabledDrawingMode]);
+  }, [selectedNode, selectedPointId, onDeletePoint, enabledDrawingMode, onPointDuplicateAndMoveCommit]);
 
 
   // 1. Calculer le style curseur du conteneur
@@ -686,20 +694,42 @@ const InteractionLayer = forwardRef(({
       // 2. Si on dépasse le seuil, on ACTIVE le drag
       if (dist > DRAG_THRESHOLD_PX) {
 
+        let finalPointId = dragState.pointId;
+        let finalIsDuplicateMode = false;
+        let idsToHide = dragState.affectedIds;
+
+        if (dragState.potentialDuplicate) {
+          // C'EST MAINTENANT QU'ON CRÉE LE CLONE
+          finalIsDuplicateMode = true;
+          finalPointId = `temp_dup_${nanoid()}`; // ID Temporaire pour le visuel
+
+          // En mode dupliqué, on ne cache QUE l'annotation sélectionnée
+          // (Les voisins restent visibles car ils ne bougent pas encore)
+          if (selectedNode?.nodeId) {
+            idsToHide = [selectedNode.nodeId];
+          }
+        }
+
         // On active le drag
         setDragState(prev => ({
           ...prev,
           pending: false,
-          active: true
+          active: true,
+
+          // Mise à jour pour la duplication
+          isDuplicateMode: finalIsDuplicateMode,
+          pointId: finalPointId, // Peut être l'ID temp maintenant
+          affectedIds: idsToHide
         }));
 
         // On cache l'annotation réelle maintenant (et pas au clic)
-        setHiddenAnnotationIds(dragState.affectedIds);
+        setHiddenAnnotationIds(idsToHide);
       } else {
         // Tant qu'on n'a pas bougé assez, on ne fait rien (on absorbe l'événement)
         return;
       }
     }
+
     if (dragState?.active) {
       snappingLayerRef.current?.update(null);
       const localPos = toLocalCoords(worldPos);
@@ -911,7 +941,7 @@ const InteractionLayer = forwardRef(({
       const localPos = toLocalCoords(worldPos);
       const snapThreshold = SNAP_THRESHOLD_ABSOLUTE / scale;
 
-      snapResult = getBestSnap(localPos, annotations, snapThreshold, true);
+      snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, true);
 
       if (snapResult) {
         currentSnapRef.current = snapResult;
@@ -1026,32 +1056,40 @@ const InteractionLayer = forwardRef(({
     // --- CAS 1 : EXISTING VERTEX ---
     if (snap.type === 'VERTEX') {
       const pointId = snap.id;
+
+      // 1. Détecter si on est sur une annotation sélectionnée
+      // (On vérifie si l'annotation sélectionnée contient ce point)
+      const selectedAnnotationHasPoint = selectedNode &&
+        annotations.find(a => a.id === selectedNode.nodeId)?.points.some(p => p.id === pointId);
+
+      // 2. On note juste que c'est une POTENTIELLE duplication
+      const isPotentialDuplicate = !!selectedAnnotationHasPoint;
+
+      // 3. Calcul des IDs affectés (Standard pour l'instant)
       const affectedIds = annotations
         .filter(ann => {
-          // 1. Est-ce dans le contour principal ?
           const inMain = ann.points?.some(pt => pt.id === pointId);
-
-          // 2. Est-ce dans un des trous (cuts) ?
-          const inCuts = ann.cuts?.some(cut =>
-            cut.points?.some(pt => pt.id === pointId)
-          );
-
+          const inCuts = ann.cuts?.some(cut => cut.points?.some(pt => pt.id === pointId));
           return inMain || inCuts;
         })
         .map(ann => ann.id);
 
-      // On initialise en mode PENDING
       setDragState({
-        active: false, // Pas encore actif
-        pending: true, // En attente de mouvement
-        pointId: pointId,
+        active: false,
+        pending: true,
+
+        pointId: pointId, // <--- ON GARDE L'ID RÉEL (Important pour le click/select)
+        originalPointId: pointId, // On garde une copie au cas où
+
+        isDuplicateMode: false, // <--- PAS ENCORE TRUE
+        potentialDuplicate: isPotentialDuplicate, // <--- NOUVEAU FLAG
+
         currentPos: { x: snap.x, y: snap.y },
-        startMouseScreen: { x: e.clientX, y: e.clientY }, // Pour le calcul du seuil
-        affectedIds: affectedIds // On stocke les IDs à cacher plus tard
+        startMouseScreen: { x: e.clientX, y: e.clientY },
+        affectedIds: affectedIds
       });
 
-      setVirtualInsertion(null); // Pas virtuel
-      //setHiddenAnnotationIds(affectedIds);
+      setVirtualInsertion(null);
     }
 
     // --- CAS 2 : PROJECTION (Nouveau Point) ---
@@ -1093,6 +1131,8 @@ const InteractionLayer = forwardRef(({
   // --- 3. MOUSE UP (Global) ---
   const handleMouseUp = () => {
 
+    const { onPointDuplicateAndMoveCommit } = stateRef.current;
+
     // ... (Gestion BaseMap drag & Legend inchangée) ...
     if (dragBaseMapState?.active) {
       if (onBaseMapPoseCommit) onBaseMapPoseCommit();
@@ -1121,9 +1161,20 @@ const InteractionLayer = forwardRef(({
             y: dragState.currentPos.y
           });
         }
+
+        else if (dragState.isDuplicateMode && onPointDuplicateAndMoveCommit) {
+          onPointDuplicateAndMoveCommit({
+            originalPointId: dragState.originalPointId, // L'ID réel du point source
+            annotationId: dragState.affectedIds[0],     // L'annotation qu'on éditait
+            newPos: dragState.currentPos
+          });
+        }
+        // 3. Commit Move Standard
         else if (onPointMoveCommit) {
           onPointMoveCommit(dragState.pointId, dragState.currentPos);
         }
+
+
 
         // 2. Gestion de l'anti-clignotement (Freeze)
         setDragState(prev => ({ ...prev, active: false, frozen: true }));
@@ -1140,12 +1191,13 @@ const InteractionLayer = forwardRef(({
 
       // CAS B : C'était un CLICK (pending = true, active = false)
       else if (dragState.pending) {
-        console.log("Point Clicked (No Drag):", dragState.pointId);
+        console.log("Point Clicked:", dragState.pointId);
 
-        // 1. Sélection du point
+        // Ici, dragState.pointId est TOUJOURS l'ID réel
+        // (car on n'a pas déclenché la logique du MouseMove)
         setSelectedPointId(dragState.pointId);
 
-        // 2. Nettoyage immédiat (pas besoin de freeze car pas de transient affiché)
+        // Cleanup immédiat
         setDragState(null);
         setVirtualInsertion(null);
         setHiddenAnnotationIds([]);
@@ -1377,9 +1429,11 @@ const InteractionLayer = forwardRef(({
             <TransientTopologyLayer
               annotations={annotations}
               movingPointId={dragState.pointId}
+              originalPointIdForDuplication={dragState.isDuplicateMode ? dragState.originalPointId : null}
               currentPos={dragState.currentPos}
               viewportScale={targetPose.k * cameraZoom}
               virtualInsertion={virtualInsertion}
+              selectedAnnotationId={selectedNode?.nodeId?.replace("label::", "")}
             />
           </g>
         )}
