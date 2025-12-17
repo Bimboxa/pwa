@@ -127,6 +127,12 @@ export default function useAnnotationsV2(options) {
                     }));
                 }
 
+                if (excludeListingsIds) {
+                    _annotations = _annotations?.filter(
+                        (a) => !excludeListingsIds.includes(a.listingId)
+                    );
+                }
+
 
                 // -- SORT --
 
@@ -178,7 +184,7 @@ export default function useAnnotationsV2(options) {
                 return _annotations;
             }
 
-        }, [baseMap?.id]);
+        }, [baseMap?.id, excludeListingsIds]);
 
 
 

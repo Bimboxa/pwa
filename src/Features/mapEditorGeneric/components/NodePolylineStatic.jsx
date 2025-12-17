@@ -15,7 +15,10 @@ export default function NodePolylineStatic({
     containerK,
     forceHideLabel,
     isTransient,
+    selectedPointId,
 }) {
+
+    if (selectedPointId) console.log("SELECTED_POINT_ID", selectedPointId);
 
     annotation = { ...annotation, ...annotationOverride };
 
@@ -279,6 +282,67 @@ export default function NodePolylineStatic({
         });
     };
 
+    // --- LOGIQUE D'AFFICHAGE DES POINTS ---
+
+    // 1. Taille désirée en pixels écran
+    const POINT_SIZE = 6;
+    const HALF_SIZE = POINT_SIZE / 2;
+
+    const vertexScaleTransform = useMemo(() => {
+        // Sécurité pour k
+        const k = containerK || 1;
+        return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
+    }, [containerK]);
+
+    // Fonction de rendu d'un vertex
+    const renderVertex = (pt) => {
+        const isPointSelected = selectedPointId === pt.id;
+
+        return (
+            <g
+                key={pt.id}
+                // On positionne le GROUPE à l'emplacement du point
+                transform={`translate(${pt.x}, ${pt.y})`}
+
+                // On applique ici le style pour le curseur
+                style={{ cursor: 'pointer' }}
+
+                // Interaction Data sur le groupe
+                data-node-type="VERTEX"
+                data-point-id={pt.id}
+                data-annotation-id={annotation.id}
+            >
+                {/* On applique l'échelle inverse sur le contenu pour le garder à taille fixe */}
+                <g style={{ transform: vertexScaleTransform }}>
+                    <rect
+                        // Centré autour de 0,0
+                        x={-HALF_SIZE}
+                        y={-HALF_SIZE}
+                        width={POINT_SIZE}
+                        height={POINT_SIZE}
+
+                        // Style
+                        fill={isPointSelected ? "#FF0000" : "#FFFFFF"}
+                        stroke="#2196f3"
+                        strokeWidth={1.5} // Plus besoin de diviser par safeK ici !
+
+                        // Pour l'optimisation des clics
+                        pointerEvents="all"
+                    />
+                </g>
+            </g>
+        );
+    };
+
+    // On récupère tous les points (Contour principal + Trous)
+    const mainPoints = annotation.points || [];
+
+    // Pour les trous (cuts), on doit aplatir les tableaux de points
+    const cutPoints = (annotation.cuts || []).flatMap(c => c.points || []);
+
+    const allPoints = [...mainPoints, ...cutPoints];
+
+
     return (
         <g{...dataProps}>
             {/* Hatching Pattern */}
@@ -336,6 +400,9 @@ export default function NodePolylineStatic({
                     {renderSegments(hole.segmentMap)}
                 </g>
             ))}
+
+            {/* RENDU DES POINTS (Seulement si l'annotation est sélectionnée) */}
+            {selected && allPoints.map(pt => renderVertex(pt))}
 
             {showLabel && <NodeLabelStatic
                 annotation={labelAnnotation}

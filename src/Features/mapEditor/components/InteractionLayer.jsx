@@ -53,6 +53,7 @@ const InteractionLayer = forwardRef(({
   activeContext = "BASE_MAP",
   annotations, // <= snapping source.
   onPointMoveCommit,
+  onDeletePoint,
   onAnnotationMoveCommit,
   onSegmentSplit,
   snappingEnabled = true,
@@ -80,9 +81,14 @@ const InteractionLayer = forwardRef(({
   const helperScaleRef = useRef(null);
   const baseMapRafRef = useRef(null); // Raf = requestAnimationFrame, pour contrôle du resize de la map.
 
+
   // context
 
-  const { setHoveredNode, setHiddenAnnotationIds, setDraggingAnnotationId, setBasePose } = useInteraction();
+  const { setHoveredNode,
+    setHiddenAnnotationIds,
+    setDraggingAnnotationId,
+    setSelectedPointId, selectedPointId,
+    setBasePose } = useInteraction();
 
   // expose handlers
 
@@ -192,6 +198,11 @@ const InteractionLayer = forwardRef(({
   };
 
 
+  // Reset selectedPointId quand on change de noeud sélectionné
+  useEffect(() => {
+    setSelectedPointId(null);
+  }, [selectedNode?.nodeId]);
+
   // drag state
 
   const [dragState, setDragState] = useState(null);
@@ -234,6 +245,9 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     cutHostIdRef.current = cutHostId;
   }, [cutHostId]);
+
+
+
 
   // virtual insertion
 
@@ -279,6 +293,21 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     onCommitDrawingRef.current = onCommitDrawing;
   }, [onCommitDrawing]);
+
+  const stateRef = useRef({
+    selectedNode,
+    selectedPointId,
+    enabledDrawingMode: enabledDrawingMode, // Si besoin dans le listener
+    onDeletePoint
+  });
+  useEffect(() => {
+    stateRef.current = {
+      selectedNode,
+      selectedPointId,
+      onDeletePoint,
+      enabledDrawingMode // Assurez-vous d'avoir accès à cette variable
+    };
+  }, [selectedNode, selectedPointId, onDeletePoint, enabledDrawingMode]);
 
 
   // 1. Calculer le style curseur du conteneur
@@ -328,8 +357,9 @@ const InteractionLayer = forwardRef(({
       // Ignorer si l'utilisateur écrit dans un input texte
       if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
         console.log("Action: Key Pressed while typing");
-        //return;
+        return;
       }
+      const { selectedNode, selectedPointId, onDeletePoint } = stateRef.current;
 
       if (e.repeat) return;
 
@@ -337,6 +367,13 @@ const InteractionLayer = forwardRef(({
         // 1. ESCAPE : Reset Selection
         case 'Escape':
           console.log("Action: Reset Selection & Tool");
+          if (selectedPointId) {
+            console.log("Action: Deselect Point");
+            setSelectedPointId(null);
+            e.stopPropagation(); // Empêcher le resetNewAnnotation
+            return;
+          }
+
           resetNewAnnotation();
           dispatch(setEnabledDrawingMode(null));
           dispatch(setSelectedNode(null));
@@ -355,6 +392,15 @@ const InteractionLayer = forwardRef(({
         case 'Delete':
         case 'Backspace':
           console.log("Action: Delete Selected");
+          // 1. Si un point est sélectionné, on le supprime
+          if (selectedPointId && selectedNode?.nodeId && onDeletePoint) {
+            console.log("Action: Delete Point", selectedPointId, selectedNode?.nodeId);
+            // On passe l'ID du point et l'ID de l'annotation parente
+            onDeletePoint({ pointId: selectedPointId, annotationId: selectedNode.nodeId });
+            setSelectedPointId(null); // Reset selection
+            e.stopPropagation();
+            return;
+          }
           dispatch(setOpenDialogDeleteSelectedAnnotation(true));
           break;
 
@@ -499,6 +545,26 @@ const InteractionLayer = forwardRef(({
 
     else if (!enabledDrawingMode) {
       const nativeTarget = event.nativeEvent?.target || event.target;
+
+      // A. DÉTECTION DU CLIC SUR UN POINT (VERTEX)
+      // Les points auront data-node-type="VERTEX"
+      const hitPoint = nativeTarget.closest?.('[data-node-type="VERTEX"]');
+
+      if (hitPoint) {
+        const { pointId, annotationId } = hitPoint.dataset;
+        // Si l'annotation est déjà sélectionnée, on sélectionne le point
+        if (selectedNode?.nodeId === annotationId) {
+          console.log("Select Point:", pointId);
+          setSelectedPointId(pointId);
+          // On arrête ici pour ne pas relancer la sélection de noeud
+          return;
+        }
+      } else {
+        // Si on clique ailleurs (sur le trait ou le vide), on déselectionne le point
+        if (selectedPointId) setSelectedPointId(null);
+      }
+
+
       const hit = nativeTarget.closest?.("[data-node-type]");
       if (hit) {
         console.log("[InteractionLayer] selected node", hit?.dataset)

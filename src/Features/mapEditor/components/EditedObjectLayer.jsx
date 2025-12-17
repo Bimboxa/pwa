@@ -30,7 +30,9 @@ export default function EditedObjectLayer({
         k: 1
     } : basePose;
 
-    const { hoveredNode, hiddenAnnotationIds, draggingAnnotationId } = useInteraction();
+    const { hoveredNode, hiddenAnnotationIds, draggingAnnotationId, selectedPointId } = useInteraction();
+
+    console.log("[EditedObjectLayer] selectedPointId", selectedPointId);
 
     // 1. Find the actual data object for the selected ID
     const selectedAnnotation = useMemo(() => {
@@ -87,6 +89,7 @@ export default function EditedObjectLayer({
                 sizeVariant="FIXED_IN_SCREEN"
                 containerK={basePose.k}
                 onTextValueChange={onTextValueChange}
+                selectedPointId={selectedPointId}
             />
 
 
