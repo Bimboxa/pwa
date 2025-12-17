@@ -19,8 +19,6 @@ export default function EditedObjectLayer({
 }) {
 
 
-    console.log("[EditedObjectLayer] selectedNode", selectedNode);
-
     const isDraggable = selectedNode?.annotationType === "MARKER" || selectedNode?.annotationType === "LABEL";
     const isBgContext = selectedNode?.nodeContext === "BG_IMAGE";
 

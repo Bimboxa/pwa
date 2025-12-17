@@ -2,6 +2,7 @@ import { useMemo, useRef } from "react";
 import { darken } from "@mui/material/styles";
 import theme from "Styles/theme";
 
+import getBarycenter from "Features/geometry/utils/getBarycenter";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 
 import NodeLabelStatic from "./NodeLabelStatic";
@@ -14,12 +15,12 @@ export default function NodePolylineStatic({
     baseMapMeterByPx,
     containerK,
     forceHideLabel,
-    isTransient,
 }) {
 
     annotation = { ...annotation, ...annotationOverride };
 
     const showLabel = (annotation.showLabel || selected) && !forceHideLabel;
+
 
     // ===== label Annotation =====
     const labelAnnotation = getAnnotationLabelPropsFromAnnotation(annotation);
@@ -27,7 +28,6 @@ export default function NodePolylineStatic({
     let {
         type,
         points = [],
-        cuts = [], // [NEW] Extract cuts (holes)
         strokeColor = theme.palette.secondary.main,
         closeLine = type === "POLYGON",
         fillColor = theme.palette.secondary.main,
@@ -75,21 +75,29 @@ export default function NodePolylineStatic({
     const displayStrokeColor = hovered ? hoverStrokeColor : strokeColor;
     const displayFillColor = hovered ? hoverFillColor : fillColor;
 
-    // 1. Calculate the Stroke Width
+    // 1. Calculate the Stroke Width (in Map Pixels) if using physical units
     const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx > 0;
 
+
     const computedStrokeWidth = useMemo(() => {
+
         if (type === "POLYGON") {
             return 0.5;
         }
+
         if (isCmUnit) {
+            // CM -> Meters -> Pixels
+            // e.g. 20cm = 0.2m. If 1px = 0.01m, then width = 20px.
             return (strokeWidth * 0.01) / baseMapMeterByPx;
         }
+        // If PX unit, we pass the raw value (e.g., 2)
+        // The browser applies this as screen pixels thanks to non-scaling-stroke
         return strokeWidth;
     }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit, type]);
 
 
-    // Helper functions
+
+    // Helper functions - points are already in absolute coordinates
     const typeOf = (p) => (p?.type === "circle" ? "circle" : "square");
 
     function circleFromThreePoints(p0, p1, p2) {
@@ -105,12 +113,12 @@ export default function NodePolylineStatic({
         return { center: { x: cx, y: cy }, r: Math.hypot(x1 - cx, y1 - cy) };
     }
 
-    // Build path
+    // Build path - points are already in absolute pixel coordinates
     function buildPathAndMap(absPoints, close) {
         const res = { d: "", segmentMap: [] };
         if (!absPoints?.length) return res;
 
-        const pts = absPoints;
+        const pts = absPoints; // No scaling needed, already absolute
         const types = absPoints.map(typeOf);
         const n = pts.length;
         const dParts = [`M ${pts[0].x} ${pts[0].y}`];
@@ -206,79 +214,16 @@ export default function NodePolylineStatic({
         return res;
     }
 
-    // [NEW] 1. Memoize Main Path
     const { d: pathD, segmentMap } = useMemo(
         () => buildPathAndMap(points, closeLine),
         [points, closeLine]
     );
 
-    // [NEW] 2. Memoize Holes Path (Cuts)
-    const holesData = useMemo(() => {
-        if (!cuts || cuts.length === 0) return [];
-        return cuts.map(cut => ({
-            ...buildPathAndMap(cut.points, true), // Holes are usually closed
-            id: cut.id
-        }));
-    }, [cuts]);
-
-    // [NEW] 3. Combine Paths for Fill (Main + Holes)
-    const fullFillD = useMemo(() => {
-        let d = pathD;
-        if (holesData.length > 0) {
-            d += " " + holesData.map(h => h.d).join(" ");
-        }
-        return d;
-    }, [pathD, holesData]);
-
-
+    //const showFill = closeLine && fillType !== "NONE";
     const showFill = type === "POLYGON";
     const HATCHING_SPACING = 12;
 
     if (!points?.length) return null;
-
-    // Helper to render a segment stroke (used for main path and holes)
-    const renderSegments = (segmentsList) => {
-        return segmentsList.map((seg, idx) => {
-            // Note: Holes might not have corresponding 'segments' metadata in annotation.segments
-            // We assume hole segments are always visible unless we map them to annotation structure.
-            // If segmentsList comes from main loop, we check deletion.
-            const isMainPath = segmentsList === segmentMap;
-            if (isMainPath && segments[idx]?.isDeleted) return null;
-
-            return (
-                <g key={`seg-${idx}-${seg.startPointIdx}`}>
-                    {/* Hit Area */}
-                    <path
-                        d={seg.d}
-                        fill="none"
-                        stroke="transparent"
-                        strokeWidth={Math.max(14, isCmUnit ? computedStrokeWidth * 3 : 14)}
-                        style={{ cursor: "pointer" }}
-                        vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
-                        {...dataProps}
-                    />
-                    {/* Visible Stroke */}
-                    <path
-                        d={seg.d}
-                        fill="none"
-                        stroke={displayStrokeColor}
-                        strokeWidth={computedStrokeWidth}
-                        strokeOpacity={strokeOpacity}
-                        strokeDasharray={
-                            strokeType === "DASHED"
-                                ? `${computedStrokeWidth * 3} ${computedStrokeWidth * 2}`
-                                : undefined
-                        }
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
-                        style={{ pointerEvents: "none" }}
-                    />
-                </g>
-            );
-        });
-    };
-
     return (
         <g{...dataProps}>
             {/* Hatching Pattern */}
@@ -299,43 +244,64 @@ export default function NodePolylineStatic({
                 </defs>
             )}
 
-            {/* Fill - Uses combined path (Main + Holes) */}
+            {/* Fill */}
             {showFill && (
                 <path
-                    d={fullFillD} // [NEW] Use combined path
+                    d={pathD}
                     fill={fillType === "HATCHING" ? `url(#${patternIdRef.current})` : displayFillColor}
                     fillOpacity={fillOpacity ?? 0.8}
-                    fillRule="evenodd" // [IMPORTANT] Evenodd handles the holes
+                    fillRule="evenodd"
                     stroke="none"
+                    //style={{ pointerEvents: "none" }}
                     style={{ cursor: "pointer" }}
                     {...dataProps}
                 />
             )}
 
-            {/* [NEW] Hole Gap Fill (Selection Helper) */}
-            {/* Renders a semi-transparent fill INSIDE the holes when selected */}
-            {/* On affiche ce fond SEULEMENT si sélectionné ET PAS en cours de modification (transient) */}
-            {selected && !isTransient && holesData.map((hole, i) => (
-                <path
-                    key={`hole-fill-${i}`}
-                    d={hole.d}
-                    fill={displayFillColor}
-                    fillOpacity={0.2}
-                    stroke="none"
-                    style={{ cursor: "pointer" }}
-                    {...dataProps}
-                />
-            ))}
+            {/* Stroke */}
+            {strokeType !== "NONE" &&
+                segmentMap.map((seg, idx) => {
+                    if (segments[idx]?.isDeleted) return null;
 
-            {/* Strokes - Main Path */}
-            {strokeType !== "NONE" && renderSegments(segmentMap)}
+                    return (
+                        <g key={`seg-${idx}`}>
+                            {/* Hit Area (Transparent & Wider) */}
+                            {/* For hit testing, we want a minimum usable size on screen */}
+                            <path
+                                d={seg.d}
+                                fill="none"
+                                stroke="transparent"
+                                // If Physical: Scale hit area too? Or keep screen-based?
+                                // Usually screen-based hit area (14px) is better for UX.
+                                strokeWidth={Math.max(14, isCmUnit ? computedStrokeWidth : 14)}
+                                style={{ cursor: "pointer" }}
+                                vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
+                                {...dataProps}
+                            />
 
-            {/* [NEW] Strokes - Holes */}
-            {strokeType !== "NONE" && holesData.map((hole, i) => (
-                <g key={`hole-strokes-${i}`}>
-                    {renderSegments(hole.segmentMap)}
-                </g>
-            ))}
+                            {/* Visible Stroke */}
+                            <path
+                                d={seg.d}
+                                fill="none"
+                                stroke={displayStrokeColor}
+                                strokeWidth={computedStrokeWidth}
+                                strokeOpacity={strokeOpacity}
+                                strokeDasharray={
+                                    strokeType === "DASHED"
+                                        ? `${computedStrokeWidth * 3} ${computedStrokeWidth * 2}`
+                                        : undefined
+                                }
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+
+                                // THE FIX: Conditional vector-effect
+                                vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
+
+                                style={{ pointerEvents: "none" }}
+                            />
+                        </g>
+                    );
+                })}
 
             {showLabel && <NodeLabelStatic
                 annotation={labelAnnotation}
