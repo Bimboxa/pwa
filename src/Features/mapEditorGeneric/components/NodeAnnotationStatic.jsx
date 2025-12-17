@@ -20,6 +20,7 @@ export default function NodeAnnotationStatic({
   printMode,
   onTextValueChange,
   forceHideLabel,
+  highlightConnectedSegments,
 
 }) {
   annotation = { ...annotation ?? {}, ...annotationOverride ?? {} };
@@ -39,6 +40,7 @@ export default function NodeAnnotationStatic({
     onTextValueChange,
     printMode,
     forceHideLabel,
+    highlightConnectedSegments,
   };
 
   switch (annotation.type) {

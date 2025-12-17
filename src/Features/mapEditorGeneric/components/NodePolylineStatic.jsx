@@ -16,13 +16,19 @@ export default function NodePolylineStatic({
     forceHideLabel,
     isTransient,
     selectedPointId,
+    highlightConnectedSegments = false,
 }) {
 
     if (selectedPointId) console.log("SELECTED_POINT_ID", selectedPointId);
 
     annotation = { ...annotation, ...annotationOverride };
 
-    const showLabel = (annotation.showLabel || selected) && !forceHideLabel;
+
+
+    // TEMP - TO DO - BETTER MANAGE LABEL
+
+    // const showLabel = (annotation.showLabel || selected) && !forceHideLabel;
+    const showLabel = false
 
     // ===== label Annotation =====
     const labelAnnotation = getAnnotationLabelPropsFromAnnotation(annotation);
@@ -282,6 +288,50 @@ export default function NodePolylineStatic({
         });
     };
 
+
+    const renderConnectedSegments = () => {
+        if (!selectedPointId || !highlightConnectedSegments) return null;
+
+        // On doit chercher dans le main path ET dans les trous
+        const allPaths = [
+            { points: annotation.points, map: segmentMap }, // Main
+            ...holesData.map(h => ({ points: h.points || annotation.cuts.find(c => c.id === h.id)?.points, map: h.segmentMap })) // Holes
+        ];
+
+        const segmentsToDraw = [];
+
+        allPaths.forEach(({ points, map }) => {
+            if (!points || !map) return;
+
+            map.forEach(seg => {
+                // On récupère les objets points complets via les index
+                const pStart = points[seg.startPointIdx];
+                const pEnd = points[seg.endPointIdx]; // Attention: seg.endPointIdx peut être un index
+
+                // Vérification : est-ce que ce segment touche le point sélectionné ?
+                const isConnected = (pStart?.id === selectedPointId) || (pEnd?.id === selectedPointId);
+
+                if (isConnected) {
+                    segmentsToDraw.push(
+                        <path
+                            key={`highlight-${seg.d}`}
+                            d={seg.d}
+                            fill="none"
+                            stroke={theme.palette.annotation.selected} // La couleur de sélection
+                            strokeWidth={(computedStrokeWidth || 2) + 2} // Un peu plus épais pour bien voir
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            vectorEffect="non-scaling-stroke"
+                            style={{ pointerEvents: "none" }} // Purement visuel
+                        />
+                    );
+                }
+            });
+        });
+
+        return segmentsToDraw;
+    };
+
     // --- LOGIQUE D'AFFICHAGE DES POINTS ---
 
     // 1. Taille désirée en pixels écran
@@ -298,36 +348,31 @@ export default function NodePolylineStatic({
     const renderVertex = (pt) => {
         const isPointSelected = selectedPointId === pt.id;
 
+        // Si le point n'est pas sélectionné, on peut choisir de l'afficher en blanc (petit carré)
+        // ou de ne l'afficher que si sélectionné.
+        // Pour une bonne UX d'édition, afficher tous les sommets en blanc et le sélectionné en rouge est standard.
+
         return (
             <g
                 key={pt.id}
-                // On positionne le GROUPE à l'emplacement du point
                 transform={`translate(${pt.x}, ${pt.y})`}
-
-                // On applique ici le style pour le curseur
-                style={{ cursor: 'pointer' }}
-
-                // Interaction Data sur le groupe
+                // Important : pointerEvents='all' permet de cliquer dessus même si SnappingLayer est désactivé
+                style={{ cursor: 'pointer', pointerEvents: 'all' }}
                 data-node-type="VERTEX"
                 data-point-id={pt.id}
                 data-annotation-id={annotation.id}
             >
-                {/* On applique l'échelle inverse sur le contenu pour le garder à taille fixe */}
                 <g style={{ transform: vertexScaleTransform }}>
                     <rect
-                        // Centré autour de 0,0
                         x={-HALF_SIZE}
                         y={-HALF_SIZE}
                         width={POINT_SIZE}
                         height={POINT_SIZE}
 
-                        // Style
+                        // ROUGE si sélectionné, BLANC avec bordure bleue sinon
                         fill={isPointSelected ? "#FF0000" : "#FFFFFF"}
                         stroke="#2196f3"
-                        strokeWidth={1.5} // Plus besoin de diviser par safeK ici !
-
-                        // Pour l'optimisation des clics
-                        pointerEvents="all"
+                        strokeWidth={1.5}
                     />
                 </g>
             </g>
@@ -401,9 +446,24 @@ export default function NodePolylineStatic({
                 </g>
             ))}
 
-            {/* RENDU DES POINTS (Seulement si l'annotation est sélectionnée) */}
-            {selected && allPoints.map(pt => renderVertex(pt))}
+            {/* Strokes - Connected Segments */}
+            {renderConnectedSegments()}
 
+            {/* RENDU DES POINTS (Seulement si l'annotation est sélectionnée ou 1 point est sélectionné) */}
+            {allPoints.map(pt => {
+                const isPointSelected = selectedPointId === pt.id;
+
+                // Condition d'affichage :
+                // 1. L'annotation entière est sélectionnée (on affiche tout)
+                // 2. OU ce point spécifique est sélectionné (on l'affiche seul)
+                if (selected || isPointSelected) {
+                    return renderVertex(pt);
+                }
+
+                return null;
+            })}
+
+            {/* [NEW] Label */}
             {showLabel && <NodeLabelStatic
                 annotation={labelAnnotation}
                 containerK={containerK}

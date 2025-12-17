@@ -38,6 +38,11 @@ import getAnnotationLabelPropsFromAnnotation from 'Features/annotations/utils/ge
 import cv from "Features/opencv/services/opencvService";
 import editor from "App/editor";
 
+// constants
+
+const SNAP_THRESHOLD_ABSOLUTE = 12;
+const DRAG_THRESHOLD_PX = 3; // Seuil de déplacement pour activer le drag
+
 const InteractionLayer = forwardRef(({
   children,
   enabledDrawingMode,
@@ -66,10 +71,7 @@ const InteractionLayer = forwardRef(({
   , ref) => {
   const dispatch = useDispatch();
 
-  // constants
 
-  const SNAP_THRESHOLD_ABSOLUTE = 24;
-  const DRAG_THRESHOLD_PX = 3; // Seuil de déplacement pour activer le drag
 
   // refs
 
@@ -367,13 +369,13 @@ const InteractionLayer = forwardRef(({
         // 1. ESCAPE : Reset Selection
         case 'Escape':
           console.log("Action: Reset Selection & Tool");
-          if (selectedPointId) {
+          if (selectedPointId && selectedNode?.nodeId) {
             console.log("Action: Deselect Point");
             setSelectedPointId(null);
             e.stopPropagation(); // Empêcher le resetNewAnnotation
             return;
           }
-
+          setSelectedPointId(null);
           resetNewAnnotation();
           dispatch(setEnabledDrawingMode(null));
           dispatch(setSelectedNode(null));
@@ -393,15 +395,19 @@ const InteractionLayer = forwardRef(({
         case 'Backspace':
           console.log("Action: Delete Selected");
           // 1. Si un point est sélectionné, on le supprime
-          if (selectedPointId && selectedNode?.nodeId && onDeletePoint) {
+          if (selectedPointId && onDeletePoint) {
             console.log("Action: Delete Point", selectedPointId, selectedNode?.nodeId);
             // On passe l'ID du point et l'ID de l'annotation parente
-            onDeletePoint({ pointId: selectedPointId, annotationId: selectedNode.nodeId });
+            onDeletePoint({ pointId: selectedPointId, annotationId: selectedNode?.nodeId });
             setSelectedPointId(null); // Reset selection
             e.stopPropagation();
             return;
           }
-          dispatch(setOpenDialogDeleteSelectedAnnotation(true));
+          else if (selectedNode?.nodeId) {
+            dispatch(setOpenDialogDeleteSelectedAnnotation(true));
+            e.stopPropagation();
+          }
+
           break;
 
         // 3. FLÈCHES : Pan Caméra (Délégué au Viewport)
@@ -590,7 +596,7 @@ const InteractionLayer = forwardRef(({
 
           // --- 2.1. GESTION DES ANNOTATIONS ---
           dispatch(setSelectedNode(hit?.dataset));
-          setHiddenAnnotationIds([hit?.dataset.nodeId]);
+          //setHiddenAnnotationIds([hit?.dataset.nodeId]); hidden : juste pour le drag
 
           // -- Afichage du toolbar pour édition --
           if (topMiddlePoint) {
@@ -670,7 +676,32 @@ const InteractionLayer = forwardRef(({
     }
 
     // A. DRAG POINT (Vertex)
+
+    if (dragState?.pending) {
+      // 1. Calcul de la distance parcourue
+      const dx = event.clientX - dragState.startMouseScreen.x;
+      const dy = event.clientY - dragState.startMouseScreen.y;
+      const dist = Math.hypot(dx, dy);
+
+      // 2. Si on dépasse le seuil, on ACTIVE le drag
+      if (dist > DRAG_THRESHOLD_PX) {
+
+        // On active le drag
+        setDragState(prev => ({
+          ...prev,
+          pending: false,
+          active: true
+        }));
+
+        // On cache l'annotation réelle maintenant (et pas au clic)
+        setHiddenAnnotationIds(dragState.affectedIds);
+      } else {
+        // Tant qu'on n'a pas bougé assez, on ne fait rien (on absorbe l'événement)
+        return;
+      }
+    }
     if (dragState?.active) {
+      snappingLayerRef.current?.update(null);
       const localPos = toLocalCoords(worldPos);
       setDragState(prev => ({ ...prev, currentPos: localPos }));
       return; // Action exclusive, on arrête ici
@@ -875,7 +906,8 @@ const InteractionLayer = forwardRef(({
     let snapResult;
     if (snappingEnabled && !preventSnapping) {
       const imageScale = getTargetScale();
-      const scale = imageScale * cameraZoom;
+      const currentCameraZoom = viewportRef.current?.getZoom() || 1;
+      const scale = imageScale * currentCameraZoom;
       const localPos = toLocalCoords(worldPos);
       const snapThreshold = SNAP_THRESHOLD_ABSOLUTE / scale;
 
@@ -1008,13 +1040,18 @@ const InteractionLayer = forwardRef(({
         })
         .map(ann => ann.id);
 
+      // On initialise en mode PENDING
       setDragState({
-        active: true,
+        active: false, // Pas encore actif
+        pending: true, // En attente de mouvement
         pointId: pointId,
-        currentPos: { x: snap.x, y: snap.y }
+        currentPos: { x: snap.x, y: snap.y },
+        startMouseScreen: { x: e.clientX, y: e.clientY }, // Pour le calcul du seuil
+        affectedIds: affectedIds // On stocke les IDs à cacher plus tard
       });
+
       setVirtualInsertion(null); // Pas virtuel
-      setHiddenAnnotationIds(affectedIds);
+      //setHiddenAnnotationIds(affectedIds);
     }
 
     // --- CAS 2 : PROJECTION (Nouveau Point) ---
@@ -1046,25 +1083,19 @@ const InteractionLayer = forwardRef(({
       setHiddenAnnotationIds([snap.previewAnnotationId]);
     }
 
-    snappingLayerRef.current?.update(null); // hide snapping circle
+    //snappingLayerRef.current?.update(null); // hide snapping circle // on hide au move
 
     // FORCE CURSOR ON BODY
     document.body.style.cursor = 'crosshair';
   };
 
 
+  // --- 3. MOUSE UP (Global) ---
   const handleMouseUp = () => {
+
+    // ... (Gestion BaseMap drag & Legend inchangée) ...
     if (dragBaseMapState?.active) {
-      // Comme on a mis à jour Redux en temps réel via onBaseMapPoseChange,
-      // on peut soit passer la dernière valeur calculée, soit (mieux) laisser
-      // le parent récupérer la valeur courante du store pour la sauvegarder.
-      // Mais pour être explicite, recalculons-la ou passons null pour dire "Commit ce que tu as".
-
-      // Ici, on suppose que le parent sait quelle est la valeur courante via Redux
-      if (onBaseMapPoseCommit) {
-        onBaseMapPoseCommit();
-      }
-
+      if (onBaseMapPoseCommit) onBaseMapPoseCommit();
       setDragBaseMapState(null);
       document.body.style.cursor = '';
     }
@@ -1074,40 +1105,55 @@ const InteractionLayer = forwardRef(({
       document.body.style.cursor = '';
     }
 
-    if (dragState?.active) {
+    // --- CORRECTION ICI ---
+    // On vérifie simplement si dragState existe, peu importe s'il est pending ou active
+    if (dragState) {
 
-      // CAS A : SPLIT (Si on a une insertion virtuelle)
-      if (virtualInsertion && onSegmentSplit) {
-        onSegmentSplit({
-          segmentStartId: virtualInsertion.segmentStartId, // <--- VITAL
-          segmentEndId: virtualInsertion.segmentEndId,     // <--- VITAL
-          x: dragState.currentPos.x,
-          y: dragState.currentPos.y
-        });
+      // CAS A : C'était un DRAG (active = true, pending = false)
+      if (dragState.active) {
+
+        // 1. Commit des données
+        if (virtualInsertion && onSegmentSplit) {
+          onSegmentSplit({
+            segmentStartId: virtualInsertion.segmentStartId,
+            segmentEndId: virtualInsertion.segmentEndId,
+            x: dragState.currentPos.x,
+            y: dragState.currentPos.y
+          });
+        }
+        else if (onPointMoveCommit) {
+          onPointMoveCommit(dragState.pointId, dragState.currentPos);
+        }
+
+        // 2. Gestion de l'anti-clignotement (Freeze)
+        setDragState(prev => ({ ...prev, active: false, frozen: true }));
+
+        // 3. Nettoyage différé
+        setTimeout(() => {
+          setDragState(null);
+          setHiddenAnnotationIds([]);
+          setVirtualInsertion(null);
+        }, 100);
+
+        document.body.style.cursor = '';
       }
-      // CAS B : MOVE SIMPLE
-      else if (onPointMoveCommit) {
-        onPointMoveCommit(dragState.pointId, dragState.currentPos);
-      }
 
-      // to avoid blink effect
-      setDragState(prev => ({ ...prev, active: false, frozen: true }));
+      // CAS B : C'était un CLICK (pending = true, active = false)
+      else if (dragState.pending) {
+        console.log("Point Clicked (No Drag):", dragState.pointId);
 
-      // Cleanup
+        // 1. Sélection du point
+        setSelectedPointId(dragState.pointId);
 
-
-      // Nettoyage différé synchronisé avec l'apparition de l'annotation réelle
-      setTimeout(() => {
-        setDragState(null); // On supprime le transient
-        setHiddenAnnotationIds([]); // On réaffiche le réel
+        // 2. Nettoyage immédiat (pas besoin de freeze car pas de transient affiché)
+        setDragState(null);
         setVirtualInsertion(null);
-      }, 100);
-      document.body.style.cursor = '';
+        setHiddenAnnotationIds([]);
+      }
     }
 
-    // --- MODIFICATION ICI : On ne commit que si c'était réellement actif ---
+    // --- Gestion du Drag d'Annotation entière (inchangé) ---
     else if (dragAnnotationState) {
-      // Si on était en 'pending' (juste un clic) ou 'active' (vrai drag)
       if (dragAnnotationState.active) {
         if (onAnnotationMoveCommit) {
           onAnnotationMoveCommit(
@@ -1118,7 +1164,6 @@ const InteractionLayer = forwardRef(({
           );
         }
       }
-
       setDragAnnotationState(null);
       setTimeout(() => setDraggingAnnotationId(null), 30);
       document.body.style.cursor = '';
@@ -1293,6 +1338,7 @@ const InteractionLayer = forwardRef(({
               color="#ff00ff"
               onMouseDown={handleMarkerMouseDown}
               isDrawing={Boolean(enabledDrawingMode)}
+              selectedPointId={selectedPointId}
             />
             <ClosingMarker
               ref={closingMarkerRef}
