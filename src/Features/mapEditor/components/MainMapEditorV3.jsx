@@ -6,7 +6,9 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import { setAnchorPositionScale, setScaleInPx } from "../mapEditorSlice";
 import { setTempAnnotations } from "Features/annotations/annotationsSlice";
+import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
+import { setTempAnnotationToolbarPosition } from "Features/mapEditor/mapEditorSlice";
 import { setBgImageRawTextAnnotations } from "Features/bgImage/bgImageSlice";
 
 import useMeasure from "react-use-measure";
@@ -44,6 +46,7 @@ import PopperEditAnnotation from "./PopperEditAnnotation";
 import PopperEditScale from "./PopperEditScale";
 import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
+import PopperSaveTempAnnotations from "Features/mapEditor/components/PopperSaveTempAnnotations";
 import ScreenNoBaseMap from "./ScreenNoBaseMap";
 
 import { InteractionProvider } from "../context/InteractionContext";
@@ -54,8 +57,9 @@ import getPolylinePointsFromRectangle from "Features/geometry/utils/getPolylineP
 import getDefaultCameraMatrix from "../utils/getDefaultCameraMatrix";
 import getDefaultBaseMapPoseInBg from "../utils/getDefaultBaseMapPoseInBg";
 import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getAnnotationLabelDeltaFromDeltaPos";
-import { deletePointAsync } from "../services/deletePointAsync";
+import deletePointAsync from "../services/deletePointAsync";
 import duplicateAndMovePoint from "../services/duplicateAndMovePoint";
+import removeCutAsync from "../services/removeCutAsync";
 
 export default function MainMapEditorV3() {
     const dispatch = useDispatch();
@@ -208,9 +212,19 @@ export default function MainMapEditorV3() {
 
     // handler - commit points from drop_fill
 
-    const handleCommitPointsFromDropFill = (points, event) => {
-        const tempAnnotation = { ...newAnnotation, baseMapId: baseMap.id, points, id: "temp" };
+    const handleCommitPointsFromDropFill = ({ points, cuts, screenPos }) => {
+        const tempAnnotation = {
+            ...newAnnotation,
+            baseMapId: baseMap.id,
+            points,
+            cuts,
+            id: "temp",
+            screenPos,
+            isTemp: true,
+        };
         dispatch(setTempAnnotations([tempAnnotation]));
+        dispatch(setTempAnnotationToolbarPosition(screenPos));
+        dispatch(setSelectedAnnotationId("temp"));
     }
 
     // handlers - rectangle
@@ -476,6 +490,10 @@ export default function MainMapEditorV3() {
         await db.annotations.update(annotationId, { hiddenSegmentsIdx: newHidden });
     };
 
+    const handleRemoveCut = async ({ annotationId, cutIndex }) => {
+        await removeCutAsync({ annotationId, cutIndex, annotations });
+    };
+
     // snapping
 
     //const isSnappingEnabled = enabledDrawingMode || !selectedNode;
@@ -527,6 +545,7 @@ export default function MainMapEditorV3() {
                     onPointDuplicateAndMoveCommit={handleDuplicateAndMovePoint}
                     onDeletePoint={handleDeletePoint}
                     onHideSegment={handleHideSegment}
+                    onRemoveCut={handleRemoveCut}
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
                     snappingEnabled={isSnappingEnabled}
@@ -608,6 +627,7 @@ export default function MainMapEditorV3() {
             <PopperEditScale />
             <PopperContextMenu />
 
+            <PopperSaveTempAnnotations />
             <DialogAutoMigrateToMapEditorV3 />
 
             <LayerTools />
