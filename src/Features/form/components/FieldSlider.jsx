@@ -13,13 +13,14 @@ export default function FieldSlider({ value, onChange, label, options }) {
         display: "flex",
         alignItems: "center",
         px: 0.5,
+        pl: 1,
 
         ...(showAsSection
           ? {
-              borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-              p: 1,
-              pr: 2,
-            }
+            borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+            p: 1,
+            pr: 2,
+          }
           : {}),
       }}
     >

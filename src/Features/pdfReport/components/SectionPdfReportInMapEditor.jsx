@@ -6,10 +6,12 @@ import useDownladPdfReport from "../hooks/useDownladPdfReport";
 import usePdfReportName from "../hooks/usePdfReportName";
 
 import { styled, useTheme } from "@mui/material/styles";
-import { FormControlLabel, Switch, Box, Paper, Button, Typography, CircularProgress } from "@mui/material";
+import { FormControlLabel, Switch, Box, Paper, Button, Typography, CircularProgress, Divider } from "@mui/material";
 import { Wallpaper as PdfIcon, Download as DownloadIcon } from "@mui/icons-material";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import SliderBaseMapOpacity from "Features/mapEditor/components/SliderBaseMapOpacity";
+import SwitchBaseMapGrayScale from "Features/mapEditor/components/SwitchBaseMapGrayScale";
 
 import editor from "App/editor";
 
@@ -185,9 +187,15 @@ export default function SectionPdfReportInMapEditor() {
                     </Box>
                 </Box>
 
+                <Divider sx={{ mb: 2 }} />
+
+                <SliderBaseMapOpacity />
+                <SwitchBaseMapGrayScale />
+
                 {/* --- FOOTER (Bouton Action) --- */}
                 <Box
                     sx={{
+                        mt: 2,
                         px: 2,
                         pb: 2,
                         pt: 0.5,

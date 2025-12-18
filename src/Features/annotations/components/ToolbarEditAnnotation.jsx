@@ -13,13 +13,13 @@ import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import { Box, IconButton, Paper } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 
-
 import FieldAnnotationEntityLabel from "./FieldAnnotationEntityLabel";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import FieldAnnotationShapeCode from "./FieldAnnotationShapeCode";
 import FieldAnnotationFillAndStroke from "./FieldAnnotationFillAndStroke";
 import FieldToggleFWC from "Features/fwc/components/FieldToggleFWC";
 import IconButtonDialogCloneAnnotation from "./IconButtonDialogCloneAnnotation";
+import IconButtonToggleAnnotationCloseLine from "./IconButtonToggleAnnotationCloseLine";
 
 import { PopperDragHandle } from "Features/layout/components/PopperBox";
 
@@ -37,6 +37,10 @@ export default function ToolbarEditAnnotation() {
 
   const updateAnnotation = useUpdateAnnotation();
   const updateEntity = useUpdateEntity();
+
+  // helpers - show
+
+  const showCloseLine = selectedAnnotation?.type === "POLYLINE";
 
   // useEffect
 
@@ -67,14 +71,12 @@ export default function ToolbarEditAnnotation() {
     await updateEntity(entityId, { fwc });
   }
 
-
   return (
     <Paper elevation={6} sx={{ display: "flex", alignItems: "center", p: 0.5 }}>
       <PopperDragHandle>
         <Box sx={{ display: "flex", alignItems: "center", mr: 1 }}>
           <DragIndicatorIcon fontSize="small" />
         </Box>
-
       </PopperDragHandle>
       {/* <IconButton onClick={handleCanTransformChange} size="small">
         {canTransformNode ? (
@@ -88,7 +90,7 @@ export default function ToolbarEditAnnotation() {
         onChange={handleEntityLabelChange}
       /> */}
 
-      <FieldToggleFWC value={selectedAnnotation?.entity?.fwc} onChange={handleToggleFWC} />
+      {/* <FieldToggleFWC value={selectedAnnotation?.entity?.fwc} onChange={handleToggleFWC} /> */}
       {/* <FieldAnnotationFillAndStroke
         annotation={selectedAnnotation}
         onChange={handleChange}
@@ -101,10 +103,13 @@ export default function ToolbarEditAnnotation() {
         annotation={selectedAnnotation}
         onChange={handleChange}
       /> */}
+
+      {showCloseLine && (
+        <IconButtonToggleAnnotationCloseLine annotation={selectedAnnotation} />
+      )}
       <Box sx={{ ml: 2 }}>
         <IconButtonDialogCloneAnnotation annotation={selectedAnnotation} />
       </Box>
-
     </Paper>
   );
 }

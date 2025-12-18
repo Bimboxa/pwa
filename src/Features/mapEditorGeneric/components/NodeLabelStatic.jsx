@@ -269,7 +269,7 @@ export default function NodeLabelStatic({
                             onMouseDown={(e) => selected && e.stopPropagation()}
                         >
                             {/* --- BOUTONS D'ACTION (Visibles si sélectionné) --- */}
-                            {selected && (
+                            {false && selected && (
                                 <div style={{
                                     position: 'absolute',
                                     right: -28, // Décalé à droite

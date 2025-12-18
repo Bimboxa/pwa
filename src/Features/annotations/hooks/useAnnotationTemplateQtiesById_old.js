@@ -1,28 +1,15 @@
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
 
+import useAnnotations from "./useAnnotations";
 import useAnnotationTemplates from "./useAnnotationTemplates";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import getPointsLength from "Features/geometry/utils/getPointsLength";
+import getPointsSurface from "Features/geometry/utils/getPointsSurface";
 import getAnnotationTemplateMainQtyLabel from "Features/annotations/utils/getAnnotationTemplateMainQtyLabel";
 import useAnnotationsV2 from "./useAnnotationsV2";
-
-// Helper pour calculer la distance entre deux points
-const getDistance = (p1, p2) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
-
-// Helper pour calculer la surface d'un contour (Shoelace formula)
-// Fonctionne pour le contour principal et les trous
-const getPolygonArea = (points) => {
-  if (!points || points.length < 3) return 0;
-  let area = 0;
-  for (let i = 0; i < points.length; i++) {
-    const j = (i + 1) % points.length;
-    area += points[i].x * points[j].y;
-    area -= points[j].x * points[i].y;
-  }
-  return Math.abs(area) / 2;
-};
 
 export default function useAnnotationTemplateQtiesById() {
   // data
@@ -47,18 +34,16 @@ export default function useAnnotationTemplateQtiesById() {
 
   const computePolylineMetrics = useMemo(() => {
     return (annotation) => {
-      // 1. Validation de base
       if (!annotation || !Array.isArray(annotation.points)) {
         return { length: 0, surface: 0 };
       }
 
-      // Note: On suppose ici que les points sont DÉJÀ en pixels (pas de conversion imageSize)
-      const points = annotation.points.filter(
+      const validPoints = annotation.points.filter(
         (point) =>
           point && typeof point.x === "number" && typeof point.y === "number"
       );
 
-      if (points.length < 2) {
+      if (validPoints.length < 2) {
         return { length: 0, surface: 0 };
       }
 
@@ -66,7 +51,22 @@ export default function useAnnotationTemplateQtiesById() {
         ? baseMapById?.[annotation.baseMapId]
         : null;
 
-      // Déterminer si la forme est fermée
+      const imageSize =
+        baseMap?.imageEnhanced?.imageSize ?? baseMap?.image?.imageSize;
+
+      let points = validPoints;
+      const hasRelativeCoords = validPoints.every(
+        (p) => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1
+      );
+
+      if (hasRelativeCoords && imageSize?.width && imageSize?.height) {
+        const { width, height } = imageSize;
+        points = validPoints.map((p) => ({
+          x: p.x * width,
+          y: p.y * height,
+        }));
+      }
+
       const closeLine =
         annotation.type === "POLYGON" ||
         annotation.closeLine ||
@@ -74,60 +74,45 @@ export default function useAnnotationTemplateQtiesById() {
         annotation?.annotationTemplate?.closeLine ||
         false;
 
-      // --- CALCUL LONGUEUR (Intégrant hiddenSegmentsIdx) ---
-      let lengthPx = 0;
-      const hiddenSegments = annotation.hiddenSegmentsIdx || [];
-
-      for (let i = 0; i < points.length; i++) {
-        // Si on n'est pas en mode fermé, on s'arrête avant le dernier point
-        // car il n'y a pas de segment retour vers le début
-        if (!closeLine && i === points.length - 1) break;
-
-        // L'index du segment correspond à l'index du point de départ du segment
-        // Segment 0 = P0 -> P1
-        if (hiddenSegments.includes(i)) {
-          continue; // On saute ce segment s'il est masqué
-        }
-
-        const p1 = points[i];
-        const p2 = points[(i + 1) % points.length]; // Boucle sur le premier point si closeLine
-
-        lengthPx += getDistance(p1, p2);
-      }
-
-      // --- CALCUL SURFACE (Intégrant Cuts) ---
+      const lengthPx = getPointsLength(points, closeLine);
       let surfacePx = 0;
 
-      // On ne calcule la surface que si c'est fermé et qu'on a au moins 3 points
-      if (closeLine && points.length >= 3) {
-        // 1. Surface du contour principal
-        surfacePx = getPolygonArea(points);
+      if (points.length >= 3 && closeLine) {
+        // Get cuts from annotation if available and convert their points to pixels if needed
+        const cutsRaw = annotation.cuts || annotation?.polyline?.cuts || [];
+        const cuts = cutsRaw.map((cut) => {
+          if (!cut || !Array.isArray(cut.points)) return cut;
 
-        // 2. Soustraire la surface des trous (Cuts)
-        const cuts = annotation.cuts || [];
-        if (Array.isArray(cuts)) {
-          cuts.forEach(cut => {
-            if (cut.points && cut.points.length >= 3) {
-              // On suppose que cut.points est aussi déjà en pixels
-              const cutArea = getPolygonArea(cut.points);
-              surfacePx -= cutArea;
-            }
-          });
-        }
+          // Convert cut points to pixels if needed (points are already converted above)
+          // But cuts might still be in relative coordinates
+          let cutPointsInPx = cut.points;
+          const hasRelativeCoords = cut.points.every(
+            (p) => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1
+          );
 
-        // Sécurité pour éviter les surfaces négatives (si erreur de dessin)
-        surfacePx = Math.max(0, surfacePx);
+          if (hasRelativeCoords && imageSize?.width && imageSize?.height) {
+            cutPointsInPx = cut.points.map((p) => ({
+              x: p.x * imageSize.width,
+              y: p.y * imageSize.height,
+            }));
+          }
+
+          return {
+            ...cut,
+            points: cutPointsInPx,
+          };
+        });
+
+        surfacePx = getPointsSurface(points, closeLine, cuts);
       }
 
-      // --- CONVERSION EN UNITÉS RÉELLES (Mètres) ---
       const meterByPx = baseMap?.meterByPx;
       let length = lengthPx;
       let surface = surfacePx;
 
       if (meterByPx && Number.isFinite(meterByPx) && meterByPx > 0) {
         length = lengthPx * meterByPx;
-        // Surface = pixel² * (m/pixel)²
-        surface = surfacePx * (meterByPx * meterByPx);
+        surface = surfacePx * meterByPx * meterByPx;
       }
 
       return { length, surface };
@@ -160,14 +145,11 @@ export default function useAnnotationTemplateQtiesById() {
 
       if (annotation?.type === "POLYLINE" || annotation?.type === "POLYGON") {
         const template = annotationTemplateById?.[templateId];
-
-        // Appel de la nouvelle fonction de calcul
         const { length, surface } = computePolylineMetrics(annotation);
 
         stats.length += length;
 
-        // On ajoute la surface si le template le demande ou si c'est explicitement un polygone
-        if ((template?.type === "POLYLINE" && template?.closeLine) || annotation?.type === "POLYGON") {
+        if (template?.type === "POLYLINE" && template?.closeLine || annotation?.type === "POLYGON") {
           stats.surface += surface;
         }
       }

@@ -121,6 +121,9 @@ export default function MainMapEditorV3() {
     // baseMap
     const baseMap = useMainBaseMap();
 
+    const baseMapOpacity = useSelector((s) => s.mapEditor.baseMapOpacity);
+    const baseMapGrayScale = useSelector((s) => s.mapEditor.baseMapGrayScale);
+
     useEffect(() => {
         if (baseMap && bgImage) {
             const defaultBaseMapPoseInBg = getDefaultBaseMapPoseInBg({
@@ -463,12 +466,14 @@ export default function MainMapEditorV3() {
         const currentHidden = annotation.hiddenSegmentsIdx || [];
 
         // On évite les doublons
+        let newHidden = [...currentHidden];
         if (!currentHidden.includes(segmentIndex)) {
-            const newHidden = [...currentHidden, segmentIndex];
-
-            // Update DB
-            await db.annotations.update(annotationId, { hiddenSegmentsIdx: newHidden });
+            newHidden = [...currentHidden, segmentIndex]
+        } else {
+            newHidden = currentHidden.filter(idx => idx !== segmentIndex)
         }
+        // Update DB
+        await db.annotations.update(annotationId, { hiddenSegmentsIdx: newHidden });
     };
 
     // snapping
@@ -544,6 +549,8 @@ export default function MainMapEditorV3() {
                         sizeVariant={sizeVariant}
                         isEditingBaseMap={isBaseMapSelected}
                         baseMapMeterByPx={baseMap?.meterByPx}
+                        opacity={baseMapOpacity}
+                        grayScale={baseMapGrayScale}
                     />
                     {/* 2. LAYER ÉDITION BASEMAP (Exclusif) */}
                     {isBaseMapSelected && (
