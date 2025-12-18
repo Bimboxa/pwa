@@ -71,7 +71,7 @@ export default function NodePolylineStatic({
     } = mergedAnnotation || {};
 
     const labelAnnotation = getAnnotationLabelPropsFromAnnotation(mergedAnnotation);
-    // const showLabel = (mergedAnnotation.showLabel || selected) && !forceHideLabel;
+    //const showLabel = (mergedAnnotation.showLabel || selected) && !forceHideLabel;
     const showLabel = false;
 
     // Fallback couleurs

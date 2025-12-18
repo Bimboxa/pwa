@@ -7,6 +7,7 @@ export default function useResetNewAnnotation() {
     const dispatch = useDispatch();
 
     function reset() {
+        console.log("[RESET NEW ANNOTATION]");
         dispatch(setNewAnnotation({
             fillColor: theme.palette.secondary.main,
             strokeColor: theme.palette.secondary.main,

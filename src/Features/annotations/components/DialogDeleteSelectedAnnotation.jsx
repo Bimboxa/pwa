@@ -4,6 +4,7 @@ import { setOpenDialogDeleteSelectedAnnotation } from "../annotationsSlice";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 
 import db from "App/db/db";
+import { setAnnotationToolbarPosition } from "Features/mapEditor/mapEditorSlice";
 
 export default function DialogDeleteSelectedAnnotation() {
   const dispatch = useDispatch();
@@ -17,6 +18,7 @@ export default function DialogDeleteSelectedAnnotation() {
 
   function handleClose() {
     dispatch(setOpenDialogDeleteSelectedAnnotation(false));
+    dispatch(setAnnotationToolbarPosition(null));
   }
 
   async function handleDelete() {

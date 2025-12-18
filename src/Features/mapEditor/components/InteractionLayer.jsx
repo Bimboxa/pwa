@@ -405,6 +405,7 @@ const InteractionLayer = forwardRef(({
           dispatch(setEnabledDrawingMode(null));
           dispatch(setSelectedNode(null));
           dispatch(setTempAnnotations([]));
+
           setHiddenAnnotationIds([]);
           setDrawingPoints([]);
           setCutHostId(null);
