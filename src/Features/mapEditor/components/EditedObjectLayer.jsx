@@ -13,7 +13,7 @@ export default function EditedObjectLayer({
     onTextValueChange,
 }) {
 
-    const { draggingAnnotationId, selectedPointId, hiddenAnnotationIds } = useInteraction();
+    const { draggingAnnotationId, selectedPointId, selectedPartId, hiddenAnnotationIds } = useInteraction();
 
     // 1. Identifier TOUTES les annotations concernées
     const activeAnnotations = useMemo(() => {
@@ -128,6 +128,7 @@ export default function EditedObjectLayer({
                             // Le point rouge s'affichera sur toutes les annotations qui le contiennent
                             // (Elles vont se superposer au niveau du point rouge, ce qui est visuellement correct)
                             selectedPointId={selectedPointId}
+                            selectedPartId={selectedPartId}
                             highlightConnectedSegments={isPointSelectionMode}
                         />
                     </g>

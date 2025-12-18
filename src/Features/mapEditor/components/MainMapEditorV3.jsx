@@ -454,6 +454,23 @@ export default function MainMapEditorV3() {
         await deletePointAsync({ pointId, annotationId, annotations });
     };
 
+    // handlers - hide segments
+    const handleHideSegment = async ({ annotationId, segmentIndex }) => {
+        const annotation = annotations.find(a => a.id === annotationId);
+        if (!annotation) return;
+
+        // On récupère la liste actuelle ou on initialise
+        const currentHidden = annotation.hiddenSegmentsIdx || [];
+
+        // On évite les doublons
+        if (!currentHidden.includes(segmentIndex)) {
+            const newHidden = [...currentHidden, segmentIndex];
+
+            // Update DB
+            await db.annotations.update(annotationId, { hiddenSegmentsIdx: newHidden });
+        }
+    };
+
     // snapping
 
     //const isSnappingEnabled = enabledDrawingMode || !selectedNode;
@@ -504,6 +521,7 @@ export default function MainMapEditorV3() {
                     onPointMoveCommit={handlePointMoveCommit}
                     onPointDuplicateAndMoveCommit={handleDuplicateAndMovePoint}
                     onDeletePoint={handleDeletePoint}
+                    onHideSegment={handleHideSegment}
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
                     snappingEnabled={isSnappingEnabled}

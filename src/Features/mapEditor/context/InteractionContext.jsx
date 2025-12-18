@@ -8,6 +8,7 @@ export function InteractionProvider({ children }) {
     const [draggingAnnotationId, setDraggingAnnotationId] = useState(null);
     const [basePose, setBasePose] = useState(null);
     const [selectedPointId, setSelectedPointId] = useState(null);
+    const [selectedPartId, setSelectedPartId] = useState(null);
 
     // On peut ajouter d'autres états UI volatiles ici (ex: coordonnées curseur écran)
     // const [cursorPos, setCursorPos] = useState({x:0, y:0});
@@ -23,7 +24,9 @@ export function InteractionProvider({ children }) {
         setBasePose,
         selectedPointId,
         setSelectedPointId,
-    }), [hoveredNode, hiddenAnnotationIds, draggingAnnotationId, basePose, selectedPointId]);
+        selectedPartId,
+        setSelectedPartId,
+    }), [hoveredNode, hiddenAnnotationIds, draggingAnnotationId, basePose, selectedPointId, selectedPartId]);
 
     return (
         <InteractionContext.Provider value={value}>

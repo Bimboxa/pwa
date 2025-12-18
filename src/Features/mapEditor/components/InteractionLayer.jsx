@@ -60,6 +60,7 @@ const InteractionLayer = forwardRef(({
   onPointMoveCommit,
   onPointDuplicateAndMoveCommit,
   onDeletePoint,
+  onHideSegment,
   onAnnotationMoveCommit,
   onSegmentSplit,
   snappingEnabled = true,
@@ -91,6 +92,7 @@ const InteractionLayer = forwardRef(({
     setHiddenAnnotationIds,
     setDraggingAnnotationId,
     setSelectedPointId, selectedPointId,
+    setSelectedPartId, selectedPartId,
     setBasePose } = useInteraction();
 
   // expose handlers
@@ -305,19 +307,23 @@ const InteractionLayer = forwardRef(({
   const stateRef = useRef({
     selectedNode,
     selectedPointId,
+    selectedPartId,
     enabledDrawingMode: enabledDrawingMode, // Si besoin dans le listener
     onDeletePoint,
+    onHideSegment,
     onPointDuplicateAndMoveCommit,
   });
   useEffect(() => {
     stateRef.current = {
       selectedNode,
       selectedPointId,
+      selectedPartId,
       onDeletePoint,
+      onHideSegment,
       enabledDrawingMode,
       onPointDuplicateAndMoveCommit
     };
-  }, [selectedNode, selectedPointId, onDeletePoint, enabledDrawingMode, onPointDuplicateAndMoveCommit]);
+  }, [selectedNode, selectedPointId, selectedPartId, onDeletePoint, onHideSegment, enabledDrawingMode, onPointDuplicateAndMoveCommit]);
 
 
   // 1. Calculer le style curseur du conteneur
@@ -369,7 +375,7 @@ const InteractionLayer = forwardRef(({
         console.log("Action: Key Pressed while typing");
         return;
       }
-      const { selectedNode, selectedPointId, onDeletePoint } = stateRef.current;
+      const { selectedNode, selectedPointId, selectedPartId, onDeletePoint, onHideSegment } = stateRef.current;
 
       if (e.repeat) return;
 
@@ -377,12 +383,19 @@ const InteractionLayer = forwardRef(({
         // 1. ESCAPE : Reset Selection
         case 'Escape':
           console.log("Action: Reset Selection & Tool");
+          if (selectedPartId) {
+            setSelectedPartId(null);
+            e.stopPropagation();
+            return;
+          }
+
           if (selectedPointId && selectedNode?.nodeId) {
             console.log("Action: Deselect Point");
             setSelectedPointId(null);
             e.stopPropagation(); // Empêcher le resetNewAnnotation
             return;
           }
+
           setSelectedPointId(null);
           resetNewAnnotation();
           dispatch(setEnabledDrawingMode(null));
@@ -410,6 +423,23 @@ const InteractionLayer = forwardRef(({
             setSelectedPointId(null); // Reset selection
             e.stopPropagation();
             return;
+          }
+          else if (selectedPartId && selectedNode?.nodeId && onHideSegment) {
+            // selectedPartId est sous la forme "annotationId::SEG::index"
+            // On doit parser l'ID pour récupérer l'index
+            const parts = selectedPartId.split('::');
+            if (parts.length === 3 && parts[1] === 'SEG') {
+              const segmentIndex = parseInt(parts[2], 10);
+
+              // Appel du callback parent avec l'ID de l'annotation et l'index
+              onHideSegment({
+                annotationId: selectedNode.nodeId,
+                segmentIndex: segmentIndex
+              });
+
+              e.stopPropagation();
+              return;
+            }
           }
           else if (selectedNode?.nodeId) {
             dispatch(setOpenDialogDeleteSelectedAnnotation(true));
@@ -576,6 +606,22 @@ const InteractionLayer = forwardRef(({
       } else {
         // Si on clique ailleurs (sur le trait ou le vide), on déselectionne le point
         if (selectedPointId) setSelectedPointId(null);
+      }
+
+      // 2. Ensuite les Parts (Segments / Contours)
+      // On cherche un élément avec data-part-id
+      const hitPart = nativeTarget.closest?.('[data-part-id]');
+
+      if (hitPart) {
+        const partId = hitPart.dataset.partId;
+        const nodeId = hitPart.dataset.nodeId;
+        const isParentSelected = selectedNode?.nodeId === nodeId;
+
+        if (isParentSelected) {
+          console.log("Selecting Part:", partId);
+          setSelectedPartId(prev => prev === partId ? null : partId);
+          return;
+        }
       }
 
 
