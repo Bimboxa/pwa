@@ -184,7 +184,7 @@ export default function useAnnotationsV2(options) {
                 return _annotations;
             }
 
-        }, [baseMap?.id, excludeListingsIds]);
+        }, [baseMap?.id, excludeListingsIds?.join("-")]);
 
 
 

@@ -301,27 +301,6 @@ export default function NodePolylineStatic({
             // Note: Holes might not have corresponding 'segments' metadata in annotation.segments
             // We assume hole segments are always visible unless we map them to annotation structure.
             // If segmentsList comes from main loop, we check deletion.
-            const isMainPath = segmentsList === segmentMap;
-            const isHidden = isMainPath && hiddenSegmentsIdx?.includes(idx);
-
-            if (isHidden) {
-                // Si l'annotation n'est pas sélectionnée, on ne dessine rien (trou invisible)
-                if (!selected) return null;
-
-                // Si sélectionnée, on dessine en pointillés gris (Ghost)
-                return (
-                    <path
-                        key={`seg-hidden-${idx}`}
-                        d={seg.d}
-                        fill="none"
-                        stroke={theme.palette.text.disabled || "#ccc"}
-                        strokeWidth={computedStrokeWidth}
-                        strokeDasharray="4 4" // Pointillés
-                        strokeOpacity={0.5}
-                        style={{ pointerEvents: "none" }} // Pas d'interaction sur le fantôme
-                    />
-                );
-            }
 
             // Génération de l'ID (ex: "123::SEG::0")
             let partId;
@@ -334,6 +313,58 @@ export default function NodePolylineStatic({
             const style = getPartStyle(partId);
             const finalStrokeOpacity = style.strokeOpacity ?? strokeOpacity;
 
+            // 2. ÉTAT MASQUÉ
+            const isMainPath = segmentsList === segmentMap;
+            const isHidden = isMainPath && hiddenSegmentsIdx?.includes(idx);
+
+            // --- CAS A : SEGMENT MASQUÉ (GHOST) ---
+            if (isHidden) {
+                // Si l'annotation n'est pas sélectionnée, on ne dessine rien (trou invisible)
+                if (!selected) return null;
+
+                // Si sélectionnée, on dessine le fantôme INTERACTIF
+                const isGhostSelected = selectedPartId === partId;
+                const isGhostHovered = hoveredPartId === partId;
+
+                // Couleur du fantôme :
+                // - Si sélectionné/survolé : Couleur active (rouge/sombre)
+                // - Sinon : Gris standard
+                const ghostColor = (isGhostSelected || isGhostHovered)
+                    ? style.stroke
+                    : (theme.palette.text.disabled || "#ccc");
+
+                return (
+                    <g
+                        key={`seg-hidden-${idx}`}
+                        // INTERACTION
+                        onMouseEnter={(e) => { e.stopPropagation(); setHoveredPartId(partId); }}
+                        onMouseLeave={() => setHoveredPartId(null)}
+                        data-part-id={partId}
+                        data-node-id={annotationId}
+                        style={{ cursor: isTransient ? "crosshair" : "pointer" }} // Indique qu'on peut cliquer
+                    >
+                        {/* 1. HIT AREA (Large & Transparent) */}
+                        <path
+                            d={seg.d}
+                            fill="none"
+                            stroke="transparent"
+                            strokeWidth={Math.max(14, computedStrokeWidth * 3)}
+                        />
+
+                        {/* 2. VISUEL (Pointillés) */}
+                        <path
+                            d={seg.d}
+                            fill="none"
+                            stroke={ghostColor}
+                            strokeWidth={computedStrokeWidth}
+                            strokeDasharray="4 12" // Dashed
+                            strokeOpacity={0.8}
+                            strokeLinecap="round"
+                            style={{ pointerEvents: "none" }} // Laisse passer le clic vers le Hit Area
+                        />
+                    </g>
+                );
+            }
 
             return (
                 <g
@@ -349,7 +380,7 @@ export default function NodePolylineStatic({
                         fill="none"
                         stroke="transparent"
                         strokeWidth={Math.max(14, isCmUnit ? computedStrokeWidth * 3 : 14)}
-                        style={{ cursor: "pointer" }}
+                        style={{ cursor: isTransient ? "crosshair" : "pointer" }}
                         vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
                         {...dataProps}
 
@@ -445,7 +476,7 @@ export default function NodePolylineStatic({
                 key={pt.id}
                 transform={`translate(${pt.x}, ${pt.y})`}
                 // Important : pointerEvents='all' permet de cliquer dessus même si SnappingLayer est désactivé
-                style={{ cursor: 'pointer', pointerEvents: 'all' }}
+                style={{ cursor: isTransient ? 'crosshair' : 'pointer', pointerEvents: 'all' }}
                 data-node-type="VERTEX"
                 data-point-id={pt.id}
                 data-annotation-id={annotation.id}
@@ -508,7 +539,7 @@ export default function NodePolylineStatic({
                     fillOpacity={mainFillStyle.fillOpacity ?? fillOpacity}
                     fillRule="evenodd" // [IMPORTANT] Evenodd handles the holes
                     stroke="none"
-                    style={{ cursor: "pointer" }}
+                    style={{ cursor: isTransient ? "crosshair" : "pointer" }}
                     {...dataProps}
                     onMouseEnter={() => setHoveredPartId(mainPartId)}
                     onMouseLeave={() => setHoveredPartId(null)}
@@ -525,7 +556,7 @@ export default function NodePolylineStatic({
                     fill={displayFillColor}
                     fillOpacity={0.2}
                     stroke="none"
-                    style={{ cursor: "pointer" }}
+                    style={{ cursor: isTransient ? "crosshair" : "pointer" }}
                     {...dataProps}
                 />
             ))}

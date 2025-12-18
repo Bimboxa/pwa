@@ -105,6 +105,7 @@ let theme = createTheme(
       },
       annotation: {
         selected: "#39FF14", // Flash green tone
+        selectedPart: "#2fff14ff", // Flash
         segmentHover: "#FFB6C1", // Light pink flash
         segmentSelected: "#FF1493", // Flash pink (DeepPink)
       },

@@ -25,7 +25,9 @@ function StaticMapContent({
     legendFormat,
     selectedNode,
     sizeVariant,
-    isEditingBaseMap = false
+    isEditingBaseMap = false,
+    opacity = 1,
+    grayScale = false
 }) {
 
     // data
@@ -93,7 +95,8 @@ function StaticMapContent({
                     dataNodeType="BG_IMAGE"
                     dataNodeId={bgImageUrl}
                     width={bgImageSize?.width}
-                    height={bgImageSize?.height} />}
+                    height={bgImageSize?.height}
+                />}
 
                 {bgImageAnnotations.map((annotation) => {
                     // Pour le texte BG, on garde la logique simple (ou on adapte si besoin)
@@ -126,6 +129,8 @@ function StaticMapContent({
                     height={baseMapImageSize?.height}
                     hovered={baseMapIsHovered}
                     selected={baseMapIsSelected}
+                    opacity={opacity}
+                    grayScale={grayScale}
                 />}
 
                 {baseMapAnnotations?.map(annotation => {

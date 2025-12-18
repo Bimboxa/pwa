@@ -6,34 +6,38 @@ import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation"
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 
 export default function useCloneAnnotationAndEntity() {
+  const createAnnotation = useCreateAnnotation();
+  const createEntity = useCreateEntity();
 
+  const newAnnotation = useSelector((state) => state.annotations.newAnnotation);
 
-    const createAnnotation = useCreateAnnotation();
-    const createEntity = useCreateEntity();
+  return async (annotation, options) => {
+    // options
 
-    const newAnnotation = useSelector((state) => state.annotations.newAnnotation);
+    const entityLabel = options?.entityLabel;
 
-    return async (annotation, options) => {
+    // create entity
+    const entity = await createEntity({
+      label: entityLabel,
+      listingId: annotation.listingId,
+      projectId: annotation.projectId,
+    });
 
-        // options
+    // create annotation
 
-        const entityLabel = options?.entityLabel;
+    const clonedAnnotation = {
+      ...annotation,
+      ...newAnnotation,
+      id: nanoid(),
+      entityId: entity?.id,
+    };
 
-        // create entity
-        const entity = await createEntity({
-            label: entityLabel,
-            listingId: annotation.listingId,
-            projectId: annotation.projectId,
-        });
-
-        // create annotation
-        const _annotation = await createAnnotation({
-            ...annotation,
-            ...newAnnotation,
-            id: nanoid(),
-            entityId: entity?.id,
-        });
-
-        return _annotation;
+    if (annotation.type === "POLYGON" && newAnnotation.type === "POLYLINE") {
+      clonedAnnotation.closeLine = true;
     }
+
+    const _annotation = await createAnnotation(clonedAnnotation);
+
+    return _annotation;
+  };
 }
