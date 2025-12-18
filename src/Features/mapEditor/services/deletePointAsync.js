@@ -8,7 +8,7 @@ import db from "App/db/db";
  * @param {string|null} params.annotationId - L'ID de l'annotation cible (si null, cible toutes les annotations connectées)
  * @param {Array} params.annotations - La liste complète des annotations
  */
-export const deletePointAsync = async ({ pointId, annotationId, annotations }) => {
+export default async function deletePointAsync({ pointId, annotationId, annotations }) {
     try {
         // 1. Identifier les annotations à modifier
         let annotationsToModify = [];

@@ -9,7 +9,7 @@ import { useInteraction } from '../context/InteractionContext';
 import { setEnabledDrawingMode } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
-import { setOpenDialogDeleteSelectedAnnotation } from 'Features/annotations/annotationsSlice';
+import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations } from 'Features/annotations/annotationsSlice';
 import {
   setAnchorPosition,
   setClickedNode,
@@ -37,6 +37,7 @@ import getAnnotationLabelPropsFromAnnotation from 'Features/annotations/utils/ge
 
 import cv from "Features/opencv/services/opencvService";
 import editor from "App/editor";
+import getTopMiddlePoint from 'Features/geometry/utils/getTopMiddlePoint';
 
 // constants
 
@@ -61,6 +62,7 @@ const InteractionLayer = forwardRef(({
   onPointDuplicateAndMoveCommit,
   onDeletePoint,
   onHideSegment,
+  onRemoveCut,
   onAnnotationMoveCommit,
   onSegmentSplit,
   snappingEnabled = true,
@@ -311,6 +313,7 @@ const InteractionLayer = forwardRef(({
     enabledDrawingMode: enabledDrawingMode, // Si besoin dans le listener
     onDeletePoint,
     onHideSegment,
+    onRemoveCut,
     onPointDuplicateAndMoveCommit,
   });
   useEffect(() => {
@@ -320,10 +323,11 @@ const InteractionLayer = forwardRef(({
       selectedPartId,
       onDeletePoint,
       onHideSegment,
+      onRemoveCut,
       enabledDrawingMode,
       onPointDuplicateAndMoveCommit
     };
-  }, [selectedNode, selectedPointId, selectedPartId, onDeletePoint, onHideSegment, enabledDrawingMode, onPointDuplicateAndMoveCommit]);
+  }, [selectedNode, selectedPointId, selectedPartId, onDeletePoint, onHideSegment, onRemoveCut, enabledDrawingMode, onPointDuplicateAndMoveCommit]);
 
 
   // 1. Calculer le style curseur du conteneur
@@ -375,7 +379,7 @@ const InteractionLayer = forwardRef(({
         console.log("Action: Key Pressed while typing");
         return;
       }
-      const { selectedNode, selectedPointId, selectedPartId, onDeletePoint, onHideSegment } = stateRef.current;
+      const { selectedNode, selectedPointId, selectedPartId, onDeletePoint, onHideSegment, onRemoveCut } = stateRef.current;
 
       if (e.repeat) return;
 
@@ -400,6 +404,7 @@ const InteractionLayer = forwardRef(({
           resetNewAnnotation();
           dispatch(setEnabledDrawingMode(null));
           dispatch(setSelectedNode(null));
+          dispatch(setTempAnnotations([]));
           setHiddenAnnotationIds([]);
           setDrawingPoints([]);
           setCutHostId(null);
@@ -424,19 +429,29 @@ const InteractionLayer = forwardRef(({
             e.stopPropagation();
             return;
           }
-          else if (selectedPartId && selectedNode?.nodeId && onHideSegment) {
-            // selectedPartId est sous la forme "annotationId::SEG::index"
-            // On doit parser l'ID pour récupérer l'index
-            const parts = selectedPartId.split('::');
-            if (parts.length === 3 && parts[1] === 'SEG') {
-              const segmentIndex = parseInt(parts[2], 10);
+          else if (selectedPartId && selectedNode?.nodeId) {
+            const parts = selectedPartId.split('::'); // annotationId::TYPE::index
+            const type = parts[1];
+            const index = parseInt(parts[2], 10);
 
-              // Appel du callback parent avec l'ID de l'annotation et l'index
+            // A. Suppression de SEGMENT (Cacher)
+            if (type === 'SEG' && onHideSegment) {
               onHideSegment({
                 annotationId: selectedNode.nodeId,
-                segmentIndex: segmentIndex
+                segmentIndex: index
               });
+              setSelectedPartId(null);
+              e.stopPropagation();
+              return;
+            }
 
+            // B. Suppression de CUT (Trou) -> [NOUVEAU]
+            if (type === 'CUT' && onRemoveCut) {
+              onRemoveCut({
+                annotationId: selectedNode.nodeId,
+                cutIndex: index
+              });
+              setSelectedPartId(null);
               e.stopPropagation();
               return;
             }
@@ -580,9 +595,13 @@ const InteractionLayer = forwardRef(({
         viewportBBox,
       });
 
-
+      const topMiddlePoint = getTopMiddlePoint(points);
+      const pose = getTargetPose(); // getTargetPose retourne basePose par défaut
+      const worldX = topMiddlePoint.x * pose.k + pose.x;
+      const worldY = topMiddlePoint.y * pose.k + pose.y;
+      const screenPos = viewportRef.current?.worldToScreen(worldX, worldY);
       if (onCommitPointsFromDropFill) {
-        onCommitPointsFromDropFill(points);
+        onCommitPointsFromDropFill({ points, cuts, screenPos });
       }
       dispatch(setEnabledDrawingMode(null));
     }
