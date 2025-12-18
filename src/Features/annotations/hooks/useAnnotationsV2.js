@@ -202,7 +202,8 @@ export default function useAnnotationsV2(options) {
             return {
                 ...annotation,
                 ...templateProps,
-                label: annotation?.label ?? templateProps?.label
+                label: annotation?.label ?? templateProps?.label,
+                templateLabel: templateProps?.label,
             }
         })
 

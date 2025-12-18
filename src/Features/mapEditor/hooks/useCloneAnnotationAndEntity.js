@@ -8,11 +8,16 @@ export default function useCloneAnnotationAndEntity() {
     const createAnnotation = useCreateAnnotation();
     const createEntity = useCreateEntity();
 
-    const newAnnotation = useSelector((state) => state.annotations.newAnnotation);
+    const _newAnnotation = useSelector((state) => state.annotations.newAnnotation);
 
     return async (annotation, options) => {
         // options
         const entityLabel = options?.entityLabel;
+        let newAnnotation = options?.newAnnotation;
+
+        if (!newAnnotation) newAnnotation = _newAnnotation;
+
+        console.log("CLONE with newAnnotation", newAnnotation, _newAnnotation)
 
         // 1. Identify Logic: Are we splitting a Polygon with cuts into Polylines?
         const isPolygonToPolyline =

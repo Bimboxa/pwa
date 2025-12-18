@@ -5,6 +5,8 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
   //delete props.id;
 
   const props = {
+    type: annotationTemplate?.type,
+
     image: annotationTemplate?.image,
     label: annotationTemplate?.label,
     meterByPx: annotationTemplate?.meterByPx,

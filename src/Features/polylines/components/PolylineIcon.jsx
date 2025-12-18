@@ -1,6 +1,6 @@
 import { Box } from "@mui/material";
 
-import { Polyline, Pentagon as Polygon } from "@mui/icons-material";
+import { Polyline, PentagonOutlined as Polygon } from "@mui/icons-material";
 
 export default function PolylineIcon({
   fillColor,
@@ -33,11 +33,9 @@ export default function PolylineIcon({
           color,
         }}
       >
-        {closeLine ? (
-          <Polygon sx={{ fontSize: size * 0.7 }} />
-        ) : (
-          <Polyline sx={{ fontSize: size * 0.7 }} />
-        )}
+
+        <Polyline sx={{ fontSize: size * 0.7 }} />
+
       </Box>
     </Box>
   );
