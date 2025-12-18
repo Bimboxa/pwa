@@ -1,10 +1,13 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { darken } from "@mui/material/styles";
 import theme from "Styles/theme";
 
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 
 import NodeLabelStatic from "./NodeLabelStatic";
+
+const COLOR_SELECTED_PART = theme.palette.annotation?.selectedPart || "#ff0000";
+const COLOR_CONTEXT = theme.palette.annotation?.selectedPartContext || "rgba(0,0,0,0.2)";
 
 export default function NodePolylineStatic({
     annotation,
@@ -16,13 +19,17 @@ export default function NodePolylineStatic({
     forceHideLabel,
     isTransient,
     selectedPointId,
+    selectedPartId,
     highlightConnectedSegments = false,
 }) {
 
-    if (selectedPointId) console.log("SELECTED_POINT_ID", selectedPointId);
+    // hover -state
+    const [hoveredPartId, setHoveredPartId] = useState(null);
+
+
+    // overrided annotation
 
     annotation = { ...annotation, ...annotationOverride };
-
 
 
     // TEMP - TO DO - BETTER MANAGE LABEL
@@ -34,9 +41,10 @@ export default function NodePolylineStatic({
     const labelAnnotation = getAnnotationLabelPropsFromAnnotation(annotation);
 
     let {
+        id: annotationId,
         type,
         points = [],
-        cuts = [], // [NEW] Extract cuts (holes)
+        cuts = [], //  Extract cuts (holes)
         strokeColor = theme.palette.secondary.main,
         closeLine = type === "POLYGON",
         fillColor = theme.palette.secondary.main,
@@ -46,7 +54,7 @@ export default function NodePolylineStatic({
         strokeOpacity = 1,
         strokeWidth = 2,
         strokeWidthUnit = "PX",
-        segments = [],
+        hiddenSegmentsIdx = [],
     } = annotation || {};
 
 
@@ -62,8 +70,6 @@ export default function NodePolylineStatic({
 
 
     strokeColor = type === "POLYGON" ? fillColor : strokeColor;
-    if (!strokeColor) strokeColor = theme.palette.secondary.main;
-    if (!fillColor) fillColor = theme.palette.secondary.main;
 
     const hoverStrokeColor = useMemo(() => {
         try {
@@ -96,6 +102,50 @@ export default function NodePolylineStatic({
         }
         return strokeWidth;
     }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit, type]);
+
+
+    // --- ID GENERATION ---
+    const getPartId = (category, index = 0) => `${annotationId}::${category}::${index}`;
+
+    // --- STYLE DYNAMIQUE ---
+    const getPartStyle = (currentPartId) => {
+        if (!selectedPartId) {
+            // Hover simple (hors mode sélection de part)
+            if (hoveredPartId === currentPartId && !isTransient) {
+                return {
+                    stroke: darken(strokeColor, 0.2),
+                    fill: darken(fillColor, 0.2),
+                    strokeWidth: computedStrokeWidth + 1
+                };
+            }
+            return { stroke: strokeColor, fill: fillColor, strokeWidth: computedStrokeWidth };
+        }
+
+        const isSelected = selectedPartId === currentPartId;
+        const isHovered = hoveredPartId === currentPartId;
+
+        if (isSelected) {
+            return {
+                stroke: COLOR_SELECTED_PART,
+                fill: COLOR_SELECTED_PART,
+                strokeWidth: computedStrokeWidth + 2
+            };
+        } else if (isHovered) {
+            return {
+                stroke: darken(COLOR_CONTEXT, 0.4),
+                fill: darken(COLOR_CONTEXT, 0.4),
+                strokeWidth: computedStrokeWidth + 1
+            };
+        } else {
+            return {
+                stroke: COLOR_CONTEXT,
+                fill: COLOR_CONTEXT,
+                strokeWidth: computedStrokeWidth,
+                strokeOpacity: 0.3,
+                fillOpacity: 0.1
+            };
+        }
+    };
 
 
     // Helper functions
@@ -246,16 +296,53 @@ export default function NodePolylineStatic({
     if (!points?.length) return null;
 
     // Helper to render a segment stroke (used for main path and holes)
-    const renderSegments = (segmentsList) => {
+    const renderSegments = (segmentsList, basePartType, contextIndex = 0) => {
         return segmentsList.map((seg, idx) => {
             // Note: Holes might not have corresponding 'segments' metadata in annotation.segments
             // We assume hole segments are always visible unless we map them to annotation structure.
             // If segmentsList comes from main loop, we check deletion.
             const isMainPath = segmentsList === segmentMap;
-            if (isMainPath && segments[idx]?.isDeleted) return null;
+            const isHidden = isMainPath && hiddenSegmentsIdx?.includes(idx);
+
+            if (isHidden) {
+                // Si l'annotation n'est pas sélectionnée, on ne dessine rien (trou invisible)
+                if (!selected) return null;
+
+                // Si sélectionnée, on dessine en pointillés gris (Ghost)
+                return (
+                    <path
+                        key={`seg-hidden-${idx}`}
+                        d={seg.d}
+                        fill="none"
+                        stroke={theme.palette.text.disabled || "#ccc"}
+                        strokeWidth={computedStrokeWidth}
+                        strokeDasharray="4 4" // Pointillés
+                        strokeOpacity={0.5}
+                        style={{ pointerEvents: "none" }} // Pas d'interaction sur le fantôme
+                    />
+                );
+            }
+
+            // Génération de l'ID (ex: "123::SEG::0")
+            let partId;
+            if (type === "POLYLINE") {
+                partId = getPartId("SEG", idx);
+            } else {
+                partId = getPartId(basePartType, contextIndex);
+            }
+
+            const style = getPartStyle(partId);
+            const finalStrokeOpacity = style.strokeOpacity ?? strokeOpacity;
+
 
             return (
-                <g key={`seg-${idx}-${seg.startPointIdx}`}>
+                <g
+                    key={`seg-${idx}-${seg.startPointIdx}`}
+                    data-part-id={partId}
+                    data-node-id={annotationId} // Rappel de l'ID parent pour sécurité
+                    onMouseEnter={(e) => { e.stopPropagation(); setHoveredPartId(partId); }}
+                    onMouseLeave={() => setHoveredPartId(null)}
+                >
                     {/* Hit Area */}
                     <path
                         d={seg.d}
@@ -265,6 +352,7 @@ export default function NodePolylineStatic({
                         style={{ cursor: "pointer" }}
                         vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
                         {...dataProps}
+
                     />
                     {/* Visible Stroke */}
                     <path
@@ -272,7 +360,7 @@ export default function NodePolylineStatic({
                         fill="none"
                         stroke={displayStrokeColor}
                         strokeWidth={computedStrokeWidth}
-                        strokeOpacity={strokeOpacity}
+                        strokeOpacity={finalStrokeOpacity}
                         strokeDasharray={
                             strokeType === "DASHED"
                                 ? `${computedStrokeWidth * 3} ${computedStrokeWidth * 2}`
@@ -387,6 +475,8 @@ export default function NodePolylineStatic({
 
     const allPoints = [...mainPoints, ...cutPoints];
 
+    const mainPartId = getPartId("MAIN", 0);
+    const mainFillStyle = getPartStyle(mainPartId);
 
     return (
         <g{...dataProps}>
@@ -412,12 +502,16 @@ export default function NodePolylineStatic({
             {showFill && (
                 <path
                     d={fullFillD} // [NEW] Use combined path
-                    fill={fillType === "HATCHING" ? `url(#${patternIdRef.current})` : displayFillColor}
-                    fillOpacity={fillOpacity ?? 0.8}
+                    // fill={fillType === "HATCHING" ? `url(#${patternIdRef.current})` : displayFillColor}
+                    fill={fillType === "HATCHING" ? `url(#${patternIdRef.current})` : mainFillStyle?.fill}
+                    //fillOpacity={fillOpacity ?? 0.8}
+                    fillOpacity={mainFillStyle.fillOpacity ?? fillOpacity}
                     fillRule="evenodd" // [IMPORTANT] Evenodd handles the holes
                     stroke="none"
                     style={{ cursor: "pointer" }}
                     {...dataProps}
+                    onMouseEnter={() => setHoveredPartId(mainPartId)}
+                    onMouseLeave={() => setHoveredPartId(null)}
                 />
             )}
 
@@ -437,12 +531,12 @@ export default function NodePolylineStatic({
             ))}
 
             {/* Strokes - Main Path */}
-            {strokeType !== "NONE" && renderSegments(segmentMap)}
+            {strokeType !== "NONE" && renderSegments(segmentMap, 'MAIN', 0)}
 
             {/* [NEW] Strokes - Holes */}
             {strokeType !== "NONE" && holesData.map((hole, i) => (
                 <g key={`hole-strokes-${i}`}>
-                    {renderSegments(hole.segmentMap)}
+                    {renderSegments(hole.segmentMap, 'CUT', i)}
                 </g>
             ))}
 
