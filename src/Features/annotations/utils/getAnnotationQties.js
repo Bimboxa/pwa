@@ -1,84 +1,95 @@
-import getPointsLength from "Features/geometry/utils/getPointsLength";
-import getPointsSurface from "Features/geometry/utils/getPointsSurface";
+// Helper pour calculer la distance entre deux points
+const getDistance = (p1, p2) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
 
-export default function getAnnotationQties(annotation, baseMap) {
-  if (!annotation) return null;
+// Helper pour calculer la surface d'un contour (Shoelace formula)
+const getPolygonArea = (points) => {
+  if (!points || points.length < 3) return 0;
+  let area = 0;
+  for (let i = 0; i < points.length; i++) {
+    const j = (i + 1) % points.length;
+    area += points[i].x * points[j].y;
+    area -= points[j].x * points[i].y;
+  }
+  return Math.abs(area) / 2;
+};
 
-  if (!annotation || !baseMap) {
+export default function getAnnotationQties({ annotation, meterByPx }) {
+
+  // 1. Validation de base & MeterByPx
+  if (!annotation || !Array.isArray(annotation.points)) {
     return null;
   }
 
-  const { type, points } = annotation;
-  if (!["POLYLINE", "POLYGON"].includes(type) || !Array.isArray(points) || points.length < 2) {
-    return { length: 0, surface: 0 };
+  if (!Number.isFinite(meterByPx) || meterByPx <= 0) {
+    return null;
   }
 
-  const validPoints = points.filter(
+  // 2. Validation des points (doivent avoir x, y)
+  const points = annotation.points.filter(
     (point) =>
       point && typeof point.x === "number" && typeof point.y === "number"
   );
 
-  if (validPoints.length < 2) {
-    return { length: 0, surface: 0 };
+  if (points.length < 2) {
+    return null;
   }
 
-  const imageSize = baseMap?.image?.imageSize;
-
-  let pointsInPx = validPoints;
-  // const hasRelativeCoords = validPoints.every(
-  //   (p) => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1
-  // );
-
-  if (pointsInPx.length > 0 && imageSize?.width && imageSize?.height) {
-    const { width, height } = imageSize;
-    pointsInPx = validPoints.map((p) => ({
-      x: p.x * width,
-      y: p.y * height,
-    }));
-  }
-
+  // 3. Déterminer si la forme est fermée
   const closeLine =
-    type === "POLYGON" ||
+    annotation.type === "POLYGON" ||
     annotation.closeLine ||
     annotation?.polyline?.closeLine ||
-    annotation?.annotationTemplate?.closeLine;
+    annotation?.annotationTemplate?.closeLine ||
+    false;
 
-  const lengthPx = getPointsLength(pointsInPx, closeLine);
+  // --- CALCUL LONGUEUR (Intégrant hiddenSegmentsIdx) ---
+  let lengthPx = 0;
+  const hiddenSegments = annotation.hiddenSegmentsIdx || [];
+
+  for (let i = 0; i < points.length; i++) {
+    // Si on n'est pas en mode fermé, on s'arrête avant le dernier point
+    if (!closeLine && i === points.length - 1) break;
+
+    // Si le segment est masqué, on ne le compte pas
+    if (hiddenSegments.includes(i)) {
+      continue;
+    }
+
+    const p1 = points[i];
+    const p2 = points[(i + 1) % points.length]; // Boucle si closeLine
+
+    lengthPx += getDistance(p1, p2);
+  }
+
+  // --- CALCUL SURFACE (Intégrant Cuts) ---
   let surfacePx = 0;
 
-  if (closeLine && pointsInPx.length >= 3) {
-    // Get cuts from annotation if available and convert their points to pixels
-    const cutsRaw = annotation.cuts || annotation?.polyline?.cuts || [];
-    const cuts = cutsRaw.map((cut) => {
-      if (!cut || !Array.isArray(cut.points)) return cut;
+  if (closeLine && points.length >= 3) {
+    // 1. Surface du contour principal
+    surfacePx = getPolygonArea(points);
 
-      // Convert cut points to pixels if needed
-      let cutPointsInPx = cut.points;
-      if (imageSize?.width && imageSize?.height) {
-        cutPointsInPx = cut.points.map((p) => ({
-          x: p.x * imageSize.width,
-          y: p.y * imageSize.height,
-        }));
-      }
+    // 2. Soustraire la surface des trous (Cuts)
+    const cuts = annotation.cuts || [];
+    if (Array.isArray(cuts)) {
+      cuts.forEach(cut => {
+        if (cut.points && cut.points.length >= 3) {
+          // On filtre aussi les points du cut pour être sûr
+          const cutPoints = cut.points.filter(p => p && typeof p.x === "number" && typeof p.y === "number");
+          if (cutPoints.length >= 3) {
+            const cutArea = getPolygonArea(cutPoints);
+            surfacePx -= cutArea;
+          }
+        }
+      });
+    }
 
-      return {
-        ...cut,
-        points: cutPointsInPx,
-      };
-    });
-
-    surfacePx = getPointsSurface(pointsInPx, closeLine, cuts);
+    surfacePx = Math.max(0, surfacePx);
   }
 
-  const meterByPx = baseMap?.meterByPx;
-
-  let length = lengthPx;
-  let surface = surfacePx;
-
-  if (meterByPx) {
-    length = lengthPx * meterByPx;
-    surface = surfacePx * meterByPx * meterByPx;
-  }
+  // --- CONVERSION EN UNITÉS RÉELLES (Mètres) ---
+  const length = lengthPx * meterByPx;
+  // Surface = pixel² * (m/pixel)²
+  const surface = surfacePx * (meterByPx * meterByPx);
 
   return { length, surface };
 }

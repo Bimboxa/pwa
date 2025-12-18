@@ -17,6 +17,7 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getAnnotationTemplateProps from "Features/annotations/utils/getAnnotationTemplateProps";
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
 import testObjectHasProp from "Features/misc/utils/testObjectHasProp";
+import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 
 export default function useAnnotationsV2(options) {
 
@@ -27,6 +28,7 @@ export default function useAnnotationsV2(options) {
         const filterByBaseMapId = options?.filterByBaseMapId;
         const excludeListingsIds = options?.excludeListingsIds;
         const withListingName = options?.withListingName;
+        const withQties = options?.withQties;
 
         // data
 
@@ -48,6 +50,7 @@ export default function useAnnotationsV2(options) {
                 // imageSize
                 const imageSize = baseMap.image.imageSize;
                 const { width, height } = imageSize;
+                const meterByPx = baseMap.meterByPx;
 
 
                 // points index
@@ -96,6 +99,11 @@ export default function useAnnotationsV2(options) {
                         _annotation.points = resolvePoints({ points: annotationPoints, pointsIndex, imageSize: baseMap.image.imageSize });
                         if (_annotation.cuts) _annotation.cuts = resolveCuts({ cuts: annotation.cuts, pointsIndex, imageSize: baseMap.image.imageSize });
 
+                    }
+
+                    // qties
+                    if (withQties) {
+                        _annotation.qties = getAnnotationQties({ annotation: _annotation, meterByPx });
                     }
 
                     return _annotation;

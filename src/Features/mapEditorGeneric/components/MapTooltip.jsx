@@ -69,9 +69,9 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations }, ref) => {
                     {description}
                 </Typography>
             )}
-            <Typography variant="caption" sx={{ color: 'grey.500', fontSize: '0.7rem' }}>
+            {/* <Typography variant="caption" sx={{ color: 'grey.500', fontSize: '0.7rem' }}>
                 {helperS}
-            </Typography>
+            </Typography> */}
         </Paper>
     );
 });

@@ -19,6 +19,7 @@ import AnnotationIcon from "Features/annotations/components/AnnotationIcon";
 import ToolbarCreateAnnotationFromListItemEntity from "Features/annotations/components/ToolbarCreateAnnotationFromListItemEntity";
 
 import getEntityMainImage from "../utils/getEntityMainImage";
+import getEntityQties from "../utils/getEntityQties";
 
 export default function ListItemEntityVariantDefault({
   entity,
@@ -72,6 +73,10 @@ export default function ListItemEntityVariantDefault({
   const mainImage = getEntityMainImage(entity);
   const hasMarker = entity.marker;
 
+  // helpers - qties
+
+  const qtiesString = getEntityQties(entity, { formatAsOneLiner: true });
+
   // --- Handlers Click ---
   function handleClick() {
     if (onClick) onClick(entity);
@@ -96,7 +101,7 @@ export default function ListItemEntityVariantDefault({
           </IconButton>
         )
       }
-      sx={{ zIndex: 1, position: 'relative' }}
+      sx={{ zIndex: 1, position: 'relative', display: "flex", flexDirection: "column", width: 1 }}
     >
       <ListItemButton
         onClick={handleClick}
@@ -106,6 +111,7 @@ export default function ListItemEntityVariantDefault({
         onMouseLeave={handleMouseLeave}
         sx={{
           display: "flex",
+          width: 1,
           px: 1,
           position: "relative",
           zIndex: 'auto',
@@ -150,7 +156,16 @@ export default function ListItemEntityVariantDefault({
             <Edit />
           </IconButton>
         )}
+
       </ListItemButton>
+
+      {qtiesString && (
+        <Box sx={{ display: "flex", justifyContent: "flex-end", width: 1, px: 0.5 }}>
+          <Typography sx={{ fontSize: 10 }} color="text.secondary">
+            {qtiesString}
+          </Typography>
+        </Box>
+      )}
 
       <Popper
         open={isOpen}

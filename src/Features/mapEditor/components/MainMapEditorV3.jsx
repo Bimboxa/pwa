@@ -220,7 +220,6 @@ export default function MainMapEditorV3() {
             cuts,
             id: "temp",
             screenPos,
-            isTemp: true,
         };
         dispatch(setTempAnnotations([tempAnnotation]));
         dispatch(setTempAnnotationToolbarPosition(screenPos));
@@ -521,14 +520,15 @@ export default function MainMapEditorV3() {
                     ref={interactionLayerRef}
                     showBgImage={showBgImage}
                     onCommitDrawing={({ points, event, cutHostId }) => {
-                        if (enabledDrawingMode === 'MEASURE') {
+                        if (cutHostId) {
+                            if (enabledDrawingMode === 'RECTANGLE') points = getPolylinePointsFromRectangle(points)
+                            handleCommitDrawing(points, { cutHostId });
+                        }
+                        else if (enabledDrawingMode === 'MEASURE') {
                             handleMeasureCommit(points, event);
                         }
                         else if (enabledDrawingMode === 'RECTANGLE') {
                             handleCommitDrawingFromRectangle(points, event);
-                        }
-                        else if (cutHostId) {
-                            handleCommitDrawing(points, { cutHostId });
                         }
                         else {
                             handleCommitDrawing(points);
