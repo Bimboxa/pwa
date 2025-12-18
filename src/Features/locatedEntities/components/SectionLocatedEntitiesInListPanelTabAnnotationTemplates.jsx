@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -32,6 +32,9 @@ import {
   ListItemIcon,
   IconButton,
   Collapse,
+  Popper, // Added
+  Paper, // Added
+  Fade, // Added
 } from "@mui/material";
 import { Add, Edit, ArrowDropDown, VisibilityOff, Visibility } from "@mui/icons-material";
 
@@ -39,7 +42,8 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import AnnotationIcon from "Features/annotations/components/AnnotationIcon";
 import FormAnnotationTemplateVariantBlock from "Features/annotations/components/FormAnnotationTemplateVariantBlock";
-
+import ToolbarCreateAnnotationFromListItemEntity from "Features/annotations/components/ToolbarCreateAnnotationFromListItemEntity"; // Added
+import ToolbarCreateAnnotationFromTabAnnotationTemplates from "Features/annotations/components/ToolbarCreateAnnotationFromTabAnnotationTemplates"; // Added
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import SectionCreateAnnotationTemplateVariantBlock from "Features/annotations/components/SectionCreateAnnotationTemplateVariantBlock.jsx";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
@@ -90,6 +94,32 @@ function DraggableAnnotationTemplateItem({
   const isHovered = hoveredId === annotationTemplate.id;
   const isHidden = annotationTemplate.hidden;
 
+  // --- Gestion du Hover Robuste (Duplicated Logic) ---
+  const [anchorEl, setAnchorEl] = useState(null);
+  const hoverTimeoutRef = useRef(null);
+  const isOpen = Boolean(anchorEl);
+
+  const handleListItemEnter = (event) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    setAnchorEl(event.currentTarget);
+    if (onMouseEnter) onMouseEnter(event);
+  };
+
+  const handlePopperEnter = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+  };
+
+  const handleListItemLeave = (event) => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setAnchorEl(null);
+    }, 10);
+    if (onMouseLeave) onMouseLeave(event);
+  };
+
   return (
     <Box
       ref={setNodeRef}
@@ -101,8 +131,8 @@ function DraggableAnnotationTemplateItem({
       <ListItemButton
         onClick={(e) => onCreateClick(e, annotationTemplate)}
         divider
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
+        onMouseEnter={handleListItemEnter}
+        onMouseLeave={handleListItemLeave}
         sx={{
           position: "relative",
           bgcolor: "white",
@@ -195,6 +225,47 @@ function DraggableAnnotationTemplateItem({
           )}
         </Box>
       </ListItemButton>
+
+      {/* Popper Logic */}
+      <Popper
+        open={isOpen}
+        anchorEl={anchorEl}
+        placement="right"
+        transition
+        modifiers={[
+          {
+            name: 'offset',
+            options: {
+              offset: [0, -8],
+            },
+          },
+          {
+            name: 'preventOverflow',
+            options: { padding: 8 },
+          },
+        ]}
+        style={{ zIndex: 1500, pointerEvents: 'auto' }}
+        onMouseEnter={handlePopperEnter}
+        onMouseLeave={handleListItemLeave}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {({ TransitionProps }) => (
+          <Fade {...TransitionProps} timeout={10}>
+            <Paper
+              elevation={4}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                borderRadius: 1,
+                bgcolor: 'background.paper'
+              }}
+            >
+              <ToolbarCreateAnnotationFromTabAnnotationTemplates annotationTemplate={annotationTemplate} />
+            </Paper>
+          </Fade>
+        )}
+      </Popper>
+
       <Collapse in={editingId === annotationTemplate.id}>
         <Box
           sx={{

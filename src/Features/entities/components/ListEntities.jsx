@@ -91,7 +91,7 @@ export default function ListEntities({
       {/* <SectionActions /> */}
       {showFilterByMainBaseMap && <SectionFilterEntitiesByMainBaseMap />}
       <BoxFlexVStretch sx={{ overflow: "auto" }}>
-        <List dense={!isMobile} disablePadding sx={{ bgcolor: "white" }}>
+        <List dense={!isMobile} disablePadding sx={{ bgcolor: "white", width: 1 }}>
           {filteredEntities?.map((entity) => {
             if (variant === "DEFAULT") {
               return (

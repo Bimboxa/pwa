@@ -48,6 +48,7 @@ export default function SectionListEntitiesInListPanel() {
     sortBy,
     withMarkers: entityModel?.type === "LOCATED_ENTITY",
     withAnnotations: entityModel?.type === "LOCATED_ENTITY",
+    withQties: entityModel?.type === "LOCATED_ENTITY",
     withComputedFields: true,
     filterByMainBaseMap:
       entityModel?.type === "LOCATED_ENTITY" && filterByMainBaseMap,

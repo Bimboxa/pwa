@@ -44,7 +44,7 @@ export default function NodePolylineStatic({
 
     // select temp annotation
 
-    if (annotation.isTemp) selected = true;
+    if (annotation.id.startsWith("temp")) selected = true;
 
     // State local pour le survol immédiat (feedback visuel)
     const [hoveredPartId, setHoveredPartId] = useState(null);
