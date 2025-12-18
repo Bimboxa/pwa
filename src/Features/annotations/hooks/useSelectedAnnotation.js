@@ -1,9 +1,10 @@
 import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
-import demoAnnotations from "../data/demoAnnotations";
+import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
+import getAnnotationTemplateProps from "Features/annotations/utils/getAnnotationTemplateProps";
 
 import db from "App/db/db";
 
@@ -20,6 +21,8 @@ export default function useSelectedAnnotation() {
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
   );
+
+  const annotationTemplates = useAnnotationTemplates();
 
   // helper
 
@@ -51,6 +54,15 @@ export default function useSelectedAnnotation() {
 
     return _annotation;
   }, [annotationsUpdatedAt, selectedAnnotationId]);
+
+
+  // template
+
+  let template = annotationTemplates?.find(
+    (t) => t.id === annotation?.annotationTemplateId
+  );
+
+  annotation = { ...annotation, ...getAnnotationTemplateProps(template), templateLabel: template?.label || "-?" };
 
   // return
 

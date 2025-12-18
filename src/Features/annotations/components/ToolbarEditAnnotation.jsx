@@ -20,6 +20,8 @@ import FieldAnnotationFillAndStroke from "./FieldAnnotationFillAndStroke";
 import FieldToggleFWC from "Features/fwc/components/FieldToggleFWC";
 import IconButtonDialogCloneAnnotation from "./IconButtonDialogCloneAnnotation";
 import IconButtonToggleAnnotationCloseLine from "./IconButtonToggleAnnotationCloseLine";
+import ButtonAnnotationTemplate from "./ButtonAnnotationTemplate";
+import IconButtonCloneAnnotation from "./IconButtonCloneAnnotation";
 
 import { PopperDragHandle } from "Features/layout/components/PopperBox";
 
@@ -78,6 +80,8 @@ export default function ToolbarEditAnnotation() {
           <DragIndicatorIcon fontSize="small" />
         </Box>
       </PopperDragHandle>
+
+      <ButtonAnnotationTemplate annotation={selectedAnnotation} />
       {/* <IconButton onClick={handleCanTransformChange} size="small">
         {canTransformNode ? (
           <LockOpen fontSize="small" />
@@ -108,7 +112,7 @@ export default function ToolbarEditAnnotation() {
         <IconButtonToggleAnnotationCloseLine annotation={selectedAnnotation} />
       )}
       <Box sx={{ ml: 2 }}>
-        <IconButtonDialogCloneAnnotation annotation={selectedAnnotation} />
+        <IconButtonCloneAnnotation annotation={selectedAnnotation} />
       </Box>
     </Paper>
   );
