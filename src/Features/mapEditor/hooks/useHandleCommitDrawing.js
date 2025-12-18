@@ -140,10 +140,11 @@ export default function useHandleCommitDrawing() {
             // ÉTAPE 2.5 : Enregistrement de l'annotation template
             if (newAnnotation && !_updatedAnnotation) {
                 const existingAnnotationTemplates = await db.annotationTemplates.where("listingId").equals(listingId).toArray();
-                const existingAnnotationTemplate = getAnnotationTemplateFromNewAnnotation({
-                    newAnnotation,
-                    annotationTemplates: existingAnnotationTemplates,
-                });
+                // const existingAnnotationTemplate = getAnnotationTemplateFromNewAnnotation({
+                //     newAnnotation,
+                //     annotationTemplates: existingAnnotationTemplates,
+                // });
+                const existingAnnotationTemplate = existingAnnotationTemplates.find(t => t.id === newAnnotation.annotationTemplateId);
                 if (existingAnnotationTemplate) {
                     annotationTemplateId = existingAnnotationTemplate.id;
                 } else {
