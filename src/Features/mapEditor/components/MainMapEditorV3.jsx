@@ -531,6 +531,7 @@ export default function MainMapEditorV3() {
                             handleCommitDrawingFromRectangle(points, event);
                         }
                         else {
+                            console.log("handleCommitDrawing - points", points);
                             handleCommitDrawing(points);
                         }
                     }}

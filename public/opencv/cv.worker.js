@@ -18,6 +18,7 @@ self.importScripts("./handlers/detectLinesAsync.js");
 self.importScripts("./handlers/detectTextAsync.js");
 self.importScripts("./handlers/detectContoursAsync.js");
 self.importScripts("./handlers/detectStraightLineAsync.js");
+self.importScripts("./handlers/extractPolygonsFromMaskAsync.js");
 /**
  * This exists to capture all the events that are thrown out of the worker
  * into the worker. Without this, there would be no communication possible
@@ -65,29 +66,32 @@ onmessage = function (e) {
     case "calculateOverlayTransformAsync":
       return calculateOverlayTransformAsync(e.data);
 
-  case "opencvDebugAsync":
-    return opencvDebugAsync(e.data);
+    case "opencvDebugAsync":
+      return opencvDebugAsync(e.data);
 
-  case "fillHatchAsync":
-    return fillHatchAsync(e.data);
+    case "fillHatchAsync":
+      return fillHatchAsync(e.data);
 
-  case "removeThinRegionsAsync":
-    return removeThinRegionsAsync(e.data);
+    case "removeThinRegionsAsync":
+      return removeThinRegionsAsync(e.data);
 
-  case "detectLinesAsync":
-    return detectLinesAsync(e.data);
+    case "detectLinesAsync":
+      return detectLinesAsync(e.data);
 
-  case "detectTextAsync":
-    return detectTextAsync(e.data);
+    case "detectTextAsync":
+      return detectTextAsync(e.data);
 
-  case "getHorizontalAndVerticalLinesAsync":
-    return getHorizontalAndVerticalLinesAsync(e.data);
+    case "getHorizontalAndVerticalLinesAsync":
+      return getHorizontalAndVerticalLinesAsync(e.data);
 
-  case "detectContoursAsync":
-    return detectContoursAsync(e.data);
+    case "detectContoursAsync":
+      return detectContoursAsync(e.data);
 
-  case "detectStraightLineAsync":
-    return detectStraightLineAsync(e.data);
+    case "extractPolygonsFromMaskAsync":
+      return extractPolygonsFromMaskAsync(e.data);
+
+    case "detectStraightLineAsync":
+      return detectStraightLineAsync(e.data);
 
     default:
       break;

@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { setEnabledDrawingMode } from "../mapEditorSlice";
 
 import { Paper, Box } from "@mui/material";
-import { Mouse, Rectangle, WaterDrop, MyLocation as TARGET } from "@mui/icons-material";
+import { Mouse, Rectangle, WaterDrop, MyLocation as TARGET, Brush } from "@mui/icons-material";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
@@ -49,7 +49,13 @@ export default function ToolbarEnabledDrawingMode() {
             label: "Remplissage",
             icon: <WaterDrop sx={{ color }} />,
             show: ["POLYGON"].includes(type)
-        }
+        },
+        {
+            key: "BRUSH",
+            label: "Brush",
+            icon: <Brush sx={{ color }} />,
+            show: ["POLYGON"].includes(type)
+        },
     ]
 
     // helpers - show mode

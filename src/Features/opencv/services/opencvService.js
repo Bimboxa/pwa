@@ -179,6 +179,12 @@ class CV {
       payload,
     });
   }
+  extractPolygonsFromMaskAsync(payload) {
+    return this._dispatch({
+      msg: "extractPolygonsFromMaskAsync",
+      payload,
+    });
+  }
   detectStraightLineAsync(payload) {
     return this._dispatch({
       msg: "detectStraightLineAsync",
