@@ -9,7 +9,6 @@ const DrawingLayer = forwardRef(({
     onLeaveFirstPoint
 }, ref) => {
 
-    console.log("[DrawingLayer]", enabledDrawingMode);
 
     // Refs pour l'accès DOM direct (Performance)
     const previewLineRef = useRef(null);

@@ -5,7 +5,15 @@ import screenToWorld from '../utils/screenToWorld';
 // Zoom sensitivity constant (same as MapEditorGeneric.jsx)
 const ZOOM_SENSITIVITY = 1.0015;
 
-const MapEditorViewport = forwardRef(({ children, onWorldMouseMove, onWorldClick, onCameraChange, staticOverlay, htmlOverlay }, ref) => {
+const MapEditorViewport = forwardRef(({
+    children,
+    onWorldMouseMove,
+    onWorldClick,
+    onCameraChange,
+    staticOverlay,
+    htmlOverlay,
+    shouldDisablePan,
+}, ref) => {
     const svgRef = useRef(null);
     const cameraGroupRef = useRef(null);
 
@@ -140,6 +148,12 @@ const MapEditorViewport = forwardRef(({ children, onWorldMouseMove, onWorldClick
     // 1. Début du clic
     const handleMouseDown = (e) => {
         console.log("[VIEWPORT] _DOWN_", e);
+
+        // 1. On vérifie si le Pan est désactivé par le parent
+        if (shouldDisablePan && shouldDisablePan(e)) {
+            return;
+        }
+
         // On n'accepte que le Clic Gauche (button 0) pour le Pan ici
         if (e.button !== 0) return;
 

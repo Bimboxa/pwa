@@ -1,5 +1,5 @@
 // components/InteractionLayer.jsx
-import { useEffect, useRef, useState, useImperativeHandle, forwardRef, useMemo } from 'react';
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef, useMemo, useCallback } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { nanoid } from '@reduxjs/toolkit';
@@ -20,6 +20,7 @@ import useResetNewAnnotation from 'Features/annotations/hooks/useResetNewAnnotat
 import Box from '@mui/material/Box';
 import MapEditorViewport from 'Features/mapEditorGeneric/components/MapEditorViewport';
 import DrawingLayer from 'Features/mapEditorGeneric/components/DrawingLayer';
+import BrushDrawingLayer from 'Features/mapEditorGeneric/components/BrushDrawingLayer';
 import ScreenCursorV2 from 'Features/mapEditorGeneric/components/ScreenCursorV2';
 import SnappingLayer from 'Features/mapEditorGeneric/components/SnappingLayer';
 import TransientTopologyLayer from 'Features/mapEditorGeneric/components/TransientTopologyLayer';
@@ -43,6 +44,7 @@ import getTopMiddlePoint from 'Features/geometry/utils/getTopMiddlePoint';
 
 const SNAP_THRESHOLD_ABSOLUTE = 12;
 const DRAG_THRESHOLD_PX = 3; // Seuil de déplacement pour activer le drag
+const SCREEN_BRUSH_RADIUS_PX = 12; // Rayon fixe à l'écran
 
 const InteractionLayer = forwardRef(({
   children,
@@ -81,6 +83,7 @@ const InteractionLayer = forwardRef(({
 
   const viewportRef = useRef(null); // Ref vers la caméra
   const drawingLayerRef = useRef(null);
+  const brushLayerRef = useRef(null);
   const screenCursorRef = useRef(null);
   const snappingLayerRef = useRef(null);
   const closingMarkerRef = useRef(null);
@@ -259,6 +262,13 @@ const InteractionLayer = forwardRef(({
   }, [cutHostId]);
 
 
+  // brush path
+
+  const [brushPath, setBrushPath] = useState([]);
+  const brushPathRef = useRef([]); // Ref pour accès synchrone rapide (perf) et éviter stale closures
+  useEffect(() => {
+    brushPathRef.current = brushPath;
+  }, [brushPath]);
 
 
   // virtual insertion
@@ -351,7 +361,44 @@ const InteractionLayer = forwardRef(({
     dispatch(setEnabledDrawingMode(null));
   };
 
-  const commitPolyline = (event) => {
+  const commitPolyline = async (event) => {
+    const drawingMode = enabledDrawingModeRef.current;
+
+
+    // --- CAS BRUSH ---
+    if (drawingMode === "BRUSH") {
+      if (brushPathRef.current.length === 0) return;
+
+      console.log("Processing Brush Drawing...");
+
+      // 1. Snapshot du Canvas
+      const dataUrl = brushLayerRef.current?.getSnapshotDataUrl();
+      if (!dataUrl) return;
+
+      // 2. Appel OpenCV
+      await cv.load();
+      const polygons = await cv.extractPolygonsFromMaskAsync({
+        maskDataUrl: dataUrl,
+        simplificationFactor: 3.0
+      }); // Facteur 3.0 pour lisser
+
+      // 3. Commit pour chaque polygone trouvé
+      console.log("[BRUSH] Polygons found:", polygons);
+      if (polygons && polygons.length > 0) {
+        polygons.forEach(points => {
+          if (onCommitDrawingRef.current) onCommitDrawingRef.current({ points });
+        });
+      }
+
+      // 4. Reset
+      setBrushPath([]);
+      dispatch(setEnabledDrawingMode(null));
+      return;
+    }
+
+
+    // --- CAS CLICK/POLYLINE (Défaut) ---
+
     const pointsToSave = drawingPointsRef.current; // On lit la Ref, pas le State ! 
     const _cutHostId = cutHostIdRef.current;
     if (pointsToSave.length >= 2) {
@@ -371,9 +418,12 @@ const InteractionLayer = forwardRef(({
     dispatch(setEnabledDrawingMode(null));
   };
 
+
+
+
   // --- A. GESTION DES CLAVIERS (Key Listeners) ---
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = async (e) => {
       // Ignorer si l'utilisateur écrit dans un input texte
       if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
         console.log("Action: Key Pressed while typing");
@@ -408,11 +458,12 @@ const InteractionLayer = forwardRef(({
 
           setHiddenAnnotationIds([]);
           setDrawingPoints([]);
+          setBrushPath([]);
           setCutHostId(null);
           break;
 
         case "Enter":
-          if (enabledDrawingModeRef.current === "CLICK") {
+          if (enabledDrawingModeRef.current === "CLICK" || enabledDrawingModeRef.current === "BRUSH") {
             commitPolyline();
           }
           break;
@@ -1040,6 +1091,23 @@ const InteractionLayer = forwardRef(({
       drawingLayerRef.current?.updatePreview(previewPos);
     }
 
+    // --- LOGIQUE BRUSH ---
+    if (enabledDrawingMode === "BRUSH") {
+      if (event.shiftKey && event.buttons === 1) {
+        // 1. Position dans l'image
+        const localPos = toLocalCoords(worldPos);
+        const targetPose = getTargetPose(); // Scale de l'image (ex: fit dans container)
+        const currentCameraZoom = viewportRef.current?.getZoom() || 1;
+        const totalScale = (targetPose.k || 1) * currentCameraZoom;
+        const radiusInImage = SCREEN_BRUSH_RADIUS_PX / totalScale;
+        setBrushPath(prev => [...prev, {
+          x: localPos.x,
+          y: localPos.y,
+          r: radiusInImage
+        }]);
+      }
+    }
+
     // --- 5. DÉTECTION DU HOVER (HIT TEST) ---
     // Le Correctif est ici : On ne cherche ce qu'il y a sous la souris 
     // QUE si on est "au repos" (!isInteracting).
@@ -1421,6 +1489,12 @@ const InteractionLayer = forwardRef(({
 
   const targetPose = getTargetPose();
 
+  // shouldDisablePan
+  const shouldDisablePan = useCallback((e) => {
+    if (enabledDrawingMode === 'BRUSH' && e.shiftKey) return true;
+    return false;
+  }, [enabledDrawingMode]);
+
   return (
     <Box
       onMouseUp={handleMouseUp}
@@ -1441,6 +1515,7 @@ const InteractionLayer = forwardRef(({
       }}>
       <MapEditorViewport
         ref={viewportRef}
+        shouldDisablePan={shouldDisablePan}
         onWorldClick={handleWorldClick}
         onWorldMouseMove={handleWorldMouseMove}
         onCameraChange={handleCameraChange}
@@ -1530,6 +1605,31 @@ const InteractionLayer = forwardRef(({
             />
           </g>
 
+        )}
+
+        {enabledDrawingMode === "BRUSH" && (
+          <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
+            {/* Le BrushLayer doit être dans le référentiel Local (Image) pour que les coordonnées matchent */}
+            {/* MAIS un Canvas HTML dans un SVG <g> ne marche pas via ForeignObject de manière fiable. */}
+            {/* SOLUTION : BrushDrawingLayer doit retourner un <foreignObject> si dans SVG, 
+                     OU être placé hors du SVG viewport et géré en CSS transform.
+                     APPROCHE RECOMMANDÉE ICI :
+                     Comme MapEditorViewport gére des enfants SVG (via <g>), 
+                     on va utiliser un foreignObject pour insérer le Canvas HTML dans l'espace SVG.
+                 */}
+            <foreignObject
+              width={baseMapImageSize?.width || 1000}
+              height={baseMapImageSize?.height || 1000}
+              style={{ pointerEvents: 'none' }} // Laisse passer les clics
+            >
+              <BrushDrawingLayer
+                ref={brushLayerRef}
+                width={baseMapImageSize?.width || 1000}
+                height={baseMapImageSize?.height || 1000}
+                brushPath={brushPath}
+              />
+            </foreignObject>
+          </g>
         )}
 
         {/* Exemple : Afficher un curseur de snapping personnalisé ici */}
