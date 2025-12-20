@@ -19,13 +19,15 @@ self.importScripts("./handlers/detectTextAsync.js");
 self.importScripts("./handlers/detectContoursAsync.js");
 self.importScripts("./handlers/detectStraightLineAsync.js");
 self.importScripts("./handlers/extractPolygonsFromMaskAsync.js");
+self.importScripts("./handlers/detectSeparationLinesAsync.js");
 /**
  * This exists to capture all the events that are thrown out of the worker
  * into the worker. Without this, there would be no communication possible
  * with the project.
  */
 onmessage = function (e) {
-  switch (e.data.msg) {
+  const command = e.data.cmd || e.data.msg;
+  switch (command) {
     case "load": {
       // Import Webassembly script
       self.importScripts("./opencv.js");
@@ -89,6 +91,9 @@ onmessage = function (e) {
 
     case "extractPolygonsFromMaskAsync":
       return extractPolygonsFromMaskAsync(e.data);
+
+    case "detectSeparationLinesAsync":
+      return detectSeparationLinesAsync(e.data);
 
     case "detectStraightLineAsync":
       return detectStraightLineAsync(e.data);
