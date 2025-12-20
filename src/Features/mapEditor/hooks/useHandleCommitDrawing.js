@@ -214,7 +214,7 @@ export default function useHandleCommitDrawing() {
 
 
         // Reset
-        resetNewAnnotation();
+        //resetNewAnnotation();
 
 
     }

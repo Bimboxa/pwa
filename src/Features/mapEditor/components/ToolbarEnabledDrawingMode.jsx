@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { setEnabledDrawingMode } from "../mapEditorSlice";
 
 import { Paper, Box } from "@mui/material";
-import { Mouse, Rectangle, WaterDrop, MyLocation as TARGET, Brush } from "@mui/icons-material";
+import { Mouse, Rectangle, WaterDrop, MyLocation as TARGET, Brush, Insights as Smart } from "@mui/icons-material";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
@@ -56,6 +56,12 @@ export default function ToolbarEnabledDrawingMode() {
             icon: <Brush sx={{ color }} />,
             show: ["POLYGON"].includes(type)
         },
+        {
+            key: "SMART_DETECT",
+            label: "Détection automatique",
+            icon: <Smart sx={{ color }} />,
+            show: ["POLYLINE"].includes(type)
+        }
     ]
 
     // helpers - show mode

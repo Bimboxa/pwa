@@ -28,6 +28,7 @@ import TransientAnnotationLayer from 'Features/mapEditorGeneric/components/Trans
 import ClosingMarker from 'Features/mapEditorGeneric/components/ClosingMarker';
 import HelperScale from 'Features/mapEditorGeneric/components/HelperScale';
 import MapTooltip from 'Features/mapEditorGeneric/components/MapTooltip';
+import SmartDetectLayer from 'Features/mapEditorGeneric/components/SmartDetectLayer';
 
 
 
@@ -45,6 +46,10 @@ import getTopMiddlePoint from 'Features/geometry/utils/getTopMiddlePoint';
 const SNAP_THRESHOLD_ABSOLUTE = 12;
 const DRAG_THRESHOLD_PX = 3; // Seuil de déplacement pour activer le drag
 const SCREEN_BRUSH_RADIUS_PX = 12; // Rayon fixe à l'écran
+const LOUPE_SIZE = 150; // Taille écran de la loupe
+const SMART_ZOOM = 2.0; // Facteur de grossissement
+const MAX_FAILURES = 0; // On autorise 1 frames d'échec avant de stopper le autopan
+const PAN_STEP = 30;
 
 const InteractionLayer = forwardRef(({
   children,
@@ -89,6 +94,20 @@ const InteractionLayer = forwardRef(({
   const closingMarkerRef = useRef(null);
   const helperScaleRef = useRef(null);
   const baseMapRafRef = useRef(null); // Raf = requestAnimationFrame, pour contrôle du resize de la map.
+  const smartDetectRef = useRef(null); // <--- REF VERS LA LOUPE
+  const sourceImageRef = useRef(null);
+  const lastSmartROI = useRef(null); // pour la reconversion inverse Loupe => World.
+  const lastMouseScreenPosRef = useRef({
+    screenPos: { x: 0, y: 0 },
+    viewportPos: { x: 0, y: 0 }
+  });
+  const autoPanRef = useRef({
+    active: false,
+    direction: null,
+    consecutiveFailures: 0
+  });
+  const autoPanCounter = useRef(0);
+  const autoPanSessionRef = useRef(0);
 
 
   // context
@@ -217,6 +236,44 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     setSelectedPointId(null);
   }, [selectedNode?.nodeId]);
+
+
+  // updateSmartDetect
+
+  const updateSmartDetect = useCallback((positions) => {
+    if (!positions) return;
+    const { screenPos, viewportPos } = positions;
+
+    // A. LOGIQUE : Calculer la position MONDE à partir de l'écran GLOBAL
+    // screenToWorld attend clientX/clientY
+    const worldPos = viewportRef.current?.screenToWorld(screenPos.x, screenPos.y);
+    if (!worldPos) return;
+
+    const targetPose = getTargetPose();
+    const currentCameraZoom = viewportRef.current?.getZoom() || 1;
+    const totalScale = (targetPose.k || 1) * currentCameraZoom;
+
+    const sourceWidthInImage = (LOUPE_SIZE / SMART_ZOOM) / totalScale;
+    const sourceHeightInImage = (LOUPE_SIZE / SMART_ZOOM) / totalScale;
+
+    const localPos = toLocalCoords(worldPos);
+
+    const sourceROI = {
+      x: localPos.x - sourceWidthInImage / 2,
+      y: localPos.y - sourceHeightInImage / 2,
+      width: sourceWidthInImage,
+      height: sourceHeightInImage
+    };
+
+    // B. VISUEL : Positionner la loupe avec les coordonnées LOCALES (viewportPos)
+    // car le composant SmartDetectLayer est rendu en 'absolute' dans cette Box
+    if (smartDetectRef.current) {
+      smartDetectRef.current.update(viewportPos, sourceROI);
+    }
+
+    lastSmartROI.current = { ...sourceROI, zoomFactor: SMART_ZOOM, totalScale };
+  }, [toLocalCoords, getTargetPose]);
+
 
   // drag state
 
@@ -361,6 +418,7 @@ const InteractionLayer = forwardRef(({
     dispatch(setEnabledDrawingMode(null));
   };
 
+
   const commitPolyline = async (event) => {
     const drawingMode = enabledDrawingModeRef.current;
 
@@ -396,6 +454,29 @@ const InteractionLayer = forwardRef(({
       return;
     }
 
+    // --- CAS SMART_DETECT ---
+    if (drawingMode === "SMART_DETECT") {
+      const localPolylines = smartDetectRef.current?.getDetectedPolylines();
+      const roiData = lastSmartROI.current; // On récupère ce qu'on a stocké
+
+
+      console.log("[SMART_DETECT] Local Polylines:", localPolylines);
+      if (localPolylines && roiData) {
+        const ratio = roiData.width / LOUPE_SIZE;
+
+        localPolylines.forEach(localPolyline => {
+          const points = localPolyline.points.map(p => ({
+            x: roiData.x + (p.x * ratio),
+            y: roiData.y + (p.y * ratio)
+          }));
+          if (onCommitDrawingRef.current) onCommitDrawingRef.current({ points });
+        });
+
+      }
+      return;
+
+    }
+
 
     // --- CAS CLICK/POLYLINE (Défaut) ---
 
@@ -419,6 +500,156 @@ const InteractionLayer = forwardRef(({
   };
 
 
+
+  // AUTO SPAN
+  const stopAutoPan = useCallback((reason = "USER_STOP") => {
+    if (autoPanRef.current.active) {
+      console.warn(`[AUTOPAN step stop] STOPPING. Reason: "${reason}". Total steps: ${autoPanCounter.current}`);
+    }
+    autoPanRef.current.active = false;
+    autoPanRef.current.consecutiveFailures = 0;
+    autoPanCounter.current = 0;
+  }, []);
+
+  const startAutoPan = useCallback(async (directionKey) => {
+    // 1. Initialisation
+    console.log(`[AUTOPAN] Starting sequence for ${directionKey}`);
+
+    // Gestion de la session pour éviter les conflits async
+    const sessionId = ++autoPanSessionRef.current;
+
+    // Si déjà actif dans la même direction, on ignore (protection appui long)
+    if (autoPanRef.current.active && autoPanRef.current.direction === directionKey) return;
+
+    // Reset de l'état
+    autoPanRef.current = { active: true, direction: directionKey, consecutiveFailures: 0 };
+    autoPanCounter.current = 0;
+
+    const step = async () => {
+      try {
+        // 2. Vérification Vitalité (Session & Active)
+        if (autoPanSessionRef.current !== sessionId) return;
+        if (!autoPanRef.current.active) return;
+
+        autoPanCounter.current += 1;
+
+        // 3. Analyse (Async)
+        let orientation = null;
+        try {
+          orientation = await smartDetectRef.current?.detectOrientationNow();
+        } catch (err) {
+          console.error("AutoPan CV Error:", err);
+        }
+
+        // Re-vérification après await (le monde a pu changer)
+        if (autoPanSessionRef.current !== sessionId || !autoPanRef.current.active) return;
+
+        // 4. Décision d'alignement
+        let isAligned = false;
+        let mismatchReason = "";
+
+        if (!orientation) {
+          mismatchReason = "NO_LINE";
+        } else {
+          // Logique H / V
+          if (orientation === 'H' && (directionKey === 'ArrowLeft' || directionKey === 'ArrowRight')) {
+            isAligned = true;
+          }
+          else if (orientation === 'V' && (directionKey === 'ArrowUp' || directionKey === 'ArrowDown')) {
+            isAligned = true;
+          }
+          // --- MODIFICATION ICI : Gestion de l'Angle ---
+          else if (orientation === 'ANGLE') {
+            // Si c'est un angle, on ne lance PAS la boucle auto (isAligned = false)
+            // Mais on note la raison pour déclencher le fallback manuel juste après
+            mismatchReason = "ANGLE_DETECTED";
+            isAligned = false;
+          }
+          else {
+            mismatchReason = `MISMATCH (Dir:${directionKey} vs Line:${orientation})`;
+          }
+        }
+
+        // 5. Calcul du vecteur de déplacement
+        // Assurez-vous que PAN_STEP est bien défini (ex: const PAN_STEP = 30;) dans le scope du fichier
+        let dx = 0, dy = 0;
+
+        // Mapping des directions (Selon votre configuration viewport panBy)
+        if (directionKey === 'ArrowLeft') dx = PAN_STEP;
+        if (directionKey === 'ArrowRight') dx = -PAN_STEP;
+        if (directionKey === 'ArrowUp') dy = PAN_STEP;
+        if (directionKey === 'ArrowDown') dy = -PAN_STEP;
+
+
+        // --- BRANCHEMENT LOGIQUE ---
+
+        if (isAligned) {
+          // CAS A : SUCCÈS -> Mode Auto (Boucle)
+          // ------------------------------------
+          autoPanRef.current.consecutiveFailures = 0;
+
+          viewportRef.current?.panBy(dx, dy);
+          refreshLoupePosition();
+
+          // Boucle Rapide
+          setTimeout(step, 60);
+        }
+        else if (
+          (autoPanCounter.current === 1 && mismatchReason === "NO_LINE") ||
+          (mismatchReason === "ANGLE_DETECTED") // <--- AJOUT : Pan manuel si Angle
+        ) {
+          // CAS B : FALLBACK MANUEL (Un seul pas)
+          // -------------------------------------
+          // Déclenché si :
+          // 1. Rien sous la souris au démarrage
+          // 2. OU C'est un Angle (on veut sortir du coin manuellement)
+          console.log(`[AutoPan] Single Manual Step triggered by: ${mismatchReason}`);
+
+          // Action (Une seule fois)
+          viewportRef.current?.panBy(dx, dy);
+          refreshLoupePosition();
+
+          // Arrêt immédiat (Pas de boucle)
+          stopAutoPan("FALLBACK_MANUAL");
+        }
+        else {
+          // CAS C : ECHEC / PERTE DE LIGNE (En cours de route)
+          // --------------------------------------------------
+          autoPanRef.current.consecutiveFailures += 1;
+
+          if (autoPanRef.current.consecutiveFailures < MAX_FAILURES) {
+            // Tolérance : On ne bouge pas, mais on réessaye
+            console.log(`[AutoPan] Retry ${autoPanRef.current.consecutiveFailures}/${MAX_FAILURES}`);
+            setTimeout(step, 100);
+          } else {
+            // Stop définitif
+            stopAutoPan(mismatchReason);
+          }
+        }
+
+      } catch (e) {
+        console.error("AutoPan Critical Error:", e);
+        stopAutoPan("ERROR");
+      }
+    };
+
+    // Helper pour mettre à jour la loupe sans copier-coller
+    const refreshLoupePosition = () => {
+      let pos = lastMouseScreenPosRef.current;
+      // Fallback si la souris n'a jamais bougé (centre écran)
+      if (!pos || !pos.screenPos) {
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        pos = { screenPos: { x: cx, y: cy }, viewportPos: { x: cx, y: cy } };
+        lastMouseScreenPosRef.current = pos;
+      }
+      updateSmartDetect(pos);
+    };
+
+    // Lancement
+    step();
+
+  }, [updateSmartDetect, stopAutoPan]);
 
 
   // --- A. GESTION DES CLAVIERS (Key Listeners) ---
@@ -465,6 +696,21 @@ const InteractionLayer = forwardRef(({
         case "Enter":
           if (enabledDrawingModeRef.current === "CLICK" || enabledDrawingModeRef.current === "BRUSH") {
             commitPolyline();
+          }
+
+          if (enabledDrawingModeRef.current === "SMART_DETECT") {
+            const localPoints = smartDetectRef.current?.getDetectedPoints();
+            const roiData = lastSmartROI.current; // On récupère ce qu'on a stocké
+
+            if (localPoints && roiData) {
+              const ratio = roiData.width / LOUPE_SIZE;
+              const finalPoints = localPoints.map(p => ({
+                x: roiData.x + (p.x * ratio),
+                y: roiData.y + (p.y * ratio)
+              }));
+
+              // Commit...
+            }
           }
           break;
 
@@ -517,16 +763,33 @@ const InteractionLayer = forwardRef(({
 
         // 3. FLÈCHES : Pan Caméra (Délégué au Viewport)
         case 'ArrowLeft':
-          viewportRef.current?.panBy(50, 0); // Déplacer de 50px
-          break;
         case 'ArrowRight':
-          viewportRef.current?.panBy(-50, 0);
-          break;
         case 'ArrowUp':
-          viewportRef.current?.panBy(0, 50);
-          break;
         case 'ArrowDown':
-          viewportRef.current?.panBy(0, -50);
+          if (enabledDrawingModeRef.current === 'SMART_DETECT') {
+            e.preventDefault();
+            // Si c'est déjà actif dans la même direction, on ne fait rien
+            if (autoPanRef.current?.active && autoPanRef.current?.direction === e.key) {
+              return;
+            }
+            // Si c'est actif dans une AUTRE direction, on change de direction (le startAutoPan gère le reset)
+            startAutoPan(e.key);
+            return;
+          }
+
+          const panByXMap = {
+            "ArrowRight": -50,
+            "ArrowLeft": 50,
+            "ArrowUp": 0,
+            "ArrowDown": 0
+          }
+          const panByYMap = {
+            "ArrowRight": 0,
+            "ArrowLeft": 0,
+            "ArrowUp": 50,
+            "ArrowDown": -50
+          }
+          viewportRef.current?.panBy(panByXMap[e.key], panByYMap[e.key]);
           break;
 
         default:
@@ -534,8 +797,19 @@ const InteractionLayer = forwardRef(({
       }
     };
 
+    const handleKeyUp = (e) => {
+      if (e.key === "Escape" || e.key === " ") {
+        stopAutoPan("USER_CANCEL");
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    }
   }, []);
 
 
@@ -658,6 +932,10 @@ const InteractionLayer = forwardRef(({
       dispatch(setEnabledDrawingMode(null));
     }
 
+    else if (enabledDrawingMode === "SMART_DETECT") {
+      commitPolyline(event);
+    }
+
     else if (!enabledDrawingMode) {
       const nativeTarget = event.nativeEvent?.target || event.target;
 
@@ -758,6 +1036,11 @@ const InteractionLayer = forwardRef(({
 
   // --- GESTION DU MOUVEMENT (Feedback visuel) ---
   const handleWorldMouseMove = ({ worldPos, viewportPos, event, isPanning }) => {
+
+    lastMouseScreenPosRef.current = {
+      screenPos: { x: event.clientX, y: event.clientY },
+      viewportPos: viewportPos
+    };
 
     // --- 1. DÉTECTION DE L'ÉTAT D'INTERACTION ---
     // Est-ce qu'une action prioritaire est en cours ?
@@ -1106,6 +1389,12 @@ const InteractionLayer = forwardRef(({
           r: radiusInImage
         }]);
       }
+    }
+
+    // --- LOGIQUE SMART DETECT (Optimisée) ---
+    if (enabledDrawingMode === "SMART_DETECT") {
+
+      updateSmartDetect(lastMouseScreenPosRef.current);
     }
 
     // --- 5. DÉTECTION DU HOVER (HIT TEST) ---
@@ -1635,6 +1924,26 @@ const InteractionLayer = forwardRef(({
         {/* Exemple : Afficher un curseur de snapping personnalisé ici */}
         {/* <SnapCursor position={currentSnapPos} /> */}
       </MapEditorViewport>
+
+      {enabledDrawingMode === 'SMART_DETECT' && (
+        <>
+          {/* Image source cachée */}
+          <img
+            ref={sourceImageRef}
+            src={baseMapImageUrl}
+            style={{ display: 'none' }}
+            crossOrigin="anonymous"
+          />
+
+          {/* Le composant Loupe */}
+          <SmartDetectLayer
+            ref={smartDetectRef}
+            sourceImage={sourceImageRef.current}
+            loupeSize={LOUPE_SIZE}
+          />
+        </>
+      )}
+
     </Box >
   );
 });

@@ -1,4 +1,12 @@
 class CV {
+  constructor() {
+    this._requestId = 0;
+    this._status = {};
+    this.worker = null;
+    this.loadedPromise = null;
+    this.isLoaded = false;
+  }
+
   /**
    * We will use this method privately to communicate with the worker and
    * return a promise with the result of the event. This way we can call
@@ -14,13 +22,26 @@ class CV {
       throw new Error("Missing message key");
     }
 
-    this._status[msg] = ["loading"];
-    this.worker.postMessage(event);
+    // Create a unique ID for this request to allow parallel calls
+    const requestId = `${msg}_${this._requestId++}`;
+
+    this._status[requestId] = ["loading"];
+
+    // We send 'cmd' as the target handler and 'msg' as the unique tracker
+    this.worker.postMessage({
+      ...event,
+      msg: requestId,
+      cmd: msg
+    });
 
     return new Promise((res, rej) => {
+      let checkCount = 0;
       const interval = setInterval(() => {
-        const status = this._status[msg];
+        const status = this._status[requestId];
         if (!status) {
+          // Safety: should not happen unless someone deleted it
+          clearInterval(interval);
+          rej(new Error(`Request status lost for ${requestId}`));
           return;
         }
 
@@ -28,8 +49,16 @@ class CV {
         if (status[0] === "error") rej(status[1]);
 
         if (status[0] !== "loading") {
-          delete this._status[msg];
+          delete this._status[requestId];
           clearInterval(interval);
+        } else {
+          checkCount++;
+          // Safety timeout: 10 seconds
+          if (checkCount > 200) {
+            delete this._status[requestId];
+            clearInterval(interval);
+            rej(new Error(`OpenCV Request Timeout for ${requestId}`));
+          }
         }
       }, 50);
     });
@@ -70,9 +99,9 @@ class CV {
 
     this.worker.onmessage = (e) => {
       const data = e?.data || {};
-      const msg = data?.msg;
-      if (!msg || !this._status[msg]) return;
-      this._status[msg] = [
+      const msgId = data?.msg;
+      if (!msgId || !this._status[msgId]) return;
+      this._status[msgId] = [
         data?.error ? "error" : "done",
         data?.payload ?? data,
       ];
@@ -176,6 +205,12 @@ class CV {
   detectContoursAsync(payload) {
     return this._dispatch({
       msg: "detectContoursAsync",
+      payload,
+    });
+  }
+  detectSeparationLinesAsync(payload) {
+    return this._dispatch({
+      msg: "detectSeparationLinesAsync",
       payload,
     });
   }
