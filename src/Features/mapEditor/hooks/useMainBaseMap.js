@@ -7,13 +7,15 @@ import BaseMap from "Features/baseMaps/js/BaseMap";
 export default function useMainBaseMap() {
   const id = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
-  const editedEntity = useSelector((s) => s.entities.editedEntity);
-  const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);
+  //const editedEntity = useSelector((s) => s.entities.editedEntity);
+  //const isEditingEntity = useSelector((s) => s.entities.isEditingEntity);
 
   const mainBaseMap = useBaseMap({ id });
 
+  return mainBaseMap;
+
   if (isEditingEntity && editedEntity?.entityModelType === "BASE_MAP") {
-    return new BaseMap({ ...editedEntity });
+    return new BaseMap({ ...editedEntity }); // DO NOT WORK, miss imageSize computation.
   } else {
     return mainBaseMap;
   }

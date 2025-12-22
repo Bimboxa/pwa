@@ -62,6 +62,7 @@ const InteractionLayer = forwardRef(({
   onBaseMapPoseCommit,
   baseMapImageSize,
   baseMapImageUrl,
+  baseMapMainAngleInDeg,
   bgPose = { x: 0, y: 0, k: 1 },
   activeContext = "BASE_MAP",
   annotations, // <= snapping source.
@@ -95,7 +96,6 @@ const InteractionLayer = forwardRef(({
   const helperScaleRef = useRef(null);
   const baseMapRafRef = useRef(null); // Raf = requestAnimationFrame, pour contrôle du resize de la map.
   const smartDetectRef = useRef(null); // <--- REF VERS LA LOUPE
-  const sourceImageRef = useRef(null);
   const lastSmartROI = useRef(null); // pour la reconversion inverse Loupe => World.
   const lastMouseScreenPosRef = useRef({
     screenPos: { x: 0, y: 0 },
@@ -118,6 +118,19 @@ const InteractionLayer = forwardRef(({
     setSelectedPointId, selectedPointId,
     setSelectedPartId, selectedPartId,
     setBasePose } = useInteraction();
+
+  // sourceImage for smart detect
+
+  const [sourceImageEl, setSourceImageEl] = useState(null);
+
+  // baseMap - rotation
+
+  let rotation = 0;
+  if (baseMapMainAngleInDeg) {
+    let angle = baseMapMainAngleInDeg;
+    if (typeof angle === "string") angle = parseFloat(angle.replace(",", "."));
+    if (!isNaN(angle)) rotation = angle * Math.PI / 180;
+  };
 
   // expose handlers
 
@@ -239,6 +252,14 @@ const InteractionLayer = forwardRef(({
 
 
   // updateSmartDetect
+
+  const [showSmartDetect, setShowSmartDetect] = useState(false);
+  const showSmartDetectRef = useRef(showSmartDetect);
+  useEffect(() => {
+    showSmartDetectRef.current = showSmartDetect;
+  }, [showSmartDetect])
+
+
 
   const updateSmartDetect = useCallback((positions) => {
     if (!positions) return;
@@ -687,6 +708,12 @@ const InteractionLayer = forwardRef(({
           setDrawingPoints([]);
           setBrushPath([]);
           setCutHostId(null);
+
+          setShowSmartDetect(false);
+          break;
+
+        case 'd':
+          setShowSmartDetect(true);
           break;
 
         case "Enter":
@@ -1038,6 +1065,8 @@ const InteractionLayer = forwardRef(({
       viewportPos: viewportPos
     };
 
+    const showSmartDetect = showSmartDetectRef.current;
+
     // --- 1. DÉTECTION DE L'ÉTAT D'INTERACTION ---
     // Est-ce qu'une action prioritaire est en cours ?
     const isInteracting =
@@ -1388,8 +1417,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- LOGIQUE SMART DETECT (Optimisée) ---
-    if (enabledDrawingMode === "SMART_DETECT") {
-
+    if (enabledDrawingMode === "SMART_DETECT" || showSmartDetect) {
       updateSmartDetect(lastMouseScreenPosRef.current);
     }
 
@@ -1921,11 +1949,11 @@ const InteractionLayer = forwardRef(({
         {/* <SnapCursor position={currentSnapPos} /> */}
       </MapEditorViewport>
 
-      {enabledDrawingMode === 'SMART_DETECT' && (
+      {(enabledDrawingMode === 'SMART_DETECT' || showSmartDetect) && (
         <>
           {/* Image source cachée */}
           <img
-            ref={sourceImageRef}
+            ref={setSourceImageEl}
             src={baseMapImageUrl}
             style={{ display: 'none' }}
             crossOrigin="anonymous"
@@ -1934,7 +1962,8 @@ const InteractionLayer = forwardRef(({
           {/* Le composant Loupe */}
           <SmartDetectLayer
             ref={smartDetectRef}
-            sourceImage={sourceImageRef.current}
+            sourceImage={sourceImageEl}
+            rotation={rotation}
             loupeSize={LOUPE_SIZE}
           />
         </>

@@ -140,10 +140,12 @@ export default function FieldTextV2({ value, onChange, options, label }) {
 
   if (showAsField) {
     return <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1, width: 1, justifyContent: "space-between" }}>
-      <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+      <Typography variant="body2" sx={{ fontWeight: "bold" }} noWrap>
         {label}
       </Typography>
-      {textField}
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        {textField}
+      </Box>
     </Box>
   }
 

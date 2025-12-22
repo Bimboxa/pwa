@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
 
 
-import { setAnchorPositionScale, setScaleInPx } from "../mapEditorSlice";
+import { setAnchorPositionScale, setScaleInPx, setAngleInRad } from "../mapEditorSlice";
 import { setTempAnnotations } from "Features/annotations/annotationsSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
@@ -60,6 +60,7 @@ import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getA
 import deletePointAsync from "../services/deletePointAsync";
 import duplicateAndMovePoint from "../services/duplicateAndMovePoint";
 import removeCutAsync from "../services/removeCutAsync";
+import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
 
 export default function MainMapEditorV3() {
     const dispatch = useDispatch();
@@ -253,8 +254,11 @@ export default function MainMapEditorV3() {
         const p1 = points[0];
         const p2 = points[points.length - 1];
         const distance = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        const angle = getSegmentAngle(p1, p2);
+
         console.log("distance", distance)
         dispatch(setScaleInPx(distance));
+        dispatch(setAngleInRad(angle));
     };
 
     // handlers 
@@ -538,6 +542,7 @@ export default function MainMapEditorV3() {
                     onCommitPointsFromDropFill={handleCommitPointsFromDropFill}
                     baseMapImageSize={baseMap?.getImageSize()}
                     baseMapImageUrl={baseMap?.getUrl()}
+                    baseMapMainAngleInDeg={baseMap?.mainAngleInDeg}
                     basePose={basePose}
                     onBaseMapPoseChange={handleBaseMapPoseChange}
                     activeContext={activeContext}

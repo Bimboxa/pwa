@@ -17,7 +17,6 @@ import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotat
 import { Paper, Button, Typography, Box, TextField } from "@mui/material";
 
 import FieldTextV2 from "Features/form/components/FieldTextV2";
-import IconButtonClose from "Features/layout/components/IconButtonClose";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
 import { setTempAnnotations } from "Features/annotations/annotationsSlice";
@@ -35,6 +34,7 @@ export default function SectionEditScale() {
   const mainBaseMap = useMainBaseMap();
   const mainBaseMapListing = useMainBaseMapListing();
   const scaleInPx = useSelector((s) => s.mapEditor.scaleInPx);
+  const angleInRad = useSelector((s) => s.mapEditor.angleInRad);
   const updateEntity = useUpdateEntity();
   const scaleAnnotationId = useSelector((s) => s.mapEditor.scaleAnnotationId);
   const deleteAnnotation = useDeleteAnnotation();
@@ -57,6 +57,10 @@ export default function SectionEditScale() {
   const delta = distance - scaleInPx * meterByPx;
   const disabled = !distance || Math.abs(delta) < 0.0005;
   console.log("delta", delta)
+
+  // helper - angle
+
+  const angle = angleInRad * 180 / Math.PI;
 
   // helper
 
@@ -86,20 +90,38 @@ export default function SectionEditScale() {
     dispatch(setTempAnnotations([]));
   }
 
+  async function handleAngleClick() {
+    const mainAngleInDeg = angle;
+    const updates = { mainAngleInDeg }
+    await updateEntity(mainBaseMap?.id, updates, {
+      listing: mainBaseMapListing,
+    });
+  }
+
   return (
 
-    <Box sx={{ width: 1, p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
-      <FieldTextV2 value={value} onChange={handleChange} label={label} options={{ showAsLabelAndField: true }} />
-      <BoxAlignToRight>
+    <Box sx={{ width: 1 }}>
+      <Box sx={{ width: 1, p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
+        <FieldTextV2 value={value} onChange={handleChange} label={label} options={{ showAsLabelAndField: true }} />
+        <BoxAlignToRight>
+          <ButtonGeneric
+            label={saveS}
+            disabled={disabled}
+            onClick={handleSave}
+            sx={{ ml: 2 }}
+            variant="contained"
+            color="secondary"
+          />
+        </BoxAlignToRight>
+      </Box>
+
+      <Box sx={{ p: 0.5 }}>
         <ButtonGeneric
-          label={saveS}
-          disabled={disabled}
-          onClick={handleSave}
-          sx={{ ml: 2 }}
-          variant="contained"
-          color="secondary"
+          size="small"
+          label={angle.toFixed(2) + "°"}
+          onClick={handleAngleClick}
         />
-      </BoxAlignToRight>
+      </Box>
     </Box>
   );
 }

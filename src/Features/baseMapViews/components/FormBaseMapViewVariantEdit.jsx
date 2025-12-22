@@ -20,13 +20,14 @@ export default function FormBaseMapViewVariantEdit({
         key: "name",
         type: "text",
         label: "Nom",
-        options: { fullWidth: true, showLabel: true },
+        options: { fullWidth: true, showLabel: true, showAsSection: true },
       },
       {
         key: "baseMap",
         type: "baseMap",
         label: "Fond de plan",
         baseMaps,
+        options: { showAsSection: true }
       },
     ],
   };
