@@ -20,6 +20,7 @@ self.importScripts("./handlers/detectContoursAsync.js");
 self.importScripts("./handlers/detectStraightLineAsync.js");
 self.importScripts("./handlers/extractPolygonsFromMaskAsync.js");
 self.importScripts("./handlers/detectSeparationLinesAsync.js");
+self.importScripts("./handlers/detectShapesAsync.js");
 /**
  * This exists to capture all the events that are thrown out of the worker
  * into the worker. Without this, there would be no communication possible
@@ -94,6 +95,9 @@ onmessage = function (e) {
 
     case "detectSeparationLinesAsync":
       return detectSeparationLinesAsync(e.data);
+
+    case "detectShapesAsync":
+      return detectShapesAsync(e.data);
 
     case "detectStraightLineAsync":
       return detectStraightLineAsync(e.data);

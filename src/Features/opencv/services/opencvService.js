@@ -214,6 +214,12 @@ class CV {
       payload,
     });
   }
+  detectShapesAsync(payload) {
+    return this._dispatch({
+      msg: "detectShapesAsync",
+      payload,
+    });
+  }
   extractPolygonsFromMaskAsync(payload) {
     return this._dispatch({
       msg: "extractPolygonsFromMaskAsync",

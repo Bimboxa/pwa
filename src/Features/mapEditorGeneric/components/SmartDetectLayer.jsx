@@ -7,7 +7,8 @@ const SmartDetectLayer = forwardRef(({
     sourceImage, // L'élément DOM image source (statique)
     rotation = 0,
     loupeSize = 100,
-    debug = false
+    debug = false,
+    enabled = false,
 }, ref) => {
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
@@ -15,10 +16,14 @@ const SmartDetectLayer = forwardRef(({
     // État mutable via Ref pour performance
     const stateRef = useRef({
         sourceROI: null,
-        detectedPolylines: []
+        detectedPolylines: [],
+        morphKernelSize: 3,
     });
 
     const [detectedPolylines, setDetectedPolylines] = useState([]);
+    const [processedImageUrl, setProcessedImageUrl] = useState(null);
+    const [morphKernelSize, setMorphKernelSize] = useState(3);
+
 
     // --- HELPER DE DESSIN SYNCHRONE ---
     // Cette fonction dessine le ROI actuel dans le canvas.
@@ -47,25 +52,43 @@ const SmartDetectLayer = forwardRef(({
 
     // --- 2. ANALYSE VISUELLE (Throttled pour 60fps) ---
     const analyzeImageThrottled = useMemo(() => throttle(async (imageUrl) => {
-        if (!imageUrl) return;
+        if (!imageUrl || !enabled) return;
         try {
             await cv.load();
-            const result = await cv.detectSeparationLinesAsync({ imageUrl, keepBest: true, rotation });
+            // const result = await cv.detectSeparationLinesAsync({ imageUrl, keepBest: true, rotation });
+            const result = await cv.detectShapesAsync({ imageUrl, morphKernelSize });
             const polylines = result?.polylines || [];
+            const processedImageUrl = result?.processedImageUrl || null;
 
-            stateRef.current.detectedPolylines = polylines;
-            setDetectedPolylines(polylines);
+            if (polylines) {
+                stateRef.current.detectedPolylines = polylines;
+                setDetectedPolylines(polylines);
+            }
+
+            if (processedImageUrl) {
+                setProcessedImageUrl(processedImageUrl);
+            }
+
         } catch (e) {
             // Silence
         }
-    }, 60), []);
+    }, 60), [morphKernelSize, enabled]);
 
 
     // --- 1. EXPOSER L'API IMPÉRATIVE ---
     useImperativeHandle(ref, () => ({
 
+        changeMorphKernelSize: (changeBy) => {
+            const newMorphKernelSize = Math.max(1, Math.min(20, morphKernelSize + changeBy));
+            console.log("[SmartDetect] changeMorphKernelSize", newMorphKernelSize);
+            setMorphKernelSize(morphKernelSize => Math.max(1, Math.min(20, morphKernelSize + changeBy)));
+            //
+            const canvas = canvasRef.current;
+            analyzeImageThrottled(canvas.toDataURL('image/jpeg', 0.8));
+        },
         // A. Mise à jour visuelle (Souris)
         update: (screenPos, sourceROI) => {
+
             // 1. Déplacer la div
             if (containerRef.current) {
                 containerRef.current.style.transform = `translate(${screenPos.x}px, ${screenPos.y}px) translate(-50%, -50%)`;
@@ -151,6 +174,7 @@ const SmartDetectLayer = forwardRef(({
     // --- RENDER ---
     const centerCoord = loupeSize / 2;
 
+
     return (
         <div
             ref={containerRef}
@@ -166,9 +190,28 @@ const SmartDetectLayer = forwardRef(({
                 cursor: 'none',
                 zIndex: 9999,
                 pointerEvents: 'none',
+                display: enabled ? 'block' : 'none'
             }}
         >
             <canvas ref={canvasRef} width={loupeSize} height={loupeSize} />
+
+            {/* 2. LAYER MILIEU : PROCESSED IMAGE (Si elle existe) */}
+            {processedImageUrl && (
+                <img
+                    src={processedImageUrl}
+                    alt="Debug Processed"
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        pointerEvents: 'none',
+                        // opacity: 0.8 // Décommentez si vous voulez voir l'original par transparence
+                    }}
+                />
+            )}
 
             <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
                 {detectedPolylines.map((polylineObj, index) => {
