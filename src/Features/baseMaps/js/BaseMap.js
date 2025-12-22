@@ -31,6 +31,7 @@ export default class BaseMap {
     latLng,
     opacity,
     grayScale,
+    mainAngleInDeg,
   }) {
     this.id = id;
     this.createdAt = createdAt;
@@ -44,6 +45,7 @@ export default class BaseMap {
     this.latLng = latLng;
     this.opacity = opacity;
     this.grayScale = grayScale;
+    this.mainAngleInDeg = mainAngleInDeg;
   }
 
   // STATIC METHOD
@@ -60,6 +62,7 @@ export default class BaseMap {
     grayScale,
     meterByPx,
     latLng,
+    mainAngleInDeg,
   }) {
     const baseMap = new BaseMap({
       projectId,
@@ -71,12 +74,14 @@ export default class BaseMap {
       grayScale,
       meterByPx,
       latLng,
+      mainAngleInDeg,
     });
     await baseMap.initialize({ imageFile, imageEnhancedFile });
     return baseMap;
   }
 
   static async createFromRecord(record) {
+
     try {
       if (!record) return null;
 
@@ -130,8 +135,10 @@ export default class BaseMap {
 
       const baseMap = new BaseMap({
         ...record,
-        image: bmImage ?? record.image,
-        imageEnhanced: bmImageEnhanced ?? record.imageEnhanced,
+        // image: bmImage ?? record.image,
+        image: bmImage, // from previous computation, we should have a bmImage
+        // imageEnhanced: bmImageEnhanced ?? record.imageEnhanced,
+        imageEnhanced: bmImageEnhanced,
       });
 
       return baseMap;
@@ -192,6 +199,7 @@ export default class BaseMap {
       opacity: this.opacity,
       grayScale: this.grayScale,
       latLng: this.latLng,
+      mainAngleInDeg: this.mainAngleInDeg,
     };
   }
 

@@ -48,7 +48,9 @@ export default function useAnnotationsV2(options) {
             if (baseMap?.id) {
 
                 // imageSize
-                const imageSize = baseMap.image.imageSize;
+                const imageSize = baseMap.getImageSize();
+                if (!imageSize) return [];
+
                 const { width, height } = imageSize;
                 const meterByPx = baseMap.meterByPx;
 

@@ -5,6 +5,7 @@ import cv from "Features/opencv/services/opencvService";
 
 const SmartDetectLayer = forwardRef(({
     sourceImage, // L'élément DOM image source (statique)
+    rotation = 0,
     loupeSize = 100,
     debug = false
 }, ref) => {
@@ -49,7 +50,7 @@ const SmartDetectLayer = forwardRef(({
         if (!imageUrl) return;
         try {
             await cv.load();
-            const result = await cv.detectSeparationLinesAsync({ imageUrl, keepBest: true });
+            const result = await cv.detectSeparationLinesAsync({ imageUrl, keepBest: true, rotation });
             const polylines = result?.polylines || [];
 
             stateRef.current.detectedPolylines = polylines;
@@ -121,7 +122,7 @@ const SmartDetectLayer = forwardRef(({
 
                 // 3. Appel Worker`
                 console.log("[SmartDetect] detectOrientationNow START");
-                const result = await cv.detectSeparationLinesAsync({ imageUrl, keepBest: true, origin: "debug" });
+                const result = await cv.detectSeparationLinesAsync({ imageUrl, keepBest: true, origin: "debug", rotation });
                 console.log("[SmartDetect] detectOrientationNow END", result);
                 const lines = result?.polylines || [];
 

@@ -61,6 +61,7 @@ const mapEditorInitialState = {
 
   // scale
   scaleInPx: null,
+  angleInRad: null,
   scaleAnnotationId: null,
   anchorPositionScale: null,
 
@@ -106,6 +107,9 @@ export const mapEditorSlice = createSlice({
     },
     setScaleInPx: (state, action) => {
       state.scaleInPx = action.payload;
+    },
+    setAngleInRad: (state, action) => {
+      state.angleInRad = action.payload;
     },
     setScaleAnnotationId: (state, action) => {
       state.scaleAnnotationId = action.payload;
@@ -273,6 +277,7 @@ export const {
   //
   setAnchorPositionScale,
   setScaleInPx,
+  setAngleInRad,
   setScaleAnnotationId,
   //
   setAnchorPositionLatLng,
