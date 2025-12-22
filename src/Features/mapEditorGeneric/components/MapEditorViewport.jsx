@@ -91,6 +91,13 @@ const MapEditorViewport = forwardRef(({
             }
             return { width: 0, height: 0 };
         },
+        getMousePositions(e) {
+            const rect = svgRef.current.getBoundingClientRect();
+            return {
+                screenPos: { x: e.clientX, y: e.clientY },
+                viewportPos: { x: e.clientX - rect.left, y: e.clientY - rect.top }
+            }
+        }
     }));
 
     const _screenToWorld = useCallback((screenX, screenY) => {

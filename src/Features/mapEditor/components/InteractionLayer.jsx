@@ -678,6 +678,7 @@ const InteractionLayer = forwardRef(({
         return;
       }
       const { selectedNode, selectedPointId, selectedPartId, onDeletePoint, onHideSegment, onRemoveCut } = stateRef.current;
+      const showSmartDetect = showSmartDetectRef.current;
 
       if (e.repeat) return;
 
@@ -713,7 +714,19 @@ const InteractionLayer = forwardRef(({
           break;
 
         case 'd':
+
+          const mousePos = lastMouseScreenPosRef.current;
           setShowSmartDetect(true);
+          console.log("press d", mousePos)
+          updateSmartDetect(mousePos);
+          break;
+
+        case "p":
+          if (showSmartDetect) smartDetectRef.current?.changeMorphKernelSize(1);
+          break;
+
+        case "m":
+          if (showSmartDetect) smartDetectRef.current?.changeMorphKernelSize(-1);
           break;
 
         case "Enter":
@@ -1949,25 +1962,26 @@ const InteractionLayer = forwardRef(({
         {/* <SnapCursor position={currentSnapPos} /> */}
       </MapEditorViewport>
 
-      {(enabledDrawingMode === 'SMART_DETECT' || showSmartDetect) && (
-        <>
-          {/* Image source cachée */}
-          <img
-            ref={setSourceImageEl}
-            src={baseMapImageUrl}
-            style={{ display: 'none' }}
-            crossOrigin="anonymous"
-          />
 
-          {/* Le composant Loupe */}
-          <SmartDetectLayer
-            ref={smartDetectRef}
-            sourceImage={sourceImageEl}
-            rotation={rotation}
-            loupeSize={LOUPE_SIZE}
-          />
-        </>
-      )}
+      <>
+        {/* Image source cachée */}
+        <img
+          ref={setSourceImageEl}
+          src={baseMapImageUrl}
+          style={{ display: 'none' }}
+          crossOrigin="anonymous"
+        />
+
+        {/* Le composant Loupe */}
+        <SmartDetectLayer
+          ref={smartDetectRef}
+          sourceImage={sourceImageEl}
+          rotation={rotation}
+          loupeSize={LOUPE_SIZE}
+          enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetect}
+        />
+      </>
+
 
     </Box >
   );
