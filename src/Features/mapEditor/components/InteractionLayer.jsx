@@ -515,19 +515,16 @@ const InteractionLayer = forwardRef(({
     // 1. Initialisation
     console.log(`[AUTOPAN] Starting sequence for ${directionKey}`);
 
-    // Gestion de la session pour éviter les conflits async
     const sessionId = ++autoPanSessionRef.current;
 
-    // Si déjà actif dans la même direction, on ignore (protection appui long)
     if (autoPanRef.current.active && autoPanRef.current.direction === directionKey) return;
 
-    // Reset de l'état
     autoPanRef.current = { active: true, direction: directionKey, consecutiveFailures: 0 };
     autoPanCounter.current = 0;
 
     const step = async () => {
       try {
-        // 2. Vérification Vitalité (Session & Active)
+        // 2. Vérification Vitalité
         if (autoPanSessionRef.current !== sessionId) return;
         if (!autoPanRef.current.active) return;
 
@@ -541,7 +538,6 @@ const InteractionLayer = forwardRef(({
           console.error("AutoPan CV Error:", err);
         }
 
-        // Re-vérification après await (le monde a pu changer)
         if (autoPanSessionRef.current !== sessionId || !autoPanRef.current.active) return;
 
         // 4. Décision d'alignement
@@ -558,12 +554,11 @@ const InteractionLayer = forwardRef(({
           else if (orientation === 'V' && (directionKey === 'ArrowUp' || directionKey === 'ArrowDown')) {
             isAligned = true;
           }
-          // --- MODIFICATION ICI : Gestion de l'Angle ---
+          // Logique ANGLE
           else if (orientation === 'ANGLE') {
-            // Si c'est un angle, on ne lance PAS la boucle auto (isAligned = false)
-            // Mais on note la raison pour déclencher le fallback manuel juste après
-            mismatchReason = "ANGLE_DETECTED";
+            // Un angle n'est jamais "aligné" pour le mode auto, car on doit s'arrêter ou décider.
             isAligned = false;
+            mismatchReason = "ANGLE_DETECTED";
           }
           else {
             mismatchReason = `MISMATCH (Dir:${directionKey} vs Line:${orientation})`;
@@ -571,10 +566,9 @@ const InteractionLayer = forwardRef(({
         }
 
         // 5. Calcul du vecteur de déplacement
-        // Assurez-vous que PAN_STEP est bien défini (ex: const PAN_STEP = 30;) dans le scope du fichier
+        const PAN_STEP = 30; // Ou votre constante globale
         let dx = 0, dy = 0;
 
-        // Mapping des directions (Selon votre configuration viewport panBy)
         if (directionKey === 'ArrowLeft') dx = PAN_STEP;
         if (directionKey === 'ArrowRight') dx = -PAN_STEP;
         if (directionKey === 'ArrowUp') dy = PAN_STEP;
@@ -591,38 +585,41 @@ const InteractionLayer = forwardRef(({
           viewportRef.current?.panBy(dx, dy);
           refreshLoupePosition();
 
-          // Boucle Rapide
           setTimeout(step, 60);
         }
         else if (
-          (autoPanCounter.current === 1 && mismatchReason === "NO_LINE") ||
-          (mismatchReason === "ANGLE_DETECTED") // <--- AJOUT : Pan manuel si Angle
+          autoPanCounter.current === 1 &&
+          (mismatchReason === "NO_LINE" || mismatchReason === "ANGLE_DETECTED")
         ) {
-          // CAS B : FALLBACK MANUEL (Un seul pas)
-          // -------------------------------------
-          // Déclenché si :
-          // 1. Rien sous la souris au démarrage
-          // 2. OU C'est un Angle (on veut sortir du coin manuellement)
-          console.log(`[AutoPan] Single Manual Step triggered by: ${mismatchReason}`);
+          // CAS B : DÉMARRAGE MANUEL (Force un pas)
+          // ---------------------------------------
+          // Uniquement au premier tick (counter === 1).
+          // Permet de démarrer dans le vide OU de sortir d'un angle.
+          console.log(`[AutoPan] Manual Start Triggered: ${mismatchReason}`);
 
-          // Action (Une seule fois)
           viewportRef.current?.panBy(dx, dy);
           refreshLoupePosition();
 
-          // Arrêt immédiat (Pas de boucle)
           stopAutoPan("FALLBACK_MANUAL");
         }
+        else if (mismatchReason === "ANGLE_DETECTED") {
+          // CAS C : ARRÊT SUR OBSTACLE (Angle rencontré en route)
+          // -----------------------------------------------------
+          // Ici counter > 1. On vient de tomber sur un angle.
+          // On s'arrête IMMÉDIATEMENT sans faire de panBy supplémentaire.
+          console.log("[AutoPan] Angle detected during run -> Immediate Stop");
+          stopAutoPan("ANGLE_HIT");
+        }
         else {
-          // CAS C : ECHEC / PERTE DE LIGNE (En cours de route)
+          // CAS D : ECHEC / PERTE DE LIGNE (En cours de route)
           // --------------------------------------------------
+          // Gestion de la tolérance pour les micro-coupures de détection
           autoPanRef.current.consecutiveFailures += 1;
 
           if (autoPanRef.current.consecutiveFailures < MAX_FAILURES) {
-            // Tolérance : On ne bouge pas, mais on réessaye
             console.log(`[AutoPan] Retry ${autoPanRef.current.consecutiveFailures}/${MAX_FAILURES}`);
             setTimeout(step, 100);
           } else {
-            // Stop définitif
             stopAutoPan(mismatchReason);
           }
         }
@@ -633,10 +630,9 @@ const InteractionLayer = forwardRef(({
       }
     };
 
-    // Helper pour mettre à jour la loupe sans copier-coller
+    // Helper interne
     const refreshLoupePosition = () => {
       let pos = lastMouseScreenPosRef.current;
-      // Fallback si la souris n'a jamais bougé (centre écran)
       if (!pos || !pos.screenPos) {
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;

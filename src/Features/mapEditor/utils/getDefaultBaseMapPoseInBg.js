@@ -14,8 +14,8 @@ export default function getDefaultBaseMapPoseInBg({
   const { bbox, imageSize: bgSize } = bgImage || {};
   const baseMapSize = baseMap.getImageSize();
 
-  const bmW = Math.max(1, Number(baseMapSize.width) || 1);
-  const bmH = Math.max(1, Number(baseMapSize.height) || 1);
+  const bmW = Math.max(1, Number(baseMapSize?.width) || 1);
+  const bmH = Math.max(1, Number(baseMapSize?.height) || 1);
 
   // Use provided bbox or default to full BG size
   let [x1, y1, x2, y2] = bbox ?? [0, 0, bgSize.width, bgSize.height];
