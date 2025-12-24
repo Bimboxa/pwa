@@ -36,6 +36,8 @@ import { setOpenBaseMapCreator, setPdfFile } from "Features/baseMapCreator/baseM
 
 import testIsPdf from "Features/pdf/utils/testIsPdf";
 import testIsImage from "Features/files/utils/testIsImage";
+import { setSelectedEntityId } from "Features/entities/entitiesSlice";
+import { setSelectedListingId } from "Features/listings/listingsSlice";
 
 export default function BaseMapSelectorInMapEditorV2() {
     const dispatch = useDispatch();
@@ -91,6 +93,10 @@ export default function BaseMapSelectorInMapEditorV2() {
     const handleEditMap = (e, map) => {
         e.stopPropagation();
         console.log("Ouverture de l'édition pour :", map.name);
+        dispatch(setSelectedEntityId(map?.id));
+        dispatch(setSelectedListingId(map?.listingId));
+        setIsHovered(false);
+
     };
 
     const handleFilesChange = (files) => {
