@@ -148,7 +148,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
         </Box>
       </Box>
 
-      <ButtonGeneric onClick={handleCreateDefault} label={defaultS} />
+
 
       <Box
         sx={{
@@ -164,8 +164,13 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
           bgImageUrl={imageMap}
           selectedImageUrl={selectedImageUrl}
           onImageFileChange={handleImageFileChange}
+          variant="BASE_MAP_CREATOR"
         />
       </Box>
+      <Box sx={{ width: 1 }}>
+        <ButtonGeneric onClick={handleCreateDefault} label={defaultS} size="small" />
+      </Box>
+
     </BoxCenter>
   );
 }

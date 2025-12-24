@@ -8,9 +8,10 @@ import ToolbarMapEditorV3 from "./ToolbarMapEditorV3";
 import ButtonEditScaleVariantFirst from "./ButtonEditScaleVariantFirst";
 import ButtonAutoLayoutLabels from "Features/tools/components/ButtonAutoLayoutLabels";
 import SectionShowedFWC from "Features/fwc/components/SectionShowedFWC";
+import BaseMapSelectorInMapEditorV2 from "Features/baseMaps/components/BaseMapSelectorInMapEditorV2";
 
 
-export default function UILayerDesktop({ mapController, onResetCamera }) {
+export default function UILayerDesktop({ mapController, onResetCamera, viewport }) {
 
     // data
 
@@ -30,7 +31,7 @@ export default function UILayerDesktop({ mapController, onResetCamera }) {
 
     return (
         <>
-            <Box
+            {/* <Box
                 sx={{
                     position: "absolute",
                     left: "50%",
@@ -40,7 +41,20 @@ export default function UILayerDesktop({ mapController, onResetCamera }) {
                 }}
             >
                 <ButtonSelectorBaseMapInMapEditor onResetCamera={onResetCamera} />
+            </Box> */}
+
+            <Box
+                sx={{
+                    position: "absolute",
+                    left: "50%",
+                    top: "8px",
+                    transform: "translateX(-50%)",
+                    zIndex: 1,
+                }}
+            >
+                <BaseMapSelectorInMapEditorV2 viewportWidth={viewport?.w} />
             </Box>
+
 
 
 

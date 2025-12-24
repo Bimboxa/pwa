@@ -4,6 +4,7 @@ import setInitSelectedMainBaseMapId from "Features/init/services/setInitSelected
 const mapEditorInitialState = {
   // selector
   openBaseMapSelector: false,
+  showCreateBaseMapSection: false,
 
   // main map
   selectedBaseMapsListingId: null,
@@ -80,6 +81,9 @@ export const mapEditorSlice = createSlice({
   reducers: {
     setOpenBaseMapSelector: (state, action) => {
       state.openBaseMapSelector = action.payload;
+    },
+    setShowCreateBaseMapSection: (state, action) => {
+      state.showCreateBaseMapSection = action.payload;
     },
     //
     setSelectedBaseMapsListingId: (state, action) => {
@@ -267,6 +271,7 @@ export const mapEditorSlice = createSlice({
 export const {
   //
   setOpenBaseMapSelector,
+  setShowCreateBaseMapSection,
   //
   setSelectedBaseMapsListingId,
   setSelectedMainBaseMapId,
