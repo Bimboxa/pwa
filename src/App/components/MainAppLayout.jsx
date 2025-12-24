@@ -27,6 +27,8 @@ import DialogAutoSyncTasks from "Features/sync/components/DialogAutoSyncTasks";
 import DialogAutoDownloadListingsData from "Features/listingsConfig/components/DialogAutoDownloadListingsData";
 import DialogAutoAddListing from "Features/listings/components/DialogAutoAddListing";
 import DialogAutoScopeCreator from "Features/scopeCreator/components/DialogAutoScopeCreator";
+import DialogBaseMapCreator from "Features/baseMapCreator/components/DialogBaseMapCreator";
+
 import useAutoLayout from "Features/layout/hooks/useAutoLayout";
 
 export default function MainAppLayout() {
@@ -91,6 +93,7 @@ export default function MainAppLayout() {
       <DialogAutoSyncTasks />
       <DialogAutoAddListing />
       <DialogAutoScopeCreator />
+      <DialogBaseMapCreator />
     </DndContext>
   );
 }

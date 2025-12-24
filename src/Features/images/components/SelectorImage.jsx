@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
 
+import { useDispatch } from "react-redux";
+
+import { setOpenBaseMapCreator, setPdfFile } from "Features/baseMapCreator/baseMapCreatorSlice";
+
 import { Box, IconButton, Typography } from "@mui/material";
 import { Delete } from "@mui/icons-material";
 
@@ -10,12 +14,17 @@ import testIsPdf from "Features/pdf/utils/testIsPdf";
 import pdfToPngAsync from "Features/pdf/utils/pdfToPngAsync";
 
 import ImageObject from "../js/ImageObject";
+import testIsImage from "Features/files/utils/testIsImage";
+
 
 export default function SelectorImage({
   selectedImageUrl,
   onImageFileChange,
   bgImageUrl,
+  variant, // "BASE_MAP_CREATOR" | "DEFAULT"
 }) {
+  const dispatch = useDispatch();
+
   // strings
 
   const labelS = "Glisser déposer une image ou un PDF";
@@ -38,13 +47,23 @@ export default function SelectorImage({
     if (files) {
       let file0 = files[0];
       if (testIsPdf(file0)) {
-        file0 = await pdfToPngAsync({ pdfFile: file0 });
+        if (variant === "BASE_MAP_CREATOR") {
+          dispatch(setOpenBaseMapCreator(true));
+          dispatch(setPdfFile(file0));
+        } else {
+          file0 = await pdfToPngAsync({ pdfFile: file0 });
+          onImageFileChange(file0);
+        }
       }
-      setImageUrl(URL.createObjectURL(file0));
 
-      const _imageObject = await ImageObject.create({ imageFile: file0 });
-      setImageObject(_imageObject);
-      onImageFileChange(file0);
+      else if (testIsImage(file0)) {
+        setImageUrl(URL.createObjectURL(file0));
+
+        const _imageObject = await ImageObject.create({ imageFile: file0 });
+        setImageObject(_imageObject);
+        onImageFileChange(file0);
+      }
+
     }
   }
 

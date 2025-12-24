@@ -39,6 +39,7 @@ import StaticMapContent from "./StaticMapContent";
 import EditedObjectLayer from "./EditedObjectLayer";
 import EditedBaseMapLayer from "./EditedBaseMapLayer";
 import EditedLegendLayer from "./EditedLegendLayer";
+import LayerCreateBaseMap from "./LayerCreateBaseMap";
 
 import DialogAutoCreateEntity from "Features/entities/components/DialogAutoCreateEntity";
 import DialogDeleteSelectedAnnotation from "Features/annotations/components/DialogDeleteSelectedAnnotation";
@@ -608,7 +609,7 @@ export default function MainMapEditorV3() {
 
                 </InteractionLayer>
 
-                <UILayer mapController={interactionLayerRef.current} onResetCamera={handleResetCamera} />
+                <UILayer mapController={interactionLayerRef.current} onResetCamera={handleResetCamera} viewport={viewport} />
 
             </InteractionProvider>
 
@@ -637,6 +638,7 @@ export default function MainMapEditorV3() {
             <DialogAutoMigrateToMapEditorV3 />
 
             <LayerTools />
+            <LayerCreateBaseMap />
         </Box>
 
     );
