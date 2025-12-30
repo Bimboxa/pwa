@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import useScopes from "Features/scopes/hooks/useScopes";
 
 import { setSelectedScopeId } from "../scopesSlice";
+import { setSelectedListingId } from "Features/listings/listingsSlice";
 
 import { List, ListItemButton, ListItemText, Divider } from "@mui/material";
 
@@ -18,6 +19,17 @@ export default function SectionScopeSelectorVariantList({ onSelect }) {
 
     function handleSelect(id) {
         dispatch(setSelectedScopeId(id));
+        const scope = scopes.find(s => s.id === id)
+        const listings = scope?.sortedListings
+
+        // listing selection
+
+        const id0 = listings?.[0]?.id;
+        console.log("debug_3012 [scope] selected listing", id0);
+        dispatch(setSelectedListingId(id0));
+
+        // onSelect
+
         if (onSelect) onSelect();
     }
 

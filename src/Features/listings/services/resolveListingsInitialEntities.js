@@ -8,6 +8,7 @@ export default function resolveListingsInitialEntities({ listings }) {
 
   for (let listing of listings) {
     if (listing.initialEntities) {
+
       for (let item of listing.initialEntities.sortedItems) {
         if (listing.entityModel.type === "ANNOTATION_TEMPLATE") {
           const entity = {
@@ -22,6 +23,7 @@ export default function resolveListingsInitialEntities({ listings }) {
           };
           entities.push(entity);
         }
+
       }
     }
   }

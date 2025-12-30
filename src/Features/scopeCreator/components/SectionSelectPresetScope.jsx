@@ -22,6 +22,8 @@ export default function SectionSelectPresetScope() {
 
   const appConfig = useAppConfig();
 
+  console.log("appConfig", appConfig.presetScopesObject)
+
   const presetScopes = usePresetScopes();
   const selectedPresetScopeKey = useSelector(
     (s) => s.scopeCreator.selectedPresetScopeKey

@@ -6,22 +6,23 @@ import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 
 import { triggerAnnotationTemplatesUpdate } from "../annotationsSlice";
 
-import db from "App/db/db";
-
 import getAnnotationTemplateCode from "../utils/getAnnotationTemplateCode";
-import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 export default function useCreateAnnotationTemplate() {
   const dispatch = useDispatch();
 
   // data
 
-  const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const listingId = useSelector((s) => s.listings.selectedListingId);
+  const _projectId = useSelector((s) => s.projects.selectedProjectId);
+  const _listingId = useSelector((s) => s.listings.selectedListingId);
 
   const createEntity = useCreateEntity();
 
-  return async (annotationTemplate) => {
+  return async (annotationTemplate, options) => {
+
+    const projectId = options?.projectId ?? _projectId;
+    const listingId = options?.listingId ?? _listingId;
+
     const _annotationTemplate = {
       ...annotationTemplate,
       id: nanoid(),
