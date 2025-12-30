@@ -7,6 +7,7 @@ import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemp
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBgImageTextAnnotations from "Features/bgImage/hooks/useBgImageTextAnnotations";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
@@ -33,6 +34,7 @@ export default function useAnnotationsV2(options) {
         // data
 
         const appConfig = useAppConfig();
+        const { value: scope } = useSelectedScope();
         const baseMap = useMainBaseMap();
 
         const annotationTemplates = useAnnotationTemplates();
@@ -63,6 +65,15 @@ export default function useAnnotationsV2(options) {
                 let _annotations = await db.annotations.where("baseMapId").equals(baseMap?.id).toArray();
 
                 console.log("_annotations", _annotations);
+
+                // filter by scope
+
+                if (scope?.sortedListings) {
+                    const listingIds = scope.sortedListings.map(l => l.id)
+                    _annotations = _annotations.filter(a => listingIds.includes(a.listingId))
+                }
+
+                // points
 
                 _annotations = _annotations.map(annotation => {
                     const _annotation = {
@@ -194,7 +205,7 @@ export default function useAnnotationsV2(options) {
                 return _annotations;
             }
 
-        }, [baseMap?.id, excludeListingsIds?.join("-")]);
+        }, [scope?.id, baseMap?.id, excludeListingsIds?.join("-")]);
 
 
 

@@ -36,6 +36,7 @@ export default function ButtonCreateBaseMaps() {
 
     return (
         <ButtonGeneric
+            size="small"
             label="Créer les fonds de plans"
             onClick={handleCreateClick}
             variant="contained"

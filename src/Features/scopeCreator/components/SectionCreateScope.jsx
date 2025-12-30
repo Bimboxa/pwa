@@ -3,6 +3,9 @@ import { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setOpenScopeCreator, setStepKey } from "../scopeCreatorSlice";
+import { setSelectedScopeId } from "Features/scopes/scopesSlice";
+import { setSelectedProjectId } from "Features/projects/projectsSlice";
+import { setSelectedListingId } from "Features/listings/listingsSlice";
 
 import useCreateScope from "Features/scopes/hooks/useCreateScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -18,7 +21,6 @@ import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 import resolvePresetScopeListings from "../services/resolvePresetScopeListings";
-import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import resolvePresetScopeEntities from "../services/resolvePresetScopeEntities";
 
 export default function SectionCreateScope() {

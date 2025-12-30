@@ -2,6 +2,8 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
 
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+
 import { Box } from "@mui/material";
 
 import SectionCreateBaseMapFullscreen from "Features/mapEditor/components/SectionCreateBaseMapFullscreen";
@@ -12,12 +14,21 @@ export default function LayerCreateBaseMap() {
     // data
 
     const show = useSelector((s) => s.mapEditor.showCreateBaseMapSection);
+    const projectId = useSelector(s => s.projects.selectedProjectId);
+    const { value: baseMaps } =
+        useBaseMaps({ filterByProjectId: projectId }) ?? {};
 
     // handlers
 
     function handleClose() {
         dispatch(setShowCreateBaseMapSection(false));
     }
+
+    // helper
+
+    const showClose = baseMaps?.length > 0;
+
+    console.log("debug_3012_showClose", baseMaps)
 
     // render
 
@@ -30,7 +41,7 @@ export default function LayerCreateBaseMap() {
             width: "100%", height: "100%",
             zIndex: 1000
         }}>
-            <SectionCreateBaseMapFullscreen onClose={handleClose} />
+            <SectionCreateBaseMapFullscreen onClose={showClose ? handleClose : null} />
         </Box>
     );
 }

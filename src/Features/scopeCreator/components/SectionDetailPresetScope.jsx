@@ -19,7 +19,7 @@ export default function SectionDetailPresetScope() {
 
   // helper
 
-  const presetScope = presetScopes.find((s) => s.key === presetScopeKey);
+  const presetScope = presetScopes?.find((s) => s.key === presetScopeKey);
 
   if (!presetScopeKey) return <SectionDetailPresetScopeNoScope />;
 

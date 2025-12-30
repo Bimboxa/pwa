@@ -19,7 +19,7 @@ export default function DialogAutoMigrateToMapEditorV3() {
     // data
 
     const projectId = useSelector((s) => s.projects.selectedProjectId);
-    const annotations = useLiveQuery(() => db.annotations.where("projectId").equals(projectId).toArray(), [projectId]);
+    const annotations = useLiveQuery(() => projectId && db.annotations.where("projectId").equals(projectId).toArray(), [projectId]);
 
 
     // state - open

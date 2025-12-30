@@ -38,10 +38,11 @@ export default function PageBaseMapCreator({ onClose }) {
 
     return (
         <BoxFlexVStretch sx={{ width: 1 }}>
-            <BoxAlignToRight>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 0.5 }}>
+                <Typography variant="h6">{label}</Typography>
                 <IconButtonClose onClose={onClose} />
-            </BoxAlignToRight>
-            <Typography variant="h6">{label}</Typography>
+            </Box>
+
 
             <BoxFlexVStretch>
                 <Box sx={{ display: "flex", width: 1, height: 1 }}>
@@ -54,7 +55,7 @@ export default function PageBaseMapCreator({ onClose }) {
                     <Box sx={{
                         flex: 1, minWidth: 0,
                         display: "flex", flexDirection: "column",
-                        border: "1px solid red",
+
                         position: "relative",
                     }}>
                         {imageUrl ? (
@@ -78,7 +79,10 @@ export default function PageBaseMapCreator({ onClose }) {
                     </Box>
 
                     {/* Colonne de droite : Aperçus */}
-                    <Box sx={{ overflow: "auto", minWidth: 0, width: 150 }}>
+                    <Box sx={{
+                        overflow: "auto", minWidth: 0, width: 250,
+                        display: "flex", flexDirection: "column"
+                    }}>
                         <SectionPreviewBaseMaps />
                     </Box>
                 </Box>

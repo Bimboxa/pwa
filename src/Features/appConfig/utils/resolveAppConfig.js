@@ -38,7 +38,9 @@ export default async function resolveAppConfig(appConfig) {
         const module = await loader();
         const libraries = module.default;
 
-        const { presetListingsObject, presetScopesObject } = resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries(libraries);
+        const { presetListingsObject,
+          presetScopesObject,
+          presetScopesSortedKeys } = resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries(libraries);
 
         newAppConfig.presetListingsObject = {
           ...newAppConfig.presetListingsObject,
@@ -49,6 +51,11 @@ export default async function resolveAppConfig(appConfig) {
           ...newAppConfig.presetScopesObject,
           ...(presetScopesObject ?? {}),
         }
+
+        newAppConfig.presetScopesSortedKeys = [
+          ...(newAppConfig.presetScopesSortedKeys ?? []),
+          ...(presetScopesSortedKeys ?? []),
+        ];
 
       } catch (error) {
         console.error(`[resolveAppConfig] Error loading libraries for "${orgaCode}":`, error);
