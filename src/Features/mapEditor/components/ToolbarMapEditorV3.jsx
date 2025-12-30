@@ -50,7 +50,7 @@ export default function ToolbarMapEditorV3() {
     }
 
     return <Box sx={{ display: "flex", gap: 1 }}>
-        <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, pr: 1, borderRadius: 2 }}>
+        {/* <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, pr: 1, borderRadius: 2 }}>
             <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
 
 
@@ -65,7 +65,7 @@ export default function ToolbarMapEditorV3() {
                 {tools.map(tool => tool)}
             </Box>
 
-        </Paper >
+        </Paper > */}
 
         <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, px: 1, borderRadius: 2, gap: 0.5 }}>
             <ButtonDrawCut />

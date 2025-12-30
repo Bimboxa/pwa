@@ -65,7 +65,7 @@ export default function MainLeafletEditor() {
       if (mapRef.current) {
         // Small delay to ensure DOM has updated
         setTimeout(() => {
-          mapRef.current.invalidateSize();
+          mapRef.current?.invalidateSize();
         }, 0);
       }
     });

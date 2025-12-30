@@ -99,8 +99,9 @@ export default function FormAnnotationTemplateVariantBlock({
   function handleTypeChange(type) {
     onChange({
       ...annotationTemplate,
-      type: type === "POLYGON" ? "POLYLINE" : type,
-      closeLine: type === "POLYGON",
+      type,
+      //type: type === "POLYGON" ? "POLYLINE" : type,
+      //closeLine: type === "POLYGON",
     });
   }
 

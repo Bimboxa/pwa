@@ -13,6 +13,7 @@ import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMap
 import { Box, Typography, TextField } from "@mui/material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
+import DialogGeneric from "Features/layout/components/DialogGeneric";
 import testIsImage from "Features/files/utils/testIsImage";
 
 import FilesSelectorButton from "Features/files/components/FilesSelectorButton";
@@ -22,6 +23,8 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 import a3_1_50 from "App/assets/a3_1_50.png";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
+import FieldTextV2 from "Features/form/components/FieldTextV2";
+import ImageGeneric from "Features/images/components/ImageGeneric";
 
 export default function SectionCreateBaseMapFullscreen({ onClose }) {
   const dispatch = useDispatch();
@@ -78,6 +81,11 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
       //const baseMap = await createBaseMap({ imageFile: file });
       //const baseMapView = await createBaseMapView({ name: nameS, baseMap });
       dispatch(setSelectedMainBaseMapId(_entity?.id));
+
+      // clean
+      setImageFile(null);
+      setName("");
+      setMeterByPx(null);
       if (onClose) onClose();
     }
   }
@@ -107,29 +115,56 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
   }
 
   return (
-    <BoxCenter
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 2,
-        position: "relative",
-      }}
-    >
-      <Box
+    <>
+      <BoxCenter
         sx={{
-          position: "absolute",
-          top: 0,
-          right: 0,
-          p: 1,
           display: "flex",
-          justifyContent: "flex-end",
+          flexDirection: "column",
+          gap: 2,
+          position: "relative",
         }}
       >
-        <IconButtonClose onClose={onClose} />
-      </Box>
+        {onClose && <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            p: 1,
+            display: "flex",
+            justifyContent: "flex-end",
+          }}
+        >
+          <IconButtonClose onClose={onClose} />
+        </Box>}
 
-      <Box sx={{ display: "flex", width: 1, justifyContent: "center", p: 1 }}>
-        <Box sx={{ display: "flex", alignItems: "center" }}>
+
+
+        <Box
+          sx={{
+            width: 1,
+            minHeight: 0,
+            flexGrow: 1,
+            display: "flex",
+            flexDirection: "column",
+            p: 4,
+          }}
+        >
+          <SelectorImage
+            bgImageUrl={imageMap}
+            bgColor="white"
+            selectedImageUrl={selectedImageUrl}
+            onImageFileChange={handleImageFileChange}
+            variant="BASE_MAP_CREATOR"
+          />
+        </Box>
+        {/* <Box sx={{ width: 1 }}>
+          <ButtonGeneric onClick={handleCreateDefault} label={defaultS} size="small" />
+        </Box> */}
+
+      </BoxCenter>
+
+      <DialogGeneric width={400} open={imageFile} onClose={() => setImageFile(null)}>
+        <Box sx={{ p: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <TextField
             //label={nameS}
             placeholder={placeholder}
@@ -146,31 +181,9 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
             disabled={disabled}
           />
         </Box>
-      </Box>
+        <ImageGeneric url={selectedImageUrl} />
 
-
-
-      <Box
-        sx={{
-          width: 1,
-          minHeight: 0,
-          flexGrow: 1,
-          display: "flex",
-          flexDirection: "column",
-          p: 4,
-        }}
-      >
-        <SelectorImage
-          bgImageUrl={imageMap}
-          selectedImageUrl={selectedImageUrl}
-          onImageFileChange={handleImageFileChange}
-          variant="BASE_MAP_CREATOR"
-        />
-      </Box>
-      <Box sx={{ width: 1 }}>
-        <ButtonGeneric onClick={handleCreateDefault} label={defaultS} size="small" />
-      </Box>
-
-    </BoxCenter>
+      </DialogGeneric>
+    </>
   );
 }

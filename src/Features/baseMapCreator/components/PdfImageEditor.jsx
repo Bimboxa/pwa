@@ -47,22 +47,16 @@ export default function PdfImageEditor({ imageUrl, onSave, onCancel }) {
 
         setImgSize({ width: naturalWidth, height: naturalHeight });
 
-        // Ici on initialise un crop libre (pas d'aspect ratio forcé)
-        // qui prend 80% de la largeur ou hauteur
-        const initialCrop = centerCrop(
-            makeAspectCrop(
-                {
-                    unit: '%',
-                    width: 80,
-                },
-                16 / 9, // Ratio arbitraire pour l'init, mais l'utilisateur sera libre ensuite
-                width,
-                height,
-            ),
-            width,
-            height,
-        );
+        // Initialiser un crop qui prend 100% de l'image
+        const initialCrop = {
+            unit: '%',
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 100
+        };
         setCrop(initialCrop);
+        dispatch(setBboxInRatio({ x1: 0, y1: 0, x2: 1, y2: 1 }));
     }
 
     function handleCommitCrop(crop, percentCrop) {

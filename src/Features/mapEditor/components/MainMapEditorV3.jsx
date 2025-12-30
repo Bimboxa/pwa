@@ -10,6 +10,7 @@ import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
 import { setTempAnnotationToolbarPosition } from "Features/mapEditor/mapEditorSlice";
 import { setBgImageRawTextAnnotations } from "Features/bgImage/bgImageSlice";
+import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
 
 import useMeasure from "react-use-measure";
 
@@ -62,6 +63,7 @@ import deletePointAsync from "../services/deletePointAsync";
 import duplicateAndMovePoint from "../services/duplicateAndMovePoint";
 import removeCutAsync from "../services/removeCutAsync";
 import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 
 export default function MainMapEditorV3() {
     const dispatch = useDispatch();
@@ -123,6 +125,9 @@ export default function MainMapEditorV3() {
         }));
     }
 
+    // baseMaps
+
+    const { value: baseMaps } = useBaseMaps();
 
     // baseMap
     const baseMap = useMainBaseMap();
@@ -513,7 +518,13 @@ export default function MainMapEditorV3() {
 
     // render
 
-    if (!baseMap) return <ScreenNoBaseMap />;
+    //if (!baseMap) return <ScreenNoBaseMap />;
+
+    useEffect(() => {
+        if (baseMaps?.length === 0) {
+            dispatch(setShowCreateBaseMapSection(true));
+        }
+    }, [baseMaps?.length]);
 
     return (
         <Box ref={containerRef} sx={{ width: '100%', height: '100%', position: "relative", bgcolor: "background.default" }}>

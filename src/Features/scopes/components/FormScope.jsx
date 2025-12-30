@@ -30,20 +30,22 @@ export default function FormScope({ scope, onChange }) {
           showAsSection: true,
         },
       },
+
       // {
       //   key: "clientRef",
       //   label: "Réf.",
       //   type: "text",
       // },
-      {
-        key: "presetConfig",
-        label: appConfig?.strings?.presetConfig?.title,
-        type: "optionKey",
-        valueOptions: configOptions,
-        options: {
-          showAsSection: true,
-        },
-      },
+
+      // {
+      //   key: "presetConfig",
+      //   label: appConfig?.strings?.presetConfig?.title,
+      //   type: "optionKey",
+      //   valueOptions: configOptions,
+      //   options: {
+      //     showAsSection: true,
+      //   },
+      // },
     ],
   };
 

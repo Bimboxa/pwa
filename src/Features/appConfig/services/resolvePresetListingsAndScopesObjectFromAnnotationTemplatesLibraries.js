@@ -45,5 +45,6 @@ export default function resolvePresetListingsAndScopesObjectFromAnnotationTempla
     return {
         presetListingsObject,
         presetScopesObject,
+        presetScopesSortedKeys: presetScopes?.map((scope) => scope.key),
     };
 }

@@ -21,6 +21,7 @@ export default function SelectorImage({
   selectedImageUrl,
   onImageFileChange,
   bgImageUrl,
+  bgColor,
   variant, // "BASE_MAP_CREATOR" | "DEFAULT"
 }) {
   const dispatch = useDispatch();
@@ -78,6 +79,7 @@ export default function SelectorImage({
         position: "relative",
         border: (theme) => `1px solid ${theme.palette.divider}`,
         borderRadius: "8px",
+        ...(bgColor && { bgcolor: bgColor }),
       }}
     >
       {imageUrl && (

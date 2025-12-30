@@ -37,7 +37,7 @@ export default function SectionSelectPresetScope() {
     "Sélectionnez un type de dossier";
   // helpers
 
-  const items = presetScopes.map((ps) => ({
+  const items = presetScopes?.map((ps) => ({
     ...ps,
     label: ps.name,
     id: ps.key,
@@ -57,6 +57,7 @@ export default function SectionSelectPresetScope() {
         preset.key === selectedPresetScopeKey ? null : preset.key
       )
     );
+    dispatch(setStepKey("CREATE_SCOPE"));
   }
 
   function handleAddClick() {
@@ -89,14 +90,14 @@ export default function SectionSelectPresetScope() {
         />
       </Box>
 
-      {selectedPresetScopeKey && (
+      {/* {selectedPresetScopeKey && (
         <ButtonInPanelV2
           label={addS}
           onClick={handleAddClick}
           variant="contained"
           color="secondary"
         />
-      )}
+      )} */}
     </BoxFlexVStretch>
   );
 }

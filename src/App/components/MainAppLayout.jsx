@@ -89,7 +89,7 @@ export default function MainAppLayout() {
       )} */}
       {!openLandingPage && <DialogAutoRemoteContainerConnexion />}
       {/*<DialogAutoListingsConfig />*/}
-      <DialogAutoDownloadListingsData />
+      {/* <DialogAutoDownloadListingsData /> */}
       <DialogAutoSyncTasks />
       <DialogAutoAddListing />
       <DialogAutoScopeCreator />
