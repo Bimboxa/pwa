@@ -1,3 +1,4 @@
+import { useState, useRef } from "react";
 import { useDispatch } from "react-redux";
 
 import { setOpenSelectorScope } from "../scopesSlice";
@@ -5,46 +6,129 @@ import { setOpenSelectorScope } from "../scopesSlice";
 import useSelectedScope from "../hooks/useSelectedScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-import { Typography, Button, Tooltip } from "@mui/material";
-import { ArrowDropDown as Down } from "@mui/icons-material";
+import { Typography, Tooltip, Menu, MenuItem, Box } from "@mui/material";
+import { ArrowDropDown as Down, Add } from "@mui/icons-material";
 
 import DialogSelectorScope from "Features/scopes/components/DialogSelectorScope";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import SectionScopeSelectorVariantList from "Features/scopes/components/SectionScopeSelectorVariantList";
+import DialogAutoScopeCreator from "Features/scopeCreator/components/DialogAutoScopeCreator";
+import { setOpenScopeCreator } from "Features/scopeCreator/scopeCreatorSlice";
 
 export default function ButtonSelectorScope() {
   const dispatch = useDispatch();
 
-  // data
+  // On utilise un timer pour gérer le délai entre la sortie du bouton et l'entrée dans le menu
+  const timeoutRef = useRef(null);
 
+  // data
   const appConfig = useAppConfig();
 
-  // title
+  // state
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
 
+  // title
   const selectS = appConfig?.strings?.scope.select ?? "Sélectionner un dossier";
+  const newS = appConfig?.strings?.scope.new ?? "Nouveau dossier";
 
   // data
-
   const { value: scope } = useSelectedScope();
-
-  //const projectName = scope?.project?.name;
   const scopeName = scope?.name ?? selectS;
 
-  // handlers - dialog
+  // --- LOGIQUE D'OUVERTURE / FERMETURE ---
 
-  function handleClick(e) {
+  const handleOpen = (event) => {
+    // Si un timer de fermeture était en cours, on l'annule (car on est revenu sur le bouton ou le menu)
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    // On n'ouvre que si ce n'est pas déjà ouvert (évite les re-renders inutiles)
+    if (!anchorEl) {
+      setAnchorEl(event.currentTarget);
+    }
+  };
+
+  const handleClose = () => {
+    // On lance la fermeture avec un léger délai pour laisser le temps à la souris
+    // de passer du bouton au menu (ou inversement) sans tout fermer.
+    timeoutRef.current = setTimeout(() => {
+      setAnchorEl(null);
+    }, 100); // 100ms suffisent pour gommer le "gap"
+  };
+
+  const handleCloseImmediate = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setAnchorEl(null);
+  };
+
+  // handlers - dialog
+  function handleClickOpenDialog() {
+    handleCloseImmediate();
     dispatch(setOpenSelectorScope(true));
+  }
+
+  function handleOpenCreator() {
+    dispatch(setOpenScopeCreator(true))
   }
 
   return (
     <>
-      <Tooltip title={selectS}>
+
+      <Box
+        // Le Box sert de pont pour les événements souris autour du bouton
+        onMouseEnter={handleOpen}
+        onMouseLeave={handleClose}
+        sx={{ display: 'inline-block' }}
+      >
         <ButtonGeneric
-          onClick={handleClick}
+          // On garde le onClick pour le tactile ou si l'utilisateur clique
+          onClick={handleOpen}
           endIcon={<Down />}
           label={scopeName}
         />
-      </Tooltip>
-      <DialogSelectorScope />
+      </Box>
+
+
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleCloseImmediate}
+        // Désactive le focus automatique pour éviter les clignotements visuels au survol
+        disableRestoreFocus
+        // Cette prop empêche le menu de bloquer les événements souris autour de lui
+        sx={{ pointerEvents: "none" }}
+
+        // Configuration précise des slots internes
+        slotProps={{
+          paper: {
+            // On réactive les événements souris UNIQUEMENT sur la zone blanche (le menu)
+            sx: { pointerEvents: "auto" },
+            // Si la souris est sur le menu, on annule la fermeture
+            onMouseEnter: handleOpen,
+            // Si la souris quitte le menu, on lance la fermeture
+            onMouseLeave: handleClose,
+          }
+        }}
+        // Pour éviter que le menu ne se décale bizarrement lors des transitions
+        transformOrigin={{ horizontal: 'left', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'left', vertical: 'bottom' }}
+      >
+        <SectionScopeSelectorVariantList onSelect={handleCloseImmediate} />
+
+        {/* Bouton Nouveau Scope */}
+        <Box sx={{ borderTop: 1, borderColor: "divider", mt: 1, pt: 0.5 }}>
+          <MenuItem onClick={handleOpenCreator} sx={{ gap: 1, color: "primary.main" }}>
+            <Add fontSize="small" />
+            <Typography variant="body2" fontWeight="bold">
+              {newS}
+            </Typography>
+          </MenuItem>
+        </Box>
+
+      </Menu>
+
+      <DialogAutoScopeCreator />
     </>
   );
 }

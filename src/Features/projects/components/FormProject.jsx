@@ -1,28 +1,38 @@
 import FormGenericV2 from "Features/form/components/FormGenericV2";
-
-import useIsMobile from "Features/layout/hooks/useIsMobile";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function FormProject({ project, onChange }) {
+  // data
+
+  const appConfig = useAppConfig();
+
+  // helpers
+
+  const nameS = appConfig?.strings?.project.name ?? "Nom";
+  const clientRefS = appConfig?.strings?.project.clientRef ?? "Numéro";
+
   // const
 
   const template = {
     fields: [
       {
         key: "name",
-        label: "Nom",
+        label: nameS,
         type: "text",
         options: {
           showLabel: true,
           fullWidth: true,
+
         },
       },
       {
         key: "clientRef",
-        label: "Réf.",
+        label: clientRefS,
         type: "text",
         options: {
           showLabel: true,
           fullWidth: true,
+
         },
       },
     ],

@@ -187,6 +187,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
             flex: 1,
             minWidth: 0,
             display: "flex",
+            ...showLabel && { p: 1 }
           }}
         >
           {textField}

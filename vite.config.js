@@ -53,6 +53,7 @@ export default defineConfig({
       App: "/src/App",
       Features: "/src/Features",
       Styles: "/src/Styles",
+      Data: "/src/Data",
     },
   },
   server: {
