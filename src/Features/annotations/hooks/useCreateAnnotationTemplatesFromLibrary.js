@@ -5,7 +5,7 @@ import ImageObject from "Features/images/js/ImageObject";
 export default function useCreateAnnotationTemplatesFromLibrary() {
   const createAnnotationTemplate = useCreateAnnotationTemplate();
 
-  return async (annotationTemplatesFromLibrary) => {
+  return async (annotationTemplatesFromLibrary, options) => {
     await Promise.all(
       annotationTemplatesFromLibrary.map(async (annotationTemplate) => {
         // fetch file if image
@@ -22,7 +22,7 @@ export default function useCreateAnnotationTemplatesFromLibrary() {
             };
           }
         }
-        await createAnnotationTemplate(annotationTemplate);
+        await createAnnotationTemplate(annotationTemplate, options);
       })
     );
   };

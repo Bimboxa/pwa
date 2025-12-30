@@ -117,14 +117,14 @@ export default function ButtonSelectorScope() {
         <SectionScopeSelectorVariantList onSelect={handleCloseImmediate} />
 
         {/* Bouton Nouveau Scope */}
-        <Box sx={{ borderTop: 1, borderColor: "divider", mt: 1, pt: 0.5 }}>
-          <MenuItem onClick={handleOpenCreator} sx={{ gap: 1, color: "primary.main" }}>
-            <Add fontSize="small" />
-            <Typography variant="body2" fontWeight="bold">
-              {newS}
-            </Typography>
-          </MenuItem>
-        </Box>
+
+        <MenuItem onClick={handleOpenCreator} sx={{ gap: 1, color: "primary.main" }}>
+          <Add fontSize="small" />
+          <Typography variant="body2" fontWeight="bold">
+            {newS}
+          </Typography>
+        </MenuItem>
+
 
       </Menu>
 

@@ -4,11 +4,17 @@
  */
 
 import getRemoteContainerPathFromLocalStorage from "../services/getRemoteContainerPathFromLocalStorage";
+import resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries from "../services/resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries";
 
 // Dynamic asset loaders for background images
 const BG_IMAGE_LOADERS = import.meta.glob("../../../App/assets/*.png", {
   as: "url", // return the URL directly
   eager: false, // lazy load when needed
+});
+
+// Dynamic loaders for annotation template libraries
+const LIBRARIES_LOADERS = import.meta.glob("../../../Data/*/annotationTemplatesLibraries.js", {
+  eager: false,
 });
 
 export default async function resolveAppConfig(appConfig) {
@@ -17,6 +23,40 @@ export default async function resolveAppConfig(appConfig) {
   if (!appConfig) return;
 
   const newAppConfig = structuredClone(appConfig);
+
+  // appConfig code
+  const orgaCode = appConfig.orgaCode;
+
+  // annotation template libraries
+  console.log("debug_3012_appConfig", orgaCode && appConfig.features.presetScopes.fromAnnotationTemplatesLibraries);
+  if (orgaCode && appConfig.features.presetScopes.fromAnnotationTemplatesLibraries) {
+    const libraryKey = `../../../Data/${orgaCode}/annotationTemplatesLibraries.js`;
+    const loader = LIBRARIES_LOADERS[libraryKey];
+
+    if (loader) {
+      try {
+        const module = await loader();
+        const libraries = module.default;
+
+        const { presetListingsObject, presetScopesObject } = resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries(libraries);
+
+        newAppConfig.presetListingsObject = {
+          ...newAppConfig.presetListingsObject,
+          ...(presetListingsObject ?? {}),
+        }
+
+        newAppConfig.presetScopesObject = {
+          ...newAppConfig.presetScopesObject,
+          ...(presetScopesObject ?? {}),
+        }
+
+      } catch (error) {
+        console.error(`[resolveAppConfig] Error loading libraries for "${orgaCode}":`, error);
+      }
+    } else {
+      console.warn(`[resolveAppConfig] No libraries found for orgaCode "${orgaCode}" at ${libraryKey}`);
+    }
+  }
 
   // hardcoded fields for debug mode
 

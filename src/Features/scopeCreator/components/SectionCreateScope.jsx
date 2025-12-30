@@ -69,6 +69,8 @@ export default function SectionCreateScope() {
     return resolvePresetScopeEntities({ listings: newListings });
   }, [newListings]);
 
+  console.log("debug_3012_newListings", newListings, newEntities)
+
   // handlers
 
   async function handleCreateScope() {
@@ -80,8 +82,9 @@ export default function SectionCreateScope() {
     });
     console.log("debug_25_09 [scope] created scope", scope);
     if (scope) {
-      //dispatch(setSelectedScopeId(scope.id));
-      //dispatch(setSelectedProjectId(projectId));
+      dispatch(setSelectedScopeId(scope.id));
+      dispatch(setSelectedProjectId(projectId));
+      dispatch(setSelectedListingId(newListings?.[0]?.id));
       dispatch(setOpenScopeCreator(false));
     }
   }

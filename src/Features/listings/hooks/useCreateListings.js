@@ -4,6 +4,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useCreateRemoteListings from "Features/sync/hooks/useCreateRemoteListings";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
+import useCreateAnnotationTemplatesFromLibrary from "Features/annotations/hooks/useCreateAnnotationTemplatesFromLibrary";
 
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 import getDateString from "Features/misc/utils/getDateString";
@@ -15,6 +16,7 @@ export default function useCreateListings() {
 
   const createRemoteListings = useCreateRemoteListings();
   const createEntity = useCreateEntity();
+  const createAnnotationTemplatesFromLibrary = useCreateAnnotationTemplatesFromLibrary();
 
   const create = async ({ listings, scope }, options) => {
     const listingsClean = listings.map((listing) => {
@@ -41,6 +43,21 @@ export default function useCreateListings() {
       for (let entity of initialEntities) {
         const options = { listing: entity.listing };
         await createEntity(entity, options);
+      }
+    }
+
+
+    // annotation templates
+
+    for (let listing of listingsClean) {
+      if (listing.annotationTemplatesLibrary) {
+        await createAnnotationTemplatesFromLibrary(
+          listing.annotationTemplatesLibrary,
+          {
+            listingId: listing.id,
+            projectId: listing.projectId,
+          }
+        );
       }
     }
 
