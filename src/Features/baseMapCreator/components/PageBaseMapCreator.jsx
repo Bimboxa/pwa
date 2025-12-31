@@ -55,27 +55,39 @@ export default function PageBaseMapCreator({ onClose }) {
                     <Box sx={{
                         flex: 1, minWidth: 0,
                         display: "flex", flexDirection: "column",
-
                         position: "relative",
                     }}>
-                        {imageUrl ? (
-                            <PdfImageEditor imageUrl={imageUrl} />
-                        ) : (
-                            // Wrapper pour le padding
-                            <Box sx={{ width: "100%", height: "100%", p: 4, boxSizing: "border-box" }}>
-                                <Skeleton
-                                    variant="rectangular"
-                                    width="100%"
-                                    height="100%"
-                                    animation="wave"
-                                    sx={{ borderRadius: 1 }}
-                                />
-                            </Box>
-                        )}
+                        <Box sx={{
+                            display: "flex", flexGrow: 1, flexDirection: "column",
+                            minHeight: 0,
+                        }}>
+                            {imageUrl ? (
+                                <PdfImageEditor imageUrl={imageUrl} />
+                            ) : (
+                                // Wrapper pour le padding
+                                <Box sx={{ width: "100%", height: "100%", p: 4, boxSizing: "border-box" }}>
+                                    <Skeleton
+                                        variant="rectangular"
+                                        width="100%"
+                                        height="100%"
+                                        animation="wave"
+                                        sx={{ borderRadius: 1 }}
+                                    />
+                                </Box>
+                            )}
+                        </Box>
 
-                        {imageUrl && <BoxAlignToRight sx={{ p: 1 }}>
+
+                        <BoxAlignToRight sx={{
+                            p: 0.5,
+                            position: "absolute",
+                            bottom: "8px",
+                            left: "8px",
+                            bgcolor: "white",
+                            visibility: imageUrl ? "visible" : "hidden"
+                        }}>
                             <ButtonAddTempImage pdfFile={pdfFile} pageNumber={pageNumber} />
-                        </BoxAlignToRight>}
+                        </BoxAlignToRight>
                     </Box>
 
                     {/* Colonne de droite : Aperçus */}
@@ -86,7 +98,13 @@ export default function PageBaseMapCreator({ onClose }) {
                         <SectionPreviewBaseMaps />
                     </Box>
                 </Box>
+
+
+
             </BoxFlexVStretch>
+
+
+
         </BoxFlexVStretch>
     )
 }
