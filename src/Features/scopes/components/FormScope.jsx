@@ -28,6 +28,7 @@ export default function FormScope({ scope, onChange }) {
         options: {
           fullWidth: true,
           showAsSection: true,
+          hideTopDivider: true,
         },
       },
 

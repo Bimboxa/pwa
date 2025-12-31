@@ -73,9 +73,9 @@ export default function PageBaseMapCreator({ onClose }) {
                             </Box>
                         )}
 
-                        {imageUrl && <Box sx={{ position: "absolute", top: "8px", right: "8px" }}>
+                        {imageUrl && <BoxAlignToRight sx={{ p: 1 }}>
                             <ButtonAddTempImage pdfFile={pdfFile} pageNumber={pageNumber} />
-                        </Box>}
+                        </BoxAlignToRight>}
                     </Box>
 
                     {/* Colonne de droite : Aperçus */}

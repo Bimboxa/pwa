@@ -4,6 +4,8 @@ import getAnnotationTemplateIdFromAnnotation from "Features/annotations/utils/ge
 export default function resolvePresetScopeEntities({ listings }) {
   const entities = [];
 
+  if (!listings) return entities;
+
   for (let listing of listings) {
     if (listing.initialItems) {
       for (let item of listing.initialItems) {

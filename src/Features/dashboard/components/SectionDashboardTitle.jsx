@@ -9,8 +9,8 @@ export default function SectionDashboardTitle() {
 
   // helpers
 
-  //const title = appConfig?.strings?.scope?.dashboardTitle ?? "Dossiers";
-  const title = appConfig?.strings?.project.namePlural ?? "Projets";
+  const title = appConfig?.strings?.scope?.dashboardTitle ?? "Dossiers";
+  //const title = appConfig?.strings?.project.namePlural ?? "Projets";
 
   return (
     <Box sx={{ pt: 4, pl: 4 }}>

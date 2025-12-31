@@ -130,7 +130,9 @@ export default function ButtonSelectorScope() {
 
         {/* Bouton Nouveau Scope */}
 
-        <MenuItem onClick={handleOpenCreator} sx={{ gap: 1, color: "primary.main" }}>
+
+        <MenuItem onClick={handleOpenCreator}
+          sx={{ gap: 1, color: "primary.main", borderTop: theme => `1px solid ${theme.palette.divider}` }}>
           <Add fontSize="small" />
           <Typography variant="body2" fontWeight="bold">
             {newS}

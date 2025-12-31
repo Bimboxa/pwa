@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
 import { setOpenScopeCreator, setStepKey } from "../scopeCreatorSlice";
 import { setSelectedScopeId } from "Features/scopes/scopesSlice";
@@ -22,9 +23,13 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 import resolvePresetScopeListings from "../services/resolvePresetScopeListings";
 import resolvePresetScopeEntities from "../services/resolvePresetScopeEntities";
+import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
+import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
+import useCreateListing from "Features/listings/hooks/useCreateListing";
 
 export default function SectionCreateScope() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   // strings
 
@@ -39,8 +44,12 @@ export default function SectionCreateScope() {
 
   const appConfig = useAppConfig();
   const presetScope = useSelectedPresetScope();
+  const baseMapsListings = useProjectBaseMapListings();
+  const defaultBaseMapsListingProps = useDefaultBaseMapsListingProps();
 
   const createScope = useCreateScope();
+  const createListing = useCreateListing();
+
 
   // state
 
@@ -84,10 +93,21 @@ export default function SectionCreateScope() {
     });
     console.log("debug_25_09 [scope] created scope", scope);
     if (scope) {
+
+      // baseMaps listing
+
+      if (!baseMapsListings.length > 0) {
+        const baseMapsListing = await createListing({
+          listing: { ...defaultBaseMapsListingProps, projectId },
+        });
+      }
+
+      // selector 
       dispatch(setSelectedScopeId(scope.id));
       dispatch(setSelectedProjectId(projectId));
       dispatch(setSelectedListingId(newListings?.[0]?.id));
       dispatch(setOpenScopeCreator(false));
+      navigate('/')
     }
   }
 
@@ -99,14 +119,14 @@ export default function SectionCreateScope() {
 
   return (
     <BoxFlexVStretch>
-      <Box sx={{ p: 1 }}>
+      {/* <Box sx={{ p: 1 }}>
         <ButtonGeneric
           label={backS}
           onClick={handleBackClick}
           startIcon={<ArrowBackIos />}
         />
-      </Box>
-      <StepHeader title={title} />
+      </Box> */}
+      {/* <StepHeader title={title} /> */}
       <Box sx={{ p: 1 }}>
         <FormScope scope={tempScope} onChange={setTempScope} />
       </Box>

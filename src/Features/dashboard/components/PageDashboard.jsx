@@ -7,6 +7,7 @@ import DialogAutoScopeCreator from "Features/scopeCreator/components/DialogAutoS
 import PageDashboardFooter from "./PageDashboardFooter";
 import SectionDashboardTitle from "./SectionDashboardTitle";
 import SectionProjectsInDashboard from "./SectionProjectsInDashboard";
+import SectionScopesInDashboard from "./SectionScopesInDashboard";
 
 export default function PageDashboard() {
   return (
@@ -16,7 +17,8 @@ export default function PageDashboard() {
           <PageDashboardHeader />
           <SectionDashboardTitle />
           <BoxFlexVStretch>
-            <SectionProjectsInDashboard />
+            {/* <SectionProjectsInDashboard /> */}
+            <SectionScopesInDashboard />
           </BoxFlexVStretch>
           <PageDashboardFooter />
         </BoxFlexVStretch>
