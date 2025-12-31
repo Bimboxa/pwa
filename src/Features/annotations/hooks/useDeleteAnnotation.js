@@ -14,7 +14,7 @@ export default function useDeleteAnnotation() {
         console.warn("Annotation not found for deletion:", annotationId);
         return;
       }
-      
+
       // Check if this annotation is a cutHost (either directly or from template)
       let annotationTemplateCutHost = false;
       if (annotation?.annotationTemplateId) {
@@ -70,7 +70,7 @@ export default function useDeleteAnnotation() {
         console.log("[useDeleteAnnotation] updated", updatedCount, "annotations with cuts");
       }
 
-      if (annotation?.listingId) {
+      if (annotation?.listingId && !annotation.isBaseMapAnnotation) {
         const _listing = await db.listings.get(annotation.listingId);
         if (_listing?.sortedAnnotationIds) {
           const updates = {
@@ -84,7 +84,9 @@ export default function useDeleteAnnotation() {
         console.warn("debug_3110_annotation_no_listing", annotation);
       }
       await db.annotations.delete(annotationId);
+      console.log("[useDeleteAnnotation] deleted annotation", annotationId);
+      dispatch(triggerAnnotationsUpdate());
     }
-    dispatch(triggerAnnotationsUpdate());
+
   };
 }

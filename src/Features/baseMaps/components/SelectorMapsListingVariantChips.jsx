@@ -33,6 +33,7 @@ export default function SelectorMapsListingVariantChips() {
       options={options}
       selection={selection}
       onChange={handleChange}
+      bgcolor="grey.800"
     />
   );
 }

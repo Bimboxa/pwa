@@ -32,9 +32,11 @@ export default function useAutoSelectListing() {
     }
   }, [projectId, selectedListing?.id]);
 
+
   useEffect(() => {
     const triggerAuto = !selectedListingId && listings?.length > 0;
     console.log("[EFFECT] trigger useAutoSelectListing", triggerAuto);
+
     if (triggerAuto) {
       console.log("[EFFECT] useAutoSelectListing - set First listing");
       const firstListing = listings[0];

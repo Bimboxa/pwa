@@ -53,6 +53,12 @@ export default function SectionPreviewBaseMaps() {
                                 }
                             }}
                         >
+                            {/* --- TITRE --- */}
+                            <Box sx={{ position: "absolute", top: "4px", left: "4px", zIndex: 2, bgcolor: "primary.main", color: "white", borderRadius: "4px", px: 0.5 }}>
+                                <Typography variant="body2">{item.name}</Typography>
+                            </Box>
+
+
                             {/* --- BOUTON DE SUPPRESSION --- */}
                             <Box
                                 className="delete-btn"
@@ -93,7 +99,7 @@ export default function SectionPreviewBaseMaps() {
                                 />
                             ) : (
                                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexDirection: "column", p: 1 }}>
-                                    <Typography>{item.name}</Typography>
+                                    <Typography variant="body2">{item.name}</Typography>
                                     <CircularProgress size={20} />
                                 </Box>
                             )}

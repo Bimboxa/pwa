@@ -11,6 +11,7 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric"
 
 import pdfToPngAsync from "Features/pdf/utils/pdfToPngAsync";
 import FieldOptionKey from "Features/form/components/FieldOptionKey";
+import FieldTextV2 from "Features/form/components/FieldTextV2";
 
 
 export default function ButtonAddTempImage({ pdfFile }) {
@@ -32,6 +33,7 @@ export default function ButtonAddTempImage({ pdfFile }) {
     // state
 
     const [optionKey, setOptionKey] = useState("STANDARD")
+    const [name, setName] = useState("")
 
     // handlers
 
@@ -42,19 +44,28 @@ export default function ButtonAddTempImage({ pdfFile }) {
         dispatch(addTempBaseMap({ id, name: `Page ${pageNumber}` }));
 
         const imageFile = await pdfToPngAsync({ pdfFile, page: pageNumber, bboxInRatio, resolution });
-        dispatch(updateTempBaseMap({ id, updates: { imageFile } }));
+        dispatch(updateTempBaseMap({ id, updates: { imageFile, name } }));
 
     }
-    return <Box sx={{ display: "flex", alignItems: "center" }}>
-        <FieldOptionKey
-            value={optionKey}
-            onChange={setOptionKey}
-            valueOptions={options}
-        />
+    return <Box sx={{ display: "flex", alignItems: "center", width: 1 }}>
+
+        <Box sx={{ flex: 1 }}>
+            <FieldTextV2
+                value={name}
+                onChange={setName}
+                label="Nom du fond de plan"
+                options={{ fullWidth: true, showLabel: true }}
+            />
+        </Box>
         <ButtonGeneric
             label="Ajouter la sélection" onClick={handleClick}
             size="small" variant="contained"
             color="secondary"
+        />
+        <FieldOptionKey
+            value={optionKey}
+            onChange={setOptionKey}
+            valueOptions={options}
         />
     </Box>
 }

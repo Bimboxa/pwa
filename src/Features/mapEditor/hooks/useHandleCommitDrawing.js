@@ -27,6 +27,7 @@ export default function useHandleCommitDrawing() {
     const projectId = useSelector(s => s.projects.selectedProjectId);
     const listingId = useSelector(s => s.listings.selectedListingId);
     const newAnnotation = useSelector(s => s.annotations.newAnnotation);
+    const openedPanel = useSelector(s => s.listings.openedPanel);
 
     const createEntity = useCreateEntity();
     const updateAnnotation = useUpdateAnnotation();
@@ -34,6 +35,11 @@ export default function useHandleCommitDrawing() {
 
     const baseMap = useMainBaseMap();
     const resetNewAnnotation = useResetNewAnnotation();
+
+    // helpers
+
+    const isBaseMapAnnotation = openedPanel === "BASE_MAP_DETAIL";
+
 
     // main
 
@@ -63,7 +69,7 @@ export default function useHandleCommitDrawing() {
         // ETAPE : création de l'entité ou non
 
         let entityId = newAnnotation?.entityId;
-        if (!entityId && newAnnotation?.type !== "LABEL") {
+        if (!entityId && newAnnotation?.type !== "LABEL" && !isBaseMapAnnotation) {
             const entity = await createEntity({})
             entityId = entity.id;
         }
@@ -138,7 +144,7 @@ export default function useHandleCommitDrawing() {
 
             let annotationTemplateId;
             // ÉTAPE 2.5 : Enregistrement de l'annotation template
-            if (newAnnotation && !_updatedAnnotation) {
+            if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation) {
                 const existingAnnotationTemplates = await db.annotationTemplates.where("listingId").equals(listingId).toArray();
                 // const existingAnnotationTemplate = getAnnotationTemplateFromNewAnnotation({
                 //     newAnnotation,
@@ -186,6 +192,8 @@ export default function useHandleCommitDrawing() {
 
                 // ... props de style
             };
+
+            if (isBaseMapAnnotation) _newAnnotation.isBaseMapAnnotation = true;
 
             if (closeLine) _newAnnotation.closeLine = true;
 

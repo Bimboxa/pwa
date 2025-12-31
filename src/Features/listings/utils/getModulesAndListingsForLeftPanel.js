@@ -29,6 +29,7 @@ export default function getModulesAndListingsForLeftPanel({
 
     // edge case
     if (entityModelType.type === "BLUEPRINT") return;
+    if (entityModelType.type === "BASE_MAP") return;
 
     const listings = itemsMap[entityModelType.type]?.listings ?? [];
     if (listings.length > 0 || entityModelType.type === "LOCATED_ENTITY") {

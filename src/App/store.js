@@ -42,6 +42,7 @@ import blueprintsReducer from "Features/blueprints/blueprintsSlice";
 import selectionReducer from "Features/selection/selectionSlice";
 import fwcReducer from "Features/fwc/fwcSlice";
 import baseMapCreatorReducer from "Features/baseMapCreator/baseMapCreatorSlice";
+import baseMapEditorReducer from "Features/baseMapEditor/baseMapEditorSlice";
 //
 import chatReducer from "Features/chat/chatSlice";
 import showerReducer from "Features/shower/showerSlice";
@@ -99,6 +100,7 @@ const store = configureStore({
     selection: selectionReducer,
     opencv: opencvReducer,
     baseMapCreator: baseMapCreatorReducer,
+    baseMapEditor: baseMapEditorReducer,
     //
     chat: chatReducer,
     shower: showerReducer,

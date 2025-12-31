@@ -47,10 +47,10 @@ export const annotationsSlice = createSlice({
       state.annotationsUpdatedAt = Date.now();
     },
     //
-    triggerAnnotationsUpdate: (state, action) => {
+    triggerAnnotationsUpdate: (state) => {
       state.annotationsUpdatedAt = Date.now();
     },
-    triggerAnnotationTemplatesUpdate: (state, action) => {
+    triggerAnnotationTemplatesUpdate: (state) => {
       state.annotationTemplatesUpdatedAt = Date.now();
     },
     //

@@ -49,7 +49,7 @@ import PopperEditScale from "./PopperEditScale";
 import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
 import PopperSaveTempAnnotations from "Features/mapEditor/components/PopperSaveTempAnnotations";
-import ScreenNoBaseMap from "./ScreenNoBaseMap";
+
 
 import { InteractionProvider } from "../context/InteractionContext";
 
@@ -171,7 +171,11 @@ export default function MainMapEditorV3() {
 
     // annotations
 
-    const annotations = useAnnotationsV2({ withEntity: true, excludeListingsIds: hiddenListingsIds });
+    const openedPanel = useSelector(s => s.listings.openedPanel);
+    const baseMapAnnotationsOnly = openedPanel === "BASE_MAP_DETAIL";
+    const annotations = useAnnotationsV2({ withEntity: true, excludeListingsIds: hiddenListingsIds, baseMapAnnotationsOnly });
+
+    console.log('debug_3112_annotations', annotations)
 
     // legend
 
