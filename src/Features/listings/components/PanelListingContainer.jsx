@@ -19,6 +19,7 @@ import PanelEditBlueprint from "Features/blueprints/components/PanelEditBlueprin
 import PanelCreateLocatedEntity from "Features/locatedEntities/components/PanelCreateLocatedEntity";
 import PanelHelperDrawAnnotation from "Features/annotations/components/PanelHelperDrawAnnotation";
 import PanelCreateBaseMap from "Features/baseMaps/components/PanelCreateBaseMap";
+import PanelBaseMapDetail from "Features/baseMapEditor/components/PanelBaseMapDetail";
 
 export default function PanelListingContainer() {
   const dispatch = useDispatch();
@@ -51,7 +52,7 @@ export default function PanelListingContainer() {
       {openedPanel === "LISTING_SELECTOR" && (
         <PanelSelectorListing
           selectedListingId={listing?.id}
-          //onListingSelected={handleSelectListing}
+        //onListingSelected={handleSelectListing}
         />
       )}
 
@@ -66,10 +67,15 @@ export default function PanelListingContainer() {
         <PanelListingAnnotationTemplates />
       )}
       {openedPanel === "NEW_BASE_MAP" && <PanelCreateBaseMap />}
+      {openedPanel === "BASE_MAP_DETAIL" && <PanelBaseMapDetail />}
+
+
       {openedPanel === "NEW_BLUEPRINT" && <PanelCreateBlueprint />}
       {openedPanel === "EDITED_BLUEPRINT" && <PanelEditBlueprint />}
       {openedPanel === "NEW_LOCATED_ENTITY" && <PanelCreateLocatedEntity />}
       {openedPanel === "DRAW_ANNOTATION" && <PanelHelperDrawAnnotation />}
+
+
     </BoxFlexVStretch>
   );
 }

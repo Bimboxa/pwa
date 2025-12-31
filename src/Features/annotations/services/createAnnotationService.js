@@ -10,7 +10,11 @@ export default async function createAnnotationService(annotation) {
 
   // edge case
 
-  if (!(annotation?.annotationTemplateId || annotation?.isScaleSegment || annotation.type === "LABEL")) return;
+  if (!(annotation?.annotationTemplateId ||
+    annotation?.isScaleSegment ||
+    annotation.type === "LABEL" ||
+    annotation.isBaseMapAnnotation
+  )) return;
 
   // main
 

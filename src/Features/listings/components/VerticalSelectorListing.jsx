@@ -23,6 +23,7 @@ import theme from "Styles/theme";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import IconListingVariantSelectable from "./IconListingVariantSelectable";
+import IconButtonOpenBaseMapDetail from "Features/baseMaps/components/IconButtonOpenBaseMapDetail";
 
 import getModulesAndListingsForLeftPanel from "../utils/getModulesAndListingsForLeftPanel";
 import ButtonDialogCreateListingInVerticalSelector from "./ButtonDialogCreateListingInVerticalSelector";
@@ -201,7 +202,7 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
         display: "flex",
         flexDirection: "column",
         flexGrow: 1,
-        //pt: 1,
+        pt: 1,
         pb: 2,
         alignItems: "center",
         minHeight: 0,
@@ -209,13 +210,14 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
     >
       {/* <Box sx={{ borderBottom: `1px solid ${grey[500]}`, width: 1, my: 1 }} /> */}
 
+      <IconButtonOpenBaseMapDetail />
       <Box
         sx={{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           flex: 1,
-          pt: 5,
+          pt: 1,
         }}
       >
         {items.map((item, idx) => {

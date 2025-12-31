@@ -1,3 +1,5 @@
+import { useSelector } from "react-redux";
+
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import { useInteraction } from "../context/InteractionContext";
 
@@ -16,6 +18,7 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
     // data
 
     const { value: listing } = useSelectedListing();
+    const openedPanel = useSelector(s => s.listings.openedPanel)
 
     const { basePose } = useInteraction();
 
@@ -25,7 +28,7 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
 
     // helpers - show
 
-    const showDrawingTools = emType === "LOCATED_ENTITY" || listing?.entityModel?.annotationEnabled;
+    const showDrawingTools = emType === "LOCATED_ENTITY" || listing?.entityModel?.annotationEnabled || openedPanel === "BASE_MAP_DETAIL";
     const showEditScale = true;
 
 

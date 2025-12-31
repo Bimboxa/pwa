@@ -43,6 +43,8 @@ const defaultColors = [
   brown[500],
   grey[500],
   blueGrey[500],
+  grey[200],
+  "#000000",
 ];
 
 export default defaultColors;

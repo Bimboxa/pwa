@@ -29,28 +29,38 @@ export default function ToolbarMapEditorV3() {
     const baseMap = useMainBaseMap();
     const meterByPx = baseMap?.meterByPx;
     const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
+    const openedPanel = useSelector(s => s.listings.openedPanel)
+
+    // helper
+
+    const isBaseMapAnnotation = openedPanel === "BASE_MAP_DETAIL";
+    const disabled = !newAnnotation?.label && !isBaseMapAnnotation;
 
     // helpers
 
     const tools = [
-        <ButtonDrawMarker key={1} disabled={!newAnnotation?.label} />,
-        <ButtonDrawPolyline key={2} disabled={!newAnnotation?.label} />,
-        <ButtonDrawPolygon key={3} disabled={!newAnnotation?.label} />,
+        <ButtonDrawMarker key={1} disabled={disabled} />,
+        <ButtonDrawPolyline key={2} disabled={disabled} />,
+        <ButtonDrawPolygon key={3} disabled={disabled} />,
     ]
 
+    // helpers - show
+
+    const showTools = openedPanel === "BASE_MAP_DETAIL";
+    const showNewAnnotation = openedPanel !== "BASE_MAP_DETAIL";
 
     // render
 
     if (enabledDrawingMode) {
         return <Box sx={{ display: "flex", gap: 1 }}>
-            <ToolbarNewAnnotation />
+            {showNewAnnotation && <ToolbarNewAnnotation />}
             <ToolbarEnabledDrawingMode />
 
         </Box>
     }
 
     return <Box sx={{ display: "flex", gap: 1 }}>
-        {/* <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, pr: 1, borderRadius: 2 }}>
+        {showTools && <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, pr: 1, borderRadius: 2 }}>
             <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
 
 
@@ -65,7 +75,7 @@ export default function ToolbarMapEditorV3() {
                 {tools.map(tool => tool)}
             </Box>
 
-        </Paper > */}
+        </Paper >}
 
         <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, px: 1, borderRadius: 2, gap: 0.5 }}>
             <ButtonDrawCut />

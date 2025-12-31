@@ -6,6 +6,7 @@ import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedEntityId } from "Features/entities/entitiesSlice";
 import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { setOpenBaseMapCreator, setPdfFile } from "Features/baseMapCreator/baseMapCreatorSlice";
+import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
 
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -41,11 +42,13 @@ import ContainerFilesSelector from "Features/files/components/ContainerFilesSele
 
 import testIsPdf from "Features/pdf/utils/testIsPdf";
 import testIsImage from "Features/files/utils/testIsImage";
+import SelectorMapsListingVariantChips from "./SelectorMapsListingVariantChips";
 
 export default function BaseMapSelectorInMapEditorV2() {
     const dispatch = useDispatch();
 
     // --- Data ---
+
     const activeBaseMap = useMainBaseMap();
     const listingId = useSelector((s) => s.mapEditor.selectedBaseMapsListingId);
     const { value: baseMaps = [] } = useBaseMaps({
@@ -54,6 +57,7 @@ export default function BaseMapSelectorInMapEditorV2() {
     const updateEntity = useUpdateEntity();
 
     // --- State ---
+
     const [isHovered, setIsHovered] = useState(false);
     const [openFileSelector, setOpenFileSelector] = useState(false);
 
@@ -144,6 +148,7 @@ export default function BaseMapSelectorInMapEditorV2() {
 
     function handleCreateClick() {
         dispatch(setShowCreateBaseMapSection(true));
+        dispatch(setSelectedBaseMapsListingId(activeBaseMap?.listingId)); // for the creation.
     }
 
     const activeBaseMapName = activeBaseMap?.name || "Sélectionner une carte";
@@ -208,11 +213,12 @@ export default function BaseMapSelectorInMapEditorV2() {
                             flexDirection: "column",
                             height: "100%"
                         }}>
-                            <Box sx={{ p: 2, pb: 1 }}>
+                            {/* <Box sx={{ p: 2, pb: 1 }}>
                                 <Typography variant="caption" color="text.secondary" fontWeight="bold">
                                     Fonds de plan
                                 </Typography>
-                            </Box>
+                            </Box> */}
+                            <SelectorMapsListingVariantChips />
 
                             <List dense sx={{ p: 0, overflowY: "auto", flex: 1 }}>
                                 {baseMaps.map((map) => {
@@ -297,7 +303,8 @@ export default function BaseMapSelectorInMapEditorV2() {
                                                                     borderRadius: 1,
                                                                     border: 1,
                                                                     borderColor: "divider",
-                                                                    bgcolor: "background.default"
+                                                                    //bgcolor: "background.default"
+                                                                    bgcolor: "white"
                                                                 }}
                                                             />
                                                         ) : (

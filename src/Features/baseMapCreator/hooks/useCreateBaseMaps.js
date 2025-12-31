@@ -14,6 +14,10 @@ export default function useCreateBaseMaps() {
 
         const listing = projectBaseMapListings.find((l) => l.id === listingId);
 
+        if (!listing) {
+            throw new Error("No baseMap listing found");
+        }
+
         const entities = await Promise.all(baseMaps.map(async (baseMap) => {
             const entity = {
                 name: baseMap.name,

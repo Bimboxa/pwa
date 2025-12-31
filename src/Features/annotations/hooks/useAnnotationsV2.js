@@ -30,6 +30,7 @@ export default function useAnnotationsV2(options) {
         const excludeListingsIds = options?.excludeListingsIds;
         const withListingName = options?.withListingName;
         const withQties = options?.withQties;
+        const baseMapAnnotationsOnly = options?.baseMapAnnotationsOnly;
 
         // data
 
@@ -43,6 +44,10 @@ export default function useAnnotationsV2(options) {
         const tempAnnotations = useSelector((s) => s.annotations.tempAnnotations);
 
         const bgImageTextAnnotations = useBgImageTextAnnotations();
+
+        const annotationsUpdatedAt = useSelector(
+            (s) => s.annotations.annotationsUpdatedAt
+        );
 
 
         // main
@@ -64,13 +69,21 @@ export default function useAnnotationsV2(options) {
                 // annotations
                 let _annotations = await db.annotations.where("baseMapId").equals(baseMap?.id).toArray();
 
-                console.log("_annotations", _annotations);
+                console.log("debug_annotations", _annotations);
+
+                // filter by base map
+
+                if (baseMapAnnotationsOnly) {
+                    _annotations = _annotations.filter(a => a.isBaseMapAnnotation)
+                } else {
+                    _annotations = _annotations.filter(a => !a.isBaseMapAnnotation)
+                }
 
                 // filter by scope
 
                 if (scope?.sortedListings) {
                     const listingIds = scope.sortedListings.map(l => l.id)
-                    _annotations = _annotations.filter(a => listingIds.includes(a.listingId))
+                    _annotations = _annotations.filter(a => listingIds.includes(a.listingId) || a.isBaseMapAnnotation)
                 }
 
                 // points
@@ -148,9 +161,15 @@ export default function useAnnotationsV2(options) {
                     }));
                 }
 
-                if (excludeListingsIds) {
+                if (excludeListingsIds && !baseMapAnnotationsOnly) {
                     _annotations = _annotations?.filter(
                         (a) => !excludeListingsIds.includes(a.listingId)
+                    );
+                }
+
+                if (baseMapAnnotationsOnly) {
+                    _annotations = _annotations?.filter(
+                        (a) => a.isBaseMapAnnotation
                     );
                 }
 
@@ -166,7 +185,7 @@ export default function useAnnotationsV2(options) {
                     } else {
                         sortedAnnotationIds.push(
                             ..._annotations
-                                .filter((a) => a.listingId === listing.id)
+                                .filter((a) => a.listingId === listing.id || a.isBaseMapAnnotation)
                                 .map((a) => a.id)
                         );
                     }
@@ -205,7 +224,13 @@ export default function useAnnotationsV2(options) {
                 return _annotations;
             }
 
-        }, [scope?.id, baseMap?.id, excludeListingsIds?.join("-")]);
+        }, [
+            scope?.id,
+            baseMap?.id,
+            excludeListingsIds?.join("-"),
+            baseMapAnnotationsOnly,
+            annotationsUpdatedAt,
+        ]);
 
 
 
@@ -225,7 +250,7 @@ export default function useAnnotationsV2(options) {
         annotations = [...(annotations ?? []), ...(tempAnnotations ?? [])];
 
         // bg image text annotations
-        annotations = [...(annotations ?? []), ...(bgImageTextAnnotations ?? [])];
+        if (!baseMapAnnotationsOnly) annotations = [...(annotations ?? []), ...(bgImageTextAnnotations ?? [])];
 
 
         // return 

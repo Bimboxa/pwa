@@ -1953,6 +1953,7 @@ const InteractionLayer = forwardRef(({
                 width={baseMapImageSize?.width || 1000}
                 height={baseMapImageSize?.height || 1000}
                 brushPath={brushPath}
+                color={newAnnotation?.fillColor}
               />
             </foreignObject>
           </g>
