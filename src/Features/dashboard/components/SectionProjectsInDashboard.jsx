@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
+import { setOpenScopeCreator } from "Features/scopeCreator/scopeCreatorSlice";
 
 import useProjects from "Features/projects/hooks/useProjects";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -51,7 +52,8 @@ export default function SectionProjectsInDashboard() {
   // handlers
 
   function handleNewProjectClick() {
-    setOpen(true);
+    //setOpen(true);
+    dispatch(setOpenScopeCreator(true))
   }
 
   function handleProjectSelected(project) {

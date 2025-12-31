@@ -5,7 +5,7 @@ import { setSelectedPresetScopeKey, setStepKey } from "../scopeCreatorSlice";
 import usePresetScopes from "../hooks/usePresetScopes";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-import { Box } from "@mui/material";
+import { Box, Typography, ListItemButton } from "@mui/material";
 import { ArrowBackIos } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -21,20 +21,27 @@ export default function SectionSelectPresetScope() {
   // data
 
   const appConfig = useAppConfig();
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
 
-  console.log("appConfig", appConfig.presetScopesObject)
 
   const presetScopes = usePresetScopes();
   const selectedPresetScopeKey = useSelector(
     (s) => s.scopeCreator.selectedPresetScopeKey
   );
 
+  // helers - show
+
+  const showBack = !Boolean(projectId); // context = dashboard.
+
   // helpers
-  const backS = appConfig?.strings?.project?.select ?? "Choisir un projet";
+
+  //const backS = appConfig?.strings?.project?.select ?? "Choisir un projet";
+  const backS = "Retour";
   const addS = appConfig?.strings?.scope?.create ?? "Créer un dossier";
   const title =
-    appConfig?.strings?.scopeConfig?.select ??
+    appConfig?.strings?.scope?.selectPresetScope ??
     "Sélectionnez un type de dossier";
+
   // helpers
 
   const items = presetScopes?.map((ps) => ({
@@ -64,17 +71,27 @@ export default function SectionSelectPresetScope() {
     dispatch(setStepKey("CREATE_SCOPE"));
   }
 
+  function handleNoPresetClick() {
+    dispatch(setSelectedPresetScopeKey(null));
+    dispatch(setStepKey("CREATE_SCOPE"));
+  }
+
   return (
     <BoxFlexVStretch>
-      <Box sx={{ p: 1 }}>
+      {/* {showBack && <Box sx={{ p: 1 }}>
         <ButtonGeneric
           label={backS}
           onClick={handleBackClick}
           startIcon={<ArrowBackIos />}
         />
-      </Box>
+      </Box>} */}
 
-      <StepHeader title={title} />
+
+      {/* <Typography
+        variant="body2" color="text.secondary"
+        sx={{ p: 1, fontStyle: "italic" }}>
+        {title}
+      </Typography> */}
       <Box
         sx={{
           display: "flex",
@@ -85,9 +102,12 @@ export default function SectionSelectPresetScope() {
         <ListItemsGeneric
           items={items}
           onClick={handlePresetClick}
-          selection={selection}
+          //selection={selection}
           keyString="key"
         />
+        <ListItemButton onClick={handleNoPresetClick} divider >
+          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>Aucun modèle</Typography>
+        </ListItemButton>
       </Box>
 
       {/* {selectedPresetScopeKey && (

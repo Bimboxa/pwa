@@ -113,6 +113,15 @@ export default function DatagridScopes({ scopes }) {
           rows={rows ?? []}
           hideFooter
           density="compact"
+          onRowClick={(params) => {
+            // Don't trigger if clicking on actions column
+            if (params.field !== "actions" && params.field !== "openScope") {
+              handleOpenScope({
+                projectId: params.row.projectId,
+                scopeId: params.row.id,
+              });
+            }
+          }}
           sx={{
             backgroundColor: "white",
             "& .MuiDataGrid-columnHeaders": {
@@ -124,7 +133,23 @@ export default function DatagridScopes({ scopes }) {
             "& .MuiDataGrid-columnHeaderTitle": {
               backgroundColor: "white !important",
             },
+            "& .MuiDataGrid-row": {
+              cursor: "pointer",
+              "&:hover": {
+                backgroundColor: "rgba(0, 0, 0, 0.04) !important",
+              },
+            },
+            "& .MuiDataGrid-cell": {
+              cursor: "pointer",
+            },
+            "& .MuiDataGrid-cell[data-field='actions']": {
+              cursor: "default",
+            },
+            "& .MuiDataGrid-cell[data-field='openScope']": {
+              cursor: "default",
+            },
           }}
+
         />
       </Box>
 

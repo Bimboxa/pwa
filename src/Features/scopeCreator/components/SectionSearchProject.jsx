@@ -35,7 +35,7 @@ export default function SectionSearchProject() {
 
   return (
     <BoxFlexVStretch>
-      <StepHeader title={title} />
+      {/* <StepHeader title={title} /> */}
       <SelectorProjectFromItemsList
         onClick={handleSelectProject}
         onCreateClick={handleCreateProject}

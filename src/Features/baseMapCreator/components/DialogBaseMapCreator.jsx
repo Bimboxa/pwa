@@ -18,6 +18,8 @@ export default function DialogBaseMapCreator() {
         dispatch(setOpenBaseMapCreator(false))
     }
 
+    if (!open) return null;
+
     // render
 
     return <DialogGeneric fullscreen={true} open={open} onClose={handleClose} vh={80} vw={80}>

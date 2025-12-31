@@ -22,6 +22,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   const placeholder = options?.placeholder;
   const showAsSection = options?.showAsSection;
   const showAsField = options?.showAsField;
+  const hideTopDivider = options?.hideTopDivider;
   const showAsLabelAndField = options?.showAsLabelAndField;
   const readOnly = options?.readOnly;
   const showClose = options?.showClose;
@@ -154,7 +155,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
       sx={{
         // p: 1,
         width: 1,
-        ...(showAsSection && {
+        ...(showAsSection && !hideTopDivider && {
           borderTop: (theme) => `1px solid ${theme.palette.divider}`,
           p: 1,
         }),

@@ -3,6 +3,13 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
+import { setSelectedEntityId } from "Features/entities/entitiesSlice";
+import { setSelectedListingId } from "Features/listings/listingsSlice";
+import { setOpenBaseMapCreator, setPdfFile } from "Features/baseMapCreator/baseMapCreatorSlice";
+
+import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useBaseMaps from "../hooks/useBaseMaps";
 
 import {
     Box,
@@ -17,7 +24,8 @@ import {
     Fade,
     alpha,
     createTheme,
-    ThemeProvider
+    ThemeProvider,
+    InputBase
 } from "@mui/material";
 
 // Icons
@@ -28,16 +36,11 @@ import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
 
 // Hooks / Components simulés
-import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useBaseMaps from "../hooks/useBaseMaps";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import ContainerFilesSelector from "Features/files/components/ContainerFilesSelector";
-import { setOpenBaseMapCreator, setPdfFile } from "Features/baseMapCreator/baseMapCreatorSlice";
 
 import testIsPdf from "Features/pdf/utils/testIsPdf";
 import testIsImage from "Features/files/utils/testIsImage";
-import { setSelectedEntityId } from "Features/entities/entitiesSlice";
-import { setSelectedListingId } from "Features/listings/listingsSlice";
 
 export default function BaseMapSelectorInMapEditorV2() {
     const dispatch = useDispatch();
@@ -48,10 +51,15 @@ export default function BaseMapSelectorInMapEditorV2() {
     const { value: baseMaps = [] } = useBaseMaps({
         filterByListingId: listingId,
     });
+    const updateEntity = useUpdateEntity();
 
     // --- State ---
     const [isHovered, setIsHovered] = useState(false);
     const [openFileSelector, setOpenFileSelector] = useState(false);
+
+    // État pour gérer l'édition du nom
+    const [editingMapId, setEditingMapId] = useState(null);
+    const [tempName, setTempName] = useState("");
 
     // --- FORCE DARK THEME ---
     const darkTheme = useMemo(() => createTheme({
@@ -85,18 +93,42 @@ export default function BaseMapSelectorInMapEditorV2() {
     const handleMouseLeave = () => setIsHovered(false);
 
     const handleSelectMap = (map) => {
+        // Si cette map spécifique est en cours d'édition, on empêche la sélection
+        if (editingMapId === map.id) return;
+
         console.log("Sélection de la map :", map.name);
         setIsHovered(false);
         dispatch(setSelectedMainBaseMapId(map.id));
     };
 
     const handleEditMap = (e, map) => {
-        e.stopPropagation();
-        console.log("Ouverture de l'édition pour :", map.name);
-        dispatch(setSelectedEntityId(map?.id));
-        dispatch(setSelectedListingId(map?.listingId));
-        setIsHovered(false);
+        e.stopPropagation(); // Empêche de sélectionner la map en cliquant sur Edit
+        console.log("Mode édition activé pour :", map.name);
 
+        // On initialise le mode édition
+        setEditingMapId(map.id);
+        setTempName(map.name || "");
+
+        // Optionnel : Mettre à jour les entités sélectionnées dans Redux si nécessaire
+        //dispatch(setSelectedEntityId(map?.id));
+        //dispatch(setSelectedListingId(map?.listingId));
+    };
+
+    async function handleRenameSave(e) {
+        if (e) e.stopPropagation();
+
+        if (editingMapId && tempName.trim() !== "") {
+            await updateEntity(editingMapId, { name: tempName });
+            setEditingMapId(null); // Quitter le mode édition
+        }
+    }
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleRenameSave(e);
+        } else if (e.key === 'Escape') {
+            setEditingMapId(null); // Annuler
+        }
     };
 
     const handleFilesChange = (files) => {
@@ -104,7 +136,6 @@ export default function BaseMapSelectorInMapEditorV2() {
         if (testIsPdf(file)) {
             dispatch(setOpenBaseMapCreator(true));
             dispatch(setPdfFile(file));
-
         } else if (testIsImage(file)) {
             console.log("image")
         }
@@ -186,20 +217,47 @@ export default function BaseMapSelectorInMapEditorV2() {
                             <List dense sx={{ p: 0, overflowY: "auto", flex: 1 }}>
                                 {baseMaps.map((map) => {
                                     const isSelected = activeBaseMap?.id === map.id;
+                                    const isEditing = editingMapId === map.id;
                                     const imageUrl = map.getUrl();
 
                                     return (
                                         <ListItem
                                             key={map.id}
                                             disablePadding
+                                            // Utilisation de SX pour gérer l'affichage au survol (hover)
+                                            sx={{
+                                                "&:hover .edit-btn": {
+                                                    opacity: 1,
+                                                    visibility: "visible"
+                                                }
+                                            }}
                                             secondaryAction={
-                                                isSelected && (
+                                                isEditing ? (
+                                                    // Mode Édition : Bouton Sauvegarder
                                                     <IconButton
+                                                        edge="end"
+                                                        aria-label="save"
+                                                        size="small"
+                                                        onClick={handleRenameSave}
+                                                        sx={{ color: "success.main" }}
+                                                    >
+                                                        <CheckIcon fontSize="small" />
+                                                    </IconButton>
+                                                ) : (
+                                                    // Mode Normal : Bouton Editer (visible uniquement au hover)
+                                                    <IconButton
+                                                        className="edit-btn" // Classe ciblée par le SX du parent
                                                         edge="end"
                                                         aria-label="edit"
                                                         size="small"
                                                         onClick={(e) => handleEditMap(e, map)}
-                                                        sx={{ color: "primary.main" }}
+                                                        sx={{
+                                                            color: "text.secondary",
+                                                            opacity: 0, // Caché par défaut
+                                                            visibility: "hidden",
+                                                            transition: "all 0.2s",
+                                                            "&:hover": { color: "primary.main" }
+                                                        }}
                                                     >
                                                         <EditIcon fontSize="small" />
                                                     </IconButton>
@@ -211,27 +269,22 @@ export default function BaseMapSelectorInMapEditorV2() {
                                                 onClick={() => handleSelectMap(map)}
                                                 sx={{
                                                     pl: 2,
-                                                    pr: isSelected ? 6 : 2,
+                                                    pr: 6, // Espace constant pour éviter le saut lors de l'apparition de l'icone
                                                     py: 1,
                                                     "&.Mui-selected": {
                                                         bgcolor: (theme) => alpha(theme.palette.primary.main, 0.15),
                                                         borderLeft: (theme) => `4px solid ${theme.palette.primary.main}`,
                                                         pl: 1.5,
-                                                        "&:hover": {
-                                                            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.25),
-                                                        }
                                                     },
                                                     "&:hover": {
                                                         bgcolor: "action.hover",
                                                     }
                                                 }}
                                             >
-                                                {/* --- MODIFICATION ICI --- */}
                                                 <ListItemIcon sx={{ minWidth: 36, display: 'flex', alignItems: 'center' }}>
                                                     {isSelected ? (
                                                         <CheckIcon fontSize="small" color="primary" />
                                                     ) : (
-                                                        // Affiche l'image si elle existe, sinon un icône générique
                                                         imageUrl ? (
                                                             <Box
                                                                 component="img"
@@ -241,7 +294,7 @@ export default function BaseMapSelectorInMapEditorV2() {
                                                                     width: 28,
                                                                     height: 28,
                                                                     objectFit: "cover",
-                                                                    borderRadius: 1, // Petit arrondi sympa
+                                                                    borderRadius: 1,
                                                                     border: 1,
                                                                     borderColor: "divider",
                                                                     bgcolor: "background.default"
@@ -253,17 +306,37 @@ export default function BaseMapSelectorInMapEditorV2() {
                                                     )}
                                                 </ListItemIcon>
 
-                                                <ListItemText
-                                                    primary={map.name}
-                                                    slotProps={{
-                                                        primary: {
-                                                            variant: "body2",
-                                                            fontWeight: isSelected ? 600 : 400,
-                                                            noWrap: true,
-                                                            color: "text.primary"
-                                                        }
-                                                    }}
-                                                />
+                                                {/* Contenu : Input si édition, Texte sinon */}
+                                                {isEditing ? (
+                                                    <InputBase
+                                                        value={tempName}
+                                                        onChange={(e) => setTempName(e.target.value)}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onKeyDown={handleKeyDown}
+                                                        autoFocus
+                                                        fullWidth
+                                                        sx={{
+                                                            fontSize: '0.875rem',
+                                                            fontFamily: 'inherit',
+                                                            color: 'text.primary',
+                                                            ml: -0.5,
+                                                            borderBottom: "1px solid",
+                                                            borderColor: "primary.main"
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <ListItemText
+                                                        primary={map.name}
+                                                        slotProps={{
+                                                            primary: {
+                                                                variant: "body2",
+                                                                fontWeight: isSelected ? 600 : 400,
+                                                                noWrap: true,
+                                                                color: "text.primary"
+                                                            }
+                                                        }}
+                                                    />
+                                                )}
                                             </ListItemButton>
                                         </ListItem>
                                     );
