@@ -1,5 +1,6 @@
 // components/InteractionLayer.jsx
 import { useEffect, useRef, useState, useImperativeHandle, forwardRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { nanoid } from '@reduxjs/toolkit';
@@ -40,6 +41,7 @@ import getAnnotationLabelPropsFromAnnotation from 'Features/annotations/utils/ge
 import cv from "Features/opencv/services/opencvService";
 import editor from "App/editor";
 import getTopMiddlePoint from 'Features/geometry/utils/getTopMiddlePoint';
+import { useSmartZoom } from "App/contexts/SmartZoomContext";
 
 // constants
 
@@ -118,6 +120,8 @@ const InteractionLayer = forwardRef(({
     setSelectedPointId, selectedPointId,
     setSelectedPartId, selectedPartId,
     setBasePose } = useInteraction();
+
+  const { zoomContainer } = useSmartZoom();
 
   // sourceImage for smart detect
 
@@ -256,8 +260,10 @@ const InteractionLayer = forwardRef(({
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
   useEffect(() => {
-    showSmartDetectRef.current = showSmartDetect;
-  }, [showSmartDetect])
+    const show = Boolean(enabledDrawingMode)
+    //showSmartDetectRef.current = showSmartDetect;
+    showSmartDetectRef.current = show;
+  }, [showSmartDetect, enabledDrawingMode])
 
 
 
@@ -722,10 +728,12 @@ const InteractionLayer = forwardRef(({
           break;
 
         case "p":
+          console.log("press p")
           if (showSmartDetect) smartDetectRef.current?.changeMorphKernelSize(1);
           break;
 
         case "m":
+          console.log("press m")
           if (showSmartDetect) smartDetectRef.current?.changeMorphKernelSize(-1);
           break;
 
@@ -1974,13 +1982,13 @@ const InteractionLayer = forwardRef(({
         />
 
         {/* Le composant Loupe */}
-        <SmartDetectLayer
+        {zoomContainer ? createPortal(<SmartDetectLayer
           ref={smartDetectRef}
           sourceImage={sourceImageEl}
           rotation={rotation}
           loupeSize={LOUPE_SIZE}
-          enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetect}
-        />
+          enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetectRef.current}
+        />, zoomContainer) : null}
       </>
 
 

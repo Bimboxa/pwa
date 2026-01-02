@@ -37,6 +37,7 @@ import markersReducer from "Features/markers/markersSlice";
 import bgImageReducer from "Features/bgImage/bgImageSlice";
 import threedEditorReducer from "Features/threedEditor/threedEditorSlice";
 import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
+import smartDetectReducer from "Features/smartDetect/smartDetectSlice";
 import reportsReducer from "Features/reports/reportsSlice";
 import blueprintsReducer from "Features/blueprints/blueprintsSlice";
 import selectionReducer from "Features/selection/selectionSlice";
@@ -94,6 +95,7 @@ const store = configureStore({
     markers: markersReducer,
     bgImage: bgImageReducer,
     mapEditor: mapEditorReducer,
+    smartDetect: smartDetectReducer,
     threedEditor: threedEditorReducer,
     reports: reportsReducer,
     blueprints: blueprintsReducer,

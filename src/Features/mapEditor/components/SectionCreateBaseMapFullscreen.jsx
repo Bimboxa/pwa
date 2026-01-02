@@ -106,6 +106,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
 
   async function handleCreateClick() {
     await _createBaseMap(imageFile);
+    if (onClose) onClose();
   }
 
   async function handleCreateDefault() {
