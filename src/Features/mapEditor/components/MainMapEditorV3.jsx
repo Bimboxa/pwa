@@ -175,7 +175,6 @@ export default function MainMapEditorV3() {
     const baseMapAnnotationsOnly = openedPanel === "BASE_MAP_DETAIL";
     const annotations = useAnnotationsV2({ withEntity: true, excludeListingsIds: hiddenListingsIds, baseMapAnnotationsOnly });
 
-    console.log('debug_3112_annotations', annotations)
 
     // legend
 

@@ -1,43 +1,51 @@
-import throttle from "Features/misc/utils/throttle";
 import { useRef, useState, useMemo, forwardRef, useImperativeHandle } from "react";
+import { useDispatch } from "react-redux";
+
+import { setCenterColor as setGlobalCenterColor } from "Features/smartDetect/smartDetectSlice";
+
+import throttle from "Features/misc/utils/throttle";
+import theme from "Styles/theme";
 
 import cv from "Features/opencv/services/opencvService";
 
 const SmartDetectLayer = forwardRef(({
-    sourceImage, // L'élément DOM image source (statique)
+    sourceImage,
     rotation = 0,
     loupeSize = 100,
     debug = false,
     enabled = false,
 }, ref) => {
+    const dispatch = useDispatch();
+
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
 
-    // État mutable via Ref pour performance
+    // Options
+    const FIXED_IN_CONTAINER = true;
+
+    // --- STATES ---
+    const [detectedPolylines, setDetectedPolylines] = useState([]);
+    const [processedImageUrl, setProcessedImageUrl] = useState(null);
+
+    // State optionnel pour l'UI, mais non utilisé pour le calcul (qui utilise la ref)
+    const [morphKernelSizeDisplay, setMorphKernelSizeDisplay] = useState(3);
+
+    const [centerColor, setCenterColor] = useState(theme.palette.primary.main);
+    const contrastedColor = theme.palette.getContrastText(centerColor);
+
+    // --- REF (Single Source of Truth pour la logique) ---
     const stateRef = useRef({
         sourceROI: null,
         detectedPolylines: [],
         morphKernelSize: 3,
     });
 
-    const [detectedPolylines, setDetectedPolylines] = useState([]);
-    const [processedImageUrl, setProcessedImageUrl] = useState(null);
-    const [morphKernelSize, setMorphKernelSize] = useState(3);
-
-
-    // --- HELPER DE DESSIN SYNCHRONE ---
-    // Cette fonction dessine le ROI actuel dans le canvas.
-    // Elle est appelée par update (visuel) ET par detectOrientationNow (logique)
+    // --- HELPER DE DESSIN ---
     const drawToCanvas = (ctx, roi) => {
-
         if (!sourceImage || !roi) return false;
-
-        // Nettoyage
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, loupeSize, loupeSize);
-
         try {
-            // Dessin ROI
             ctx.drawImage(
                 sourceImage,
                 roi.x, roi.y, roi.width, roi.height,
@@ -50,13 +58,23 @@ const SmartDetectLayer = forwardRef(({
         }
     };
 
-    // --- 2. ANALYSE VISUELLE (Throttled pour 60fps) ---
-    const analyzeImageThrottled = useMemo(() => throttle(async (imageUrl) => {
+    // --- 2. ANALYSE VISUELLE ---
+    // Ajout de 'currentRoi' en argument pour le calcul de coordonnées
+    const analyzeImageThrottled = useMemo(() => throttle(async (imageUrl, currentRoi) => {
         if (!imageUrl || !enabled) return;
+
+        // Lecture de la Ref pour la taille du kernel (évite stale closure)
+        const currentKernelSize = stateRef.current.morphKernelSize;
+
         try {
             await cv.load();
-            // const result = await cv.detectSeparationLinesAsync({ imageUrl, keepBest: true, rotation });
-            const result = await cv.detectShapesAsync({ imageUrl, morphKernelSize });
+            const result = await cv.detectShapesAsync({
+                imageUrl,
+                morphKernelSize: currentKernelSize,
+                rotation,
+                keepBest: false, // On veut tout recevoir pour filtrer/colorer nous-mêmes
+            });
+
             const polylines = result?.polylines || [];
             const processedImageUrl = result?.processedImageUrl || null;
 
@@ -69,118 +87,124 @@ const SmartDetectLayer = forwardRef(({
                 setProcessedImageUrl(processedImageUrl);
             }
 
+            if (result?.centerColor) {
+                setCenterColor(result.centerColor.hex);
+                dispatch(setGlobalCenterColor(result.centerColor.hex));
+            }
+
+            if (result?.separationLines) {
+                stateRef.current.detectedPolylines = result.separationLines;
+                setDetectedPolylines(result.separationLines);
+
+                // --- CALCUL DES COORDONNÉES GLOBALES (IMAGE ORIGINE) ---
+
+                // 1. Trouver le meilleur segment horizontal
+                const segment_H_Obj = result.separationLines.find(l =>
+                    l.type.includes('horizontal') && l.isBest
+                );
+
+                if (segment_H_Obj && currentRoi) {
+                    const localPoints = segment_H_Obj.points;
+
+                    // 2. Calcul du ratio (Scale) entre le ROI réel et la Loupe (Canvas)
+                    const scaleX = currentRoi.width / loupeSize;
+                    const scaleY = currentRoi.height / loupeSize;
+
+                    // 3. Projection : Origine ROI + (Point Local * Scale)
+                    const segment_H_inImage = localPoints.map(p => ({
+                        x: currentRoi.x + (p.x * scaleX),
+                        y: currentRoi.y + (p.y * scaleY)
+                    }));
+
+                    // ICI : Vous avez les coordonnées globales en pixels sur l'image source
+                    //console.log("Segment H (Global PX):", segment_H_inImage);
+
+                    // Exemple d'action : 
+                    // dispatch(setDetectedSegmentCoords(segment_H_inImage));
+                }
+            }
+
         } catch (e) {
             // Silence
         }
-    }, 60), [morphKernelSize, enabled]);
+    }, 60), [enabled, loupeSize]); // dépendances
 
 
-    // --- 1. EXPOSER L'API IMPÉRATIVE ---
+    // --- API IMPÉRATIVE ---
     useImperativeHandle(ref, () => ({
-
         changeMorphKernelSize: (changeBy) => {
-            const newMorphKernelSize = Math.max(1, Math.min(20, morphKernelSize + changeBy));
-            console.log("[SmartDetect] changeMorphKernelSize", newMorphKernelSize);
-            setMorphKernelSize(morphKernelSize => Math.max(1, Math.min(20, morphKernelSize + changeBy)));
-            //
-            const canvas = canvasRef.current;
-            analyzeImageThrottled(canvas.toDataURL('image/jpeg', 0.8));
-        },
-        // A. Mise à jour visuelle (Souris)
-        update: (screenPos, sourceROI) => {
+            const current = stateRef.current.morphKernelSize;
+            const newValue = Math.max(0, Math.min(20, current + changeBy));
 
-            // 1. Déplacer la div
-            if (containerRef.current) {
+            console.log("newMorphKernelSize (Ref update)", newValue);
+
+            stateRef.current.morphKernelSize = newValue;
+            setMorphKernelSizeDisplay(newValue);
+
+            const canvas = canvasRef.current;
+            if (canvas) {
+                // On passe le ROI actuel stocké dans la ref
+                analyzeImageThrottled(
+                    canvas.toDataURL('image/jpeg', 0.9),
+                    stateRef.current.sourceROI
+                );
+            }
+        },
+        update: (screenPos, sourceROI) => {
+            if (containerRef.current && !FIXED_IN_CONTAINER) {
                 containerRef.current.style.transform = `translate(${screenPos.x}px, ${screenPos.y}px) translate(-50%, -50%)`;
             }
 
-            // 2. Stocker le ROI
+            // Mise à jour de la ref ROI
             stateRef.current.sourceROI = sourceROI;
 
-            // 3. Dessiner et lancer l'analyse visuelle
             const canvas = canvasRef.current;
             if (canvas) {
                 const ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: false });
-                const roi = stateRef.current.sourceROI;
-                if (drawToCanvas(ctx, roi)) {
-                    // On ne convertit en URL que si le dessin a réussi
-                    analyzeImageThrottled(canvas.toDataURL('image/jpeg', 0.8)); // JPEG est plus rapide que PNG pour toDataURL
+                if (drawToCanvas(ctx, sourceROI)) {
+                    // On passe le ROI reçu en argument pour garantir la synchro
+                    analyzeImageThrottled(
+                        canvas.toDataURL('image/jpeg', 0.9),
+                        sourceROI
+                    );
                 }
             }
         },
-
-        // B. Récupération résultats (Commit)
         getDetectedPolylines: () => stateRef.current.detectedPolylines,
-
-        // C. Snapshot (Helper)
-        getSnapshotDataUrl: () => {
-            return canvasRef.current?.toDataURL('image/png');
-        },
-
-        // D. Analyse Ponctuelle (Auto-Pan)
-        // Cette fonction doit être autonome et garantir que l'image analysée est fraîche
+        getSnapshotDataUrl: () => canvasRef.current?.toDataURL('image/png'),
         detectOrientationNow: async () => {
-            console.log("[SmartDetect] detectOrientationNow START");
             const canvas = canvasRef.current;
             if (!canvas) return null;
-
-            // 1. FORCER LE REDESSIN (Crucial pour l'Auto-Pan qui bouge la caméra sans bouger la souris)
-            // Si on ne redessine pas ici, on analyse l'image de la frame précédente !
             const ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: false });
             const roi = stateRef.current.sourceROI;
-            const drawSuccess = drawToCanvas(ctx, roi);
+            if (!drawToCanvas(ctx, roi)) return null;
 
-            if (!drawSuccess) {
-                console.warn("[SmartDetect] Cannot detect: Draw failed (Source not ready?)");
-                return null;
-            }
-
-            // 2. Snapshot Frais
-            // Utiliser 'image/jpeg' avec qualité 0.8 est souvent 4x plus rapide que png
             const imageUrl = canvas.toDataURL('image/jpeg', 0.8);
-            console.log("[SmartDetect] detectOrientationNow imageUrl", imageUrl);
-
             try {
-                //await cv.load();
-
-                // 3. Appel Worker`
-                console.log("[SmartDetect] detectOrientationNow START");
                 const result = await cv.detectSeparationLinesAsync({ imageUrl, keepBest: true, origin: "debug", rotation });
-                console.log("[SmartDetect] detectOrientationNow END", result);
                 const lines = result?.polylines || [];
 
-
-                // 4. Interprétation
                 if (lines.length === 0) return null;
-
                 if (lines.some(l => l.type === 'corner')) return 'ANGLE';
-
                 const hasH = lines.some(l => l.type === 'horizontal');
                 const hasV = lines.some(l => l.type === 'vertical');
-
                 if (hasH && hasV) return 'ANGLE';
                 if (hasH) return 'H';
                 if (hasV) return 'V';
-
                 return null;
-
-            } catch (e) {
-                console.error("[SmartDetect] Orientation detect error", e);
-                return null;
-            }
+            } catch (e) { return null; }
         }
     }));
 
     // --- RENDER ---
     const centerCoord = loupeSize / 2;
-
+    const crossHairSize = 8;
 
     return (
         <div
             ref={containerRef}
             style={{
-                position: 'absolute',
-                top: 0, left: 0,
+                ...(!FIXED_IN_CONTAINER ? { position: 'absolute', top: 0, left: 0 } : { position: "relative" }),
                 width: loupeSize,
                 height: loupeSize,
                 boxSizing: 'border-box',
@@ -195,20 +219,13 @@ const SmartDetectLayer = forwardRef(({
         >
             <canvas ref={canvasRef} width={loupeSize} height={loupeSize} />
 
-            {/* 2. LAYER MILIEU : PROCESSED IMAGE (Si elle existe) */}
             {processedImageUrl && (
                 <img
                     src={processedImageUrl}
                     alt="Debug Processed"
                     style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                        pointerEvents: 'none',
-                        // opacity: 0.8 // Décommentez si vous voulez voir l'original par transparence
+                        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                        objectFit: 'contain', pointerEvents: 'none',
                     }}
                 />
             )}
@@ -216,29 +233,53 @@ const SmartDetectLayer = forwardRef(({
             <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
                 {detectedPolylines.map((polylineObj, index) => {
                     const pointsStr = polylineObj.points.map(p => `${p.x},${p.y}`).join(' ');
-
-                    // Style conditionnel pour debug visuel
                     let color = "red";
-                    if (polylineObj.type === 'horizontal') color = "#00ccff"; // Cyan
-                    if (polylineObj.type === 'vertical') color = "#ff00ff"; // Magenta
-                    if (polylineObj.type === 'corner') color = "#00ff00"; // Vert
+                    if (polylineObj.type.includes('horizontal')) color = "#00ccff"; // Cyan
+                    if (polylineObj.type.includes('vertical')) color = "#ff00ff"; // Magenta
+                    if (polylineObj.type.includes('corner')) color = "#00ff00"; // Vert
+
+                    // La "Best Line" écrase la couleur précédente pour être bien visible (Vert pur)
+                    if (polylineObj.isBest) color = "#00ff00";
 
                     const commonProps = {
                         points: pointsStr,
                         fill: polylineObj.closeLine ? "rgba(255, 0, 0, 0.2)" : "none",
                         stroke: color,
-                        strokeWidth: "2"
+                        strokeWidth: polylineObj.isBest ? "3" : "2" // Un peu plus épais si Best
                     };
-
-                    return polylineObj.closeLine ? (
-                        <polygon key={index} {...commonProps} />
-                    ) : (
-                        <polyline key={index} {...commonProps} />
-                    );
+                    return polylineObj.closeLine ?
+                        <polygon key={index} {...commonProps} /> :
+                        <polyline key={index} {...commonProps} />;
                 })}
 
-                {/* Viseur */}
-                <circle cx={centerCoord} cy={centerCoord} r={3} fill="red" stroke="white" strokeWidth="1" />
+                {/* CROSSHAIR */}
+                <g style={{ filter: "drop-shadow(0px 0px 1px rgba(0,0,0,0.8))" }}>
+                    <line
+                        x1={centerCoord - crossHairSize}
+                        y1={centerCoord}
+                        x2={centerCoord + crossHairSize}
+                        y2={centerCoord}
+                        stroke={contrastedColor}
+                        strokeWidth="1"
+                        strokeLinecap="round"
+                    />
+                    <line
+                        x1={centerCoord}
+                        y1={centerCoord - crossHairSize}
+                        x2={centerCoord}
+                        y2={centerCoord + crossHairSize}
+                        stroke={contrastedColor}
+                        strokeWidth="1"
+                        strokeLinecap="round"
+                    />
+                    {/* Petit point central optionnel pour la précision */}
+                    <circle
+                        cx={centerCoord}
+                        cy={centerCoord}
+                        r={1}
+                        fill={contrastedColor}
+                    />
+                </g>
             </svg>
         </div>
     );

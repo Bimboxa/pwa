@@ -1,12 +1,14 @@
 import { useSelector, useDispatch } from "react-redux";
 
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Paper } from "@mui/material";
 
 import Panel from "Features/layout/components/Panel";
 import BoxCenter from "Features/layout/components/BoxCenter";
 
 import SectionEditedAnnotationNextPoint from "./SectionEditedAnnotationNextPoint";
 import SectionFixedLengthToNextPoint from "./SectionFixedLengthToNextPoint";
+import SectionSmartDetect from "Features/smartDetect/components/SectionSmartDetect";
+
 
 export default function PanelHelperDrawAnnotation() {
   const dispatch = useDispatch();
@@ -26,7 +28,10 @@ export default function PanelHelperDrawAnnotation() {
 
   const helperS = helperMap[enabledDrawingMode];
 
-  return null
+  return <Panel>
+    <SectionSmartDetect />
+  </Panel>
+
   return (
     <Panel>
       <BoxCenter sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
