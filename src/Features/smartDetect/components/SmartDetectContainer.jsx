@@ -2,7 +2,7 @@ import { useSmartZoom } from "App/contexts/SmartZoomContext";
 
 import { Box, Paper } from "@mui/material";
 
-const LOUPE_SIZE = 150;
+const LOUPE_SIZE = 200;
 
 export default function SmartDetectContainer() {
 

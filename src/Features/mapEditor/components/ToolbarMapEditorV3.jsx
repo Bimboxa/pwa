@@ -47,7 +47,8 @@ export default function ToolbarMapEditorV3() {
     // helpers - show
 
     const showTools = openedPanel === "BASE_MAP_DETAIL";
-    const showNewAnnotation = openedPanel !== "BASE_MAP_DETAIL";
+    //const showNewAnnotation = openedPanel !== "BASE_MAP_DETAIL";
+    const showNewAnnotation = false;
 
     // render
 

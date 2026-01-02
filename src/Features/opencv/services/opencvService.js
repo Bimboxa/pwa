@@ -232,6 +232,12 @@ class CV {
       payload,
     });
   }
+  extendLineAsync(payload) {
+    return this._dispatch({
+      msg: "extendLineAsync",
+      payload,
+    });
+  }
 }
 
 // Export the same instant everywhere

@@ -42,14 +42,15 @@ import cv from "Features/opencv/services/opencvService";
 import editor from "App/editor";
 import getTopMiddlePoint from 'Features/geometry/utils/getTopMiddlePoint';
 import { useSmartZoom } from "App/contexts/SmartZoomContext";
+import TransientDetectedLineLayer from 'Features/mapEditorGeneric/components/TransientDetectedLineLayer';
 
 // constants
 
 const SNAP_THRESHOLD_ABSOLUTE = 12;
 const DRAG_THRESHOLD_PX = 3; // Seuil de déplacement pour activer le drag
 const SCREEN_BRUSH_RADIUS_PX = 12; // Rayon fixe à l'écran
-const LOUPE_SIZE = 150; // Taille écran de la loupe
-const SMART_ZOOM = 2.0; // Facteur de grossissement
+const LOUPE_SIZE = 200; // Taille écran de la loupe
+const SMART_ZOOM = 3.0; // Facteur de grossissement
 const MAX_FAILURES = 0; // On autorise 1 frames d'échec avant de stopper le autopan
 const PAN_STEP = 30;
 
@@ -169,6 +170,22 @@ const InteractionLayer = forwardRef(({
   // cameraZoom
 
   const cameraZoom = viewportRef.current?.getZoom() || 1;
+
+  // Transient detected line
+
+  const previewLineLayerRef = useRef(null);
+
+  const handleSmartLineDetected = (points) => {
+    // points est un array [{x,y}, {x,y}] ou null
+
+    if (previewLineLayerRef.current) {
+      // On met à jour le composant d'affichage impérativement
+      previewLineLayerRef.current.updateLine(points);
+    }
+
+    // Si vous voulez aussi stocker pour le "commit" (quand on clique)
+    // smartLineRef.current = points; 
+  };
 
   // update helper scale
 
@@ -1899,19 +1916,13 @@ const InteractionLayer = forwardRef(({
         {/* Ou mieux : Les enfants écoutent un store/context dédié aux interactions */}
         {children}
 
-        {(dragState?.active || dragState?.frozen) && (
-          <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
-            <TransientTopologyLayer
-              annotations={annotations}
-              movingPointId={dragState.pointId}
-              originalPointIdForDuplication={dragState.isDuplicateMode ? dragState.originalPointId : null}
-              currentPos={dragState.currentPos}
-              viewportScale={targetPose.k * cameraZoom}
-              virtualInsertion={virtualInsertion}
-              selectedAnnotationId={selectedNode?.nodeId?.replace("label::", "")}
-            />
-          </g>
-        )}
+
+        <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
+          <TransientDetectedLineLayer
+            ref={previewLineLayerRef}
+          />
+        </g>
+
 
         {/* --- Affichage conditionnel : Seulement si 'active' est vrai --- */}
         {dragAnnotationState?.active && (
@@ -1926,6 +1937,20 @@ const InteractionLayer = forwardRef(({
           </g>
         )}
 
+
+        {(enabledDrawingMode || drawingPoints.length > 0) && (
+          <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
+            <DrawingLayer
+              ref={drawingLayerRef} // <--- On branche la télécommande ici
+              points={drawingPoints}
+              newAnnotation={newAnnotation}
+              onHoverFirstPoint={handleHoverFirstPoint}
+              onLeaveFirstPoint={handleLeaveFirstPoint}
+              enabledDrawingMode={enabledDrawingMode}
+            />
+          </g>
+
+        )}
 
         {(enabledDrawingMode || drawingPoints.length > 0) && (
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
@@ -1987,6 +2012,7 @@ const InteractionLayer = forwardRef(({
           sourceImage={sourceImageEl}
           rotation={rotation}
           loupeSize={LOUPE_SIZE}
+          onLineDetected={handleSmartLineDetected}
           enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetectRef.current}
         />, zoomContainer) : null}
       </>

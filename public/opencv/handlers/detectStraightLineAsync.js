@@ -15,8 +15,6 @@ async function detectStraightLineAsync({ msg, payload }) {
       throw new Error("imageUrl, x, and y are required");
     }
 
-    console.log("detectStraightLineAsync x,y", x, y);
-
     const imageData = await loadImageDataFromUrl(imageUrl);
     const src = cv.matFromImageData(imageData);
 
