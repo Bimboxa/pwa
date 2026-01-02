@@ -14,6 +14,7 @@ const SmartDetectLayer = forwardRef(({
     loupeSize = 100,
     debug = false,
     enabled = false,
+    onLineDetected,
 }, ref) => {
     const dispatch = useDispatch();
 
@@ -26,6 +27,7 @@ const SmartDetectLayer = forwardRef(({
     // --- STATES ---
     const [detectedPolylines, setDetectedPolylines] = useState([]);
     const [processedImageUrl, setProcessedImageUrl] = useState(null);
+    const [extendedLine, setExtendedLine] = useState(null);
 
     // State optionnel pour l'UI, mais non utilisé pour le calcul (qui utilise la ref)
     const [morphKernelSizeDisplay, setMorphKernelSizeDisplay] = useState(3);
@@ -103,7 +105,7 @@ const SmartDetectLayer = forwardRef(({
                     l.type.includes('horizontal') && l.isBest
                 );
 
-                if (segment_H_Obj && currentRoi) {
+                if (false && segment_H_Obj && currentRoi) {
                     const localPoints = segment_H_Obj.points;
 
                     // 2. Calcul du ratio (Scale) entre le ROI réel et la Loupe (Canvas)
@@ -116,11 +118,27 @@ const SmartDetectLayer = forwardRef(({
                         y: currentRoi.y + (p.y * scaleY)
                     }));
 
+                    const { extendedPoints, counters } = await cv.extendLineAsync({
+                        imageUrl: sourceImage.src,
+                        points: segment_H_inImage,
+                        offset: { variant: "MANUAL", value: 0 }
+                    });
+
+                    setExtendedLine(extendedPoints);
+                    if (onLineDetected) {
+                        onLineDetected(extendedPoints);
+                    }
+
                     // ICI : Vous avez les coordonnées globales en pixels sur l'image source
                     //console.log("Segment H (Global PX):", segment_H_inImage);
 
                     // Exemple d'action : 
                     // dispatch(setDetectedSegmentCoords(segment_H_inImage));
+                } else {
+                    setExtendedLine(null);
+                    if (onLineDetected) {
+                        onLineDetected(null);
+                    }
                 }
             }
 
@@ -282,6 +300,7 @@ const SmartDetectLayer = forwardRef(({
                 </g>
             </svg>
         </div>
+
     );
 });
 
