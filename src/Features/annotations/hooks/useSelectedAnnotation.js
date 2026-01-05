@@ -62,7 +62,9 @@ export default function useSelectedAnnotation() {
     (t) => t.id === annotation?.annotationTemplateId
   );
 
-  annotation = { ...annotation, ...getAnnotationTemplateProps(template), templateLabel: template?.label || "-?" };
+  if (!annotation?.isBaseMapAnnotation) {
+    annotation = { ...annotation, ...getAnnotationTemplateProps(template), templateLabel: template?.label || "-?" };
+  }
 
   // return
 

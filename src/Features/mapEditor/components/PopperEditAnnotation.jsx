@@ -1,16 +1,26 @@
 import { useSelector, useDispatch } from "react-redux";
 
+import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
+
+import { setAnnotationToolbarPosition } from "../mapEditorSlice";
+
 import PopperBox from "Features/layout/components/PopperBox";
 import ToolbarEditAnnotation from "Features/annotations/components/ToolbarEditAnnotation";
-import { setAnnotationToolbarPosition } from "../mapEditorSlice";
+import ToolbarEditAnnotationVariantBaseMapAnnotation from "Features/annotations/components/ToolbarEditAnnotationVariantBaseMapAnnotation";
+
 
 export default function PopperEditAnnotation({ viewerKey = null }) {
   const dispatch = useDispatch();
+
+  // data
   const anchorPosition = useSelector(
     (s) => s.mapEditor.annotationToolbarPosition
   );
   const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
   const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const selectedAnnotation = useSelectedAnnotation();
+
+  // helpers
 
   // Only show popper if viewerKey matches active viewer (or if viewerKey is not specified, show for MAP)
   const shouldShow = viewerKey
@@ -22,6 +32,12 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
     Boolean(anchorPosition) &&
     ["POLYLINE", "POLYGON"].includes(selectedNode?.annotationType) &&
     selectedNode?.nodeType === "ANNOTATION";
+
+  // helper - isBaseMapAnnotation
+
+  const isBaseMapAnnotation = selectedAnnotation?.isBaseMapAnnotation;
+
+  // handlers
 
   const handleClose = () => {
     // Only close if this popper's viewer is active
@@ -44,7 +60,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
           showGrabHandle={true}
         >
 
-          <ToolbarEditAnnotation />
+          {!isBaseMapAnnotation ? <ToolbarEditAnnotation /> : <ToolbarEditAnnotationVariantBaseMapAnnotation />}
 
         </PopperBox>
       )}

@@ -3,7 +3,6 @@ import getBarycenter from "Features/geometry/utils/getBarycenter";
 export default function getAnnotationLabelPropsFromAnnotation(annotation) {
     if (!annotation) return null;
 
-    console.log("debug_3012_annotation", annotation)
     if (!["POLYGON", "POLYLINE"].includes(annotation?.type)) return null;
 
     const { label, points } = annotation;

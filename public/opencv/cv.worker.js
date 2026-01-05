@@ -22,6 +22,7 @@ self.importScripts("./handlers/extractPolygonsFromMaskAsync.js");
 self.importScripts("./handlers/detectSeparationLinesAsync.js");
 self.importScripts("./handlers/detectShapesAsync.js");
 self.importScripts("./handlers/extendLineAsync.js");
+self.importScripts("./handlers/eraseFromAnnotations.js");
 /**
  * This exists to capture all the events that are thrown out of the worker
  * into the worker. Without this, there would be no communication possible
@@ -105,6 +106,9 @@ onmessage = function (e) {
 
     case "extendLineAsync":
       return extendLineAsync(e.data);
+
+    case "eraseFromAnnotations":
+      return eraseFromAnnotations(e.data);
 
     default:
       break;

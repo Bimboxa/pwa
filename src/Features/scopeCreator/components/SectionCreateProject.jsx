@@ -5,6 +5,7 @@ import { useDispatch } from "react-redux";
 import { setStepKey, setSelectedProjectId } from "../scopeCreatorSlice";
 
 import useCreateProject from "Features/projects/hooks/useCreateProject";
+import useCreateListing from "Features/listings/hooks/useCreateListing";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import { Box } from "@mui/material";
@@ -15,6 +16,7 @@ import FormProject from "Features/projects/components/FormProject";
 import StepHeader from "./StepHeader";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
 
 export default function SectionCreateProject() {
   const dispatch = useDispatch();
@@ -27,6 +29,8 @@ export default function SectionCreateProject() {
 
   const appConfig = useAppConfig();
   const createProject = useCreateProject();
+  const defaultProps = useDefaultBaseMapsListingProps();
+  const createListing = useCreateListing();
 
   // state
 
@@ -44,6 +48,13 @@ export default function SectionCreateProject() {
     if (project) {
       dispatch(setStepKey("SELECT_PRESET_SCOPE"));
       dispatch(setSelectedProjectId(project.id));
+
+      // create baseMaps listing
+      const baseMapsListing = await createListing({
+        listing: { ...defaultProps, projectId: project.id },
+      });
+
+      console.log("debug_25_09 [baseMapsListing] created baseMapsListing", baseMapsListing);
     }
   }
 
