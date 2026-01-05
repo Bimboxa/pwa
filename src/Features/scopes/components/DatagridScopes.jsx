@@ -66,7 +66,7 @@ export default function DatagridScopes({ scopes }) {
           onClick={() =>
             handleOpenScope({
               projectId: params.row.projectId,
-              scopeId: params.row.id,
+              scopeId: params.row.scopeId ? params.row.id : null,
             })
           }
         />,
@@ -92,10 +92,10 @@ export default function DatagridScopes({ scopes }) {
 
   const rows = scopes?.map((scope) => ({
     ...scope,
-    scopeName: scope.name,
-    scopeClientRef: scope.clientRef,
-    scopeProjectName: scope.project?.name,
-    scopeProjectClientRef: scope.project?.clientRef,
+    //scopeName: scope.name,
+    //scopeClientRef: scope.clientRef,
+    //scopeProjectName: scope.projectName,
+    //scopeProjectClientRef: scope.projectClientRef,
   }));
 
   // return
