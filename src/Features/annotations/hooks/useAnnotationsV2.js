@@ -236,13 +236,18 @@ export default function useAnnotationsV2(options) {
 
         // override with annotation templates
         annotations = annotations?.map(annotation => {
-            const templateProps = getAnnotationTemplateProps(annotationTemplatesMap[annotation?.annotationTemplateId])
-            return {
-                ...annotation,
-                ...templateProps,
-                label: annotation?.label ?? templateProps?.label,
-                templateLabel: templateProps?.label,
+            if (annotation.isBaseMapAnnotation) {
+                return annotation;
+            } else {
+                const templateProps = getAnnotationTemplateProps(annotationTemplatesMap[annotation?.annotationTemplateId])
+                return {
+                    ...annotation,
+                    ...templateProps,
+                    label: annotation?.label ?? templateProps?.label,
+                    templateLabel: templateProps?.label,
+                }
             }
+
         })
 
 

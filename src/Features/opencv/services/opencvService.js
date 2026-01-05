@@ -238,6 +238,12 @@ class CV {
       payload,
     });
   }
+  eraseFromAnnotations(payload) {
+    return this._dispatch({
+      msg: "eraseFromAnnotations",
+      payload,
+    });
+  }
 }
 
 // Export the same instant everywhere
