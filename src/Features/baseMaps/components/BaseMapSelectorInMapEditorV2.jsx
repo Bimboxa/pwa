@@ -51,6 +51,7 @@ export default function BaseMapSelectorInMapEditorV2() {
 
     const activeBaseMap = useMainBaseMap();
     const listingId = useSelector((s) => s.mapEditor.selectedBaseMapsListingId);
+    const projectId = useSelector(s => s.projects.selectedProjectId);
     const { value: baseMaps = [] } = useBaseMaps({
         filterByListingId: listingId,
     });
@@ -122,7 +123,15 @@ export default function BaseMapSelectorInMapEditorV2() {
         if (e) e.stopPropagation();
 
         if (editingMapId && tempName.trim() !== "") {
-            await updateEntity(editingMapId, { name: tempName });
+            const options = {
+                listing: {
+                    id: listingId,
+                    projectId,
+                    table: "baseMaps"
+                }
+            };
+
+            await updateEntity(editingMapId, { name: tempName }, options);
             setEditingMapId(null); // Quitter le mode édition
         }
     }

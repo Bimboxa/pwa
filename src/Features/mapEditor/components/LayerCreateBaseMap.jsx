@@ -41,7 +41,7 @@ export default function LayerCreateBaseMap() {
             width: "100%", height: "100%",
             zIndex: 1000
         }}>
-            <SectionCreateBaseMapFullscreen onClose={showClose ? handleClose : null} />
+            <SectionCreateBaseMapFullscreen onClose={handleClose} showClose={showClose} />
         </Box>
     );
 }

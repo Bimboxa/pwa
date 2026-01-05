@@ -26,7 +26,7 @@ import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import ImageGeneric from "Features/images/components/ImageGeneric";
 
-export default function SectionCreateBaseMapFullscreen({ onClose }) {
+export default function SectionCreateBaseMapFullscreen({ onClose, showClose }) {
   const dispatch = useDispatch();
 
   // strings
@@ -86,7 +86,6 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
       setImageFile(null);
       setName("");
       setMeterByPx(null);
-      if (onClose) onClose();
     }
   }
 
@@ -125,7 +124,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose }) {
           position: "relative",
         }}
       >
-        {onClose && <Box
+        {showClose && <Box
           sx={{
             position: "absolute",
             top: 0,
