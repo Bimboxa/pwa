@@ -1,6 +1,8 @@
 import { Box } from "@mui/material";
 
 import ButtonDialogAppConfig from "Features/appConfig/components/ButtonDialogAppConfig";
+import ButtonLoadKrtoFile from "Features/krtoFile/components/ButtonLoadKrtoFile";
+
 
 export default function PageDashboardFooter() {
   return (
@@ -15,6 +17,10 @@ export default function PageDashboardFooter() {
       }}
     >
       <ButtonDialogAppConfig />
+      <div>
+        <ButtonLoadKrtoFile />
+      </div>
+
     </Box>
   );
 }
