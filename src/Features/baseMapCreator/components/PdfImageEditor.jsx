@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import useMeasure from "react-use-measure";
 
 import { useDispatch } from "react-redux";
 
@@ -36,6 +37,7 @@ export default function PdfImageEditor({ imageUrl, onSave, onCancel }) {
     const [crop, setCrop] = useState(); // État du cadre visuel
     const [completedCrop, setCompletedCrop] = useState(); // État final validé
     const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
+    const [containerRef, bounds] = useMeasure();
 
 
     console.log("completedCrop", completedCrop)
@@ -83,26 +85,34 @@ export default function PdfImageEditor({ imageUrl, onSave, onCancel }) {
             elevation={0}
             sx={{
                 display: "flex",
+                minHeight: 0, // ajout_1
+                flex: 1,
                 flexDirection: "column",
                 height: "100%",
                 width: "100%",
                 bgcolor: "background.paper",
-                overflow: "hidden"
+
+                //overflow: "hidden" // ajout_1
             }}
         >
 
 
 
-            {/* ZONE CROPPER (Scrollable) */}
             <Box
+                ref={containerRef}
                 sx={{
-                    flex: 1,
-                    overflow: "auto", // Permet de scroller si l'image est grande
+                    position: "relative",
+                    minHeight: 0,
+                    overflow: "hidden",
                     display: "flex",
+                    flexDirection: "column",
                     justifyContent: "center",
                     alignItems: "center",
                     bgcolor: "#333",
-                    p: 2
+                    p: 2,
+                    height: "100%",
+                    overflow: "auto" // Allow scrolling if absolutely necessary, or hidden. Let's try auto to see behavior if it still overflows.
+                    //border: "2px solid red"
                 }}
             >
                 {/* Le composant ReactCrop enveloppe votre image */}
@@ -110,20 +120,25 @@ export default function PdfImageEditor({ imageUrl, onSave, onCancel }) {
                     crop={crop}
                     onChange={(_, percentCrop) => setCrop(percentCrop)}
                     onComplete={handleCommitCrop}
-                    // aspect={16 / 9} // Décommentez pour forcer un ratio
-                    style={{ maxWidth: '100%' }} // S'assure que le wrapper ne dépasse pas
+                    style={{ maxHeight: "100%" }}
+                // aspect={16 / 9} // Décommentez pour forcer un ratio
                 >
                     <img
                         ref={imgRef}
                         alt="Crop me"
                         src={imageUrl}
-                        style={{ maxWidth: "100%", maxHeight: "70vh" }} // Limite visuelle de l'image
+                        style={{
+                            maxWidth: (bounds.width - 32) > 0 ? (bounds.width - 32) : "100%",
+                            maxHeight: (bounds.height - 32) > 0 ? (bounds.height - 32) : "100%",
+                            objectFit: "contain",
+                            display: "block"
+                        }} // Limite visuelle de l'image
                         onLoad={onImageLoad}
                     />
                 </ReactCrop>
             </Box>
 
 
-        </Paper>
+        </Paper >
     );
 }

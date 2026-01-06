@@ -9,9 +9,8 @@ GlobalWorkerOptions.workerSrc = pdfjsWorker;
 export default async function pdfToPngAsync({
   pdfFile,
   page = 1,
-  bboxInRatio, // { x1, y1, x2, y2 } en pourcentage (0-100) du résultat final (tourné)
-  resolution = 72, // Résolution cible en DPI
-  rotate = 0 // Rotation en degrés (0, 90, 180, 270)
+  bboxInRatio, // { x1, y1, x2, y2 } en pourcentage (0-100)
+  resolution = 72 // Résolution cible en DPI (ex: 72, 150, 300)
 }) {
   // Création d'un URL pour charger le fichier PDF
   const pdfUrl = URL.createObjectURL(pdfFile);
@@ -24,25 +23,22 @@ export default async function pdfToPngAsync({
     // Sélection de la page
     const pdfPage = await pdf.getPage(page);
 
-    // 1. Calcul du Scale et intégration de la Rotation
+    // 1. Calcul du Scale basé sur le DPI (Le standard PDF est 72 DPI)
     const scale = resolution / 72;
-
-    // MODIFICATION ICI : On passe la rotation au viewport.
-    // PDF.js va automatiquement inverser width/height si c'est 90 ou 270 deg.
-    const viewport = pdfPage.getViewport({ scale, rotation: rotate });
+    const viewport = pdfPage.getViewport({ scale });
 
     // Création du canvas
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d");
 
-    // 2. Gestion du Bounding Box
+    // 2. Gestion du Bounding Box (si fourni)
     let offsetX = 0;
     let offsetY = 0;
 
     if (bboxInRatio) {
       const { x1, y1, x2, y2 } = bboxInRatio;
 
-      // viewport.width/height sont déjà les dimensions tournées
+      // Calcul des dimensions en pixels réels basés sur le viewport
       const rawWidth = viewport.width;
       const rawHeight = viewport.height;
 
@@ -59,17 +55,20 @@ export default async function pdfToPngAsync({
       offsetX = -cropX;
       offsetY = -cropY;
     } else {
-      // Pas de bbox : on prend toute la page (dimensions tournées)
+      // Pas de bbox : on prend toute la page
       canvas.width = viewport.width;
       canvas.height = viewport.height;
     }
 
     // 3. Application de la translation (Crop)
+    // On déplace le point d'origine du contexte. 
+    // PDFJS dessinera toute la page, mais seule la partie visible dans le canvas sera conservée.
     if (offsetX !== 0 || offsetY !== 0) {
       context.translate(offsetX, offsetY);
     }
 
     // Rendu de la page dans le canvas
+    // Note : On passe toujours le viewport complet, c'est le 'translate' ci-dessus qui fait le cadrage.
     await pdfPage.render({ canvasContext: context, viewport }).promise;
 
     // Conversion en Data URL (PNG)
@@ -77,10 +76,9 @@ export default async function pdfToPngAsync({
 
     // Nom de l'image
     const pdfFileName = pdfFile.name.replace(".pdf", "");
+    // On ajoute un suffixe si c'est un crop pour différencier
     const suffix = bboxInRatio ? "_crop" : "";
-    // On peut ajouter la rotation au nom de fichier si utile
-    const rotSuffix = rotate > 0 ? `_r${rotate}` : "";
-    const name = `${pdfFileName}_page${page}${rotSuffix}${suffix}.png`;
+    const name = `${pdfFileName}_page${page}${suffix}.png`;
 
     const pngFile = await imageUrlToPng({ url: pngDataUrl, name });
 
