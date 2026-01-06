@@ -3,12 +3,17 @@ import PolylineIcon from "Features/polylines/components/PolylineIcon";
 import PolygonIcon from "Features/polygons/components/PolygonIcon";
 import RectangleIcon from "Features/rectangles/components/RectangleIcon";
 import ImageAnnotationIcon from "Features/imageAnnotations/components/ImageAnnotationIcon";
+import PointAnnotationIcon from "Features/pointAnnotations/components/PointAnnotationIcon";
 
 export default function AnnotationIcon({ spriteImage, annotation, size }) {
   switch (annotation?.type) {
     case "MARKER":
       return (
         <MarkerIcon {...annotation} spriteImage={spriteImage} size={size} />
+      );
+    case "POINT":
+      return (
+        <PointAnnotationIcon {...annotation} size={size} />
       );
     case "POLYLINE":
       return <PolylineIcon {...annotation} size={size} />;

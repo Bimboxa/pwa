@@ -30,7 +30,7 @@ export default function ToolbarEnabledDrawingMode() {
             key: "ONE_CLICK",
             label: "1 Clic",
             icon: <TARGET sx={{ color }} />,
-            show: ["MARKER"].includes(type)
+            show: ["MARKER", "POINT"].includes(type)
         },
         {
             key: "CLICK",
@@ -60,13 +60,14 @@ export default function ToolbarEnabledDrawingMode() {
             key: "SMART_DETECT",
             label: "Détection automatique",
             icon: <Smart sx={{ color }} />,
-            show: ["POLYLINE"].includes(type)
+            //show: ["POLYLINE"].includes(type)
+            show: false
         }
     ]
 
     // helpers - show mode
 
-    const showMode = ["POLYLINE", "POLYGON", "CUT", "MARKER"].includes(type);
+    const showMode = ["POLYLINE", "POLYGON", "CUT", "MARKER", "POINT"].includes(type);
 
     // handlers
 

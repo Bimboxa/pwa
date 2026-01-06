@@ -5,6 +5,7 @@ import NodePolyline from "./NodePolyline";
 import NodeRectangle from "./NodeRectangle";
 import NodeSegment from "./NodeSegment";
 import NodeImageAnnotation from "./NodeImageAnnotation";
+import NodePointStatic from "./NodePointStatic";
 
 export default function NodeAnnotation({
   annotation,
@@ -42,6 +43,9 @@ export default function NodeAnnotation({
   switch (annotation.type) {
     case "MARKER":
       return NodeMarker({ ...props, marker: annotation });
+
+    case "POINT":
+      return NodePointStatic({ ...props, point: annotation });
 
     case "POLYGON":
       return NodePolygon({ ...props, polygon: annotation });

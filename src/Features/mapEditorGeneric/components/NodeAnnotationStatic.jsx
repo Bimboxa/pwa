@@ -3,6 +3,7 @@ import NodePolylineStatic from "./NodePolylineStatic";
 import NodeTextStatic from "./NodeTextStatic";
 import NodeLabelStatic from "./NodeLabelStatic";
 import NodeImageStatic from "./NodeImageStatic";
+import NodePointStatic from "./NodePointStatic";
 
 export default function NodeAnnotationStatic({
   annotation,
@@ -49,6 +50,9 @@ export default function NodeAnnotationStatic({
   switch (annotation.type) {
     case "MARKER":
       return <NodeMarkerStatic {...props} marker={annotation} />;
+
+    case "POINT":
+      return <NodePointStatic {...props} annotation={annotation} />;
 
     case "POLYGON":
       return <NodePolylineStatic {...props} annotation={annotation} />;

@@ -54,7 +54,7 @@ export default function TransientAnnotationLayer({
             }
         }
 
-        if (_annotation.type === "MARKER") {
+        if (_annotation.type === "MARKER" || _annotation.type === "POINT") {
             _annotation.point = {
                 x: _annotation.point.x + deltaPos.x,
                 y: _annotation.point.y + deltaPos.y
