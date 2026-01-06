@@ -1733,10 +1733,30 @@ const InteractionLayer = forwardRef(({
     const partNode = target.closest('[data-part-type]');
     const partType = partNode?.dataset?.partType;
 
+    const resizeHandle = target.closest('[data-interaction="resize-annotation"]');
     const basemapHandle = target.closest('[data-interaction="transform-basemap"]');
     const legendHandle = target.closest('[data-interaction="transform-legend"]');
     const textHandle = target.closest('[data-interaction="transform-text"]');
 
+    if (resizeHandle) {
+      e.stopPropagation();
+      e.preventDefault();
+
+      const { nodeId, handleType } = resizeHandle.dataset; // handleType = NW, SE...
+
+      const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
+      const startMouseInLocal = toLocalCoords(worldPos);
+
+      setDragAnnotationState({
+        active: false,
+        pending: true,
+        selectedAnnotationId: nodeId,
+        startMouseInLocal,
+        partType: `RESIZE_${handleType}`, // ex: RESIZE_SE
+        startMouseScreen: { x: e.clientX, y: e.clientY }
+      });
+      return;
+    }
 
     if (draggableGroup) {
 
@@ -1761,6 +1781,7 @@ const InteractionLayer = forwardRef(({
       });
       // On NE met PAS setDraggingAnnotationId tout de suite !
     }
+
 
     if (basemapHandle || legendHandle) {
       e.stopPropagation();

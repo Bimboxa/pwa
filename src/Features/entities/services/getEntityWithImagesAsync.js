@@ -1,4 +1,6 @@
 import db from "App/db/db";
+import testIsImage from "Features/files/utils/testIsImage";
+import getImageSizeAsync from "Features/images/utils/getImageSizeAsync";
 
 export default async function getEntityWithImagesAsync(entity) {
   if (!entity) return {};
@@ -13,15 +15,19 @@ export default async function getEntityWithImagesAsync(entity) {
     if (value.fileName) {
       const file = await db.files.get(value.fileName);
       if (file && file.fileArrayBuffer) {
-        const url = URL.createObjectURL(
-          new Blob([file.fileArrayBuffer], { type: file.fileMime })
-        );
+        const blob = new Blob([file.fileArrayBuffer], { type: file.fileMime })
+        const url = URL.createObjectURL(blob)
 
         entityWithImages[key] = {
           ...value,
           file,
           imageUrlClient: url,
         };
+
+        if (testIsImage(blob)) {
+          const imageSize = await getImageSizeAsync(url);
+          entityWithImages[key].imageSize = imageSize;
+        }
       } else {
         entityWithImages[key] = {
           ...value,
