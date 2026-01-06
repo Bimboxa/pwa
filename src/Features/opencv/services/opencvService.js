@@ -244,6 +244,12 @@ class CV {
       payload,
     });
   }
+  addBackground(payload) {
+    return this._dispatch({
+      msg: "addBackground",
+      payload,
+    });
+  }
 }
 
 // Export the same instant everywhere

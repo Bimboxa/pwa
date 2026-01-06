@@ -7,6 +7,7 @@ import { setOpenScopeCreator, setStepKey } from "../scopeCreatorSlice";
 import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setSelectedListingId } from "Features/listings/listingsSlice";
+import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
 
 import useCreateScope from "Features/scopes/hooks/useCreateScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -100,7 +101,9 @@ export default function SectionCreateScope() {
         const baseMapsListing = await createListing({
           listing: { ...defaultBaseMapsListingProps, projectId },
         });
+        dispatch(setSelectedBaseMapsListingId(baseMapsListing?.id));
       }
+
 
       // selector 
       dispatch(setSelectedScopeId(scope.id));

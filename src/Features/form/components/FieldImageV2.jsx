@@ -80,7 +80,7 @@ export default function FieldImageV2({
         </Box>
       )}
 
-      <Box sx={{ p: 1, pb: 0.0 }}>
+      <Box sx={{ p: 1, pb: maxSize ? 0 : 1 }}>
         <Box
           sx={{
             //border: (theme) => `1px solid ${theme.palette.divider}`,

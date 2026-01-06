@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useDispatch } from "react-redux";
 
 import { setStepKey, setSelectedProjectId } from "../scopeCreatorSlice";
+import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
 
 import useCreateProject from "Features/projects/hooks/useCreateProject";
 import useCreateListing from "Features/listings/hooks/useCreateListing";
@@ -53,6 +54,7 @@ export default function SectionCreateProject() {
       const baseMapsListing = await createListing({
         listing: { ...defaultProps, projectId: project.id },
       });
+      dispatch(setSelectedBaseMapsListingId(baseMapsListing?.id));
 
       console.log("debug_25_09 [baseMapsListing] created baseMapsListing", baseMapsListing);
     }
