@@ -33,6 +33,13 @@ export default function PageScopeCreator() {
     }
   }, [projectId]);
 
+  useEffect(() => {
+    return () => {
+      dispatch(setSelectedProjectId(null));
+      dispatch(setStepKey("SEARCH_PROJECT"));
+    };
+  }, []);
+
   return (
     <BoxFlexVStretch>
       <HeaderScopeCreator />

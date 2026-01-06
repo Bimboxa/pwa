@@ -44,6 +44,7 @@ export default function SectionScopesInDashboard() {
 
   let items = scopes?.map((scope) => ({
     ...scope,
+    scopeId: scope.id,
     scopeName: scope.name,
     scopeClientRef: scope.clientRef,
     scopeProjectName: scope.project?.name,
