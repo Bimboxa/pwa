@@ -102,7 +102,7 @@ export default function usePdfThumbnails(pdfFile) {
             isCancelled = true;
             URL.revokeObjectURL(pdfUrl);
         };
-    }, [pdfFile]);
+    }, [pdfFile?.size]);
 
     return { thumbnails, error };
 }

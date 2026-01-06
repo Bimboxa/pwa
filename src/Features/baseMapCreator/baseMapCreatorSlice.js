@@ -55,7 +55,10 @@ export const baseMapCreatorSlice = createSlice({
       if (index !== -1) {
         state.tempBaseMaps[index] = { ...state.tempBaseMaps[index], ...updates };
       }
-    }
+    },
+    setTempBaseMaps: (state, action) => {
+      state.tempBaseMaps = action.payload;
+    },
   },
 });
 
@@ -68,7 +71,8 @@ export const {
   setBboxInRatio,
   addTempBaseMap,
   removeTempBaseMap,
-  updateTempBaseMap
+  updateTempBaseMap,
+  setTempBaseMaps
 } = baseMapCreatorSlice.actions;
 
 export default baseMapCreatorSlice.reducer;
