@@ -20,6 +20,8 @@ export default function DialogAutoScopeCreator() {
   }
   // render
 
+  if (!open) return null;
+
   return (
     <DialogGeneric open={open} width={350} onClose={handleClose} vh={80}>
       {open && <PageScopeCreator />}
