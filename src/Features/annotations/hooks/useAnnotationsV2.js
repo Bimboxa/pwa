@@ -94,7 +94,7 @@ export default function useAnnotationsV2(options) {
                             const { entityWithImages } = await getEntityWithImagesAsync(annotation);
                             return {
                                 ...entityWithImages,
-                                imageUrlClient: annotation.image.imageUrlClient,
+                                //imageUrlClient: annotation.image.imageUrlClient,
                             };
                         })
                     );
@@ -131,6 +131,14 @@ export default function useAnnotationsV2(options) {
                         _annotation.labelPoint = {
                             x: annotation.labelPoint.x * width,
                             y: annotation.labelPoint.y * height
+                        }
+                    }
+
+                    // --- IMAGE
+                    else if (annotation.type === "IMAGE") {
+                        _annotation.imagePose = {
+                            x: (annotation.imagePose?.x ?? 0) * width,
+                            y: (annotation.imagePose?.y ?? 0) * height
                         }
                     }
 

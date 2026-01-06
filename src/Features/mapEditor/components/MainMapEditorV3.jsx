@@ -416,7 +416,10 @@ export default function MainMapEditorV3() {
 
             const annotation = annotations.find(a => a.id === annotationId);
             if (!annotation) return;
+
+
             console.log("handleAnnotationMoveCommit", annotationId, annotation);
+
             if (annotation.type === "MARKER") {
                 const point = await db.points.get(annotation.point.id);
                 const x = point.x + deltaPos.x / imageSize.width;
@@ -458,12 +461,70 @@ export default function MainMapEditorV3() {
 
                 await db.annotations.update(annotation.id, updates);
             }
-            else {
-                //const newPoints = annotation.points.map(pt => ({ ...pt, x: pt.x + deltaPos.x, y: pt.y + deltaPos.y }));
-                console.log("TODO: save annotation points")
+
+            else if (annotation.type === "IMAGE") {
+                const image = annotation.image || {};
+
+                // On récupère les dimensions et positions actuelles
+                // Note : Pour les images, on travaille souvent en pixels locaux (non normalisés 0-1)
+                // contrairement aux MARKERS/LABELS ci-dessus.
+
+                const currentX = annotation.imagePose?.x || 0;
+                const currentY = annotation.imagePose?.y || 0;
+                const currentScale = annotation.imageScale || 1;
+
+                const currentW = image.imageSize?.width * currentScale || 100;
+                const currentH = image.imageSize?.height * currentScale || 100;
+
+                const updates = {};
+
+                // 1. Gestion du Redimensionnement (RESIZE)
+                if (partType && partType.startsWith("RESIZE_")) {
+                    const handle = partType.replace("RESIZE_", "");
+                    let newX = currentX;
+                    let newY = currentY;
+                    let newW = currentW;
+                    let newH = currentH;
+
+                    // Application des deltas selon le handle (logique identique à TransientAnnotationLayer)
+                    if (handle.includes("E")) newW += deltaPos.x;
+                    if (handle.includes("W")) { newW -= deltaPos.x; newX += deltaPos.x; }
+                    if (handle.includes("S")) newH += deltaPos.y;
+                    if (handle.includes("N")) { newH -= deltaPos.y; newY += deltaPos.y; }
+
+                    // Sécurité taille min (10px) pour éviter les valeurs négatives ou nulles
+                    if (newW < 10) {
+                        // On annule le mouvement X si on atteint la limite pour éviter le "glissement"
+                        if (handle.includes("W")) newX = currentX + (currentW - 10);
+                        newW = 10;
+                    }
+                    if (newH < 10) {
+                        // On annule le mouvement Y si on atteint la limite
+                        if (handle.includes("N")) newY = currentY + (currentH - 10);
+                        newH = 10;
+                    }
+
+                    updates.imagePose = { x: newX / imageSize.width, y: newY / imageSize.height };
+
+                    // Calcul du nouveau Scale basé sur le changement de largeur
+                    // (On suppose ici que scale change proportionnellement à la largeur)
+                    const scaleRatio = newW / currentW;
+                    const newScale = currentScale * scaleRatio;
+
+                    updates.imageScale = newScale // Mise à jour du scale
+                }
+                // 2. Gestion du Déplacement (MOVE)
+                else {
+                    const x = (currentX + deltaPos.x) / imageSize.width;
+                    const y = (currentY + deltaPos.y) / imageSize.height;
+                    updates.imagePose = { x, y };
+                }
+
+                // Sauvegarde en DB
+                console.log("save_image", annotation.id, updates);
+                await db.annotations.update(annotation.id, updates);
             }
         }
-
     };
 
 
@@ -649,7 +710,7 @@ export default function MainMapEditorV3() {
             <PopperContextMenu />
 
             <PopperSaveTempAnnotations />
-            <DialogAutoMigrateToMapEditorV3 />
+            {/* <DialogAutoMigrateToMapEditorV3 /> */}
 
             <LayerTools />
             <LayerCreateBaseMap />
