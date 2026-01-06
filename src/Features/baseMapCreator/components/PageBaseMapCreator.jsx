@@ -1,8 +1,8 @@
-import { useState } from "react"
+import { useEffect } from "react"
 import { useSelector, useDispatch } from "react-redux"
 
 import { setPageNumber } from "Features/baseMapCreator/baseMapCreatorSlice"
-import { setRotate } from "Features/baseMapCreator/baseMapCreatorSlice"
+import { setRotate, setPdfFile, setTempBaseMaps } from "Features/baseMapCreator/baseMapCreatorSlice"
 
 import usePdfThumbnails from "Features/pdf/hooks/usePdfThumbnails"
 import usePdfPageImageUrl from "../hooks/usePdfPageImageUrl"
@@ -33,6 +33,8 @@ export default function PageBaseMapCreator({ onClose }) {
     const { thumbnails, error } = usePdfThumbnails(pdfFile);
     const imageUrl = usePdfPageImageUrl(pdfFile, pageNumber, rotate);
 
+    console.log("thumbnails", thumbnails, error);
+
 
     // helpers
     const label = pdfFile ? pdfFile.name : "Selectionner un fichier PDF";
@@ -45,6 +47,16 @@ export default function PageBaseMapCreator({ onClose }) {
     async function handleRotate() {
         dispatch(setRotate(rotate + 90));
     }
+
+    useEffect(() => {
+        return () => {
+            console.log("Unmounting PageBaseMapCreator");
+            dispatch(setRotate(0));
+            dispatch(setPageNumber(1));
+            //dispatch(setPdfFile(null));
+            dispatch(setTempBaseMaps([]));
+        }
+    }, [])
 
     return (
         <BoxFlexVStretch sx={{ width: 1 }}>

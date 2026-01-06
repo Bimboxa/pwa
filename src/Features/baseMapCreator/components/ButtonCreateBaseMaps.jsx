@@ -6,7 +6,7 @@ import { setOpenBaseMapCreator } from "../baseMapCreatorSlice";
 import useCreateBaseMaps from "../hooks/useCreateBaseMaps";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
-import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
+import { setShowCreateBaseMapSection, setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 export default function ButtonCreateBaseMaps() {
     const dispatch = useDispatch();
@@ -24,10 +24,15 @@ export default function ButtonCreateBaseMaps() {
 
     async function handleCreateClick() {
         setLoading(true);
-        await createBaseMaps(tempBaseMaps);
+        const baseMaps = await createBaseMaps(tempBaseMaps);
         setLoading(false);
         dispatch(setOpenBaseMapCreator(false));
         dispatch(setShowCreateBaseMapSection(false));
+
+        const baseMap0 = baseMaps?.[0];
+        if (baseMap0) {
+            dispatch(setSelectedMainBaseMapId(baseMap0.id));
+        }
     }
 
     // helpers
