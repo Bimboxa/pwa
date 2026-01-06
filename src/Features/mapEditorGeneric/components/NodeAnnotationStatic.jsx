@@ -2,6 +2,7 @@ import NodeMarkerStatic from "./NodeMarkerStatic";
 import NodePolylineStatic from "./NodePolylineStatic";
 import NodeTextStatic from "./NodeTextStatic";
 import NodeLabelStatic from "./NodeLabelStatic";
+import NodeImageAnnotation from "./NodeImageAnnotation";
 
 export default function NodeAnnotationStatic({
   annotation,
@@ -67,8 +68,8 @@ export default function NodeAnnotationStatic({
     // case "SEGMENT":
     //   return NodeSegment({ ...props, segment: annotation });
 
-    // case "IMAGE":
-    //   return NodeImageAnnotation({ ...props, imageAnnotation: annotation });
+    case "IMAGE":
+      return NodeImageAnnotation({ ...props, imageAnnotation: annotation });
 
     default:
       return null;

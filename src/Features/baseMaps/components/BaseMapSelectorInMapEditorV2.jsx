@@ -160,7 +160,7 @@ export default function BaseMapSelectorInMapEditorV2() {
         dispatch(setSelectedBaseMapsListingId(activeBaseMap?.listingId)); // for the creation.
     }
 
-    const activeBaseMapName = activeBaseMap?.name || "Sélectionner une carte";
+    const activeBaseMapName = activeBaseMap?.name || "Sélectionner un fond de plan";
     const OPEN_WIDTH = 320;
 
     return (

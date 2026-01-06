@@ -86,6 +86,20 @@ export default function useAnnotationsV2(options) {
                     _annotations = _annotations.filter(a => listingIds.includes(a.listingId) || a.isBaseMapAnnotation)
                 }
 
+                // add images (for annotation type = "IMAGE")
+
+                if (_annotations) {
+                    _annotations = await Promise.all(
+                        _annotations.map(async (annotation) => {
+                            const { entityWithImages } = await getEntityWithImagesAsync(annotation);
+                            return {
+                                ...entityWithImages,
+                                imageUrlClient: annotation.image.imageUrlClient,
+                            };
+                        })
+                    );
+                }
+
                 // points
 
                 _annotations = _annotations.map(annotation => {
