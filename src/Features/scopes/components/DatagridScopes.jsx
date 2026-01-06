@@ -14,6 +14,7 @@ import { Box } from "@mui/material";
 import { Delete } from "@mui/icons-material";
 
 import DialogDeleteScope from "./DialogDeleteScope";
+import DialogDeleteProject from "Features/projects/components/DialogDeleteProject";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 export default function DatagridScopes({ scopes }) {
@@ -35,7 +36,9 @@ export default function DatagridScopes({ scopes }) {
   // state
 
   const [deleteScopeId, setDeleteScopeId] = useState(null);
+  const [deleteProjectId, setDeleteProjectId] = useState(null);
   const openDelete = Boolean(deleteScopeId);
+  const openDeleteProject = Boolean(deleteProjectId);
 
   // handlers
 
@@ -81,7 +84,13 @@ export default function DatagridScopes({ scopes }) {
           <GridActionsCellItem
             icon={<Delete />}
             label="Delete"
-            onClick={() => setDeleteScopeId(params.id)}
+            onClick={() => {
+              if (params.row.scopeId) {
+                setDeleteScopeId(params.row.scopeId)
+              } else {
+                setDeleteProjectId(params.row.projectId)
+              }
+            }}
           />,
         ];
       },
@@ -157,6 +166,12 @@ export default function DatagridScopes({ scopes }) {
         open={openDelete}
         onClose={() => setDeleteScopeId(null)}
         scopeId={deleteScopeId}
+      />
+
+      <DialogDeleteProject
+        open={openDeleteProject}
+        onClose={() => setDeleteProjectId(null)}
+        projectId={deleteProjectId}
       />
     </>
   );
