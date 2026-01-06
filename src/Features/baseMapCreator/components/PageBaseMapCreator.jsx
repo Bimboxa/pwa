@@ -1,12 +1,15 @@
+import { useState } from "react"
 import { useSelector, useDispatch } from "react-redux"
 
 import { setPageNumber } from "Features/baseMapCreator/baseMapCreatorSlice"
+import { setRotate } from "Features/baseMapCreator/baseMapCreatorSlice"
 
 import usePdfThumbnails from "Features/pdf/hooks/usePdfThumbnails"
 import usePdfPageImageUrl from "../hooks/usePdfPageImageUrl"
 
 // Ajout de Skeleton dans les imports
-import { Box, Typography, Skeleton } from "@mui/material"
+import { Box, Typography, Skeleton, IconButton } from "@mui/material"
+import { RotateRight as Rotate } from "@mui/icons-material";
 
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight"
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch"
@@ -17,16 +20,19 @@ import PdfImageEditor from "./PdfImageEditor"
 import SectionPreviewBaseMaps from "./SectionPreviewBaseMaps"
 import ButtonAddTempImage from "./ButtonAddTempImage"
 
+
 export default function PageBaseMapCreator({ onClose }) {
     const dispatch = useDispatch();
 
     // data
     const { pdfFile } = useSelector((s) => s.baseMapCreator);
     const pageNumber = useSelector(s => s.baseMapCreator.pageNumber);
+    const rotate = useSelector(s => s.baseMapCreator.rotate);
 
     // state
     const { thumbnails, error } = usePdfThumbnails(pdfFile);
-    const imageUrl = usePdfPageImageUrl(pdfFile, pageNumber);
+    const imageUrl = usePdfPageImageUrl(pdfFile, pageNumber, rotate);
+
 
     // helpers
     const label = pdfFile ? pdfFile.name : "Selectionner un fichier PDF";
@@ -34,6 +40,10 @@ export default function PageBaseMapCreator({ onClose }) {
     // handlers
     function handlePageChange(pageNumber) {
         dispatch(setPageNumber(pageNumber));
+    }
+
+    async function handleRotate() {
+        dispatch(setRotate(rotate + 90));
     }
 
     return (
@@ -53,10 +63,25 @@ export default function PageBaseMapCreator({ onClose }) {
 
                     {/* Zone centrale : Editeur ou Skeleton */}
                     <Box sx={{
-                        flex: 1, minWidth: 0,
+                        flex: 1, minWidth: 0, minHeight: 0,
                         display: "flex", flexDirection: "column",
                         position: "relative",
                     }}>
+
+                        <Box sx={{
+                            p: 0.5,
+                            bgcolor: "white",
+                            visibility: imageUrl ? "visible" : "hidden",
+                            display: "flex",
+                            alignItems: "center",
+
+                        }}>
+                            <IconButton onClick={handleRotate}>
+                                <Rotate />
+                            </IconButton>
+                            <ButtonAddTempImage pdfFile={pdfFile} pageNumber={pageNumber} />
+                        </Box>
+
                         <Box sx={{
                             display: "flex", flexGrow: 1, flexDirection: "column",
                             minHeight: 0,
@@ -78,16 +103,7 @@ export default function PageBaseMapCreator({ onClose }) {
                         </Box>
 
 
-                        <BoxAlignToRight sx={{
-                            p: 0.5,
-                            position: "absolute",
-                            bottom: "8px",
-                            left: "8px",
-                            bgcolor: "white",
-                            visibility: imageUrl ? "visible" : "hidden"
-                        }}>
-                            <ButtonAddTempImage pdfFile={pdfFile} pageNumber={pageNumber} />
-                        </BoxAlignToRight>
+
                     </Box>
 
                     {/* Colonne de droite : Aperçus */}

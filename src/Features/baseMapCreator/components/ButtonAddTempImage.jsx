@@ -5,7 +5,8 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import { addTempBaseMap, updateTempBaseMap } from "../baseMapCreatorSlice";
 
-import { Box } from "@mui/material";
+import { Box, IconButton } from "@mui/material";
+import Add from "@mui/icons-material/Add";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric"
 
@@ -21,6 +22,7 @@ export default function ButtonAddTempImage({ pdfFile }) {
 
     const bboxInRatio = useSelector((state) => state.baseMapCreator.bboxInRatio);
     const pageNumber = useSelector((state) => state.baseMapCreator.pageNumber);
+    const rotate = useSelector((state) => state.baseMapCreator.rotate);
 
     // helpers - options
 
@@ -28,6 +30,7 @@ export default function ButtonAddTempImage({ pdfFile }) {
         { key: "STANDARD", label: "Standard (72 DPI)", resolution: 72 },
         { key: "MEDIUM", label: "Haute qualité (150 DPI)", resolution: 150 },
         { key: "HIGH", label: "Très Haute qualité (300 DPI)", resolution: 300 },
+        { key: "VERY_HIGH", label: "Qualité maximale (600 DPI)", resolution: 600 },
     ]
 
     // state
@@ -43,7 +46,7 @@ export default function ButtonAddTempImage({ pdfFile }) {
 
         dispatch(addTempBaseMap({ id, name: `Page ${pageNumber}` }));
 
-        const imageFile = await pdfToPngAsync({ pdfFile, page: pageNumber, bboxInRatio, resolution });
+        const imageFile = await pdfToPngAsync({ pdfFile, page: pageNumber, bboxInRatio, resolution, rotate });
         dispatch(updateTempBaseMap({ id, updates: { imageFile, name } }));
 
     }
@@ -58,10 +61,13 @@ export default function ButtonAddTempImage({ pdfFile }) {
             />
         </Box>
         <ButtonGeneric
-            label="Ajouter la sélection" onClick={handleClick}
+            label="Ajouter" onClick={handleClick}
             size="small" variant="contained"
             color="secondary"
         />
+        {/* <IconButton onClick={handleClick} color="secondary">
+            <Add />
+        </IconButton> */}
         <FieldOptionKey
             value={optionKey}
             onChange={setOptionKey}

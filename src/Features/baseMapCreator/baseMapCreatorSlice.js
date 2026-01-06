@@ -10,6 +10,7 @@ const baseMapCreatorInitialState = {
   pdfImageUrl: null,
   //
   pageNumber: 1,
+  rotate: 0, // rotation angle in deg 0 - 90 - 180 - 270
   bboxInRatio: {
     x1: 0,
     y1: 0,
@@ -36,6 +37,9 @@ export const baseMapCreatorSlice = createSlice({
     setPageNumber: (state, action) => {
       state.pageNumber = action.payload;
     },
+    setRotate: (state, action) => {
+      state.rotate = action.payload;
+    },
     setBboxInRatio: (state, action) => {
       state.bboxInRatio = action.payload;
     },
@@ -60,6 +64,7 @@ export const {
   setOpenBaseMapCreator,
   setPdfFile,
   setPageNumber,
+  setRotate,
   setBboxInRatio,
   addTempBaseMap,
   removeTempBaseMap,
