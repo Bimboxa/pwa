@@ -122,6 +122,13 @@ export default function useAnnotationsV2(options) {
                     if (_annotation.type === "MARKER") {
                         _annotation.point = resolvePoints({ points: annotationPoints, pointsIndex, imageSize: baseMap.image.imageSize })[0];
                     }
+
+                    // --- POINT
+
+                    else if (_annotation.type === "POINT") {
+                        _annotation.point = resolvePoints({ points: [annotation.point], pointsIndex, imageSize: baseMap.image.imageSize })[0];
+                    }
+
                     // --- LABELS
                     else if (annotation.type === "LABEL") {
                         _annotation.targetPoint = {

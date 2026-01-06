@@ -175,7 +175,6 @@ export default function MainMapEditorV3() {
     const baseMapAnnotationsOnly = openedPanel === "BASE_MAP_DETAIL";
     const annotations = useAnnotationsV2({ withEntity: true, excludeListingsIds: hiddenListingsIds, baseMapAnnotationsOnly });
 
-
     // legend
 
     const legendItems = useLegendItems();
@@ -420,7 +419,7 @@ export default function MainMapEditorV3() {
 
             console.log("handleAnnotationMoveCommit", annotationId, annotation);
 
-            if (annotation.type === "MARKER") {
+            if (annotation.type === "MARKER" || annotation.type === "POINT") {
                 const point = await db.points.get(annotation.point.id);
                 const x = point.x + deltaPos.x / imageSize.width;
                 const y = point.y + deltaPos.y / imageSize.height;

@@ -119,7 +119,7 @@ export default memo(function NodeLegend({
     iconKeys = [],
   } = spriteImage || {};
 
-  function LegendIcon({ type, iconKey, fillColor, strokeColor, closeLine }) {
+  function LegendIcon({ type, iconKey, fillColor, strokeColor, closeLine, variant }) {
     // If type is POLYLINE, use MUI Polyline icon
     if (type === "POLYLINE" && !closeLine) {
       return (
@@ -190,6 +190,28 @@ export default memo(function NodeLegend({
           }}
         >
           <Rectangle style={{ fill: fillColor, scale: 0.7 }} />
+        </div>
+      );
+    }
+
+    if (type === "POINT") {
+      return (
+        <div
+          style={{
+            width: `${ICON_PX}px`,
+            height: `${ICON_PX}px`,
+            borderRadius: "50%",
+            background: "white",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            border: `2px solid ${fillColor}`,
+            boxSizing: "border-box",
+          }}
+        >
+          {variant === "CIRCLE" ?
+            <Circle style={{ fill: fillColor, scale: 0.7 }} /> :
+            <Rectangle style={{ fill: fillColor, scale: 0.7 }} />}
         </div>
       );
     }
@@ -295,6 +317,7 @@ export default memo(function NodeLegend({
               >
                 <LegendIcon
                   type={it.type}
+                  variant={it.variant}
                   iconKey={it.iconType ?? it.iconKey}
                   fillColor={it.fillColor}
                   strokeColor={it.strokeColor}

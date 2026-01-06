@@ -201,7 +201,7 @@ export default function useHandleCommitDrawing() {
                 _newAnnotation.points = finalPointIds.map(id => ({ id }));
             }
 
-            if (newAnnotation?.type === "MARKER") {
+            if (newAnnotation?.type === "MARKER" || newAnnotation?.type === "POINT") {
                 _newAnnotation.point = { id: finalPointIds[0] };
             }
         }

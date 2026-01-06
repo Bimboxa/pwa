@@ -10,7 +10,8 @@ export default async function pdfToPngAsync({
   pdfFile,
   page = 1,
   bboxInRatio, // { x1, y1, x2, y2 } en pourcentage (0-100)
-  resolution = 72 // Résolution cible en DPI (ex: 72, 150, 300)
+  resolution = 72, // Résolution cible en DPI (ex: 72, 150, 300)
+  rotate = 0 // Rotation en degrés
 }) {
   // Création d'un URL pour charger le fichier PDF
   const pdfUrl = URL.createObjectURL(pdfFile);

@@ -1,5 +1,5 @@
 import { memo, useLayoutEffect, useRef, useState } from "react";
-import { Polyline, Pentagon as Polygon, Rectangle } from "@mui/icons-material";
+import { Polyline, Pentagon as Polygon, Rectangle, Square, Circle } from "@mui/icons-material";
 
 import theme from "Styles/theme";
 
@@ -78,7 +78,7 @@ export default memo(function NodeLegendStatic({
     } = spriteImage || {};
 
     // Helper Icon Component (Statique)
-    function LegendIcon({ type, iconKey, fillColor, strokeColor, closeLine }) {
+    function LegendIcon({ type, iconKey, fillColor, strokeColor, closeLine, variant }) {
         const commonStyle = {
             width: `${ICON_PX}px`,
             height: `${ICON_PX}px`,
@@ -110,6 +110,17 @@ export default memo(function NodeLegendStatic({
             return (
                 <div style={{ ...commonStyle, background: "white", border: `2px solid ${fillColor}` }}>
                     <Rectangle style={{ fill: fillColor, scale: 0.7 }} />
+                </div>
+            );
+        }
+
+        if (type === "POINT") {
+            return (
+                <div style={{
+                    ...commonStyle, background: "white"
+                }}>
+                    {variant === "CIRCLE" && <Circle style={{ fill: fillColor, scale: 0.7 }} />}
+                    {variant === "SQUARE" && <Square style={{ fill: fillColor, scale: 0.7 }} />}
                 </div>
             );
         }
@@ -205,6 +216,7 @@ export default memo(function NodeLegendStatic({
                                     <div style={{ alignSelf: "start" }}>
                                         <LegendIcon
                                             type={it.type}
+                                            variant={it.variant}
                                             iconKey={it.iconType ?? it.iconKey}
                                             fillColor={it.fillColor}
                                             strokeColor={it.strokeColor}

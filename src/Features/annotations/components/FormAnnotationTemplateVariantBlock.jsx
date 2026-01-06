@@ -8,6 +8,7 @@ import {
   HorizontalRule,
   Image,
   TextFields,
+  Circle,
 } from "@mui/icons-material";
 
 import { Box, Typography } from "@mui/material";
@@ -22,6 +23,7 @@ import FieldImageV2 from "Features/form/components/FieldImageV2";
 
 import FieldFill from "Features/form/components/FieldFill";
 import FieldStroke from "Features/form/components/FieldStroke";
+import FieldPoint from "Features/form/components/FieldPoint";
 import FieldCheck from "Features/form/components/FieldCheck";
 
 import getImageAnnotationPropsFromFileName from "../utils/getImageAnnotationPropsFromFileName";
@@ -57,6 +59,9 @@ export default function FormAnnotationTemplateVariantBlock({
     image,
     meterByPx,
     cutHost,
+    variant,
+    size,
+    sizeUnit,
   } = annotationTemplate ?? {};
 
   // helper - fill
@@ -71,11 +76,19 @@ export default function FormAnnotationTemplateVariantBlock({
     strokeOffset: strokeOffset === 0 ? true : false,
   };
 
+  const point = {
+    fillColor,
+    variant,
+    size,
+    sizeUnit,
+  };
+
 
   // helpers - annotationTypes
 
   const annotationTypes = [
     { key: "MARKER", icon: <Marker />, label: "Repère" },
+    { key: "POINT", icon: <Circle sx={{ fontSize: 12 }} />, label: "Point" },
     //{ key: "SEGMENT", icon: <HorizontalRule />, label: "Segment" },
     { key: "POLYLINE", icon: <Polyline />, label: "Ligne" },
     { key: "POLYGON", icon: <Pentagon />, label: "Surface" },
@@ -142,6 +155,10 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, ...stroke });
   }
 
+  function handlePointChange(point) {
+    onChange({ ...annotationTemplate, ...point });
+  }
+
   function handleCutHostChange(cutHost) {
     onChange({ ...annotationTemplate, cutHost });
   }
@@ -203,6 +220,28 @@ export default function FormAnnotationTemplateVariantBlock({
               value={fillColor}
               onChange={handleFillColorChange}
             />
+          </Box>
+        </Box>
+      )}
+
+      {type === "POINT" && (
+        <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
+            <AnnotationIcon
+              annotation={annotationTemplate}
+              size={32}
+            />
+
+            <Box sx={{ flex: 1 }}>
+              <FieldTextV2
+                value={label}
+                onChange={handleLabelChange}
+                options={{ fullWidth: true, placeholder: "Libellé" }}
+              />
+            </Box>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
+            <FieldPoint value={point} onChange={handlePointChange} />
           </Box>
         </Box>
       )}
