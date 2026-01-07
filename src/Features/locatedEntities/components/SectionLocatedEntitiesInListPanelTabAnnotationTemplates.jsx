@@ -407,7 +407,7 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates(
     // drawing mode
 
     let mode = "CLICK";
-    if (annotationTemplate.type === "MARKER") mode = "ONE_CLICK";
+    if (annotationTemplate.type === "MARKER" || annotationTemplate.type === "POINT") mode = "ONE_CLICK";
     dispatch(setEnabledDrawingMode(mode));
 
     // new annotation
