@@ -598,7 +598,7 @@ export default function MainMapEditorV3() {
                     newAnnotation={newAnnotation}
                     ref={interactionLayerRef}
                     showBgImage={showBgImage}
-                    onCommitDrawing={({ points, event, cutHostId }) => {
+                    onCommitDrawing={({ points, event, cutHostId, options }) => {
                         if (cutHostId) {
                             if (enabledDrawingMode === 'RECTANGLE') points = getPolylinePointsFromRectangle(points)
                             handleCommitDrawing(points, { cutHostId });
@@ -611,7 +611,7 @@ export default function MainMapEditorV3() {
                         }
                         else {
                             console.log("handleCommitDrawing - points", points);
-                            handleCommitDrawing(points);
+                            handleCommitDrawing(points, options);
                         }
                     }}
                     onCommitPointsFromDropFill={handleCommitPointsFromDropFill}
