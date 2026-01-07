@@ -1,12 +1,13 @@
 // components/DrawingLayer.jsx
-import React, { forwardRef, useImperativeHandle, useRef } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
 
 const DrawingLayer = forwardRef(({
     points,
     newAnnotation,
     enabledDrawingMode, // <--- NOUVELLE PROP
     onHoverFirstPoint,
-    onLeaveFirstPoint
+    onLeaveFirstPoint,
+    containerK,
 }, ref) => {
 
 
@@ -92,6 +93,12 @@ const DrawingLayer = forwardRef(({
         ? `M ${points.map(p => `${p.x} ${p.y}`).join(' L ')}`
         : '';
 
+    // Scale pour les points fixes
+    const scaleTransform = useMemo(() => {
+        const k = containerK || 1;
+        return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
+    }, [containerK]);
+
     return (
         <g className="drawing-layer">
 
@@ -135,11 +142,13 @@ const DrawingLayer = forwardRef(({
             {points.map((p, i) => (
                 <circle
                     key={i}
-                    cx={p.x}
-                    cy={p.y}
-                    r={3}
+                    r={3} // Taille fixe visuelle (avant transform)
+                    cx={0} cy={0} // Centré car on translate via le groupe ou le transform direct
                     fill={strokeColor || "blue"}
-                    vectorEffect="non-scaling-stroke"
+                    style={{
+                        transform: `translate(${p.x}px, ${p.y}px) ${scaleTransform}`,
+                        vectorEffect: "non-scaling-stroke" // Peut-être redundante si on scale le container, mais safe
+                    }}
                 />
             ))}
 

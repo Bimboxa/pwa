@@ -54,7 +54,8 @@ export default function ToolbarEnabledDrawingMode() {
             key: "BRUSH",
             label: "Brush",
             icon: <Brush sx={{ color }} />,
-            show: ["POLYGON"].includes(type)
+            //show: ["POLYGON"].includes(type),
+            show: false
         },
         {
             key: "SMART_DETECT",
@@ -80,7 +81,7 @@ export default function ToolbarEnabledDrawingMode() {
     if (!showMode) return null;
 
     return <Paper
-        sx={{ display: "flex", alignItems: "center", p: 1 }
+        sx={{ display: "flex", alignItems: "center", p: 0 }
         }>
         <ToggleSingleSelectorGeneric
             options={options.filter(o => o.show)}
