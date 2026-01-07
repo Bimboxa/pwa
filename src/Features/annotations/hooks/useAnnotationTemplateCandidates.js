@@ -3,7 +3,10 @@ import useAnnotationTemplates from "./useAnnotationTemplates";
 export default function useAnnotationTemplateCandidates(annotation, options) {
 
     const variant = options?.variant; // sameType
-    const annotationTemplates = useAnnotationTemplates();
+    const filterByListingId = options?.filterByListingId;
+
+    const annotationTemplates = useAnnotationTemplates({ filterByListingId });
+
 
     const currentTemplate = annotationTemplates?.find((t) => t.id === annotation?.annotationTemplateId);
 

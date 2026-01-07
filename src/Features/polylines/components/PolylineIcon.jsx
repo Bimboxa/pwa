@@ -8,7 +8,9 @@ export default function PolylineIcon({
   closeLine,
   size = 24,
 }) {
-  const color = closeLine ? fillColor : strokeColor;
+  // let color = closeLine ? fillColor : strokeColor;
+  let color = strokeColor;
+
 
   return (
     <Box

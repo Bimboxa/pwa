@@ -5,6 +5,10 @@ import db from "App/db/db";
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
 
 export default function useAnnotationTemplates(options) {
+  // options
+
+  const filterByListingId = options?.filterByListingId;
+
   // data
 
   const annotationTemplatesUpdatedAt = useSelector(
@@ -15,7 +19,8 @@ export default function useAnnotationTemplates(options) {
   );
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const filterByListingId = options?.filterByListingId;
+
+
 
   let annotationTemplates = useLiveQuery(async () => {
     let templates = [];

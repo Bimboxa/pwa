@@ -65,6 +65,21 @@ import removeCutAsync from "../services/removeCutAsync";
 import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 
+
+const contextDimmedStyle = {
+    //filter: "grayscale(100%) brightness(1.4) opacity(0.8)", // Rend gris, clair et semi-transparent
+    filter: "grayscale(90%) opacity(0.8)",
+    transition: "filter 0.3s ease, opacity 0.3s ease",      // Transition douce
+    pointerEvents: "none" // (Optionnel) Empêche de cliquer sur le fond pendant l'édition
+};
+
+const contextNormalStyle = {
+    filter: "none",
+    opacity: 1,
+    transition: "filter 0.3s ease, opacity 0.3s ease"
+};
+
+
 export default function MainMapEditorV3() {
     const dispatch = useDispatch();
 
@@ -634,24 +649,25 @@ export default function MainMapEditorV3() {
                     legendFormat={legendFormat}
                     onLegendFormatChange={handleLegendFormatChange}
                 >
-
-                    <StaticMapContent
-                        selectedNode={selectedNode}
-                        bgImageUrl={bgImage?.url}
-                        bgImageSize={bgImage?.imageSize}
-                        showBgImage={showBgImage}
-                        basePose={basePose}
-                        baseMapImageUrl={baseMap?.getUrl()}
-                        baseMapImageSize={baseMap?.getImageSize()}
-                        annotations={annotations}
-                        legendItems={legendItems}
-                        legendFormat={legendFormat}
-                        sizeVariant={sizeVariant}
-                        isEditingBaseMap={isBaseMapSelected}
-                        baseMapMeterByPx={baseMap?.meterByPx}
-                        opacity={baseMapOpacity}
-                        grayScale={baseMapGrayScale}
-                    />
+                    <g style={selectedNode ? contextDimmedStyle : contextNormalStyle}>
+                        <StaticMapContent
+                            selectedNode={selectedNode}
+                            bgImageUrl={bgImage?.url}
+                            bgImageSize={bgImage?.imageSize}
+                            showBgImage={showBgImage}
+                            basePose={basePose}
+                            baseMapImageUrl={baseMap?.getUrl()}
+                            baseMapImageSize={baseMap?.getImageSize()}
+                            annotations={annotations}
+                            legendItems={legendItems}
+                            legendFormat={legendFormat}
+                            sizeVariant={sizeVariant}
+                            isEditingBaseMap={isBaseMapSelected}
+                            baseMapMeterByPx={baseMap?.meterByPx}
+                            opacity={baseMapOpacity}
+                            grayScale={baseMapGrayScale}
+                        />
+                    </g>
                     {/* 2. LAYER ÉDITION BASEMAP (Exclusif) */}
                     {isBaseMapSelected && (
                         <EditedBaseMapLayer
