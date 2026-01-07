@@ -8,7 +8,7 @@ import BoxCenter from "Features/layout/components/BoxCenter";
 import SectionEditedAnnotationNextPoint from "./SectionEditedAnnotationNextPoint";
 import SectionFixedLengthToNextPoint from "./SectionFixedLengthToNextPoint";
 import SectionSmartDetect from "Features/smartDetect/components/SectionSmartDetect";
-
+import SectionShortcutHelpers from "./SectionShortcutHelpers";
 
 export default function PanelHelperDrawAnnotation() {
   const dispatch = useDispatch();
@@ -30,6 +30,10 @@ export default function PanelHelperDrawAnnotation() {
 
   return <Panel>
     <SectionSmartDetect />
+
+    <Box sx={{ p: 1 }}>
+      <SectionShortcutHelpers />
+    </Box>
   </Panel>
 
   return (
