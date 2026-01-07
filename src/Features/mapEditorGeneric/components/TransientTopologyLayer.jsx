@@ -1,4 +1,3 @@
-// components/layers/TransientTopologyLayer.jsx
 import React, { useMemo } from 'react';
 import NodePolylineStatic from './NodePolylineStatic';
 

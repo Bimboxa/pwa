@@ -5,6 +5,10 @@ export default function HeaderBaseMapDetail({ baseMap }) {
 
     const size = 32;
 
+    // strings
+
+    const title = "Config. du fond de plan"
+
     // 
     return (
         <Box sx={{ p: 1, bgcolor: "white", display: "flex", alignItems: "center", gap: 1 }}>
@@ -18,7 +22,7 @@ export default function HeaderBaseMapDetail({ baseMap }) {
             }}>
                 <DetailIcon sx={{ color: "white" }} />
             </Paper>
-            <Typography sx={{ fontWeight: "bold" }}>{baseMap?.name}</Typography>
+            <Typography sx={{ fontWeight: "bold" }}>{title}</Typography>
 
         </Box >
     );
