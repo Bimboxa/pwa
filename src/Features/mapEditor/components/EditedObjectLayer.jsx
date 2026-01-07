@@ -92,9 +92,9 @@ export default function EditedObjectLayer({
                     // MODE CLASSIQUE : Tout est sélectionné
                     const addFillColor = annotation.type !== "TEXT";
                     overrideStyle = {
-                        strokeColor: theme.palette.annotation.selected,
+                        //strokeColor: theme.palette.annotation.selected,
                         strokeWidth: (annotation.strokeWidth || 0) + 1,
-                        ...(addFillColor ? { fillColor: theme.palette.annotation.selected } : {}),
+                        //...(addFillColor ? { fillColor: theme.palette.annotation.selected } : {}),
                         //fillOpacity: 0.5
                     };
                 } else if (isPointSelectionMode) {

@@ -70,6 +70,8 @@ export default function NodePolylineStatic({
         hiddenSegmentsIdx = [],
     } = mergedAnnotation || {};
 
+    if (type === "POLYGON") closeLine = true;
+
     const labelAnnotation = getAnnotationLabelPropsFromAnnotation(mergedAnnotation);
     //const showLabel = (mergedAnnotation.showLabel || selected) && !forceHideLabel;
     const showLabel = false;

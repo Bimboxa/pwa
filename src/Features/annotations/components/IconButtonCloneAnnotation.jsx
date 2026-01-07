@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { useSelector } from "react-redux";
+
 import useCloneAnnotationAndEntity from "Features/mapEditor/hooks/useCloneAnnotationAndEntity";
 import useAnnotationTemplateCandidates from "Features/annotations/hooks/useAnnotationTemplateCandidates";
 
@@ -25,7 +27,8 @@ export default function IconButtonCloneAnnotation({ annotation }) {
 
     // data
 
-    const annotationTemplates = useAnnotationTemplateCandidates(annotation);
+    const filterByListingId = useSelector((s) => s.listings.selectedListingId);
+    const annotationTemplates = useAnnotationTemplateCandidates(annotation, { filterByListingId });
     const cloneAnnotationAndEntity = useCloneAnnotationAndEntity();
 
     // handlers
