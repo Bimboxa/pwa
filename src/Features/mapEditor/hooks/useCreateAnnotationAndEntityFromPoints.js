@@ -41,7 +41,7 @@ export default function useCreateAnnotationAndEntityFromPoints() {
     console.log("[MainMapEditor] new polyline created", annotation, entity);
 
     // Reset drawing mode
-    dispatch(setEnabledDrawingMode(null));
+    //dispatch(setEnabledDrawingMode(null));
     dispatch(setNewAnnotation({}));
     dispatch(setSelectedNode(null));
 

@@ -1,6 +1,7 @@
 self.importScripts("./utils/getImageCenterColor.js");
 self.importScripts("./utils/getSeparationLinesAsync.js");
 self.importScripts("./utils/detectMainRectangleAsync.js");
+self.importScripts("./utils/createDarkViewImageData.js");
 
 async function detectShapesAsync({ msg, payload }) {
     const matList = [];
@@ -75,6 +76,8 @@ async function detectShapesAsync({ msg, payload }) {
             finalImage.rows
         );
 
+        const darkViewImageData = createDarkViewImageData(imgData);
+
         try {
             const result = await getSeparationLinesAsync({
                 imageData: imgData,
@@ -91,7 +94,7 @@ async function detectShapesAsync({ msg, payload }) {
             });
 
             // -- PRE-PROCESSED IMAGE --
-            const imageBitmap = await createImageBitmap(imgData);
+            const imageBitmap = await createImageBitmap(darkViewImageData);
             const canvas = new OffscreenCanvas(finalImage.cols, finalImage.rows);
             const ctx = canvas.getContext("2d");
 

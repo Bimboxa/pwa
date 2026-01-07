@@ -26,8 +26,8 @@ import ScreenCursorV2 from 'Features/mapEditorGeneric/components/ScreenCursorV2'
 import SnappingLayer from 'Features/mapEditorGeneric/components/SnappingLayer';
 import TransientTopologyLayer from 'Features/mapEditorGeneric/components/TransientTopologyLayer';
 import TransientAnnotationLayer from 'Features/mapEditorGeneric/components/TransientAnnotationLayer';
-import TransientDetectedLineLayer from 'Features/mapEditorGeneric/components/TransientDetectedLineLayer';
-import TransientDetectedCornerLayer from 'Features/mapEditorGeneric/components/TransientDetectedCornerLayer';
+
+import TransientDetectedShapeLayer from 'Features/mapEditorGeneric/components/TransientDetectedShapeLayer';
 
 import ClosingMarker from 'Features/mapEditorGeneric/components/ClosingMarker';
 import HelperScale from 'Features/mapEditorGeneric/components/HelperScale';
@@ -175,33 +175,33 @@ const InteractionLayer = forwardRef(({
 
   // Transient detected line
 
+  // Transient detected line
   const previewLineLayerRef = useRef(null);
   const transientDetectedCornerLayerRef = useRef(null);
+  const transientDetectedShapeLayerRef = useRef(null);
   const smartCornerRef = useRef(null);
+  const detectedShapeRef = useRef(null);
 
 
-  const handleSmartLineDetected = (points) => {
-    // points est un array [{x,y}, {x,y}] ou null
+  const handleSmartShapeDetected = (shape) => {
+    // shape: { type: 'POINT'|'LINE'|'RECTANGLE', points: [] } ou null
+    detectedShapeRef.current = shape;
 
-    if (previewLineLayerRef.current) {
-      // On met à jour le composant d'affichage impérativement
-      previewLineLayerRef.current.updateLine(points);
+    if (transientDetectedShapeLayerRef.current) {
+      transientDetectedShapeLayerRef.current.updateShape(shape);
     }
 
-    // Si vous voulez aussi stocker pour le "commit" (quand on clique)
-    // smartLineRef.current = points; 
+    // Pour le "space", on stocke dans detectedShapeRef.
+    // Pour le corner, on gardait smartCornerRef pour le snap...
+    // SI le user demande de tout unifier, on unifie le storage.
+
+    // Feedback visuel DONE par le layer.
   };
 
-  // best corner
+  // Legacy handlers placeholders if references exist elsewhere (can be removed if safe)
+  // const handleSmartLineDetected = () => {}; 
+  // const handleCornerDetected = () => {};
 
-  // best corner
-
-  const handleCornerDetected = (point) => {
-    if (transientDetectedCornerLayerRef.current) {
-      transientDetectedCornerLayerRef.current.updateCorner(point);
-    }
-    smartCornerRef.current = point;
-  }
 
   // update helper scale
 
@@ -476,7 +476,7 @@ const InteractionLayer = forwardRef(({
 
     // Nettoyage
     setDrawingPoints([]);
-    dispatch(setEnabledDrawingMode(null));
+    //dispatch(setEnabledDrawingMode(null));
   };
 
 
@@ -511,7 +511,7 @@ const InteractionLayer = forwardRef(({
 
       // 4. Reset
       setBrushPath([]);
-      dispatch(setEnabledDrawingMode(null));
+      //dispatch(setEnabledDrawingMode(null));
       return;
     }
 
@@ -557,7 +557,7 @@ const InteractionLayer = forwardRef(({
     // Nettoyage
     setDrawingPoints([]);
     setCutHostId(null);
-    dispatch(setEnabledDrawingMode(null));
+    //dispatch(setEnabledDrawingMode(null));
   };
 
 
@@ -751,6 +751,10 @@ const InteractionLayer = forwardRef(({
           setCutHostId(null);
 
           setShowSmartDetect(false);
+
+          if (transientDetectedShapeLayerRef.current) {
+            transientDetectedShapeLayerRef.current.updateShape(null);
+          }
           break;
 
         case 'd':
@@ -762,24 +766,42 @@ const InteractionLayer = forwardRef(({
           break;
 
         case ' ':
-          if (smartCornerRef.current) {
-            e.preventDefault(); // Prevent scrolling or AutoPan stop if we are confirming a point?
-            // Actually, stopAutoPan is called on KeyUp space. 
+          if (detectedShapeRef.current) {
+            e.preventDefault();
 
-            const point = smartCornerRef.current;
+            const shape = detectedShapeRef.current;
 
-            // Ajouter le point
-            const newPoints = [...drawingPointsRef.current, point];
-            setDrawingPoints(newPoints);
-            drawingPointsRef.current = newPoints; // Update ref immediately
+            // A. POINT (CORNER)
+            if (shape.type === 'POINT' && shape.points && shape.points.length > 0) {
+              const point = shape.points[0];
+              const newPoints = [...drawingPointsRef.current, point];
+              setDrawingPoints(newPoints);
+              drawingPointsRef.current = newPoints;
 
-            // Check ONE_CLICK
-            if (enabledDrawingModeRef.current === "ONE_CLICK") {
-              commitPoint();
+              if (enabledDrawingModeRef.current === "ONE_CLICK") {
+                commitPoint();
+              }
+              console.log("Space pressed: Smart Point added", point);
             }
 
-            // Feedback visual? handled by setDrawingPoints
-            console.log("Space pressed: Smart Corner added", point);
+            // B. LINE / RECTANGLE (Multiple points)
+            else if (['LINE', 'RECTANGLE', 'POLYLINE'].includes(shape.type) && shape.points && shape.points.length > 0) {
+              // Si on n'a rien dessiné, on peut prendre la shape entière
+              if (drawingPointsRef.current.length === 0) {
+                setDrawingPoints(shape.points);
+                drawingPointsRef.current = shape.points;
+                // On commit direct
+                //onCommitDrawingRef.current({ points: shape.points });
+                //setDrawingPoints([]);
+              } else {
+                // Si on a déjà des points, on ajoute ? (Cas continuation)
+                const newPoints = [...drawingPointsRef.current, ...shape.points];
+                setDrawingPoints(newPoints);
+                drawingPointsRef.current = newPoints;
+              }
+              console.log("Space pressed: Smart Shape added", shape);
+            }
+
             return;
           }
           break;
@@ -1991,11 +2013,8 @@ const InteractionLayer = forwardRef(({
 
 
         <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
-          <TransientDetectedLineLayer
-            ref={previewLineLayerRef}
-          />
-          <TransientDetectedCornerLayer
-            ref={transientDetectedCornerLayerRef}
+          <TransientDetectedShapeLayer
+            ref={transientDetectedShapeLayerRef}
             containerK={targetPose.k}
           />
         </g>
@@ -2089,8 +2108,7 @@ const InteractionLayer = forwardRef(({
           sourceImage={sourceImageEl}
           rotation={rotation}
           loupeSize={LOUPE_SIZE}
-          onLineDetected={handleSmartLineDetected}
-          onCornerDetected={handleCornerDetected}
+          onSmartShapeDetected={handleSmartShapeDetected}
           enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetectRef.current}
         />, zoomContainer) : null}
       </>
