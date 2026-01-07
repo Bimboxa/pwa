@@ -2050,7 +2050,7 @@ const InteractionLayer = forwardRef(({
           </g>
         )}
 
-        {(enabledDrawingMode || drawingPoints.length > 0) && (
+        {(enabledDrawingMode && drawingPoints.length > 0) && (
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
             <DrawingLayer
               ref={drawingLayerRef} // <--- On branche la télécommande ici
