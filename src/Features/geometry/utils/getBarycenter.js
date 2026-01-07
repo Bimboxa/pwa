@@ -1,7 +1,7 @@
 export default function getBarycenter(points) {
     // Sécurité : si pas de points, on ne peut pas calculer de centre
     if (!points || points.length === 0) {
-        return null;
+        return { x: 0, y: 0 }
     }
 
     let sumX = 0;
