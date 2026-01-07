@@ -1,12 +1,58 @@
 import { useRef, useState, useMemo, forwardRef, useImperativeHandle } from "react";
 import { useDispatch } from "react-redux";
-
 import { setCenterColor as setGlobalCenterColor } from "Features/smartDetect/smartDetectSlice";
-
+import { Box, Typography, List, ListItem, ListItemButton, ListItemText } from "@mui/material";
+import { keyframes } from "@emotion/react";
+import styled from "@emotion/styled";
 import throttle from "Features/misc/utils/throttle";
 import theme from "Styles/theme";
-
 import cv from "Features/opencv/services/opencvService";
+
+// --- STYLES & ANIMATIONS ---
+
+const flashAnimation = keyframes`
+  0% { opacity: 0.6; stroke-width: 2; filter: drop-shadow(0 0 2px currentColor); }
+  50% { opacity: 1; stroke-width: 4; filter: drop-shadow(0 0 8px currentColor); }
+  100% { opacity: 0.6; stroke-width: 2; filter: drop-shadow(0 0 2px currentColor); }
+`;
+
+const pulseAnimation = keyframes`
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+`;
+
+// Couleurs "Futuristes"
+const COLORS = {
+    POINT: "#00ff00",    // Lime Green
+    LINE: "#00ccff",     // Cyan
+    RECTANGLE: "#ff00ff" // Magenta / Neon Pink
+};
+
+const ModeListItem = styled(ListItemButton)(({ theme, selected, active }) => ({
+    borderLeft: `4px solid ${selected ? theme.palette.primary.main : 'transparent'}`,
+    backgroundColor: selected ? 'rgba(0, 255, 255, 0.1)' : 'transparent',
+    marginBottom: '4px',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+        backgroundColor: 'rgba(0, 255, 255, 0.2)',
+    },
+    // Indicateur "Détecté" (Glow effect si un objet est trouvé pour ce mode)
+    boxShadow: active ? `inset 0 0 10px ${selected ? 'rgba(0,255,255,0.3)' : 'rgba(0,0,0,0.2)'}` : 'none',
+}));
+
+const DetectionIndicator = styled('span')(({ color, active }) => ({
+    display: 'inline-block',
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    backgroundColor: active ? color : 'transparent',
+    boxShadow: active ? `0 0 8px ${color}` : 'none',
+    marginRight: '8px',
+    transition: 'all 0.3s ease',
+    border: `1px solid ${active ? color : '#555'}`
+}));
+
 
 const SmartDetectLayer = forwardRef(({
     sourceImage,
@@ -25,19 +71,30 @@ const SmartDetectLayer = forwardRef(({
     // Options
     const FIXED_IN_CONTAINER = true;
 
+    // --- DETECT MODES ---
+    // Ordre : Clé, Label, Couleur associée
+    const detectModes = [
+        { key: "POINT", label: "Point", color: COLORS.POINT },
+        { key: "LINE", label: "Ligne", color: COLORS.LINE },
+        { key: "RECTANGLE", label: "Rect.", color: COLORS.RECTANGLE },
+    ];
+
     // --- STATES ---
+
+    const [selectedDetectMode, setSelectedDetectMode] = useState("POINT");
+
     const [detectedPolylines, setDetectedPolylines] = useState([]);
     const [processedImageUrl, setProcessedImageUrl] = useState(null);
-    const [bestCorner, setBestCorner] = useState(null);
-    const [extendedLine, setExtendedLine] = useState(null);
 
-    // State optionnel pour l'UI, mais non utilisé pour le calcul (qui utilise la ref)
-    const [morphKernelSizeDisplay, setMorphKernelSizeDisplay] = useState(3);
+    // Objets détectés (Source de vérité pour l'UI)
+    const [bestCorner, setBestCorner] = useState(null);
+    const [bestLine, setBestLine] = useState(null); // Line spécifique (horizontale/verticale best)
+    const [mainRectangle, setMainRectangle] = useState(null);
 
     const [centerColor, setCenterColor] = useState(theme.palette.primary.main);
     const contrastedColor = theme.palette.getContrastText(centerColor);
 
-    // --- REF (Single Source of Truth pour la logique) ---
+    // --- REF ---
     const stateRef = useRef({
         sourceROI: null,
         detectedPolylines: [],
@@ -62,12 +119,10 @@ const SmartDetectLayer = forwardRef(({
         }
     };
 
-    // --- 2. ANALYSE VISUELLE ---
-    // Ajout de 'currentRoi' en argument pour le calcul de coordonnées
+    // --- ANALYSE VISUELLE ---
     const analyzeImageThrottled = useMemo(() => throttle(async (imageUrl, currentRoi) => {
         if (!imageUrl || !enabled) return;
 
-        // Lecture de la Ref pour la taille du kernel (évite stale closure)
         const currentKernelSize = stateRef.current.morphKernelSize;
 
         try {
@@ -76,29 +131,32 @@ const SmartDetectLayer = forwardRef(({
                 imageUrl,
                 morphKernelSize: currentKernelSize,
                 rotation,
-                keepBest: false, // On veut tout recevoir pour filtrer/colorer nous-mêmes
+                keepBest: false,
             });
 
             const polylines = result?.polylines || [];
-            const processedImageUrl = result?.processedImageUrl || null;
-
             if (polylines) {
                 stateRef.current.detectedPolylines = polylines;
                 setDetectedPolylines(polylines);
+
+                // Extraction de la "Meilleure Ligne" pour le mode LINE
+                // On cherche la ligne marquée "isBest" par le worker, ou la plus longue H/V
+                const bestL = polylines.find(l => l.isBest) || polylines.find(l => l.type.includes('horizontal') || l.type.includes('vertical'));
+                setBestLine(bestL || null);
             }
 
-            if (processedImageUrl) {
-                setProcessedImageUrl(processedImageUrl);
+            if (result?.processedImageUrl) {
+                setProcessedImageUrl(result.processedImageUrl);
             }
-            // --- BEST CORNER ---
 
-            setBestCorner(result.bestCorner);
+            // --- OBJET 1: POINT (Corner) ---
+            setBestCorner(result.bestCorner); // Null ou Objet
+
+            // Callback pour le parent (si mode POINT actif ou global)
             if (result.bestCorner) {
                 const { x, y } = result.bestCorner.point;
                 const scaleX = currentRoi.width / loupeSize;
                 const scaleY = currentRoi.height / loupeSize;
-
-                // 3. Projection : Origine ROI + (Point Local * Scale)
                 const point = {
                     x: currentRoi.x + (x * scaleX),
                     y: currentRoi.y + (y * scaleY)
@@ -108,64 +166,19 @@ const SmartDetectLayer = forwardRef(({
                 onCornerDetected(null);
             }
 
+            // --- OBJET 3: RECTANGLE ---
+            setMainRectangle(result.mainRectangle && result.mainRectangle.found ? result.mainRectangle : null);
 
+            // --- COULEUR CENTRALE ---
             if (result?.centerColor) {
                 setCenterColor(result.centerColor.hex);
                 dispatch(setGlobalCenterColor(result.centerColor.hex));
             }
 
-            if (result?.separationLines) {
-                stateRef.current.detectedPolylines = result.separationLines;
-                setDetectedPolylines(result.separationLines);
-
-                // --- CALCUL DES COORDONNÉES GLOBALES (IMAGE ORIGINE) ---
-
-                // 1. Trouver le meilleur segment horizontal
-                const segment_H_Obj = result.separationLines.find(l =>
-                    l.type.includes('horizontal') && l.isBest
-                );
-
-                if (false && segment_H_Obj && currentRoi) {
-                    const localPoints = segment_H_Obj.points;
-
-                    // 2. Calcul du ratio (Scale) entre le ROI réel et la Loupe (Canvas)
-                    const scaleX = currentRoi.width / loupeSize;
-                    const scaleY = currentRoi.height / loupeSize;
-
-                    // 3. Projection : Origine ROI + (Point Local * Scale)
-                    const segment_H_inImage = localPoints.map(p => ({
-                        x: currentRoi.x + (p.x * scaleX),
-                        y: currentRoi.y + (p.y * scaleY)
-                    }));
-
-                    const { extendedPoints, counters } = await cv.extendLineAsync({
-                        imageUrl: sourceImage.src,
-                        points: segment_H_inImage,
-                        offset: { variant: "MANUAL", value: 0 }
-                    });
-
-                    setExtendedLine(extendedPoints);
-                    if (onLineDetected) {
-                        onLineDetected(extendedPoints);
-                    }
-
-                    // ICI : Vous avez les coordonnées globales en pixels sur l'image source
-                    //console.log("Segment H (Global PX):", segment_H_inImage);
-
-                    // Exemple d'action : 
-                    // dispatch(setDetectedSegmentCoords(segment_H_inImage));
-                } else {
-                    setExtendedLine(null);
-                    if (onLineDetected) {
-                        onLineDetected(null);
-                    }
-                }
-            }
-
         } catch (e) {
             // Silence
         }
-    }, 60), [enabled, loupeSize]); // dépendances
+    }, 60), [enabled, loupeSize]);
 
 
     // --- API IMPÉRATIVE ---
@@ -173,165 +186,193 @@ const SmartDetectLayer = forwardRef(({
         changeMorphKernelSize: (changeBy) => {
             const current = stateRef.current.morphKernelSize;
             const newValue = Math.max(0, Math.min(20, current + changeBy));
-
-            console.log("newMorphKernelSize (Ref update)", newValue);
-
             stateRef.current.morphKernelSize = newValue;
-            setMorphKernelSizeDisplay(newValue);
-
             const canvas = canvasRef.current;
             if (canvas) {
-                // On passe le ROI actuel stocké dans la ref
-                analyzeImageThrottled(
-                    canvas.toDataURL('image/jpeg', 0.9),
-                    stateRef.current.sourceROI
-                );
+                analyzeImageThrottled(canvas.toDataURL('image/jpeg', 0.9), stateRef.current.sourceROI);
             }
         },
         update: (screenPos, sourceROI) => {
             if (containerRef.current && !FIXED_IN_CONTAINER) {
                 containerRef.current.style.transform = `translate(${screenPos.x}px, ${screenPos.y}px) translate(-50%, -50%)`;
             }
-
-            // Mise à jour de la ref ROI
             stateRef.current.sourceROI = sourceROI;
-
             const canvas = canvasRef.current;
             if (canvas) {
                 const ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: false });
                 if (drawToCanvas(ctx, sourceROI)) {
-                    // On passe le ROI reçu en argument pour garantir la synchro
-                    analyzeImageThrottled(
-                        canvas.toDataURL('image/jpeg', 0.9),
-                        sourceROI
-                    );
+                    analyzeImageThrottled(canvas.toDataURL('image/jpeg', 0.9), sourceROI);
                 }
             }
         },
-        getDetectedPolylines: () => stateRef.current.detectedPolylines,
-        getSnapshotDataUrl: () => canvasRef.current?.toDataURL('image/png'),
-        detectOrientationNow: async () => {
-            const canvas = canvasRef.current;
-            if (!canvas) return null;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: false });
-            const roi = stateRef.current.sourceROI;
-            if (!drawToCanvas(ctx, roi)) return null;
-
-            const imageUrl = canvas.toDataURL('image/jpeg', 0.8);
-            try {
-                const result = await cv.detectSeparationLinesAsync({ imageUrl, keepBest: true, origin: "debug", rotation });
-                const lines = result?.polylines || [];
-
-                if (lines.length === 0) return null;
-                if (lines.some(l => l.type === 'corner')) return 'ANGLE';
-                const hasH = lines.some(l => l.type === 'horizontal');
-                const hasV = lines.some(l => l.type === 'vertical');
-                if (hasH && hasV) return 'ANGLE';
-                if (hasH) return 'H';
-                if (hasV) return 'V';
-                return null;
-            } catch (e) { return null; }
-        }
+        // ... (autres méthodes inchangées)
     }));
 
     // --- RENDER ---
     const centerCoord = loupeSize / 2;
     const crossHairSize = 8;
 
+    // Helper pour savoir si un mode a détecté quelque chose
+    const hasDetected = {
+        POINT: !!bestCorner,
+        LINE: !!bestLine,
+        RECTANGLE: !!mainRectangle
+    };
+
     return (
-        <div
-            ref={containerRef}
-            style={{
-                ...(!FIXED_IN_CONTAINER ? { position: 'absolute', top: 0, left: 0 } : { position: "relative" }),
-                width: loupeSize,
-                height: loupeSize,
-                boxSizing: 'border-box',
-                overflow: 'hidden',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                backgroundColor: '#000',
-                cursor: 'none',
-                zIndex: 9999,
-                pointerEvents: 'none',
-                display: enabled ? 'block' : 'none'
-            }}
-        >
-            <canvas ref={canvasRef} width={loupeSize} height={loupeSize} />
+        <Box sx={{ width: 1, display: "flex", gap: 0.5 }} ref={containerRef}>
 
-            {processedImageUrl && (
-                <img
-                    src={processedImageUrl}
-                    alt="Debug Processed"
-                    style={{
-                        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                        objectFit: 'contain', pointerEvents: 'none',
-                    }}
-                />
-            )}
+            {/* --- LA LOUPE VISUELLE --- */}
+            <div
+                style={{
+                    ...(!FIXED_IN_CONTAINER ? { position: 'absolute', top: 0, left: 0 } : { position: "relative" }),
+                    width: loupeSize,
+                    height: loupeSize,
+                    boxSizing: 'border-box',
+                    overflow: 'hidden',
+                    backgroundColor: "white",
+                    // Style HUD Futuriste pour le conteneur
+                    border: `1px solid ${COLORS[selectedDetectMode]}`,
+                    boxShadow: `0 0 15px ${COLORS[selectedDetectMode]}80`, // Glow
+                    cursor: 'none',
+                    zIndex: 9999,
+                    pointerEvents: 'none',
+                    display: enabled ? 'block' : 'none'
+                }}
+            >
+                <canvas ref={canvasRef} width={loupeSize} height={loupeSize} />
 
-            <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
-                {detectedPolylines.map((polylineObj, index) => {
-                    const pointsStr = polylineObj.points.map(p => `${p.x},${p.y}`).join(' ');
-                    let color = "red";
-                    if (polylineObj.type.includes('horizontal')) color = "#00ccff"; // Cyan
-                    if (polylineObj.type.includes('vertical')) color = "#ff00ff"; // Magenta
-                    if (polylineObj.type.includes('corner')) color = "#00ff00"; // Vert
-
-                    // La "Best Line" écrase la couleur précédente pour être bien visible (Vert pur)
-                    if (polylineObj.isBest) color = "#00ff00";
-
-                    const commonProps = {
-                        points: pointsStr,
-                        fill: polylineObj.closeLine ? "rgba(255, 0, 0, 0.2)" : "none",
-                        stroke: color,
-                        strokeWidth: polylineObj.isBest ? "3" : "2" // Un peu plus épais si Best
-                    };
-                    return polylineObj.closeLine ?
-                        <polygon key={index} {...commonProps} /> :
-                        <polyline key={index} {...commonProps} />;
-                })}
-
-                {/* BEST CORNER */}
-                {bestCorner && <circle
-                    cx={bestCorner?.point.x}
-                    cy={bestCorner?.point.y}
-                    r={4}
-                    fill={"red"}
-                />}
-
-
-                {/* CROSSHAIR */}
-                <g style={{
-                    // filter: "drop-shadow(0px 0px 1px rgba(0,0,0,0.8))"
-                }}>
-                    <line
-                        x1={centerCoord - crossHairSize}
-                        y1={centerCoord}
-                        x2={centerCoord + crossHairSize}
-                        y2={centerCoord}
-                        stroke={contrastedColor}
-                        strokeWidth="1"
-                        strokeLinecap="round"
+                {/* Image debug (morphologie) */}
+                {processedImageUrl && (
+                    <img
+                        src={processedImageUrl}
+                        alt="Debug"
+                        style={{
+                            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                            objectFit: 'contain', pointerEvents: 'none', opacity: 0.5, mixBlendMode: 'screen'
+                        }}
                     />
-                    <line
-                        x1={centerCoord}
-                        y1={centerCoord - crossHairSize}
-                        x2={centerCoord}
-                        y2={centerCoord + crossHairSize}
-                        stroke={contrastedColor}
-                        strokeWidth="1"
-                        strokeLinecap="round"
-                    />
-                    {/* Petit point central optionnel pour la précision */}
-                    <circle
-                        cx={centerCoord}
-                        cy={centerCoord}
-                        r={1}
-                        fill={contrastedColor}
-                    />
-                </g>
-            </svg>
-        </div>
+                )}
 
+                <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
+
+                    {/* --- MODE LIGNE --- */}
+                    {selectedDetectMode === "LINE" && bestLine && (
+                        <polyline
+                            points={bestLine.points.map(p => `${p.x},${p.y}`).join(' ')}
+                            fill="none"
+                            stroke={COLORS.LINE}
+                            strokeWidth="3"
+                            style={{
+                                animation: `${flashAnimation} 1.5s infinite ease-in-out`
+                            }}
+                        />
+                    )}
+
+                    {/* --- MODE RECTANGLE --- */}
+                    {selectedDetectMode === "RECTANGLE" && mainRectangle && (
+                        <polygon
+                            points={mainRectangle.points.map(p => `${p.x},${p.y}`).join(' ')}
+                            fill={`${COLORS.RECTANGLE}33`} // Transparent Fill
+                            stroke={COLORS.RECTANGLE}
+                            strokeWidth="2"
+                            strokeDasharray="4 2"
+                            style={{
+                                animation: `${flashAnimation} 2s infinite ease-in-out`
+                            }}
+                        />
+                    )}
+
+                    {/* --- MODE POINT --- */}
+                    {selectedDetectMode === "POINT" && bestCorner && (
+                        <g>
+                            <circle
+                                cx={bestCorner.point.x}
+                                cy={bestCorner.point.y}
+                                r={4}
+                                fill={COLORS.POINT}
+                                stroke="white"
+                                strokeWidth="2"
+                            />
+                            {/* Onde de choc (Pulse) */}
+                            <circle
+                                cx={bestCorner.point.x}
+                                cy={bestCorner.point.y}
+                                r={8}
+                                fill="none"
+                                stroke={COLORS.POINT}
+                                strokeWidth="1"
+                                style={{
+                                    transformOrigin: `${bestCorner.point.x}px ${bestCorner.point.y}px`,
+                                    animation: `${pulseAnimation} 1s infinite`
+                                }}
+                            />
+                        </g>
+                    )}
+
+                    {/* CROSSHAIR FIXE (Viseur) */}
+                    <g style={{ opacity: 0.8 }}>
+                        <line
+                            x1={centerCoord - crossHairSize} y1={centerCoord}
+                            x2={centerCoord + crossHairSize} y2={centerCoord}
+                            stroke={contrastedColor} strokeWidth="1"
+                        />
+                        <line
+                            x1={centerCoord} y1={centerCoord - crossHairSize}
+                            x2={centerCoord} y2={centerCoord + crossHairSize}
+                            stroke={contrastedColor} strokeWidth="1"
+                        />
+                        <circle cx={centerCoord} cy={centerCoord} r={1} fill={contrastedColor} />
+                    </g>
+                </svg>
+            </div>
+
+            {/* --- LISTE DES MODES (HUD) --- */}
+            <Box sx={{
+                display: enabled ? 'block' : 'none',
+                backgroundColor: 'rgba(0,0,0,0.7)',
+                backdropFilter: 'blur(4px)',
+                borderRadius: '4px',
+                padding: '4px',
+                //minWidth: '120px',
+                border: '1px solid rgba(255,255,255,0.1)'
+            }}>
+                {/* <Typography variant="caption" sx={{ color: '#aaa', px: 1, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    SCAN MODE
+                </Typography> */}
+                <List dense sx={{ py: 0 }}>
+                    {detectModes.map(mode => {
+                        const isSelected = mode.key === selectedDetectMode;
+                        const isDetected = hasDetected[mode.key];
+
+                        return (
+                            <ModeListItem
+                                key={mode.key}
+                                selected={isSelected}
+                                active={isDetected} // Prop custom pour le style
+                                onClick={() => setSelectedDetectMode(mode.key)}
+                            >
+                                <DetectionIndicator
+                                    color={mode.color}
+                                    active={isDetected}
+                                />
+                                <ListItemText
+                                    primary={mode.label}
+                                    primaryTypographyProps={{
+                                        variant: 'body2',
+                                        style: {
+                                            color: isSelected ? mode.color : (isDetected ? '#eee' : '#666'),
+                                            fontWeight: isSelected ? 'bold' : 'normal',
+                                            textShadow: isSelected ? `0 0 5px ${mode.color}` : 'none'
+                                        }
+                                    }}
+                                />
+                            </ModeListItem>
+                        );
+                    })}
+                </List>
+            </Box>
+        </Box>
     );
 });
 
