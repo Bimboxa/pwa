@@ -18,6 +18,7 @@ async function detectShapesAsync({ msg, payload }) {
         let processedImageUrl = null;
         let centerColor = null;
         let separationLines = null;
+        let bestCorner = null;
 
         // -- MAIN --
         const { imageUrl, morphKernelSize = 3, rotation, keepBest = true } = payload ?? {};
@@ -73,11 +74,14 @@ async function detectShapesAsync({ msg, payload }) {
         );
 
         try {
-            separationLines = await getSeparationLinesAsync({
+            const result = await getSeparationLinesAsync({
                 imageData: imgData,
                 rotation: rotation,
                 keepBest,
             });
+
+            separationLines = result.separationLines;
+            bestCorner = result.bestCorner;
 
             // -- PRE-PROCESSED IMAGE --
             const imageBitmap = await createImageBitmap(imgData);
@@ -105,7 +109,7 @@ async function detectShapesAsync({ msg, payload }) {
 
         postMessage({
             msg,
-            payload: { processedImageUrl, centerColor, separationLines }
+            payload: { processedImageUrl, centerColor, separationLines, bestCorner }
         });
 
     } catch (err) {

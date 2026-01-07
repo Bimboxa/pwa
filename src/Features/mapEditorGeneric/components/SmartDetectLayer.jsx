@@ -15,6 +15,7 @@ const SmartDetectLayer = forwardRef(({
     debug = false,
     enabled = false,
     onLineDetected,
+    onCornerDetected,
 }, ref) => {
     const dispatch = useDispatch();
 
@@ -27,6 +28,7 @@ const SmartDetectLayer = forwardRef(({
     // --- STATES ---
     const [detectedPolylines, setDetectedPolylines] = useState([]);
     const [processedImageUrl, setProcessedImageUrl] = useState(null);
+    const [bestCorner, setBestCorner] = useState(null);
     const [extendedLine, setExtendedLine] = useState(null);
 
     // State optionnel pour l'UI, mais non utilisé pour le calcul (qui utilise la ref)
@@ -88,6 +90,24 @@ const SmartDetectLayer = forwardRef(({
             if (processedImageUrl) {
                 setProcessedImageUrl(processedImageUrl);
             }
+            // --- BEST CORNER ---
+
+            setBestCorner(result.bestCorner);
+            if (result.bestCorner) {
+                const { x, y } = result.bestCorner.point;
+                const scaleX = currentRoi.width / loupeSize;
+                const scaleY = currentRoi.height / loupeSize;
+
+                // 3. Projection : Origine ROI + (Point Local * Scale)
+                const point = {
+                    x: currentRoi.x + (x * scaleX),
+                    y: currentRoi.y + (y * scaleY)
+                };
+                onCornerDetected(point);
+            } else {
+                onCornerDetected(null);
+            }
+
 
             if (result?.centerColor) {
                 setCenterColor(result.centerColor.hex);
@@ -270,8 +290,19 @@ const SmartDetectLayer = forwardRef(({
                         <polyline key={index} {...commonProps} />;
                 })}
 
+                {/* BEST CORNER */}
+                {bestCorner && <circle
+                    cx={bestCorner?.point.x}
+                    cy={bestCorner?.point.y}
+                    r={4}
+                    fill={"red"}
+                />}
+
+
                 {/* CROSSHAIR */}
-                <g style={{ filter: "drop-shadow(0px 0px 1px rgba(0,0,0,0.8))" }}>
+                <g style={{
+                    // filter: "drop-shadow(0px 0px 1px rgba(0,0,0,0.8))"
+                }}>
                     <line
                         x1={centerCoord - crossHairSize}
                         y1={centerCoord}

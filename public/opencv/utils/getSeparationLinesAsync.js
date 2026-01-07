@@ -5,7 +5,8 @@ async function getSeparationLinesAsync({ imageData, keepBest = false, rotation =
         return mat;
     };
 
-    let separationLines;
+    let separationLines = [];
+    let bestCorner = null; // Le résultat ajouté
 
     try {
         const src = track(cv.matFromImageData(imageData));
@@ -47,7 +48,7 @@ async function getSeparationLinesAsync({ imageData, keepBest = false, rotation =
         };
 
         // ============================================================
-        // 3. EXTRACTION LOGIC (STRICT ANGLE FILTER)
+        // 3. EXTRACTION LOGIC
         // ============================================================
 
         const extractLinesForReferential = (contours, angleRad, suffix = "") => {
@@ -90,6 +91,7 @@ async function getSeparationLinesAsync({ imageData, keepBest = false, rotation =
 
                     if (isHorizontal) {
                         const avgY = Math.round((p1.y + p2.y) / 2);
+                        // Filtre strict : si trop près du bord dans le repère local, on ignore
                         if (avgY <= EDGE_MARGIN || avgY >= imgHeight - EDGE_MARGIN) continue;
 
                         const snapP1 = { x: p1.x, y: avgY };
@@ -128,8 +130,6 @@ async function getSeparationLinesAsync({ imageData, keepBest = false, rotation =
             return lines;
         };
 
-        // --- Execute Detection ---
-
         const standardLines = extractLinesForReferential(contours, 0, "");
 
         let rotatedLines = [];
@@ -138,12 +138,8 @@ async function getSeparationLinesAsync({ imageData, keepBest = false, rotation =
             rotatedLines = extractLinesForReferential(contours, rotation, "_with_rotation");
         }
 
-        // ============================================================
-        // 4. SELECTION: WINNER TAKES ALL
-        // ============================================================
-
+        // 4. SELECTION
         let selectedLines = [];
-
         if (rotatedLines.length === 0) {
             selectedLines = standardLines;
         } else {
@@ -152,20 +148,14 @@ async function getSeparationLinesAsync({ imageData, keepBest = false, rotation =
             selectedLines = (scoreRotated > scoreStandard) ? rotatedLines : standardLines;
         }
 
-        // ============================================================
-        // 5. IDENTIFY BEST (Closest to center) - ALWAYS RUN
-        // ============================================================
-
+        // 5. IDENTIFY BEST
         let bestH = null;
         let bestV = null;
         let minDistH = Infinity;
         let minDistV = Infinity;
 
-        // On parcourt toutes les lignes pour trouver la meilleure H et V
-        // et on initialise isBest à false
         selectedLines.forEach(line => {
-            line.isBest = false; // Défaut
-
+            line.isBest = false;
             const p1 = line.points[0];
             const p2 = line.points[1];
             const midX = (p1.x + p2.x) / 2;
@@ -185,35 +175,90 @@ async function getSeparationLinesAsync({ imageData, keepBest = false, rotation =
             }
         });
 
-        // On marque les gagnants
         if (bestH) bestH.isBest = true;
         if (bestV) bestV.isBest = true;
 
         // ============================================================
-        // 6. FILTERING & MERGING (Depending on keepBest)
+        // [NOUVEAU] 5b. CALCULATE BEST CORNER / ENDPOINT
+        // ============================================================
+
+        // Helper pour savoir si un point touche le bord de l'image (avec tolérance)
+        const isAtEdge = (p) => {
+            const m = 10; // Marge de tolérance un peu plus large pour la détection "isAtEdge"
+            return p.x < m || p.x > imgWidth - m || p.y < m || p.y > imgHeight - m;
+        };
+
+        // Helper distance
+        const getDistSq = (p, target) => Math.pow(p.x - target.x, 2) + Math.pow(p.y - target.y, 2);
+
+        if (bestH && bestV) {
+            // --- CAS 1: INTERSECTION (Vrai Coin) ---
+            const angle = bestH.refAngle;
+            const correctionAngle = -angle;
+
+            // On projette dans le repère local pour trouver l'intersection parfaite H/V
+            const hP1_loc = rotatePoint(bestH.points[0].x, bestH.points[0].y, correctionAngle);
+            const vP1_loc = rotatePoint(bestV.points[0].x, bestV.points[0].y, correctionAngle);
+
+            // Intersection en local : x du Vertical, y de l'Horizontal
+            const inter_loc = { x: vP1_loc.x, y: hP1_loc.y };
+
+            // On remet dans le repère global
+            const intersection = rotatePoint(inter_loc.x, inter_loc.y, angle);
+
+            bestCorner = {
+                point: intersection,
+                type: 'intersection',
+                direction: bestH.type.includes("rotation") ? 'corner_with_rotation' : 'corner'
+            };
+
+        } else if (bestH || bestV) {
+            // --- CAS 2: EXTRÉMITÉ LIBRE (Mur qui s'arrête) ---
+            const line = bestH || bestV; // La ligne active
+            const [p1, p2] = line.points;
+
+            const p1Edge = isAtEdge(p1);
+            const p2Edge = isAtEdge(p2);
+
+            let selectedPoint = null;
+
+            if (p1Edge && !p2Edge) {
+                selectedPoint = p2;
+            } else if (!p1Edge && p2Edge) {
+                selectedPoint = p1;
+            } else if (!p1Edge && !p2Edge) {
+                // Si aucun ne touche le bord (mur flottant), on prend le plus proche du centre
+                // ou arbitrairement p1. Ici je prends le plus proche du centre visuel.
+                const d1 = getDistSq(p1, center);
+                const d2 = getDistSq(p2, center);
+                selectedPoint = (d1 < d2) ? p1 : p2;
+            }
+            // Si (p1Edge && p2Edge), c'est une ligne qui traverse tout, pas de "coin/bout".
+
+            if (selectedPoint) {
+                bestCorner = {
+                    point: selectedPoint,
+                    type: 'endpoint',
+                    direction: line.type // 'horizontal' ou 'vertical' (+suffixe)
+                };
+            }
+        }
+
+        // ============================================================
+        // 6. FILTERING & MERGING
         // ============================================================
 
         if (keepBest) {
-            // 1. Filtrer simplement sur isBest
             let bestLines = selectedLines.filter(l => l.isBest);
-
-            // 2. Tenter de fusionner en "Coin" (Corner) si les deux existent
-            // Cette logique est conservée pour garder la cohérence du retour (type 'corner')
-            // même si on a filtré.
             let finalResult = [];
             let merged = false;
 
-            if (bestH && bestV) {
-                const angle = bestH.refAngle;
-                const correctionAngle = -angle;
+            // Logique de fusion visuelle pour la polyline
+            if (bestCorner && bestCorner.type === 'intersection') {
+                const intersection = bestCorner.point;
 
-                const hP1_loc = rotatePoint(bestH.points[0].x, bestH.points[0].y, correctionAngle);
-                const vP1_loc = rotatePoint(bestV.points[0].x, bestV.points[0].y, correctionAngle);
-
-                const inter_loc = { x: vP1_loc.x, y: hP1_loc.y };
-                const intersection = rotatePoint(inter_loc.x, inter_loc.y, angle);
-
-                const getDist = (p, target) => Math.sqrt(Math.pow(p.x - target.x, 2) + Math.pow(p.y - target.y, 2));
+                // Calculs de distance pour savoir quels points relier
+                const getDist = (p, target) => Math.sqrt(getDistSq(p, target));
 
                 const distH1 = getDist(bestH.points[0], intersection);
                 const distH2 = getDist(bestH.points[1], intersection);
@@ -228,9 +273,8 @@ async function getSeparationLinesAsync({ imageData, keepBest = false, rotation =
                     const outerH = (distH1 > distH2) ? bestH.points[0] : bestH.points[1];
                     const outerV = (distV1 > distV2) ? bestV.points[0] : bestV.points[1];
 
-                    // Si on fusionne, on crée un nouvel objet qui est aussi "Best" par définition
                     finalResult = [{
-                        type: bestH.type.includes("rotation") ? 'corner_with_rotation' : 'corner',
+                        type: bestCorner.direction,
                         points: [outerH, intersection, outerV],
                         isBest: true
                     }];
@@ -238,15 +282,9 @@ async function getSeparationLinesAsync({ imageData, keepBest = false, rotation =
                 }
             }
 
-            if (merged) {
-                selectedLines = finalResult;
-            } else {
-                // Si pas de fusion, on retourne simplement les lignes filtrées (bestLines)
-                selectedLines = bestLines;
-            }
+            selectedLines = merged ? finalResult : bestLines;
         }
 
-        // Nettoyage final pour l'objet de retour
         separationLines = selectedLines.map(({ refAngle, ...rest }) => rest);
 
     } catch (err) {
@@ -256,9 +294,10 @@ async function getSeparationLinesAsync({ imageData, keepBest = false, rotation =
         } else if (err?.message) {
             errorMessage = err.message;
         }
-        console.error("[opencv worker] detectSeparationLinesAsync failed", errorMessage);
+        console.error("[opencv worker] getSeparationLinesAsync failed", errorMessage);
     } finally {
         matList.forEach(m => m && !m.isDeleted() && m.delete());
-        return separationLines;
+        // On retourne un objet contenant les lignes ET le meilleur coin/bout
+        return { separationLines, bestCorner };
     }
 }

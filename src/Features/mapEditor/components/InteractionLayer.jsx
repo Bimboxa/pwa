@@ -26,6 +26,9 @@ import ScreenCursorV2 from 'Features/mapEditorGeneric/components/ScreenCursorV2'
 import SnappingLayer from 'Features/mapEditorGeneric/components/SnappingLayer';
 import TransientTopologyLayer from 'Features/mapEditorGeneric/components/TransientTopologyLayer';
 import TransientAnnotationLayer from 'Features/mapEditorGeneric/components/TransientAnnotationLayer';
+import TransientDetectedLineLayer from 'Features/mapEditorGeneric/components/TransientDetectedLineLayer';
+import TransientDetectedCornerLayer from 'Features/mapEditorGeneric/components/TransientDetectedCornerLayer';
+
 import ClosingMarker from 'Features/mapEditorGeneric/components/ClosingMarker';
 import HelperScale from 'Features/mapEditorGeneric/components/HelperScale';
 import MapTooltip from 'Features/mapEditorGeneric/components/MapTooltip';
@@ -42,7 +45,6 @@ import cv from "Features/opencv/services/opencvService";
 import editor from "App/editor";
 import getTopMiddlePoint from 'Features/geometry/utils/getTopMiddlePoint';
 import { useSmartZoom } from "App/contexts/SmartZoomContext";
-import TransientDetectedLineLayer from 'Features/mapEditorGeneric/components/TransientDetectedLineLayer';
 
 // constants
 
@@ -174,6 +176,9 @@ const InteractionLayer = forwardRef(({
   // Transient detected line
 
   const previewLineLayerRef = useRef(null);
+  const transientDetectedCornerLayerRef = useRef(null);
+  const smartCornerRef = useRef(null);
+
 
   const handleSmartLineDetected = (points) => {
     // points est un array [{x,y}, {x,y}] ou null
@@ -186,6 +191,17 @@ const InteractionLayer = forwardRef(({
     // Si vous voulez aussi stocker pour le "commit" (quand on clique)
     // smartLineRef.current = points; 
   };
+
+  // best corner
+
+  // best corner
+
+  const handleCornerDetected = (point) => {
+    if (transientDetectedCornerLayerRef.current) {
+      transientDetectedCornerLayerRef.current.updateCorner(point);
+    }
+    smartCornerRef.current = point;
+  }
 
   // update helper scale
 
@@ -743,6 +759,29 @@ const InteractionLayer = forwardRef(({
           setShowSmartDetect(true);
           console.log("press d", mousePos)
           updateSmartDetect(mousePos);
+          break;
+
+        case ' ':
+          if (smartCornerRef.current) {
+            e.preventDefault(); // Prevent scrolling or AutoPan stop if we are confirming a point?
+            // Actually, stopAutoPan is called on KeyUp space. 
+
+            const point = smartCornerRef.current;
+
+            // Ajouter le point
+            const newPoints = [...drawingPointsRef.current, point];
+            setDrawingPoints(newPoints);
+            drawingPointsRef.current = newPoints; // Update ref immediately
+
+            // Check ONE_CLICK
+            if (enabledDrawingModeRef.current === "ONE_CLICK") {
+              commitPoint();
+            }
+
+            // Feedback visual? handled by setDrawingPoints
+            console.log("Space pressed: Smart Corner added", point);
+            return;
+          }
           break;
 
         case "p":
@@ -1955,6 +1994,10 @@ const InteractionLayer = forwardRef(({
           <TransientDetectedLineLayer
             ref={previewLineLayerRef}
           />
+          <TransientDetectedCornerLayer
+            ref={transientDetectedCornerLayerRef}
+            containerK={targetPose.k}
+          />
         </g>
 
         {(dragState?.active || dragState?.frozen) && (
@@ -1994,6 +2037,7 @@ const InteractionLayer = forwardRef(({
               onHoverFirstPoint={handleHoverFirstPoint}
               onLeaveFirstPoint={handleLeaveFirstPoint}
               enabledDrawingMode={enabledDrawingMode}
+              containerK={targetPose.k}
             />
           </g>
 
@@ -2046,6 +2090,7 @@ const InteractionLayer = forwardRef(({
           rotation={rotation}
           loupeSize={LOUPE_SIZE}
           onLineDetected={handleSmartLineDetected}
+          onCornerDetected={handleCornerDetected}
           enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetectRef.current}
         />, zoomContainer) : null}
       </>
