@@ -14,14 +14,14 @@ export default function SmartDetectContainer() {
     display: "flex", alignItems: "center", justifyContent: "center",
     position: "relative",
   }}>
-    <Paper
-      elevation={0}
+    <Box
+      //elevation={0}
       id="smart-zoom-target"
       ref={setZoomContainer} // On passe la ref au Context
       sx={{
-        width: LOUPE_SIZE,
-        height: LOUPE_SIZE,
-        bgcolor: '#000',
+        //width: LOUPE_SIZE,
+        //height: LOUPE_SIZE,
+        //bgcolor: '#000',
         position: 'relative',
         overflow: 'hidden'
       }}

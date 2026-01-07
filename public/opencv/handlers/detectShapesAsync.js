@@ -1,5 +1,6 @@
 self.importScripts("./utils/getImageCenterColor.js");
 self.importScripts("./utils/getSeparationLinesAsync.js");
+self.importScripts("./utils/detectMainRectangleAsync.js");
 
 async function detectShapesAsync({ msg, payload }) {
     const matList = [];
@@ -19,6 +20,7 @@ async function detectShapesAsync({ msg, payload }) {
         let centerColor = null;
         let separationLines = null;
         let bestCorner = null;
+        let mainRectangle = null;
 
         // -- MAIN --
         const { imageUrl, morphKernelSize = 3, rotation, keepBest = true } = payload ?? {};
@@ -83,6 +85,11 @@ async function detectShapesAsync({ msg, payload }) {
             separationLines = result.separationLines;
             bestCorner = result.bestCorner;
 
+            mainRectangle = await detectMainRectangleAsync({
+                imageData: imgData,
+                rotation: rotation,
+            });
+
             // -- PRE-PROCESSED IMAGE --
             const imageBitmap = await createImageBitmap(imgData);
             const canvas = new OffscreenCanvas(finalImage.cols, finalImage.rows);
@@ -109,7 +116,7 @@ async function detectShapesAsync({ msg, payload }) {
 
         postMessage({
             msg,
-            payload: { processedImageUrl, centerColor, separationLines, bestCorner }
+            payload: { processedImageUrl, centerColor, separationLines, bestCorner, mainRectangle }
         });
 
     } catch (err) {
