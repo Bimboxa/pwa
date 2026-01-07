@@ -480,7 +480,7 @@ const InteractionLayer = forwardRef(({
   };
 
 
-  const commitPolyline = async (event) => {
+  const commitPolyline = async (event, options) => {
     const drawingMode = enabledDrawingModeRef.current;
 
 
@@ -505,7 +505,7 @@ const InteractionLayer = forwardRef(({
       console.log("[BRUSH] Polygons found:", polygons);
       if (polygons && polygons.length > 0) {
         polygons.forEach(points => {
-          if (onCommitDrawingRef.current) onCommitDrawingRef.current({ points });
+          if (onCommitDrawingRef.current) onCommitDrawingRef.current({ points, options });
         });
       }
 
@@ -790,7 +790,10 @@ const InteractionLayer = forwardRef(({
               if (drawingPointsRef.current.length === 0) {
                 setDrawingPoints(shape.points);
                 drawingPointsRef.current = shape.points;
-                // On commit direct
+                // On commit direct si rectangle
+                if (shape.type === 'RECTANGLE') {
+                  commitPolyline(e, { closeLine: true });
+                }
                 //onCommitDrawingRef.current({ points: shape.points });
                 //setDrawingPoints([]);
               } else {
