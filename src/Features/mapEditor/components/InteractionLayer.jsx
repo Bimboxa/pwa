@@ -452,6 +452,7 @@ const InteractionLayer = forwardRef(({
   const commitPoint = () => {
     const pointsToSave = drawingPointsRef.current; // On lit la Ref, pas le State !
     if (pointsToSave.length === 1) {
+      console.log("COMMIT POINT", pointsToSave);
       onCommitDrawingRef.current({ points: pointsToSave });
     } else {
       console.log("⚠️ erreur création d'un point.");
@@ -1501,13 +1502,15 @@ const InteractionLayer = forwardRef(({
     // 1. Prevent Viewport Pan
     e.stopPropagation();
     e.preventDefault();
+    const enabledDrawingMode = enabledDrawingModeRef.current;
+
 
     // ==================
     // Dessin
     // ==================
 
     const snap = currentSnapRef.current;
-    console.log("[InteractionLayer] snap", snap);
+    console.log("[InteractionLayer] snap", snap, enabledDrawingMode);
     if (!snap) return;
 
     // =======================================================
@@ -1527,11 +1530,21 @@ const InteractionLayer = forwardRef(({
         pointToAdd.existingPointId = snap.id;
       }
 
-      // 3. On ajoute le point (avec l'ID s'il existe)
-      setDrawingPoints(prev => [...prev, pointToAdd]);
+      // ATTENTION : setDrawingPoints est asynchrone. 
+      // Pour le commit immédiat, on doit construire le tableau manuellement.
+
+      const newPointsList = [...drawingPointsRef.current, pointToAdd];
+      setDrawingPoints(newPointsList);
+      drawingPointsRef.current = newPointsList; // Force ref update pour commit immédiat
 
       // On force un flash visuel
       screenCursorRef.current?.triggerFlash();
+
+      // --- CORRECTION DU BUG "ONE_CLICK" ---
+      if (enabledDrawingMode === 'ONE_CLICK') {
+        // Si on est en mode un seul clic (Marker/Point), on commit tout de suite !
+        commitPoint();
+      }
 
       // On s'arrête ici
       return;
@@ -1944,6 +1957,20 @@ const InteractionLayer = forwardRef(({
           />
         </g>
 
+        {(dragState?.active || dragState?.frozen) && (
+          <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
+            <TransientTopologyLayer
+              annotations={annotations}
+              movingPointId={dragState.pointId}
+              originalPointIdForDuplication={dragState.isDuplicateMode ? dragState.originalPointId : null}
+              currentPos={dragState.currentPos}
+              viewportScale={targetPose.k * cameraZoom}
+              virtualInsertion={virtualInsertion}
+              selectedAnnotationId={selectedNode?.nodeId?.replace("label::", "")}
+            />
+          </g>
+        )}
+
 
         {/* --- Affichage conditionnel : Seulement si 'active' est vrai --- */}
         {dragAnnotationState?.active && (
@@ -1956,21 +1983,6 @@ const InteractionLayer = forwardRef(({
               baseMapMeterByPx={baseMapMeterByPx}
             />
           </g>
-        )}
-
-
-        {(enabledDrawingMode || drawingPoints.length > 0) && (
-          <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
-            <DrawingLayer
-              ref={drawingLayerRef} // <--- On branche la télécommande ici
-              points={drawingPoints}
-              newAnnotation={newAnnotation}
-              onHoverFirstPoint={handleHoverFirstPoint}
-              onLeaveFirstPoint={handleLeaveFirstPoint}
-              enabledDrawingMode={enabledDrawingMode}
-            />
-          </g>
-
         )}
 
         {(enabledDrawingMode || drawingPoints.length > 0) && (
