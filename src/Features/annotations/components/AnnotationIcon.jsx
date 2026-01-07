@@ -4,6 +4,7 @@ import PolygonIcon from "Features/polygons/components/PolygonIcon";
 import RectangleIcon from "Features/rectangles/components/RectangleIcon";
 import ImageAnnotationIcon from "Features/imageAnnotations/components/ImageAnnotationIcon";
 import PointAnnotationIcon from "Features/pointAnnotations/components/PointAnnotationIcon";
+import StripAnnotationIcon from "Features/stripAnnotations/components/StripAnnotationIcon";
 
 export default function AnnotationIcon({ spriteImage, annotation, size }) {
   switch (annotation?.type) {
@@ -17,6 +18,9 @@ export default function AnnotationIcon({ spriteImage, annotation, size }) {
       );
     case "POLYLINE":
       return <PolylineIcon {...annotation} size={size} />;
+
+    case "STRIP":
+      return <StripAnnotationIcon {...annotation} size={size} />;
 
     case "POLYGON":
       return <PolygonIcon {...annotation} size={size} />;

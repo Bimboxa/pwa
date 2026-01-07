@@ -20,10 +20,11 @@ export default function FieldFill({ value, onChange }) {
   const fillTypeOptions = [
     { key: "SOLID", label: "Solide" },
     //{ key: "GRADIENT", label: "Gradient" },
-    { key: "HATCHING", label: "Hachures" },
+    { key: "HATCHING", label: 'Hach. ///' },
+    { key: "HATCHING_LEFT", label: 'Hach. \\\\\\' }
   ];
 
-  // handlers
+  // handlers 
 
   function handleColorChange(color) {
     onChange({ ...value, fillColor: color });

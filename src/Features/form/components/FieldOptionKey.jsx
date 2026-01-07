@@ -34,9 +34,9 @@ export default function FieldOptionKey({
         sx={{
           ...(options?.showAsSection
             ? {
-                p: 1,
-                borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-              }
+              p: 1,
+              borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+            }
             : {}),
         }}
       >
@@ -47,7 +47,7 @@ export default function FieldOptionKey({
           endIcon={<Down ref={arrowRef} />}
           onClick={(e) => setAnchorEl(e.currentTarget)}
         >
-          <Typography variant="body2">{buttonLabel}</Typography>
+          <Typography variant="body2" noWrap>{buttonLabel}</Typography>
         </Button>
       </Box>
       <Menu
@@ -63,7 +63,7 @@ export default function FieldOptionKey({
               setAnchorEl(null);
             }}
           >
-            <Typography>{option?.label}</Typography>
+            <Typography noWrap variant="body2">{option?.label}</Typography>
           </MenuItem>
         ))}
       </Menu>

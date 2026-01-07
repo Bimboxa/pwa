@@ -497,17 +497,21 @@ export default function NodePolylineStatic({
     if (!points?.length) return null;
 
     const showFill = type === "POLYGON";
-    const HATCHING_SPACING = 12;
+    const HATCHING_SPACING = 24;
     const mainPartId = getPartId("MAIN", 0);
     const mainFillStyle = getPartStyle(mainPartId);
 
     return (
         <g {...dataProps}>
             {/* HATCHING PATTERN */}
-            {showFill && fillType === "HATCHING" && (
+            {showFill && (fillType === "HATCHING" || fillType === "HATCHING_LEFT") && (
                 <defs>
                     <pattern id={patternIdRef.current} patternUnits="userSpaceOnUse" width={HATCHING_SPACING} height={HATCHING_SPACING}>
-                        <path d={`M 0,${HATCHING_SPACING} L ${HATCHING_SPACING},0`} stroke={fillColor} strokeWidth={1} />
+                        {fillType === "HATCHING" ? (
+                            <path d={`M 0,${HATCHING_SPACING} L ${HATCHING_SPACING},0`} stroke={fillColor} strokeWidth={1} />
+                        ) : (
+                            <path d={`M 0,0 L ${HATCHING_SPACING},${HATCHING_SPACING}`} stroke={fillColor} strokeWidth={1} />
+                        )}
                     </pattern>
                 </defs>
             )}
@@ -516,7 +520,7 @@ export default function NodePolylineStatic({
             {showFill && (
                 <path
                     d={fullFillD}
-                    fill={fillType === "HATCHING" ? `url(#${patternIdRef.current})` : mainFillStyle?.fill}
+                    fill={(fillType === "HATCHING" || fillType === "HATCHING_LEFT") ? `url(#${patternIdRef.current})` : mainFillStyle?.fill}
                     // Ici on utilise la couleur et l'opacité calculée (qui est plus forte en mode contexte)
                     fillOpacity={mainFillStyle.fillOpacity ?? fillOpacity}
                     fillRule="evenodd"

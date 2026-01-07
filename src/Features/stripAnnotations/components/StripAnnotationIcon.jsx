@@ -1,11 +1,8 @@
 import { Box } from "@mui/material";
-import { PentagonTwoTone as Polygon, Texture } from "@mui/icons-material";
+import { Rectangle as Strip } from "@mui/icons-material";
 
-export default function PolygonIcon({
-    fillColor,    // Use this for the secondary (lighter) tone
-    strokeColor,  // Use this for the primary (outline/darker) tone
-    fillOpacity,
-    fillType,
+export default function StripAnnotationIcon({
+    strokeColor,    // Use this for the secondary (lighter) tone
     size = 24,
 }) {
     const iconSize = size * 0.7;
@@ -34,19 +31,14 @@ export default function PolygonIcon({
                     // color: 'primary.main', 
                 }}
             >
-                {(fillType === "HATCHING" || fillType === "HATCHING_LEFT") ? (
-                    <Texture sx={{
-                        color: fillColor,
-                        transform: fillType === "HATCHING_LEFT" ? "rotate(90deg)" : "none"
-                    }} />
-                ) : (
-                    <Polygon
-                        sx={{
-                            fontSize: iconSize,
-                            color: fillColor,
-                        }}
-                    />
-                )}
+
+                <Strip
+                    sx={{
+                        fontSize: iconSize,
+                        color: strokeColor,
+                    }}
+                />
+
 
             </Box>
         </Box>
