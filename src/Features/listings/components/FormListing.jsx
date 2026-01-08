@@ -9,6 +9,7 @@ export default function FormListing({
   relatedListings,
   onChange,
   locatedListingOnly,
+  variant = "standard",
 }) {
   // data
   const appConfig = useAppConfig();
@@ -16,6 +17,7 @@ export default function FormListing({
   const template = useListingFormTemplate(listing, {
     locatedListingOnly,
     relatedListings,
+    variant,
   });
 
   // helpers - related listings : add temp fields.

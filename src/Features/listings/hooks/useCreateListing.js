@@ -3,6 +3,7 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useCreateRemoteListings from "Features/sync/hooks/useCreateRemoteListings";
+import useCreateAnnotationTemplatesFromLibrary from "Features/annotations/hooks/useCreateAnnotationTemplatesFromLibrary";
 
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 import getDateString from "Features/misc/utils/getDateString";
@@ -12,6 +13,8 @@ export default function useCreateListing() {
   const createdAt = getDateString(new Date());
 
   const createRemoteListings = useCreateRemoteListings();
+  const createAnnotationTemplatesFromLibrary = useCreateAnnotationTemplatesFromLibrary();
+
 
   const create = async ({ listing, scope }, options) => {
     console.log("debug_3009_create_listing", listing);
@@ -30,6 +33,18 @@ export default function useCreateListing() {
     if (options?.forceLocalToRemote) {
       await createRemoteListings([listingClean]);
     }
+
+    // annotation templates
+    if (listingClean.annotationTemplatesLibrary) {
+      await createAnnotationTemplatesFromLibrary(
+        listingClean.annotationTemplatesLibrary,
+        {
+          listingId: listingClean.id,
+          projectId: listingClean.projectId,
+        }
+      );
+    }
+
     // update sync file
     if (options?.updateSyncFile) {
       updateItemSyncFile({
