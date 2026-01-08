@@ -11,6 +11,7 @@ export default function SmartDetectContainer() {
 
   return <Box sx={{
     p: 0,
+    mt: 1,
     display: "flex", alignItems: "center", justifyContent: "center",
     position: "relative",
   }}>
