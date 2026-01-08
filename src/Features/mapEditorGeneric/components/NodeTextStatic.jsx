@@ -198,6 +198,7 @@ export default function NodeTextStatic({
                         minHeight: `${minHeightPx}px`,
                         pointerEvents: 'none',
                         width: contentW ? `${contentW}px` : '100%',
+                        height: 'auto', // Fix: Break the loop! Measure content height, not container height.
                     }}
                 >
                     {textOrPh}
