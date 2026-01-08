@@ -42,6 +42,8 @@ export default function NodePolylineStatic({
     highlightConnectedSegments = false,
 }) {
 
+    if (selected) console.log("debug_annotation", annotation);
+
     // select temp annotation
 
     if (annotation.id.startsWith("temp")) selected = true;
@@ -433,6 +435,7 @@ export default function NodePolylineStatic({
     };
 
     // --- RENDU POINTS (VERTEX) ---
+
     const POINT_SIZE = 6;
     const HALF_SIZE = POINT_SIZE / 2;
     const vertexScaleTransform = useMemo(() => {
@@ -500,14 +503,49 @@ export default function NodePolylineStatic({
 
     const showFill = type === "POLYGON";
     const HATCHING_SPACING = 24;
+
+    // --- NOUVEAU : Logique Eraser ---
+    const isEraser = mergedAnnotation.isEraser;
+    const ERASER_PATTERN_ID = `eraser-${annotationId}`;
+    const ERASER_SPACING = 10; // Espacement des tirets
+
     const mainPartId = getPartId("MAIN", 0);
     const mainFillStyle = getPartStyle(mainPartId);
+
+    // Détermination de la valeur finale de fill (Couleur ou Pattern)
+    let finalFill = mainFillStyle?.fill;
+
+    if (isEraser) {
+        finalFill = `url(#${ERASER_PATTERN_ID})`;
+    } else if (fillType === "HATCHING" || fillType === "HATCHING_LEFT") {
+        finalFill = `url(#${patternIdRef.current})`;
+    }
 
     return (
         <g {...dataProps}>
             {/* HATCHING PATTERN */}
-            {showFill && (fillType === "HATCHING" || fillType === "HATCHING_LEFT") && (
-                <defs>
+            <defs>
+                {/* 1. PATTERN ERASER (Petits tirets horizontaux) */}
+                {isEraser && (
+                    <pattern
+                        id={ERASER_PATTERN_ID}
+                        patternUnits="userSpaceOnUse"
+                        width={ERASER_SPACING}
+                        height={ERASER_SPACING}
+                    >
+                        {/* Petit trait horizontal centré */}
+                        <line
+                            x1={2} y1={ERASER_SPACING / 2}
+                            x2={ERASER_SPACING - 2} y2={ERASER_SPACING / 2}
+                            stroke={fillColor}
+                            strokeWidth={1.5}
+                            strokeOpacity={0.7}
+                        />
+                    </pattern>
+                )}
+
+                {/* 2. PATTERN HACHURES (Existant) */}
+                {!isEraser && showFill && (fillType === "HATCHING" || fillType === "HATCHING_LEFT") && (
                     <pattern id={patternIdRef.current} patternUnits="userSpaceOnUse" width={HATCHING_SPACING} height={HATCHING_SPACING}>
                         {fillType === "HATCHING" ? (
                             <path d={`M 0,${HATCHING_SPACING} L ${HATCHING_SPACING},0`} stroke={fillColor} strokeWidth={1} />
@@ -515,16 +553,15 @@ export default function NodePolylineStatic({
                             <path d={`M 0,0 L ${HATCHING_SPACING},${HATCHING_SPACING}`} stroke={fillColor} strokeWidth={1} />
                         )}
                     </pattern>
-                </defs>
-            )}
+                )}
+            </defs>
 
             {/* MAIN FILL */}
             {showFill && (
                 <path
                     d={fullFillD}
-                    fill={(fillType === "HATCHING" || fillType === "HATCHING_LEFT") ? `url(#${patternIdRef.current})` : mainFillStyle?.fill}
-                    // Ici on utilise la couleur et l'opacité calculée (qui est plus forte en mode contexte)
-                    fillOpacity={mainFillStyle.fillOpacity ?? fillOpacity}
+                    fill={finalFill} // Utilise le pattern calculé
+                    fillOpacity={isEraser ? 1 : (mainFillStyle.fillOpacity ?? fillOpacity)} // Opacité pleine pour le motif eraser
                     fillRule="evenodd"
                     stroke="none"
                     style={{ cursor: isTransient ? "crosshair" : "pointer", transition: "fill 0.2s" }}
