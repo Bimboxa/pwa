@@ -5,6 +5,7 @@ import {
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 import FieldBaseMapAnnotations from "Features/baseMaps/components/FieldBaseMapAnnotations";
+import FieldBaseMapEnhancedImage from "Features/baseMaps/components/FieldBaseMapEnhancedImage";
 import FieldBaseMapShowEnhanced from "Features/baseMaps/components/FieldBaseMapShowEnhanced";
 import FieldBaseMapScale from "Features/baseMaps/components/FieldBaseMapScale";
 
@@ -23,6 +24,7 @@ export default function TabBaseMapInfo({ baseMap }) {
 
         <SectionTitleGeneric title="Image améliorée" sx={{ mt: 2 }} />
         <Box sx={{ bgcolor: "white", width: 1 }}>
+            <FieldBaseMapEnhancedImage baseMap={baseMap} />
             <ButtonDownloadBaseMap baseMap={baseMap} />
             <FieldBaseMapShowEnhanced baseMap={baseMap} />
         </Box>
