@@ -22,6 +22,6 @@ export default function FieldBaseMapAnnotations({ baseMap }) {
 
     return <Box sx={{ p: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Typography variant="body2" color="text.secondary">{countS}</Typography>
-        <Typography variant="body2">{annotations?.length ?? "0"}</Typography>
+        <Typography sx={{ fontSize: 12 }} color="text.secondary">{annotations?.length ?? "0"}</Typography>
     </Box>;
 }

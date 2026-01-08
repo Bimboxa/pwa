@@ -41,7 +41,7 @@ export default function ButtonDialogDeleteBaseMap({ baseMap }) {
     return <>
 
         <ListItemButton onClick={handleClick}>
-            <Typography variant="body2" color="error.main">{deleteS}</Typography>
+            <Typography variant="body2" color="text.secondary">{deleteS}</Typography>
         </ListItemButton>
 
         <DialogDeleteRessource open={open} onClose={handleClose} onConfirmAsync={confirmDelete} />
