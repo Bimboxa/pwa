@@ -338,9 +338,12 @@ const InteractionLayer = forwardRef(({
   // drag state
 
   const [dragState, setDragState] = useState(null);
+  const dragStateRef = useRef(dragState);
+
   // Structure: { active: boolean, pointId: string, currentPos: {x,y} }
 
   const [dragAnnotationState, setDragAnnotationState] = useState(null);
+  const dragAnnotationStateRef = useRef(dragAnnotationState);
   // Structure: { 
   //   active: boolean, 
   //   pending: boolean, // <--- Nouveau flag
@@ -1176,6 +1179,8 @@ const InteractionLayer = forwardRef(({
     };
 
     const showSmartDetect = showSmartDetectRef.current;
+    const dragState = dragStateRef.current;
+    const dragAnnotationState = dragAnnotationStateRef.current;
 
     // --- 1. DÉTECTION DE L'ÉTAT D'INTERACTION ---
     // Est-ce qu'une action prioritaire est en cours ?
@@ -1246,16 +1251,16 @@ const InteractionLayer = forwardRef(({
         }
 
         // On active le drag
-        setDragState(prev => ({
-          ...prev,
+        const newDragState = {
+          ...dragState,
           pending: false,
           active: true,
-
-          // Mise à jour pour la duplication
           isDuplicateMode: finalIsDuplicateMode,
           pointId: finalPointId, // Peut être l'ID temp maintenant
           affectedIds: idsToHide
-        }));
+        }
+        setDragState(newDragState);
+        dragStateRef.current = newDragState;
 
         // On cache l'annotation réelle maintenant (et pas au clic)
         setHiddenAnnotationIds(idsToHide);
@@ -1268,7 +1273,10 @@ const InteractionLayer = forwardRef(({
     if (dragState?.active) {
       snappingLayerRef.current?.update(null);
       const localPos = toLocalCoords(worldPos);
-      setDragState(prev => ({ ...prev, currentPos: localPos }));
+
+      const newDragState = { ...dragState, currentPos: localPos }
+      setDragState(newDragState);
+      dragStateRef.current = newDragState;
       return; // Action exclusive, on arrête ici
     }
 
@@ -1438,13 +1446,18 @@ const InteractionLayer = forwardRef(({
       const dy = event.clientY - dragAnnotationState.startMouseScreen.y;
       const dist = Math.hypot(dx, dy);
 
-      // Si on dépasse le seuil, on active le drag
+      // Si on dépasse le seuil, on ACTIVE le drag
       if (dist > DRAG_THRESHOLD_PX) {
-        setDragAnnotationState(prev => ({
-          ...prev,
+
+        const newDragAnnotationState = {
+          ...dragAnnotationState,
           pending: false,
           active: true
-        }));
+        };
+
+        setDragAnnotationState(newDragAnnotationState);
+        dragAnnotationStateRef.current = newDragAnnotationState;
+
         setDraggingAnnotationId(dragAnnotationState.selectedAnnotationId);
       } else {
         // Sinon, on ne fait rien (on absorbe le mouvement sans déplacer l'objet)
@@ -1459,7 +1472,9 @@ const InteractionLayer = forwardRef(({
         x: currentMouseInLocal.x - dragAnnotationState.startMouseInLocal.x,
         y: currentMouseInLocal.y - dragAnnotationState.startMouseInLocal.y
       };
-      setDragAnnotationState(prev => ({ ...prev, deltaPos, localPos: currentMouseInLocal }));
+      const newDragAnnotationState = { ...dragAnnotationState, deltaPos, localPos: currentMouseInLocal };
+      setDragAnnotationState(newDragAnnotationState);
+      dragAnnotationStateRef.current = newDragAnnotationState;
       return; // Action exclusive
     }
 
@@ -1647,7 +1662,7 @@ const InteractionLayer = forwardRef(({
         })
         .map(ann => ann.id);
 
-      setDragState({
+      const newDragState = {
         active: false,
         pending: true,
 
@@ -1660,7 +1675,10 @@ const InteractionLayer = forwardRef(({
         currentPos: { x: snap.x, y: snap.y },
         startMouseScreen: { x: e.clientX, y: e.clientY },
         affectedIds: affectedIds
-      });
+      }
+
+      setDragState(newDragState);
+      dragStateRef.current = newDragState;
 
       setVirtualInsertion(null);
     }
@@ -1671,11 +1689,14 @@ const InteractionLayer = forwardRef(({
       const tempId = `temp_${nanoid()}`;
 
       // 2. Configurer le drag state
-      setDragState({
+
+      const newDragState = {
         active: true,
         pointId: tempId,
         currentPos: { x: snap.x, y: snap.y }
-      });
+      }
+      setDragState(newDragState);
+      dragStateRef.current = newDragState;
 
       // 3. Configurer l'insertion virtuelle
       // getBestSnap doit retourner annotationId et segmentIndex !
@@ -1704,7 +1725,26 @@ const InteractionLayer = forwardRef(({
   // --- 3. MOUSE UP (Global) ---
   const handleMouseUp = () => {
 
+
     const { onPointDuplicateAndMoveCommit } = stateRef.current;
+    const dragState = dragStateRef.current;
+    const dragAnnotationState = dragAnnotationStateRef.current;
+
+    console.log('handleMouseUp_dragAnnotationState', dragAnnotationState);
+
+    // click sur un vertex
+    if (!dragAnnotationState?.active && dragAnnotationState?.pending) {
+      const annotationId = dragAnnotationState.selectedAnnotationId;
+      if (annotationId) {
+        dispatch(setSelectedNode({
+          nodeId: dragAnnotationState.selectedAnnotationId,
+          nodeType: 'ANNOTATION'
+        }));
+      }
+      setDragAnnotationState(null);
+      dragAnnotationStateRef.current = null;
+
+    }
 
     // ... (Gestion BaseMap drag & Legend inchangée) ...
     if (dragBaseMapState?.active) {
@@ -1750,10 +1790,13 @@ const InteractionLayer = forwardRef(({
 
 
         // 2. Gestion de l'anti-clignotement (Freeze)
-        setDragState(prev => ({ ...prev, active: false, frozen: true }));
+        const newDragState = { ...dragState, active: false, frozen: true };
+        dragStateRef.current = newDragState;
+        setDragState(newDragState);
 
         // 3. Nettoyage différé
         setTimeout(() => {
+          dragStateRef.current = null;
           setDragState(null);
           setHiddenAnnotationIds([]);
           setVirtualInsertion(null);
@@ -1766,12 +1809,14 @@ const InteractionLayer = forwardRef(({
       else if (dragState.pending) {
         console.log("Point Clicked:", dragState.pointId);
 
+
         // Ici, dragState.pointId est TOUJOURS l'ID réel
         // (car on n'a pas déclenché la logique du MouseMove)
         setSelectedPointId(dragState.pointId);
 
         // Cleanup immédiat
         setDragState(null);
+        dragStateRef.current = null;
         setVirtualInsertion(null);
         setHiddenAnnotationIds([]);
       }
@@ -1790,6 +1835,7 @@ const InteractionLayer = forwardRef(({
         }
       }
       setDragAnnotationState(null);
+      dragAnnotationStateRef.current = null;
       setTimeout(() => setDraggingAnnotationId(null), 30);
       document.body.style.cursor = '';
     }
@@ -1835,14 +1881,17 @@ const InteractionLayer = forwardRef(({
       const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
       const startMouseInLocal = toLocalCoords(worldPos);
 
-      setDragAnnotationState({
+      const newDragAnnotationState = {
         active: false,
         pending: true,
         selectedAnnotationId: nodeId,
         startMouseInLocal,
         partType: `RESIZE_${handleType}`, // ex: RESIZE_SE
         startMouseScreen: { x: e.clientX, y: e.clientY }
-      });
+      };
+
+      setDragAnnotationState(newDragAnnotationState);
+      dragAnnotationStateRef.current = newDragAnnotationState;
       return;
     }
 
@@ -1859,14 +1908,16 @@ const InteractionLayer = forwardRef(({
 
       // --- MODIFICATION ICI ---
       // On initialise en 'pending' (attente de mouvement)
-      setDragAnnotationState({
+      const newDragAnnotationState = {
         active: false, // Pas encore visuellement actif
         pending: true, // Nouveau flag
         selectedAnnotationId: nodeId,
         startMouseInLocal,
         partType,
         startMouseScreen: { x: e.clientX, y: e.clientY } // Stocker la position écran initiale
-      });
+      };
+      setDragAnnotationState(newDragAnnotationState);
+      dragAnnotationStateRef.current = newDragAnnotationState;
       // On NE met PAS setDraggingAnnotationId tout de suite !
     }
 

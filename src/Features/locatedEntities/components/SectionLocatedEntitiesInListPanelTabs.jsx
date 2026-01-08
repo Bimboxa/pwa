@@ -15,7 +15,8 @@ export default function SectionLocatedEntitiesInListPanelTabs() {
 
   const tabs = [
     { id: "ANNOTATION_TEMPLATES", label: "Modèles" },
-    { id: "ENTITIES", label: "Objets" },
+    //{ id: "ENTITIES", label: "Objets" },
+    { id: "ANNOTATIONS", label: "Annotations" },
   ];
 
   const idx = tabs.map(({ id }) => id).indexOf(tab);

@@ -63,5 +63,5 @@ export default function useBaseMaps(options) {
 
   // return
 
-  return { value: baseMaps };
+  return { value: baseMaps, baseMapsUpdatedAt };
 }

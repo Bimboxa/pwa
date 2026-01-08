@@ -15,13 +15,19 @@ const getPolygonArea = (points) => {
 
 export default function getAnnotationQties({ annotation, meterByPx }) {
 
-  // 1. Validation de base & MeterByPx
-  if (!annotation || !Array.isArray(annotation.points)) {
-    return null;
+  // edge case
+
+  if (!annotation) return null;
+
+  if (!meterByPx) return { enabled: false };
+
+  // 1. Validation de base
+  if (!Array.isArray(annotation.points)) {
+    return { enabled: true, count: 1 };
   }
 
   if (!Number.isFinite(meterByPx) || meterByPx <= 0) {
-    return null;
+    return { enabled: false };
   }
 
   // 2. Validation des points (doivent avoir x, y)
@@ -91,5 +97,5 @@ export default function getAnnotationQties({ annotation, meterByPx }) {
   // Surface = pixel² * (m/pixel)²
   const surface = surfacePx * (meterByPx * meterByPx);
 
-  return { length, surface };
+  return { enabled: true, length, surface };
 }
