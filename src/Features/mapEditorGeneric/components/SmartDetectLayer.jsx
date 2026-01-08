@@ -345,7 +345,7 @@ const SmartDetectLayer = forwardRef(({
             <Box sx={{
                 display: enabled ? 'flex' : 'none',
                 flexDirection: 'column',
-                backgroundColor: 'rgba(0,0,0,0.8)',
+                //backgroundColor: 'rgba(0,0,0,0.8)',
                 backdropFilter: 'blur(4px)',
                 borderRadius: '4px',
                 padding: '4px', // Reduced padding

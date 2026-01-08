@@ -76,7 +76,7 @@ async function detectShapesAsync({ msg, payload }) {
             finalImage.rows
         );
 
-        const darkViewImageData = createDarkViewImageData(imgData);
+        //const darkViewImageData = createDarkViewImageData(imgData);
 
         try {
             const result = await getSeparationLinesAsync({
@@ -94,7 +94,8 @@ async function detectShapesAsync({ msg, payload }) {
             });
 
             // -- PRE-PROCESSED IMAGE --
-            const imageBitmap = await createImageBitmap(darkViewImageData);
+            //const imageBitmap = await createImageBitmap(darkViewImageData);
+            const imageBitmap = await createImageBitmap(imgData);
             const canvas = new OffscreenCanvas(finalImage.cols, finalImage.rows);
             const ctx = canvas.getContext("2d");
 
