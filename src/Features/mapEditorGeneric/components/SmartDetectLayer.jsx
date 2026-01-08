@@ -353,9 +353,9 @@ const SmartDetectLayer = forwardRef(({
                 border: '1px solid rgba(255,255,255,0.1)',
                 boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
             }}>
-                <Typography variant="caption" sx={{ color: '#888', px: 1, mb: 0.5, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 1 }}>
+                {/* <Typography variant="caption" sx={{ color: '#888', px: 1, mb: 0.5, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 1 }}>
                     SCAN MODE
-                </Typography>
+                </Typography> */}
 
                 <List dense sx={{ py: 0 }}>
                     {detectModes.map(mode => {

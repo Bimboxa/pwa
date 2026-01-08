@@ -14,7 +14,7 @@ export default function SectionShortcutHelpers() {
         {
             // On passe "Esc" en texte
             key: "Esc",
-            label: "Annuler le dessin",
+            label: "Quitter le mode dessin",
         },
     ];
 
