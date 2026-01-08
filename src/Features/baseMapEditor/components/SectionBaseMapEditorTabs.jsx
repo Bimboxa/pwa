@@ -15,8 +15,8 @@ export default function SectionBaseMapEditorTabs() {
 
   const tabs = [
     { id: "INFO", label: "Info" },
-    { id: "ANNOTATIONS", label: "Annotations" },
     { id: "TOOLS", label: "Outils" },
+    { id: "ANNOTATIONS", label: "Annotations" },
   ];
 
   const idx = tabs.map(({ id }) => id).indexOf(tab);
