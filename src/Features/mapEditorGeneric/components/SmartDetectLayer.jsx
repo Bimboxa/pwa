@@ -28,7 +28,7 @@ const COLORS = {
     RECTANGLE: "#FFD700" // Gold
 };
 
-const ModeListItem = styled(ListItemButton)(({ theme, selected, active }) => ({
+const ModeListItem = styled(ListItemButton)(({ theme, selected, isactive }) => ({
     borderLeft: `3px solid ${selected ? theme.palette.primary.main : 'transparent'}`, // Bordure plus fine
     backgroundColor: selected ? 'rgba(0, 255, 255, 0.1)' : 'transparent',
     marginBottom: '2px', // Moins d'espace vertical
@@ -40,19 +40,19 @@ const ModeListItem = styled(ListItemButton)(({ theme, selected, active }) => ({
     '&:hover': {
         backgroundColor: 'rgba(0, 255, 255, 0.2)',
     },
-    boxShadow: active ? `inset 0 0 10px ${selected ? 'rgba(0,255,255,0.3)' : 'rgba(0,0,0,0.2)'}` : 'none',
+    boxShadow: isactive ? `inset 0 0 10px ${selected ? 'rgba(0,255,255,0.3)' : 'rgba(0,0,0,0.2)'}` : 'none',
 }));
 
-const DetectionIndicator = styled('span')(({ color, active }) => ({
+const DetectionIndicator = styled('span')(({ color, isactive }) => ({
     display: 'inline-block',
     width: '6px', // Plus petit
     height: '6px',
     borderRadius: '50%',
-    backgroundColor: active ? color : 'transparent',
-    boxShadow: active ? `0 0 6px ${color}` : 'none',
+    backgroundColor: isactive ? color : 'transparent',
+    boxShadow: isactive ? `0 0 6px ${color}` : 'none',
     marginRight: '6px', // Marge réduite
     transition: 'all 0.3s ease',
-    border: `1px solid ${active ? color : '#555'}`
+    border: `1px solid ${isactive ? color : '#555'}`
 }));
 
 const KeyboardHint = styled('span')(({ selected, color }) => ({
@@ -360,16 +360,16 @@ const SmartDetectLayer = forwardRef(({
                 <List dense sx={{ py: 0 }}>
                     {detectModes.map(mode => {
                         const isSelected = mode.key === selectedDetectMode;
-                        const isDetected = hasDetected[mode.key];
+                        const isDetected = Boolean(hasDetected[mode.key]);
                         return (
                             <ModeListItem
                                 key={mode.key}
                                 selected={isSelected}
-                                active={isDetected}
+                                isactive={isDetected}
                                 onClick={() => setSelectedDetectMode(mode.key)}
                             >
                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <DetectionIndicator color={mode.color} active={isDetected} />
+                                    <DetectionIndicator color={mode.color} isactive={isDetected} />
                                     <ListItemText
                                         primary={mode.label}
                                         primaryTypographyProps={{

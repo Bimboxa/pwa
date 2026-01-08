@@ -719,6 +719,7 @@ const InteractionLayer = forwardRef(({
       }
       const { selectedNode, selectedPointId, selectedPartId, onDeletePoint, onHideSegment, onRemoveCut } = stateRef.current;
       const showSmartDetect = showSmartDetectRef.current;
+      const enabledDrawingMode = enabledDrawingModeRef.current;
 
       if (e.repeat) return;
 
@@ -778,9 +779,15 @@ const InteractionLayer = forwardRef(({
               setDrawingPoints(newPoints);
               drawingPointsRef.current = newPoints;
 
-              if (enabledDrawingModeRef.current === "ONE_CLICK") {
+              if (enabledDrawingMode === "ONE_CLICK") {
                 commitPoint();
               }
+
+              else if (enabledDrawingMode === "RECTANGLE" && newPoints.length === 2) {
+                commitPolyline();
+              }
+
+
               console.log("Space pressed: Smart Point added", point);
             }
 
@@ -1608,6 +1615,10 @@ const InteractionLayer = forwardRef(({
       if (enabledDrawingMode === 'ONE_CLICK') {
         // Si on est en mode un seul clic (Marker/Point), on commit tout de suite !
         commitPoint();
+      }
+
+      else if (enabledDrawingMode === "RECTANGLE" && newPointsList?.length === 2) {
+        commitPolyline();
       }
 
       // On s'arrête ici

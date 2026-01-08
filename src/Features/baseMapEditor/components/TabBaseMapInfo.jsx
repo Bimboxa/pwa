@@ -6,6 +6,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 import FieldBaseMapAnnotations from "Features/baseMaps/components/FieldBaseMapAnnotations";
 import FieldBaseMapShowEnhanced from "Features/baseMaps/components/FieldBaseMapShowEnhanced";
+import FieldBaseMapScale from "Features/baseMaps/components/FieldBaseMapScale";
 
 import SectionTitleGeneric from "Features/layout/components/SectionTitleGeneric";
 import ButtonDialogDeleteBaseMap from "Features/baseMaps/components/ButtonDialogDeleteBaseMap";
@@ -15,9 +16,9 @@ export default function TabBaseMapInfo({ baseMap }) {
 
     return <BoxFlexVStretch>
 
-        <SectionTitleGeneric title="Annotations" />
+        <SectionTitleGeneric title="Général" />
         <Box sx={{ bgcolor: "white", width: 1 }}>
-            <FieldBaseMapAnnotations baseMap={baseMap} />
+            <FieldBaseMapScale baseMap={baseMap} />
         </Box>
 
         <SectionTitleGeneric title="Image améliorée" sx={{ mt: 2 }} />
@@ -29,6 +30,7 @@ export default function TabBaseMapInfo({ baseMap }) {
 
         <SectionTitleGeneric title="Autres" sx={{ mt: 2 }} />
         <Box sx={{ bgcolor: "white", width: 1 }}>
+            <FieldBaseMapAnnotations baseMap={baseMap} />
             <ButtonDialogDeleteBaseMap baseMap={baseMap} />
         </Box>
 
