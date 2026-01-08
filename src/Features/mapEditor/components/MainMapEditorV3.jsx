@@ -64,6 +64,8 @@ import duplicateAndMovePoint from "../services/duplicateAndMovePoint";
 import removeCutAsync from "../services/removeCutAsync";
 import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import fitBoundsToViewport from "../utils/fitBoundsToViewport";
+import getAnnotationBounds from "../utils/getAnnotationBounds";
 
 
 const contextDimmedStyle = {
@@ -188,7 +190,13 @@ export default function MainMapEditorV3() {
 
     const openedPanel = useSelector(s => s.listings.openedPanel);
     const baseMapAnnotationsOnly = openedPanel === "BASE_MAP_DETAIL";
-    const annotations = useAnnotationsV2({ withEntity: true, excludeListingsIds: hiddenListingsIds, baseMapAnnotationsOnly });
+
+    const annotations = useAnnotationsV2({
+        withEntity: true,
+        excludeListingsIds: hiddenListingsIds,
+        baseMapAnnotationsOnly,
+        filterByMainBaseMap: true,
+    });
 
     // legend
 
@@ -228,6 +236,20 @@ export default function MainMapEditorV3() {
         viewport?.w,
         //showBgImage,
     ]);
+
+    // effect - fit to selectedNode
+
+    useEffect(() => {
+        if (selectedNode?.origin !== "LISTING") return;
+        const annotation = annotations.find(a => a.id === selectedNode?.nodeId);
+        if (annotation && annotation.baseMapId === baseMap?.id) {
+            const bounds = getAnnotationBounds(annotation, basePose);
+            if (bounds) {
+                const targetMatrix = fitBoundsToViewport(bounds, viewport, 260);
+                interactionLayerRef.current?.setCameraMatrix(targetMatrix);
+            }
+        }
+    }, [baseMap?.id, selectedNode?.nodeId, annotations?.length])
 
 
     // handler - commit drawing

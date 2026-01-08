@@ -5,6 +5,9 @@ export default function getAnnotationEditionPanelAnchor(annotation) {
         return getTopMiddlePoint(annotation.points);
     }
 
+    else if (annotation.point) {
+        return { x: annotation.point.x, y: annotation.point.y - 50 }
+    }
     else {
         return null
     }
