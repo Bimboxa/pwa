@@ -7,6 +7,7 @@ export default function resolvePresetListingsAndScopesObjectFromAnnotationTempla
             key: library.key,
             //name: library.name,
             name: "Repérage",
+            fullName: library.name,
             table: "entities",
             entityModelKey: "annotation",
             color: library.color,

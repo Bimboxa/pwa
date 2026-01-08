@@ -8,6 +8,7 @@ export default function useListingFormTemplate(listing, options) {
 
   const locatedListingOnly = options?.locatedListingOnly;
   const relatedListings = options?.relatedListings;
+  const variant = options?.variant; // basic, standard
 
   // data
 
@@ -85,6 +86,7 @@ export default function useListingFormTemplate(listing, options) {
           displayNone: optionsEntityModels?.length === 1,
           labelKey: "name",
         },
+        hidden: variant === "basic",
       },
       ...selectorFields,
       {
@@ -105,6 +107,7 @@ export default function useListingFormTemplate(listing, options) {
         label: "Créer des entités",
         type: "check",
         ...(locatedListingOnly && { hidden: true }),
+        hidden: variant === "basic",
       },
       {
         key: "table",
@@ -113,6 +116,7 @@ export default function useListingFormTemplate(listing, options) {
         valueOptions: [{ key: "entities", label: "Défault" }],
         options: { showAsSection: true },
         ...(locatedListingOnly && { hidden: true }),
+        hidden: variant === "basic",
       },
     ],
   };

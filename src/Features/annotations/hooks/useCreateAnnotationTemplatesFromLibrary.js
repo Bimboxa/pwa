@@ -6,6 +6,7 @@ export default function useCreateAnnotationTemplatesFromLibrary() {
   const createAnnotationTemplate = useCreateAnnotationTemplate();
 
   return async (annotationTemplatesFromLibrary, options) => {
+    console.log("[AnnotationTemplates] create from library", annotationTemplatesFromLibrary)
     await Promise.all(
       annotationTemplatesFromLibrary.map(async (annotationTemplate) => {
         // fetch file if image
