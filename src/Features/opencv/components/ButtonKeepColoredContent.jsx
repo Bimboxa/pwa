@@ -68,21 +68,19 @@ export default function ButtonKeepColoredContent() {
     setLoading(true);
     try {
       const viewportBounds = editor?.viewportInBase?.bounds;
-      const imageSize =
-        (baseMap?.showEnhanced && baseMap?.imageEnhanced?.imageSize) ||
-        baseMap?.image?.imageSize;
+      const imageSize = baseMap?.getImageSize();
 
       const bbox =
         viewportBounds && viewportBounds.width > 0 && viewportBounds.height > 0
           ? viewportBounds
           : imageSize
-          ? {
+            ? {
               x: 0,
               y: 0,
               width: imageSize.width,
               height: imageSize.height,
             }
-          : undefined;
+            : undefined;
 
       const { resultImageBase64 } = await cv.keepColoredContentAsync({
         imageUrl: baseMapImageUrl,

@@ -12,6 +12,7 @@ export default function useBaseMapPose({
 
     // 2. Le calcul (Votre logique existante)
     const pose = useMemo(() => {
+        const imageSize = baseMap?.getImageSize();
         // Sécurité : Si pas de viewport ou pas d'image, on renvoie une pose par défaut
         if (!viewport.w || !viewport.h || !imageSize?.width || !imageSize?.height) {
             return { x: 0, y: 0, k: 1, r: 0 };
@@ -25,7 +26,7 @@ export default function useBaseMapPose({
         };
 
 
-    }, [imageSize?.width, viewport, basePoseInBg?.k, bgPose]);
+    }, [imageSize?.width, viewport, basePoseInBg?.k, bgPose, baseMap?.showEnhanced]);
 
     return { pose, imageSize };
 }
