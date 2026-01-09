@@ -9,7 +9,7 @@ export default function FormBaseMapTransform({ baseMapTransform, onChange }) {
             {
                 key: "name",
                 type: "text",
-                label: "Nom",
+                label: "Nom de la commande",
                 options: {
                     showAsSection: true,
                     fullWidth: true,

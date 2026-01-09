@@ -315,13 +315,13 @@ export default function MainMapEditorV3() {
     // handlers - move point
 
     const handlePointMoveCommit = (pointId, newPos) => {
-        const imageSize = baseMap?.image?.imageSize;
+        const imageSize = baseMap?.getImageSize();
         //dispatch(updatePoint({ id: pointId, ...newPos }));
         db.points.update(pointId, { x: newPos.x / imageSize.width, y: newPos.y / imageSize.height });
     };
 
     const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
-        const imageSize = baseMap?.image?.imageSize;
+        const imageSize = baseMap?.getImageSize();
         await duplicateAndMovePoint({ originalPointId, annotationId, newPos, imageSize, annotations });
     };
 
@@ -330,7 +330,7 @@ export default function MainMapEditorV3() {
     const handleSegmentSplit = async (segment) => {
         console.log("splitSegment", segment);
         const { segmentStartId, segmentEndId, x, y } = segment;
-        const imageSize = baseMap?.image?.imageSize;
+        const imageSize = baseMap?.getImageSize();
         if (!imageSize) return;
 
         const newPointId = nanoid();
