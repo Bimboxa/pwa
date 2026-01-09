@@ -15,7 +15,7 @@ const baseMapsInitialState = {
   // Enhanced image results (background fetch results)
   enhancedImageResults: {}, // { [baseMapId]: { blob, objectUrl, completedAt } }
   enhancedImageErrors: {}, // { [baseMapId]: { error, failedAt } }
-  enhancingBaseMapIds: {}, // { [baseMapId]: true } - tracks which baseMaps are currently being enhanced
+  enhancingBaseMapIds: {}, // { [baseMapId]: {transformId, isEnhancing} } - tracks which baseMaps are currently being enhanced
 };
 
 export const baseMapsSlice = createSlice({
@@ -59,9 +59,18 @@ export const baseMapsSlice = createSlice({
       delete state.enhancingBaseMapIds[baseMapId];
     },
     setEnhancingBaseMap: (state, action) => {
-      const { baseMapId, isEnhancing } = action.payload;
+      const { baseMapId, isEnhancing, transformId } = action.payload;
       if (isEnhancing) {
-        state.enhancingBaseMapIds[baseMapId] = true;
+        // clean
+        delete state.enhancedImageResults[baseMapId];
+        delete state.enhancedImageErrors[baseMapId];
+        if (state.enhancedImageResults[baseMapId]?.objectUrl) {
+          URL.revokeObjectURL(state.enhancedImageResults[baseMapId].objectUrl);
+        }
+
+        // update 
+        state.enhancingBaseMapIds[baseMapId] = { isEnhancing: true, transformId };
+
       } else {
         delete state.enhancingBaseMapIds[baseMapId];
       }

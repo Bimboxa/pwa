@@ -55,6 +55,8 @@ export default function LayerMapEditorDesktop({ svgElement }) {
         <ButtonFullScreen />
       </Box> */}
 
+
+
       <Box
         sx={{
           position: "absolute",

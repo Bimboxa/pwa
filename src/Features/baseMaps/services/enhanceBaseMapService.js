@@ -9,6 +9,7 @@ export default async function enhanceBaseMapService({
   baseMapId,
   file,
   prompt, // Nouveau paramètre requis
+  transformId,
   dispatch,
   onSuccess,
   onError,
@@ -23,7 +24,7 @@ export default async function enhanceBaseMapService({
   if (dispatch) {
     dispatch({
       type: "baseMaps/setEnhancingBaseMap",
-      payload: { baseMapId, isEnhancing: true },
+      payload: { baseMapId, isEnhancing: true, transformId },
     });
   }
 

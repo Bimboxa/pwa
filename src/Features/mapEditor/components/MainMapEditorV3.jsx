@@ -158,6 +158,7 @@ export default function MainMapEditorV3() {
                 baseMap,
                 bgImage,
             });
+            console.log("=> defaultBaseMapPoseInBg", defaultBaseMapPoseInBg);
             dispatch(setBaseMapPoseInBg(defaultBaseMapPoseInBg));
         }
     }, [baseMap?.getUrl(), bgImage?.url]);
@@ -223,18 +224,24 @@ export default function MainMapEditorV3() {
     });
 
 
+    const resetForBaseMapIdRef = useRef(null);
+
     useEffect(() => {
-        console.log("[EFFECT_RESET_CAMERA]")
+
+
         if (defaultCameraMatrixRef.current && !showBgImage) {
+            console.log("[EFFECT_RESET_CAMERA]")
             interactionLayerRef.current?.setCameraMatrix(defaultCameraMatrixRef.current);
+            resetForBaseMapIdRef.current = baseMap?.id;
         }
+
     }, [
         //showBgImage
         basePose?.k,
-        baseMap?.getImageSize()?.width,
+        baseMap?.getUrl(),
         bgImage?.imageSize?.width,
         viewport?.w,
-        //showBgImage,
+        baseMap?.id,
     ]);
 
     // effect - fit to selectedNode

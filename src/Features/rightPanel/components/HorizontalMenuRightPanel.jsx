@@ -47,10 +47,10 @@ export default function HorizontalMenuRightPanel() {
     //   label: "Traitement d'image",
     //   icon: <OpencvIcon />,
     // },
-    TOOLS: {
-      label: "Autres outils",
-      icon: <More />,
-    },
+    // TOOLS: {
+    //   label: "Autres outils",
+    //   icon: <More />,
+    // },
   };
 
   const toolsKeys = appConfig?.features?.tools ?? [];

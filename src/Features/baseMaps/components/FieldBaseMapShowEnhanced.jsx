@@ -22,14 +22,15 @@ export default function FieldBaseMapShowEnhanced({ baseMap }) {
     // handlers
 
     function handleChange(e) {
-        const updates = { showEnhanced: e.target.checked };
+        const newChecked = !checked;
+        const updates = { showEnhanced: newChecked };
         updateEntity(baseMap.id, updates);
     }
 
     // render
 
     return <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", p: 1 }}>
-        <Typography variant="body2" color="text.secondary">Afficher l'image améliorée</Typography>
+        <Typography variant="body2" color="text.secondary">Utiliser l'image améliorée</Typography>
         <Switch
             checked={checked}
             onChange={handleChange}
