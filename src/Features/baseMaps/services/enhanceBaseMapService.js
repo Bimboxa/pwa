@@ -8,6 +8,7 @@ let activeFetches = new Map(); // Map<baseMapId, { promise, abortController }>
 export default async function enhanceBaseMapService({
   baseMapId,
   file,
+  prompt, // Nouveau paramètre requis
   dispatch,
   onSuccess,
   onError,
@@ -29,14 +30,18 @@ export default async function enhanceBaseMapService({
   const abortController = new AbortController();
   const promise = (async () => {
     try {
+      // 1. Préparation du FormData (équivalent à --form dans curl)
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("prompt", prompt || "Améliore cette image"); // Valeur par défaut si prompt vide
+
       const res = await fetch(
-        "https://n8n.etandex.fr/webhook/croquis-plan-gemini",
+        "https://n8nk.etandex.fr/webhook/gemini-image", // Nouvelle URL
         {
           method: "POST",
-          headers: {
-            "Content-Type": file.type || "application/octet-stream",
-          },
-          body: file,
+          // IMPORTANT : Pas de header "Content-Type" ici. 
+          // Le navigateur le mettra automatiquement à "multipart/form-data; boundary=..."
+          body: formData,
           signal: abortController.signal,
         }
       );
