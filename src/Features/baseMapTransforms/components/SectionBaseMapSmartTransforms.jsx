@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux"; // Ajout pour dispatch
+
+import { setEnhancingBaseMap } from "Features/baseMaps/baseMapsSlice";
+
 import useBaseMapTransforms from "../hooks/useBaseMapTransforms";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap"; // Pour récupérer le fichier et l'ID
 import useUpdateBaseMapWithImageEnhanced from "Features/baseMaps/hooks/useUpdateBaseMapWithImageEnhanced";
@@ -41,6 +44,9 @@ export default function SectionBaseMapTransforms() {
     const enhancedResult = useSelector(
         (s) => s.baseMaps?.enhancedImageResults?.[baseMap?.id]
     );
+    const enhancingBaseMap = useSelector(
+        (s) => s.baseMaps?.enhancingBaseMapIds?.[baseMap?.id]
+    );
     const updateBaseMapWithImageEnhanced = useUpdateBaseMapWithImageEnhanced();
 
     // --- State ---
@@ -51,7 +57,8 @@ export default function SectionBaseMapTransforms() {
     const [openCompare, setOpenCompare] = useState(false);
 
     // State pour savoir quel ID de transform est en cours de traitement
-    const [enhancingTransformId, setEnhancingTransformId] = useState(null);
+    const enhancingTransformId = enhancingBaseMap?.transformId;
+    console.log("enhancingTransformId", enhancingTransformId);
 
     // --- Handlers Menu/CRUD ---
 
@@ -110,23 +117,25 @@ export default function SectionBaseMapTransforms() {
         if (enhancingTransformId) return;
 
         // 2. Set loading state local
-        setEnhancingTransformId(transform.id);
+        //setEnhancingTransformId(transform.id);
 
         // 3. Appel du service
         enhanceBaseMapService({
             baseMapId: baseMap.id,
+            transformId: transform.id,
             file: baseMap.image.file,
             prompt: transform.prompt, // On utilise le prompt de l'objet transform
             dispatch,
             onSuccess: () => {
-                setEnhancingTransformId(null);
+                //setEnhancingTransformId(null);
                 setOpenCompare(true)
             },
             onError: () => {
-                setEnhancingTransformId(null);
+                //setEnhancingTransformId(null);
             },
-        }).catch(() => {
-            setEnhancingTransformId(null);
+        }).catch((e) => {
+            console.error("Error enhancing image:", e);
+            //setEnhancingTransformId(null);
         });
     };
 
@@ -135,7 +144,8 @@ export default function SectionBaseMapTransforms() {
         if (baseMap?.id) {
             cancelEnhanceBaseMap(baseMap.id);
         }
-        setEnhancingTransformId(null);
+        dispatch(setEnhancingBaseMap({ transformId, isEnhancing: false, baseMapId: baseMap?.id }));
+        //setEnhancingTransformId(null);
     };
 
     async function handleEnhanceImage() {

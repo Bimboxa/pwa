@@ -8,6 +8,9 @@ export default function SectionCompareTwoImages({
     height = "300px",
     variant = "overlap" // "overlap" | "alignToLeft" | "alignToTop"
 }) {
+    const image1S = "Original";
+    const image2S = "Transformée";
+
     const [sliderPosition, setSliderPosition] = useState(50);
     const [isDragging, setIsDragging] = useState(false);
     const containerRef = useRef(null);
@@ -163,8 +166,8 @@ export default function SectionCompareTwoImages({
             </Box>
 
             {/* LABELS */}
-            <Typography sx={{ position: 'absolute', top: 10, left: 10, color: 'white', bgcolor: 'rgba(0,0,0,0.5)', px: 1, borderRadius: 1, fontSize: '0.75rem', pointerEvents: 'none' }}>Image 1</Typography>
-            <Typography sx={{ position: 'absolute', top: 10, right: 10, color: 'white', bgcolor: 'rgba(0,0,0,0.5)', px: 1, borderRadius: 1, fontSize: '0.75rem', pointerEvents: 'none' }}>Image 2</Typography>
+            <Typography sx={{ position: 'absolute', top: 10, left: 10, color: 'white', bgcolor: 'rgba(0,0,0,0.5)', px: 1, borderRadius: 1, fontSize: '0.75rem', pointerEvents: 'none' }}>{image1S}</Typography>
+            <Typography sx={{ position: 'absolute', top: 10, right: 10, color: 'white', bgcolor: 'rgba(0,0,0,0.5)', px: 1, borderRadius: 1, fontSize: '0.75rem', pointerEvents: 'none' }}>{image2S}</Typography>
 
         </Box>
     );

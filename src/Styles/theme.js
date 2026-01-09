@@ -28,6 +28,25 @@ let theme = createTheme(
           },
         },
       },
+      MuiSwitch: {
+        styleOverrides: {
+          switchBase: {
+            // Configuration pour l'état "checked" (actif)
+            "&.Mui-checked": {
+              color: orange[500], // Le bouton rond devient vert
+              "&:hover": {
+                // Petit halo vert au survol quand c'est coché
+                backgroundColor: "rgba(76, 175, 80, 0.08)",
+              },
+            },
+            // Configuration de la barre (track) quand "checked"
+            "&.Mui-checked + .MuiSwitch-track": {
+              backgroundColor: orange[500], // La barre devient verte
+              opacity: 0.5, // Opacité standard de MUI
+            },
+          },
+        },
+      },
       MuiInputBase: {
         styleOverrides: {
           // input: {
