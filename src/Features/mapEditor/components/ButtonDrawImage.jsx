@@ -18,7 +18,7 @@ import FieldImageV2 from "Features/form/components/FieldImageV2";
 import ImageObject from "Features/images/js/ImageObject";
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
-
+import getImageAnnotationInitialBbox from "Features/imageAnnotations/utils/getImageAnnotationInitialBbox";
 
 export default function ButtonDrawImage({ disabled }) {
   const dispatch = useDispatch();
@@ -33,6 +33,11 @@ export default function ButtonDrawImage({ disabled }) {
   const createEntity = useCreateEntity();
   const baseMap = useMainBaseMap();
   const openedPanel = useSelector(s => s.listings.openedPanel);
+  const selectedListingId = useSelector(s => s.listings.selectedListingId);
+
+  // helper - isBaseMapAnnotation
+
+  const isBaseMapAnnotation = openedPanel === "BASE_MAP_DETAIL";
 
   // helpers
 
@@ -58,23 +63,39 @@ export default function ButtonDrawImage({ disabled }) {
   }
 
   async function handleCreate() {
+
+    const bbox = getImageAnnotationInitialBbox(
+      {
+        containerImageSize: baseMap.getImageSize(),
+        imageSize: image.imageSize,
+        asImageRatio: true,
+      }
+    )
+
     const annotation = {
       ...newAnnotation,
       type: "IMAGE",
       image: { file: image.file },
       baseMapId: baseMap.id,
-      listingId: baseMap.listingId,
+      listingId: isBaseMapAnnotation ? null : selectedListingId,
       projectId: baseMap.projectId,
+      bbox
     }
 
-    if (openedPanel === "BASE_MAP_DETAIL") annotation.isBaseMapAnnotation = true;
+    if (isBaseMapAnnotation) annotation.isBaseMapAnnotation = true;
+
+    // create annotation (as an entity)
 
     const entity = await createEntity(annotation, {
       listing: { id: baseMap.listingId, projectId: baseMap.projectId, table: "annotations" },
     })
 
+
+
     setOpen(false)
   }
+
+  if (!isBaseMapAnnotation) return null;
 
 
   return (

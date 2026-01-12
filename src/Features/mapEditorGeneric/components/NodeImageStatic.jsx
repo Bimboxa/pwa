@@ -1,8 +1,9 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import theme from "Styles/theme";
 
-// Taille des poignées de redimensionnement
-const HANDLE_SIZE = 8;
+// Taille des poignées de redimensionnement (en pixels écran fixes)
+const HANDLE_SIZE = 10; // Un peu plus grand pour faciliter le grab
+const HALF_HANDLE = HANDLE_SIZE / 2;
 
 export default memo(function NodeImageStatic({
     imageAnnotation,
@@ -11,19 +12,22 @@ export default memo(function NodeImageStatic({
     dragged,
     opacity = 1,
     grayScale = false,
-    // On récupère le facteur d'échelle pour garder les poignées de taille constante
     containerK = 1,
 }) {
-    const { imagePose, image, id
-    } = imageAnnotation;
-    const { x, y } = imagePose ?? {};
-
-    console.log("imageAnnotation", imageAnnotation);
+    const { bbox, image, id } = imageAnnotation;
+    const { x, y, width, height } = bbox ?? {};
 
     // Fallbacks
-    const displayWidth = image?.imageSize?.width * (imageAnnotation.imageScale ?? 1) || 100;
-    const displayHeight = image?.imageSize?.height * (imageAnnotation.imageScale ?? 1) || 100;
+    const displayWidth = width || 100;
+    const displayHeight = height || 100;
     const src = image?.imageUrlClient;
+
+    // --- 1. CALCUL DE L'ÉCHELLE INVERSE (Même logique que NodePolyline) ---
+    // Cela permet de contrer le zoom de la caméra (var(--map-zoom)) et l'échelle du conteneur (containerK)
+    const handleScaleTransform = useMemo(() => {
+        const k = containerK || 1;
+        return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
+    }, [containerK]);
 
     if (!src) return null;
 
@@ -38,28 +42,36 @@ export default memo(function NodeImageStatic({
     // Style de bordure
     const borderStyle = {
         fill: "none",
-        strokeWidth: 2 / containerK, // Trait constant
-        vectorEffect: "non-scaling-stroke",
+        strokeWidth: 2, // On peut mettre une valeur fixe si on utilise vector-effect
+        vectorEffect: "non-scaling-stroke", // Garde le trait fin même au zoom
         pointerEvents: "none"
     };
 
-    // Helper pour générer une poignée
+    // --- 2. RENDU DES POIGNÉES AVEC SCALE FIXE ---
     const renderHandle = (type, hx, hy) => (
-        <rect
-            x={hx - (HANDLE_SIZE / 2) / containerK}
-            y={hy - (HANDLE_SIZE / 2) / containerK}
-            width={HANDLE_SIZE / containerK}
-            height={HANDLE_SIZE / containerK}
-            fill="#fff"
-            stroke={theme.palette.baseMap.selected}
-            strokeWidth={1 / containerK}
-            // Ces attributs seront lus par InteractionLayer
-            data-interaction="resize-annotation"
-            data-handle-type={type}
-            data-node-id={id}
-            data-node-type="ANNOTATION"
-            style={{ cursor: `${type.toLowerCase()}-resize`, pointerEvents: "auto" }}
-        />
+        <g
+            transform={`translate(${hx}, ${hy})`} // 1. On se place au coin
+            style={{ pointerEvents: "auto" }}
+        >
+            {/* 2. On applique l'échelle inverse pour que le contenu reste fixe à l'écran */}
+            <g style={{ transform: handleScaleTransform }}>
+                <rect
+                    x={-HALF_HANDLE} // Centré
+                    y={-HALF_HANDLE}
+                    width={HANDLE_SIZE}
+                    height={HANDLE_SIZE}
+                    fill="#fff"
+                    stroke={theme.palette.secondary.main}
+                    strokeWidth={1.5}
+                    // Attributs pour l'interaction
+                    data-interaction="resize-annotation"
+                    data-handle-type={type}
+                    data-node-id={id}
+                    data-node-type="ANNOTATION"
+                    style={{ cursor: `${type.toLowerCase()}-resize` }}
+                />
+            </g>
+        </g>
     );
 
     return (
@@ -101,7 +113,8 @@ export default memo(function NodeImageStatic({
                 )}
             </g>
 
-            {/* Poignées de redimensionnement (Hors du groupe draggable pour gérer l'event séparément) */}
+            {/* Poignées de redimensionnement */}
+            {/* Elles sont rendues après l'image pour être au-dessus */}
             {selected && !dragged && (
                 <g>
                     {renderHandle("NW", 0, 0)}

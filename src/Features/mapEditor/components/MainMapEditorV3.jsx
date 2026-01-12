@@ -446,7 +446,7 @@ export default function MainMapEditorV3() {
     };
 
     const handleAnnotationMoveCommit = async (annotationId, deltaPos, partType, localPos) => {
-        const imageSize = baseMap?.image?.imageSize;
+        const imageSize = baseMap?.getImageSize();
         if (!imageSize) return;
 
         if (annotationId.startsWith("label::")) {
@@ -506,65 +506,110 @@ export default function MainMapEditorV3() {
             }
 
             else if (annotation.type === "IMAGE") {
-                const image = annotation.image || {};
+                const bgW = imageSize.width;
+                const bgH = imageSize.height;
 
-                // On récupère les dimensions et positions actuelles
-                // Note : Pour les images, on travaille souvent en pixels locaux (non normalisés 0-1)
-                // contrairement aux MARKERS/LABELS ci-dessus.
+                const currentBBox = annotation.bbox;
 
-                const currentX = annotation.imagePose?.x || 0;
-                const currentY = annotation.imagePose?.y || 0;
-                const currentScale = annotation.imageScale || 1;
+                const cx = currentBBox.x;
+                const cy = currentBBox.y;
+                const cw = currentBBox.width;
+                const ch = currentBBox.height;
 
-                const currentW = image.imageSize?.width * currentScale || 100;
-                const currentH = image.imageSize?.height * currentScale || 100;
+                // Ratio d'aspect à conserver
+                const aspectRatio = cw / ch;
+
+                let nx = cx;
+                let ny = cy;
+                let nw = cw;
+                let nh = ch;
 
                 const updates = {};
 
-                // 1. Gestion du Redimensionnement (RESIZE)
+                // --- CAS 1 : REDIMENSIONNEMENT (RESIZE) ---
                 if (partType && partType.startsWith("RESIZE_")) {
                     const handle = partType.replace("RESIZE_", "");
-                    let newX = currentX;
-                    let newY = currentY;
-                    let newW = currentW;
-                    let newH = currentH;
 
-                    // Application des deltas selon le handle (logique identique à TransientAnnotationLayer)
-                    if (handle.includes("E")) newW += deltaPos.x;
-                    if (handle.includes("W")) { newW -= deltaPos.x; newX += deltaPos.x; }
-                    if (handle.includes("S")) newH += deltaPos.y;
-                    if (handle.includes("N")) { newH -= deltaPos.y; newY += deltaPos.y; }
+                    // Logique Homothétique avec Coin Opposé Fixe ou Centre
 
-                    // Sécurité taille min (10px) pour éviter les valeurs négatives ou nulles
-                    if (newW < 10) {
-                        // On annule le mouvement X si on atteint la limite pour éviter le "glissement"
-                        if (handle.includes("W")) newX = currentX + (currentW - 10);
-                        newW = 10;
+                    // A. COINS (Fixe le coin opposé)
+                    if (handle === "SE") {
+                        nw = cw + deltaPos.x;
+                        nh = nw / aspectRatio;
                     }
-                    if (newH < 10) {
-                        // On annule le mouvement Y si on atteint la limite
-                        if (handle.includes("N")) newY = currentY + (currentH - 10);
-                        newH = 10;
+                    else if (handle === "SW") {
+                        nw = cw - deltaPos.x;
+                        nh = nw / aspectRatio;
+                        nx = cx + (cw - nw); // Décalage X pour compenser
+                    }
+                    else if (handle === "NE") {
+                        nw = cw + deltaPos.x;
+                        nh = nw / aspectRatio;
+                        ny = cy + (ch - nh); // Décalage Y pour compenser
+                    }
+                    else if (handle === "NW") {
+                        nw = cw - deltaPos.x;
+                        nh = nw / aspectRatio;
+                        nx = cx + (cw - nw);
+                        ny = cy + (ch - nh);
                     }
 
-                    updates.imagePose = { x: newX / imageSize.width, y: newY / imageSize.height };
+                    // B. BORDS (Fixe le côté opposé + Centre l'axe secondaire)
+                    else if (handle === "E") {
+                        nw = cw + deltaPos.x;
+                        nh = nw / aspectRatio;
+                        ny = cy + (ch - nh) / 2; // Centre Y
+                    }
+                    else if (handle === "W") {
+                        nw = cw - deltaPos.x;
+                        nh = nw / aspectRatio;
+                        nx = cx + (cw - nw);
+                        ny = cy + (ch - nh) / 2; // Centre Y
+                    }
+                    else if (handle === "S") {
+                        nh = ch + deltaPos.y;
+                        nw = nh * aspectRatio;
+                        nx = cx + (cw - nw) / 2; // Centre X
+                    }
+                    else if (handle === "N") {
+                        nh = ch - deltaPos.y;
+                        nw = nh * aspectRatio;
+                        ny = cy + (ch - nh);
+                        nx = cx + (cw - nw) / 2; // Centre X
+                    }
 
-                    // Calcul du nouveau Scale basé sur le changement de largeur
-                    // (On suppose ici que scale change proportionnellement à la largeur)
-                    const scaleRatio = newW / currentW;
-                    const newScale = currentScale * scaleRatio;
 
-                    updates.imageScale = newScale // Mise à jour du scale
+                    // --- SÉCURITÉ (Min 20px) ---
+                    if (nw < 20) {
+                        nw = 20;
+                        nh = nw / aspectRatio;
+
+                        // Recalcul des positions si on touche les butées
+                        if (handle.includes("W")) nx = cx + (cw - nw);
+                        if (handle.includes("N")) ny = cy + (ch - nh);
+
+                        // Cas centrés
+                        if (handle === "N" || handle === "S") nx = cx + (cw - nw) / 2;
+                        if (handle === "E" || handle === "W") ny = cy + (ch - nh) / 2;
+                    }
                 }
-                // 2. Gestion du Déplacement (MOVE)
+
+                // --- CAS 2 : DÉPLACEMENT (MOVE) ---
                 else {
-                    const x = (currentX + deltaPos.x) / imageSize.width;
-                    const y = (currentY + deltaPos.y) / imageSize.height;
-                    updates.imagePose = { x, y };
+                    nx = cx + deltaPos.x;
+                    ny = cy + deltaPos.y;
                 }
+
+                // 2. Reconversion (Pixels -> Normalisé) & Sauvegarde
+                updates.bbox = {
+                    x: nx / bgW,
+                    y: ny / bgH,
+                    width: nw / bgW,
+                    height: nh / bgH
+                };
 
                 // Sauvegarde en DB
-                console.log("save_image", annotation.id, updates);
+                console.log("save_image (bbox)", annotation.id, updates);
                 await db.annotations.update(annotation.id, updates);
             }
         }

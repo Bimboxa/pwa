@@ -148,9 +148,12 @@ export default function useAnnotationsV2(options) {
 
                 const baseMap = baseMapById[annotation.baseMapId];
                 const imageSize = baseMap.getImageSize();
+
                 if (!imageSize) return [];
                 const { width, height } = imageSize;
                 const meterByPx = baseMap.meterByPx;
+
+                //if (annotation.isBaseMapAnnotation) console.log("debug_width", width?.toFixed(2))
 
 
                 // legacy conversion
@@ -186,9 +189,11 @@ export default function useAnnotationsV2(options) {
 
                 // --- IMAGE
                 else if (annotation.type === "IMAGE") {
-                    _annotation.imagePose = {
-                        x: (annotation.imagePose?.x ?? 0) * width,
-                        y: (annotation.imagePose?.y ?? 0) * height
+                    _annotation.bbox = {
+                        x: (annotation.bbox?.x ?? 0.25) * width,
+                        y: (annotation.bbox?.y ?? 0.25) * height,
+                        width: (annotation.bbox?.width ?? 0.5) * width,
+                        height: (annotation.bbox?.height ?? 0.5) * height,
                     }
                 }
 
@@ -310,7 +315,7 @@ export default function useAnnotationsV2(options) {
             baseMaps?.length,
         ]);
 
-        if (filterByMainBaseMap) console.log("_annotations", baseMaps)
+        if (filterByMainBaseMap) console.log("_annotations", annotations)
 
 
         // override with annotation templates

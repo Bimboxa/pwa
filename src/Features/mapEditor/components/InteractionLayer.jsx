@@ -1834,9 +1834,14 @@ const InteractionLayer = forwardRef(({
           );
         }
       }
-      setDragAnnotationState(null);
-      dragAnnotationStateRef.current = null;
-      setTimeout(() => setDraggingAnnotationId(null), 30);
+
+      // pour éviter le blink
+      setTimeout(() => {
+        setDraggingAnnotationId(null)
+        setDragAnnotationState(null);
+        dragAnnotationStateRef.current = null;
+      }, 300
+      );
       document.body.style.cursor = '';
     }
   };
@@ -1855,6 +1860,11 @@ const InteractionLayer = forwardRef(({
     // ==================
 
     const target = e.nativeEvent?.target || e.target;
+
+    // DEBUG
+    console.log("MouseDown Target:", target);
+    console.log("Is Resize?", !!target.closest('[data-interaction="resize-annotation"]'));
+    console.log("Is Drag?", !!target.closest('[data-interaction="draggable"]'));
 
 
     // --- permet la modif de l'input/textarea d'un label

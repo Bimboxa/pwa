@@ -37,6 +37,7 @@ export default function ToolbarEditAnnotationVariantBaseMapAnnotation() {
   // helpers - show
 
   const showCloseLine = selectedAnnotation?.type === "POLYLINE";
+  const type = selectedAnnotation?.type;
 
   // useEffect
 
@@ -75,14 +76,26 @@ export default function ToolbarEditAnnotationVariantBaseMapAnnotation() {
         </Box>
       </PopperDragHandle>
 
-      <Box sx={{ display: "flex", alignItems: "center", mr: 1, gap: 1 }}>
-        <FieldAnnotationLabel annotation={selectedAnnotation} onChange={handleChange} />
-        <FieldAnnotationColor annotation={selectedAnnotation} onChange={handleChange} />
-        <FieldAnnotationIsEraser annotation={selectedAnnotation} onChange={handleChange} />
-      </Box>
+      {type === "POLYGON" && (
+        <Box sx={{ display: "flex", alignItems: "center", mr: 1, gap: 1 }}>
+          <FieldAnnotationLabel annotation={selectedAnnotation} onChange={handleChange} />
+          <FieldAnnotationColor annotation={selectedAnnotation} onChange={handleChange} />
+          <FieldAnnotationIsEraser annotation={selectedAnnotation} onChange={handleChange} />
+        </Box>
+      )}
 
-      {showCloseLine && (
-        <IconButtonToggleAnnotationCloseLine annotation={selectedAnnotation} />
+      {type === "POLYLINE" && (
+        <Box sx={{ display: "flex", alignItems: "center", mr: 1, gap: 1 }}>
+          <FieldAnnotationLabel annotation={selectedAnnotation} onChange={handleChange} />
+          <FieldAnnotationColor annotation={selectedAnnotation} onChange={handleChange} />
+          <IconButtonToggleAnnotationCloseLine annotation={selectedAnnotation} />
+        </Box>
+      )}
+
+      {type === "IMAGE" && (
+        <Box sx={{ display: "flex", alignItems: "center", mr: 1, gap: 1 }}>
+          <FieldAnnotationLabel annotation={selectedAnnotation} onChange={handleChange} />
+        </Box>
       )}
 
     </Paper>
