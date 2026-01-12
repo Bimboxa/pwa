@@ -10,11 +10,10 @@ export default memo(function NodeImageStatic({
     hovered,
     selected,
     dragged,
-    opacity = 1,
     grayScale = false,
     containerK = 1,
 }) {
-    const { bbox, image, id } = imageAnnotation;
+    const { bbox, image, id, opacity } = imageAnnotation;
     const { x, y, width, height } = bbox ?? {};
 
     // Fallbacks

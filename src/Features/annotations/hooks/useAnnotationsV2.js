@@ -17,6 +17,7 @@ import db from "App/db/db";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getAnnotationTemplateProps from "Features/annotations/utils/getAnnotationTemplateProps";
+import getAnnotationPropsFromAnnotationTemplateProps from "Features/annotations/utils/getAnnotationPropsFromAnnotationTemplateProps";
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
 import testObjectHasProp from "Features/misc/utils/testObjectHasProp";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
@@ -324,12 +325,14 @@ export default function useAnnotationsV2(options) {
                 return annotation;
             } else {
                 const templateProps = getAnnotationTemplateProps(annotationTemplatesMap[annotation?.annotationTemplateId])
-                return {
-                    ...annotation,
-                    ...templateProps,
-                    label: annotation?.label ?? templateProps?.label,
-                    templateLabel: templateProps?.label,
-                }
+                return getAnnotationPropsFromAnnotationTemplateProps(annotation, templateProps)
+
+                // return {
+                //     ...annotation,
+                //     ...templateProps,
+                //     label: annotation?.label ?? templateProps?.label,
+                //     templateLabel: templateProps?.label,
+                // }
             }
 
         })
