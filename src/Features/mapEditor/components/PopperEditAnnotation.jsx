@@ -30,12 +30,19 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   const open =
     shouldShow &&
     Boolean(anchorPosition) &&
-    ["POLYLINE", "POLYGON", "IMAGE"].includes(selectedNode?.annotationType) &&
+    ["POLYLINE", "POLYGON", "IMAGE", "RECTANGLE"].includes(selectedNode?.annotationType) &&
     selectedNode?.nodeType === "ANNOTATION";
 
   // helper - isBaseMapAnnotation
 
   const isBaseMapAnnotation = selectedAnnotation?.isBaseMapAnnotation;
+
+  // helper - anchorPlacement
+
+  let anchorPlacement = "bottomMiddle";
+  if (["IMAGE", "RECTANGLE"].includes(selectedAnnotation.type)) {
+    anchorPlacement = "topLeft";
+  }
 
   // handlers
 

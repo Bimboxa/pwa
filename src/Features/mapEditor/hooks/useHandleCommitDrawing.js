@@ -52,8 +52,15 @@ export default function useHandleCommitDrawing() {
 
         const closeLine = options?.closeLine;
         const cutHostId = options?.cutHostId;
+        const drawRectangle = options?.drawRectangle;
 
 
+        // update rawPoints for rectangle
+        if (drawRectangle) {
+            const P2 = { x: rawPoints[1].x, y: rawPoints[0].y }
+            const P4 = { x: rawPoints[0].x, y: rawPoints[1].y }
+            //rawPoints = [...rawPoints, P2, P4];
+        }
         // image size
 
         const { width, height } = baseMap?.getImageSize() ?? {}
@@ -103,6 +110,7 @@ export default function useHandleCommitDrawing() {
                 // ... props de style
             };
         }
+
         else {
             // rawPoints = [{x,y, existingPointId?}, {x,y}, ...]
 
@@ -199,6 +207,15 @@ export default function useHandleCommitDrawing() {
 
             if (["POLYGON", "POLYLINE", "MARKER"].includes(newAnnotation?.type)) {
                 _newAnnotation.points = finalPointIds.map(id => ({ id }));
+            }
+
+            if (drawRectangle) {
+                _newAnnotation.bbox = {
+                    x: rawPoints[0].x / width,
+                    y: rawPoints[0].y / height,
+                    width: (rawPoints[1].x - rawPoints[0].x) / width,
+                    height: (rawPoints[1].y - rawPoints[0].y) / height,
+                }
             }
 
             if (newAnnotation?.type === "MARKER" || newAnnotation?.type === "POINT") {

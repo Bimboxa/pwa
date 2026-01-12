@@ -287,6 +287,7 @@ export default function MainMapEditorV3() {
         }
         const options = {}
         if (type === "POLYLINE") options.closeLine = true;
+        if (type === "RECTANGLE") options.drawRectangle = true;
         handleCommitDrawing(points, options)
     }
     // handlers - measure
@@ -505,11 +506,12 @@ export default function MainMapEditorV3() {
                 await db.annotations.update(annotation.id, updates);
             }
 
-            else if (annotation.type === "IMAGE") {
+            else if (annotation.type === "IMAGE" || annotation.type === "RECTANGLE") {
                 const bgW = imageSize.width;
                 const bgH = imageSize.height;
 
                 const currentBBox = annotation.bbox;
+                const currentRotation = annotation.rotation ?? 0;
 
                 const cx = currentBBox.x;
                 const cy = currentBBox.y;
@@ -526,8 +528,20 @@ export default function MainMapEditorV3() {
 
                 const updates = {};
 
+                if (partType === "ROTATE") {
+                    // Logique simplifiée : Glisser horizontalement ajoute des degrés
+                    // Pour plus de précision, on pourrait utiliser Math.atan2 si on avait la pos souris absolue
+                    const sensitivity = 1; // 1px = 1deg
+                    let newRotation = (currentRotation + deltaPos.x * sensitivity) % 360;
+
+                    // Normalisation 0-360
+                    if (newRotation < 0) newRotation += 360;
+
+                    updates.rotation = newRotation;
+                }
+
                 // --- CAS 1 : REDIMENSIONNEMENT (RESIZE) ---
-                if (partType && partType.startsWith("RESIZE_")) {
+                else if (partType && partType.startsWith("RESIZE_")) {
                     const handle = partType.replace("RESIZE_", "");
 
                     // Logique Homothétique avec Coin Opposé Fixe ou Centre
@@ -592,21 +606,26 @@ export default function MainMapEditorV3() {
                         if (handle === "N" || handle === "S") nx = cx + (cw - nw) / 2;
                         if (handle === "E" || handle === "W") ny = cy + (ch - nh) / 2;
                     }
+
+                    updates.bbox = {
+                        x: nx / bgW,
+                        y: ny / bgH,
+                        width: nw / bgW,
+                        height: nh / bgH
+                    };
                 }
 
                 // --- CAS 2 : DÉPLACEMENT (MOVE) ---
                 else {
                     nx = cx + deltaPos.x;
                     ny = cy + deltaPos.y;
+                    updates.bbox = {
+                        x: nx / bgW,
+                        y: ny / bgH,
+                        width: nw / bgW,
+                        height: nh / bgH
+                    };
                 }
-
-                // 2. Reconversion (Pixels -> Normalisé) & Sauvegarde
-                updates.bbox = {
-                    x: nx / bgW,
-                    y: ny / bgH,
-                    width: nw / bgW,
-                    height: nh / bgH
-                };
 
                 // Sauvegarde en DB
                 console.log("save_image (bbox)", annotation.id, updates);

@@ -4,6 +4,7 @@ import NodeTextStatic from "./NodeTextStatic";
 import NodeLabelStatic from "./NodeLabelStatic";
 import NodeImageStatic from "./NodeImageStatic";
 import NodePointStatic from "./NodePointStatic";
+import NodeRectangleStatic from "./NodeRectangleStatic";
 
 export default function NodeAnnotationStatic({
   annotation,
@@ -66,8 +67,8 @@ export default function NodeAnnotationStatic({
     case "LABEL":
       return <NodeLabelStatic {...props} annotation={annotation} sizeVariant="FIXED_IN_BG_IMAGE" />;
 
-    // case "RECTANGLE":
-    //   return NodeRectangle({ ...props, rectangle: annotation });
+    case "RECTANGLE":
+      return <NodeRectangleStatic {...props} annotation={annotation} />;
 
     // case "SEGMENT":
     //   return NodeSegment({ ...props, segment: annotation });

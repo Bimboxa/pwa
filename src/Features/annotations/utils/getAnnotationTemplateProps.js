@@ -23,6 +23,7 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     //strokeOffset: annotationTemplate?.strokeOffset,
     size: annotationTemplate?.size,
     sizeUnit: annotationTemplate?.sizeUnit,
+
     variant: annotationTemplate?.variant,
 
     cutHost: annotationTemplate?.cutHost,

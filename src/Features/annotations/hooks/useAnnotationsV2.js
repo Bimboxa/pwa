@@ -189,7 +189,7 @@ export default function useAnnotationsV2(options) {
                 }
 
                 // --- IMAGE
-                else if (annotation.type === "IMAGE") {
+                else if (annotation.type === "IMAGE" || annotation.type === "RECTANGLE") {
                     _annotation.bbox = {
                         x: (annotation.bbox?.x ?? 0.25) * width,
                         y: (annotation.bbox?.y ?? 0.25) * height,
@@ -321,11 +321,12 @@ export default function useAnnotationsV2(options) {
 
         // override with annotation templates
         annotations = annotations?.map(annotation => {
-            if (annotation.isBaseMapAnnotation) {
+            if (annotation?.isBaseMapAnnotation) {
                 return annotation;
             } else {
+                const baseMap = baseMapById[annotation?.baseMapId];
                 const templateProps = getAnnotationTemplateProps(annotationTemplatesMap[annotation?.annotationTemplateId])
-                return getAnnotationPropsFromAnnotationTemplateProps(annotation, templateProps)
+                return getAnnotationPropsFromAnnotationTemplateProps(annotation, templateProps, baseMap)
 
                 // return {
                 //     ...annotation,

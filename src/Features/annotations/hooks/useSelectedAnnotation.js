@@ -63,7 +63,7 @@ export default function useSelectedAnnotation() {
   );
 
   if (!annotation?.isBaseMapAnnotation) {
-    annotation = { ...annotation, ...getAnnotationTemplateProps(template), templateLabel: template?.label || "-?" };
+    annotation = { ...annotation, ...getAnnotationTemplateProps(template), templateLabel: template?.label || "-?", annotationTemplate: template };
   }
 
   // return

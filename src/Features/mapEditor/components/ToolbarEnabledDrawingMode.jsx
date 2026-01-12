@@ -42,13 +42,13 @@ export default function ToolbarEnabledDrawingMode() {
             key: "RECTANGLE",
             label: "Rectangle",
             icon: <Rectangle sx={{ color }} />,
-            show: ["POLYGON", "POLYLINE"].includes(type)
+            show: ["POLYGON", "POLYLINE", "RECTANGLE"].includes(type)
         },
         {
             key: "DROP_FILL",
             label: "Remplissage",
             icon: <WaterDrop sx={{ color }} />,
-            show: ["POLYGON"].includes(type)
+            show: ["POLYGON", "RECTANGLE"].includes(type)
         },
         {
             key: "BRUSH",
@@ -68,7 +68,7 @@ export default function ToolbarEnabledDrawingMode() {
 
     // helpers - show mode
 
-    const showMode = ["POLYLINE", "POLYGON", "CUT", "MARKER", "POINT"].includes(type);
+    const showMode = ["POLYLINE", "POLYGON", "CUT", "MARKER", "POINT", "RECTANGLE"].includes(type);
 
     // handlers
 
