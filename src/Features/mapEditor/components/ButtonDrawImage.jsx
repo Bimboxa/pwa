@@ -53,7 +53,7 @@ export default function ButtonDrawImage({ disabled }) {
 
   function handleClick() {
     setOpen(true);
-    //dispatch(setNewAnnotation({ ...newAnnotation, type: "IMAGE" }))
+    dispatch(setNewAnnotation({ ...newAnnotation, type: "IMAGE" }))
     //dispatch(setEnabledDrawingMode("ONE_CLICK"))
   }
 
@@ -95,7 +95,7 @@ export default function ButtonDrawImage({ disabled }) {
     setOpen(false)
   }
 
-  if (!isBaseMapAnnotation) return null;
+  //if (!isBaseMapAnnotation) return null;
 
 
   return (

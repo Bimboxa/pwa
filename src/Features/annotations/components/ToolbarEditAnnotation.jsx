@@ -22,6 +22,7 @@ import IconButtonDialogCloneAnnotation from "./IconButtonDialogCloneAnnotation";
 import IconButtonToggleAnnotationCloseLine from "./IconButtonToggleAnnotationCloseLine";
 import ButtonAnnotationTemplate from "./ButtonAnnotationTemplate";
 import IconButtonCloneAnnotation from "./IconButtonCloneAnnotation";
+import IconButtonAnnotationOpacity from "./IconButtonAnnotationOpacity";
 
 import { PopperDragHandle } from "Features/layout/components/PopperBox";
 
@@ -52,6 +53,10 @@ export default function ToolbarEditAnnotation() {
     };
   }, []);
 
+  // helper
+
+  const type = selectedAnnotation?.type;
+
   // handler
 
   function handleCanTransformChange() {
@@ -81,7 +86,24 @@ export default function ToolbarEditAnnotation() {
         </Box>
       </PopperDragHandle>
 
-      <ButtonAnnotationTemplate annotation={selectedAnnotation} />
+
+      {type === "POLYGON" && <Box sx={{ display: "flex", alignItems: "center" }}>
+        <ButtonAnnotationTemplate annotation={selectedAnnotation} />
+        <IconButtonCloneAnnotation annotation={selectedAnnotation} />
+      </Box>}
+
+      {type === "POLYLINE" && <Box sx={{ display: "flex", alignItems: "center" }}>
+        <ButtonAnnotationTemplate annotation={selectedAnnotation} />
+        <IconButtonToggleAnnotationCloseLine annotation={selectedAnnotation} />
+        <IconButtonCloneAnnotation annotation={selectedAnnotation} />
+      </Box>}
+
+      {type === "IMAGE" && <Box sx={{ display: "flex", alignItems: "center" }}>
+        <IconButtonAnnotationOpacity annotation={selectedAnnotation} />
+      </Box>}
+
+
+
       {/* <IconButton onClick={handleCanTransformChange} size="small">
         {canTransformNode ? (
           <LockOpen fontSize="small" />
@@ -108,12 +130,7 @@ export default function ToolbarEditAnnotation() {
         onChange={handleChange}
       /> */}
 
-      {showCloseLine && (
-        <IconButtonToggleAnnotationCloseLine annotation={selectedAnnotation} />
-      )}
-      <Box sx={{ ml: 2 }}>
-        <IconButtonCloneAnnotation annotation={selectedAnnotation} />
-      </Box>
+
     </Paper>
   );
 }
