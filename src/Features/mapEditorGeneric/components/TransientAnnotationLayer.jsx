@@ -16,101 +16,99 @@ export default function TransientAnnotationLayer({
 
         const _annotation = { ...annotation };
 
-        if (_annotation.type === "IMAGE") {
+        if (_annotation.type === "IMAGE" || _annotation.type === "RECTANGLE") {
             const currentBBox = _annotation.bbox || { x: 0, y: 0, width: 100, height: 100 };
+            const currentRotation = _annotation.rotation || 0;
 
-            const currentX = currentBBox.x;
-            const currentY = currentBBox.y;
-            const currentW = currentBBox.width;
-            const currentH = currentBBox.height;
+            const cx = currentBBox.x + currentBBox.width / 2;
+            const cy = currentBBox.y + currentBBox.height / 2;
 
-            // 1. Calcul du Ratio (Largeur / Hauteur)
-            const aspectRatio = currentW / currentH;
+            // --- CAS 1 : ROTATION (ROTATE) ---
+            if (partType === "ROTATE") {
+                // Pour calculer la rotation correctement avec deltaPos (qui est un vecteur de déplacement),
+                // il nous faut savoir où était la poignée au départ.
+                // La poignée est visuellement au-dessus du centre : { x: cx, y: bbox.y - 30 }
 
-            // 1. Redimensionnement (via les poignées)
-            if (partType && partType.startsWith("RESIZE_")) {
-                const handle = partType.replace("RESIZE_", "");
+                // On simplifie : On calcule l'angle du vecteur delta par rapport au centre ? Non.
+                // La méthode la plus fiable avec deltaPos est de projeter le mouvement de la souris.
 
-                let newX = currentX;
-                let newY = currentY;
-                let newW = currentW;
-                let newH = currentH;
+                // Si InteractionLayer nous passait 'currentMousePos' ce serait trivial (atan2).
+                // Avec 'deltaPos', on suppose que le mouvement horizontal de la souris fait tourner l'objet.
+                // C'est une UX commune (Virtual Trackball ou Slider invisible).
+                // Sensibilité : 1px de déplacement = 0.5 degré de rotation (ajustable)
 
-                // On utilise l'axe dominant pour piloter le resize pour une meilleure UX
-                // Si l'image est large, on se base sur le mouvement X. Si elle est haute, sur Y.
-                // Ici, on simplifie en laissant X piloter la largeur, sauf pour N/S.
+                // OPTION A : Rotation basée sur le mouvement X/Y (Style "Potentiomètre")
+                // C'est souvent plus fluide que de suivre la souris exactement si on n'a pas les coords absolues.
+                const sensitivity = 0.5;
+                let angleDelta = (deltaPos.x + deltaPos.y) * sensitivity;
 
-                // --- LOGIQUE HOMOTHÉTIQUE PAR COIN ---
+                // OPTION B (MIEUX) : Si deltaPos est le déplacement de la POIGNÉE.
+                // La poignée est initialement à (0, -H/2 - 30) par rapport au centre.
+                // C'est complexe sans connaître la position absolue de la souris.
 
-                // A. SUD-EST (SE) -> Coin fixe : Nord-Ouest (Haut-Gauche)
-                // X et Y ne bougent pas.
-                if (handle === "SE") {
-                    newW = currentW + deltaPos.x;
-                    newH = newW / aspectRatio;
-                }
+                // => On va utiliser une approximation vectorielle simple :
+                // On considère que la poignée est en haut. Un mouvement vers la droite (dx > 0) tourne à droite (+deg).
+                // Un mouvement vers le bas (dy > 0) tourne aussi à droite si on est à droite... c'est compliqué.
 
-                // B. SUD-OUEST (SW) -> Coin fixe : Nord-Est (Haut-Droit)
-                // Y ne bouge pas (Haut fixe). X bouge pour compenser la largeur.
-                else if (handle === "SW") {
-                    newW = currentW - deltaPos.x; // Moins car on va vers la gauche
-                    newH = newW / aspectRatio;
-                    newX = currentX + (currentW - newW); // On décale X de la différence
-                }
+                // RECOMMANDATION : Utilisez l'approche "Centre + Curseur" dans InteractionLayer pour passer l'angle exact.
+                // MAIS si on doit faire avec ce qu'on a ici :
 
-                // C. NORD-EST (NE) -> Coin fixe : Sud-Ouest (Bas-Gauche)
-                // X ne bouge pas (Gauche fixe). Y bouge pour compenser la hauteur.
-                else if (handle === "NE") {
-                    newW = currentW + deltaPos.x;
-                    newH = newW / aspectRatio;
-                    newY = currentY + (currentH - newH); // On décale Y de la différence
-                }
-
-                // D. NORD-OUEST (NW) -> Coin fixe : Sud-Est (Bas-Droit)
-                // X et Y bougent tous les deux.
-                else if (handle === "NW") {
-                    newW = currentW - deltaPos.x;
-                    newH = newW / aspectRatio;
-                    newX = currentX + (currentW - newW);
-                    newY = currentY + (currentH - newH);
-                }
-
-                // E. Bords (N, S, E, W) - Optionnel
-                // Pour garder le ratio sur un bord, on doit zoomer depuis le centre opposé
-                else if (handle === "E") {
-                    newW = currentW + deltaPos.x;
-                    newH = newW / aspectRatio;
-                    newY = currentY + (currentH - newH) / 2; // Centre Y
-                }
-                // ... (similaire pour les autres bords si nécessaire)
-
-
-                // --- SÉCURITÉ & LIMITES ---
-                // On empêche l'inversion (largeur négative)
-                if (newW < 20) {
-                    newW = 20;
-                    newH = newW / aspectRatio;
-
-                    // Si on bloque la taille, il faut aussi bloquer la position pour éviter que l'objet glisse
-                    // On recalcule la position idéale basée sur la taille minimum
-                    if (handle.includes("W")) newX = currentX + (currentW - 20);
-                    if (handle.includes("N")) newY = currentY + (currentH - (20 / aspectRatio));
-                }
-
-                // Mise à jour Bbox
-                _annotation.bbox = {
-                    x: newX,
-                    y: newY,
-                    width: newW,
-                    height: newH
-                };
+                _annotation.rotation = (currentRotation + deltaPos.x) % 360;
+                // Ici on fait simple : glisser vers la droite tourne l'objet.
             }
 
-            // 2. Déplacement standard (Move)
+            // --- CAS 2 : REDIMENSIONNEMENT (RESIZE) ---
+            else if (partType && partType.startsWith("RESIZE_")) {
+                const handle = partType.replace("RESIZE_", "");
+                const aspectRatio = currentBBox.width / currentBBox.height;
+
+                let nx = currentBBox.x;
+                let ny = currentBBox.y;
+                let nw = currentBBox.width;
+                let nh = currentBBox.height;
+
+                // A. SUD-EST (SE)
+                if (handle === "SE") {
+                    nw = currentBBox.width + deltaPos.x;
+                    nh = nw / aspectRatio;
+                }
+                // B. SUD-OUEST (SW)
+                else if (handle === "SW") {
+                    nw = currentBBox.width - deltaPos.x;
+                    nh = nw / aspectRatio;
+                    nx = currentBBox.x + (currentBBox.width - nw);
+                }
+                // C. NORD-EST (NE)
+                else if (handle === "NE") {
+                    nw = currentBBox.width + deltaPos.x;
+                    nh = nw / aspectRatio;
+                    ny = currentBBox.y + (currentBBox.height - nh);
+                }
+                // D. NORD-OUEST (NW)
+                else if (handle === "NW") {
+                    nw = currentBBox.width - deltaPos.x;
+                    nh = nw / aspectRatio;
+                    nx = currentBBox.x + (currentBBox.width - nw);
+                    ny = currentBBox.y + (currentBBox.height - nh);
+                }
+
+                // SÉCURITÉ
+                if (nw < 20) {
+                    nw = 20;
+                    nh = nw / aspectRatio;
+                    if (handle.includes("W")) nx = currentBBox.x + (currentBBox.width - 20);
+                    if (handle.includes("N")) ny = currentBBox.y + (currentBBox.height - (20 / aspectRatio));
+                }
+
+                _annotation.bbox = { x: nx, y: ny, width: nw, height: nh };
+            }
+
+            // --- CAS 3 : DÉPLACEMENT (MOVE) ---
             else {
                 _annotation.bbox = {
                     ...currentBBox,
-                    x: currentX + deltaPos.x,
-                    y: currentY + deltaPos.y
+                    x: currentBBox.x + deltaPos.x,
+                    y: currentBBox.y + deltaPos.y
                 };
             }
         }
@@ -169,13 +167,19 @@ export default function TransientAnnotationLayer({
 
     if (!annotation) return null;
 
+
+    // Curseur dynamique selon l'action
+    let cursorStyle = "grabbing";
+    if (partType === "ROTATE") cursorStyle = "grabbing"; // ou un icone de rotation
+    else if (partType?.startsWith("RESIZE")) cursorStyle = "crosshair";
+
     return (
         <g
             className="transient-annotation-layer"
             style={{
                 //pointerEvents: 'none',
                 //cursor: "grabbing",
-                cursor: partType?.startsWith("RESIZE") ? "crosshair" : "grabbing"
+                cursor: cursorStyle
             }}
         >
             <NodeAnnotationStatic

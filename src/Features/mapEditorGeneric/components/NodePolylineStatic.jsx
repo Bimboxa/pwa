@@ -502,7 +502,7 @@ export default function NodePolylineStatic({
     if (!points?.length) return null;
 
     const showFill = type === "POLYGON";
-    const HATCHING_SPACING = 24;
+    const HATCHING_SPACING = 12;
 
     // --- NOUVEAU : Logique Eraser ---
     const isEraser = mergedAnnotation.isEraser;
@@ -548,9 +548,9 @@ export default function NodePolylineStatic({
                 {!isEraser && showFill && (fillType === "HATCHING" || fillType === "HATCHING_LEFT") && (
                     <pattern id={patternIdRef.current} patternUnits="userSpaceOnUse" width={HATCHING_SPACING} height={HATCHING_SPACING}>
                         {fillType === "HATCHING" ? (
-                            <path d={`M 0,${HATCHING_SPACING} L ${HATCHING_SPACING},0`} stroke={fillColor} strokeWidth={1} />
+                            <path d={`M 0,${HATCHING_SPACING} L ${HATCHING_SPACING},0`} stroke={fillColor} strokeWidth={2} />
                         ) : (
-                            <path d={`M 0,0 L ${HATCHING_SPACING},${HATCHING_SPACING}`} stroke={fillColor} strokeWidth={1} />
+                            <path d={`M 0,0 L ${HATCHING_SPACING},${HATCHING_SPACING}`} stroke={fillColor} strokeWidth={2} />
                         )}
                     </pattern>
                 )}

@@ -23,6 +23,7 @@ import IconButtonToggleAnnotationCloseLine from "./IconButtonToggleAnnotationClo
 import ButtonAnnotationTemplate from "./ButtonAnnotationTemplate";
 import IconButtonCloneAnnotation from "./IconButtonCloneAnnotation";
 import IconButtonAnnotationOpacity from "./IconButtonAnnotationOpacity";
+import IconButtonAnnotationBboxSize from "./IconButtonAnnotationBboxSize";
 
 import { PopperDragHandle } from "Features/layout/components/PopperBox";
 
@@ -100,6 +101,10 @@ export default function ToolbarEditAnnotation() {
 
       {type === "IMAGE" && <Box sx={{ display: "flex", alignItems: "center" }}>
         <IconButtonAnnotationOpacity annotation={selectedAnnotation} />
+      </Box>}
+
+      {type === "RECTANGLE" && <Box sx={{ display: "flex", alignItems: "center" }}>
+        <IconButtonAnnotationBboxSize annotation={selectedAnnotation} />
       </Box>}
 
 

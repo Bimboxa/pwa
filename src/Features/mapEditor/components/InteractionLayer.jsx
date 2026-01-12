@@ -1865,6 +1865,7 @@ const InteractionLayer = forwardRef(({
     console.log("MouseDown Target:", target);
     console.log("Is Resize?", !!target.closest('[data-interaction="resize-annotation"]'));
     console.log("Is Drag?", !!target.closest('[data-interaction="draggable"]'));
+    console.log("Is Rotate?", !!target.closest('[data-interaction="rotate-annotation"]'));
 
 
     // --- permet la modif de l'input/textarea d'un label
@@ -1881,6 +1882,7 @@ const InteractionLayer = forwardRef(({
     const basemapHandle = target.closest('[data-interaction="transform-basemap"]');
     const legendHandle = target.closest('[data-interaction="transform-legend"]');
     const textHandle = target.closest('[data-interaction="transform-text"]');
+    const rotateHandle = target.closest('[data-interaction="rotate-annotation"]');
 
     if (resizeHandle) {
       e.stopPropagation();
@@ -1897,6 +1899,28 @@ const InteractionLayer = forwardRef(({
         selectedAnnotationId: nodeId,
         startMouseInLocal,
         partType: `RESIZE_${handleType}`, // ex: RESIZE_SE
+        startMouseScreen: { x: e.clientX, y: e.clientY }
+      };
+
+      setDragAnnotationState(newDragAnnotationState);
+      dragAnnotationStateRef.current = newDragAnnotationState;
+      return;
+    }
+
+    if (rotateHandle) {
+      e.stopPropagation();
+      e.preventDefault();
+
+      const { nodeId } = rotateHandle.dataset;
+      const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
+      const startMouseInLocal = toLocalCoords(worldPos);
+
+      const newDragAnnotationState = {
+        active: false,
+        pending: true,
+        selectedAnnotationId: nodeId,
+        startMouseInLocal,
+        partType: "ROTATE", // <--- Nouveau Type
         startMouseScreen: { x: e.clientX, y: e.clientY }
       };
 

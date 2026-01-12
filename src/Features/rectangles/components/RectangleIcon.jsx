@@ -2,7 +2,7 @@ import { Box } from "@mui/material";
 
 import { Rectangle } from "@mui/icons-material";
 
-export default function RectangleIcon({ fillColor, closeLine, size = 24 }) {
+export default function RectangleIcon({ fillColor, size = 24 }) {
   return (
     <Box
       sx={{

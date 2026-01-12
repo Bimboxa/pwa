@@ -25,6 +25,7 @@ import FieldFill from "Features/form/components/FieldFill";
 import FieldStroke from "Features/form/components/FieldStroke";
 import FieldPoint from "Features/form/components/FieldPoint";
 import FieldCheck from "Features/form/components/FieldCheck";
+import FieldSizeAndUnit from "Features/form/components/FieldSizeAndUnit";
 
 import getImageAnnotationPropsFromFileName from "../utils/getImageAnnotationPropsFromFileName";
 
@@ -79,6 +80,11 @@ export default function FormAnnotationTemplateVariantBlock({
   const point = {
     fillColor,
     variant,
+    size,
+    sizeUnit,
+  };
+
+  const sizeAndUnit = {
     size,
     sizeUnit,
   };
@@ -161,6 +167,10 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handleCutHostChange(cutHost) {
     onChange({ ...annotationTemplate, cutHost });
+  }
+
+  function handleSizeAndUnitChange(sizeAndUnit) {
+    onChange({ ...annotationTemplate, ...sizeAndUnit });
   }
 
   return (
@@ -246,7 +256,7 @@ export default function FormAnnotationTemplateVariantBlock({
         </Box>
       )}
 
-      {["SEGMENT", "POLYLINE", "POLYGON", "RECTANGLE"].includes(type) && (
+      {["SEGMENT", "POLYLINE", "POLYGON"].includes(type) && (
         <Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
             <AnnotationIcon
@@ -287,6 +297,60 @@ export default function FormAnnotationTemplateVariantBlock({
               <FieldStroke value={stroke} onChange={handleStrokeChange} />
             </Box>
           )}
+
+          {/* <Box>
+            <FieldCheck
+              value={cutHost}
+              onChange={handleCutHostChange}
+              label="Couper l'hôte"
+              options={{
+                type: "switch",
+                showAsSection: true,
+              }}
+            />
+          </Box> */}
+        </Box>
+      )}
+
+      {type === "RECTANGLE" && (
+        <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
+            <AnnotationIcon
+              spriteImage={spriteImage}
+              annotation={annotationTemplate}
+              size={32}
+            />
+
+            <Box sx={{ flex: 1 }}>
+              <FieldTextV2
+                value={label}
+                onChange={handleLabelChange}
+                options={{ fullWidth: true, placeholder: "Libellé" }}
+              />
+            </Box>
+          </Box>
+
+
+          <Box
+            sx={{
+              width: 1,
+              borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+              p: 2,
+            }}
+          >
+            <FieldFill value={fill} onChange={handleFillChange} />
+          </Box>
+
+          <Box
+            sx={{
+              width: 1,
+              borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+              p: 2,
+            }}
+          >
+            <FieldSizeAndUnit value={sizeAndUnit} onChange={handleSizeAndUnitChange} />
+          </Box>
+
 
           {/* <Box>
             <FieldCheck

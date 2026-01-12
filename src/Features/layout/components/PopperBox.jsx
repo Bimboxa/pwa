@@ -3,6 +3,26 @@ import { Popper, ClickAwayListener, Box, Paper, IconButton } from "@mui/material
 import CloseIcon from "@mui/icons-material/Close";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 
+const PLACEMENT_MAPPING = {
+  // Top
+  topMiddle: "top",
+  topLeft: "top-start",
+  topRight: "top-end",
+  // Bottom
+  bottomMiddle: "bottom",
+  bottomLeft: "bottom-start",
+  bottomRight: "bottom-end",
+  // Left
+  left: "left",
+  leftTop: "left-start",
+  leftBottom: "left-end",
+  // Right
+  right: "right",
+  rightTop: "right-start",
+  rightBottom: "right-end",
+};
+
+
 // --- 1. CRÉATION DU CONTEXTE ---
 const PopperDragContext = createContext(null);
 
@@ -107,7 +127,7 @@ export default function PopperBox({
     };
   }, [handleMouseMove, handleMouseUp]);
 
-  const muiPlacement = anchorPlacement === "bottomMiddle" ? "top" : "bottom-start";
+  const muiPlacement = PLACEMENT_MAPPING[anchorPlacement] || "top";
 
   function handleClose(e) {
     if (onClose) onClose();

@@ -10,7 +10,7 @@ export default function getAnnotationEditionPanelAnchor(annotation) {
     }
 
     else if (annotation.bbox) {
-        return { x: annotation.bbox.x, y: annotation.bbox.y - 50 }
+        return { x: annotation.bbox.x + annotation.bbox.width + 10, y: annotation.bbox.y }
     }
     else {
         return null
