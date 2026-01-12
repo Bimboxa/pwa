@@ -82,7 +82,7 @@ export default function ToolbarMapEditorV3() {
         <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, px: 1, borderRadius: 2, gap: 0.5 }}>
             <ButtonDrawCut />
             <ButtonDrawLabel />
-            {/* <ButtonDrawImage /> */}
+            <ButtonDrawImage />
 
         </Paper>
 

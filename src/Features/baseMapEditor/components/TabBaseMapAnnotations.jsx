@@ -10,6 +10,9 @@ export default function TabBaseMapAnnotations({ baseMap }) {
     // data
 
     const annotations = useAnnotationsV2({ baseMapAnnotationsOnly: true });
+
+    console.log("annotations", annotations)
+
     // render
 
     return <BoxFlexVStretch sx={{ overflow: "auto" }}>

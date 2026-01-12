@@ -17,40 +17,101 @@ export default function TransientAnnotationLayer({
         const _annotation = { ...annotation };
 
         if (_annotation.type === "IMAGE") {
-            const currentWidth = _annotation.image?.imageSize?.width * (_annotation.imageScale ?? 1) || 100;
-            const currentHeight = _annotation.image?.imageSize?.height * (_annotation.imageScale ?? 1) || 100;
-            const currentX = _annotation.imagePose.x || 0;
-            const currentY = _annotation.imagePose.y || 0;
+            const currentBBox = _annotation.bbox || { x: 0, y: 0, width: 100, height: 100 };
 
-            // 1. Redimensionnement
+            const currentX = currentBBox.x;
+            const currentY = currentBBox.y;
+            const currentW = currentBBox.width;
+            const currentH = currentBBox.height;
+
+            // 1. Calcul du Ratio (Largeur / Hauteur)
+            const aspectRatio = currentW / currentH;
+
+            // 1. Redimensionnement (via les poignées)
             if (partType && partType.startsWith("RESIZE_")) {
                 const handle = partType.replace("RESIZE_", "");
+
                 let newX = currentX;
                 let newY = currentY;
-                let newW = currentWidth;
-                let newH = currentHeight;
+                let newW = currentW;
+                let newH = currentH;
 
-                // Logique simple de redimensionnement
-                // Pour NW (Nord-Ouest), on bouge X,Y et on change W,H (inverse du delta)
-                // Pour SE (Sud-Est), on change juste W,H (additif)
+                // On utilise l'axe dominant pour piloter le resize pour une meilleure UX
+                // Si l'image est large, on se base sur le mouvement X. Si elle est haute, sur Y.
+                // Ici, on simplifie en laissant X piloter la largeur, sauf pour N/S.
 
-                if (handle.includes("E")) newW += deltaPos.x;
-                if (handle.includes("W")) { newW -= deltaPos.x; newX += deltaPos.x; }
-                if (handle.includes("S")) newH += deltaPos.y;
-                if (handle.includes("N")) { newH -= deltaPos.y; newY += deltaPos.y; }
+                // --- LOGIQUE HOMOTHÉTIQUE PAR COIN ---
 
-                // Sécurité taille min
-                if (newW < 10) newW = 10;
-                if (newH < 10) newH = 10;
+                // A. SUD-EST (SE) -> Coin fixe : Nord-Ouest (Haut-Gauche)
+                // X et Y ne bougent pas.
+                if (handle === "SE") {
+                    newW = currentW + deltaPos.x;
+                    newH = newW / aspectRatio;
+                }
 
-                // Mise à jour de l'objet temporaire
-                _annotation.imagePose = { x: newX, y: newY };
-                // On clone la structure image pour ne pas muter la ref originale
-                _annotation.imageScale = _annotation.imageScale * (newW / currentWidth);
+                // B. SUD-OUEST (SW) -> Coin fixe : Nord-Est (Haut-Droit)
+                // Y ne bouge pas (Haut fixe). X bouge pour compenser la largeur.
+                else if (handle === "SW") {
+                    newW = currentW - deltaPos.x; // Moins car on va vers la gauche
+                    newH = newW / aspectRatio;
+                    newX = currentX + (currentW - newW); // On décale X de la différence
+                }
+
+                // C. NORD-EST (NE) -> Coin fixe : Sud-Ouest (Bas-Gauche)
+                // X ne bouge pas (Gauche fixe). Y bouge pour compenser la hauteur.
+                else if (handle === "NE") {
+                    newW = currentW + deltaPos.x;
+                    newH = newW / aspectRatio;
+                    newY = currentY + (currentH - newH); // On décale Y de la différence
+                }
+
+                // D. NORD-OUEST (NW) -> Coin fixe : Sud-Est (Bas-Droit)
+                // X et Y bougent tous les deux.
+                else if (handle === "NW") {
+                    newW = currentW - deltaPos.x;
+                    newH = newW / aspectRatio;
+                    newX = currentX + (currentW - newW);
+                    newY = currentY + (currentH - newH);
+                }
+
+                // E. Bords (N, S, E, W) - Optionnel
+                // Pour garder le ratio sur un bord, on doit zoomer depuis le centre opposé
+                else if (handle === "E") {
+                    newW = currentW + deltaPos.x;
+                    newH = newW / aspectRatio;
+                    newY = currentY + (currentH - newH) / 2; // Centre Y
+                }
+                // ... (similaire pour les autres bords si nécessaire)
+
+
+                // --- SÉCURITÉ & LIMITES ---
+                // On empêche l'inversion (largeur négative)
+                if (newW < 20) {
+                    newW = 20;
+                    newH = newW / aspectRatio;
+
+                    // Si on bloque la taille, il faut aussi bloquer la position pour éviter que l'objet glisse
+                    // On recalcule la position idéale basée sur la taille minimum
+                    if (handle.includes("W")) newX = currentX + (currentW - 20);
+                    if (handle.includes("N")) newY = currentY + (currentH - (20 / aspectRatio));
+                }
+
+                // Mise à jour Bbox
+                _annotation.bbox = {
+                    x: newX,
+                    y: newY,
+                    width: newW,
+                    height: newH
+                };
             }
+
             // 2. Déplacement standard (Move)
             else {
-                _annotation.imagePose = { x: currentX + deltaPos.x, y: currentY + deltaPos.y };
+                _annotation.bbox = {
+                    ...currentBBox,
+                    x: currentX + deltaPos.x,
+                    y: currentY + deltaPos.y
+                };
             }
         }
 
