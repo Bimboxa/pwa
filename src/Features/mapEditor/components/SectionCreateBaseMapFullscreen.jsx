@@ -10,7 +10,7 @@ import useCreateBaseMap from "Features/baseMaps/hooks/useCreateBaseMap";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 
-import { Box, Typography, TextField } from "@mui/material";
+import { Box, Typography, TextField, Button } from "@mui/material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
@@ -25,6 +25,7 @@ import a3_1_50 from "App/assets/a3_1_50.png";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import ImageGeneric from "Features/images/components/ImageGeneric";
+import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
 
 export default function SectionCreateBaseMapFullscreen({ onClose, showClose }) {
   const dispatch = useDispatch();
@@ -114,6 +115,11 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose }) {
     setMeterByPx(0.011975);
   }
 
+  function handleOpenPageGmap() {
+    const url = `${window.location.origin}/gmap`;
+    window.open(url, "_blank", "noopener");
+  }
+
   return (
     <>
       <BoxCenter
@@ -157,9 +163,10 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose }) {
             variant="BASE_MAP_CREATOR"
           />
         </Box>
-        {/* <Box sx={{ width: 1 }}>
-          <ButtonGeneric onClick={handleCreateDefault} label={defaultS} size="small" />
-        </Box> */}
+
+        <Box sx={{ p: 1, width: 1, display: "flex", justifyContent: "flex-end" }}>
+          <Button onClick={handleOpenPageGmap} variant="outlined" size="small">Ouvrir Google Maps</Button>
+        </Box>
 
       </BoxCenter>
 
