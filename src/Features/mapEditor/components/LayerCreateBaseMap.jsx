@@ -27,8 +27,7 @@ export default function LayerCreateBaseMap() {
     // helper
 
     const showClose = baseMaps?.length > 0;
-
-    console.log("debug_3012_showClose", baseMaps)
+    //const showClose = true;
 
     // render
 
