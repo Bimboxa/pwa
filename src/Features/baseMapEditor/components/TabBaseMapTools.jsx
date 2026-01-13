@@ -6,6 +6,7 @@ import ToolResetBaseMapEnhancedImage from "./ToolResetBaseMapEnhancedImage";
 import SectionTitleGeneric from "Features/layout/components/SectionTitleGeneric";
 import ListItemButtonBaseMapRotate from "./ListItemButtonBaseMapRotate";
 import SectionBaseMapTransforms from "Features/baseMapTransforms/components/SectionBaseMapSmartTransforms";
+import ToolCropBaseMapImage from "./ToolCropBaseMapImage";
 
 export default function TabBaseMapTools({ baseMap }) {
     return <BoxFlexVStretch>
@@ -14,6 +15,7 @@ export default function TabBaseMapTools({ baseMap }) {
 
         <SectionTitleGeneric title="Transformations basiques" sx={{ mt: 2 }} />
         <Box sx={{ width: 1, bgcolor: "white" }}>
+            <ToolCropBaseMapImage baseMap={baseMap} />
             <ListItemButtonBaseMapRotate baseMap={baseMap} />
         </Box>
 

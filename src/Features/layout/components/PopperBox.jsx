@@ -60,7 +60,8 @@ export default function PopperBox({
   onClose,
   disableClickAway = false,
   addHeader, // Optionnel maintenant
-  anchorPlacement = "topLeft"
+  anchorPlacement = "topLeft",
+  offset = [0, 0],
 }) {
   // --- Gestion du Virtual Ref ---
   function generateBBCR(x, y) {
@@ -144,8 +145,8 @@ export default function PopperBox({
               placement={muiPlacement}
               modifiers={[
                 { name: "arrow", enabled: true },
-                { name: "offset", options: { offset: [0, 10] } },
-                { name: "preventOverflow", enabled: true, options: { rootBoundary: "viewport", padding: 8, altAxis: true } },
+                { name: "offset", options: { offset: offset } },
+                //{ name: "preventOverflow", enabled: true, options: { rootBoundary: "viewport", padding: 8, altAxis: true } },
               ]}
             >
               <Paper

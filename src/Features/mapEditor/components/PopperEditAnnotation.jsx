@@ -20,6 +20,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const selectedAnnotation = useSelectedAnnotation();
 
+
   // helpers
 
   // Only show popper if viewerKey matches active viewer (or if viewerKey is not specified, show for MAP)
@@ -40,8 +41,14 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   // helper - anchorPlacement
 
   let anchorPlacement = "bottomMiddle";
+
   if (["IMAGE", "RECTANGLE"].includes(selectedAnnotation.type)) {
     anchorPlacement = "topLeft";
+  }
+
+  let offset = [0, -100];
+  if (["IMAGE", "RECTANGLE"].includes(selectedAnnotation.type)) {
+    offset = [10, 0];
   }
 
   // handlers
@@ -63,8 +70,9 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
           anchorPosition={anchorPosition}
           onClose={handleClose}
           disableClickAway={true}
-          anchorPlacement="bottomMiddle"
+          anchorPlacement={anchorPlacement}
           showGrabHandle={true}
+          offset={offset}
         >
 
           {!isBaseMapAnnotation ? <ToolbarEditAnnotation /> : <ToolbarEditAnnotationVariantBaseMapAnnotation />}

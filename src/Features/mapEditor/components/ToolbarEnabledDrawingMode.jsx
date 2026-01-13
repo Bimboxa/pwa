@@ -23,6 +23,12 @@ export default function ToolbarEnabledDrawingMode() {
 
     const color = newAnnotation?.strokeColor ?? newAnnotation?.fillColor ?? theme.palette.secondary.main;
 
+    // helper - show one click
+
+    let showOneClick = ["MARKER", "POINT"].includes(type);
+    if (type === "RECTANGLE" && (newAnnotation?.size?.width && newAnnotation?.size?.height)) showOneClick = true;
+
+
     // options
 
     const options = [
@@ -30,7 +36,7 @@ export default function ToolbarEnabledDrawingMode() {
             key: "ONE_CLICK",
             label: "1 Clic",
             icon: <TARGET sx={{ color }} />,
-            show: ["MARKER", "POINT"].includes(type)
+            show: showOneClick
         },
         {
             key: "CLICK",

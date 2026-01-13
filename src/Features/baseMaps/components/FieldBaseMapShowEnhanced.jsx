@@ -14,7 +14,8 @@ export default function FieldBaseMapShowEnhanced({ baseMap }) {
 
     // helpers
 
-    const checked = Boolean(baseMap?.showEnhanced);
+    let checked = Boolean(baseMap?.showEnhanced);
+    if (!baseMap?.imageEnhanced) checked = false;
 
     const disabled = !baseMap?.imageEnhanced?.imageUrlClient
 

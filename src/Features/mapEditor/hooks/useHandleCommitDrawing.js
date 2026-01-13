@@ -45,6 +45,8 @@ export default function useHandleCommitDrawing() {
 
     const handleDrawingCommit = async (rawPoints, options) => {
 
+        console.log("debug_131_create_new_drawing", rawPoints, options)
+
         let _newAnnotation; // created at the end.
         let _updatedAnnotation;
 

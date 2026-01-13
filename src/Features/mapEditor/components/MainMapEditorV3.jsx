@@ -66,6 +66,8 @@ import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import fitBoundsToViewport from "../utils/fitBoundsToViewport";
 import getAnnotationBounds from "../utils/getAnnotationBounds";
+import getAnnotationTemplateSizeInPx from "Features/annotations/utils/getAnnotationTemplateSizeInPx";
+import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRectangleRawPointsFromOnePoint";
 
 
 const contextDimmedStyle = {
@@ -261,7 +263,29 @@ export default function MainMapEditorV3() {
 
     // handler - commit drawing
 
-    const handleCommitDrawing = useHandleCommitDrawing();
+    const _handleCommitDrawing = useHandleCommitDrawing();
+
+    const handleCommitDrawing = (rawPoints, options) => {
+
+        if (rawPoints.length === 1 && type === "RECTANGLE") {
+
+            const imageSize = getAnnotationTemplateSizeInPx({
+                size: newAnnotation.size,
+                sizeUnit: newAnnotation.sizeUnit,
+                meterByPx: baseMap?.meterByPx,
+            })
+            const width = imageSize.width;
+            const height = imageSize.height;
+            rawPoints = getRectangleRawPointsFromOnePoint({
+                point: rawPoints[0],
+                width,
+                height,
+            })
+
+            options = { ...options ?? {}, drawRectangle: true }
+        }
+        _handleCommitDrawing(rawPoints, options)
+    }
 
     // handler - commit points from drop_fill
 
@@ -287,7 +311,9 @@ export default function MainMapEditorV3() {
         }
         const options = {}
         if (type === "POLYLINE") options.closeLine = true;
-        if (type === "RECTANGLE") options.drawRectangle = true;
+        if (type === "RECTANGLE") {
+            options.drawRectangle = true;
+        }
         handleCommitDrawing(points, options)
     }
     // handlers - measure

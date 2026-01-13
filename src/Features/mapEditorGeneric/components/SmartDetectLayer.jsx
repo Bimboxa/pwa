@@ -123,7 +123,8 @@ const SmartDetectLayer = forwardRef(({
     const [mainRectangle, setMainRectangle] = useState(null);
 
     const [centerColor, setCenterColor] = useState(theme.palette.primary.main);
-    const contrastedColor = theme.palette.getContrastText(theme.palette.getContrastText(centerColor));
+    //const contrastedColor = theme.palette.getContrastText(theme.palette.getContrastText(centerColor));
+    const contrastedColor = "#000000";
 
     // --- REF ---
     const stateRef = useRef({
