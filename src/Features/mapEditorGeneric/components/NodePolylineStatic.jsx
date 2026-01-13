@@ -395,15 +395,22 @@ export default function NodePolylineStatic({
                         stroke={displayColor}
                         strokeWidth={displayedStrokeWidth}
                         strokeOpacity={finalStrokeOpacity}
-                        strokeDasharray={
-                            strokeType === "DASHED"
-                                ? `${computedStrokeWidth * 3} ${computedStrokeWidth * 2}`
-                                : undefined
-                        }
+                        // strokeDasharray={
+                        //     strokeType === "DASHED"
+                        //         ? `${computedStrokeWidth * 1} ${computedStrokeWidth * 1.5}`
+                        //         : undefined
+                        // }
+
                         strokeLinecap="round"
-                        strokeLinejoin="round"
+                        strokeLinejoin={strokeType === "DASHED" ? "bevel" : "round"}
                         vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
                         style={{ pointerEvents: "none", transition: "stroke 0.2s" }}
+
+                        {...(strokeType === "DASHED" && {
+                            strokeDasharray: "1 1",
+                            strokeLinejoin: "bevel",
+                            strokeLinecap: "bevel"
+                        })}
                     />
                 </g>
             );

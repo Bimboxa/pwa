@@ -23,6 +23,7 @@ export default function ToolSetEnhancedAsMain({ baseMap }) {
             showEnhanced: false,
             image: { file: baseMap.imageEnhanced.file },
             imageEnhanced: null,
+            meterByPx: baseMap.getMeterByPx({ variant: "imageEnhanced" })
         };
         await updateEntity(baseMap.id, updates);
 
