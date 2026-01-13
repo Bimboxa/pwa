@@ -4,6 +4,7 @@ import theme from "Styles/theme";
 // Taille des poignées de redimensionnement (en pixels écran fixes)
 const HANDLE_SIZE = 10; // Un peu plus grand pour faciliter le grab
 const HALF_HANDLE = HANDLE_SIZE / 2;
+const ROTATION_HANDLE_OFFSET = 30; // Distance de la poignée de rotation (en pixels locaux)
 
 export default memo(function NodeImageStatic({
     imageAnnotation,
@@ -46,6 +47,10 @@ export default memo(function NodeImageStatic({
         pointerEvents: "none"
     };
 
+    const cx = displayWidth / 2;
+    const cy = displayHeight / 2;
+    const rotation = imageAnnotation.rotation || 0;
+
     // --- 2. RENDU DES POIGNÉES AVEC SCALE FIXE ---
     const renderHandle = (type, hx, hy) => (
         <g
@@ -73,9 +78,41 @@ export default memo(function NodeImageStatic({
         </g>
     );
 
+    // Poignée de rotation (Ronde, au dessus)
+    const renderRotationHandle = () => (
+        <g
+            transform={`translate(${cx}, ${-ROTATION_HANDLE_OFFSET})`}
+            style={{ pointerEvents: "auto" }}
+        >
+            {/* Ligne de liaison (ne subit pas l'échelle inverse pour rester attachée visuellement) */}
+            <line
+                x1={0} y1={0}
+                x2={0} y2={ROTATION_HANDLE_OFFSET}
+                stroke={theme.palette.editor?.selected || "#00ff00"}
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+            />
+
+            {/* La poignée ronde */}
+            <g style={{ transform: handleScaleTransform }}>
+                <circle
+                    cx={0} cy={0}
+                    r={HALF_HANDLE}
+                    fill="#fff"
+                    stroke={theme.palette.editor?.selected || "#00ff00"}
+                    strokeWidth={1.5}
+                    data-interaction="rotate-annotation" // <--- Nouvelle interaction
+                    data-node-id={id}
+                    data-node-type="ANNOTATION"
+                    style={{ cursor: "grab" }}
+                />
+            </g>
+        </g>
+    );
+
     return (
         <g
-            transform={`translate(${x || 0}, ${y || 0})`}
+            transform={`translate(${x || 0}, ${y || 0}) rotate(${rotation}, ${cx}, ${cy})`}
             style={{ opacity: dragged ? 0.7 : opacity }}
         >
             {/* Conteneur principal draggable */}
@@ -120,6 +157,7 @@ export default memo(function NodeImageStatic({
                     {renderHandle("NE", displayWidth, 0)}
                     {renderHandle("SW", 0, displayHeight)}
                     {renderHandle("SE", displayWidth, displayHeight)}
+                    {renderRotationHandle()}
                 </g>
             )}
         </g>

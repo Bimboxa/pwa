@@ -471,6 +471,7 @@ const InteractionLayer = forwardRef(({
   const commitPoint = () => {
     const pointsToSave = drawingPointsRef.current; // On lit la Ref, pas le State !
     if (pointsToSave.length === 1) {
+
       console.log("COMMIT POINT", pointsToSave);
       onCommitDrawingRef.current({ points: pointsToSave });
     } else {
@@ -1129,7 +1130,7 @@ const InteractionLayer = forwardRef(({
           || hit?.dataset?.nodeContext === "BG_IMAGE"
         ) {
           const annotation = annotations.find((a) => a.id === hit?.dataset.nodeId);
-          const topMiddlePoint = getAnnotationEditionPanelAnchor(annotation);
+          const panelAnchor = getAnnotationEditionPanelAnchor(annotation);
 
 
 
@@ -1138,14 +1139,14 @@ const InteractionLayer = forwardRef(({
           //setHiddenAnnotationIds([hit?.dataset.nodeId]); hidden : juste pour le drag
 
           // -- Afichage du toolbar pour édition --
-          if (topMiddlePoint) {
+          if (panelAnchor) {
             // 2. Convertir LOCAL -> MONDE
             // Il faut savoir dans quel contexte est l'annotation
             const isBgContext = hit?.dataset?.nodeContext === "BG_IMAGE";
             const pose = isBgContext ? bgPose : getTargetPose(); // getTargetPose retourne basePose par défaut
 
-            const worldX = topMiddlePoint.x * pose.k + pose.x;
-            const worldY = topMiddlePoint.y * pose.k + pose.y;
+            const worldX = panelAnchor.x * pose.k + pose.x;
+            const worldY = panelAnchor.y * pose.k + pose.y;
 
             // 3. Convertir MONDE -> ÉCRAN (Viewport)
             // On utilise la ref du viewport
@@ -1800,7 +1801,7 @@ const InteractionLayer = forwardRef(({
           setDragState(null);
           setHiddenAnnotationIds([]);
           setVirtualInsertion(null);
-        }, 100);
+        }, 200);
 
         document.body.style.cursor = '';
       }
@@ -2122,6 +2123,7 @@ const InteractionLayer = forwardRef(({
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
             <TransientTopologyLayer
               annotations={annotations}
+              baseMapMeterByPx={baseMapMeterByPx}
               movingPointId={dragState.pointId}
               originalPointIdForDuplication={dragState.isDuplicateMode ? dragState.originalPointId : null}
               currentPos={dragState.currentPos}

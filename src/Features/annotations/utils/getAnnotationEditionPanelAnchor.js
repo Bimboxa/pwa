@@ -6,11 +6,15 @@ export default function getAnnotationEditionPanelAnchor(annotation) {
     }
 
     else if (annotation.point) {
-        return { x: annotation.point.x, y: annotation.point.y - 50 }
+        return { x: annotation.point.x, y: annotation.point.y }
     }
 
     else if (annotation.bbox && annotation.type === "RECTANGLE") {
-        return { x: annotation.bbox.x + annotation.bbox.width + 10, y: annotation.bbox.y }
+        return { x: annotation.bbox.x + annotation.bbox.width, y: annotation.bbox.y }
+    }
+
+    else if (annotation.bbox && annotation.type === "IMAGE") {
+        return { x: annotation.bbox.x, y: annotation.bbox.y }
     }
 
     else {

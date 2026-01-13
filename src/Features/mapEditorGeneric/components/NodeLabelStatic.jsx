@@ -98,25 +98,28 @@ export default function NodeLabelStatic({
 
     const handleFocus = (e) => {
         const val = e.target.value;
+        // Place le curseur à la fin
         e.target.setSelectionRange(val.length, val.length);
     };
 
     const handleKeyDown = (e) => {
-        e.stopPropagation();
+        e.stopPropagation(); // Empêche les raccourcis globaux de l'app (ex: suppr)
+
+        // Si Enter est pressé SANS Shift -> Sauvegarder (Blur)
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             e.target.blur();
         }
+        // Si Shift + Enter -> On ne fait rien ici, le comportement par défaut 
+        // du textarea (saut de ligne) s'applique.
     };
 
     // --- NOUVEAUX HANDLERS ---
     const handleResetDelta = async (e) => {
         e.stopPropagation();
-        // Reset labelPoint to null/undefined or to targetPoint
-        // Selon votre modèle, supprimer labelPoint force le fallback sur targetPoint
         const annotationId = id.replace("label::", "");
-        const annotation = await db.annotations.get(annotationId);
-        console.log("Reset delta for label:", annotationId, annotation);
+        // const annotation = await db.annotations.get(annotationId);
+        console.log("Reset delta for label:", annotationId);
         await db.annotations.update(annotationId, { labelDelta: { target: { x: 0, y: 0 }, label: { x: 0, y: 0 } } });
     };
 
@@ -156,7 +159,7 @@ export default function NodeLabelStatic({
         if (!textRef.current) return;
         const el = textRef.current;
         const updateSize = () => {
-            const realWidth = el.offsetWidth + (selected ? 4 : 0);
+            const realWidth = el.offsetWidth + (selected ? 4 : 0); // Petit buffer si sélectionné
             const realHeight = el.offsetHeight;
             setLabelSize({ w: realWidth, h: realHeight });
 
@@ -186,22 +189,20 @@ export default function NodeLabelStatic({
         fontWeight: 'bold',
         lineHeight: 1.2,
         textAlign: 'center',
+        // IMPORTANT POUR MULTILIGNE :
+        // Si fixedWidth -> 'pre-wrap' permet les retours à la ligne auto ET manuels
+        // Si auto -> 'pre' force la ligne unique sauf si retour manuel (\n)
         whiteSpace: fixedWidth ? 'pre-wrap' : 'pre',
         wordBreak: 'break-word',
     };
 
-    // Si caché et non sélectionné, on n'affiche rien (ou juste le point ?)
-    // Adaptez selon votre besoin. Ici j'affiche quand même si sélectionné.
     if (hidden && !selected && !hovered) {
         // Optionnel : ne rien rendre du tout
-        // return null; 
-        // OU rendre juste le point cible discret
     }
 
     return (
         <g {...dataProps} style={{
             cursor: dragged ? "grabbing" : "pointer",
-            //opacity: hidden && !selected ? 0.5 : 1
         }}>
 
             {/* A. LIAISON */}
@@ -212,10 +213,10 @@ export default function NodeLabelStatic({
                 strokeWidth={LINE_WIDTH}
                 vectorEffect="non-scaling-stroke"
                 pointerEvents="none"
-                strokeDasharray={hidden ? "4 4" : "none"} // Tirets aussi sur la ligne si caché
+                strokeDasharray={hidden ? "4 4" : "none"}
             />
 
-            {/* Ligne fantôme */}
+            {/* Ligne fantôme pour faciliter le clic */}
             <line
                 x1={targetPx.x} y1={targetPx.y}
                 x2={labelPx.x} y2={labelPx.y}
@@ -239,21 +240,18 @@ export default function NodeLabelStatic({
                     <foreignObject
                         x={-labelSize.w / 2}
                         y={-labelSize.h / 2}
-                        // On garde la largeur stricte de la boîte pour le foreignObject
-                        // Les boutons dépasseront visuellement (overflow visible)
                         width={labelSize.w}
                         height={labelSize.h}
                         style={{ overflow: 'visible' }}
                     >
                         <div
-                            ref={textRef}
                             data-part-type="LABEL_BOX"
                             style={{
                                 width: fixedWidth ? `${fixedWidth}px` : 'max-content',
                                 minWidth: '40px',
                                 height: 'auto',
                                 backgroundColor: bgColor,
-                                border: borderStyle, // Applique le style (tiret ou plein)
+                                border: borderStyle,
                                 borderRadius: '4px',
                                 boxShadow: boxShadow,
                                 boxSizing: 'border-box',
@@ -268,65 +266,26 @@ export default function NodeLabelStatic({
                             }}
                             onMouseDown={(e) => selected && e.stopPropagation()}
                         >
-                            {/* --- BOUTONS D'ACTION (Visibles si sélectionné) --- */}
-                            {false && selected && (
-                                <div style={{
-                                    position: 'absolute',
-                                    right: -28, // Décalé à droite
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: 4,
-                                    pointerEvents: 'auto'
-                                }}>
-                                    {/* Reset Delta */}
-                                    <div
-                                        onClick={handleResetDelta}
-                                        title="Reset Position"
-                                        style={{
-                                            cursor: 'pointer',
-                                            background: 'white',
-                                            borderRadius: '50%',
-                                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                                            width: 20, height: 20,
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                        }}
-                                    >
-                                        <Refresh style={{ fontSize: 14, color: '#666' }} />
-                                    </div>
-
-                                    {/* Toggle Hide */}
-                                    <div
-                                        onClick={handleToggleHide}
-                                        title={hidden ? "Show Label" : "Hide Label"}
-                                        style={{
-                                            cursor: 'pointer',
-                                            background: hidden ? '#eee' : 'white',
-                                            borderRadius: '50%',
-                                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                                            width: 20, height: 20,
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                        }}
-                                    >
-                                        {hidden
-                                            ? <VisibilityOff style={{ fontSize: 14, color: '#999' }} />
-                                            : <Visibility style={{ fontSize: 14, color: '#666' }} />
-                                        }
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Contenu Texte (inchangé) */}
-                            <span style={{
-                                ...fontStyles,
-                                color: 'transparent', visibility: 'hidden',
-                                height: '100%', display: 'block', minHeight: '1.2em',
-                                minWidth: "60px"
-                            }}>
-                                {localValue || " "}
+                            {/* --- ÉLÉMENT FANTÔME (Dimensionnement) --- */}
+                            {/* C'est cet élément qui détermine la taille de la boite.
+                                On ajoute un espace si le texte finit par \n pour forcer la hauteur de la nouvelle ligne.
+                            */}
+                            <span
+                                ref={textRef}
+                                style={{
+                                    ...fontStyles,
+                                    color: 'transparent',
+                                    visibility: 'hidden', // On garde visibility:hidden pour qu'il prenne de la place
+                                    height: 'auto',
+                                    display: 'block',
+                                    minHeight: '1.2em',
+                                    minWidth: "60px"
+                                }}
+                            >
+                                {localValue + (localValue?.endsWith('\n') ? " " : "") || " "}
                             </span>
 
+                            {/* --- INPUT EDITABLE (Textarea) --- */}
                             {selected ? (
                                 <textarea
                                     value={localValue}
@@ -337,20 +296,36 @@ export default function NodeLabelStatic({
                                     placeholder={placeholder}
                                     style={{
                                         ...fontStyles,
-                                        position: 'absolute', top: `${PADDING_Y}px`, left: `${PADDING_X}px`,
+                                        position: 'absolute',
+                                        top: `${PADDING_Y}px`,
+                                        left: `${PADDING_X}px`,
                                         width: `calc(100% - ${PADDING_X * 2}px)`,
                                         height: `calc(100% - ${PADDING_Y * 2}px)`,
-                                        color: textColor, background: 'transparent', border: 'none',
-                                        outline: 'none', resize: 'none', padding: 0, margin: 0,
-                                        overflow: 'hidden', cursor: 'text',
+                                        color: textColor,
+                                        background: 'transparent',
+                                        border: 'none',
+                                        outline: 'none',
+                                        resize: 'none',
+                                        padding: 0,
+                                        margin: 0,
+                                        overflow: 'hidden',
+                                        cursor: 'text',
                                         minWidth: "60px"
                                     }}
                                 />
                             ) : (
                                 <span style={{
-                                    ...fontStyles, position: 'absolute', color: textColor, pointerEvents: 'none',
-                                    // Grisé si caché en mode lecture
-                                    // opacity: hidden ? 0.6 : 1
+                                    ...fontStyles,
+                                    position: 'absolute',
+                                    top: `${PADDING_Y}px`,
+                                    left: `${PADDING_X}px`,
+                                    width: `calc(100% - ${PADDING_X * 2}px)`,
+                                    height: `calc(100% - ${PADDING_Y * 2}px)`,
+                                    color: textColor,
+                                    pointerEvents: 'none',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
                                 }}>
                                     {label || placeholder}
                                 </span>

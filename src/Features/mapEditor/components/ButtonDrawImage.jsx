@@ -53,7 +53,7 @@ export default function ButtonDrawImage({ disabled }) {
 
   function handleClick() {
     setOpen(true);
-    dispatch(setNewAnnotation({ ...newAnnotation, type: "IMAGE" }))
+    dispatch(setNewAnnotation({ ...newAnnotation, type: "IMAGE", annotationTemplateId: null }))
     //dispatch(setEnabledDrawingMode("ONE_CLICK"))
   }
 

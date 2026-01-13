@@ -3,8 +3,6 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
-import { setSelectedEntityId } from "Features/entities/entitiesSlice";
-import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { setOpenBaseMapCreator, setPdfFile } from "Features/baseMapCreator/baseMapCreatorSlice";
 import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
 
@@ -26,7 +24,9 @@ import {
     alpha,
     createTheme,
     ThemeProvider,
-    InputBase
+    InputBase,
+    Menu,
+    MenuItem
 } from "@mui/material";
 
 // Icons
@@ -35,6 +35,7 @@ import MapIcon from "@mui/icons-material/Map";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
+import MoreVertIcon from "@mui/icons-material/MoreVert"; // [NOUVEAU]
 
 // Hooks / Components simulés
 import DialogGeneric from "Features/layout/components/DialogGeneric";
@@ -66,6 +67,10 @@ export default function BaseMapSelectorInMapEditorV2() {
     const [editingMapId, setEditingMapId] = useState(null);
     const [tempName, setTempName] = useState("");
 
+    // [NOUVEAU] État pour le menu "Plus d'options"
+    const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+    const isMenuOpen = Boolean(menuAnchorEl);
+
     // --- FORCE DARK THEME ---
     const darkTheme = useMemo(() => createTheme({
         palette: {
@@ -95,28 +100,24 @@ export default function BaseMapSelectorInMapEditorV2() {
 
     // --- Handlers ---
     const handleMouseEnter = () => setIsHovered(true);
-    const handleMouseLeave = () => setIsHovered(false);
+    const handleMouseLeave = () => {
+        // On ne ferme pas le panneau si le menu est ouvert
+        if (!isMenuOpen) {
+            setIsHovered(false);
+        }
+    };
 
     const handleSelectMap = (map) => {
-        // Si cette map spécifique est en cours d'édition, on empêche la sélection
         if (editingMapId === map.id) return;
-
         console.log("Sélection de la map :", map.name);
         setIsHovered(false);
         dispatch(setSelectedMainBaseMapId(map.id));
     };
 
     const handleEditMap = (e, map) => {
-        e.stopPropagation(); // Empêche de sélectionner la map en cliquant sur Edit
-        console.log("Mode édition activé pour :", map.name);
-
-        // On initialise le mode édition
+        e.stopPropagation();
         setEditingMapId(map.id);
         setTempName(map.name || "");
-
-        // Optionnel : Mettre à jour les entités sélectionnées dans Redux si nécessaire
-        //dispatch(setSelectedEntityId(map?.id));
-        //dispatch(setSelectedListingId(map?.listingId));
     };
 
     async function handleRenameSave(e) {
@@ -132,7 +133,7 @@ export default function BaseMapSelectorInMapEditorV2() {
             };
 
             await updateEntity(editingMapId, { name: tempName }, options);
-            setEditingMapId(null); // Quitter le mode édition
+            setEditingMapId(null);
         }
     }
 
@@ -140,7 +141,7 @@ export default function BaseMapSelectorInMapEditorV2() {
         if (e.key === 'Enter') {
             handleRenameSave(e);
         } else if (e.key === 'Escape') {
-            setEditingMapId(null); // Annuler
+            setEditingMapId(null);
         }
     };
 
@@ -155,10 +156,38 @@ export default function BaseMapSelectorInMapEditorV2() {
         setOpenFileSelector(false);
     };
 
+    // --- Handlers Menu Creation ---
+
     function handleCreateClick() {
+        // Action par défaut (identique à "Créer une page blanche")
         dispatch(setShowCreateBaseMapSection(true));
-        dispatch(setSelectedBaseMapsListingId(activeBaseMap?.listingId)); // for the creation.
+        dispatch(setSelectedBaseMapsListingId(activeBaseMap?.listingId));
     }
+
+    const handleOpenMenu = (event) => {
+        event.stopPropagation();
+        setMenuAnchorEl(event.currentTarget);
+    };
+
+    const handleCloseMenu = () => {
+        setMenuAnchorEl(null);
+        // On vérifie si la souris est toujours dessus pour gérer la fermeture du panneau principal
+        // (Optionnel selon UX désirée, ici on laisse handleMouseLeave gérer)
+    };
+
+    const handleOptionBlankPage = () => {
+        handleCreateClick();
+        handleCloseMenu();
+    };
+
+    const handleOptionSatellite = () => {
+        console.log("Ajouter une image satellite");
+        // TODO: Dispatcher l'action ou ouvrir la modale pour l'image satellite ici
+        handleCloseMenu();
+        setMenuAnchorEl(null);
+        const url = `${window.location.origin}/gmap`;
+        window.open(url, "_blank", "noopener");
+    };
 
     const activeBaseMapName = activeBaseMap?.name || "Sélectionner un fond de plan";
     const OPEN_WIDTH = 320;
@@ -180,17 +209,17 @@ export default function BaseMapSelectorInMapEditorV2() {
                 onMouseLeave={handleMouseLeave}
             >
                 <Paper
-                    elevation={isHovered ? 8 : 2}
+                    elevation={isHovered || isMenuOpen ? 8 : 2}
                     sx={{
-                        width: isHovered ? OPEN_WIDTH : "fit-content",
+                        width: isHovered || isMenuOpen ? OPEN_WIDTH : "fit-content",
                         maxWidth: "90vw",
                         transition: (theme) => theme.transitions.create(
                             ['width', 'max-height', 'border-radius', 'background-color', 'border-color'],
                             { duration: 250, easing: theme.transitions.easing.easeInOut }
                         ),
-                        maxHeight: isHovered ? 500 : 48,
-                        borderRadius: isHovered ? 2 : 50,
-                        overflow: "hidden",
+                        maxHeight: isHovered || isMenuOpen ? 500 : 48,
+                        borderRadius: isHovered || isMenuOpen ? 2 : 50,
+                        overflow: "visible", // Changed from hidden to visible allow Menu logic (though Menu is portal)
                         display: "flex",
                         flexDirection: "column",
                         whiteSpace: "nowrap",
@@ -202,7 +231,7 @@ export default function BaseMapSelectorInMapEditorV2() {
                     <Box
                         sx={{
                             height: 32,
-                            display: isHovered ? "none" : "flex",
+                            display: (isHovered || isMenuOpen) ? "none" : "flex",
                             alignItems: "center",
                             px: 2,
                             width: "100%",
@@ -216,17 +245,13 @@ export default function BaseMapSelectorInMapEditorV2() {
                     </Box>
 
                     {/* --- B. VUE OUVERTE --- */}
-                    <Fade in={isHovered} timeout={300}>
+                    <Fade in={isHovered || isMenuOpen} timeout={300}>
                         <Box sx={{
-                            display: isHovered ? "flex" : "none",
+                            display: (isHovered || isMenuOpen) ? "flex" : "none",
                             flexDirection: "column",
-                            height: "100%"
+                            height: "100%",
+                            overflow: "hidden" // Restore overflow hidden for the inner content
                         }}>
-                            {/* <Box sx={{ p: 2, pb: 1 }}>
-                                <Typography variant="caption" color="text.secondary" fontWeight="bold">
-                                    Fonds de plan
-                                </Typography>
-                            </Box> */}
                             <SelectorMapsListingVariantChips />
 
                             <List dense sx={{ p: 0, overflowY: "auto", flex: 1 }}>
@@ -239,7 +264,6 @@ export default function BaseMapSelectorInMapEditorV2() {
                                         <ListItem
                                             key={map.id}
                                             disablePadding
-                                            // Utilisation de SX pour gérer l'affichage au survol (hover)
                                             sx={{
                                                 "&:hover .edit-btn": {
                                                     opacity: 1,
@@ -248,7 +272,6 @@ export default function BaseMapSelectorInMapEditorV2() {
                                             }}
                                             secondaryAction={
                                                 isEditing ? (
-                                                    // Mode Édition : Bouton Sauvegarder
                                                     <IconButton
                                                         edge="end"
                                                         aria-label="save"
@@ -259,16 +282,15 @@ export default function BaseMapSelectorInMapEditorV2() {
                                                         <CheckIcon fontSize="small" />
                                                     </IconButton>
                                                 ) : (
-                                                    // Mode Normal : Bouton Editer (visible uniquement au hover)
                                                     <IconButton
-                                                        className="edit-btn" // Classe ciblée par le SX du parent
+                                                        className="edit-btn"
                                                         edge="end"
                                                         aria-label="edit"
                                                         size="small"
                                                         onClick={(e) => handleEditMap(e, map)}
                                                         sx={{
                                                             color: "text.secondary",
-                                                            opacity: 0, // Caché par défaut
+                                                            opacity: 0,
                                                             visibility: "hidden",
                                                             transition: "all 0.2s",
                                                             "&:hover": { color: "primary.main" }
@@ -284,16 +306,14 @@ export default function BaseMapSelectorInMapEditorV2() {
                                                 onClick={() => handleSelectMap(map)}
                                                 sx={{
                                                     pl: 2,
-                                                    pr: 6, // Espace constant pour éviter le saut lors de l'apparition de l'icone
+                                                    pr: 6,
                                                     py: 1,
                                                     "&.Mui-selected": {
                                                         bgcolor: (theme) => alpha(theme.palette.primary.main, 0.15),
                                                         borderLeft: (theme) => `4px solid ${theme.palette.primary.main}`,
                                                         pl: 1.5,
                                                     },
-                                                    "&:hover": {
-                                                        bgcolor: "action.hover",
-                                                    }
+                                                    "&:hover": { bgcolor: "action.hover" }
                                                 }}
                                             >
                                                 <ListItemIcon sx={{ minWidth: 36, display: 'flex', alignItems: 'center' }}>
@@ -312,7 +332,6 @@ export default function BaseMapSelectorInMapEditorV2() {
                                                                     borderRadius: 1,
                                                                     border: 1,
                                                                     borderColor: "divider",
-                                                                    //bgcolor: "background.default"
                                                                     bgcolor: "white"
                                                                 }}
                                                             />
@@ -322,7 +341,6 @@ export default function BaseMapSelectorInMapEditorV2() {
                                                     )}
                                                 </ListItemIcon>
 
-                                                {/* Contenu : Input si édition, Texte sinon */}
                                                 {isEditing ? (
                                                     <InputBase
                                                         value={tempName}
@@ -359,21 +377,68 @@ export default function BaseMapSelectorInMapEditorV2() {
                                 })}
                             </List>
 
+                            {/* --- SECTION BAS : BOUTON CRÉER AVEC MENU --- */}
                             <Box sx={{ borderTop: 1, borderColor: "divider" }}>
-                                <ListItemButton onClick={handleCreateClick} sx={{ py: 1.5 }}>
-                                    <ListItemIcon sx={{ minWidth: 36 }}>
-                                        <AddIcon fontSize="small" color="primary" />
-                                    </ListItemIcon>
-                                    <ListItemText
-                                        primary="Nouveau fond de plan ..."
-                                        slotProps={{ primary: { variant: "body2", color: "primary", fontWeight: 500 } }}
-                                    />
-                                </ListItemButton>
+                                <ListItem
+                                    disablePadding
+                                    secondaryAction={
+                                        <IconButton
+                                            edge="end"
+                                            aria-label="options"
+                                            onClick={handleOpenMenu}
+                                            sx={{ mr: 0.5, color: "text.secondary" }}
+                                        >
+                                            <MoreVertIcon fontSize="small" />
+                                        </IconButton>
+                                    }
+                                >
+                                    <ListItemButton
+                                        onClick={handleCreateClick}
+                                        sx={{ py: 1.5, pr: 6 }} // pr padding pour éviter le chevauchement avec l'iconButton
+                                    >
+                                        <ListItemIcon sx={{ minWidth: 36 }}>
+                                            <AddIcon fontSize="small" color="primary" />
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary="Nouveau fond de plan ..."
+                                            slotProps={{ primary: { variant: "body2", color: "primary", fontWeight: 500 } }}
+                                        />
+                                    </ListItemButton>
+                                </ListItem>
                             </Box>
                         </Box>
                     </Fade>
                 </Paper>
             </Box>
+
+            {/* --- MENU D'OPTIONS --- */}
+            <Menu
+                anchorEl={menuAnchorEl}
+                open={isMenuOpen}
+                onClose={handleCloseMenu}
+                anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                }}
+                transformOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                }}
+                sx={{ zIndex: 1300 }}
+            >
+                {/* <MenuItem onClick={handleOptionBlankPage}>
+                    <ListItemIcon>
+                        <AddIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Créer une page blanche</ListItemText>
+                </MenuItem> */}
+                <MenuItem onClick={handleOptionSatellite}>
+                    <ListItemIcon>
+                        <MapIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Ajouter une image satellite</ListItemText>
+                </MenuItem>
+            </Menu>
 
             <DialogGeneric open={openFileSelector} onClose={() => setOpenFileSelector(false)}>
                 <Box sx={{ p: 2 }}>

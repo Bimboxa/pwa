@@ -42,8 +42,6 @@ export default function NodePolylineStatic({
     highlightConnectedSegments = false,
 }) {
 
-    if (selected) console.log("debug_annotation", annotation);
-
     // select temp annotation
 
     if (annotation.id.startsWith("temp")) selected = true;
@@ -107,6 +105,7 @@ export default function NodePolylineStatic({
 
     // --- CALCUL ÉPAISSEUR TRAIT ---
     const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx > 0;
+
     const computedStrokeWidth = useMemo(() => {
         if (type === "POLYGON") return 0.5;
         if (isCmUnit) return (strokeWidth * 0.01) / baseMapMeterByPx;
@@ -360,6 +359,19 @@ export default function NodePolylineStatic({
                 );
             }
 
+            let displayedStrokeWidth = computedStrokeWidth;
+
+            if (selected) {
+                if (isCmUnit) {
+                    // En mode métrique, on épaissit par un facteur multiplicatif pour garder l'échelle
+                    displayedStrokeWidth = computedStrokeWidth * 1;
+                } else {
+                    // En mode pixel écran, on ajoute des pixels fixes
+                    displayedStrokeWidth = computedStrokeWidth + 2;
+                }
+            }
+
+
             // 4. Rendu Normal
             return (
                 <g
@@ -381,7 +393,7 @@ export default function NodePolylineStatic({
                         d={seg.d}
                         fill="none"
                         stroke={displayColor}
-                        strokeWidth={isSelected ? computedStrokeWidth + 1 : computedStrokeWidth}
+                        strokeWidth={displayedStrokeWidth}
                         strokeOpacity={finalStrokeOpacity}
                         strokeDasharray={
                             strokeType === "DASHED"

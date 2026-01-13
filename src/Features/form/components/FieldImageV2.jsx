@@ -43,7 +43,6 @@ export default function FieldImageV2({
   // helpers
 
   const imageSrc = value?.imageUrlClient;
-  console.log("imageSrc", imageSrc);
 
   // helpers - file size
 

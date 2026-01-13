@@ -11,10 +11,9 @@ export default memo(function NodeRectangleStatic({
     hovered,
     selected,
     dragged,
-    opacity = 1,
     containerK = 1,
 }) {
-    const { bbox, id, fillColor, strokeColor, rotation = 0, fillType = "SOLID" } = annotation;
+    const { bbox, id, fillColor, strokeColor, rotation = 0, fillType = "SOLID", fillOpacity = 1 } = annotation;
     const { x, y, width, height } = bbox ?? {};
 
     // Pattern Id unique
@@ -119,7 +118,7 @@ export default memo(function NodeRectangleStatic({
             // On applique la translation ET la rotation sur le groupe parent
             // La rotation se fait autour du centre du rectangle (cx, cy)
             transform={`translate(${x || 0}, ${y || 0}) rotate(${rotation}, ${cx}, ${cy})`}
-            style={{ opacity: dragged ? 0.7 : opacity }}
+            style={{ opacity: dragged ? 0.7 : fillOpacity }}
         >
             {/* Pattern DEFS */}
             <defs>
@@ -141,7 +140,7 @@ export default memo(function NodeRectangleStatic({
                     width={width}
                     height={height}
                     fill={finalFill}
-                    fillOpacity={0.5}
+                    //fillOpacity={0.5}
                     style={{
                         cursor: selected ? "move" : (hovered ? "pointer" : "default"),
                         transition: "fill 0.2s"
