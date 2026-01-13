@@ -188,6 +188,18 @@ export default class BaseMap {
     return imageToUse?.imageSize;
   };
 
+  getMeterByPx = (options) => {
+
+    const variant = options?.variant; // "imageEnhanced", "image"
+
+    if (!this.meterByPx) return null;
+
+    if (this.showEnhanced && this.imageEnhanced && this.image || variant === "imageEnhanced") {
+      return this.meterByPx * 1 / (this.imageEnhanced.imageSize.width / this.image.imageSize.width);
+    }
+    return this.meterByPx;
+  };
+
   // SERIALIZER
 
   toJSON() {

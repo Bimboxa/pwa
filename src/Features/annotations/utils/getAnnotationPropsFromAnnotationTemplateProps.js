@@ -36,7 +36,7 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
             bbox.height = height;
 
         } else if (sizeUnit === "M") {
-            const meterByPx = baseMap?.meterByPx;
+            const meterByPx = baseMap?.getMeterByPx();
 
             // On vérifie que meterByPx est valide (existe et n'est pas 0)
             if (meterByPx) {

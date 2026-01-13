@@ -149,10 +149,13 @@ export default function useAnnotationsV2(options) {
 
                 const baseMap = baseMapById[annotation.baseMapId];
                 const imageSize = baseMap.getImageSize();
+                const scale = (baseMap?.image?.imageSize && baseMap?.imageEnhanced?.imageSize && baseMap?.showEnhanced) ?
+                    baseMap.imageEnhanced.imageSize.width / baseMap.image.imageSize.width :
+                    1;
 
                 if (!imageSize) return [];
                 const { width, height } = imageSize;
-                const meterByPx = baseMap.meterByPx;
+                const meterByPx = baseMap.getMeterByPx();
 
                 //if (annotation.isBaseMapAnnotation) console.log("debug_width", width?.toFixed(2))
 
@@ -193,8 +196,8 @@ export default function useAnnotationsV2(options) {
                     _annotation.bbox = {
                         x: (annotation.bbox?.x ?? 0.25) * width,
                         y: (annotation.bbox?.y ?? 0.25) * height,
-                        width: (annotation.bbox?.width ?? 0.5) * width,
-                        height: (annotation.bbox?.height ?? 0.5) * height,
+                        width: (annotation.bbox?.width ?? 0.5) * width * scale,
+                        height: (annotation.bbox?.height ?? 0.5) * height * scale,
                     }
                 }
 

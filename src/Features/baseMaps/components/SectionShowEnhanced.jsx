@@ -1,3 +1,7 @@
+import { useDispatch } from "react-redux";
+
+import { triggerBaseMapsUpdate } from "../baseMapsSlice";
+
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 
@@ -17,6 +21,7 @@ export default function SectionShowEnhanced() {
   function handleChange(checked) {
     const updates = { showEnhanced: checked };
     updateEntity(baseMap.id, updates);
+    dispatch(triggerBaseMapsUpdate());
   }
 
   // render

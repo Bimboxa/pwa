@@ -106,7 +106,7 @@ export default function useAnnotationTemplateQtiesById() {
         surfacePx = getPointsSurface(points, closeLine, cuts);
       }
 
-      const meterByPx = baseMap?.meterByPx;
+      const meterByPx = baseMap?.getMeterByPx();
       let length = lengthPx;
       let surface = surfacePx;
 

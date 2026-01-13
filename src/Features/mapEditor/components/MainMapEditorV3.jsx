@@ -197,7 +197,7 @@ export default function MainMapEditorV3() {
     const annotations = useAnnotationsV2({
         withEntity: true,
         excludeListingsIds: hiddenListingsIds,
-        baseMapAnnotationsOnly,
+        //baseMapAnnotationsOnly,
         filterByMainBaseMap: true,
     });
 
@@ -288,7 +288,7 @@ export default function MainMapEditorV3() {
         if (rawPoints.length === 1 && type === "IMAGE") {
             const points = getImageAnnotationRectanglePointsFromOnePoint({
                 annotation: newAnnotation,
-                baseMapMeterByPx: baseMap?.meterByPx,
+                baseMapMeterByPx: baseMap?.getMeterByPx(),
                 point: rawPoints[0],
             })
             rawPoints = points;
@@ -774,7 +774,7 @@ export default function MainMapEditorV3() {
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
                     snappingEnabled={isSnappingEnabled}
-                    baseMapMeterByPx={baseMap?.meterByPx}
+                    baseMapMeterByPx={baseMap?.getMeterByPx()}
                     legendFormat={legendFormat}
                     onLegendFormatChange={handleLegendFormatChange}
                 >
@@ -792,7 +792,7 @@ export default function MainMapEditorV3() {
                             legendFormat={legendFormat}
                             sizeVariant={sizeVariant}
                             isEditingBaseMap={isBaseMapSelected}
-                            baseMapMeterByPx={baseMap?.meterByPx}
+                            baseMapMeterByPx={baseMap?.getMeterByPx()}
                             opacity={baseMapOpacity}
                             grayScale={baseMapGrayScale}
                         />
@@ -821,7 +821,7 @@ export default function MainMapEditorV3() {
                         annotations={annotations}
                         spriteImage={spriteImage}
                         selectedNode={selectedNode}
-                        baseMapMeterByPx={baseMap?.meterByPx} // If needed for width calc
+                        baseMapMeterByPx={baseMap?.getMeterByPx()} // If needed for width calc
                         onTextValueChange={handleTextValueChange}
                     />}
 
@@ -842,7 +842,7 @@ export default function MainMapEditorV3() {
                 baseMapImageSize={baseMap?.getImageSize()}
                 annotations={annotations}
                 spriteImage={spriteImage}
-                baseMapMeterByPx={baseMap?.meterByPx}
+                baseMapMeterByPx={baseMap?.getMeterByPx()}
                 legendItems={legendItems}
                 legendFormat={legendFormat}
             />
