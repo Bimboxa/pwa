@@ -9,9 +9,10 @@ export default function getAnnotationEditionPanelAnchor(annotation) {
         return { x: annotation.point.x, y: annotation.point.y - 50 }
     }
 
-    else if (annotation.bbox) {
+    else if (annotation.bbox && annotation.type === "RECTANGLE") {
         return { x: annotation.bbox.x + annotation.bbox.width + 10, y: annotation.bbox.y }
     }
+
     else {
         return null
     }

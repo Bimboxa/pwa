@@ -32,6 +32,7 @@ export default class BaseMap {
     opacity,
     grayScale,
     mainAngleInDeg,
+    rotation2D, // in deg
   }) {
     this.id = id;
     this.createdAt = createdAt;
@@ -46,6 +47,7 @@ export default class BaseMap {
     this.opacity = opacity;
     this.grayScale = grayScale;
     this.mainAngleInDeg = mainAngleInDeg;
+    this.rotation2D = rotation2D;
   }
 
   // STATIC METHOD
@@ -63,6 +65,7 @@ export default class BaseMap {
     meterByPx,
     latLng,
     mainAngleInDeg,
+    rotation2D,
   }) {
     const baseMap = new BaseMap({
       projectId,
@@ -75,6 +78,7 @@ export default class BaseMap {
       meterByPx,
       latLng,
       mainAngleInDeg,
+      rotation2D,
     });
     await baseMap.initialize({ imageFile, imageEnhancedFile });
     return baseMap;
@@ -200,6 +204,7 @@ export default class BaseMap {
       grayScale: this.grayScale,
       latLng: this.latLng,
       mainAngleInDeg: this.mainAngleInDeg,
+      rotation2D: this.rotation2D,
     };
   }
 

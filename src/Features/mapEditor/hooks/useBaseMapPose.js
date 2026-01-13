@@ -26,7 +26,7 @@ export default function useBaseMapPose({
         };
 
 
-    }, [imageSize?.width, viewport, basePoseInBg?.k, bgPose, baseMap?.showEnhanced]);
+    }, [imageSize?.width, imageSize?.height, viewport, basePoseInBg?.k, bgPose, baseMap?.showEnhanced]);
 
     return { pose, imageSize };
 }
