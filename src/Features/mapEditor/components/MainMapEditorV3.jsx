@@ -68,7 +68,7 @@ import fitBoundsToViewport from "../utils/fitBoundsToViewport";
 import getAnnotationBounds from "../utils/getAnnotationBounds";
 import getAnnotationTemplateSizeInPx from "Features/annotations/utils/getAnnotationTemplateSizeInPx";
 import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRectangleRawPointsFromOnePoint";
-
+import getImageAnnotationRectanglePointsFromOnePoint from "Features/imageAnnotations/utils/getImageAnnotationRectanglePointsFromOnePoint";
 
 const contextDimmedStyle = {
     //filter: "grayscale(100%) brightness(1.4) opacity(0.8)", // Rend gris, clair et semi-transparent
@@ -282,6 +282,16 @@ export default function MainMapEditorV3() {
                 height,
             })
 
+            options = { ...options ?? {}, drawRectangle: true }
+        }
+
+        if (rawPoints.length === 1 && type === "IMAGE") {
+            const points = getImageAnnotationRectanglePointsFromOnePoint({
+                annotation: newAnnotation,
+                baseMapMeterByPx: baseMap?.meterByPx,
+                point: rawPoints[0],
+            })
+            rawPoints = points;
             options = { ...options ?? {}, drawRectangle: true }
         }
         _handleCommitDrawing(rawPoints, options)
