@@ -1027,7 +1027,10 @@ const InteractionLayer = forwardRef(({
         // 2. Trigger Commit
         // This will call onCommitDrawingRef.current(points) inside InteractionLayer
         commitPolyline(event);
+        if (enabledDrawingMode === "MEASURE") dispatch(setEnabledDrawingMode(null));
       }
+
+
     }
 
     // -- CASE 4: DROP_FIIL

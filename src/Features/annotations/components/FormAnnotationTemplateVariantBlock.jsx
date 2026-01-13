@@ -375,7 +375,7 @@ export default function FormAnnotationTemplateVariantBlock({
               width: 1,
             }}
           >
-            <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Box sx={{ flex: 1, minWidth: 0, p: 1 }}>
               <FieldTextV2
                 value={label}
                 onChange={handleLabelChange}
@@ -389,6 +389,7 @@ export default function FormAnnotationTemplateVariantBlock({
               sx={{
                 width: "130px",
                 minWidth: 0,
+                p: 1
               }}
             >
               <FieldTextV2

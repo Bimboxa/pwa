@@ -25,7 +25,7 @@ export default function ToolbarEnabledDrawingMode() {
 
     // helper - show one click
 
-    let showOneClick = ["MARKER", "POINT"].includes(type);
+    let showOneClick = ["MARKER", "POINT", "IMAGE"].includes(type);
     if (type === "RECTANGLE" && (newAnnotation?.size?.width && newAnnotation?.size?.height)) showOneClick = true;
 
 
@@ -74,7 +74,7 @@ export default function ToolbarEnabledDrawingMode() {
 
     // helpers - show mode
 
-    const showMode = ["POLYLINE", "POLYGON", "CUT", "MARKER", "POINT", "RECTANGLE"].includes(type);
+    const showMode = ["POLYLINE", "POLYGON", "CUT", "MARKER", "POINT", "IMAGE", "RECTANGLE"].includes(type);
 
     // handlers
 
