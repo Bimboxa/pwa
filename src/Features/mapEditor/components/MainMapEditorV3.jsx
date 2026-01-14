@@ -28,6 +28,7 @@ import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationTyp
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
+import useInitTransformersWorker from "Features/transformers/hooks/useInitTransformersWorker";
 
 import { Box } from "@mui/material";
 
@@ -104,6 +105,9 @@ export default function MainMapEditorV3() {
         }
     }, [printableMapRef?.current]);
 
+    // init transformer service
+
+    const transformersWorker = useInitTransformersWorker();
 
     // data
 
@@ -777,6 +781,7 @@ export default function MainMapEditorV3() {
                     baseMapMeterByPx={baseMap?.getMeterByPx()}
                     legendFormat={legendFormat}
                     onLegendFormatChange={handleLegendFormatChange}
+                    transformersWorker={transformersWorker}
                 >
                     <g style={selectedNode ? contextDimmedStyle : contextNormalStyle}>
                         <StaticMapContent
