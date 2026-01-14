@@ -28,11 +28,13 @@ const COLORS = {
     RECTANGLE: "#FFD700" // Gold
 };
 
-const ModeListItem = styled(ListItemButton)(({ theme, selected, isactive }) => ({
-    borderLeft: `3px solid ${selected ? theme.palette.primary.main : 'transparent'}`, // Bordure plus fine
+const ModeListItem = styled(ListItemButton, {
+    shouldForwardProp: (prop) => prop !== 'isactive'
+})(({ theme, selected, isactive }) => ({
+    borderLeft: `3px solid ${selected ? theme.palette.primary.main : 'transparent'}`,
     backgroundColor: selected ? 'rgba(0, 255, 255, 0.1)' : 'transparent',
-    marginBottom: '2px', // Moins d'espace vertical
-    padding: '2px 6px', // Padding compact
+    marginBottom: '2px',
+    padding: '2px 6px',
     transition: 'all 0.2s ease',
     display: 'flex',
     alignItems: 'center',
@@ -40,17 +42,20 @@ const ModeListItem = styled(ListItemButton)(({ theme, selected, isactive }) => (
     '&:hover': {
         backgroundColor: 'rgba(0, 255, 255, 0.2)',
     },
+    // isactive est toujours accessible ici pour le style
     boxShadow: isactive ? `inset 0 0 10px ${selected ? 'rgba(0,255,255,0.3)' : 'rgba(0,0,0,0.2)'}` : 'none',
 }));
 
-const DetectionIndicator = styled('span')(({ color, isactive }) => ({
+const DetectionIndicator = styled('span', {
+    shouldForwardProp: (prop) => prop !== 'isactive'
+})(({ color, isactive }) => ({
     display: 'inline-block',
-    width: '6px', // Plus petit
+    width: '6px',
     height: '6px',
     borderRadius: '50%',
     backgroundColor: isactive ? color : 'transparent',
     boxShadow: isactive ? `0 0 6px ${color}` : 'none',
-    marginRight: '6px', // Marge réduite
+    marginRight: '6px',
     transition: 'all 0.3s ease',
     border: `1px solid ${isactive ? color : '#555'}`
 }));

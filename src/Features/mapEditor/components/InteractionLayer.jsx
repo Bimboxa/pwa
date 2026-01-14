@@ -33,6 +33,7 @@ import ClosingMarker from 'Features/mapEditorGeneric/components/ClosingMarker';
 import HelperScale from 'Features/mapEditorGeneric/components/HelperScale';
 import MapTooltip from 'Features/mapEditorGeneric/components/MapTooltip';
 import SmartDetectLayer from 'Features/mapEditorGeneric/components/SmartDetectLayer';
+import SmartTransformerLayer from 'Features/transformers/components/SmartTransformerLayer';
 
 
 
@@ -45,6 +46,7 @@ import cv from "Features/opencv/services/opencvService";
 import editor from "App/editor";
 import getTopMiddlePoint from 'Features/geometry/utils/getTopMiddlePoint';
 import { useSmartZoom } from "App/contexts/SmartZoomContext";
+import DialogAutoLoadingModel from 'Features/transformers/components/DialogAutoLoadingModel';
 
 // constants
 
@@ -84,6 +86,7 @@ const InteractionLayer = forwardRef(({
   showBgImage,
   legendFormat,
   onLegendFormatChange,
+  transformersWorker,
 }
   , ref) => {
   const dispatch = useDispatch();
@@ -101,6 +104,7 @@ const InteractionLayer = forwardRef(({
   const helperScaleRef = useRef(null);
   const baseMapRafRef = useRef(null); // Raf = requestAnimationFrame, pour contrôle du resize de la map.
   const smartDetectRef = useRef(null); // <--- REF VERS LA LOUPE
+  const smartTransformerRef = useRef(null);
   const lastSmartROI = useRef(null); // pour la reconversion inverse Loupe => World.
   const lastMouseScreenPosRef = useRef({
     screenPos: { x: 0, y: 0 },
@@ -207,6 +211,11 @@ const InteractionLayer = forwardRef(({
 
   function handleCameraChange(cameraMatrix) {
     helperScaleRef.current?.updateZoom(cameraMatrix.k);
+
+    // pour MAJ de l'image affichée dans la smart detect
+    if (enabledDrawingModeRef.current === "SMART_DETECT" || showSmartDetectRef.current) {
+      updateSmartDetect(lastMouseScreenPosRef.current);
+    }
 
     // 2. Update Viewport Bounds in BaseMap Reference
     // On demande la taille directement au viewportRef
@@ -332,6 +341,38 @@ const InteractionLayer = forwardRef(({
     }
 
     lastSmartROI.current = { ...sourceROI, zoomFactor: SMART_ZOOM, totalScale };
+  }, [toLocalCoords, getTargetPose]);
+
+
+  // Smart Transformer
+
+  const updateSmartTransformer = useCallback((positions) => {
+
+    if (!positions) return;
+
+    // On récupère les positions souris stockées (screenPos = clientX/Y, viewportPos = relatif conteneur)
+    const { screenPos, viewportPos } = positions;
+
+    // 1. Calculer la position souris dans le monde (World) puis dans l'image (Local)
+    const worldPos = viewportRef.current?.screenToWorld(screenPos.x, screenPos.y);
+    if (!worldPos) return;
+
+    const localPos = toLocalCoords(worldPos);
+
+    // 2. Calculer le Zoom Total (Échelle Image * Zoom Caméra)
+    const baseK = getTargetPose()?.k || 1;
+    const cameraZoom = viewportRef.current?.getZoom() || 1;
+    const totalScale = baseK * cameraZoom;
+
+    // 3. Mettre à jour le Transformer Layer
+    // Il affichera un carré de (512 * totalScale) pixels à l'écran
+    if (smartTransformerRef.current) {
+      smartTransformerRef.current.update(viewportPos, localPos, totalScale);
+    }
+
+    // (Optionnel) Si vous avez besoin de stocker le ROI pour d'autres calculs,
+    // notez que le ROI est maintenant implicitement :
+    // x: localPos.x - 256, y: localPos.y - 256, w: 512, h: 512
   }, [toLocalCoords, getTargetPose]);
 
 
@@ -707,6 +748,7 @@ const InteractionLayer = forwardRef(({
       updateSmartDetect(pos);
     };
 
+
     // Lancement
     step();
 
@@ -766,7 +808,6 @@ const InteractionLayer = forwardRef(({
 
           const mousePos = lastMouseScreenPosRef.current;
           setShowSmartDetect(true);
-          console.log("press d", mousePos)
           updateSmartDetect(mousePos);
           break;
 
@@ -914,17 +955,19 @@ const InteractionLayer = forwardRef(({
             return;
           }
 
+          const step = e.shiftKey ? 2 : 50;
+
           const panByXMap = {
-            "ArrowRight": -50,
-            "ArrowLeft": 50,
+            "ArrowRight": -step,
+            "ArrowLeft": step,
             "ArrowUp": 0,
             "ArrowDown": 0
           }
           const panByYMap = {
             "ArrowRight": 0,
             "ArrowLeft": 0,
-            "ArrowUp": 50,
-            "ArrowDown": -50
+            "ArrowUp": step,
+            "ArrowDown": -step
           }
           viewportRef.current?.panBy(panByXMap[e.key], panByYMap[e.key]);
           break;
@@ -1076,6 +1119,12 @@ const InteractionLayer = forwardRef(({
       commitPolyline(event);
     }
 
+    else if (enabledDrawingMode === "SMART_TRANSFORMER") {
+      if (smartTransformerRef.current) {
+        smartTransformerRef.current.trigger();
+      }
+    }
+
     else if (!enabledDrawingMode) {
       const nativeTarget = event.nativeEvent?.target || event.target;
 
@@ -1186,6 +1235,12 @@ const InteractionLayer = forwardRef(({
     const dragState = dragStateRef.current;
     const dragAnnotationState = dragAnnotationStateRef.current;
 
+    if (enabledDrawingModeRef.current === "SMART_TRANSFORMER") {
+      if (smartTransformerRef.current) {
+        smartTransformerRef.current.clear();
+      }
+    }
+
     // --- 1. DÉTECTION DE L'ÉTAT D'INTERACTION ---
     // Est-ce qu'une action prioritaire est en cours ?
     const isInteracting =
@@ -1195,7 +1250,7 @@ const InteractionLayer = forwardRef(({
       dragBaseMapState?.active ||
       dragLegendState?.active ||
       dragTextState?.active ||
-      enabledDrawingMode ||
+      enabledDrawingModeRef.current ||
       selectedNode;
 
     // --- 2. MISE À JOUR VISUELLE (Tooltip Position) ---
@@ -1548,6 +1603,11 @@ const InteractionLayer = forwardRef(({
     // --- LOGIQUE SMART DETECT (Optimisée) ---
     if (enabledDrawingMode === "SMART_DETECT" || showSmartDetect) {
       updateSmartDetect(lastMouseScreenPosRef.current);
+    }
+
+    // --- LOGIQUE SMART TRANSFORMER (Optimisée) ---
+    if (enabledDrawingMode === "SMART_TRANSFORMER") {
+      updateSmartTransformer(lastMouseScreenPosRef.current);
     }
 
     // --- 5. DÉTECTION DU HOVER (HIT TEST) ---
@@ -2216,6 +2276,16 @@ const InteractionLayer = forwardRef(({
           enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetectRef.current}
         />, zoomContainer) : null}
       </>
+
+      {/* SmartTransformer */}
+      {enabledDrawingMode === "SMART_TRANSFORMER" && <SmartTransformerLayer
+        ref={smartTransformerRef}
+        sourceImage={sourceImageEl}
+        transformersWorker={transformersWorker}
+        debug={true}
+      />}
+      <DialogAutoLoadingModel />
+
 
 
     </Box >
