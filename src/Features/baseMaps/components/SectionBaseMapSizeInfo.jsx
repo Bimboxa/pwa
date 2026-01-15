@@ -15,7 +15,8 @@ export default function SectionBaseMapSizeInfo({ baseMap }) {
     // helper - sizeLabel
 
     const fileSizeS = stringifyFileSize(imageFile?.size);
-    const sizeLabel = `${imageSize?.width} x ${imageSize?.height} - ${fileSizeS}`;
+    const ratio = imageSize?.width / imageSize?.height;
+    const sizeLabel = `${imageSize?.width} x ${imageSize?.height} (${ratio.toFixed(2)}) - ${fileSizeS}`;
 
     // render
 

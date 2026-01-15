@@ -5,7 +5,6 @@ import { UnfoldMore } from "@mui/icons-material";
 export default function SectionCompareTwoImages({
     imageUrl1,
     imageUrl2,
-    height = "300px",
     variant = "overlap" // "overlap" | "alignToLeft" | "alignToTop"
 }) {
     const image1S = "Original";
@@ -73,7 +72,8 @@ export default function SectionCompareTwoImages({
                     ...baseStyle,
                     width: "100%",
                     height: "100%",
-                    objectFit: "cover", // Remplit tout l'espace
+                    //objectFit: "cover", // Remplit tout l'espace
+                    objectFit: "fill", // Remplit tout l'espace
                 };
         }
     };
@@ -86,6 +86,7 @@ export default function SectionCompareTwoImages({
             sx={{
                 position: "relative",
                 height: "100%",
+                width: "fit-content",
                 display: "inline-flex",
                 overflow: "hidden", // Coupe ce qui dépasse (important pour alignToLeft/Top si image trop grande)
                 cursor: "col-resize",
@@ -102,7 +103,8 @@ export default function SectionCompareTwoImages({
                     height: "100%",
                     width: "auto",
                     display: "block",
-                    objectFit: "contain" // S'assure que l'img 1 respecte la hauteur
+                    border: "1px solid red"
+                    //objectFit: "contain" // S'assure que l'img 1 respecte la hauteur
                 }}
             />
 
