@@ -9,6 +9,7 @@ export default function EditedObjectLayer({
     annotations,
     spriteImage,
     selectedNode,
+    selectedNodes,
     baseMapMeterByPx,
     onTextValueChange,
 }) {
@@ -81,7 +82,7 @@ export default function EditedObjectLayer({
                 const isDraggable = (annotation.type === "MARKER" || annotation.type === "LABEL") && selectedNode?.nodeId === annotation.id;
 
                 // Est-ce que l'annotation entière est sélectionnée ?
-                const isNodeSelected = selectedNode?.nodeId === annotation.id;
+                const isNodeSelected = selectedNode?.nodeId === annotation.id || selectedNodes?.map(n => n.nodeId)?.includes(annotation.id);
 
                 // Est-ce qu'on est en mode "Point Seulement" ?
                 const isPointSelectionMode = !isNodeSelected && !!selectedPointId;

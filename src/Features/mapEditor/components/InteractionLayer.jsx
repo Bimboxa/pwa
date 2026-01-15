@@ -7,8 +7,8 @@ import { nanoid } from '@reduxjs/toolkit';
 
 import { useInteraction } from '../context/InteractionContext';
 
-import { setEnabledDrawingMode } from 'Features/mapEditor/mapEditorSlice';
-import { setSelectedNode } from 'Features/mapEditor/mapEditorSlice';
+import { setEnabledDrawingMode, setSelectedNodes } from 'Features/mapEditor/mapEditorSlice';
+import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations } from 'Features/annotations/annotationsSlice';
 import {
@@ -790,6 +790,7 @@ const InteractionLayer = forwardRef(({
           resetNewAnnotation();
           dispatch(setEnabledDrawingMode(null));
           dispatch(setSelectedNode(null));
+          dispatch(setSelectedNodes([]));
           dispatch(setTempAnnotations([]));
 
           setHiddenAnnotationIds([]);
@@ -1171,7 +1172,8 @@ const InteractionLayer = forwardRef(({
           || showBgImage && hit?.dataset?.nodeType === "BG_IMAGE"
 
         ) {
-          dispatch(setSelectedNode(null))
+          dispatch(setSelectedNode(null));
+          dispatch(setSelectedNodes([]));
           setHiddenAnnotationIds([]);
           dispatch(setAnnotationToolbarPosition(null));
         }
@@ -1188,6 +1190,12 @@ const InteractionLayer = forwardRef(({
 
           // --- 2.1. GESTION DES ANNOTATIONS ---
           dispatch(setSelectedNode(hit?.dataset));
+
+          if (event.shiftKey) {
+            dispatch(toggleSelectedNode(hit?.dataset));
+          } else {
+            dispatch(setSelectedNodes([hit?.dataset]));
+          }
           //setHiddenAnnotationIds([hit?.dataset.nodeId]); hidden : juste pour le drag
 
           // -- Afichage du toolbar pour édition --
@@ -1209,13 +1217,17 @@ const InteractionLayer = forwardRef(({
           }
 
           if (tooltipData) setTooltipData(null);
-        } else if (showBgImage && hit?.dataset?.nodeType !== "ANNOTATION") {
+        }
+
+
+        else if (showBgImage && hit?.dataset?.nodeType !== "ANNOTATION") {
           dispatch(setSelectedNode(hit?.dataset));
           setHiddenAnnotationIds([hit?.dataset.nodeId]);
         }
 
       } else {
         dispatch(setSelectedNode(null));
+        dispatch(setSelectedNodes([]));
         setHiddenAnnotationIds([]);
       }
     }

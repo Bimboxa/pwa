@@ -14,7 +14,7 @@ export default defineConfig({
       workbox: {
         clientsClaim: true,
         skipWaiting: true,
-        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 5 => 10 for opencv.js
+        maximumFileSizeToCacheInBytes: 20 * 1024 * 1024, // 5 => 10 for opencv.js 10=>20 for transformers
       },
       includeAssets: [
         "favicon.svg",

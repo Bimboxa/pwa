@@ -116,7 +116,10 @@ export default function MainMapEditorV3() {
     const spriteImage = useAnnotationSpriteImage();
     const enabledDrawingMode = useSelector((state) => state.mapEditor.enabledDrawingMode);
     const selectedNode = useSelector((state) => state.mapEditor.selectedNode);
+    const selectedNodes = useSelector((state) => state.mapEditor.selectedNodes);
     const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
+
+    console.log("debug_selectedNodes", selectedNodes);
 
     // viewport
 
@@ -786,6 +789,7 @@ export default function MainMapEditorV3() {
                     <g style={selectedNode ? contextDimmedStyle : contextNormalStyle}>
                         <StaticMapContent
                             selectedNode={selectedNode}
+                            selectedNodes={selectedNodes}
                             bgImageUrl={bgImage?.url}
                             bgImageSize={bgImage?.imageSize}
                             showBgImage={showBgImage}
@@ -826,6 +830,7 @@ export default function MainMapEditorV3() {
                         annotations={annotations}
                         spriteImage={spriteImage}
                         selectedNode={selectedNode}
+                        selectedNodes={selectedNodes}
                         baseMapMeterByPx={baseMap?.getMeterByPx()} // If needed for width calc
                         onTextValueChange={handleTextValueChange}
                     />}
