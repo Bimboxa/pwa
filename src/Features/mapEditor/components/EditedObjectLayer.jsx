@@ -14,6 +14,7 @@ export default function EditedObjectLayer({
     onTextValueChange,
 }) {
 
+
     const { draggingAnnotationId, selectedPointId, selectedPartId, hiddenAnnotationIds } = useInteraction();
 
     // 1. Identifier TOUTES les annotations concernées
@@ -22,16 +23,16 @@ export default function EditedObjectLayer({
 
         // Cas A : Une annotation est explicitement sélectionnée (Click sur la forme)
         // Dans ce cas, on ne veut voir que celle-ci, même si elle partage des points
-        if (selectedNode) {
-            let target;
+        if (selectedNode || selectedNodes?.length > 0) {
+            let target = [];
             if (selectedNode.nodeId?.startsWith("label::")) {
                 const annotationId = selectedNode.nodeId.replace("label::", "");
                 const found = annotations.find(a => a.id === annotationId);
                 target = getAnnotationLabelPropsFromAnnotation(found);
             } else {
-                target = annotations.find(a => a.id === selectedNode.nodeId);
+                target = annotations.filter(a => a.id === selectedNode.nodeId || selectedNodes?.map(n => n.nodeId)?.includes(a.id));
             }
-            return target ? [target] : [];
+            return target;
         }
 
         // Cas B : Sélection par Point (Click sur un sommet)
