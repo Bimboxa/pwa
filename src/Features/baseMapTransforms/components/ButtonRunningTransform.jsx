@@ -104,12 +104,14 @@ export default function ButtonRunningTransform() {
 
             {open && (
                 <DialogGeneric open={open} onClose={() => setOpen(false)} vh={70}>
-                    <BoxFlexVStretch sx={{ height: 1, position: "relative" }}>
+                    <BoxFlexVStretch sx={{ height: 1, width: 1, position: "relative" }}>
+
                         <SectionCompareTwoImages
                             baseMap={baseMap}
                             imageUrl1={enhancedResult.objectUrl}
                             imageUrl2={baseMap.image.imageUrlClient}
                         />
+
                         <Box sx={{ position: "absolute", bottom: "8px", right: "8px" }}>
                             <ButtonGeneric
                                 label="Utiliser l'image transformée"
