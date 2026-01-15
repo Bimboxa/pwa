@@ -29,6 +29,7 @@ const mapEditorInitialState = {
   clickInBgPosition: null, // { x, y }
   //
   selectedNode: null, // {id,nodeType,annotationType,entityId}
+  selectedNodes: [], // Array of {id,nodeType,annotationType,entityId}
   editedNode: null, // {id,nodeType,annotationType,entityId}
   canTransformNode: false, // boolean
   annotationToolbarPosition: null,
@@ -162,6 +163,29 @@ export const mapEditorSlice = createSlice({
     // Nodes
     setSelectedNode: (state, action) => {
       state.selectedNode = action.payload;
+    },
+    setSelectedNodes: (state, action) => {
+      state.selectedNodes = action.payload;
+    },
+    toggleSelectedNode: (state, action) => {
+      const node = action.payload;
+      if (state.selectedNodes.map((node) => node.nodeId).includes(node.nodeId)) {
+        state.selectedNodes = state.selectedNodes.filter(
+          (node) => node.nodeId !== node.nodeId
+        );
+      } else {
+        state.selectedNodes.push(node);
+      }
+    },
+    addSelectedNodes: (state, action) => {
+      const nodes = action.payload;
+      state.selectedNodes.push(...nodes);
+    },
+    removeSelectedNodes: (state, action) => {
+      const nodes = action.payload;
+      state.selectedNodes = state.selectedNodes.filter(
+        (node) => !nodes.map((node) => node.nodeId).includes(node.nodeId)
+      );
     },
     setEditedNode: (state, action) => {
       state.editedNode = action.payload;
@@ -301,6 +325,10 @@ export const {
   setBaseMapOpacity,
   //
   setSelectedNode,
+  setSelectedNodes,
+  addSelectedNodes,
+  toggleSelectedNode,
+  removeSelectedNodes,
   setEditedNode,
   setCanTransformNode,
   setAnnotationToolbarPosition,

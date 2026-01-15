@@ -24,6 +24,7 @@ function StaticMapContent({
     legendItems,
     legendFormat,
     selectedNode,
+    selectedNodes,
     sizeVariant,
     isEditingBaseMap = false,
     opacity = 1,
@@ -141,7 +142,7 @@ function StaticMapContent({
                     const isHiddenByDrag = hiddenAnnotationIds?.includes(annotation.id);
 
                     // B. Caché par la Sélection Globale (EditedLayer mode Objet)
-                    const isSelectedGlobal = selectedNode?.nodeId === annotation.id;
+                    const isSelectedGlobal = selectedNode?.nodeId === annotation.id || selectedNodes?.map(n => n.nodeId)?.includes(annotation.id);
 
                     // C. Caché par la Sélection de Point (EditedLayer mode Topologie)
                     // On ne cache les voisins QUE si on n'a PAS de sélection globale.
