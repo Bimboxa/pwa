@@ -42,7 +42,7 @@ export default function useLegendItems() {
       const template = annotationTemplateById[templateId];
       if (!idsMap[templateId] && !template?.hidden) {
         idsMap[templateId] = annotation;
-        const { iconKey, fillColor, strokeColor, type, closeLine, listingName, variant } =
+        const { iconKey, fillColor, strokeColor, type, closeLine, listingName, variant, strokeType, fillType } =
           annotation;
         const newLegendItem = {
           id: templateId,
@@ -50,7 +50,9 @@ export default function useLegendItems() {
           type,
           iconKey,
           strokeColor,
+          strokeType,
           fillColor,
+          fillType,
           label: template?.label ?? "A définir",
           closeLine,
           variant,

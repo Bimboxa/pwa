@@ -46,6 +46,7 @@ import LayerCreateBaseMap from "./LayerCreateBaseMap";
 import DialogAutoCreateEntity from "Features/entities/components/DialogAutoCreateEntity";
 import DialogDeleteSelectedAnnotation from "Features/annotations/components/DialogDeleteSelectedAnnotation";
 import PopperEditAnnotation from "./PopperEditAnnotation";
+import PopperEditAnnotations from "./PopperEditAnnotations";
 import PopperEditScale from "./PopperEditScale";
 import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
@@ -746,6 +747,7 @@ export default function MainMapEditorV3() {
                 <InteractionLayer
                     enabledDrawingMode={enabledDrawingMode}
                     selectedNode={selectedNode}
+                    selectedNodes={selectedNodes}
                     newAnnotation={newAnnotation}
                     ref={interactionLayerRef}
                     showBgImage={showBgImage}
@@ -786,7 +788,7 @@ export default function MainMapEditorV3() {
                     onLegendFormatChange={handleLegendFormatChange}
                     transformersWorker={transformersWorker}
                 >
-                    <g style={selectedNode ? contextDimmedStyle : contextNormalStyle}>
+                    <g style={(selectedNode || selectedNodes?.length > 0) ? contextDimmedStyle : contextNormalStyle}>
                         <StaticMapContent
                             selectedNode={selectedNode}
                             selectedNodes={selectedNodes}
@@ -860,6 +862,7 @@ export default function MainMapEditorV3() {
             <DialogDeleteSelectedAnnotation />
             <DialogAutoCreateEntity />
             <PopperEditAnnotation viewerKey="MAP" />
+            <PopperEditAnnotations viewerKey="MAP" allAnnotations={annotations} />
             <PopperEditScale />
             <PopperContextMenu />
 

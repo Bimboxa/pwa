@@ -1,5 +1,5 @@
 import { memo, useLayoutEffect, useRef, useState } from "react";
-import { Polyline, Pentagon as Polygon, Rectangle, Square, Circle } from "@mui/icons-material";
+import { Remove, Polyline, Pentagon as Polygon, Rectangle, Square, Circle, Texture } from "@mui/icons-material";
 
 import theme from "Styles/theme";
 
@@ -78,11 +78,11 @@ export default memo(function NodeLegendStatic({
     } = spriteImage || {};
 
     // Helper Icon Component (Statique)
-    function LegendIcon({ type, iconKey, fillColor, strokeColor, closeLine, variant }) {
+    function LegendIcon({ type, iconKey, fillColor, strokeColor, fillType, strokeType, variant }) {
         const commonStyle = {
             width: `${ICON_PX}px`,
             height: `${ICON_PX}px`,
-            borderRadius: "50%",
+            //borderRadius: "50%",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -90,26 +90,44 @@ export default memo(function NodeLegendStatic({
             boxSizing: "border-box",
         };
 
+        const muiIconStyle = {
+            fill: fillColor,
+            fontSize: ICON_PX * 0.8, // FORCE LA TAILLE EN PIXELS
+            width: ICON_PX * 0.8,     // Sécurité supplémentaire pour html-to-image
+            height: ICON_PX * 0.8
+        };
+
         if (type === "POLYLINE") {
             return (
-                <div style={{ ...commonStyle, background: "white", border: `2px solid ${strokeColor}` }}>
-                    <Polyline style={{ fill: strokeColor, scale: 0.8 }} />
+                <div style={{
+                    ...commonStyle, background: "white",
+                    // border: `2px solid ${strokeColor}` 
+                }}>
+                    <Remove style={{ ...muiIconStyle, fill: strokeColor }} />
                 </div>
             );
         }
 
         if (type === "POLYGON") {
             return (
-                <div style={{ ...commonStyle, background: "white", border: `2px solid ${strokeColor}` }}>
-                    <Polygon style={{ fill: fillColor, scale: 0.8 }} />
+                <div style={{
+                    ...commonStyle, background: "white",
+                    //border: `2px solid ${strokeColor}`
+                }}>
+                    {/*<Polygon style={{ fill: fillColor, scale: 0.8 }} />*/}
+                    {fillType === "HATCHING" && <Texture style={{ ...muiIconStyle }} />}
+                    {(fillType === "SOLID" || !fillType) && <Rectangle style={{ ...muiIconStyle }} />}
                 </div>
             );
         }
 
         if (type === "RECTANGLE") {
             return (
-                <div style={{ ...commonStyle, background: "white", border: `2px solid ${fillColor}` }}>
-                    <Rectangle style={{ fill: fillColor, scale: 0.7 }} />
+                <div style={{
+                    ...commonStyle, background: "white",
+                    //border: `2px solid ${fillColor}`
+                }}>
+                    <Rectangle style={{ ...muiIconStyle }} />
                 </div>
             );
         }
@@ -119,8 +137,8 @@ export default memo(function NodeLegendStatic({
                 <div style={{
                     ...commonStyle, background: "white"
                 }}>
-                    {variant === "CIRCLE" && <Circle style={{ fill: fillColor, scale: 0.7 }} />}
-                    {variant === "SQUARE" && <Square style={{ fill: fillColor, scale: 0.7 }} />}
+                    {variant === "CIRCLE" && <Circle style={{ ...muiIconStyle }} />}
+                    {variant === "SQUARE" && <Square style={{ ...muiIconStyle }} />}
                 </div>
             );
         }
@@ -220,6 +238,8 @@ export default memo(function NodeLegendStatic({
                                             iconKey={it.iconType ?? it.iconKey}
                                             fillColor={it.fillColor}
                                             strokeColor={it.strokeColor}
+                                            strokeType={it.strokeType}
+                                            fillType={it.fillType}
                                             closeLine={it.closeLine}
                                         />
                                     </div>

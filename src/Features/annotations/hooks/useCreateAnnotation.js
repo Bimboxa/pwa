@@ -25,7 +25,7 @@ export default function useCreateAnnotation() {
       // main
       const _annotation = {
         ...annotation,
-        id: nanoid(),
+        id: annotation?.id ?? nanoid(),
         projectId,
         listingId: annotation?.listingId ?? listing?.id,
       };

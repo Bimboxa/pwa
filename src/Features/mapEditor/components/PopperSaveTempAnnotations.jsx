@@ -55,7 +55,9 @@ export default function PopperSaveTempAnnotations() {
             anchorPosition={anchorPosition}
             onClose={handleClose}
             disableClickAway={true} // Force user to choose
-            anchorPlacement="bottomMiddle"
+            //anchorPlacement="bottomMiddle"
+            anchorPlacement="topMiddle"
+            offset={[0, +10]}
             showGrabHandle={true}
         >
             <Box sx={{ p: 1, display: 'flex', flexDirection: 'column', gap: 1, minWidth: 200 }}>

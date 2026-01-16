@@ -25,12 +25,12 @@ export default function EditedObjectLayer({
         // Dans ce cas, on ne veut voir que celle-ci, même si elle partage des points
         if (selectedNode || selectedNodes?.length > 0) {
             let target = [];
-            if (selectedNode.nodeId?.startsWith("label::")) {
+            if (selectedNode && selectedNode.nodeId?.startsWith("label::")) {
                 const annotationId = selectedNode.nodeId.replace("label::", "");
                 const found = annotations.find(a => a.id === annotationId);
                 target = getAnnotationLabelPropsFromAnnotation(found);
             } else {
-                target = annotations.filter(a => a.id === selectedNode.nodeId || selectedNodes?.map(n => n.nodeId)?.includes(a.id));
+                target = annotations.filter(a => a.id === selectedNode?.nodeId || selectedNodes?.map(n => n.nodeId)?.includes(a.id));
             }
             return target;
         }
@@ -95,7 +95,7 @@ export default function EditedObjectLayer({
                     const addFillColor = annotation.type !== "TEXT";
                     overrideStyle = {
                         //strokeColor: theme.palette.annotation.selected,
-                        strokeWidth: (annotation.strokeWidth || 0) + 1,
+                        //strokeWidth: (annotation.strokeWidth || 0) + 1,
                         //...(addFillColor ? { fillColor: theme.palette.annotation.selected } : {}),
                         //fillOpacity: 0.5
                     };

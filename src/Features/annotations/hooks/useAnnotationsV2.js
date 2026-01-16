@@ -139,7 +139,7 @@ export default function useAnnotationsV2(options) {
             // points
 
             const pointsIndex = getItemsByKey(points, "id");
-            _annotations = _annotations.map(annotation => {
+            _annotations = _annotations.filter(a => a.baseMapId).map(annotation => {
                 const _annotation = {
                     ...annotation,
                 }

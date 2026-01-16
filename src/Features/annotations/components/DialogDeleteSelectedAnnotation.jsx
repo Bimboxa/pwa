@@ -1,6 +1,9 @@
 import { useSelector, useDispatch } from "react-redux";
 
 import { setOpenDialogDeleteSelectedAnnotation } from "../annotationsSlice";
+import { setSelectedNode, setSelectedNodes } from "Features/mapEditor/mapEditorSlice";
+
+
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 
 import db from "App/db/db";
@@ -23,6 +26,8 @@ export default function DialogDeleteSelectedAnnotation() {
 
   async function handleDelete() {
     await db.annotations.delete(selectedNode?.nodeId);
+    dispatch(setSelectedNode(null));
+    dispatch(setSelectedNodes([]));
     handleClose();
   }
   // render

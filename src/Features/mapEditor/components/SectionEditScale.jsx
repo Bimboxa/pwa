@@ -40,7 +40,7 @@ export default function SectionEditScale() {
   const deleteAnnotation = useDeleteAnnotation();
   const resetNewAnnotation = useResetNewAnnotation();
 
-  const meterByPx = mainBaseMap?.meterByPx;
+  const meterByPx = mainBaseMap?.getMeterByPx();
 
   // state
 

@@ -45,6 +45,7 @@
     "leaflet": "^1.9.4",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.2.133",
+    "polygon-clipping": "^0.15.7",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-color": "^2.19.3",

@@ -1,12 +1,9 @@
-import { useSelector } from "react-redux";
-
-import useAnnotations from "./useAnnotations";
+import useAnnotationsV2 from "./useAnnotationsV2";
 
 export default function useAnnotationTemplateCountById() {
   // data
 
-  const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const annotations = useAnnotations({ filterByProjectId: projectId });
+  const annotations = useAnnotationsV2();
 
   // main
 
