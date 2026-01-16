@@ -9,7 +9,7 @@ import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingle
 
 import theme from "Styles/theme";
 
-export default function ToolbarEnabledDrawingMode() {
+export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
 
     const dispatch = useDispatch();
 
@@ -69,7 +69,7 @@ export default function ToolbarEnabledDrawingMode() {
             icon: <Smart sx={{ color }} />,
             //show: ["POLYLINE"].includes(type)
             show: false
-        }
+        },
     ]
 
     // helpers - show mode

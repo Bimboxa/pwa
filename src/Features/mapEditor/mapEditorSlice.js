@@ -33,6 +33,7 @@ const mapEditorInitialState = {
   editedNode: null, // {id,nodeType,annotationType,entityId}
   canTransformNode: false, // boolean
   annotationToolbarPosition: null,
+  annotationsToolbarPosition: null,
   tempAnnotationToolbarPosition: null,
   //
   legendFormat: { x: 1320, y: 216, width: 200, height: 50 },
@@ -169,9 +170,9 @@ export const mapEditorSlice = createSlice({
     },
     toggleSelectedNode: (state, action) => {
       const node = action.payload;
-      if (state.selectedNodes.map((node) => node.nodeId).includes(node.nodeId)) {
+      if (state.selectedNodes.map((n) => n.nodeId).includes(node.nodeId)) {
         state.selectedNodes = state.selectedNodes.filter(
-          (node) => node.nodeId !== node.nodeId
+          (n) => n.nodeId !== node.nodeId
         );
       } else {
         state.selectedNodes.push(node);
@@ -196,9 +197,13 @@ export const mapEditorSlice = createSlice({
     setAnnotationToolbarPosition: (state, action) => {
       state.annotationToolbarPosition = action.payload;
     },
+    setAnnotationsToolbarPosition: (state, action) => {
+      state.annotationsToolbarPosition = action.payload;
+    },
     setTempAnnotationToolbarPosition: (state, action) => {
       state.tempAnnotationToolbarPosition = action.payload;
     },
+
 
     // Annotation template
     setSelectedAnnotationTemplateId: (state, action) => {
@@ -332,6 +337,7 @@ export const {
   setEditedNode,
   setCanTransformNode,
   setAnnotationToolbarPosition,
+  setAnnotationsToolbarPosition,
   setTempAnnotationToolbarPosition,
   //
   setLegendFormat,

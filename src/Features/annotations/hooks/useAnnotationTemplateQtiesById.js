@@ -120,7 +120,7 @@ export default function useAnnotationTemplateQtiesById() {
       }
 
       // --- CONVERSION EN UNITÉS RÉELLES (Mètres) ---
-      const meterByPx = baseMap?.meterByPx;
+      const meterByPx = baseMap?.getMeterByPx();
       let length = lengthPx;
       let surface = surfacePx;
 

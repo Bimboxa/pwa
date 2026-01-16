@@ -1,6 +1,7 @@
 import testIsPngImage from "Features/files/utils/testIsPngImage";
 import getDateString from "Features/misc/utils/getDateString";
 import getFileIdFromEntityAndFile from "./getFileIdFromEntityAndFile";
+import getImageSizeAsync from "Features/images/utils/getImageSizeAsync";
 
 export default async function getEntityPureDataAndFilesDataByKey(
   entity,
@@ -70,7 +71,10 @@ export default async function getEntityPureDataAndFilesDataByKey(
       const newValue = { ...value };
       delete newValue.file;
       newValue.fileName = fileName;
-      if (isImage) newValue.isImage = true;
+      if (isImage) {
+        newValue.isImage = true;
+        newValue.imageSize = await getImageSizeAsync(URL.createObjectURL(value.file))
+      }
       pureData[key] = newValue;
 
       // filesDataByKey

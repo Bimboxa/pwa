@@ -17,8 +17,6 @@ export default function DialogAutoLoadingModel() {
     const progressItems = useSelector((state) => state.transformers.progressItems);
     const ready = useSelector((state) => state.transformers.ready);
 
-    console.log("debug_progress_items", progressItems);
-
     // helpers
 
     const openProgress = progressItems?.length > 0;

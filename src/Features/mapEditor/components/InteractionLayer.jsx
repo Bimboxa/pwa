@@ -9,7 +9,7 @@ import { useInteraction } from '../context/InteractionContext';
 
 import { setEnabledDrawingMode, setSelectedNodes } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
-import { setAnnotationToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
+import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations } from 'Features/annotations/annotationsSlice';
 import {
   setAnchorPosition,
@@ -17,6 +17,7 @@ import {
 } from "Features/contextMenu/contextMenuSlice";
 
 import useResetNewAnnotation from 'Features/annotations/hooks/useResetNewAnnotation';
+import useLassoSelection from 'Features/mapEditorGeneric/hooks/useLassoSelection';
 
 import Box from '@mui/material/Box';
 import MapEditorViewport from 'Features/mapEditorGeneric/components/MapEditorViewport';
@@ -34,19 +35,24 @@ import HelperScale from 'Features/mapEditorGeneric/components/HelperScale';
 import MapTooltip from 'Features/mapEditorGeneric/components/MapTooltip';
 import SmartDetectLayer from 'Features/mapEditorGeneric/components/SmartDetectLayer';
 import SmartTransformerLayer from 'Features/transformers/components/SmartTransformerLayer';
+import LassoOverlay from 'Features/mapEditorGeneric/components/LassoOverlay';
+import DialogAutoLoadingModel from 'Features/transformers/components/DialogAutoLoadingModel';
 
 
-
+import mergeBboxes from 'Features/misc/utils/mergeBboxes';
 import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
 import getBestSnap from 'Features/mapEditor/utils/getBestSnap';
 import getAnnotationEditionPanelAnchor from 'Features/annotations/utils/getAnnotationEditionPanelAnchor';
 import getAnnotationLabelPropsFromAnnotation from 'Features/annotations/utils/getAnnotationLabelPropsFromAnnotation';
+import toggleSelectedNodeFunction from '../utils/toggleSelectedNode';
 
 import cv from "Features/opencv/services/opencvService";
 import editor from "App/editor";
 import getTopMiddlePoint from 'Features/geometry/utils/getTopMiddlePoint';
+
+import getAnnotationBBox from 'Features/annotations/utils/getAnnotationBbox';
+
 import { useSmartZoom } from "App/contexts/SmartZoomContext";
-import DialogAutoLoadingModel from 'Features/transformers/components/DialogAutoLoadingModel';
 
 // constants
 
@@ -82,6 +88,7 @@ const InteractionLayer = forwardRef(({
   onSegmentSplit,
   snappingEnabled = true,
   selectedNode,
+  selectedNodes,
   baseMapMeterByPx,
   showBgImage,
   legendFormat,
@@ -176,8 +183,6 @@ const InteractionLayer = forwardRef(({
   // cameraZoom
 
   const cameraZoom = viewportRef.current?.getZoom() || 1;
-
-  // Transient detected line
 
   // Transient detected line
   const previewLineLayerRef = useRef(null);
@@ -375,6 +380,19 @@ const InteractionLayer = forwardRef(({
     // x: localPos.x - 256, y: localPos.y - 256, w: 512, h: 512
   }, [toLocalCoords, getTargetPose]);
 
+
+  // Lasso selection
+  function handleLassoSelection(ids) {
+    console.log("lasso selection", ids);
+    dispatch(setSelectedNodes(ids.map(id => ({ nodeId: id, nodeType: 'ANNOTATION' }))))
+  }
+
+  const { lassoRect, startLasso, updateLasso, endLasso } = useLassoSelection({
+    annotations,
+    viewportRef,
+    toLocalCoords,
+    onSelectionComplete: handleLassoSelection
+  });
 
   // drag state
 
@@ -1183,22 +1201,33 @@ const InteractionLayer = forwardRef(({
           hit?.dataset?.nodeType === "ANNOTATION" && !showBgImage
           || hit?.dataset?.nodeContext === "BG_IMAGE"
         ) {
-          const annotation = annotations.find((a) => a.id === hit?.dataset.nodeId);
-          const panelAnchor = getAnnotationEditionPanelAnchor(annotation);
+          const annotation = annotations?.find((a) => a.id === hit?.dataset.nodeId);
 
-
+          let panelAnchor = null;
+          if (annotation) panelAnchor = getAnnotationEditionPanelAnchor(annotation);
 
           // --- 2.1. GESTION DES ANNOTATIONS ---
-          dispatch(setSelectedNode(hit?.dataset));
 
+          let _selectedNodes = [...(selectedNodes ?? [])];
           if (event.shiftKey) {
+            _selectedNodes = toggleSelectedNodeFunction(hit?.dataset, selectedNodes);
             dispatch(toggleSelectedNode(hit?.dataset));
+            dispatch(setSelectedNode(null));
           } else {
             dispatch(setSelectedNodes([hit?.dataset]));
+            dispatch(setSelectedNode(hit?.dataset));
           }
           //setHiddenAnnotationIds([hit?.dataset.nodeId]); hidden : juste pour le drag
 
           // -- Afichage du toolbar pour édition --
+
+          if (_selectedNodes?.length > 1) {
+            const _annotations = annotations.filter((a) => _selectedNodes.some((s) => s.nodeId === a.id));
+            const bbox = mergeBboxes(_annotations.map((a) => getAnnotationBBox(a)));
+            panelAnchor = { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
+            console.log("debug_151_panelAnchor", panelAnchor);
+          }
+
           if (panelAnchor) {
             // 2. Convertir LOCAL -> MONDE
             // Il faut savoir dans quel contexte est l'annotation
@@ -1211,27 +1240,34 @@ const InteractionLayer = forwardRef(({
             // 3. Convertir MONDE -> ÉCRAN (Viewport)
             // On utilise la ref du viewport
             const screenPos = viewportRef.current?.worldToScreen(worldX, worldY);
-            dispatch(
-              setAnnotationToolbarPosition({ x: screenPos?.x, y: screenPos?.y })
-            );
+
+
+            if (_selectedNodes?.length > 1) {
+              dispatch(setAnnotationsToolbarPosition(screenPos));
+            } else {
+              dispatch(
+                setAnnotationToolbarPosition({ x: screenPos?.x, y: screenPos?.y })
+              );
+            }
+
+            if (tooltipData) setTooltipData(null);
           }
 
-          if (tooltipData) setTooltipData(null);
         }
-
-
         else if (showBgImage && hit?.dataset?.nodeType !== "ANNOTATION") {
           dispatch(setSelectedNode(hit?.dataset));
           setHiddenAnnotationIds([hit?.dataset.nodeId]);
         }
 
-      } else {
+
+      }
+
+      else {
         dispatch(setSelectedNode(null));
         dispatch(setSelectedNodes([]));
         setHiddenAnnotationIds([]);
       }
     }
-
 
   };
 
@@ -1252,6 +1288,12 @@ const InteractionLayer = forwardRef(({
         smartTransformerRef.current.clear();
       }
     }
+
+    if (lassoRect) {
+      updateLasso(event);
+      return;
+    }
+
 
     // --- 1. DÉTECTION DE L'ÉTAT D'INTERACTION ---
     // Est-ce qu'une action prioritaire est en cours ?
@@ -1801,6 +1843,12 @@ const InteractionLayer = forwardRef(({
   // --- 3. MOUSE UP (Global) ---
   const handleMouseUp = () => {
 
+    console.log("[MouseUp] lassoRect", lassoRect)
+    if (lassoRect) {
+      endLasso();
+      return;
+    }
+
 
     const { onPointDuplicateAndMoveCommit } = stateRef.current;
     const dragState = dragStateRef.current;
@@ -1929,7 +1977,6 @@ const InteractionLayer = forwardRef(({
   };
 
   const handleMouseDownCapture = (e) => {
-    if (!selectedNode) return;
 
     // ==================
     // Annotation
@@ -1959,6 +2006,21 @@ const InteractionLayer = forwardRef(({
     const legendHandle = target.closest('[data-interaction="transform-legend"]');
     const textHandle = target.closest('[data-interaction="transform-text"]');
     const rotateHandle = target.closest('[data-interaction="rotate-annotation"]');
+    const hit = target.closest('[data-node-type]');
+
+    // Si on ne clique sur rien ET que Shift est pressé -> Lasso
+    console.log("hit", hit?.dataset, e.shiftKey)
+    if ((!hit || hit?.dataset?.nodeType === "BASE_MAP") && e.shiftKey && !enabledDrawingModeRef.current) {
+      const started = startLasso(e);
+      if (started) {
+        console.log("lasso started")
+        e.stopPropagation(); // On empêche le Pan de la caméra
+        // e.preventDefault(); // Optionnel selon le besoin
+        return;
+      }
+    }
+
+    if (!selectedNode && !showBgImage) return;
 
     if (resizeHandle) {
       e.stopPropagation();
@@ -2066,6 +2128,8 @@ const InteractionLayer = forwardRef(({
 
       document.body.style.cursor = handleType === 'MOVE' ? 'grabbing' : 'crosshair';
     }
+
+
 
   }
 
@@ -2298,7 +2362,7 @@ const InteractionLayer = forwardRef(({
       />}
       <DialogAutoLoadingModel />
 
-
+      <LassoOverlay rect={lassoRect} />
 
     </Box >
   );

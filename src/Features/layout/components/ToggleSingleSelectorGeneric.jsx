@@ -20,8 +20,8 @@ export default function ToggleSingleSelectorGeneric({
       >
         {options.map(({ key, label, icon }) => {
           return (
-            <Tooltip title={label}>
-              <ToggleButton key={key} value={key} size="small">
+            <Tooltip title={label} key={key}>
+              <ToggleButton value={key} size="small">
                 {icon ?? label}
               </ToggleButton>
             </Tooltip>
