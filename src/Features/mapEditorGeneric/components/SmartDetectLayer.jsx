@@ -104,6 +104,8 @@ const SmartDetectLayer = forwardRef(({
     debug = false,
     enabled = false,
     onSmartShapeDetected, // <--- Unified Callback
+    baseMapImageScale = 1,
+    baseMapImageOffset = { x: 0, y: 0 },
 }, ref) => {
     const dispatch = useDispatch();
     const canvasRef = useRef(null);
@@ -199,7 +201,10 @@ const SmartDetectLayer = forwardRef(({
                     const { x, y } = result.bestCorner.point;
                     const scaleX = currentRoi.width / loupeSize;
                     const scaleY = currentRoi.height / loupeSize;
-                    const point = { x: currentRoi.x + (x * scaleX), y: currentRoi.y + (y * scaleY) };
+                    const point = {
+                        x: (currentRoi.x + (x * scaleX)) / baseMapImageScale + baseMapImageOffset.x,
+                        y: (currentRoi.y + (y * scaleY)) / baseMapImageScale + baseMapImageOffset.y,
+                    };
                     detectedShape = { type: 'POINT', points: [point] };
                 }
             }
@@ -209,7 +214,11 @@ const SmartDetectLayer = forwardRef(({
                 if (bestL) {
                     const scaleX = currentRoi.width / loupeSize;
                     const scaleY = currentRoi.height / loupeSize;
-                    const points = bestL.points.map(p => ({ x: currentRoi.x + (p.x * scaleX), y: currentRoi.y + (p.y * scaleY) }));
+                    const points = bestL.points.map(p => (
+                        {
+                            x: (currentRoi.x + (p.x * scaleX)) / baseMapImageScale + baseMapImageOffset.x,
+                            y: (currentRoi.y + (p.y * scaleY)) / baseMapImageScale + baseMapImageOffset.y,
+                        }));
                     detectedShape = { type: 'LINE', points };
                 }
             }
@@ -217,7 +226,10 @@ const SmartDetectLayer = forwardRef(({
                 if (result.mainRectangle && result.mainRectangle.found) {
                     const scaleX = currentRoi.width / loupeSize;
                     const scaleY = currentRoi.height / loupeSize;
-                    const points = result.mainRectangle.points.map(p => ({ x: currentRoi.x + (p.x * scaleX), y: currentRoi.y + (p.y * scaleY) }));
+                    const points = result.mainRectangle.points.map(p => ({
+                        x: (currentRoi.x + (p.x * scaleX)) / baseMapImageScale + baseMapImageOffset.x,
+                        y: (currentRoi.y + (p.y * scaleY)) / baseMapImageScale + baseMapImageOffset.y,
+                    }));
                     detectedShape = { type: 'RECTANGLE', points };
                 }
             }
@@ -232,7 +244,7 @@ const SmartDetectLayer = forwardRef(({
                 dispatch(setGlobalCenterColor(result.centerColor.hex));
             }
         } catch (e) { }
-    }, 60), [enabled, loupeSize, selectedDetectMode, onSmartShapeDetected]);
+    }, 60), [enabled, loupeSize, selectedDetectMode, onSmartShapeDetected, baseMapImageScale]);
 
 
     // --- API IMPÉRATIVE ---

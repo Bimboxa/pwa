@@ -14,6 +14,7 @@ import ButtonDialogDeleteBaseMap from "Features/baseMaps/components/ButtonDialog
 import ButtonDownloadBaseMap from "Features/baseMaps/components/ButtonDownloadBaseMap";
 import ToolSetEnhancedAsMain from "./ToolSetEnhancedAsMain";
 import SectionBaseMapSizeInfo from "Features/baseMaps/components/SectionBaseMapSizeInfo";
+import FieldBaseMapOpacity from "Features/baseMaps/components/FieldBaseMapOpacity";
 
 export default function TabBaseMapInfo({ baseMap }) {
 
@@ -30,6 +31,7 @@ export default function TabBaseMapInfo({ baseMap }) {
             <FieldBaseMapEnhancedImage baseMap={baseMap} />
             <ToolSetEnhancedAsMain baseMap={baseMap} />
             <FieldBaseMapShowEnhanced baseMap={baseMap} />
+            {baseMap?.showEnhanced && <FieldBaseMapOpacity baseMap={baseMap} variant="imageEnhanced" />}
         </Box>
 
 

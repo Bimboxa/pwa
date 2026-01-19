@@ -119,8 +119,7 @@ export default function MainMapEditorV3() {
     const selectedNode = useSelector((state) => state.mapEditor.selectedNode);
     const selectedNodes = useSelector((state) => state.mapEditor.selectedNodes);
     const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
-
-    console.log("debug_selectedNodes", selectedNodes);
+    const grayLevelThreshold = useSelector((s) => s.baseMapEditor.grayLevelThreshold);
 
     // viewport
 
@@ -171,7 +170,7 @@ export default function MainMapEditorV3() {
             console.log("=> defaultBaseMapPoseInBg", defaultBaseMapPoseInBg);
             dispatch(setBaseMapPoseInBg(defaultBaseMapPoseInBg));
         }
-    }, [baseMap?.getUrl(), bgImage?.url]);
+    }, [baseMap?.id, bgImage?.url]);
 
     useAutoSelectMainBaseMap();
     //useAutoResetBaseMapPose();
@@ -200,12 +199,12 @@ export default function MainMapEditorV3() {
     // annotations
 
     const openedPanel = useSelector(s => s.listings.openedPanel);
-    const baseMapAnnotationsOnly = openedPanel === "BASE_MAP_DETAIL";
+    const hideBaseMapAnnotations = openedPanel !== "BASE_MAP_DETAIL";
 
     const annotations = useAnnotationsV2({
         withEntity: true,
         excludeListingsIds: hiddenListingsIds,
-        //baseMapAnnotationsOnly,
+        hideBaseMapAnnotations,
         filterByMainBaseMap: true,
     });
 
@@ -228,7 +227,7 @@ export default function MainMapEditorV3() {
     defaultCameraMatrixRef.current = getDefaultCameraMatrix({
         showBgImage,
         bgSize: bgImage?.imageSize,
-        baseSize: baseMap?.getImageSize(),
+        baseSize: baseMap?.image?.imageSize,
         viewport,
         basePose,
     });
@@ -248,7 +247,7 @@ export default function MainMapEditorV3() {
     }, [
         //showBgImage
         basePose?.k,
-        baseMap?.getUrl(),
+        baseMap?.id,
         bgImage?.imageSize?.width,
         viewport?.w,
         baseMap?.id,
@@ -367,13 +366,13 @@ export default function MainMapEditorV3() {
     // handlers - move point
 
     const handlePointMoveCommit = (pointId, newPos) => {
-        const imageSize = baseMap?.getImageSize();
+        const imageSize = baseMap?.image?.imageSize;
         //dispatch(updatePoint({ id: pointId, ...newPos }));
         db.points.update(pointId, { x: newPos.x / imageSize.width, y: newPos.y / imageSize.height });
     };
 
     const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
-        const imageSize = baseMap?.getImageSize();
+        const imageSize = baseMap?.image?.imageSize;
         await duplicateAndMovePoint({ originalPointId, annotationId, newPos, imageSize, annotations });
     };
 
@@ -382,7 +381,7 @@ export default function MainMapEditorV3() {
     const handleSegmentSplit = async (segment) => {
         console.log("splitSegment", segment);
         const { segmentStartId, segmentEndId, x, y } = segment;
-        const imageSize = baseMap?.getImageSize();
+        const imageSize = baseMap?.image?.imageSize;
         if (!imageSize) return;
 
         const newPointId = nanoid();
@@ -491,7 +490,7 @@ export default function MainMapEditorV3() {
     };
 
     const handleAnnotationMoveCommit = async (annotationId, deltaPos, partType, localPos) => {
-        const imageSize = baseMap?.getImageSize();
+        const imageSize = baseMap?.image?.imageSize;
         if (!imageSize) return;
 
         if (annotationId.startsWith("label::")) {
@@ -768,7 +767,9 @@ export default function MainMapEditorV3() {
                         }
                     }}
                     onCommitPointsFromDropFill={handleCommitPointsFromDropFill}
-                    baseMapImageSize={baseMap?.getImageSize()}
+                    baseMapImageSize={baseMap?.image?.imageSize}
+                    baseMapImageScale={baseMap?.getImageScale()}
+                    baseMapImageOffset={baseMap?.getImageOffset()}
                     baseMapImageUrl={baseMap?.getUrl()}
                     baseMapMainAngleInDeg={baseMap?.mainAngleInDeg}
                     basePose={basePose}
@@ -796,16 +797,20 @@ export default function MainMapEditorV3() {
                             bgImageSize={bgImage?.imageSize}
                             showBgImage={showBgImage}
                             basePose={basePose}
-                            baseMapImageUrl={baseMap?.getUrl()}
-                            baseMapImageSize={baseMap?.getImageSize()}
+                            baseMapImageUrl={baseMap?.image?.imageUrlClient}
+                            baseMapImageEnhancedUrl={baseMap?.imageEnhanced?.imageUrlClient}
+                            baseMapShowEnhanced={baseMap?.showEnhanced}
+                            baseMapImageSize={baseMap?.image?.imageSize}
                             annotations={annotations}
                             legendItems={legendItems}
                             legendFormat={legendFormat}
                             sizeVariant={sizeVariant}
                             isEditingBaseMap={isBaseMapSelected}
-                            baseMapMeterByPx={baseMap?.getMeterByPx()}
+                            baseMapMeterByPx={baseMap?.meterByPx}
                             opacity={baseMapOpacity}
+                            opacityEnhanced={baseMap?.opacityEnhanced}
                             grayScale={baseMapGrayScale}
+                            grayLevelThreshold={grayLevelThreshold}
                         />
                     </g>
                     {/* 2. LAYER ÉDITION BASEMAP (Exclusif) */}
@@ -813,7 +818,7 @@ export default function MainMapEditorV3() {
                         <EditedBaseMapLayer
                             basePose={basePose} // La pose qui vient du hook (et donc de Redux)
                             baseMapImageUrl={baseMap?.getUrl()}
-                            baseMapImageSize={baseMap?.getImageSize()}
+                            baseMapImageSize={baseMap?.image?.imageSize}
                         // Pas besoin de passer onChange ici car InteractionLayer 
                         // intercepte les événements via data-interaction="transform-basemap"
                         // et appelle onBaseMapPoseChange du InteractionLayer
@@ -851,7 +856,7 @@ export default function MainMapEditorV3() {
                 showBgImage={showBgImage}
                 basePose={basePose}
                 baseMapImageUrl={baseMap?.getUrl()}
-                baseMapImageSize={baseMap?.getImageSize()}
+                baseMapImageSize={baseMap?.image?.imageSize}
                 annotations={annotations}
                 spriteImage={spriteImage}
                 baseMapMeterByPx={baseMap?.getMeterByPx()}

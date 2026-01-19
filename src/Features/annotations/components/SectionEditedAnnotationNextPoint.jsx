@@ -62,7 +62,7 @@ export default function SectionEditedAnnotationNextPoint() {
 
   // helpers
 
-  const { width, height } = baseMap?.getImageSize() ?? {};
+  const { width, height } = baseMap?.image?.imageSize ?? {};
   const mx = baseMap?.meterByPx;
   const { x: x0, y: y0 } = points?.[points?.length - 1] ?? {};
 

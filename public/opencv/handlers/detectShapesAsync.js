@@ -24,7 +24,11 @@ async function detectShapesAsync({ msg, payload }) {
         let mainRectangle = null;
 
         // -- MAIN --
-        const { imageUrl, morphKernelSize = 3, rotation, keepBest = true } = payload ?? {};
+        const { imageUrl,
+            morphKernelSize = 3,
+            rotation,
+            keepBest = true
+        } = payload ?? {};
 
         if (!imageUrl) throw new Error("imageUrl is required");
 

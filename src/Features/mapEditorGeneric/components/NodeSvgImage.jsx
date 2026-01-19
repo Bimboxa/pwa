@@ -23,6 +23,7 @@ export default memo(function NodeSvgImage({
   hovered,
   opacity,
   grayScale = false,
+  grayLevelThreshold = 255,
 }) {
   const refSize = useRef();
 
@@ -47,6 +48,42 @@ export default memo(function NodeSvgImage({
     return DESIRED_VISUAL_BORDER / _F;
   }, [_F]);
 
+  // --- 2. LOGIQUE DU FILTRE SVG (THRESHOLD) ---
+  // On génère un ID unique pour ce filtre pour ne pas impacter les autres images
+  const filterId = `filter-threshold-${dataNodeId}`;
+  const hasThreshold = grayLevelThreshold < 255 - 10;
+
+  const matrixValues = useMemo(() => {
+    if (!hasThreshold) return "";
+
+    const slope = 50; // Netteté de la coupure
+    const t = grayLevelThreshold / 255;
+
+    // Coefficients pour le calcul de l'Alpha (Seuil)
+    const r = -0.2126 * slope;
+    const g = -0.7152 * slope;
+    const b = -0.0722 * slope;
+    const off = slope * t;
+
+    // CORRECTION ICI : 
+    // Les 3 premières lignes sont maintenant l'identité (1 0 0 0 0 ...)
+    // Cela préserve les couleurs Rouge, Vert, Bleu d'origine.
+    // La 4ème ligne applique le seuil sur l'Alpha.
+    return `
+            1 0 0 0 0 
+            0 1 0 0 0 
+            0 0 1 0 0 
+            ${r} ${g} ${b} 1 ${off}
+        `;
+  }, [grayLevelThreshold, hasThreshold]);
+
+  // --- CHOIX DU STYLE FINAL ---
+  // Si on a un threshold, on utilise notre filtre SVG custom.
+  // Sinon, on utilise le simple filtre grayscale CSS si demandé.
+  const finalFilter = hasThreshold
+    ? `url(#${filterId})`
+    : (grayScale ? "grayscale(100%)" : "none");
+
 
   if (!src || !width || !height) return null;
 
@@ -54,17 +91,43 @@ export default memo(function NodeSvgImage({
 
   return (
     <g>
+      {/* Définition du filtre local à cette image */}
+      {hasThreshold && (
+        <defs>
+          <filter id={filterId} colorInterpolationFilters="sRGB">
+            {/* Étape 1 : On applique le seuil (conserve les couleurs, modifie l'alpha) */}
+            <feColorMatrix
+              in="SourceGraphic"
+              result="matrixResult"
+              type="matrix"
+              values={matrixValues}
+            />
+
+            {/* Étape 2 (CORRECTION) : On force le respect de la transparence d'origine.
+                'operator="in"' signifie : Affiche le résultat de 'matrixResult' UNIQUEMENT 
+                là où 'SourceGraphic' (l'image originale) est visible. 
+                Les zones transparentes redeviennent transparentes. */}
+            <feComposite
+              operator="in"
+              in="matrixResult"
+              in2="SourceGraphic"
+            />
+          </filter>
+        </defs>
+      )}
+
       <image
         href={src}
         x={0}
         y={0}
         width={width}
         height={height}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
+        //preserveAspectRatio="none"
         style={{
           imageRendering: "optimizeSpeed",
           opacity: opacity,
-          filter: grayScale ? "grayscale(100%)" : "none",
+          filter: finalFilter,
         }}
         {...dataProps}
       />

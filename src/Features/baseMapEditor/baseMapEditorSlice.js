@@ -5,6 +5,8 @@ import theme from "Styles/theme";
 
 const baseMapEditorInitialState = {
   selectedTab: "INFO", // INFO, TOOLS, ANNOTATIONS
+  //
+  grayLevelThreshold: 255, // 255 = on laisse tout, 0 = on coupe tout
 };
 
 export const baseMapEditorSlice = createSlice({
@@ -13,12 +15,16 @@ export const baseMapEditorSlice = createSlice({
   reducers: {
     setSelectedTab: (state, action) => {
       state.selectedTab = action.payload;
-    }
+    },
+    setGrayLevelThreshold: (state, action) => {
+      state.grayLevelThreshold = action.payload;
+    },
   },
 });
 
 export const {
   setSelectedTab,
+  setGrayLevelThreshold,
 } = baseMapEditorSlice.actions;
 
 export default baseMapEditorSlice.reducer;

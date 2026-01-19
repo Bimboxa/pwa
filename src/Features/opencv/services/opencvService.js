@@ -250,6 +250,12 @@ class CV {
       payload,
     });
   }
+  applyGrayLevelThresholdAsync(payload) {
+    return this._dispatch({
+      msg: "applyGrayLevelThresholdAsync",
+      payload
+    });
+  }
 }
 
 // Export the same instant everywhere

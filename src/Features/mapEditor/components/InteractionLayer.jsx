@@ -74,6 +74,8 @@ const InteractionLayer = forwardRef(({
   onBaseMapPoseChange,
   onBaseMapPoseCommit,
   baseMapImageSize,
+  baseMapImageScale,
+  baseMapImageOffset,
   baseMapImageUrl,
   baseMapMainAngleInDeg,
   bgPose = { x: 0, y: 0, k: 1 },
@@ -333,10 +335,10 @@ const InteractionLayer = forwardRef(({
     const localPos = toLocalCoords(worldPos);
 
     const sourceROI = {
-      x: localPos.x - sourceWidthInImage / 2,
-      y: localPos.y - sourceHeightInImage / 2,
-      width: sourceWidthInImage,
-      height: sourceHeightInImage
+      x: (localPos.x - sourceWidthInImage / 2 - baseMapImageOffset.x) * baseMapImageScale,
+      y: (localPos.y - sourceHeightInImage / 2 - baseMapImageOffset.y) * baseMapImageScale,
+      width: sourceWidthInImage * baseMapImageScale,
+      height: sourceHeightInImage * baseMapImageScale
     };
 
     // B. VISUEL : Positionner la loupe avec les coordonnées LOCALES (viewportPos)
@@ -346,7 +348,7 @@ const InteractionLayer = forwardRef(({
     }
 
     lastSmartROI.current = { ...sourceROI, zoomFactor: SMART_ZOOM, totalScale };
-  }, [toLocalCoords, getTargetPose]);
+  }, [toLocalCoords, getTargetPose, baseMapImageScale]);
 
 
   // Smart Transformer
@@ -2346,6 +2348,8 @@ const InteractionLayer = forwardRef(({
         {zoomContainer ? createPortal(<SmartDetectLayer
           ref={smartDetectRef}
           sourceImage={sourceImageEl}
+          baseMapImageScale={baseMapImageScale}
+          baseMapImageOffset={baseMapImageOffset}
           rotation={rotation}
           loupeSize={LOUPE_SIZE}
           onSmartShapeDetected={handleSmartShapeDetected}

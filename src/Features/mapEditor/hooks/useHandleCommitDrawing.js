@@ -65,7 +65,7 @@ export default function useHandleCommitDrawing() {
         }
         // image size
 
-        const { width, height } = baseMap?.getImageSize() ?? {}
+        const { width, height } = baseMap?.image?.imageSize ?? {}
 
         // cuts
 

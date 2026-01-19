@@ -30,7 +30,7 @@ export default function useSaveTempAnnotations() {
         if (!tempAnnotations || tempAnnotations.length === 0) return;
 
         // image size for normalization
-        const { width, height } = baseMap?.getImageSize() ?? { width: 1, height: 1 };
+        const { width, height } = baseMap?.image?.imageSize ?? { width: 1, height: 1 };
 
         // Process each temp annotation
         for (const tempAnn of tempAnnotations) {

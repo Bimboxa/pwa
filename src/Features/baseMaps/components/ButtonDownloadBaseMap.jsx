@@ -9,12 +9,12 @@ export default function ButtonDownloadBaseMap({ baseMap }) {
 
     // strings
 
-    const downloadS = "Télécharger l'image d'origine";
+    const downloadS = "Télécharger l'image";
 
     // handlers
 
     async function handleDownload() {
-        const imageUrl = baseMap.image.imageUrlClient;
+        const imageUrl = baseMap.getUrl();
         const bgColor = "#FFFFFF";
         await cv.load();
         const { processedImageFile } = await cv.addBackground({ imageUrl, bgColor });

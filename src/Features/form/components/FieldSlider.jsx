@@ -14,6 +14,7 @@ export default function FieldSlider({ value, onChange, label, options }) {
         alignItems: "center",
         px: 0.5,
         pl: 1,
+        width: 1,
 
         ...(showAsSection
           ? {

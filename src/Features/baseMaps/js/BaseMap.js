@@ -30,6 +30,7 @@ export default class BaseMap {
     meterByPx,
     latLng,
     opacity,
+    opacityEnhanced,
     grayScale,
     mainAngleInDeg,
     rotation2D, // in deg
@@ -45,6 +46,7 @@ export default class BaseMap {
     this.meterByPx = meterByPx;
     this.latLng = latLng;
     this.opacity = opacity;
+    this.opacityEnhanced = opacityEnhanced;
     this.grayScale = grayScale;
     this.mainAngleInDeg = mainAngleInDeg;
     this.rotation2D = rotation2D;
@@ -61,6 +63,7 @@ export default class BaseMap {
     imageEnhanced,
     showEnhanced,
     opacity,
+    opacityEnhanced,
     grayScale,
     meterByPx,
     latLng,
@@ -74,6 +77,7 @@ export default class BaseMap {
       imageEnhanced,
       showEnhanced,
       opacity,
+      opacityEnhanced,
       grayScale,
       meterByPx,
       latLng,
@@ -177,16 +181,35 @@ export default class BaseMap {
   // GETTERS
 
   getUrl = () => {
-    const imageToUse =
-      this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
+    const imageToUse = this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
     return imageToUse?.imageUrlClient ?? imageToUse?.imageUrlRemote;
   };
 
   getImageSize = () => {
-    const imageToUse =
-      this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
-    return imageToUse?.imageSize;
+    const imageToUse = this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
+    //const imageToUse = this.image;
+    return imageToUse.imageSize;
   };
+
+  getImageScale = () => {
+    let scale = 1;
+    if (this.showEnhanced && this.imageEnhanced && this.image) {
+      scale = this.imageEnhanced.imageSize.width / this.image.imageSize.width;
+    }
+    return scale;
+  };
+
+  getImageOffset = () => {
+    let offset = { x: 0, y: 0 };
+    if (this.showEnhanced && this.imageEnhanced && this.image) {
+      const scale = this.getImageScale();
+      offset = {
+        x: (this.image.imageSize.width - this.imageEnhanced.imageSize.width / scale) / 2,
+        y: (this.image.imageSize.height - this.imageEnhanced.imageSize.height / scale) / 2,
+      };
+    }
+    return offset;
+  }
 
   getMeterByPx = (options) => {
 
@@ -194,9 +217,9 @@ export default class BaseMap {
 
     if (!this.meterByPx) return null;
 
-    if (this.showEnhanced && this.imageEnhanced && this.image || variant === "imageEnhanced") {
-      return this.meterByPx * 1 / (this.imageEnhanced.imageSize.width / this.image.imageSize.width);
-    }
+    // if (this.showEnhanced && this.imageEnhanced && this.image || variant === "imageEnhanced") {
+    //   return this.meterByPx * 1 / (this.imageEnhanced.imageSize.width / this.image.imageSize.width);
+    // }
     return this.meterByPx;
   };
 
@@ -213,6 +236,7 @@ export default class BaseMap {
       showEnhanced: this.showEnhanced,
       meterByPx: this.meterByPx,
       opacity: this.opacity,
+      opacityEnhanced: this.opacityEnhanced,
       grayScale: this.grayScale,
       latLng: this.latLng,
       mainAngleInDeg: this.mainAngleInDeg,
