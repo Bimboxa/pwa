@@ -16,7 +16,9 @@ import ButtonDrawCut from "./ButtonDrawCut";
 import ButtonDrawLabel from "./ButtonDrawLabel";
 import ButtonDrawImage from "./ButtonDrawImage";
 import ButtonEditScale from "./ButtonEditScale";
+
 import IconButtonStartTransformer from "Features/transformers/components/IconButtonStartTransformer";
+import IconButtonSmartDetectLine from "Features/smartDetect/components/IconButtonSmartDetectLine";
 
 import ToolbarEnabledDrawingMode from "./ToolbarEnabledDrawingMode";
 import ToolbarNewAnnotation from "Features/annotations/components/ToolbarNewAnnotation";
@@ -84,7 +86,8 @@ export default function ToolbarMapEditorV3() {
             <ButtonDrawCut />
             <ButtonDrawLabel />
             <ButtonDrawImage />
-            <IconButtonStartTransformer />
+            {/* <IconButtonStartTransformer /> */}
+            <IconButtonSmartDetectLine />
 
         </Paper>
 

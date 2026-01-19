@@ -13,6 +13,7 @@ export default memo(function NodeImageStatic({
     dragged,
     grayScale = false,
     containerK = 1,
+
 }) {
     const { bbox, image, id, opacity } = imageAnnotation;
     const { x, y, width, height } = bbox ?? {};
@@ -28,6 +29,11 @@ export default memo(function NodeImageStatic({
         const k = containerK || 1;
         return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
     }, [containerK]);
+
+
+
+
+
 
     if (!src) return null;
 
@@ -110,11 +116,17 @@ export default memo(function NodeImageStatic({
         </g>
     );
 
+
+
+
+    // --- RENDU ---
     return (
         <g
             transform={`translate(${x || 0}, ${y || 0}) rotate(${rotation}, ${cx}, ${cy})`}
             style={{ opacity: dragged ? 0.7 : opacity }}
         >
+
+
             {/* Conteneur principal draggable */}
             <g {...interactionProps}>
                 <image

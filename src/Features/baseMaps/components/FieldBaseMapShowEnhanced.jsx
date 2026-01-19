@@ -30,7 +30,11 @@ export default function FieldBaseMapShowEnhanced({ baseMap }) {
 
     // render
 
-    return <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", p: 1 }}>
+    return <Box sx={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        p: 1,
+        borderBottom: theme => `1px solid ${theme.palette.divider}`
+    }}>
         <Typography variant="body2" color="text.secondary">Utiliser l'image améliorée</Typography>
         <Switch
             checked={checked}

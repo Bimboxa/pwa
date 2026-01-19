@@ -44,6 +44,7 @@ export default function useAnnotationsV2(options) {
         const withQties = options?.withQties;
 
         const baseMapAnnotationsOnly = options?.baseMapAnnotationsOnly;
+        const hideBaseMapAnnotations = options?.hideBaseMapAnnotations;
 
         const groupByBaseMap = options?.groupByBaseMap;
 
@@ -90,6 +91,7 @@ export default function useAnnotationsV2(options) {
                 _annotations = await db.annotations.where("baseMapId").equals(baseMapId).toArray();
                 points = await db.points.where("baseMapId").equals(baseMapId).toArray();
             }
+
             if (listingId) {
                 if (!_annotations) {
                     _annotations = await db.annotations.where("listingId").equals(listingId).toArray();
@@ -100,6 +102,10 @@ export default function useAnnotationsV2(options) {
                 if (!points) {
                     points = await db.points.where("projectId").equals(projectId).toArray();
                 }
+
+                // remove base map annotations
+                _annotations = _annotations.filter(a => !a.isBaseMapAnnotation)
+
             }
 
             if (!listingId && !baseMapId) {
@@ -107,13 +113,16 @@ export default function useAnnotationsV2(options) {
                 points = await db.points.where("projectId").equals(projectId).toArray();
             }
 
-            // base map annotations only
+            // base map annotations
 
             if (baseMapAnnotationsOnly) {
                 _annotations = _annotations.filter(a => a.isBaseMapAnnotation)
-            } else {
+            }
+
+            if (hideBaseMapAnnotations) {
                 _annotations = _annotations.filter(a => !a.isBaseMapAnnotation)
             }
+
 
             // filter by scope
 
@@ -148,10 +157,10 @@ export default function useAnnotationsV2(options) {
 
 
                 const baseMap = baseMapById[annotation.baseMapId];
-                const imageSize = baseMap.getImageSize();
-                const scale = (baseMap?.image?.imageSize && baseMap?.imageEnhanced?.imageSize && baseMap?.showEnhanced) ?
-                    baseMap.imageEnhanced.imageSize.width / baseMap.image.imageSize.width :
-                    1;
+                const imageSize = baseMap?.image?.imageSize;
+                // const scale = (baseMap?.image?.imageSize && baseMap?.imageEnhanced?.imageSize && baseMap?.showEnhanced) ?
+                //     baseMap.imageEnhanced.imageSize.width / baseMap.image.imageSize.width :
+                //     1;
 
                 if (!imageSize) return [];
                 const { width, height } = imageSize;
@@ -314,6 +323,7 @@ export default function useAnnotationsV2(options) {
             baseMapId,
             excludeListingsIds?.join("-"),
             baseMapAnnotationsOnly,
+            hideBaseMapAnnotations,
             annotationsUpdatedAt,
             baseMapsUpdatedAt,
             baseMaps?.length,

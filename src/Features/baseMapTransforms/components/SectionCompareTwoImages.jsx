@@ -5,7 +5,7 @@ import { UnfoldMore } from "@mui/icons-material";
 export default function SectionCompareTwoImages({
     imageUrl1,
     imageUrl2,
-    variant = "overlap" // "overlap" | "alignToLeft" | "alignToTop"
+    variant = "alignToLeft" // "overlap" | "alignToLeft" | "alignToTop"
 }) {
     const image1S = "Original";
     const image2S = "Transformée";

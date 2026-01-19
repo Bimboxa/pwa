@@ -70,8 +70,8 @@ export default function useAnnotationTemplateQtiesById() {
       const closeLine =
         annotation.type === "POLYGON" ||
         annotation.closeLine ||
-        annotation?.polyline?.closeLine ||
-        annotation?.annotationTemplate?.closeLine ||
+        //annotation?.polyline?.closeLine ||
+        // annotation?.annotationTemplate?.closeLine ||
         false;
 
       // --- CALCUL LONGUEUR (Intégrant hiddenSegmentsIdx) ---
@@ -121,16 +121,20 @@ export default function useAnnotationTemplateQtiesById() {
 
       // --- CONVERSION EN UNITÉS RÉELLES (Mètres) ---
       const meterByPx = baseMap?.getMeterByPx();
-      let length = lengthPx;
-      let surface = surfacePx;
+      let length;
+      let surface;
+      let enabled = false;
 
-      if (meterByPx && Number.isFinite(meterByPx) && meterByPx > 0) {
+      const meterByPxIsValid = meterByPx && Number.isFinite(meterByPx) && meterByPx > 0;
+
+      if (meterByPxIsValid) {
         length = lengthPx * meterByPx;
         // Surface = pixel² * (m/pixel)²
         surface = surfacePx * (meterByPx * meterByPx);
+        enabled = true;
       }
 
-      return { length, surface };
+      return { length, surface, enabled };
     };
   }, [baseMapById]);
 
@@ -162,13 +166,13 @@ export default function useAnnotationTemplateQtiesById() {
         const template = annotationTemplateById?.[templateId];
 
         // Appel de la nouvelle fonction de calcul
-        const { length, surface } = computePolylineMetrics(annotation);
+        const { length, surface, enabled } = computePolylineMetrics(annotation);
 
-        stats.length += length;
+        if (enabled) stats.length += length;
 
         // On ajoute la surface si le template le demande ou si c'est explicitement un polygone
         if ((template?.type === "POLYLINE" && template?.closeLine) || annotation?.type === "POLYGON") {
-          stats.surface += surface;
+          if (enabled) stats.surface += surface;
         }
       }
 

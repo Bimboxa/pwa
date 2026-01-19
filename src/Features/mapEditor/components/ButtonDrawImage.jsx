@@ -66,7 +66,7 @@ export default function ButtonDrawImage({ disabled }) {
 
     const bbox = getImageAnnotationInitialBbox(
       {
-        containerImageSize: baseMap.getImageSize(),
+        containerImageSize: baseMap.image?.imageSize,
         imageSize: image.imageSize,
         asImageRatio: true,
       }

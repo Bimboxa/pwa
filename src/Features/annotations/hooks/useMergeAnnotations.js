@@ -23,7 +23,7 @@ export default function useMergeAnnotations() {
         const annotation0 = annotations[0];
         const annotationsToDelete = annotations.filter((a, i) => i !== 0);
 
-        const { width, height } = baseMap?.getImageSize() || { width: 1, height: 1 };
+        const { width, height } = baseMap?.image?.imageSize || { width: 1, height: 1 };
 
 
         // create points

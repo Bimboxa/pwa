@@ -9,7 +9,7 @@ import usePdfPageImageUrl from "../hooks/usePdfPageImageUrl"
 
 // Ajout de Skeleton dans les imports
 import { Box, Typography, Skeleton, IconButton } from "@mui/material"
-import { RotateRight as Rotate } from "@mui/icons-material";
+import { Rotate90DegreesCcw as RotateCcw, Rotate90DegreesCw as RotateCw } from "@mui/icons-material";
 
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight"
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch"
@@ -44,8 +44,8 @@ export default function PageBaseMapCreator({ onClose }) {
         dispatch(setPageNumber(pageNumber));
     }
 
-    async function handleRotate() {
-        dispatch(setRotate(rotate + 90));
+    async function handleRotate({ counter }) {
+        dispatch(setRotate(rotate + (counter ? -90 : 90)));
     }
 
     useEffect(() => {
@@ -88,8 +88,11 @@ export default function PageBaseMapCreator({ onClose }) {
                             alignItems: "center",
 
                         }}>
-                            <IconButton onClick={handleRotate}>
-                                <Rotate />
+                            <IconButton onClick={() => handleRotate({ counter: false })}>
+                                <RotateCw />
+                            </IconButton>
+                            <IconButton onClick={() => handleRotate({ counter: true })}>
+                                <RotateCcw />
                             </IconButton>
                             <ButtonAddTempImage pdfFile={pdfFile} pageNumber={pageNumber} />
                         </Box>

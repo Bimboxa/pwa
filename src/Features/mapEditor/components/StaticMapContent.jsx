@@ -18,6 +18,8 @@ function StaticMapContent({
     bgPose = { x: 0, y: 0, k: 1 },
     basePose,
     baseMapImageUrl,
+    baseMapImageEnhancedUrl,
+    baseMapShowEnhanced,
     baseMapImageSize,
     baseMapMeterByPx,
     annotations,
@@ -28,7 +30,9 @@ function StaticMapContent({
     sizeVariant,
     isEditingBaseMap = false,
     opacity = 1,
-    grayScale = false
+    opacityEnhanced = 1,
+    grayScale = false,
+    grayLevelThreshold = 0
 }) {
 
     // data
@@ -122,6 +126,21 @@ function StaticMapContent({
 
             {/* --- BASE MAP LAYER --- */}
             <g transform={`translate(${basePose.x}, ${basePose.y}) scale(${basePose.k})`} style={{ pointerEvents: 'auto' }}>
+
+
+                {baseMapShowEnhanced && <NodeSvgImage
+                    src={baseMapImageEnhancedUrl}
+                    //dataNodeType="BASE_MAP"
+                    dataNodeId={baseMapImageEnhancedUrl}
+                    width={baseMapImageSize?.width}
+                    height={baseMapImageSize?.height}
+                    //hovered={baseMapIsHovered}
+                    //selected={baseMapIsSelected}
+                    //opacity={opacityEnhanced}
+                    //grayScale={grayScale}
+                    grayLevelThreshold={grayLevelThreshold}
+                />}
+
                 {!isEditingBaseMap && <NodeSvgImage
                     src={baseMapImageUrl}
                     dataNodeType="BASE_MAP"
@@ -130,8 +149,9 @@ function StaticMapContent({
                     height={baseMapImageSize?.height}
                     hovered={baseMapIsHovered}
                     selected={baseMapIsSelected}
-                    opacity={opacity}
+                    opacity={baseMapShowEnhanced ? opacityEnhanced : opacity}
                     grayScale={grayScale}
+                    grayLevelThreshold={grayLevelThreshold}
                 />}
 
                 {baseMapAnnotations?.map(annotation => {

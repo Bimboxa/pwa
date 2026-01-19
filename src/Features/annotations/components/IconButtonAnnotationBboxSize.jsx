@@ -14,7 +14,7 @@ export default function IconButtonAnnotationBboxSize({ annotation }) {
     // data
     const baseMap = useMainBaseMap();
 
-    const { width: baseMapWidth, height: baseMapHeight } = baseMap?.getImageSize() || {};
+    const { width: baseMapWidth, height: baseMapHeight } = baseMap?.image?.imageSize || {};
 
     // const
     const meterByPx = baseMap?.meterByPx || 0;
@@ -89,7 +89,7 @@ export default function IconButtonAnnotationBboxSize({ annotation }) {
     };
 
     const handleSaveClick = async () => {
-        const { width, height } = baseMap.getImageSize();
+        const { width, height } = baseMap.image.imageSize;
         await db.annotations.update(annotation.id, {
             bbox: {
                 ...annotation.bbox,
