@@ -1,5 +1,6 @@
 import NodeMarkerStatic from "./NodeMarkerStatic";
 import NodePolylineStatic from "./NodePolylineStatic";
+import NodeStripStatic from "./NodeStripStatic";
 import NodeTextStatic from "./NodeTextStatic";
 import NodeLabelStatic from "./NodeLabelStatic";
 import NodeImageStatic from "./NodeImageStatic";
@@ -60,6 +61,9 @@ export default function NodeAnnotationStatic({
 
     case "POLYLINE":
       return <NodePolylineStatic {...props} annotation={annotation} />;
+
+    case "STRIP":
+      return <NodeStripStatic {...props} annotation={annotation} />;
 
     case "TEXT":
       return <NodeTextStatic {...props} text={annotation} />;

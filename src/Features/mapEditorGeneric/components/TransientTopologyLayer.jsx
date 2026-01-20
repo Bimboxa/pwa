@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react';
+
 import NodePolylineStatic from './NodePolylineStatic';
+import NodeStripStatic from './NodeStripStatic';
 
 export default function TransientTopologyLayer({
     annotations,
@@ -142,21 +144,37 @@ export default function TransientTopologyLayer({
 
     return (
         <g className="transient-layer">
-            {modifiedAnnotations.map(ann => (
-                <NodePolylineStatic
-                    key={ann.id}
-                    annotation={ann}
-                    annotationOverride={{
-                        strokeColor: "#2196f3",
-                        strokeWidth: ann.strokeWidth,
-                        strokeOpacity: 0.5,
-                        selected: true
-                    }}
-                    baseMapMeterByPx={baseMapMeterByPx}
-                    selected={true}
-                    isTransient={true}
-                />
-            ))}
+            {modifiedAnnotations.map(ann => {
+                return <>
+                    {["POLYGON", "POLYLINE"].includes(ann.type) && <NodePolylineStatic
+                        key={ann.id}
+                        annotation={ann}
+                        annotationOverride={{
+                            strokeColor: "#2196f3",
+                            //strokeWidth: ann.strokeWidth,
+                            strokeOpacity: 0.5,
+                            selected: true
+                        }}
+                        baseMapMeterByPx={baseMapMeterByPx}
+                        selected={true}
+                        isTransient={true}
+                    />}
+
+                    {ann.type === "STRIP" && <NodeStripStatic
+                        key={ann.id}
+                        annotation={ann}
+                        annotationOverride={{
+                            strokeColor: "#2196f3",
+                            //strokeWidth: ann.strokeWidth,
+                            strokeOpacity: 0.5,
+                            selected: true
+                        }}
+                        baseMapMeterByPx={baseMapMeterByPx}
+                        selected={true}
+                        isTransient={true}
+                    />}
+                </>
+            })}
 
             {/* Le Point sous la souris (Feedback visuel) */}
             <circle

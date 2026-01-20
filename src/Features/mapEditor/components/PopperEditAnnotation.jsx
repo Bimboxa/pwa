@@ -31,7 +31,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   const open =
     shouldShow &&
     Boolean(anchorPosition) &&
-    ["POLYLINE", "POLYGON", "IMAGE", "RECTANGLE"].includes(selectedNode?.annotationType) &&
+    ["POLYLINE", "POLYGON", "IMAGE", "RECTANGLE", "STRIP"].includes(selectedNode?.annotationType) &&
     selectedNode?.nodeType === "ANNOTATION";
 
   // helper - isBaseMapAnnotation

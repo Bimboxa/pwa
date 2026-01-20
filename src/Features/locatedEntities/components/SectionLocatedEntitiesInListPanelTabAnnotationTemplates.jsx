@@ -126,7 +126,7 @@ function DraggableAnnotationTemplateItem({
       style={style}
       sx={{
         opacity: isDragging ? 0 : 1,
-        pointerEvents: annotationTemplate?.type === "STRIP" ? "none" : "auto",
+        //pointerEvents: annotationTemplate?.type === "STRIP" ? "none" : "auto",
       }}
     >
       <ListItemButton

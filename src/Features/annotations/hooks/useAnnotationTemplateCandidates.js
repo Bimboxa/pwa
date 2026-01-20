@@ -14,6 +14,7 @@ export default function useAnnotationTemplateCandidates(annotation, options) {
         MARKER: ["MARKER"],
         POLYGON: ["POLYGON", "POLYLINE"],
         POLYLINE: ["POLYLINE", "POLYGON"],
+        STRIP: ["STRIP", "POLYGON"],
         TEXT: ["TEXT"]
     }
 

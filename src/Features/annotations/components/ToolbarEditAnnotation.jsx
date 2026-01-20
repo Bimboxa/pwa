@@ -24,6 +24,7 @@ import ButtonAnnotationTemplate from "./ButtonAnnotationTemplate";
 import IconButtonCloneAnnotation from "./IconButtonCloneAnnotation";
 import IconButtonAnnotationOpacity from "./IconButtonAnnotationOpacity";
 import IconButtonAnnotationBboxSize from "./IconButtonAnnotationBboxSize";
+import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
 
 import { PopperDragHandle } from "Features/layout/components/PopperBox";
 
@@ -96,6 +97,12 @@ export default function ToolbarEditAnnotation() {
       {type === "POLYLINE" && <Box sx={{ display: "flex", alignItems: "center" }}>
         <ButtonAnnotationTemplate annotation={selectedAnnotation} />
         <IconButtonToggleAnnotationCloseLine annotation={selectedAnnotation} />
+        <IconButtonCloneAnnotation annotation={selectedAnnotation} />
+      </Box>}
+
+      {type === "STRIP" && <Box sx={{ display: "flex", alignItems: "center" }}>
+        <ButtonAnnotationTemplate annotation={selectedAnnotation} />
+        <IconButtonFlipStripAnnotation annotation={selectedAnnotation} />
         <IconButtonCloneAnnotation annotation={selectedAnnotation} />
       </Box>}
 

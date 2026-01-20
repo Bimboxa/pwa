@@ -42,7 +42,7 @@ export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
             key: "CLICK",
             label: "Clic",
             icon: <Mouse sx={{ color }} />,
-            show: ["POLYLINE", "POLYGON", "CUT"].includes(type)
+            show: ["POLYLINE", "POLYGON", "STRIP", "CUT"].includes(type)
         },
         {
             key: "RECTANGLE",
@@ -74,7 +74,7 @@ export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
 
     // helpers - show mode
 
-    const showMode = ["POLYLINE", "POLYGON", "CUT", "MARKER", "POINT", "IMAGE", "RECTANGLE"].includes(type);
+    const showMode = ["POLYLINE", "POLYGON", "STRIP", "CUT", "MARKER", "POINT", "IMAGE", "RECTANGLE"].includes(type);
 
     // handlers
 

@@ -9,6 +9,7 @@ import {
   Image,
   TextFields,
   Circle,
+  StackedLineChart as Strip,
 } from "@mui/icons-material";
 
 import { Box, Typography } from "@mui/material";
@@ -97,6 +98,7 @@ export default function FormAnnotationTemplateVariantBlock({
     { key: "POINT", icon: <Circle sx={{ fontSize: 12 }} />, label: "Point" },
     //{ key: "SEGMENT", icon: <HorizontalRule />, label: "Segment" },
     { key: "POLYLINE", icon: <Polyline />, label: "Ligne" },
+    { key: "STRIP", icon: <Strip />, label: "Bande" },
     { key: "POLYGON", icon: <Pentagon />, label: "Surface" },
     { key: "RECTANGLE", icon: <Rectangle />, label: "Rectangle" },
     { key: "IMAGE", icon: <Image />, label: "Image" },
@@ -111,7 +113,7 @@ export default function FormAnnotationTemplateVariantBlock({
   // helpers - show fill and stroke
 
   const showFill = ["RECTANGLE", "POLYGON"].includes(type);
-  const showStroke = ["POLYLINE"].includes(type);
+  const showStroke = ["POLYLINE", "STRIP"].includes(type);
 
   // handlers
 
@@ -256,7 +258,7 @@ export default function FormAnnotationTemplateVariantBlock({
         </Box>
       )}
 
-      {["SEGMENT", "POLYLINE", "POLYGON"].includes(type) && (
+      {["SEGMENT", "POLYLINE", "POLYGON", "STRIP"].includes(type) && (
         <Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
             <AnnotationIcon

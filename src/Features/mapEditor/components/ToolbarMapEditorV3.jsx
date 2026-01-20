@@ -16,6 +16,7 @@ import ButtonDrawCut from "./ButtonDrawCut";
 import ButtonDrawLabel from "./ButtonDrawLabel";
 import ButtonDrawImage from "./ButtonDrawImage";
 import ButtonEditScale from "./ButtonEditScale";
+import ButtonDrawStrip from "./ButtonDrawStrip";
 
 import IconButtonStartTransformer from "Features/transformers/components/IconButtonStartTransformer";
 import IconButtonSmartDetectLine from "Features/smartDetect/components/IconButtonSmartDetectLine";
@@ -46,6 +47,7 @@ export default function ToolbarMapEditorV3() {
         <ButtonDrawMarker key={1} disabled={disabled} />,
         <ButtonDrawPolyline key={2} disabled={disabled} />,
         <ButtonDrawPolygon key={3} disabled={disabled} />,
+        <ButtonDrawStrip key={4} disabled={disabled} />,
     ]
 
     // helpers - show

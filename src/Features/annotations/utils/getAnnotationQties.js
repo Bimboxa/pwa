@@ -1,3 +1,5 @@
+import getStripePolygons from "Features/geometry/utils/getStripePolygons";
+
 // Helper pour calculer la distance entre deux points
 const getDistance = (p1, p2) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
 
@@ -20,6 +22,22 @@ export default function getAnnotationQties({ annotation, meterByPx }) {
   if (!annotation) return null;
 
   if (!meterByPx) return { enabled: false };
+
+  // stripe annotation => polyline annotation
+
+
+  if (annotation.type === "STRIP") {
+    const polygons = getStripePolygons(annotation, meterByPx);
+    const qties = polygons.reduce((acc, polygon) => {
+      const annotation = { ...polygon, type: "POLYGON" };
+      const qty = getAnnotationQties({ annotation, meterByPx });
+      acc.length += qty.length;
+      acc.surface += qty.surface;
+      return acc;
+    }, { enabled: true, length: 0, surface: 0 });
+    console.log("qties", qties);
+    return qties;
+  }
 
   // 1. Validation de base
   if (!Array.isArray(annotation.points)) {
