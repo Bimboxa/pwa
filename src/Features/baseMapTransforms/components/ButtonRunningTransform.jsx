@@ -56,9 +56,9 @@ export default function ButtonRunningTransform() {
         console.log("handleSaveClick", enhancedResult);
         if (!enhancedResult?.blob) return;
         const fileName = `transformed_${Date.now()}.png`;
-        const file = new File([enhancedResult.blob], fileName);
+        const file = new File([enhancedResult.blob], fileName, { type: "image/png" });
         await updateBaseMapWithImageEnhanced(baseMap.id, file);
-        dispatch(clearEnhancedImageResult(baseMap.id));
+        //dispatch(clearEnhancedImageResult(baseMap.id));
         setOpen(false);
     }
 
