@@ -17,11 +17,13 @@ export default function LeftPanel() {
   const openLeftPanel = useSelector((s) => s.leftPanel.openLeftPanel);
   const panelWidth = useSelector((s) => s.leftPanel.width);
   const isFullScreen = useSelector((s) => s.layout.isFullScreen);
+  const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
   // helpers
 
   let width = openLeftPanel ? panelWidth : 0;
   if (isFullScreen) width = 0;
+  if (selectedViewerKey === "TABLE") width = 0;
 
   // handler
 
@@ -51,7 +53,7 @@ export default function LeftPanel() {
           position: "relative",
         }}
       >
-        <PanelListingContainer />
+        {width > 0 && <PanelListingContainer />}
         {/* <Box
           sx={{
             position: "absolute",

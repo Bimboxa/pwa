@@ -59,6 +59,7 @@ export default function useAutoLayout() {
       setStep("END");
     }
   }, [projectId, scopeId, presetListingsKeys?.length, baseMap?.id]);
+
   // effect
 
   useEffect(() => {

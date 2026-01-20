@@ -110,6 +110,11 @@ export default function getAnnotationQties({ annotation, meterByPx }) {
     surfacePx = Math.max(0, surfacePx);
   }
 
+  else if (annotation.type === "POLYLINE" && annotation.height) {
+    surfacePx = lengthPx * parseFloat(annotation.height) / meterByPx;
+  }
+
+
   // --- CONVERSION EN UNITÉS RÉELLES (Mètres) ---
   const length = lengthPx * meterByPx;
   // Surface = pixel² * (m/pixel)²

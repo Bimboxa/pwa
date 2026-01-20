@@ -1,26 +1,70 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Typography, InputBase, Box } from "@mui/material";
 
 export default function FieldAnnotationHeight({ annotation, onChange }) {
   const label = "ht.";
-  const value = annotation?.height ?? "";
+
+  // 1. We need local state to manage the input value immediately while typing
+  const [localValue, setLocalValue] = useState(annotation?.height ?? "");
+
+  // 2. We use a ref to store the timer ID so it persists across renders
+  const debounceTimer = useRef(null);
+
+  // 3. Sync local state if the prop changes externally (e.g. selecting a different node)
+  useEffect(() => {
+    setLocalValue(annotation?.height ?? "");
+  }, [annotation?.height, annotation?.id]);
 
   const commonFontStyles = {
     fontSize: (theme) => theme.typography.body2?.fontSize,
     fontFamily: (theme) => theme.typography.body2?.fontFamily,
     fontWeight: (theme) => theme.typography.body2?.fontWeight,
-    // On force la line-height pour garantir que fantôme et input aient la même hauteur
     lineHeight: (theme) => theme.typography.body2?.lineHeight || 1.5,
     letterSpacing: "normal",
+  };
+
+  /**
+   * Logic to determine if we send a Number or a String
+   */
+  const processValue = (inputValue) => {
+    // Normalize string
+    let valStr = String(inputValue).replace(",", ".");
+
+    // Rule: If it ends with a dot (e.g. "2."), keep as string
+    if (valStr.endsWith(".")) {
+      return valStr;
+    }
+
+    // Attempt conversion
+    const numberVal = parseFloat(valStr);
+
+    // Rule: If it is a valid number, return Number type. 
+    // Otherwise (empty string, text, etc.), return the sanitized string.
+    return !isNaN(numberVal) ? numberVal : valStr;
   };
 
   async function handleChange(e) {
     if (!annotation) return;
     e.stopPropagation();
     e.preventDefault();
-    let height = e.target.value;
-    height = height.replace(",", ".");
-    onChange({ ...annotation, height });
+
+    const newValue = e.target.value;
+
+    // 1. Update UI immediately
+    setLocalValue(newValue);
+
+    // 2. Clear previous timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    // 3. Set new timer (Debounce 400ms)
+    debounceTimer.current = setTimeout(() => {
+      const finalValue = processValue(newValue);
+
+      // Commit change to parent
+      onChange({ ...annotation, height: finalValue });
+    }, 400);
   }
 
   function handleKeyDown(e) {
@@ -35,11 +79,8 @@ export default function FieldAnnotationHeight({ annotation, onChange }) {
         {label}
       </Typography>
 
-      {/* Le Box Grid doit être en 'relative' pour servir de repère à l'input absolu.
-         La largeur de ce Box sera désormais dictée EXCLUSIVEMENT par le fantôme.
-      */}
       <Box sx={{ display: "grid", alignItems: "center", position: "relative" }}>
-        {/* 1. Le FANTÔME (Maître des dimensions) */}
+        {/* 1. Le FANTÔME (Maître des dimensions) - Uses localValue now */}
         <Box
           component="span"
           sx={{
@@ -52,17 +93,16 @@ export default function FieldAnnotationHeight({ annotation, onChange }) {
             ...commonFontStyles,
           }}
         >
-          {value || " "}
+          {localValue || " "}
         </Box>
 
-        {/* 2. L'INPUT (Esclave des dimensions) */}
+        {/* 2. L'INPUT (Esclave des dimensions) - Uses localValue now */}
         <InputBase
-          value={value}
+          value={localValue}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           fullWidth
           sx={{
-            // Position absolue pour sortir du flux : l'input ne poussera plus la largeur
             position: "absolute",
             top: 0,
             left: 0,
@@ -77,8 +117,8 @@ export default function FieldAnnotationHeight({ annotation, onChange }) {
               px: 1,
               boxSizing: "border-box",
               textAlign: "left",
-              height: "100%", // S'assurer que le champ de saisie remplit le conteneur
-              paddingTop: 0, // Reset paddings verticaux pour centrage aligné sur le fantôme
+              height: "100%",
+              paddingTop: 0,
               paddingBottom: 0,
             },
           }}

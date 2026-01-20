@@ -169,6 +169,8 @@ export default function useAnnotationsV2(options) {
                 //if (annotation.isBaseMapAnnotation) console.log("debug_width", width?.toFixed(2))
 
 
+                _annotation.baseMapName = baseMap?.name;
+
                 // legacy conversion
 
                 const isMarkerLegacy = testObjectHasProp(annotation, "x") || testObjectHasProp(annotation, "y");
