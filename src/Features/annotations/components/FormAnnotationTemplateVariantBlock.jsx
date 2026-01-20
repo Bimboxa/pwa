@@ -27,6 +27,7 @@ import FieldStroke from "Features/form/components/FieldStroke";
 import FieldPoint from "Features/form/components/FieldPoint";
 import FieldCheck from "Features/form/components/FieldCheck";
 import FieldSizeAndUnit from "Features/form/components/FieldSizeAndUnit";
+import FieldQty from "Features/form/components/FieldQty";
 
 import getImageAnnotationPropsFromFileName from "../utils/getImageAnnotationPropsFromFileName";
 
@@ -37,6 +38,7 @@ export default function FormAnnotationTemplateVariantBlock({
   // strings
 
   const typeS = "Type d'objet";
+  const qtyS = "Quantité";
 
   // data
 
@@ -64,6 +66,8 @@ export default function FormAnnotationTemplateVariantBlock({
     variant,
     size,
     sizeUnit,
+    mainQtyKey,
+
   } = annotationTemplate ?? {};
 
   // helper - fill
@@ -173,6 +177,10 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handleSizeAndUnitChange(sizeAndUnit) {
     onChange({ ...annotationTemplate, ...sizeAndUnit });
+  }
+
+  function handleMainQtyKeyChange(mainQtyKey) {
+    onChange({ ...annotationTemplate, mainQtyKey });
   }
 
   return (
@@ -408,6 +416,14 @@ export default function FormAnnotationTemplateVariantBlock({
           <FieldImageV2 value={image} onChange={handleImageChange} />
         </Box>
       )}
+
+      <Box sx={{
+        p: 1,
+        borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+      }}>
+        <Typography variant="body2" sx={{ fontWeight: "bold" }}> {qtyS}</Typography>
+        <FieldQty value={mainQtyKey} onChange={handleMainQtyKeyChange} />
+      </Box>
     </Box>
   );
 }

@@ -38,7 +38,7 @@ export default function useViewers() {
       label: "Tableau",
       icon: <Table />,
       bgcolor: theme.palette.viewers.map,
-      disabled: true,
+      //disabled: true,
     },
     {
       key: "THREED",

@@ -19,7 +19,7 @@ import {
   Print,
   CenterFocusStrong,
 } from "@mui/icons-material";
-import ExcelIcon from "Features/excel/utils/components/ExcelIcon";
+import ExcelIcon from "Features/excel/components/ExcelIcon";
 
 const iconsMap = new Map();
 iconsMap.set("pentagon", Pentagon);

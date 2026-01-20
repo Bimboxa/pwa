@@ -98,6 +98,10 @@ export default function ToolbarEditAnnotation() {
         <ButtonAnnotationTemplate annotation={selectedAnnotation} />
         <IconButtonToggleAnnotationCloseLine annotation={selectedAnnotation} />
         <IconButtonCloneAnnotation annotation={selectedAnnotation} />
+        <FieldAnnotationHeight
+          annotation={selectedAnnotation}
+          onChange={handleChange}
+        />
       </Box>}
 
       {type === "STRIP" && <Box sx={{ display: "flex", alignItems: "center" }}>

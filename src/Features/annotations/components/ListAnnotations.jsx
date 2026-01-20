@@ -73,7 +73,7 @@ export default function ListAnnotations({ annotations }) {
                             <AnnotationIcon annotation={annotation} size={24} />
                             <Typography variant="body2">{annotation.label}</Typography>
                         </Box>
-                        <Typography variant="caption">{mainQtyLabel}</Typography>
+                        {/* <Typography variant="caption">{mainQtyLabel}</Typography> */}
                     </Box>
 
                     <BoxAlignToRight>

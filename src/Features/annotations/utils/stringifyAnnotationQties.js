@@ -11,20 +11,27 @@ export default function stringifyAnnotationQties(qties) {
 
     // length
 
-    const lengthS = `Linéaire: ${qties.length.toFixed(2)} ${unitMap.METER}`
+    const lengthS = `Linéaire: ${qties?.length?.toFixed(2)} ${unitMap.METER}`
 
     // surface
 
-    const surfaceS = `Surface: ${qties.surface.toFixed(2)} ${unitMap.SQUARE_METER}`
+    const surfaceS = `Surface: ${qties?.surface?.toFixed(2)} ${unitMap.SQUARE_METER}`
+
+    // count
+
+    const countS = `1 u.`;
 
     // label
 
     let label = lengthS;
-    if (qties.surface) {
-        label = `${lengthS} - ${surfaceS}`
+    if (qties?.surface) {
+        label = `${lengthS} - ${surfaceS}`;
+    }
+    else if (qties?.length) {
+        label = lengthS;
     }
     else {
-        label = lengthS;
+        label = countS;
     }
 
     // render

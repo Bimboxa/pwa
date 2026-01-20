@@ -38,7 +38,7 @@ export default function ButtonMenu({ buttonLabel, sx, actions }) {
           onClick={handleClick}
           sx={{ ...sx, ml: 0.5 }}
         >
-          <Typography variant="body1" noWrap>
+          <Typography variant="body2" noWrap>
             {buttonLabel}
           </Typography>
         </Button>
