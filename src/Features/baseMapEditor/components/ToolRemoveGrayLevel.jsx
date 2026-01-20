@@ -74,8 +74,8 @@ export default function ToolRemoveGrayLevel({ onSave }) {
             gap: 2,
             width: "100%",
             p: 1,
-            bgcolor: "background.paper",
-            borderRadius: 1
+            borderRadius: 1,
+            borderBottom: theme => `1px solid ${theme.palette.divider}`,
         }}>
             <Typography
                 variant="body2"

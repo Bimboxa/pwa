@@ -207,7 +207,7 @@ export default function useHandleCommitDrawing() {
 
             if (closeLine) _newAnnotation.closeLine = true;
 
-            if (["POLYGON", "POLYLINE", "MARKER"].includes(newAnnotation?.type)) {
+            if (["POLYGON", "POLYLINE", "STRIP", "MARKER"].includes(newAnnotation?.type)) {
                 _newAnnotation.points = finalPointIds.map(id => ({ id }));
             }
 

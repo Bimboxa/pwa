@@ -858,7 +858,7 @@ const InteractionLayer = forwardRef(({
             }
 
             // B. LINE / RECTANGLE (Multiple points)
-            else if (['LINE', 'RECTANGLE', 'POLYLINE'].includes(shape.type) && shape.points && shape.points.length > 0) {
+            else if (['LINE', 'RECTANGLE', 'POLYLINE', "STRIP"].includes(shape.type) && shape.points && shape.points.length > 0) {
               // Si on n'a rien dessiné, on peut prendre la shape entière
               if (drawingPointsRef.current.length === 0) {
                 setDrawingPoints(shape.points);
@@ -1030,7 +1030,7 @@ const InteractionLayer = forwardRef(({
         const { nodeId, annotationType } =
           hit.dataset;
         console.log("[InteractionLayer] CUT HOST ID", annotationType, cutHostId)
-        if (annotationType === "POLYGON" && !cutHostId) {
+        if (["POLYGON", "STRIP"].includes(annotationType) && !cutHostId) {
           console.log("[InteractionLayer] CUT HOST ID", nodeId)
           setCutHostId(nodeId)
         }

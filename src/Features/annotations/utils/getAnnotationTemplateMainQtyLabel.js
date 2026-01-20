@@ -2,7 +2,7 @@ export default function getAnnotationTemplateMainQtyLabel(
   annotationTemplate,
   qties
 ) {
-  const { type, closeLine } = annotationTemplate ?? {};
+  const { type } = annotationTemplate ?? {};
 
   const unitMap = {
     UNIT: "u",
@@ -14,10 +14,10 @@ export default function getAnnotationTemplateMainQtyLabel(
   let qty = qties?.unit;
   let unit = unitMap.UNIT;
 
-  if (type === "POLYLINE" && !closeLine) {
+  if (type === "POLYLINE" || type === "STRIP") {
     qty = qties?.length;
     unit = unitMap.METER;
-  } else if (type === "POLYLINE" && closeLine || type === "POLYGON") {
+  } else if (type === "POLYGON") {
     qty = qties?.surface;
     unit = unitMap.SQUARE_METER;
   }

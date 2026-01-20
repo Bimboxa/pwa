@@ -7,8 +7,11 @@ import { setSelectedMainBaseMapId, setSelectedNode } from "Features/mapEditor/ma
 import { List, ListItemButton, Box, Typography } from "@mui/material";
 import AnnotationIcon from "./AnnotationIcon";
 
+import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
+
 import getAnnotationQties from "../utils/getAnnotationQties";
 import getAnnotationMainQtyLabel from "../utils/getAnnotationMainQtyLabel";
+import stringifyAnnotationQties from "../utils/stringifyAnnotationQties";
 
 
 
@@ -53,6 +56,7 @@ export default function ListAnnotations({ annotations }) {
 
             const qties = annotation?.qties;
             const mainQtyLabel = getAnnotationMainQtyLabel(annotation, qties);
+            const qtiesS = stringifyAnnotationQties(qties);
 
             return <ListItemButton
                 key={annotation.id}
@@ -60,16 +64,23 @@ export default function ListAnnotations({ annotations }) {
                 onClick={() => handleAnnotationClick(annotation)}
                 selected={selectedNode?.nodeId === annotation.id}
             >
-                <Box sx={{
-                    display: "flex",
-                    width: 1, alignItems: "center", justifyContent: "space-between"
-                }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <AnnotationIcon annotation={annotation} size={24} />
-                        <Typography variant="body2">{annotation.label}</Typography>
+                <Box sx={{ width: 1 }}>
+                    <Box sx={{
+                        display: "flex",
+                        width: 1, alignItems: "center", justifyContent: "space-between"
+                    }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <AnnotationIcon annotation={annotation} size={24} />
+                            <Typography variant="body2">{annotation.label}</Typography>
+                        </Box>
+                        <Typography variant="caption">{mainQtyLabel}</Typography>
                     </Box>
-                    <Typography variant="caption">{mainQtyLabel}</Typography>
+
+                    <BoxAlignToRight>
+                        <Typography variant="caption" sx={{ color: "text.secondary" }}>{qtiesS}</Typography>
+                    </BoxAlignToRight>
                 </Box>
+
             </ListItemButton>
         })}
     </List>
