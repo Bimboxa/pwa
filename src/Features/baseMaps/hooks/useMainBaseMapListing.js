@@ -10,6 +10,9 @@ export default function useMainBaseMapListing() {
   const baseMap = useMainBaseMap();
 
   return useLiveQuery(async () => {
-    if (baseMap?.id) return await db.listings.get(baseMap.listingId);
+    if (baseMap?.id) {
+      const listing = await db.listings.get(baseMap.listingId);
+      return { ...listing, table: "baseMaps" };
+    }
   }, [baseMap?.id]);
 }
