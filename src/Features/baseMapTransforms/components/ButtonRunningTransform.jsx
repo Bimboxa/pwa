@@ -58,7 +58,7 @@ export default function ButtonRunningTransform() {
         const fileName = `transformed_${Date.now()}.png`;
         const file = new File([enhancedResult.blob], fileName, { type: "image/png" });
         await updateBaseMapWithImageEnhanced(baseMap.id, file);
-        //dispatch(clearEnhancedImageResult(baseMap.id));
+        dispatch(clearEnhancedImageResult(baseMap.id));
         setOpen(false);
     }
 
