@@ -18,7 +18,8 @@ export default function IconButtonFetchMasterProjects() {
 
     async function handleClick() {
         setLoading(true);
-        await fetchMasterProjects();
+        const projects = await fetchMasterProjects();
+        console.log("[IconButtonFetchMasterProjects] projects", projects);
         setLoading(false);
     }
 
