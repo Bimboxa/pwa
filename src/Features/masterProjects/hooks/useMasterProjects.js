@@ -10,6 +10,6 @@ export default function useMasterProjects(options) {
   const masterById = useSelector((s) => s.masterProjects.itemsMap);
   const master = Object.values(masterById);
 
-
-  return [...examples, ...master];
+  //return [...examples, ...master];
+  return master;
 }
