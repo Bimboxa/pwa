@@ -8,6 +8,8 @@ export default function useProjectsItems() {
     const { value: projects } = useProjects();
     const masterProjects = useMasterProjects();
 
+    console.log("debug_2101_masterProjects", masterProjects);
+
     // concate
 
     const allProjectsByClientRef = {};

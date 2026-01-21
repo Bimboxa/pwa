@@ -19,6 +19,9 @@ export const masterProjectSlice = createSlice({
     },
     addMasterProjects: (state, action) => {
       const items = action.payload;
+
+      console.log("[STATE]debug_2101_addMasterProjects", items);
+
       const itemsMap = {};
       items.forEach(item => {
         const existingItem = state.itemsMap[item.id];

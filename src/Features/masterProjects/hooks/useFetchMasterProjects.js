@@ -3,6 +3,8 @@ import { addMasterProjects } from "../masterProjectsSlice";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import transformObject from "Features/misc/utils/transformObject";
 
+import resolveUrl from "Features/appConfig/utils/resolveUrl";
+
 export default function useFetchMasterProjects() {
     const dispatch = useDispatch();
     const appConfig = useAppConfig();
@@ -24,15 +26,20 @@ export default function useFetchMasterProjects() {
                 // Initialisation des variables à l'intérieur du try (sécurité)
                 const fetchParams = source.fetchParams;
                 const mapping = source.mapping;
+                const disabled = source.disabled;
+
+                if (disabled) continue;
 
                 // Si fetchParams n'existe pas, on lance une erreur manuelle pour passer au suivant
                 if (!fetchParams) throw new Error("fetchParams manquant pour cette source");
 
                 const { url, method, jwt, body } = fetchParams;
 
-                console.log("debug_fetch_masterProjects start", url);
+                const resolvedUrl = resolveUrl(url);
 
-                const response = await fetch(url, {
+                console.log("debug_fetch_masterProjects start", resolvedUrl);
+
+                const response = await fetch(resolvedUrl, {
                     method,
                     headers: {
                         ...(jwt && { Authorization: `Bearer ${jwt}` }),

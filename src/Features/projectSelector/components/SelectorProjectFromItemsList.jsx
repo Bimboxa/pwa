@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import useProjectsItems from "../hooks/useProjectsItems";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useInitFetchMasterProjects from "Features/masterProjects/hooks/useInitFetchMasterProjects";
 
 import { Box } from "@mui/material";
 
@@ -16,7 +17,10 @@ export default function SelectorProjectFromItemsList({
   onClick,
   onCreateClick,
 }) {
-  const navigate = useNavigate();
+
+  // effect - init
+
+  useInitFetchMasterProjects();
 
   // data
 
@@ -29,8 +33,8 @@ export default function SelectorProjectFromItemsList({
 
   // helpers
 
-  const filterByProjectType = appConfig?.features?.projectSelector?.filterByProjectType;
-  const valueOptions = filterByProjectType?.options;
+  const filterByType = appConfig?.features?.projectSelector?.filterByType;
+  const valueOptions = filterByType?.options;
 
 
   // handlers
@@ -51,13 +55,16 @@ export default function SelectorProjectFromItemsList({
 
   return (
     <BoxFlexVStretch>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", p: 1, position: "relative" }}>
         <ToggleProjectType
           value={projectType}
           valueOptions={valueOptions}
           onChange={setProjectType}
         />
-        <IconButtonFetchMasterProjects />
+        <Box sx={{ position: "absolute", right: "8px", top: "0", bottom: "0", display: "flex", alignItems: "center" }}>
+          <IconButtonFetchMasterProjects />
+        </Box>
+
       </Box>
 
 
@@ -66,6 +73,7 @@ export default function SelectorProjectFromItemsList({
         onClick={handleClick}
         searchKeys={["name"]}
         onCreateClick={handleCreateProject}
+        maxItems={50}
       />
     </BoxFlexVStretch>
   );

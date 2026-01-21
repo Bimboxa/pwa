@@ -60,7 +60,37 @@ export default defineConfig({
   },
   server: {
     host: true,
-    allowedHosts: ["dev.etandex.fr"],
+    proxy: {
+      // 1. Le préfixe qu'on va utiliser dans le code React
+      '/data-api-lan': {
+        // 2. La cible réelle sur le réseau local
+        target: 'https://data.etandex.fr',
+
+        // 3. Indispensable pour les serveurs virtuels (change le header Host)
+        changeOrigin: true,
+
+        // 4. TRÈS IMPORTANT sur un LAN : ignore les erreurs de certificats SSL (https)
+        // Souvent les API internes ont des certificats auto-signés qui font planter fetch
+        secure: false,
+
+        // 5. On retire '/api-lan' de l'URL avant d'envoyer à Etandex
+        rewrite: (path) => path.replace(/^\/data-api-lan/, '')
+      },
+      '/krto-api-lan': {
+        // 2. La cible réelle sur le réseau local
+        target: 'https://krto-api-kal.etandex.fr',
+
+        // 3. Indispensable pour les serveurs virtuels (change le header Host)
+        changeOrigin: true,
+
+        // 4. TRÈS IMPORTANT sur un LAN : ignore les erreurs de certificats SSL (https)
+        // Souvent les API internes ont des certificats auto-signés qui font planter fetch
+        secure: false,
+
+        // 5. On retire '/api-lan' de l'URL avant d'envoyer à Etandex
+        rewrite: (path) => path.replace(/^\/krto-api-lan/, '')
+      }
+    }
   },
   build: {
     sourcemap: true,
