@@ -12,7 +12,11 @@ export default function useFetchMasterProjects() {
 
     return async () => {
         // Sécurité supplémentaire : si pas de sources, on ne fait rien
-        if (!sources.length) return;
+        console.log("debug_fetch_masterProjects sources", sources);
+
+        let projects = [];
+
+        if (!sources.length) return projects;
 
         for (let source of sources) {
             // 1. On démarre le bloc TRY dès le début de la boucle
@@ -54,6 +58,8 @@ export default function useFetchMasterProjects() {
                 const masterProjects = data.map(item => transformObject(item, mapping));
 
                 dispatch(addMasterProjects(masterProjects));
+
+                projects = [...projects, ...masterProjects];
 
             } catch (error) {
                 // En cas d'erreur sur CETTE source
