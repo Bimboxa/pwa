@@ -1,16 +1,15 @@
 import { useSelector } from "react-redux";
 
-import useProjects from "Features/projects/hooks/useProjects";
-
 import exampleMasterProjects from "../data/exampleMasterProjects";
 
-export default function useMasterProjects() {
+export default function useMasterProjects(options) {
   const examples = exampleMasterProjects;
+
+  // data
 
   const masterById = useSelector((s) => s.masterProjects.itemsMap);
   const master = Object.values(masterById);
 
-  const { value: local } = useProjects();
 
-  return [...examples, ...local, ...master];
+  return [...examples, ...master];
 }

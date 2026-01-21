@@ -82,7 +82,7 @@ export default function useAnnotationsV2(options) {
         let annotations = useLiveQuery(async () => {
 
             // edge case
-            if (!baseMaps) return null;
+            if (!baseMaps || !projectId) return null;
             // annotations
 
             let _annotations;

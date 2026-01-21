@@ -15,6 +15,21 @@ export const masterProjectSlice = createSlice({
   reducers: {
     setMasterProjectsItemsMap: (state, action) => {
       state.itemsMap = action.payload;
+      state.itemsUpdatedAt = Date.now();
+    },
+    addMasterProjects: (state, action) => {
+      const items = action.payload;
+      const itemsMap = {};
+      items.forEach(item => {
+        const existingItem = state.itemsMap[item.id];
+        if (existingItem) {
+          itemsMap[item.id] = { ...existingItem, ...item };
+        } else {
+          itemsMap[item.id] = item;
+        }
+      });
+      state.itemsMap = { ...state.itemsMap, ...itemsMap };
+      state.itemsUpdatedAt = Date.now();
     },
     triggerMasterProjectsItempsUpdate: (state) => {
       state.itemsUpdatedAt = Date.now();
@@ -32,6 +47,7 @@ export const masterProjectSlice = createSlice({
 
 export const {
   setMasterProjectsItemsMap,
+  addMasterProjects,
   triggerMasterProjectsItempsUpdate,
   //
   setSelectedMasterProjectId,

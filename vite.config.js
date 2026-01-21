@@ -6,6 +6,8 @@ import svgr from "vite-plugin-svgr";
 // https://vite.dev/config/
 export default defineConfig({
   assetsInclude: ["**/*.yaml"],
+
+
   plugins: [
     react(),
     svgr(),
@@ -58,6 +60,7 @@ export default defineConfig({
   },
   server: {
     host: true,
+    allowedHosts: ["dev.etandex.fr"],
   },
   build: {
     sourcemap: true,
