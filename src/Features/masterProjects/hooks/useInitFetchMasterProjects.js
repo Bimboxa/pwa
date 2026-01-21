@@ -1,28 +1,18 @@
 import { useRef, useEffect } from "react";
-import { useDispatch } from "react-redux";
 
-import { setMasterProjectsItemsMap } from "../masterProjectsSlice";
+import useFetchMasterProjects from "./useFetchMasterProjects";
 
-import { fetchMasterProjectsService } from "../services/masterProjectsServices";
-
-import parseRemoteToLocalMasterProjects from "../utils/parseRemoteToLocalMasterProjects";
-import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 export default function useInitFetchMasterProjects() {
-  const dispatch = useDispatch();
   const loadingRef = useRef();
+
+  const fetchMasterProjects = useFetchMasterProjects();
 
   useEffect(() => {
     const fetch = async () => {
       loadingRef.current = true;
-      const projects = await fetchMasterProjectsService();
-      console.log("[EFFECT] fetch masterProjects: ", projects);
+      await fetchMasterProjects();
       loadingRef.current = false;
-      dispatch(
-        setMasterProjectsItemsMap(
-          getItemsByKey(parseRemoteToLocalMasterProjects(projects, "id"))
-        )
-      );
     };
     if (!loadingRef.current) fetch();
   }, []);

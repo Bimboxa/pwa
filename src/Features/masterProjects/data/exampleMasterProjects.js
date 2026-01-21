@@ -1,13 +1,29 @@
 const exampleMasterProjects = [
   {
-    id: "1",
-    clientRef: "2.42773",
-    name: "Parking LPA Cordeliers R+7",
+    idS: "1",
+    num: "2.42773",
+    nom: "Parking LPA Cordeliers R+7",
+    type: "CHANTIER",
+
   },
   {
-    id: "2",
-    clientRef: "2.40177",
-    name: "Réparation pont Bonaparte - Grand Lyon",
+    idS: "2",
+    num: "2.40177",
+    nom: "Réparation pont Bonaparte - Grand Lyon",
+    type: "CHANTIER",
+  },
+  {
+    idS: "11",
+    num: "2.42773",
+    nom: "Parking LPA Cordeliers R+7",
+    type: "OPPORTUNITE",
+
+  },
+  {
+    idS: "21",
+    num: "2.40177",
+    nom: "Réparation pont Bonaparte - Grand Lyon",
+    type: "OPPORTUNITE",
   },
 ];
 

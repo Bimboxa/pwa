@@ -1,9 +1,16 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import useProjects from "Features/projects/hooks/useProjects";
+import useProjectsItems from "../hooks/useProjectsItems";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
+import { Box } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ItemsListVariantSimple from "Features/itemsList/components/ItemsListVariantSimple";
+import ToggleProjectType from "./ToggleProjectType";
+import IconButtonFetchMasterProjects from "Features/masterProjects/components/IconButtonFetchMasterProjects";
+
 
 export default function SelectorProjectFromItemsList({
   onClick,
@@ -13,11 +20,18 @@ export default function SelectorProjectFromItemsList({
 
   // data
 
-  const { value: projects } = useProjects();
+  const items = useProjectsItems();
+  const appConfig = useAppConfig();
+
+  // state
+
+  const [projectType, setProjectType] = useState(null);
 
   // helpers
 
-  const items = projects?.map((p) => ({ ...p, primaryText: p.name }));
+  const filterByProjectType = appConfig?.features?.projectSelector?.filterByProjectType;
+  const valueOptions = filterByProjectType?.options;
+
 
   // handlers
 
@@ -37,6 +51,16 @@ export default function SelectorProjectFromItemsList({
 
   return (
     <BoxFlexVStretch>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <ToggleProjectType
+          value={projectType}
+          valueOptions={valueOptions}
+          onChange={setProjectType}
+        />
+        <IconButtonFetchMasterProjects />
+      </Box>
+
+
       <ItemsListVariantSimple
         items={items}
         onClick={handleClick}

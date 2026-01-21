@@ -11,7 +11,6 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import BoxFlexHStretch from "Features/layout/components/BoxFlexHStretch";
 import HeaderScopeCreator from "./HeaderScopeCreator";
 import SectionSteps from "./SectionSteps";
-import SectionStepDetail from "./SectionStepDetail";
 import SectionStepper from "./SectionStepper";
 
 
