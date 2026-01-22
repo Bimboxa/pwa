@@ -29,7 +29,7 @@ export default function ButtonSigninV2() {
 
   // helper
 
-  const userName = userProfile?.userName;
+  const userName = userProfile?.userName || (userProfile?.firstName ?? "") + " " + (userProfile?.lastName ?? "");
   const avatarS = getAvatarStringFromUserProfile(userProfile);
 
   // effect
