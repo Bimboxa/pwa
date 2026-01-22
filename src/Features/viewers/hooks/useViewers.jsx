@@ -52,7 +52,7 @@ export default function useViewers() {
       label: "Carte satellite",
       icon: <Map />,
       bgcolor: theme.palette.viewers.map,
-      ///disabled: true,
+      disabled: true,
     },
     {
       key: "PDF",
