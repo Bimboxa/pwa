@@ -14,9 +14,11 @@ export default function useInitSelectedMainBaseMap() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
   async function initAsync() {
-    const baseMap = await db.baseMaps.get(initBaseMapId);
-    if (baseMap?.projectId === projectId) {
-      dispatch(setSelectedMainBaseMapId(initBaseMapId));
+    if (initBaseMapId) {
+      const baseMap = await db.baseMaps.get(initBaseMapId);
+      if (baseMap?.projectId === projectId) {
+        dispatch(setSelectedMainBaseMapId(initBaseMapId));
+      }
     }
   }
 
