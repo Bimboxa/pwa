@@ -12,7 +12,10 @@ export default function useFetchMasterProjects() {
     // On sécurise l'accès au tableau. Si undefined, on prend un tableau vide.
     const sources = appConfig?.features?.masterProjects?.origins || [];
 
-    return async () => {
+    return async (options) => {
+
+        const filterByOriginKey = options?.filterByOriginKey;
+
         // Sécurité supplémentaire : si pas de sources, on ne fait rien
         console.log("debug_fetch_masterProjects sources", sources);
 
@@ -28,7 +31,7 @@ export default function useFetchMasterProjects() {
                 const mapping = source.mapping;
                 const disabled = source.disabled;
 
-                if (disabled) continue;
+                if (disabled || (filterByOriginKey && filterByOriginKey !== source.key)) continue;
 
                 // Si fetchParams n'existe pas, on lance une erreur manuelle pour passer au suivant
                 if (!fetchParams) throw new Error("fetchParams manquant pour cette source");
@@ -55,7 +58,7 @@ export default function useFetchMasterProjects() {
 
                 const data = await response.json();
 
-                console.log("debug_fetch_masterProjects data", data);
+                console.log("debug_fetch_masterProjects data", source, data);
 
                 // 3. Vérification que data est bien un tableau avant de mapper
                 if (!Array.isArray(data)) {

@@ -1,6 +1,6 @@
 import { useSelector, useDispatch } from "react-redux";
 
-import { setOpenScopeCreator } from "Features/scopeCreator/scopeCreatorSlice";
+import { setOpenScopeCreator, setStepKey } from "Features/scopeCreator/scopeCreatorSlice";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 
@@ -17,6 +17,7 @@ export default function DialogAutoScopeCreator() {
 
   function handleClose() {
     dispatch(setOpenScopeCreator(false));
+    dispatch(setStepKey("SEARCH_PROJECT"));
   }
   // render
 

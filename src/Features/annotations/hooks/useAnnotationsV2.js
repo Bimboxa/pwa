@@ -354,8 +354,10 @@ export default function useAnnotationsV2(options) {
         })
 
         if (groupByBaseMap && annotations) {
-            const baseMapIds = [...new Set(annotations.map(a => a.baseMapId))];
+
+            const baseMapIds = [...new Set(annotations.filter(a => Boolean(a.baseMapId)).map(a => a.baseMapId))];
             const baseMaps = baseMapIds.map(id => baseMapById[id]);
+            console.log("debug_2201_baseMaps", baseMaps, baseMapIds)
             annotations = annotations.map(a => ({ ...a, baseMap: baseMapById[a.baseMapId] }));
             annotations = [...annotations, ...baseMaps.map(b => ({ id: b.id, baseMap: b, isBaseMap: true }))]
             annotations.sort((a, b) => (a.isBaseMap ? 1 : 2) - (b.isBaseMap ? 1 : 2)).sort((a, b) => a.baseMap?.name.localeCompare(b.baseMap?.name));

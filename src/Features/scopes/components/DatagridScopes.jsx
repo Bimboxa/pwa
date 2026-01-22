@@ -52,7 +52,9 @@ export default function DatagridScopes({ scopes }) {
 
   const columns = [
     { field: "scopeProjectName", headerName: projectName, flex: 1 },
+    { field: "scopeProject", headerName: "Type" },
     { field: "scopeName", headerName: scopeName, flex: 1 },
+
     //{ field: "scopeClientRef", headerName: "Réf.", flex: 1 },
 
     //{ field: "scopeProjectClientRef", headerName: "Réf. projet", flex: 1 },

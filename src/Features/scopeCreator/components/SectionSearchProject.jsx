@@ -3,6 +3,8 @@ import { useDispatch } from "react-redux";
 import { setStepKey } from "../scopeCreatorSlice";
 import { setSelectedProjectId } from "../scopeCreatorSlice";
 
+import useCreateProject from "Features/projects/hooks/useCreateProject";
+
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -15,6 +17,7 @@ export default function SectionSearchProject() {
   // data
 
   const appConfig = useAppConfig();
+  const createProject = useCreateProject();
 
   // helpers
 
@@ -22,7 +25,11 @@ export default function SectionSearchProject() {
 
   // handlers
 
-  function handleSelectProject(project) {
+  async function handleSelectProject(project) {
+
+    if (project.shouldCreateProject) {
+      project = await createProject(project);
+    }
     dispatch(setSelectedProjectId(project.id));
     dispatch(setStepKey("SELECT_PRESET_SCOPE"));
   }

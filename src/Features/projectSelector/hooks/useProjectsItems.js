@@ -33,7 +33,11 @@ export default function useProjectsItems() {
     // transform
 
     let projectItems = Object.values(allProjectsByClientRef);
-    projectItems = projectItems.map((p) => ({ ...p, primaryText: p.name }));
+
+    projectItems = projectItems.map((p) => {
+        const shouldCreateProject = !Boolean(p.id);
+        return { ...p, primaryText: p.name, secondaryText: p.clientRef, id: p.id ?? p.idMaster, shouldCreateProject }
+    });
 
     // return
 

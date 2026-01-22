@@ -4,7 +4,7 @@ import useFetchMasterProjects from "../hooks/useFetchMasterProjects";
 import { IconButton } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
-export default function IconButtonFetchMasterProjects() {
+export default function IconButtonFetchMasterProjects({ filterByProjectType }) {
 
     // data - func
 
@@ -17,8 +17,11 @@ export default function IconButtonFetchMasterProjects() {
     // handlers
 
     async function handleClick() {
+
+        const keyMap = { "CHANTIER": "chantiers", "OPPORTUNITE": "opportunités" }
+
         setLoading(true);
-        const projects = await fetchMasterProjects();
+        const projects = await fetchMasterProjects({ filterByOrigingKey: keyMap[filterByProjectType] });
         console.log("[IconButtonFetchMasterProjects] projects", projects);
         setLoading(false);
     }

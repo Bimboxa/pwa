@@ -7,7 +7,7 @@ const unitMap = {
 
 export default function stringifyAnnotationQties(qties) {
 
-    if (!qties.enabled) return "";
+    if (!qties?.enabled) return "";
 
     // length
 
