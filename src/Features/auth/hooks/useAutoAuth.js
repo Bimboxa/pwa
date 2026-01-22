@@ -2,29 +2,30 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function useAutoAuth() {
 
-    const appConfig = useAppConfig();
-
-    const url = appConfig?.auth?.autoAuth?.url;
-
-    return async () => {
+    return async (url) => {
         if (!url) {
             console.log("[useAutoAuth] no url");
         }
 
         else {
-            const response = await fetch(url, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                credentials: "include",
-            })
+            try {
+                const response = await fetch(url, {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    credentials: "include",
+                })
 
-            const data = await response.json();
+                const data = await response.json();
 
-            console.log("[useAutoAuth] data", data);
+                console.log("[useAutoAuth] data", data);
 
-            return data;
+                return data;
+            }
+            catch (error) {
+                console.log("[useAutoAuth] error", error);
+            }
         }
 
     }
