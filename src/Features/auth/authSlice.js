@@ -11,6 +11,7 @@ const authSlice = createSlice({
     userEmail: null,
     userProfile: {},
     token: null,
+    jwt: null,
   },
   reducers: {
     setUserEmail: (state, action) => {
@@ -24,6 +25,9 @@ const authSlice = createSlice({
       state.token = action.payload;
       setTokenInLocalStorage(action.payload);
     },
+    setJwt: (state, action) => {
+      state.jwt = action.payload;
+    },
     //
     logout: (state) => {
       state.userEmail = null;
@@ -34,6 +38,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { setUserEmail, setUserProfile, setToken, logout } =
+export const { setUserEmail, setUserProfile, setToken, setJwt, logout } =
   authSlice.actions;
 export default authSlice.reducer;

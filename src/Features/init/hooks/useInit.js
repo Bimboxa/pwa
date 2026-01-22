@@ -4,6 +4,7 @@ import useInitAppConfig from "Features/appConfig/hooks/useInitAppConfig";
 
 import useInitToken from "Features/auth/hooks/useInitToken";
 import useInitUserProfile from "Features/auth/hooks/useInitUserProfile";
+import useInitAutoAuth from "Features/auth/hooks/useInitAutoAuth";
 
 import useInitSelectProject from "Features/projects/hooks/useInitSelectProject";
 import useInitSelectScope from "Features/scopes/hooks/useInitSelectScope";
@@ -25,6 +26,7 @@ export default function useInit() {
 
   useInitToken();
   useInitUserProfile();
+  useInitAutoAuth();
 
   useInitDeviceType();
 
