@@ -21,7 +21,7 @@ export default function HeaderScopeCreator() {
 
   // helper
 
-  const title = appConfig.strings.scope.new;
+  const title = appConfig?.strings?.scope?.new ?? "Créer un scope";
 
   // handlers
 

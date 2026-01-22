@@ -62,6 +62,7 @@ export default function SectionScopesInDashboard() {
         scopeName: "Toutes les listes",
         scopeClientRef: "-",
         scopeProjectName: project.name,
+        scopeProjectType: project.type,
         scopeProjectClientRef: project.clientRef,
       })
     }

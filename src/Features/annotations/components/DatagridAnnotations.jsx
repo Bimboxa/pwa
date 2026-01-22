@@ -36,7 +36,7 @@ export default function DatagridAnnotations({
 
     const rows = useMemo(() => {
         if (!annotations) return [];
-        return annotations.map((annotation) => {
+        return annotations.filter(annotation => Boolean(annotation.id)).map((annotation) => {
 
 
             return {

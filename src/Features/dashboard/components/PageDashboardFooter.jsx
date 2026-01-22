@@ -2,6 +2,7 @@ import { Box } from "@mui/material";
 
 import ButtonDialogAppConfig from "Features/appConfig/components/ButtonDialogAppConfig";
 import ButtonLoadKrtoFile from "Features/krtoFile/components/ButtonLoadKrtoFile";
+import ButtonAppVersion from "App/components/ButtonAppVersion";
 
 
 export default function PageDashboardFooter() {
@@ -16,7 +17,11 @@ export default function PageDashboardFooter() {
         p: 1,
       }}
     >
-      <ButtonDialogAppConfig />
+      <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+        <ButtonAppVersion />
+        <ButtonDialogAppConfig />
+      </Box>
+
       <div>
         <ButtonLoadKrtoFile />
       </div>

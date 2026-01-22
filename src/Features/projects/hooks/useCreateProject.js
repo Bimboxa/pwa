@@ -18,7 +18,7 @@ export default function useCreateProject() {
 
   // main
 
-  const create = async ({ name, clientRef, id }, options) => {
+  const create = async ({ id, name, clientRef, type, idMaster }, options) => {
     try {
       // options
 
@@ -47,6 +47,10 @@ export default function useCreateProject() {
         name,
         clientRef,
       };
+
+      if (idMaster) project.idMaster = idMaster;
+      if (type) project.type = type;
+
       await db.projects.add(project);
 
       // sync file

@@ -9,6 +9,8 @@ const scopeCreatorInitialState = {
 
   selectedProjectId: null,
   selectedPresetScopeKey: null,
+
+  selectedMasterProject: null,
 };
 
 export const scopeCreatorSlice = createSlice({
@@ -27,6 +29,9 @@ export const scopeCreatorSlice = createSlice({
     },
     setSelectedPresetScopeKey: (state, action) => {
       state.selectedPresetScopeKey = action.payload;
+    },
+    setSelectedMasterProject: (state, action) => {
+      state.selectedMasterProject = action.payload;
     },
   },
 });

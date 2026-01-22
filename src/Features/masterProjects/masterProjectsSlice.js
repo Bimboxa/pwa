@@ -24,11 +24,11 @@ export const masterProjectSlice = createSlice({
 
       const itemsMap = {};
       items.forEach(item => {
-        const existingItem = state.itemsMap[item.id];
+        const existingItem = state.itemsMap[item.idMaster];
         if (existingItem) {
-          itemsMap[item.id] = { ...existingItem, ...item };
+          itemsMap[item.idMaster] = { ...existingItem, ...item };
         } else {
-          itemsMap[item.id] = item;
+          itemsMap[item.idMaster] = item;
         }
       });
       state.itemsMap = { ...state.itemsMap, ...itemsMap };

@@ -5,6 +5,7 @@ import { nanoid } from "@reduxjs/toolkit";
 
 
 import { setAnchorPositionScale, setScaleInPx, setAngleInRad } from "../mapEditorSlice";
+import { setEnabledDrawingMode } from "../mapEditorSlice";
 import { setTempAnnotations } from "Features/annotations/annotationsSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
@@ -355,6 +356,8 @@ export default function MainMapEditorV3() {
         console.log("distance", distance)
         dispatch(setScaleInPx(distance));
         dispatch(setAngleInRad(angle));
+
+        dispatch(setEnabledDrawingMode(null))
     };
 
     // handlers 
