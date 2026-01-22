@@ -8,7 +8,7 @@ const CONFIG_LOADERS = import.meta.glob("../data/appConfig_*.yaml", {
 });
 
 export default async function getAppConfigDefault({ configCode }) {
-  const code = (configCode ?? "default").toLowerCase();
+  const code = configCode.toLowerCase();
   const wantedKey = `../data/appConfig_${code}.yaml`;
 
   let loader = CONFIG_LOADERS[wantedKey];
