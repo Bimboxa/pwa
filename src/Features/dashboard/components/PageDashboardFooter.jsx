@@ -3,6 +3,7 @@ import { Box } from "@mui/material";
 import ButtonDialogAppConfig from "Features/appConfig/components/ButtonDialogAppConfig";
 import ButtonLoadKrtoFile from "Features/krtoFile/components/ButtonLoadKrtoFile";
 import ButtonAppVersion from "App/components/ButtonAppVersion";
+import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
 
 
 export default function PageDashboardFooter() {
@@ -18,6 +19,7 @@ export default function PageDashboardFooter() {
       }}
     >
       <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+        <ButtonSigninV2 />
         <ButtonAppVersion />
         <ButtonDialogAppConfig />
       </Box>
