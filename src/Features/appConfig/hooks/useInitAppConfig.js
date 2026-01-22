@@ -21,7 +21,7 @@ export default function useInitAppConfig() {
     const appConfigDefault = await getAppConfigDefault({ configCode });
     const appConfig = await resolveAppConfig(appConfigDefault);
 
-    console.log("[debug] setAppConfig", appConfig, configCode);
+    console.log("[debug] setAppConfig", appConfigDefault, appConfig, configCode);
     dispatch(setAppConfig(appConfig));
   };
 
