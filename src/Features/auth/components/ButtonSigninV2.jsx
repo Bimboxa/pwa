@@ -69,7 +69,11 @@ export default function ButtonSigninV2() {
   return (
     <>
       <IconButton onClick={() => setOpenUserProfile(true)} size="small">
-        <Avatar sx={{ width: 32, height: 32 }}>{avatarS}</Avatar>
+        {userProfile?.avatarUrl ?
+          <Avatar sx={{ width: 32, height: 32 }} src={userProfile.avatarUrl} />
+          :
+          <Avatar sx={{ width: 32, height: 32 }}>{avatarS}</Avatar>
+        }
       </IconButton>
       <DialogUserProfile
         open={openUserProfile}
