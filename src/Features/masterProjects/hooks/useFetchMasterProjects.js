@@ -40,7 +40,7 @@ export default function useFetchMasterProjects() {
 
                 const resolvedUrl = resolveUrl(url);
 
-                console.log("debug_fetch_masterProjects start", resolvedUrl);
+                console.log("debug_fetch_masterProjects start", resolvedUrl, fetchParams);
 
                 const response = await fetch(resolvedUrl, {
                     method,
