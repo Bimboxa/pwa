@@ -29,7 +29,7 @@ import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationTyp
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
-import useInitTransformersWorker from "Features/transformers/hooks/useInitTransformersWorker";
+//import useInitTransformersWorker from "Features/transformers/hooks/useInitTransformersWorker";
 
 import { Box } from "@mui/material";
 
@@ -109,7 +109,8 @@ export default function MainMapEditorV3() {
 
     // init transformer service
 
-    const transformersWorker = useInitTransformersWorker();
+    //const transformersWorker = useInitTransformersWorker();
+    const transformersWorker = null;
 
     // data
 
