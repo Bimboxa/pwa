@@ -12,6 +12,7 @@ export default function useInitAutoAuth() {
     const url = appConfig?.auth?.autoAuth?.url;
     const authDataMapping = appConfig?.auth?.autoAuth?.dataMapping;
 
+
     useEffect(() => {
         if (url && authDataMapping) autoAuth(url, authDataMapping);
     }, [url, authDataMapping]);
