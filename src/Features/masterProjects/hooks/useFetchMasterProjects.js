@@ -14,7 +14,11 @@ export default function useFetchMasterProjects() {
 
     return async (options) => {
 
+        // options
+
         const filterByOriginKey = options?.filterByOriginKey;
+        const jwt = options?.jwt;
+        const userProfile = options?.userProfile;
 
         // Sécurité supplémentaire : si pas de sources, on ne fait rien
         console.log("debug_fetch_masterProjects sources", sources);
@@ -36,11 +40,12 @@ export default function useFetchMasterProjects() {
                 // Si fetchParams n'existe pas, on lance une erreur manuelle pour passer au suivant
                 if (!fetchParams) throw new Error("fetchParams manquant pour cette source");
 
-                const { url, method, jwt, body } = fetchParams;
+                const { url, method, body } = fetchParams;
 
                 const resolvedUrl = resolveUrl(url);
+                const resolvedBody = resolveRequestBody(body, { userProfile });
 
-                console.log("debug_fetch_masterProjects start", resolvedUrl, fetchParams);
+                console.log("debug_fetch_masterProjects start", resolvedUrl, resolvedBody);
 
                 const response = await fetch(resolvedUrl, {
                     method,
@@ -48,12 +53,12 @@ export default function useFetchMasterProjects() {
                         ...(jwt && { Authorization: `Bearer ${jwt}` }),
                         "Content-Type": "application/json",
                     },
-                    body: body ? JSON.stringify(body) : undefined, // Gestion propre du body
+                    body: resolvedBody ? JSON.stringify(resolvedBody) : undefined, // Gestion propre du body
                 });
 
                 // 2. Gestion explicite des erreurs HTTP (404, 500...)
                 if (!response.ok) {
-                    throw new Error(`Erreur HTTP: ${response.status} pour l'url ${url}`);
+                    throw new Error(`Erreur HTTP: ${response.status} pour l'url ${resolvedUrl}`);
                 }
 
                 const data = await response.json();
