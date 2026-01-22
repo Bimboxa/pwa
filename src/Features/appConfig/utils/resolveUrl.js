@@ -5,6 +5,8 @@
  */
 
 const resolveUrl = (urlConfig) => {
+
+    console.log("debug_resolveUrl_start", urlConfig);
     if (!urlConfig) return '';
 
     let baseUrl = '';
@@ -35,8 +37,12 @@ const resolveUrl = (urlConfig) => {
     // On retire le slash au début de la route s'il existe
     const cleanRoute = route.startsWith('/') ? route.slice(1) : route;
 
+
+    const _resolvedUrl = `${cleanBase}/${cleanRoute}`;
+    console.log("debug_resolveUrl_end", urlConfig, _resolvedUrl);
+
     // On rejoint proprement
-    return `${cleanBase}/${cleanRoute}`;
+    return _resolvedUrl;
 };
 
 export default resolveUrl;
