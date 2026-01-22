@@ -89,7 +89,7 @@ export default function ToolbarMapEditorV3() {
             <ButtonDrawLabel />
             <ButtonDrawImage />
             {/* <IconButtonStartTransformer /> */}
-            <IconButtonSmartDetectLine />
+            {/* <IconButtonSmartDetectLine /> */}
 
         </Paper>
 
