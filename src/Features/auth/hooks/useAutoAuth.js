@@ -1,4 +1,3 @@
-import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import { setUserProfile, setJwt } from "Features/auth/authSlice";
 import { useDispatch } from "react-redux";
 import transformObject from "Features/misc/utils/transformObject";

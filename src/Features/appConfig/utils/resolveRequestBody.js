@@ -44,6 +44,8 @@ const resolveRequestBody = (body, context) => {
     return body;
 };
 
+export default resolveRequestBody;
+
 // --- EXEMPLE D'UTILISATION ---
 
 // Le body avec les templates
@@ -69,6 +71,4 @@ const contextData = {
 };
 
 // Appel de la fonction
-const result = resolveRequestBody(bodyTemplate, contextData);
-
-console.log(result);
+//const result = resolveRequestBody(bodyTemplate, contextData);
