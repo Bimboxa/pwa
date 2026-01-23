@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 import { useDispatch } from "react-redux";
 
-import { setUserProfile } from "../authSlice";
+import { updateUserProfile } from "../authSlice";
 
 import getUserProfileFromLocalStorage from "../services/getUserProfileFromLocalStorage";
 
@@ -16,6 +16,6 @@ export default function useInitUserProfile() {
   };
 
   useEffect(() => {
-    dispatch(setUserProfile(userProfile));
+    dispatch(updateUserProfile(userProfile));
   }, []);
 }

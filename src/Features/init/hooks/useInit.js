@@ -25,7 +25,7 @@ export default function useInit() {
   useAutoRefreshRemoteToken();
 
   useInitToken();
-  useInitUserProfile();
+  //useInitUserProfile();
   useInitAutoAuth();
 
   useInitDeviceType();
