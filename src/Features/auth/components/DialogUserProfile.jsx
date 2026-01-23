@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
-import { setUserProfile } from "../authSlice";
+import { updateUserProfile } from "../authSlice";
 
 import { Box, Typography, TextField } from "@mui/material";
 
@@ -37,7 +37,7 @@ export default function DialogUserProfile({ open, onClose }) {
   // handler
 
   function handleSave() {
-    dispatch(setUserProfile({ userName: name }));
+    dispatch(updateUserProfile({ userName: name }));
     onClose();
   }
 

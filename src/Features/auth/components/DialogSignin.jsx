@@ -29,7 +29,7 @@ export default function DialogSignin({ open, onClose }) {
   // handler
 
   function handleSave() {
-    dispatch(setUserProfile({ userName: name }));
+    dispatch(updateUserProfile({ userName: name }));
   }
 
   return (
