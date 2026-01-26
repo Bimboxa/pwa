@@ -52,7 +52,8 @@ export default function SelectorImage({
           dispatch(setOpenBaseMapCreator(true));
           dispatch(setPdfFile(file0));
         } else {
-          file0 = await pdfToPngAsync({ pdfFile: file0 });
+          const { imageFile } = await pdfToPngAsync({ pdfFile: file0 });
+          file0 = imageFile;
           onImageFileChange(file0);
         }
       }

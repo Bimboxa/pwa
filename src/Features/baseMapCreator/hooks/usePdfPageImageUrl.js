@@ -9,8 +9,8 @@ export default function usePdfPageImageUrl(pdf, pageNumber, rotate) {
     useEffect(() => {
         let objectUrl = null;
         if (pdf) {
-            pdfToPngAsync({ pdfFile: pdf, page: pageNumber, rotate }).then((file) => {
-                objectUrl = URL.createObjectURL(file);
+            pdfToPngAsync({ pdfFile: pdf, page: pageNumber, rotate }).then(({ imageFile }) => {
+                objectUrl = URL.createObjectURL(imageFile);
                 setImageUrl(objectUrl);
             });
         }

@@ -1,6 +1,5 @@
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import { getDocument } from "pdfjs-dist";
-
 import { GlobalWorkerOptions } from "pdfjs-dist/build/pdf";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker?url";
 
@@ -9,26 +8,21 @@ GlobalWorkerOptions.workerSrc = pdfjsWorker;
 export default async function pdfToPngAsync({
   pdfFile,
   page = 1,
-  bboxInRatio, // { x1, y1, x2, y2 } en pourcentage (0-100) du résultat final (tourné)
-  resolution = 72, // Résolution cible en DPI
-  rotate = 0 // Rotation en degrés (0, 90, 180, 270)
+  bboxInRatio,
+  resolution = 72,
+  rotate = 0,
+  blueprintScale = null // Par défaut null
 }) {
-  // Création d'un URL pour charger le fichier PDF
   const pdfUrl = URL.createObjectURL(pdfFile);
 
   try {
-    // Chargement du document PDF
     const loadingTask = getDocument(pdfUrl);
     const pdf = await loadingTask.promise;
-
-    // Sélection de la page
     const pdfPage = await pdf.getPage(page);
 
-    // 1. Calcul du Scale et intégration de la Rotation
+    // 1. Calcul du Scale basé sur la résolution demandée
+    // PDF.js utilise 72 DPI par défaut comme échelle 1.
     const scale = resolution / 72;
-
-    // MODIFICATION ICI : On passe la rotation au viewport.
-    // PDF.js va automatiquement inverser width/height si c'est 90 ou 270 deg.
     const viewport = pdfPage.getViewport({ scale, rotation: rotate });
 
     // Création du canvas
@@ -41,8 +35,6 @@ export default async function pdfToPngAsync({
 
     if (bboxInRatio) {
       const { x1, y1, x2, y2 } = bboxInRatio;
-
-      // viewport.width/height sont déjà les dimensions tournées
       const rawWidth = viewport.width;
       const rawHeight = viewport.height;
 
@@ -51,47 +43,52 @@ export default async function pdfToPngAsync({
       const cropWidth = ((x2 - x1)) * rawWidth;
       const cropHeight = ((y2 - y1)) * rawHeight;
 
-      // On dimensionne le canvas à la taille de la coupe (crop)
       canvas.width = cropWidth;
       canvas.height = cropHeight;
 
-      // On prépare le décalage pour le rendu
       offsetX = -cropX;
       offsetY = -cropY;
     } else {
-      // Pas de bbox : on prend toute la page (dimensions tournées)
       canvas.width = viewport.width;
       canvas.height = viewport.height;
     }
 
-    // 3. Application de la translation (Crop)
+    // 3. Application de la translation
     if (offsetX !== 0 || offsetY !== 0) {
       context.translate(offsetX, offsetY);
     }
 
-    // Rendu de la page dans le canvas
+    // Rendu
     await pdfPage.render({ canvasContext: context, viewport }).promise;
 
-    // Conversion en Data URL (PNG)
     const pngDataUrl = canvas.toDataURL("image/png");
-
-    // Nom de l'image
     const pdfFileName = pdfFile.name.replace(".pdf", "");
     const suffix = bboxInRatio ? "_crop" : "";
-    // On peut ajouter la rotation au nom de fichier si utile
     const rotSuffix = rotate > 0 ? `_r${rotate}` : "";
     const name = `${pdfFileName}_page${page}${rotSuffix}${suffix}.png`;
 
     const pngFile = await imageUrlToPng({ url: pngDataUrl, name });
 
-    console.log("[pdfToPng]", pngFile);
+    // --- CALCUL DE METER BY PX ---
+    let meterByPx = null;
+    if (blueprintScale) {
+      // 1 pouce = 0.0254 mètres
+      // resolution = pixels par pouce (DPI)
+      // Taille d'un pixel sur le "papier" en mètres = 0.0254 / resolution
+      // Taille réelle = Taille papier * échelle
+      meterByPx = (0.0254 / resolution) * blueprintScale;
+    }
 
-    // Nettoyage
+    console.log("[pdfToPng]", { pngFile, meterByPx });
+
     URL.revokeObjectURL(pdfUrl);
 
-    return pngFile;
+    return { imageFile: pngFile, meterByPx };
+
   } catch (error) {
     console.error("Erreur lors de la conversion du PDF :", error);
+    // Important : toujours nettoyer l'URL même en cas d'erreur pour éviter les fuites mémoire
+    URL.revokeObjectURL(pdfUrl);
     throw error;
   }
 }

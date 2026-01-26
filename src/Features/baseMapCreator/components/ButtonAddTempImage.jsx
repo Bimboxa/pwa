@@ -15,7 +15,7 @@ import FieldOptionKey from "Features/form/components/FieldOptionKey";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 
 
-export default function ButtonAddTempImage({ pdfFile }) {
+export default function ButtonAddTempImage({ pdfFile, blueprintScale }) {
     const dispatch = useDispatch();
 
     // data
@@ -46,8 +46,8 @@ export default function ButtonAddTempImage({ pdfFile }) {
 
         dispatch(addTempBaseMap({ id, name: `Page ${pageNumber}` }));
 
-        const imageFile = await pdfToPngAsync({ pdfFile, page: pageNumber, bboxInRatio, resolution, rotate });
-        dispatch(updateTempBaseMap({ id, updates: { imageFile, name } }));
+        const { imageFile, meterByPx } = await pdfToPngAsync({ pdfFile, page: pageNumber, bboxInRatio, resolution, rotate, blueprintScale });
+        dispatch(updateTempBaseMap({ id, updates: { imageFile, name, meterByPx } }));
 
     }
     return <Box sx={{ display: "flex", alignItems: "center", width: 1 }}>

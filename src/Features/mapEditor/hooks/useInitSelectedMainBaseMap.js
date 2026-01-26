@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import getInitSelectedMainBaseMapId from "Features/init/services/getInitSelectedMainBaseMapId";
-import { setSelectedMainBaseMapId } from "../mapEditorSlice";
+import { setSelectedBaseMapsListingId, setSelectedMainBaseMapId } from "../mapEditorSlice";
 
 import db from "App/db/db";
 
@@ -18,6 +18,7 @@ export default function useInitSelectedMainBaseMap() {
       const baseMap = await db.baseMaps.get(initBaseMapId);
       if (baseMap?.projectId === projectId) {
         dispatch(setSelectedMainBaseMapId(initBaseMapId));
+        dispatch(setSelectedBaseMapsListingId(baseMap.listingId));
       }
     }
   }

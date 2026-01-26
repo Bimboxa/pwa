@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useSelector, useDispatch } from "react-redux"
 
 import { setPageNumber } from "Features/baseMapCreator/baseMapCreatorSlice"
@@ -19,6 +19,7 @@ import SelectorPdfPage from "./SelectorPdfPage"
 import PdfImageEditor from "./PdfImageEditor"
 import SectionPreviewBaseMaps from "./SectionPreviewBaseMaps"
 import ButtonAddTempImage from "./ButtonAddTempImage"
+import FieldTextV2 from "Features/form/components/FieldTextV2"
 
 
 export default function PageBaseMapCreator({ onClose }) {
@@ -34,6 +35,8 @@ export default function PageBaseMapCreator({ onClose }) {
     const imageUrl = usePdfPageImageUrl(pdfFile, pageNumber, rotate);
 
     console.log("thumbnails", thumbnails, error);
+
+    const [blueprintScale, setBlueprintScale] = useState(50);
 
 
     // helpers
@@ -94,7 +97,15 @@ export default function PageBaseMapCreator({ onClose }) {
                             <IconButton onClick={() => handleRotate({ counter: true })}>
                                 <RotateCcw />
                             </IconButton>
-                            <ButtonAddTempImage pdfFile={pdfFile} pageNumber={pageNumber} />
+                            <Box sx={{ width: 100, minWidth: 100, display: "flex", alignItems: "center" }}>
+                                <FieldTextV2
+                                    value={blueprintScale}
+                                    onChange={setBlueprintScale}
+                                    label="Echelle 1:"
+                                    options={{ showLabel: true, fullWidth: true, showAsLabelAndValue: true }}
+                                />
+                            </Box>
+                            <ButtonAddTempImage pdfFile={pdfFile} blueprintScale={blueprintScale} />
                         </Box>
 
                         <Box sx={{
@@ -123,7 +134,7 @@ export default function PageBaseMapCreator({ onClose }) {
 
                     {/* Colonne de droite : Aperçus */}
                     <Box sx={{
-                        overflow: "auto", minWidth: 0, width: 250,
+                        overflow: "auto", minWidth: 0, width: 200,
                         display: "flex", flexDirection: "column"
                     }}>
                         <SectionPreviewBaseMaps />

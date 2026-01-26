@@ -22,7 +22,7 @@ export default function DialogBaseMapCreator() {
 
     // render
 
-    return <DialogGeneric fullscreen={true} open={open} onClose={handleClose} vh={80} vw={80}>
+    return <DialogGeneric fullscreen={true} open={open} onClose={handleClose} vh={90} vw={90}>
         <PageBaseMapCreator onClose={handleClose} />
     </DialogGeneric>
 }
