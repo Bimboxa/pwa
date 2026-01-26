@@ -17,6 +17,7 @@ import BoxCenter from "Features/layout/components/BoxCenter";
 import ContainerFilesSelector from "Features/files/components/ContainerFilesSelector";
 
 import loadKrtoFile from "../services/loadKrtoFile";
+import loadKrtoZip from "../services/loadKrtoZip";
 
 export default function ButtonLoadKrtoFile() {
   const dispatch = useDispatch();
@@ -31,8 +32,9 @@ export default function ButtonLoadKrtoFile() {
 
   // helpers
 
-  const extension = appConfig?.features?.krto?.extension;
-  const krtoS = "." + extension ?? ".krto";
+  //const extension = appConfig?.features?.krto?.extension;
+  const extension = "zip";
+  const krtoS = "." + extension ?? ".zip";
   const loadS = `Charger un fichier ${krtoS}`;
 
   // handlers
@@ -40,7 +42,7 @@ export default function ButtonLoadKrtoFile() {
   async function handleLoadKrtoFile(files) {
     const file = files?.[0];
     if (file) {
-      const project = await loadKrtoFile(file);
+      const project = await loadKrtoZip(file);
       console.log("project", project);
       if (project) {
         dispatch(setSelectedProjectId(project.id));

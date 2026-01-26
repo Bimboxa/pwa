@@ -36,7 +36,7 @@ export default function PageBaseMapCreator({ onClose }) {
 
     console.log("thumbnails", thumbnails, error);
 
-    const [blueprintScale, setBlueprintScale] = useState(50);
+    const [blueprintScale, setBlueprintScale] = useState("");
 
 
     // helpers

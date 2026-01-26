@@ -72,11 +72,12 @@ export default async function pdfToPngAsync({
     // --- CALCUL DE METER BY PX ---
     let meterByPx = null;
     if (blueprintScale) {
+      const _blueprintScale = Number(blueprintScale);
       // 1 pouce = 0.0254 mètres
       // resolution = pixels par pouce (DPI)
       // Taille d'un pixel sur le "papier" en mètres = 0.0254 / resolution
       // Taille réelle = Taille papier * échelle
-      meterByPx = (0.0254 / resolution) * blueprintScale;
+      meterByPx = (0.0254 / resolution) * _blueprintScale;
     }
 
     console.log("[pdfToPng]", { pngFile, meterByPx });
