@@ -20,21 +20,23 @@ export default function useAutoAuth() {
                     credentials: "include",
                 })
 
-                const data = await response.json();
+                if (response.ok) {
+                    const data = await response.json();
 
-                console.log("[useAutoAuth] data", data);
+                    console.log("[useAutoAuth] data", data);
 
-                // userProfile
+                    // userProfile
 
-                const userProfile = transformObject(data, authDataMapping.userProfile);
-                dispatch(setUserProfile(userProfile));
+                    const userProfile = transformObject(data, authDataMapping.userProfile);
+                    dispatch(setUserProfile(userProfile));
 
-                // jwt
+                    // jwt
 
-                const jwt = transformObject(data, authDataMapping.jwt);
-                dispatch(setJwt(jwt));
+                    const jwt = transformObject(data, authDataMapping.jwt);
+                    dispatch(setJwt(jwt));
 
-                return data;
+                    return data;
+                }
             }
             catch (error) {
                 console.log("[useAutoAuth] error", error);

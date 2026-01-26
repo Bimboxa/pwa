@@ -1,15 +1,20 @@
 import { useSelector } from "react-redux";
 import useListings from "Features/listings/hooks/useListings";
 
-export default function useProjectBaseMapListings() {
+export default function useProjectBaseMapListings(options) {
+
+  // options
+
+  const projectId = options?.projectId;
+
   // data
 
-  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const _projectId = useSelector((s) => s.projects.selectedProjectId);
 
   // main
 
   const listings = useListings({
-    filterByProjectId: projectId,
+    filterByProjectId: projectId ?? _projectId,
     filterByEntityModelType: "BASE_MAP",
   });
 

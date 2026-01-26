@@ -4,6 +4,7 @@ import ButtonDialogAppConfig from "Features/appConfig/components/ButtonDialogApp
 import ButtonLoadKrtoFile from "Features/krtoFile/components/ButtonLoadKrtoFile";
 import ButtonAppVersion from "App/components/ButtonAppVersion";
 import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
+import IconButtonDebugAuth from "Features/auth/components/IconButtonDebugAuth";
 
 
 export default function PageDashboardFooter() {
@@ -22,6 +23,7 @@ export default function PageDashboardFooter() {
         <ButtonSigninV2 />
         <ButtonAppVersion />
         <ButtonDialogAppConfig />
+        <IconButtonDebugAuth />
       </Box>
 
       <div>

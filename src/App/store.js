@@ -15,6 +15,7 @@ import rightPanelReducer from "Features/rightPanel/rightPanelSlice";
 import contextMenuReducer from "Features/contextMenu/contextMenuSlice";
 import onboardingReducer from "Features/onboarding/onboardingSlice";
 import masterProjectsReducer from "Features/masterProjects/masterProjectsSlice";
+import masterProjectPicturesReducer from "Features/masterProjectPictures/masterProjectPicturesSlice";
 import projectsReducer from "Features/projects/projectsSlice";
 import scopesReducer from "Features/scopes/scopesSlice";
 import versionsReducer from "Features/versions/versionsSlice";
@@ -74,6 +75,7 @@ const store = configureStore({
     rightPanel: rightPanelReducer,
     contextMenu: contextMenuReducer,
     masterProjects: masterProjectsReducer,
+    masterProjectPictures: masterProjectPicturesReducer,
     projects: projectsReducer,
     scopes: scopesReducer,
     versions: versionsReducer,

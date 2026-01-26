@@ -19,7 +19,7 @@ import PanelEntityZones from "Features/relsZoneEntity/components/PanelEntityZone
 import PanelPdfReport from "Features/pdfReport/components/PanelPdfReport.jsx";
 import PanelOpencv from "Features/opencv/components/PanelOpencv.jsx";
 import PanelTools from "Features/tools/components/PanelTools";
-
+import PanelMasterProjectPictures from "Features/masterProjectPictures/components/PanelMasterProjectPictures";
 export default function RightPanelContainer() {
   // data
 
@@ -48,9 +48,11 @@ export default function RightPanelContainer() {
         <Box
           sx={{
             position: "absolute",
-            top: `${topBarHeight + 8}px`,
-            //bottom: bottomBarHeight,
-            right: "8px",
+            //top: `${topBarHeight + 8}px`,
+            //right: "8px",
+            right: 0,
+            top: 0,
+            bottom: 0,
 
             width,
             minWidth: 0,
@@ -71,6 +73,7 @@ export default function RightPanelContainer() {
           {selectedKey === "ENTITY_ZONES" && <PanelEntityZones />}
           {selectedKey === "PDF_REPORT" && <PanelPdfReport />}
           {selectedKey === "OPENCV" && <PanelOpencv />}
+          {selectedKey === "MASTER_PROJECT_PICTURES" && <PanelMasterProjectPictures />}
           {selectedKey === "TOOLS" && <PanelTools />}
         </Box>
       )}

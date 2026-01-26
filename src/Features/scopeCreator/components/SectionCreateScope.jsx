@@ -45,7 +45,7 @@ export default function SectionCreateScope() {
 
   const appConfig = useAppConfig();
   const presetScope = useSelectedPresetScope();
-  const baseMapsListings = useProjectBaseMapListings();
+  const baseMapsListings = useProjectBaseMapListings({ projectId });
   const defaultBaseMapsListingProps = useDefaultBaseMapsListingProps();
 
   const createScope = useCreateScope();
@@ -92,15 +92,17 @@ export default function SectionCreateScope() {
       newListings,
       newEntities,
     });
-    console.log("debug_25_09 [scope] created scope", scope);
+    console.log("debug_25_09 [scope] created scope", scope, baseMapsListings);
     if (scope) {
 
       // baseMaps listing
 
-      if (!baseMapsListings.length > 0) {
+      if (!baseMapsListings || baseMapsListings?.length === 0) {
         const baseMapsListing = await createListing({
           listing: { ...defaultBaseMapsListingProps, projectId },
+          scope
         });
+        console.log("debug_25_09 [baseMapsListing] created baseMapsListing", baseMapsListing);
         dispatch(setSelectedBaseMapsListingId(baseMapsListing?.id));
       }
 
