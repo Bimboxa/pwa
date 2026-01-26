@@ -1,6 +1,6 @@
-import {useState} from "react";
+import { useState } from "react";
 
-import {Box} from "@mui/material";
+import { Box } from "@mui/material";
 
 import Panel from "Features/layout/components/Panel";
 import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
@@ -27,7 +27,7 @@ export default function PanelPdfConverter({
 
   async function handleConvert() {
     setLoading(true);
-    const imageFile = await pdfToPngAsync({pdfFile});
+    const { imageFile } = await pdfToPngAsync({ pdfFile });
     if (onImageFileCreated) onImageFileCreated(imageFile);
     setLoading(false);
   }
@@ -36,7 +36,7 @@ export default function PanelPdfConverter({
     <Panel>
       {title && <HeaderTitleClose title={title} onClose={onClose} />}
       <BoxFlexVStretch>
-        <Box sx={{display: "flex", width: 1, flexGrow: 1}}>
+        <Box sx={{ display: "flex", width: 1, flexGrow: 1 }}>
           <ViewerPdf pdfFile={pdfFile} />
         </Box>
         <ButtonInPanel

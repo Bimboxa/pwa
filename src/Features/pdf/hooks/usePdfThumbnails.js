@@ -1,108 +1,137 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker?url";
 
-// Configuration du worker (à faire une seule fois idéalement, mais ok ici)
 GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
+const yieldToMain = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+// Petit utilitaire pour transformer le callback toBlob en Promise
+const canvasToBlob = (canvas) => {
+    return new Promise((resolve) => {
+        // 'image/jpeg' est plus rapide à encoder que png
+        // 0.7 est un bon compromis qualité/vitesse pour des miniatures
+        canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.7);
+    });
+};
+
 export default function usePdfThumbnails(pdfFile) {
-    // State: Tableau d'objets { pageNumber, status, imageUrl }
     const [thumbnails, setThumbnails] = useState([]);
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        // Reset si pas de fichier
         if (!pdfFile) {
             setThumbnails([]);
             return;
         }
 
         let isCancelled = false;
+        // On garde une trace locale des URLs créées pour le nettoyage mémoire
+        const generatedUrls = [];
         const pdfUrl = URL.createObjectURL(pdfFile);
 
         const generateThumbnails = async () => {
             try {
                 setError(null);
-
-                // 1. Chargement du document PDF (une seule fois)
                 const loadingTask = getDocument(pdfUrl);
                 const pdfDoc = await loadingTask.promise;
 
                 if (isCancelled) return;
 
-                // 2. Initialisation immédiate des placeholders (Status: pending)
                 const numPages = pdfDoc.numPages;
-                const initialState = Array.from({ length: numPages }, (_, index) => ({
+
+                // Initialisation des placeholders
+                setThumbnails(Array.from({ length: numPages }, (_, index) => ({
                     pageNumber: index + 1,
-                    status: "pending", // 'pending' | 'success' | 'error'
+                    status: "pending",
                     imageUrl: null,
-                }));
+                })));
 
-                setThumbnails(initialState);
-
-                // 3. Génération progressive des images
                 for (let i = 1; i <= numPages; i++) {
                     if (isCancelled) break;
+
+                    // Pause respiration pour l'UI
+                    await yieldToMain();
 
                     try {
                         const page = await pdfDoc.getPage(i);
 
-                        // Calcul du scale pour une miniature (ex: 150px de large env.)
-                        // On peut fixer un scale fixe (ex: 0.2) ou viser une largeur
+                        // Calcul du scale
                         const desiredWidth = 200;
                         const viewportRaw = page.getViewport({ scale: 1 });
                         const scale = desiredWidth / viewportRaw.width;
                         const viewport = page.getViewport({ scale });
 
-                        // Création Canvas
                         const canvas = document.createElement("canvas");
-                        const context = canvas.getContext("2d");
+                        const context = canvas.getContext("2d", {
+                            willReadFrequently: true,
+                            alpha: false
+                        });
+
                         canvas.width = viewport.width;
                         canvas.height = viewport.height;
 
-                        // Rendu
+                        // Rendu graphique (Lourd)
                         await page.render({ canvasContext: context, viewport }).promise;
 
-                        const imageUrl = canvas.toDataURL("image/png");
+                        // Encodage image (Asynchrone via Blob)
+                        const blob = await canvasToBlob(canvas);
 
-                        // Mise à jour de l'état pour CETTE page spécifique
-                        setThumbnails((prev) => {
-                            const newArr = [...prev];
-                            // On trouve l'index correspondant (i-1 car page commence à 1)
-                            newArr[i - 1] = {
-                                pageNumber: i,
-                                status: "success",
-                                imageUrl: imageUrl,
-                            };
-                            return newArr;
-                        });
+                        if (blob && !isCancelled) {
+                            const blobUrl = URL.createObjectURL(blob);
+                            generatedUrls.push(blobUrl); // On note l'URL pour la nettoyer plus tard
+
+                            setThumbnails((prev) => {
+                                const newArr = [...prev];
+                                if (newArr[i - 1]) {
+                                    newArr[i - 1] = {
+                                        pageNumber: i,
+                                        status: "success",
+                                        imageUrl: blobUrl,
+                                    };
+                                }
+                                return newArr;
+                            });
+                        }
+
+                        // Nettoyage immédiat de la page PDF pour libérer la mémoire de pdf.js
+                        page.cleanup();
 
                     } catch (pageError) {
                         console.error(`Erreur page ${i}`, pageError);
-                        setThumbnails((prev) => {
-                            const newArr = [...prev];
-                            newArr[i - 1] = { ...newArr[i - 1], status: "error" };
-                            return newArr;
-                        });
+                        if (!isCancelled) {
+                            setThumbnails((prev) => {
+                                const newArr = [...prev];
+                                if (newArr[i - 1]) {
+                                    newArr[i - 1] = { ...newArr[i - 1], status: "error" };
+                                }
+                                return newArr;
+                            });
+                        }
                     }
                 }
 
             } catch (err) {
-                console.error("Erreur globale chargement PDF", err);
+                console.error("Erreur globale", err);
                 if (!isCancelled) setError(err);
             } finally {
+                // On ne révoque PAS les generatedUrls ici, car on en a besoin pour l'affichage !
+                // On révoque seulement l'URL du fichier source PDF
                 if (!isCancelled) URL.revokeObjectURL(pdfUrl);
             }
         };
 
         generateThumbnails();
 
-        // Cleanup function
+        // CLEANUP FUNCTION (Important avec les blobs)
         return () => {
             isCancelled = true;
             URL.revokeObjectURL(pdfUrl);
+            // On libère la mémoire de toutes les miniatures créées
+            generatedUrls.forEach(url => URL.revokeObjectURL(url));
         };
-    }, [pdfFile?.size]);
+
+    }, [pdfFile]);
 
     return { thumbnails, error };
 }

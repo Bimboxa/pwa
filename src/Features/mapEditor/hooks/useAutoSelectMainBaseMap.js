@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { setSelectedMainBaseMapId } from "../mapEditorSlice";
+import { setSelectedBaseMapsListingId, setSelectedMainBaseMapId } from "../mapEditorSlice";
 
 import useMainBaseMap from "./useMainBaseMap";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -28,6 +28,7 @@ export default function useAutoSelectMainBaseMap() {
       const baseMap0 = baseMaps[0];
       console.log("[AUTO] set baseMap to", baseMap?.projectId, projectId);
       dispatch(setSelectedMainBaseMapId(baseMap0?.id));
+      dispatch(setSelectedBaseMapsListingId(baseMap0?.listingId));
     }
   }, [projectId, baseMaps?.length, baseMap?.projectId, initBaseMapId]);
 }
