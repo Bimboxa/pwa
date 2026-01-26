@@ -12,9 +12,9 @@ import SectionNoItem from "./SectionNoItem";
 
 import getFoundItems from "Features/search/getFoundItems";
 import getSortedItems from "Features/misc/utils/getSortedItems";
-import ButtonInPanel from "Features/layout/components/ButtonInPanel";
+// import ButtonInPanel from "Features/layout/components/ButtonInPanel"; // (Non utilisé dans le code fourni, mais je le laisse commenté au cas où)
 import { createPortal } from "react-dom";
-import BoxFlexV from "Features/layout/components/BoxFlexV";
+// import BoxFlexV from "Features/layout/components/BoxFlexV"; // (Non utilisé dans le code fourni)
 
 export default function ItemsListVariantSimple({
   items,
@@ -25,12 +25,13 @@ export default function ItemsListVariantSimple({
   noItemLabel,
   containerEl,
   createComponent,
-  createLabel,
+  // createLabel, // (Non utilisé)
   clickOnCreation,
   loading,
-  disableCreation,
+  // disableCreation, // (Non utilisé)
   maxItems,
   onCreateClick,
+  onSearchTextChangeDebounced, // La prop callback du parent
 }) {
   //
 
@@ -41,9 +42,22 @@ export default function ItemsListVariantSimple({
   const [searchText, setSearchText] = useState();
   const [openCreate, setOpenCreate] = useState(false);
 
+  // Le hook de debounce (délai de 300ms)
   const debouncedSearchText = useDebouncedValue(searchText, 300);
 
-  // effect
+  // --- MODIFICATION ICI ---
+  // On notifie le parent uniquement quand la valeur debouncée change
+  useEffect(() => {
+    // On vérifie que la prop existe pour éviter une erreur si elle n'est pas passée
+    if (onSearchTextChangeDebounced) {
+      // On envoie la valeur (undefined au début, ou string ensuite)
+      console.log('debug_2601_onSearchTextChangeDebounced', debouncedSearchText);
+      onSearchTextChangeDebounced(debouncedSearchText);
+    }
+  }, [debouncedSearchText]);
+  // ------------------------
+
+  // effect container
 
   useEffect(() => {
     if (containerEl) {
@@ -71,7 +85,7 @@ export default function ItemsListVariantSimple({
 
   if (maxItems && foundItems) foundItems = foundItems.slice(0, maxItems);
 
-  console.log("foundItems", foundItems);
+  // console.log("foundItems", foundItems);
 
   // helpers - noItems
 
@@ -84,7 +98,7 @@ export default function ItemsListVariantSimple({
   }
 
   function handleItemClick(item) {
-    console.log("Item clicked:", item);
+    // console.log("Item clicked:", item);
     onClick(item);
   }
 
@@ -110,7 +124,8 @@ export default function ItemsListVariantSimple({
           onChange={handleSearchTextChange}
           onCreateClick={handleCreateClick}
         />
-        <Box sx={{ visibility: loading ? "visible" : "hidden" }}>
+        {/* On affiche le loader si loading est true (géré par le parent pendant le fetch) */}
+        <Box sx={{ visibility: loading ? "visible" : "hidden", minHeight: 4 }}>
           <LinearProgress />
         </Box>
         <BoxFlexVStretch sx={{ overflowY: "auto" }}>

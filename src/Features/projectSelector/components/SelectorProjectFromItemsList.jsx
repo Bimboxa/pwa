@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 import useProjectsItems from "../hooks/useProjectsItems";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useInitFetchMasterProjects from "Features/masterProjects/hooks/useInitFetchMasterProjects";
+import useFetchMasterProjects from "Features/masterProjects/hooks/useFetchMasterProjects";
 
 import { Box, Typography } from "@mui/material";
 
@@ -11,6 +12,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ItemsListVariantSimple from "Features/itemsList/components/ItemsListVariantSimple";
 import ToggleProjectType from "./ToggleProjectType";
 import IconButtonFetchMasterProjects from "Features/masterProjects/components/IconButtonFetchMasterProjects";
+
 
 
 export default function SelectorProjectFromItemsList({
@@ -26,6 +28,15 @@ export default function SelectorProjectFromItemsList({
 
   let items = useProjectsItems();
   const appConfig = useAppConfig();
+  const fetchMasterProjects = useFetchMasterProjects();
+  const jwt = useSelector((state) => state.auth.jwt);
+  const userProfile = useSelector((state) => state.auth.userProfile);
+
+
+
+  // helpers
+
+  const keyMap = { "CHANTIER": "chantiers", "OPPORTUNITE": "opportunités" }
 
   // state
 
@@ -58,6 +69,19 @@ export default function SelectorProjectFromItemsList({
     }
   }
 
+  async function handleSearchTextChangeDebounced(searchText) {
+    console.log("searchTextDebounced", searchText);
+    if (searchText) {
+      const projects = await fetchMasterProjects({
+        filterByOrigingKey: filterByType ? keyMap[projectType] : null,
+        searchValue: searchText,
+        jwt,
+        userProfile
+      });
+      console.log("debug_2601_fetch_projects", projects?.length);
+    }
+  }
+
   return (
     <BoxFlexVStretch>
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", p: 1, position: "relative", py: 3 }}>
@@ -78,6 +102,7 @@ export default function SelectorProjectFromItemsList({
         onClick={handleClick}
         searchKeys={["name", "clientRef", "primaryText", "secondaryText"]}
         onCreateClick={handleCreateProject}
+        onSearchTextChangeDebounced={handleSearchTextChangeDebounced}
         maxItems={50}
       />
       <Box sx={{ p: 1, display: "flex", justifyContent: "flex-end" }}>

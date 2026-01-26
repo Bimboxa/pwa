@@ -20,9 +20,10 @@ export default function useFetchMasterProjects() {
         const filterByOriginKey = options?.filterByOriginKey;
         const jwt = options?.jwt;
         const userProfile = options?.userProfile;
+        const searchValue = options?.searchValue;
 
         // Sécurité supplémentaire : si pas de sources, on ne fait rien
-        console.log("debug_fetch_masterProjects sources", sources);
+        console.log("debug_fetch_masterProjects sources", sources, jwt);
 
         let projects = [];
 
@@ -44,7 +45,11 @@ export default function useFetchMasterProjects() {
                 const { url, method, body } = fetchParams;
 
                 const resolvedUrl = resolveUrl(url);
-                const resolvedBody = resolveRequestBody(body, { userProfile });
+                let resolvedBody = resolveRequestBody(body, { userProfile });
+
+                if (searchValue) {
+                    resolvedBody = { ...resolvedBody, searchValue };
+                }
 
                 console.log("debug_fetch_masterProjects start", resolvedUrl, resolvedBody);
 
