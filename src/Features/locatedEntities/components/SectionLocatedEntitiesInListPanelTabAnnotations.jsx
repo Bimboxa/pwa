@@ -18,6 +18,8 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotations() {
     groupByBaseMap: true
   });
 
+  console.log("debug_2701_annotations", annotations);
+
 
   // render
 

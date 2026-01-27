@@ -29,6 +29,7 @@ export default function SectionScopeSelectorVariantList({ onSelect }) {
     const { value: scopes } = useScopes({ filterByProjectId: projectId });
     const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
 
+
     // --- Rename Logic ---
     const updateScope = useUpdateScope();
     const [editingScopeId, setEditingScopeId] = useState(null);

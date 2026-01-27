@@ -88,6 +88,13 @@ export default function ToolbarEditAnnotation() {
         </Box>
       </PopperDragHandle>
 
+      {type === "MARKER" && <Box sx={{ display: "flex", alignItems: "center" }}>
+        <ButtonAnnotationTemplate annotation={selectedAnnotation} />
+        <IconButtonCloneAnnotation annotation={selectedAnnotation} />
+      </Box>}
+      {type === "POINT" && <Box sx={{ display: "flex", alignItems: "center" }}>
+        <ButtonAnnotationTemplate annotation={selectedAnnotation} />
+      </Box>}
 
       {type === "POLYGON" && <Box sx={{ display: "flex", alignItems: "center" }}>
         <ButtonAnnotationTemplate annotation={selectedAnnotation} />
@@ -117,6 +124,7 @@ export default function ToolbarEditAnnotation() {
       {type === "RECTANGLE" && <Box sx={{ display: "flex", alignItems: "center" }}>
         <IconButtonAnnotationBboxSize annotation={selectedAnnotation} />
       </Box>}
+
 
 
 

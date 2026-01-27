@@ -68,6 +68,7 @@ export default function useLassoSelection({
 
         annotations.forEach(ann => {
             const annBBox = getAnnotationBBox(ann);
+
             if (!annBBox) return;
 
             // Test simple d'intersection de rectangles (AABB)
@@ -85,7 +86,7 @@ export default function useLassoSelection({
 
         // C. Commit
         if (onSelectionComplete) {
-            onSelectionComplete(hitIds);
+            onSelectionComplete({ annotationIds: hitIds, selectionBox, anchorPosition: { x: lassoRect.x, y: lassoRect.y } });
         }
 
         // Reset

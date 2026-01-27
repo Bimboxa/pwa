@@ -13,7 +13,9 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations }, ref) => {
     const annotation = annotations.find(a => a.id === hoveredNode.nodeId);
 
     // helper - image
-    const imageUrl = annotation?.entity?.image?.imageUrlClient;
+    const imageUrl_entity = annotation?.entity?.image?.imageUrlClient;
+    const imageUrl_0 = annotation?.images?.[0]?.imageUrlClient || annotation?.images?.[0]?.imageUrlRemote;
+    const imageUrl = imageUrl_entity || imageUrl_0;
     const hasImage = Boolean(imageUrl);
 
     // helper - description

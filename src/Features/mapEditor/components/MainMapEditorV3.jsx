@@ -72,6 +72,7 @@ import getAnnotationBounds from "../utils/getAnnotationBounds";
 import getAnnotationTemplateSizeInPx from "Features/annotations/utils/getAnnotationTemplateSizeInPx";
 import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRectangleRawPointsFromOnePoint";
 import getImageAnnotationRectanglePointsFromOnePoint from "Features/imageAnnotations/utils/getImageAnnotationRectanglePointsFromOnePoint";
+import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 
 const contextDimmedStyle = {
     //filter: "grayscale(100%) brightness(1.4) opacity(0.8)", // Rend gris, clair et semi-transparent
@@ -320,6 +321,19 @@ export default function MainMapEditorV3() {
         dispatch(setTempAnnotations([tempAnnotation]));
         dispatch(setTempAnnotationToolbarPosition(screenPos));
         dispatch(setSelectedAnnotationId("temp"));
+    }
+
+    // handlers - image drop
+
+    const handleCommitImageDrop = async (droppedImage) => {
+        let imageFile;
+        try {
+            imageFile = await imageUrlToPng({ url: droppedImage.imageUrl, name: "image.png" })
+        } catch (error) {
+            console.error("Error converting URL to PNG:", error);
+        }
+        const images = [{ file: imageFile, imageUrlRemote: droppedImage.imageUrl }]
+        _handleCommitDrawing([{ x: droppedImage.x, y: droppedImage.y }], { newAnnotation: { type: "MARKER", images }, skipTemplateCreation: true })
     }
 
     // handlers - rectangle
@@ -770,6 +784,7 @@ export default function MainMapEditorV3() {
                             handleCommitDrawing(points, options);
                         }
                     }}
+                    onCommitImageDrop={handleCommitImageDrop}
                     onCommitPointsFromDropFill={handleCommitPointsFromDropFill}
                     baseMapImageSize={baseMap?.image?.imageSize}
                     baseMapImageScale={baseMap?.getImageScale()}
