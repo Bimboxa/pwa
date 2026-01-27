@@ -21,11 +21,16 @@ export default function NodeMarkerStatic({
   sizeVariant = "FIXED_IN_SCREEN", // "FIXED_IN_SCREEN" | "FIXED_IN_CONTAINER_PARENT" | "SCALED"
   containerK = 1, // Nécessaire pour le calcul inverse
 }) {
+
+  // on force FIXED_IN_SCREEN pour les marqueurs statiques
+  sizeVariant = "FIXED_IN_CONTAINER_PARENT";
+
   const dataProps = {
     "data-node-id": marker.id,
     "data-node-listing-id": marker.listingId,
     "data-node-type": "ANNOTATION",
     "data-annotation-type": "MARKER",
+    "data-interaction": "draggable"
   };
 
   marker = { ...marker, ...annotationOverride };
@@ -62,7 +67,7 @@ export default function NodeMarkerStatic({
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
   const fixSize = isMobile || !showBgImage;
 
-  const SIZE = fixSize ? 32 : 42;
+  const SIZE = 32;
   const R_PX = SIZE / 2;
   const ICON_SIZE_PX = SIZE * 0.9;
   const STROKE_WIDTH_PX = 2;

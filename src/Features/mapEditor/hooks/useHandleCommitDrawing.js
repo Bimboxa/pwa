@@ -13,6 +13,7 @@ import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
 import db from "App/db/db";
 import getAnnotationTemplateFromNewAnnotation from "Features/annotations/utils/getAnnotationTemplateFromNewAnnotation";
+import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 
 
 export default function useHandleCommitDrawing() {
@@ -26,7 +27,7 @@ export default function useHandleCommitDrawing() {
     const baseMapId = useSelector(s => s.mapEditor.selectedBaseMapId);
     const projectId = useSelector(s => s.projects.selectedProjectId);
     const listingId = useSelector(s => s.listings.selectedListingId);
-    const newAnnotation = useSelector(s => s.annotations.newAnnotation);
+    const newAnnotationInState = useSelector(s => s.annotations.newAnnotation);
     const openedPanel = useSelector(s => s.listings.openedPanel);
 
     const createEntity = useCreateEntity();
@@ -55,6 +56,11 @@ export default function useHandleCommitDrawing() {
         const closeLine = options?.closeLine;
         const cutHostId = options?.cutHostId;
         const drawRectangle = options?.drawRectangle;
+        const skipTemplateCreation = options?.skipTemplateCreation;
+
+        // newAnnotation
+
+        const newAnnotation = options?.newAnnotation ?? newAnnotationInState
 
 
         // update rawPoints for rectangle
@@ -154,7 +160,7 @@ export default function useHandleCommitDrawing() {
 
             let annotationTemplateId;
             // ÉTAPE 2.5 : Enregistrement de l'annotation template
-            if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation) {
+            if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation && !skipTemplateCreation) {
                 const existingAnnotationTemplates = await db.annotationTemplates.where("listingId").equals(listingId).toArray();
                 // const existingAnnotationTemplate = getAnnotationTemplateFromNewAnnotation({
                 //     newAnnotation,
@@ -202,6 +208,7 @@ export default function useHandleCommitDrawing() {
 
                 // ... props de style
             };
+
 
             if (isBaseMapAnnotation) _newAnnotation.isBaseMapAnnotation = true;
 

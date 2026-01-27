@@ -1,10 +1,10 @@
-import { useDispatch } from "react-redux"; // useSelector n'était pas utilisé dans ton snippet
+import { useDispatch, useSelector } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
 
 import { triggerEntitiesTableUpdate } from "../entitiesSlice";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
-
+import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 
 import db from "App/db/db";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
@@ -14,79 +14,75 @@ import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
 export default function useCreateEntity() {
   const dispatch = useDispatch();
-
   // data
+
   const { value: userEmail } = useUserEmail();
   const { value: _listing } = useSelectedListing();
+  const createAnnotation = useCreateAnnotation();
 
   // helper
+
   const create = async (data, options) => {
     // options
+
     const listingOption = options?.listing;
     const updateSyncFile = options?.updateSyncFile;
     const annotation = options?.annotation;
 
-    // data injection from annotation
+    // data
+
     if (annotation?.imageFile) {
       data.image = { file: annotation.imageFile };
     }
 
-    // listing
+    // listingP
+
     const listing = listingOption || _listing;
 
     // table
+
     const table = listing.table ?? listing?.entityModel.defaultTable;
 
     // ids
+
     let entityId = data?.id ?? nanoid();
 
-    // 1. Preparation des données (Pure Data + Files Data)
+    // data
     const { pureData, filesDataByKey } =
       await getEntityPureDataAndFilesDataByKey(data, {
         entityId,
         projectId: listing.projectId,
         listingId: listing.id,
-        listingTable: table,
+        listingTable: listing.table,
         createdBy: userEmail,
       });
 
     console.log("[useCreateEntity] pureData", pureData, filesDataByKey);
 
-    // 2. Store files (Updated Logic)
+    // store files
     if (filesDataByKey) {
       try {
-        // MODIFICATION ICI :
-        // On récupère toutes les valeurs et on utilise .flat()
-        // Cela permet de gérer indifféremment :
-        // - un champ simple (ex: 'avatar': { ... })
-        // - un champ tableau (ex: 'images': [ {...}, {...} ])
-        // Le résultat est un tableau unique contenant tous les objets fichiers à sauvegarder.
-        const allFilesToStore = Object.values(filesDataByKey).flat();
-
         await Promise.all(
-          allFilesToStore.map(async (fileData) => {
-            // Sauvegarde DB locale
+          Object.entries(filesDataByKey).map(async ([key, fileData]) => {
             await db.files.put(fileData);
-
-            // Gestion Sync
+            //
             if (updateSyncFile) {
               await updateItemSyncFile({
                 item: fileData,
                 type: "FILE",
                 updatedAt: fileData.updatedAt,
-                // syncAt: options.syncAt,
+                //syncAt: options.syncAt,
               });
             }
           })
         );
       } catch (e) {
         console.log("[useCreateEntity] error storing files", e);
-        // Optionnel : Tu pourrais vouloir throw l'erreur ici pour arrêter la création de l'entité
-        // si les fichiers échouent.
       }
     }
 
-    // 3. Store entity
+    // store entity
+
     const entity = {
       id: entityId,
       createdBy: userEmail,
@@ -99,35 +95,31 @@ export default function useCreateEntity() {
       console.log("[db] adding entity ...", entity);
       await db[table].add(entity);
 
-      // Handle Annotation linkage
       if (annotation) {
-        await create({
+        await createAnnotation({
           ...annotation,
           entityId: entity.id,
           listingId: listing.id,
           listingTable: listing.table,
         });
       }
-
-      // Handle Sync for Entity
       if (updateSyncFile) {
         await updateItemSyncFile({
           item: entity,
           type: "ENTITY",
           updatedAt: entity.updatedAt ?? entity.createdAt,
-          // syncAt: options.syncAt,
+          //syncAt: options.syncAt,
         });
       }
 
-      // Update UI
-      dispatch(triggerEntitiesTableUpdate(table));
-
       return entity;
-
     } catch (e) {
-      console.log("[db] error adding entity", e);
-      // C'est mieux de retourner undefined ou throw l'erreur en cas d'échec
+      console.log("[db] error adding entity", entity);
     }
+
+    // update table
+
+    dispatch(triggerEntitiesTableUpdate(table));
   };
 
   return create;

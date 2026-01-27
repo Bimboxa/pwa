@@ -5,56 +5,62 @@ import getImageSizeAsync from "Features/images/utils/getImageSizeAsync";
 export default async function getEntityWithImagesAsync(entity) {
   if (!entity) return {};
 
-  let hasImages;
+  let hasImages = false;
   const entityWithImages = { ...entity };
-  const entriesWithImages = Object.entries(entity).filter(
-    ([key, value]) => value?.isImage
-  );
 
-  for (let [key, value] of entriesWithImages) {
-    if (value.fileName) {
-      const file = await db.files.get(value.fileName);
-      if (file && file.fileArrayBuffer) {
-        const blob = new Blob([file.fileArrayBuffer], { type: file.fileMime })
-        const url = URL.createObjectURL(blob)
+  // --- INTERNAL HELPER ---
+  // Charge le fichier depuis la DB et génère l'URL pour un item donné
+  const hydrateImage = async (item) => {
+    if (!item || !item.fileName) return item;
 
-        entityWithImages[key] = {
-          ...value,
-          file,
-          imageUrlClient: url,
-        };
+    const file = await db.files.get(item.fileName);
 
-        if (testIsImage(blob)) {
-          const imageSize = await getImageSizeAsync(url);
-          entityWithImages[key].imageSize = imageSize;
-        }
-      } else {
-        entityWithImages[key] = {
-          ...value,
-          imageUrlClient: null,
-        };
+    if (file && file.fileArrayBuffer) {
+      const blob = new Blob([file.fileArrayBuffer], { type: file.fileMime });
+      const url = URL.createObjectURL(blob);
+
+      hasImages = true; // Side effect : on note qu'on a trouvé au moins une image
+
+      const enrichedItem = {
+        ...item,
+        file,
+        imageUrlClient: url,
+      };
+
+      // Si la taille n'est pas déjà dans les métadonnées (compatibilité ou fallback)
+      if (!enrichedItem.imageSize && testIsImage(blob)) {
+        enrichedItem.imageSize = await getImageSizeAsync(url);
       }
-      hasImages = true;
+
+      return enrichedItem;
+    } else {
+      // Fichier introuvable en base ou corrompu
+      return {
+        ...item,
+        imageUrlClient: null,
+      };
     }
+  };
+  // -----------------------
+
+  // 1. GESTION DU CHAMP "images" (TABLEAU)
+  if (Array.isArray(entity.images)) {
+    // On traite chaque image du tableau en parallèle
+    entityWithImages.images = await Promise.all(
+      entity.images.map((img) => hydrateImage(img))
+    );
   }
 
-  // await Promise.all(
-  //   entriesWithImages.map(async ([key, value]) => {
-  //     if (value.fileName) {
-  //       const file = await db.files.get(value.fileName);
+  // 2. GESTION DES CHAMPS SIMPLES (ex: avatar, cover...)
+  // On filtre les entrées qui sont des objets marqués isImage (et on exclut 'images' car déjà traité)
+  const entriesWithImages = Object.entries(entity).filter(
+    ([key, value]) => key !== "images" && value && typeof value === 'object' && value.isImage
+  );
 
-  //       if (file && file.fileArrayBuffer) {
-  //         entityWithImages[key] = {
-  //           ...value,
-  //           file,
-  //           imageUrlClient: URL.createObjectURL(
-  //             new Blob([file.fileArrayBuffer], { type: file.fileMime })
-  //           ),
-  //         };
-  //         hasImages = true;
-  //       }
-  //     }
-  //   })
-  // );
+  // On utilise une boucle for...of pour traiter séquentiellement (ou Promise.all si tu préfères la vitesse)
+  for (const [key, value] of entriesWithImages) {
+    entityWithImages[key] = await hydrateImage(value);
+  }
+
   return { entityWithImages, hasImages };
 }

@@ -20,6 +20,9 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const selectedAnnotation = useSelectedAnnotation();
 
+  console.log("debug_2701_A_selectedAnnotation", selectedAnnotation, selectedNode);
+
+  const type = selectedNode?.annotationType || selectedAnnotation?.type;
 
   // helpers
 
@@ -31,7 +34,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   const open =
     shouldShow &&
     Boolean(anchorPosition) &&
-    ["POLYLINE", "POLYGON", "IMAGE", "RECTANGLE", "STRIP"].includes(selectedNode?.annotationType) &&
+    ["MARKER", "POINT", "POLYLINE", "POLYGON", "IMAGE", "RECTANGLE", "STRIP",].includes(type) &&
     selectedNode?.nodeType === "ANNOTATION";
 
   // helper - isBaseMapAnnotation

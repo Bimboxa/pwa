@@ -18,8 +18,21 @@ export default function getAnnotationBBox(annotation) {
         };
     }
 
+    // 3. Cas POINT / MARKER / LABEL (Point central +/- taille arbitraire)
+    else if (annotation.point || annotation.targetPoint) {
+        const pt = annotation.point || annotation.targetPoint;
+        // On définit une zone de "hit" arbitraire (ex: 10 unités locales)
+        const size = 0.05; // Attention à l'échelle de votre carte (mètres vs ratio)
+        return {
+            x: pt.x - size / 2,
+            y: pt.y - size / 2,
+            width: size,
+            height: size
+        };
+    }
+
     // 2. Cas POLYLINE / POLYGON (Min/Max des points)
-    if (annotation.points && annotation.points.length > 0) {
+    else if (annotation.points && annotation.points.length > 0) {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
         annotation.points.forEach(p => {
@@ -37,18 +50,7 @@ export default function getAnnotationBBox(annotation) {
         };
     }
 
-    // 3. Cas POINT / MARKER / LABEL (Point central +/- taille arbitraire)
-    if (annotation.point || annotation.targetPoint) {
-        const pt = annotation.point || annotation.targetPoint;
-        // On définit une zone de "hit" arbitraire (ex: 10 unités locales)
-        const size = 0.05; // Attention à l'échelle de votre carte (mètres vs ratio)
-        return {
-            x: pt.x - size / 2,
-            y: pt.y - size / 2,
-            width: size,
-            height: size
-        };
-    }
+
 
     return null;
 }

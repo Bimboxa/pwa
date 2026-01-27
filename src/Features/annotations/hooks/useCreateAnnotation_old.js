@@ -10,14 +10,11 @@ import createAnnotationService from "../services/createAnnotationService";
 import { nanoid } from "@reduxjs/toolkit";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 
 export default function useCreateAnnotation() {
   const dispatch = useDispatch();
   const { value: listing } = useSelectedListing();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-
-  const createEntity = useCreateEntity();
 
   return async (annotation, options) => {
     try {
@@ -39,7 +36,7 @@ export default function useCreateAnnotation() {
         _annotation.listingId = null;
       }
 
-      await createEntity(_annotation, { listing: { id: _annotation.listingId, table: "annotations" } });
+      await createAnnotationService(_annotation);
       dispatch(triggerAnnotationsUpdate());
       dispatch(triggerAnnotationTemplatesUpdate());
 

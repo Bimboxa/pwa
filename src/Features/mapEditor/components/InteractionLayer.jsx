@@ -27,6 +27,7 @@ import ScreenCursorV2 from 'Features/mapEditorGeneric/components/ScreenCursorV2'
 import SnappingLayer from 'Features/mapEditorGeneric/components/SnappingLayer';
 import TransientTopologyLayer from 'Features/mapEditorGeneric/components/TransientTopologyLayer';
 import TransientAnnotationLayer from 'Features/mapEditorGeneric/components/TransientAnnotationLayer';
+import DropZoneLayer from 'Features/mapEditorGeneric/components/DropZoneLayer';
 
 import TransientDetectedShapeLayer from 'Features/mapEditorGeneric/components/TransientDetectedShapeLayer';
 
@@ -70,6 +71,7 @@ const InteractionLayer = forwardRef(({
   newAnnotation,
   onCommitDrawing,
   onCommitPointsFromDropFill,
+  onCommitImageDrop,
   basePose,
   onBaseMapPoseChange,
   onBaseMapPoseCommit,
@@ -384,9 +386,10 @@ const InteractionLayer = forwardRef(({
 
 
   // Lasso selection
-  function handleLassoSelection(ids) {
-    console.log("lasso selection", ids);
-    dispatch(setSelectedNodes(ids.map(id => ({ nodeId: id, nodeType: 'ANNOTATION' }))))
+  function handleLassoSelection({ annotationIds, selectionBox, anchorPosition }) {
+    console.log("lasso selection", annotationIds, selectionBox);
+    dispatch(setSelectedNodes(annotationIds.map(id => ({ nodeId: id, nodeType: 'ANNOTATION' }))))
+    dispatch(setAnnotationsToolbarPosition(anchorPosition))
   }
 
   const { lassoRect, startLasso, updateLasso, endLasso } = useLassoSelection({
@@ -1183,7 +1186,7 @@ const InteractionLayer = forwardRef(({
         }
       }
 
-
+      // 3. Ensuite les Noeuds
       const hit = nativeTarget.closest?.("[data-node-type]");
       if (hit) {
         console.log("[InteractionLayer] selected node", hit?.dataset)
@@ -1208,6 +1211,8 @@ const InteractionLayer = forwardRef(({
           let panelAnchor = null;
           if (annotation) panelAnchor = getAnnotationEditionPanelAnchor(annotation);
 
+          console.log("debug_2701_clicked_annotation", annotation, panelAnchor)
+
           // --- 2.1. GESTION DES ANNOTATIONS ---
 
           let _selectedNodes = [...(selectedNodes ?? [])];
@@ -1216,6 +1221,7 @@ const InteractionLayer = forwardRef(({
             dispatch(toggleSelectedNode(hit?.dataset));
             dispatch(setSelectedNode(null));
           } else {
+            _selectedNodes = [hit?.dataset];
             dispatch(setSelectedNodes([hit?.dataset]));
             dispatch(setSelectedNode(hit?.dataset));
           }
@@ -1247,6 +1253,7 @@ const InteractionLayer = forwardRef(({
             if (_selectedNodes?.length > 1) {
               dispatch(setAnnotationsToolbarPosition(screenPos));
             } else {
+              console.log("debug_2701_setAnnotationToolbarPosition", screenPos);
               dispatch(
                 setAnnotationToolbarPosition({ x: screenPos?.x, y: screenPos?.y })
               );
@@ -1843,7 +1850,7 @@ const InteractionLayer = forwardRef(({
 
 
   // --- 3. MOUSE UP (Global) ---
-  const handleMouseUp = () => {
+  const handleMouseUp = (event) => {
 
     console.log("[MouseUp] lassoRect", lassoRect)
     if (lassoRect) {
@@ -1858,15 +1865,66 @@ const InteractionLayer = forwardRef(({
 
     console.log('handleMouseUp_dragAnnotationState', dragAnnotationState);
 
-    // click sur un vertex
+
+    // click sur un vertex ou une annotation
     if (!dragAnnotationState?.active && dragAnnotationState?.pending) {
-      const annotationId = dragAnnotationState.selectedAnnotationId;
-      if (annotationId) {
-        dispatch(setSelectedNode({
-          nodeId: dragAnnotationState.selectedAnnotationId,
-          nodeType: 'ANNOTATION'
-        }));
+
+      const clickedNode = { nodeId: dragAnnotationState.selectedAnnotationId, nodeType: "ANNOTATION" }
+
+      const annotation = annotations?.find((a) => a.id === clickedNode.nodeId);
+
+      let panelAnchor = null;
+      if (annotation) panelAnchor = getAnnotationEditionPanelAnchor(annotation);
+
+      console.log("debug_2701_click_on_annotation", annotation, panelAnchor);
+
+      let _selectedNodes = [...(selectedNodes ?? [])];
+
+      if (event.shiftKey) {
+        _selectedNodes = toggleSelectedNodeFunction(clickedNode, selectedNodes);
+        dispatch(toggleSelectedNode(clickedNode));
+        dispatch(setSelectedNode(null));
+      } else {
+        _selectedNodes = [clickedNode];
+        dispatch(setSelectedNodes([clickedNode]));
+        dispatch(setSelectedNode(clickedNode));
       }
+      //setHiddenAnnotationIds([hit?.dataset.nodeId]); hidden : juste pour le drag
+
+      // -- Afichage du toolbar pour édition --
+
+      if (_selectedNodes?.length > 1) {
+        const _annotations = annotations.filter((a) => _selectedNodes.some((s) => s.nodeId === a.id));
+        const bbox = mergeBboxes(_annotations.map((a) => getAnnotationBBox(a)));
+        panelAnchor = { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
+        console.log("debug_151_panelAnchor", panelAnchor);
+      }
+
+      if (panelAnchor) {
+        // 2. Convertir LOCAL -> MONDE
+        // Il faut savoir dans quel contexte est l'annotation
+        const isBgContext = clickedNode?.nodeContext === "BG_IMAGE";
+        const pose = isBgContext ? bgPose : getTargetPose(); // getTargetPose retourne basePose par défaut
+
+        const worldX = panelAnchor.x * pose.k + pose.x;
+        const worldY = panelAnchor.y * pose.k + pose.y;
+
+        // 3. Convertir MONDE -> ÉCRAN (Viewport)
+        // On utilise la ref du viewport
+        const screenPos = viewportRef.current?.worldToScreen(worldX, worldY);
+
+
+        if (_selectedNodes?.length > 1) {
+          dispatch(setAnnotationsToolbarPosition(screenPos));
+        } else {
+          console.log("debug_2701_setAnnotationToolbarPosition", screenPos);
+          dispatch(
+            setAnnotationToolbarPosition({ x: screenPos?.x, y: screenPos?.y })
+          );
+        }
+      }
+
+      // reset annotation state
       setDragAnnotationState(null);
       dragAnnotationStateRef.current = null;
 
@@ -1972,6 +2030,7 @@ const InteractionLayer = forwardRef(({
     }
   };
 
+
   // --- HANDLER DU CLIC SUR LE CLOSING MARKER ---
   const handleClosingClick = () => {
     console.log("Closing Polygon via Marker Click");
@@ -2011,7 +2070,9 @@ const InteractionLayer = forwardRef(({
     const hit = target.closest('[data-node-type]');
 
     // Si on ne clique sur rien ET que Shift est pressé -> Lasso
+
     console.log("hit", hit?.dataset, e.shiftKey)
+
     if ((!hit || hit?.dataset?.nodeType === "BASE_MAP") && e.shiftKey && !enabledDrawingModeRef.current) {
       const started = startLasso(e);
       if (started) {
@@ -2022,7 +2083,11 @@ const InteractionLayer = forwardRef(({
       }
     }
 
-    if (!selectedNode && !showBgImage) return;
+
+    console.log("debug_A_selectedNode", selectedNode)
+    if (!selectedNode && !showBgImage && !draggableGroup) return;
+
+
 
     if (resizeHandle) {
       e.stopPropagation();
@@ -2074,7 +2139,6 @@ const InteractionLayer = forwardRef(({
       e.stopPropagation();
       e.preventDefault();
 
-      console.log("[InteractionLayer] mouse down on node", draggableGroup?.dataset)
       const { nodeId } = draggableGroup.dataset;
 
       const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
@@ -2171,6 +2235,13 @@ const InteractionLayer = forwardRef(({
       })
     );
   }
+
+  // Drag n Drop
+
+  const handleExternalImageDrop = ({ imageUrl, x, y, idMaster }) => {
+    console.log("Nouvelle image dropée :", imageUrl, x, y, idMaster);
+    if (onCommitImageDrop) onCommitImageDrop({ imageUrl, x, y, idMaster });
+  };
 
   // render
 
@@ -2367,6 +2438,13 @@ const InteractionLayer = forwardRef(({
       <DialogAutoLoadingModel />
 
       <LassoOverlay rect={lassoRect} />
+
+      <DropZoneLayer
+        viewportRef={viewportRef}
+        toLocalCoords={toLocalCoords}
+        onDrop={handleExternalImageDrop}
+        baseMapImageSize={baseMapImageSize}
+      />
 
     </Box >
   );

@@ -54,8 +54,16 @@ const MapEditorViewport = forwardRef(({
             updateTransform();
         },
         setCameraMatrix: (_cameraMatrix = { x: 0, y: 0, k: 1 }) => {
-            cameraMatrix.current = { ..._cameraMatrix };
-            console.log("[VIEWPORT]setCameraMatrix", cameraMatrix.current);
+            // On extrait les valeurs avec des replis (fallbacks) de sécurité
+            const { x, y, k } = _cameraMatrix;
+
+            cameraMatrix.current = {
+                x: Number.isFinite(x) ? x : 0,
+                y: Number.isFinite(y) ? y : 0,
+                k: Number.isFinite(k) ? k : 1,
+            };
+
+            console.log("[VIEWPORT] setCameraMatrix (validated)", cameraMatrix.current);
             updateTransform();
         },
         screenToWorld: (screenX, screenY) => {
