@@ -97,7 +97,9 @@ function DraggableAnnotationTemplateItem({
   // --- Gestion du Hover Robuste (Duplicated Logic) ---
   const [anchorEl, setAnchorEl] = useState(null);
   const hoverTimeoutRef = useRef(null);
-  const isOpen = Boolean(anchorEl);
+
+  //const isOpen = Boolean(anchorEl);
+  const isOpen = false
 
   const handleListItemEnter = (event) => {
     if (hoverTimeoutRef.current) {

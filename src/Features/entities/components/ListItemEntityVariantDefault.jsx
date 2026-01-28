@@ -36,34 +36,25 @@ export default function ListItemEntityVariantDefault({
 
   const isOpen = Boolean(anchorEl);
 
-  // 1. Entrée sur le LIST ITEM : On ouvre et on définit l'ancre
   const handleListItemEnter = (event) => {
     if (!annotationEnabled) return;
-
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     setAnchorEl(event.currentTarget);
   };
 
-  // 2. Entrée sur le POPPER : On annule juste la fermeture (on garde l'ancre existante)
   const handlePopperEnter = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
   };
 
-  // 3. Sortie (Commune) : On lance le compte à rebours de fermeture
   const handleMouseLeave = () => {
     hoverTimeoutRef.current = setTimeout(() => {
       setAnchorEl(null);
-    }, 10); // 200ms est plus confortable que 100ms
+    }, 10);
   };
 
   // --- Helpers ---
   let annotation;
-  if (entity.annotations?.length > 0)
-    annotation = entity.annotations[0];
+  if (entity.annotations?.length > 0) annotation = entity.annotations[0];
 
   let label = entity.label ?? annotation?.label;
   if (!label) label = "Libellé à définir";
@@ -72,9 +63,6 @@ export default function ListItemEntityVariantDefault({
   const isSelected = selection?.includes(entity.id);
   const mainImage = getEntityMainImage(entity);
   const hasMarker = entity.marker;
-
-  // helpers - qties
-
   const qtiesString = getEntityQties(entity, { formatAsOneLiner: true });
 
   // --- Handlers Click ---
@@ -87,8 +75,6 @@ export default function ListItemEntityVariantDefault({
     e.preventDefault();
     if (onEditClick) onEditClick(entity);
   }
-
-  const overlapAmount = "8px";
 
   return (
     <ListItem
@@ -106,7 +92,6 @@ export default function ListItemEntityVariantDefault({
       <ListItemButton
         onClick={handleClick}
         selected={isSelected}
-        // Événements sur le BOUTON
         onMouseEnter={handleListItemEnter}
         onMouseLeave={handleMouseLeave}
         sx={{
@@ -117,12 +102,22 @@ export default function ListItemEntityVariantDefault({
           zIndex: 'auto',
           "&:hover": {
             backgroundColor: lighten(listingColor, 0.9),
+            // Affiche le bouton au survol du parent
+            "& .edit-button": {
+              visibility: "visible",
+              opacity: 1,
+            },
           },
           "&.Mui-selected": {
             backgroundColor: listingColor,
             color: "white",
             "&:hover": {
               backgroundColor: lighten(listingColor, 0.1),
+            },
+            // Toujours visible si sélectionné
+            "& .edit-button": {
+              visibility: "visible",
+              opacity: 1,
             },
           },
         }}
@@ -135,8 +130,8 @@ export default function ListItemEntityVariantDefault({
           </Avatar>
         )}
 
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="body2">{label}</Typography>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="body2" noWrap>{label}</Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             {annotation && (
               <AnnotationIcon
@@ -145,18 +140,27 @@ export default function ListItemEntityVariantDefault({
                 size={18}
               />
             )}
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="inherit" sx={{ opacity: 0.7 }} noWrap>
               {subLabel}
             </Typography>
           </Box>
         </Box>
 
-        {isSelected && (
-          <IconButton onClick={handleEditClick} color="inherit">
-            <Edit />
-          </IconButton>
-        )}
-
+        {/* Le bouton est toujours dans le DOM, mais invisible par défaut */}
+        <IconButton
+          className="edit-button"
+          onClick={handleEditClick}
+          color="inherit"
+          size="small"
+          sx={{
+            ml: 1,
+            transition: "opacity 0.2s",
+            visibility: isSelected ? "visible" : "hidden",
+            opacity: isSelected ? 1 : 0,
+          }}
+        >
+          <Edit fontSize="small" />
+        </IconButton>
       </ListItemButton>
 
       {qtiesString && (
@@ -173,19 +177,10 @@ export default function ListItemEntityVariantDefault({
         placement="right"
         transition
         modifiers={[
-          {
-            name: 'offset',
-            options: {
-              offset: [0, -8],
-            },
-          },
-          {
-            name: 'preventOverflow',
-            options: { padding: 8 },
-          },
+          { name: 'offset', options: { offset: [0, -8] } },
+          { name: 'preventOverflow', options: { padding: 8 } },
         ]}
-        style={{ zIndex: 1500, pointerEvents: 'auto' }} // pointerEvents auto est crucial
-        // Événements sur le POPPER (Distincts !)
+        style={{ zIndex: 1500, pointerEvents: 'auto' }}
         onMouseEnter={handlePopperEnter}
         onMouseLeave={handleMouseLeave}
         onClick={(e) => e.stopPropagation()}
@@ -206,7 +201,6 @@ export default function ListItemEntityVariantDefault({
           </Fade>
         )}
       </Popper>
-
     </ListItem>
   );
 }

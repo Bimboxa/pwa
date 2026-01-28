@@ -25,6 +25,7 @@ export default function useEntityFormTemplate(options) {
   listing = listing || _listing;
 
   // helpers
+
   const entityModelsObject = appConfig?.entityModelsObject;
 
   // state

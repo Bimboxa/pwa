@@ -4,10 +4,12 @@ import { setEnabledDrawingMode } from "../mapEditorSlice";
 
 import { Paper, Box } from "@mui/material";
 import { Mouse, Rectangle, WaterDrop, MyLocation as TARGET, Brush, Insights as Smart } from "@mui/icons-material";
+import theme from "Styles/theme";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
-import theme from "Styles/theme";
+
+import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
 
 export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
 
@@ -21,7 +23,7 @@ export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
 
     // helper
 
-    const color = newAnnotation?.strokeColor ?? newAnnotation?.fillColor ?? theme.palette.secondary.main;
+    const color = getAnnotationColor(newAnnotation) ?? theme.palette.secondary.main;
 
     // helper - show one click
 

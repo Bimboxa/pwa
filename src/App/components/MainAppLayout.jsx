@@ -9,6 +9,8 @@ import useDndSensors from "App/hooks/useDndSensors";
 import useAutoRedirect from "App/hooks/useAutoRedirect";
 import useAutoSelectListing from "Features/listings/hooks/useAutoSelectListing";
 import useAutoLayoutOnboarding from "Features/onboarding/hooks/useAutoLayoutOnboarding";
+import useAutoLayout from "Features/layout/hooks/useAutoLayout";
+import useAutoSelectEntityId from "Features/entities/hooks/useAutoSelectEntityId";
 
 import { Box } from "@mui/material";
 
@@ -31,7 +33,7 @@ import DialogBaseMapCreator from "Features/baseMapCreator/components/DialogBaseM
 
 import { SmartZoomProvider } from "App/contexts/SmartZoomContext";
 
-import useAutoLayout from "Features/layout/hooks/useAutoLayout";
+
 
 export default function MainAppLayout() {
   const dispatch = useDispatch();
@@ -43,6 +45,7 @@ export default function MainAppLayout() {
   useAutoSelectListing();
   //useAutoLayoutOnboarding();
   useAutoLayout();
+  useAutoSelectEntityId();
 
   // data
 
