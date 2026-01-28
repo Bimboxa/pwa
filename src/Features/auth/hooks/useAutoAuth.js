@@ -32,7 +32,9 @@ export default function useAutoAuth() {
 
                     // jwt
 
-                    const jwt = transformObject(data, authDataMapping.jwt);
+                    const jwtObject = transformObject(data, authDataMapping.jwt);
+                    const jwt = jwtObject?.jwt;
+                    console.log("debug_jwt", jwt)
                     dispatch(setJwt(jwt));
 
                     return data;
