@@ -99,7 +99,7 @@ export default function SectionCreateScope() {
 
       if (!baseMapsListings || baseMapsListings?.length === 0) {
         const baseMapsListing = await createListing({
-          listing: { ...defaultBaseMapsListingProps, projectId },
+          listing: { ...defaultBaseMapsListingProps, projectId, canCreateItem: true },
           scope
         });
         console.log("debug_25_09 [baseMapsListing] created baseMapsListing", baseMapsListing);

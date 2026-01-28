@@ -207,8 +207,8 @@ export default function useAnnotationsV2(options) {
                     _annotation.bbox = {
                         x: (annotation.bbox?.x ?? 0.25) * width,
                         y: (annotation.bbox?.y ?? 0.25) * height,
-                        width: (annotation.bbox?.width ?? 0.5) * width * scale,
-                        height: (annotation.bbox?.height ?? 0.5) * height * scale,
+                        width: (annotation.bbox?.width ?? 0.5) * width,
+                        height: (annotation.bbox?.height ?? 0.5) * height,
                     }
                 }
 

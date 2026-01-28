@@ -84,23 +84,6 @@ export default function SectionListEntitiesInListPanel() {
       dispatch(setOpenPanelListItem(true));
     }
 
-    if (entity.entityModelType === "BASE_MAP" && id) {
-      console.log("debug_2105 select map", entity);
-      dispatch(setSelectedMainBaseMapId(entity.id));
-      dispatch(setSelectedBaseMapsListingId(entity.listingId));
-    }
-
-    if (entity.annotation) {
-      //dispatch(setSelectedAnnotationId(entity.annotation.id));
-      dispatch(
-        setSelectedNode({
-          id: entity.annotation.id,
-          nodeType: "ANNOTATION",
-          annotationType: entity.annotation.type,
-        })
-      );
-    }
-
     dispatch(setSelectedEntityId(id));
 
     onEntityClick(entity);
@@ -113,9 +96,9 @@ export default function SectionListEntitiesInListPanel() {
     dispatch(setSelectedEntityId(null));
     if (listing.entityModel.type === "BLUEPRINT") {
       dispatch(setOpenedPanel("NEW_BLUEPRINT"));
-    } else if (listing.entityModel.type === "LOCATED_ENTITY") {
+      //} else if (listing.entityModel.type === "LOCATED_ENTITY") {
       //dispatch(setOpenedPanel("NEW_LOCATED_ENTITY"));
-      dispatch(setOpenDialogAutoSelectAnnotationTemplateToCreateEntity(true));
+      // dispatch(setOpenDialogAutoSelectAnnotationTemplateToCreateEntity(true));
     } else if (listing.entityModel.type === "BASE_MAP") {
       dispatch(setOpenedPanel("NEW_BASE_MAP"));
     } else {

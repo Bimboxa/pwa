@@ -48,6 +48,7 @@ export default function resolvePresetScopeListings({
       id: nanoid(),
       projectId,
       entityModel: entityModelsObject[listing.entityModelKey],
+      canCreateItem: true,
     };
   });
 

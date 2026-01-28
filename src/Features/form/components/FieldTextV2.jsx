@@ -22,8 +22,9 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   const placeholder = options?.placeholder;
   const showAsSection = options?.showAsSection;
   const showAsField = options?.showAsField;
-  const hideTopDivider = options?.hideTopDivider;
   const showAsLabelAndField = options?.showAsLabelAndField;
+  const hideTopDivider = options?.hideTopDivider;
+
   const readOnly = options?.readOnly;
   const showClose = options?.showClose;
   const isNumber = options?.isNumber;
@@ -144,7 +145,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
       <Typography variant="body2" sx={{ fontWeight: "bold" }} noWrap>
         {label}
       </Typography>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
+      <Box sx={{ flex: 1, minWidth: 0, justifyContent: "flex-end", alignItems: "center", display: "flex" }}>
         {textField}
       </Box>
     </Box>

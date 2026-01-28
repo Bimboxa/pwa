@@ -51,7 +51,7 @@ export default function useOnEntityClick() {
         if (annotationInMapEditor) {
           dispatch(
             setSelectedNode({
-              id: annotationInMapEditor.id,
+              nodeId: annotationInMapEditor.id,
               nodeType: "ANNOTATION",
               annotationType: annotationInMapEditor.type,
             })
@@ -73,6 +73,7 @@ export default function useOnEntityClick() {
           dispatch(setZoomTo(zoomTo));
         }
         break;
+
       case "BLUEPRINT":
         dispatch(setShowBgImageInMapEditor(true));
         dispatch(setBlueprintIdInMapEditor(entity.id));
