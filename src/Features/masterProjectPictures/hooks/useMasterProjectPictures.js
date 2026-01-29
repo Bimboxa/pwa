@@ -15,7 +15,8 @@ export default function useMasterProjectPictures(options) {
     const { value: selectedProject } = useSelectedProject();
 
     const pictures = useSelector(s => s.masterProjectPictures.picturesByProjectIdMaster?.[selectedProject?.idMaster] || [])
-    const demoPictures = useDemoPictures();
+    // const demoPictures = useDemoPictures();
+    const demoPictures = [];
 
     // return 
 

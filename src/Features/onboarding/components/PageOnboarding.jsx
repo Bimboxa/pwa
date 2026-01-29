@@ -21,9 +21,13 @@ export default function PageOnboarding() {
 
   // strings
 
-  const titleS = `Des plans de repérage,
-    sans stabylo,
-    pour les pros.`;
+  const titleS = `
+  KRTO
+  
+  Des plans de repérage,
+  sans stabylo,
+  pour les pros.
+  `;
 
   // data
 
@@ -86,7 +90,7 @@ export default function PageOnboarding() {
           <BlockStartButtons
             isMobile={isMobile}
             onShowCreateData={() => dispatch(setOpenPanelCreateData(true))}
-            //onShowCreateData={() => navigate("/dashboard")}
+          //onShowCreateData={() => navigate("/dashboard")}
           />
         </Box>
       </Box>

@@ -27,9 +27,9 @@ export default function useInitAutoAuth() {
     }, [url, authDataMapping]);
 
     useEffect(() => {
-        const { jwt, userIdMaster } = getDebugAuthFromLocalStorage() ?? {};
+        const { jwt, userIdMaster, userName } = getDebugAuthFromLocalStorage() ?? {};
         if (userIdMaster) {
-            dispatch(updateUserProfile({ idMaster: userIdMaster }));
+            dispatch(updateUserProfile({ idMaster: userIdMaster, userName }));
         }
         if (jwt) {
             dispatch(setJwt(jwt));

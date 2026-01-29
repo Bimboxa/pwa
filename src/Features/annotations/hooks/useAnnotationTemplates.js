@@ -8,6 +8,7 @@ export default function useAnnotationTemplates(options) {
   // options
 
   const filterByListingId = options?.filterByListingId;
+  const sortByLabel = options?.sortByLabel;
 
   // data
 
@@ -55,6 +56,13 @@ export default function useAnnotationTemplates(options) {
         return editedAnnotationTemplate;
       }
       return template;
+    });
+  }
+
+  // sort by label
+  if (sortByLabel && annotationTemplates) {
+    annotationTemplates = annotationTemplates.sort((a, b) => {
+      return a.label.localeCompare(b.label);
     });
   }
 

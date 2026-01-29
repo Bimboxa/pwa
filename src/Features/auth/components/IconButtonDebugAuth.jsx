@@ -20,23 +20,27 @@ export default function IconButtonDebugAuth() {
 
     const [jwt, setJwt] = useState("");
     const [userIdMaster, setUserIdMaster] = useState("");
+    const [userName, setUserName] = useState("");
 
     // effect
 
     useEffect(() => {
-        const { jwt, userIdMaster } = getDebugAuthFromLocalStorage() ?? {};
+        const { jwt, userIdMaster, userName } = getDebugAuthFromLocalStorage() ?? {};
         if (userIdMaster) {
             setUserIdMaster(userIdMaster);
         }
         if (jwt) {
             setJwt(jwt);
         }
+        if (userName) {
+            setUserName(userName);
+        }
     }, []);
 
     // handlers
 
     function handleSave() {
-        setDebugAuthInLocalStorage({ jwt, userIdMaster });
+        setDebugAuthInLocalStorage({ jwt, userIdMaster, userName });
         setOpen(false);
     }
 
@@ -70,6 +74,11 @@ export default function IconButtonDebugAuth() {
                 label="User ID Master"
                 value={userIdMaster}
                 onChange={setUserIdMaster}
+            />
+            <FieldTextV2
+                label="User Name"
+                value={userName}
+                onChange={setUserName}
             />
 
             <BoxAlignToRight sx={{ p: 1 }}>

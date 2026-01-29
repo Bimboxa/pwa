@@ -26,6 +26,10 @@ export default function DialogUserProfile({ open, onClose }) {
 
   const userProfile = useSelector((s) => s.auth.userProfile);
 
+  // helper
+
+  const userName = userProfile?.userName ?? userProfile?.firstName + " " + userProfile?.lastName;
+
   // state
 
   const [name, setName] = useState("");
