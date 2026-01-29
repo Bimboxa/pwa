@@ -613,7 +613,7 @@ const InteractionLayer = forwardRef(({
     const _cutHostId = cutHostIdRef.current;
     if (pointsToSave.length >= 2) {
 
-      onCommitDrawingRef.current({ points: pointsToSave, event, cutHostId: _cutHostId });
+      onCommitDrawingRef.current({ points: pointsToSave, event, cutHostId: _cutHostId, options });
 
       // EXEMPLE D'ACTION :
       // onNewAnnotation({ type: 'POLYLINE', points: pointsToSave });

@@ -121,6 +121,19 @@ export default memo(function NodeLegendStatic({
             );
         }
 
+        if (type === "STRIP") {
+            return (
+                <div style={{
+                    ...commonStyle, background: "white",
+                    //border: `2px solid ${strokeColor}`
+                }}>
+                    {/*<Polygon style={{ fill: fillColor, scale: 0.8 }} />*/}
+                    {fillType === "HATCHING" && <Texture style={{ ...muiIconStyle, fill: strokeColor }} />}
+                    {(fillType === "SOLID" || !fillType) && <Rectangle style={{ ...muiIconStyle, fill: strokeColor }} />}
+                </div>
+            );
+        }
+
         if (type === "RECTANGLE") {
             return (
                 <div style={{

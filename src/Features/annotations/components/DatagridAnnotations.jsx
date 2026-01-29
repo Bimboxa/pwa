@@ -13,6 +13,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 const formatNumber = (value, unit) => {
     if (value === null || value === undefined || isNaN(value)) return "-";
+    value = Number(value);
     return `${value.toFixed(2)} ${unit}`;
 };
 

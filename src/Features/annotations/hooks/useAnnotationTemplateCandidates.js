@@ -5,7 +5,7 @@ export default function useAnnotationTemplateCandidates(annotation, options) {
     const variant = options?.variant; // sameType
     const filterByListingId = options?.filterByListingId;
 
-    const annotationTemplates = useAnnotationTemplates({ filterByListingId });
+    const annotationTemplates = useAnnotationTemplates({ filterByListingId, sortByLabel: true });
 
 
     const currentTemplate = annotationTemplates?.find((t) => t.id === annotation?.annotationTemplateId);
@@ -13,8 +13,8 @@ export default function useAnnotationTemplateCandidates(annotation, options) {
     const typeCandidatesMap = {
         MARKER: ["MARKER"],
         POLYGON: ["POLYGON", "POLYLINE"],
-        POLYLINE: ["POLYLINE", "POLYGON"],
-        STRIP: ["STRIP", "POLYGON"],
+        POLYLINE: ["POLYLINE", "POLYGON", "STRIP"],
+        STRIP: ["STRIP", "POLYGON", "POLYLINE"],
         TEXT: ["TEXT"]
     }
 
@@ -28,6 +28,8 @@ export default function useAnnotationTemplateCandidates(annotation, options) {
         }
 
     });
+
+
 
     return candidates;
 }
