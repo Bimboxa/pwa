@@ -17,6 +17,11 @@ const LIBRARIES_LOADERS = import.meta.glob("../../../Data/*/annotationTemplatesL
   eager: false,
 });
 
+// Dynamic loader for Data files
+const DATA_LOADERS = import.meta.glob("../../../Data/**/*", {
+  eager: false,
+});
+
 export default async function resolveAppConfig(appConfig) {
   // edge case
 
@@ -26,6 +31,26 @@ export default async function resolveAppConfig(appConfig) {
 
   // appConfig code
   const orgaCode = appConfig.orgaCode;
+
+  // orgaData
+
+  const newOrgaData = {};
+  const orgaDataArray = Object.entries(appConfig.orgaData ?? {})
+  for (let [key, orgaData] of orgaDataArray) {
+    if (orgaData.importFromData) {
+      const dataKey = `../../../Data/${orgaData.importFromData}`;
+      const loader = DATA_LOADERS[dataKey];
+      console.log("debug_3001_appConfig", dataKey, loader);
+      if (loader) {
+        const module = await loader();
+        const data = module.default;
+        newOrgaData[key] = data;
+      }
+    }
+  }
+  newAppConfig.orgaData = newOrgaData;
+  console.log("debug_3001_appConfig", newAppConfig.orgaData);
+
 
   // annotation template libraries
   console.log("debug_3012_appConfig", orgaCode && appConfig.features.presetScopes.fromAnnotationTemplatesLibraries);

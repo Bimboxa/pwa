@@ -6,6 +6,8 @@ export default function resolvePresetScopeEntities({ listings }) {
 
   if (!listings) return entities;
 
+  console.log("debug_3001", listings);
+
   for (let listing of listings) {
     if (listing.initialItems) {
       for (let item of listing.initialItems) {

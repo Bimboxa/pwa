@@ -50,6 +50,8 @@ export default function SectionSelectPresetScope() {
     id: ps.key,
   }));
 
+  console.log("debug_3001_items", items);
+
   const selection = selectedPresetScopeKey ? [selectedPresetScopeKey] : [];
 
   // handlers

@@ -69,23 +69,16 @@ export default function SectionCreateScope() {
   const title = appConfig?.strings?.scope.create ?? "Créez un dossier";
   const createS = "Créer";
 
-  // helpers - listings
-
-  const newListings = useMemo(() => {
-    return resolvePresetScopeListings({ presetScopeKey, appConfig, projectId });
-  }, [presetScopeKey, appConfig?.presetScopesObject, projectId]);
-
-  // helpers - entities
-
-  const newEntities = useMemo(() => {
-    return resolvePresetScopeEntities({ listings: newListings });
-  }, [newListings]);
-
-  console.log("debug_3012_newListings", newListings, newEntities)
 
   // handlers
 
   async function handleCreateScope() {
+
+    const newListings = await resolvePresetScopeListings({ presetScopeKey, appConfig, projectId });
+    const newEntities = resolvePresetScopeEntities({ listings: newListings });
+
+    console.log("debug_3001 [newListings, newEntities]", newListings, newEntities);
+
     const scope = await createScope({
       ...tempScope,
       projectId,

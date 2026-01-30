@@ -35,7 +35,8 @@ export default async function _getListingEntityModelTemplateAsync({
             );
             if (listing[value.listingKey]) {
               _field[key] = listing[value.listingKey]; // example value.listingKey = "spriteImage"
-            } else if (_relatedListing) {
+            } else if (_relatedListing && _relatedListing?.id) {
+              console.log("debug_3001_relatedListing", _relatedListing)
               let relatedListing = await db.listings.get(_relatedListing.id);
               relatedListing = resolveListingWithEntityModel({
                 listing: relatedListing,
