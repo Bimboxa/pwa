@@ -9,8 +9,12 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 export default async function resolveListingsToCreateFromPresetListings(
   presetListings,
-  appConfig
+  appConfig,
+  projectId,
 ) {
+
+  console.log("debug_3001_presetListings", presetListings);
+
   // edge case
   if (!presetListings) return [];
 
@@ -22,6 +26,9 @@ export default async function resolveListingsToCreateFromPresetListings(
 
     // add id
     presetListing.id = nanoid();
+
+    // add projectId
+    presetListing.projectId = projectId;
 
     // edge case, existing unique by project listings
     if (presetListing.uniqueByProject) {
@@ -40,7 +47,7 @@ export default async function resolveListingsToCreateFromPresetListings(
 
     // resolve nomenclature listings
     if (presetListing.type === "NOMENCLATURE") {
-      presetListing = await resolveListingNomenclature(
+      presetListing = resolveListingNomenclature(
         presetListing,
         appConfig
       );

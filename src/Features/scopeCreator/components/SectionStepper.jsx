@@ -1,4 +1,7 @@
 import { useSelector, useDispatch } from "react-redux";
+
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import { Box, Stepper, Step, StepButton } from "@mui/material";
 
 import { setStepKey } from "../scopeCreatorSlice";
@@ -8,14 +11,18 @@ export default function SectionStepper() {
 
     // data
 
+    const appConfig = useAppConfig();
     const stepKey = useSelector((s) => s.scopeCreator.stepKey);
     const projectId = useSelector(s => s.projects.selectedProjectId);
 
     // helpers - steps
 
+    const projectS = appConfig?.strings?.project?.nameSingular ?? "Projet";
+    const scopeS = appConfig?.strings?.scope?.nameSingular ?? "Dossier";
+
     const allSteps = [
-        { key: "SEARCH_PROJECT", label: "Projet" },
-        { key: "SELECT_PRESET_SCOPE", label: "Modèle" },
+        { key: "SEARCH_PROJECT", label: projectS },
+        { key: "SELECT_PRESET_SCOPE", label: scopeS },
         { key: "CREATE_SCOPE", label: "Créer" },
     ];
 

@@ -8,8 +8,9 @@
  */
 
 import { nanoid } from "@reduxjs/toolkit";
+import resolveListingsToCreateFromPresetListings from "Features/listings/services/resolveListingsToCreateFromPresetListings";
 
-export default function resolvePresetScopeListings({
+export default async function resolvePresetScopeListings({
   presetScopeKey,
   appConfig,
   projectId,
@@ -42,15 +43,23 @@ export default function resolvePresetScopeListings({
 
   // step 1 - add id & projectId to listings
 
-  listings = listings?.map((listing) => {
-    return {
-      ...listing,
-      id: nanoid(),
-      projectId,
-      entityModel: entityModelsObject[listing.entityModelKey],
-      canCreateItem: true,
-    };
-  });
+  // listings = listings?.map((listing) => {
+  //   return {
+  //     ...listing,
+  //     id: nanoid(),
+  //     projectId,
+  //     entityModel: entityModelsObject[listing.entityModelKey],
+  //     canCreateItem: true,
+  //   };
+  // });
+
+
+  listings = await resolveListingsToCreateFromPresetListings(
+    listings,
+    appConfig,
+    projectId,
+  );
+
 
   // return
 
