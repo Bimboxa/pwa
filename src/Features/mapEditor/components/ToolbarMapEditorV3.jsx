@@ -88,6 +88,7 @@ export default function ToolbarMapEditorV3() {
             <ButtonDrawCut />
             <ButtonDrawLabel />
             <ButtonDrawImage />
+            <ButtonDrawMarker />
             {/* <IconButtonStartTransformer /> */}
             {/* <IconButtonSmartDetectLine /> */}
 

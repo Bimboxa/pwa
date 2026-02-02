@@ -66,7 +66,7 @@ export default function RightPanelContainer() {
           {selectedKey === "EDITOR_EXPORT" && <PanelEditorExport />}
           {/* {selectedKey === "ANNOTATION_FORMAT" && <PanelAnnotationFormat />} */}
           {selectedKey === "NODE_FORMAT" && <PanelNodeFormat />}
-          {selectedKey === "ENTITY" && <PanelEditEntity />}
+          {selectedKey === "ENTITY" && <PanelEditEntity showCloseButton={false} />}
           {selectedKey === "SELECTION" && <PanelSelection />}
           {selectedKey === "ENTITY_ZONES" && <PanelEntityZones />}
           {selectedKey === "PDF_REPORT" && <PanelPdfReport />}

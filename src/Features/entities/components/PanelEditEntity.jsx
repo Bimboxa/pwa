@@ -22,7 +22,7 @@ import BlockBottomActionsInPanel from "./BlockBottomActionsInPanel";
 import BlockEntityInPanel from "./BlockEntityInPanel";
 import HeaderEntityInPanel from "./HeaderEntityInPanel";
 
-export default function PanelEditEntity() {
+export default function PanelEditEntity({ showCloseButton = true }) {
   const dispatch = useDispatch();
   const selectorContainerRef = useRef(null);
 
@@ -65,7 +65,7 @@ export default function PanelEditEntity() {
         position: "relative",
       }}
     >
-      <HeaderEntityInPanel />
+      <HeaderEntityInPanel showCloseButton={showCloseButton} />
 
       <Box
         sx={{

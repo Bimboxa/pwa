@@ -15,23 +15,23 @@ import useIsMobile from "Features/layout/hooks/useIsMobile";
 import useEntity from "../hooks/useEntity";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
-import { Box, Paper, Typography } from "@mui/material";
+import { Box, lighten, Paper, Typography } from "@mui/material";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
 
 import IconButtonMoreEntity from "./IconButtonMoreEntity";
 
 import theme from "Styles/theme";
 
-export default function HeaderEntityInPanel() {
+export default function HeaderEntityInPanel({ showCloseButton = true }) {
   const dispatch = useDispatch();
 
   // data
 
   const isMobile = useIsMobile();
   const entity = useEntity();
-  const { value: listing } = useSelectedListing({ withEntityModel: true });
+  const { value: listing } = useSelectedListing();
 
-  console.log("debug_0915 entity", entity);
+  console.log("debug_0915 entity", entity, listing);
 
   //const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
   const openPanelListItem = true;
@@ -45,12 +45,12 @@ export default function HeaderEntityInPanel() {
   // helpers
 
   const label = entity?.id ? entity?.[listing?.entityModel?.labelKey] : newS;
-  const bgcolor = entity?.id
-    ? listing?.color ?? theme.palette.primary.main
-    : "white";
-  const textColor = entity?.id
-    ? theme.palette.getContrastText(bgcolor)
-    : "inherit";
+
+
+  let bgcolor = listing?.color ?? theme.palette.primary.main;
+  if (!entity.id) bgcolor = lighten(bgcolor, 0.8);
+
+  const textColor = theme.palette.getContrastText(bgcolor);
 
   // handlers
 
@@ -67,6 +67,7 @@ export default function HeaderEntityInPanel() {
   return (
     <Box sx={{ width: 1, p: 1 }}>
       <Paper
+        elevation={0}
         sx={{
           bgcolor,
           color: textColor,
@@ -79,7 +80,7 @@ export default function HeaderEntityInPanel() {
           width: 1,
         }}
       >
-        <IconButtonClose onClose={handleClose} sx={{ color: "inherit" }} />
+        <IconButtonClose onClose={handleClose} sx={{ color: "inherit", visibility: showCloseButton ? "visible" : "hidden" }} />
         <Typography
           sx={{ fontWeight: isMobile ? "normal" : "bold" }}
           variant={isMobile ? "body2" : "body1"}
