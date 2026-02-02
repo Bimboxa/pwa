@@ -15,6 +15,8 @@ const entitiesInitialState = {
   editedEntity: null,
   entityEditedAt: null,
   //
+  createAnnotationBeforeEntity: false,
+  //
   entityTemplateUpdatedAt: null,
   //
   openDialogDeleteEntity: false,

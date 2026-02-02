@@ -16,7 +16,12 @@ export default function useMergeAnnotations() {
 
     return async (annotations) => {
 
-        const polygonsList = annotations.map((annotation) => annotation.points);
+        const polygonsList = annotations.map((annotation) => (
+            {
+                points: annotation.points,
+                cuts: annotation.cuts
+            }
+        ));
 
         const { mergedPolygon, newPoints } = mergeAllPolygons(polygonsList);
 
@@ -41,7 +46,8 @@ export default function useMergeAnnotations() {
         // update annotation0 
 
         await db.annotations.update(annotation0.id, {
-            points: mergedPolygon,
+            points: mergedPolygon.points,
+            cuts: mergedPolygon.cuts,
         });
 
         // delete annotations

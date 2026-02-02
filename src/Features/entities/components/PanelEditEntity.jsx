@@ -22,7 +22,7 @@ import BlockBottomActionsInPanel from "./BlockBottomActionsInPanel";
 import BlockEntityInPanel from "./BlockEntityInPanel";
 import HeaderEntityInPanel from "./HeaderEntityInPanel";
 
-export default function PanelEditEntity({ showCloseButton = true }) {
+export default function PanelEditEntity() {
   const dispatch = useDispatch();
   const selectorContainerRef = useRef(null);
 
@@ -36,6 +36,10 @@ export default function PanelEditEntity({ showCloseButton = true }) {
   // helper
 
   const caption = `Créé par ${entity.createdBy}`;
+
+  // helper - showCloseButton
+
+  const showCloseButton = entity?.id ? true : false;
 
   // handlers
 
