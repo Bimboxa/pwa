@@ -40,6 +40,10 @@ export default function HorizontalMenuRightPanel() {
     //   label: "Export PDF",
     //   icon: <PictureAsPdf />,
     // },
+    ENTITY: {
+      label: "Édition",
+      icon: <Edit />,
+    },
     ENTITY_ZONES: {
       label: "Localisation",
       icon: <Room />,
