@@ -71,6 +71,9 @@ export const entitiesSlice = createSlice({
       const entity = state.entitiesEntity[updates.id];
       state.entitiesEntity[updates.id] = { ...entity, ...updates };
     },
+    setCreateAnnotationBeforeEntity: (state, action) => {
+      state.createAnnotationBeforeEntity = action.payload;
+    },
     //
     setOpenDialogDeleteEntity: (state, action) => {
       state.openDialogDeleteEntity = action.payload;
@@ -94,6 +97,7 @@ export const {
   //
   createEntity,
   updateEntity,
+  setCreateAnnotationBeforeEntity,
   //
   triggerEntityTemplateUpdate,
   //

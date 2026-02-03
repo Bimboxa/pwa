@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import {
@@ -22,6 +22,8 @@ import manageTree from "Features/tree/utils/manageTree";
 import MenuActionsZone from "./MenuActionsZone";
 import SectionCreateFirstZone from "./SectionCreateFirstZone";
 import IconButtonMoreZones from "./IconButtonMoreZones";
+
+import getAllNodesIds from "Features/tree/utils/getAllNodesIds";
 
 export default function SectionTreeZonesInListPanel() {
   const dispatch = useDispatch();
@@ -49,6 +51,19 @@ export default function SectionTreeZonesInListPanel() {
   // helpers
 
   let items = Array.isArray(zonesTree) ? zonesTree : [];
+
+
+  // effects
+
+  useEffect(() => {
+    if (zonesTree && zonesTree.length > 0) {
+      const allIds = getAllNodesIds(zonesTree);
+      // On dispatch seulement si la liste a changé pour éviter des boucles infinies
+      if (JSON.stringify(allIds) !== JSON.stringify(expandedItems)) {
+        dispatch(setExpandedItems(allIds));
+      }
+    }
+  }, [zonesTree?.length]);
 
   const noZones = !items.length > 0;
 

@@ -8,8 +8,11 @@ export default function useListings(options) {
   // options
 
   const filterByProjectId = options?.filterByProjectId;
-  const filterByEntityModelType = options?.filterByEntityModelType;
   const filterByScopeId = options?.filterByScopeId;
+
+  const filterByEntityModelType = options?.filterByEntityModelType;
+  const relsZoneEntityListings = options?.relsZoneEntityListings;
+
 
   // data
 
@@ -37,7 +40,7 @@ export default function useListings(options) {
 
     // add entityModel
 
-    _listings = _listings.map((_listing) => {
+    _listings = _listings?.map((_listing) => {
       const entityModel =
         appConfig?.entityModelsObject?.[_listing?.entityModelKey] ?? null;
 
@@ -63,8 +66,15 @@ export default function useListings(options) {
       );
     }
 
+    // keep relsZoneEntityListings
+    if (relsZoneEntityListings) {
+      _listings = _listings.filter((listing) => {
+        return Boolean(listing.entityModel?.relsZoneEntity);
+      });
+    }
+
     return _listings;
-  }, [appConfig, filterByProjectId, filterByScopeId, filterByEntityModelType]);
+  }, [appConfig, filterByProjectId, filterByScopeId, filterByEntityModelType, relsZoneEntityListings]);
 
   return listings;
 }

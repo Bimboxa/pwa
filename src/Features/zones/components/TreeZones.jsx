@@ -1,11 +1,16 @@
-import {useState} from "react";
-import {RichTreeViewPro} from "@mui/x-tree-view-pro";
+import { useState } from "react";
+
+import { useDispatch } from "react-redux";
+
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+
+import { RichTreeViewPro } from "@mui/x-tree-view-pro";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionSearch from "Features/tree/components/SectionSearch";
 import TreeItemGeneric from "Features/tree/components/TreeItemGeneric";
 
-import {cleanNodesIds} from "Features/tree/utils/nodesManagementUtils";
+import { cleanNodesIds } from "Features/tree/utils/nodesManagementUtils";
 import getNodesFromSearchText from "Features/tree/utils/getNodesFromSearchText";
 import getAllNodesIds from "Features/tree/utils/getAllNodesIds";
 
@@ -20,6 +25,8 @@ export default function TreeZones({
   updatedAt, // to force re-render of the tree
   onMoreClick,
 }) {
+  const dispatch = useDispatch();
+
   // state - search
 
   const [searchText, setSearchText] = useState("");
@@ -42,20 +49,20 @@ export default function TreeZones({
   // handlers
 
   function handleSelectedItemsChange(e, ids) {
-    onSelectedItemsChange(ids);
+    if (onSelectedItemsChange) onSelectedItemsChange(ids);
   }
 
   function handleExpandedItemsChange(e, ids) {
-    onExpandedItemsChange(ids);
+    if (onExpandedItemsChange) onExpandedItemsChange(ids);
   }
 
-  function handleItemPositionChange({itemId, oldPosition, newPosition}) {
-    onItemPositionChange({itemId, oldPosition, newPosition});
+  function handleItemPositionChange({ itemId, oldPosition, newPosition }) {
+    if (onItemPositionChange) onItemPositionChange({ itemId, oldPosition, newPosition });
   }
 
   function handleKeyDown(e) {
     if (e.key === "Delete" || e.key === "Backspace") {
-      onDeleteItems(selectedItems);
+      if (onDeleteItems) onDeleteItems(selectedItems);
     }
   }
 
@@ -64,10 +71,14 @@ export default function TreeZones({
     if (onMoreClick) onMoreClick(e, itemId);
   }
 
+  function handleCreateClick() {
+    dispatch(setSelectedMenuItemKey("CHAT"));
+  }
+
   return (
     <BoxFlexVStretch>
-      <SectionSearch searchText={searchText} onChange={onSearchChange} />
-      <BoxFlexVStretch sx={{width: 1, p: 1, overflow: "auto"}}>
+      <SectionSearch searchText={searchText} onChange={onSearchChange} onCreateClick={handleCreateClick} />
+      <BoxFlexVStretch sx={{ width: 1, p: 1, overflow: "auto" }}>
         <RichTreeViewPro
           key={updatedAt}
           itemsReordering
@@ -82,7 +93,7 @@ export default function TreeZones({
           onSelectedItemsChange={handleSelectedItemsChange}
           onItemPositionChange={handleItemPositionChange}
           onKeyDown={handleKeyDown}
-          slots={{item: TreeItemGeneric}}
+          slots={{ item: TreeItemGeneric }}
           slotProps={{
             item: {
               onMoreClick: handleMoreClick,

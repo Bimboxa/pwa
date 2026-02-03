@@ -1,14 +1,16 @@
-import {useEffect} from "react";
-import {useSelector, useDispatch} from "react-redux";
+import { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 
-import {setIsThinking} from "../chatSlice";
+import { setIsThinking } from "../chatSlice";
 
-import {Stack, Box} from "@mui/material";
+import { Stack, Box } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ChatInput from "./ChatInput";
 import ChatMessage from "./ChatMessage";
 import ThinkingBubble from "./ThinkingBubble";
+import ChatHeader from "./ChatHeader";
+import SectionManagedDataByAgent from "./SectionManagedDataByAgent";
 
 export default function PanelChat() {
   const dispatch = useDispatch();
@@ -16,7 +18,7 @@ export default function PanelChat() {
   const messages = useSelector((state) => state.chat.messages);
   const isThinking = useSelector((state) => state.chat.isThinking);
 
-  const openChat = useSelector((s) => s.layout.openChat);
+  const openChat = useSelector((s) => s.rightPanel.selectedMenuItemKey === "CHAT");
 
   useEffect(() => {
     if (!openChat) {
@@ -35,11 +37,13 @@ export default function PanelChat() {
         backgroundColor: "#f9f9f9",
       }}
     >
-      <Stack spacing={2} sx={{flex: 1, overflowY: "auto", p: 2}}>
+      <ChatHeader />
+      <Stack spacing={2} sx={{ flex: 1, overflowY: "auto", p: 1 }}>
         {messages.map((msg, i) => (
           <ChatMessage key={i} role={msg.role} content={msg.content} />
         ))}
         {isThinking && <ThinkingBubble />}
+        <SectionManagedDataByAgent />
       </Stack>
 
       {openChat && <ChatInput />}

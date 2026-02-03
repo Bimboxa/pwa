@@ -6,6 +6,7 @@ import {
   Pentagon,
   Rectangle,
   HorizontalRule,
+  LabelOutlined as Label,
   Image,
   TextFields,
   Circle,
@@ -98,6 +99,7 @@ export default function FormAnnotationTemplateVariantBlock({
   // helpers - annotationTypes
 
   const annotationTypes = [
+    { key: "LABEL", icon: <Label />, label: "Etiquette" },
     { key: "MARKER", icon: <Marker />, label: "Repère" },
     { key: "POINT", icon: <Circle sx={{ fontSize: 12 }} />, label: "Point" },
     //{ key: "SEGMENT", icon: <HorizontalRule />, label: "Segment" },
@@ -216,6 +218,23 @@ export default function FormAnnotationTemplateVariantBlock({
             }}
           >
             <FieldFill value={fill} onChange={handleFillChange} />
+          </Box>
+        </Box>
+      )}
+      {type === "LABEL" && (
+        <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
+            <Box sx={{ flex: 1 }}>
+              <FieldTextV2
+                value={label}
+                onChange={handleLabelChange}
+                options={{ fullWidth: true, placeholder: "Libellé" }}
+              />
+            </Box>
+            <FieldColorVariantToolbar
+              value={fillColor}
+              onChange={handleFillColorChange}
+            />
           </Box>
         </Box>
       )}
