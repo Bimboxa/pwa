@@ -14,6 +14,7 @@ import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import db from "App/db/db";
 import getAnnotationTemplateFromNewAnnotation from "Features/annotations/utils/getAnnotationTemplateFromNewAnnotation";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
+import useNewEntity from "Features/entities/hooks/useNewEntity";
 
 
 export default function useHandleCommitDrawing() {
@@ -31,6 +32,8 @@ export default function useHandleCommitDrawing() {
     const openedPanel = useSelector(s => s.listings.openedPanel);
 
     const createEntity = useCreateEntity();
+    const newEntity = useNewEntity();
+
     const updateAnnotation = useUpdateAnnotation();
     const createAnnotation = useCreateAnnotation();
 
@@ -85,7 +88,7 @@ export default function useHandleCommitDrawing() {
 
         let entityId = newAnnotation?.entityId;
         if (!entityId && !isBaseMapAnnotation) {
-            const entity = await createEntity({})
+            const entity = await createEntity(newEntity)
             entityId = entity.id;
         }
 

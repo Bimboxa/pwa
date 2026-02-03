@@ -30,6 +30,8 @@ export default function useCreateListings() {
       };
     });
 
+
+    console.log("debug_0302_createListings", listingsClean);
     // create listings
     await db.listings.bulkAdd(listingsClean);
 

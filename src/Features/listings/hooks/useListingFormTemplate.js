@@ -101,6 +101,11 @@ export default function useListingFormTemplate(listing, options) {
         type: "iconBasic",
         options: { iconsMap, iconColor },
       },
+      {
+        key: "showNewAnnotationToolbar",
+        label: "Afficher la barre d'outils",
+        type: "check",
+      },
 
       {
         key: "canCreateItem",
