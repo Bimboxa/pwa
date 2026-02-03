@@ -14,11 +14,14 @@ import useEntity from "../hooks/useEntity";
 import useCreateEntity from "../hooks/useCreateEntity";
 import useUpdateEntity from "../hooks/useUpdateEntity";
 import useCreateMarker from "Features/markers/hooks/useCreateMarker";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import { Box } from "@mui/material";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
-import { listingsConfigSlice } from "Features/listingsConfig/listingsConfigSlice";
-import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import SectionCreateAnnotationBeforeEntity from "./SectionCreateAnnotationBeforeEntity";
+
+
+
 
 export default function BlockBottomActionsInPanel({ onSaved }) {
   const dispatch = useDispatch();
@@ -80,7 +83,11 @@ export default function BlockBottomActionsInPanel({ onSaved }) {
   }
 
   return (
-    <Box sx={{ width: 1, display: show ? "flex" : "none" }}>
+    <Box sx={{
+      width: 1, display: show ? "flex" : "none", flexDirection: "column",
+      borderTop: theme => `1px solid ${theme.palette.divider}`,
+    }}>
+      <SectionCreateAnnotationBeforeEntity />
       <ButtonInPanelV2
         label={saveS}
         onClick={handleSave}
@@ -88,6 +95,7 @@ export default function BlockBottomActionsInPanel({ onSaved }) {
         disabled={!isEditingEntity && entity.id}
         sx={{ bgcolor: listing?.color, color: "white" }}
       />
+
     </Box>
   );
 }

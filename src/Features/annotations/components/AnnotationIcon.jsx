@@ -5,9 +5,12 @@ import RectangleIcon from "Features/rectangles/components/RectangleIcon";
 import ImageAnnotationIcon from "Features/imageAnnotations/components/ImageAnnotationIcon";
 import PointAnnotationIcon from "Features/pointAnnotations/components/PointAnnotationIcon";
 import StripAnnotationIcon from "Features/stripAnnotations/components/StripAnnotationIcon";
+import LabelAnnotationIcon from "Features/labels/components/LabelAnnotationIcon";
 
 export default function AnnotationIcon({ spriteImage, annotation, size }) {
   switch (annotation?.type) {
+    case "LABEL":
+      return <LabelAnnotationIcon {...annotation} size={size} />;
     case "MARKER":
       return (
         <MarkerIcon {...annotation} spriteImage={spriteImage} size={size} />

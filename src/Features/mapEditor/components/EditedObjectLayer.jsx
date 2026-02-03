@@ -28,7 +28,7 @@ export default function EditedObjectLayer({
             if (selectedNode && selectedNode.nodeId?.startsWith("label::")) {
                 const annotationId = selectedNode.nodeId.replace("label::", "");
                 const found = annotations.find(a => a.id === annotationId);
-                target = getAnnotationLabelPropsFromAnnotation(found);
+                target = [getAnnotationLabelPropsFromAnnotation(found)];
             } else {
                 target = annotations.filter(a => a.id === selectedNode?.nodeId || selectedNodes?.map(n => n.nodeId)?.includes(a.id));
             }
@@ -61,12 +61,13 @@ export default function EditedObjectLayer({
             return false;
         }
         return false;
-    }, [selectedNode, activeAnnotations]);
+    }, [selectedNode, activeAnnotations?.length]);
 
     const finalPose = isBgContext ? { x: 0, y: 0, k: 1 } : basePose;
 
     // Si on drag une annotation entière, on ne l'affiche pas ici (géré par Transient)
     // On filtre celles qui sont en cours de drag
+
     const annotationsToRender = activeAnnotations.filter(a => a.id !== draggingAnnotationId && !hiddenAnnotationIds.includes(a.id));
 
     if (annotationsToRender.length === 0) return null;

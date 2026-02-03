@@ -2159,7 +2159,6 @@ const InteractionLayer = forwardRef(({
       // On NE met PAS setDraggingAnnotationId tout de suite !
     }
 
-
     if (basemapHandle || legendHandle) {
       e.stopPropagation();
       e.preventDefault();

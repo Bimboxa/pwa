@@ -51,6 +51,9 @@ export default function NodeLabelStatic({
         hidden,
     } = data;
 
+    // -- 0. id --
+    const annotationId = id.replace("label::", "");
+
     // --- 1. MODE DE TAILLE ---
     const sizeVariant = "FIXED_IN_CONTAINER_PARENT";
 
@@ -79,7 +82,7 @@ export default function NodeLabelStatic({
 
     const handleBlur = async () => {
         if (localValue !== label) {
-            console.log("💾 Update Label:", id, localValue);
+            console.log("💾 Update Label:", annotationId, localValue);
             try {
                 if (id.startsWith("label::")) {
                     const annotationId = id.replace("label::", "");
@@ -181,6 +184,9 @@ export default function NodeLabelStatic({
         "data-node-id": id,
         "data-node-type": "ANNOTATION",
         "data-annotation-type": "LABEL",
+        // fix du bug de sélection si le label est ajouté à un marker.
+        "data-part-type": "LABEL_BOX",
+        "data-interaction": "draggable",
     };
 
     const fontStyles = {

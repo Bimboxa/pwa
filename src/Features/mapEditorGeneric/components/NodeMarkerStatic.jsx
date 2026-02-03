@@ -9,6 +9,10 @@ import { grey } from "@mui/material/colors";
 import { darken } from "@mui/material/styles";
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 
+import NodeLabelStatic from "./NodeLabelStatic";
+
+import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
+
 export default function NodeMarkerStatic({
   marker,
   annotationOverride,
@@ -113,93 +117,110 @@ export default function NodeMarkerStatic({
   const rectX = R_PX * 0.5 + gap;
   const rectY = R_PX * 0.5 + gap;
 
+
+  // --- LABEL ---
+
+  const labelAnnotation = getAnnotationLabelPropsFromAnnotation(marker);
+  const showNodeLabel = Boolean(marker.showLabel);
+
+
+
   // --- RENDU ---
   return (
-    <g
-      transform={`translate(${currentX}, ${currentY})`}
-      style={{
-        cursor: dragged ? "grabbing" : "pointer",
-        filter: selected ? "drop-shadow(0 4px 8px rgba(0,0,0,0.3))" : "none",
-        transformBox: "fill-box",
-        transformOrigin: "center"
-      }}
-      {...dataProps}
-    >
-      {/* GROUPE DE MISE À L'ÉCHELLE DYNAMIQUE */}
-      <g style={{ transform: scaleTransform }}>
+    <g {...dataProps}>
+      <g
+        transform={`translate(${currentX}, ${currentY})`}
+        style={{
+          cursor: dragged ? "grabbing" : "pointer",
+          filter: selected ? "drop-shadow(0 4px 8px rgba(0,0,0,0.3))" : "none",
+          transformBox: "fill-box",
+          transformOrigin: "center"
+        }}
 
-        {/* Circle */}
-        <circle
-          cx={0} cy={0}
-          r={selected ? R_PX * 1.2 : R_PX}
-          fill={fillColor}
-          stroke="#fff"
-          strokeWidth={STROKE_WIDTH_PX}
-          opacity={dragged ? 0.5 : 0.9}
-        />
+      >
+        {/* GROUPE DE MISE À L'ÉCHELLE DYNAMIQUE */}
+        <g style={{ transform: scaleTransform }}>
 
-        {/* Sprite icon */}
-        {spriteSheetUrl && (
-          <svg
-            x={-ICON_SIZE_PX / 2}
-            y={-ICON_SIZE_PX / 2}
-            width={ICON_SIZE_PX}
-            height={ICON_SIZE_PX}
-            viewBox={`${col * tile} ${row * tile} ${tile} ${tile}`}
-            style={{ pointerEvents: "none" }}
-          >
-            <image
-              href={spriteSheetUrl}
-              width={sheetW}
-              preserveAspectRatio="none"
-            />
-          </svg>
-        )}
+          {/* Circle */}
+          <circle
+            cx={0} cy={0}
+            r={selected ? R_PX * 1.2 : R_PX}
+            fill={fillColor}
+            stroke="#fff"
+            strokeWidth={STROKE_WIDTH_PX}
+            opacity={dragged ? 0.5 : 0.9}
+          />
 
-        {/* Wide hit ring */}
-        <circle
-          cx={0} cy={0}
-          r={R_PX}
-          fill="transparent"
-          stroke="transparent"
-          strokeWidth={hitStrokePx}
-          pointerEvents="stroke"
-        />
-
-        {/* Label */}
-        {showLabel && (
-          <g style={{ pointerEvents: "none" }}>
-            <rect
-              x={rectX} y={rectY} width={rectW} height={rectH}
-              rx={4} ry={4}
-              fill="#fff"
-              //stroke={hasImages ? fillColor : grey[600]}
-              stroke={fillColor}
-              strokeWidth={1}
-            />
-            <text
-              ref={textRef}
-              x={rectX + labelPad}
-              y={rectY + rectH / 2}
-              dominantBaseline="middle"
-              fontSize={labelFontPx}
-              fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
-              fill={hasImages ? "#111" : grey[600]}
-              fontWeight="600"
+          {/* Sprite icon */}
+          {spriteSheetUrl && (
+            <svg
+              x={-ICON_SIZE_PX / 2}
+              y={-ICON_SIZE_PX / 2}
+              width={ICON_SIZE_PX}
+              height={ICON_SIZE_PX}
+              viewBox={`${col * tile} ${row * tile} ${tile} ${tile}`}
+              style={{ pointerEvents: "none" }}
             >
-              {labelText}
-            </text>
-          </g>
-        )}
+              <image
+                href={spriteSheetUrl}
+                width={sheetW}
+                preserveAspectRatio="none"
+              />
+            </svg>
+          )}
 
-        {/* Crosshair */}
-        {dragged && (
-          <g style={{ pointerEvents: "none" }}>
-            <line x1={-R_PX * 0.5} y1={0} x2={R_PX * 0.5} y2={0} stroke="#000" strokeWidth={1} strokeOpacity={0.7} strokeLinecap="round" />
-            <line x1={0} y1={-R_PX * 0.5} x2={0} y2={R_PX * 0.5} stroke="#000" strokeWidth={1} strokeOpacity={0.7} strokeLinecap="round" />
-          </g>
-        )}
+          {/* Wide hit ring */}
+          <circle
+            cx={0} cy={0}
+            r={R_PX}
+            fill="transparent"
+            stroke="transparent"
+            strokeWidth={hitStrokePx}
+            pointerEvents="stroke"
+          />
+
+          {/* Label */}
+          {showLabel && (
+            <g style={{ pointerEvents: "none" }}>
+              <rect
+                x={rectX} y={rectY} width={rectW} height={rectH}
+                rx={4} ry={4}
+                fill="#fff"
+                //stroke={hasImages ? fillColor : grey[600]}
+                stroke={fillColor}
+                strokeWidth={1}
+              />
+              <text
+                ref={textRef}
+                x={rectX + labelPad}
+                y={rectY + rectH / 2}
+                dominantBaseline="middle"
+                fontSize={labelFontPx}
+                fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+                fill={hasImages ? "#111" : grey[600]}
+                fontWeight="600"
+              >
+                {labelText}
+              </text>
+            </g>
+          )}
+
+          {/* Crosshair */}
+          {dragged && (
+            <g style={{ pointerEvents: "none" }}>
+              <line x1={-R_PX * 0.5} y1={0} x2={R_PX * 0.5} y2={0} stroke="#000" strokeWidth={1} strokeOpacity={0.7} strokeLinecap="round" />
+              <line x1={0} y1={-R_PX * 0.5} x2={0} y2={R_PX * 0.5} stroke="#000" strokeWidth={1} strokeOpacity={0.7} strokeLinecap="round" />
+            </g>
+          )}
+        </g>
+
       </g>
+
+      {/* LABEL */}
+      {showNodeLabel && <NodeLabelStatic
+        annotation={labelAnnotation}
+        containerK={containerK}
+        hidden={!showNodeLabel} />}
     </g>
   );
 }

@@ -511,13 +511,29 @@ export default function MainMapEditorV3() {
         const imageSize = baseMap?.image?.imageSize;
         if (!imageSize) return;
 
+        // LABEL
         if (annotationId.startsWith("label::")) {
             const annotation = annotations.find(a => a.id === annotationId.replace("label::", ""));
             console.log("handleAnnotationMoveCommit", annotationId, annotation);
             if (!annotation) return;
+
+            else if (annotation.type === "MARKER" && partType === "TARGET") {
+                const point = await db.points.get(annotation.point.id);
+                const x = point.x + deltaPos.x / imageSize.width;
+                const y = point.y + deltaPos.y / imageSize.height;
+                console.log("save_point", point.id, { x, y });
+                await db.points.update(point.id, { x, y });
+            }
+
+
             const labelDelta = getAnnotationLabelDeltaFromDeltaPos(annotation, deltaPos, partType);
             await db.annotations.update(annotation.id, { labelDelta });
-        } else {
+
+
+        }
+
+        // OTHER ANNOTATIONS
+        else {
 
             const annotation = annotations.find(a => a.id === annotationId);
             if (!annotation) return;

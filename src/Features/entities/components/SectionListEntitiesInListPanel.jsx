@@ -25,6 +25,7 @@ import ListEntities from "./ListEntities";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionActions from "./SectionActions";
 import SelectorAnnotationTemplate from "Features/annotations/components/SelectorAnnotationTemplate";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 export default function SectionListEntitiesInListPanel() {
   const dispatch = useDispatch();
@@ -94,16 +95,14 @@ export default function SectionListEntitiesInListPanel() {
     //dispatch(setOpenPanelListItem(true));
     console.log("createListingItem from listing", listing);
     dispatch(setSelectedEntityId(null));
-    if (listing.entityModel.type === "BLUEPRINT") {
-      dispatch(setOpenedPanel("NEW_BLUEPRINT"));
-      //} else if (listing.entityModel.type === "LOCATED_ENTITY") {
-      //dispatch(setOpenedPanel("NEW_LOCATED_ENTITY"));
-      // dispatch(setOpenDialogAutoSelectAnnotationTemplateToCreateEntity(true));
-    } else if (listing.entityModel.type === "BASE_MAP") {
-      dispatch(setOpenedPanel("NEW_BASE_MAP"));
-    } else {
-      dispatch(setOpenedPanel("NEW_ENTITY"));
-    }
+    dispatch(setSelectedMenuItemKey("ENTITY"));
+    // if (listing.entityModel.type === "BLUEPRINT") {
+    //   dispatch(setOpenedPanel("NEW_BLUEPRINT"));
+    // } else if (listing.entityModel.type === "BASE_MAP") {
+    //   dispatch(setOpenedPanel("NEW_BASE_MAP"));
+    // } else {
+    //   dispatch(setOpenedPanel("NEW_ENTITY"));
+    // }
   }
 
   return (

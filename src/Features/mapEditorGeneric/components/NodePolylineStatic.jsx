@@ -73,8 +73,8 @@ export default function NodePolylineStatic({
     if (type === "POLYGON") closeLine = true;
 
     const labelAnnotation = getAnnotationLabelPropsFromAnnotation(mergedAnnotation);
-    //const showLabel = (mergedAnnotation.showLabel || selected) && !forceHideLabel;
-    const showLabel = false;
+    const showLabel = mergedAnnotation.showLabel;
+    //const showLabel = false;
 
     // Fallback couleurs
     if (!strokeColor) strokeColor = theme.palette.secondary.main;

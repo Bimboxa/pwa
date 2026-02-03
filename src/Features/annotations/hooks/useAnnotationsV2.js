@@ -181,7 +181,7 @@ export default function useAnnotationsV2(options) {
                 // markers, labels, ....
 
                 if (_annotation.type === "MARKER") {
-                    _annotation.point = resolvePoints({ points: annotationPoints, pointsIndex, imageSize })[0];
+                    _annotation.point = resolvePoints({ points: [annotation.point], pointsIndex, imageSize })[0];
                 }
 
                 // --- POINT
@@ -191,7 +191,7 @@ export default function useAnnotationsV2(options) {
                 }
 
                 // --- LABELS
-                else if (annotation.type === "LABEL") {
+                else if (_annotation.type === "LABEL") {
                     _annotation.targetPoint = {
                         x: annotation.targetPoint.x * width,
                         y: annotation.targetPoint.y * height

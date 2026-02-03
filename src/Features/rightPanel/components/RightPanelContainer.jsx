@@ -20,7 +20,10 @@ import PanelPdfReport from "Features/pdfReport/components/PanelPdfReport.jsx";
 import PanelOpencv from "Features/opencv/components/PanelOpencv.jsx";
 import PanelTools from "Features/tools/components/PanelTools";
 import PanelMasterProjectPictures from "Features/masterProjectPictures/components/PanelMasterProjectPictures";
+import PanelChat from "Features/chat/components/PanelChat";
+
 export default function RightPanelContainer() {
+
   // data
 
   const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
@@ -73,6 +76,7 @@ export default function RightPanelContainer() {
           {selectedKey === "OPENCV" && <PanelOpencv />}
           {selectedKey === "MASTER_PROJECT_PICTURES" && <PanelMasterProjectPictures />}
           {selectedKey === "TOOLS" && <PanelTools />}
+          {selectedKey === "CHAT" && <PanelChat />}
         </Box>
       )}
     </>

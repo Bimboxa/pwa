@@ -84,7 +84,7 @@ export default function useHandleCommitDrawing() {
         // ETAPE : création de l'entité ou non
 
         let entityId = newAnnotation?.entityId;
-        if (!entityId && newAnnotation?.type !== "LABEL" && !isBaseMapAnnotation) {
+        if (!entityId && !isBaseMapAnnotation) {
             const entity = await createEntity({})
             entityId = entity.id;
         }
@@ -214,7 +214,7 @@ export default function useHandleCommitDrawing() {
 
             if (closeLine) _newAnnotation.closeLine = true;
 
-            if (["POLYGON", "POLYLINE", "STRIP", "MARKER"].includes(newAnnotation?.type)) {
+            if (["POLYGON", "POLYLINE", "STRIP"].includes(newAnnotation?.type)) {
                 _newAnnotation.points = finalPointIds.map(id => ({ id }));
             }
 

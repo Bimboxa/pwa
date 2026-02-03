@@ -20,6 +20,7 @@ import {
   Insights as OpencvIcon,
   MoreHoriz as More,
   Image,
+  Chat,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -59,6 +60,10 @@ export default function HorizontalMenuRightPanel() {
     MASTER_PROJECT_PICTURES: {
       label: "Images du projet",
       icon: <Image />,
+    },
+    CHAT: {
+      label: "Chat",
+      icon: <Chat />,
     },
   };
 
