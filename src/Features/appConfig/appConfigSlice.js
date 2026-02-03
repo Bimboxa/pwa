@@ -4,7 +4,7 @@ const appConfigSlice = createSlice({
   name: "appConfig",
   initialState: {
     appVersion: "1.3.25",
-    configCode: "edx",
+    configCode: "lei",
     newVersionAvailable: false,
     value: null,
     openAppConfig: false,

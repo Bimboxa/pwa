@@ -2,6 +2,7 @@
 import { useSelector } from "react-redux";
 
 import useMainBaseMap from "../hooks/useMainBaseMap";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import { Paper, Box } from "@mui/material";
 
@@ -35,15 +36,18 @@ export default function ToolbarMapEditorV3() {
     const meterByPx = baseMap?.meterByPx;
     const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
     const openedPanel = useSelector(s => s.listings.openedPanel)
+    const { value: listing } = useSelectedListing();
 
     // helper
 
     const isBaseMapAnnotation = openedPanel === "BASE_MAP_DETAIL";
-    const disabled = !newAnnotation?.label && !isBaseMapAnnotation;
+    //const disabled = !newAnnotation?.label && !isBaseMapAnnotation;
+    const disabled = false;
 
     // helpers
 
     const tools = [
+        <ButtonDrawLabel key={0} disabled={disabled} />,
         <ButtonDrawMarker key={1} disabled={disabled} />,
         <ButtonDrawPolyline key={2} disabled={disabled} />,
         <ButtonDrawPolygon key={3} disabled={disabled} />,
@@ -52,15 +56,12 @@ export default function ToolbarMapEditorV3() {
 
     // helpers - show
 
-    const showTools = openedPanel === "BASE_MAP_DETAIL";
-    //const showNewAnnotation = openedPanel !== "BASE_MAP_DETAIL";
-    const showNewAnnotation = false;
+    const showTools = openedPanel === "BASE_MAP_DETAIL" || listing?.showNewAnnotationToolbar;
 
     // render
 
     if (enabledDrawingMode) {
         return <Box sx={{ display: "flex", gap: 1 }}>
-            {showNewAnnotation && <ToolbarNewAnnotation />}
             <ToolbarEnabledDrawingMode />
 
         </Box>
@@ -86,9 +87,9 @@ export default function ToolbarMapEditorV3() {
 
         <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, px: 1, borderRadius: 2, gap: 0.5 }}>
             <ButtonDrawCut />
-            <ButtonDrawLabel />
             <ButtonDrawImage />
-            <ButtonDrawMarker />
+            {/* <ButtonDrawLabel /> */}
+            {/* <ButtonDrawMarker /> */}
             {/* <IconButtonStartTransformer /> */}
             {/* <IconButtonSmartDetectLine /> */}
 

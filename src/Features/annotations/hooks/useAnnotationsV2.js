@@ -301,7 +301,11 @@ export default function useAnnotationsV2(options) {
                             const listing = listingsMap[annotation?.listingId];
                             const em = appConfig?.entityModelsObject?.[listing.entityModelKey];
                             const labelKey = em?.labelKey || "label";
-                            const label = entity[labelKey];
+                            let label = entity[labelKey];
+                            const pad = em?.labelOptions?.zeroPadStart;
+                            const prefix = em?.labelOptions?.prefix;
+                            if (pad) label = label.toString().padStart(pad, '0')
+                            if (prefix) label = `${prefix}${label}`
                             return {
                                 ...annotation,
                                 entity: entityWithImages, hasImages,
