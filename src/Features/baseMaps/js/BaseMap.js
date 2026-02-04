@@ -115,7 +115,10 @@ export default class BaseMap {
           const file = new File([fileArrayBuffer], fileName, {
             type: fileMime,
           });
-          bmImage = await ImageObject.create({ imageFile: file });
+          bmImage = await ImageObject.create({
+            imageFile: file,
+            thumbnail: record.image.thumbnail
+          });
         }
       }
 
@@ -130,6 +133,7 @@ export default class BaseMap {
           });
           bmImageEnhanced = await ImageObject.create({
             imageFile: fileEnhanced,
+            thumbnail: record.imageEnhanced.thumbnail
           });
         }
       }
@@ -183,6 +187,11 @@ export default class BaseMap {
   getUrl = () => {
     const imageToUse = this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
     return imageToUse?.imageUrlClient ?? imageToUse?.imageUrlRemote;
+  };
+
+  getThumbnail = () => {
+    const imageToUse = this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
+    return imageToUse?.thumbnail;
   };
 
   getImageSize = () => {

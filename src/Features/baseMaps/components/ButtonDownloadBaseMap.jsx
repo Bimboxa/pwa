@@ -1,9 +1,7 @@
 import { ListItemButton, Typography } from "@mui/material";
 
 import downloadBlob from "Features/files/utils/downloadBlob";
-import imageUrlToPng from "Features/images/utils/imageUrlToPng";
-
-import cv from "Features/opencv/services/opencvService";
+import addBackgroundToImage from "Features/images/utils/addBackgroundToImage";
 
 export default function ButtonDownloadBaseMap({ baseMap }) {
 
@@ -16,8 +14,7 @@ export default function ButtonDownloadBaseMap({ baseMap }) {
     async function handleDownload() {
         const imageUrl = baseMap.getUrl();
         const bgColor = "#FFFFFF";
-        await cv.load();
-        const { processedImageFile } = await cv.addBackground({ imageUrl, bgColor });
+        const processedImageFile = await addBackgroundToImage(imageUrl, bgColor)
         if (processedImageFile) downloadBlob(processedImageFile, baseMap.name);
     }
 

@@ -1,29 +1,23 @@
 import { useState, useEffect, useMemo } from "react";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
-import { Box } from "@mui/material";
+import { Box, IconButton } from "@mui/material"; // Ajout de IconButton
+import { Visibility, VisibilityOff } from "@mui/icons-material"; // Ajout des icônes
 import FieldSlider from "Features/form/components/FieldSlider";
 import throttle from "Features/misc/utils/throttle";
 
 export default function FieldBaseMapOpacity({ baseMap, variant = "image" }) {
-
-    // const
-
     const opacity = variant === "imageEnhanced" ? baseMap?.opacityEnhanced : baseMap?.opacity;
-
-    // data
     const updateEntity = useUpdateEntity();
 
-    // 1. État local pour garantir la fluidité du Slider (Optimistic UI)
-    // On initialise avec la valeur venant des props
     const [localOpacity, setLocalOpacity] = useState(opacity);
+    // État pour mémoriser l'ancienne valeur avant de masquer
+    const [lastValue, setLastValue] = useState(opacity > 0 ? opacity : 1);
 
-    // 2. Si la prop change depuis l'extérieur (ex: reset, undo/redo), on met à jour le local
     useEffect(() => {
         setLocalOpacity(opacity);
+        if (opacity > 0) setLastValue(opacity);
     }, [opacity]);
 
-    // 3. Création de la fonction throttled STABLE via useMemo
-    // Elle ne sera pas recréée à chaque render, donc le timer du throttle fonctionnera
     const throttledUpdate = useMemo(
         () =>
             throttle((id, value) => {
@@ -34,32 +28,59 @@ export default function FieldBaseMapOpacity({ baseMap, variant = "image" }) {
                     updates.opacity = value;
                 }
                 updateEntity(id, updates);
-            }, 200), // Exécute au maximum une fois toutes les 200ms
-        [updateEntity]
+            }, 200),
+        [updateEntity, variant]
     );
 
-    // handlers
     function handleChange(newValue) {
-        console.log("handleChange", newValue);
-        // A. Mise à jour immédiate de l'UI (le slider bouge tout de suite)
         setLocalOpacity(newValue);
-
-        // B. Appel serveur limité par le throttle
+        if (newValue > 0) setLastValue(newValue);
         throttledUpdate(baseMap.id, newValue);
     }
 
-    // render
+    // Handler pour le bouton de visibilité
+    function toggleVisibility() {
+        const isVisible = localOpacity > 0;
+        const nextValue = isVisible ? 0 : lastValue;
+
+        setLocalOpacity(nextValue);
+        // On envoie directement la mise à jour sans throttle pour une réactivité maximale au clic
+        const updates = variant === "imageEnhanced"
+            ? { opacityEnhanced: nextValue }
+            : { opacity: nextValue };
+
+        updateEntity(baseMap.id, updates);
+    }
+
     return (
         <Box sx={{
-            display: "flex", alignItems: "center", width: 1,
+            display: "flex",
+            alignItems: "center",
+            width: 1,
             p: 1,
             borderBottom: theme => `1px solid ${theme.palette.divider}`,
+            gap: 1 // Ajout d'un petit espace entre le slider et le bouton
         }}>
-            <FieldSlider
-                label="Opacité"
-                value={localOpacity ?? 1} // On utilise l'état local ici
-                onChange={handleChange}
-            />
+            <Box sx={{ flexGrow: 1, display: 'flex', alignItems: "center" }}>
+                <FieldSlider
+                    label="Opacité"
+                    value={localOpacity ?? 1}
+                    onChange={handleChange}
+                />
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: "center" }}>
+                <IconButton
+                    onClick={toggleVisibility}
+                    size="small"
+                >
+                    {localOpacity > 0 ? (
+                        <Visibility fontSize="small" />
+                    ) : (
+                        <VisibilityOff fontSize="small" color="error" />
+                    )}
+                </IconButton>
+            </Box>
         </Box>
     );
 }
