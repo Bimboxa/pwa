@@ -35,7 +35,8 @@ db.version(12).stores({
   annotations: "id,projectId,baseMapId,listingId,entityId,annotationTemplateId", // annotation = {id,mapId,listingId,entityId,...}
   annotationTemplates: "id,projectId,listingId,code,label", // annotationTemplate = {id,listingId,label} code = listingKey+MARKER+...
 
-  files: "fileName,projectId,listingId,itemId", // {id,fileName, projectId, listingId, itemId, fileType} fileType: "IMAGE", "VIDEO",...
+  files: "fileName,projectId,listingId,entityId", // {fileName (=id), srcFileName, projectId, listingId, entityId, fileMime,fileType} fileType: "IMAGE", "VIDEO",...
+
   relationsEntities: "id,listingId,sourceEntityId,targetEntityId,relationType",
   reports: "id,listingId", // {id,listingId}
   syncFiles: "path,scopeId", // {path,updatedAt,updatedAtRemote,syncAt,syncFileType,scopeId,table,config,pathToItemTemplate} // updatedAt = local updates when one table is updated.// syncFileType: "PROJECT", "SCOPE", "LISTING","ENTITY", "FILE" => related to syncConfig.

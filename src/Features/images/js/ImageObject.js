@@ -1,4 +1,5 @@
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
+import generateThumbnail from "Features/images/utils/generateThumbnail";
 
 export default class ImageObject {
   file;
@@ -7,6 +8,7 @@ export default class ImageObject {
   imageSize;
   imageUrlClient;
   imageUrlRemote;
+  thumbnail;
 
   constructor({
     key,
@@ -17,6 +19,7 @@ export default class ImageObject {
     imageSize,
     imageUrlClient,
     imageUrlRemote,
+    thumbnail,
   }) {
     this.key = key;
     this.url = url;
@@ -26,12 +29,14 @@ export default class ImageObject {
     this.imageSize = imageSize;
     this.imageUrlClient = imageUrlClient ?? (file && URL.createObjectURL(file));
     this.imageUrlRemote = imageUrlRemote;
+    this.thumbnail = thumbnail;
   }
 
   // STATIC FACTORY
 
-  static async create({ imageFile, url }) {
-    const instance = new ImageObject({ file: imageFile, url });
+  static async create({ imageFile, url, thumbnail }) {
+    if (!thumbnail) thumbnail = await generateThumbnail(imageFile);
+    const instance = new ImageObject({ file: imageFile, url, thumbnail });
     await instance._initialize();
     return instance;
   }

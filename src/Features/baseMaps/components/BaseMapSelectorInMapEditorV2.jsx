@@ -258,7 +258,8 @@ export default function BaseMapSelectorInMapEditorV2() {
                                 {baseMaps.map((map) => {
                                     const isSelected = activeBaseMap?.id === map.id;
                                     const isEditing = editingMapId === map.id;
-                                    const imageUrl = map.getUrl();
+                                    //const imageUrl = map.getUrl();
+                                    const thumbnail = map.getThumbnail();
 
                                     return (
                                         <ListItem
@@ -320,10 +321,10 @@ export default function BaseMapSelectorInMapEditorV2() {
                                                     {isSelected ? (
                                                         <CheckIcon fontSize="small" color="primary" />
                                                     ) : (
-                                                        imageUrl ? (
+                                                        thumbnail ? (
                                                             <Box
                                                                 component="img"
-                                                                src={imageUrl}
+                                                                src={thumbnail}
                                                                 alt=""
                                                                 sx={{
                                                                     width: 28,

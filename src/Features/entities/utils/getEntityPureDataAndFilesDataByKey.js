@@ -3,6 +3,8 @@ import testIsPngImage from "Features/files/utils/testIsPngImage";
 import getDateString from "Features/misc/utils/getDateString";
 import getFileIdFromEntityAndFile from "./getFileIdFromEntityAndFile";
 import getImageSizeAsync from "Features/images/utils/getImageSizeAsync";
+import testIsImage from "Features/files/utils/testIsImage";
+import generateThumbnail from "Features/images/utils/generateThumbnail";
 
 export default async function getEntityPureDataAndFilesDataByKey(
   entity,
@@ -26,10 +28,11 @@ export default async function getEntityPureDataAndFilesDataByKey(
   // --- INTERNAL HELPER ---
   const processFileItem = async (itemValue, itemKey) => {
     // helpers
-    const extension = itemValue.file.name.split(".").pop();
-    const isImage = [
-      "png", "PNG", "jpg", "JPG", "jpeg", "JPEG", "gif",
-    ].includes(extension);
+    //const extension = itemValue.file.name.split(".").pop();
+    // const isImage = [
+    //   "png", "PNG", "jpg", "JPG", "jpeg", "JPEG", "gif",
+    // ].includes(extension);
+    const isImage = testIsImage(itemValue.file)
     const createdAt = getDateString(Date.now());
 
     // fileData construction
@@ -45,9 +48,11 @@ export default async function getEntityPureDataAndFilesDataByKey(
     const fileData = {
       fileName,
       fileMime: itemValue.file.type,
+      srcFileName: itemValue.file.name,
       fileArrayBuffer,
       projectId,
       listingId,
+      entityId,
       listingTable,
       createdBy,
       createdAt,
@@ -66,6 +71,7 @@ export default async function getEntityPureDataAndFilesDataByKey(
       pureDataItem.imageSize = await getImageSizeAsync(
         URL.createObjectURL(itemValue.file)
       );
+      pureDataItem.thumbnail = await generateThumbnail(itemValue.file)
     }
 
     return { pureDataItem, fileData };
