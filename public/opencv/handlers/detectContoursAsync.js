@@ -1,10 +1,13 @@
 async function detectContoursAsync({ msg, payload }) {
+  const matList = [];
+  const track = (mat) => { if (mat) matList.push(mat); return mat; };
+
   try {
     const {
       imageUrl,
       x,
       y,
-      whiteThreshold = 215,
+      colorTolerance = 15,
       morphKernelSize = 3,
       morphIterations = 2,
       floodWindowSize = 256,
@@ -15,47 +18,45 @@ async function detectContoursAsync({ msg, payload }) {
       throw new Error("imageUrl, x, and y are required");
     }
 
-    console.log("detectContoursAsync x,y", x, y);
-
     const imageData = await loadImageDataFromUrl(imageUrl);
-    const src = cv.matFromImageData(imageData);
+    const src = track(cv.matFromImageData(imageData));
 
     const imageWidth = src.cols;
     const imageHeight = src.rows;
 
-    let pixelX, pixelY;
-    if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
-      pixelX = Math.floor(x * imageWidth);
-      pixelY = Math.floor(y * imageHeight);
-    } else {
-      pixelX = Math.floor(x);
-      pixelY = Math.floor(y);
+    let pixelX = x >= 0 && x <= 1 ? Math.floor(x * imageWidth) : Math.floor(x);
+    let pixelY = y >= 0 && y <= 1 ? Math.floor(y * imageHeight) : Math.floor(y);
+
+    if (pixelX < 0 || pixelX >= imageWidth || pixelY < 0 || pixelY >= imageHeight) {
+      throw new Error(`Coordinates out of bounds`);
     }
 
-    if (
-      pixelX < 0 ||
-      pixelX >= imageWidth ||
-      pixelY < 0 ||
-      pixelY >= imageHeight
-    ) {
-      src.delete();
-      throw new Error(
-        `Coordinates (${pixelX}, ${pixelY}) are out of bounds for image size (${imageWidth}, ${imageHeight})`
-      );
-    }
-
-    const gray = new cv.Mat();
+    // --- 1. PASSAGE EN GRIS ---
+    const gray = track(new cv.Mat());
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
-    const binary = new cv.Mat();
-    cv.threshold(gray, binary, whiteThreshold, 255, cv.THRESH_BINARY);
+    // --- 2. RÉCUPÉRATION DE LA VALEUR CIBLE ---
+    const targetGray = gray.ucharPtr(pixelY, pixelX)[0];
 
-    const inverted = new cv.Mat();
+    // --- 3. CRÉATION DU MASQUE BINAIRE (Correction définitive BindingError) ---
+    const binary = track(new cv.Mat());
+    const lowVal = Math.max(0, targetGray - colorTolerance);
+    const highVal = Math.min(255, targetGray + colorTolerance);
+
+    // On crée des Mats de la même taille et du même type (CV_8UC1) que 'gray'
+    // C'est la méthode la plus lourde mais la seule qui garantit 0 erreur de binding
+    const lowMat = track(new cv.Mat(gray.rows, gray.cols, gray.type(), new cv.Scalar(lowVal)));
+    const highMat = track(new cv.Mat(gray.rows, gray.cols, gray.type(), new cv.Scalar(highVal)));
+
+    cv.inRange(gray, lowMat, highMat, binary);
+
+    // --- 4. TRAITEMENT MORPHOLOGIQUE ---
+    const inverted = track(new cv.Mat());
     cv.bitwise_not(binary, inverted);
 
     const kernelSize = Math.max(3, morphKernelSize | 0);
-    const kernel = cv.Mat.ones(kernelSize, kernelSize, cv.CV_8U);
-    const closedInverted = new cv.Mat();
+    const kernel = track(cv.Mat.ones(kernelSize, kernelSize, cv.CV_8U));
+    const closedInverted = track(new cv.Mat());
     cv.morphologyEx(
       inverted,
       closedInverted,
@@ -65,242 +66,108 @@ async function detectContoursAsync({ msg, payload }) {
       Math.max(1, morphIterations | 0)
     );
 
-    const processedBinary = new cv.Mat();
+    const processedBinary = track(new cv.Mat());
     cv.bitwise_not(closedInverted, processedBinary);
 
-    const halfWindow = Math.max(32, Math.floor(floodWindowSize / 2));
-    let roiX = Math.max(0, pixelX - halfWindow);
-    let roiY = Math.max(0, pixelY - halfWindow);
-    let roiWidth = Math.min(floodWindowSize, imageWidth - roiX);
-    let roiHeight = Math.min(floodWindowSize, imageHeight - roiY);
+    // --- 5. DÉFINITION DE LA ROI ---
+    let roiX = Math.max(0, pixelX - Math.floor(floodWindowSize / 2));
+    let roiY = Math.max(0, pixelY - Math.floor(floodWindowSize / 2));
 
-    if (
-      viewportBBox &&
-      Number.isFinite(viewportBBox.x) &&
-      Number.isFinite(viewportBBox.y) &&
-      Number.isFinite(viewportBBox.width) &&
-      Number.isFinite(viewportBBox.height)
-    ) {
-      const bboxX = Math.floor(viewportBBox.x);
-      const bboxY = Math.floor(viewportBBox.y);
-      const bboxWidth = Math.max(1, Math.floor(viewportBBox.width));
-      const bboxHeight = Math.max(1, Math.floor(viewportBBox.height));
-
-      roiX = Math.max(0, Math.min(imageWidth - 1, bboxX));
-      roiY = Math.max(0, Math.min(imageHeight - 1, bboxY));
-      roiWidth = Math.min(imageWidth - roiX, bboxWidth);
-      roiHeight = Math.min(imageHeight - roiY, bboxHeight);
-
-      // Ensure the ROI still contains the selected pixel
-      if (pixelX < roiX) {
-        const shift = roiX - pixelX;
-        roiX = Math.max(0, roiX - shift);
-        roiWidth = Math.min(imageWidth - roiX, roiWidth + shift);
-      } else if (pixelX >= roiX + roiWidth) {
-        const shift = pixelX - (roiX + roiWidth) + 1;
-        roiWidth = Math.min(imageWidth - roiX, roiWidth + shift);
-      }
-
-      if (pixelY < roiY) {
-        const shift = roiY - pixelY;
-        roiY = Math.max(0, roiY - shift);
-        roiHeight = Math.min(imageHeight - roiY, roiHeight + shift);
-      } else if (pixelY >= roiY + roiHeight) {
-        const shift = pixelY - (roiY + roiHeight) + 1;
-        roiHeight = Math.min(imageHeight - roiY, roiHeight + shift);
-      }
+    if (viewportBBox && Number.isFinite(viewportBBox.x)) {
+      roiX = Math.max(0, Math.min(imageWidth - 1, Math.floor(viewportBBox.x)));
+      roiY = Math.max(0, Math.min(imageHeight - 1, Math.floor(viewportBBox.y)));
     }
 
-    roiWidth = Math.max(1, roiWidth);
-    roiHeight = Math.max(1, roiHeight);
+    let roiWidth = Math.min(imageWidth - roiX, viewportBBox?.width || floodWindowSize);
+    let roiHeight = Math.min(imageHeight - roiY, viewportBBox?.height || floodWindowSize);
 
-    const roiRect = new cv.Rect(roiX, roiY, roiWidth, roiHeight);
-    const roiMat = processedBinary.roi(roiRect);
+    const roiRect = new cv.Rect(roiX, roiY, Math.max(1, roiWidth), Math.max(1, roiHeight));
+    const roiMat = track(processedBinary.roi(roiRect));
 
-    const seedValue = roiMat.ucharPtr(pixelY - roiY, pixelX - roiX)[0];
-    if (seedValue < 128) {
-      src.delete();
-      gray.delete();
-      binary.delete();
-      inverted.delete();
-      kernel.delete();
-      closedInverted.delete();
-      processedBinary.delete();
-      roiMat.delete();
-      throw new Error("Seed point is not inside a white region.");
-    }
-
-    const mask = new cv.Mat();
-    mask.create(roiHeight + 2, roiWidth + 2, cv.CV_8UC1);
-    mask.setTo(new cv.Scalar(0, 0, 0, 0));
-
+    // --- 6. FLOODFILL ---
+    const mask = track(new cv.Mat.zeros(roiRect.height + 2, roiRect.width + 2, cv.CV_8UC1));
     const seedPoint = new cv.Point(pixelX - roiX, pixelY - roiY);
-    const rect = new cv.Rect(0, 0, 0, 0);
-    const loDiff = new cv.Scalar(0);
-    const upDiff = new cv.Scalar(0);
-    const connectivity = 4;
-    const newMaskVal = 255;
-    const floodFlags =
-      connectivity |
-      (newMaskVal << 8) |
-      cv.FLOODFILL_MASK_ONLY |
-      cv.FLOODFILL_FIXED_RANGE;
 
     cv.floodFill(
       roiMat,
       mask,
       seedPoint,
       new cv.Scalar(255),
-      rect,
-      loDiff,
-      upDiff,
-      floodFlags
+      new cv.Rect(),
+      new cv.Scalar(0),
+      new cv.Scalar(0),
+      4 | (255 << 8) | cv.FLOODFILL_MASK_ONLY
     );
 
-    const maskRoi = mask.roi(new cv.Rect(1, 1, roiWidth, roiHeight));
+    const maskRoi = track(mask.roi(new cv.Rect(1, 1, roiRect.width, roiRect.height)));
 
-    const contours = new cv.MatVector();
-    const hierarchy = new cv.Mat();
-    cv.findContours(
-      maskRoi,
-      contours,
-      hierarchy,
-      cv.RETR_CCOMP,
-      cv.CHAIN_APPROX_SIMPLE
-    );
+    // --- 7. EXTRACTION DES CONTOURS ---
+    const contours = track(new cv.MatVector());
+    const hierarchy = track(new cv.Mat());
+    cv.findContours(maskRoi, contours, hierarchy, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE);
 
-    const MIN_PERIMETER_PX = 5;
+    // --- 8. PARCOURS ---
     const EPSILON_PX = Math.max(1, Math.min(roiWidth, roiHeight) * 0.0025);
+    const contourPoints = [];
+    const contourAreas = [];
 
-    const contourPoints = new Array(contours.size()).fill(null);
-    const contourAreas = new Array(contours.size()).fill(0);
-
-    function extractPoints(idx) {
-      if (contourPoints[idx]) return contourPoints[idx];
-
-      const contour = contours.get(idx);
-      const perimeter = cv.arcLength(contour, true);
-      if (!Number.isFinite(perimeter) || perimeter < MIN_PERIMETER_PX) {
-        contour.delete();
-        contourPoints[idx] = null;
-        contourAreas[idx] = 0;
-        return null;
-      }
-
-      // Calculate area for sorting
-      const area = Math.abs(cv.contourArea(contour));
-      contourAreas[idx] = area;
-
-      const approx = new cv.Mat();
-      const epsilon = Math.max(EPSILON_PX, 1);
-      cv.approxPolyDP(contour, approx, epsilon, true);
-      const useApprox = approx.rows > 0 && approx.rows <= contour.rows * 2;
-      const pointsMat = useApprox ? approx : contour;
-      const points = [];
-      for (let j = 0; j < pointsMat.rows; j++) {
-        const contourX = pointsMat.data32S[j * 2] + roiX;
-        const contourY = pointsMat.data32S[j * 2 + 1] + roiY;
-        // points.push({
-        //   x: contourX / imageWidth,
-        //   y: contourY / imageHeight,
-        // });
-        points.push({
-          x: contourX,
-          y: contourY,
-        });
-      }
-
-      approx.delete();
-      contour.delete();
-
-      contourPoints[idx] = points.length ? points : null;
-      return contourPoints[idx];
-    }
-
-    // Extract all contour points
     for (let i = 0; i < contours.size(); i++) {
-      extractPoints(i);
-    }
+      const cnt = contours.get(i);
+      const area = cv.contourArea(cnt);
+      const peri = cv.arcLength(cnt, true);
 
-    // Find the largest outer contour (main contour)
-    let mainContourIdx = -1;
-    let maxArea = 0;
-
-    if (hierarchy.data32S && hierarchy.data32S.length >= contours.size() * 4) {
-      const hierData = hierarchy.data32S;
-      for (let i = 0; i < contours.size(); i++) {
-        const parentIdx = hierData[i * 4 + 3];
-        // Outer contour has no parent (parentIdx === -1)
-        if (parentIdx === -1 && contourAreas[i] > maxArea) {
-          maxArea = contourAreas[i];
-          mainContourIdx = i;
-        }
-      }
-    }
-
-    if (mainContourIdx === -1 || !contourPoints[mainContourIdx]) {
-      src.delete();
-      gray.delete();
-      binary.delete();
-      kernel.delete();
-      inverted.delete();
-      closedInverted.delete();
-      processedBinary.delete();
-      roiMat.delete();
-      mask.delete();
-      maskRoi.delete();
-      contours.delete();
-      hierarchy.delete();
-      throw new Error("No valid outer contour found");
-    }
-
-    // Get main contour points
-    const mainPoints = contourPoints[mainContourIdx];
-
-    // Find all inner contours (holes) inside the main contour
-    const cuts = [];
-    if (hierarchy.data32S && hierarchy.data32S.length >= contours.size() * 4) {
-      const hierData = hierarchy.data32S;
-      // The main contour's children are the holes
-      let childIdx = hierData[mainContourIdx * 4 + 2];
-      while (childIdx !== -1) {
-        const holePoints = contourPoints[childIdx];
-        if (holePoints && holePoints.length >= 2) {
-          cuts.push({
-            id: `cut-${childIdx}`,
-            points: holePoints,
-            closeLine: true,
+      if (peri > 5) {
+        const approx = track(new cv.Mat());
+        cv.approxPolyDP(cnt, approx, EPSILON_PX, true);
+        const pts = [];
+        for (let j = 0; j < approx.rows; j++) {
+          pts.push({
+            x: approx.data32S[j * 2] + roiX,
+            y: approx.data32S[j * 2 + 1] + roiY
           });
         }
-        // Move to next sibling hole
-        childIdx = hierData[childIdx * 4 + 0];
+        contourPoints[i] = pts;
+        contourAreas[i] = Math.abs(area);
+      } else {
+        contourPoints[i] = null;
+        contourAreas[i] = 0;
+      }
+      cnt.delete();
+    }
+
+    let mainIdx = -1;
+    let maxArea = 0;
+    const hierData = hierarchy.data32S;
+
+    for (let i = 0; i < contours.size(); i++) {
+      if (hierData[i * 4 + 3] === -1 && contourAreas[i] > maxArea) {
+        maxArea = contourAreas[i];
+        mainIdx = i;
       }
     }
 
-    src.delete();
-    gray.delete();
-    binary.delete();
-    kernel.delete();
-    inverted.delete();
-    closedInverted.delete();
-    processedBinary.delete();
-    roiMat.delete();
-    mask.delete();
-    maskRoi.delete();
-    contours.delete();
-    hierarchy.delete();
+    if (mainIdx === -1 || !contourPoints[mainIdx]) {
+      throw new Error("No valid contour found");
+    }
 
-    // Return polyline structure with main contour and cuts
+    const cuts = [];
+    let childIdx = hierData[mainIdx * 4 + 2];
+    while (childIdx !== -1) {
+      if (contourPoints[childIdx]) {
+        cuts.push({ id: `cut-${childIdx}`, points: contourPoints[childIdx], closeLine: true });
+      }
+      childIdx = hierData[childIdx * 4];
+    }
+
     postMessage({
       msg,
-      payload: {
-        points: mainPoints,
-        cuts: cuts.length > 0 ? cuts : undefined,
-      },
+      payload: { points: contourPoints[mainIdx], cuts: cuts.length > 0 ? cuts : undefined }
     });
+
   } catch (error) {
-    console.error("[opencv worker] detectContoursAsync failed", error);
+    console.error("[opencv worker] failed", error);
     postMessage({ msg, error: error?.message || String(error) });
+  } finally {
+    matList.forEach(m => m && !m.isDeleted() && m.delete());
   }
 }
-
