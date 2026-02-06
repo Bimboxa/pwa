@@ -80,7 +80,7 @@ export default function PageOnboarding() {
         }}
       >
         <Typography
-          variant={isMobile ? "h4" : "h1"}
+          variant={isMobile ? "h4" : "h4"}
           align="center"
           sx={{ whiteSpace: "pre-line", fontWeight: 700, lineHeight: 1.5 }}
         >
