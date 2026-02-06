@@ -14,7 +14,7 @@ export default function SectionDashboardTitle() {
 
   return (
     <Box sx={{ pt: 4, pl: 4 }}>
-      <Typography variant="h1">{title}</Typography>
+      <Typography variant="h4">{title}</Typography>
     </Box>
   );
 }

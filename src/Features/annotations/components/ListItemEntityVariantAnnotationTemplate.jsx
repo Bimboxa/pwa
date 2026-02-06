@@ -33,7 +33,7 @@ export default function ListItemEntityVariantAnnotationTemplate({
           size={18}
         />
 
-        <Typography variant="body2" noWrap>
+        <Typography noWrap>
           {label}
         </Typography>
       </Box>

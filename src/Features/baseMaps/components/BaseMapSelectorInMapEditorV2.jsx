@@ -238,7 +238,7 @@ export default function BaseMapSelectorInMapEditorV2() {
                             boxSizing: "border-box"
                         }}
                     >
-                        <Typography variant="body2" fontWeight="500" noWrap color="text.primary">
+                        <Typography variant="button" noWrap color="text.primary">
                             {activeBaseMapName}
                         </Typography>
                         <ExpandMoreIcon fontSize="small" sx={{ ml: 1, opacity: 0.6, flexShrink: 0, color: "text.secondary" }} />

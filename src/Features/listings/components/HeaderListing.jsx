@@ -3,7 +3,7 @@ import { Box, Typography } from "@mui/material";
 import IconButtonMoreListingV2 from "./IconButtonMoreListingV2";
 import IconListingVariantBasic from "./IconListingVariantBasic";
 
-export default function HeaderListing({ listing }) {
+export default function HeaderListing({ listing, showMoreButton = true }) {
   // helpers
 
   const color = listing?.color;
@@ -26,7 +26,7 @@ export default function HeaderListing({ listing }) {
           {listing?.name}
         </Typography>
       </Box>
-      <IconButtonMoreListingV2 listing={listing} />
+      {showMoreButton && <IconButtonMoreListingV2 listing={listing} />}
     </Box>
   );
 }

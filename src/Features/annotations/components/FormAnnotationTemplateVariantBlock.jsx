@@ -99,16 +99,16 @@ export default function FormAnnotationTemplateVariantBlock({
   // helpers - annotationTypes
 
   const annotationTypes = [
-    { key: "LABEL", icon: <Label />, label: "Etiquette" },
-    { key: "MARKER", icon: <Marker />, label: "Repère" },
-    { key: "POINT", icon: <Circle sx={{ fontSize: 12 }} />, label: "Point" },
+    { key: "LABEL", icon: <Label fontSize="small" />, label: "Etiquette" },
+    { key: "MARKER", icon: <Marker fontSize="small" />, label: "Repère" },
+    { key: "POINT", icon: <Circle fontSize="small" />, label: "Point" },
     //{ key: "SEGMENT", icon: <HorizontalRule />, label: "Segment" },
-    { key: "POLYLINE", icon: <Polyline />, label: "Ligne" },
-    { key: "STRIP", icon: <Strip />, label: "Bande" },
-    { key: "POLYGON", icon: <Pentagon />, label: "Surface" },
-    { key: "RECTANGLE", icon: <Rectangle />, label: "Rectangle" },
-    { key: "IMAGE", icon: <Image />, label: "Image" },
-    { key: "TEXT", icon: <TextFields />, label: "Texte" },
+    { key: "POLYLINE", icon: <Polyline fontSize="small" />, label: "Ligne" },
+    { key: "STRIP", icon: <Strip fontSize="small" />, label: "Bande" },
+    { key: "POLYGON", icon: <Pentagon fontSize="small" />, label: "Surface" },
+    { key: "RECTANGLE", icon: <Rectangle fontSize="small" />, label: "Rectangle" },
+    { key: "IMAGE", icon: <Image fontSize="small" />, label: "Image" },
+    // { key: "TEXT", icon: <TextFields fontSize="small" />, label: "Texte" },
   ];
 
   // helpers

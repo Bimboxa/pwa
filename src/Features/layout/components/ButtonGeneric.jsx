@@ -4,7 +4,7 @@ import { Button, Typography } from "@mui/material";
 const ButtonGeneric = forwardRef(({ label, ...props }, ref) => {
   return (
     <Button ref={ref} {...props}>
-      <Typography variant="body2" noWrap>
+      <Typography noWrap variant="button">
         {label}
       </Typography>
     </Button>

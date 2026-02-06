@@ -253,9 +253,9 @@ export default function MainMapEditorV2() {
   let baseMapImageUrl =
     mainBaseMap?.showEnhanced && mainBaseMap?.imageEnhanced
       ? mainBaseMap.imageEnhanced.imageUrlClient ??
-        mainBaseMap.imageEnhanced.imageUrlRemote
+      mainBaseMap.imageEnhanced.imageUrlRemote
       : mainBaseMap?.image?.imageUrlClient ??
-        mainBaseMap?.image?.imageUrlRemote;
+      mainBaseMap?.image?.imageUrlRemote;
   if (opencvPreviewUrl && showOpencvPreview) baseMapImageUrl = opencvPreviewUrl;
 
   // effects
@@ -326,6 +326,7 @@ export default function MainMapEditorV2() {
           dispatch(clearDrawingSegmentPoints());
           dispatch(setAnchorPositionLatLng(null));
         } else {
+          console.log("debug_0602_ESCAPE");
           dispatch(setSelectedAnnotationId(null));
           dispatch(setMainBaseMapIsSelected(false));
           dispatch(setSelectedNode(null));

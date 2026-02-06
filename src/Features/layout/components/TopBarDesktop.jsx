@@ -9,11 +9,12 @@ import BoxFlexH from "Features/layout/components/BoxFlexH";
 import ButtonSelectorProject from "Features/projects/components/ButtonSelectorProject";
 import ButtonSelectorScope from "Features/scopes/components/ButtonSelectorScope";
 import SelectorViewer from "Features/viewers/components/SelectorViewer";
+import IconButtonDialogSync from "Features/remoteScopeConfigurations/components/IconButtonDialogSync";
 //import ButtonSelectorScopeInTopBar from "Features/scopes/components/ButtonSelectorScopeInTopBar";
 import AuthButtons from "Features/auth/components/AuthButtons";
 import TopBarProjectAndScope from "./TopBarProjectAndScope";
 import ToggleOpenLeftPanel from "Features/leftPanel/components/ToggleOpenLeftPanel";
-import HorizontalMenuRightPanel from "Features/rightPanel/components/HorizontalMenuRightPanel";
+
 import TopBarBreadcrumbs from "./TopBarBreadcrumbs";
 import useSelectedEntityModel from "Features/listings/hooks/useSelectedEntityModel";
 import ToolbarDrawingTools from "Features/mapEditor/components/ToolbarDrawingTools";
@@ -65,6 +66,7 @@ export default function TopBarDesktop() {
         {/* <BlockVersionInTopBar /> */}
         {/* <TopBarProjectAndScope /> */}
         {scopesEnabled && <ButtonSelectorScope />}
+        <IconButtonDialogSync />
       </Box>
 
 
@@ -75,7 +77,6 @@ export default function TopBarDesktop() {
           <ToolbarDrawingTools />
         </Box> */}
         {em?.type === "LOCATED_ENTITY" && <SelectorViewer />}
-        <HorizontalMenuRightPanel />
       </Box>
     </Box>
   );

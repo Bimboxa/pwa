@@ -7,6 +7,7 @@ import { nanoid } from '@reduxjs/toolkit';
 
 import { useInteraction } from '../context/InteractionContext';
 
+import { setSelectedEntityId } from 'Features/entities/entitiesSlice';
 import { setEnabledDrawingMode, setSelectedNodes } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
@@ -815,6 +816,7 @@ const InteractionLayer = forwardRef(({
           dispatch(setSelectedNode(null));
           dispatch(setSelectedNodes([]));
           dispatch(setTempAnnotations([]));
+          dispatch(setSelectedEntityId(null));
 
           setHiddenAnnotationIds([]);
           setDrawingPoints([]);
