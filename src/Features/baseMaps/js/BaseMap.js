@@ -197,7 +197,7 @@ export default class BaseMap {
   getImageSize = () => {
     const imageToUse = this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
     //const imageToUse = this.image;
-    return imageToUse.imageSize;
+    return imageToUse?.imageSize;
   };
 
   getImageScale = () => {

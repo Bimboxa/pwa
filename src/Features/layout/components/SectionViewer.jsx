@@ -46,9 +46,10 @@ export default function SectionViewer() {
         {/* <MainLeafletEditor /> */}
         {/* <MainGoogleMapEditor /> */}
       </PanelShowable>
-      <PanelShowable show={showTable} sx={{ position: "absolute", zIndex: 0 }}>
+
+      {showTable && <PanelShowable show={showTable} sx={{ position: "absolute", zIndex: 0 }}>
         <TableViewer />
-      </PanelShowable>
+      </PanelShowable>}
 
       <Box sx={{ position: "absolute", bottom: "8px", right: "8px" }}>
         <ButtonToggleThreedViewer />

@@ -21,6 +21,10 @@ import PanelOpencv from "Features/opencv/components/PanelOpencv.jsx";
 import PanelTools from "Features/tools/components/PanelTools";
 import PanelMasterProjectPictures from "Features/masterProjectPictures/components/PanelMasterProjectPictures";
 import PanelChat from "Features/chat/components/PanelChat";
+import BaseMapDetail from "Features/baseMapEditor/components/PanelBaseMapDetail";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import PanelExport from "Features/export/components/PanelExport";
+import PanelSelectionProperties from "Features/selection/components/PanelSelectionProperties";
 
 export default function RightPanelContainer() {
 
@@ -42,10 +46,8 @@ export default function RightPanelContainer() {
   const openPanel = Boolean(selectedKey);
 
   return (
-    <>
-      {/* <Box sx={{ position: "absolute", zIndex: 10, top: "8px", right: "8px" }}>
-        <VerticalMenuRightPanel />
-      </Box> */}
+    <Box sx={{ display: "flex", minHeight: 0, minWidth: 0 }}>
+
 
       {openPanel && (
         <Box
@@ -57,7 +59,7 @@ export default function RightPanelContainer() {
 
             width,
             minWidth: 0,
-            bgcolor: "white",
+            bgcolor: "background.default",
             zIndex: 200,
             display: "flex",
             flexDirection: "column",
@@ -67,18 +69,30 @@ export default function RightPanelContainer() {
         >
           {selectedKey === "SHOWER" && <PanelShower />}
           {selectedKey === "EDITOR_EXPORT" && <PanelEditorExport />}
+          {selectedKey === "EXPORT" && <PanelExport />}
           {/* {selectedKey === "ANNOTATION_FORMAT" && <PanelAnnotationFormat />} */}
           {selectedKey === "NODE_FORMAT" && <PanelNodeFormat />}
           {selectedKey === "ENTITY" && <PanelEditEntity showCloseButton={false} />}
           {selectedKey === "SELECTION" && <PanelSelection />}
+          {selectedKey === "SELECTION_PROPERTIES" && <PanelSelectionProperties />}
           {selectedKey === "ENTITY_ZONES" && <PanelEntityZones />}
           {selectedKey === "PDF_REPORT" && <PanelPdfReport />}
           {selectedKey === "OPENCV" && <PanelOpencv />}
           {selectedKey === "MASTER_PROJECT_PICTURES" && <PanelMasterProjectPictures />}
           {selectedKey === "TOOLS" && <PanelTools />}
           {selectedKey === "CHAT" && <PanelChat />}
+          {selectedKey === "BASE_MAP" && <BaseMapDetail />}
         </Box>
       )}
-    </>
+
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <VerticalMenuRightPanel />
+      </Box>
+    </Box>
   );
 }

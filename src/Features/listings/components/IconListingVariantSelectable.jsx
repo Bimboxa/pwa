@@ -1,6 +1,6 @@
 import { createElement } from "react";
 
-import { Box, Tooltip } from "@mui/material";
+import { Box, Tooltip, Typography } from "@mui/material";
 import { ArrowDropDown as Down, Circle } from "@mui/icons-material";
 import { red, grey } from "@mui/material/colors";
 import { lighten } from "@mui/material/styles";
@@ -66,32 +66,36 @@ export default function IconListingVariantSelectable({
   });
 
   return (
-    <Box sx={{ p: 0.75 }}>
-      <Tooltip title={listing?.name} placement="right">
-        <Box
-          sx={{
-            borderRadius: 2,
-            bgcolor: selected ? bgcolorSelected : bgcolor,
-            color: selected ? colorSelected : color,
-            border: selected ? borderSelected : border,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+    <Box sx={{
+      p: 0.75, display: "flex", alignItems: "center", gap: 1,
+      flexDirection: "column", justifyContent: "center"
+    }}>
+      {/* <Tooltip title={listing?.name} placement="right"> */}
+      <Box
+        sx={{
+          borderRadius: 2,
+          bgcolor: selected ? bgcolorSelected : bgcolor,
+          color: selected ? colorSelected : color,
+          border: selected ? borderSelected : border,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
 
-            "&:hover": {
-              bgcolor: selected ? bgcolorHoverSelected : bgcolorHover,
-              color: selected ? colorHoverSelected : colorHover,
-              border: selected ? borderHoverSelected : borderHover,
-            },
-            width: size,
-            height: size,
-            cursor: "pointer",
-          }}
-          onClick={onClick}
-        >
-          {iconElement}
-        </Box>
-      </Tooltip>
+          "&:hover": {
+            bgcolor: selected ? bgcolorHoverSelected : bgcolorHover,
+            color: selected ? colorHoverSelected : colorHover,
+            border: selected ? borderHoverSelected : borderHover,
+          },
+          width: size,
+          height: size,
+          cursor: "pointer",
+        }}
+        onClick={onClick}
+      >
+        {iconElement}
+      </Box>
+      {/* <Typography variant="caption">{listing?.name}</Typography> */}
+      {/* </Tooltip> */}
     </Box>
   );
 }

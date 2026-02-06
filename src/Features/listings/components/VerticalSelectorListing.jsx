@@ -64,6 +64,7 @@ function DroppableListingItem({
       sx={{
         position: "relative",
         display: "inline-block",
+        mb: 1,
         // show helper only on hover
         "&:hover .vis-btn": { opacity: 1, pointerEvents: "auto" },
         bgcolor: isOver ? "action.hover" : "transparent",
@@ -210,7 +211,7 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
     >
       {/* <Box sx={{ borderBottom: `1px solid ${grey[500]}`, width: 1, my: 1 }} /> */}
 
-      <IconButtonOpenBaseMapDetail />
+      {/* <IconButtonOpenBaseMapDetail /> */}
       <Box
         sx={{
           display: "flex",
@@ -227,29 +228,29 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
           if (id === "bgImageFormat") hidden = !showBgImage;
           const showHideButton = item?.showHideButton;
 
-          if (item.type === "ENTITY_MODEL_TYPE") {
-            return (
-              <Box
-                key={`entity-model-type-${idx}`}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  mt: 1,
-                  py: 1,
-                }}
-              >
-                <Typography
-                  sx={{ fontSize: "10px !important" }}
-                  align="center"
-                  //color="grey.300"
-                  color="white"
-                >
-                  {item?.entityModelType?.name}
-                </Typography>
-              </Box>
-            );
-          }
+          // if (item.type === "ENTITY_MODEL_TYPE") {
+          //   return (
+          //     <Box
+          //       key={`entity-model-type-${idx}`}
+          //       sx={{
+          //         display: "flex",
+          //         alignItems: "center",
+          //         justifyContent: "center",
+          //         mt: 1,
+          //         py: 1,
+          //       }}
+          //     >
+          //       <Typography
+          //         sx={{ fontSize: "10px !important" }}
+          //         align="center"
+          //         //color="grey.300"
+          //         color="white"
+          //       >
+          //         {item?.entityModelType?.name}
+          //       </Typography>
+          //     </Box>
+          //   );
+          // }
 
           if (item.type === "LISTING") {
             return (
@@ -266,6 +267,7 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
                 <Box
                   sx={
                     {
+                      display: "flex", aligntItems: "center", flexDirection: "column"
                       //transition: "opacity 120ms ease, filter 120ms ease",
                       //opacity: hidden ? 0.6 : 1,
                       //filter: hidden ? "grayscale(0.6)" : "none",
@@ -278,6 +280,7 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
                     hidden={hidden}
                     onClick={() => handleListingClick(item.listing)}
                   />
+                  <Typography align="center" variant="caption" sx={{ color: "grey.300" }}>{item?.listing?.name}</Typography>
                 </Box>
 
                 {/* Visibility helper overlay (absolute; no layout impact) */}

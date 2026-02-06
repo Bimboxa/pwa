@@ -87,7 +87,7 @@ export default function BlockBottomActionsInPanel({ onSaved }) {
       width: 1, display: show ? "flex" : "none", flexDirection: "column",
       borderTop: theme => `1px solid ${theme.palette.divider}`,
     }}>
-      <SectionCreateAnnotationBeforeEntity />
+      {/* <SectionCreateAnnotationBeforeEntity /> */}
       <ButtonInPanelV2
         label={saveS}
         onClick={handleSave}

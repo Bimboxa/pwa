@@ -3,31 +3,31 @@
  * - menuItem = {key, label, icon}
  *
  */
-import { Box, ToggleButton, ToggleButtonGroup, Tooltip } from "@mui/material";
+import { Box, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from "@mui/material";
 import { toggleButtonClasses } from "@mui/material/ToggleButton";
 import { toggleButtonGroupClasses } from "@mui/material/ToggleButtonGroup";
 
 import { styled } from "@mui/material/styles";
 
+
 const StyledToggleButtonGroup = styled(ToggleButtonGroup)(({ theme }) => ({
   gap: "8px",
   [`& .${toggleButtonGroupClasses.firstButton}, & .${toggleButtonGroupClasses.middleButton}`]:
-    {
-      borderBottomRightRadius: (theme.vars || theme).shape.borderRadius,
-      borderBottomLeftRadius: (theme.vars || theme).shape.borderRadius,
-    },
+  {
+    borderBottomRightRadius: (theme.vars || theme).shape.borderRadius,
+    borderBottomLeftRadius: (theme.vars || theme).shape.borderRadius,
+  },
   [`& .${toggleButtonGroupClasses.lastButton}, & .${toggleButtonGroupClasses.middleButton}`]:
-    {
-      borderTopRightRadius: (theme.vars || theme).shape.borderRadius,
-      borderTopLeftRadius: (theme.vars || theme).shape.borderRadius,
-      borderTop: `1px solid ${(theme.vars || theme).palette.divider}`,
-    },
+  {
+    borderTopRightRadius: (theme.vars || theme).shape.borderRadius,
+    borderTopLeftRadius: (theme.vars || theme).shape.borderRadius,
+    borderTop: `1px solid ${(theme.vars || theme).palette.divider}`,
+  },
   [`& .${toggleButtonGroupClasses.lastButton}.${toggleButtonClasses.disabled}, & .${toggleButtonGroupClasses.middleButton}.${toggleButtonClasses.disabled}`]:
-    {
-      borderTop: `1px solid ${
-        (theme.vars || theme).palette.action.disabledBackground
+  {
+    borderTop: `1px solid ${(theme.vars || theme).palette.action.disabledBackground
       }`,
-    },
+  },
 }));
 
 const StyledToggleButton = styled(ToggleButton)(({ theme }) => ({
@@ -74,6 +74,7 @@ export default function VerticalMenu({
               <StyledToggleButton key={item.key} value={item.key}>
                 {item.icon}
               </StyledToggleButton>
+
             </Tooltip>
           );
         })}

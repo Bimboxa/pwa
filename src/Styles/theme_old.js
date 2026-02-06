@@ -14,20 +14,6 @@ import { frFR } from "@mui/x-data-grid-pro/locales";
 let theme = createTheme(
   {
     components: {
-      MuiSvgIcon: {
-        styleOverrides: {
-          root: {
-            // On force la taille de base (medium) à être celle du "small" par défaut
-            fontSize: "1rem", // correspond environ à 20px
-          },
-          fontSizeSmall: {
-            fontSize: "0.875rem", // On réduit aussi le small (environ 16px) pour garder une hiérarchie
-          },
-          fontSizeLarge: {
-            fontSize: "1.25rem", // On passe le large à 24px (l'ancienne taille medium)
-          }
-        },
-      },
       MuiButton: {
         styleOverrides: {
           root: {
@@ -148,10 +134,36 @@ let theme = createTheme(
       }
     },
     typography: {
-      fontSize: 13,
-      button: {
-        textTransform: "none", // Supprime les majuscules ici aussi
-        fontWeight: 500,
+      fontSize: 6,
+      h1: {
+        fontSize: "2rem", // Default for larger screens
+        "@media (max-width:600px)": {
+          fontSize: "2.5rem", // 🔥 Bigger font on small screens
+        },
+      },
+      h2: {
+        fontSize: "1.5rem", // Default for large screens
+        "@media (max-width:600px)": {
+          fontSize: "2rem", // 🔥 Bigger font on small screens
+        },
+      },
+      body1: {
+        fontSize: "1rem", // Default for large screens
+        "@media (max-width:600px)": {
+          fontSize: "1.25rem", // 🔥 Bigger font on small screens
+        },
+      },
+      body2: {
+        fontSize: "0.875rem", // Default
+        "@media (max-width:600px)": {
+          fontSize: "1rem", // 🔥 Larger on small screens
+        },
+      },
+      caption: {
+        fontSize: "0.75rem", // Default
+        "@media (max-width:600px)": {
+          fontSize: "0.875rem", // 🔥 Larger on small screens
+        },
       },
     },
   },

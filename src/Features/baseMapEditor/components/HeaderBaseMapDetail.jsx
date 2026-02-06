@@ -1,4 +1,4 @@
-import { DesignServices as DetailIcon } from "@mui/icons-material";
+import { Wallpaper as DetailIcon } from "@mui/icons-material";
 import { Box, Typography, Paper } from "@mui/material";
 
 export default function HeaderBaseMapDetail({ baseMap }) {
@@ -7,7 +7,7 @@ export default function HeaderBaseMapDetail({ baseMap }) {
 
     // strings
 
-    const title = "Config. du fond de plan"
+    const title = "Fond de plan"
 
     // 
     return (
@@ -22,7 +22,12 @@ export default function HeaderBaseMapDetail({ baseMap }) {
             }}>
                 <DetailIcon sx={{ color: "white" }} />
             </Paper>
-            <Typography sx={{ fontWeight: "bold" }}>{title}</Typography>
+            <Box>
+                <Typography variant="subtitle2" sx={{}}>{title}</Typography>
+                <Typography sx={{ fontWeight: "bold" }}>{baseMap?.name}</Typography>
+
+            </Box>
+
 
         </Box >
     );
