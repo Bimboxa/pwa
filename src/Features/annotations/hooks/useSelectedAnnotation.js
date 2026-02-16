@@ -1,5 +1,6 @@
 import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
+import { selectSelectedItems } from "Features/selection/selectionSlice";
 
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 
@@ -13,7 +14,10 @@ export default function useSelectedAnnotation() {
 
   // data
 
-  const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
+  // const selectedNode = useSelector((s) => s.mapEditor.selectedNode); // Removed
+  const selectedItems = useSelector(selectSelectedItems);
+  const selectedItem = selectedItems[0];
+
   const _selectedAnnotationId = useSelector(
     (s) => s.annotations.selectedAnnotationId
   );
@@ -27,8 +31,16 @@ export default function useSelectedAnnotation() {
   // helper
 
   let selectedAnnotationId = _selectedAnnotationId;
-  if (selectedNode?.nodeType === "ANNOTATION")
-    selectedAnnotationId = selectedNode.nodeId;
+  // If we have a selected item in the new slice, prioritize it
+  if (selectedItem?.type === "ANNOTATION") {
+    selectedAnnotationId = selectedItem.nodeId;
+  } else if (selectedItem?.context === "BG_IMAGE" || selectedItem?.type === "BG_IMAGE_TEXT") {
+    // Handle other types if they map to annotations
+    selectedAnnotationId = selectedItem.nodeId;
+  }
+
+  // existing fallback or logic
+
 
   // main
 

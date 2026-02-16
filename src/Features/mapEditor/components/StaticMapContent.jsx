@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react"; // Assurez-vous d'avoir useMemo
 
 import { useSelector } from "react-redux";
+import { selectSelectedPointId, selectSelectedItems } from "Features/selection/selectionSlice";
 
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 
@@ -25,8 +26,8 @@ function StaticMapContent({
     annotations,
     legendItems,
     legendFormat,
-    selectedNode,
-    selectedNodes,
+    // selectedNode, // Ignored, using Redux
+    // selectedNodes, // Ignored
     sizeVariant,
     isEditingBaseMap = false,
     opacity = 1,
@@ -37,8 +38,14 @@ function StaticMapContent({
 
     // data
 
-    // [MODIF 1] Récupérer selectedPointId
-    const { hoveredNode, hiddenAnnotationIds, selectedPointId } = useInteraction();
+    // [MODIF 1] Récupérer selectedPointId via Redux
+    const { hoveredNode, hiddenAnnotationIds } = useInteraction();
+    const selectedPointId = useSelector(selectSelectedPointId);
+    const selectedItems = useSelector(selectSelectedItems);
+    // Derive selectedNode/selectedNodes from new slice for compatibility
+    const selectedNode = selectedItems.length === 1 ? { nodeId: selectedItems[0].nodeId, nodeType: selectedItems[0].type } : null;
+    const selectedNodes = selectedItems.map(i => ({ nodeId: i.nodeId, nodeType: i.type }));
+
     const spriteImage = useAnnotationSpriteImage();
     const _showedFWC = useSelector(s => s.fwc.showedFWC);
 

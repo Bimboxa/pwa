@@ -84,6 +84,7 @@ export default function NodePolylineStatic({
     // --- DATA ATTRIBUTES ---
     const dataProps = {
         "data-node-id": annotationId,
+        "data-node-entity-id": mergedAnnotation.entityId,
         "data-node-listing-id": mergedAnnotation.listingId,
         "data-node-type": "ANNOTATION",
         "data-annotation-type": type,
@@ -587,6 +588,7 @@ export default function NodePolylineStatic({
                     style={{ cursor: isTransient ? "crosshair" : "pointer", transition: "fill 0.2s" }}
                     onMouseEnter={() => setHoveredPartId(mainPartId)}
                     onMouseLeave={() => setHoveredPartId(null)}
+                    data-part-type="MAIN"
                     {...dataProps}
                 />
             )}
@@ -615,6 +617,7 @@ export default function NodePolylineStatic({
                         stroke="none"
                         style={{ cursor: "pointer" }}
                         data-part-id={partId}
+                        data-part-type="CUT"
                         data-node-id={annotationId}
                         onMouseEnter={(e) => { e.stopPropagation(); setHoveredPartId(partId); }}
                         onMouseLeave={() => setHoveredPartId(null)}

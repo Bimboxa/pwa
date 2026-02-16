@@ -182,6 +182,8 @@ export default function NodeLabelStatic({
     // --- 7. RENDU ---
     const dataProps = {
         "data-node-id": id,
+        "data-node-entity-id": data.entityId,
+        "data-node-listing-id": data.listingId,
         "data-node-type": "ANNOTATION",
         "data-annotation-type": "LABEL",
         // fix du bug de sélection si le label est ajouté à un marker.

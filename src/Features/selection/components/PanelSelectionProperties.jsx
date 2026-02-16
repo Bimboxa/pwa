@@ -1,4 +1,5 @@
 import { useSelector } from "react-redux";
+import { selectSelectedItems } from "../selectionSlice";
 
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
@@ -15,7 +16,8 @@ import useSelectedEntity from "Features/entities/hooks/useSelectedEntity";
 export default function PanelSelectionProperties() {
 
   // data
-  const selectedItem = useSelector((s) => s.selection.selectedItem);
+  const selectedItems = useSelector(selectSelectedItems);
+  const selectedItem = selectedItems[0];
   const { value: listing } = useSelectedListing(selectedItem?.listingId);
   const entityId = useSelector((s) => s.entities.selectedEntityId);
   const annotation = useSelectedAnnotation();

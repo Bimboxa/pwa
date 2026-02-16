@@ -31,6 +31,7 @@ export default function NodeMarkerStatic({
 
   const dataProps = {
     "data-node-id": marker.id,
+    "data-node-entity-id": marker.entityId,
     "data-node-listing-id": marker.listingId,
     "data-node-type": "ANNOTATION",
     "data-annotation-type": "MARKER",

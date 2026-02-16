@@ -30,6 +30,8 @@ export default memo(function NodeRectangleStatic({
     // Props pour le drag global (déplacement du corps)
     const interactionProps = {
         "data-node-id": id,
+        "data-node-entity-id": annotation.entityId,
+        "data-node-listing-id": annotation.listingId,
         "data-node-type": "ANNOTATION",
         "data-annotation-type": "RECTANGLE",
         "data-interaction": "draggable"

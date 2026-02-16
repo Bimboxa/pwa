@@ -62,6 +62,7 @@ export default function NodeStripStatic({
 
     const commonDataProps = {
         "data-node-id": annotationId,
+        "data-node-entity-id": mergedAnnotation.entityId,
         "data-node-listing-id": mergedAnnotation.listingId,
         "data-node-type": "ANNOTATION",
         "data-annotation-type": "STRIP",
@@ -221,6 +222,7 @@ export default function NodeStripStatic({
                 }}
                 onMouseLeave={() => setHoveredPartId(null)}
                 data-part-id={selected ? mainPartId : undefined}
+                data-part-type="MAIN"
                 data-node-id={annotationId}
             >
                 {stripPolygonsData.map((poly) => (
@@ -272,6 +274,7 @@ export default function NodeStripStatic({
                         }}
                         onMouseLeave={() => setHoveredPartId(null)}
                         data-part-id={partId}
+                        data-part-type="SEG"
                         data-node-id={annotationId}
                         style={{ cursor: isTransient ? "crosshair" : "pointer" }}
                     >
@@ -315,6 +318,7 @@ export default function NodeStripStatic({
                         }}
                         onMouseLeave={() => setHoveredPartId(null)}
                         data-part-id={partId}
+                        data-part-type="CUT"
                         data-node-id={annotationId}
                         style={{ cursor: isTransient ? "crosshair" : "pointer" }}
                     >

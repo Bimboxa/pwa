@@ -17,6 +17,17 @@ import {
   setClickedNode,
 } from "Features/contextMenu/contextMenuSlice";
 
+import {
+  setSelectedItem,
+  setSelectedItems,
+  toggleItemSelection,
+  setSubSelection,
+  clearSelection,
+  selectSelectedItems,
+  selectSelectedPointId,
+  selectSelectedPartId
+} from "Features/selection/selectionSlice";
+
 import useResetNewAnnotation from 'Features/annotations/hooks/useResetNewAnnotation';
 import useLassoSelection from 'Features/mapEditorGeneric/hooks/useLassoSelection';
 
@@ -92,8 +103,8 @@ const InteractionLayer = forwardRef(({
   onAnnotationMoveCommit,
   onSegmentSplit,
   snappingEnabled = true,
-  selectedNode,
-  selectedNodes,
+  // selectedNode, // Removed prop usage, use Redux
+  // selectedNodes, // Removed prop usage
   baseMapMeterByPx,
   showBgImage,
   legendFormat,
@@ -136,9 +147,17 @@ const InteractionLayer = forwardRef(({
   const { setHoveredNode,
     setHiddenAnnotationIds,
     setDraggingAnnotationId,
-    setSelectedPointId, selectedPointId,
-    setSelectedPartId, selectedPartId,
+    // setSelectedPointId, selectedPointId, // REMOVED
+    // setSelectedPartId, selectedPartId, // REMOVED
     setBasePose } = useInteraction();
+
+  // Selection from Redux
+  const selectedItems = useSelector(selectSelectedItems);
+  const selectedPointId = useSelector(selectSelectedPointId);
+  const selectedPartId = useSelector(selectSelectedPartId);
+
+  // Computed selectedNode equivalent (first item)
+  const selectedNode = selectedItems.length > 0 ? { nodeId: selectedItems[0].nodeId, nodeType: selectedItems[0].type } : null;
 
   const { zoomContainer } = useSmartZoom();
 
@@ -301,10 +320,7 @@ const InteractionLayer = forwardRef(({
   };
 
 
-  // Reset selectedPointId quand on change de noeud sélectionné
-  useEffect(() => {
-    setSelectedPointId(null);
-  }, [selectedNode?.nodeId]);
+  // Reset logic is now handled by Redux updates.
 
 
   // updateSmartDetect
@@ -389,7 +405,21 @@ const InteractionLayer = forwardRef(({
   // Lasso selection
   function handleLassoSelection({ annotationIds, selectionBox, anchorPosition }) {
     console.log("lasso selection", annotationIds, selectionBox);
-    dispatch(setSelectedNodes(annotationIds.map(id => ({ nodeId: id, nodeType: 'ANNOTATION' }))))
+    const newItems = annotationIds.map(id => {
+      const ann = annotations.find(a => a.id === id);
+      return {
+        id: id,
+        nodeId: id,
+        type: 'ANNOTATION',
+        nodeType: ann?.type,
+        entityId: ann?.entityId,
+        listingId: ann?.listingId,
+        pointId: null,
+        partId: null,
+        partType: null
+      };
+    });
+    dispatch(setSelectedItems(newItems));
     dispatch(setAnnotationsToolbarPosition(anchorPosition))
   }
 
@@ -798,23 +828,25 @@ const InteractionLayer = forwardRef(({
         case 'Escape':
           console.log("Action: Reset Selection & Tool");
           if (selectedPartId) {
-            setSelectedPartId(null);
+            dispatch(setSubSelection({ partId: null }));
             e.stopPropagation();
             return;
           }
 
           if (selectedPointId && selectedNode?.nodeId) {
             console.log("Action: Deselect Point");
-            setSelectedPointId(null);
+            dispatch(setSubSelection({ pointId: null }));
             e.stopPropagation(); // Empêcher le resetNewAnnotation
             return;
           }
 
-          setSelectedPointId(null);
+          // setSelectedPointId(null); // Removed
           resetNewAnnotation();
           dispatch(setEnabledDrawingMode(null));
-          dispatch(setSelectedNode(null));
-          dispatch(setSelectedNodes([]));
+          dispatch(clearSelection()); // Replaces setSelectedNode(null) etc.
+          // dispatch(setSelectedNode(null)); 
+          // dispatch(setSelectedNodes([])); 
+
           dispatch(setTempAnnotations([]));
           dispatch(setSelectedEntityId(null));
 
@@ -1163,13 +1195,15 @@ const InteractionLayer = forwardRef(({
         // Si l'annotation est déjà sélectionnée, on sélectionne le point
         if (selectedNode?.nodeId === annotationId) {
           console.log("Select Point:", pointId);
-          setSelectedPointId(pointId);
+          dispatch(setSubSelection({ pointId, partType: "VERTEX" }));
           // On arrête ici pour ne pas relancer la sélection de noeud
           return;
         }
       } else {
         // Si on clique ailleurs (sur le trait ou le vide), on déselectionne le point
-        if (selectedPointId) setSelectedPointId(null);
+        // mais on garde peut-être partType si on sélectionne une part?
+        // setSubSelection update ce qu'on lui donne.
+        if (selectedPointId) dispatch(setSubSelection({ pointId: null }));
       }
 
       // 2. Ensuite les Parts (Segments / Contours)
@@ -1177,13 +1211,15 @@ const InteractionLayer = forwardRef(({
       const hitPart = nativeTarget.closest?.('[data-part-id]');
 
       if (hitPart) {
-        const partId = hitPart.dataset.partId;
-        const nodeId = hitPart.dataset.nodeId;
+        const { partId, nodeId, partType } = hitPart.dataset;
         const isParentSelected = selectedNode?.nodeId === nodeId;
 
         if (isParentSelected) {
-          console.log("Selecting Part:", partId);
-          setSelectedPartId(prev => prev === partId ? null : partId);
+          console.log("Selecting Part:", partId, partType);
+          // Toggle part selection
+          const nextPartId = selectedPartId === partId ? null : partId;
+          const nextPartType = selectedPartId === partId ? null : partType;
+          dispatch(setSubSelection({ partId: nextPartId, partType: nextPartType }));
           return;
         }
       }
@@ -1197,8 +1233,9 @@ const InteractionLayer = forwardRef(({
           || showBgImage && hit?.dataset?.nodeType === "BG_IMAGE"
 
         ) {
-          dispatch(setSelectedNode(null));
-          dispatch(setSelectedNodes([]));
+          dispatch(clearSelection());
+          // dispatch(setSelectedNode(null)); // Legacy
+          // dispatch(setSelectedNodes([])); // Legacy
           setHiddenAnnotationIds([]);
           dispatch(setAnnotationToolbarPosition(null));
         }
@@ -1217,42 +1254,60 @@ const InteractionLayer = forwardRef(({
 
           // --- 2.1. GESTION DES ANNOTATIONS ---
 
-          let _selectedNodes = [...(selectedNodes ?? [])];
+          let _selectedItems = [...selectedItems];
+          const newItem = {
+            id: hit.dataset.nodeId,
+            nodeId: hit.dataset.nodeId,
+            type: hit.dataset.nodeType, // "ANNOTATION"
+            nodeType: hit.dataset.annotationType, // "POLYLINE", "MARKER", etc.
+            entityId: hit.dataset.nodeEntityId,
+            listingId: hit.dataset.nodeListingId,
+            context: hit.dataset.nodeContext, // Optional but useful for EditedObjectLayer
+            partId: null,
+            partType: null
+          };
+
           if (event.shiftKey) {
-            _selectedNodes = toggleSelectedNodeFunction(hit?.dataset, selectedNodes);
-            dispatch(toggleSelectedNode(hit?.dataset));
-            dispatch(setSelectedNode(null));
+            // Toggle
+            dispatch(toggleItemSelection(newItem));
+            // Update local var for immediate logic (toolbar)
+            const exists = _selectedItems.find(i => i.id === newItem.id);
+            if (exists) {
+              _selectedItems = _selectedItems.filter(i => i.id !== newItem.id);
+            } else {
+              _selectedItems.push(newItem);
+            }
           } else {
-            _selectedNodes = [hit?.dataset];
-            dispatch(setSelectedNodes([hit?.dataset]));
-            dispatch(setSelectedNode(hit?.dataset));
+            // Replace
+            _selectedItems = [newItem];
+            dispatch(setSelectedItem(newItem));
           }
-          //setHiddenAnnotationIds([hit?.dataset.nodeId]); hidden : juste pour le drag
+
 
           // -- Afichage du toolbar pour édition --
 
-          if (_selectedNodes?.length > 1) {
-            const _annotations = annotations.filter((a) => _selectedNodes.some((s) => s.nodeId === a.id));
+          if (_selectedItems.length > 1) {
+            const _annotations = annotations.filter((a) => _selectedItems.some((s) => s.nodeId === a.id));
             const bbox = mergeBboxes(_annotations.map((a) => getAnnotationBBox(a)));
-            panelAnchor = { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
-            console.log("debug_151_panelAnchor", panelAnchor);
+            if (bbox) {
+              panelAnchor = { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
+              console.log("debug_151_panelAnchor", panelAnchor);
+            }
           }
 
           if (panelAnchor) {
             // 2. Convertir LOCAL -> MONDE
-            // Il faut savoir dans quel contexte est l'annotation
             const isBgContext = hit?.dataset?.nodeContext === "BG_IMAGE";
-            const pose = isBgContext ? bgPose : getTargetPose(); // getTargetPose retourne basePose par défaut
+            const pose = isBgContext ? bgPose : getTargetPose();
 
             const worldX = panelAnchor.x * pose.k + pose.x;
             const worldY = panelAnchor.y * pose.k + pose.y;
 
             // 3. Convertir MONDE -> ÉCRAN (Viewport)
-            // On utilise la ref du viewport
             const screenPos = viewportRef.current?.worldToScreen(worldX, worldY);
 
 
-            if (_selectedNodes?.length > 1) {
+            if (_selectedItems.length > 1) {
               dispatch(setAnnotationsToolbarPosition(screenPos));
             } else {
               console.log("debug_2701_setAnnotationToolbarPosition", screenPos);
@@ -1266,7 +1321,14 @@ const InteractionLayer = forwardRef(({
 
         }
         else if (showBgImage && hit?.dataset?.nodeType !== "ANNOTATION") {
-          dispatch(setSelectedNode(hit?.dataset));
+          // Legacy handling for non-annotation nodes in BG mode (Legend?)
+          // dispatch(setSelectedNode(hit?.dataset));
+          dispatch(setSelectedItem({
+            nodeId: hit.dataset.nodeId,
+            type: hit.dataset.nodeType,
+            partId: null,
+            partType: null
+          }));
           setHiddenAnnotationIds([hit?.dataset.nodeId]);
         }
 
@@ -1274,12 +1336,12 @@ const InteractionLayer = forwardRef(({
       }
 
       else {
-        dispatch(setSelectedNode(null));
-        dispatch(setSelectedNodes([]));
+        dispatch(clearSelection());
+        // dispatch(setSelectedNode(null));
+        // dispatch(setSelectedNodes([]));
         setHiddenAnnotationIds([]);
       }
     }
-
   };
 
   // --- GESTION DU MOUVEMENT (Feedback visuel) ---
@@ -1871,52 +1933,64 @@ const InteractionLayer = forwardRef(({
     // click sur un vertex ou une annotation
     if (!dragAnnotationState?.active && dragAnnotationState?.pending) {
 
-      const clickedNode = { nodeId: dragAnnotationState.selectedAnnotationId, nodeType: "ANNOTATION" }
-
-      const annotation = annotations?.find((a) => a.id === clickedNode.nodeId);
+      const annotationId = dragAnnotationState.selectedAnnotationId;
+      const annotation = annotations?.find((a) => a.id === annotationId);
 
       let panelAnchor = null;
       if (annotation) panelAnchor = getAnnotationEditionPanelAnchor(annotation);
 
       console.log("debug_2701_click_on_annotation", annotation, panelAnchor);
 
-      let _selectedNodes = [...(selectedNodes ?? [])];
+      const newItem = {
+        id: annotationId,
+        nodeId: annotationId,
+        type: "ANNOTATION",
+        nodeType: annotation?.type,
+        entityId: annotation?.entityId,
+        listingId: annotation?.listingId,
+        context: annotation?.context,
+        partId: null,
+        partType: null
+      };
+
+      let _selectedItems = [...selectedItems];
 
       if (event.shiftKey) {
-        _selectedNodes = toggleSelectedNodeFunction(clickedNode, selectedNodes);
-        dispatch(toggleSelectedNode(clickedNode));
-        dispatch(setSelectedNode(null));
+        dispatch(toggleItemSelection(newItem));
+        const exists = _selectedItems.find(i => i.id === newItem.id);
+        if (exists) {
+          _selectedItems = _selectedItems.filter(i => i.id !== newItem.id);
+        } else {
+          _selectedItems.push(newItem);
+        }
       } else {
-        _selectedNodes = [clickedNode];
-        dispatch(setSelectedNodes([clickedNode]));
-        dispatch(setSelectedNode(clickedNode));
+        _selectedItems = [newItem];
+        dispatch(setSelectedItem(newItem));
       }
-      //setHiddenAnnotationIds([hit?.dataset.nodeId]); hidden : juste pour le drag
 
       // -- Afichage du toolbar pour édition --
 
-      if (_selectedNodes?.length > 1) {
-        const _annotations = annotations.filter((a) => _selectedNodes.some((s) => s.nodeId === a.id));
+      if (_selectedItems?.length > 1) {
+        const _annotations = annotations.filter((a) => _selectedItems.some((s) => s.nodeId === a.id));
         const bbox = mergeBboxes(_annotations.map((a) => getAnnotationBBox(a)));
-        panelAnchor = { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
-        console.log("debug_151_panelAnchor", panelAnchor);
+        if (bbox) {
+          panelAnchor = { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
+          console.log("debug_151_panelAnchor", panelAnchor);
+        }
       }
 
       if (panelAnchor) {
         // 2. Convertir LOCAL -> MONDE
-        // Il faut savoir dans quel contexte est l'annotation
-        const isBgContext = clickedNode?.nodeContext === "BG_IMAGE";
-        const pose = isBgContext ? bgPose : getTargetPose(); // getTargetPose retourne basePose par défaut
+        const isBgContext = annotation?.context === "BG_IMAGE";
+        const pose = isBgContext ? bgPose : getTargetPose();
 
         const worldX = panelAnchor.x * pose.k + pose.x;
         const worldY = panelAnchor.y * pose.k + pose.y;
 
         // 3. Convertir MONDE -> ÉCRAN (Viewport)
-        // On utilise la ref du viewport
         const screenPos = viewportRef.current?.worldToScreen(worldX, worldY);
 
-
-        if (_selectedNodes?.length > 1) {
+        if (_selectedItems?.length > 1) {
           dispatch(setAnnotationsToolbarPosition(screenPos));
         } else {
           console.log("debug_2701_setAnnotationToolbarPosition", screenPos);
@@ -1998,7 +2072,7 @@ const InteractionLayer = forwardRef(({
 
         // Ici, dragState.pointId est TOUJOURS l'ID réel
         // (car on n'a pas déclenché la logique du MouseMove)
-        setSelectedPointId(dragState.pointId);
+        dispatch(setSubSelection({ pointId: dragState.pointId }));
 
         // Cleanup immédiat
         setDragState(null);

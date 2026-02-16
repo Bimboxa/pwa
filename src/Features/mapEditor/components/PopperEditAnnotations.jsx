@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from "react-redux";
-
+import { selectSelectedItems } from "Features/selection/selectionSlice";
 import { setAnnotationsToolbarPosition } from "../mapEditorSlice";
 
 import PopperBox from "Features/layout/components/PopperBox";
@@ -12,7 +12,10 @@ export default function PopperEditAnnotations({ viewerKey = null, allAnnotations
   const anchorPosition = useSelector(
     (s) => s.mapEditor.annotationsToolbarPosition
   );
-  const selectedNodes = useSelector((s) => s.mapEditor.selectedNodes);
+
+  const selectedItems = useSelector(selectSelectedItems);
+  const selectedNodes = selectedItems.map(i => ({ nodeId: i.nodeId, nodeType: i.type }));
+
   const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
 
