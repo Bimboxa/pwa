@@ -1,7 +1,8 @@
 import { useSelector } from "react-redux";
-
 import { Box, Typography, Paper } from "@mui/material";
 import { DragIndicator } from "@mui/icons-material";
+
+import { selectSelectedItems } from "Features/selection/selectionSlice";
 
 import IconButtonMoreActionsSelectedAnnotations from "./IconButtonMoreActionsSelectedAnnotations";
 import IconButtonCreateAnnotationsSelectionBorder from "./IconButtonCreateAnnotationsSelectionBorder";
@@ -12,7 +13,8 @@ export default function ToolbarEditAnnotations({ allAnnotations }) {
 
     // data
 
-    const selectedNodes = useSelector((s) => s.mapEditor.selectedNodes);
+    const selectedItems = useSelector(selectSelectedItems);
+    const selectedNodes = selectedItems.map(i => ({ nodeId: i.nodeId, nodeType: i.type }));
 
     // helpers
 

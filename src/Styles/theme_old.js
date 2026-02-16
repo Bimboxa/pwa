@@ -148,6 +148,7 @@ let theme = createTheme(
         },
       },
       body1: {
+
         fontSize: "1rem", // Default for large screens
         "@media (max-width:600px)": {
           fontSize: "1.25rem", // 🔥 Bigger font on small screens

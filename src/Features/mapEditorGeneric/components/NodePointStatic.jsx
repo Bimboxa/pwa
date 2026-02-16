@@ -69,9 +69,10 @@ export default function NodePointStatic({
     // Ces attributs sont cruciaux pour que le 'hit detection' de la souris fonctionne pour le Drag
     const dataProps = {
         "data-node-id": id,
+        "data-node-entity-id": mergedAnnotation.entityId,
         "data-node-listing-id": listingId,
         "data-node-type": "ANNOTATION",
-        "data-annotation-type": "POINT", // Important : doit correspondre au type géré dans InteractionLayer/Transient
+        "data-annotation-type": "POINT",
         "data-interaction": "draggable"
     };
 

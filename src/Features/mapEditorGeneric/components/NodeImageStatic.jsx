@@ -40,6 +40,8 @@ export default memo(function NodeImageStatic({
     // Props pour le drag global (déplacement)
     const interactionProps = {
         "data-node-id": id,
+        "data-node-entity-id": imageAnnotation.entityId,
+        "data-node-listing-id": imageAnnotation.listingId,
         "data-node-type": "ANNOTATION",
         "data-annotation-type": "IMAGE",
         "data-interaction": "draggable"

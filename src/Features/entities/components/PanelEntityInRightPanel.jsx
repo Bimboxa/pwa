@@ -29,7 +29,7 @@ export default function PanelEntityInRightPanel({ selectedItem }) {
 
   const entity = useEntity({
     fromListingId: selectedItem?.listingId,
-    entityId: selectedItem?.id,
+    entityId: selectedItem?.entityId,
     withImages: true,
     withAnnotations: true,
   });

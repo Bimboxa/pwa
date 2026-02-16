@@ -1,4 +1,5 @@
 import { useSelector, useDispatch } from "react-redux";
+import { selectSelectedItems } from "Features/selection/selectionSlice";
 
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
 
@@ -16,12 +17,16 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   const anchorPosition = useSelector(
     (s) => s.mapEditor.annotationToolbarPosition
   );
-  const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
+
+  const selectedItems = useSelector(selectSelectedItems);
+  const selectedNode = selectedItems.length === 1 ? { nodeId: selectedItems[0].nodeId, nodeType: selectedItems[0].type } : null;
+
   const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const selectedAnnotation = useSelectedAnnotation();
 
   console.log("debug_2701_A_selectedAnnotation", selectedAnnotation, selectedNode);
 
+  // Note: used annotationType if available in item (it wasn't in InteractionLayer), falling back to selectedAnnotation logic
   const type = selectedNode?.annotationType || selectedAnnotation?.type;
 
   // helpers

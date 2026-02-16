@@ -45,9 +45,12 @@ export default function NodeTextStatic({
     // --- DATA PROPS ---
     const dataProps = {
         "data-node-id": text.id,
+        "data-node-entity-id": text.entityId,
+        "data-node-listing-id": text.listingId,
         "data-node-type": "ANNOTATION",
         "data-annotation-type": "TEXT",
         "data-node-context": context,
+        "data-interaction": "draggable",
     };
 
     // --- STATE ÉDITION ---

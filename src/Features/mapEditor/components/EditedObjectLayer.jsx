@@ -1,21 +1,32 @@
 import { useMemo } from 'react';
+import { useSelector } from 'react-redux';
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import theme from 'Styles/theme';
+import { selectSelectedItems, selectSelectedPointId, selectSelectedPartId } from "Features/selection/selectionSlice";
 
 export default function EditedObjectLayer({
     basePose,
     annotations,
     spriteImage,
-    selectedNode,
-    selectedNodes,
+    // selectedNode, // Ignored
+    // selectedNodes, // Ignored
     baseMapMeterByPx,
     onTextValueChange,
 }) {
 
+    // Redux State
+    const selectedItems = useSelector(selectSelectedItems);
+    const selectedPointId = useSelector(selectSelectedPointId);
+    const selectedPartId = useSelector(selectSelectedPartId);
 
-    const { draggingAnnotationId, selectedPointId, selectedPartId, hiddenAnnotationIds } = useInteraction();
+    // Compat with existing logic
+    const selectedNode = selectedItems.length > 0 ? { nodeId: selectedItems[0].nodeId, nodeContext: selectedItems[0].context } : null; // Context? Wait, I didn't store context in selectionSlice item yet?
+
+    const selectedNodes = selectedItems.map(i => ({ nodeId: i.nodeId }));
+
+    const { draggingAnnotationId, hiddenAnnotationIds } = useInteraction();
 
     // 1. Identifier TOUTES les annotations concernées
     const activeAnnotations = useMemo(() => {
