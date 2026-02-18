@@ -120,6 +120,7 @@ export default function MainMapEditorV3() {
     const listingId = useSelector((state) => state.listings.selectedListingId);
     const spriteImage = useAnnotationSpriteImage();
     const enabledDrawingMode = useSelector((state) => state.mapEditor.enabledDrawingMode);
+    const mapEditorMode = useSelector((state) => state.mapEditor.mapEditorMode);
 
     // Selection from new Redux slice
     const { nodes: selectedNodes, node: selectedNode } = useSelectedNodes();
@@ -213,6 +214,7 @@ export default function MainMapEditorV3() {
         excludeListingsIds: hiddenListingsIds,
         hideBaseMapAnnotations,
         filterByMainBaseMap: true,
+        sortByOrderIndex: true,
     });
 
     // legend
@@ -760,7 +762,7 @@ export default function MainMapEditorV3() {
     //const isSnappingEnabled = enabledDrawingMode || !selectedNode;
     const isSnappingEnabled =
         enabledDrawingMode ||
-        !Boolean(selectedNode) ||
+        !Boolean(selectedNode) && mapEditorMode === "QUICK_POINTS_CHANGE" ||
         (Boolean(selectedNode) && selectedNode.nodeType === "ANNOTATION");
 
 
