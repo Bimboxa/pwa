@@ -37,7 +37,7 @@ export default function ToolbarAnnotationInMapEditor() {
   });
   const spriteImage = useAnnotationSpriteImage();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
-  const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
+
   const resetSelection = useResetSelection();
   const initDefaultNewAnnotation = useInitDefaultNewAnnotation();
   const { value: listing } = useSelectedListing();

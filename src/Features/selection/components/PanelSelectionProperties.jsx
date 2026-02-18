@@ -10,8 +10,10 @@ import { Typography } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PanelListingProperties from "Features/listings/components/PanelListingProperties";
 import PanelEditEntity from "Features/entities/components/PanelEditEntity";
+import PanelAnnotationProperties from "Features/annotations/components/PanelAnnotationProperties";
 
 import useSelectedEntity from "Features/entities/hooks/useSelectedEntity";
+import PanelAnnotationTemplateProperties from "Features/annotations/components/PanelAnnotationTemplateProperties";
 
 export default function PanelSelectionProperties() {
 
@@ -20,8 +22,6 @@ export default function PanelSelectionProperties() {
   const selectedItem = selectedItems[0];
   const { value: listing } = useSelectedListing(selectedItem?.listingId);
   const entityId = useSelector((s) => s.entities.selectedEntityId);
-  const annotation = useSelectedAnnotation();
-
 
   console.log("debug_0602_entityId", entityId);
 
@@ -29,7 +29,8 @@ export default function PanelSelectionProperties() {
 
   let type = "LISTING";
   if (entityId) type = "ENTITY";
-  // if (annotation) type = "ANNOTATION";
+  if (selectedItem?.nodeType === "ANNOTATION") type = "ANNOTATION";
+  if (selectedItem?.type === "ANNOTATION_TEMPLATE") type = "ANNOTATION_TEMPLATE";
 
   return (
     <BoxFlexVStretch>
@@ -42,8 +43,10 @@ export default function PanelSelectionProperties() {
       )}
 
       {type === "ANNOTATION" && (
-        <PanelEntityInRightPanel selectedItem={annotation} />
+        <PanelAnnotationProperties />
       )}
+
+      {type === "ANNOTATION_TEMPLATE" && <PanelAnnotationTemplateProperties />}
     </BoxFlexVStretch>
   );
 }

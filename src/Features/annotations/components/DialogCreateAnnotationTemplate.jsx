@@ -7,7 +7,7 @@ import DialogGeneric from "Features/layout/components/DialogGeneric";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 
 import theme from "Styles/theme";
-import { DialogTitle } from "@mui/material";
+import { DialogTitle, Box } from "@mui/material";
 
 export default function DialogCreateAnnotationTemplate({ open, onClose }) {
   // strings
@@ -54,10 +54,13 @@ export default function DialogCreateAnnotationTemplate({ open, onClose }) {
   return (
     <DialogGeneric open={open} onClose={onClose} width="350px">
       <DialogTitle>{title}</DialogTitle>
-      <FormAnnotationTemplateVariantBlock
-        annotationTemplate={tempAnnotationTemplate}
-        onChange={handleChange}
-      />
+      <Box sx={{ bgcolor: "background.default", width: 1 }}>
+        <FormAnnotationTemplateVariantBlock
+          annotationTemplate={tempAnnotationTemplate}
+          onChange={handleChange}
+        />
+      </Box>
+
       <ButtonInPanelV2
         onClick={handleCreate}
         label={createS}

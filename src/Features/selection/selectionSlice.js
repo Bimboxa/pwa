@@ -70,6 +70,15 @@ export const selectionSlice = createSlice({
     },
     clearSelection: (state) => {
       state.selectedItems = [];
+    },
+    triggerSelectionBack: (state) => {
+      const item = state.selectedItems[0];
+      if (item) {
+        if (item.type === "ANNOTATION_TEMPLATE") {
+          item.type = "LISTING";
+          item.id = item.listingId;
+        }
+      }
     }
   },
 });
@@ -83,7 +92,8 @@ export const {
   setSubSelection,
   setOpenDialogDeleteSelectedItem,
   setOpenDialogDeleteSelectedAnnotation,
-  clearSelection
+  clearSelection,
+  triggerSelectionBack
 } = selectionSlice.actions;
 
 // Selectors

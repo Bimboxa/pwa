@@ -23,8 +23,8 @@ export default function HeaderBaseMapDetail({ baseMap }) {
                 <DetailIcon sx={{ color: "white" }} />
             </Paper>
             <Box>
-                <Typography variant="subtitle2" sx={{}}>{title}</Typography>
-                <Typography sx={{ fontWeight: "bold" }}>{baseMap?.name}</Typography>
+                <Typography variant="body2" sx={{ fontWeight: "bold" }}>{baseMap?.name}</Typography>
+                <Typography variant="subtitle2" sx={{ color: "text.secondary" }}>{title}</Typography>
 
             </Box>
 

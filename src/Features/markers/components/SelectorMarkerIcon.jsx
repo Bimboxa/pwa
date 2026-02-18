@@ -11,7 +11,7 @@ export default function SelectorMarkerIcon({
   iconColor,
   spriteImage,
   size = 40,
-  rows = 4,
+  cols = 4,
 }) {
   // ref
 
@@ -22,7 +22,7 @@ export default function SelectorMarkerIcon({
   const [cardWidth, setCardWidth] = useState(20);
   useEffect(() => {
     const width = ref.current?.getBoundingClientRect()?.width;
-    setCardWidth(width / rows);
+    setCardWidth(width / cols);
   }, [ref.current]);
 
   //const bgcolor = theme.palette.primary.main;
@@ -45,6 +45,7 @@ export default function SelectorMarkerIcon({
           display: "flex",
           alignItems: "center",
           flexWrap: "wrap",
+          width: 1,
         }}
       >
         {spriteImage?.iconKeys?.map((_iconKey) => {
@@ -57,8 +58,8 @@ export default function SelectorMarkerIcon({
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                mx: 1,
-                mb: 2,
+                //mx: 1,
+                //mb: 2,
                 width: cardWidth,
                 height: cardWidth,
               }}

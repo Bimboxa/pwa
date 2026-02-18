@@ -6,7 +6,7 @@ import {
   Switch,
 } from "@mui/material";
 
-import SelectorIconGeneric from "Features/layout/components/SelectorIconGeneric";
+import WhiteSectionGeneric from "./WhiteSectionGeneric";
 
 export default function FieldCheck({ value, onChange, label, options }) {
   const type = options?.type ?? "check";
@@ -15,6 +15,30 @@ export default function FieldCheck({ value, onChange, label, options }) {
 
   function handleChange(e, checked) {
     onChange(checked);
+  }
+
+  if (showAsSection) {
+    return <WhiteSectionGeneric>
+      <FormControlLabel
+        sx={{ pl: 1 }}
+        control={
+          type === "switch" ? (
+            <Switch
+              size="small"
+              checked={Boolean(value)}
+              onChange={handleChange}
+            />
+          ) : (
+            <Checkbox
+              size="small"
+              checked={Boolean(value)}
+              onChange={handleChange}
+            />
+          )
+        }
+        label={<Typography variant="body2" color={textColor}>{label}</Typography>}
+      />
+    </WhiteSectionGeneric>
   }
   return (
     <Box

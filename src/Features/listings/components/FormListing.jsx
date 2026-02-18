@@ -71,6 +71,7 @@ export default function FormListing({
       template={template}
       item={item}
       onItemChange={handleItemChange}
+      variant="whiteSections"
     />
   );
 }

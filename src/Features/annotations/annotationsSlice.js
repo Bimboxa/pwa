@@ -8,7 +8,7 @@ const annotationsInitialState = {
   annotationsUpdatedAt: null,
   annotationTemplatesUpdatedAt: null,
   //
-  selectedAnnotationId: null,
+  selectedAnnotationTemplateId: null,
   //
   newAnnotation: {
     fillColor: theme.palette.secondary.main,
@@ -74,6 +74,7 @@ export const annotationsSlice = createSlice({
     setEditedAnnotationTemplate: (state, action) => {
       state.editedAnnotationTemplate = action.payload;
     },
+
     // temp annotations
     setTempAnnotations: (state, action) => {
       state.tempAnnotations = action.payload;

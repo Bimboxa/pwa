@@ -11,6 +11,7 @@ import {
   TextFields,
   Circle,
   StackedLineChart as Strip,
+  Square,
 } from "@mui/icons-material";
 
 import { Box, Typography } from "@mui/material";
@@ -22,15 +23,17 @@ import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldColorVariantToolbar from "Features/form/components/FieldColorVariantToolbar";
 import FieldIconVariantToolbar from "Features/form/components/FieldIconVariantToolbar";
 import FieldImageV2 from "Features/form/components/FieldImageV2";
-
 import FieldFill from "Features/form/components/FieldFill";
 import FieldStroke from "Features/form/components/FieldStroke";
-import FieldPoint from "Features/form/components/FieldPoint";
+import FieldPoint from "Features/form/components/FieldPointSize";
 import FieldCheck from "Features/form/components/FieldCheck";
 import FieldSizeAndUnit from "Features/form/components/FieldSizeAndUnit";
 import FieldQty from "Features/form/components/FieldQty";
 
 import getImageAnnotationPropsFromFileName from "../utils/getImageAnnotationPropsFromFileName";
+import FieldColorV2 from "Features/form/components/FieldColorV2";
+import FieldIcon from "Features/form/components/FieldIcon";
+import FieldPointSize from "Features/form/components/FieldPointSize";
 
 export default function FormAnnotationTemplateVariantBlock({
   annotationTemplate,
@@ -39,11 +42,16 @@ export default function FormAnnotationTemplateVariantBlock({
   // strings
 
   const typeS = "Type d'objet";
-  const qtyS = "Quantité";
+  const qtyS = "Quantité principale";
+  const annotationTypeS = "Type de forme";
 
   // data
 
   const spriteImage = useAnnotationSpriteImage();
+
+  // helper
+
+  const isCreating = !annotationTemplate?.id
 
   // helpers - item
 
@@ -90,6 +98,11 @@ export default function FormAnnotationTemplateVariantBlock({
     sizeUnit,
   };
 
+  const pointSize = {
+    size,
+    sizeUnit
+  }
+
   const sizeAndUnit = {
     size,
     sizeUnit,
@@ -110,6 +123,11 @@ export default function FormAnnotationTemplateVariantBlock({
     { key: "IMAGE", icon: <Image fontSize="small" />, label: "Image" },
     // { key: "TEXT", icon: <TextFields fontSize="small" />, label: "Texte" },
   ];
+
+  const pointVariants = [
+    { key: "SQUARE", icon: <Square fontSize="small" />, label: "Carré" },
+    { key: "CIRCLE", icon: <Circle fontSize="small" />, label: "Cercle" },
+  ]
 
   // helpers
 
@@ -173,6 +191,14 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, ...point });
   }
 
+  function handlePointVariantChange(variant) {
+    onChange({ ...annotationTemplate, variant })
+  }
+
+  function handlePointSizeChange(pointSize) {
+    onChange({ ...annotationTemplate, ...pointSize })
+  }
+
   function handleCutHostChange(cutHost) {
     onChange({ ...annotationTemplate, cutHost });
   }
@@ -185,30 +211,36 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, mainQtyKey });
   }
 
+  function handleHiddenChange(hidden) {
+    onChange({ ...annotationTemplate, hidden })
+  }
+
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 1, width: 1 }}>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          p: 1,
-        }}
-      >
-        {/* <Typography variant="body2">{typeS}</Typography> */}
-        <FieldOptionKeyFromIconsVariantToolbar
-          value={optionKey}
-          onChange={handleTypeChange}
-          valueOptions={annotationTypes}
-        />
-      </Box>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1, width: 1, p: 1 }}>
+
+      <FieldTextV2
+        label="Libellé"
+        value={label}
+        onChange={handleLabelChange}
+        options={{ fullWidth: true, placeholder: "Libellé", showAsSection: "true" }}
+      />
+
+      {/* <Typography variant="body2">{typeS}</Typography> */}
+      <FieldOptionKeyFromIconsVariantToolbar
+        label={annotationTypeS}
+        value={optionKey}
+        onChange={handleTypeChange}
+        valueOptions={annotationTypes}
+        options={{ showAsSection: true }}
+      />
+
 
       {type === "TEXT" && (
         <Box>
           <FieldTextV2
             value={label}
             onChange={handleLabelChange}
-            options={{ fullWidth: true, placeholder: "Libellé" }}
+            options={{ fullWidth: true, placeholder: "Libellé", showAsSection: true }}
           />
           <Box
             sx={{
@@ -221,178 +253,78 @@ export default function FormAnnotationTemplateVariantBlock({
           </Box>
         </Box>
       )}
-      {type === "LABEL" && (
-        <Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
-            <Box sx={{ flex: 1 }}>
-              <FieldTextV2
-                value={label}
-                onChange={handleLabelChange}
-                options={{ fullWidth: true, placeholder: "Libellé" }}
-              />
-            </Box>
-            <FieldColorVariantToolbar
-              value={fillColor}
-              onChange={handleFillColorChange}
-            />
-          </Box>
-        </Box>
-      )}
-      {type === "MARKER" && (
-        <Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
-            <FieldIconVariantToolbar
-              value={iconKey}
-              onChange={handleIconKeyChange}
-              spriteImage={spriteImage}
-              options={{ fillColor }}
-            />
 
-            <Box sx={{ flex: 1 }}>
-              <FieldTextV2
-                value={label}
-                onChange={handleLabelChange}
-                options={{ fullWidth: true, placeholder: "Libellé" }}
-              />
-            </Box>
-            <FieldColorVariantToolbar
-              value={fillColor}
-              onChange={handleFillColorChange}
-            />
-          </Box>
-        </Box>
+      {type === "LABEL" && (
+
+        <FieldColorV2
+          value={fillColor}
+          onChange={handleFillColorChange}
+          label="Couleur"
+          options={{ showAsSection: true }}
+        />
+
+
+      )}
+
+      {type === "MARKER" && (
+        <>
+          <FieldColorV2
+            label="Couleur"
+            value={fillColor}
+            onChange={handleFillColorChange}
+            options={{ showAsSection: true }}
+          />
+          <FieldIcon
+            label="Icône"
+            value={iconKey}
+            onChange={handleIconKeyChange}
+            spriteImage={spriteImage}
+            options={{ iconColor: fillColor, showAsSection: true }}
+          />
+        </>
       )}
 
       {type === "POINT" && (
-        <Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
-            <AnnotationIcon
-              annotation={annotationTemplate}
-              size={32}
-            />
+        <>
+          <FieldColorV2
+            label="Couleur"
+            value={fillColor}
+            onChange={handleFillColorChange}
+            options={{ showAsSection: true }}
+          />
+          <FieldOptionKeyFromIconsVariantToolbar
+            label="Forme"
+            value={variant}
+            onChange={handlePointVariantChange}
+            valueOptions={pointVariants}
+            options={{ showAsSection: true, inline: true }}
+          />
+          <FieldPointSize value={point} onChange={handlePointChange} label="Dimension" />
+        </>
 
-            <Box sx={{ flex: 1 }}>
-              <FieldTextV2
-                value={label}
-                onChange={handleLabelChange}
-                options={{ fullWidth: true, placeholder: "Libellé" }}
-              />
-            </Box>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
-            <FieldPoint value={point} onChange={handlePointChange} />
-          </Box>
-        </Box>
+
+
+
       )}
 
       {["SEGMENT", "POLYLINE", "POLYGON", "STRIP"].includes(type) && (
-        <Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
-            <AnnotationIcon
-              spriteImage={spriteImage}
-              annotation={annotationTemplate}
-              size={32}
-            />
-
-            <Box sx={{ flex: 1 }}>
-              <FieldTextV2
-                value={label}
-                onChange={handleLabelChange}
-                options={{ fullWidth: true, placeholder: "Libellé" }}
-              />
-            </Box>
-          </Box>
-
+        <>
           {showFill && (
-            <Box
-              sx={{
-                width: 1,
-                borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-                p: 2,
-              }}
-            >
-              <FieldFill value={fill} onChange={handleFillChange} />
-            </Box>
+            <FieldFill value={fill} onChange={handleFillChange} />
           )}
 
           {showStroke && (
-            <Box
-              sx={{
-                width: 1,
-                borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-                p: 2,
-              }}
-            >
-              <FieldStroke value={stroke} onChange={handleStrokeChange} />
-            </Box>
+            <FieldStroke value={stroke} onChange={handleStrokeChange} />
           )}
 
-          {/* <Box>
-            <FieldCheck
-              value={cutHost}
-              onChange={handleCutHostChange}
-              label="Couper l'hôte"
-              options={{
-                type: "switch",
-                showAsSection: true,
-              }}
-            />
-          </Box> */}
-        </Box>
+        </>
       )}
 
       {type === "RECTANGLE" && (
-        <Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
-            <AnnotationIcon
-              spriteImage={spriteImage}
-              annotation={annotationTemplate}
-              size={32}
-            />
-
-            <Box sx={{ flex: 1 }}>
-              <FieldTextV2
-                value={label}
-                onChange={handleLabelChange}
-                options={{ fullWidth: true, placeholder: "Libellé" }}
-              />
-            </Box>
-          </Box>
-
-
-          <Box
-            sx={{
-              width: 1,
-              borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-              p: 2,
-            }}
-          >
-            <FieldFill value={fill} onChange={handleFillChange} />
-          </Box>
-
-          <Box
-            sx={{
-              width: 1,
-              borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-              p: 2,
-            }}
-          >
-            <FieldSizeAndUnit value={sizeAndUnit} onChange={handleSizeAndUnitChange} />
-          </Box>
-
-
-          {/* <Box>
-            <FieldCheck
-              value={cutHost}
-              onChange={handleCutHostChange}
-              label="Couper l'hôte"
-              options={{
-                type: "switch",
-                showAsSection: true,
-              }}
-            />
-          </Box> */}
-        </Box>
+        <>
+          <FieldFill value={fill} onChange={handleFillChange} />
+          <FieldSizeAndUnit value={sizeAndUnit} onChange={handleSizeAndUnitChange} />
+        </>
       )}
 
       {type === "IMAGE" && (
@@ -436,13 +368,18 @@ export default function FormAnnotationTemplateVariantBlock({
         </Box>
       )}
 
-      <Box sx={{
-        p: 1,
-        borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-      }}>
-        <Typography variant="body2" sx={{ fontWeight: "bold" }}> {qtyS}</Typography>
-        <FieldQty value={mainQtyKey} onChange={handleMainQtyKeyChange} />
-      </Box>
+      {!isCreating && <FieldQty value={mainQtyKey} onChange={handleMainQtyKeyChange} label={qtyS} options={{ showAsSection: true }} />}
+
+      {!isCreating && <FieldCheck
+        label="Masquer les annotations"
+        value={annotationTemplate?.hidden}
+        onChange={handleHiddenChange}
+        options={{ showAsSection: true }}
+      />}
+
+
+
+
     </Box>
   );
 }

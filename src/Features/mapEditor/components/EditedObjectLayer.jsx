@@ -5,6 +5,7 @@ import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnot
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import theme from 'Styles/theme';
 import { selectSelectedItems, selectSelectedPointId, selectSelectedPartId } from "Features/selection/selectionSlice";
+import useSelectedNodes from '../hooks/useSelectedNodes';
 
 export default function EditedObjectLayer({
     basePose,
@@ -22,9 +23,7 @@ export default function EditedObjectLayer({
     const selectedPartId = useSelector(selectSelectedPartId);
 
     // Compat with existing logic
-    const selectedNode = selectedItems.length > 0 ? { nodeId: selectedItems[0].nodeId, nodeContext: selectedItems[0].context } : null; // Context? Wait, I didn't store context in selectionSlice item yet?
-
-    const selectedNodes = selectedItems.map(i => ({ nodeId: i.nodeId }));
+    const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
 
     const { draggingAnnotationId, hiddenAnnotationIds } = useInteraction();
 
@@ -59,7 +58,7 @@ export default function EditedObjectLayer({
         }
 
         return [];
-    }, [selectedNode, annotations, selectedPointId]);
+    }, [selectedNode?.nodeId, annotations, selectedPointId]);
 
 
     // 2. Gestion de la Pose (On prend celle du premier élément trouvé ou défaut)
@@ -72,7 +71,9 @@ export default function EditedObjectLayer({
             return false;
         }
         return false;
-    }, [selectedNode, activeAnnotations?.length]);
+    }, [selectedNode?.nodeId, activeAnnotations?.length]);
+
+    console.log("isBgContext", isBgContext, selectedNode)
 
     const finalPose = isBgContext ? { x: 0, y: 0, k: 1 } : basePose;
 

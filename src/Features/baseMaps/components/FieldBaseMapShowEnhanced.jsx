@@ -1,4 +1,5 @@
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
+import useMainBaseMapListing from "../hooks/useMainBaseMapListing";
 
 import {
     Box,
@@ -10,12 +11,12 @@ export default function FieldBaseMapShowEnhanced({ baseMap }) {
 
     // data
 
+    const mainBaseMapListing = useMainBaseMapListing();
     const updateEntity = useUpdateEntity();
 
     // helpers
 
     let checked = Boolean(baseMap?.showEnhanced);
-    if (!baseMap?.imageEnhanced) checked = false;
 
     const disabled = !baseMap?.imageEnhanced?.imageUrlClient
 
@@ -25,7 +26,8 @@ export default function FieldBaseMapShowEnhanced({ baseMap }) {
     function handleChange(e) {
         const newChecked = !checked;
         const updates = { showEnhanced: newChecked };
-        updateEntity(baseMap.id, updates);
+        if (newChecked) updates.opacityEnhanced = 0
+        updateEntity(baseMap.id, updates, { listing: mainBaseMapListing });
     }
 
     // render

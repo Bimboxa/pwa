@@ -13,12 +13,15 @@ export default function useAutoSelectListing() {
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const scopeId = useSelector(s => s.scopes.selectedScopeId)
 
   const listings = useListings({
     filterByProjectId: projectId,
+    filterByScopeId: scopeId,
+    //includeListingsWithoutScope: true,
     filterByEntityModelType: "LOCATED_ENTITY",
   });
-  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+
 
   const { value: selectedListing } = useSelectedListing();
 
@@ -35,9 +38,12 @@ export default function useAutoSelectListing() {
 
   useEffect(() => {
     const triggerAuto = !selectedListingId && listings?.length > 0;
-    console.log("[EFFECT] trigger useAutoSelectListing", triggerAuto);
 
-    if (triggerAuto) {
+    if (listings?.length === 0) {
+      dispatch(setSelectedListingId(null))
+    }
+
+    else if (triggerAuto) {
       console.log("[EFFECT] useAutoSelectListing - set First listing");
       const firstListing = listings[0];
       if (firstListing) {
@@ -48,5 +54,6 @@ export default function useAutoSelectListing() {
         dispatch(setSelectedListingId(firstListing.id));
       }
     }
-  }, [selectedScopeId, selectedListingId, listings?.length]);
+  }, [scopeId, selectedListingId, listings?.length]);
+
 }

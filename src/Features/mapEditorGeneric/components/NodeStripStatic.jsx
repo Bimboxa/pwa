@@ -55,7 +55,7 @@ export default function NodeStripStatic({
     } = mergedAnnotation || {};
 
     const labelAnnotation = getAnnotationLabelPropsFromAnnotation(mergedAnnotation);
-    const showLabel = (mergedAnnotation.showLabel || selected) && !forceHideLabel;
+    const showLabel = (mergedAnnotation.showLabel) && !forceHideLabel;
 
     if (!strokeColor) strokeColor = theme.palette.secondary.main;
     if (!fillColor) fillColor = theme.palette.secondary.main;

@@ -13,6 +13,8 @@ export default function useListings(options) {
   const filterByEntityModelType = options?.filterByEntityModelType;
   const relsZoneEntityListings = options?.relsZoneEntityListings;
 
+  const includeListingsWithoutScope = options?.includeListingsWithoutScope;
+
 
   // data
 
@@ -54,6 +56,7 @@ export default function useListings(options) {
           listing.entityModel?.type === "LOCATED_ENTITY";
         return (
           (!test && !isLocatedEntities) ||
+          (!listing.scopeId && includeListingsWithoutScope) ||
           (test && listing.scopeId === filterByScopeId)
         );
       });

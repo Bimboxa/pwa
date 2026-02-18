@@ -157,7 +157,7 @@ const InteractionLayer = forwardRef(({
   const selectedPartId = useSelector(selectSelectedPartId);
 
   // Computed selectedNode equivalent (first item)
-  const selectedNode = selectedItems.length > 0 ? { nodeId: selectedItems[0].nodeId, nodeType: selectedItems[0].type } : null;
+  const selectedNode = selectedItems?.filter(t => t.type === "NODE").length > 0 ? selectedItems[0] : null;
 
   const { zoomContainer } = useSmartZoom();
 
@@ -200,9 +200,14 @@ const InteractionLayer = forwardRef(({
   }, [annotations, selectedNode?.nodeId]);
 
   // annotations for Snap
+  // When in point-editing mode, allow snapping to all annotations
+  // Only restrict to selected annotation when actively drawing or moving the whole annotation
 
   let annotationsForSnap = annotations;
-  if (selectedAnnotation) annotationsForSnap = [selectedAnnotation];
+  console.log("debug_1602_selectedAnnotation", selectedAnnotation)
+  if (selectedAnnotation?.id && !selectedPointId && !selectedPartId) {
+    annotationsForSnap = [selectedAnnotation];
+  }
 
   // cameraZoom
 
@@ -552,7 +557,7 @@ const InteractionLayer = forwardRef(({
       enabledDrawingMode,
       onPointDuplicateAndMoveCommit
     };
-  }, [selectedNode, selectedPointId, selectedPartId, onDeletePoint, onHideSegment, onRemoveCut, enabledDrawingMode, onPointDuplicateAndMoveCommit]);
+  }, [selectedNode?.nodeId, selectedPointId, selectedPartId, onDeletePoint, onHideSegment, onRemoveCut, enabledDrawingMode, onPointDuplicateAndMoveCommit]);
 
 
   // 1. Calculer le style curseur du conteneur
@@ -1257,12 +1262,13 @@ const InteractionLayer = forwardRef(({
           let _selectedItems = [...selectedItems];
           const newItem = {
             id: hit.dataset.nodeId,
+            type: "NODE",
             nodeId: hit.dataset.nodeId,
-            type: hit.dataset.nodeType, // "ANNOTATION"
-            nodeType: hit.dataset.annotationType, // "POLYLINE", "MARKER", etc.
+            nodeType: hit.dataset.nodeType, // "ANNOTATION"
+            annotationType: hit.dataset.annotationType, // "POLYLINE", "MARKER", etc.
             entityId: hit.dataset.nodeEntityId,
             listingId: hit.dataset.nodeListingId,
-            context: hit.dataset.nodeContext, // Optional but useful for EditedObjectLayer
+            nodeContext: hit.dataset.nodeContext, // Optional but useful for EditedObjectLayer
             partId: null,
             partType: null
           };
@@ -1324,8 +1330,11 @@ const InteractionLayer = forwardRef(({
           // Legacy handling for non-annotation nodes in BG mode (Legend?)
           // dispatch(setSelectedNode(hit?.dataset));
           dispatch(setSelectedItem({
+            id: hit.dataset.nodeId,
             nodeId: hit.dataset.nodeId,
-            type: hit.dataset.nodeType,
+            type: "NODE",
+            nodeType: hit.dataset.nodeType,
+            nodeContext: hit.dataset.nodeContext,
             partId: null,
             partType: null
           }));
@@ -1671,6 +1680,7 @@ const InteractionLayer = forwardRef(({
 
     let snapResult;
     if (snappingEnabled && !preventSnapping) {
+
       const imageScale = getTargetScale();
       const currentCameraZoom = viewportRef.current?.getZoom() || 1;
       const scale = imageScale * currentCameraZoom;
@@ -1944,11 +1954,12 @@ const InteractionLayer = forwardRef(({
       const newItem = {
         id: annotationId,
         nodeId: annotationId,
-        type: "ANNOTATION",
-        nodeType: annotation?.type,
+        type: "NODE",
+        nodeType: "ANNOTATION",
+        annotationType: annotation?.type,
         entityId: annotation?.entityId,
         listingId: annotation?.listingId,
-        context: annotation?.context,
+        nodeContext: dragAnnotationState.nodeContext,
         partId: null,
         partType: null
       };
@@ -2215,7 +2226,7 @@ const InteractionLayer = forwardRef(({
       e.stopPropagation();
       e.preventDefault();
 
-      const { nodeId } = draggableGroup.dataset;
+      const { nodeId, nodeContext } = draggableGroup.dataset;
 
       const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
       const startMouseInLocal = toLocalCoords(worldPos);
@@ -2228,7 +2239,8 @@ const InteractionLayer = forwardRef(({
         selectedAnnotationId: nodeId,
         startMouseInLocal,
         partType,
-        startMouseScreen: { x: e.clientX, y: e.clientY } // Stocker la position écran initiale
+        startMouseScreen: { x: e.clientX, y: e.clientY }, // Stocker la position écran initiale
+        nodeContext,
       };
       setDragAnnotationState(newDragAnnotationState);
       dragAnnotationStateRef.current = newDragAnnotationState;
@@ -2360,11 +2372,8 @@ const InteractionLayer = forwardRef(({
           />
             <SnappingLayer
               ref={snappingLayerRef}
-              viewportScale={targetPose.k} // To keep circle 8px fixed
               color="#ff00ff"
               onMouseDown={handleMarkerMouseDown}
-              isDrawing={Boolean(enabledDrawingMode)}
-              selectedPointId={selectedPointId}
             />
             <ClosingMarker
               ref={closingMarkerRef}

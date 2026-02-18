@@ -9,7 +9,6 @@ import useAppConfig from "../hooks/useAppConfig";
 import useRefreshAppConfig from "../hooks/useRefreshAppConfig";
 
 import { Box, Button, Typography, Tooltip, TextField } from "@mui/material";
-import { Refresh } from "@mui/icons-material";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
@@ -51,7 +50,7 @@ export default function SectionAppConfigTitle() {
           size="small"
           label="Code"
           value={configCode}
-          onChange={(e) => dispatch(setConfigCode(e.target.value))}
+          onChange={(e) => { dispatch(setConfigCode(e.target.value)); }}
         />
       </Box>
       <Box

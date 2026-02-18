@@ -2,7 +2,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { setEnabledDrawingMode } from "../mapEditorSlice";
 
-import { Paper, Box } from "@mui/material";
+import { Paper, Box, Typography } from "@mui/material";
 import { Mouse, Rectangle, WaterDrop, MyLocation as TARGET, Brush, Insights as Smart } from "@mui/icons-material";
 import theme from "Styles/theme";
 
@@ -14,6 +14,10 @@ import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
 export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
 
     const dispatch = useDispatch();
+
+    // strings
+
+    const drawS = "Outils de dessin"
 
     // data
 
@@ -89,13 +93,20 @@ export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
     if (!showMode) return null;
 
     return <Paper
-        sx={{ display: "flex", alignItems: "center", p: 0 }
+        sx={{ display: "flex", alignItems: "center", flexDirection: "column" }
         }>
-        <ToggleSingleSelectorGeneric
-            options={options.filter(o => o.show)}
-            selectedKey={enabledDrawingMode}
-            onChange={handleChange}
-        />
+        <Paper elevation={0} sx={{ bgcolor: "background.default", px: 1, width: 1 }}>
+            <Typography variant="caption" color="text.secondary">{drawS}</Typography>
+        </Paper>
+
+        <Box sx={{ p: 1 }}>
+            <ToggleSingleSelectorGeneric
+                options={options.filter(o => o.show)}
+                selectedKey={enabledDrawingMode}
+                onChange={handleChange}
+            />
+        </Box>
+
     </Paper >
 
 }

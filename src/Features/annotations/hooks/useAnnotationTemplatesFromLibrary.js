@@ -1,41 +1,58 @@
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import { nanoid } from "@reduxjs/toolkit";
 
-// Dynamic loader for annotation templates library
-const LIBRARY_LOADER = import.meta.glob(
-  "../../../App/data/annotationTemplatesLibrary.js",
-  {
-    eager: false,
-  }
+
+// Dynamic loader for all annotationTemplatesLibraries files under Data/*/
+const LIBRARY_LOADERS = import.meta.glob(
+  "../../../Data/*/annotationTemplatesLibraries.js",
+  { eager: false }
 );
 
 export default function useAnnotationTemplatesFromLibrary(options) {
   const [library, setLibrary] = useState([]);
+
+  const configCode = import.meta.env.VITE_CONFIG_CODE;
 
   const addId = options?.addId;
 
   useEffect(() => {
     async function loadLibrary() {
       try {
-        const loader =
-          LIBRARY_LOADER["../../../App/data/annotationTemplatesLibrary.js"];
-        if (loader) {
-          const module = await loader();
-          let templates = module.default || [];
-          if (addId) {
-            templates = templates.map((template) => ({
-              ...template,
-              id: nanoid(),
-            }));
-          }
-          setLibrary(templates);
-        } else {
+        const path = `../../../Data/${configCode}/annotationTemplatesLibraries.js`;
+        const loader = LIBRARY_LOADERS[path];
+
+        if (!loader) {
           console.warn(
-            "[useAnnotationTemplatesFromLibrary] annotationTemplatesLibrary.js not found"
+            `[useAnnotationTemplatesFromLibrary] No library found for configCode "${configCode}"`
           );
           setLibrary([]);
+          return;
         }
+
+        const module = await loader();
+        const libraries = module.default || [];
+
+        // Flatten: each library has a .templates array
+        // We merge all templates into a flat array, preserving the library info as `group`
+        let templates = libraries.flatMap((lib) =>
+          (lib.templates || []).map((template) => ({
+            ...template,
+            group: template.group || lib.name,
+          }))
+        );
+
+        if (addId) {
+          templates = templates.map((template) => ({
+            ...template,
+            id: nanoid(),
+          }));
+        }
+
+        setLibrary(templates);
       } catch (error) {
         console.error(
           "[useAnnotationTemplatesFromLibrary] Error loading library:",
@@ -46,7 +63,7 @@ export default function useAnnotationTemplatesFromLibrary(options) {
     }
 
     loadLibrary();
-  }, []);
+  }, [configCode, addId]);
 
   return library;
 }

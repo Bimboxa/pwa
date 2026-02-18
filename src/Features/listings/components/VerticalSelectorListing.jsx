@@ -8,6 +8,7 @@ import {
   setOpenedPanel,
 } from "../listingsSlice";
 import useListingsByScope from "../hooks/useListingsByScope";
+import useListings from "../hooks/useListings";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useMoveAnnotationTemplateToListing from "Features/annotations/hooks/useMoveAnnotationTemplateToListing";
 
@@ -97,8 +98,10 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
 
   const moveAnnotationTemplateToListing = useMoveAnnotationTemplateToListing();
 
-  const { value: listings } = useListingsByScope({
+  const listings = useListings({
     filterByProjectId: projectId ?? null,
+    filterByScopeId: scopeId,
+    //includeListingsWithoutScope: true
   });
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   console.log("debug_1610_selectedListingId", selectedListingId);

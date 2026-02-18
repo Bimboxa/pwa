@@ -13,8 +13,11 @@ import {
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SearchBar from "Features/search/components/SearchBar";
 import AnnotationIcon from "Features/annotations/components/AnnotationIcon";
+import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
 
 import getFoundItems from "Features/search/getFoundItems";
+
 
 export default function SectionSelectAnnotationTemplates({
   annotationTemplates,
@@ -51,6 +54,10 @@ export default function SectionSelectAnnotationTemplates({
     }
   }
 
+  function handleSelectAll() {
+    onChange(foundItems.map(item => item.id))
+  }
+
   // return
 
   return (
@@ -59,12 +66,16 @@ export default function SectionSelectAnnotationTemplates({
         <SearchBar value={search} onChange={handleChangeSearch} />
       </Box>
 
+      <BoxAlignToRight>
+        <ButtonGeneric label="Tout sélectionner" onClick={handleSelectAll} />
+      </BoxAlignToRight>
+
       <BoxFlexVStretch sx={{ overflow: "auto" }}>
         <List>
           {foundItems?.map((item, idx) => {
             if (item.isGroup) {
               return (
-                <ListItemButton key={item.label}>
+                <ListItemButton key={item.label} >
                   <Typography variant="body2" sx={{ fontWeight: "bold" }}>
                     {item.label}
                   </Typography>
@@ -76,6 +87,7 @@ export default function SectionSelectAnnotationTemplates({
                 key={item.label}
                 onClick={() => handleChangeSelection(item)}
                 selected={selection?.includes(item.id)}
+                divider
               >
                 <AnnotationIcon spriteImage={spriteImage} annotation={item} />
                 <Typography variant="body2" sx={{ ml: 1 }}>
