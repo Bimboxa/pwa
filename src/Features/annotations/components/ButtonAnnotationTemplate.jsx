@@ -5,13 +5,13 @@ import { useSelector } from "react-redux";
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
 import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
 
-import { Button, Typography, Menu, MenuItem } from "@mui/material";
+import { Button, Typography, Menu, MenuItem, Box } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import AnnotationIcon from "./AnnotationIcon";
 
-export default function ButtonAnnotationTemplate({ annotation }) {
+export default function ButtonAnnotationTemplate({ annotation, bgcolor = null, ...props }) {
 
     const [anchorEl, setAnchorEl] = useState(null);
     const open = Boolean(anchorEl);
@@ -47,9 +47,11 @@ export default function ButtonAnnotationTemplate({ annotation }) {
 
 
     return <>
-        <Button endIcon={<ArrowDropDownIcon size="small" />} onClick={handleClick}>
-            <AnnotationIcon annotation={annotation} />
-            <Typography variant="body2" sx={{ ml: 1 }}>{templateLabel}</Typography>
+        <Button endIcon={<ArrowDropDownIcon size="small" />} onClick={handleClick} sx={{ bgcolor }} {...props}>
+            <Box sx={{ display: "flex", alignItems: "center", width: 1, gap: 1 }}>
+                <AnnotationIcon annotation={annotation} />
+                <Typography variant="body2" sx={{ ml: 1 }}>{templateLabel}</Typography>
+            </Box>
         </Button>
         <Menu
             open={open}

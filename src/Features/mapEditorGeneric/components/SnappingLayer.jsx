@@ -4,7 +4,6 @@ import theme from "Styles/theme";
 
 const SnappingLayer = forwardRef(({
     color = "#ff00ff",
-    isDrawing,
     onMouseDown,
 }, ref) => {
 

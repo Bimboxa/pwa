@@ -38,6 +38,7 @@ export default function FormGenericV2({
   onItemChange,
   createContainerEl,
   sectionContainerEl,
+  variant,
 }) {
   const formContainerRef = useRef(null);
 
@@ -60,6 +61,7 @@ export default function FormGenericV2({
         //height: 1,
         flexDirection: "column",
         overflow: "auto",
+        ...(variant === "whiteSections" && { bgcolor: "background.default", gap: 1, p: 1 }),
       }}
     >
       {templateFields?.map((field) => {
@@ -144,6 +146,7 @@ export default function FormGenericV2({
               onChange={(newValue) =>
                 handleFieldValueChange(field.key, newValue)
               }
+              options={field.options}
             />
           );
         }

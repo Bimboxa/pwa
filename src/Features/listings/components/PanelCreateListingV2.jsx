@@ -5,12 +5,14 @@ import { useDispatch, useSelector } from "react-redux"
 import { setOpenedPanel, setSelectedListingId } from "../listingsSlice"
 
 import useResolvedPresetListings from "../hooks/useResolvedPresetListings"
+import useAppConfig from "Features/appConfig/hooks/useAppConfig"
 
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope"
 import useCreateListing from "../hooks/useCreateListing"
 import useAddListingToScope from "Features/scopes/hooks/useAddListingToScope"
 
 import { Box, Typography } from "@mui/material"
+import { ArrowForward as Next } from "@mui/icons-material"
 
 import ListItemsGeneric from "Features/layout/components/ListItemsGeneric";
 import Panel from "Features/layout/components/Panel"
@@ -18,6 +20,8 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import FormListing from "./FormListing";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import BoxFlexHStretch from "Features/layout/components/BoxFlexHStretch"
+import BoxAlignToRight from "Features/layout/components/BoxAlignToRight"
 
 export default function PanelCreateListingV2({ onListingCreated }) {
     const dispatch = useDispatch()
@@ -25,8 +29,13 @@ export default function PanelCreateListingV2({ onListingCreated }) {
     // strings
 
     const selectS = "Listes pré-configurées"
+    const nextS = "Suivant"
+    const title = "Nouvelle liste";
+    const createCustomS = "Créer une liste sur mesure";
 
     // data
+
+    const appConfig = useAppConfig();
 
     const projectId = useSelector(s => s.projects.selectedProjectId)
     const presetListings = useResolvedPresetListings();
@@ -38,13 +47,20 @@ export default function PanelCreateListingV2({ onListingCreated }) {
 
     const [selectedPresetListing, setSelectedPresetListing] = useState(null);
     const [tempListing, setTempListing] = useState(selectedPresetListing);
+
     useEffect(() => {
         setTempListing({ ...selectedPresetListing, name: selectedPresetListing?.fullName })
     }, [selectedPresetListing?.key])
 
+    console.log("tempListing", tempListing)
+
     // helpers
 
     const listings = presetListings.filter(listing => listing.annotationTemplatesLibrary)
+
+    // helpers - default entityModel
+
+    const defaultEntityModel = Object.values(appConfig?.entityModelsObject).find(entityModel => entityModel.isDefault && entityModel.type === "LOCATED_ENTITY")
 
     // helpers - steps
 
@@ -55,6 +71,10 @@ export default function PanelCreateListingV2({ onListingCreated }) {
 
     function handleClick(listing) {
         setSelectedPresetListing(listing)
+    }
+
+    function handleNextClick() {
+        setSelectedPresetListing({ name: "Nouvelle liste" })
     }
 
     function handleChange(newListing) {
@@ -70,8 +90,16 @@ export default function PanelCreateListingV2({ onListingCreated }) {
             ...tempListing,
             projectId,
             canCreateItem: true,
+            table: tempListing?.table ?? "entities",
+            entityModel: tempListing?.entityModel ?? defaultEntityModel
         };
-        if (newListing.entityModel) delete newListing.entityModel;
+        if (newListing.entityModel) {
+            newListing.entityModelKey = newListing.entityModel?.key
+            //delete newListing.entityModel;
+        }
+
+        console.log("createListing", newListing)
+
 
         // create listing
         const _newListing = await createListing({ listing: newListing, scope });
@@ -96,11 +124,27 @@ export default function PanelCreateListingV2({ onListingCreated }) {
     return (
         <Panel>
             {step === 1 && <BoxFlexVStretch>
-                <Typography sx={{ p: 1 }} variant="body2" color="text.secondary">
-                    {selectS}
-                </Typography>
+                <Box sx={{ p: 1 }}>
+                    <Typography>{title}</Typography>
+                </Box>
 
-                <ListItemsGeneric items={listings} onClick={handleClick} labelKey="fullName" />
+                <Box sx={{ width: 1, p: 2 }}>
+                    <ButtonGeneric label={createCustomS} onClick={handleNextClick} fullWidth variant="outlined" endIcon={<Next />} />
+                </Box>
+
+                <BoxFlexVStretch sx={{ bgcolor: "background.default" }}>
+                    <Typography sx={{ p: 1 }} variant="body2" color="text.secondary">
+                        {selectS}
+                    </Typography>
+
+                    <Box sx={{ p: 1 }}>
+                        <Box sx={{ flex: 1, overflow: "auto", bgcolor: "white" }}>
+                            <ListItemsGeneric items={listings} onClick={handleClick} labelKey="fullName" />
+                        </Box>
+                    </Box>
+
+                </BoxFlexVStretch>
+
             </BoxFlexVStretch>}
 
             {step === 2 && <BoxFlexVStretch>
@@ -115,7 +159,8 @@ export default function PanelCreateListingV2({ onListingCreated }) {
                     <FormListing
                         listing={tempListing}
                         onChange={handleChange}
-                        variant="basic"
+                        variant={tempListing?.key ? "basic" : "standard"}
+                        locatedListingOnly={true}
                     />
                 </BoxFlexVStretch>
                 <ButtonInPanelV2
@@ -123,6 +168,7 @@ export default function PanelCreateListingV2({ onListingCreated }) {
                     label="Créer"
                     variant="contained"
                     color="secondary"
+
                 />
 
             </BoxFlexVStretch>}

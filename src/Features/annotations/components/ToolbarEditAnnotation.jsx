@@ -90,20 +90,20 @@ export default function ToolbarEditAnnotation() {
       </PopperDragHandle>
 
       {type === "MARKER" && <Box sx={{ display: "flex", alignItems: "center" }}>
-        <ButtonAnnotationTemplate annotation={selectedAnnotation} />
+        {/* <ButtonAnnotationTemplate annotation={selectedAnnotation} /> */}
         <IconButtonCloneAnnotation annotation={selectedAnnotation} />
       </Box>}
       {type === "POINT" && <Box sx={{ display: "flex", alignItems: "center" }}>
-        <ButtonAnnotationTemplate annotation={selectedAnnotation} />
+        {/* <ButtonAnnotationTemplate annotation={selectedAnnotation} /> */}
       </Box>}
 
       {type === "POLYGON" && <Box sx={{ display: "flex", alignItems: "center" }}>
-        <ButtonAnnotationTemplate annotation={selectedAnnotation} />
+        {/* <ButtonAnnotationTemplate annotation={selectedAnnotation} /> */}
         <IconButtonCloneAnnotation annotation={selectedAnnotation} />
       </Box>}
 
       {type === "POLYLINE" && <Box sx={{ display: "flex", alignItems: "center" }}>
-        <ButtonAnnotationTemplate annotation={selectedAnnotation} />
+        {/* <ButtonAnnotationTemplate annotation={selectedAnnotation} /> */}
         <IconButtonToggleAnnotationCloseLine annotation={selectedAnnotation} />
         <IconButtonCloneAnnotation annotation={selectedAnnotation} />
         <FieldAnnotationHeight
@@ -157,6 +157,9 @@ export default function ToolbarEditAnnotation() {
         onChange={handleChange}
       /> */}
 
+      <IconButton>
+        <More />
+      </IconButton>
 
     </Paper>
   );

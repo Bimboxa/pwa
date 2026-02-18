@@ -85,26 +85,29 @@ export default function useListingFormTemplate(listing, options) {
           firstOptionByDefault: optionsEntityModels?.length === 1,
           displayNone: optionsEntityModels?.length === 1,
           labelKey: "name",
+          showAsSection: true,
         },
-        hidden: variant === "basic",
+        hidden: variant === "basic" || locatedListingOnly,
       },
       ...selectorFields,
       {
         key: "color",
         label: "Couleur",
         type: "color",
+        options: { showAsSection: true }
       },
 
       {
         key: "iconKey",
         label: "Icône",
         type: "iconBasic",
-        options: { iconsMap, iconColor },
+        options: { iconsMap, iconColor, showAsSection: true },
       },
       {
         key: "showNewAnnotationToolbar",
         label: "Afficher la barre d'outils",
         type: "check",
+        hidden: true
       },
 
       {
@@ -112,16 +115,18 @@ export default function useListingFormTemplate(listing, options) {
         label: "Créer des entités",
         type: "check",
         ...(locatedListingOnly && { hidden: true }),
-        hidden: variant === "basic",
+        hidden: variant === "basic" || locatedListingOnly,
+        options: { showAsSection: true }
       },
       {
         key: "table",
         label: "Table",
         type: "optionKey",
-        valueOptions: [{ key: "entities", label: "Défault" }],
+        valueOptions: [{ key: "entities", label: "Objets" }],
         options: { showAsSection: true },
-        ...(locatedListingOnly && { hidden: true }),
         hidden: variant === "basic",
+        ...(locatedListingOnly && { hidden: true }),
+        //hidden: true
       },
     ],
   };

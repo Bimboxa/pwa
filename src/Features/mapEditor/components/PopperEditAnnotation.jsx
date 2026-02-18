@@ -19,7 +19,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   );
 
   const selectedItems = useSelector(selectSelectedItems);
-  const selectedNode = selectedItems.length === 1 ? { nodeId: selectedItems[0].nodeId, nodeType: selectedItems[0].type } : null;
+  const selectedNode = selectedItems.length === 1 ? selectedItems[0] : null;
 
   const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const selectedAnnotation = useSelectedAnnotation();

@@ -145,9 +145,8 @@ export default function TransientTopologyLayer({
     return (
         <g className="transient-layer">
             {modifiedAnnotations.map(ann => {
-                return <>
+                return <React.Fragment key={ann.id}>
                     {["POLYGON", "POLYLINE"].includes(ann.type) && <NodePolylineStatic
-                        key={ann.id}
                         annotation={ann}
                         annotationOverride={{
                             strokeColor: "#2196f3",
@@ -161,7 +160,6 @@ export default function TransientTopologyLayer({
                     />}
 
                     {ann.type === "STRIP" && <NodeStripStatic
-                        key={ann.id}
                         annotation={ann}
                         annotationOverride={{
                             strokeColor: "#2196f3",
@@ -173,7 +171,7 @@ export default function TransientTopologyLayer({
                         selected={true}
                         isTransient={true}
                     />}
-                </>
+                </React.Fragment>
             })}
 
             {/* Le Point sous la souris (Feedback visuel) */}

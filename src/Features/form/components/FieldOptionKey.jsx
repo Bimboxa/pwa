@@ -3,6 +3,8 @@ import { useState, useRef } from "react";
 import { Menu, MenuItem, Box, Typography, Button } from "@mui/material";
 import { ArrowDropDown as Down } from "@mui/icons-material";
 
+import WhiteSectionGeneric from "./WhiteSectionGeneric";
+
 export default function FieldOptionKey({
   value,
   label,
@@ -11,6 +13,10 @@ export default function FieldOptionKey({
   options,
 }) {
   const arrowRef = useRef(null);
+
+  // options
+
+  const showAsSection = options?.showAsSection;
 
   // state
 
@@ -26,6 +32,42 @@ export default function FieldOptionKey({
 
   function handleChange(option) {
     onChange(option.key);
+  }
+
+  if (showAsSection) {
+    return <>
+      <WhiteSectionGeneric
+      >
+        <Box sx={{ display: "flex", alignItems: "center", width: 1, justifyContent: "space-between" }}>
+          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+            {label}
+          </Typography>
+          <Button
+            endIcon={<Down ref={arrowRef} />}
+            onClick={(e) => setAnchorEl(e.currentTarget)}
+          >
+            <Typography variant="button" noWrap>{buttonLabel}</Typography>
+          </Button>
+        </Box>
+      </WhiteSectionGeneric>
+      <Menu
+        anchorEl={arrowRef.current}
+        open={open}
+        onClose={() => setAnchorEl(null)}
+      >
+        {valueOptions.map((option) => (
+          <MenuItem
+            key={option?.key}
+            onClick={() => {
+              handleChange(option);
+              setAnchorEl(null);
+            }}
+          >
+            <Typography noWrap variant="body2">{option?.label}</Typography>
+          </MenuItem>
+        ))}
+      </Menu>
+    </>
   }
 
   return (

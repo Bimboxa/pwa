@@ -1,5 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
+
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
+import useMainBaseMapListing from "../hooks/useMainBaseMapListing";
+
 import { Box, IconButton } from "@mui/material"; // Ajout de IconButton
 import { Visibility, VisibilityOff } from "@mui/icons-material"; // Ajout des icônes
 import FieldSlider from "Features/form/components/FieldSlider";
@@ -8,6 +11,7 @@ import throttle from "Features/misc/utils/throttle";
 export default function FieldBaseMapOpacity({ baseMap, variant = "image" }) {
     const opacity = variant === "imageEnhanced" ? baseMap?.opacityEnhanced : baseMap?.opacity;
     const updateEntity = useUpdateEntity();
+    const mainBaseMapListing = useMainBaseMapListing();
 
     const [localOpacity, setLocalOpacity] = useState(opacity);
     // État pour mémoriser l'ancienne valeur avant de masquer
@@ -27,9 +31,9 @@ export default function FieldBaseMapOpacity({ baseMap, variant = "image" }) {
                 } else {
                     updates.opacity = value;
                 }
-                updateEntity(id, updates);
+                updateEntity(id, updates, { listing: mainBaseMapListing });
             }, 200),
-        [updateEntity, variant]
+        [updateEntity, variant, mainBaseMapListing?.id]
     );
 
     function handleChange(newValue) {
@@ -49,7 +53,7 @@ export default function FieldBaseMapOpacity({ baseMap, variant = "image" }) {
             ? { opacityEnhanced: nextValue }
             : { opacity: nextValue };
 
-        updateEntity(baseMap.id, updates);
+        updateEntity(baseMap.id, updates, { listing: mainBaseMapListing });
     }
 
     return (

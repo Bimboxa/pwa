@@ -38,27 +38,27 @@ strings:
     select: "Sélectionnez un dossier / lot"
 
   project:
-    nameSingular: "Opportunité / Chantier"
-    namePlural: "Opportunités / Chantiers"
+    nameSingular: "Projet"
+    namePlural: "Projets"
     seeAll: "Tous"
-    new: "Nouveau chantier / opportunité"
-    create: "Créez un nouveau chantier / opportunité"
-    noProject: Aucun chantier / opportunité disponible
-    nameLabel: Nom du chantier / opportunité
+    new: "Nouveau projet"
+    create: "Créez un nouveau projet"
+    noProject: Aucun projet disponible
+    nameLabel: Nom du projet
 
   scope:
-    dashboardTitle: "Krtos"
-    nameSingular: "Krto"
-    description: "Un Krto est un dossier de plans de repérage de même type."
-    namePlural: "Krto"
-    seeAll: "Toutes les Krtos"
-    search: "Rechercher une Krto"
-    new: "Nouvelle Krto"
-    create: "Créez une nouvelle Krto"
-    select: "Sélectionnez une Krto"
-    myScopes: "Mes Krtos"
-    nameLabel: "Nom du Krto"
-    noScope: "Aucun Krto"
+    dashboardTitle: "Dossiers"
+    nameSingular: "Dossier"
+    description: "Un dossier est un dossier de plans de repérage de même type."
+    namePlural: "Dossiers"
+    seeAll: "Tous les dossiers"
+    search: "Rechercher un dossier"
+    new: "Nouveau dossier"
+    create: "Créez un nouveau dossier"
+    select: "Sélectionnez un dossier"
+    myScopes: "Mes dossiers"
+    nameLabel: "Nom du dossier"
+    noScope: "Aucun dossier"
 
   listing:
     namePlural: "Listes"
@@ -131,7 +131,6 @@ features:
   annotations:
     spriteImages:
       - key: DEFAULT
-        url: https://public.media.bimboxa.com/sprite_etandex_default.png
         columns: 3
         rows: 3
         tile: 64

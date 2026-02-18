@@ -143,8 +143,8 @@ function StaticMapContent({
                     height={baseMapImageSize?.height}
                     //hovered={baseMapIsHovered}
                     //selected={baseMapIsSelected}
-                    //opacity={opacityEnhanced}
-                    //grayScale={grayScale}
+                    opacity={opacity}
+                    grayScale={grayScale}
                     grayLevelThreshold={grayLevelThreshold}
                 />}
 
@@ -156,7 +156,7 @@ function StaticMapContent({
                     height={baseMapImageSize?.height}
                     hovered={baseMapIsHovered}
                     selected={baseMapIsSelected}
-                    opacity={baseMapShowEnhanced ? opacityEnhanced : opacity}
+                    opacity={baseMapShowEnhanced ? opacityEnhanced * opacity : opacity}
                     grayScale={grayScale}
                     grayLevelThreshold={grayLevelThreshold}
                 />}

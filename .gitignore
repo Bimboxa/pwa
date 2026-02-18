@@ -36,6 +36,7 @@ config
 _appConfig.yaml
 appConfig_lei.yaml
 appConfig_edx.yaml
+vite.config.local.js
 
 # Temp
 temp

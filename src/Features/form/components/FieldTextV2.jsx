@@ -11,6 +11,7 @@ import {
 
 import { Stop, Mic as MicIcon, Close } from "@mui/icons-material";
 import useRecognition from "../hooks/useRecognition";
+import WhiteSectionGeneric from "./WhiteSectionGeneric";
 
 export default function FieldTextV2({ value, onChange, options, label }) {
   const fullWidth = options?.fullWidth; // to consider default value from entities model
@@ -149,6 +150,17 @@ export default function FieldTextV2({ value, onChange, options, label }) {
         {textField}
       </Box>
     </Box>
+  }
+
+  if (showAsSection) {
+    return <WhiteSectionGeneric>
+      <Typography variant="body2" sx={{ fontWeight: "bold", mb: 2 }} noWrap>
+        {label}
+      </Typography>
+      <Box sx={{ flex: 1, minWidth: 0, justifyContent: "flex-end", alignItems: "center", display: "flex" }}>
+        {textField}
+      </Box>
+    </WhiteSectionGeneric>
   }
 
   return (

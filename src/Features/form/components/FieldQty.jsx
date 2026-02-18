@@ -2,7 +2,7 @@ import { Box } from "@mui/material";
 
 import FieldOptionKey from "./FieldOptionKey";
 
-export default function FieldQty({ value, onChange }) {
+export default function FieldQty({ value, onChange, label, options }) {
 
     // helper
 
@@ -11,7 +11,6 @@ export default function FieldQty({ value, onChange }) {
         { key: "S", label: "Surface (S)" },
         { key: "U", label: "Unité (U)" },
     ]
-    return <Box>
-        <FieldOptionKey value={value} onChange={onChange} valueOptions={valueOptions} />
-    </Box>
+    return <FieldOptionKey value={value} onChange={onChange} valueOptions={valueOptions} options={options} label={label} />
+
 }

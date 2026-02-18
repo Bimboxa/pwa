@@ -73,6 +73,7 @@ import getAnnotationTemplateSizeInPx from "Features/annotations/utils/getAnnotat
 import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRectangleRawPointsFromOnePoint";
 import getImageAnnotationRectanglePointsFromOnePoint from "Features/imageAnnotations/utils/getImageAnnotationRectanglePointsFromOnePoint";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
+import useSelectedNodes from "../hooks/useSelectedNodes";
 
 const contextDimmedStyle = {
     //filter: "grayscale(100%) brightness(1.4) opacity(0.8)", // Rend gris, clair et semi-transparent
@@ -119,8 +120,10 @@ export default function MainMapEditorV3() {
     const listingId = useSelector((state) => state.listings.selectedListingId);
     const spriteImage = useAnnotationSpriteImage();
     const enabledDrawingMode = useSelector((state) => state.mapEditor.enabledDrawingMode);
-    const selectedNode = useSelector((state) => state.mapEditor.selectedNode);
-    const selectedNodes = useSelector((state) => state.mapEditor.selectedNodes);
+
+    // Selection from new Redux slice
+    const { nodes: selectedNodes, node: selectedNode } = useSelectedNodes();
+
     const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
     const grayLevelThreshold = useSelector((s) => s.baseMapEditor.grayLevelThreshold);
 
@@ -193,6 +196,7 @@ export default function MainMapEditorV3() {
         dispatch(setBaseMapPoseInBg(newPose));
     };
     const isBaseMapSelected = showBgImage && selectedNode?.nodeType === "BASE_MAP";
+    console.log("isBaseMapSelected", isBaseMapSelected, selectedNode)
 
     // annotation
 
@@ -756,8 +760,9 @@ export default function MainMapEditorV3() {
     //const isSnappingEnabled = enabledDrawingMode || !selectedNode;
     const isSnappingEnabled =
         enabledDrawingMode ||
-        !selectedNode ||
-        (selectedNode && selectedNode.nodeType === "ANNOTATION");
+        !Boolean(selectedNode) ||
+        (Boolean(selectedNode) && selectedNode.nodeType === "ANNOTATION");
+
 
 
     // helper - sizeVariant
