@@ -12,6 +12,7 @@ import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 
 import { Box, IconButton, Paper } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import { MoreHoriz as More } from "@mui/icons-material";
 
 import FieldAnnotationEntityLabel from "./FieldAnnotationEntityLabel";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
@@ -28,6 +29,7 @@ import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
 import IconButtonToggleAnnotationShowLabel from "./IconButtonToggleAnnotationShowLabel";
 
 import { PopperDragHandle } from "Features/layout/components/PopperBox";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 export default function ToolbarEditAnnotation() {
   const dispatch = useDispatch();
@@ -79,6 +81,10 @@ export default function ToolbarEditAnnotation() {
     const entityId = selectedAnnotation?.entityId;
     if (!entityId) return;
     await updateEntity(entityId, { fwc });
+  }
+
+  function handleMoreClick() {
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"))
   }
 
   return (
@@ -157,7 +163,7 @@ export default function ToolbarEditAnnotation() {
         onChange={handleChange}
       /> */}
 
-      <IconButton>
+      <IconButton onClick={handleMoreClick}>
         <More />
       </IconButton>
 
