@@ -22,12 +22,13 @@ export default function useInitAppConfig() {
     const appConfigDefault = await getAppConfigDefault({ configCode });
     const appConfig = await resolveAppConfig(appConfigDefault);
 
-    console.log("[debug] setAppConfig", appConfigDefault, appConfig, configCode);
+    console.log("debug_1802 setAppConfig", appConfig, configCode);
     dispatch(setAppConfig(appConfig));
     dispatch(setConfigCode(configCode));
   };
 
   useEffect(() => {
+    console.log("debug_1802 useInitAppConfig", configCode);
     if (configCode) initAsync();
   }, [configCode]);
 }
