@@ -11,12 +11,12 @@ export default function SectionAnnotationQties({ annotation }) {
 
   const baseMap = useMainBaseMap();
 
-  const qties = getAnnotationQties(annotation, baseMap);
+  const qties = getAnnotationQties({ annotation, meterByPx: baseMap?.meterByPx });
 
   if (!qties) return null;
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, p: 1 }}>
       <Typography variant="caption" color="text.secondary">
         Longueur : {qties.length?.toFixed?.(2) ?? 0} m
       </Typography>

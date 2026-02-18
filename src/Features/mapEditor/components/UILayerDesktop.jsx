@@ -12,6 +12,7 @@ import ButtonAutoLayoutLabels from "Features/tools/components/ButtonAutoLayoutLa
 import SectionShowedFWC from "Features/fwc/components/SectionShowedFWC";
 import BaseMapSelectorInMapEditorV2 from "Features/baseMaps/components/BaseMapSelectorInMapEditorV2";
 import ButtonRunningTransform from "Features/baseMapTransforms/components/ButtonRunningTransform";
+import SelectorMapEditorMode from "./SelectorMapEditorMode";
 
 
 export default function UILayerDesktop({ mapController, onResetCamera, viewport }) {
@@ -60,6 +61,7 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
             >
                 <ButtonRunningTransform />
             </Box>
+
             <Box
                 sx={{
                     position: "absolute",
@@ -120,6 +122,18 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                 alignItems: "center",
             }}>
                 <SectionShowedFWC />
+            </Box>
+
+
+            <Box sx={{
+                position: "absolute",
+                right: "24px",
+                bottom: "24px",
+                zIndex: 1,
+                display: "flex",
+                alignItems: "center",
+            }}>
+                <SelectorMapEditorMode />
             </Box>
         </>
     );

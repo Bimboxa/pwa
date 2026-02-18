@@ -80,10 +80,7 @@ export default function ContextMenuAnnotation() {
 
   async function handleMoveTop(e) {
     await moveAnnotation(
-      {
-        id: clickedNode.id,
-        listingId: clickedNode.nodeListingId,
-      },
+      annotation,
       "top"
     );
     //
@@ -94,10 +91,7 @@ export default function ContextMenuAnnotation() {
 
   async function handleMoveBottom() {
     await moveAnnotation(
-      {
-        id: clickedNode.id,
-        listingId: clickedNode.nodeListingId,
-      },
+      annotation,
       "bottom"
     );
     //

@@ -47,6 +47,7 @@ export default function useAnnotationsV2(options) {
         const hideBaseMapAnnotations = options?.hideBaseMapAnnotations;
 
         const groupByBaseMap = options?.groupByBaseMap;
+        const sortByOrderIndex = options?.sortByOrderIndex;
 
         // data
 
@@ -268,23 +269,24 @@ export default function useAnnotationsV2(options) {
 
 
             // -- SORT --
+            // outdated : use fractional indexing insteaad.
 
-            const annotationById = getItemsByKey(_annotations, "id");
+            //const annotationById = getItemsByKey(_annotations, "id");
 
-            const sortedAnnotationIds = [];
-            listings.forEach((listing) => {
-                if (listing.sortedAnnotationIds) {
-                    sortedAnnotationIds.push(...listing.sortedAnnotationIds);
-                } else {
-                    sortedAnnotationIds.push(
-                        ..._annotations
-                            .filter((a) => a.listingId === listing.id || a.isBaseMapAnnotation)
-                            .map((a) => a.id)
-                    );
-                }
-            });
+            // const sortedAnnotationIds = [];
+            // listings.forEach((listing) => {
+            //     if (listing.sortedAnnotationIds) {
+            //         sortedAnnotationIds.push(...listing.sortedAnnotationIds);
+            //     } else {
+            //         sortedAnnotationIds.push(
+            //             ..._annotations
+            //                 .filter((a) => a.listingId === listing.id || a.isBaseMapAnnotation)
+            //                 .map((a) => a.id)
+            //         );
+            //     }
+            // });
 
-            _annotations = sortedAnnotationIds.map((id) => annotationById[id]);
+            // _annotations = sortedAnnotationIds.map((id) => annotationById[id]);
 
 
             // -- ENTITY --
@@ -357,6 +359,32 @@ export default function useAnnotationsV2(options) {
 
         })
 
+        // override with temp annotations
+        annotations = [...(annotations ?? []), ...(tempAnnotations ?? [])];
+
+        // bg image text annotations
+        if (!baseMapAnnotationsOnly && !excludeBgAnnotations) annotations = [...(annotations ?? []), ...(bgImageTextAnnotations ?? [])];
+
+
+        // sort by order index
+        if (sortByOrderIndex && annotations) {
+            annotations = annotations.sort((a, b) => {
+                // Cas 1 : Les deux ont un index -> Tri lexicographique
+                if ((a.orderIndex !== null && a.orderIndex !== undefined) && (b.orderIndex !== null && b.orderIndex !== undefined)) {
+                    return a.orderIndex.localeCompare(b.orderIndex);
+                }
+
+                // Cas 2 : Un seul a un index -> L'indexé est "plus grand" (au-dessus)
+                if (a.orderIndex !== null && a.orderIndex !== undefined) return 1;
+                if (b.orderIndex !== null && b.orderIndex !== undefined) return -1;
+
+                // Cas 3 : Les deux sont à null -> Tri par date de création (fallback)
+                //return new Date(a.createdAt) - new Date(b.createdAt);
+            });
+        }
+
+        // group by base map
+
         if (groupByBaseMap && annotations) {
 
             const baseMapIds = [...new Set(annotations.filter(a => Boolean(a.baseMapId)).map(a => a.baseMapId))];
@@ -367,12 +395,6 @@ export default function useAnnotationsV2(options) {
             annotations.sort((a, b) => (a.isBaseMap ? 1 : 2) - (b.isBaseMap ? 1 : 2)).sort((a, b) => a.baseMap?.name.localeCompare(b.baseMap?.name));
         }
 
-
-        // override with temp annotations
-        annotations = [...(annotations ?? []), ...(tempAnnotations ?? [])];
-
-        // bg image text annotations
-        if (!baseMapAnnotationsOnly && !excludeBgAnnotations) annotations = [...(annotations ?? []), ...(bgImageTextAnnotations ?? [])];
 
 
         // return 

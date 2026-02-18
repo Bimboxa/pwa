@@ -54,7 +54,7 @@ export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
             key: "RECTANGLE",
             label: "Rectangle",
             icon: <Rectangle sx={{ color }} />,
-            show: ["POLYGON", "POLYLINE", "RECTANGLE"].includes(type)
+            show: ["POLYGON", "POLYLINE", "RECTANGLE", "CUT"].includes(type)
         },
         {
             key: "DROP_FILL",

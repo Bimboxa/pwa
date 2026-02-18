@@ -13,6 +13,7 @@ const mapEditorInitialState = {
   //
   showShapes: true,
   //
+  mapEditorMode: "SELECT", // "SELECT", "DRAW"
   enabledDrawingMode: null, // "CLICK", "RECTANGLE", "DROP_FILL",
   //
   showLayerScreenCursor: false,
@@ -106,6 +107,9 @@ export const mapEditorSlice = createSlice({
       const drawingMode = action.payload;
       state.enabledDrawingMode = drawingMode;
       state.showLayerScreenCursor = Boolean(drawingMode);
+    },
+    setMapEditorMode: (state, action) => {
+      state.mapEditorMode = action.payload;
     },
     // scale
     setAnchorPositionScale: (state, action) => {
@@ -308,6 +312,7 @@ export const {
   //
   setShowShapes,
   setEnabledDrawingMode,
+  setMapEditorMode,
   //
   setAnchorPositionScale,
   setScaleInPx,

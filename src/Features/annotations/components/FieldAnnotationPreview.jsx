@@ -1,9 +1,8 @@
-import { Box, List, ListItem, ListItemButton, ListItemText } from "@mui/material";
-import { useMemo, useState } from "react";
+import { Box } from "@mui/material";
+import { useMemo } from "react";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
 
 export default function FieldAnnotationPreview({ annotation, padding = 16, imageHeight = 200 }) {
-    const [selectedCutIndex, setSelectedCutIndex] = useState(null);
 
     const { sanitizedAnnotation, bbox } = useMemo(() => {
         const isValidPoint = (p) => p && typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y);
@@ -76,28 +75,10 @@ export default function FieldAnnotationPreview({ annotation, padding = 16, image
                         annotation={sanitizedAnnotation}
                         selected={false}
                         hovered={false}
-                        selectedPartId={selectedCutIndex !== null ? `${sanitizedAnnotation?.id}::CUT::${selectedCutIndex}` : null}
                     />
                 </svg>
             </Box>
 
-            {/* Liste des découpes (Cuts) */}
-            {annotation?.cuts?.length > 0 && (
-                <List dense sx={{ bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                    <ListItem disablePadding>
-                        <ListItemButton selected={selectedCutIndex === null} onClick={() => setSelectedCutIndex(null)}>
-                            <ListItemText primary="Main contour" secondary={`${annotation.points?.length || 0} points`} />
-                        </ListItemButton>
-                    </ListItem>
-                    {annotation.cuts.map((cut, index) => (
-                        <ListItem key={index} disablePadding>
-                            <ListItemButton selected={selectedCutIndex === index} onClick={() => setSelectedCutIndex(index)}>
-                                <ListItemText primary={`Cut ${index + 1}`} secondary={`${cut.points?.length || 0} points`} />
-                            </ListItemButton>
-                        </ListItem>
-                    ))}
-                </List>
-            )}
         </Box>
     );
 }
