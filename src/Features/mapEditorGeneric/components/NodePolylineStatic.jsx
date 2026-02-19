@@ -110,8 +110,8 @@ export default function NodePolylineStatic({
     const computedStrokeWidth = useMemo(() => {
         if (type === "POLYGON") return 0.5;
         if (isCmUnit) return (strokeWidth * 0.01) / baseMapMeterByPx;
-        return strokeWidth;
-    }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit, type]);
+        return strokeWidth / (containerK ?? 1);
+    }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit, type, containerK]);
 
 
     // --- HELPERS ID & STYLE ---
