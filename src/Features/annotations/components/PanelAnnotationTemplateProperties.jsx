@@ -41,6 +41,7 @@ export default function PanelAnnotationTemplateProperties() {
     // handler
 
     function handleChange(newAnnotationTemplate) {
+        console.log("newAnnotationTemplate", newAnnotationTemplate)
         updateAnnotationTemplate(newAnnotationTemplate)
     }
 

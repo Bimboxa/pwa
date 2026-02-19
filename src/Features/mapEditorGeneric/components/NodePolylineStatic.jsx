@@ -113,6 +113,9 @@ export default function NodePolylineStatic({
         return strokeWidth / (containerK ?? 1);
     }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit, type, containerK]);
 
+    console.log("debug_192_strokeWidth", isCmUnit, computedStrokeWidth)
+
+
 
     // --- HELPERS ID & STYLE ---
 
