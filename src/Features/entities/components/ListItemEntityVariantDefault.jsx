@@ -147,7 +147,7 @@ export default function ListItemEntityVariantDefault({
         </Box>
 
         {/* Le bouton est toujours dans le DOM, mais invisible par défaut */}
-        <IconButton
+        {/* <IconButton
           className="edit-button"
           onClick={handleEditClick}
           color="inherit"
@@ -160,7 +160,7 @@ export default function ListItemEntityVariantDefault({
           }}
         >
           <Edit fontSize="small" />
-        </IconButton>
+        </IconButton> */}
       </ListItemButton>
 
       {qtiesString && (

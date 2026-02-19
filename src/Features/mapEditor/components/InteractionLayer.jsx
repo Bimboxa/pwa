@@ -30,6 +30,7 @@ import {
 
 import useResetNewAnnotation from 'Features/annotations/hooks/useResetNewAnnotation';
 import useLassoSelection from 'Features/mapEditorGeneric/hooks/useLassoSelection';
+import useSelectedNodes from 'Features/mapEditor/hooks/useSelectedNodes';
 
 import Box from '@mui/material/Box';
 import MapEditorViewport from 'Features/mapEditorGeneric/components/MapEditorViewport';
@@ -96,6 +97,7 @@ const InteractionLayer = forwardRef(({
   activeContext = "BASE_MAP",
   annotations, // <= snapping source.
   onPointMoveCommit,
+  onToggleAnnotationPointType,
   onPointDuplicateAndMoveCommit,
   onDeletePoint,
   onHideSegment,
@@ -157,7 +159,7 @@ const InteractionLayer = forwardRef(({
   const selectedPartId = useSelector(selectSelectedPartId);
 
   // Computed selectedNode equivalent (first item)
-  const selectedNode = selectedItems?.filter(t => t.type === "NODE").length > 0 ? selectedItems[0] : null;
+  const { node: selectedNode } = useSelectedNodes();
 
   const { zoomContainer } = useSmartZoom();
 
@@ -190,12 +192,16 @@ const InteractionLayer = forwardRef(({
 
   // selectedAnnotation
 
+  const selectedAnnotationRef = useRef(null);
+
   const selectedAnnotation = useMemo(() => {
     if (selectedNode?.nodeId?.startsWith("label::")) {
       const annotationId = selectedNode?.nodeId.replace("label::", "");
-      return getAnnotationLabelPropsFromAnnotation(annotations?.find((annotation) => annotation.id === annotationId));
+      selectedAnnotationRef.current = getAnnotationLabelPropsFromAnnotation(annotations?.find((annotation) => annotation.id === annotationId));
+      return selectedAnnotationRef.current;
     } else {
-      return annotations?.find((annotation) => annotation.id === selectedNode?.nodeId);
+      selectedAnnotationRef.current = annotations?.find((annotation) => annotation.id === selectedNode?.nodeId);
+      return selectedAnnotationRef.current;
     }
   }, [annotations, selectedNode?.nodeId]);
 
@@ -1201,6 +1207,7 @@ const InteractionLayer = forwardRef(({
         if (selectedNode?.nodeId === annotationId) {
           console.log("Select Point:", pointId);
           dispatch(setSubSelection({ pointId, partType: "VERTEX" }));
+          onToggleAnnotationPointType({ annotationId, pointId });
           // On arrête ici pour ne pas relancer la sélection de noeud
           return;
         }
@@ -2079,6 +2086,12 @@ const InteractionLayer = forwardRef(({
       // CAS B : C'était un CLICK (pending = true, active = false)
       else if (dragState.pending) {
         console.log("Point Clicked:", dragState.pointId);
+
+        if (selectedAnnotationRef.current?.id === dragState.affectedIds[0])
+          onToggleAnnotationPointType({
+            pointId: dragState.pointId,
+            annotationId: dragState.affectedIds[0],
+          })
 
 
         // Ici, dragState.pointId est TOUJOURS l'ID réel

@@ -7,6 +7,8 @@ import useIsMobile from "Features/layout/hooks/useIsMobile";
 import useOnEntityClick from "../hooks/useOnEntityClick";
 import useOnEntityEdit from "../hooks/useOnEntityEdit";
 
+import { selectSelectedItem } from "Features/selection/selectionSlice";
+
 import { setOpenPanelListItem } from "Features/listPanel/listPanelSlice";
 import {
   setSelectedBaseMapsListingId,
@@ -55,7 +57,9 @@ export default function SectionListEntitiesInListPanel() {
       entityModel?.type === "LOCATED_ENTITY" && filterByMainBaseMap,
   });
 
-  const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
+  const selectedItem = useSelector(selectSelectedItem);
+  //const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
+  const selectedEntityId = selectedItem?.entityId;
 
   const onEntityClick = useOnEntityClick();
   const onEntityEdit = useOnEntityEdit();
@@ -74,7 +78,7 @@ export default function SectionListEntitiesInListPanel() {
   // handlers
 
   function handleEditClick(entity) {
-    onEntityEdit(entity);
+    // onEntityEdit(entity);
   }
 
   function handleClick(entity) {
@@ -86,6 +90,11 @@ export default function SectionListEntitiesInListPanel() {
     }
 
     dispatch(setSelectedEntityId(id));
+    dispatch(setSelectedItem({
+      type: "ENTITY",
+      entityId: id,
+      listingId: entity?.listingId
+    }));
 
     onEntityClick(entity);
     //dispatch(setOpenedPanel("EDITED_ENTITY"));
@@ -112,7 +121,7 @@ export default function SectionListEntitiesInListPanel() {
         listing={listing}
         entities={entities}
         onClick={handleClick}
-        onEditClick={handleEditClick}
+        //onEditClick={handleEditClick}
         selection={selection}
         onCreateClick={handleCreateClick}
       />

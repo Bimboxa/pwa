@@ -64,6 +64,7 @@ import getDefaultBaseMapPoseInBg from "../utils/getDefaultBaseMapPoseInBg";
 import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getAnnotationLabelDeltaFromDeltaPos";
 import deletePointAsync from "../services/deletePointAsync";
 import duplicateAndMovePoint from "../services/duplicateAndMovePoint";
+import toggleAnnotationPointType from "../services/toggleAnnotationPointType";
 import removeCutAsync from "../services/removeCutAsync";
 import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -398,6 +399,10 @@ export default function MainMapEditorV3() {
     const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
         const imageSize = baseMap?.image?.imageSize;
         await duplicateAndMovePoint({ originalPointId, annotationId, newPos, imageSize, annotations });
+    };
+
+    const handleToggleAnnotationPointType = async ({ annotationId, pointId }) => {
+        await toggleAnnotationPointType({ annotationId, pointId });
     };
 
     // handlers - split line
@@ -819,6 +824,7 @@ export default function MainMapEditorV3() {
                     activeContext={activeContext}
                     annotations={annotations}
                     onPointMoveCommit={handlePointMoveCommit}
+                    onToggleAnnotationPointType={handleToggleAnnotationPointType}
                     onPointDuplicateAndMoveCommit={handleDuplicateAndMovePoint}
                     onDeletePoint={handleDeletePoint}
                     onHideSegment={handleHideSegment}

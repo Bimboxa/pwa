@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
+import { setSelectedProjectId as setProjectId, setStepKey } from "Features/scopeCreator/scopeCreatorSlice";
 
 import PageGeneric from "Features/layout/components/PageGeneric";
 
@@ -20,6 +21,8 @@ export default function PageDashboard() {
 
   useEffect(() => {
     dispatch(setSelectedProjectId(null))
+    dispatch(setProjectId(null))
+    dispatch(setStepKey("SEARCH_PROJECT"));
   }, [])
 
   return (
