@@ -24,6 +24,7 @@ export default function useCreateListings() {
         ...listing,
         id: listing?.id ?? nanoid(),
         projectId: listing?.projectId ?? scope?.projectId,
+        scopeId: scope?.id,
         createdBy,
         createdAt,
         updatedAt: createdAt,

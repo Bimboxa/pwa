@@ -10,6 +10,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import { selectSelectedItem } from "Features/selection/selectionSlice";
 
 export default function useSelectedEntity(options) {
   // options
@@ -25,7 +26,10 @@ export default function useSelectedEntity(options) {
 
   // data
 
-  const _selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
+  const selectedItem = useSelector(selectSelectedItem);
+  //const _selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
+  const _selectedEntityId = selectedItem?.entityId;
+
   const { value: _listing } = useSelectedListing();
   const annotationTemplates = useAnnotationTemplates();
 

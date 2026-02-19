@@ -21,15 +21,24 @@ export default function TransientTopologyLayer({
         // CAS 1 : INSERTION VIRTUELLE (Split Segment)
         // =========================================================
         if (virtualInsertion) {
-            // (Code inchangé pour l'insertion...)
             const targetAnn = annotations.find(a => a.id === virtualInsertion.annotationId);
             if (!targetAnn) return [];
+
+            // 1. Récupérer les points du contour concerné (Main ou Cut)
+            const pointsRef = (typeof virtualInsertion.cutIndex === 'number')
+                ? targetAnn.cuts[virtualInsertion.cutIndex].points
+                : targetAnn.points;
+
+            // 2. Déterminer le type du point à insérer
+            // On regarde le point qui termine le segment cliqué
+            const nextPoint = pointsRef[(virtualInsertion.segmentIndex + 1) % pointsRef.length];
 
             const virtualPoint = {
                 id: movingPointId,
                 x: currentPos.x,
                 y: currentPos.y,
-                type: 'square'
+                // Si le point suivant est un cercle, on insère un cercle pour préserver la courbure
+                type: nextPoint?.type === 'circle' ? 'circle' : 'square'
             };
 
             if (typeof virtualInsertion.cutIndex === 'number' && targetAnn.cuts) {

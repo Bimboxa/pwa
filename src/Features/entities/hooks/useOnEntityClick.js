@@ -35,6 +35,7 @@ export default function useOnEntityClick() {
             type: "ENTITY",
             id: entity.id,
             listingId: entity.listingId,
+            entityId: entity.id,
           })
         );
         const annotations = entity.annotations;

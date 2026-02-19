@@ -194,19 +194,30 @@ export default function NodePolylineStatic({
         const limit = close ? n : n - 1;
 
         let i = 0;
+        let iterations = 0;
+        const MAX_ITERATIONS = n * 2; // Garde-fou de sécurité
+
         try {
-            while (i < limit) {
+            while (i < limit && iterations < MAX_ITERATIONS) {
+                iterations++;
                 const i0 = idx(i);
                 const i1 = idx(i + 1);
                 const t0 = types[i0];
                 const t1 = types[i1];
                 const pStart = pts[i0];
 
+                // EDGE CASE : Si on commence par un cercle ou qu'on a des cercles consécutifs
+                // qui ne rentrent pas dans le schéma S-C-S (Square-Circle-Square)
                 if (t0 === "square" && t1 === "circle") {
                     let j = i + 1;
-                    while (j < i + n && types[idx(j)] === "circle") j += 1;
+                    // On cherche la fin de la chaîne de cercles
+                    while (j < i + n && types[idx(j)] === "circle") {
+                        j += 1;
+                        if (j - i > n) break; // Sécurité supplémentaire
+                    }
                     const i2 = idx(j);
 
+                    // Cas non-fermé : si on finit par des cercles, on trace des lignes droites
                     if (!close && j >= n) {
                         const P1 = pts[i1];
                         const cmd = `L ${P1.x} ${P1.y}`;
@@ -216,51 +227,57 @@ export default function NodePolylineStatic({
                         continue;
                     }
 
+                    // Cas EXACT Square-Circle-Square (Arc de cercle parfait)
                     const isExactSCS = j === i + 2 && types[i1] === "circle" && types[idx(i + 2)] === "square";
 
                     if (isExactSCS) {
                         const P0 = pts[i0];
                         const P1 = pts[i1];
-                        const P2 = pts[i2];
+                        const P2 = pts[idx(i + 2)];
                         const circ = circleFromThreePoints(P0, P1, P2);
 
+                        // Si les points sont colinéaires ou le cercle invalide, on fait des lignes
                         if (!circ || !Number.isFinite(circ.r) || circ.r <= 0) {
                             const cmd1 = `L ${P1.x} ${P1.y}`;
                             const cmd2 = `L ${P2.x} ${P2.y}`;
                             dParts.push(cmd1, cmd2);
                             res.segmentMap.push({ startPointIdx: i0, endPointIdx: i1, d: `M ${P0.x} ${P0.y} ${cmd1}` });
-                            res.segmentMap.push({ startPointIdx: i1, endPointIdx: i2, d: `M ${P1.x} ${P1.y} ${cmd2}` });
+                            res.segmentMap.push({ startPointIdx: i1, endPointIdx: idx(i + 2), d: `M ${P1.x} ${P1.y} ${cmd2}` });
                         } else {
                             const { center: C, r } = circ;
                             const cross = (P1.x - P0.x) * (P2.y - P0.y) - (P1.y - P0.y) * (P2.x - P0.x);
                             const sweep = cross > 0 ? 1 : 0;
-                            const rSafe = r * 1.0005;
+                            const rSafe = r * 1.0005; // Petit offset pour éviter les erreurs de rendu SVG
                             const cmd1 = `A ${rSafe} ${rSafe} 0 0 ${sweep} ${P1.x} ${P1.y}`;
                             const cmd2 = `A ${rSafe} ${rSafe} 0 0 ${sweep} ${P2.x} ${P2.y}`;
                             dParts.push(cmd1, cmd2);
                             res.segmentMap.push({ startPointIdx: i0, endPointIdx: i1, isArc: true, d: `M ${P0.x} ${P0.y} ${cmd1}` });
-                            res.segmentMap.push({ startPointIdx: i1, endPointIdx: i2, isArc: true, d: `M ${P1.x} ${P1.y} ${cmd2}` });
+                            res.segmentMap.push({ startPointIdx: i1, endPointIdx: idx(i + 2), isArc: true, d: `M ${P1.x} ${P1.y} ${cmd2}` });
                         }
                         i += 2;
                         continue;
                     }
 
+                    // Cas Multi-Circles ou Complexe : On utilise des courbes de Bézier (C)
                     let k = i;
-                    dParts.push(`L ${pts[i0].x} ${pts[i0].y}`);
-                    while (k < i2) {
-                        const p0 = pts[idx(k)];
-                        const p1 = pts[idx(k + 1)];
+                    while (k < j && k < limit) {
+                        const curr = idx(k);
+                        const next = idx(k + 1);
+                        const p0 = pts[curr];
+                        const p1 = pts[next];
+                        // Approximation simple pour ne pas bloquer
                         const cp1 = { x: p0.x + (p1.x - p0.x) / 3, y: p0.y + (p1.y - p0.y) / 3 };
                         const cp2 = { x: p1.x - (p1.x - p0.x) / 3, y: p1.y - (p1.y - p0.y) / 3 };
                         const cmd = `C ${cp1.x} ${cp1.y} ${cp2.x} ${cp2.y} ${p1.x} ${p1.y}`;
                         dParts.push(cmd);
-                        res.segmentMap.push({ startPointIdx: idx(k), endPointIdx: idx(k + 1), d: `M ${p0.x} ${p0.y} ${cmd}` });
+                        res.segmentMap.push({ startPointIdx: curr, endPointIdx: next, d: `M ${p0.x} ${p0.y} ${cmd}` });
                         k++;
                     }
-                    i = i2;
+                    i = j;
                     continue;
                 }
 
+                // Cas par défaut : Ligne droite (Square to Square ou Circle isolé au début)
                 const P1 = pts[i1];
                 const cmd = `L ${P1.x} ${P1.y}`;
                 dParts.push(cmd);
@@ -268,10 +285,10 @@ export default function NodePolylineStatic({
                 i++;
             }
         } catch (e) {
-            console.error("Geometry Error", e);
+            console.error("Geometry Error: Infinite loop prevented", e);
         }
 
-        if (close) dParts.push("Z");
+        if (close && dParts.length > 0) dParts.push("Z");
         res.d = dParts.join(" ");
         return res;
     }
@@ -466,6 +483,8 @@ export default function NodePolylineStatic({
 
     const renderVertex = (pt) => {
         const isPointSelected = selectedPointId === pt.id;
+        const isCircle = pt.type === "circle";
+
         return (
             <g
                 key={pt.id}
@@ -476,12 +495,21 @@ export default function NodePolylineStatic({
                 data-annotation-id={annotationId}
             >
                 <g style={{ transform: vertexScaleTransform }}>
-                    <rect
-                        x={-HALF_SIZE} y={-HALF_SIZE} width={POINT_SIZE} height={POINT_SIZE}
-                        fill={isPointSelected ? "#FF0000" : "#FFFFFF"}
-                        stroke="#2196f3"
-                        strokeWidth={1.5}
-                    />
+                    {isCircle ? (
+                        <circle
+                            cx={0} cy={0} r={HALF_SIZE}
+                            fill={isPointSelected ? "#FF0000" : "#FFFFFF"}
+                            stroke="#2196f3"
+                            strokeWidth={1.5}
+                        />
+                    ) : (
+                        <rect
+                            x={-HALF_SIZE} y={-HALF_SIZE} width={POINT_SIZE} height={POINT_SIZE}
+                            fill={isPointSelected ? "#FF0000" : "#FFFFFF"}
+                            stroke="#2196f3"
+                            strokeWidth={1.5}
+                        />
+                    )}
                 </g>
             </g>
         );

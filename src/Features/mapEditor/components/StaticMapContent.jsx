@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { selectSelectedPointId, selectSelectedItems } from "Features/selection/selectionSlice";
 
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+import useSelectedNodes from "Features/mapEditor/hooks/useSelectedNodes";
 
 import NodeSvgImage from "Features/mapEditorGeneric/components/NodeSvgImage";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
@@ -43,8 +44,7 @@ function StaticMapContent({
     const selectedPointId = useSelector(selectSelectedPointId);
     const selectedItems = useSelector(selectSelectedItems);
     // Derive selectedNode/selectedNodes from new slice for compatibility
-    const selectedNode = selectedItems.length === 1 ? { nodeId: selectedItems[0].nodeId, nodeType: selectedItems[0].type } : null;
-    const selectedNodes = selectedItems.map(i => ({ nodeId: i.nodeId, nodeType: i.type }));
+    const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
 
     const spriteImage = useAnnotationSpriteImage();
     const _showedFWC = useSelector(s => s.fwc.showedFWC);

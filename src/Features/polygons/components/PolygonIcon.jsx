@@ -3,8 +3,6 @@ import { PentagonTwoTone as Polygon, Texture } from "@mui/icons-material";
 
 export default function PolygonIcon({
     fillColor,    // Use this for the secondary (lighter) tone
-    strokeColor,  // Use this for the primary (outline/darker) tone
-    fillOpacity,
     fillType,
     size = 24,
 }) {

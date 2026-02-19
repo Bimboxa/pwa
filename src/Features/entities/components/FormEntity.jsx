@@ -12,7 +12,7 @@ export default function FormEntity({
 
   // helpers
 
-  const showToggleFwC = entity.entityModel?.fwcEnabled;
+  const showToggleFwC = entity?.entityModel?.fwcEnabled;
 
   // handlers
 

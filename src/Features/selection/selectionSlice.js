@@ -73,10 +73,16 @@ export const selectionSlice = createSlice({
     },
     triggerSelectionBack: (state) => {
       const item = state.selectedItems[0];
+      console.log("[ANNOTATION] item", item.type);
       if (item) {
         if (item.type === "ANNOTATION_TEMPLATE") {
           item.type = "LISTING";
           item.id = item.listingId;
+        }
+        else if (item.type === "NODE") {
+          item.type = "ENTITY";
+          item.id = item.entityId;
+          item.listingId = item.listingId;
         }
       }
     }

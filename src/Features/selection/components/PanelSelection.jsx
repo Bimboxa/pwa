@@ -9,14 +9,15 @@ import { selectSelectedItems } from "../selectionSlice";
 export default function PanelSelection() {
 
   // data
+
   const selectedItems = useSelector(selectSelectedItems);
   const selectedItem = selectedItems[0];
+
   console.log("selectedItem", selectedItem);
-  console.log("selectedItem.nodeId", selectedItem?.nodeId);
 
   // helper
 
-  const type = selectedItem?.itemType || selectedItem?.type;
+  const type = selectedItem?.type;
 
   return (
     <BoxFlexVStretch>
