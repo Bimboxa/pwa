@@ -84,6 +84,11 @@ export const selectionSlice = createSlice({
           item.id = item.entityId;
           item.listingId = item.listingId;
         }
+        else if (item.type === "ENTITY") {
+          item.type = "LISTING";
+          item.id = item.listingId;
+          item.listingId = item.listingId;
+        }
       }
     }
   },

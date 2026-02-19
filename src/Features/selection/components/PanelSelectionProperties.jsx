@@ -31,7 +31,7 @@ export default function PanelSelectionProperties() {
   if (selectedItem?.type === "ENTITY") {
     type = "ENTITY";
   }
-  else if (selectedItem?.nodeType === "ANNOTATION") {
+  else if (selectedItem?.nodeType === "ANNOTATION" && selectedItem.type === "NODE") {
     type = "ANNOTATION";
   }
   else if (selectedItem?.type === "ANNOTATION_TEMPLATE") {

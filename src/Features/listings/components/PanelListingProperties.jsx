@@ -50,7 +50,7 @@ export default function PanelListingProperties({ listing, onSaved }) {
     return (
         <BoxFlexVStretch sx={{ height: '100%' }}>
             <HeaderListing listing={listing} showMoreButton={false} />
-            <BoxFlexVStretch>
+            <BoxFlexVStretch sx={{ overflow: "auto" }}>
                 <FormListing
                     listing={tempListing}
                     relatedListings={listings}

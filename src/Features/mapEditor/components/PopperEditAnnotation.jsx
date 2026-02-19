@@ -2,6 +2,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
+import useSelectedNodes from "../hooks/useSelectedNodes";
 
 import { setAnnotationToolbarPosition } from "../mapEditorSlice";
 
@@ -18,8 +19,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
     (s) => s.mapEditor.annotationToolbarPosition
   );
 
-  const selectedItems = useSelector(selectSelectedItems);
-  const selectedNode = selectedItems.length === 1 ? selectedItems[0] : null;
+  const { node: selectedNode } = useSelectedNodes()
 
   const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const selectedAnnotation = useSelectedAnnotation();

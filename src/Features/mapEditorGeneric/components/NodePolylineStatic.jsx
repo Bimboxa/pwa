@@ -233,26 +233,33 @@ export default function NodePolylineStatic({
                     if (isExactSCS) {
                         const P0 = pts[i0];
                         const P1 = pts[i1];
-                        const P2 = pts[idx(i + 2)];
+                        const P2 = pts[i2];
                         const circ = circleFromThreePoints(P0, P1, P2);
 
-                        // Si les points sont colinéaires ou le cercle invalide, on fait des lignes
-                        if (!circ || !Number.isFinite(circ.r) || circ.r <= 0) {
+                        if (!circ || !Number.isFinite(circ.r) || circ.r <= 0 || circ.r > 100000) {
+                            // Fallback en lignes si le cercle est invalide ou quasi plat
                             const cmd1 = `L ${P1.x} ${P1.y}`;
                             const cmd2 = `L ${P2.x} ${P2.y}`;
                             dParts.push(cmd1, cmd2);
                             res.segmentMap.push({ startPointIdx: i0, endPointIdx: i1, d: `M ${P0.x} ${P0.y} ${cmd1}` });
-                            res.segmentMap.push({ startPointIdx: i1, endPointIdx: idx(i + 2), d: `M ${P1.x} ${P1.y} ${cmd2}` });
+                            res.segmentMap.push({ startPointIdx: i1, endPointIdx: i2, d: `M ${P1.x} ${P1.y} ${cmd2}` });
                         } else {
                             const { center: C, r } = circ;
+
+                            // Calcul du produit vectoriel pour déterminer le sens (0 ou 1)
                             const cross = (P1.x - P0.x) * (P2.y - P0.y) - (P1.y - P0.y) * (P2.x - P0.x);
                             const sweep = cross > 0 ? 1 : 0;
-                            const rSafe = r * 1.0005; // Petit offset pour éviter les erreurs de rendu SVG
-                            const cmd1 = `A ${rSafe} ${rSafe} 0 0 ${sweep} ${P1.x} ${P1.y}`;
-                            const cmd2 = `A ${rSafe} ${rSafe} 0 0 ${sweep} ${P2.x} ${P2.y}`;
+
+                            // Important : Pour un arc passant par 3 points, le flag "large-arc" 
+                            // doit être géré si l'angle total dépasse 180°. 
+                            // Ici, on dessine deux demi-arcs pour une précision parfaite.
+                            const cmd1 = `A ${r} ${r} 0 0 ${sweep} ${P1.x} ${P1.y}`;
+                            const cmd2 = `A ${r} ${r} 0 0 ${sweep} ${P2.x} ${P2.y}`;
+
                             dParts.push(cmd1, cmd2);
+
                             res.segmentMap.push({ startPointIdx: i0, endPointIdx: i1, isArc: true, d: `M ${P0.x} ${P0.y} ${cmd1}` });
-                            res.segmentMap.push({ startPointIdx: i1, endPointIdx: idx(i + 2), isArc: true, d: `M ${P1.x} ${P1.y} ${cmd2}` });
+                            res.segmentMap.push({ startPointIdx: i1, endPointIdx: i2, isArc: true, d: `M ${P1.x} ${P1.y} ${cmd2}` });
                         }
                         i += 2;
                         continue;
