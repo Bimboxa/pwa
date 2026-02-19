@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useDispatch } from "react-redux";
 import { useDraggable, useDndMonitor, DragOverlay } from "@dnd-kit/core";
+
 import {
   List,
   ListItemButton,
@@ -9,7 +10,10 @@ import {
   Popper,
   Paper,
   Fade,
+  IconButton,
 } from "@mui/material";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import AnnotationIcon from "Features/annotations/components/AnnotationIcon";
 import ToolbarCreateAnnotationFromTabAnnotationTemplates from "Features/annotations/components/ToolbarCreateAnnotationFromTabAnnotationTemplates";
@@ -24,6 +28,7 @@ import useAnnotationTemplateCountById from "Features/annotations/hooks/useAnnota
 import useAnnotationTemplateQtiesById from "Features/annotations/hooks/useAnnotationTemplateQtiesById";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
 
 function DraggableAnnotationTemplateItem({
   annotationTemplate,
@@ -41,30 +46,41 @@ function DraggableAnnotationTemplateItem({
       },
     });
 
+  const updateAnnotationTemplate = useUpdateAnnotationTemplate();
+
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined;
 
   const [anchorEl, setAnchorEl] = useState(null);
+  const [isHovered, setIsHovered] = useState(false);
   const hoverTimeoutRef = useRef(null);
   const isOpen = Boolean(anchorEl);
 
   const handleListItemEnter = (event) => {
-    // On annule toute fermeture en cours pour cet item
+    setIsHovered(true);
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     setAnchorEl(event.currentTarget);
   };
 
   const handleListItemLeave = () => {
-    // Timeout très court (50ms) pour l'effet "nerveux" 
-    // mais suffisant pour traverser le pont invisible
+    setIsHovered(false);
     hoverTimeoutRef.current = setTimeout(() => {
       setAnchorEl(null);
     }, 50);
   };
 
   const handlePopperEnter = () => {
+    setIsHovered(true);
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+  };
+
+  const handleToggleHidden = async (e) => {
+    e.stopPropagation(); // Évite de déclencher le clic de création sur la ligne
+    await updateAnnotationTemplate({
+      ...annotationTemplate,
+      hidden: !annotationTemplate?.hidden
+    });
   };
 
   const isHidden = annotationTemplate?.hidden;
@@ -82,13 +98,11 @@ function DraggableAnnotationTemplateItem({
           alignItems: "center",
           justifyContent: "space-between",
           px: 1,
-          py: 0.5,
+          py: 0.25,
           '&:hover': { bgcolor: 'action.hover' },
-          // Optionnel : on peut aussi réduire légèrement l'opacité de toute la ligne
-          // opacity: isHidden ? 0.6 : 1 
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Box sx={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}>
           <Box
             {...attributes}
             {...listeners}
@@ -99,33 +113,46 @@ function DraggableAnnotationTemplateItem({
               justifyContent: "center",
               width: "24px",
               height: "24px",
-              // On grise l'icône si caché
               opacity: isHidden ? 0.4 : 1,
               filter: isHidden ? "grayscale(100%)" : "none",
+              mr: 1
             }}
           >
             <AnnotationIcon annotation={annotationTemplate} spriteImage={spriteImage} size={18} />
           </Box>
           <Typography
-            sx={{ mx: 1 }}
             variant="body2"
-            // On change la couleur du texte en gris clair si caché
+            noWrap
             color={isHidden ? "text.disabled" : "text.primary"}
           >
             {annotationTemplate.label}
           </Typography>
         </Box>
 
-        <Box sx={{ minWidth: "32px", display: "flex", justifyContent: "flex-end" }}>
-          <Typography
-            align="right"
-            noWrap
-            sx={{ fontSize: "12px" }}
-            // On grise aussi le label de quantité
-            color={isHidden ? "text.disabled" : (count > 0 ? "secondary.main" : "grey.200")}
-          >
-            {qtyLabel}
-          </Typography>
+        {/* Zone de permutation : Qté <-> Visibilité */}
+        <Box sx={{ minWidth: "40px", display: "flex", justifyContent: "flex-end", alignItems: "center", ml: 1 }}>
+          {isHovered ? (
+            <IconButton
+              size="small"
+              onClick={handleToggleHidden}
+              sx={{ p: 0.5 }}
+            >
+              {isHidden ? (
+                <VisibilityOff fontSize="inherit" sx={{ fontSize: 16 }} />
+              ) : (
+                <Visibility fontSize="inherit" sx={{ fontSize: 16 }} />
+              )}
+            </IconButton>
+          ) : (
+            <Typography
+              align="right"
+              noWrap
+              sx={{ fontSize: "12px" }}
+              color={isHidden ? "text.disabled" : (count > 0 ? "secondary.main" : "grey.200")}
+            >
+              {qtyLabel}
+            </Typography>
+          )}
         </Box>
       </ListItemButton>
 
@@ -134,14 +161,7 @@ function DraggableAnnotationTemplateItem({
         anchorEl={anchorEl}
         placement="right"
         transition
-        modifiers={[
-          {
-            name: 'offset',
-            options: {
-              offset: [0, 16], // 16px d'écart avec la liste
-            },
-          },
-        ]}
+        modifiers={[{ name: 'offset', options: { offset: [0, 16] } }]}
         style={{ zIndex: 1500 }}
         onMouseEnter={handlePopperEnter}
         onMouseLeave={handleListItemLeave}
@@ -158,7 +178,6 @@ function DraggableAnnotationTemplateItem({
                 position: 'relative',
                 border: '1px solid',
                 borderColor: 'divider',
-                // PONT INVISIBLE pour éviter la coupure au survol
                 '&::before': {
                   content: '""',
                   position: 'absolute',
@@ -168,7 +187,6 @@ function DraggableAnnotationTemplateItem({
                   height: '100%',
                   bgcolor: 'transparent',
                 },
-                // LA PETITE FLÈCHE (Caret)
                 '&::after': {
                   content: '""',
                   position: 'absolute',
@@ -195,6 +213,7 @@ function DraggableAnnotationTemplateItem({
   );
 }
 
+// Le reste du composant (SectionLocatedEntitiesInListPanelTabAnnotationTemplates) reste identique à votre base.
 export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates() {
   const dispatch = useDispatch();
   const annotationTemplateCountById = useAnnotationTemplateCountById();
@@ -217,8 +236,7 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates(
 
   function handleCreateClick(e, annotationTemplate) {
     dispatch(setSelectedItem({ id: annotationTemplate?.id, type: "ANNOTATION_TEMPLATE" }));
-
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"))
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   }
 
   return (
