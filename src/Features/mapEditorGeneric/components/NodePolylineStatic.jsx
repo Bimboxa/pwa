@@ -386,15 +386,15 @@ export default function NodePolylineStatic({
 
             let displayedStrokeWidth = computedStrokeWidth;
 
-            if (selected) {
-                if (isCmUnit) {
-                    // En mode métrique, on épaissit par un facteur multiplicatif pour garder l'échelle
-                    displayedStrokeWidth = computedStrokeWidth * 1;
-                } else {
-                    // En mode pixel écran, on ajoute des pixels fixes
-                    displayedStrokeWidth = computedStrokeWidth + 0;
-                }
-            }
+            // if (selected) {
+            //     if (isCmUnit) {
+            //         // En mode métrique, on épaissit par un facteur multiplicatif pour garder l'échelle
+            //         displayedStrokeWidth = computedStrokeWidth * 1;
+            //     } else {
+            //         // En mode pixel écran, on ajoute des pixels fixes
+            //         displayedStrokeWidth = computedStrokeWidth + 0;
+            //     }
+            // }
 
 
             // 4. Rendu Normal
