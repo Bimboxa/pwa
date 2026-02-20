@@ -1,8 +1,6 @@
 import { nanoid } from "@reduxjs/toolkit";
 import ImageObject from "Features/images/js/ImageObject";
 import getDateString from "Features/misc/utils/getDateString";
-import ProjectFile from "Features/projectFiles/js/ProjectFile";
-
 import db from "App/db/db";
 import editor from "App/editor";
 
@@ -252,33 +250,6 @@ export default class BaseMap {
       rotation2D: this.rotation2D,
     };
   }
-
-  toDb = async () => {
-    const projectFiles = [];
-
-    if (this.image?.file) {
-      const projectFile = new ProjectFile({
-        file: this.image.file,
-        itemId: this.id,
-        itemField: "image",
-      });
-      projectFiles.push(await projectFile.toDb());
-    }
-
-    if (this.imageEnhanced?.file) {
-      const projectFileEnhanced = new ProjectFile({
-        file: this.imageEnhanced.file,
-        itemId: this.id,
-        itemField: "imageEnhanced",
-      });
-      projectFiles.push(await projectFileEnhanced.toDb());
-    }
-
-    return {
-      baseMapRecord: this.toJSON(),
-      projectFileRecords: projectFiles,
-    };
-  };
 
   toKonva = () => {
     const imageToUse =

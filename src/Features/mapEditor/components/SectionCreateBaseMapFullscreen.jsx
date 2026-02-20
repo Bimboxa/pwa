@@ -6,7 +6,6 @@ import { useDispatch } from "react-redux";
 
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
-import useCreateBaseMap from "Features/baseMaps/hooks/useCreateBaseMap";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 
