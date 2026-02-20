@@ -31,6 +31,7 @@ import PageOnboarding from "Features/onboarding/components/PageOnboarding";
 import PageProjects from "Features/projects/components/PageProjects";
 import PageProject from "Features/projects/components/PageProject";
 import PageScopes from "Features/scopes/components/PageScopes";
+import PageScopeLoader from "Features/scopes/components/PageScopeLoader";
 import PageGmap from "Features/gmap/components/PageGmap";
 
 // dexie
@@ -75,6 +76,10 @@ function App({ pca, runningIn }) {
                       element={<PageProject />}
                     />
                     <Route path="/scopes" element={<PageScopes />} />
+                    <Route
+                      path="/scopes/:scopeId"
+                      element={<PageScopeLoader />}
+                    />
                     <Route path="/" element={<MainAppLayout />} />
                     <Route
                       path="/remote-container-redirect"
