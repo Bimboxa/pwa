@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import { Badge, IconButton, Box } from "@mui/material";
 import SyncIcon from "@mui/icons-material/Sync";
 
+import usePullLastRemoteScopeConfiguration from "../hooks/usePullLastRemoteScopeConfiguration";
 import DialogSync from "./DialogSync";
 
 
@@ -14,6 +15,8 @@ export default function IconButtonDialogSync() {
 
     const lastRemoteConfiguration = useSelector((s) => s.remoteScopeConfigurations.lastRemoteConfiguration);
     const lastSyncedRemoteConfigurationVersion = useSelector((s) => s.remoteScopeConfigurations.lastSyncedRemoteConfigurationVersion);
+
+    const pullLastConfig = usePullLastRemoteScopeConfiguration();
 
     // state
 
@@ -29,8 +32,13 @@ export default function IconButtonDialogSync() {
 
     // handlers
 
-    function handleOpen() {
+    async function handleOpen() {
         setOpen(true);
+        try {
+            await pullLastConfig();
+        } catch (error) {
+            console.error("[IconButtonDialogSync] pull error", error);
+        }
     }
     function handleClose() {
         setOpen(false);
