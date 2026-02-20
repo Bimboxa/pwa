@@ -24,6 +24,7 @@ import useAutoResetBaseMapPose from "Features/bgImage/hooks/useAutoResetBaseMapP
 import useAutoShowBgImage from "Features/bgImage/hooks/useAutoShowBgImage";
 import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgImageRawTextAnnotations";
 import useHandleCommitDrawing from "../hooks/useHandleCommitDrawing";
+import useHandleSplitCommit from "../hooks/useHandleSplitCommit";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationType";
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
@@ -281,6 +282,7 @@ export default function MainMapEditorV3() {
     // handler - commit drawing
 
     const _handleCommitDrawing = useHandleCommitDrawing();
+    const handleSplitCommit = useHandleSplitCommit();
 
     const handleCommitDrawing = (rawPoints, options) => {
 
@@ -880,7 +882,10 @@ export default function MainMapEditorV3() {
                     ref={interactionLayerRef}
                     showBgImage={showBgImage}
                     onCommitDrawing={({ points, event, cutHostId, options }) => {
-                        if (cutHostId) {
+                        if (type === "SPLIT" && newAnnotation?.splitHostId) {
+                            handleSplitCommit(points, { splitHostId: newAnnotation.splitHostId });
+                        }
+                        else if (cutHostId) {
                             if (enabledDrawingMode === 'RECTANGLE') points = getPolylinePointsFromRectangle(points)
                             handleCommitDrawing(points, { cutHostId });
                         }
