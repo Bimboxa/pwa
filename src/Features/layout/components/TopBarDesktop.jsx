@@ -10,6 +10,7 @@ import ButtonSelectorProject from "Features/projects/components/ButtonSelectorPr
 import ButtonSelectorScope from "Features/scopes/components/ButtonSelectorScope";
 import SelectorViewer from "Features/viewers/components/SelectorViewer";
 import IconButtonDialogSync from "Features/remoteScopeConfigurations/components/IconButtonDialogSync";
+import IconButtonShareScope from "Features/scopes/components/IconButtonShareScope";
 //import ButtonSelectorScopeInTopBar from "Features/scopes/components/ButtonSelectorScopeInTopBar";
 import AuthButtons from "Features/auth/components/AuthButtons";
 import TopBarProjectAndScope from "./TopBarProjectAndScope";
@@ -47,7 +48,7 @@ export default function TopBarDesktop() {
         alignItems: "center",
         bgcolor: "white",
         zIndex: 1000,
-        pr: 0.5,
+        pr: 2,
         pl: 0.5,
         borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
       }}
@@ -77,6 +78,7 @@ export default function TopBarDesktop() {
           <ToolbarDrawingTools />
         </Box> */}
         {em?.type === "LOCATED_ENTITY" && <SelectorViewer />}
+        <IconButtonShareScope />
       </Box>
     </Box>
   );
