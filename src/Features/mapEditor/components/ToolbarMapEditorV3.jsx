@@ -14,6 +14,7 @@ import ButtonDrawMarker from "./ButtonDrawMarker";
 import ButtonDrawPolygon from "./ButtonDrawPolygon";
 import ButtonDrawPolyline from "./ButtonDrawPolyline";
 import ButtonDrawCut from "./ButtonDrawCut";
+import ButtonDrawSplit from "./ButtonDrawSplit";
 import ButtonDrawLabel from "./ButtonDrawLabel";
 import ButtonDrawImage from "./ButtonDrawImage";
 import ButtonEditScale from "./ButtonEditScale";
@@ -87,6 +88,7 @@ export default function ToolbarMapEditorV3() {
 
         <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, px: 1, borderRadius: 2, gap: 0.5 }}>
             <ButtonDrawCut />
+            <ButtonDrawSplit />
             <ButtonDrawImage />
             {/* <ButtonDrawLabel /> */}
             {/* <ButtonDrawMarker /> */}

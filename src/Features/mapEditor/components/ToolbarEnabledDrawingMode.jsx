@@ -48,13 +48,13 @@ export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
             key: "CLICK",
             label: "Clic",
             icon: <Mouse sx={{ color }} />,
-            show: ["POLYLINE", "POLYGON", "STRIP", "CUT"].includes(type)
+            show: ["POLYLINE", "POLYGON", "STRIP", "CUT", "SPLIT"].includes(type)
         },
         {
             key: "RECTANGLE",
             label: "Rectangle",
             icon: <Rectangle sx={{ color }} />,
-            show: ["POLYGON", "POLYLINE", "RECTANGLE", "CUT"].includes(type)
+            show: ["POLYGON", "POLYLINE", "RECTANGLE", "CUT", "SPLIT"].includes(type)
         },
         {
             key: "DROP_FILL",
@@ -80,7 +80,7 @@ export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
 
     // helpers - show mode
 
-    const showMode = ["POLYLINE", "POLYGON", "STRIP", "CUT", "LABEL", "MARKER", "POINT", "IMAGE", "RECTANGLE"].includes(type);
+    const showMode = ["POLYLINE", "POLYGON", "STRIP", "CUT", "SPLIT", "LABEL", "MARKER", "POINT", "IMAGE", "RECTANGLE"].includes(type);
 
     // handlers
 
