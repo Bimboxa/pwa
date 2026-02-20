@@ -3,6 +3,8 @@ import { createSlice } from "@reduxjs/toolkit";
 const selectionInitialState = {
   selectedItems: [], // Array of { id, nodeId, type, nodeType, listingId, context, pointId, partId, partType }
   openDialogDeleteSelectedItem: false,
+  //
+  showAnnotationsProperties: false,
 };
 
 export const selectionSlice = createSlice({
@@ -79,9 +81,15 @@ export const selectionSlice = createSlice({
           item.type = "LISTING";
           item.id = item.listingId;
         }
-        else if (item.type === "NODE") {
+        else if (item.type === "NODE" && state.showAnnotationsProperties) {
           item.type = "ENTITY";
           item.id = item.entityId;
+          item.listingId = item.listingId;
+          state.showAnnotationsProperties = false;
+        }
+        else if (item.type === "NODE" && !state.showAnnotationsProperties) {
+          item.type = "LISTING";
+          item.id = item.listingId;
           item.listingId = item.listingId;
         }
         else if (item.type === "ENTITY") {
@@ -90,6 +98,9 @@ export const selectionSlice = createSlice({
           item.listingId = item.listingId;
         }
       }
+    },
+    setShowAnnotationsProperties: (state, action) => {
+      state.showAnnotationsProperties = action.payload;
     }
   },
 });
@@ -104,7 +115,8 @@ export const {
   setOpenDialogDeleteSelectedItem,
   setOpenDialogDeleteSelectedAnnotation,
   clearSelection,
-  triggerSelectionBack
+  triggerSelectionBack,
+  setShowAnnotationsProperties
 } = selectionSlice.actions;
 
 // Selectors

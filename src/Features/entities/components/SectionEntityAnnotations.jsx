@@ -2,7 +2,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 
-import { setSelectedItem } from "Features/selection/selectionSlice";
+import { setSelectedItem, setShowAnnotationsProperties } from "Features/selection/selectionSlice";
 
 import { Box, IconButton, List, ListItemButton, Typography } from "@mui/material";
 import { Edit } from "@mui/icons-material";
@@ -37,6 +37,7 @@ export default function SectionEntityAnnotations({
       listingId: annotation.listingId,
       entityId: annotation.entityId,
     }))
+    dispatch(setShowAnnotationsProperties(true))
   }
 
   if (!entity?.annotations?.length) return null;

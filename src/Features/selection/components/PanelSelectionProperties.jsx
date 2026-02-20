@@ -22,6 +22,7 @@ export default function PanelSelectionProperties() {
   const selectedItem = selectedItems[0];
   const { value: listing } = useSelectedListing(selectedItem?.listingId);
   const entityId = useSelector((s) => s.entities.selectedEntityId);
+  const showAnnotationsProperties = useSelector((s) => s.selection.showAnnotationsProperties);
 
   console.log("debug_0602_selectedItem", selectedItem);
 
@@ -30,9 +31,11 @@ export default function PanelSelectionProperties() {
   let type = "LISTING";
   if (selectedItem?.type === "ENTITY") {
     type = "ENTITY";
-  }
-  else if (selectedItem?.nodeType === "ANNOTATION" && selectedItem.type === "NODE") {
+  } else if (showAnnotationsProperties) {
     type = "ANNOTATION";
+  }
+  else if (selectedItem?.type === "NODE" && selectedItem?.nodeType === "ANNOTATION" && Boolean(selectedItem.entityId)) {
+    type = "ENTITY_WITH_ANNOTATIONS";
   }
   else if (selectedItem?.type === "ANNOTATION_TEMPLATE") {
     type = "ANNOTATION_TEMPLATE";
@@ -48,11 +51,18 @@ export default function PanelSelectionProperties() {
         <PanelEntityProperties />
       )}
 
+      {type === "ENTITY_WITH_ANNOTATIONS" && (
+        <PanelEntityProperties />
+      )}
+
       {type === "ANNOTATION" && (
         <PanelAnnotationProperties />
       )}
 
+
+
       {type === "ANNOTATION_TEMPLATE" && <PanelAnnotationTemplateProperties />}
+
     </BoxFlexVStretch>
   );
 }

@@ -59,15 +59,17 @@ export default function PanelEntityProperties() {
 
             </Box>
             <BoxFlexVStretch sx={{ overflow: "auto" }}>
-                <SectionEntityAnnotations
-                    entity={entity}
-                />
+
                 <FormEntity
                     template={template}
                     entity={entity}
                     onEntityChange={handleEntityChange}
                     sectionContainerEl={containerRef?.current}
                 />
+
+                {entity?.annotations?.length > 0 && <SectionEntityAnnotations
+                    entity={entity}
+                />}
 
             </BoxFlexVStretch>
         </BoxFlexVStretch>
