@@ -21,11 +21,12 @@ export default function IconButtonDebugAuth() {
     const [jwt, setJwt] = useState("");
     const [userIdMaster, setUserIdMaster] = useState("");
     const [userName, setUserName] = useState("");
+    const [trigram, setTrigram] = useState("");
 
     // effect
 
     useEffect(() => {
-        const { jwt, userIdMaster, userName } = getDebugAuthFromLocalStorage() ?? {};
+        const { jwt, userIdMaster, userName, trigram } = getDebugAuthFromLocalStorage() ?? {};
         if (userIdMaster) {
             setUserIdMaster(userIdMaster);
         }
@@ -35,12 +36,15 @@ export default function IconButtonDebugAuth() {
         if (userName) {
             setUserName(userName);
         }
+        if (trigram) {
+            setTrigram(trigram)
+        }
     }, []);
 
     // handlers
 
     function handleSave() {
-        setDebugAuthInLocalStorage({ jwt, userIdMaster, userName });
+        setDebugAuthInLocalStorage({ jwt, userIdMaster, userName, trigram });
         setOpen(false);
     }
 
@@ -48,6 +52,7 @@ export default function IconButtonDebugAuth() {
         setOpen(false);
         setJwt("");
         setUserIdMaster("");
+        setTrigram("");
     }
 
     return <>
@@ -79,6 +84,11 @@ export default function IconButtonDebugAuth() {
                 label="User Name"
                 value={userName}
                 onChange={setUserName}
+            />
+            <FieldTextV2
+                label="Trigramme"
+                value={trigram}
+                onChange={setTrigram}
             />
 
             <BoxAlignToRight sx={{ p: 1 }}>

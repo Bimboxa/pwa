@@ -51,7 +51,11 @@ export default function DialogSync({ open, onClose, isPullRequired }) {
             {isPullRequired && <SectionPullRemoteScopeConfiguration />}
 
             <Box sx={{ p: 1, width: 1 }}>
-                <ButtonGeneric variant="contained" loading={loading} disabled={isPullRequired} color="primary" onClick={handlePush} label={pushS} fullWidth />
+                <ButtonGeneric
+                    variant="contained" loading={loading}
+                    //disabled={isPullRequired}
+                    color="primary"
+                    onClick={handlePush} label={pushS} fullWidth />
             </Box>
 
 

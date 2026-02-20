@@ -3,9 +3,9 @@ import { useState } from "react";
 import { useSelector } from "react-redux";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import usePullLastRemoteScopeConfiguration from "Features/remoteScopeConfigurations/hooks/usePullLastRemoteScopeConfiguration";
+import useFetchScopeConfiguration from "Features/remoteScopeConfigurations/hooks/useFetchScopeConfiguration";
 
-import { Box, Typography, Button } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
@@ -23,8 +23,7 @@ export default function SectionPullRemoteScopeConfiguration() {
     const appConfig = useAppConfig();
     const lastRemoteConfiguration = useSelector((s) => s.remoteScopeConfigurations.lastRemoteConfiguration);
 
-
-    const pull = usePullLastRemoteScopeConfiguration();
+    const fetchConfiguration = useFetchScopeConfiguration();
 
     // state
 
@@ -45,9 +44,9 @@ export default function SectionPullRemoteScopeConfiguration() {
 
     // handlers
 
-    async function handlePull() {
+    async function handleFetch() {
         setLoading(true);
-        await pull();
+        await fetchConfiguration();
         setLoading(false);
     }
 
@@ -60,7 +59,7 @@ export default function SectionPullRemoteScopeConfiguration() {
                     <Box sx={{ p: 1 }}>
                         <Typography color="white" sx={{ fontWeight: "bold" }}>{lastVersionS}</Typography>
                     </Box>
-                    <ButtonGeneric variant="contained" onClick={handlePull} loading={loading} label={updateS + " (" + fileSizeS + ")"} />
+                    <ButtonGeneric variant="contained" onClick={handleFetch} loading={loading} label={updateS + " (" + fileSizeS + ")"} />
                 </Box>
             </Box>
         </Box>
