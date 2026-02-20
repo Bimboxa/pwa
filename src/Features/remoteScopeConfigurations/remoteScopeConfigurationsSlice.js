@@ -1,12 +1,13 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 const remoteScopeConfigurationsInitialState = {
-  lastRemoteConfiguration: {
-    version: 3,
-    createdBy: { trigram: "SIH" },
-    createdAt: '2026-02-05T07:35:34.134Z',
-    fileSize: 25 * 1024 * 1024,
-  },
+  // lastRemoteConfiguration: {
+  //   version: 3,
+  //   createdBy: { trigram: "SIH" },
+  //   createdAt: '2026-02-05T07:35:34.134Z',
+  //   fileSize: 25 * 1024 * 1024,
+  // },
+  lastRemoteConfiguration: null,
   lastSyncedRemoteConfigurationVersion: 1,
 };
 

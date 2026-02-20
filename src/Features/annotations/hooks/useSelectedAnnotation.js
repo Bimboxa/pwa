@@ -25,10 +25,6 @@ export default function useSelectedAnnotation() {
     (s) => s.annotations.selectedAnnotationId
   );
 
-  const annotationsUpdatedAt = useSelector(
-    (s) => s.annotations.annotationsUpdatedAt
-  );
-
   const annotationTemplates = useAnnotationTemplates();
 
   // helper
@@ -46,7 +42,6 @@ export default function useSelectedAnnotation() {
 
 
   // main
-
   // let annotation = useLiveQuery(async () => {
   //   if (!selectedAnnotationId) return null;
   //   let _annotation = await db.annotations.get(selectedAnnotationId);

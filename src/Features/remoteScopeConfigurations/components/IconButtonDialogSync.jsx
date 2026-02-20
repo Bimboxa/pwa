@@ -25,9 +25,8 @@ export default function IconButtonDialogSync() {
     // helpers
 
     const isPullRequired =
-        !lastSyncedRemoteConfigurationVersion ||
-        !lastRemoteConfiguration ||
-        lastRemoteConfiguration.version > lastSyncedRemoteConfigurationVersion;
+        lastRemoteConfiguration
+        && lastRemoteConfiguration.version > (lastSyncedRemoteConfigurationVersion ?? 0);
 
 
     // handlers
@@ -48,7 +47,7 @@ export default function IconButtonDialogSync() {
     return (
         <Box>
             <IconButton onClick={handleOpen} size="small">
-                <Badge badgeContent={isPullRequired ? 1 : 0} color="error" variant="dot" size="small">
+                <Badge color="error" variant="dot" size="small" invisible={!isPullRequired}>
                     <SyncIcon />
                 </Badge>
 
