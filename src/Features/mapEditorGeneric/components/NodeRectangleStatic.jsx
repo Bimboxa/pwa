@@ -16,6 +16,12 @@ export default memo(function NodeRectangleStatic({
     const { bbox, id, fillColor, strokeColor, rotation = 0, fillType = "SOLID", fillOpacity = 1 } = annotation;
     const { x, y, width, height } = bbox ?? {};
 
+    // Contraintes template : dimensions verrouillées par le annotationTemplate
+    const templateSize = annotation.annotationTemplateProps?.size;
+    const lockedWidth = templateSize?.width != null;
+    const lockedHeight = templateSize?.height != null;
+    const resizeLocked = lockedWidth || lockedHeight; // Les coins touchent les 2 dims → grisés si au moins une est contrainte
+
     // Pattern Id unique
     const patternIdRef = useRef(`hatching-${Math.random().toString(36).substr(2, 9)}`);
     const HATCHING_SPACING = 12;
@@ -53,10 +59,10 @@ export default memo(function NodeRectangleStatic({
     // --- 3. HELPERS RENDU POIGNÉES ---
 
     // Poignée de redimensionnement (Carrée)
-    const renderResizeHandle = (type, hx, hy) => (
+    const renderResizeHandle = (type, hx, hy, disabled = false) => (
         <g
             transform={`translate(${hx}, ${hy})`}
-            style={{ pointerEvents: "auto" }}
+            style={{ pointerEvents: disabled ? "none" : "auto" }}
         >
             <g style={{ transform: handleScaleTransform }}>
                 <rect
@@ -64,14 +70,17 @@ export default memo(function NodeRectangleStatic({
                     y={-HALF_HANDLE}
                     width={HANDLE_SIZE}
                     height={HANDLE_SIZE}
-                    fill="#fff"
-                    data-interaction="resize-annotation"
-                    data-handle-type={type}
-                    data-node-id={id}
-                    data-node-type="ANNOTATION"
-                    style={{ cursor: `${type.toLowerCase()}-resize` }}
+                    fill={disabled ? "#ccc" : "#fff"}
+                    opacity={disabled ? 0.5 : 1}
+                    {...(!disabled && {
+                        "data-interaction": "resize-annotation",
+                        "data-handle-type": type,
+                        "data-node-id": id,
+                        "data-node-type": "ANNOTATION",
+                    })}
+                    style={{ cursor: disabled ? "default" : `${type.toLowerCase()}-resize` }}
                     {...selected && {
-                        stroke: "#00ff00",
+                        stroke: disabled ? "#999" : "#00ff00",
                         strokeWidth: 1,
                         vectorEffect: "non-scaling-stroke"
                     }}
@@ -158,13 +167,13 @@ export default memo(function NodeRectangleStatic({
             {/* Poignées (Uniquement si sélectionné et pas en cours de déplacement global) */}
             {selected && !dragged && (
                 <g>
-                    {/* Resize */}
-                    {renderResizeHandle("NW", 0, 0)}
-                    {renderResizeHandle("NE", width, 0)}
-                    {renderResizeHandle("SW", 0, height)}
-                    {renderResizeHandle("SE", width, height)}
+                    {/* Resize — grisés si une dimension est contrainte par le template */}
+                    {renderResizeHandle("NW", 0, 0, resizeLocked)}
+                    {renderResizeHandle("NE", width, 0, resizeLocked)}
+                    {renderResizeHandle("SW", 0, height, resizeLocked)}
+                    {renderResizeHandle("SE", width, height, resizeLocked)}
 
-                    {/* Rotate */}
+                    {/* Rotate — toujours disponible */}
                     {renderRotationHandle()}
                 </g>
             )}

@@ -142,15 +142,18 @@ const InteractionLayer = forwardRef(({
   });
   const autoPanCounter = useRef(0);
   const autoPanSessionRef = useRef(0);
+  const commitPendingRef = useRef(null); // annotationId en attente de convergence DB
 
 
   // context
 
   const { setHoveredNode,
     setHiddenAnnotationIds,
-    setDraggingAnnotationId,
     // setSelectedPointId, selectedPointId, // REMOVED
     // setSelectedPartId, selectedPartId, // REMOVED
+    pendingMovesRef,
+    setPendingMovesVersion,
+    getPendingMove,
     setBasePose } = useInteraction();
 
   // Selection from Redux
@@ -310,6 +313,65 @@ const InteractionLayer = forwardRef(({
     basePoseRef.current = basePose;
     setBasePose(basePose);
   }, [basePose]);
+
+  // Convergence DB : on attend que l'annotation ait réellement changé dans annotations[]
+  // commitSnapshotRef stocke un snapshot léger de l'annotation avant le drag
+  // On compare avec les données courantes pour détecter la convergence
+  const commitSnapshotRef = useRef(null); // { annotationId, bbox, point, ... }
+  const commitTimeoutRef = useRef(null); // Fallback timeout
+
+  // Fonction de nettoyage du pendingMove
+  const clearCommitPending = useCallback(() => {
+    if (commitPendingRef.current) {
+      pendingMovesRef.current.delete(commitPendingRef.current);
+      commitPendingRef.current = null;
+      commitSnapshotRef.current = null;
+      setPendingMovesVersion(v => v + 1); // notifie StaticMapContent de restaurer opacity
+    }
+    if (commitTimeoutRef.current) {
+      clearTimeout(commitTimeoutRef.current);
+      commitTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Lancer le suivi de convergence (snapshot + fallback timeout)
+  const startCommitPendingWatch = useCallback(() => {
+    if (commitTimeoutRef.current) clearTimeout(commitTimeoutRef.current);
+    commitTimeoutRef.current = setTimeout(() => {
+      clearCommitPending();
+    }, 500);
+  }, [clearCommitPending]);
+
+  // Détection de convergence par snapshot : on compare l'annotation courante avec le snapshot
+  useEffect(() => {
+    if (!commitPendingRef.current || !commitSnapshotRef.current) return;
+
+    const ann = annotations?.find(a => a.id === commitPendingRef.current);
+    if (!ann) return;
+
+    const snap = commitSnapshotRef.current;
+    let hasChanged = false;
+
+    // Comparer selon le type d'annotation
+    if (ann.type === "IMAGE" || ann.type === "RECTANGLE") {
+      hasChanged = ann.bbox?.x !== snap.bboxX || ann.bbox?.y !== snap.bboxY
+        || ann.bbox?.width !== snap.bboxW || ann.bbox?.height !== snap.bboxH
+        || ann.rotation !== snap.rotation;
+    } else if (ann.type === "MARKER" || ann.type === "POINT") {
+      hasChanged = ann.point?.x !== snap.pointX || ann.point?.y !== snap.pointY;
+    } else if (ann.type === "LABEL") {
+      hasChanged = ann.targetPoint?.x !== snap.targetX || ann.targetPoint?.y !== snap.targetY
+        || ann.labelPoint?.x !== snap.labelX || ann.labelPoint?.y !== snap.labelY;
+    } else {
+      // POLYLINE, POLYGON : comparer le premier point
+      const firstPt = ann.points?.[0];
+      hasChanged = firstPt?.x !== snap.firstPointX || firstPt?.y !== snap.firstPointY;
+    }
+
+    if (hasChanged) {
+      clearCommitPending();
+    }
+  }, [annotations]);
 
   const getTargetPose = () => {
     if (activeContext === "BG_IMAGE") return { x: 0, y: 0, k: 1 };
@@ -1660,7 +1722,12 @@ const InteractionLayer = forwardRef(({
         setDragAnnotationState(newDragAnnotationState);
         dragAnnotationStateRef.current = newDragAnnotationState;
 
-        setDraggingAnnotationId(dragAnnotationState.selectedAnnotationId);
+        // Optimistic overlay : on pose un pendingMove au lieu de masquer l'annotation
+        pendingMovesRef.current.set(dragAnnotationState.selectedAnnotationId, {
+          deltaPos: { x: 0, y: 0 },
+          partType: dragAnnotationState.partType || null,
+        });
+        setPendingMovesVersion(v => v + 1); // notifie StaticMapContent de mettre opacity:0
       } else {
         // Sinon, on ne fait rien (on absorbe le mouvement sans déplacer l'objet)
         return;
@@ -1674,6 +1741,13 @@ const InteractionLayer = forwardRef(({
         x: currentMouseInLocal.x - dragAnnotationState.startMouseInLocal.x,
         y: currentMouseInLocal.y - dragAnnotationState.startMouseInLocal.y
       };
+
+      // Mettre à jour le pendingMove ref (pas de re-render, lu par le TransientAnnotationLayer)
+      pendingMovesRef.current.set(dragAnnotationState.selectedAnnotationId, {
+        deltaPos,
+        partType: dragAnnotationState.partType || null,
+      });
+
       const newDragAnnotationState = { ...dragAnnotationState, deltaPos, localPos: currentMouseInLocal };
       setDragAnnotationState(newDragAnnotationState);
       dragAnnotationStateRef.current = newDragAnnotationState;
@@ -2106,7 +2180,7 @@ const InteractionLayer = forwardRef(({
       }
     }
 
-    // --- Gestion du Drag d'Annotation entière (inchangé) ---
+    // --- Gestion du Drag d'Annotation entière ---
     else if (dragAnnotationState) {
       if (dragAnnotationState.active) {
         if (onAnnotationMoveCommit) {
@@ -2117,15 +2191,29 @@ const InteractionLayer = forwardRef(({
             dragAnnotationState.localPos
           );
         }
+        // Snapshot de l'annotation AVANT le drag pour détecter la convergence DB
+        const annId = dragAnnotationState.selectedAnnotationId;
+        const ann = annotations?.find(a => a.id === annId);
+        if (ann) {
+          commitSnapshotRef.current = {
+            bboxX: ann.bbox?.x, bboxY: ann.bbox?.y,
+            bboxW: ann.bbox?.width, bboxH: ann.bbox?.height,
+            rotation: ann.rotation,
+            pointX: ann.point?.x, pointY: ann.point?.y,
+            targetX: ann.targetPoint?.x, targetY: ann.targetPoint?.y,
+            labelX: ann.labelPoint?.x, labelY: ann.labelPoint?.y,
+            firstPointX: ann.points?.[0]?.x, firstPointY: ann.points?.[0]?.y,
+          };
+        }
+        // Marquer qu'on attend la convergence DB avant de supprimer le pendingMove
+        commitPendingRef.current = annId;
+        startCommitPendingWatch(); // Fallback timeout si le snapshot ne détecte pas de changement
       }
 
-      // pour éviter le blink
-      setTimeout(() => {
-        setDraggingAnnotationId(null)
-        setDragAnnotationState(null);
-        dragAnnotationStateRef.current = null;
-      }, 300
-      );
+      // Cleanup immédiat du drag state (plus de setTimeout)
+      // Le pendingMove reste actif → le TransientAnnotationLayer reste visible
+      setDragAnnotationState(null);
+      dragAnnotationStateRef.current = null;
       document.body.style.cursor = '';
     }
   };
@@ -2257,7 +2345,7 @@ const InteractionLayer = forwardRef(({
       };
       setDragAnnotationState(newDragAnnotationState);
       dragAnnotationStateRef.current = newDragAnnotationState;
-      // On NE met PAS setDraggingAnnotationId tout de suite !
+      // Le pendingMove sera posé au threshold crossing dans handleWorldMouseMove
     }
 
     if (basemapHandle || legendHandle) {
@@ -2444,18 +2532,25 @@ const InteractionLayer = forwardRef(({
         )}
 
 
-        {/* --- Affichage conditionnel : Seulement si 'active' est vrai --- */}
-        {dragAnnotationState?.active && (
-          <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
-            <TransientAnnotationLayer
-              annotation={selectedAnnotation}
-              deltaPos={dragAnnotationState.deltaPos}
-              partType={dragAnnotationState.partType}
-              basePose={targetPose}
-              baseMapMeterByPx={baseMapMeterByPx}
-            />
-          </g>
-        )}
+        {/* --- Overlay optimiste : visible pendant le drag ET en attente de convergence DB --- */}
+        {(() => {
+          const pendingMove = getPendingMove(selectedAnnotation?.id);
+          const isActive = dragAnnotationState?.active || pendingMove;
+          if (!isActive) return null;
+          const deltaPos = dragAnnotationState?.deltaPos ?? pendingMove?.deltaPos;
+          const partType = dragAnnotationState?.partType ?? pendingMove?.partType;
+          return (
+            <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
+              <TransientAnnotationLayer
+                annotation={selectedAnnotation}
+                deltaPos={deltaPos}
+                partType={partType}
+                basePose={targetPose}
+                baseMapMeterByPx={baseMapMeterByPx}
+              />
+            </g>
+          );
+        })()}
 
         {(enabledDrawingMode && drawingPoints.length > 0) && (
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>

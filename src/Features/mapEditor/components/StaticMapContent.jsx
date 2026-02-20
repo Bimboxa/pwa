@@ -40,7 +40,7 @@ function StaticMapContent({
     // data
 
     // [MODIF 1] Récupérer selectedPointId via Redux
-    const { hoveredNode, hiddenAnnotationIds } = useInteraction();
+    const { hoveredNode, hiddenAnnotationIds, getPendingMove, pendingMovesVersion } = useInteraction();
     const selectedPointId = useSelector(selectSelectedPointId);
     const selectedItems = useSelector(selectSelectedItems);
     // Derive selectedNode/selectedNodes from new slice for compatibility
@@ -115,19 +115,23 @@ function StaticMapContent({
                     if (hiddenAnnotationIds?.includes(annotation.id)) return null;
                     if (selectedNode?.nodeId === annotation.id) return null; // Masquer si édité
 
-                    return <NodeAnnotationStatic
-                        key={annotation.id}
-                        annotation={annotation}
-                        spriteImage={spriteImage}
-                        imageSize={bgImageSize}
-                        hovered={annotation.id === hoveredNode?.nodeId}
-                        selected={false} // Toujours false car c'est le statique
-                        sizeVariant={sizeVariant}
-                        containerK={bgPose.k}
-                        baseMapMeterByPx={baseMapMeterByPx}
-                        context="BG_IMAGE"
-                        forceHideLabel={hiddenAnnotationIds?.includes("label::" + annotation.id)}
-                    />
+                    // Optimistic overlay : rendre invisible (opacity:0) au lieu de démonter
+                    const hasPendingMove = !!getPendingMove(annotation.id);
+
+                    return <g key={annotation.id} style={hasPendingMove ? { opacity: 0 } : undefined}>
+                        <NodeAnnotationStatic
+                            annotation={annotation}
+                            spriteImage={spriteImage}
+                            imageSize={bgImageSize}
+                            hovered={annotation.id === hoveredNode?.nodeId}
+                            selected={false}
+                            sizeVariant={sizeVariant}
+                            containerK={bgPose.k}
+                            baseMapMeterByPx={baseMapMeterByPx}
+                            context="BG_IMAGE"
+                            forceHideLabel={hiddenAnnotationIds?.includes("label::" + annotation.id)}
+                        />
+                    </g>
                 })}
             </g>
 
@@ -163,17 +167,13 @@ function StaticMapContent({
 
                 {baseMapAnnotations?.map(annotation => {
 
-                    // [MODIF 3] Logique de masquage avancée pour éviter les doublons avec EditedLayer
-
-                    // A. Caché par le Drag (TransientLayer)
+                    // A. Caché par le Drag topology (segment split) — toujours via hiddenAnnotationIds
                     const isHiddenByDrag = hiddenAnnotationIds?.includes(annotation.id);
 
                     // B. Caché par la Sélection Globale (EditedLayer mode Objet)
                     const isSelectedGlobal = selectedNode?.nodeId === annotation.id || selectedNodes?.map(n => n.nodeId)?.includes(annotation.id);
 
                     // C. Caché par la Sélection de Point (EditedLayer mode Topologie)
-                    // On ne cache les voisins QUE si on n'a PAS de sélection globale.
-                    // Si on a une sélection globale, les voisins restent statiques.
                     const isConnectedToPoint = idsAffectedBySelectedPoint.has(annotation.id);
                     const hideDueToTopology = !selectedNode && isConnectedToPoint;
 
@@ -181,19 +181,22 @@ function StaticMapContent({
                         return null;
                     }
 
-                    return <NodeAnnotationStatic
-                        key={annotation.id}
-                        annotation={annotation}
-                        spriteImage={spriteImage}
-                        hovered={annotation.id === hoveredNode?.nodeId}
-                        // selected est toujours false ici, car si c'était true, on aurait return null au-dessus
-                        selected={false}
-                        sizeVariant={sizeVariant}
-                        containerK={basePose.k}
-                        baseMapMeterByPx={baseMapMeterByPx}
-                        showBgImage={showBgImage}
-                        forceHideLabel={hiddenAnnotationIds?.includes("label::" + annotation.id)}
-                    />
+                    // Optimistic overlay : rendre invisible (opacity:0) au lieu de démonter
+                    const hasPendingMove = !!getPendingMove(annotation.id);
+
+                    return <g key={annotation.id} style={hasPendingMove ? { opacity: 0 } : undefined}>
+                        <NodeAnnotationStatic
+                            annotation={annotation}
+                            spriteImage={spriteImage}
+                            hovered={annotation.id === hoveredNode?.nodeId}
+                            selected={false}
+                            sizeVariant={sizeVariant}
+                            containerK={basePose.k}
+                            baseMapMeterByPx={baseMapMeterByPx}
+                            showBgImage={showBgImage}
+                            forceHideLabel={hiddenAnnotationIds?.includes("label::" + annotation.id)}
+                        />
+                    </g>
                 })}
 
             </g>

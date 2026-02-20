@@ -6,7 +6,7 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import { setAnchorPositionScale, setScaleInPx, setAngleInRad } from "../mapEditorSlice";
 import { setEnabledDrawingMode } from "../mapEditorSlice";
-import { setTempAnnotations } from "Features/annotations/annotationsSlice";
+import { setTempAnnotations, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
 import { setTempAnnotationToolbarPosition } from "Features/mapEditor/mapEditorSlice";
@@ -594,7 +594,8 @@ export default function MainMapEditorV3() {
                 await db.annotations.update(annotation.id, updates);
             }
 
-            else if (annotation.type === "IMAGE" || annotation.type === "RECTANGLE") {
+            // --- IMAGE : resize avec aspect ratio contraint ---
+            else if (annotation.type === "IMAGE") {
                 const bgW = imageSize.width;
                 const bgH = imageSize.height;
 
@@ -606,7 +607,6 @@ export default function MainMapEditorV3() {
                 const cw = currentBBox.width;
                 const ch = currentBBox.height;
 
-                // Ratio d'aspect à conserver
                 const aspectRatio = cw / ch;
 
                 let nx = cx;
@@ -617,24 +617,16 @@ export default function MainMapEditorV3() {
                 const updates = {};
 
                 if (partType === "ROTATE") {
-                    // Logique simplifiée : Glisser horizontalement ajoute des degrés
-                    // Pour plus de précision, on pourrait utiliser Math.atan2 si on avait la pos souris absolue
-                    const sensitivity = 1; // 1px = 1deg
+                    const sensitivity = 1;
                     let newRotation = (currentRotation + deltaPos.x * sensitivity) % 360;
-
-                    // Normalisation 0-360
                     if (newRotation < 0) newRotation += 360;
-
                     updates.rotation = newRotation;
                 }
 
-                // --- CAS 1 : REDIMENSIONNEMENT (RESIZE) ---
                 else if (partType && partType.startsWith("RESIZE_")) {
                     const handle = partType.replace("RESIZE_", "");
 
-                    // Logique Homothétique avec Coin Opposé Fixe ou Centre
-
-                    // A. COINS (Fixe le coin opposé)
+                    // A. COINS (Fixe le coin opposé, aspect ratio contraint)
                     if (handle === "SE") {
                         nw = cw + deltaPos.x;
                         nh = nw / aspectRatio;
@@ -642,12 +634,12 @@ export default function MainMapEditorV3() {
                     else if (handle === "SW") {
                         nw = cw - deltaPos.x;
                         nh = nw / aspectRatio;
-                        nx = cx + (cw - nw); // Décalage X pour compenser
+                        nx = cx + (cw - nw);
                     }
                     else if (handle === "NE") {
                         nw = cw + deltaPos.x;
                         nh = nw / aspectRatio;
-                        ny = cy + (ch - nh); // Décalage Y pour compenser
+                        ny = cy + (ch - nh);
                     }
                     else if (handle === "NW") {
                         nw = cw - deltaPos.x;
@@ -656,41 +648,36 @@ export default function MainMapEditorV3() {
                         ny = cy + (ch - nh);
                     }
 
-                    // B. BORDS (Fixe le côté opposé + Centre l'axe secondaire)
+                    // B. BORDS
                     else if (handle === "E") {
                         nw = cw + deltaPos.x;
                         nh = nw / aspectRatio;
-                        ny = cy + (ch - nh) / 2; // Centre Y
+                        ny = cy + (ch - nh) / 2;
                     }
                     else if (handle === "W") {
                         nw = cw - deltaPos.x;
                         nh = nw / aspectRatio;
                         nx = cx + (cw - nw);
-                        ny = cy + (ch - nh) / 2; // Centre Y
+                        ny = cy + (ch - nh) / 2;
                     }
                     else if (handle === "S") {
                         nh = ch + deltaPos.y;
                         nw = nh * aspectRatio;
-                        nx = cx + (cw - nw) / 2; // Centre X
+                        nx = cx + (cw - nw) / 2;
                     }
                     else if (handle === "N") {
                         nh = ch - deltaPos.y;
                         nw = nh * aspectRatio;
                         ny = cy + (ch - nh);
-                        nx = cx + (cw - nw) / 2; // Centre X
+                        nx = cx + (cw - nw) / 2;
                     }
 
-
-                    // --- SÉCURITÉ (Min 20px) ---
+                    // Sécurité min 20px
                     if (nw < 20) {
                         nw = 20;
                         nh = nw / aspectRatio;
-
-                        // Recalcul des positions si on touche les butées
                         if (handle.includes("W")) nx = cx + (cw - nw);
                         if (handle.includes("N")) ny = cy + (ch - nh);
-
-                        // Cas centrés
                         if (handle === "N" || handle === "S") nx = cx + (cw - nw) / 2;
                         if (handle === "E" || handle === "W") ny = cy + (ch - nh) / 2;
                     }
@@ -703,7 +690,7 @@ export default function MainMapEditorV3() {
                     };
                 }
 
-                // --- CAS 2 : DÉPLACEMENT (MOVE) ---
+                // DÉPLACEMENT (MOVE)
                 else {
                     nx = cx + deltaPos.x;
                     ny = cy + deltaPos.y;
@@ -715,11 +702,107 @@ export default function MainMapEditorV3() {
                     };
                 }
 
-                // Sauvegarde en DB
                 console.log("save_image (bbox)", annotation.id, updates);
                 await db.annotations.update(annotation.id, updates);
             }
+
+            // --- RECTANGLE : resize libre par dimension, contraintes template ---
+            else if (annotation.type === "RECTANGLE") {
+                const bgW = imageSize.width;
+                const bgH = imageSize.height;
+
+                const currentBBox = annotation.bbox;
+                const currentRotation = annotation.rotation ?? 0;
+
+                const cx = currentBBox.x;
+                const cy = currentBBox.y;
+                const cw = currentBBox.width;
+                const ch = currentBBox.height;
+
+                // Contraintes template
+                const templateSize = annotation.annotationTemplateProps?.size;
+                const lockedWidth = templateSize?.width != null;
+                const lockedHeight = templateSize?.height != null;
+
+                let nx = cx;
+                let ny = cy;
+                let nw = cw;
+                let nh = ch;
+
+                const updates = {};
+
+                if (partType === "ROTATE") {
+                    const sensitivity = 1;
+                    let newRotation = (currentRotation + deltaPos.x * sensitivity) % 360;
+                    if (newRotation < 0) newRotation += 360;
+                    updates.rotation = newRotation;
+                }
+
+                else if (partType && partType.startsWith("RESIZE_")) {
+                    const handle = partType.replace("RESIZE_", "");
+
+                    // Deltas libres par dimension, verrouillés si template contraint
+                    const dx = lockedWidth ? 0 : deltaPos.x;
+                    const dy = lockedHeight ? 0 : deltaPos.y;
+
+                    if (handle === "SE") {
+                        nw = cw + dx;
+                        nh = ch + dy;
+                    }
+                    else if (handle === "SW") {
+                        nw = cw - dx;
+                        nh = ch + dy;
+                        nx = cx + dx;
+                    }
+                    else if (handle === "NE") {
+                        nw = cw + dx;
+                        nh = ch - dy;
+                        ny = cy + dy;
+                    }
+                    else if (handle === "NW") {
+                        nw = cw - dx;
+                        nh = ch - dy;
+                        nx = cx + dx;
+                        ny = cy + dy;
+                    }
+
+                    // Sécurité min 20px
+                    if (nw < 20) {
+                        nw = 20;
+                        if (handle.includes("W")) nx = cx + (cw - 20);
+                    }
+                    if (nh < 20) {
+                        nh = 20;
+                        if (handle.includes("N")) ny = cy + (ch - 20);
+                    }
+
+                    updates.bbox = {
+                        x: nx / bgW,
+                        y: ny / bgH,
+                        width: nw / bgW,
+                        height: nh / bgH
+                    };
+                }
+
+                // DÉPLACEMENT (MOVE)
+                else {
+                    nx = cx + deltaPos.x;
+                    ny = cy + deltaPos.y;
+                    updates.bbox = {
+                        x: nx / bgW,
+                        y: ny / bgH,
+                        width: nw / bgW,
+                        height: nh / bgH
+                    };
+                }
+
+                console.log("save_rectangle (bbox)", annotation.id, updates);
+                await db.annotations.update(annotation.id, updates);
+            }
         }
+
+        // Notifier useLiveQuery du changement pour que la convergence optimistic overlay fonctionne
+        dispatch(triggerAnnotationsUpdate());
     };
 
 
