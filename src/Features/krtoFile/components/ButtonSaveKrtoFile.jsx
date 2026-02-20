@@ -13,7 +13,7 @@ export default function ButtonSaveKrtoFile() {
   // data
 
   const appConfig = useAppConfig();
-  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   // helpers
 
@@ -25,8 +25,7 @@ export default function ButtonSaveKrtoFile() {
   // handlers
 
   async function handleSave() {
-    //const file = await createKrtoFile(projectId, { krtoExtension: extension });
-    const file = await createKrtoZip(projectId);
+    const file = await createKrtoZip(scopeId);
     downloadBlob(file, file.name);
   }
   return (

@@ -9,7 +9,7 @@ function base64ToArrayBuffer(base64) {
     for (let i = 0; i < len; i++) {
         bytes[i] = binaryString.charCodeAt(i);
     }
-    return bytes.buffer; // Renvoie bien l'ArrayBuffer sous-jacent
+    return bytes.buffer;
 }
 
 export default async function loadKrtoZip(file, options) {
@@ -19,6 +19,7 @@ export default async function loadKrtoZip(file, options) {
 
     const importTag = nanoid();
     const loadDataToProjectId = options?.loadDataToProjectId;
+    const loadDataToScopeId = options?.loadDataToScopeId;
 
     try {
         // 1. Ouvrir le ZIP
@@ -39,7 +40,6 @@ export default async function loadKrtoZip(file, options) {
                 if (row.fileName && !row.fileArrayBuffer) {
                     const zipImage = zip.file(`images/${row.fileName}`);
                     if (zipImage) {
-                        // On met du Base64 car le JSON ne supporte pas le binaire
                         const base64Content = await zipImage.async("base64");
                         row.fileArrayBuffer = base64Content;
                     }
@@ -47,6 +47,10 @@ export default async function loadKrtoZip(file, options) {
             });
             await Promise.all(promises);
         }
+
+        // Récupérer l'ID du scope original depuis le JSON pour le remapping
+        const scopesTableData = jsonData.data.data.find((t) => t.tableName === "scopes");
+        const originalScopeId = scopesTableData?.rows?.[0]?.id;
 
         // 4. Créer le Blob JSON pour Dexie
         const jsonBlob = new Blob([JSON.stringify(jsonData)], { type: "application/json" });
@@ -60,29 +64,35 @@ export default async function loadKrtoZip(file, options) {
             noTransaction: false,
 
             transform: (table, value) => {
-                // --- C'EST ICI QUE LA MAGIE OPÈRE ---
-
-                // 1. Si c'est la table 'files' et qu'on a du Base64, on le remet en ArrayBuffer
+                // 1. Conversion Base64 -> ArrayBuffer pour les files
                 if (table === "files" && value.fileArrayBuffer && typeof value.fileArrayBuffer === "string") {
-                    // Conversion explicite pour être sûr d'avoir l'objet du screenshot
                     value.fileArrayBuffer = base64ToArrayBuffer(value.fileArrayBuffer);
                 }
 
-                // 2. Logique existante pour les IDs de projet
+                // 2. Remapping projectId
                 if (loadDataToProjectId) {
                     if (table === "projects") {
-                        return { value: { ...value, id: loadDataToProjectId, __importTag: importTag } };
+                        value = { ...value, id: loadDataToProjectId };
+                    } else if ("projectId" in value) {
+                        value = { ...value, projectId: loadDataToProjectId };
                     }
-                    if ("projectId" in value) {
-                        return { value: { ...value, projectId: loadDataToProjectId } };
-                    }
-                    return { value };
-                } else {
-                    if (table === "projects" && value) {
-                        return { value: { ...value, __importTag: importTag } };
-                    }
-                    return { value };
                 }
+
+                // 3. Remapping scopeId
+                if (loadDataToScopeId && originalScopeId) {
+                    if (table === "scopes" && value.id === originalScopeId) {
+                        value = { ...value, id: loadDataToScopeId };
+                    } else if ("scopeId" in value && value.scopeId === originalScopeId) {
+                        value = { ...value, scopeId: loadDataToScopeId };
+                    }
+                }
+
+                // 4. Tag le projet pour le retrouver après import
+                if (table === "projects") {
+                    value = { ...value, __importTag: importTag };
+                }
+
+                return { value };
             },
             progressCallback: (progress) => {
                 console.log(`Import: ${Math.round((progress.completedRows / progress.totalRows) * 100)}%`);
@@ -95,11 +105,16 @@ export default async function loadKrtoZip(file, options) {
         throw new Error(`Import failed: ${error.message}`);
     }
 
-    // 6. Nettoyage
+    // 6. Nettoyage du tag et retour du projet + scope
     const project = await db.projects.where("__importTag").equals(importTag).first();
     if (project) {
         await db.projects.update(project.id, { __importTag: undefined });
     }
 
-    return project;
+    // Retrouver le scope importé (1 seul scope par krto)
+    const scope = project
+        ? await db.scopes.where("projectId").equals(project.id).first()
+        : null;
+
+    return { project, scope };
 }

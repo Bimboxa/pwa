@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useDispatch } from "react-redux";
 
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
+import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 import { setOnboardingIsActive } from "Features/onboarding/onboardingSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -42,10 +43,11 @@ export default function ButtonLoadKrtoFile() {
   async function handleLoadKrtoFile(files) {
     const file = files?.[0];
     if (file) {
-      const project = await loadKrtoZip(file);
-      console.log("project", project);
+      const { project, scope } = await loadKrtoZip(file);
+      console.log("project", project, "scope", scope);
       if (project) {
         dispatch(setSelectedProjectId(project.id));
+        if (scope) dispatch(setSelectedScopeId(scope.id));
         dispatch(setOnboardingIsActive(false));
       }
     }
