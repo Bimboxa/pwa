@@ -1,32 +1,41 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useRef, useCallback } from 'react';
 
 const InteractionContext = createContext(null);
 
 export function InteractionProvider({ children }) {
     const [hoveredNode, setHoveredNode] = useState(null);
-    const [hiddenAnnotationIds, setHiddenAnnotationIds] = useState([]); // <= pour masquer les annotations en cours de modification
-    const [draggingAnnotationId, setDraggingAnnotationId] = useState(null);
+    const [hiddenAnnotationIds, setHiddenAnnotationIds] = useState([]); // <= pour masquer les annotations en cours de modification (topology/segment split)
     const [basePose, setBasePose] = useState(null);
     const [selectedPointId, setSelectedPointId] = useState(null);
     const [selectedPartId, setSelectedPartId] = useState(null);
 
-    // On peut ajouter d'autres états UI volatiles ici (ex: coordonnées curseur écran)
-    // const [cursorPos, setCursorPos] = useState({x:0, y:0});
+    // Pending moves — optimistic overlay pour le drag d'annotations
+    // La Map est mutée directement pendant le mousemove (pas de re-render à 60fps)
+    // pendingMovesVersion est incrémenté au start et au clear pour déclencher les re-renders
+    const pendingMovesRef = useRef(new Map()); // Map<annotationId, { deltaPos, partType }>
+    const [pendingMovesVersion, setPendingMovesVersion] = useState(0);
+
+    const getPendingMove = useCallback((annotationId) => {
+        return pendingMovesRef.current.get(annotationId) || null;
+    }, []);
 
     const value = useMemo(() => ({
         hoveredNode,
         setHoveredNode,
         hiddenAnnotationIds,
         setHiddenAnnotationIds,
-        draggingAnnotationId,
-        setDraggingAnnotationId,
         basePose,
         setBasePose,
         selectedPointId,
         setSelectedPointId,
         selectedPartId,
         setSelectedPartId,
-    }), [hoveredNode, hiddenAnnotationIds, draggingAnnotationId, basePose, selectedPointId, selectedPartId]);
+        // Pending moves
+        pendingMovesRef,
+        pendingMovesVersion,
+        setPendingMovesVersion,
+        getPendingMove,
+    }), [hoveredNode, hiddenAnnotationIds, basePose, selectedPointId, selectedPartId, pendingMovesVersion]);
 
     return (
         <InteractionContext.Provider value={value}>

@@ -25,7 +25,7 @@ export default function EditedObjectLayer({
     // Compat with existing logic
     const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
 
-    const { draggingAnnotationId, hiddenAnnotationIds } = useInteraction();
+    const { hiddenAnnotationIds, getPendingMove, pendingMovesVersion } = useInteraction();
 
     // 1. Identifier TOUTES les annotations concernées
     const activeAnnotations = useMemo(() => {
@@ -77,10 +77,8 @@ export default function EditedObjectLayer({
 
     const finalPose = isBgContext ? { x: 0, y: 0, k: 1 } : basePose;
 
-    // Si on drag une annotation entière, on ne l'affiche pas ici (géré par Transient)
-    // On filtre celles qui sont en cours de drag
-
-    const annotationsToRender = activeAnnotations.filter(a => a.id !== draggingAnnotationId && !hiddenAnnotationIds.includes(a.id));
+    // On filtre celles qui sont cachées (topology/segment split)
+    const annotationsToRender = activeAnnotations.filter(a => !hiddenAnnotationIds.includes(a.id));
 
     if (annotationsToRender.length === 0) return null;
 
@@ -121,11 +119,15 @@ export default function EditedObjectLayer({
                     // Mais le plus simple est de ne rien passer et laisser NodePolyline gérer
                 }
 
+                // Optimistic overlay : rendre invisible pendant le drag
+                const hasPendingMove = !!getPendingMove(annotation.id);
+
                 return (
                     <g
                         key={annotation.id}
                         data-interaction={isDraggable ? "draggable" : undefined}
                         data-node-id={annotation.id}
+                        style={hasPendingMove ? { opacity: 0 } : undefined}
                     >
                         <NodeAnnotationStatic
                             annotation={annotation}
