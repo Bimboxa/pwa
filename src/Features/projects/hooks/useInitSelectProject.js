@@ -12,9 +12,10 @@ export default function useInitSelectProject() {
   const dispatch = useDispatch();
 
   const initProjectId = getInitProjectId();
+  const isDashboard = window.location.pathname === "/dashboard";
 
   useEffect(() => {
-    dispatch(setSelectedProjectId(initProjectId));
+    dispatch(setSelectedProjectId(isDashboard ? null : initProjectId));
     dispatch(setInitSelectProjectDone(true));
   }, []);
 }
