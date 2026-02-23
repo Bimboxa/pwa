@@ -18,9 +18,9 @@ export default function useMarkers(options) {
   return useLiveQuery(async () => {
     let markers;
     if (filterByBaseMapId) {
-      markers = await db.markers.toArray();
+      markers = (await db.markers.toArray()).filter(r => !r.deletedAt);
     } else {
-      markers = await db.markers.toArray();
+      markers = (await db.markers.toArray()).filter(r => !r.deletedAt);
     }
 
     // demo markers

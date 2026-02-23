@@ -7,16 +7,12 @@ import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
-import getDateString from "Features/misc/utils/getDateString";
-
 import db from "App/db/db";
 
 export default function useCreateOrUpdateZonesTree() {
   const dispatch = useDispatch();
 
   const {value: createdBy} = useUserEmail();
-  const createdAt = getDateString(new Date());
-  const updatedAt = getDateString(new Date());
 
   const {value: selectedListing} = useSelectedListing();
 
@@ -39,7 +35,6 @@ export default function useCreateOrUpdateZonesTree() {
       if (!exitingEntity) {
         entity = {
           createdBy,
-          createdAt,
           listingId: _listingId,
           zonesTree,
         };
@@ -49,7 +44,6 @@ export default function useCreateOrUpdateZonesTree() {
         // update
         entity = {
           ...exitingEntity,
-          updatedAt,
           zonesTree,
         };
         await db[table].update(exitingEntity.listingId, entity);

@@ -31,6 +31,12 @@ import {
 import useResetNewAnnotation from 'Features/annotations/hooks/useResetNewAnnotation';
 import useLassoSelection from 'Features/mapEditorGeneric/hooks/useLassoSelection';
 import useSelectedNodes from 'Features/mapEditor/hooks/useSelectedNodes';
+import useAnnotationPermissions from 'Features/mapEditor/hooks/useAnnotationPermissions';
+import usePointDrag from 'Features/mapEditor/hooks/usePointDrag';
+import useAnnotationDrag from 'Features/mapEditor/hooks/useAnnotationDrag';
+import useDrawingCommit from 'Features/mapEditor/hooks/useDrawingCommit';
+import useBaseMapDrag from 'Features/mapEditor/hooks/useBaseMapDrag';
+import useLegendDrag from 'Features/mapEditor/hooks/useLegendDrag';
 
 import Box from '@mui/material/Box';
 import MapEditorViewport from 'Features/mapEditorGeneric/components/MapEditorViewport';
@@ -67,6 +73,7 @@ import getTopMiddlePoint from 'Features/geometry/utils/getTopMiddlePoint';
 import getAnnotationBBox from 'Features/annotations/utils/getAnnotationBbox';
 
 import { useSmartZoom } from "App/contexts/SmartZoomContext";
+import useUndo from "App/db/useUndo";
 
 // constants
 
@@ -127,7 +134,7 @@ const InteractionLayer = forwardRef(({
   const snappingLayerRef = useRef(null);
   const closingMarkerRef = useRef(null);
   const helperScaleRef = useRef(null);
-  const baseMapRafRef = useRef(null); // Raf = requestAnimationFrame, pour contrôle du resize de la map.
+  // baseMapRafRef — now managed by useBaseMapDrag
   const smartDetectRef = useRef(null); // <--- REF VERS LA LOUPE
   const smartTransformerRef = useRef(null);
   const lastSmartROI = useRef(null); // pour la reconversion inverse Loupe => World.
@@ -165,6 +172,12 @@ const InteractionLayer = forwardRef(({
   const { node: selectedNode } = useSelectedNodes();
 
   const { zoomContainer } = useSmartZoom();
+
+  // permissions (ownership-based)
+  const permissions = useAnnotationPermissions({ annotations });
+
+  // undo / redo (CTRL-Z / CTRL-SHIFT-Z)
+  useUndo();
 
   // sourceImage for smart detect
 
@@ -317,61 +330,7 @@ const InteractionLayer = forwardRef(({
   // Convergence DB : on attend que l'annotation ait réellement changé dans annotations[]
   // commitSnapshotRef stocke un snapshot léger de l'annotation avant le drag
   // On compare avec les données courantes pour détecter la convergence
-  const commitSnapshotRef = useRef(null); // { annotationId, bbox, point, ... }
-  const commitTimeoutRef = useRef(null); // Fallback timeout
-
-  // Fonction de nettoyage du pendingMove
-  const clearCommitPending = useCallback(() => {
-    if (commitPendingRef.current) {
-      pendingMovesRef.current.delete(commitPendingRef.current);
-      commitPendingRef.current = null;
-      commitSnapshotRef.current = null;
-      setPendingMovesVersion(v => v + 1); // notifie StaticMapContent de restaurer opacity
-    }
-    if (commitTimeoutRef.current) {
-      clearTimeout(commitTimeoutRef.current);
-      commitTimeoutRef.current = null;
-    }
-  }, []);
-
-  // Lancer le suivi de convergence (snapshot + fallback timeout)
-  const startCommitPendingWatch = useCallback(() => {
-    if (commitTimeoutRef.current) clearTimeout(commitTimeoutRef.current);
-    commitTimeoutRef.current = setTimeout(() => {
-      clearCommitPending();
-    }, 500);
-  }, [clearCommitPending]);
-
-  // Détection de convergence par snapshot : on compare l'annotation courante avec le snapshot
-  useEffect(() => {
-    if (!commitPendingRef.current || !commitSnapshotRef.current) return;
-
-    const ann = annotations?.find(a => a.id === commitPendingRef.current);
-    if (!ann) return;
-
-    const snap = commitSnapshotRef.current;
-    let hasChanged = false;
-
-    // Comparer selon le type d'annotation
-    if (ann.type === "IMAGE" || ann.type === "RECTANGLE") {
-      hasChanged = ann.bbox?.x !== snap.bboxX || ann.bbox?.y !== snap.bboxY
-        || ann.bbox?.width !== snap.bboxW || ann.bbox?.height !== snap.bboxH
-        || ann.rotation !== snap.rotation;
-    } else if (ann.type === "MARKER" || ann.type === "POINT") {
-      hasChanged = ann.point?.x !== snap.pointX || ann.point?.y !== snap.pointY;
-    } else if (ann.type === "LABEL") {
-      hasChanged = ann.targetPoint?.x !== snap.targetX || ann.targetPoint?.y !== snap.targetY
-        || ann.labelPoint?.x !== snap.labelX || ann.labelPoint?.y !== snap.labelY;
-    } else {
-      // POLYLINE, POLYGON : comparer le premier point
-      const firstPt = ann.points?.[0];
-      hasChanged = firstPt?.x !== snap.firstPointX || firstPt?.y !== snap.firstPointY;
-    }
-
-    if (hasChanged) {
-      clearCommitPending();
-    }
-  }, [annotations]);
+  // Convergence DB — now managed by useAnnotationDrag (see above)
 
   const getTargetPose = () => {
     if (activeContext === "BG_IMAGE") return { x: 0, y: 0, k: 1 };
@@ -503,65 +462,86 @@ const InteractionLayer = forwardRef(({
     onSelectionComplete: handleLassoSelection
   });
 
-  // drag state
+  const currentSnapRef = useRef(null); // Stocke le résultat du getBestSnap
 
-  const [dragState, setDragState] = useState(null);
-  const dragStateRef = useRef(dragState);
+  // drag state — point drag (extracted to usePointDrag)
 
-  // Structure: { active: boolean, pointId: string, currentPos: {x,y} }
+  const {
+    dragState,
+    dragStateRef,
+    virtualInsertion,
+    handleVertexOrProjectionMouseDown,
+    handlePointDragMove,
+    handlePointDragEnd,
+  } = usePointDrag({
+    annotations,
+    selectedNode,
+    selectedAnnotationRef,
+    toLocalCoords,
+    permissions,
+    setHiddenAnnotationIds,
+    onPointMoveCommit,
+    onPointDuplicateAndMoveCommit,
+    onSegmentSplit,
+    onToggleAnnotationPointType,
+    currentSnapRef,
+    viewportRef,
+    dispatch,
+  });
 
-  const [dragAnnotationState, setDragAnnotationState] = useState(null);
-  const dragAnnotationStateRef = useRef(dragAnnotationState);
-  // Structure: { 
-  //   active: boolean, 
-  //   pending: boolean, // <--- Nouveau flag
-  //   annotationId: string, 
-  //   currentPos: {x,y}, 
-  //   startMouseScreen: {x,y} // <--- Pour calculer le seuil
-  // }
+  // drag state — annotation drag (extracted to useAnnotationDrag)
 
-  // State pour le drag de la BaseMap
-  const [dragBaseMapState, setDragBaseMapState] = useState(null);
-  // { active: true, handleType: 'MOVE'|'SE'..., startMouseScreen: {x,y}, startBasePose: {x,y,k} }
+  const {
+    dragAnnotationState,
+    dragAnnotationStateRef,
+    initAnnotationDrag,
+    handleAnnotationDragMove,
+    handleAnnotationDragEnd,
+  } = useAnnotationDrag({
+    annotations,
+    permissions,
+    toLocalCoords,
+    viewportRef,
+    pendingMovesRef,
+    setPendingMovesVersion,
+    commitPendingRef,
+    onAnnotationMoveCommit,
+  });
 
-  const [dragLegendState, setDragLegendState] = useState(null);
-  // { active: true, handleType: 'MOVE'|'SE'..., startMouseScreen: {x,y}, startFormat }
+  // drag state — basemap drag (extracted to useBaseMapDrag)
+
+  const {
+    dragBaseMapState,
+    initBaseMapDrag,
+    handleBaseMapDragMove,
+    handleBaseMapDragEnd,
+  } = useBaseMapDrag({
+    basePose,
+    baseMapImageSize,
+    bgPose,
+    onBaseMapPoseChange,
+    onBaseMapPoseCommit,
+    viewportRef,
+  });
+
+  // drag state — legend drag (extracted to useLegendDrag)
+
+  const {
+    dragLegendState,
+    initLegendDrag,
+    handleLegendDragMove,
+    handleLegendDragEnd,
+  } = useLegendDrag({
+    bgPose,
+    legendFormat,
+    onLegendFormatChange,
+    viewportRef,
+  });
 
   const [dragTextState, setDragTextState] = useState(null);
   // { active: true, handleType: 'MOVE'|'SE'..., startMouseScreen: {x,y}, startText }
 
-  const currentSnapRef = useRef(null); // Stocke le résultat du getBestSnap
-
-  // drawing points
-
-  const [drawingPoints, setDrawingPoints] = useState([]);
-  const drawingPointsRef = useRef([]);
-  useEffect(() => {
-    drawingPointsRef.current = drawingPoints;
-  }, [drawingPoints]);
-
-
-  // cutHostId
-
-  const [cutHostId, setCutHostId] = useState(null);
-  const cutHostIdRef = useRef(null);
-  useEffect(() => {
-    cutHostIdRef.current = cutHostId;
-  }, [cutHostId]);
-
-
-  // brush path
-
-  const [brushPath, setBrushPath] = useState([]);
-  const brushPathRef = useRef([]); // Ref pour accès synchrone rapide (perf) et éviter stale closures
-  useEffect(() => {
-    brushPathRef.current = brushPath;
-  }, [brushPath]);
-
-
-  // virtual insertion
-
-  const [virtualInsertion, setVirtualInsertion] = useState(null);
+  // virtual insertion — now managed by usePointDrag (see above)
 
   // is closing
   const isClosingRef = useRef(false);
@@ -604,6 +584,21 @@ const InteractionLayer = forwardRef(({
     onCommitDrawingRef.current = onCommitDrawing;
   }, [onCommitDrawing]);
 
+  // drawing state + commit (extracted to useDrawingCommit)
+
+  const {
+    drawingPoints, setDrawingPoints, drawingPointsRef,
+    cutHostId, setCutHostId,
+    brushPath, setBrushPath,
+    commitPoint, commitPolyline,
+  } = useDrawingCommit({
+    enabledDrawingModeRef,
+    onCommitDrawingRef,
+    brushLayerRef,
+    smartDetectRef,
+    lastSmartROI,
+  });
+
   const stateRef = useRef({
     selectedNode,
     selectedPointId,
@@ -612,7 +607,7 @@ const InteractionLayer = forwardRef(({
     onDeletePoint,
     onHideSegment,
     onRemoveCut,
-    onPointDuplicateAndMoveCommit,
+    permissions,
   });
   useEffect(() => {
     stateRef.current = {
@@ -623,9 +618,9 @@ const InteractionLayer = forwardRef(({
       onHideSegment,
       onRemoveCut,
       enabledDrawingMode,
-      onPointDuplicateAndMoveCommit
+      permissions,
     };
-  }, [selectedNode?.nodeId, selectedPointId, selectedPartId, onDeletePoint, onHideSegment, onRemoveCut, enabledDrawingMode, onPointDuplicateAndMoveCommit]);
+  }, [selectedNode?.nodeId, selectedPointId, selectedPartId, onDeletePoint, onHideSegment, onRemoveCut, enabledDrawingMode, permissions]);
 
 
   // 1. Calculer le style curseur du conteneur
@@ -635,102 +630,7 @@ const InteractionLayer = forwardRef(({
     return 'default';                           // Défaut
   };
 
-  // --- LOGIQUE DE COMMIT (Sauvegarde) ---
-  const commitPoint = () => {
-    const pointsToSave = drawingPointsRef.current; // On lit la Ref, pas le State !
-    if (pointsToSave.length === 1) {
-
-      console.log("COMMIT POINT", pointsToSave);
-      onCommitDrawingRef.current({ points: pointsToSave });
-    } else {
-      console.log("⚠️ erreur création d'un point.");
-    }
-
-    // Nettoyage
-    setDrawingPoints([]);
-    //dispatch(setEnabledDrawingMode(null));
-  };
-
-
-  const commitPolyline = async (event, options) => {
-    const drawingMode = enabledDrawingModeRef.current;
-
-
-    // --- CAS BRUSH ---
-    if (drawingMode === "BRUSH") {
-      if (brushPathRef.current.length === 0) return;
-
-      console.log("Processing Brush Drawing...");
-
-      // 1. Snapshot du Canvas
-      const dataUrl = brushLayerRef.current?.getSnapshotDataUrl();
-      if (!dataUrl) return;
-
-      // 2. Appel OpenCV
-      await cv.load();
-      const polygons = await cv.extractPolygonsFromMaskAsync({
-        maskDataUrl: dataUrl,
-        simplificationFactor: 3.0
-      }); // Facteur 3.0 pour lisser
-
-      // 3. Commit pour chaque polygone trouvé
-      console.log("[BRUSH] Polygons found:", polygons);
-      if (polygons && polygons.length > 0) {
-        polygons.forEach(points => {
-          if (onCommitDrawingRef.current) onCommitDrawingRef.current({ points, options });
-        });
-      }
-
-      // 4. Reset
-      setBrushPath([]);
-      //dispatch(setEnabledDrawingMode(null));
-      return;
-    }
-
-    // --- CAS SMART_DETECT ---
-    if (drawingMode === "SMART_DETECT") {
-      const localPolylines = smartDetectRef.current?.getDetectedPolylines();
-      const roiData = lastSmartROI.current; // On récupère ce qu'on a stocké
-
-
-      console.log("[SMART_DETECT] Local Polylines:", localPolylines);
-      if (localPolylines && roiData) {
-        const ratio = roiData.width / LOUPE_SIZE;
-
-        localPolylines.forEach(localPolyline => {
-          const points = localPolyline.points.map(p => ({
-            x: roiData.x + (p.x * ratio),
-            y: roiData.y + (p.y * ratio)
-          }));
-          if (onCommitDrawingRef.current) onCommitDrawingRef.current({ points });
-        });
-
-      }
-      return;
-
-    }
-
-
-    // --- CAS CLICK/POLYLINE (Défaut) ---
-
-    const pointsToSave = drawingPointsRef.current; // On lit la Ref, pas le State ! 
-    const _cutHostId = cutHostIdRef.current;
-    if (pointsToSave.length >= 2) {
-
-      onCommitDrawingRef.current({ points: pointsToSave, event, cutHostId: _cutHostId, options });
-
-      // EXEMPLE D'ACTION :
-      // onNewAnnotation({ type: 'POLYLINE', points: pointsToSave });
-      // ou dispatch(createPolyline(pointsToSave));
-    } else {
-      console.log("⚠️ Pas assez de points pour créer une polyligne");
-    }
-
-    // Nettoyage
-    setDrawingPoints([]);
-    setCutHostId(null);
-    //dispatch(setEnabledDrawingMode(null));
-  };
+  // commitPoint + commitPolyline — now provided by useDrawingCommit (see above)
 
 
 
@@ -890,7 +790,7 @@ const InteractionLayer = forwardRef(({
         console.log("Action: Key Pressed while typing");
         return;
       }
-      const { selectedNode, selectedPointId, selectedPartId, onDeletePoint, onHideSegment, onRemoveCut } = stateRef.current;
+      const { selectedNode, selectedPointId, selectedPartId, onDeletePoint, onHideSegment, onRemoveCut, permissions } = stateRef.current;
       const showSmartDetect = showSmartDetectRef.current;
       const enabledDrawingMode = enabledDrawingModeRef.current;
 
@@ -1029,14 +929,17 @@ const InteractionLayer = forwardRef(({
           console.log("Action: Delete Selected");
           // 1. Si un point est sélectionné, on le supprime
           if (selectedPointId && onDeletePoint) {
+            // PERMISSION GUARD : bloquer si pas propriétaire de l'annotation
+            if (!permissions.canEditAnnotation(selectedNode?.nodeId)) break;
             console.log("Action: Delete Point", selectedPointId, selectedNode?.nodeId);
-            // On passe l'ID du point et l'ID de l'annotation parente
             onDeletePoint({ pointId: selectedPointId, annotationId: selectedNode?.nodeId });
             setSelectedPointId(null); // Reset selection
             e.stopPropagation();
             return;
           }
           else if (selectedPartId && selectedNode?.nodeId) {
+            // PERMISSION GUARD : bloquer si pas propriétaire de l'annotation
+            if (!permissions.canEditAnnotation(selectedNode?.nodeId)) break;
             const parts = selectedPartId.split('::'); // annotationId::TYPE::index
             const type = parts[1];
             const index = parseInt(parts[2], 10);
@@ -1052,7 +955,7 @@ const InteractionLayer = forwardRef(({
               return;
             }
 
-            // B. Suppression de CUT (Trou) -> [NOUVEAU]
+            // B. Suppression de CUT (Trou)
             if (type === 'CUT' && onRemoveCut) {
               onRemoveCut({
                 annotationId: selectedNode.nodeId,
@@ -1064,6 +967,8 @@ const InteractionLayer = forwardRef(({
             }
           }
           else if (selectedNode?.nodeId) {
+            // PERMISSION GUARD : bloquer si pas propriétaire de l'annotation
+            if (!permissions.canEditAnnotation(selectedNode?.nodeId)) break;
             dispatch(setOpenDialogDeleteSelectedAnnotation(true));
             e.stopPropagation();
           }
@@ -1487,178 +1392,23 @@ const InteractionLayer = forwardRef(({
       snappingLayerRef.current?.update(null);
     }
 
-    // A. DRAG POINT (Vertex)
-
-    if (dragState?.pending) {
-      // 1. Calcul de la distance parcourue
-      const dx = event.clientX - dragState.startMouseScreen.x;
-      const dy = event.clientY - dragState.startMouseScreen.y;
-      const dist = Math.hypot(dx, dy);
-
-      // 2. Si on dépasse le seuil, on ACTIVE le drag
-      if (dist > DRAG_THRESHOLD_PX) {
-
-        let finalPointId = dragState.pointId;
-        let finalIsDuplicateMode = false;
-        let idsToHide = dragState.affectedIds;
-
-        if (dragState.potentialDuplicate) {
-          // C'EST MAINTENANT QU'ON CRÉE LE CLONE
-          finalIsDuplicateMode = true;
-          finalPointId = `temp_dup_${nanoid()}`; // ID Temporaire pour le visuel
-
-          // En mode dupliqué, on ne cache QUE l'annotation sélectionnée
-          // (Les voisins restent visibles car ils ne bougent pas encore)
-          if (selectedNode?.nodeId) {
-            idsToHide = [selectedNode.nodeId];
-          }
-        }
-
-        // On active le drag
-        const newDragState = {
-          ...dragState,
-          pending: false,
-          active: true,
-          isDuplicateMode: finalIsDuplicateMode,
-          pointId: finalPointId, // Peut être l'ID temp maintenant
-          affectedIds: idsToHide
-        }
-        setDragState(newDragState);
-        dragStateRef.current = newDragState;
-
-        // On cache l'annotation réelle maintenant (et pas au clic)
-        setHiddenAnnotationIds(idsToHide);
-      } else {
-        // Tant qu'on n'a pas bougé assez, on ne fait rien (on absorbe l'événement)
-        return;
-      }
+    // A. DRAG POINT (Vertex) — délégué à usePointDrag
+    if (dragState?.pending || dragState?.active) {
+      if (dragState?.active) snappingLayerRef.current?.update(null);
+      const consumed = handlePointDragMove(worldPos, event);
+      if (consumed) return;
     }
 
-    if (dragState?.active) {
-      snappingLayerRef.current?.update(null);
-      const localPos = toLocalCoords(worldPos);
-
-      const newDragState = { ...dragState, currentPos: localPos }
-      setDragState(newDragState);
-      dragStateRef.current = newDragState;
-      return; // Action exclusive, on arrête ici
-    }
-
-    // B1. DRAG BASEMAP (Image de fond)
+    // B1. DRAG BASEMAP (Image de fond) — délégué à useBaseMapDrag
     if (dragBaseMapState?.active) {
-      const { startMouseWorld, startBasePose, handleType } = dragBaseMapState;
-
-      // Calcul du Delta en UNITÉS MONDE
-      const dxWorld = worldPos.x - startMouseWorld.x;
-      const dyWorld = worldPos.y - startMouseWorld.y;
-
-      let newBasePoseWorld = { ...startBasePose };
-
-      // Cas 1 : Déplacement
-      if (handleType === 'MOVE') {
-        newBasePoseWorld.x += dxWorld;
-        newBasePoseWorld.y += dyWorld;
-      }
-      // Cas 2 : Redimensionnement
-      else if (['SE', 'SW', 'NE', 'NW'].includes(handleType)) {
-        if (baseMapImageSize?.width && baseMapImageSize?.height) {
-          const w = baseMapImageSize.width;
-          const h = baseMapImageSize.height;
-
-          // Calcul du changement d'échelle (Delta K)
-          let deltaK = 0;
-          if (handleType.includes('E')) {
-            deltaK = dxWorld / w;
-          } else {
-            deltaK = -dxWorld / w;
-          }
-
-          const newK = Math.max(0.001, startBasePose.k + deltaK);
-          newBasePoseWorld.k = newK;
-
-          // Compensation de la position pour les coins Ouest/Nord
-          const kDiff = newK - startBasePose.k;
-          const widthChange = w * kDiff;
-          const heightChange = h * kDiff;
-
-          if (handleType.includes('W')) {
-            newBasePoseWorld.x = startBasePose.x - widthChange;
-          }
-          if (handleType.includes('N')) {
-            newBasePoseWorld.y = startBasePose.y - heightChange;
-          }
-        }
-      }
-
-      // Rétro-projection vers le référentiel du BG
-      const bgK = bgPose?.k || 1;
-      const bgX = bgPose?.x || 0;
-      const bgY = bgPose?.y || 0;
-
-      const newPoseInBg = {
-        x: (newBasePoseWorld.x - bgX) / bgK,
-        y: (newBasePoseWorld.y - bgY) / bgK,
-        k: newBasePoseWorld.k / bgK,
-        r: newBasePoseWorld.r
-      };
-
-      if (onBaseMapPoseChange) {
-        // 1. Si une mise à jour est déjà prévue pour la prochaine frame, on l'annule
-        // (car on a une donnée plus fraîche maintenant)
-        if (baseMapRafRef.current) {
-          cancelAnimationFrame(baseMapRafRef.current);
-        }
-
-        // 2. On planifie la mise à jour pour le prochain rafraîchissement écran
-        baseMapRafRef.current = requestAnimationFrame(() => {
-          onBaseMapPoseChange(newPoseInBg);
-          baseMapRafRef.current = null; // Nettoyage
-        });
-      }
-      return; // Action exclusive
+      const consumed = handleBaseMapDragMove(worldPos);
+      if (consumed) return;
     }
 
-    // B2. DRAG LEGEND (Légende)
+    // B2. DRAG LEGEND (Légende) — délégué à useLegendDrag
     if (dragLegendState?.active) {
-      const { startMouseWorld, startFormat, handleType } = dragLegendState;
-
-      // Conversion delta écran -> delta local BG
-      // (Assumant que la légende est dans le BG, donc affectée par bgPose)
-      const dxWorld = worldPos.x - startMouseWorld.x;
-      const dyWorld = worldPos.y - startMouseWorld.y;
-
-      const dxLocal = dxWorld / bgPose.k;
-      const dyLocal = dyWorld / bgPose.k;
-
-      let newX = startFormat.x;
-      let newY = startFormat.y;
-      let newWidth = startFormat.width;
-
-      // --- GESTION POSITION (Move) ---
-      if (handleType === 'MOVE') {
-        newX += dxLocal;
-        newY += dyLocal;
-      }
-      // --- GESTION LARGEUR (Principale) ---
-      else if (handleType.includes('E')) {
-        newWidth = Math.max(50, startFormat.width + dxLocal);
-      }
-      else if (handleType.includes('W')) {
-        const possibleWidth = startFormat.width - dxLocal;
-        if (possibleWidth > 50) {
-          newWidth = possibleWidth;
-          newX = startFormat.x + dxLocal;
-        }
-      }
-
-
-
-      // Note: On ignore généralement le resize hauteur pour du texte fluide
-      // car cela créerait un décalage entre la souris et le bord si le texte
-      // ne remplit pas exactement la nouvelle hauteur.
-
-      if (onLegendFormatChange) onLegendFormatChange({ x: newX, y: newY, width: newWidth });
-      return;
+      const consumed = handleLegendDragMove(worldPos);
+      if (consumed) return;
     }
 
     if (dragTextState?.active) {
@@ -1702,56 +1452,10 @@ const InteractionLayer = forwardRef(({
       return;
     }
 
-    // C. DRAG ANNOTATION (Objet entier)
-    // --- GESTION DU THRESHOLD 3PX ICI ---
-    if (dragAnnotationState?.pending) {
-      // Calcul de la distance parcourue depuis le clic initial
-      const dx = event.clientX - dragAnnotationState.startMouseScreen.x;
-      const dy = event.clientY - dragAnnotationState.startMouseScreen.y;
-      const dist = Math.hypot(dx, dy);
-
-      // Si on dépasse le seuil, on ACTIVE le drag
-      if (dist > DRAG_THRESHOLD_PX) {
-
-        const newDragAnnotationState = {
-          ...dragAnnotationState,
-          pending: false,
-          active: true
-        };
-
-        setDragAnnotationState(newDragAnnotationState);
-        dragAnnotationStateRef.current = newDragAnnotationState;
-
-        // Optimistic overlay : on pose un pendingMove au lieu de masquer l'annotation
-        pendingMovesRef.current.set(dragAnnotationState.selectedAnnotationId, {
-          deltaPos: { x: 0, y: 0 },
-          partType: dragAnnotationState.partType || null,
-        });
-        setPendingMovesVersion(v => v + 1); // notifie StaticMapContent de mettre opacity:0
-      } else {
-        // Sinon, on ne fait rien (on absorbe le mouvement sans déplacer l'objet)
-        return;
-      }
-    }
-
-    if (dragAnnotationState?.active) {
-      const currentMouseInWorld = viewportRef.current?.screenToWorld(event.clientX, event.clientY);
-      const currentMouseInLocal = toLocalCoords(currentMouseInWorld);
-      const deltaPos = {
-        x: currentMouseInLocal.x - dragAnnotationState.startMouseInLocal.x,
-        y: currentMouseInLocal.y - dragAnnotationState.startMouseInLocal.y
-      };
-
-      // Mettre à jour le pendingMove ref (pas de re-render, lu par le TransientAnnotationLayer)
-      pendingMovesRef.current.set(dragAnnotationState.selectedAnnotationId, {
-        deltaPos,
-        partType: dragAnnotationState.partType || null,
-      });
-
-      const newDragAnnotationState = { ...dragAnnotationState, deltaPos, localPos: currentMouseInLocal };
-      setDragAnnotationState(newDragAnnotationState);
-      dragAnnotationStateRef.current = newDragAnnotationState;
-      return; // Action exclusive
+    // C. DRAG ANNOTATION (Objet entier) — délégué à useAnnotationDrag
+    if (dragAnnotationState?.pending || dragAnnotationState?.active) {
+      const consumed = handleAnnotationDragMove(event);
+      if (consumed) return;
     }
 
     // D. SNAPPING
@@ -1923,79 +1627,9 @@ const InteractionLayer = forwardRef(({
     }
     // =======================================================
 
-    // --- CAS 1 : EXISTING VERTEX ---
-    if (snap.type === 'VERTEX') {
-      const pointId = snap.id;
-
-      // 1. Détecter si on est sur une annotation sélectionnée
-      // (On vérifie si l'annotation sélectionnée contient ce point)
-      const selectedAnnotationHasPoint = selectedNode &&
-        annotations.find(a => a.id === selectedNode.nodeId)?.points.some(p => p.id === pointId);
-
-      // 2. On note juste que c'est une POTENTIELLE duplication
-      const isPotentialDuplicate = !!selectedAnnotationHasPoint;
-
-      // 3. Calcul des IDs affectés (Standard pour l'instant)
-      const affectedIds = annotations
-        .filter(ann => {
-          const inMain = ann.points?.some(pt => pt.id === pointId);
-          const inCuts = ann.cuts?.some(cut => cut.points?.some(pt => pt.id === pointId));
-          return inMain || inCuts;
-        })
-        .map(ann => ann.id);
-
-      const newDragState = {
-        active: false,
-        pending: true,
-
-        pointId: pointId, // <--- ON GARDE L'ID RÉEL (Important pour le click/select)
-        originalPointId: pointId, // On garde une copie au cas où
-
-        isDuplicateMode: false, // <--- PAS ENCORE TRUE
-        potentialDuplicate: isPotentialDuplicate, // <--- NOUVEAU FLAG
-
-        currentPos: { x: snap.x, y: snap.y },
-        startMouseScreen: { x: e.clientX, y: e.clientY },
-        affectedIds: affectedIds
-      }
-
-      setDragState(newDragState);
-      dragStateRef.current = newDragState;
-
-      setVirtualInsertion(null);
-    }
-
-    // --- CAS 2 : PROJECTION (Nouveau Point) ---
-    else if (snap.type === 'PROJECTION') {
-      // 1. Générer un ID temporaire pour l'UI
-      const tempId = `temp_${nanoid()}`;
-
-      // 2. Configurer le drag state
-
-      const newDragState = {
-        active: true,
-        pointId: tempId,
-        currentPos: { x: snap.x, y: snap.y }
-      }
-      setDragState(newDragState);
-      dragStateRef.current = newDragState;
-
-      // 3. Configurer l'insertion virtuelle
-      // getBestSnap doit retourner annotationId et segmentIndex !
-      setVirtualInsertion({
-        // Pour le visuel immédiat (on en montre qu'un seul qui bouge pour pas alourdir le DOM)
-        annotationId: snap.previewAnnotationId,
-        segmentIndex: snap.previewSegmentIndex,
-        cutIndex: snap.cutIndex,
-
-        // Pour la logique finale
-        segmentStartId: snap.segmentStartId,
-        segmentEndId: snap.segmentEndId
-      });
-
-      // 4. Cacher l'annotation parente (pour ne pas voir le trait droit en dessous)
-      setHiddenAnnotationIds([snap.previewAnnotationId]);
-    }
+    // --- CAS 1 & 2 : VERTEX ou PROJECTION — délégué à usePointDrag ---
+    // Inclut la logique de permission + fork automatique pour les points partagés
+    handleVertexOrProjectionMouseDown(snap, e);
 
     //snappingLayerRef.current?.update(null); // hide snapping circle // on hide au move
 
@@ -2014,7 +1648,6 @@ const InteractionLayer = forwardRef(({
     }
 
 
-    const { onPointDuplicateAndMoveCommit } = stateRef.current;
     const dragState = dragStateRef.current;
     const dragAnnotationState = dragAnnotationStateRef.current;
 
@@ -2098,123 +1731,21 @@ const InteractionLayer = forwardRef(({
 
     }
 
-    // ... (Gestion BaseMap drag & Legend inchangée) ...
-    if (dragBaseMapState?.active) {
-      if (onBaseMapPoseCommit) onBaseMapPoseCommit();
-      setDragBaseMapState(null);
-      document.body.style.cursor = '';
-    }
+    // BaseMap drag end — délégué à useBaseMapDrag
+    handleBaseMapDragEnd();
 
-    if (dragLegendState?.active) {
-      setDragLegendState(null);
-      document.body.style.cursor = '';
-    }
+    // Legend drag end — délégué à useLegendDrag
+    handleLegendDragEnd();
 
-    // --- CORRECTION ICI ---
-    // On vérifie simplement si dragState existe, peu importe s'il est pending ou active
+    // --- Point drag (VERTEX / PROJECTION) — délégué à usePointDrag ---
     if (dragState) {
-
-      // CAS A : C'était un DRAG (active = true, pending = false)
-      if (dragState.active) {
-
-        // 1. Commit des données
-        if (virtualInsertion && onSegmentSplit) {
-          onSegmentSplit({
-            segmentStartId: virtualInsertion.segmentStartId,
-            segmentEndId: virtualInsertion.segmentEndId,
-            x: dragState.currentPos.x,
-            y: dragState.currentPos.y
-          });
-        }
-
-        else if (dragState.isDuplicateMode && onPointDuplicateAndMoveCommit) {
-          onPointDuplicateAndMoveCommit({
-            originalPointId: dragState.originalPointId, // L'ID réel du point source
-            annotationId: dragState.affectedIds[0],     // L'annotation qu'on éditait
-            newPos: dragState.currentPos
-          });
-        }
-        // 3. Commit Move Standard
-        else if (onPointMoveCommit) {
-          onPointMoveCommit(dragState.pointId, dragState.currentPos);
-        }
-
-
-
-        // 2. Gestion de l'anti-clignotement (Freeze)
-        const newDragState = { ...dragState, active: false, frozen: true };
-        dragStateRef.current = newDragState;
-        setDragState(newDragState);
-
-        // 3. Nettoyage différé
-        setTimeout(() => {
-          dragStateRef.current = null;
-          setDragState(null);
-          setHiddenAnnotationIds([]);
-          setVirtualInsertion(null);
-        }, 200);
-
-        document.body.style.cursor = '';
-      }
-
-      // CAS B : C'était un CLICK (pending = true, active = false)
-      else if (dragState.pending) {
-        console.log("Point Clicked:", dragState.pointId);
-
-        if (selectedAnnotationRef.current?.id === dragState.affectedIds[0])
-          onToggleAnnotationPointType({
-            pointId: dragState.pointId,
-            annotationId: dragState.affectedIds[0],
-          })
-
-
-        // Ici, dragState.pointId est TOUJOURS l'ID réel
-        // (car on n'a pas déclenché la logique du MouseMove)
-        dispatch(setSubSelection({ pointId: dragState.pointId }));
-
-        // Cleanup immédiat
-        setDragState(null);
-        dragStateRef.current = null;
-        setVirtualInsertion(null);
-        setHiddenAnnotationIds([]);
-      }
+      const handled = handlePointDragEnd();
+      if (handled) return;
     }
 
-    // --- Gestion du Drag d'Annotation entière ---
+    // --- Gestion du Drag d'Annotation entière — délégué à useAnnotationDrag ---
     else if (dragAnnotationState) {
-      if (dragAnnotationState.active) {
-        if (onAnnotationMoveCommit) {
-          onAnnotationMoveCommit(
-            dragAnnotationState.selectedAnnotationId,
-            dragAnnotationState.deltaPos,
-            dragAnnotationState.partType,
-            dragAnnotationState.localPos
-          );
-        }
-        // Snapshot de l'annotation AVANT le drag pour détecter la convergence DB
-        const annId = dragAnnotationState.selectedAnnotationId;
-        const ann = annotations?.find(a => a.id === annId);
-        if (ann) {
-          commitSnapshotRef.current = {
-            bboxX: ann.bbox?.x, bboxY: ann.bbox?.y,
-            bboxW: ann.bbox?.width, bboxH: ann.bbox?.height,
-            rotation: ann.rotation,
-            pointX: ann.point?.x, pointY: ann.point?.y,
-            targetX: ann.targetPoint?.x, targetY: ann.targetPoint?.y,
-            labelX: ann.labelPoint?.x, labelY: ann.labelPoint?.y,
-            firstPointX: ann.points?.[0]?.x, firstPointY: ann.points?.[0]?.y,
-          };
-        }
-        // Marquer qu'on attend la convergence DB avant de supprimer le pendingMove
-        commitPendingRef.current = annId;
-        startCommitPendingWatch(); // Fallback timeout si le snapshot ne détecte pas de changement
-      }
-
-      // Cleanup immédiat du drag state (plus de setTimeout)
-      // Le pendingMove reste actif → le TransientAnnotationLayer reste visible
-      setDragAnnotationState(null);
-      dragAnnotationStateRef.current = null;
-      document.body.style.cursor = '';
+      handleAnnotationDragEnd();
     }
   };
 
@@ -2277,75 +1808,51 @@ const InteractionLayer = forwardRef(({
 
 
 
+    // --- Resize, Rotate, Draggable — délégué à useAnnotationDrag avec permission guard ---
+
     if (resizeHandle) {
       e.stopPropagation();
       e.preventDefault();
-
-      const { nodeId, handleType } = resizeHandle.dataset; // handleType = NW, SE...
-
+      const { nodeId, handleType } = resizeHandle.dataset;
       const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
       const startMouseInLocal = toLocalCoords(worldPos);
-
-      const newDragAnnotationState = {
-        active: false,
-        pending: true,
-        selectedAnnotationId: nodeId,
+      initAnnotationDrag({
+        nodeId,
         startMouseInLocal,
-        partType: `RESIZE_${handleType}`, // ex: RESIZE_SE
-        startMouseScreen: { x: e.clientX, y: e.clientY }
-      };
-
-      setDragAnnotationState(newDragAnnotationState);
-      dragAnnotationStateRef.current = newDragAnnotationState;
+        partType: `RESIZE_${handleType}`,
+        startMouseScreen: { x: e.clientX, y: e.clientY },
+      });
       return;
     }
 
     if (rotateHandle) {
       e.stopPropagation();
       e.preventDefault();
-
       const { nodeId } = rotateHandle.dataset;
       const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
       const startMouseInLocal = toLocalCoords(worldPos);
-
-      const newDragAnnotationState = {
-        active: false,
-        pending: true,
-        selectedAnnotationId: nodeId,
+      initAnnotationDrag({
+        nodeId,
         startMouseInLocal,
-        partType: "ROTATE", // <--- Nouveau Type
-        startMouseScreen: { x: e.clientX, y: e.clientY }
-      };
-
-      setDragAnnotationState(newDragAnnotationState);
-      dragAnnotationStateRef.current = newDragAnnotationState;
+        partType: "ROTATE",
+        startMouseScreen: { x: e.clientX, y: e.clientY },
+      });
       return;
     }
 
     if (draggableGroup) {
-
       e.stopPropagation();
       e.preventDefault();
-
       const { nodeId, nodeContext } = draggableGroup.dataset;
-
       const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
       const startMouseInLocal = toLocalCoords(worldPos);
-
-      // --- MODIFICATION ICI ---
-      // On initialise en 'pending' (attente de mouvement)
-      const newDragAnnotationState = {
-        active: false, // Pas encore visuellement actif
-        pending: true, // Nouveau flag
-        selectedAnnotationId: nodeId,
+      initAnnotationDrag({
+        nodeId,
         startMouseInLocal,
         partType,
-        startMouseScreen: { x: e.clientX, y: e.clientY }, // Stocker la position écran initiale
+        startMouseScreen: { x: e.clientX, y: e.clientY },
         nodeContext,
-      };
-      setDragAnnotationState(newDragAnnotationState);
-      dragAnnotationStateRef.current = newDragAnnotationState;
-      // Le pendingMove sera posé au threshold crossing dans handleWorldMouseMove
+      });
     }
 
     if (basemapHandle || legendHandle) {
@@ -2354,33 +1861,24 @@ const InteractionLayer = forwardRef(({
 
       const handleType = basemapHandle?.dataset?.handleType || legendHandle?.dataset?.handleType;
 
-      // 1. CONVERSION ÉCRAN -> MONDE (Prend en compte la CameraMatrix)
-      // On utilise le helper du viewport pour obtenir la position exacte dans le monde
-      const startMouseWorld = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
-
-      if (!startMouseWorld) return;
-
-      const initDragState = {
-        active: true,
-        handleType,
-        startMouseWorld,
-      }
-
       if (basemapHandle) {
-        initDragState.startBasePose = { ...basePose }
-        setDragBaseMapState(initDragState);
+        initBaseMapDrag(handleType, e);
       }
       if (legendHandle) {
-        initDragState.startFormat = { ...legendFormat }
-        setDragLegendState(initDragState);
+        initLegendDrag(handleType, e);
       }
       if (textHandle) {
-        initDragState.startWidth = selectedAnnotation.width;
-        initDragState.startX = selectedAnnotation.x;
-        setDragTextState(initDragState);
+        const startMouseWorld = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
+        if (!startMouseWorld) return;
+        setDragTextState({
+          active: true,
+          handleType,
+          startMouseWorld,
+          startWidth: selectedAnnotation.width,
+          startX: selectedAnnotation.x,
+        });
+        document.body.style.cursor = handleType === 'MOVE' ? 'grabbing' : 'crosshair';
       }
-
-      document.body.style.cursor = handleType === 'MOVE' ? 'grabbing' : 'crosshair';
     }
 
 

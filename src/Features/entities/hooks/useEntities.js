@@ -125,20 +125,20 @@ export default function useEntities(options) {
       if (listingsIds.length > 1) {
         const table = selectedListing?.table;
         if (table) {
-          entities = await db[table]
+          entities = (await db[table]
             .where("listingId")
             .anyOf(listingsIds)
-            .toArray();
+            .toArray()).filter(r => !r.deletedAt);
         }
       } else if (listingsIds.length === 1) {
         const _listingId = listingsIds[0];
         const listing = listings.find((l) => l.id === _listingId);
         const table = listing?.table;
         if (table) {
-          entities = await db[table]
+          entities = (await db[table]
             .where("listingId")
             .equals(listingsIds[0])
-            .toArray();
+            .toArray()).filter(r => !r.deletedAt);
         }
       }
 

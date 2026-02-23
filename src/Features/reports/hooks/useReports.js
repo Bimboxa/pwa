@@ -11,7 +11,7 @@ export default function useReports() {
     //   .where("listingId")
     //   .equals(listingId)
     //   .toArray();
-    const reports = await db.reports.toArray();
+    const reports = (await db.reports.toArray()).filter(r => !r.deletedAt);
     return reports;
   }, [listingId]);
 

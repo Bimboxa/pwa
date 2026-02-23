@@ -12,7 +12,7 @@ export default function useBaseMapAnnotations() {
     // main
     return useLiveQuery(async () => {
         if (baseMapId) {
-            let annotations = await db.annotations.where("baseMapId").equals(baseMapId).toArray()
+            let annotations = (await db.annotations.where("baseMapId").equals(baseMapId).toArray()).filter(r => !r.deletedAt)
             annotations = annotations.filter(a => a.isBaseMapAnnotation);
             return annotations;
         }

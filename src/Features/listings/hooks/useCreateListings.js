@@ -7,12 +7,10 @@ import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotationTemplatesFromLibrary from "Features/annotations/hooks/useCreateAnnotationTemplatesFromLibrary";
 
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
-import getDateString from "Features/misc/utils/getDateString";
 import resolveListingsInitialEntities from "../services/resolveListingsInitialEntities";
 
 export default function useCreateListings() {
   const { value: createdBy } = useUserEmail();
-  const createdAt = getDateString(new Date());
 
   const createRemoteListings = useCreateRemoteListings();
   const createEntity = useCreateEntity();
@@ -26,8 +24,6 @@ export default function useCreateListings() {
         projectId: listing?.projectId ?? scope?.projectId,
         ...(scope?.id ? { scopeId: scope.id } : {}),
         createdBy,
-        createdAt,
-        updatedAt: createdAt,
       };
     });
 

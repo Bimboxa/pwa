@@ -6,9 +6,7 @@ export default function useUpdateListing() {
   const update = async (updates, options) => {
     const listingId = updates.id;
 
-    const updatedAt = new Date(Date.now()).toISOString();
-
-    await db.listings.update(listingId, {...updates, updatedAt});
+    await db.listings.update(listingId, updates);
     //
     const listing = await db.listings.get(listingId);
     await updateItemSyncFile({item: listing, type: "LISTING"});

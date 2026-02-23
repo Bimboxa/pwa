@@ -6,11 +6,9 @@ import useCreateRemoteListings from "Features/sync/hooks/useCreateRemoteListings
 import useCreateAnnotationTemplatesFromLibrary from "Features/annotations/hooks/useCreateAnnotationTemplatesFromLibrary";
 
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
-import getDateString from "Features/misc/utils/getDateString";
 
 export default function useCreateListing() {
   const { value: createdBy } = useUserEmail();
-  const createdAt = getDateString(new Date());
 
   const createRemoteListings = useCreateRemoteListings();
   const createAnnotationTemplatesFromLibrary = useCreateAnnotationTemplatesFromLibrary();
@@ -24,8 +22,6 @@ export default function useCreateListing() {
       projectId: listing?.projectId ?? scope?.projectId,
       ...(scope?.id ? { scopeId: scope.id } : {}),
       createdBy,
-      createdAt,
-      updatedAt: createdAt,
     };
     // create listings
     await db.listings.add(listingClean);

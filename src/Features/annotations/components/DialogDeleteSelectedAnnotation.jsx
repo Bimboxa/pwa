@@ -15,6 +15,7 @@ export default function DialogDeleteSelectedAnnotation() {
 
   const open = useSelector((s) => s.annotations.openDialogDeleteSelectedAnnotation);
   const selectedItem = useSelector(selectSelectedItem);
+  const currentUserId = useSelector((s) => s.auth.userProfile?.userIdMaster);
 
   // handlers
 
@@ -25,9 +26,19 @@ export default function DialogDeleteSelectedAnnotation() {
 
   async function handleDelete() {
     const annotationId = selectedItem?.nodeId;
-    if (annotationId) {
-      await db.annotations.delete(annotationId);
+    if (!annotationId) return;
+
+    // PERMISSION GUARD : vérifier propriété avant suppression
+    const annotation = await db.annotations.get(annotationId);
+    if (
+      annotation?.createdByUserIdMaster !== currentUserId &&
+      annotation?.createdByUserIdMaster !== "anonymous"
+    ) {
+      handleClose();
+      return;
     }
+
+    await db.annotations.delete(annotationId);
     dispatch(clearSelection());
     handleClose();
   }

@@ -36,12 +36,12 @@ export default function useBaseMaps(options) {
       return null;
     }
     if (filterByProjectId) {
-      records = await db.baseMaps
+      records = (await db.baseMaps
         .where("projectId")
         .equals(filterByProjectId)
-        .toArray();
+        .toArray()).filter(r => !r.deletedAt);
     } else {
-      records = await db.baseMaps.toArray();
+      records = (await db.baseMaps.toArray()).filter(r => !r.deletedAt);
     }
 
     // filter by listing

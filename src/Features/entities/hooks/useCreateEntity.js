@@ -90,7 +90,6 @@ export default function useCreateEntity() {
     const entity = {
       id: entityId,
       createdBy: userEmail,
-      createdAt: new Date().toISOString(),
       listingId: listing.id,
       ...pureData,
     };

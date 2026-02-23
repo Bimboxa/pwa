@@ -89,13 +89,13 @@ export default function useAnnotationsV2(options) {
             let _annotations;
             let points;
             if (baseMapId) {
-                _annotations = await db.annotations.where("baseMapId").equals(baseMapId).toArray();
-                points = await db.points.where("baseMapId").equals(baseMapId).toArray();
+                _annotations = (await db.annotations.where("baseMapId").equals(baseMapId).toArray()).filter(r => !r.deletedAt);
+                points = (await db.points.where("baseMapId").equals(baseMapId).toArray()).filter(r => !r.deletedAt);
             }
 
             if (listingId) {
                 if (!_annotations) {
-                    _annotations = await db.annotations.where("listingId").equals(listingId).toArray();
+                    _annotations = (await db.annotations.where("listingId").equals(listingId).toArray()).filter(r => !r.deletedAt);
                 } else {
 
                     _annotations = _annotations.filter(a => a.listingId === listingId);
@@ -110,8 +110,8 @@ export default function useAnnotationsV2(options) {
             }
 
             if (!listingId && !baseMapId) {
-                _annotations = await db.annotations.where("projectId").equals(projectId).toArray();
-                points = await db.points.where("projectId").equals(projectId).toArray();
+                _annotations = (await db.annotations.where("projectId").equals(projectId).toArray()).filter(r => !r.deletedAt);
+                points = (await db.points.where("projectId").equals(projectId).toArray()).filter(r => !r.deletedAt);
             }
 
             // base map annotations

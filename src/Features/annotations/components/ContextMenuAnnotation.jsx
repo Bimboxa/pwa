@@ -118,10 +118,10 @@ export default function ContextMenuAnnotation() {
       )}
 
       <List dense>
-        {actions.map(({ label, handler, isDivider }, idx) => {
+        {actions.map(({ label, handler, isDivider, disabled }, idx) => {
           if (isDivider) return <Divider key={idx} />;
           return (
-            <ListItemButton key={label} onClick={handler}>
+            <ListItemButton key={label} onClick={handler} disabled={disabled}>
               <Typography variant="body2">{label}</Typography>
             </ListItemButton>
           );

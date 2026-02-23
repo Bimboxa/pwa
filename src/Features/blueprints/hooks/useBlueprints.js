@@ -19,10 +19,10 @@ export default function useBlueprints(options) {
   // main
 
   const blueprints = useLiveQuery(async () => {
-    let _blueprints = await db.blueprints
+    let _blueprints = (await db.blueprints
       .where("projectId")
       .equals(projectId)
-      .toArray();
+      .toArray()).filter(r => !r.deletedAt);
     return _blueprints;
   }, [projectId]);
 

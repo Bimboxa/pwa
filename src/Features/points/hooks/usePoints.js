@@ -21,7 +21,7 @@ export default function usePoints(options) {
     // main
 
     let points = useLiveQuery(async () => {
-        return await db.points.where("baseMapId").equals(baseMapId).toArray()
+        return (await db.points.where("baseMapId").equals(baseMapId).toArray()).filter(r => !r.deletedAt)
     }, [baseMapId]);
 
     if (variant === "byId") {

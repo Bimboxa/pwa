@@ -5,12 +5,10 @@ import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useCreateRemoteProject from "Features/sync/hooks/useCreateRemoteProject";
 
 import db from "App/db/db";
-import getDateString from "Features/misc/utils/getDateString";
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
 export default function useCreateProject() {
   const { value: createdBy } = useUserEmail();
-  const createdAt = getDateString(new Date());
 
   // data
 
@@ -43,7 +41,6 @@ export default function useCreateProject() {
       const project = {
         id: id ?? nanoid(),
         createdBy,
-        createdAt,
         name,
         clientRef,
       };

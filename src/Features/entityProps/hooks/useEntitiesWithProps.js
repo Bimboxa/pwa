@@ -30,10 +30,10 @@ export default function useEntitiesWithProps() {
 
   useLiveQuery(async () => {
     setLoading(true);
-    const props = await db.entitiesProps
+    const props = (await db.entitiesProps
       .where("targetListingKey")
       .anyOf(targetKeys)
-      .toArray();
+      .toArray()).filter(r => !r.deletedAt);
     const propsByEntityId = props.reduce((acc, propsItem) => {
       const props = propsItem.props;
       acc[propsItem.targetEntityId] = {

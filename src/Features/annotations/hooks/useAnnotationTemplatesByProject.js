@@ -13,12 +13,12 @@ export default function useAnnotationTemplatesByProject() {
 
   return useLiveQuery(async () => {
     if (projectId) {
-      return await db.annotationTemplates
+      return (await db.annotationTemplates
         .where("projectId")
         .equals(projectId)
-        .toArray();
+        .toArray()).filter(r => !r.deletedAt);
     } else {
-      return await db.annotationTemplates.toArray();
+      return (await db.annotationTemplates.toArray()).filter(r => !r.deletedAt);
     }
   }, [projectId, annotationsUpdatedAt]);
 }
