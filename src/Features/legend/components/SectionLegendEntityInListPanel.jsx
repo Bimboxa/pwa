@@ -10,7 +10,8 @@ export default function SectionLegendInListPanel({ listing }) {
 
   const legendEntity = useLiveQuery(async () => {
     if (listing?.id) {
-      return await db.legends.where("listingId").equals(listing?.id).first();
+      const result = await db.legends.where("listingId").equals(listing?.id).first();
+      return result?.deletedAt ? undefined : result;
     }
   }, [listing?.id]);
 

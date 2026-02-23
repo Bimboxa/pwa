@@ -28,10 +28,10 @@ export default function useAnnotationTemplatesBySelectedListing(options) {
   return useLiveQuery(async () => {
     let templates = [];
     if (projectId) {
-      templates = await db.annotationTemplates
+      templates = (await db.annotationTemplates
         .where("projectId")
         .equals(projectId)
-        .toArray();
+        .toArray()).filter(r => !r.deletedAt);
 
       templates = templates.filter(
         (template) =>

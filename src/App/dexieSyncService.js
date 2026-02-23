@@ -26,12 +26,12 @@ const syncConfigs = [
   },
   {
     table: "listings",
-    query: () => db.listings.toArray(),
+    query: () => db.listings.toArray().then(r => r.filter(i => !i.deletedAt)),
     action: setListingsById,
   },
   {
     table: "entities",
-    query: () => db.entities.toArray(),
+    query: () => db.entities.toArray().then(r => r.filter(i => !i.deletedAt)),
     action: setEntitiesById,
   },
   {

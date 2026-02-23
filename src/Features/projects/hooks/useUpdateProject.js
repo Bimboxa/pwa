@@ -1,13 +1,10 @@
 import db from "App/db/db";
-import getDateString from "Features/misc/utils/getDateString";
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
 export default function useUpdateProject() {
-  const updatedAt = getDateString(new Date());
-
   const update = async (updates, options) => {
     try {
-      const coreUpdates = {...updates, updatedAt};
+      const coreUpdates = {...updates};
       delete coreUpdates.id;
       await db.projects.update(updates.id, coreUpdates);
       const project = await db.projects.get(updates.id);

@@ -32,12 +32,12 @@ export default function useListings(options) {
     let _listings;
 
     if (filterByProjectId) {
-      _listings = await db.listings
+      _listings = (await db.listings
         .where("projectId")
         .equals(filterByProjectId)
-        .toArray();
+        .toArray()).filter(r => !r.deletedAt);
     } else {
-      _listings = await db.listings.toArray();
+      _listings = (await db.listings.toArray()).filter(r => !r.deletedAt);
     }
 
     // add entityModel

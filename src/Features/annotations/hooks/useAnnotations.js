@@ -54,12 +54,12 @@ export default function useAnnotations(options) {
     // -- FILTER --
 
     if (filterByBaseMapId) {
-      _annotations = await db.annotations
+      _annotations = (await db.annotations
         .where("baseMapId")
         .equals(filterByBaseMapId)
-        .toArray();
+        .toArray()).filter(r => !r.deletedAt);
     } else {
-      _annotations = await db.annotations.toArray();
+      _annotations = (await db.annotations.toArray()).filter(r => !r.deletedAt);
     }
 
     if (filterByListingId) {

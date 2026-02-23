@@ -32,6 +32,7 @@ export default function PageScopeLoader() {
     // config
 
     const pullConfig = appConfig?.features?.remoteScopeConfigurations?.pull;
+    const downloadConfig = appConfig?.features?.remoteScopeConfigurations?.download;
     const mapping = appConfig?.features?.remoteScopeConfigurations?.mapping;
 
     // state
@@ -118,14 +119,20 @@ export default function PageScopeLoader() {
             setFileSize(configuration.fileSize);
             setProgress(30);
 
-            // 3. Télécharger le fichier ZIP
-            if (!configuration.url) {
-                throw new Error("URL du fichier manquante");
-            }
+            // 3. Télécharger le fichier ZIP via la config download
+            if (!downloadConfig) throw new Error("Download config manquante (remoteScopeConfigurations.download)");
+
+            const dlFetchParams = downloadConfig.fetchParams;
+            const dlUrlConfig = {
+                ...dlFetchParams.url,
+                route: resolveRoute(dlFetchParams.url.route, { scopeId }),
+            };
+            const downloadUrl = resolveUrl(dlUrlConfig);
 
             setStatus("downloading");
 
-            const fileResponse = await fetch(configuration.url, {
+            const fileResponse = await fetch(downloadUrl, {
+                method: dlFetchParams.method || "GET",
                 headers: {
                     ...(jwt && { Authorization: `Bearer ${jwt}` }),
                 },

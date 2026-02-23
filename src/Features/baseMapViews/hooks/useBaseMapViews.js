@@ -12,10 +12,10 @@ export default function useBaseMapViews() {
   // helpers
 
   const query = useLiveQuery(async () => {
-    const views = await db.baseMapViews
+    const views = (await db.baseMapViews
       .where("scopeId")
       .equals(scopeId)
-      .toArray();
+      .toArray()).filter(r => !r.deletedAt);
 
     return views;
   }, [scopeId]);

@@ -76,7 +76,6 @@ export default function useUpdateEntity() {
     let changes = {
       ...updates,
       updatedBy: userEmail,
-      updatedAt: new Date().toISOString(),
     };
 
     // Transform data (Raw Files -> Binary Data & Metadata)

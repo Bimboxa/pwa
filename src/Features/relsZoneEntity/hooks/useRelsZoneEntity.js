@@ -27,10 +27,10 @@ export default function useRelsZoneEntity({ entityId }) {
 
   const rels_default = useLiveQuery(async () => {
     if (entityId) {
-      const rels = await db.relsZoneEntity
+      const rels = (await db.relsZoneEntity
         .where("entityId")
         .equals(entityId)
-        .toArray();
+        .toArray()).filter(r => !r.deletedAt);
 
       return rels;
     }
@@ -45,10 +45,10 @@ export default function useRelsZoneEntity({ entityId }) {
         const entityField = listing?.entityModel?.relsZoneEntity?.entityField;
         const zoneField = listing?.entityModel?.relsZoneEntity?.zoneField;
         if (entityField) {
-          const relEntities = await db.entities
+          const relEntities = (await db.entities
             .where("listingId")
             .equals(listing.id)
-            .toArray()
+            .toArray()).filter(r => !r.deletedAt)
           const rels = relEntities
             .filter((entity) => entity[entityField]?.id === entityId)
             .map((entity) => {

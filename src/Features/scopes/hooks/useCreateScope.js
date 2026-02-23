@@ -13,7 +13,6 @@ import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
 export default function useCreateScope() {
   const { value: createdBy } = useUserEmail();
-  const createdAt = new Date(Date.now()).toISOString();
 
   const createListings = useCreateListings();
   const createRemoteScope = useCreateRemoteScope();
@@ -57,7 +56,6 @@ export default function useCreateScope() {
       id: id ?? nanoid(),
       presetScopeKey,
       createdBy,
-      createdAt,
       name,
       clientRef,
       projectId: projectId ?? _projectId,

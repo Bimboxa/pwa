@@ -26,15 +26,15 @@ export default function useAnnotationTemplates(options) {
   let annotationTemplates = useLiveQuery(async () => {
     let templates = [];
     if (filterByListingId) {
-      templates = await db.annotationTemplates
+      templates = (await db.annotationTemplates
         .where("listingId")
         .equals(filterByListingId)
-        .toArray();
+        .toArray()).filter(r => !r.deletedAt);
     } else if (projectId) {
-      templates = await db.annotationTemplates
+      templates = (await db.annotationTemplates
         .where("projectId")
         .equals(projectId)
-        .toArray();
+        .toArray()).filter(r => !r.deletedAt);
     }
     // add images
     if (templates) {
