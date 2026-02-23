@@ -4,7 +4,6 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { setStepKey } from "../scopeCreatorSlice";
 import { setSelectedProjectId } from "../scopeCreatorSlice";
-import { setSelectedProjectId as setProject } from "Features/projects/projectsSlice";
 
 import { Box } from "@mui/material";
 
@@ -36,7 +35,6 @@ export default function PageScopeCreator() {
   useEffect(() => {
     return () => {
       dispatch(setSelectedProjectId(null));
-      dispatch(setProject(null)); // to get the 3 steps in the steppers.
       dispatch(setStepKey("SEARCH_PROJECT"));
     };
   }, []);
