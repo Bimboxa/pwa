@@ -121,6 +121,7 @@ let theme = createTheme(
       viewers: {
         map: blue[600],
         threed: pink[600],
+        portfolio: purple[600],
       },
       anchor: {
         default: red[500],
