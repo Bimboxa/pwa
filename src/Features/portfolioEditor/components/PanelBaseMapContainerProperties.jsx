@@ -1,0 +1,75 @@
+import {
+  Box,
+  Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+} from "@mui/material";
+
+import useSelectedBaseMapContainer from "Features/portfolioBaseMapContainers/hooks/useSelectedBaseMapContainer";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+
+import db from "App/db/db";
+import computeDefaultViewBox from "../utils/computeDefaultViewBox";
+
+export default function PanelBaseMapContainerProperties() {
+  // data
+
+  const { value: container } = useSelectedBaseMapContainer();
+  const { value: baseMaps } = useBaseMaps();
+
+  // handlers
+
+  async function handleBaseMapChange(e) {
+    const baseMapId = e.target.value || null;
+    const baseMap = baseMaps?.find((b) => b.id === baseMapId);
+    const viewBox = baseMap
+      ? computeDefaultViewBox(baseMap, container)
+      : null;
+    await db.portfolioBaseMapContainers.update(container.id, {
+      baseMapId,
+      viewBox,
+    });
+  }
+
+  // render
+
+  if (!container) return null;
+
+  return (
+    <BoxFlexVStretch>
+      <Box sx={{ p: 2 }}>
+        <Typography variant="subtitle2" gutterBottom>
+          Base map container
+        </Typography>
+
+        <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+          <InputLabel>Base map</InputLabel>
+          <Select
+            value={container.baseMapId || ""}
+            label="Base map"
+            onChange={handleBaseMapChange}
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            {baseMaps?.map((bm) => (
+              <MenuItem key={bm.id} value={bm.id}>
+                {bm.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            {Math.round(container.width)} x {Math.round(container.height)} pt
+          </Typography>
+        </Box>
+      </Box>
+    </BoxFlexVStretch>
+  );
+}

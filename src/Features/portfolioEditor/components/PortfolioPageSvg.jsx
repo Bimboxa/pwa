@@ -5,6 +5,9 @@ import { selectSelectedItems } from "Features/selection/selectionSlice";
 
 import { Box } from "@mui/material";
 
+import usePortfolioBaseMapContainers from "Features/portfolioBaseMapContainers/hooks/usePortfolioBaseMapContainers";
+
+import BaseMapContainerSvg from "./BaseMapContainerSvg";
 import getPageDimensions from "../utils/getPageDimensions";
 
 export default function PortfolioPageSvg({ page }) {
@@ -13,6 +16,9 @@ export default function PortfolioPageSvg({ page }) {
   // data
 
   const selectedItems = useSelector(selectSelectedItems);
+  const { value: containers } = usePortfolioBaseMapContainers({
+    filterByPageId: page.id,
+  });
 
   // helpers
 
@@ -53,17 +59,9 @@ export default function PortfolioPageSvg({ page }) {
         viewBox={`0 0 ${dims.width} ${dims.height}`}
         style={{ display: "block", background: "white" }}
       >
-        {/* Page title placeholder */}
-        <text
-          x={dims.width / 2}
-          y={30}
-          textAnchor="middle"
-          fill="#bbb"
-          fontSize="14"
-          fontFamily="sans-serif"
-        >
-          {page.title}
-        </text>
+        {containers?.map((container) => (
+          <BaseMapContainerSvg key={container.id} container={container} />
+        ))}
       </svg>
     </Box>
   );
