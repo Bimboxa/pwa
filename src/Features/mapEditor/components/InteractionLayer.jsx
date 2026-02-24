@@ -90,6 +90,7 @@ const InteractionLayer = forwardRef(({
   enabledDrawingMode,
   newAnnotation,
   onCommitDrawing,
+  onCommitSplitAtVertex,
   onCommitPointsFromDropFill,
   onCommitImageDrop,
   basePose,
@@ -583,6 +584,11 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     onCommitDrawingRef.current = onCommitDrawing;
   }, [onCommitDrawing]);
+
+  const onCommitSplitAtVertexRef = useRef(onCommitSplitAtVertex);
+  useEffect(() => {
+    onCommitSplitAtVertexRef.current = onCommitSplitAtVertex;
+  }, [onCommitSplitAtVertex]);
 
   // drawing state + commit (extracted to useDrawingCommit)
 
@@ -1607,6 +1613,18 @@ const InteractionLayer = forwardRef(({
     // Mode Dessin
     // =======================================================
     if (enabledDrawingMode) {
+
+      // SPLIT at vertex: if clicking a VERTEX snap on a POLYLINE/STRIP, split immediately
+      if (enabledDrawingMode === "CLICK"
+        && newAnnotation?.type === "SPLIT"
+        && snap.type === "VERTEX"
+        && ["POLYLINE", "STRIP"].includes(snap.annotationType)
+      ) {
+        onCommitSplitAtVertexRef.current?.(snap.annotationId, snap.id);
+        setDrawingPoints([]);
+        drawingPointsRef.current = [];
+        return;
+      }
 
       // 1. On prépare l'objet point de base
       const pointToAdd = {
