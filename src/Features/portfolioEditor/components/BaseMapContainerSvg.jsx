@@ -16,8 +16,7 @@ import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnot
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
 import EmptyContainerPlaceholder from "./EmptyContainerPlaceholder";
 import FramingOverlay from "./FramingOverlay";
-
-import theme from "Styles/theme";
+import ContainerTransformOverlay from "./ContainerTransformOverlay";
 
 function FilledContainerContent({ container, baseMap, innerSvgRef }) {
   // data
@@ -64,7 +63,12 @@ function FilledContainerContent({ container, baseMap, innerSvgRef }) {
   );
 }
 
-export default function BaseMapContainerSvg({ container }) {
+export default function BaseMapContainerSvg({
+  container,
+  zoom,
+  onPlaceholderHover,
+  onPlaceholderLeave,
+}) {
   const dispatch = useDispatch();
 
   // data
@@ -78,6 +82,7 @@ export default function BaseMapContainerSvg({ container }) {
   // refs
 
   const innerSvgRef = useRef(null);
+  const placeholderSvgRef = useRef(null);
 
   // helpers
 
@@ -96,12 +101,24 @@ export default function BaseMapContainerSvg({ container }) {
     );
   }
 
+  function handlePlaceholderMouseEnter() {
+    onPlaceholderHover?.({
+      anchorEl: placeholderSvgRef.current,
+      containerId: container.id,
+    });
+  }
+
+  function handlePlaceholderMouseLeave() {
+    onPlaceholderLeave?.();
+  }
+
   // render
 
   return (
     <g onClick={handleClick} style={{ cursor: "pointer" }}>
       {!hasBaseMap && (
         <svg
+          ref={placeholderSvgRef}
           x={container.x}
           y={container.y}
           width={container.width}
@@ -110,6 +127,8 @@ export default function BaseMapContainerSvg({ container }) {
           <EmptyContainerPlaceholder
             width={container.width}
             height={container.height}
+            onMouseEnter={handlePlaceholderMouseEnter}
+            onMouseLeave={handlePlaceholderMouseLeave}
           />
         </svg>
       )}
@@ -131,15 +150,10 @@ export default function BaseMapContainerSvg({ container }) {
       )}
 
       {isSelected && !isFraming && (
-        <rect
-          x={container.x}
-          y={container.y}
-          width={container.width}
-          height={container.height}
-          fill="none"
-          stroke={theme.palette.viewers.portfolio}
-          strokeWidth={2}
-          pointerEvents="none"
+        <ContainerTransformOverlay
+          container={container}
+          zoom={zoom}
+          innerSvgRef={innerSvgRef}
         />
       )}
     </g>

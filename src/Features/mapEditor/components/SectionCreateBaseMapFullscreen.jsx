@@ -26,7 +26,7 @@ import FieldTextV2 from "Features/form/components/FieldTextV2";
 import ImageGeneric from "Features/images/components/ImageGeneric";
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
 
-export default function SectionCreateBaseMapFullscreen({ onClose, showClose }) {
+export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onCreated }) {
   const dispatch = useDispatch();
 
   // strings
@@ -86,6 +86,9 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose }) {
       setImageFile(null);
       setName("");
       setMeterByPx(null);
+
+      // notify parent (portfolio editor)
+      onCreated?.(_entity);
     }
   }
 

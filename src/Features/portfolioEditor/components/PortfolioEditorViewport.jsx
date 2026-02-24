@@ -95,6 +95,7 @@ export default function PortfolioEditorViewport() {
             page={page}
             pageIndex={index}
             totalPages={pages.length}
+            zoom={zoom}
           />
         ))}
 
