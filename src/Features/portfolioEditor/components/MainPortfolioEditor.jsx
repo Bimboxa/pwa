@@ -1,5 +1,7 @@
 import { Box } from "@mui/material";
 
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+
 import PortfolioTree from "./PortfolioTree";
 import PortfolioEditorViewport from "./PortfolioEditorViewport";
 import ButtonDownloadPortfolioPdf from "./ButtonDownloadPortfolioPdf";
@@ -13,22 +15,21 @@ export default function MainPortfolioEditor() {
 
   return (
     <Box sx={{ width: 1, height: 1, display: "flex" }}>
-      {/* Left column: tree */}
+      {/* Left column: tree + export */}
       <Box
         sx={{
           width: treeWidth,
           minWidth: treeWidth,
           borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-          display: "flex",
-          flexDirection: "column",
           bgcolor: "background.default",
-          overflow: "auto",
         }}
       >
-        <PortfolioTree />
-        <Box sx={{ p: 1, borderTop: (theme) => `1px solid ${theme.palette.divider}` }}>
+        <BoxFlexVStretch sx={{ height: 1 }}>
+          <BoxFlexVStretch sx={{ overflow: "auto" }}>
+            <PortfolioTree />
+          </BoxFlexVStretch>
           <ButtonDownloadPortfolioPdf />
-        </Box>
+        </BoxFlexVStretch>
       </Box>
 
       {/* Center: viewport */}

@@ -1,7 +1,9 @@
 import { useSelector } from "react-redux";
 
-import { Button, CircularProgress } from "@mui/material";
+import { CircularProgress } from "@mui/material";
 import { PictureAsPdf } from "@mui/icons-material";
+
+import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 import usePortfolioPages from "Features/portfolioPages/hooks/usePortfolioPages";
@@ -31,14 +33,13 @@ export default function ButtonDownloadPortfolioPdf() {
   if (!displayedPortfolioId || !pages?.length) return null;
 
   return (
-    <Button
-      size="small"
+    <ButtonInPanelV2
+      label={loading ? "Export..." : "Telecharger PDF"}
       variant="outlined"
+      size="small"
       startIcon={loading ? <CircularProgress size={16} /> : <PictureAsPdf />}
       onClick={handleClick}
       disabled={loading}
-    >
-      {loading ? "Export..." : "Telecharger PDF"}
-    </Button>
+    />
   );
 }

@@ -33,8 +33,8 @@ export default function PortfolioTree() {
   // render
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: 1 }}>
-      <List dense disablePadding sx={{ flex: 1, overflow: "auto" }}>
+    <Box>
+      <List dense disablePadding>
         {portfolios?.map((portfolio) => (
           <PortfolioTreeItem key={portfolio.id} portfolio={portfolio} />
         ))}
