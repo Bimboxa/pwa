@@ -1,14 +1,21 @@
+import { useDispatch, useSelector } from "react-redux";
+
+import { setFramingContainerId } from "Features/portfolioBaseMapContainers/portfolioBaseMapContainersSlice";
+
 import {
   Box,
+  Button,
   Typography,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
 } from "@mui/material";
+import { CropFree, RestartAlt } from "@mui/icons-material";
 
 import useSelectedBaseMapContainer from "Features/portfolioBaseMapContainers/hooks/useSelectedBaseMapContainer";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
@@ -16,23 +23,42 @@ import db from "App/db/db";
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
 
 export default function PanelBaseMapContainerProperties() {
+  const dispatch = useDispatch();
+
   // data
 
   const { value: container } = useSelectedBaseMapContainer();
   const { value: baseMaps } = useBaseMaps();
+  const baseMap = useBaseMap({ id: container?.baseMapId });
+  const framingContainerId = useSelector(
+    (s) => s.portfolioBaseMapContainers.framingContainerId
+  );
+
+  // helpers
+
+  const isFraming = framingContainerId === container?.id;
 
   // handlers
 
   async function handleBaseMapChange(e) {
     const baseMapId = e.target.value || null;
-    const baseMap = baseMaps?.find((b) => b.id === baseMapId);
-    const viewBox = baseMap
-      ? computeDefaultViewBox(baseMap, container)
-      : null;
+    const bm = baseMaps?.find((b) => b.id === baseMapId);
+    const viewBox = bm ? computeDefaultViewBox(bm, container) : null;
     await db.portfolioBaseMapContainers.update(container.id, {
       baseMapId,
       viewBox,
     });
+  }
+
+  function handleFrame() {
+    dispatch(setFramingContainerId(isFraming ? null : container.id));
+  }
+
+  async function handleReset() {
+    if (!baseMap || !container) return;
+    const viewBox = computeDefaultViewBox(baseMap, container);
+    await db.portfolioBaseMapContainers.update(container.id, { viewBox });
+    dispatch(setFramingContainerId(null));
   }
 
   // render
@@ -63,6 +89,27 @@ export default function PanelBaseMapContainerProperties() {
             ))}
           </Select>
         </FormControl>
+
+        {container.baseMapId && (
+          <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
+            <Button
+              size="small"
+              variant={isFraming ? "contained" : "outlined"}
+              startIcon={<CropFree />}
+              onClick={handleFrame}
+            >
+              {isFraming ? "Terminer" : "Cadrer"}
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<RestartAlt />}
+              onClick={handleReset}
+            >
+              Reset
+            </Button>
+          </Box>
+        )}
 
         <Box sx={{ mt: 2 }}>
           <Typography variant="body2" color="text.secondary">

@@ -1,3 +1,5 @@
+import { useRef } from "react";
+
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -13,10 +15,11 @@ import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnot
 
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
 import EmptyContainerPlaceholder from "./EmptyContainerPlaceholder";
+import FramingOverlay from "./FramingOverlay";
 
 import theme from "Styles/theme";
 
-function FilledContainerContent({ container, baseMap }) {
+function FilledContainerContent({ container, baseMap, innerSvgRef }) {
   // data
 
   const annotations = useAnnotationsV2({
@@ -35,6 +38,7 @@ function FilledContainerContent({ container, baseMap }) {
 
   return (
     <svg
+      ref={innerSvgRef}
       x={container.x}
       y={container.y}
       width={container.width}
@@ -66,7 +70,14 @@ export default function BaseMapContainerSvg({ container }) {
   // data
 
   const selectedItems = useSelector(selectSelectedItems);
+  const framingContainerId = useSelector(
+    (s) => s.portfolioBaseMapContainers.framingContainerId
+  );
   const baseMap = useBaseMap({ id: container.baseMapId });
+
+  // refs
+
+  const innerSvgRef = useRef(null);
 
   // helpers
 
@@ -74,6 +85,7 @@ export default function BaseMapContainerSvg({ container }) {
     (i) => i.id === container.id && i.type === "BASE_MAP_CONTAINER"
   );
   const hasBaseMap = container.baseMapId && baseMap;
+  const isFraming = framingContainerId === container.id && hasBaseMap;
 
   // handlers
 
@@ -103,10 +115,22 @@ export default function BaseMapContainerSvg({ container }) {
       )}
 
       {hasBaseMap && (
-        <FilledContainerContent container={container} baseMap={baseMap} />
+        <FilledContainerContent
+          container={container}
+          baseMap={baseMap}
+          innerSvgRef={innerSvgRef}
+        />
       )}
 
-      {isSelected && (
+      {isFraming && (
+        <FramingOverlay
+          container={container}
+          baseMap={baseMap}
+          innerSvgRef={innerSvgRef}
+        />
+      )}
+
+      {isSelected && !isFraming && (
         <rect
           x={container.x}
           y={container.y}
