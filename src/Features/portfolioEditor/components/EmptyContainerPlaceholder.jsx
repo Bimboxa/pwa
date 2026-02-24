@@ -1,8 +1,18 @@
-export default function EmptyContainerPlaceholder({ width, height }) {
+import { forwardRef } from "react";
+
+const EmptyContainerPlaceholder = forwardRef(function EmptyContainerPlaceholder(
+  { width, height, onMouseEnter, onMouseLeave },
+  ref
+) {
   // render
 
   return (
-    <g>
+    <g
+      ref={ref}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      style={{ cursor: "pointer" }}
+    >
       <rect
         x={4}
         y={4}
@@ -26,4 +36,6 @@ export default function EmptyContainerPlaceholder({ width, height }) {
       </text>
     </g>
   );
-}
+});
+
+export default EmptyContainerPlaceholder;
