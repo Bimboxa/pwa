@@ -56,6 +56,14 @@ export default function PanelBaseMapContainerProperties() {
       baseMapId,
       viewBox,
     });
+
+    // rename page title to baseMap name on first assignment
+    if (bm && container?.portfolioPageId && !container.baseMapId) {
+      const page = await db.portfolioPages.get(container.portfolioPageId);
+      if (page && (page.title === "Page 1" || page.title === "Nouvelle page")) {
+        await db.portfolioPages.update(page.id, { title: bm.name });
+      }
+    }
   }
 
   function handleFrame() {
