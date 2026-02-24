@@ -11,7 +11,6 @@ import {
 import { Image as ImageIcon, Delete } from "@mui/icons-material";
 
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
-import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -22,14 +21,13 @@ export default function PanelPortfolioHeaderProperties() {
   // data
 
   const { value: portfolio } = useDisplayedPortfolio();
-  const { value: scope } = useSelectedScope();
   const { value: project } = useSelectedProject();
   const fileInputRef = useRef(null);
 
   // helpers
 
   const config = portfolio?.headerConfig || {};
-  const chantierValue = scope?.name || project?.name || "";
+  const chantierValue = project?.name || "";
 
   // handlers
 
@@ -105,7 +103,7 @@ export default function PanelPortfolioHeaderProperties() {
           value={chantierValue}
           disabled
           fullWidth
-          helperText="Valeur automatique (scope/projet)"
+          helperText="Valeur automatique (projet)"
         />
 
         <TextField
