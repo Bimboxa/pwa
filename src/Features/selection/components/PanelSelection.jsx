@@ -25,7 +25,7 @@ export default function PanelSelection() {
       {type === "BASE_MAP_CONTAINER" && (
         <PanelBaseMapContainerProperties />
       )}
-      {type === "PORTFOLIO" && (
+      {(type === "PORTFOLIO" || type === "PORTFOLIO_HEADER") && (
         <PanelPortfolioHeaderProperties />
       )}
     </BoxFlexVStretch>

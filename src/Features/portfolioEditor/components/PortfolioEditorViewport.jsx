@@ -89,8 +89,13 @@ export default function PortfolioEditorViewport() {
           minHeight: "100%",
         }}
       >
-        {pages?.map((page) => (
-          <PortfolioPageSvg key={page.id} page={page} />
+        {pages?.map((page, index) => (
+          <PortfolioPageSvg
+            key={page.id}
+            page={page}
+            pageIndex={index}
+            totalPages={pages.length}
+          />
         ))}
 
         <ButtonAddPage onClick={handleAddPage} />
