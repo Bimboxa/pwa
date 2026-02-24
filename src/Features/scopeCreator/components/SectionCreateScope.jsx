@@ -8,10 +8,14 @@ import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
+import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
+import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
 
 import useCreateScope from "Features/scopes/hooks/useCreateScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useSelectedPresetScope from "../hooks/useSelectedPresetScope";
+import useCreatePortfolio from "Features/portfolios/hooks/useCreatePortfolio";
+import useCreatePortfolioPage from "Features/portfolioPages/hooks/useCreatePortfolioPage";
 
 import { Box } from "@mui/material";
 import { ArrowBackIos } from "@mui/icons-material";
@@ -50,6 +54,8 @@ export default function SectionCreateScope() {
 
   const createScope = useCreateScope();
   const createListing = useCreateListing();
+  const createPortfolio = useCreatePortfolio();
+  const createPortfolioPage = useCreatePortfolioPage();
 
 
   // state
@@ -100,7 +106,22 @@ export default function SectionCreateScope() {
       }
 
 
-      // selector 
+      // auto-create portfolio with first page
+      const portfolio = await createPortfolio({
+        scopeId: scope.id,
+        projectId,
+        title: tempScope?.name || scope.name || "Portfolio",
+      });
+      await createPortfolioPage({
+        portfolioId: portfolio.id,
+        scopeId: scope.id,
+        projectId,
+        title: "Page 1",
+      });
+      dispatch(setDisplayedPortfolioId(portfolio.id));
+      dispatch(setSelectedViewerKey("PORTFOLIO"));
+
+      // selector
       dispatch(setSelectedScopeId(scope.id));
       dispatch(setSelectedProjectId(projectId));
       dispatch(setSelectedListingId(newListings?.[0]?.id));
