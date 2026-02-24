@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { setEnabledDrawingMode } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
-import ContentCut from "@mui/icons-material/ContentCut";
+import { StopCircle as CutIcon } from "@mui/icons-material";
 
 import IconButtonToolbarGeneric from "Features/layout/components/IconButtonToolbarGeneric";
 
@@ -22,8 +22,8 @@ export default function ButtonDrawCut({ disabled }) {
   }
 
   return (
-    <IconButtonToolbarGeneric label="Couper" size={32} onClick={handleClick} showBorder={true} disabled={disabled}>
-      <ContentCut />
+    <IconButtonToolbarGeneric label="Ouverture" size={32} onClick={handleClick} showBorder={true} disabled={disabled}>
+      <CutIcon />
     </IconButtonToolbarGeneric>
   );
 }

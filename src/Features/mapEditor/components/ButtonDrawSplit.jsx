@@ -8,6 +8,7 @@ import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotat
 import CallSplit from "@mui/icons-material/CallSplit";
 
 import IconButtonToolbarGeneric from "Features/layout/components/IconButtonToolbarGeneric";
+import { ContentCut } from "@mui/icons-material";
 
 export default function ButtonDrawSplit({ disabled }) {
   const dispatch = useDispatch();
@@ -35,7 +36,7 @@ export default function ButtonDrawSplit({ disabled }) {
 
   return (
     <IconButtonToolbarGeneric label="Diviser" size={32} onClick={handleClick} showBorder={true} disabled={disabled || !canSplit}>
-      <CallSplit />
+      <ContentCut />
     </IconButtonToolbarGeneric>
   );
 }
