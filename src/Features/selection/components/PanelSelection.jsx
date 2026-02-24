@@ -1,9 +1,8 @@
 import { useSelector } from "react-redux";
 
-import { Typography } from "@mui/material";
-
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PanelEntityInRightPanel from "Features/entities/components/PanelEntityInRightPanel";
+import PanelBaseMapContainerProperties from "Features/portfolioEditor/components/PanelBaseMapContainerProperties";
 import { selectSelectedItems } from "../selectionSlice";
 
 export default function PanelSelection() {
@@ -13,8 +12,6 @@ export default function PanelSelection() {
   const selectedItems = useSelector(selectSelectedItems);
   const selectedItem = selectedItems[0];
 
-  console.log("selectedItem", selectedItem);
-
   // helper
 
   const type = selectedItem?.type;
@@ -23,6 +20,9 @@ export default function PanelSelection() {
     <BoxFlexVStretch>
       {type === "ENTITY" && (
         <PanelEntityInRightPanel selectedItem={selectedItem} />
+      )}
+      {type === "BASE_MAP_CONTAINER" && (
+        <PanelBaseMapContainerProperties />
       )}
     </BoxFlexVStretch>
   );
