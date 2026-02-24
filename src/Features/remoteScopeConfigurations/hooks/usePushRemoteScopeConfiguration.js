@@ -28,7 +28,7 @@ export default function usePushRemoteScopeConfiguration() {
     project = { ...project, type: project?.type ?? "PROJECT" }
 
     const debugAuth = getDebugAuthFromLocalStorage()
-    userProfile = { ...userProfile, trigram: userProfile.trigram ?? debugAuth.trigram }
+    userProfile = { ...userProfile, trigram: userProfile?.trigram ?? debugAuth?.trigram }
 
     // config
 
