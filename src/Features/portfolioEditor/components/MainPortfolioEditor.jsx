@@ -2,6 +2,7 @@ import { Box } from "@mui/material";
 
 import PortfolioTree from "./PortfolioTree";
 import PortfolioEditorViewport from "./PortfolioEditorViewport";
+import ButtonDownloadPortfolioPdf from "./ButtonDownloadPortfolioPdf";
 
 export default function MainPortfolioEditor() {
   // helpers
@@ -25,6 +26,9 @@ export default function MainPortfolioEditor() {
         }}
       >
         <PortfolioTree />
+        <Box sx={{ p: 1, borderTop: (theme) => `1px solid ${theme.palette.divider}` }}>
+          <ButtonDownloadPortfolioPdf />
+        </Box>
       </Box>
 
       {/* Center: viewport */}

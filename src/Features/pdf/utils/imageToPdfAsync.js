@@ -1,6 +1,6 @@
 import { PDFDocument, PDFImage } from "pdf-lib";
 
-export default async function imageToPdfAsync({ url }) {
+export default async function imageToPdfAsync({ url, pageWidth: _pw, pageHeight: _ph }) {
   // Create PDF document
   const pdfDoc = await PDFDocument.create();
 
@@ -8,13 +8,13 @@ export default async function imageToPdfAsync({ url }) {
   const imageBytes = await fetch(url).then((res) => res.arrayBuffer());
   const image = await pdfDoc.embedPng(imageBytes); // This returns a PDFImage object
 
-  // Add page
-  const page = pdfDoc.addPage([842, 595]); // A4 size
+  // Add page with optional custom dimensions (defaults to A4 landscape)
+  const pageWidth = _pw || 842;
+  const pageHeight = _ph || 595;
+  const page = pdfDoc.addPage([pageWidth, pageHeight]);
 
   // Get image dimensions
   const { width, height } = image.scale(1);
-  const pageWidth = 842;
-  const pageHeight = 595;
   const margin = 0;
 
   // Calculate scaling to fit page
