@@ -50,6 +50,12 @@ db.version(12).stores({
   syncFiles: "path,scopeId", // {path,updatedAt,updatedAtRemote,syncAt,syncFileType,scopeId,table,config,pathToItemTemplate} // updatedAt = local updates when one table is updated.// syncFileType: "PROJECT", "SCOPE", "LISTING","ENTITY", "FILE" => related to syncConfig.
 });
 
+db.version(13).stores({
+  portfolios: "id,scopeId,projectId",
+  portfolioPages: "id,portfolioId,scopeId,projectId",
+  portfolioBaseMapContainers: "id,portfolioPageId,scopeId,projectId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -74,6 +80,9 @@ const AUDIT_TABLES = [
   "reports",
   "files",
   "baseMapTransforms",
+  "portfolios",
+  "portfolioPages",
+  "portfolioBaseMapContainers",
 ];
 
 AUDIT_TABLES.forEach((tableName) => {
@@ -144,6 +153,9 @@ const SOFT_DELETE_TABLES = new Set([
   "legends",
   "relationsEntities",
   "reports",
+  "portfolios",
+  "portfolioPages",
+  "portfolioBaseMapContainers",
 ]);
 
 let _skipSoftDelete = false;

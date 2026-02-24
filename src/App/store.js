@@ -55,6 +55,10 @@ import gapiReducer from "Features/gapi/gapiSlice";
 import dropboxReducer from "Features/dropbox/dropboxSlice";
 //
 import opencvReducer from "Features/opencv/opencvSlice";
+//
+import portfoliosReducer from "Features/portfolios/portfoliosSlice";
+import portfolioPagesReducer from "Features/portfolioPages/portfolioPagesSlice";
+import portfolioBaseMapContainersReducer from "Features/portfolioBaseMapContainers/portfolioBaseMapContainersSlice";
 
 //import syncTabsMiddleware from "./syncTabsMiddleware";
 //import webrtcMiddleware from "Features/webrtc/webrtcMiddleware";
@@ -115,6 +119,10 @@ const store = configureStore({
     //
     gapi: gapiReducer,
     dropbox: dropboxReducer,
+    //
+    portfolios: portfoliosReducer,
+    portfolioPages: portfolioPagesReducer,
+    portfolioBaseMapContainers: portfolioBaseMapContainersReducer,
   },
   // middleware: (getDefaultMiddleware) =>
   //   getDefaultMiddleware({
