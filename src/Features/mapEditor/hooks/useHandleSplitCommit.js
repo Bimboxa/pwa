@@ -8,6 +8,7 @@ import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation"
 import useNewEntity from "Features/entities/hooks/useNewEntity";
 
 import splitPolygonByPolyline from "Features/geometry/utils/splitPolygonByPolyline";
+import splitPolylineAtVertex from "Features/mapEditor/utils/splitPolylineAtVertex";
 
 import { setToaster } from "Features/layout/layoutSlice";
 
@@ -149,5 +150,55 @@ export default function useHandleSplitCommit() {
         }
     };
 
-    return handleSplitCommit;
+    // handler — split a POLYLINE or STRIP at an existing vertex
+
+    const handlePolylineSplitAtVertex = async (annotationId, vertexPointId) => {
+        const annotation = await db.annotations.get(annotationId);
+        if (!annotation) {
+            dispatch(setToaster({ message: "Annotation not found", isError: true }));
+            return;
+        }
+
+        const vertexIndex = annotation.points?.findIndex(p => p.id === vertexPointId);
+        if (vertexIndex === -1 || vertexIndex === undefined) {
+            dispatch(setToaster({ message: "Vertex not found in annotation", isError: true }));
+            return;
+        }
+
+        const result = splitPolylineAtVertex(annotation.points, vertexIndex, annotation.closeLine);
+        if (!result) {
+            dispatch(setToaster({ message: "Cannot split at this vertex", isError: true }));
+            return;
+        }
+
+        if (result.piece2) {
+            // Open split → two pieces
+            await updateAnnotation({
+                ...annotation,
+                points: result.piece1,
+                closeLine: false,
+            });
+
+            const entity = await createEntity(newEntity);
+            const { id: _id, entityId: _eid, cuts: _cuts, ...hostProps } = annotation;
+            await createAnnotation({
+                ...hostProps,
+                id: nanoid(),
+                entityId: entity.id,
+                points: result.piece2,
+                closeLine: false,
+            });
+        } else {
+            // Closed → open (single reordered piece)
+            await updateAnnotation({
+                ...annotation,
+                points: result.piece1,
+                closeLine: false,
+            });
+        }
+
+        dispatch(setToaster({ message: "Annotation split successfully", isError: false }));
+    };
+
+    return { handleSplitCommit, handlePolylineSplitAtVertex };
 }

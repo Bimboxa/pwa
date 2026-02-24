@@ -174,7 +174,9 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false) => {
                         y: pt.y,
                         id: pt.id,
                         type: 'VERTEX',
-                        cutIndex: cutIndex // <--- Ajouté
+                        cutIndex: cutIndex,
+                        annotationId: ann.id,
+                        annotationType: ann.type,
                     };
                 }
             }

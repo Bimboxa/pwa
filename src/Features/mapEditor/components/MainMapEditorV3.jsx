@@ -283,7 +283,7 @@ export default function MainMapEditorV3() {
     // handler - commit drawing
 
     const _handleCommitDrawing = useHandleCommitDrawing();
-    const handleSplitCommit = useHandleSplitCommit();
+    const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit();
 
     const handleCommitDrawing = (rawPoints, options) => {
 
@@ -913,6 +913,7 @@ export default function MainMapEditorV3() {
                             handleCommitDrawing(points, options);
                         }
                     }}
+                    onCommitSplitAtVertex={handlePolylineSplitAtVertex}
                     onCommitImageDrop={handleCommitImageDrop}
                     onCommitPointsFromDropFill={handleCommitPointsFromDropFill}
                     baseMapImageSize={baseMap?.image?.imageSize}
