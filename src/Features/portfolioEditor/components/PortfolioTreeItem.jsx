@@ -56,7 +56,7 @@ function SortablePageRow({ page, isSelected, onClick }) {
       component="div"
       selected={isSelected}
       onClick={onClick}
-      sx={{ pl: 4, py: 0.25, ...style }}
+      sx={{ pl: 4, ...style }}
     >
       <ListItemText
         primary={page.title}
@@ -193,11 +193,10 @@ export default function PortfolioTreeItem({ portfolio }) {
   // render
 
   return (
-    <Box>
+    <Box sx={{ mb: 1 }}>
       <ListItemButton
         selected={isPortfolioSelected}
         onClick={handlePortfolioClick}
-        sx={{ py: 0.5 }}
       >
         <ListItemText
           primary={portfolio.title}
@@ -239,7 +238,7 @@ export default function PortfolioTreeItem({ portfolio }) {
 
           <DragOverlay>
             {activePage ? (
-              <ListItemButton component="div" selected sx={{ pl: 4, py: 0.25 }}>
+              <ListItemButton component="div" selected sx={{ pl: 4 }}>
                 <ListItemText
                   primary={activePage.title}
                   primaryTypographyProps={{ variant: "body2" }}
@@ -251,7 +250,7 @@ export default function PortfolioTreeItem({ portfolio }) {
       )}
 
       {isDisplayed && (
-        <ListItemButton sx={{ pl: 4, py: 0.25 }} onClick={handleAddPage}>
+        <ListItemButton sx={{ pl: 4 }} onClick={handleAddPage}>
           <Typography variant="body2" color="text.secondary">
             + Nouvelle page
           </Typography>
