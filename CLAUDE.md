@@ -104,7 +104,8 @@ When implementing a GitHub issue:
 1. **Create a local branch** with naming convention: `issue_<number>_<keyword>` (e.g. `issue_2_circle_drawing_mode`)
 2. **Implement** the feature on that branch
 3. **If validated**, merge into `main` with commit message: `[featureName] issue title (#issueNumber)` (e.g. `[annotations] add CIRCLE drawing mode for POLYLINE / POLYGON (#2)`)
-4. The user handles the `git push` manually
+4. **Close the GitHub issue** in the merge commit body using `Closes #issueNumber` so it is automatically closed when pushed
+5. The user handles the `git push` manually
 
 ## Tools
 

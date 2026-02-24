@@ -88,9 +88,9 @@ const projectOnArc = (px, py, center, r, start, end, isCW, forceCenter) => {
 
     let inArc = false;
     if (isCW) {
-        if (relPoint > relEndCCW) inArc = true;
-    } else {
         if (relPoint < relEndCCW) inArc = true;
+    } else {
+        if (relPoint > relEndCCW) inArc = true;
     }
 
     let bestX, bestY;
@@ -112,15 +112,15 @@ const projectOnArc = (px, py, center, r, start, end, isCW, forceCenter) => {
     if (forceCenter) {
         let midX, midY;
         if (isCW) {
-            let spanCW = (angleStart - angleEnd);
-            if (spanCW < 0) spanCW += TWO_PI;
-            const midAngle = angleStart - spanCW / 2;
+            let span = (angleEnd - angleStart);
+            if (span < 0) span += TWO_PI;
+            const midAngle = angleStart + span / 2;
             midX = center.x + Math.cos(midAngle) * r;
             midY = center.y + Math.sin(midAngle) * r;
         } else {
-            let spanCCW = (angleEnd - angleStart);
-            if (spanCCW < 0) spanCCW += TWO_PI;
-            const midAngle = angleStart + spanCCW / 2;
+            let span = (angleStart - angleEnd);
+            if (span < 0) span += TWO_PI;
+            const midAngle = angleStart - span / 2;
             midX = center.x + Math.cos(midAngle) * r;
             midY = center.y + Math.sin(midAngle) * r;
         }
