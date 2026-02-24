@@ -8,6 +8,7 @@ import { Box } from "@mui/material";
 import usePortfolioBaseMapContainers from "Features/portfolioBaseMapContainers/hooks/usePortfolioBaseMapContainers";
 
 import BaseMapContainerSvg from "./BaseMapContainerSvg";
+import PortfolioHeaderSvg from "./PortfolioHeaderSvg";
 import getPageDimensions from "../utils/getPageDimensions";
 
 export default function PortfolioPageSvg({ page }) {
@@ -62,6 +63,7 @@ export default function PortfolioPageSvg({ page }) {
         {containers?.map((container) => (
           <BaseMapContainerSvg key={container.id} container={container} />
         ))}
+        <PortfolioHeaderSvg page={page} pageDims={dims} />
       </svg>
     </Box>
   );
