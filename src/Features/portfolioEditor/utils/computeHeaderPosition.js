@@ -1,31 +1,15 @@
-const HEADER_WIDTH = 350;
-const HEADER_HEIGHT = 80;
-const HEADER_MARGIN = 20;
+const HEADER_MARGIN = 16;
+const HEADER_HEIGHT = 84;
+const ROW_HEIGHT = 28;
+const LOGO_COL_WIDTH = 80;
 
-export { HEADER_WIDTH, HEADER_HEIGHT, HEADER_MARGIN };
+export { HEADER_MARGIN, HEADER_HEIGHT, ROW_HEIGHT, LOGO_COL_WIDTH };
 
-export default function computeHeaderPosition(
-  pageDims,
-  position = "bottom-right"
-) {
-  const w = HEADER_WIDTH;
-  const h = HEADER_HEIGHT;
-  const m = HEADER_MARGIN;
-
-  switch (position) {
-    case "top-right":
-      return { x: pageDims.width - w - m, y: m, width: w, height: h };
-    case "top-left":
-      return { x: m, y: m, width: w, height: h };
-    case "bottom-left":
-      return { x: m, y: pageDims.height - h - m, width: w, height: h };
-    case "bottom-right":
-    default:
-      return {
-        x: pageDims.width - w - m,
-        y: pageDims.height - h - m,
-        width: w,
-        height: h,
-      };
-  }
+export default function computeHeaderPosition(pageDims) {
+  return {
+    x: HEADER_MARGIN,
+    y: HEADER_MARGIN,
+    width: pageDims.width - 2 * HEADER_MARGIN,
+    height: HEADER_HEIGHT,
+  };
 }

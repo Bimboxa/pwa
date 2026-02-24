@@ -1,16 +1,18 @@
+import { useRef } from "react";
+
 import {
   Box,
   Typography,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  FormControlLabel,
-  Switch,
+  Button,
+  IconButton,
+  Divider,
 } from "@mui/material";
+import { Image as ImageIcon, Delete } from "@mui/icons-material";
 
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
+import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
+import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
@@ -20,10 +22,14 @@ export default function PanelPortfolioHeaderProperties() {
   // data
 
   const { value: portfolio } = useDisplayedPortfolio();
+  const { value: scope } = useSelectedScope();
+  const { value: project } = useSelectedProject();
+  const fileInputRef = useRef(null);
 
   // helpers
 
   const config = portfolio?.headerConfig || {};
+  const chantierValue = scope?.name || project?.name || "";
 
   // handlers
 
@@ -33,9 +39,13 @@ export default function PanelPortfolioHeaderProperties() {
     await db.portfolios.update(portfolio.id, { headerConfig: updated });
   }
 
-  async function handleTitleChange(e) {
-    if (!portfolio) return;
-    await db.portfolios.update(portfolio.id, { title: e.target.value });
+  function handleLogoUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => updateConfig({ logo: reader.result });
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   // render
@@ -44,106 +54,145 @@ export default function PanelPortfolioHeaderProperties() {
 
   return (
     <BoxFlexVStretch>
-      <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+      <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
         <Typography variant="subtitle2">Cartouche</Typography>
 
-        <TextField
-          label="Titre (chantier)"
+        {/* Logo */}
+        <Divider />
+        <Typography variant="body2" color="text.secondary">
+          Logo
+        </Typography>
+        {config.logo && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              component="img"
+              src={config.logo}
+              sx={{ maxWidth: 60, maxHeight: 40, objectFit: "contain" }}
+            />
+            <IconButton
+              size="small"
+              onClick={() => updateConfig({ logo: null })}
+            >
+              <Delete fontSize="small" />
+            </IconButton>
+          </Box>
+        )}
+        <Button
+          variant="outlined"
           size="small"
-          value={portfolio.title || ""}
-          onChange={handleTitleChange}
+          component="label"
+          startIcon={<ImageIcon />}
+        >
+          {config.logo ? "Changer" : "Ajouter"}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={handleLogoUpload}
+          />
+        </Button>
+
+        {/* Main fields */}
+        <Divider />
+        <Typography variant="body2" color="text.secondary">
+          Champs principaux
+        </Typography>
+
+        <TextField
+          label={config.labelChantier || "Chantier"}
+          size="small"
+          value={chantierValue}
+          disabled
           fullWidth
+          helperText="Valeur automatique (scope/projet)"
         />
 
         <TextField
-          label="Auteur"
+          label={config.labelPortfolio || "Portfolio"}
+          size="small"
+          value={portfolio.title || ""}
+          onChange={async (e) =>
+            db.portfolios.update(portfolio.id, { title: e.target.value })
+          }
+          fullWidth
+        />
+
+        {/* Meta fields */}
+        <Divider />
+        <Typography variant="body2" color="text.secondary">
+          Champs secondaires
+        </Typography>
+
+        <TextField
+          label={config.labelRefInterne || "Ref. Interne"}
+          size="small"
+          value={config.refInterne || ""}
+          onChange={(e) => updateConfig({ refInterne: e.target.value })}
+          fullWidth
+        />
+        <TextField
+          label={config.labelAuteur || "Auteur"}
           size="small"
           value={config.author || ""}
           onChange={(e) => updateConfig({ author: e.target.value })}
           fullWidth
         />
-
         <TextField
-          label="Date"
+          label={config.labelDate || "Date"}
           size="small"
           value={config.date || ""}
           onChange={(e) => updateConfig({ date: e.target.value })}
           fullWidth
         />
 
-        <TextField
-          label="Ref. interne"
-          size="small"
-          value={config.refInterne || ""}
-          onChange={(e) => updateConfig({ refInterne: e.target.value })}
-          fullWidth
-        />
-
-        <FormControl fullWidth size="small">
-          <InputLabel>Position</InputLabel>
-          <Select
-            value={config.position || "bottom-right"}
-            label="Position"
-            onChange={(e) => updateConfig({ position: e.target.value })}
-          >
-            <MenuItem value="bottom-right">Bas-droite</MenuItem>
-            <MenuItem value="bottom-left">Bas-gauche</MenuItem>
-            <MenuItem value="top-right">Haut-droite</MenuItem>
-            <MenuItem value="top-left">Haut-gauche</MenuItem>
-          </Select>
-        </FormControl>
-
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Visibility
+        {/* Label customization */}
+        <Divider />
+        <Typography variant="body2" color="text.secondary">
+          Titres des champs
         </Typography>
 
-        <FormControlLabel
-          control={
-            <Switch
-              size="small"
-              checked={config.showTitle !== false}
-              onChange={(e) =>
-                updateConfig({ showTitle: e.target.checked })
-              }
-            />
-          }
-          label="Titre"
+        <TextField
+          label="Titre: Chantier"
+          size="small"
+          value={config.labelChantier || "Chantier"}
+          onChange={(e) => updateConfig({ labelChantier: e.target.value })}
+          fullWidth
         />
-        <FormControlLabel
-          control={
-            <Switch
-              size="small"
-              checked={config.showPageTitle !== false}
-              onChange={(e) =>
-                updateConfig({ showPageTitle: e.target.checked })
-              }
-            />
-          }
-          label="Titre de page"
+        <TextField
+          label="Titre: Portfolio"
+          size="small"
+          value={config.labelPortfolio || "Portfolio"}
+          onChange={(e) => updateConfig({ labelPortfolio: e.target.value })}
+          fullWidth
         />
-        <FormControlLabel
-          control={
-            <Switch
-              size="small"
-              checked={config.showAuthor !== false}
-              onChange={(e) =>
-                updateConfig({ showAuthor: e.target.checked })
-              }
-            />
-          }
-          label="Auteur"
+        <TextField
+          label="Titre: Page"
+          size="small"
+          value={config.labelPage || "Page"}
+          onChange={(e) => updateConfig({ labelPage: e.target.value })}
+          fullWidth
         />
-        <FormControlLabel
-          control={
-            <Switch
-              size="small"
-              checked={config.showDate !== false}
-              onChange={(e) =>
-                updateConfig({ showDate: e.target.checked })
-              }
-            />
-          }
-          label="Date"
+        <TextField
+          label="Titre: Ref. Interne"
+          size="small"
+          value={config.labelRefInterne || "Ref. Interne"}
+          onChange={(e) => updateConfig({ labelRefInterne: e.target.value })}
+          fullWidth
+        />
+        <TextField
+          label="Titre: Auteur"
+          size="small"
+          value={config.labelAuteur || "Auteur"}
+          onChange={(e) => updateConfig({ labelAuteur: e.target.value })}
+          fullWidth
+        />
+        <TextField
+          label="Titre: Date"
+          size="small"
+          value={config.labelDate || "Date"}
+          onChange={(e) => updateConfig({ labelDate: e.target.value })}
+          fullWidth
         />
       </Box>
     </BoxFlexVStretch>

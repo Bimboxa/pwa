@@ -11,7 +11,7 @@ import BaseMapContainerSvg from "./BaseMapContainerSvg";
 import PortfolioHeaderSvg from "./PortfolioHeaderSvg";
 import getPageDimensions from "../utils/getPageDimensions";
 
-export default function PortfolioPageSvg({ page }) {
+export default function PortfolioPageSvg({ page, pageIndex, totalPages }) {
   const dispatch = useDispatch();
 
   // data
@@ -64,7 +64,12 @@ export default function PortfolioPageSvg({ page }) {
         {containers?.map((container) => (
           <BaseMapContainerSvg key={container.id} container={container} />
         ))}
-        <PortfolioHeaderSvg page={page} pageDims={dims} />
+        <PortfolioHeaderSvg
+          page={page}
+          pageDims={dims}
+          pageIndex={pageIndex}
+          totalPages={totalPages}
+        />
       </svg>
     </Box>
   );
