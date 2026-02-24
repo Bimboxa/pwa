@@ -48,5 +48,8 @@ Data
 gemini.jsx
 geminiPrompt.text
 
+# Claude Code
+.claude/worktrees
+
 
 
