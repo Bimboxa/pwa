@@ -146,9 +146,12 @@ function buildHalfPlane(polylinePoints, offset) {
  *
  * @param {Array<{id, x, y}>} polygonPoints - Polygon vertices (relative 0-1 coords)
  * @param {Array<{x, y}>} cuttingPoints - Cutting polyline vertices (relative 0-1 coords)
+ * @param {Map<string, string>} [sharedPointsRegistry] - Optional shared registry (coordKey → pointId)
+ *   used to deduplicate intersection points across multiple split operations.
+ *   When provided, newly created points are added to it so subsequent calls can reuse them.
  * @returns {{ piece1: Array<{id, x, y}>, piece2: Array<{id, x, y}>, newPoints: Array<{id, x, y}> } | null}
  */
-export default function splitPolygonByPolyline(polygonPoints, cuttingPoints) {
+export default function splitPolygonByPolyline(polygonPoints, cuttingPoints, sharedPointsRegistry) {
     if (!polygonPoints || polygonPoints.length < 3 || !cuttingPoints || cuttingPoints.length < 2) {
         return null;
     }
@@ -196,6 +199,16 @@ export default function splitPolygonByPolyline(polygonPoints, cuttingPoints) {
             }
         }
 
+        // Merge points from the shared registry (from previous split operations)
+        // so that intersection points on shared edges reuse the same IDs.
+        if (sharedPointsRegistry) {
+            for (const [key, id] of sharedPointsRegistry) {
+                if (!knownPoints.has(key)) {
+                    knownPoints.set(key, id);
+                }
+            }
+        }
+
         // Track which points are newly created (need DB insertion)
         const newPointIds = new Set();
         const originalPointIds = new Set(polygonPoints.map(p => p.id));
@@ -226,6 +239,16 @@ export default function splitPolygonByPolyline(polygonPoints, cuttingPoints) {
             const found = [...piece1, ...piece2].find(p => p.id === id);
             if (found) {
                 newPoints.push({ id: found.id, x: found.x, y: found.y });
+            }
+        }
+
+        // Feed back all resolved points into the shared registry
+        // so that subsequent split calls reuse them on shared edges.
+        if (sharedPointsRegistry) {
+            for (const [key, id] of knownPoints) {
+                if (!sharedPointsRegistry.has(key)) {
+                    sharedPointsRegistry.set(key, id);
+                }
             }
         }
 
