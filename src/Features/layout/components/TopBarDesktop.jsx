@@ -1,8 +1,15 @@
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import {
+  setSelectedViewerKey,
+  setPortfolioReturnContext,
+} from "Features/viewers/viewersSlice";
+import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-import { Box, Divider } from "@mui/material";
+import { Box, Button, Divider } from "@mui/material";
+import { ArrowBack } from "@mui/icons-material";
 
 import BoxFlexH from "Features/layout/components/BoxFlexH";
 //import SelectorProject from "Features/projectSelector/components/SelectorProject";
@@ -23,11 +30,16 @@ import BlockVersionInTopBar from "Features/versions/components/BlockVersionInTop
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 export default function TopBarDesktop() {
+  const dispatch = useDispatch();
+
   // data
 
   const height = useSelector((s) => s.layout.topBarHeight);
   const appConfig = useAppConfig();
   const { value: listing } = useSelectedListing();
+  const portfolioReturnContext = useSelector(
+    (s) => s.viewers.portfolioReturnContext
+  );
 
   // helper - em
 
@@ -36,6 +48,17 @@ export default function TopBarDesktop() {
   // helpers
 
   const scopesEnabled = appConfig?.features?.scopes?.enabled;
+  const showReturnToPortfolio = portfolioReturnContext?.fromPortfolio;
+
+  // handlers
+
+  function handleReturnToPortfolio() {
+    if (portfolioReturnContext?.portfolioId) {
+      dispatch(setDisplayedPortfolioId(portfolioReturnContext.portfolioId));
+    }
+    dispatch(setSelectedViewerKey("PORTFOLIO"));
+    dispatch(setPortfolioReturnContext(null));
+  }
 
   return (
     <Box
@@ -63,6 +86,17 @@ export default function TopBarDesktop() {
       </BoxFlexH> */}
 
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        {showReturnToPortfolio && (
+          <Button
+            size="small"
+            variant="contained"
+            color="secondary"
+            startIcon={<ArrowBack />}
+            onClick={handleReturnToPortfolio}
+          >
+            Retour au portfolio
+          </Button>
+        )}
         <TopBarBreadcrumbs />
         {/* <BlockVersionInTopBar /> */}
         {/* <TopBarProjectAndScope /> */}

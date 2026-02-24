@@ -1,6 +1,11 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import { setFramingContainerId } from "Features/portfolioBaseMapContainers/portfolioBaseMapContainersSlice";
+import {
+  setSelectedViewerKey,
+  setPortfolioReturnContext,
+} from "Features/viewers/viewersSlice";
+import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import {
   Box,
@@ -11,7 +16,7 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
-import { CropFree, RestartAlt } from "@mui/icons-material";
+import { CropFree, RestartAlt, Edit } from "@mui/icons-material";
 
 import useSelectedBaseMapContainer from "Features/portfolioBaseMapContainers/hooks/useSelectedBaseMapContainer";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -32,6 +37,9 @@ export default function PanelBaseMapContainerProperties() {
   const baseMap = useBaseMap({ id: container?.baseMapId });
   const framingContainerId = useSelector(
     (s) => s.portfolioBaseMapContainers.framingContainerId
+  );
+  const displayedPortfolioId = useSelector(
+    (s) => s.portfolios.displayedPortfolioId
   );
 
   // helpers
@@ -59,6 +67,20 @@ export default function PanelBaseMapContainerProperties() {
     const viewBox = computeDefaultViewBox(baseMap, container);
     await db.portfolioBaseMapContainers.update(container.id, { viewBox });
     dispatch(setFramingContainerId(null));
+  }
+
+  function handleEditInMap() {
+    if (!container?.baseMapId) return;
+    dispatch(
+      setPortfolioReturnContext({
+        fromPortfolio: true,
+        portfolioId: displayedPortfolioId,
+        pageId: container.portfolioPageId,
+        containerId: container.id,
+      })
+    );
+    dispatch(setSelectedMainBaseMapId(container.baseMapId));
+    dispatch(setSelectedViewerKey("MAP"));
   }
 
   // render
@@ -91,22 +113,33 @@ export default function PanelBaseMapContainerProperties() {
         </FormControl>
 
         {container.baseMapId && (
-          <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
-            <Button
-              size="small"
-              variant={isFraming ? "contained" : "outlined"}
-              startIcon={<CropFree />}
-              onClick={handleFrame}
-            >
-              {isFraming ? "Terminer" : "Cadrer"}
-            </Button>
+          <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1 }}>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Button
+                size="small"
+                variant={isFraming ? "contained" : "outlined"}
+                startIcon={<CropFree />}
+                onClick={handleFrame}
+              >
+                {isFraming ? "Terminer" : "Cadrer"}
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<RestartAlt />}
+                onClick={handleReset}
+              >
+                Reset
+              </Button>
+            </Box>
             <Button
               size="small"
               variant="outlined"
-              startIcon={<RestartAlt />}
-              onClick={handleReset}
+              startIcon={<Edit />}
+              onClick={handleEditInMap}
+              fullWidth
             >
-              Reset
+              Modifier le reperage
             </Button>
           </Box>
         )}
