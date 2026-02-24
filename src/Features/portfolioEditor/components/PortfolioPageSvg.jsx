@@ -55,6 +55,7 @@ export default function PortfolioPageSvg({ page }) {
       }}
     >
       <svg
+        data-portfolio-page-id={page.id}
         width={dims.width}
         height={dims.height}
         viewBox={`0 0 ${dims.width} ${dims.height}`}
