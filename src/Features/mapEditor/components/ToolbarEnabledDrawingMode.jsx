@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { setEnabledDrawingMode } from "../mapEditorSlice";
 
 import { Paper, Box, Typography } from "@mui/material";
-import { Mouse, Rectangle, WaterDrop, MyLocation as TARGET, Brush, Insights as Smart } from "@mui/icons-material";
+import { Mouse, Rectangle, RadioButtonUnchecked, WaterDrop, MyLocation as TARGET, Brush, Insights as Smart } from "@mui/icons-material";
 import theme from "Styles/theme";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
@@ -55,6 +55,12 @@ export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
             label: "Rectangle",
             icon: <Rectangle sx={{ color }} />,
             show: ["POLYGON", "POLYLINE", "RECTANGLE", "CUT", "SPLIT"].includes(type)
+        },
+        {
+            key: "CIRCLE",
+            label: "Cercle",
+            icon: <RadioButtonUnchecked sx={{ color }} />,
+            show: ["POLYGON", "POLYLINE"].includes(type)
         },
         {
             key: "DROP_FILL",

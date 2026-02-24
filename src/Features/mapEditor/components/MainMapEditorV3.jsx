@@ -60,6 +60,7 @@ import { InteractionProvider } from "../context/InteractionContext";
 import db from "App/db/db";
 import editor from "App/editor";
 import getPolylinePointsFromRectangle from "Features/geometry/utils/getPolylinePointsFromRectangle";
+import getPolylinePointsFromCircle from "Features/geometry/utils/getPolylinePointsFromCircle";
 import getDefaultCameraMatrix from "../utils/getDefaultCameraMatrix";
 import getDefaultBaseMapPoseInBg from "../utils/getDefaultBaseMapPoseInBg";
 import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getAnnotationLabelDeltaFromDeltaPos";
@@ -358,6 +359,15 @@ export default function MainMapEditorV3() {
         }
         handleCommitDrawing(points, options)
     }
+    // handlers - circle
+
+    const handleCommitDrawingFromCircle = (points) => {
+        const circlePoints = getPolylinePointsFromCircle(points);
+        const options = {};
+        if (type === "POLYLINE") options.closeLine = true;
+        handleCommitDrawing(circlePoints, options);
+    }
+
     // handlers - measure
 
     const handleMeasureCommit = (points, event) => {
@@ -894,6 +904,9 @@ export default function MainMapEditorV3() {
                         }
                         else if (enabledDrawingMode === 'RECTANGLE') {
                             handleCommitDrawingFromRectangle(points, event);
+                        }
+                        else if (enabledDrawingMode === 'CIRCLE') {
+                            handleCommitDrawingFromCircle(points);
                         }
                         else {
                             console.log("handleCommitDrawing - points", points);

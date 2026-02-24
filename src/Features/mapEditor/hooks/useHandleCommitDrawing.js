@@ -218,7 +218,11 @@ export default function useHandleCommitDrawing() {
             if (closeLine) _newAnnotation.closeLine = true;
 
             if (["POLYGON", "POLYLINE", "STRIP"].includes(newAnnotation?.type)) {
-                _newAnnotation.points = finalPointIds.map(id => ({ id }));
+                _newAnnotation.points = finalPointIds.map((id, i) => {
+                    const entry = { id };
+                    if (rawPoints[i]?.type) entry.type = rawPoints[i].type;
+                    return entry;
+                });
             }
 
             if (drawRectangle) {
