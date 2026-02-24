@@ -1112,6 +1112,24 @@ const InteractionLayer = forwardRef(({
 
     }
 
+    // --- CASE 3b: CIRCLE (Auto-commit after 3 points) ---
+    else if (enabledDrawingMode === "CIRCLE") {
+      let finalPos = toLocalCoords(worldPos);
+
+      if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
+        const lastPoint = drawingPoints[drawingPoints.length - 1];
+        finalPos = snapToAngle(finalPos, lastPoint);
+      }
+
+      const nextPoints = [...drawingPoints, finalPos];
+      setDrawingPoints(nextPoints);
+
+      if (nextPoints.length === 3) {
+        drawingPointsRef.current = nextPoints;
+        commitPolyline(event);
+      }
+    }
+
     // -- CASE 4: DROP_FIIL
     else if (enabledDrawingMode === "DROP_FILL") {
       await cv.load();
@@ -1493,7 +1511,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'ONE_CLICK', "MEASURE", "RECTANGLE"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'ONE_CLICK', "MEASURE", "RECTANGLE", "CIRCLE"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 

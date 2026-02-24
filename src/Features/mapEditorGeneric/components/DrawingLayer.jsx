@@ -1,6 +1,8 @@
 // components/DrawingLayer.jsx
 import React, { forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
 
+import { getCircleFrom3Points } from "Features/geometry/utils/getPolylinePointsFromCircle";
+
 const DrawingLayer = forwardRef(({
     points,
     newAnnotation,
@@ -15,12 +17,14 @@ const DrawingLayer = forwardRef(({
     const previewLineRef = useRef(null);
     const previewFillRef = useRef(null);
     const previewRectRef = useRef(null); // <--- NOUVELLE REF
+    const previewCircleRef = useRef(null);
 
     const { strokeColor, fillColor, type } = newAnnotation || {};
 
     // Détection des types
     const isPolygon = type === "POLYGON";
     const drawRectangle = enabledDrawingMode === "RECTANGLE";
+    const drawCircle = enabledDrawingMode === "CIRCLE";
 
     const firstPoint = points?.[0];
 
@@ -56,6 +60,29 @@ const DrawingLayer = forwardRef(({
             }
 
             // ------------------------------------------------
+            // CAS 1b : CIRCLE (2 points placed -> preview with cursor as 3rd)
+            // ------------------------------------------------
+            if (drawCircle && points.length >= 2 && previewCircleRef.current) {
+                if (previewLineRef.current) previewLineRef.current.style.display = 'none';
+                if (previewFillRef.current) previewFillRef.current.style.display = 'none';
+                if (previewRectRef.current) previewRectRef.current.style.display = 'none';
+
+                const circle = getCircleFrom3Points(points[0], points[1], cursorPos);
+                if (circle) {
+                    previewCircleRef.current.setAttribute('cx', circle.cx);
+                    previewCircleRef.current.setAttribute('cy', circle.cy);
+                    previewCircleRef.current.setAttribute('r', circle.r);
+                    previewCircleRef.current.style.display = 'block';
+                } else {
+                    previewCircleRef.current.style.display = 'none';
+                }
+                return;
+            }
+
+            // Hide circle preview when not in CIRCLE mode with 2+ points
+            if (previewCircleRef.current) previewCircleRef.current.style.display = 'none';
+
+            // ------------------------------------------------
             // CAS 2 : POLYLINE / POLYGON / SEGMENT
             // ------------------------------------------------
 
@@ -83,7 +110,8 @@ const DrawingLayer = forwardRef(({
         clearPreview: () => {
             if (previewLineRef.current) previewLineRef.current.style.display = 'none';
             if (previewFillRef.current) previewFillRef.current.style.display = 'none';
-            if (previewRectRef.current) previewRectRef.current.style.display = 'none'; // Clean
+            if (previewRectRef.current) previewRectRef.current.style.display = 'none';
+            if (previewCircleRef.current) previewCircleRef.current.style.display = 'none';
         }
     }));
 
@@ -129,6 +157,20 @@ const DrawingLayer = forwardRef(({
                 />
             )}
 
+            {/* B2. Dynamic Circle preview */}
+            {drawCircle && (
+                <circle
+                    ref={previewCircleRef}
+                    fill="none"
+                    {...(isPolygon && { fill: fillColor || "rgba(92, 92, 236, 0.1)" })}
+                    fillOpacity={newAnnotation?.fillOpacity ?? 0.8}
+                    stroke={strokeColor || "#2196f3"}
+                    strokeWidth={2}
+                    vectorEffect="non-scaling-stroke"
+                    style={{ display: 'none', pointerEvents: 'none' }}
+                />
+            )}
+
             {/* C. Static Stroke (Traits déjà validés) */}
             <path
                 d={staticPath}
@@ -169,7 +211,7 @@ const DrawingLayer = forwardRef(({
             )}
 
             {/* F. Dynamic Rubber Band (Ligne élastique pour polyline/segment) */}
-            {!drawRectangle && (
+            {!drawRectangle && !(drawCircle && points.length >= 2) && (
                 <line
                     ref={previewLineRef}
                     stroke={strokeColor || "blue"}
