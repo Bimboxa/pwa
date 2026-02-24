@@ -882,8 +882,8 @@ export default function MainMapEditorV3() {
                     ref={interactionLayerRef}
                     showBgImage={showBgImage}
                     onCommitDrawing={({ points, event, cutHostId, options }) => {
-                        if (type === "SPLIT" && newAnnotation?.splitHostId) {
-                            handleSplitCommit(points, { splitHostId: newAnnotation.splitHostId });
+                        if (type === "SPLIT") {
+                            handleSplitCommit(points);
                         }
                         else if (cutHostId) {
                             if (enabledDrawingMode === 'RECTANGLE') points = getPolylinePointsFromRectangle(points)
