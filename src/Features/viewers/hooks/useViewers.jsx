@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { Typography } from "@mui/material";
 import {
   Map,
+  MenuBook,
   PictureAsPdf as PdfIcon,
   Image,
   TableChart as Table,
@@ -20,6 +21,12 @@ export default function useViewers() {
     //   label: "Plan de repérage",
     //   icon: <Print />,
     // },
+    {
+      key: "PORTFOLIO",
+      label: "Portfolio",
+      icon: <MenuBook />,
+      bgcolor: theme.palette.viewers.portfolio,
+    },
     {
       key: "MAP",
       label: "2D",

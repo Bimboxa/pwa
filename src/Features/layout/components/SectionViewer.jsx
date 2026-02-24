@@ -11,6 +11,7 @@ import MainThreedEditor from "Features/threedEditor/components/MainThreedEditor"
 import MainLeafletEditor from "Features/leafletEditor/components/MainLeafletEditor";
 import MainGoogleMapEditor from "Features/gmap/components/MainGoogleMapEditor";
 import TableViewer from "Features/tables/components/ViewerTable";
+import MainPortfolioEditor from "Features/portfolioEditor/components/MainPortfolioEditor";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 
 export default function SectionViewer() {
@@ -25,6 +26,7 @@ export default function SectionViewer() {
   const showThreed = viewerKey === "THREED";
   const showLeaflet = viewerKey === "LEAFLET";
   const showTable = viewerKey === "TABLE";
+  const showPortfolio = viewerKey === "PORTFOLIO";
 
   return (
     <BoxCenter sx={{ position: "relative" }}>
@@ -50,6 +52,10 @@ export default function SectionViewer() {
       {showTable && <PanelShowable show={showTable} sx={{ position: "absolute", zIndex: 0 }}>
         <TableViewer />
       </PanelShowable>}
+
+      <PanelShowable show={showPortfolio} sx={{ position: "absolute", zIndex: 0 }}>
+        <MainPortfolioEditor />
+      </PanelShowable>
 
       <Box sx={{ position: "absolute", bottom: "8px", right: "8px" }}>
         <ButtonToggleThreedViewer />

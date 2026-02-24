@@ -24,6 +24,7 @@ export default function LeftPanel() {
   let width = openLeftPanel ? panelWidth : 0;
   if (isFullScreen) width = 0;
   if (selectedViewerKey === "TABLE") width = 0;
+  if (selectedViewerKey === "PORTFOLIO") width = 0;
 
   // handler
 
@@ -36,7 +37,7 @@ export default function LeftPanel() {
 
   return (
     <Box sx={{ display: "flex", zIndex: 2 }}>
-      {!isFullScreen && (
+      {!isFullScreen && selectedViewerKey !== "PORTFOLIO" && (
         <VerticalBarInLeftPanel>
           <VerticalSelectorListing onSeeAllClick={handleSeeAllClick} />
         </VerticalBarInLeftPanel>
