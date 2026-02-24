@@ -9,7 +9,6 @@ import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
-import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
 
 import useCreateScope from "Features/scopes/hooks/useCreateScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -119,7 +118,6 @@ export default function SectionCreateScope() {
         title: "Page 1",
       });
       dispatch(setDisplayedPortfolioId(portfolio.id));
-      dispatch(setSelectedViewerKey("PORTFOLIO"));
 
       // selector
       dispatch(setSelectedScopeId(scope.id));
