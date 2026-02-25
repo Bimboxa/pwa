@@ -1,14 +1,17 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
 import { clearSelection } from "Features/selection/selectionSlice";
 import { selectSelectedItem } from "Features/selection/selectionSlice";
 
-import { Box } from "@mui/material";
+import { Box, IconButton, Tooltip } from "@mui/material";
+import { FitScreen } from "@mui/icons-material";
 
 import usePortfolioPages from "Features/portfolioPages/hooks/usePortfolioPages";
 import useCreatePortfolioPage from "Features/portfolioPages/hooks/useCreatePortfolioPage";
+
+import getPageDimensions from "../utils/getPageDimensions";
 
 import PortfolioPageSvg from "./PortfolioPageSvg";
 import ButtonAddPage from "./ButtonAddPage";
@@ -29,6 +32,15 @@ export default function PortfolioEditorViewport() {
   const createPage = useCreatePortfolioPage();
 
   const selectedItem = useSelector(selectSelectedItem);
+
+  // helpers
+
+  const maxPageWidth = useMemo(() => {
+    if (!pages?.length) return 0;
+    return Math.max(
+      ...pages.map((p) => getPageDimensions(p.format, p.orientation).width)
+    );
+  }, [pages]);
 
   // state
 
@@ -53,7 +65,7 @@ export default function PortfolioEditorViewport() {
     (e) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? -0.05 : 0.05;
+        const delta = e.deltaY > 0 ? -0.02 : 0.02;
         setZoom((z) => Math.max(0.2, Math.min(3, z + delta)));
       }
     },
@@ -78,45 +90,73 @@ export default function PortfolioEditorViewport() {
     });
   }
 
+  function handleFitToWidth() {
+    if (!maxPageWidth || !containerRef.current) return;
+    const padding = 18 * 2;
+    const availableWidth = containerRef.current.clientWidth - padding;
+    const newZoom = Math.max(0.2, Math.min(3, availableWidth / maxPageWidth));
+    setZoom(newZoom);
+  }
+
   // render
 
   return (
-    <Box
-      ref={containerRef}
-      onWheel={handleWheel}
-      onClick={handleBackgroundClick}
-      sx={{
-        width: 1,
-        height: 1,
-        overflow: "auto",
-        //bgcolor: "#E0E0E0",
-        bgcolor: "background.default"
-      }}
-    >
+    <Box sx={{ width: 1, height: 1, position: "relative" }}>
       <Box
+        ref={containerRef}
+        onWheel={handleWheel}
+        onClick={handleBackgroundClick}
         sx={{
-          transform: `scale(${zoom})`,
-          transformOrigin: "top center",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          py: 4,
-          gap: 3,
-          minHeight: "100%",
+          width: 1,
+          height: 1,
+          overflow: "auto",
+          bgcolor: "background.default",
+          scrollbarWidth: "none",
+          "&::-webkit-scrollbar": { display: "none" },
         }}
       >
-        {pages?.map((page, index) => (
-          <PortfolioPageSvg
-            key={page.id}
-            page={page}
-            pageIndex={index}
-            totalPages={pages.length}
-            zoom={zoom}
-          />
-        ))}
+        <Box
+          sx={{
+            transform: `scale(${zoom})`,
+            transformOrigin: "top center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            py: 4,
+            gap: 3,
+            minHeight: "100%",
+          }}
+        >
+          {pages?.map((page, index) => (
+            <PortfolioPageSvg
+              key={page.id}
+              page={page}
+              pageIndex={index}
+              totalPages={pages.length}
+              zoom={zoom}
+            />
+          ))}
 
-        <ButtonAddPage onClick={handleAddPage} />
+          <ButtonAddPage onClick={handleAddPage} />
+        </Box>
       </Box>
+
+      <Tooltip title="Fit to width" placement="left">
+        <IconButton
+          onClick={handleFitToWidth}
+          size="small"
+          sx={{
+            position: "absolute",
+            bottom: 16,
+            right: 16,
+            bgcolor: "background.paper",
+            boxShadow: 2,
+            "&:hover": { bgcolor: "background.paper" },
+          }}
+        >
+          <FitScreen fontSize="small" />
+        </IconButton>
+      </Tooltip>
     </Box>
   );
 }
