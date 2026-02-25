@@ -96,6 +96,7 @@ export default function BaseMapContainerSvg({
 
   function handleClick(e) {
     e.stopPropagation();
+    if (framingContainerId) return;
     dispatch(
       setSelectedItem({ id: container.id, type: "BASE_MAP_CONTAINER" })
     );
@@ -149,11 +150,12 @@ export default function BaseMapContainerSvg({
         />
       )}
 
-      {isSelected && !isFraming && (
+      {isSelected && (
         <ContainerTransformOverlay
           container={container}
           zoom={zoom}
           innerSvgRef={innerSvgRef}
+          framing={isFraming}
         />
       )}
     </g>

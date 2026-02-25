@@ -8,9 +8,12 @@ import {
   setPortfolioReturnContext,
 } from "Features/viewers/viewersSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
+import { setFramingContainerId } from "Features/portfolioBaseMapContainers/portfolioBaseMapContainersSlice";
 
 import { Box } from "@mui/material";
-import { Edit } from "@mui/icons-material";
+import { Edit, CropFree, RestartAlt } from "@mui/icons-material";
+
+import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
 
 import usePortfolioBaseMapContainers from "Features/portfolioBaseMapContainers/hooks/usePortfolioBaseMapContainers";
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
@@ -25,6 +28,7 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import getPageDimensions from "../utils/getPageDimensions";
 import computeContentArea from "../utils/computeContentArea";
 import fitContainerToBaseMap from "../utils/fitContainerToBaseMap";
+import computeDefaultViewBox from "../utils/computeDefaultViewBox";
 
 import db from "App/db/db";
 
@@ -38,6 +42,9 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
     filterByPageId: page.id,
   });
   const { value: portfolio } = useDisplayedPortfolio();
+  const framingContainerId = useSelector(
+    (s) => s.portfolioBaseMapContainers.framingContainerId
+  );
 
   // state
 
@@ -81,11 +88,28 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
     )
   );
   const showEditButton = selectedContainer?.baseMapId;
+  const selectedBaseMap = useBaseMap({ id: selectedContainer?.baseMapId });
+  const isFraming =
+    framingContainerId === selectedContainer?.id && showEditButton;
 
   // handlers
 
+  function handleFrame() {
+    dispatch(setFramingContainerId(isFraming ? null : selectedContainer.id));
+  }
+
+  async function handleResetFrame() {
+    if (!selectedBaseMap || !selectedContainer) return;
+    const viewBox = computeDefaultViewBox(selectedBaseMap, selectedContainer);
+    await db.portfolioBaseMapContainers.update(selectedContainer.id, {
+      viewBox,
+    });
+    dispatch(setFramingContainerId(null));
+  }
+
   function handleClick(e) {
     e.stopPropagation();
+    if (framingContainerId) return;
     dispatch(
       setSelectedItem({
         id: page.id,
@@ -276,13 +300,15 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
         onMouseEnter={handlePopoverMouseEnter}
       />
 
-      {showEditButton && (
+      {showEditButton && !isFraming && (
         <Box
           onClick={(e) => e.stopPropagation()}
           sx={{
             position: "absolute",
             left: selectedContainer.x,
             top: selectedContainer.y + selectedContainer.height + 8,
+            display: "flex",
+            gap: 0.5,
           }}
         >
           <ButtonGeneric
@@ -291,6 +317,41 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
             size="small"
             startIcon={<Edit />}
             onClick={handleEditInMap}
+          />
+          <ButtonGeneric
+            label="Cadrer"
+            variant="outlined"
+            size="small"
+            startIcon={<CropFree />}
+            onClick={handleFrame}
+          />
+        </Box>
+      )}
+
+      {isFraming && (
+        <Box
+          onClick={(e) => e.stopPropagation()}
+          sx={{
+            position: "absolute",
+            left: selectedContainer.x,
+            top: selectedContainer.y + selectedContainer.height + 8,
+            display: "flex",
+            gap: 0.5,
+          }}
+        >
+          <ButtonGeneric
+            label="Reset"
+            variant="outlined"
+            size="small"
+            startIcon={<RestartAlt />}
+            onClick={handleResetFrame}
+          />
+          <ButtonGeneric
+            label="Terminer"
+            variant="contained"
+            size="small"
+            startIcon={<CropFree />}
+            onClick={handleFrame}
           />
         </Box>
       )}

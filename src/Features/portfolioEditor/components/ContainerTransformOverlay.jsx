@@ -58,26 +58,34 @@ export default function ContainerTransformOverlay({
   container,
   zoom = 1,
   innerSvgRef,
+  framing = false,
 }) {
   // refs — all transient drag state, zero re-renders during drag
 
   const rectRef = useRef(null);
   const startRectRef = useRef(null);
+  const startViewBoxRef = useRef(null);
   const startPointRef = useRef(null);
   const activeHandleRef = useRef(null);
 
   const borderRef = useRef(null);
   const moveRef = useRef(null);
   const handleRefsMap = useRef({});
+  const framingRef = useRef(framing);
+  framingRef.current = framing;
 
   // helpers
 
   const compensatedSize = HANDLE_SIZE / zoom;
   const half = compensatedSize / 2;
   const strokeW = 2 / zoom;
-  const aspectRatio = container.viewBox
-    ? container.viewBox.width / container.viewBox.height
-    : null;
+  const aspectRatio = framing
+    ? null
+    : container.viewBox
+      ? container.viewBox.width / container.viewBox.height
+      : null;
+  const aspectRatioRef = useRef(aspectRatio);
+  aspectRatioRef.current = aspectRatio;
 
   function getSvgPoint(e) {
     const svg = e.target.closest("svg[data-portfolio-page-id]");
@@ -117,12 +125,30 @@ export default function ContainerTransformOverlay({
       }
     }
 
-    // update inner SVG (base map content)
+    // update inner SVG
     if (innerSvgRef?.current) {
       innerSvgRef.current.setAttribute("x", r.x);
       innerSvgRef.current.setAttribute("y", r.y);
       innerSvgRef.current.setAttribute("width", r.width);
       innerSvgRef.current.setAttribute("height", r.height);
+
+      // during framing, also adjust viewBox so the baseMap stays at same scale/position
+      if (framingRef.current && startViewBoxRef.current && startRectRef.current) {
+        const old = startRectRef.current;
+        const vb = startViewBoxRef.current;
+        const scaleX = vb.width / old.width;
+        const scaleY = vb.height / old.height;
+        const newVB = {
+          x: vb.x + (r.x - old.x) * scaleX,
+          y: vb.y + (r.y - old.y) * scaleY,
+          width: vb.width * (r.width / old.width),
+          height: vb.height * (r.height / old.height),
+        };
+        innerSvgRef.current.setAttribute(
+          "viewBox",
+          `${newVB.x} ${newVB.y} ${newVB.width} ${newVB.height}`
+        );
+      }
     }
   }
 
@@ -141,6 +167,15 @@ export default function ContainerTransformOverlay({
         width: container.width,
         height: container.height,
       };
+      if (framingRef.current && innerSvgRef?.current) {
+        const vb = innerSvgRef.current.viewBox.baseVal;
+        startViewBoxRef.current = {
+          x: vb.x,
+          y: vb.y,
+          width: vb.width,
+          height: vb.height,
+        };
+      }
       rectRef.current = { ...startRectRef.current };
       startPointRef.current = pt;
       activeHandleRef.current = handle;
@@ -165,7 +200,7 @@ export default function ContainerTransformOverlay({
       dx,
       dy,
       activeHandleRef.current,
-      aspectRatio
+      aspectRatioRef.current
     );
 
     applyRect();
@@ -178,16 +213,28 @@ export default function ContainerTransformOverlay({
 
       const r = rectRef.current;
       if (r) {
-        db.portfolioBaseMapContainers.update(container.id, {
-          x: r.x,
-          y: r.y,
-          width: r.width,
-          height: r.height,
-        });
+        const update = { x: r.x, y: r.y, width: r.width, height: r.height };
+
+        // When framing, persist the adjusted viewBox
+        if (framingRef.current && startViewBoxRef.current && startRectRef.current) {
+          const old = startRectRef.current;
+          const vb = startViewBoxRef.current;
+          const scaleX = vb.width / old.width;
+          const scaleY = vb.height / old.height;
+          update.viewBox = {
+            x: vb.x + (r.x - old.x) * scaleX,
+            y: vb.y + (r.y - old.y) * scaleY,
+            width: vb.width * (r.width / old.width),
+            height: vb.height * (r.height / old.height),
+          };
+        }
+
+        db.portfolioBaseMapContainers.update(container.id, update);
       }
 
       activeHandleRef.current = null;
       startRectRef.current = null;
+      startViewBoxRef.current = null;
       startPointRef.current = null;
       rectRef.current = null;
     },
@@ -202,6 +249,9 @@ export default function ContainerTransformOverlay({
     width: container.width,
     height: container.height,
   };
+  const strokeColor = framing
+    ? theme.palette.primary.main
+    : theme.palette.viewers.portfolio;
 
   return (
     <g onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
@@ -213,22 +263,24 @@ export default function ContainerTransformOverlay({
         width={r.width}
         height={r.height}
         fill="none"
-        stroke={theme.palette.viewers.portfolio}
+        stroke={strokeColor}
         strokeWidth={strokeW}
         pointerEvents="none"
       />
 
-      {/* move area */}
-      <rect
-        ref={moveRef}
-        x={r.x}
-        y={r.y}
-        width={r.width}
-        height={r.height}
-        fill="transparent"
-        style={{ cursor: "move" }}
-        onPointerDown={handlePointerDown("move")}
-      />
+      {/* move area — hidden during framing (pan handled by FramingOverlay) */}
+      {!framing && (
+        <rect
+          ref={moveRef}
+          x={r.x}
+          y={r.y}
+          width={r.width}
+          height={r.height}
+          fill="transparent"
+          style={{ cursor: "move" }}
+          onPointerDown={handlePointerDown("move")}
+        />
+      )}
 
       {/* 8 resize handles */}
       {HANDLES.map((h) => (
@@ -242,7 +294,7 @@ export default function ContainerTransformOverlay({
           width={compensatedSize}
           height={compensatedSize}
           fill="white"
-          stroke={theme.palette.viewers.portfolio}
+          stroke={strokeColor}
           strokeWidth={strokeW}
           style={{ cursor: h.cursor }}
           onPointerDown={handlePointerDown(h.id)}
