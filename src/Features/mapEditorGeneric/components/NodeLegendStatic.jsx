@@ -11,6 +11,8 @@ export default memo(function NodeLegendStatic({
     hovered,
     selected,
     onSizeChange,
+    showQty = false,
+    qtiesById,
 }) {
     const { x = 16, y = 16, width = 260, fontSize = 18 } = legendFormat ?? {};
 
@@ -59,15 +61,15 @@ export default memo(function NodeLegendStatic({
         ro.observe(el);
 
         return () => ro.disconnect();
-    }, [legendItems, width, fontSize, onSizeChange]); // width est la prop imposée
+    }, [legendItems, width, fontSize, onSizeChange, showQty]); // width est la prop imposée
 
     const widthLocal = width;
     const heightLocal = Math.max(1, measuredCssH);
 
-    // ===== visuals constants
-    const ICON_PX = 36;
-    const ROW_GAP = 6;
-    const PADDING = 10;
+    // ===== visuals constants (scale with fontSize)
+    const ICON_PX = Math.round(fontSize * 2);
+    const ROW_GAP = Math.round(fontSize * 0.33);
+    const PADDING = Math.round(fontSize * 0.56);
 
     const {
         url,
@@ -205,14 +207,13 @@ export default memo(function NodeLegendStatic({
                         boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
                         padding: PADDING,
                         display: "flex",
-                        // Reset CSS pour garantir le rendu SVG propre
-                        fontFamily: "system-ui, -apple-system, sans-serif",
+                        fontFamily: theme.typography.fontFamily,
                     }}
                 >
                     <div
                         style={{
                             display: "grid",
-                            gridTemplateColumns: `${ICON_PX}px 1fr`,
+                            gridTemplateColumns: showQty ? `${ICON_PX}px 1fr auto` : `${ICON_PX}px 1fr`,
                             rowGap: ROW_GAP,
                             columnGap: 10,
                             alignContent: "start",
@@ -268,6 +269,19 @@ export default memo(function NodeLegendStatic({
                                     >
                                         {it.label}
                                     </div>
+                                    {showQty && (
+                                        <div
+                                            style={{
+                                                alignSelf: "center",
+                                                whiteSpace: "nowrap",
+                                                fontSize,
+                                                color: "#666",
+                                                textAlign: "right",
+                                            }}
+                                        >
+                                            {qtiesById?.[it.id]?.mainQtyLabel ?? ""}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}

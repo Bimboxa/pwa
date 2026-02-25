@@ -9,7 +9,9 @@ import PanelAnnotationProperties from "Features/annotations/components/PanelAnno
 import PanelAnnotationTemplateProperties from "Features/annotations/components/PanelAnnotationTemplateProperties";
 import PanelEntityProperties from "Features/entities/components/PanelEntityProperties";
 import PanelBaseMapContainerProperties from "Features/portfolioEditor/components/PanelBaseMapContainerProperties";
+import PanelLegendBlockProperties from "Features/portfolioEditor/components/PanelLegendBlockProperties";
 import PanelPortfolioHeaderProperties from "Features/portfolioEditor/components/PanelPortfolioHeaderProperties";
+import PanelPortfolioPageProperties from "Features/portfolioEditor/components/PanelPortfolioPageProperties";
 
 export default function PanelSelectionProperties() {
   // data
@@ -30,10 +32,14 @@ export default function PanelSelectionProperties() {
 
   let type = "LISTING";
   if (isPortfolioViewer) {
-    if (selectedItem?.type === "BASE_MAP_CONTAINER") {
+    if (selectedItem?.type === "LEGEND_BLOCK") {
+      type = "LEGEND_BLOCK";
+    } else if (selectedItem?.type === "BASE_MAP_CONTAINER") {
       type = "BASE_MAP_CONTAINER";
+    } else if (selectedItem?.type === "PORTFOLIO_PAGE") {
+      type = "PORTFOLIO_PAGE";
     } else {
-      // PORTFOLIO_PAGE, PORTFOLIO_HEADER, PORTFOLIO, or no selection
+      // PORTFOLIO_HEADER, PORTFOLIO, or no selection
       type = "PORTFOLIO_HEADER";
     }
   } else if (selectedItem?.type === "ENTITY") {
@@ -65,6 +71,10 @@ export default function PanelSelectionProperties() {
       {type === "ANNOTATION_TEMPLATE" && <PanelAnnotationTemplateProperties />}
 
       {type === "BASE_MAP_CONTAINER" && <PanelBaseMapContainerProperties />}
+
+      {type === "LEGEND_BLOCK" && <PanelLegendBlockProperties />}
+
+      {type === "PORTFOLIO_PAGE" && <PanelPortfolioPageProperties />}
 
       {type === "PORTFOLIO_HEADER" && <PanelPortfolioHeaderProperties />}
     </BoxFlexVStretch>
