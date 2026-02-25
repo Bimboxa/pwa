@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -23,7 +23,6 @@ import {
   KeyboardSensor,
   useSensor,
   useSensors,
-  DragOverlay,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -85,10 +84,6 @@ export default function PortfolioTreeItem({ portfolio }) {
   });
   const createPage = useCreatePortfolioPage();
 
-  // state
-
-  const [activeId, setActiveId] = useState(null);
-
   // helpers
 
   const isDisplayed = displayedPortfolioId === portfolio.id;
@@ -148,25 +143,14 @@ export default function PortfolioTreeItem({ portfolio }) {
     await db.portfolioPages.delete(pageId);
   }
 
-  function handleDragStart(event) {
-    setActiveId(event.active.id);
-  }
-
   async function handleDragEnd(event) {
     const { active, over } = event;
-    setActiveId(null);
     if (!over || active.id === over.id || !pages) return;
 
     const oldIndex = pageIds.indexOf(active.id);
     const newIndex = pageIds.indexOf(over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const before = newIndex > 0 ? pages[newIndex - 1]?.sortIndex : null;
-    const after =
-      newIndex < pages.length - 1 ? pages[newIndex + 1]?.sortIndex : null;
-
-    // If moving down, use current item at newIndex as "before"
-    // If moving up, use current item at newIndex as "after"
     let newSortIndex;
     if (oldIndex < newIndex) {
       const b = pages[newIndex]?.sortIndex ?? null;
@@ -180,15 +164,6 @@ export default function PortfolioTreeItem({ portfolio }) {
 
     await db.portfolioPages.update(active.id, { sortIndex: newSortIndex });
   }
-
-  function handleDragCancel() {
-    setActiveId(null);
-  }
-
-  const activePage = useMemo(
-    () => pages?.find((p) => p.id === activeId),
-    [pages, activeId]
-  );
 
   // render
 
@@ -211,9 +186,7 @@ export default function PortfolioTreeItem({ portfolio }) {
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
         >
           <SortableContext
             items={pageIds}
@@ -236,16 +209,6 @@ export default function PortfolioTreeItem({ portfolio }) {
             </List>
           </SortableContext>
 
-          <DragOverlay>
-            {activePage ? (
-              <ListItemButton component="div" selected sx={{ pl: 4 }}>
-                <ListItemText
-                  primary={activePage.title}
-                  primaryTypographyProps={{ variant: "body2" }}
-                />
-              </ListItemButton>
-            ) : null}
-          </DragOverlay>
         </DndContext>
       )}
 
