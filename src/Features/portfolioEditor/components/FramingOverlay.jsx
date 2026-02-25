@@ -45,7 +45,7 @@ export default function FramingOverlay({ container, baseMap, innerSvgRef }) {
   }
 
   function getSvgPoint(e) {
-    const svg = innerSvgRef.current?.closest("svg");
+    const svg = innerSvgRef.current?.ownerSVGElement;
     if (!svg) return null;
     const pt = svg.createSVGPoint();
     pt.x = e.clientX;
