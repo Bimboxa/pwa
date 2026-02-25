@@ -18,6 +18,7 @@ export default function FramingOverlay({ container, baseMap, innerSvgRef }) {
   const viewBoxRef = useRef(
     container.viewBox || computeDefaultViewBox(baseMap, container)
   );
+  const rectRef = useRef(null);
   const draggingRef = useRef(false);
   const lastPointRef = useRef(null);
   const commitTimerRef = useRef(null);
@@ -100,7 +101,7 @@ export default function FramingOverlay({ container, baseMap, innerSvgRef }) {
     e.stopPropagation();
     e.preventDefault();
 
-    const factor = e.deltaY > 0 ? 1.08 : 1 / 1.08;
+    const factor = e.deltaY > 0 ? 1.03 : 1 / 1.03;
     const vb = viewBoxRef.current;
 
     // Mouse position in viewBox coordinates
@@ -121,6 +122,15 @@ export default function FramingOverlay({ container, baseMap, innerSvgRef }) {
     applyViewBox();
     debouncedCommit();
   }, [container.x, container.y, container.width, container.height]);
+
+  // native wheel listener (passive: false to allow preventDefault)
+
+  useEffect(() => {
+    const el = rectRef.current;
+    if (!el) return;
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, [handleWheel]);
 
   // escape key to exit framing mode
 
@@ -143,6 +153,7 @@ export default function FramingOverlay({ container, baseMap, innerSvgRef }) {
   return (
     <>
       <rect
+        ref={rectRef}
         x={container.x}
         y={container.y}
         width={container.width}
@@ -152,7 +163,6 @@ export default function FramingOverlay({ container, baseMap, innerSvgRef }) {
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onWheel={handleWheel}
       />
       <rect
         x={container.x}
