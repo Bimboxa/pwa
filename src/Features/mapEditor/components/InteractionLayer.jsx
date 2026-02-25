@@ -1762,8 +1762,7 @@ const InteractionLayer = forwardRef(({
       }
 
       // reset annotation state
-      setDragAnnotationState(null);
-      dragAnnotationStateRef.current = null;
+      handleAnnotationDragEnd();
 
     }
 
