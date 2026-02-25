@@ -74,6 +74,8 @@ export default async function getEntityPureDataAndFilesDataByKey(
       pureDataItem.thumbnail = await generateThumbnail(itemValue.file)
     }
 
+    pureDataItem.fileUpdatedAt = createdAt;
+
     return { pureDataItem, fileData };
   };
   // -----------------------

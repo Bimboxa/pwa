@@ -6,13 +6,14 @@ import editor from "App/editor";
 
 function getImageCacheKey(image) {
   if (!image) return null;
-  return (
+  const base =
     image.fileName ||
     image.imageUrlClient ||
     image.imageUrlRemote ||
     image.url ||
-    null
-  );
+    null;
+  if (base && image.fileUpdatedAt) return `${base}@${image.fileUpdatedAt}`;
+  return base;
 }
 
 export default class BaseMap {
