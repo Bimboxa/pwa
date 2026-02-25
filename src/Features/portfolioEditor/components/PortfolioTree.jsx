@@ -1,6 +1,9 @@
+import { useEffect } from "react";
+
 import { useDispatch, useSelector } from "react-redux";
 
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import { Box, List, ListItemButton, Typography } from "@mui/material";
 
@@ -16,8 +19,21 @@ export default function PortfolioTree() {
 
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const displayedPortfolioId = useSelector(
+    (s) => s.portfolios.displayedPortfolioId
+  );
   const { value: portfolios } = usePortfolios({ filterByScopeId: scopeId });
   const createPortfolio = useCreatePortfolio();
+
+  // effects
+
+  useEffect(() => {
+    if (displayedPortfolioId) return;
+    if (!portfolios?.length) return;
+    const first = portfolios[0];
+    dispatch(setDisplayedPortfolioId(first.id));
+    dispatch(setSelectedItem({ id: first.id, type: "PORTFOLIO" }));
+  }, [displayedPortfolioId, portfolios, dispatch]);
 
   // handlers
 
