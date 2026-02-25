@@ -4,7 +4,7 @@ import { setSelectedViewerKey } from "../viewersSlice";
 
 import useViewers from "../hooks/useViewers";
 
-import { Box, Tooltip } from "@mui/material";
+import { Box, Tooltip, Typography } from "@mui/material";
 import ButtonMenu from "Features/layout/components/ButtonMenu";
 
 import useSelectedViewer from "../hooks/useSelectedViewer";
@@ -14,7 +14,7 @@ export default function SelectorViewer() {
 
   // string
 
-  const selectS = "Sélectionnez un module";
+  const selectS = "Module";
 
   // data
 
@@ -41,9 +41,14 @@ export default function SelectorViewer() {
   // return <BlockViewer viewer={viewer} />;
 
   return (
-    <Tooltip title={selectS} placement="left">
-      <Box sx={{ p: 0.5, bgcolor: "white", borderRadius: 1 }}>
-        <ButtonMenu buttonLabel={buttonLabel} actions={actions} />
+    <Tooltip title={selectS}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        {/* <Typography sx={{ fontStyle: "italic" }} color="text.secondary" variant="body2">
+          {selectS}
+        </Typography> */}
+        <Box sx={{ p: 0.5, bgcolor: "white", borderRadius: 1 }}>
+          <ButtonMenu buttonLabel={buttonLabel} actions={actions} />
+        </Box>
       </Box>
     </Tooltip>
     // <ButtonMenuContainer buttonLabel={buttonLabel} sx={{width: 150}}>

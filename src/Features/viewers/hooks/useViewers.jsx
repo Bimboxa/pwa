@@ -29,7 +29,7 @@ export default function useViewers() {
     },
     {
       key: "MAP",
-      label: "2D",
+      label: "Repérage sur fond de plan",
       //icon: <Image />,
       icon: <Typography>2D</Typography>,
       bgcolor: theme.palette.viewers.map,
@@ -42,7 +42,7 @@ export default function useViewers() {
     },
     {
       key: "TABLE",
-      label: "Tableau",
+      label: "Quantités",
       icon: <Table />,
       bgcolor: theme.palette.viewers.map,
       //disabled: true,

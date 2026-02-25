@@ -7,7 +7,7 @@ import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 
-import { IconButton, Box, Typography } from "@mui/material";
+import { IconButton, Box, Typography, Tooltip } from "@mui/material";
 
 import HomeIcon from "@mui/icons-material/Home";
 import ButtonGeneric from "./ButtonGeneric";
@@ -60,16 +60,20 @@ export default function TopBarBreadcrumbs() {
   );
 
   const Project = () => (
-    <ButtonGeneric
-      label={selectedProject?.name}
-      onClick={() => dispatch(setSelectedScopeId(null))}
-    />
+    <Box sx={{ maxWidth: 200, display: "flex" }}>
+      <Tooltip title={selectedProject?.name}>
+        <ButtonGeneric
+          label={selectedProject?.name}
+          onClick={() => dispatch(setSelectedScopeId(null))}
+        />
+      </Tooltip>
+    </Box>
   );
 
   const Scope = () => (
     <ButtonGeneric
       label={selectedScope?.name}
-      //onClick={() => dispatch(setSelectedScopeId(null))}
+    //onClick={() => dispatch(setSelectedScopeId(null))}
     />
   );
 

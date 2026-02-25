@@ -54,7 +54,10 @@ export default function ButtonRunningTransform() {
 
     async function handleSaveClick() {
         console.log("handleSaveClick", enhancedResult);
-        if (!enhancedResult?.blob) return;
+        if (!enhancedResult?.blob) {
+            console.log("error saviing enhancedImage", enhancedResult)
+            return;
+        }
         const fileName = `transformed_${Date.now()}.png`;
         const file = new File([enhancedResult.blob], fileName, { type: "image/png" });
         await updateBaseMapWithImageEnhanced(baseMap.id, file);

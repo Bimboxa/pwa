@@ -28,6 +28,7 @@ import useSelectedEntityModel from "Features/listings/hooks/useSelectedEntityMod
 import ToolbarDrawingTools from "Features/mapEditor/components/ToolbarDrawingTools";
 import BlockVersionInTopBar from "Features/versions/components/BlockVersionInTopBar";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import BaseMapSelectorInMapEditorV2 from "Features/baseMaps/components/BaseMapSelectorInMapEditorV2";
 
 export default function TopBarDesktop() {
   const dispatch = useDispatch();
@@ -40,6 +41,7 @@ export default function TopBarDesktop() {
   const portfolioReturnContext = useSelector(
     (s) => s.viewers.portfolioReturnContext
   );
+  const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
   // helper - em
 
@@ -86,22 +88,33 @@ export default function TopBarDesktop() {
       </BoxFlexH> */}
 
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        {showReturnToPortfolio && (
-          <Button
-            size="small"
-            variant="contained"
-            color="secondary"
-            startIcon={<ArrowBack />}
-            onClick={handleReturnToPortfolio}
-          >
-            Retour au portfolio
-          </Button>
-        )}
+
         <TopBarBreadcrumbs />
         {/* <BlockVersionInTopBar /> */}
         {/* <TopBarProjectAndScope /> */}
         {scopesEnabled && <ButtonSelectorScope />}
-        <IconButtonDialogSync />
+
+
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, pl: 3 }}>
+          <Divider orientation="vertical" sx={{ height: 24 }} />
+          {showReturnToPortfolio && (
+            <Button
+              size="small"
+              //variant="contained"
+              color="secondary"
+              startIcon={<ArrowBack />}
+              onClick={handleReturnToPortfolio}
+            >
+              Portfolio
+            </Button>
+          )}
+          <SelectorViewer />
+          {viewerKey === "MAP" && <BaseMapSelectorInMapEditorV2 />}
+
+        </Box>
+
+
       </Box>
 
 
@@ -111,7 +124,8 @@ export default function TopBarDesktop() {
         {/* <Box sx={{ mr: 3 }}>
           <ToolbarDrawingTools />
         </Box> */}
-        {em?.type === "LOCATED_ENTITY" && <SelectorViewer />}
+
+        <IconButtonDialogSync />
         <IconButtonShareScope />
       </Box>
     </Box>
