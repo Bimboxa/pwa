@@ -41,16 +41,16 @@ export default function SelectorViewer() {
   // return <BlockViewer viewer={viewer} />;
 
   return (
-    <Tooltip title={selectS}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        {/* <Typography sx={{ fontStyle: "italic" }} color="text.secondary" variant="body2">
-          {selectS}
-        </Typography> */}
-        <Box sx={{ p: 0.5, bgcolor: "white", borderRadius: 1 }}>
-          <ButtonMenu buttonLabel={buttonLabel} actions={actions} />
-        </Box>
+
+    <Box sx={{ display: "flex", alignItems: "center" }}>
+      <Typography sx={{ fontStyle: "italic" }} color="text.secondary" variant="body2">
+        {selectS}
+      </Typography>
+      <Box sx={{ p: 0.5, bgcolor: "white", borderRadius: 1 }}>
+        <ButtonMenu buttonLabel={buttonLabel} actions={actions} />
       </Box>
-    </Tooltip>
+    </Box>
+
     // <ButtonMenuContainer buttonLabel={buttonLabel} sx={{width: 150}}>
     //   <ListViewers
     //     viewers={viewers}
