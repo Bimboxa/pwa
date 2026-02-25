@@ -20,7 +20,7 @@ export default function MainPortfolioEditor() {
         sx={{
           width: treeWidth,
           minWidth: treeWidth,
-          borderRight: (theme) => `1px solid ${theme.palette.divider}`,
+          //borderRight: (theme) => `1px solid ${theme.palette.divider}`,
           bgcolor: "background.default",
         }}
       >

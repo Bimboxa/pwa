@@ -89,7 +89,8 @@ export default function PortfolioEditorViewport() {
         width: 1,
         height: 1,
         overflow: "auto",
-        bgcolor: "#E0E0E0",
+        //bgcolor: "#E0E0E0",
+        bgcolor: "background.default"
       }}
     >
       <Box

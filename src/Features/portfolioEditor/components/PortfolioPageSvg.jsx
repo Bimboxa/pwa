@@ -16,6 +16,7 @@ import usePortfolioBaseMapContainers from "Features/portfolioBaseMapContainers/h
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 
 import BaseMapContainerSvg from "./BaseMapContainerSvg";
+import LegendBlockSvg from "./LegendBlockSvg";
 import BaseMapSelectorPopover from "./BaseMapSelectorPopover";
 import PortfolioHeaderSvg from "./PortfolioHeaderSvg";
 import SectionCreateBaseMapFullscreen from "Features/mapEditor/components/SectionCreateBaseMapFullscreen";
@@ -249,6 +250,15 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
             onPlaceholderLeave={handlePlaceholderLeave}
           />
         ))}
+        {displayContainers
+          ?.filter((c) => c.baseMapId)
+          .map((container) => (
+            <LegendBlockSvg
+              key={`legend-${container.id}`}
+              container={container}
+              zoom={zoom}
+            />
+          ))}
         <PortfolioHeaderSvg
           page={page}
           pageDims={dims}

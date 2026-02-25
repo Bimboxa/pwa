@@ -59,9 +59,11 @@ function SortablePageRow({ page, isSelected, onClick }) {
     >
       <ListItemText
         primary={page.title}
-        primaryTypographyProps={{
-          variant: "body2",
-          fontWeight: isSelected ? "bold" : "normal",
+        slotProps={{
+          primary: {
+            variant: "body2",
+            fontWeight: isSelected ? "bold" : "normal",
+          },
         }}
       />
     </ListItemButton>
@@ -175,9 +177,11 @@ export default function PortfolioTreeItem({ portfolio }) {
       >
         <ListItemText
           primary={portfolio.title}
-          primaryTypographyProps={{
-            variant: "body2",
-            fontWeight: isDisplayed ? "bold" : "normal",
+          slotProps={{
+            primary: {
+              variant: "body2",
+              fontWeight: isDisplayed ? "bold" : "normal",
+            },
           }}
         />
       </ListItemButton>
