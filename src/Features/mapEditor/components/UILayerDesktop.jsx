@@ -62,7 +62,7 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                 <ButtonRunningTransform />
             </Box>
 
-            <Box
+            {/* <Box
                 sx={{
                     position: "absolute",
                     left: "50%",
@@ -72,7 +72,7 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                 }}
             >
                 <BaseMapSelectorInMapEditorV2 viewportWidth={viewport?.w} />
-            </Box>
+            </Box> */}
 
 
 
