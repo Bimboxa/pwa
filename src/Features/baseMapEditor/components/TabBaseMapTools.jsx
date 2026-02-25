@@ -10,6 +10,7 @@ import ToolCropBaseMapImage from "./ToolCropBaseMapImage";
 import ToolRemoveGrayLevel from "./ToolRemoveGrayLevel";
 import ToolAddBackground from "./ToolAddBackground";
 import ToolConvertToBlackAndWhite from "./ToolConvertToBlackAndWhite";
+import ToolFillHatchedZones from "./ToolFillHatchedZones";
 
 export default function TabBaseMapTools({ baseMap }) {
     return <BoxFlexVStretch>
@@ -23,6 +24,7 @@ export default function TabBaseMapTools({ baseMap }) {
             <ToolRemoveGrayLevel />
             <ToolCropBaseMapImage baseMap={baseMap} />
             <ListItemButtonBaseMapRotate baseMap={baseMap} />
+            <ToolFillHatchedZones />
         </Box>
 
         <SectionTitleGeneric title="Autres" sx={{ mt: 2 }} />

@@ -1,158 +1,133 @@
-/* Assumes loadImageDataFromUrl and imageDataFromMat exist in your worker scope 
-  as per your provided snippet.
-*/
-
+/**
+ * Detect and fill 45-degree hatched zones using HoughLinesP.
+ *
+ * Payload:
+ *   imageUrl        – (required) URL of the image to process
+ *   fillColor       – hex color string to fill hatched areas (default "#808080")
+ *   angleTolerance  – degrees of tolerance around 45°/135° (default 10)
+ *   houghThreshold  – accumulator threshold for HoughLinesP (default 20)
+ *   minLineLength   – minimum line length in pixels (default 10)
+ *   maxLineGap      – maximum gap between line segments (default 5)
+ *   lineThickness   – thickness when drawing lines on mask (default 6)
+ *   morphCloseSize  – kernel size for morphological closing (default 5)
+ */
 async function fillHatchAsync({ msg, payload }) {
-  // Keep track of mats to delete them later to avoid memory leaks
-  const trash = [];
+  const matList = [];
+  const track = (mat) => {
+    if (mat) matList.push(mat);
+    return mat;
+  };
 
   try {
-    const { imageUrl, hatchPatternUrl, bbox, threshold = 0.8 } = payload ?? {};
+    const {
+      imageUrl,
+      fillColor = "#808080",
+      angleTolerance = 10,
+      houghThreshold = 20,
+      minLineLength = 10,
+      maxLineGap = 5,
+      lineThickness = 6,
+      morphCloseSize = 5,
+    } = payload ?? {};
 
     if (!imageUrl) throw new Error("imageUrl is required");
-    if (!hatchPatternUrl)
-      throw new Error("hatchPatternUrl is required for detection");
 
-    // 1. Load Main Image
-    const mainImageData = await loadImageDataFromUrl(imageUrl);
-    const src = cv.matFromImageData(mainImageData);
-    trash.push(src);
+    // 1. Load image
+    const imageData = await loadImageDataFromUrl(imageUrl);
+    const src = track(cv.matFromImageData(imageData));
 
-    // 2. Load Hatch Pattern (Template)
-    const hatchImageData = await loadImageDataFromUrl(hatchPatternUrl);
-    const templ = cv.matFromImageData(hatchImageData);
-    trash.push(templ);
+    // 2. Convert to grayscale
+    const gray = track(new cv.Mat());
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
 
-    // Convert to grayscale for better matching (optional but recommended)
-    const srcGray = new cv.Mat();
-    const templGray = new cv.Mat();
-    trash.push(srcGray, templGray);
+    // 3. Canny edge detection
+    const edges = track(new cv.Mat());
+    cv.Canny(gray, edges, 50, 150, 3);
 
-    cv.cvtColor(src, srcGray, cv.COLOR_RGBA2GRAY);
-    cv.cvtColor(templ, templGray, cv.COLOR_RGBA2GRAY);
-
-    // 3. Create Result Matrix
-    // The result size of matchTemplate is (W - w + 1) x (H - h + 1)
-    const resultRows = src.rows - templ.rows + 1;
-    const resultCols = src.cols - templ.cols + 1;
-
-    if (resultRows <= 0 || resultCols <= 0) {
-      throw new Error("Hatch pattern is larger than the main image.");
-    }
-
-    const result = new cv.Mat();
-    trash.push(result);
-
-    // 4. Perform Template Matching
-    // TM_CCOEFF_NORMED is robust for texture matching. 1 = perfect match, -1 = inverted.
-    cv.matchTemplate(srcGray, templGray, result, cv.TM_CCOEFF_NORMED);
-
-    // 5. Threshold the result
-    // We only want strong matches (e.g., > 0.8 correlation)
-    const mask = new cv.Mat();
-    trash.push(mask);
-
-    // Threshold returns a binary map of 32F. We convert to 8UC1 for using as a mask.
-    cv.threshold(result, mask, threshold, 255, cv.THRESH_BINARY);
-
-    const mask8U = new cv.Mat();
-    trash.push(mask8U);
-    mask.convertTo(mask8U, cv.CV_8UC1);
-
-    // 6. Pad the Mask to match Source Size
-    // matchTemplate result is smaller. We pad the Right and Bottom to align coordinates.
-    const paddedMask = new cv.Mat();
-    trash.push(paddedMask);
-    cv.copyMakeBorder(
-      mask8U,
-      paddedMask,
-      0, // top
-      templ.rows - 1, // bottom
-      0, // left
-      templ.cols - 1, // right
-      cv.BORDER_CONSTANT,
-      new cv.Scalar(0, 0, 0, 0)
-    );
-
-    // 7. Dilate the Mask (The "Stamp" Effect)
-    // The match is just a dot at the top-left. We need to fill the area of the pattern size.
-    // We use the pattern size as the kernel for dilation.
-    const kernel = cv.Mat.ones(templ.rows, templ.cols, cv.CV_8U);
-    trash.push(kernel);
-
-    const dilatedMask = new cv.Mat();
-    trash.push(dilatedMask);
-
-    const anchor = new cv.Point(-1, -1); // Center anchor
-    cv.dilate(
-      paddedMask,
-      dilatedMask,
-      kernel,
-      anchor,
+    // 4. HoughLinesP
+    const lines = track(new cv.Mat());
+    cv.HoughLinesP(
+      edges,
+      lines,
       1,
-      cv.BORDER_CONSTANT,
-      cv.morphologyDefaultBorderValue()
+      Math.PI / 180,
+      houghThreshold,
+      minLineLength,
+      maxLineGap
     );
 
-    // 8. Apply Flash Green Color
-    // Flash Green in RGBA: [0, 255, 0, 255]
-    // We create a Vector of Mats to merge, or use setTo with mask
+    // 5. Filter by angle and draw on mask
+    const mask = track(cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC1));
+    const white = new cv.Scalar(255, 255, 255, 255);
 
-    // Approach: Create a Green Mat and copy it over src where mask is white
-    const greenColor = new cv.Scalar(0, 255, 0, 255); // R, G, B, A
+    for (let i = 0; i < lines.rows; ++i) {
+      const x1 = lines.data32S[i * 4];
+      const y1 = lines.data32S[i * 4 + 1];
+      const x2 = lines.data32S[i * 4 + 2];
+      const y2 = lines.data32S[i * 4 + 3];
 
-    // If bbox is provided, we can apply a secondary mask (intersection)
-    // to ensure we only search/color inside the bbox if requested.
-    // (Optional: If you strictly want to restrict processing to bbox, crop src earlier)
+      const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+      const absAngle = Math.abs(angle);
 
-    // Set the pixels in src to Green where dilatedMask is non-zero
-    src.setTo(greenColor, dilatedMask);
+      // Target ~45° or ~135° (same diagonal direction, opposite sign)
+      const is45 =
+        absAngle > 45 - angleTolerance && absAngle < 45 + angleTolerance;
+      const is135 =
+        absAngle > 135 - angleTolerance && absAngle < 135 + angleTolerance;
 
-    // 9. Convert back to Base64
-    let resultImageBase64 = null;
-    try {
-      // Use the helper imageDataFromMat (assumed to exist in worker)
-      const resultImageData = imageDataFromMat(src);
-
-      const canvas = new OffscreenCanvas(
-        resultImageData.width,
-        resultImageData.height
-      );
-      const ctx = canvas.getContext("2d");
-      ctx.putImageData(resultImageData, 0, 0);
-
-      const blob = await canvas.convertToBlob({ type: "image/png" });
-      const arrayBuffer = await blob.arrayBuffer();
-
-      // Efficient Buffer to Base64
-      const uint8Array = new Uint8Array(arrayBuffer);
-      const chunkSize = 8192;
-      let binaryString = "";
-      for (let i = 0; i < uint8Array.length; i += chunkSize) {
-        const chunk = uint8Array.slice(i, i + chunkSize);
-        binaryString += String.fromCharCode.apply(null, chunk);
+      if (is45 || is135) {
+        const p1 = new cv.Point(x1, y1);
+        const p2 = new cv.Point(x2, y2);
+        cv.line(mask, p1, p2, white, lineThickness);
       }
-      resultImageBase64 = btoa(binaryString);
-    } catch (error) {
-      console.error(
-        "[fillHatchAsync] Failed to convert result to base64",
-        error
-      );
     }
+
+    // 6. Morphological closing to merge nearby lines
+    const ksize = new cv.Size(morphCloseSize, morphCloseSize);
+    const kernel = track(cv.getStructuringElement(cv.MORPH_RECT, ksize));
+    cv.morphologyEx(mask, mask, cv.MORPH_CLOSE, kernel);
+
+    // 7. Parse fill color from hex
+    const r = parseInt(fillColor.slice(1, 3), 16);
+    const g = parseInt(fillColor.slice(3, 5), 16);
+    const b = parseInt(fillColor.slice(5, 7), 16);
+
+    // 8. Apply fill color where mask is white
+    const dst = track(new cv.Mat());
+    src.copyTo(dst);
+    const fillMat = track(
+      new cv.Mat(src.rows, src.cols, src.type(), [r, g, b, 255])
+    );
+    fillMat.copyTo(dst, mask);
+
+    // 9. Export to File
+    const resultImageData = imageDataFromMat(dst);
+    const canvas = new OffscreenCanvas(
+      resultImageData.width,
+      resultImageData.height
+    );
+    const ctx = canvas.getContext("2d");
+    ctx.putImageData(resultImageData, 0, 0);
+
+    const blob = await canvas.convertToBlob({ type: "image/png" });
+    const fileName = `fill_hatch_${Date.now()}.png`;
+    const processedImageFile = new File([blob], fileName, {
+      type: "image/png",
+      lastModified: Date.now(),
+    });
 
     postMessage({
       msg,
-      payload: {
-        resultImageBase64,
-      },
+      payload: { processedImageFile },
     });
-  } catch (error) {
-    console.error("[opencv worker] fillHatchAsync failed", error);
-    postMessage({ msg, error: error?.message || String(error) });
+  } catch (err) {
+    let errorMessage = err?.message || err;
+    if (typeof err === "number" && cv.exceptionFromPtr) {
+      errorMessage = cv.exceptionFromPtr(err).msg;
+    }
+    console.error("[opencv worker] fillHatchAsync failed", errorMessage);
+    postMessage({ msg, error: errorMessage });
   } finally {
-    // Clean up all OpenCV objects to prevent memory leaks in WASM
-    trash.forEach((mat) => {
-      if (mat && !mat.isDeleted()) mat.delete();
-    });
+    matList.forEach((m) => m && !m.isDeleted() && m.delete());
   }
 }
