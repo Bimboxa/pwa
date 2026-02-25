@@ -8,8 +8,6 @@ import db from "App/db/db";
 
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
 
-import theme from "Styles/theme";
-
 export default function FramingOverlay({ container, baseMap, innerSvgRef }) {
   const dispatch = useDispatch();
 
@@ -22,6 +20,19 @@ export default function FramingOverlay({ container, baseMap, innerSvgRef }) {
   const draggingRef = useRef(false);
   const lastPointRef = useRef(null);
   const commitTimerRef = useRef(null);
+
+  // sync viewBoxRef when viewBox changes externally (e.g. after a resize commit)
+
+  useEffect(() => {
+    if (container.viewBox) {
+      viewBoxRef.current = { ...container.viewBox };
+    }
+  }, [
+    container.viewBox?.x,
+    container.viewBox?.y,
+    container.viewBox?.width,
+    container.viewBox?.height,
+  ]);
 
   // helpers
 
@@ -151,30 +162,17 @@ export default function FramingOverlay({ container, baseMap, innerSvgRef }) {
   // render
 
   return (
-    <>
-      <rect
-        ref={rectRef}
-        x={container.x}
-        y={container.y}
-        width={container.width}
-        height={container.height}
-        fill="transparent"
-        style={{ cursor: draggingRef.current ? "grabbing" : "grab" }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-      />
-      <rect
-        x={container.x}
-        y={container.y}
-        width={container.width}
-        height={container.height}
-        fill="none"
-        stroke={theme.palette.primary.main}
-        strokeWidth={2}
-        strokeDasharray="6 3"
-        pointerEvents="none"
-      />
-    </>
+    <rect
+      ref={rectRef}
+      x={container.x}
+      y={container.y}
+      width={container.width}
+      height={container.height}
+      fill="transparent"
+      style={{ cursor: draggingRef.current ? "grabbing" : "grab" }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+    />
   );
 }
