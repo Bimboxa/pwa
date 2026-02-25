@@ -1,8 +1,9 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
 import { clearSelection } from "Features/selection/selectionSlice";
+import { selectSelectedItem } from "Features/selection/selectionSlice";
 
 import { Box } from "@mui/material";
 
@@ -27,10 +28,24 @@ export default function PortfolioEditorViewport() {
   });
   const createPage = useCreatePortfolioPage();
 
+  const selectedItem = useSelector(selectSelectedItem);
+
   // state
 
   const [zoom, setZoom] = useState(0.8);
   const containerRef = useRef(null);
+
+  // effects
+
+  useEffect(() => {
+    if (selectedItem?.type !== "PORTFOLIO_PAGE") return;
+    const el = containerRef.current?.querySelector(
+      `[data-portfolio-page-id="${selectedItem.id}"]`
+    );
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [selectedItem?.id, selectedItem?.type]);
 
   // handlers
 
