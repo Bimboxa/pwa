@@ -9,6 +9,8 @@ import {
 
 import useSelectedBaseMapContainer from "Features/portfolioBaseMapContainers/hooks/useSelectedBaseMapContainer";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
+import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
@@ -20,6 +22,8 @@ export default function PanelBaseMapContainerProperties() {
 
   const { value: container } = useSelectedBaseMapContainer();
   const { value: baseMaps } = useBaseMaps();
+  const updateEntity = useUpdateEntity();
+  const { value: portfolio } = useDisplayedPortfolio();
 
   // handlers
 
@@ -33,10 +37,10 @@ export default function PanelBaseMapContainerProperties() {
     });
 
     // rename page title to baseMap name on first assignment
-    if (bm && container?.portfolioPageId && !container.baseMapId) {
+    if (bm && container?.portfolioPageId && !container.baseMapId && portfolio) {
       const page = await db.portfolioPages.get(container.portfolioPageId);
       if (page && (page.title === "Page 1" || page.title === "Nouvelle page")) {
-        await db.portfolioPages.update(page.id, { title: bm.name });
+        await updateEntity(page.id, { title: bm.name }, { listing: portfolio });
       }
     }
   }

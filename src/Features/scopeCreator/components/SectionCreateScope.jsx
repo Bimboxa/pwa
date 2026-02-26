@@ -112,8 +112,7 @@ export default function SectionCreateScope() {
         title: tempScope?.name || scope.name || "Portfolio",
       });
       await createPortfolioPage({
-        portfolioId: portfolio.id,
-        scopeId: scope.id,
+        listing: portfolio,
         projectId,
         title: "Page 1",
       });

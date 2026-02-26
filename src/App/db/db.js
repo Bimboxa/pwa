@@ -56,6 +56,11 @@ db.version(13).stores({
   portfolioBaseMapContainers: "id,portfolioPageId,scopeId,projectId",
 });
 
+db.version(14).stores({
+  portfolios: null,
+  portfolioPages: "id,listingId,scopeId,projectId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -80,7 +85,6 @@ const AUDIT_TABLES = [
   "reports",
   "files",
   "baseMapTransforms",
-  "portfolios",
   "portfolioPages",
   "portfolioBaseMapContainers",
 ];
@@ -153,7 +157,6 @@ const SOFT_DELETE_TABLES = new Set([
   "legends",
   "relationsEntities",
   "reports",
-  "portfolios",
   "portfolioPages",
   "portfolioBaseMapContainers",
 ]);

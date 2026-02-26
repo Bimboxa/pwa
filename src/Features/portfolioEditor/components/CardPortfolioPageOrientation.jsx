@@ -9,14 +9,20 @@ import {
   CropPortrait as PortraitIcon,
 } from "@mui/icons-material";
 
-import db from "App/db/db";
+import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
+import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 
 export default function CardPortfolioPageOrientation({ page }) {
+  // data
+
+  const updateEntity = useUpdateEntity();
+  const { value: portfolio } = useDisplayedPortfolio();
+
   // handlers
 
   async function handleChange(_, value) {
-    if (!value || !page) return;
-    await db.portfolioPages.update(page.id, { orientation: value });
+    if (!value || !page || !portfolio) return;
+    await updateEntity(page.id, { orientation: value }, { listing: portfolio });
   }
 
   // render

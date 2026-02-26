@@ -1,15 +1,18 @@
 import { nanoid } from "nanoid";
 import { generateKeyBetween } from "fractional-indexing";
 
+import useCreateEntity from "Features/entities/hooks/useCreateEntity";
+
 import db from "App/db/db";
 
 import getPageDimensions from "Features/portfolioEditor/utils/getPageDimensions";
 import computeContentArea from "Features/portfolioEditor/utils/computeContentArea";
 
 export default function useCreatePortfolioPage() {
+  const createEntity = useCreateEntity();
+
   const create = async ({
-    portfolioId,
-    scopeId,
+    listing,
     projectId,
     title,
     format,
@@ -20,11 +23,7 @@ export default function useCreatePortfolioPage() {
     const _format = format || "A4";
     const _orientation = orientation || "landscape";
 
-    const page = {
-      id: nanoid(),
-      portfolioId,
-      scopeId,
-      projectId,
+    const pageData = {
       title: title || "Nouvelle page",
       sortIndex,
       format: _format,
@@ -32,7 +31,7 @@ export default function useCreatePortfolioPage() {
       type: "BASE_MAPS_PAGE",
     };
 
-    await db.portfolioPages.add(page);
+    const page = await createEntity(pageData, { listing });
 
     // auto-create one empty container filling the content area (below header)
     const dims = getPageDimensions(_format, _orientation);
@@ -40,7 +39,7 @@ export default function useCreatePortfolioPage() {
     const container = {
       id: nanoid(),
       portfolioPageId: page.id,
-      scopeId,
+      scopeId: listing.scopeId,
       projectId,
       baseMapId: null,
       x: contentArea.x,

@@ -3,13 +3,13 @@ import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
 
 export default function usePortfolioPages(options) {
-  const portfolioId = options?.filterByPortfolioId;
+  const listingId = options?.filterByPortfolioId || options?.filterByListingId;
 
   const pages = useLiveQuery(async () => {
-    if (!portfolioId) return [];
+    if (!listingId) return [];
     const records = await db.portfolioPages
-      .where("portfolioId")
-      .equals(portfolioId)
+      .where("listingId")
+      .equals(listingId)
       .toArray();
     return records
       .filter((r) => !r.deletedAt)
@@ -19,7 +19,7 @@ export default function usePortfolioPages(options) {
         if (b.sortIndex == null) return 1;
         return a.sortIndex < b.sortIndex ? -1 : 1;
       });
-  }, [portfolioId]);
+  }, [listingId]);
 
   return { value: pages };
 }

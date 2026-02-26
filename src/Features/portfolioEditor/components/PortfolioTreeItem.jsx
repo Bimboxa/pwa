@@ -38,6 +38,7 @@ import { generateKeyBetween } from "fractional-indexing";
 
 import usePortfolioPages from "Features/portfolioPages/hooks/usePortfolioPages";
 import useCreatePortfolioPage from "Features/portfolioPages/hooks/useCreatePortfolioPage";
+import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 
 import db from "App/db/db";
 
@@ -156,6 +157,7 @@ export default function PortfolioTreeItem({ portfolio }) {
     filterByPortfolioId: portfolio.id,
   });
   const createPage = useCreatePortfolioPage();
+  const updateEntity = useUpdateEntity();
 
   // state
 
@@ -206,8 +208,7 @@ export default function PortfolioTreeItem({ portfolio }) {
   async function handleAddPage() {
     const lastPage = pages?.[pages.length - 1];
     const page = await createPage({
-      portfolioId: portfolio.id,
-      scopeId,
+      listing: portfolio,
       projectId,
       title: `Page ${(pages?.length || 0) + 1}`,
       afterSortIndex: lastPage?.sortIndex ?? null,
@@ -224,7 +225,7 @@ export default function PortfolioTreeItem({ portfolio }) {
 
   async function handleDeletePage(e, pageId) {
     e.stopPropagation();
-    await db.portfolioPages.delete(pageId);
+    await db.portfolioPages.delete(pageId); // TODO: container cascade handled elsewhere
   }
 
   async function handleDragEnd(event) {
@@ -247,7 +248,7 @@ export default function PortfolioTreeItem({ portfolio }) {
       newSortIndex = generateKeyBetween(b, a);
     }
 
-    await db.portfolioPages.update(active.id, { sortIndex: newSortIndex });
+    await updateEntity(active.id, { sortIndex: newSortIndex }, { listing: portfolio });
   }
 
   // handlers - edit title
@@ -255,11 +256,11 @@ export default function PortfolioTreeItem({ portfolio }) {
   function handleStartEditPortfolio(e) {
     e.stopPropagation();
     setEditingItemId(portfolio.id);
-    setTempTitle(portfolio.title);
+    setTempTitle(portfolio.name);
   }
 
   async function handleConfirmEditPortfolio() {
-    await db.portfolios.update(portfolio.id, { title: tempTitle });
+    await db.listings.update(portfolio.id, { name: tempTitle });
     setEditingItemId(null);
   }
 
@@ -269,7 +270,7 @@ export default function PortfolioTreeItem({ portfolio }) {
   }
 
   async function handleConfirmEditPage(pageId) {
-    await db.portfolioPages.update(pageId, { title: tempTitle });
+    await updateEntity(pageId, { title: tempTitle }, { listing: portfolio });
     setEditingItemId(null);
   }
 
@@ -318,7 +319,7 @@ export default function PortfolioTreeItem({ portfolio }) {
           />
         ) : (
           <ListItemText
-            primary={portfolio.title}
+            primary={portfolio.name}
             slotProps={{
               primary: {
                 variant: "body2",

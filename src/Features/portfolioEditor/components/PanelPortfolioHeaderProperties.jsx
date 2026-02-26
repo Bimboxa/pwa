@@ -26,7 +26,7 @@ export default function PanelPortfolioHeaderProperties() {
 
   // helpers
 
-  const config = portfolio?.headerConfig || {};
+  const config = portfolio?.metadata || {};
   const chantierValue = project?.name || "";
 
   // handlers
@@ -34,7 +34,7 @@ export default function PanelPortfolioHeaderProperties() {
   async function updateConfig(patch) {
     if (!portfolio) return;
     const updated = { ...config, ...patch };
-    await db.portfolios.update(portfolio.id, { headerConfig: updated });
+    await db.listings.update(portfolio.id, { metadata: updated });
   }
 
   function handleLogoUpload(e) {
@@ -109,9 +109,9 @@ export default function PanelPortfolioHeaderProperties() {
         <TextField
           label={config.labelPortfolio || "Portfolio"}
           size="small"
-          value={portfolio.title || ""}
+          value={portfolio.name || ""}
           onChange={async (e) =>
-            db.portfolios.update(portfolio.id, { title: e.target.value })
+            db.listings.update(portfolio.id, { name: e.target.value })
           }
           fullWidth
         />

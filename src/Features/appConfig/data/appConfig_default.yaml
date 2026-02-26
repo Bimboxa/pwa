@@ -160,6 +160,12 @@ creation:
 # ENTITY MODEL
 
 entityModelsObject:
+  portfolioPage:
+    key: portfolioPage
+    name: Plan
+    type: "PORTFOLIO_PAGE"
+    defaultTable: portfolioPages
+
   blueprint:
     key: blueprint
     name: Plan

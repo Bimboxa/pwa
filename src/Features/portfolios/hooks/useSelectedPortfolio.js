@@ -12,7 +12,7 @@ export default function useSelectedPortfolio() {
 
   const portfolio = useLiveQuery(async () => {
     if (!id) return null;
-    const record = await db.portfolios.get(id);
+    const record = await db.listings.get(id);
     if (!record || record.deletedAt) return null;
     return record;
   }, [id]);

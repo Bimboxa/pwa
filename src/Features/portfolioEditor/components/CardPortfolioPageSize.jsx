@@ -5,16 +5,22 @@ import {
   ToggleButton,
 } from "@mui/material";
 
-import db from "App/db/db";
+import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
+import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 
 const FORMATS = ["A4", "A3"];
 
 export default function CardPortfolioPageSize({ page }) {
+  // data
+
+  const updateEntity = useUpdateEntity();
+  const { value: portfolio } = useDisplayedPortfolio();
+
   // handlers
 
   async function handleChange(_, value) {
-    if (!value || !page) return;
-    await db.portfolioPages.update(page.id, { format: value });
+    if (!value || !page || !portfolio) return;
+    await updateEntity(page.id, { format: value }, { listing: portfolio });
   }
 
   // render

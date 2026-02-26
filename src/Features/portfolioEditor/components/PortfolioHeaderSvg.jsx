@@ -103,7 +103,7 @@ export default function PortfolioHeaderSvg({
 
   // helpers
 
-  const config = portfolio?.headerConfig || {};
+  const config = portfolio?.metadata || {};
   const rect = computeHeaderPosition(pageDims);
 
   const isSelected = selectedItems.some(
@@ -138,7 +138,7 @@ export default function PortfolioHeaderSvg({
   // field data
   const pageNum = `p. ${(pageIndex ?? 0) + 1}`;
   const chantierValue = project?.name || "";
-  const portfolioValue = portfolio?.title || "";
+  const portfolioValue = portfolio?.name || "";
   const pageValue = page?.title || "";
 
   // handlers
@@ -158,7 +158,7 @@ export default function PortfolioHeaderSvg({
     const reader = new FileReader();
     reader.onload = async () => {
       const updated = { ...config, logo: reader.result };
-      await db.portfolios.update(portfolio.id, { headerConfig: updated });
+      await db.listings.update(portfolio.id, { metadata: updated });
     };
     reader.readAsDataURL(file);
     if (logoInputRef.current) logoInputRef.current.value = "";

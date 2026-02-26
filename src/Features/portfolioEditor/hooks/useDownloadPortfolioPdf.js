@@ -45,7 +45,7 @@ export default function useDownloadPortfolioPdf() {
       // merge all pages into single PDF
       const merged = await mergePdfs(pagePdfs, { addPageNumber: true });
 
-      const filename = `${portfolio?.title || "portfolio"}.pdf`;
+      const filename = `${portfolio?.name || "portfolio"}.pdf`;
       downloadBlob(merged, filename);
     } finally {
       setLoading(false);

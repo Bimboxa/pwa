@@ -10,6 +10,7 @@ import { FitScreen } from "@mui/icons-material";
 
 import usePortfolioPages from "Features/portfolioPages/hooks/usePortfolioPages";
 import useCreatePortfolioPage from "Features/portfolioPages/hooks/useCreatePortfolioPage";
+import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 
 import getPageDimensions from "../utils/getPageDimensions";
 
@@ -24,8 +25,8 @@ export default function PortfolioEditorViewport() {
   const displayedPortfolioId = useSelector(
     (s) => s.portfolios.displayedPortfolioId
   );
-  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const { value: portfolio } = useDisplayedPortfolio();
   const { value: pages } = usePortfolioPages({
     filterByPortfolioId: displayedPortfolioId,
   });
@@ -79,11 +80,10 @@ export default function PortfolioEditorViewport() {
   }
 
   async function handleAddPage() {
-    if (!displayedPortfolioId) return;
+    if (!portfolio) return;
     const lastPage = pages?.[pages.length - 1];
     await createPage({
-      portfolioId: displayedPortfolioId,
-      scopeId,
+      listing: portfolio,
       projectId,
       title: `Page ${(pages?.length || 0) + 1}`,
       afterSortIndex: lastPage?.sortIndex ?? null,

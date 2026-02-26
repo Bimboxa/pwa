@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 
 import useDuplicatePortfolioPage from "Features/portfolioPages/hooks/useDuplicatePortfolioPage";
 import useDeletePortfolioPage from "Features/portfolioPages/hooks/useDeletePortfolioPage";
+import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 
 import { setSelectedItem } from "Features/selection/selectionSlice";
 
@@ -18,6 +19,7 @@ export default function IconButtonMoreActionsPortfolioPage({ page }) {
 
   const duplicatePortfolioPage = useDuplicatePortfolioPage();
   const deletePortfolioPage = useDeletePortfolioPage();
+  const { value: portfolio } = useDisplayedPortfolio();
 
   // state
 
@@ -37,12 +39,13 @@ export default function IconButtonMoreActionsPortfolioPage({ page }) {
   };
 
   const handleDuplicate = async () => {
-    const newPage = await duplicatePortfolioPage(page);
+    if (!portfolio) return;
+    const newPage = await duplicatePortfolioPage(page, portfolio);
     dispatch(
       setSelectedItem({
         id: newPage.id,
         type: "PORTFOLIO_PAGE",
-        portfolioId: newPage.portfolioId,
+        portfolioId: newPage.listingId,
       })
     );
     setAnchorEl(null);

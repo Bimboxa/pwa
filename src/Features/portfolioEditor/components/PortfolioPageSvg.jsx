@@ -14,6 +14,7 @@ import { Box } from "@mui/material";
 import { Edit, CropFree, RestartAlt } from "@mui/icons-material";
 
 import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
+import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 
 import usePortfolioBaseMapContainers from "Features/portfolioBaseMapContainers/hooks/usePortfolioBaseMapContainers";
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
@@ -59,9 +60,10 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
     (i) => i.id === page.id && i.type === "PORTFOLIO_PAGE"
   );
   const dims = getPageDimensions(page.format, page.orientation);
-  const footerHeight = portfolio?.headerConfig?.footerHeight || 0;
+  const footerHeight = portfolio?.metadata?.footerHeight || 0;
   const contentArea = computeContentArea(dims, footerHeight);
 
+  const updateEntity = useUpdateEntity();
   const displayedPortfolioId = useSelector(
     (s) => s.portfolios.displayedPortfolioId
   );
@@ -114,7 +116,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
       setSelectedItem({
         id: page.id,
         type: "PORTFOLIO_PAGE",
-        portfolioId: page.portfolioId,
+        portfolioId: page.listingId,
       })
     );
   }
@@ -175,7 +177,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
       page.title === "Nouvelle page" ||
       page.title.startsWith("Page ")
     ) {
-      await db.portfolioPages.update(page.id, { title: baseMap.name });
+      await updateEntity(page.id, { title: baseMap.name }, { listing: portfolio });
     }
 
     handlePopoverClose();
@@ -220,7 +222,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
       page.title.startsWith("Page ")
     ) {
       const name = entity.name || record?.name || "Base map";
-      await db.portfolioPages.update(page.id, { title: name });
+      await updateEntity(page.id, { title: name }, { listing: portfolio });
     }
 
     setCreatingContainerId(null);

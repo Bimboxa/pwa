@@ -1,17 +1,17 @@
 import { nanoid } from "nanoid";
 import { generateKeyBetween } from "fractional-indexing";
 
+import useCreateEntity from "Features/entities/hooks/useCreateEntity";
+
 import db from "App/db/db";
 
 export default function useDuplicatePortfolioPage() {
-  const duplicatePortfolioPage = async (page) => {
+  const createEntity = useCreateEntity();
+
+  const duplicatePortfolioPage = async (page, listing) => {
     const sortIndex = generateKeyBetween(page.sortIndex ?? null, null);
 
-    const newPage = {
-      id: nanoid(),
-      portfolioId: page.portfolioId,
-      scopeId: page.scopeId,
-      projectId: page.projectId,
+    const pageData = {
       title: page.title + " (copie)",
       sortIndex,
       format: page.format,
@@ -19,7 +19,7 @@ export default function useDuplicatePortfolioPage() {
       type: page.type,
     };
 
-    await db.portfolioPages.add(newPage);
+    const newPage = await createEntity(pageData, { listing });
 
     // duplicate all containers
     const containers = await db.portfolioBaseMapContainers

@@ -7,12 +7,14 @@ export default function usePortfolios(options) {
 
   const portfolios = useLiveQuery(async () => {
     if (!scopeId) return [];
-    const records = await db.portfolios
-      .where("scopeId")
-      .equals(scopeId)
-      .toArray();
+    const records = await db.listings.toArray();
     return records
-      .filter((r) => !r.deletedAt)
+      .filter(
+        (r) =>
+          !r.deletedAt &&
+          r.entityModelKey === "portfolioPage" &&
+          r.scopeId === scopeId
+      )
       .sort((a, b) => {
         if (a.sortIndex == null && b.sortIndex == null) return 0;
         if (a.sortIndex == null) return -1;
