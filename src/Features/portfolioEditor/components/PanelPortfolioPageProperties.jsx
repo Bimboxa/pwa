@@ -9,9 +9,11 @@ import { ArrowBack as Back } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import IconButtonMoreActionsPortfolioPage from "./IconButtonMoreActionsPortfolioPage";
-import CardBaseMapContainers from "./CardBaseMapContainers";
+import CardPageContent from "./CardPageContent";
 import CardPortfolioPageSize from "./CardPortfolioPageSize";
 import CardPortfolioPageOrientation from "./CardPortfolioPageOrientation";
+
+import usePortfolioPageContent from "../hooks/usePortfolioPageContent";
 
 export default function PanelPortfolioPageProperties() {
   const dispatch = useDispatch();
@@ -23,6 +25,7 @@ export default function PanelPortfolioPageProperties() {
   // data
 
   const { value: page } = useSelectedPortfolioPage();
+  const content = usePortfolioPageContent(page?.id);
 
   // helpers
 
@@ -57,7 +60,7 @@ export default function PanelPortfolioPageProperties() {
       </Box>
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, p: 1.5 }}>
-        <CardBaseMapContainers pageId={page.id} />
+        <CardPageContent content={content} />
         <CardPortfolioPageSize page={page} />
         <CardPortfolioPageOrientation page={page} />
       </Box>
