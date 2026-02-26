@@ -33,31 +33,36 @@ export default function PanelLegendBlockProperties() {
     return record;
   }, [containerId]);
 
+  // render
+
+  if (!container) return null;
+
   // helpers
 
-  const legendFormat = container?.legendFormat ?? {};
+  const legendFormat = container.legendFormat ?? {
+    x: container.x + container.width - 140 - 16,
+    y: container.y + 16,
+    width: 140,
+    fontSize: 12,
+    showQty: false,
+  };
   const showQty = legendFormat.showQty ?? false;
   const fontSize = legendFormat.fontSize || 12;
 
   // handlers
 
   async function handleToggleShowQty(checked) {
-    if (!container) return;
     await db.portfolioBaseMapContainers.update(container.id, {
       legendFormat: { ...legendFormat, showQty: checked },
     });
   }
 
   async function handleFontSizeChange(_, value) {
-    if (!value || !container) return;
+    if (!value) return;
     await db.portfolioBaseMapContainers.update(container.id, {
       legendFormat: { ...legendFormat, fontSize: Number(value) },
     });
   }
-
-  // render
-
-  if (!container) return null;
 
   return (
     <BoxFlexVStretch>

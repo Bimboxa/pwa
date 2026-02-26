@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -32,7 +32,7 @@ export default function LegendBlockSvg({ container, zoom }) {
   // refs
 
   const wrapperRef = useRef(null);
-  const measuredHeightRef = useRef(100);
+  const [measuredHeight, setMeasuredHeight] = useState(100);
 
   // helpers
 
@@ -60,7 +60,7 @@ export default function LegendBlockSvg({ container, zoom }) {
   }
 
   const handleSizeChange = useCallback(({ height }) => {
-    measuredHeightRef.current = height;
+    setMeasuredHeight(height);
   }, []);
 
   function handleCommit({ x, y, width }) {
@@ -78,7 +78,7 @@ export default function LegendBlockSvg({ container, zoom }) {
     x: legendFormat.x,
     y: legendFormat.y,
     width: legendFormat.width,
-    height: measuredHeightRef.current,
+    height: measuredHeight,
   };
 
   return (
