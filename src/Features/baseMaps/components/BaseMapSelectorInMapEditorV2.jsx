@@ -27,6 +27,7 @@ import MapIcon from "@mui/icons-material/Map";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 // Redux & Hooks (inchangés)
@@ -34,6 +35,7 @@ import { setSelectedMainBaseMapId, setShowCreateBaseMapSection } from "Features/
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMaps from "../hooks/useBaseMaps";
+import useListingById from "Features/listings/hooks/useListingById";
 import SelectorMapsListingVariantChips from "./SelectorMapsListingVariantChips";
 
 export default function BaseMapSelectorInMapEditorV2() {
@@ -43,6 +45,7 @@ export default function BaseMapSelectorInMapEditorV2() {
     const listingId = useSelector((s) => s.mapEditor.selectedBaseMapsListingId);
     const projectId = useSelector(s => s.projects.selectedProjectId);
     const { value: baseMaps = [] } = useBaseMaps({ filterByListingId: listingId });
+    const baseMapsListing = useListingById(listingId);
     const updateEntity = useUpdateEntity();
 
     const [anchorEl, setAnchorEl] = useState(null);
@@ -151,14 +154,33 @@ export default function BaseMapSelectorInMapEditorV2() {
                                 key={map.id}
                                 disablePadding
                                 secondaryAction={
-                                    <IconButton
-                                        size="small"
-                                        className="edit-icon"
-                                        onClick={(e) => { e.stopPropagation(); setEditingMapId(map.id); setTempName(map.name); }}
-                                        sx={{ opacity: 0, transition: '0.2s' }}
-                                    >
-                                        <EditIcon fontSize="inherit" />
-                                    </IconButton>
+                                    editingMapId === map.id ? (
+                                        <Box sx={{ display: 'flex' }}>
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => { e.stopPropagation(); updateEntity(map.id, { name: tempName }, { listing: baseMapsListing }); setEditingMapId(null); }}
+                                                sx={{ color: 'success.main' }}
+                                            >
+                                                <CheckIcon fontSize="inherit" />
+                                            </IconButton>
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => { e.stopPropagation(); setEditingMapId(null); }}
+                                                sx={{ color: 'error.main' }}
+                                            >
+                                                <CloseIcon fontSize="inherit" />
+                                            </IconButton>
+                                        </Box>
+                                    ) : (
+                                        <IconButton
+                                            size="small"
+                                            className="edit-icon"
+                                            onClick={(e) => { e.stopPropagation(); setEditingMapId(map.id); setTempName(map.name); }}
+                                            sx={{ opacity: 0, transition: '0.2s' }}
+                                        >
+                                            <EditIcon fontSize="inherit" />
+                                        </IconButton>
+                                    )
                                 }
                                 sx={{
                                     '&:hover .edit-icon': { opacity: 1 },
@@ -176,14 +198,33 @@ export default function BaseMapSelectorInMapEditorV2() {
                                             <MapIcon fontSize="small" sx={{ color: "grey.600" }} />
                                         )}
                                     </ListItemIcon>
-                                    <ListItemText
-                                        primary={map.name}
-                                        primaryTypographyProps={{
-                                            variant: 'body2',
-                                            color: isSelected ? "grey.100" : "grey.400",
-                                            fontWeight: isSelected ? 600 : 400
-                                        }}
-                                    />
+                                    {editingMapId === map.id ? (
+                                        <InputBase
+                                            value={tempName}
+                                            onChange={(e) => setTempName(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                e.stopPropagation();
+                                                if (e.key === "Enter") {
+                                                    updateEntity(map.id, { name: tempName }, { listing: baseMapsListing });
+                                                    setEditingMapId(null);
+                                                } else if (e.key === "Escape") {
+                                                    setEditingMapId(null);
+                                                }
+                                            }}
+                                            onClick={(e) => e.stopPropagation()}
+                                            autoFocus
+                                            sx={{ color: "grey.100", fontSize: "0.875rem", flex: 1 }}
+                                        />
+                                    ) : (
+                                        <ListItemText
+                                            primary={map.name}
+                                            primaryTypographyProps={{
+                                                variant: 'body2',
+                                                color: isSelected ? "grey.100" : "grey.400",
+                                                fontWeight: isSelected ? 600 : 400
+                                            }}
+                                        />
+                                    )}
                                 </ListItemButton>
                             </ListItem>
                         );

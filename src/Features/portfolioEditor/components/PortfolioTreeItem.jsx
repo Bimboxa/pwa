@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -10,13 +10,14 @@ import { togglePortfolioCollapsed } from "Features/portfolios/portfoliosSlice";
 import {
   Box,
   Divider,
+  InputBase,
   List,
   ListItemButton,
   ListItemText,
   Typography,
   IconButton,
 } from "@mui/material";
-import { Add, Remove } from "@mui/icons-material";
+import { Add, Remove, Edit, Check, Close } from "@mui/icons-material";
 
 import {
   DndContext,
@@ -40,7 +41,17 @@ import useCreatePortfolioPage from "Features/portfolioPages/hooks/useCreatePortf
 
 import db from "App/db/db";
 
-function SortablePageRow({ page, isSelected, onClick }) {
+function SortablePageRow({
+  page,
+  isSelected,
+  onClick,
+  isEditing,
+  tempTitle,
+  onStartEdit,
+  onConfirmEdit,
+  onCancelEdit,
+  onTempTitleChange,
+}) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: page.id });
 
@@ -57,17 +68,72 @@ function SortablePageRow({ page, isSelected, onClick }) {
       component="div"
       selected={isSelected}
       onClick={onClick}
-      sx={{ pl: 4, ...style }}
+      sx={{
+        pl: 4,
+        ...style,
+        "&:hover .edit-icon": { opacity: 1 },
+      }}
     >
-      <ListItemText
-        primary={page.title}
-        slotProps={{
-          primary: {
-            variant: "body2",
-            fontWeight: isSelected ? "bold" : "normal",
-          },
-        }}
-      />
+      {isEditing ? (
+        <InputBase
+          value={tempTitle}
+          onChange={(e) => onTempTitleChange(e.target.value)}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Enter") onConfirmEdit();
+            else if (e.key === "Escape") onCancelEdit();
+          }}
+          onClick={(e) => e.stopPropagation()}
+          autoFocus
+          sx={{ fontSize: "0.875rem", flex: 1 }}
+        />
+      ) : (
+        <ListItemText
+          primary={page.title}
+          slotProps={{
+            primary: {
+              variant: "body2",
+              fontWeight: isSelected ? "bold" : "normal",
+            },
+          }}
+        />
+      )}
+      {isEditing ? (
+        <Box sx={{ display: "flex", ml: 1 }}>
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              onConfirmEdit();
+            }}
+            sx={{ color: "success.main" }}
+          >
+            <Check fontSize="inherit" />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCancelEdit();
+            }}
+            sx={{ color: "error.main" }}
+          >
+            <Close fontSize="inherit" />
+          </IconButton>
+        </Box>
+      ) : (
+        <IconButton
+          size="small"
+          className="edit-icon"
+          onClick={(e) => {
+            e.stopPropagation();
+            onStartEdit();
+          }}
+          sx={{ opacity: 0, transition: "0.2s" }}
+        >
+          <Edit fontSize="inherit" />
+        </IconButton>
+      )}
     </ListItemButton>
   );
 }
@@ -90,6 +156,11 @@ export default function PortfolioTreeItem({ portfolio }) {
     filterByPortfolioId: portfolio.id,
   });
   const createPage = useCreatePortfolioPage();
+
+  // state
+
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [tempTitle, setTempTitle] = useState("");
 
   // helpers
 
@@ -115,11 +186,13 @@ export default function PortfolioTreeItem({ portfolio }) {
   }
 
   function handlePortfolioClick() {
+    if (editingItemId === portfolio.id) return;
     dispatch(setDisplayedPortfolioId(portfolio.id));
     dispatch(setSelectedItem({ id: portfolio.id, type: "PORTFOLIO" }));
   }
 
   function handlePageClick(page) {
+    if (editingItemId === page.id) return;
     dispatch(setDisplayedPortfolioId(portfolio.id));
     dispatch(
       setSelectedItem({
@@ -165,7 +238,8 @@ export default function PortfolioTreeItem({ portfolio }) {
     let newSortIndex;
     if (oldIndex < newIndex) {
       const b = pages[newIndex]?.sortIndex ?? null;
-      const a = newIndex + 1 < pages.length ? pages[newIndex + 1]?.sortIndex : null;
+      const a =
+        newIndex + 1 < pages.length ? pages[newIndex + 1]?.sortIndex : null;
       newSortIndex = generateKeyBetween(b, a);
     } else {
       const b = newIndex > 0 ? pages[newIndex - 1]?.sortIndex : null;
@@ -176,14 +250,46 @@ export default function PortfolioTreeItem({ portfolio }) {
     await db.portfolioPages.update(active.id, { sortIndex: newSortIndex });
   }
 
+  // handlers - edit title
+
+  function handleStartEditPortfolio(e) {
+    e.stopPropagation();
+    setEditingItemId(portfolio.id);
+    setTempTitle(portfolio.title);
+  }
+
+  async function handleConfirmEditPortfolio() {
+    await db.portfolios.update(portfolio.id, { title: tempTitle });
+    setEditingItemId(null);
+  }
+
+  function handleStartEditPage(page) {
+    setEditingItemId(page.id);
+    setTempTitle(page.title);
+  }
+
+  async function handleConfirmEditPage(pageId) {
+    await db.portfolioPages.update(pageId, { title: tempTitle });
+    setEditingItemId(null);
+  }
+
+  function handleCancelEdit() {
+    setEditingItemId(null);
+  }
+
   // render
+
+  const isEditingPortfolio = editingItemId === portfolio.id;
 
   return (
     <Box sx={{ mb: 1 }}>
       <ListItemButton
         selected={isPortfolioSelected}
         onClick={handlePortfolioClick}
-        sx={{ pl: 1 }}
+        sx={{
+          pl: 1,
+          "&:hover .edit-icon": { opacity: 1 },
+        }}
       >
         <IconButton
           size="small"
@@ -197,15 +303,63 @@ export default function PortfolioTreeItem({ portfolio }) {
             <Add fontSize="small" />
           )}
         </IconButton>
-        <ListItemText
-          primary={portfolio.title}
-          slotProps={{
-            primary: {
-              variant: "body2",
-              fontWeight: isDisplayed ? "bold" : "normal",
-            },
-          }}
-        />
+        {isEditingPortfolio ? (
+          <InputBase
+            value={tempTitle}
+            onChange={(e) => setTempTitle(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") handleConfirmEditPortfolio();
+              else if (e.key === "Escape") handleCancelEdit();
+            }}
+            onClick={(e) => e.stopPropagation()}
+            autoFocus
+            sx={{ fontSize: "0.875rem", flex: 1 }}
+          />
+        ) : (
+          <ListItemText
+            primary={portfolio.title}
+            slotProps={{
+              primary: {
+                variant: "body2",
+                fontWeight: isDisplayed ? "bold" : "normal",
+              },
+            }}
+          />
+        )}
+        {isEditingPortfolio ? (
+          <Box sx={{ display: "flex", ml: 1 }}>
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleConfirmEditPortfolio();
+              }}
+              sx={{ color: "success.main" }}
+            >
+              <Check fontSize="inherit" />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCancelEdit();
+              }}
+              sx={{ color: "error.main" }}
+            >
+              <Close fontSize="inherit" />
+            </IconButton>
+          </Box>
+        ) : (
+          <IconButton
+            size="small"
+            className="edit-icon"
+            onClick={handleStartEditPortfolio}
+            sx={{ opacity: 0, transition: "0.2s" }}
+          >
+            <Edit fontSize="inherit" />
+          </IconButton>
+        )}
       </ListItemButton>
 
       {isExpanded && (
@@ -231,6 +385,12 @@ export default function PortfolioTreeItem({ portfolio }) {
                       page={page}
                       isSelected={isPageSelected}
                       onClick={() => handlePageClick(page)}
+                      isEditing={editingItemId === page.id}
+                      tempTitle={tempTitle}
+                      onStartEdit={() => handleStartEditPage(page)}
+                      onConfirmEdit={() => handleConfirmEditPage(page.id)}
+                      onCancelEdit={handleCancelEdit}
+                      onTempTitleChange={setTempTitle}
                     />
                   );
                 })}
