@@ -1,4 +1,8 @@
-const UNDO_TABLES = new Set(["annotations", "points"]);
+const UNDO_TABLES = new Set([
+  "annotations",
+  "points",
+  "portfolioBaseMapContainers",
+]);
 const MAX_UNDO = 50;
 
 let undoStack = [];
