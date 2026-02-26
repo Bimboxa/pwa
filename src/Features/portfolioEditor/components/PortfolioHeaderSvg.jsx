@@ -8,6 +8,7 @@ import {
 
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
+import usePortfolioLogoUrl from "Features/portfolios/hooks/usePortfolioLogoUrl";
 
 import computeHeaderPosition, {
   ROW_HEIGHT,
@@ -104,6 +105,7 @@ export default function PortfolioHeaderSvg({
   // helpers
 
   const config = portfolio?.headerConfig || {};
+  const logoUrl = usePortfolioLogoUrl(config.logo);
   const rect = computeHeaderPosition(pageDims);
 
   const isSelected = selectedItems.some(
@@ -151,16 +153,26 @@ export default function PortfolioHeaderSvg({
     );
   }
 
-  function handleLogoUpload(e) {
+  async function handleLogoUpload(e) {
     e.stopPropagation();
     const file = e.target.files?.[0];
     if (!file || !portfolio) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const updated = { ...config, logo: reader.result };
-      await db.portfolios.update(portfolio.id, { headerConfig: updated });
-    };
-    reader.readAsDataURL(file);
+
+    const fileName = `logo_${portfolio.id}.${file.name.split(".").pop() || "png"}`;
+    const fileArrayBuffer = await file.arrayBuffer();
+
+    await db.files.put({
+      fileName,
+      srcFileName: file.name,
+      fileMime: file.type,
+      fileType: "IMAGE",
+      fileArrayBuffer,
+      projectId: portfolio.projectId,
+    });
+
+    const updated = { ...config, logo: { fileName, isImage: true } };
+    await db.portfolios.update(portfolio.id, { headerConfig: updated });
+
     if (logoInputRef.current) logoInputRef.current.value = "";
   }
 
@@ -195,9 +207,9 @@ export default function PortfolioHeaderSvg({
       <line x1={xPageNum} y1={y2} x2={xPageNum} y2={y3} stroke="#333" strokeWidth={0.5} />
 
       {/* Logo or upload placeholder */}
-      {config.logo ? (
+      {logoUrl ? (
         <image
-          href={config.logo}
+          href={logoUrl}
           x={xLogo + 4}
           y={y0 + 4}
           width={logoW - 8}

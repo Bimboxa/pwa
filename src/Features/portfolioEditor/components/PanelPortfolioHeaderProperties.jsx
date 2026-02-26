@@ -12,6 +12,7 @@ import { Image as ImageIcon, Delete } from "@mui/icons-material";
 
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
+import usePortfolioLogoUrl from "Features/portfolios/hooks/usePortfolioLogoUrl";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
@@ -27,6 +28,7 @@ export default function PanelPortfolioHeaderProperties() {
   // helpers
 
   const config = portfolio?.headerConfig || {};
+  const logoUrl = usePortfolioLogoUrl(config.logo);
   const chantierValue = project?.name || "";
 
   // handlers
@@ -37,13 +39,32 @@ export default function PanelPortfolioHeaderProperties() {
     await db.portfolios.update(portfolio.id, { headerConfig: updated });
   }
 
-  function handleLogoUpload(e) {
+  async function handleLogoUpload(e) {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => updateConfig({ logo: reader.result });
-    reader.readAsDataURL(file);
+    if (!file || !portfolio) return;
+
+    const fileName = `logo_${portfolio.id}.${file.name.split(".").pop() || "png"}`;
+    const fileArrayBuffer = await file.arrayBuffer();
+
+    await db.files.put({
+      fileName,
+      srcFileName: file.name,
+      fileMime: file.type,
+      fileType: "IMAGE",
+      fileArrayBuffer,
+      projectId: portfolio.projectId,
+    });
+
+    updateConfig({ logo: { fileName, isImage: true } });
+
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleLogoDelete() {
+    if (config.logo?.fileName) {
+      await db.files.delete(config.logo.fileName);
+    }
+    updateConfig({ logo: null });
   }
 
   // render
@@ -60,16 +81,16 @@ export default function PanelPortfolioHeaderProperties() {
         <Typography variant="body2" color="text.secondary">
           Logo
         </Typography>
-        {config.logo && (
+        {logoUrl && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Box
               component="img"
-              src={config.logo}
+              src={logoUrl}
               sx={{ maxWidth: 60, maxHeight: 40, objectFit: "contain" }}
             />
             <IconButton
               size="small"
-              onClick={() => updateConfig({ logo: null })}
+              onClick={handleLogoDelete}
             >
               <Delete fontSize="small" />
             </IconButton>
@@ -81,7 +102,7 @@ export default function PanelPortfolioHeaderProperties() {
           component="label"
           startIcon={<ImageIcon />}
         >
-          {config.logo ? "Changer" : "Ajouter"}
+          {logoUrl ? "Changer" : "Ajouter"}
           <input
             ref={fileInputRef}
             type="file"

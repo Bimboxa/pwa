@@ -4,35 +4,38 @@ import useLogoDefault from "./useLogoDefault";
 
 import db from "App/db/db";
 
-// Convert an image URL to a data URL for self-contained storage.
-async function urlToDataUrl(url) {
-  const response = await fetch(url);
-  const blob = await response.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
 export default function useCreatePortfolio() {
   const logoDefault = useLogoDefault();
 
   const create = async ({ scopeId, projectId, title, sortIndex }) => {
+    const portfolioId = nanoid();
+
     // Build default headerConfig with logo if available
     let headerConfig = null;
     if (logoDefault?.url) {
       try {
-        const logoDataUrl = await urlToDataUrl(logoDefault.url);
-        headerConfig = { logo: logoDataUrl };
+        const response = await fetch(logoDefault.url);
+        const blob = await response.blob();
+        const fileArrayBuffer = await blob.arrayBuffer();
+        const fileName = `logo_${portfolioId}.png`;
+
+        await db.files.put({
+          fileName,
+          srcFileName: "logo_default.png",
+          fileMime: blob.type || "image/png",
+          fileType: "IMAGE",
+          fileArrayBuffer,
+          projectId,
+        });
+
+        headerConfig = { logo: { fileName, isImage: true } };
       } catch {
         // Silently ignore — portfolio will have no default logo
       }
     }
 
     const portfolio = {
-      id: nanoid(),
+      id: portfolioId,
       scopeId,
       projectId,
       title: title || "Portfolio",
