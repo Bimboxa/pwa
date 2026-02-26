@@ -6,6 +6,7 @@ import useCreateRemoteListings from "Features/sync/hooks/useCreateRemoteListings
 import useCreateAnnotationTemplatesFromLibrary from "Features/annotations/hooks/useCreateAnnotationTemplatesFromLibrary";
 
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
+import getEntityPureDataAndFilesDataByKey from "Features/entities/utils/getEntityPureDataAndFilesDataByKey";
 
 export default function useCreateListing() {
   const { value: createdBy } = useUserEmail();
@@ -16,11 +17,59 @@ export default function useCreateListing() {
 
   const create = async ({ listing, scope }, options) => {
     console.log("debug_3009_create_listing", listing);
+    const listingId = listing?.id ?? nanoid();
+    const projectId = listing?.projectId ?? scope?.projectId;
+
+    // process metadata files
+    let processedMetadata = listing?.metadata;
+    let metadataFilesDataByKey = null;
+
+    if (listing?.metadata) {
+      const hasFiles = Object.values(listing.metadata).some(
+        (v) => v?.file instanceof File
+      );
+      if (hasFiles) {
+        const result = await getEntityPureDataAndFilesDataByKey(
+          listing.metadata,
+          {
+            entityId: listingId,
+            projectId,
+            listingId,
+            createdBy,
+          }
+        );
+        if (result) {
+          const { pureData, filesDataByKey } = result;
+          delete pureData.projectId;
+          processedMetadata = pureData;
+          metadataFilesDataByKey = filesDataByKey;
+        }
+      }
+    }
+
+    // store metadata files
+    if (metadataFilesDataByKey) {
+      const allFilesToStore = Object.values(metadataFilesDataByKey).flat();
+      await Promise.all(
+        allFilesToStore.map(async (fileData) => {
+          await db.files.put(fileData);
+          if (options?.updateSyncFile) {
+            await updateItemSyncFile({
+              item: fileData,
+              type: "FILE",
+              updatedAt: fileData.updatedAt,
+            });
+          }
+        })
+      );
+    }
+
     const listingClean = {
       ...listing,
-      id: listing?.id ?? nanoid(),
-      projectId: listing?.projectId ?? scope?.projectId,
+      id: listingId,
+      projectId,
       ...(scope?.id ? { scopeId: scope.id } : {}),
+      ...(processedMetadata ? { metadata: processedMetadata } : {}),
       createdBy,
     };
     // create listings

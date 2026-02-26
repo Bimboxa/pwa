@@ -14,6 +14,7 @@ export default function useListings(options) {
   const relsZoneEntityListings = options?.relsZoneEntityListings;
 
   const includeListingsWithoutScope = options?.includeListingsWithoutScope;
+  const withFiles = options?.withFiles;
 
 
   // data
@@ -76,8 +77,38 @@ export default function useListings(options) {
       });
     }
 
+    // load metadata files
+    if (withFiles) {
+      _listings = await Promise.all(
+        _listings.map(async (listing) => {
+          if (!listing.metadata) return listing;
+          const entriesWithFiles = Object.entries(listing.metadata).filter(
+            ([, value]) => value?.fileName
+          );
+          if (entriesWithFiles.length === 0) return listing;
+
+          const processedMetadata = { ...listing.metadata };
+          await Promise.all(
+            entriesWithFiles.map(async ([key, value]) => {
+              const file = await db.files.get(value.fileName);
+              if (file && file.fileArrayBuffer) {
+                processedMetadata[key] = {
+                  ...value,
+                  file,
+                  fileUrlClient: URL.createObjectURL(
+                    new Blob([file.fileArrayBuffer], { type: file.fileMime })
+                  ),
+                };
+              }
+            })
+          );
+          return { ...listing, metadata: processedMetadata };
+        })
+      );
+    }
+
     return _listings;
-  }, [appConfig, filterByProjectId, filterByScopeId, filterByEntityModelType, relsZoneEntityListings]);
+  }, [appConfig, filterByProjectId, filterByScopeId, filterByEntityModelType, relsZoneEntityListings, withFiles]);
 
   return listings;
 }
