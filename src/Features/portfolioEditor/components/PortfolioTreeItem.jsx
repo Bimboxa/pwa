@@ -5,16 +5,18 @@ import { useDispatch, useSelector } from "react-redux";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
+import { togglePortfolioCollapsed } from "Features/portfolios/portfoliosSlice";
 
 import {
   Box,
+  Divider,
   List,
   ListItemButton,
   ListItemText,
   Typography,
   IconButton,
 } from "@mui/material";
-import { Add, Delete } from "@mui/icons-material";
+import { Add, Remove } from "@mui/icons-material";
 
 import {
   DndContext,
@@ -79,6 +81,9 @@ export default function PortfolioTreeItem({ portfolio }) {
   const displayedPortfolioId = useSelector(
     (s) => s.portfolios.displayedPortfolioId
   );
+  const collapsedPortfolioIds = useSelector(
+    (s) => s.portfolios.collapsedPortfolioIds
+  );
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const { value: pages } = usePortfolioPages({
@@ -89,6 +94,7 @@ export default function PortfolioTreeItem({ portfolio }) {
   // helpers
 
   const isDisplayed = displayedPortfolioId === portfolio.id;
+  const isExpanded = !collapsedPortfolioIds.includes(portfolio.id);
   const isPortfolioSelected = selectedItems.some(
     (i) => i.id === portfolio.id && i.type === "PORTFOLIO"
   );
@@ -103,11 +109,14 @@ export default function PortfolioTreeItem({ portfolio }) {
 
   // handlers
 
+  function handleToggleCollapsed(e) {
+    e.stopPropagation();
+    dispatch(togglePortfolioCollapsed(portfolio.id));
+  }
+
   function handlePortfolioClick() {
     dispatch(setDisplayedPortfolioId(portfolio.id));
-    dispatch(
-      setSelectedItem({ id: portfolio.id, type: "PORTFOLIO" })
-    );
+    dispatch(setSelectedItem({ id: portfolio.id, type: "PORTFOLIO" }));
   }
 
   function handlePageClick(page) {
@@ -174,7 +183,20 @@ export default function PortfolioTreeItem({ portfolio }) {
       <ListItemButton
         selected={isPortfolioSelected}
         onClick={handlePortfolioClick}
+        sx={{ pl: 1 }}
       >
+        <IconButton
+          size="small"
+          color="secondary"
+          onClick={handleToggleCollapsed}
+          sx={{ mr: 1, p: 0 }}
+        >
+          {isExpanded ? (
+            <Remove fontSize="small" />
+          ) : (
+            <Add fontSize="small" />
+          )}
+        </IconButton>
         <ListItemText
           primary={portfolio.title}
           slotProps={{
@@ -186,42 +208,42 @@ export default function PortfolioTreeItem({ portfolio }) {
         />
       </ListItemButton>
 
-      {isDisplayed && (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={pageIds}
-            strategy={verticalListSortingStrategy}
+      {isExpanded && (
+        <>
+          <Divider />
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
           >
-            <List dense disablePadding>
-              {pages?.map((page) => {
-                const isPageSelected = selectedItems.some(
-                  (i) => i.id === page.id && i.type === "PORTFOLIO_PAGE"
-                );
-                return (
-                  <SortablePageRow
-                    key={page.id}
-                    page={page}
-                    isSelected={isPageSelected}
-                    onClick={() => handlePageClick(page)}
-                  />
-                );
-              })}
-            </List>
-          </SortableContext>
+            <SortableContext
+              items={pageIds}
+              strategy={verticalListSortingStrategy}
+            >
+              <List dense disablePadding>
+                {pages?.map((page) => {
+                  const isPageSelected = selectedItems.some(
+                    (i) => i.id === page.id && i.type === "PORTFOLIO_PAGE"
+                  );
+                  return (
+                    <SortablePageRow
+                      key={page.id}
+                      page={page}
+                      isSelected={isPageSelected}
+                      onClick={() => handlePageClick(page)}
+                    />
+                  );
+                })}
+              </List>
+            </SortableContext>
+          </DndContext>
 
-        </DndContext>
-      )}
-
-      {isDisplayed && (
-        <ListItemButton sx={{ pl: 4 }} onClick={handleAddPage}>
-          <Typography variant="body2" color="text.secondary">
-            + Nouvelle page
-          </Typography>
-        </ListItemButton>
+          <ListItemButton sx={{ pl: 4 }} onClick={handleAddPage}>
+            <Typography variant="body2" color="text.secondary">
+              + Nouvelle page
+            </Typography>
+          </ListItemButton>
+        </>
       )}
     </Box>
   );
