@@ -25,6 +25,9 @@ import BaseMapDetail from "Features/baseMapEditor/components/PanelBaseMapDetail"
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PanelExport from "Features/export/components/PanelExport";
 import PanelSelectionProperties from "Features/selection/components/PanelSelectionProperties";
+import PanelAdminEntityModel from "Features/entityModels/components/PanelAdminEntityModel";
+import PanelAdminListing from "Features/adminEditor/components/PanelAdminListing";
+import PanelAdminEntity from "Features/adminEditor/components/PanelAdminEntity";
 
 export default function RightPanelContainer() {
 
@@ -82,6 +85,9 @@ export default function RightPanelContainer() {
           {selectedKey === "TOOLS" && <PanelTools />}
           {selectedKey === "CHAT" && <PanelChat />}
           {selectedKey === "BASE_MAP" && <BaseMapDetail />}
+          {selectedKey === "ADMIN_MODEL" && <PanelAdminEntityModel />}
+          {selectedKey === "ADMIN_LISTING" && <PanelAdminListing />}
+          {selectedKey === "ADMIN_ENTITY" && <PanelAdminEntity />}
         </Box>
       )}
 

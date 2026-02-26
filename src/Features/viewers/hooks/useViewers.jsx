@@ -8,6 +8,7 @@ import {
   Image,
   TableChart as Table,
   Print,
+  AdminPanelSettings,
 } from "@mui/icons-material";
 
 import theme from "Styles/theme";
@@ -53,6 +54,12 @@ export default function useViewers() {
       bgcolor: theme.palette.viewers.threed,
       icon: <Typography>3D</Typography>,
       disabled: !enabledTreed,
+    },
+    {
+      key: "ADMIN",
+      label: "Gestionnaire de donnees",
+      icon: <AdminPanelSettings />,
+      bgcolor: theme.palette.viewers.admin,
     },
     {
       key: "LEAFLET",

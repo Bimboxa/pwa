@@ -59,6 +59,8 @@ import opencvReducer from "Features/opencv/opencvSlice";
 import portfoliosReducer from "Features/portfolios/portfoliosSlice";
 import portfolioPagesReducer from "Features/portfolioPages/portfolioPagesSlice";
 import portfolioBaseMapContainersReducer from "Features/portfolioBaseMapContainers/portfolioBaseMapContainersSlice";
+//
+import adminEditorReducer from "Features/adminEditor/adminEditorSlice";
 
 //import syncTabsMiddleware from "./syncTabsMiddleware";
 //import webrtcMiddleware from "Features/webrtc/webrtcMiddleware";
@@ -123,6 +125,8 @@ const store = configureStore({
     portfolios: portfoliosReducer,
     portfolioPages: portfolioPagesReducer,
     portfolioBaseMapContainers: portfolioBaseMapContainersReducer,
+    //
+    adminEditor: adminEditorReducer,
   },
   // middleware: (getDefaultMiddleware) =>
   //   getDefaultMiddleware({

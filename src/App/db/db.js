@@ -61,6 +61,10 @@ db.version(14).stores({
   portfolioPages: "id,listingId,scopeId,projectId",
 });
 
+db.version(15).stores({
+  entityModels: "id, projectId, key",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -87,6 +91,7 @@ const AUDIT_TABLES = [
   "baseMapTransforms",
   "portfolioPages",
   "portfolioBaseMapContainers",
+  "entityModels",
 ];
 
 AUDIT_TABLES.forEach((tableName) => {
@@ -159,6 +164,7 @@ const SOFT_DELETE_TABLES = new Set([
   "reports",
   "portfolioPages",
   "portfolioBaseMapContainers",
+  "entityModels",
 ]);
 
 let _skipSoftDelete = false;

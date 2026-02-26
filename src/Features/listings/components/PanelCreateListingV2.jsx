@@ -86,12 +86,13 @@ export default function PanelCreateListingV2({ onListingCreated }) {
     }
 
     async function handleCreate() {
+        const resolvedEntityModel = tempListing?.entityModel ?? defaultEntityModel;
         const newListing = {
             ...tempListing,
             projectId,
             canCreateItem: true,
-            table: tempListing?.table ?? "entities",
-            entityModel: tempListing?.entityModel ?? defaultEntityModel
+            table: tempListing?.table ?? resolvedEntityModel?.defaultTable ?? "entities",
+            entityModel: resolvedEntityModel,
         };
         if (newListing.entityModel) {
             newListing.entityModelKey = newListing.entityModel?.key

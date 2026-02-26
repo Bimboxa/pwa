@@ -8,6 +8,7 @@ import {
   red,
   orange,
   purple,
+  teal,
 } from "@mui/material/colors";
 import { frFR } from "@mui/x-data-grid-pro/locales";
 
@@ -122,6 +123,7 @@ let theme = createTheme(
         map: blue[600],
         threed: pink[600],
         portfolio: purple[600],
+        admin: teal[700],
       },
       anchor: {
         default: red[500],
