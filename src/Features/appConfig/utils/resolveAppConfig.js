@@ -6,8 +6,8 @@
 import getRemoteContainerPathFromLocalStorage from "../services/getRemoteContainerPathFromLocalStorage";
 import resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries from "../services/resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries";
 
-// Dynamic asset loaders for background images
-const BG_IMAGE_LOADERS = import.meta.glob("../../../App/assets/*.png", {
+// Dynamic asset loaders for background images or other features.
+const APP_IMAGE_ASSET_LOADERS = import.meta.glob("../../../App/assets/*.png", {
   as: "url", // return the URL directly
   eager: false, // lazy load when needed
 });
@@ -99,6 +99,31 @@ export default async function resolveAppConfig(appConfig) {
   //   };
   // }
 
+  // portfolios - resolve default logo asset
+
+  if (newAppConfig.features?.portfolios) {
+    const config = newAppConfig.features.portfolios;
+    if (config.logoDefault?.urlFromAssetKey && !config.logoDefault.url) {
+      const assetKey = `../../../App/assets/${config.logoDefault.urlFromAssetKey}.png`;
+      const loader = APP_IMAGE_ASSET_LOADERS[assetKey];
+
+      if (loader) {
+        try {
+          config.logoDefault.url = await loader();
+        } catch (error) {
+          console.error(
+            `[resolveAppConfig] Error loading asset "${config.logoDefault.urlFromAssetKey}":`,
+            error
+          );
+        }
+      } else {
+        console.warn(
+          `[resolveAppConfig] Asset "${config.logoDefault.urlFromAssetKey}.png" not found in App/assets/`
+        );
+      }
+    }
+  }
+
   // bg images - dynamically load from assets based on urlFromAssetKey
 
   if (appConfig.features?.bgImages?.options?.length > 0) {
@@ -106,7 +131,7 @@ export default async function resolveAppConfig(appConfig) {
       appConfig.features.bgImages.options.map(async (bgImage) => {
         if (bgImage.urlFromAssetKey && !bgImage.url) {
           const assetKey = `../../../App/assets/${bgImage.urlFromAssetKey}.png`;
-          const loader = BG_IMAGE_LOADERS[assetKey];
+          const loader = APP_IMAGE_ASSET_LOADERS[assetKey];
 
           if (loader) {
             try {

@@ -12,6 +12,7 @@ import { Image as ImageIcon, Delete } from "@mui/icons-material";
 
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
+import usePortfolioLogoUrl from "Features/portfolios/hooks/usePortfolioLogoUrl";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
@@ -27,6 +28,8 @@ export default function PanelPortfolioHeaderProperties() {
   // helpers
 
   const config = portfolio?.metadata || {};
+  const logoUrl = usePortfolioLogoUrl(config.logo);
+  const resolvedLogoSrc = logoUrl || (typeof config.logo === "string" ? config.logo : null);
   const chantierValue = project?.name || "";
 
   // handlers
@@ -60,11 +63,11 @@ export default function PanelPortfolioHeaderProperties() {
         <Typography variant="body2" color="text.secondary">
           Logo
         </Typography>
-        {config.logo && (
+        {resolvedLogoSrc && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Box
               component="img"
-              src={config.logo}
+              src={resolvedLogoSrc}
               sx={{ maxWidth: 60, maxHeight: 40, objectFit: "contain" }}
             />
             <IconButton
@@ -81,7 +84,7 @@ export default function PanelPortfolioHeaderProperties() {
           component="label"
           startIcon={<ImageIcon />}
         >
-          {config.logo ? "Changer" : "Ajouter"}
+          {resolvedLogoSrc ? "Changer" : "Ajouter"}
           <input
             ref={fileInputRef}
             type="file"

@@ -8,6 +8,7 @@ import {
 
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
+import usePortfolioLogoUrl from "Features/portfolios/hooks/usePortfolioLogoUrl";
 
 import computeHeaderPosition, {
   ROW_HEIGHT,
@@ -104,6 +105,7 @@ export default function PortfolioHeaderSvg({
   // helpers
 
   const config = portfolio?.metadata || {};
+  const logoUrl = usePortfolioLogoUrl(config.logo);
   const rect = computeHeaderPosition(pageDims);
 
   const isSelected = selectedItems.some(
@@ -195,9 +197,9 @@ export default function PortfolioHeaderSvg({
       <line x1={xPageNum} y1={y2} x2={xPageNum} y2={y3} stroke="#333" strokeWidth={0.5} />
 
       {/* Logo or upload placeholder */}
-      {config.logo ? (
+      {(logoUrl || typeof config.logo === "string") ? (
         <image
-          href={config.logo}
+          href={logoUrl || config.logo}
           x={xLogo + 4}
           y={y0 + 4}
           width={logoW - 8}
