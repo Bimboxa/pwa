@@ -34,6 +34,8 @@ import getImageAnnotationPropsFromFileName from "../utils/getImageAnnotationProp
 import FieldColorV2 from "Features/form/components/FieldColorV2";
 import FieldIcon from "Features/form/components/FieldIcon";
 import FieldPointSize from "Features/form/components/FieldPointSize";
+import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
+import FieldAnnotationTemplateDrawingColor from "./FieldAnnotationTemplateDrawingColor";
 
 export default function FormAnnotationTemplateVariantBlock({
   annotationTemplate,
@@ -76,6 +78,8 @@ export default function FormAnnotationTemplateVariantBlock({
     size,
     sizeUnit,
     mainQtyKey,
+    drawingShape,
+    drawingColor,
 
   } = annotationTemplate ?? {};
 
@@ -211,6 +215,14 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, mainQtyKey });
   }
 
+  function handleDrawingShapeChange(drawingShape) {
+    onChange({ ...annotationTemplate, drawingShape });
+  }
+
+  function handleDrawingColorChange(drawingColor) {
+    onChange({ ...annotationTemplate, drawingColor });
+  }
+
   function handleHiddenChange(hidden) {
     onChange({ ...annotationTemplate, hidden })
   }
@@ -223,6 +235,16 @@ export default function FormAnnotationTemplateVariantBlock({
         value={label}
         onChange={handleLabelChange}
         options={{ fullWidth: true, placeholder: "Libellé", showAsSection: "true" }}
+      />
+
+      <FieldAnnotationTemplateDrawingShape
+        value={drawingShape}
+        onChange={handleDrawingShapeChange}
+      />
+
+      <FieldAnnotationTemplateDrawingColor
+        value={drawingColor}
+        onChange={handleDrawingColorChange}
       />
 
       {/* <Typography variant="body2">{typeS}</Typography> */}

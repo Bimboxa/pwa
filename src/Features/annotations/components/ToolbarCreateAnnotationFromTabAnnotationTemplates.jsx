@@ -2,30 +2,80 @@ import { useEffect } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 import { setNewAnnotation } from "../annotationsSlice";
+import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
-import { Paper } from "@mui/material";
+import { Box } from "@mui/material";
 
+import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
-import ToolbarEnabledDrawingMode from "Features/mapEditor/components/ToolbarEnabledDrawingMode";
-
+import { getDrawingToolsByShape, getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.jsx";
 import getNewAnnotationPropsFromAnnotationTemplate from "../utils/getNewAnnotationPropsFromAnnotationTemplate";
 
 export default function ToolbarCreateAnnotationFromTabAnnotationTemplates({ annotationTemplate }) {
 
     const dispatch = useDispatch();
 
-    // effect
+    // data
+
+    const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+    const drawingShape = annotationTemplate?.drawingShape;
+    const drawingColor = annotationTemplate?.drawingColor;
+
+    // helpers
+
+    const tools = getDrawingToolsByShape(drawingShape);
+    const options = tools.map(({ key, label, Icon }) => ({
+        key,
+        label,
+        icon: <Icon sx={{ color: drawingColor || "inherit" }} />,
+    }));
+
+    // effect - sync newAnnotation type with the current tool when template changes
+    // NOTE: Do NOT dispatch setEnabledDrawingMode here, as this component mounts
+    // on hover (Popper). Auto-selecting a tool on hover would be premature.
 
     useEffect(() => {
-        if (annotationTemplate) {
-            dispatch(setNewAnnotation(getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate)))
-        }
+        if (!annotationTemplate) return;
 
+        const baseProps = getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate);
+
+        // If a drawing tool is already active and valid for this shape, use its annotationType
+        const availableTools = getDrawingToolsByShape(annotationTemplate.drawingShape);
+        const currentTool = getDrawingToolByKey(enabledDrawingMode);
+        const isCurrentToolValid = availableTools.some((t) => t.key === enabledDrawingMode);
+
+        if (isCurrentToolValid && currentTool?.annotationType) {
+            dispatch(setNewAnnotation({ ...baseProps, type: currentTool.annotationType }));
+        } else {
+            dispatch(setNewAnnotation(baseProps));
+        }
     }, [annotationTemplate?.id])
 
     // handlers
 
+    function handleChange(mode) {
+        // Update the drawing mode
+        dispatch(setEnabledDrawingMode(mode));
 
+        // If the tool defines an annotationType, override newAnnotation.type
+        const tool = getDrawingToolByKey(mode);
+        if (tool?.annotationType && annotationTemplate) {
+            const baseProps = getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate);
+            dispatch(setNewAnnotation({ ...baseProps, type: tool.annotationType }));
+        }
+    }
 
-    return <ToolbarEnabledDrawingMode />
+    // render
+
+    if (options.length === 0) return null;
+
+    return (
+        <Box sx={{ display: "flex", alignItems: "center", p: 1 }}>
+            <ToggleSingleSelectorGeneric
+                options={options}
+                selectedKey={enabledDrawingMode}
+                onChange={handleChange}
+            />
+        </Box>
+    );
 }

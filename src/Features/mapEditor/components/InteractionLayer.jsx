@@ -865,7 +865,7 @@ const InteractionLayer = forwardRef(({
                 commitPoint();
               }
 
-              else if (enabledDrawingMode === "RECTANGLE" && newPoints.length === 2) {
+              else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE"].includes(enabledDrawingMode) && newPoints.length === 2) {
                 commitPolyline();
               }
 
@@ -909,7 +909,7 @@ const InteractionLayer = forwardRef(({
           break;
 
         case "Enter":
-          if (enabledDrawingModeRef.current === "CLICK" || enabledDrawingModeRef.current === "BRUSH") {
+          if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "BRUSH"].includes(enabledDrawingModeRef.current)) {
             commitPolyline();
           }
 
@@ -1058,7 +1058,7 @@ const InteractionLayer = forwardRef(({
       }
     }
 
-    if (enabledDrawingMode === 'CLICK') {
+    if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK"].includes(enabledDrawingMode)) {
       // Apply snapping if Shift is pressed
       let finalPos = toLocalCoords(worldPos);
       if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
@@ -1089,7 +1089,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- CASE 3: MEASURE / SEGMENT (Auto-commit after 2 points) ---
-    else if (["MEASURE", "SEGMENT", "RECTANGLE"].includes(enabledDrawingMode)) {
+    else if (["MEASURE", "SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
       // Apply Angle Snap (Ortho) if Shift is held and it's the 2nd point
@@ -1517,7 +1517,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'ONE_CLICK', "MEASURE", "RECTANGLE", "CIRCLE"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CIRCLE"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -1654,7 +1654,7 @@ const InteractionLayer = forwardRef(({
         commitPoint();
       }
 
-      else if (["RECTANGLE", "MEASURE", "SEGMENT"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
+      else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "MEASURE", "SEGMENT"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
         commitPolyline(e); // add "e" to get clientX & clientY to set the measurePopper anchor position.
       }
 

@@ -23,7 +23,7 @@ const DrawingLayer = forwardRef(({
 
     // Détection des types
     const isPolygon = type === "POLYGON";
-    const drawRectangle = enabledDrawingMode === "RECTANGLE";
+    const drawRectangle = ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE"].includes(enabledDrawingMode);
     const drawCircle = enabledDrawingMode === "CIRCLE";
 
     const firstPoint = points?.[0];

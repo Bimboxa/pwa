@@ -896,13 +896,13 @@ export default function MainMapEditorV3() {
                             handleSplitCommit(points);
                         }
                         else if (cutHostId) {
-                            if (enabledDrawingMode === 'RECTANGLE') points = getPolylinePointsFromRectangle(points)
+                            if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE"].includes(enabledDrawingMode)) points = getPolylinePointsFromRectangle(points)
                             handleCommitDrawing(points, { cutHostId });
                         }
                         else if (enabledDrawingMode === 'MEASURE') {
                             handleMeasureCommit(points, event);
                         }
-                        else if (enabledDrawingMode === 'RECTANGLE') {
+                        else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE"].includes(enabledDrawingMode)) {
                             handleCommitDrawingFromRectangle(points, event);
                         }
                         else if (enabledDrawingMode === 'CIRCLE') {

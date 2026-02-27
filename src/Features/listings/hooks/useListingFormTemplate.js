@@ -103,12 +103,7 @@ export default function useListingFormTemplate(listing, options) {
         type: "iconBasic",
         options: { iconsMap, iconColor, showAsSection: true },
       },
-      {
-        key: "showNewAnnotationToolbar",
-        label: "Afficher la barre d'outils",
-        type: "check",
-        hidden: true
-      },
+
 
       {
         key: "canCreateItem",
@@ -126,6 +121,13 @@ export default function useListingFormTemplate(listing, options) {
         options: { showAsSection: true },
         hidden: variant === "basic",
         ...(locatedListingOnly && { hidden: true }),
+        //hidden: true
+      },
+      {
+        key: "showNewAnnotationToolbar",
+        label: "Afficher la barre d'outils",
+        type: "check",
+        options: { showAsSection: true },
         //hidden: true
       },
     ],

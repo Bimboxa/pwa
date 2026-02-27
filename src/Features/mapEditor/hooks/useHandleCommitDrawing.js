@@ -49,8 +49,6 @@ export default function useHandleCommitDrawing() {
 
     const handleDrawingCommit = async (rawPoints, options) => {
 
-        console.log("debug_131_create_new_drawing", rawPoints, options)
-
         let _newAnnotation; // created at the end.
         let _updatedAnnotation;
 
@@ -65,7 +63,6 @@ export default function useHandleCommitDrawing() {
 
         const newAnnotation = options?.newAnnotation ?? newAnnotationInState
 
-
         // update rawPoints for rectangle
         if (drawRectangle) {
             const P2 = { x: rawPoints[1].x, y: rawPoints[0].y }
@@ -79,7 +76,6 @@ export default function useHandleCommitDrawing() {
         // cuts
 
         if (newAnnotation.type === "CUT") {
-            console.log("[CommitDrawing] cutHostId", cutHostId, rawPoints)
             _updatedAnnotation = { ...await db.annotations.get(cutHostId) }
         }
 
@@ -105,7 +101,6 @@ export default function useHandleCommitDrawing() {
             //     listingId,
             // }))
             // return;
-            console.log("[CommitDrawing] add label", newAnnotation)
             const { x: _x, y: _y } = rawPoints[0];
             // on calcule le point central
             _newAnnotation = {
@@ -246,10 +241,8 @@ export default function useHandleCommitDrawing() {
         // Sauvegarde DB
         if (_updatedAnnotation) {
             await updateAnnotation(_updatedAnnotation);
-            console.log("Annotation mise à jour avec succès !", _updatedAnnotation);
         } else {
             await createAnnotation(_newAnnotation);
-            console.log("Annotation créée avec succès !", _newAnnotation);
         }
 
 

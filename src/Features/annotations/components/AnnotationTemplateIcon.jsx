@@ -2,6 +2,8 @@ import { useMemo } from "react";
 
 import { Box } from "@mui/material";
 
+import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
+
 export default function AnnotationTemplateIcon({ template, size = 20 }) {
   // helpers
 
@@ -15,20 +17,7 @@ export default function AnnotationTemplateIcon({ template, size = 20 }) {
 
   // helpers - resolve shape category
 
-  let shapeType = "circle";
-  if (
-    shape === "POLYLINE_2D" ||
-    shape === "POLYLINE" ||
-    shape === "STRIP"
-  ) {
-    shapeType = "polyline";
-  } else if (
-    shape === "SURFACE_2D" ||
-    shape === "POLYGON" ||
-    shape === "RECTANGLE"
-  ) {
-    shapeType = "rectangle";
-  }
+  const shapeType = resolveShapeCategory(shape);
 
   // helpers - hatching
 

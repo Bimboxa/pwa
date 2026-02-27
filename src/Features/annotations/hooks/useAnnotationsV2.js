@@ -125,13 +125,6 @@ export default function useAnnotationsV2(options) {
             }
 
 
-            // filter by scope
-
-            if (scope?.sortedListings) {
-                const listingIds = scope.sortedListings.map(l => l.id)
-                _annotations = _annotations.filter(a => listingIds.includes(a.listingId) || a.isBaseMapAnnotation)
-            }
-
             // add images (for annotation type = "IMAGE")
 
             if (_annotations) {
@@ -303,11 +296,11 @@ export default function useAnnotationsV2(options) {
                             const listing = listingsMap[annotation?.listingId];
                             const em = appConfig?.entityModelsObject?.[listing.entityModelKey];
                             const labelKey = em?.labelKey || "label";
-                            let label = entity[labelKey];
+                            let label = entity?.[labelKey];
                             const pad = em?.labelOptions?.zeroPadStart;
                             const prefix = em?.labelOptions?.prefix;
-                            if (pad) label = label.toString().padStart(pad, '0')
-                            if (prefix) label = `${prefix}${label}`
+                            if (pad && label != null) label = label.toString().padStart(pad, '0')
+                            if (prefix && label != null) label = `${prefix}${label}`
                             return {
                                 ...annotation,
                                 entity: entityWithImages, hasImages,
@@ -337,7 +330,6 @@ export default function useAnnotationsV2(options) {
             baseMaps?.length,
         ]);
 
-        if (filterByMainBaseMap) console.log("_annotations", annotations)
 
 
         // override with annotation templates
@@ -347,14 +339,8 @@ export default function useAnnotationsV2(options) {
             } else {
                 const baseMap = baseMapById[annotation?.baseMapId];
                 const templateProps = getAnnotationTemplateProps(annotationTemplatesMap[annotation?.annotationTemplateId])
-                return getAnnotationPropsFromAnnotationTemplateProps(annotation, templateProps, baseMap)
-
-                // return {
-                //     ...annotation,
-                //     ...templateProps,
-                //     label: annotation?.label ?? templateProps?.label,
-                //     templateLabel: templateProps?.label,
-                // }
+                const result = getAnnotationPropsFromAnnotationTemplateProps(annotation, templateProps, baseMap)
+                return result;
             }
 
         })

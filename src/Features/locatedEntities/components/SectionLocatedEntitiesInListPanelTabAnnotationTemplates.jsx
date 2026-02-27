@@ -11,11 +11,14 @@ import {
   Paper,
   Fade,
   IconButton,
+  InputBase,
 } from "@mui/material";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import { Edit, Check, Close } from "@mui/icons-material";
 
 import AnnotationIcon from "Features/annotations/components/AnnotationIcon";
+import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import ToolbarCreateAnnotationFromTabAnnotationTemplates from "Features/annotations/components/ToolbarCreateAnnotationFromTabAnnotationTemplates";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import IconButtonAnnotationTemplatesDownload from "Features/annotations/components/IconButtonAnnotationTemplatesDownload";
@@ -54,8 +57,10 @@ function DraggableAnnotationTemplateItem({
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [isHovered, setIsHovered] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempLabel, setTempLabel] = useState("");
   const hoverTimeoutRef = useRef(null);
-  const isOpen = Boolean(anchorEl);
+  const isOpen = Boolean(anchorEl) && !isEditing;
 
   const handleListItemEnter = (event) => {
     setIsHovered(true);
@@ -83,12 +88,27 @@ function DraggableAnnotationTemplateItem({
     });
   };
 
+  const handleStartEdit = (e) => {
+    e.stopPropagation();
+    setTempLabel(annotationTemplate.label ?? "");
+    setIsEditing(true);
+  };
+
+  const handleConfirmEdit = async () => {
+    await updateAnnotationTemplate({ ...annotationTemplate, label: tempLabel });
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
   const isHidden = annotationTemplate?.hidden;
 
   return (
     <Box ref={setNodeRef} style={style} sx={{ opacity: isDragging ? 0 : 1 }}>
       <ListItemButton
-        onClick={(e) => onCreateClick(e, annotationTemplate)}
+        onClick={(e) => !isEditing && onCreateClick(e, annotationTemplate)}
         divider
         onMouseEnter={handleListItemEnter}
         onMouseLeave={handleListItemLeave}
@@ -98,7 +118,7 @@ function DraggableAnnotationTemplateItem({
           alignItems: "center",
           justifyContent: "space-between",
           px: 1,
-          py: 0.25,
+          py: 0.5,
           '&:hover': { bgcolor: 'action.hover' },
         }}
       >
@@ -118,36 +138,77 @@ function DraggableAnnotationTemplateItem({
               mr: 1
             }}
           >
-            <AnnotationIcon annotation={annotationTemplate} spriteImage={spriteImage} size={18} />
+            <AnnotationTemplateIcon template={annotationTemplate} size={18} />
           </Box>
-          <Typography
-            variant="body2"
-            noWrap
-            color={isHidden ? "text.disabled" : "text.primary"}
-          >
-            {annotationTemplate.label}
-          </Typography>
+          {isEditing ? (
+            <InputBase
+              value={tempLabel}
+              onChange={(e) => setTempLabel(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === "Enter") handleConfirmEdit();
+                else if (e.key === "Escape") handleCancelEdit();
+              }}
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+              sx={{ fontSize: "0.875rem", flex: 1 }}
+            />
+          ) : (
+            <Typography
+              variant="body2"
+              color={isHidden ? "text.disabled" : "text.primary"}
+              sx={{ lineHeight: 1.3 }}
+            >
+              {annotationTemplate.label}
+            </Typography>
+          )}
         </Box>
 
-        {/* Zone de permutation : Qté <-> Visibilité */}
-        <Box sx={{ minWidth: "40px", display: "flex", justifyContent: "flex-end", alignItems: "center", ml: 1 }}>
-          {isHovered ? (
-            <IconButton
-              size="small"
-              onClick={handleToggleHidden}
-              sx={{ p: 0.5 }}
-            >
-              {isHidden ? (
-                <VisibilityOff fontSize="inherit" sx={{ fontSize: 16 }} />
-              ) : (
-                <Visibility fontSize="inherit" sx={{ fontSize: 16 }} />
-              )}
-            </IconButton>
+        {/* Right side: edit confirm/cancel OR hover actions OR qty */}
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.5, ml: 1, minWidth: 56, flexShrink: 0 }}>
+          {isEditing ? (
+            <>
+              <IconButton
+                size="small"
+                onClick={(e) => { e.stopPropagation(); handleConfirmEdit(); }}
+                sx={{ color: "success.main", p: 0.5 }}
+              >
+                <Check fontSize="inherit" sx={{ fontSize: 16 }} />
+              </IconButton>
+              <IconButton
+                size="small"
+                onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}
+                sx={{ color: "error.main", p: 0.5 }}
+              >
+                <Close fontSize="inherit" sx={{ fontSize: 16 }} />
+              </IconButton>
+            </>
+          ) : isHovered ? (
+            <>
+              <IconButton
+                size="small"
+                onClick={handleStartEdit}
+                sx={{ p: 0.5 }}
+              >
+                <Edit fontSize="inherit" sx={{ fontSize: 16 }} />
+              </IconButton>
+              <IconButton
+                size="small"
+                onClick={handleToggleHidden}
+                sx={{ p: 0.5 }}
+              >
+                {isHidden ? (
+                  <VisibilityOff fontSize="inherit" sx={{ fontSize: 16 }} />
+                ) : (
+                  <Visibility fontSize="inherit" sx={{ fontSize: 16 }} />
+                )}
+              </IconButton>
+            </>
           ) : (
             <Typography
               align="right"
               noWrap
-              sx={{ fontSize: "12px" }}
+              sx={{ fontSize: "12px", minWidth: "40px" }}
               color={isHidden ? "text.disabled" : (count > 0 ? "secondary.main" : "grey.200")}
             >
               {qtyLabel}
@@ -276,7 +337,7 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates(
       <DragOverlay>
         {activeDraggedTemplate && (
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <AnnotationIcon annotation={activeDraggedTemplate} spriteImage={spriteImage} size={24} />
+            <AnnotationTemplateIcon template={activeDraggedTemplate} size={24} />
           </Box>
         )}
       </DragOverlay>
