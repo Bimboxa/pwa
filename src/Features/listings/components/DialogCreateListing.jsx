@@ -1,29 +1,26 @@
-import PanelCreateListing from "./PanelCreateListing";
-import PanelCreateListingV2 from "./PanelCreateListingV2";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
+import PanelCreateListingsV3 from "./PanelCreateListingsV3";
 import PanelCreateListingFromPresetListings from "./PanelCreateListingFromPresetListings";
-import { DialogTitle } from "@mui/material";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 export default function DialogCreateListing({
   open,
   onClose,
   fromPresetListings,
-  locatedListingOnly,
 }) {
-  const title = "Nouvelle liste";
-
   return (
-    <DialogGeneric open={open} onClose={onClose} width="350px">
+    <DialogGeneric open={open} onClose={onClose} maxWidth={false} >
+      <BoxFlexVStretch sx={{ width: 800 }}>
 
-      {!fromPresetListings && (
-        <PanelCreateListingV2
-          onListingCreated={onClose}
-        />
-      )}
 
-      {fromPresetListings && (
-        <PanelCreateListingFromPresetListings onListingCreated={onClose} />
-      )}
+        {!fromPresetListings && (
+          <PanelCreateListingsV3 onListingCreated={onClose} />
+        )}
+
+        {fromPresetListings && (
+          <PanelCreateListingFromPresetListings onListingCreated={onClose} />
+        )}
+      </BoxFlexVStretch>
     </DialogGeneric>
   );
 }

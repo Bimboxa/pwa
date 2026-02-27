@@ -5,14 +5,14 @@ export default function resolvePresetListingsAndScopesObjectFromAnnotationTempla
     const presetListings = libraries?.map((library) => {
         const listing = {
             key: library.key,
-            //name: library.name,
-            name: "Repérage",
+            name: library.name,
             fullName: library.name,
             table: "entities",
             entityModelKey: "annotation",
             color: library.color,
             iconKey: library.iconKey,
             annotationTemplatesLibrary: library.templates,
+            keywords: library.keywords,
         }
 
         return listing;
