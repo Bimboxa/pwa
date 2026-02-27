@@ -60,7 +60,7 @@ export default function PanelPortfolioPageProperties() {
       </Box>
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, p: 1.5 }}>
-        <CardPageContent content={content} />
+        <CardPageContent content={content} page={page} />
         <CardPortfolioPageSize page={page} />
         <CardPortfolioPageOrientation page={page} />
       </Box>

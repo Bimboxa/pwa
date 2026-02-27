@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useRef } from "react";
 
 import {
   Box,
@@ -7,12 +7,14 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  IconButton,
 } from "@mui/material";
 import {
   Map as MapIcon,
   Image as ImageIcon,
   Article as ArticleIcon,
   DragIndicator,
+  Add as AddIcon,
 } from "@mui/icons-material";
 
 import { DndContext, closestCenter } from "@dnd-kit/core";
@@ -26,6 +28,14 @@ import { generateKeyBetween } from "fractional-indexing";
 
 import useDndSensors from "App/hooks/useDndSensors";
 import db from "App/db/db";
+
+import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
+import useCreatePortfolioBaseMapContainer from "Features/portfolioBaseMapContainers/hooks/useCreatePortfolioBaseMapContainer";
+import BaseMapSelectorPopover from "./BaseMapSelectorPopover";
+
+import getPageDimensions from "../utils/getPageDimensions";
+import computeContentArea from "../utils/computeContentArea";
+import fitContainerToBaseMap from "../utils/fitContainerToBaseMap";
 
 const ICON_BY_TYPE = {
   BASE_MAP_CONTAINER: MapIcon,
@@ -73,7 +83,7 @@ function SortableContentRow({ item }) {
   );
 }
 
-export default function CardPageContent({ content }) {
+export default function CardPageContent({ content, page }) {
   // data
 
   const sensors = useDndSensors();
@@ -81,8 +91,111 @@ export default function CardPageContent({ content }) {
     () => (content || []).map((item) => item.id),
     [content]
   );
+  const { value: portfolio } = useDisplayedPortfolio();
+  const createContainer = useCreatePortfolioBaseMapContainer();
+
+  // state
+
+  const [popoverAnchorEl, setPopoverAnchorEl] = useState(null);
+  const closeTimerRef = useRef(null);
 
   // handlers
+
+  function handleAddHover(e) {
+    clearTimeout(closeTimerRef.current);
+    setPopoverAnchorEl(e.currentTarget);
+  }
+
+  function handleAddLeave() {
+    closeTimerRef.current = setTimeout(() => {
+      setPopoverAnchorEl(null);
+    }, 200);
+  }
+
+  function handlePopoverMouseEnter() {
+    clearTimeout(closeTimerRef.current);
+  }
+
+  function handlePopoverClose() {
+    clearTimeout(closeTimerRef.current);
+    setPopoverAnchorEl(null);
+  }
+
+  async function handleSelectBaseMap(baseMap) {
+    if (!page || !portfolio) return;
+
+    const lastSortIndex = content?.length
+      ? content[content.length - 1].sortIndex
+      : null;
+
+    const dims = getPageDimensions(page.format, page.orientation);
+    const footerHeight = portfolio?.metadata?.footerHeight || 0;
+    const contentArea = computeContentArea(dims, footerHeight);
+
+    const imageSize = baseMap.getImageSize();
+    let x = contentArea.x;
+    let y = contentArea.y;
+    let width = contentArea.width;
+    let height = contentArea.height;
+
+    if (imageSize) {
+      const fitted = fitContainerToBaseMap(imageSize, contentArea);
+      x = fitted.x;
+      y = fitted.y;
+      width = fitted.width;
+      height = fitted.height;
+    }
+
+    const container = await createContainer({
+      portfolioPageId: page.id,
+      scopeId: portfolio.scopeId,
+      projectId: portfolio.projectId,
+      baseMapId: baseMap.id,
+      x,
+      y,
+      width,
+      height,
+      afterSortIndex: lastSortIndex,
+    });
+
+    if (imageSize) {
+      await db.portfolioBaseMapContainers.update(container.id, {
+        viewBox: {
+          x: 0,
+          y: 0,
+          width: imageSize.width,
+          height: imageSize.height,
+        },
+      });
+    }
+
+    handlePopoverClose();
+  }
+
+  async function handleCreateBaseMap() {
+    if (!page || !portfolio) return;
+
+    const lastSortIndex = content?.length
+      ? content[content.length - 1].sortIndex
+      : null;
+
+    const dims = getPageDimensions(page.format, page.orientation);
+    const footerHeight = portfolio?.metadata?.footerHeight || 0;
+    const contentArea = computeContentArea(dims, footerHeight);
+
+    await createContainer({
+      portfolioPageId: page.id,
+      scopeId: portfolio.scopeId,
+      projectId: portfolio.projectId,
+      x: contentArea.x,
+      y: contentArea.y,
+      width: contentArea.width,
+      height: contentArea.height,
+      afterSortIndex: lastSortIndex,
+    });
+
+    handlePopoverClose();
+  }
 
   async function handleDragEnd(event) {
     const { active, over } = event;
@@ -125,10 +238,26 @@ export default function CardPageContent({ content }) {
         overflow: "hidden",
       }}
     >
-      <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
+      <Box
+        sx={{
+          px: 2,
+          pt: 1.5,
+          pb: 0.5,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
         <Typography variant="body2" sx={{ fontWeight: "bold" }}>
           Contenu
         </Typography>
+        <IconButton
+          size="small"
+          onMouseEnter={handleAddHover}
+          onMouseLeave={handleAddLeave}
+        >
+          <AddIcon fontSize="small" />
+        </IconButton>
       </Box>
 
       {!content?.length ? (
@@ -155,6 +284,15 @@ export default function CardPageContent({ content }) {
           </SortableContext>
         </DndContext>
       )}
+
+      <BaseMapSelectorPopover
+        anchorEl={popoverAnchorEl}
+        open={Boolean(popoverAnchorEl)}
+        onClose={handlePopoverClose}
+        onSelectBaseMap={handleSelectBaseMap}
+        onCreateBaseMap={handleCreateBaseMap}
+        onMouseEnter={handlePopoverMouseEnter}
+      />
     </Box>
   );
 }
