@@ -7,7 +7,7 @@ import HeaderTitleClose from "./HeaderTitleClose";
 import BoxFlexVStretch from "./BoxFlexVStretch";
 
 const DialogGeneric = forwardRef(function DialogGeneric(
-  { title, open, onClose, children, vh, vw, width, height },
+  { title, open, onClose, children, vh, vw, width, height, ...props },
   ref
 ) {
   // data
@@ -26,6 +26,7 @@ const DialogGeneric = forwardRef(function DialogGeneric(
         },
       }}
       disableEnforceFocus
+      {...props}
     >
       {Boolean(title) && !isMobile && <DialogTitle>{title}</DialogTitle>}
       {Boolean(onClose || title) && isMobile && (
