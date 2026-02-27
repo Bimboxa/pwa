@@ -1,6 +1,6 @@
 import { useSelector, useDispatch } from "react-redux"
 
-import { setOpenBaseMapCreator } from "../baseMapCreatorSlice"
+import { setOpenBaseMapCreator, clearSourceContainer } from "../baseMapCreatorSlice"
 
 import DialogGeneric from "Features/layout/components/DialogGeneric"
 import PageBaseMapCreator from "./PageBaseMapCreator"
@@ -16,6 +16,7 @@ export default function DialogBaseMapCreator() {
 
     function handleClose() {
         dispatch(setOpenBaseMapCreator(false))
+        dispatch(clearSourceContainer())
     }
 
     if (!open) return null;

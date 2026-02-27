@@ -9,6 +9,7 @@ import {
 } from "Features/viewers/viewersSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import { setFramingContainerId } from "Features/portfolioBaseMapContainers/portfolioBaseMapContainersSlice";
+import { setSourceContainer, clearSourceContainer } from "Features/baseMapCreator/baseMapCreatorSlice";
 
 import { Box } from "@mui/material";
 import { Edit, CropFree, RestartAlt } from "@mui/icons-material";
@@ -187,6 +188,12 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
     const containerId = popoverContainerId;
     handlePopoverClose();
     setCreatingContainerId(containerId);
+    dispatch(setSourceContainer({
+      containerId,
+      contentArea,
+      pageId: page.id,
+      portfolioId: page.listingId,
+    }));
   }
 
   async function handleBaseMapCreated(entity) {
@@ -226,10 +233,12 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
     }
 
     setCreatingContainerId(null);
+    dispatch(clearSourceContainer());
   }
 
   function handleCreateClose() {
     setCreatingContainerId(null);
+    dispatch(clearSourceContainer());
   }
 
   function handleEditInMap() {

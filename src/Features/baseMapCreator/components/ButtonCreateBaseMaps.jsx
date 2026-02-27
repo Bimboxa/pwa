@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
-import { setOpenBaseMapCreator } from "../baseMapCreatorSlice";
+import { setOpenBaseMapCreator, clearSourceContainer } from "../baseMapCreatorSlice";
 
 import useCreateBaseMaps from "../hooks/useCreateBaseMaps";
+import useLinkBaseMapToContainer from "../hooks/useLinkBaseMapToContainer";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import { setShowCreateBaseMapSection, setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
@@ -14,7 +15,9 @@ export default function ButtonCreateBaseMaps() {
     // data
 
     const createBaseMaps = useCreateBaseMaps();
+    const linkBaseMapToContainer = useLinkBaseMapToContainer();
     const tempBaseMaps = useSelector((s) => s.baseMapCreator.tempBaseMaps);
+    const sourceContainerId = useSelector((s) => s.baseMapCreator.sourceContainerId);
 
     // state
 
@@ -32,6 +35,11 @@ export default function ButtonCreateBaseMaps() {
         const baseMap0 = baseMaps?.[0];
         if (baseMap0) {
             dispatch(setSelectedMainBaseMapId(baseMap0.id));
+        }
+
+        if (sourceContainerId && baseMap0) {
+            await linkBaseMapToContainer(baseMap0.id);
+            dispatch(clearSourceContainer());
         }
     }
 

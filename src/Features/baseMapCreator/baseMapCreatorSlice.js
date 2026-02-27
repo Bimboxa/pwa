@@ -19,6 +19,11 @@ const baseMapCreatorInitialState = {
   },
   //
   tempBaseMaps: [],
+  //
+  sourceContainerId: null,
+  sourceContentArea: null,
+  sourcePageId: null,
+  sourcePortfolioId: null,
 };
 
 export const baseMapCreatorSlice = createSlice({
@@ -59,6 +64,19 @@ export const baseMapCreatorSlice = createSlice({
     setTempBaseMaps: (state, action) => {
       state.tempBaseMaps = action.payload;
     },
+    setSourceContainer: (state, action) => {
+      const { containerId, contentArea, pageId, portfolioId } = action.payload || {};
+      state.sourceContainerId = containerId ?? null;
+      state.sourceContentArea = contentArea ?? null;
+      state.sourcePageId = pageId ?? null;
+      state.sourcePortfolioId = portfolioId ?? null;
+    },
+    clearSourceContainer: (state) => {
+      state.sourceContainerId = null;
+      state.sourceContentArea = null;
+      state.sourcePageId = null;
+      state.sourcePortfolioId = null;
+    },
   },
 });
 
@@ -72,7 +90,9 @@ export const {
   addTempBaseMap,
   removeTempBaseMap,
   updateTempBaseMap,
-  setTempBaseMaps
+  setTempBaseMaps,
+  setSourceContainer,
+  clearSourceContainer,
 } = baseMapCreatorSlice.actions;
 
 export default baseMapCreatorSlice.reducer;
