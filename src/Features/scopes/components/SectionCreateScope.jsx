@@ -8,8 +8,7 @@ import FormScope from "./FormScope";
 import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
-import resolveListingsToCreateFromPresetListings from "Features/listings/services/resolveListingsToCreateFromPresetListings";
-import getPresetListingsFromPresetScope from "Features/listings/utils/getPresetListingsFromPresetScope";
+import resolvePresetListings from "Features/listings/services/resolvePresetListings";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 
 export default function SectionCreateScope({
@@ -42,14 +41,12 @@ export default function SectionCreateScope({
 
     // 1 - listings
 
-    const presetListings = getPresetListingsFromPresetScope(
-      tempScope?.presetConfig,
-      appConfig
-    );
-    const newListings = await resolveListingsToCreateFromPresetListings(
-      presetListings,
-      appConfig
-    );
+    const presetScope = appConfig?.presetScopesObject?.[tempScope?.presetConfig];
+    const newListings = await resolvePresetListings({
+      projectId,
+      appConfig,
+      presetListingsKeys: presetScope?.listings,
+    });
 
     // 2 - scope
     const props = {
