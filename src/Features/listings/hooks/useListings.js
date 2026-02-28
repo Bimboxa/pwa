@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
@@ -34,8 +34,14 @@ export default function useListings(options) {
     ? listings?.map((l) => l.id).sort().join(",") ?? ""
     : "";
 
+  const blobUrlsRef = useRef([]);
+
   const enrichedListings = useLiveQuery(async () => {
     if (!withFiles || !listings?.length) return null;
+
+    // revoke previous blob URLs
+    blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    blobUrlsRef.current = [];
 
     return Promise.all(
       listings.map(async (listing) => {
@@ -51,12 +57,14 @@ export default function useListings(options) {
           entriesWithFiles.map(async ([key, value]) => {
             const file = await db.files.get(value.fileName);
             if (file && file.fileArrayBuffer) {
+              const fileUrlClient = URL.createObjectURL(
+                new Blob([file.fileArrayBuffer], { type: file.fileMime })
+              );
+              blobUrlsRef.current.push(fileUrlClient);
               processedMetadata[key] = {
                 ...value,
                 file,
-                fileUrlClient: URL.createObjectURL(
-                  new Blob([file.fileArrayBuffer], { type: file.fileMime })
-                ),
+                fileUrlClient,
               };
             }
           })
@@ -65,6 +73,14 @@ export default function useListings(options) {
       })
     );
   }, [withFiles, listingsIds]);
+
+  // cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      blobUrlsRef.current = [];
+    };
+  }, []);
 
   // result
 
