@@ -3,7 +3,6 @@
 const TEMPLATE_ONLY_KEYS = [
   "id",
   "drawingShape",
-  "drawingColor",
   "drawingOpacity",
   "drawingTools",
   "hidden",

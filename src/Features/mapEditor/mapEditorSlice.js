@@ -14,7 +14,7 @@ const mapEditorInitialState = {
   showShapes: true,
   //
   mapEditorMode: "SELECT", // "SELECT", "DRAW"
-  enabledDrawingMode: null, // "CLICK", "RECTANGLE", "DROP_FILL",
+  enabledDrawingMode: null, // "CLICK", "RECTANGLE", "SURFACE_DROP",
   //
   showLayerScreenCursor: false,
   printModeEnabled: false,

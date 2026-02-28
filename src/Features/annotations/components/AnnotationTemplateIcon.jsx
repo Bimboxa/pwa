@@ -8,16 +8,16 @@ export default function AnnotationTemplateIcon({ template, size = 20 }) {
   // helpers
 
   const shape = template.drawingShape ?? template.type;
-  const color =
-    template.drawingColor ??
-    template.fillColor ??
-    template.strokeColor ??
-    "#999";
-  const fillType = template.drawingFillType ?? template.fillType;
-
-  // helpers - resolve shape category
-
   const shapeType = resolveShapeCategory(shape);
+  const color =
+    shapeType === "polyline"
+      ? (template.strokeColor ?? template.fillColor ?? "#999")
+      : (template.fillColor ?? template.strokeColor ?? "#999");
+  const opacity =
+    shapeType === "polyline"
+      ? (template.strokeOpacity ?? 1)
+      : (template.fillOpacity ?? 1);
+  const fillType = template.fillType;
 
   // helpers - hatching
 
@@ -65,7 +65,7 @@ export default function AnnotationTemplateIcon({ template, size = 20 }) {
         )}
 
         {shapeType === "circle" && (
-          <circle cx="10" cy="10" r="7" fill={color} />
+          <circle cx="10" cy="10" r="7" fill={color} opacity={opacity} />
         )}
         {shapeType === "polyline" && (
           <line
@@ -76,13 +76,14 @@ export default function AnnotationTemplateIcon({ template, size = 20 }) {
             stroke={color}
             strokeWidth="4"
             strokeLinecap="round"
+            opacity={opacity}
           />
         )}
         {shapeType === "rectangle" && !isHatching && (
-          <rect x="2" y="3" width="16" height="14" rx="2" fill={color} />
+          <rect x="2" y="3" width="16" height="14" rx="2" fill={color} opacity={opacity} />
         )}
         {shapeType === "rectangle" && isHatching && (
-          <>
+          <g opacity={opacity}>
             <rect
               x="2"
               y="3"
@@ -101,7 +102,7 @@ export default function AnnotationTemplateIcon({ template, size = 20 }) {
               stroke={color}
               strokeWidth="1"
             />
-          </>
+          </g>
         )}
       </svg>
     </Box>

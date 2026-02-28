@@ -319,7 +319,7 @@ export default function MainMapEditorV3() {
 
     // handler - commit points from drop_fill
 
-    const handleCommitPointsFromDropFill = ({ points, cuts, screenPos }) => {
+    const handleCommitPointsFromSurfaceDrop = ({ points, cuts, screenPos }) => {
         const tempAnnotation = {
             ...newAnnotation,
             baseMapId: baseMap.id,
@@ -905,7 +905,7 @@ export default function MainMapEditorV3() {
                         else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE"].includes(enabledDrawingMode)) {
                             handleCommitDrawingFromRectangle(points, event);
                         }
-                        else if (enabledDrawingMode === 'CIRCLE') {
+                        else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE"].includes(enabledDrawingMode)) {
                             handleCommitDrawingFromCircle(points);
                         }
                         else {
@@ -915,7 +915,7 @@ export default function MainMapEditorV3() {
                     }}
                     onCommitSplitAtVertex={handlePolylineSplitAtVertex}
                     onCommitImageDrop={handleCommitImageDrop}
-                    onCommitPointsFromDropFill={handleCommitPointsFromDropFill}
+                    onCommitPointsFromSurfaceDrop={handleCommitPointsFromSurfaceDrop}
                     baseMapImageSize={baseMap?.image?.imageSize}
                     baseMapImageScale={baseMap?.getImageScale()}
                     baseMapImageOffset={baseMap?.getImageOffset()}

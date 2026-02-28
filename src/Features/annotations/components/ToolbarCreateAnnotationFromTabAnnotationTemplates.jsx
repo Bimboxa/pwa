@@ -9,6 +9,7 @@ import { Box } from "@mui/material";
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
 import { getDrawingToolsByShape, getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.jsx";
+import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import getNewAnnotationPropsFromAnnotationTemplate from "../utils/getNewAnnotationPropsFromAnnotationTemplate";
 
 export default function ToolbarCreateAnnotationFromTabAnnotationTemplates({ annotationTemplate }) {
@@ -19,15 +20,19 @@ export default function ToolbarCreateAnnotationFromTabAnnotationTemplates({ anno
 
     const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
     const drawingShape = annotationTemplate?.drawingShape;
-    const drawingColor = annotationTemplate?.drawingColor;
 
     // helpers
+
+    const shapeCategory = resolveShapeCategory(drawingShape);
+    const iconColor = shapeCategory === "polyline"
+        ? (annotationTemplate?.strokeColor ?? annotationTemplate?.fillColor ?? "inherit")
+        : (annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "inherit");
 
     const tools = getDrawingToolsByShape(drawingShape);
     const options = tools.map(({ key, label, Icon }) => ({
         key,
         label,
-        icon: <Icon sx={{ color: drawingColor || "inherit" }} />,
+        icon: <Icon sx={{ color: iconColor }} />,
     }));
 
     // effect - sync newAnnotation type with the current tool when template changes

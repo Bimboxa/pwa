@@ -12,6 +12,8 @@ import IconPolylineClick from "Features/icons/IconPolylineClick";
 import IconPolygonClick from "Features/icons/IconPolygonClick";
 import IconPolylineRectangle from "Features/icons/IconPolylineRectangle";
 import IconPolygonRectangle from "Features/icons/IconPolygonRectangle";
+import IconPolylineCircle from "Features/icons/IconPolylineCircle";
+import IconPolygonCircle from "Features/icons/IconPolygonCircle";
 
 const DRAWING_TOOLS = [
   {
@@ -64,6 +66,20 @@ const DRAWING_TOOLS = [
     behavior: "RECTANGLE",
   },
   {
+    key: "POLYLINE_CIRCLE",
+    label: "Cercle (ligne)",
+    Icon: IconPolylineCircle,
+    annotationType: "POLYLINE",
+    behavior: "CIRCLE",
+  },
+  {
+    key: "POLYGON_CIRCLE",
+    label: "Cercle (surface)",
+    Icon: IconPolygonCircle,
+    annotationType: "POLYGON",
+    behavior: "CIRCLE",
+  },
+  {
     key: "CIRCLE",
     label: "Cercle",
     Icon: RadioButtonUnchecked,
@@ -71,11 +87,11 @@ const DRAWING_TOOLS = [
     behavior: "CIRCLE",
   },
   {
-    key: "DROP_FILL",
+    key: "SURFACE_DROP",
     label: "Remplissage",
     Icon: WaterDrop,
-    annotationType: null,
-    behavior: "DROP_FILL",
+    annotationType: "POLYGON",
+    behavior: "SURFACE_DROP",
   },
   {
     key: "BRUSH",
@@ -95,8 +111,8 @@ const DRAWING_TOOLS = [
 
 export const DRAWING_TOOLS_BY_SHAPE = {
   POINT_2D: ["ONE_CLICK"],
-  POLYLINE_2D: ["POLYLINE_CLICK", "POLYLINE_RECTANGLE", "CIRCLE"],
-  SURFACE_2D: ["POLYGON_CLICK", "POLYGON_RECTANGLE", "CIRCLE", "DROP_FILL"],
+  POLYLINE_2D: ["POLYLINE_CLICK", "POLYLINE_RECTANGLE", "POLYLINE_CIRCLE"],
+  SURFACE_2D: ["POLYGON_CLICK", "POLYGON_RECTANGLE", "POLYGON_CIRCLE", "SURFACE_DROP"],
 };
 
 export function getDrawingToolsByShape(drawingShape) {

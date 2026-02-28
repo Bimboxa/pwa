@@ -63,7 +63,7 @@ export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
             show: ["POLYGON", "POLYLINE"].includes(type)
         },
         {
-            key: "DROP_FILL",
+            key: "SURFACE_DROP",
             label: "Remplissage",
             icon: <WaterDrop sx={{ color }} />,
             show: ["POLYGON", "RECTANGLE"].includes(type)

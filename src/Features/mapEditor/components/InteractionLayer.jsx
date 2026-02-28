@@ -91,7 +91,7 @@ const InteractionLayer = forwardRef(({
   newAnnotation,
   onCommitDrawing,
   onCommitSplitAtVertex,
-  onCommitPointsFromDropFill,
+  onCommitPointsFromSurfaceDrop,
   onCommitImageDrop,
   basePose,
   onBaseMapPoseChange,
@@ -1119,7 +1119,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- CASE 3b: CIRCLE (Auto-commit after 3 points) ---
-    else if (enabledDrawingMode === "CIRCLE") {
+    else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
       if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
@@ -1136,8 +1136,8 @@ const InteractionLayer = forwardRef(({
       }
     }
 
-    // -- CASE 4: DROP_FIIL
-    else if (enabledDrawingMode === "DROP_FILL") {
+    // -- CASE 4: SURFACE_DROP (opencv contour detection)
+    else if (enabledDrawingMode === "SURFACE_DROP") {
       await cv.load();
       let finalPos = toLocalCoords(worldPos);
       const viewportBounds = editor.viewportInBase?.bounds;
@@ -1169,8 +1169,8 @@ const InteractionLayer = forwardRef(({
       const worldX = topMiddlePoint.x * pose.k + pose.x;
       const worldY = topMiddlePoint.y * pose.k + pose.y;
       const screenPos = viewportRef.current?.worldToScreen(worldX, worldY);
-      if (onCommitPointsFromDropFill) {
-        onCommitPointsFromDropFill({ points, cuts, screenPos });
+      if (onCommitPointsFromSurfaceDrop) {
+        onCommitPointsFromSurfaceDrop({ points, cuts, screenPos });
       }
       dispatch(setEnabledDrawingMode(null));
     }
@@ -1517,7 +1517,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CIRCLE"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 

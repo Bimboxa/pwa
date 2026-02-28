@@ -35,7 +35,6 @@ import FieldColorV2 from "Features/form/components/FieldColorV2";
 import FieldIcon from "Features/form/components/FieldIcon";
 import FieldPointSize from "Features/form/components/FieldPointSize";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
-import FieldAnnotationTemplateDrawingColor from "./FieldAnnotationTemplateDrawingColor";
 
 export default function FormAnnotationTemplateVariantBlock({
   annotationTemplate,
@@ -79,7 +78,6 @@ export default function FormAnnotationTemplateVariantBlock({
     sizeUnit,
     mainQtyKey,
     drawingShape,
-    drawingColor,
 
   } = annotationTemplate ?? {};
 
@@ -219,10 +217,6 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, drawingShape });
   }
 
-  function handleDrawingColorChange(drawingColor) {
-    onChange({ ...annotationTemplate, drawingColor });
-  }
-
   function handleHiddenChange(hidden) {
     onChange({ ...annotationTemplate, hidden })
   }
@@ -242,10 +236,13 @@ export default function FormAnnotationTemplateVariantBlock({
         onChange={handleDrawingShapeChange}
       />
 
-      <FieldAnnotationTemplateDrawingColor
-        value={drawingColor}
-        onChange={handleDrawingColorChange}
-      />
+      {drawingShape === "POLYLINE_2D" && (
+        <FieldStroke value={stroke} onChange={handleStrokeChange} />
+      )}
+
+      {["POINT_2D", "SURFACE_2D"].includes(drawingShape) && (
+        <FieldFill value={fill} onChange={handleFillChange} />
+      )}
 
       {/* <Typography variant="body2">{typeS}</Typography> */}
       <FieldOptionKeyFromIconsVariantToolbar
