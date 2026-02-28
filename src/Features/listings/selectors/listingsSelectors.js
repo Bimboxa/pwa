@@ -1,7 +1,6 @@
 import { createSelectorCreator, lruMemoize } from "reselect";
 import isEqual from "fast-deep-equal";
 
-import getSortedListings from "../utils/getSortedListings";
 import testObjectHasProp from "Features/misc/utils/testObjectHasProp";
 
 const createDeepEqualSelector = createSelectorCreator(lruMemoize, isEqual);
@@ -12,9 +11,8 @@ export const makeGetListingsByOptions = (options) =>
       (state) => state.listings.listingsUpdatedAt,
       (state) => state.listings.listingsById,
       (state) => state.appConfig.value?.entityModelsObject,
-      (state) => state.scopes.scopesById[options?.filterByScopeId],
     ],
-    (listingsUpdatedAt, listingsById, entityModelsObject, scope) => {
+    (listingsUpdatedAt, listingsById, entityModelsObject) => {
       // options
 
       const filterByProjectId = options?.filterByProjectId;
@@ -51,12 +49,9 @@ export const makeGetListingsByOptions = (options) =>
           ["BASE_MAP", "BLUEPRINT"].includes(l?.entityModel?.type)
         );
         const scopedListings = listings.filter(
-          (l) => !["BASE_MAP", "BLUEPRINT"].includes(l?.entityModel?.type)
+          (l) => l.scopeId === filterByScopeId
         );
-        listings = [
-          ...sharedListings,
-          ...getSortedListings(scopedListings, scope?.sortedListings),
-        ];
+        listings = [...sharedListings, ...scopedListings];
       }
       console.log("listings1", filterByScopeId, listings);
 

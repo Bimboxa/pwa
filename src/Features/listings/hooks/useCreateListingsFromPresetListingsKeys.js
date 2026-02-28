@@ -14,7 +14,7 @@ export default function useCreateListingsFromPresetListingsKeys() {
 
   const resolvedPresetListings = useResolvedPresetListings();
 
-  const create = async ({ presetListingsKeys }) => {
+  const create = async ({ presetListingsKeys, scope }) => {
     let listings = resolvedPresetListings.filter(({ key }) =>
       presetListingsKeys.includes(key)
     );
@@ -33,7 +33,7 @@ export default function useCreateListingsFromPresetListingsKeys() {
 
     listings = [...listings, ...atListings];
 
-    listings = await createListings({ listings });
+    listings = await createListings({ listings, scope });
 
     return listings;
   };

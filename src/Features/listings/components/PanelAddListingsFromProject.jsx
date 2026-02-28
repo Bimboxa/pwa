@@ -1,19 +1,18 @@
 import {useState} from "react";
 
-import {useDispatch, useSelector} from "react-redux";
+import {useDispatch} from "react-redux";
 
 import {setOpenDialogAddListing} from "../listingsSlice";
 
 import useProjectSharedListings from "../hooks/useProjectSharedListings";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
-import useUpdateScope from "Features/scopes/hooks/useUpdateScope";
+
+import db from "App/db/db";
 
 import Panel from "Features/layout/components/Panel";
 import ListListings from "./ListListings";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
-
-import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 export default function PanelAddListingsFromProject() {
   const dispatch = useDispatch();
@@ -25,8 +24,6 @@ export default function PanelAddListingsFromProject() {
 
   const listings = useProjectSharedListings();
   const {value: scope} = useSelectedScope();
-  const updateScope = useUpdateScope();
-  const autoSyncMacro = useSelector((s) => s.sync.autoSyncMacro);
 
   // state
 
@@ -45,19 +42,13 @@ export default function PanelAddListingsFromProject() {
   }
 
   async function handleSave() {
-    // helpers
-    const listingsById = getItemsByKey(listings, "id");
-    const newListings = tempSelection
-      .map((id) => listingsById[id])
-      .map(({id, table, type}) => ({id, table, type}));
-    const updates = {
-      id: scope.id,
-      sortedListings: [...scope.sortedListings, ...newListings],
-    };
-
-    // update
     setLoading(true);
-    await updateScope(updates, {forceLocalToRemote: autoSyncMacro});
+    // assign scopeId to selected listings
+    await Promise.all(
+      tempSelection.map((id) =>
+        db.listings.update(id, {scopeId: scope.id})
+      )
+    );
     setLoading(false);
     dispatch(setOpenDialogAddListing(false));
   }

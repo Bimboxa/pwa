@@ -9,7 +9,6 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig"
 
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope"
 import useCreateListing from "../hooks/useCreateListing"
-import useAddListingToScope from "Features/scopes/hooks/useAddListingToScope"
 
 import { Box, Typography } from "@mui/material"
 import { ArrowForward as Next } from "@mui/icons-material"
@@ -41,7 +40,6 @@ export default function PanelCreateListingV2({ onListingCreated }) {
     const presetListings = useResolvedPresetListings();
     const { value: scope } = useSelectedScope();
     const createListing = useCreateListing();
-    const addListingToScope = useAddListingToScope();
 
     // state
 
@@ -105,16 +103,6 @@ export default function PanelCreateListingV2({ onListingCreated }) {
         // create listing
         const _newListing = await createListing({ listing: newListing, scope });
 
-        // add listing to scope
-        if (scope) {
-            await addListingToScope({
-                listingId: _newListing.id,
-                listingTable: _newListing.table,
-                scope,
-            });
-        }
-
-        //
         dispatch(setSelectedListingId(_newListing.id));
         dispatch(setOpenedPanel("LISTING"))
 

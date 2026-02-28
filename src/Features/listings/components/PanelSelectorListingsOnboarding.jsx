@@ -4,9 +4,7 @@ import { setPresetListingsKeys } from "Features/onboarding/onboardingSlice";
 import { setSelectedListingId } from "../listingsSlice";
 
 import useScope from "Features/scopes/hooks/useScope";
-import useUpdateScope from "Features/scopes/hooks/useUpdateScope";
 import useCreateListingsFromPresetListingsKeys from "../hooks/useCreateListingsFromPresetListingsKeys";
-import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
@@ -35,7 +33,6 @@ export default function PanelSelectorListingsOnboarding() {
   // data - func
 
   const createListings = useCreateListingsFromPresetListingsKeys();
-  const updateScope = useUpdateScope();
 
   // handlers
 
@@ -44,28 +41,14 @@ export default function PanelSelectorListingsOnboarding() {
   }
 
   async function handleSave() {
-    const newListings = await createListings({ presetListingsKeys });
-
-    console.log("newListings", newListings);
+    const newListings = await createListings({
+      presetListingsKeys,
+      scope,
+    });
 
     // selected listing
-    dispatch(setSelectedListingId(newListings[0]?.id));
-
-    // update scope
-    if (newListings && scope) {
-      const newScopeListings = newListings.map(({ id, table, type }) => ({
-        id,
-        table,
-        type,
-      }));
-
-      const updates = {
-        id: scope?.id,
-        sortedListings: [...(scope?.sortedListings ?? []), ...newScopeListings],
-      };
-
-      // update scope
-      if (scope) await updateScope(updates);
+    if (newListings?.length > 0) {
+      dispatch(setSelectedListingId(newListings[0].id));
     }
   }
   return (

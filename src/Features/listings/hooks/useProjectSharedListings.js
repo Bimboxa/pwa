@@ -9,16 +9,15 @@ export default function useProjectSharedListings() {
 
   const {value: scope} = useSelectedScope();
 
-  const takenIds = scope?.sortedListings?.map((l) => l.id);
-
   let listings = useLiveQuery(async () => {
     if (scope?.id && projectId) {
-      const _listings = await db.listings
+      const _listings = (await db.listings
         .where("projectId")
         .equals(projectId)
-        .toArray();
+        .toArray()).filter(r => !r.deletedAt);
 
-      return _listings?.filter((l) => !takenIds?.includes(l.id));
+      // show listings not yet assigned to any scope (available for assignment)
+      return _listings?.filter((l) => !l.scopeId);
     }
   }, [projectId, scope?.id]);
 

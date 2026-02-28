@@ -7,6 +7,8 @@ import useUpdateScope from "Features/scopes/hooks/useUpdateScope";
 import { setSelectedScopeId } from "../scopesSlice";
 import { setSelectedListingId } from "Features/listings/listingsSlice";
 
+import db from "App/db/db";
+
 import {
     List,
     ListItemText,
@@ -37,15 +39,15 @@ export default function SectionScopeSelectorVariantList({ onSelect }) {
 
     // --- Handlers ---
 
-    function handleSelect(id) {
+    async function handleSelect(id) {
         if (editingScopeId === id) return;
 
         dispatch(setSelectedScopeId(id));
-        const scope = scopes.find(s => s.id === id);
-        const listings = scope?.sortedListings;
-
-        const id0 = listings?.[0]?.id;
-        console.log("debug_3012 [scope] selected listing", id0);
+        const scopeListings = await db.listings
+            .where("scopeId")
+            .equals(id)
+            .toArray();
+        const id0 = scopeListings?.[0]?.id;
         dispatch(setSelectedListingId(id0));
 
         if (onSelect) onSelect();

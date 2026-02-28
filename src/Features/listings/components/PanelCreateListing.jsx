@@ -5,7 +5,6 @@ import { useSelector, useDispatch } from "react-redux";
 import { setSelectedListingId } from "../listingsSlice";
 
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
-import useAddListingToScope from "Features/scopes/hooks/useAddListingToScope";
 import useCreateListing from "Features/listings/hooks/useCreateListing";
 import useListings from "Features/listings/hooks/useListings";
 
@@ -31,7 +30,6 @@ export default function PanelCreateListing({
   // data
 
   const { value: scope } = useSelectedScope();
-  const addListingToScope = useAddListingToScope();
   const createListing = useCreateListing();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const listings = useListings({ filterByProjectId: projectId });
@@ -57,16 +55,7 @@ export default function PanelCreateListing({
 
     // create listing
     const _newListing = await createListing({ listing: newListing, scope });
-    // add listing to scope
-    if (scope) {
-      await addListingToScope({
-        listingId: _newListing.id,
-        listingTable: _newListing.table,
-        scope,
-      });
-    }
 
-    //
     dispatch(setSelectedListingId(_newListing.id));
     if (onListingCreated) onListingCreated(_newListing);
   }
