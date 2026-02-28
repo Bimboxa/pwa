@@ -70,6 +70,9 @@ export default function useCreateListings() {
         projectId,
         ...(scope?.id ? { scopeId: scope.id } : {}),
         ...(processedMetadata ? { metadata: processedMetadata } : {}),
+        ...(listing?.entityModel?.type
+          ? { entityModelType: listing.entityModel.type }
+          : {}),
         createdBy,
       });
     }
