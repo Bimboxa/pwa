@@ -30,7 +30,9 @@ export default function useListings(options) {
 
   // enrich with files from Dexie (only when withFiles is true)
 
-  const listingsIds = listings?.map((l) => l.id).sort().join(",") ?? "";
+  const listingsIds = withFiles
+    ? listings?.map((l) => l.id).sort().join(",") ?? ""
+    : "";
 
   const enrichedListings = useLiveQuery(async () => {
     if (!withFiles || !listings?.length) return null;
