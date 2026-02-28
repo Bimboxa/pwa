@@ -6,7 +6,7 @@ import { setSelectedListingId, setOpenedPanel } from "../listingsSlice";
 
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useCreateListingsFromPresetListingsKeys from "../hooks/useCreateListingsFromPresetListingsKeys";
-import useCreateListing from "../hooks/useCreateListing";
+import useCreateListings from "../hooks/useCreateListings";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import { Box, Typography } from "@mui/material";
@@ -35,7 +35,7 @@ export default function PanelCreateListingsV3({ onListingCreated }) {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const { value: scope } = useSelectedScope();
   const createListingsFromPresets = useCreateListingsFromPresetListingsKeys();
-  const createListing = useCreateListing();
+  const createListings = useCreateListings();
 
   // state
 
@@ -92,7 +92,7 @@ export default function PanelCreateListingsV3({ onListingCreated }) {
       newListing.entityModelKey = newListing.entityModel?.key;
     }
 
-    const _newListing = await createListing({ listing: newListing, scope });
+    const [_newListing] = await createListings({ listings: [newListing], scope });
 
     dispatch(setSelectedListingId(_newListing.id));
     dispatch(setOpenedPanel("LISTING"));

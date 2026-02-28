@@ -8,7 +8,7 @@ import useResolvedPresetListings from "../hooks/useResolvedPresetListings"
 import useAppConfig from "Features/appConfig/hooks/useAppConfig"
 
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope"
-import useCreateListing from "../hooks/useCreateListing"
+import useCreateListings from "../hooks/useCreateListings"
 
 import { Box, Typography } from "@mui/material"
 import { ArrowForward as Next } from "@mui/icons-material"
@@ -39,7 +39,7 @@ export default function PanelCreateListingV2({ onListingCreated }) {
     const projectId = useSelector(s => s.projects.selectedProjectId)
     const presetListings = useResolvedPresetListings();
     const { value: scope } = useSelectedScope();
-    const createListing = useCreateListing();
+    const createListings = useCreateListings();
 
     // state
 
@@ -101,7 +101,7 @@ export default function PanelCreateListingV2({ onListingCreated }) {
 
 
         // create listing
-        const _newListing = await createListing({ listing: newListing, scope });
+        const [_newListing] = await createListings({ listings: [newListing], scope });
 
         dispatch(setSelectedListingId(_newListing.id));
         dispatch(setOpenedPanel("LISTING"))

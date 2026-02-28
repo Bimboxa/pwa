@@ -29,7 +29,7 @@ import resolvePresetScopeListings from "../services/resolvePresetScopeListings";
 import resolvePresetScopeEntities from "../services/resolvePresetScopeEntities";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
-import useCreateListing from "Features/listings/hooks/useCreateListing";
+import useCreateListings from "Features/listings/hooks/useCreateListings";
 
 export default function SectionCreateScope() {
   const dispatch = useDispatch();
@@ -52,7 +52,7 @@ export default function SectionCreateScope() {
   const defaultBaseMapsListingProps = useDefaultBaseMapsListingProps();
 
   const createScope = useCreateScope();
-  const createListing = useCreateListing();
+  const createListings = useCreateListings();
   const createPortfolio = useCreatePortfolio();
   const createPortfolioPage = useCreatePortfolioPage();
 
@@ -96,9 +96,9 @@ export default function SectionCreateScope() {
       // baseMaps listing
 
       if (!baseMapsListings || baseMapsListings?.length === 0) {
-        const baseMapsListing = await createListing({
-          listing: { ...defaultBaseMapsListingProps, projectId, canCreateItem: true },
-          scope
+        const [baseMapsListing] = await createListings({
+          listings: [{ ...defaultBaseMapsListingProps, projectId, canCreateItem: true }],
+          scope,
         });
         console.log("debug_25_09 [baseMapsListing] created baseMapsListing", baseMapsListing);
         dispatch(setSelectedBaseMapsListingId(baseMapsListing?.id));

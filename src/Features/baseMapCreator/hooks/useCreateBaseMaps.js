@@ -4,7 +4,7 @@ import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice"
 
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
-import useCreateListing from "Features/listings/hooks/useCreateListing";
+import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
 
 export default function useCreateBaseMaps() {
@@ -15,7 +15,7 @@ export default function useCreateBaseMaps() {
     const projectId = useSelector((s) => s.projects.selectedProjectId);
     const projectBaseMapListings = useProjectBaseMapListings();
     const createEntity = useCreateEntity();
-    const createListing = useCreateListing();
+    const createListings = useCreateListings();
     const defaultProps = useDefaultBaseMapsListingProps();
 
     return async (baseMaps) => {
@@ -25,9 +25,10 @@ export default function useCreateBaseMaps() {
         if (!listing) {
             console.error("ERROR - No baseMap listing found => create new listing");
             // create baseMaps listing
-            listing = await createListing({
-                listing: { ...defaultProps, projectId },
+            const [created] = await createListings({
+                listings: [{ ...defaultProps, projectId }],
             });
+            listing = created;
             dispatch(setSelectedBaseMapsListingId(listing?.id));
         }
 

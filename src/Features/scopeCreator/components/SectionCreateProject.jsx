@@ -6,7 +6,7 @@ import { setStepKey, setSelectedProjectId } from "../scopeCreatorSlice";
 import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
 
 import useCreateProject from "Features/projects/hooks/useCreateProject";
-import useCreateListing from "Features/listings/hooks/useCreateListing";
+import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import { Box } from "@mui/material";
@@ -31,7 +31,7 @@ export default function SectionCreateProject() {
   const appConfig = useAppConfig();
   const createProject = useCreateProject();
   const defaultProps = useDefaultBaseMapsListingProps();
-  const createListing = useCreateListing();
+  const createListings = useCreateListings();
 
   // state
 
@@ -51,8 +51,8 @@ export default function SectionCreateProject() {
       dispatch(setSelectedProjectId(project.id));
 
       // create baseMaps listing
-      const baseMapsListing = await createListing({
-        listing: { ...defaultProps, projectId: project.id },
+      const [baseMapsListing] = await createListings({
+        listings: [{ ...defaultProps, projectId: project.id }],
       });
       dispatch(setSelectedBaseMapsListingId(baseMapsListing?.id));
 
