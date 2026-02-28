@@ -13,7 +13,7 @@ export default function useProjectBaseMapListings(options) {
 
   // main
 
-  const listings = useListings({
+  const {value: listings} = useListings({
     filterByProjectId: projectId ?? _projectId,
     filterByEntityModelType: "BASE_MAP",
   });

@@ -8,7 +8,7 @@ export default function useAutoShowPanelSelectorPresetListings() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   //const scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
-  const listings = useListings({
+  const {value: listings} = useListings({
     filterByProjectId: projectId,
     filterByEntityModelType: "LOCATED_ENTITY",
     //filterByScopeId: scopeId,

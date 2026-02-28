@@ -8,7 +8,7 @@ import useListings from "Features/listings/hooks/useListings";
 export default function useAutoOpenPanelListingsConfig() {
   const dispatch = useDispatch();
   const {value: scope} = useSelectedScope();
-  const listings = useListings({filterByScopeId: scope?.id});
+  const {value: listings} = useListings({filterByScopeId: scope?.id});
 
   useEffect(() => {
     const shouldOpen = !listings?.length > 0;

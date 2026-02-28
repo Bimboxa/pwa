@@ -13,7 +13,7 @@ import HeaderListing from "./HeaderListing";
 export default function PanelListingProperties({ listing, onSaved }) {
     // 1. Data & Hooks
     const projectId = useSelector((s) => s.projects.selectedProjectId);
-    const listings = useListings({ filterByProjectId: projectId });
+    const {value: listings} = useListings({ filterByProjectId: projectId });
     const updateListing = useUpdateListing();
     const entityModel = useListingEntityModel(listing);
 

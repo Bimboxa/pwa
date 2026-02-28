@@ -32,7 +32,7 @@ export default function PanelCreateListing({
   const { value: scope } = useSelectedScope();
   const createListings = useCreateListings();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const listings = useListings({ filterByProjectId: projectId });
+  const {value: listings} = useListings({ filterByProjectId: projectId });
 
   // state
 

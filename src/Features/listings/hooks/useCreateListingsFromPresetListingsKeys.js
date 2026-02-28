@@ -9,7 +9,7 @@ export default function useCreateListingsFromPresetListingsKeys() {
 
   const createListings = useCreateListings();
   const filterByProjectId = useSelector((s) => s.projects.selectedProjectId);
-  const projectListings = useListings({ filterByProjectId });
+  const {value: projectListings} = useListings({ filterByProjectId });
   const projectListingsKeys = projectListings?.map((l) => l.key);
 
   const resolvedPresetListings = useResolvedPresetListings();

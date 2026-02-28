@@ -1,114 +1,72 @@
+import { useMemo } from "react";
+import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
-import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import db from "App/db/db";
-import testObjectHasProp from "Features/misc/utils/testObjectHasProp";
+import { getListingsSelector } from "../services/listingsSelectorCache";
+import getObjectHash from "Features/misc/utils/getObjectHash";
 
 export default function useListings(options) {
   // options
 
-  const filterByProjectId = options?.filterByProjectId;
-  const filterByScopeId = options?.filterByScopeId;
-
-  const filterByEntityModelType = options?.filterByEntityModelType;
-  const relsZoneEntityListings = options?.relsZoneEntityListings;
-
-  const includeListingsWithoutScope = options?.includeListingsWithoutScope;
   const withFiles = options?.withFiles;
 
+  // selector options (everything except Dexie-only options)
 
-  // data
+  const selectorOptions = useMemo(() => {
+    if (!options) return {};
+    const { withFiles: _wf, ...rest } = options;
+    return rest;
+  }, [getObjectHash(options)]);
 
-  const appConfig = useAppConfig();
+  const selector = useMemo(
+    () => getListingsSelector(selectorOptions),
+    [getObjectHash(selectorOptions)]
+  );
 
-  // main
+  // data from Redux (fast, memoized)
 
-  const listings = useLiveQuery(async () => {
-    // edge case
+  const listings = useSelector((s) => selector(s));
 
-    if (!appConfig) return;
+  // enrich with files from Dexie (only when withFiles is true)
 
-    // main
+  const listingsIds = listings?.map((l) => l.id).sort().join(",") ?? "";
 
-    let _listings;
+  const enrichedListings = useLiveQuery(async () => {
+    if (!withFiles || !listings?.length) return null;
 
-    if (filterByProjectId) {
-      _listings = (await db.listings
-        .where("projectId")
-        .equals(filterByProjectId)
-        .toArray()).filter(r => !r.deletedAt);
-    } else {
-      _listings = (await db.listings.toArray()).filter(r => !r.deletedAt);
-    }
+    return Promise.all(
+      listings.map(async (listing) => {
+        if (!listing.metadata) return listing;
 
-    // add entityModel (fallback for listings created before entityModel was stored)
-
-    _listings = _listings?.map((_listing) => {
-      if (_listing.entityModel) return _listing;
-      const entityModel =
-        appConfig?.entityModelsObject?.[_listing?.entityModelKey] ?? null;
-      return entityModel ? { ..._listing, entityModel } : _listing;
-    });
-
-    if (filterByScopeId) {
-      _listings = _listings.filter((listing) => {
-        const test = testObjectHasProp(listing, "scopeId");
-        const isLocatedEntities =
-          listing.entityModel?.type === "LOCATED_ENTITY";
-        return (
-          (!test && !isLocatedEntities) ||
-          (!listing.scopeId && includeListingsWithoutScope) ||
-          (test && listing.scopeId === filterByScopeId)
+        const entriesWithFiles = Object.entries(listing.metadata).filter(
+          ([, value]) => value?.fileName
         );
-      });
-    }
+        if (entriesWithFiles.length === 0) return listing;
 
-    // filter by entityModelType
-    if (filterByEntityModelType) {
-      _listings = _listings.filter(
-        (l) => l.entityModel?.type === filterByEntityModelType
-      );
-    }
+        const processedMetadata = { ...listing.metadata };
+        await Promise.all(
+          entriesWithFiles.map(async ([key, value]) => {
+            const file = await db.files.get(value.fileName);
+            if (file && file.fileArrayBuffer) {
+              processedMetadata[key] = {
+                ...value,
+                file,
+                fileUrlClient: URL.createObjectURL(
+                  new Blob([file.fileArrayBuffer], { type: file.fileMime })
+                ),
+              };
+            }
+          })
+        );
+        return { ...listing, metadata: processedMetadata };
+      })
+    );
+  }, [withFiles, listingsIds]);
 
-    // keep relsZoneEntityListings
-    if (relsZoneEntityListings) {
-      _listings = _listings.filter((listing) => {
-        return Boolean(listing.entityModel?.relsZoneEntity);
-      });
-    }
+  // result
 
-    // load metadata files
-    if (withFiles) {
-      _listings = await Promise.all(
-        _listings.map(async (listing) => {
-          if (!listing.metadata) return listing;
-          const entriesWithFiles = Object.entries(listing.metadata).filter(
-            ([, value]) => value?.fileName
-          );
-          if (entriesWithFiles.length === 0) return listing;
+  const value = withFiles && enrichedListings ? enrichedListings : listings;
 
-          const processedMetadata = { ...listing.metadata };
-          await Promise.all(
-            entriesWithFiles.map(async ([key, value]) => {
-              const file = await db.files.get(value.fileName);
-              if (file && file.fileArrayBuffer) {
-                processedMetadata[key] = {
-                  ...value,
-                  file,
-                  fileUrlClient: URL.createObjectURL(
-                    new Blob([file.fileArrayBuffer], { type: file.fileMime })
-                  ),
-                };
-              }
-            })
-          );
-          return { ...listing, metadata: processedMetadata };
-        })
-      );
-    }
-
-    return _listings;
-  }, [appConfig, filterByProjectId, filterByScopeId, filterByEntityModelType, relsZoneEntityListings, withFiles]);
-
-  return listings;
+  return { value, loading: false };
 }

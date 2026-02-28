@@ -110,17 +110,47 @@ resolvePresetListings({ projectId, scopeId, appConfig, presetListingsKeys })
 
 ## Reading listings
 
-Listings are read from Dexie via hooks:
+### Architecture
 
-- **`useListings`** — Live query with filters (project, scope, entityModelType)
-- **`useListingById`** — Single listing by id
-- **`useListingsByScope`** — Redux selector-based, filtered by current scope
-- **`useSelectedListing`** — Currently selected listing
+- **Redux** (`listingsSlice`) is the primary read source — fast, memoized via reselect
+- **Dexie** (IndexedDB) is used only when `withFiles: true` to enrich listings with file data from `db.files`
+- The Dexie → Redux sync is automatic (live query subscription in `dexieSyncService`)
 
 All read hooks include a backward-compatible fallback: if `listing.entityModel` is not stored (old data), it is resolved from `entityModelKey` via appConfig.
+
+### Hooks
+
+- **`useListings(options)`** — Main hook. Uses a Redux selector for fast access. When `withFiles: true`, enriches results with file blobs from Dexie. Returns `{ value, loading }`.
+- **`useListingsByScope(options)`** — Thin wrapper over `useListings`. Adds `filterByScopeId: selectedScopeId` from Redux state.
+- **`useListingById(id)`** — Single listing by id (Dexie live query).
+- **`useSelectedListing()`** — Returns the listing matching `selectedListingId` from Redux. Uses `useListingById`.
+
+### useListings options
+
+| Option | Description |
+|---|---|
+| `filterByProjectId` | Filter by project id |
+| `filterByScopeId` | Filter by scope id (BASE_MAP listings are always included) |
+| `filterByKeys` | Filter by listing keys |
+| `filterByListingsIds` | Filter by listing ids |
+| `filterByEntityModelType` | Filter by `entityModel.type` |
+| `relsZoneEntityListings` | Only listings with `entityModel.relsZoneEntity` |
+| `baseMapsOnly` | Only BASE_MAP listings |
+| `withFiles` | Enrich metadata with file blobs from Dexie |
+
+### Scope filtering logic
+
+When `filterByScopeId` is set, listings are filtered to include:
+- Listings whose `scopeId` matches the filter value
+- **BASE_MAP** listings (shared across all scopes, regardless of their `scopeId`)
+
+### Selector
+
+The Redux selector (`makeGetListingsByOptions` in `listingsSelectors.js`) is cached per options hash via `listingsSelectorCache.js`. It reads from `state.listings.listingsById` and applies all filter options.
 
 ## State management
 
 - **Dexie** (IndexedDB) — Source of truth. Listings are stored in the `listings` table
 - **Redux** (`listingsSlice`) — Synced mirror via `dexieSyncService`. Stores `listingsById` for selector-based access
 - The Dexie → Redux sync is automatic (live query subscription in `dexieSyncService`)
+- **Read path**: Redux (fast, memoized) → optionally enriched with Dexie file data

@@ -19,6 +19,8 @@ export const makeGetListingsByOptions = (options) =>
       const filterByScopeId = options?.filterByScopeId;
       const filterByKeys = options?.filterByKeys;
       const filterByListingsIds = options?.filterByListingsIds;
+      const filterByEntityModelType = options?.filterByEntityModelType;
+      const relsZoneEntityListings = options?.relsZoneEntityListings;
       const baseMapsOnly = options?.baseMapsOnly;
 
       // edge case
@@ -42,14 +44,20 @@ export const makeGetListingsByOptions = (options) =>
         return entityModel ? { ...listing, entityModel } : listing;
       });
 
+      // scope filter: shared (BASE_MAP) + scoped listings
       if (filterByScopeId) {
-        const sharedListings = listings.filter((l) =>
-          ["BASE_MAP", "BLUEPRINT"].includes(l?.entityModel?.type)
+        listings = listings.filter(
+          (l) =>
+            l?.entityModel?.type === "BASE_MAP" ||
+            l.scopeId === filterByScopeId
         );
-        const scopedListings = listings.filter(
-          (l) => l.scopeId === filterByScopeId
+      }
+
+      // filter by entity model type
+      if (filterByEntityModelType) {
+        listings = listings.filter(
+          (l) => l?.entityModel?.type === filterByEntityModelType
         );
-        listings = [...sharedListings, ...scopedListings];
       }
 
       // filter
@@ -58,6 +66,12 @@ export const makeGetListingsByOptions = (options) =>
       }
       if (filterByListingsIds) {
         listings = listings?.filter((l) => filterByListingsIds.includes(l?.id));
+      }
+
+      if (relsZoneEntityListings) {
+        listings = listings.filter((l) =>
+          Boolean(l?.entityModel?.relsZoneEntity)
+        );
       }
 
       if (baseMapsOnly) {
