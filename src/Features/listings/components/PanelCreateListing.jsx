@@ -51,8 +51,6 @@ export default function PanelCreateListing({
       entityModelKey: tempListing?.entityModel?.key,
       table: tempListing?.entityModel?.defaultTable,
     };
-    if (newListing.entityModel) delete newListing.entityModel;
-
     // create listing
     const [_newListing] = await createListings({ listings: [newListing], scope });
 

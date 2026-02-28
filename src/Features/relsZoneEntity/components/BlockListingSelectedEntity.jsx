@@ -15,8 +15,8 @@ export default function BlockListingSelectedEntity() {
 
   // data
 
-  const {value: listing} = useSelectedListing({withEntityModel: true});
-  const {value: listings} = useListingsByScope({withEntityModel: true});
+  const {value: listing} = useSelectedListing();
+  const {value: listings} = useListingsByScope();
 
   const selectedEntity = useSelector((s) => s.relsZoneEntity.selectedEntity);
 

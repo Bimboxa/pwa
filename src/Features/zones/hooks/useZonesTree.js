@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 
 import { useSelector } from "react-redux";
-import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
@@ -14,26 +13,15 @@ export default function useZonesTree() {
   const [zonesListing, setZonesListing] = useState(null);
 
   const zonesUpdatedAt = useSelector((s) => s.zones.zonesUpdatedAt);
-  const appConfig = useAppConfig();
-
-  function getZonesListing(listings) {
-    const listingsWithEntityModel = listings.map((listing) => {
-      const entityModel =
-        appConfig?.entityModelsObject?.[listing?.entityModelKey] ?? null;
-      return { ...listing, entityModel };
-    });
-
-    const listing = listingsWithEntityModel.find(
-      (l) => l.entityModel?.type === "ZONE_ENTITY"
-    );
-    setZonesListing(listing);
-  }
 
   const { value: listings, loading: loadingListings } = useListingsByScope();
 
   useEffect(() => {
     if (listings) {
-      getZonesListing(listings);
+      const listing = listings.find(
+        (l) => l.entityModel?.type === "ZONE_ENTITY"
+      );
+      setZonesListing(listing);
     }
   }, [listings]);
 

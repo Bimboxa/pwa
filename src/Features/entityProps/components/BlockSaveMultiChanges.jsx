@@ -17,7 +17,7 @@ export default function BlockSaveMultiChanges() {
 
   // data
 
-  const {value: listing} = useSelectedListing({withEntityModel: true});
+  const {value: listing} = useSelectedListing();
   const selection = useSelector((s) => s.entityProps.selection);
   const {value: entitiesWithProps} = useEntitiesWithProps();
 

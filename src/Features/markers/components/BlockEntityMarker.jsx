@@ -19,7 +19,7 @@ export default function BlockEntityMarker({ top, right }) {
   // data
 
   const entity = useEntity();
-  const { value: listing } = useSelectedListing({ withEntityModel: true });
+  const { value: listing } = useSelectedListing();
 
   // data - func
 

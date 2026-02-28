@@ -12,7 +12,6 @@ export default function useBaseMaps(options) {
 
   const { value: listings } = useListingsByScope({
     baseMapsOnly: true,
-    withEntityModel: true,
   });
 
   // helpers

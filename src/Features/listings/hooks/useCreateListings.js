@@ -2,6 +2,7 @@ import db from "App/db/db";
 import { nanoid } from "@reduxjs/toolkit";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useCreateRemoteListings from "Features/sync/hooks/useCreateRemoteListings";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotationTemplatesFromLibrary from "Features/annotations/hooks/useCreateAnnotationTemplatesFromLibrary";
@@ -12,6 +13,7 @@ import getEntityPureDataAndFilesDataByKey from "Features/entities/utils/getEntit
 
 export default function useCreateListings() {
   const { value: createdBy } = useUserEmail();
+  const appConfig = useAppConfig();
 
   const createRemoteListings = useCreateRemoteListings();
   const createEntity = useCreateEntity();
@@ -64,15 +66,19 @@ export default function useCreateListings() {
         );
       }
 
+      // resolve entityModel from entityModelKey if not already set
+      const entityModel =
+        listing?.entityModel ??
+        appConfig?.entityModelsObject?.[listing?.entityModelKey] ??
+        null;
+
       listingsClean.push({
         ...listing,
         id: listingId,
         projectId,
         ...(scope?.id ? { scopeId: scope.id } : {}),
         ...(processedMetadata ? { metadata: processedMetadata } : {}),
-        ...(listing?.entityModel?.type
-          ? { entityModelType: listing.entityModel.type }
-          : {}),
+        ...(entityModel ? { entityModel } : {}),
         createdBy,
       });
     }

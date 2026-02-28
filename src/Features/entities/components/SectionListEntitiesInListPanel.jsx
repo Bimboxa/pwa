@@ -36,7 +36,7 @@ export default function SectionListEntitiesInListPanel() {
 
   const isMobile = useIsMobile();
 
-  const { value: listing } = useSelectedListing({ withEntityModel: true });
+  const { value: listing } = useSelectedListing();
 
   console.log("debug_1011_listing", listing);
 

@@ -24,7 +24,7 @@ export default function BlockEntityInPanel() {
   // data
 
   const entity = useEntity();
-  const { value: listing } = useSelectedListing({ withEntityModel: true });
+  const { value: listing } = useSelectedListing();
 
   //const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
   const openPanelListItem = true;

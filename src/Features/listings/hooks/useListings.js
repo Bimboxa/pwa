@@ -41,13 +41,13 @@ export default function useListings(options) {
       _listings = (await db.listings.toArray()).filter(r => !r.deletedAt);
     }
 
-    // add entityModel
+    // add entityModel (fallback for listings created before entityModel was stored)
 
     _listings = _listings?.map((_listing) => {
+      if (_listing.entityModel) return _listing;
       const entityModel =
         appConfig?.entityModelsObject?.[_listing?.entityModelKey] ?? null;
-
-      return { ..._listing, entityModel };
+      return entityModel ? { ..._listing, entityModel } : _listing;
     });
 
     if (filterByScopeId) {

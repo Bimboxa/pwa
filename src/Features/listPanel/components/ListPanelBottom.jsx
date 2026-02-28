@@ -8,7 +8,7 @@ import BlockBottomActionsInPanel from "Features/entityProps/components/BlockBott
 export default function ListPanelBottom() {
   // data
 
-  const { value: listing } = useSelectedListing({ withEntityModel: true });
+  const { value: listing } = useSelectedListing();
   const entityModel = listing?.entityModel;
 
   // helper

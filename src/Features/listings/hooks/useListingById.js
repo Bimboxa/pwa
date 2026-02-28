@@ -18,8 +18,11 @@ export default function useListingById(id, options) {
     if (id) {
       const _listing = await db.listings.get(id);
 
+      // fallback for listings created before entityModel was stored
       const entityModel =
-        appConfig?.entityModelsObject?.[_listing?.entityModelKey] ?? null;
+        _listing?.entityModel ??
+        appConfig?.entityModelsObject?.[_listing?.entityModelKey] ??
+        null;
 
       const result = { ..._listing, entityModel };
 

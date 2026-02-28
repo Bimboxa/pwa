@@ -20,7 +20,7 @@ export default function useEntityFormTemplate(options) {
   const entityTemplateUpdatedAt = useSelector(
     (s) => s.entities.entityTemplateUpdatedAt
   );
-  const { value: _listing } = useSelectedListing({ withEntityModel: true });
+  const { value: _listing } = useSelectedListing();
   const appConfig = useAppConfig();
   listing = listing || _listing;
 

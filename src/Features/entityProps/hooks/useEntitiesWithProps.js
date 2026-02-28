@@ -12,7 +12,7 @@ export default function useEntitiesWithProps() {
   const [loading, setLoading] = useState(false);
   const [propsByEntityId, setPropsByEntityId] = useState({});
 
-  const {value: listing} = useSelectedListing({withEntityModel: true});
+  const {value: listing} = useSelectedListing();
   const targetKeys = listing?.targetKeys ?? [];
 
   const {value: entities} = useEntities({filterByListingsKeys: targetKeys});

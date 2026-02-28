@@ -10,7 +10,7 @@ import useDeleteEntityProps from "../hooks/useDeleteEntityProps";
 export default function SectionActionsEntityPropsVariantSingle() {
   // data
 
-  const {value: listing} = useSelectedListing({withEntityModel: true});
+  const {value: listing} = useSelectedListing();
   const entityWithProps = useSelectedEntityWithProps();
 
   const createOrUpdate = useCreateOrUpdateEntityProps();

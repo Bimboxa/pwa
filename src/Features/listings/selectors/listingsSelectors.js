@@ -17,7 +17,6 @@ export const makeGetListingsByOptions = (options) =>
 
       const filterByProjectId = options?.filterByProjectId;
       const filterByScopeId = options?.filterByScopeId;
-      const withEntityModel = options?.withEntityModel;
       const filterByKeys = options?.filterByKeys;
       const filterByListingsIds = options?.filterByListingsIds;
       const baseMapsOnly = options?.baseMapsOnly;
@@ -31,17 +30,16 @@ export const makeGetListingsByOptions = (options) =>
       let listings = Object.values(listingsById ?? {}) ?? [];
 
       const test = testObjectHasProp(options, "filterByProjectId");
-      console.log("debug_2409_test", test, options);
       if (test) {
         listings = listings.filter((l) => l.projectId === filterByProjectId);
       }
 
-      // add entity model
+      // add entity model (fallback for listings created before entityModel was stored)
       listings = listings?.map((listing) => {
-        return {
-          ...listing,
-          entityModel: entityModelsObject?.[listing?.entityModelKey] ?? null,
-        };
+        if (listing.entityModel) return listing;
+        const entityModel =
+          entityModelsObject?.[listing?.entityModelKey] ?? null;
+        return entityModel ? { ...listing, entityModel } : listing;
       });
 
       if (filterByScopeId) {
@@ -53,7 +51,6 @@ export const makeGetListingsByOptions = (options) =>
         );
         listings = [...sharedListings, ...scopedListings];
       }
-      console.log("listings1", filterByScopeId, listings);
 
       // filter
       if (filterByKeys) {
@@ -61,16 +58,6 @@ export const makeGetListingsByOptions = (options) =>
       }
       if (filterByListingsIds) {
         listings = listings?.filter((l) => filterByListingsIds.includes(l?.id));
-      }
-
-      // relations. Need entityModel for baseMapsOnly
-      if (withEntityModel || baseMapsOnly) {
-        listings = listings?.map((listing) => {
-          return {
-            ...listing,
-            entityModel: entityModelsObject?.[listing?.entityModelKey] ?? null,
-          };
-        });
       }
 
       if (baseMapsOnly) {

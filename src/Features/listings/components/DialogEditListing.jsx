@@ -21,9 +21,7 @@ export default function DialogEditListing({ open, onClose, listing }) {
 
   // data
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const { value: selectedListing } = useSelectedListing({
-    withEntityModel: true,
-  });
+  const { value: selectedListing } = useSelectedListing();
   const listings = useListings({ filterByProjectId: projectId });
 
   // data - func

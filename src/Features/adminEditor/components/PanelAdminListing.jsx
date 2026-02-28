@@ -25,9 +25,11 @@ export default function PanelAdminListing() {
     if (!selectedListingId) return null;
     const l = await db.listings.get(selectedListingId);
     if (!l || l.deletedAt) return null;
+    if (l.entityModel) return l;
+    // fallback for listings created before entityModel was stored
     const entityModel =
       appConfig?.entityModelsObject?.[l?.entityModelKey] ?? null;
-    return { ...l, entityModel };
+    return entityModel ? { ...l, entityModel } : l;
   }, [selectedListingId, appConfig]);
 
   const update = useUpdateListing();

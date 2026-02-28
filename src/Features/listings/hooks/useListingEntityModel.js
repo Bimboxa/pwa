@@ -5,5 +5,9 @@ export default function useListingEntityModel(listing) {
 
   const appConfig = useAppConfig();
 
-  return appConfig?.entityModelsObject?.[listing?.entityModelKey] ?? null;
+  return (
+    listing?.entityModel ??
+    appConfig?.entityModelsObject?.[listing?.entityModelKey] ??
+    null
+  );
 }
