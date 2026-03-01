@@ -1,27 +1,25 @@
-import { useLiveQuery } from "dexie-react-hooks";
+import { useMemo } from "react";
 
-import db from "App/db/db";
+import useListings from "Features/listings/hooks/useListings";
 
 export default function usePortfolios(options) {
   const scopeId = options?.filterByScopeId;
 
-  const portfolios = useLiveQuery(async () => {
-    if (!scopeId) return [];
-    const records = await db.listings.toArray();
-    return records
-      .filter(
-        (r) =>
-          !r.deletedAt &&
-          r.entityModelKey === "portfolioPage" &&
-          r.scopeId === scopeId
-      )
-      .sort((a, b) => {
-        if (a.sortIndex == null && b.sortIndex == null) return 0;
-        if (a.sortIndex == null) return -1;
-        if (b.sortIndex == null) return 1;
-        return a.sortIndex < b.sortIndex ? -1 : 1;
-      });
-  }, [scopeId]);
+  const { value: listings } = useListings({
+    filterByScopeId: scopeId,
+    filterByEntityModelType: "PORTFOLIO_PAGE",
+    withFiles: options?.withFiles,
+  });
 
-  return { value: portfolios };
+  const sorted = useMemo(() => {
+    if (!listings?.length) return listings;
+    return [...listings].sort((a, b) => {
+      if (a.sortIndex == null && b.sortIndex == null) return 0;
+      if (a.sortIndex == null) return -1;
+      if (b.sortIndex == null) return 1;
+      return a.sortIndex < b.sortIndex ? -1 : 1;
+    });
+  }, [listings]);
+
+  return { value: sorted };
 }
