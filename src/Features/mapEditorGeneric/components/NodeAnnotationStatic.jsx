@@ -6,6 +6,7 @@ import NodeLabelStatic from "./NodeLabelStatic";
 import NodeImageStatic from "./NodeImageStatic";
 import NodePointStatic from "./NodePointStatic";
 import NodeRectangleStatic from "./NodeRectangleStatic";
+import computeWrapperBbox from "Features/mapEditor/utils/computeWrapperBbox";
 
 export default function NodeAnnotationStatic({
   annotation,
@@ -49,6 +50,17 @@ export default function NodeAnnotationStatic({
     highlightConnectedSegments,
   };
 
+  // Rotation wrapper for point-based types
+  const wrapWithRotation = (element) => {
+    const rotation = annotation.rotation;
+    if (!rotation) return element;
+    const bbox = computeWrapperBbox([annotation]);
+    if (!bbox) return element;
+    const cx = bbox.x + bbox.width / 2;
+    const cy = bbox.y + bbox.height / 2;
+    return <g transform={`rotate(${rotation}, ${cx}, ${cy})`}>{element}</g>;
+  };
+
   switch (annotation.type) {
     case "MARKER":
       return <NodeMarkerStatic {...props} marker={annotation} />;
@@ -57,13 +69,13 @@ export default function NodeAnnotationStatic({
       return <NodePointStatic {...props} annotation={annotation} />;
 
     case "POLYGON":
-      return <NodePolylineStatic {...props} annotation={annotation} />;
+      return wrapWithRotation(<NodePolylineStatic {...props} annotation={annotation} />);
 
     case "POLYLINE":
-      return <NodePolylineStatic {...props} annotation={annotation} />;
+      return wrapWithRotation(<NodePolylineStatic {...props} annotation={annotation} />);
 
     case "STRIP":
-      return <NodeStripStatic {...props} annotation={annotation} />;
+      return wrapWithRotation(<NodeStripStatic {...props} annotation={annotation} />);
 
     case "TEXT":
       return <NodeTextStatic {...props} text={annotation} />;

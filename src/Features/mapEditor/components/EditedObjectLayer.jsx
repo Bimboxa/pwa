@@ -3,9 +3,13 @@ import { useSelector } from 'react-redux';
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
+import AnnotationEditingWrapper from "./AnnotationEditingWrapper";
+import computeWrapperBbox from "../utils/computeWrapperBbox";
 import theme from 'Styles/theme';
 import { selectSelectedItems, selectSelectedPointId, selectSelectedPartId } from "Features/selection/selectionSlice";
 import useSelectedNodes from '../hooks/useSelectedNodes';
+
+const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
 
 export default function EditedObjectLayer({
     basePose,
@@ -80,6 +84,19 @@ export default function EditedObjectLayer({
     // On filtre celles qui sont cachées (topology/segment split)
     const annotationsToRender = activeAnnotations.filter(a => !hiddenAnnotationIds.includes(a.id));
 
+    // Wrapper bbox for point-based annotations (POLYLINE, POLYGON, STRIP)
+    const pointBasedAnnotations = annotationsToRender.filter(a => POINT_BASED_TYPES.includes(a.type));
+    const showWrapper = pointBasedAnnotations.length > 0 && (selectedNode || selectedNodes?.length > 0) && !selectedPointId;
+    const wrapperBbox = useMemo(() => {
+        if (!showWrapper) return null;
+        return computeWrapperBbox(pointBasedAnnotations);
+    }, [showWrapper, pointBasedAnnotations.map(a => a.id).join(",")]);
+
+    const isWrapperDragged = showWrapper && (
+        !!getPendingMove("wrapper") ||
+        pointBasedAnnotations.some(a => !!getPendingMove(a.id))
+    );
+
     if (annotationsToRender.length === 0) return null;
 
     return (
@@ -88,6 +105,16 @@ export default function EditedObjectLayer({
             style={{ pointerEvents: 'auto' }}
             transform={`translate(${finalPose.x}, ${finalPose.y}) scale(${finalPose.k})`}
         >
+            {/* Annotation Editing Wrapper for point-based types */}
+            {showWrapper && wrapperBbox && (
+                <AnnotationEditingWrapper
+                    bbox={wrapperBbox}
+                    containerK={finalPose.k}
+                    annotationIds={pointBasedAnnotations.map(a => a.id)}
+                    dragged={isWrapperDragged}
+                />
+            )}
+
             {annotationsToRender.map(annotation => {
 
                 // Style spécifique pour chaque annotation

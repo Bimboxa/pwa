@@ -12,6 +12,7 @@ import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
 import { setTempAnnotationToolbarPosition } from "Features/mapEditor/mapEditorSlice";
 import { setBgImageRawTextAnnotations } from "Features/bgImage/bgImageSlice";
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
+import { selectSelectedItems } from "Features/selection/selectionSlice";
 
 import useMeasure from "react-use-measure";
 
@@ -67,6 +68,9 @@ import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getA
 import deletePointAsync from "../services/deletePointAsync";
 import duplicateAndMovePoint from "../services/duplicateAndMovePoint";
 import toggleAnnotationPointType from "../services/toggleAnnotationPointType";
+import commitWrapperTransform from "../services/commitWrapperTransform";
+import computeWrapperBbox from "../utils/computeWrapperBbox";
+import applyWrapperTransformToPoints from "../utils/applyWrapperTransformToPoints";
 import removeCutAsync from "../services/removeCutAsync";
 import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -127,6 +131,7 @@ export default function MainMapEditorV3() {
 
     // Selection from new Redux slice
     const { nodes: selectedNodes, node: selectedNode } = useSelectedNodes();
+    const selectedItems = useSelector(selectSelectedItems);
 
     const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
     const grayLevelThreshold = useSelector((s) => s.baseMapEditor.grayLevelThreshold);
@@ -533,6 +538,50 @@ export default function MainMapEditorV3() {
     const handleAnnotationMoveCommit = async (annotationId, deltaPos, partType, localPos) => {
         const imageSize = baseMap?.image?.imageSize;
         if (!imageSize) return;
+
+        // WRAPPER (group transform for point-based annotations)
+        if (annotationId === "wrapper") {
+            const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
+            const wrapperAnnotationIds = selectedItems
+                .filter(item => item.type === "NODE" && POINT_BASED_TYPES.includes(item.nodeType))
+                .map(item => item.nodeId);
+            const wrapperAnnotations = annotations?.filter(a => wrapperAnnotationIds.includes(a.id)) ?? [];
+            if (wrapperAnnotations.length === 0) return;
+
+            const wrapperBbox = computeWrapperBbox(wrapperAnnotations);
+            if (!wrapperBbox) return;
+
+            // For ROTATE: store rotation angle, don't move points
+            if (partType === "ROTATE") {
+                const rotationDelta = deltaPos.x;
+                await commitWrapperTransform({
+                    selectedAnnotationIds: wrapperAnnotationIds,
+                    allAnnotations: annotations,
+                    pointUpdates: new Map(),
+                    imageSize,
+                    rotationDelta,
+                });
+            } else {
+                // MOVE or RESIZE: compute new point positions
+                const pointUpdates = applyWrapperTransformToPoints({
+                    annotations: wrapperAnnotations,
+                    wrapperBbox,
+                    deltaPos,
+                    partType,
+                });
+
+                await commitWrapperTransform({
+                    selectedAnnotationIds: wrapperAnnotationIds,
+                    allAnnotations: annotations,
+                    pointUpdates,
+                    imageSize,
+                    rotationDelta: null,
+                });
+            }
+
+            dispatch(triggerAnnotationsUpdate());
+            return;
+        }
 
         // LABEL
         if (annotationId.startsWith("label::")) {

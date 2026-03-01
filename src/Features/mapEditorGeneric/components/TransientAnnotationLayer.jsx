@@ -7,13 +7,14 @@ export default function TransientAnnotationLayer({
     annotation,
     deltaPos,
     partType,
+    wrapperBbox,
     baseMapMeterByPx,
     basePose,
 }) {
 
     const modifiedAnnotation = useMemo(() => {
-        return applyDeltaPosToAnnotation(annotation, deltaPos, partType);
-    }, [annotation?.id, deltaPos, partType]);
+        return applyDeltaPosToAnnotation(annotation, deltaPos, partType, wrapperBbox);
+    }, [annotation?.id, deltaPos, partType, wrapperBbox]);
 
     if (!annotation) return null;
 
