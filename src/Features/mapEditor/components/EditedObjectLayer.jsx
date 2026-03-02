@@ -171,12 +171,12 @@ export default function EditedObjectLayer({
             })}
 
             {/* Annotation Editing Wrapper — rendered on top of annotations */}
-            {showWrapper && wrapperBbox && (
+            {/* Hidden during drag (transient wrapper is rendered by InteractionLayer) */}
+            {showWrapper && wrapperBbox && !isWrapperDragged && (
                 <AnnotationEditingWrapper
                     bbox={wrapperBbox}
                     containerK={finalPose.k}
                     annotationIds={pointBasedAnnotations.map(a => a.id)}
-                    dragged={isWrapperDragged}
                 />
             )}
         </g>

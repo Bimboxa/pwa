@@ -543,7 +543,7 @@ export default function MainMapEditorV3() {
         if (annotationId === "wrapper") {
             const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
             const wrapperAnnotationIds = selectedItems
-                .filter(item => item.type === "NODE" && POINT_BASED_TYPES.includes(item.nodeType))
+                .filter(item => item.type === "NODE" && POINT_BASED_TYPES.includes(item.annotationType))
                 .map(item => item.nodeId);
             const wrapperAnnotations = annotations?.filter(a => wrapperAnnotationIds.includes(a.id)) ?? [];
             if (wrapperAnnotations.length === 0) return;

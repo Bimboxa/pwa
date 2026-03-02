@@ -50,6 +50,8 @@ import DropZoneLayer from 'Features/mapEditorGeneric/components/DropZoneLayer';
 
 import TransientDetectedShapeLayer from 'Features/mapEditorGeneric/components/TransientDetectedShapeLayer';
 import computeWrapperBbox from '../utils/computeWrapperBbox';
+import AnnotationEditingWrapper from './AnnotationEditingWrapper';
+import applyDeltaPosToAnnotation from 'Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation';
 
 import ClosingMarker from 'Features/mapEditorGeneric/components/ClosingMarker';
 import HelperScale from 'Features/mapEditorGeneric/components/HelperScale';
@@ -2098,21 +2100,54 @@ const InteractionLayer = forwardRef(({
 
         {/* --- Overlay optimiste : visible pendant le drag ET en attente de convergence DB --- */}
         {(() => {
-          // Wrapper mode: render all wrapped annotations with transform
+          // Wrapper mode: active drag OR convergence (pending moves remain after mouseUp)
+          const POINT_BASED_TYPES_T = ["POLYLINE", "POLYGON", "STRIP"];
+
+          // Resolve wrapper annotation IDs from drag state or from pending moves
+          let wrapperAnnIds = null;
+          let deltaPos = null;
+          let partType = null;
+          let wrapperBbox = null;
+
           if (dragAnnotationState?.isWrapper && dragAnnotationState?.wrapperAnnotationIds) {
-            const isActive = dragAnnotationState.active;
-            if (!isActive) {
-              // Check pending moves for wrapper annotations
-              const hasPending = dragAnnotationState.wrapperAnnotationIds.some(id => !!getPendingMove(id));
-              if (!hasPending) return null;
+            // Active drag
+            wrapperAnnIds = dragAnnotationState.wrapperAnnotationIds;
+            deltaPos = dragAnnotationState.deltaPos ?? { x: 0, y: 0 };
+            partType = dragAnnotationState.partType;
+            wrapperBbox = dragAnnotationState.wrapperBbox;
+
+            if (!dragAnnotationState.active) {
+              const hasPending = wrapperAnnIds.some(id => !!getPendingMove(id));
+              if (!hasPending) wrapperAnnIds = null;
             }
-            const deltaPos = dragAnnotationState.deltaPos ?? { x: 0, y: 0 };
-            const partType = dragAnnotationState.partType;
-            const wrapperBbox = dragAnnotationState.wrapperBbox;
+          } else if (!dragAnnotationState) {
+            // Convergence phase: dragAnnotationState is null but pending moves remain
+            const candidateIds = selectedItems
+              .filter(item => item.type === "NODE" && POINT_BASED_TYPES_T.includes(item.annotationType))
+              .map(item => item.nodeId);
+
+            if (candidateIds.length > 0) {
+              const firstPending = getPendingMove(candidateIds[0]);
+              if (firstPending?.wrapperBbox) {
+                wrapperAnnIds = candidateIds;
+                deltaPos = firstPending.deltaPos;
+                partType = firstPending.partType;
+                wrapperBbox = firstPending.wrapperBbox;
+              }
+            }
+          }
+
+          if (wrapperAnnIds) {
+            // Compute the transformed wrapper bbox from transformed annotations
+            const transformedAnnotations = wrapperAnnIds
+              .map(annId => annotations?.find(a => a.id === annId))
+              .filter(Boolean)
+              .map(ann => applyDeltaPosToAnnotation(ann, deltaPos, partType, wrapperBbox));
+            const transientWrapperBbox = computeWrapperBbox(transformedAnnotations);
 
             return (
               <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
-                {dragAnnotationState.wrapperAnnotationIds.map(annId => {
+                {wrapperAnnIds.map(annId => {
                   const ann = annotations?.find(a => a.id === annId);
                   if (!ann) return null;
                   return (
@@ -2127,6 +2162,13 @@ const InteractionLayer = forwardRef(({
                     />
                   );
                 })}
+                {transientWrapperBbox && (
+                  <AnnotationEditingWrapper
+                    bbox={transientWrapperBbox}
+                    containerK={targetPose.k}
+                    dragged={true}
+                  />
+                )}
               </g>
             );
           }
@@ -2135,14 +2177,14 @@ const InteractionLayer = forwardRef(({
           const pendingMove = getPendingMove(selectedAnnotation?.id);
           const isActive = dragAnnotationState?.active || pendingMove;
           if (!isActive) return null;
-          const deltaPos = dragAnnotationState?.deltaPos ?? pendingMove?.deltaPos;
-          const partType = dragAnnotationState?.partType ?? pendingMove?.partType;
+          const singleDeltaPos = dragAnnotationState?.deltaPos ?? pendingMove?.deltaPos;
+          const singlePartType = dragAnnotationState?.partType ?? pendingMove?.partType;
           return (
             <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
               <TransientAnnotationLayer
                 annotation={selectedAnnotation}
-                deltaPos={deltaPos}
-                partType={partType}
+                deltaPos={singleDeltaPos}
+                partType={singlePartType}
                 basePose={targetPose}
                 baseMapMeterByPx={baseMapMeterByPx}
               />
