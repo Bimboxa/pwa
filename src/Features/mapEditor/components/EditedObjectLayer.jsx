@@ -9,6 +9,8 @@ import theme from 'Styles/theme';
 import { selectSelectedItems, selectSelectedPointId, selectSelectedPartId } from "Features/selection/selectionSlice";
 import useSelectedNodes from '../hooks/useSelectedNodes';
 
+const selectWrapperMode = (state) => state.mapEditor.wrapperMode;
+
 const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
 
 export default function EditedObjectLayer({
@@ -25,6 +27,7 @@ export default function EditedObjectLayer({
     const selectedItems = useSelector(selectSelectedItems);
     const selectedPointId = useSelector(selectSelectedPointId);
     const selectedPartId = useSelector(selectSelectedPartId);
+    const wrapperMode = useSelector(selectWrapperMode);
 
     // Compat with existing logic
     const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
@@ -86,7 +89,10 @@ export default function EditedObjectLayer({
 
     // Wrapper bbox for point-based annotations (POLYLINE, POLYGON, STRIP)
     const pointBasedAnnotations = annotationsToRender.filter(a => POINT_BASED_TYPES.includes(a.type));
-    const showWrapper = pointBasedAnnotations.length > 0 && (selectedNode || selectedNodes?.length > 0) && !selectedPointId;
+    const isMultiSelection = selectedNodes?.length > 0;
+    const showWrapper = pointBasedAnnotations.length > 0 &&
+        (isMultiSelection || (selectedNode && wrapperMode)) &&
+        !selectedPointId;
 
     // Extract cumulative rotation and rotation center (all annotations in the wrapper share the same values)
     const wrapperRotation = (() => {

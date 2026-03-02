@@ -33,6 +33,7 @@ const mapEditorInitialState = {
   selectedNodes: [], // Array of {id,nodeType,annotationType,entityId}
   editedNode: null, // {id,nodeType,annotationType,entityId}
   canTransformNode: false, // boolean
+  wrapperMode: false, // true = show bbox wrapper for point-based annotations
   annotationToolbarPosition: null,
   annotationsToolbarPosition: null,
   tempAnnotationToolbarPosition: null,
@@ -165,9 +166,14 @@ export const mapEditorSlice = createSlice({
       state.legendFormat = action.payload;
     },
 
+    // Wrapper mode
+    setWrapperMode: (state, action) => {
+      state.wrapperMode = action.payload;
+    },
     // Nodes
     setSelectedNode: (state, action) => {
       state.selectedNode = action.payload;
+      state.wrapperMode = false;
     },
     setSelectedNodes: (state, action) => {
       state.selectedNodes = action.payload;
@@ -334,6 +340,7 @@ export const {
   setBaseMapGrayScale,
   setBaseMapOpacity,
   //
+  setWrapperMode,
   setSelectedNode,
   setSelectedNodes,
   addSelectedNodes,

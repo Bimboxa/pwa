@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setEditedAnnotation } from "../annotationsSlice";
 
-import { setCanTransformNode } from "Features/mapEditor/mapEditorSlice";
+import { setCanTransformNode, setWrapperMode } from "Features/mapEditor/mapEditorSlice";
 
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
@@ -12,7 +12,7 @@ import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 
 import { Box, IconButton, Paper } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import { MoreHoriz as More } from "@mui/icons-material";
+import { MoreHoriz as More, OpenWith as OpenWithIcon } from "@mui/icons-material";
 
 import FieldAnnotationEntityLabel from "./FieldAnnotationEntityLabel";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
@@ -38,6 +38,7 @@ export default function ToolbarEditAnnotation() {
 
   const selectedAnnotation = useSelectedAnnotation();
   const canTransformNode = useSelector((s) => s.mapEditor.canTransformNode);
+  const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
 
   console.log("selectedAnnotation", selectedAnnotation);
 
@@ -49,12 +50,14 @@ export default function ToolbarEditAnnotation() {
   // helpers - show
 
   const showCloseLine = selectedAnnotation?.type === "POLYLINE";
+  const showMoveButton = ["POLYGON", "POLYLINE", "STRIP"].includes(type);
 
   // useEffect
 
   useEffect(() => {
     return () => {
       dispatch(setCanTransformNode(false));
+      dispatch(setWrapperMode(false));
     };
   }, []);
 
@@ -66,6 +69,9 @@ export default function ToolbarEditAnnotation() {
 
   function handleCanTransformChange() {
     dispatch(setCanTransformNode(!canTransformNode));
+  }
+  function handleToggleWrapperMode() {
+    dispatch(setWrapperMode(!wrapperMode));
   }
   async function handleChange(newAnnotation) {
     await updateAnnotation(newAnnotation);
@@ -131,6 +137,16 @@ export default function ToolbarEditAnnotation() {
       {type === "RECTANGLE" && <Box sx={{ display: "flex", alignItems: "center" }}>
         <IconButtonAnnotationBboxSize annotation={selectedAnnotation} />
       </Box>}
+
+      {showMoveButton && (
+        <IconButton
+          onClick={handleToggleWrapperMode}
+          size="small"
+          sx={{ color: wrapperMode ? "primary.main" : "inherit" }}
+        >
+          <OpenWithIcon fontSize="small" />
+        </IconButton>
+      )}
 
       <IconButtonToggleAnnotationShowLabel annotation={selectedAnnotation} />
 
