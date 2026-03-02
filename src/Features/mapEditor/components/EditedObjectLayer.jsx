@@ -87,10 +87,18 @@ export default function EditedObjectLayer({
     // Wrapper bbox for point-based annotations (POLYLINE, POLYGON, STRIP)
     const pointBasedAnnotations = annotationsToRender.filter(a => POINT_BASED_TYPES.includes(a.type));
     const showWrapper = pointBasedAnnotations.length > 0 && (selectedNode || selectedNodes?.length > 0) && !selectedPointId;
+
+    // Extract cumulative rotation (all annotations in the wrapper share the same value)
+    const wrapperRotation = (() => {
+        if (pointBasedAnnotations.length === 0) return 0;
+        const first = pointBasedAnnotations[0].rotation ?? 0;
+        return pointBasedAnnotations.every(a => (a.rotation ?? 0) === first) ? first : 0;
+    })();
+
     const wrapperBbox = useMemo(() => {
         if (!showWrapper) return null;
-        return computeWrapperBbox(pointBasedAnnotations);
-    }, [showWrapper, pointBasedAnnotations.map(a => a.id).join(","), pendingMovesVersion]);
+        return computeWrapperBbox(pointBasedAnnotations, wrapperRotation);
+    }, [showWrapper, pointBasedAnnotations.map(a => a.id).join(","), pendingMovesVersion, wrapperRotation]);
 
     const isWrapperDragged = showWrapper && (
         !!getPendingMove("wrapper") ||
@@ -177,6 +185,7 @@ export default function EditedObjectLayer({
                     bbox={wrapperBbox}
                     containerK={finalPose.k}
                     annotationIds={pointBasedAnnotations.map(a => a.id)}
+                    rotation={wrapperRotation}
                 />
             )}
         </g>

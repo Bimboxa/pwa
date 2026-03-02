@@ -2,17 +2,19 @@
  * Compute the unified bounding box from one or more annotations' resolved points.
  * Points must already be in pixel coordinates (not normalized).
  *
+ * When a non-zero rotation is provided, points are un-rotated around their
+ * centroid first so the returned bbox represents the "canonical" (unrotated)
+ * shape. The caller is expected to apply the rotation visually (SVG transform).
+ *
  * @param {Array} annotations - Annotations with resolved .points [{id, x, y, ...}]
+ * @param {number} [rotation=0] - Cumulative rotation in degrees to factor out
  * @returns {{ x: number, y: number, width: number, height: number } | null}
  */
-export default function computeWrapperBbox(annotations) {
+export default function computeWrapperBbox(annotations, rotation = 0) {
   if (!annotations?.length) return null;
 
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  let hasPoints = false;
+  // 1. Collect all points
+  const allPoints = [];
 
   for (const annotation of annotations) {
     const pointSources = [annotation.points];
@@ -26,16 +28,45 @@ export default function computeWrapperBbox(annotations) {
       if (!points) continue;
       for (const pt of points) {
         if (pt.x == null || pt.y == null) continue;
-        hasPoints = true;
-        if (pt.x < minX) minX = pt.x;
-        if (pt.y < minY) minY = pt.y;
-        if (pt.x > maxX) maxX = pt.x;
-        if (pt.y > maxY) maxY = pt.y;
+        allPoints.push(pt);
       }
     }
   }
 
-  if (!hasPoints) return null;
+  if (allPoints.length === 0) return null;
+
+  // 2. If rotation is non-zero, un-rotate points around their centroid
+  let points = allPoints;
+
+  if (rotation !== 0) {
+    let sumX = 0, sumY = 0;
+    for (const pt of allPoints) { sumX += pt.x; sumY += pt.y; }
+    const cx = sumX / allPoints.length;
+    const cy = sumY / allPoints.length;
+
+    const rad = (-rotation * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+
+    points = allPoints.map(pt => {
+      const dx = pt.x - cx;
+      const dy = pt.y - cy;
+      return {
+        x: cx + dx * cos - dy * sin,
+        y: cy + dx * sin + dy * cos,
+      };
+    });
+  }
+
+  // 3. Compute axis-aligned bbox
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+  for (const pt of points) {
+    if (pt.x < minX) minX = pt.x;
+    if (pt.y < minY) minY = pt.y;
+    if (pt.x > maxX) maxX = pt.x;
+    if (pt.y > maxY) maxY = pt.y;
+  }
 
   return {
     x: minX,
