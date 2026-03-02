@@ -26,7 +26,6 @@ import BaseMapSelectorPopover from "./BaseMapSelectorPopover";
 import PortfolioHeaderSvg from "./PortfolioHeaderSvg";
 import SectionCreateBaseMapFullscreen from "Features/mapEditor/components/SectionCreateBaseMapFullscreen";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
-import SectionPortfolioPageArticles from "./SectionPortfolioPageArticles";
 
 import getPageDimensions from "../utils/getPageDimensions";
 import computeContentArea from "../utils/computeContentArea";
@@ -367,8 +366,6 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
           />
         </Box>
       )}
-
-      <SectionPortfolioPageArticles pageId={page.id} />
 
       {creatingContainerId && (
         <Box

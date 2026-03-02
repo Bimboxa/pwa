@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import { Fragment, useRef, useState, useCallback, useEffect, useMemo } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -15,6 +15,7 @@ import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfol
 import getPageDimensions from "../utils/getPageDimensions";
 
 import PortfolioPageSvg from "./PortfolioPageSvg";
+import SectionPortfolioPageArticles from "./SectionPortfolioPageArticles";
 import ButtonAddPage from "./ButtonAddPage";
 
 export default function PortfolioEditorViewport() {
@@ -128,13 +129,15 @@ export default function PortfolioEditorViewport() {
           }}
         >
           {pages?.map((page, index) => (
-            <PortfolioPageSvg
-              key={page.id}
-              page={page}
-              pageIndex={index}
-              totalPages={pages.length}
-              zoom={zoom}
-            />
+            <Fragment key={page.id}>
+              <PortfolioPageSvg
+                page={page}
+                pageIndex={index}
+                totalPages={pages.length}
+                zoom={zoom}
+              />
+              <SectionPortfolioPageArticles pageId={page.id} />
+            </Fragment>
           ))}
 
           <ButtonAddPage onClick={handleAddPage} />
