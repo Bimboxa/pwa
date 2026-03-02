@@ -162,8 +162,9 @@ export default function EditedObjectLayer({
                             spriteImage={spriteImage}
                             baseMapMeterByPx={baseMapMeterByPx}
 
-                            // On active le mode "selected" pour voir les vertices
-                            selected={isNodeSelected}
+                            // When wrapper is active, hide vertices on point-based annotations
+                            // (the wrapper handles replace them)
+                            selected={isNodeSelected && !(showWrapper && POINT_BASED_TYPES.includes(annotation.type))}
 
                             sizeVariant="FIXED_IN_SCREEN"
                             containerK={finalPose.k}
