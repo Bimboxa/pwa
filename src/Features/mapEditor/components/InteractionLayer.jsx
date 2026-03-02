@@ -2138,12 +2138,22 @@ const InteractionLayer = forwardRef(({
           }
 
           if (wrapperAnnIds) {
-            // Compute the transformed wrapper bbox from transformed annotations
-            const transformedAnnotations = wrapperAnnIds
-              .map(annId => annotations?.find(a => a.id === annId))
-              .filter(Boolean)
-              .map(ann => applyDeltaPosToAnnotation(ann, deltaPos, partType, wrapperBbox));
-            const transientWrapperBbox = computeWrapperBbox(transformedAnnotations);
+            // For rotation, keep the original bbox and apply a visual rotation transform.
+            // For other transforms, compute the bbox from transformed points.
+            const isRotation = partType === "ROTATE";
+            let transientWrapperBbox;
+            let wrapperRotation = 0;
+
+            if (isRotation && wrapperBbox) {
+              transientWrapperBbox = wrapperBbox;
+              wrapperRotation = deltaPos?.x ?? 0;
+            } else {
+              const transformedAnnotations = wrapperAnnIds
+                .map(annId => annotations?.find(a => a.id === annId))
+                .filter(Boolean)
+                .map(ann => applyDeltaPosToAnnotation(ann, deltaPos, partType, wrapperBbox));
+              transientWrapperBbox = computeWrapperBbox(transformedAnnotations);
+            }
 
             return (
               <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
@@ -2167,6 +2177,7 @@ const InteractionLayer = forwardRef(({
                     bbox={transientWrapperBbox}
                     containerK={targetPose.k}
                     dragged={true}
+                    rotation={wrapperRotation}
                   />
                 )}
               </g>

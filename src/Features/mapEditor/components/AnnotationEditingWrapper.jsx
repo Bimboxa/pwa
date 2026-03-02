@@ -11,6 +11,7 @@ export default function AnnotationEditingWrapper({
   containerK = 1,
   annotationIds,
   dragged,
+  rotation = 0,
 }) {
   // data
 
@@ -92,7 +93,7 @@ export default function AnnotationEditingWrapper({
   if (width == null || height == null) return null;
 
   return (
-    <g transform={`translate(${x || 0}, ${y || 0})`}>
+    <g transform={`translate(${x || 0}, ${y || 0}) rotate(${rotation}, ${cx}, ${cy})`}>
       {/* Draggable body (invisible hit area) */}
       <rect
         x={0}
