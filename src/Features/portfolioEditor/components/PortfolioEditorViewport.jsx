@@ -15,8 +15,8 @@ import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfol
 import getPageDimensions from "../utils/getPageDimensions";
 
 import PortfolioPageSvg from "./PortfolioPageSvg";
+import SectionPortfolioPageArticles from "./SectionPortfolioPageArticles";
 import ButtonAddPage from "./ButtonAddPage";
-import SectionPortfolioPageArticles from "Features/articles/utils/components/SectionPortfolioPageArticles";
 
 export default function PortfolioEditorViewport() {
   const dispatch = useDispatch();
@@ -139,7 +139,7 @@ export default function PortfolioEditorViewport() {
                   zoom={zoom}
                 />
                 <Box sx={{ width: dims.width }}>
-                  <SectionPortfolioPageArticles page={page} />
+                  <SectionPortfolioPageArticles pageId={page.id} />
                 </Box>
               </Box>
             );
