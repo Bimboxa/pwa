@@ -90,7 +90,7 @@ export default function EditedObjectLayer({
     const wrapperBbox = useMemo(() => {
         if (!showWrapper) return null;
         return computeWrapperBbox(pointBasedAnnotations);
-    }, [showWrapper, pointBasedAnnotations.map(a => a.id).join(",")]);
+    }, [showWrapper, pointBasedAnnotations.map(a => a.id).join(","), pendingMovesVersion]);
 
     const isWrapperDragged = showWrapper && (
         !!getPendingMove("wrapper") ||
