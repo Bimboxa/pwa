@@ -56,6 +56,8 @@ export default function ToolbarEditAnnotation() {
   const showCloseLine = selectedAnnotation?.type === "POLYLINE";
   const showMoveButton = ["POLYGON", "POLYLINE", "STRIP"].includes(type);
 
+  console.log("showMoveButton", showMoveButton, type, selectedAnnotation)
+
   // useEffect
 
   useEffect(() => {
