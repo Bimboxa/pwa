@@ -59,11 +59,12 @@ export default function ToolbarEditAnnotation() {
   // useEffect
 
   useEffect(() => {
+    dispatch(setWrapperMode(false));
     return () => {
       dispatch(setCanTransformNode(false));
       dispatch(setWrapperMode(false));
     };
-  }, []);
+  }, [selectedAnnotation?.id]);
 
   // handler
 
