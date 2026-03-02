@@ -571,6 +571,7 @@ export default function MainMapEditorV3() {
                 rotationDelta: partType === "ROTATE" ? deltaPos.x : null,
                 wrapperBbox,
                 moveDelta: (!partType || partType === "MOVE") ? deltaPos : null,
+                isResize: partType?.startsWith("RESIZE_"),
             });
 
             dispatch(triggerAnnotationsUpdate());

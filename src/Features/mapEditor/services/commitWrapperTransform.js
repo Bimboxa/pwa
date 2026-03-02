@@ -15,6 +15,7 @@ import { nanoid } from "@reduxjs/toolkit";
  * @param {{ width: number, height: number }} params.imageSize
  * @param {number|null} params.rotationDelta - Rotation delta for ROTATE (degrees), null otherwise
  * @param {{ x: number, y: number }|null} params.moveDelta - Pixel delta for MOVE (to translate rotationCenter), null otherwise
+ * @param {boolean} [params.isResize] - True when the transform is a RESIZE (clears rotation metadata)
  */
 export default async function commitWrapperTransform({
   selectedAnnotationIds,
@@ -24,6 +25,7 @@ export default async function commitWrapperTransform({
   rotationDelta,
   wrapperBbox,
   moveDelta,
+  isResize,
 }) {
   if (!selectedAnnotationIds?.length || !allAnnotations?.length || !imageSize) return;
 
@@ -183,6 +185,23 @@ export default async function commitWrapperTransform({
               x: (ann.rotationCenter.x + moveDelta.x) / imageSize.width,
               y: (ann.rotationCenter.y + moveDelta.y) / imageSize.height,
             },
+          })
+        );
+      }
+    }
+
+    // 4f. Clear rotation metadata on RESIZE
+    // Resize scales points in the axis-aligned space, which "bakes in" the
+    // prior rotation. The old rotation/rotationCenter no longer describe the
+    // geometry, so we reset them so the next rotation starts fresh.
+    if (isResize) {
+      for (const annId of selectedAnnotationIds) {
+        const ann = allAnnotations.find((a) => a.id === annId);
+        if (!ann?.rotation && !ann?.rotationCenter) continue;
+        ops.push(
+          db.annotations.update(annId, {
+            rotation: 0,
+            rotationCenter: null,
           })
         );
       }
