@@ -551,33 +551,20 @@ export default function MainMapEditorV3() {
             const wrapperBbox = computeWrapperBbox(wrapperAnnotations);
             if (!wrapperBbox) return;
 
-            // For ROTATE: store rotation angle, don't move points
-            if (partType === "ROTATE") {
-                const rotationDelta = deltaPos.x;
-                await commitWrapperTransform({
-                    selectedAnnotationIds: wrapperAnnotationIds,
-                    allAnnotations: annotations,
-                    pointUpdates: new Map(),
-                    imageSize,
-                    rotationDelta,
-                });
-            } else {
-                // MOVE or RESIZE: compute new point positions
-                const pointUpdates = applyWrapperTransformToPoints({
-                    annotations: wrapperAnnotations,
-                    wrapperBbox,
-                    deltaPos,
-                    partType,
-                });
+            const pointUpdates = applyWrapperTransformToPoints({
+                annotations: wrapperAnnotations,
+                wrapperBbox,
+                deltaPos,
+                partType,
+            });
 
-                await commitWrapperTransform({
-                    selectedAnnotationIds: wrapperAnnotationIds,
-                    allAnnotations: annotations,
-                    pointUpdates,
-                    imageSize,
-                    rotationDelta: null,
-                });
-            }
+            await commitWrapperTransform({
+                selectedAnnotationIds: wrapperAnnotationIds,
+                allAnnotations: annotations,
+                pointUpdates,
+                imageSize,
+                rotationDelta: partType === "ROTATE" ? deltaPos.x : null,
+            });
 
             dispatch(triggerAnnotationsUpdate());
             return;

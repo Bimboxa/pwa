@@ -1,17 +1,16 @@
 /**
- * Compute new point positions after a wrapper transform (move, resize).
+ * Compute new point positions after a wrapper transform (move, resize, rotate).
  * Points are in pixel coordinates. Returns a Map of pointId → { x, y }.
  *
  * For MOVE: translates all points by deltaPos.
  * For RESIZE: scales points relative to the opposite corner of the resize handle.
- *
- * Rotation is NOT applied to points (stored as angle on annotation).
+ * For ROTATE: rotates all points around the wrapper bbox center by deltaPos.x degrees.
  *
  * @param {Object} params
  * @param {Array} params.annotations - Annotations with resolved .points [{id, x, y, ...}]
  * @param {{ x: number, y: number, width: number, height: number }} params.wrapperBbox - Original wrapper bbox (pixel coords)
- * @param {{ x: number, y: number }} params.deltaPos - Delta in pixels
- * @param {string|null} params.partType - null for move, "RESIZE_SE", "RESIZE_NW", etc.
+ * @param {{ x: number, y: number }} params.deltaPos - Delta in pixels (for ROTATE: x = angle in degrees)
+ * @param {string|null} params.partType - null for move, "RESIZE_SE", "RESIZE_NW", "ROTATE", etc.
  * @returns {Map<string, { x: number, y: number }>} pointId → new pixel position
  */
 export default function applyWrapperTransformToPoints({
@@ -47,6 +46,27 @@ export default function applyWrapperTransformToPoints({
       pointUpdates.set(id, {
         x: pt.x + deltaPos.x,
         y: pt.y + deltaPos.y,
+      });
+    }
+    return pointUpdates;
+  }
+
+  // ROTATE
+  if (partType === "ROTATE") {
+    const { x: bx, y: by, width: bw, height: bh } = wrapperBbox;
+    const centerX = bx + bw / 2;
+    const centerY = by + bh / 2;
+    const angleDeg = deltaPos.x;
+    const angleRad = (angleDeg * Math.PI) / 180;
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
+
+    for (const [id, pt] of allPoints) {
+      const dx = pt.x - centerX;
+      const dy = pt.y - centerY;
+      pointUpdates.set(id, {
+        x: centerX + dx * cos - dy * sin,
+        y: centerY + dx * sin + dy * cos,
       });
     }
     return pointUpdates;
