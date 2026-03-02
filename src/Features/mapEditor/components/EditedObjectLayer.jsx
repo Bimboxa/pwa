@@ -195,6 +195,7 @@ export default function EditedObjectLayer({
                     containerK={finalPose.k}
                     annotationIds={pointBasedAnnotations.map(a => a.id)}
                     rotation={effectiveRotation}
+                    rotationCenter={canUnrotate ? wrapperRotationCenter : undefined}
                 />
             )}
         </g>

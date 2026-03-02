@@ -12,6 +12,7 @@ export default function AnnotationEditingWrapper({
   annotationIds,
   dragged,
   rotation = 0,
+  rotationCenter,
 }) {
   // data
 
@@ -24,8 +25,10 @@ export default function AnnotationEditingWrapper({
     return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
   }, [containerK]);
 
-  const cx = width / 2;
-  const cy = height / 2;
+  // If rotationCenter is provided (e.g. from a group rotation), use it as pivot;
+  // otherwise default to the bbox's own center.
+  const cx = rotationCenter ? rotationCenter.x - x : width / 2;
+  const cy = rotationCenter ? rotationCenter.y - y : height / 2;
 
   const selectedColor = theme.palette.editor?.selected || "#00ff00";
 

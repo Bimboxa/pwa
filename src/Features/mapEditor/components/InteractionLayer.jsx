@@ -2151,6 +2151,7 @@ const InteractionLayer = forwardRef(({
             const isRotation = partType === "ROTATE";
             let transientWrapperBbox;
             let wrapperRotation = 0;
+            let wrapperRotationCenter = null;
 
             const cumulativeRotation = annotations?.find(a => a.id === wrapperAnnIds[0])?.rotation ?? 0;
             const existingCenter = annotations?.find(a => a.id === wrapperAnnIds[0])?.rotationCenter ?? null;
@@ -2158,6 +2159,7 @@ const InteractionLayer = forwardRef(({
             if (isRotation && wrapperBbox) {
               transientWrapperBbox = wrapperBbox;
               wrapperRotation = cumulativeRotation + (deltaPos?.x ?? 0);
+              wrapperRotationCenter = existingCenter;
             } else {
               const transformedAnnotations = wrapperAnnIds
                 .map(annId => annotations?.find(a => a.id === annId))
@@ -2174,6 +2176,7 @@ const InteractionLayer = forwardRef(({
                 };
                 transientWrapperBbox = computeWrapperBbox(transformedAnnotations, cumulativeRotation, translatedCenter);
                 wrapperRotation = cumulativeRotation;
+                wrapperRotationCenter = translatedCenter;
               } else {
                 transientWrapperBbox = computeWrapperBbox(transformedAnnotations);
               }
@@ -2202,6 +2205,7 @@ const InteractionLayer = forwardRef(({
                     containerK={targetPose.k}
                     dragged={true}
                     rotation={wrapperRotation}
+                    rotationCenter={wrapperRotationCenter}
                   />
                 )}
               </g>
