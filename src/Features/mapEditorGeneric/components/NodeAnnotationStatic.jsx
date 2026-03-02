@@ -6,7 +6,6 @@ import NodeLabelStatic from "./NodeLabelStatic";
 import NodeImageStatic from "./NodeImageStatic";
 import NodePointStatic from "./NodePointStatic";
 import NodeRectangleStatic from "./NodeRectangleStatic";
-import computeWrapperBbox from "Features/mapEditor/utils/computeWrapperBbox";
 
 export default function NodeAnnotationStatic({
   annotation,
@@ -50,16 +49,10 @@ export default function NodeAnnotationStatic({
     highlightConnectedSegments,
   };
 
-  // Rotation wrapper for point-based types
-  const wrapWithRotation = (element) => {
-    const rotation = annotation.rotation;
-    if (!rotation) return element;
-    const bbox = computeWrapperBbox([annotation]);
-    if (!bbox) return element;
-    const cx = bbox.x + bbox.width / 2;
-    const cy = bbox.y + bbox.height / 2;
-    return <g transform={`rotate(${rotation}, ${cx}, ${cy})`}>{element}</g>;
-  };
+  // Note: point-based types (POLYGON, POLYLINE, STRIP) store their points
+  // at the final rotated positions in the DB. The annotation.rotation field
+  // is metadata used only for wrapper bbox computation — no SVG rotation
+  // should be applied here (it would cause double rotation).
 
   switch (annotation.type) {
     case "MARKER":
@@ -69,13 +62,13 @@ export default function NodeAnnotationStatic({
       return <NodePointStatic {...props} annotation={annotation} />;
 
     case "POLYGON":
-      return wrapWithRotation(<NodePolylineStatic {...props} annotation={annotation} />);
+      return <NodePolylineStatic {...props} annotation={annotation} />;
 
     case "POLYLINE":
-      return wrapWithRotation(<NodePolylineStatic {...props} annotation={annotation} />);
+      return <NodePolylineStatic {...props} annotation={annotation} />;
 
     case "STRIP":
-      return wrapWithRotation(<NodeStripStatic {...props} annotation={annotation} />);
+      return <NodeStripStatic {...props} annotation={annotation} />;
 
     case "TEXT":
       return <NodeTextStatic {...props} text={annotation} />;
