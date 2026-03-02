@@ -3,7 +3,7 @@ import theme from "Styles/theme";
 
 const HANDLE_SIZE = 10;
 const HALF_HANDLE = HANDLE_SIZE / 2;
-const ROTATION_HANDLE_OFFSET = 30;
+const ROTATION_HANDLE_OFFSET = 50;
 const WRAPPER_NODE_ID = "wrapper";
 
 export default function AnnotationEditingWrapper({
