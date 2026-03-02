@@ -213,6 +213,15 @@ export default function useAnnotationsV2(options) {
 
                 }
 
+                // --- ROTATION CENTER (resolve to pixels) ---
+
+                if (_annotation.rotationCenter) {
+                    _annotation.rotationCenter = {
+                        x: _annotation.rotationCenter.x * width,
+                        y: _annotation.rotationCenter.y * height,
+                    };
+                }
+
                 // --- QTIES ---
 
                 if (withQties) {

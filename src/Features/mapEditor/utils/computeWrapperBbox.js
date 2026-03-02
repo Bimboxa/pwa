@@ -2,15 +2,17 @@
  * Compute the unified bounding box from one or more annotations' resolved points.
  * Points must already be in pixel coordinates (not normalized).
  *
- * When a non-zero rotation is provided, points are un-rotated around their
- * centroid first so the returned bbox represents the "canonical" (unrotated)
- * shape. The caller is expected to apply the rotation visually (SVG transform).
+ * When a non-zero rotation is provided, points are un-rotated around the
+ * given rotationCenter first so the returned bbox represents the "canonical"
+ * (unrotated) shape. The caller is expected to apply the rotation visually
+ * (SVG transform).
  *
  * @param {Array} annotations - Annotations with resolved .points [{id, x, y, ...}]
  * @param {number} [rotation=0] - Cumulative rotation in degrees to factor out
+ * @param {{ x: number, y: number }} [rotationCenter] - Center of rotation in pixel coords
  * @returns {{ x: number, y: number, width: number, height: number } | null}
  */
-export default function computeWrapperBbox(annotations, rotation = 0) {
+export default function computeWrapperBbox(annotations, rotation = 0, rotationCenter) {
   if (!annotations?.length) return null;
 
   // 1. Collect all points
@@ -35,15 +37,11 @@ export default function computeWrapperBbox(annotations, rotation = 0) {
 
   if (allPoints.length === 0) return null;
 
-  // 2. If rotation is non-zero, un-rotate points around their centroid
+  // 2. If rotation is non-zero, un-rotate points around the rotation center
   let points = allPoints;
 
-  if (rotation !== 0) {
-    let sumX = 0, sumY = 0;
-    for (const pt of allPoints) { sumX += pt.x; sumY += pt.y; }
-    const cx = sumX / allPoints.length;
-    const cy = sumY / allPoints.length;
-
+  if (rotation !== 0 && rotationCenter) {
+    const { x: cx, y: cy } = rotationCenter;
     const rad = (-rotation * Math.PI) / 180;
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);

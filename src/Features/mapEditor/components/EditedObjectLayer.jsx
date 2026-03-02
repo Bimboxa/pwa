@@ -88,17 +88,18 @@ export default function EditedObjectLayer({
     const pointBasedAnnotations = annotationsToRender.filter(a => POINT_BASED_TYPES.includes(a.type));
     const showWrapper = pointBasedAnnotations.length > 0 && (selectedNode || selectedNodes?.length > 0) && !selectedPointId;
 
-    // Extract cumulative rotation (all annotations in the wrapper share the same value)
+    // Extract cumulative rotation and rotation center (all annotations in the wrapper share the same values)
     const wrapperRotation = (() => {
         if (pointBasedAnnotations.length === 0) return 0;
         const first = pointBasedAnnotations[0].rotation ?? 0;
         return pointBasedAnnotations.every(a => (a.rotation ?? 0) === first) ? first : 0;
     })();
+    const wrapperRotationCenter = pointBasedAnnotations[0]?.rotationCenter ?? null;
 
     const wrapperBbox = useMemo(() => {
         if (!showWrapper) return null;
-        return computeWrapperBbox(pointBasedAnnotations, wrapperRotation);
-    }, [showWrapper, pointBasedAnnotations.map(a => a.id).join(","), pendingMovesVersion, wrapperRotation]);
+        return computeWrapperBbox(pointBasedAnnotations, wrapperRotation, wrapperRotationCenter);
+    }, [showWrapper, pointBasedAnnotations.map(a => a.id).join(","), pendingMovesVersion, wrapperRotation, wrapperRotationCenter?.x, wrapperRotationCenter?.y]);
 
     const isWrapperDragged = showWrapper && (
         !!getPendingMove("wrapper") ||

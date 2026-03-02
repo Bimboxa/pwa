@@ -1865,13 +1865,21 @@ const InteractionLayer = forwardRef(({
 
     // Helper: resolve wrapper info when nodeId is "wrapper"
     const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
-    const resolveWrapperInfo = (nodeId) => {
+    const resolveWrapperInfo = (nodeId, partType) => {
       if (nodeId !== "wrapper") return {};
       const wrapperAnnotationIds = selectedItems
         .filter(item => item.type === "NODE" && POINT_BASED_TYPES.includes(item.annotationType))
         .map(item => item.nodeId);
       const wrapperAnnotations = annotations?.filter(a => wrapperAnnotationIds.includes(a.id)) ?? [];
-      const wrapperBbox = computeWrapperBbox(wrapperAnnotations);
+
+      // For ROTATE with existing rotation, use canonical bbox (un-rotated around stored center)
+      // so the rotation pivot stays consistent across successive rotations.
+      const cumulativeRotation = wrapperAnnotations[0]?.rotation ?? 0;
+      const rotationCenter = wrapperAnnotations[0]?.rotationCenter ?? null;
+      const wrapperBbox = (partType === "ROTATE" && cumulativeRotation !== 0 && rotationCenter)
+        ? computeWrapperBbox(wrapperAnnotations, cumulativeRotation, rotationCenter)
+        : computeWrapperBbox(wrapperAnnotations);
+
       return { wrapperAnnotationIds, wrapperBbox };
     };
 
@@ -1886,7 +1894,7 @@ const InteractionLayer = forwardRef(({
         startMouseInLocal,
         partType: `RESIZE_${handleType}`,
         startMouseScreen: { x: e.clientX, y: e.clientY },
-        ...resolveWrapperInfo(nodeId),
+        ...resolveWrapperInfo(nodeId, `RESIZE_${handleType}`),
       });
       return;
     }
@@ -1902,7 +1910,7 @@ const InteractionLayer = forwardRef(({
         startMouseInLocal,
         partType: "ROTATE",
         startMouseScreen: { x: e.clientX, y: e.clientY },
-        ...resolveWrapperInfo(nodeId),
+        ...resolveWrapperInfo(nodeId, "ROTATE"),
       });
       return;
     }
@@ -1919,7 +1927,7 @@ const InteractionLayer = forwardRef(({
         partType,
         startMouseScreen: { x: e.clientX, y: e.clientY },
         nodeContext,
-        ...resolveWrapperInfo(nodeId),
+        ...resolveWrapperInfo(nodeId, partType),
       });
     }
 
@@ -2138,7 +2146,7 @@ const InteractionLayer = forwardRef(({
           }
 
           if (wrapperAnnIds) {
-            // For rotation, keep the original bbox and apply a visual rotation transform.
+            // For rotation, keep the canonical bbox and apply cumulative + delta rotation.
             // For other transforms, compute the bbox from transformed points.
             const isRotation = partType === "ROTATE";
             let transientWrapperBbox;
@@ -2146,7 +2154,8 @@ const InteractionLayer = forwardRef(({
 
             if (isRotation && wrapperBbox) {
               transientWrapperBbox = wrapperBbox;
-              wrapperRotation = deltaPos?.x ?? 0;
+              const cumulativeRotation = annotations?.find(a => a.id === wrapperAnnIds[0])?.rotation ?? 0;
+              wrapperRotation = cumulativeRotation + (deltaPos?.x ?? 0);
             } else {
               const transformedAnnotations = wrapperAnnIds
                 .map(annId => annotations?.find(a => a.id === annId))

@@ -548,7 +548,12 @@ export default function MainMapEditorV3() {
             const wrapperAnnotations = annotations?.filter(a => wrapperAnnotationIds.includes(a.id)) ?? [];
             if (wrapperAnnotations.length === 0) return;
 
-            const wrapperBbox = computeWrapperBbox(wrapperAnnotations);
+            // For ROTATE with existing rotation, use canonical bbox (consistent pivot)
+            const cumulativeRotation = wrapperAnnotations[0]?.rotation ?? 0;
+            const rotationCenter = wrapperAnnotations[0]?.rotationCenter ?? null;
+            const wrapperBbox = (partType === "ROTATE" && cumulativeRotation !== 0 && rotationCenter)
+                ? computeWrapperBbox(wrapperAnnotations, cumulativeRotation, rotationCenter)
+                : computeWrapperBbox(wrapperAnnotations);
             if (!wrapperBbox) return;
 
             const pointUpdates = applyWrapperTransformToPoints({
@@ -564,7 +569,20 @@ export default function MainMapEditorV3() {
                 pointUpdates,
                 imageSize,
                 rotationDelta: partType === "ROTATE" ? deltaPos.x : null,
+                wrapperBbox,
             });
+
+            // Update rotationCenter on MOVE (translate by same delta)
+            if ((!partType || partType === "MOVE") && wrapperAnnotations.some(a => a.rotationCenter)) {
+                await Promise.all(wrapperAnnotations.filter(a => a.rotationCenter).map(ann =>
+                    db.annotations.update(ann.id, {
+                        rotationCenter: {
+                            x: (ann.rotationCenter.x + deltaPos.x) / imageSize.width,
+                            y: (ann.rotationCenter.y + deltaPos.y) / imageSize.height,
+                        },
+                    })
+                ));
+            }
 
             dispatch(triggerAnnotationsUpdate());
             return;

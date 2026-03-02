@@ -21,6 +21,7 @@ export default async function commitWrapperTransform({
   pointUpdates,
   imageSize,
   rotationDelta,
+  wrapperBbox,
 }) {
   if (!selectedAnnotationIds?.length || !allAnnotations?.length || !imageSize) return;
 
@@ -157,7 +158,18 @@ export default async function commitWrapperTransform({
       const currentRotation = ann.rotation ?? 0;
       let newRotation = (currentRotation + rotationDelta) % 360;
       if (newRotation < 0) newRotation += 360;
-      annotationUpdates.push(db.annotations.update(annId, { rotation: newRotation }));
+
+      const updates = { rotation: newRotation };
+
+      // Store rotation center (normalized) on first rotation
+      if (!ann.rotationCenter && wrapperBbox) {
+        updates.rotationCenter = {
+          x: (wrapperBbox.x + wrapperBbox.width / 2) / imageSize.width,
+          y: (wrapperBbox.y + wrapperBbox.height / 2) / imageSize.height,
+        };
+      }
+
+      annotationUpdates.push(db.annotations.update(annId, updates));
     }
   }
 
