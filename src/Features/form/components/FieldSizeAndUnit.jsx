@@ -76,17 +76,17 @@ function AutoResizeInput({ value, onChange, placeholder }) {
 }
 
 // --- COMPOSANT PRINCIPAL : FieldSizeAndUnit ---
-export default function FieldSizeAndUnit({ value, onChange }) {
+const DEFAULT_UNIT_OPTIONS = [
+  { key: "PX", label: "px" },
+  { key: "M", label: "m" },
+];
+
+export default function FieldSizeAndUnit({ value, onChange, unitOptions = DEFAULT_UNIT_OPTIONS }) {
   // On extrait les valeurs actuelles pour les préserver lors des updates
   const size = value?.size ?? { width: null, height: null };
   const sizeUnit = value?.sizeUnit ?? "PX";
 
   const [anchorEl, setAnchorEl] = useState(null);
-
-  const unitOptions = [
-    { key: "PX", label: "px" },
-    { key: "M", label: "m" },
-  ];
 
   const selectedOption = unitOptions.find((u) => u.key === sizeUnit);
   const unitLabel = selectedOption?.label || "px";

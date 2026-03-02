@@ -3,18 +3,14 @@ import { useDispatch } from "react-redux";
 import { triggerSelectionBack } from "Features/selection/selectionSlice";
 
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
-import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
-
-import { Box, Typography, Divider, IconButton, } from "@mui/material";
+import { Box, Typography, IconButton } from "@mui/material";
 import { ArrowBack as Back } from "@mui/icons-material";
 
-import FieldColorVariantToolbar from "Features/form/components/FieldColorVariantToolbar";
-import FieldOptionKey from "Features/form/components/FieldOptionKey";
 import FieldAnnotationPreview from "./FieldAnnotationPreview";
 import ButtonAnnotationTemplate from "./ButtonAnnotationTemplate";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionAnnotationQties from "./SectionAnnotationQties";
-import FieldAnnotationSizeAndUnit from "./FieldAnnotationSizeAndUnit";
+import FieldWrapperDimensions from "./FieldWrapperDimensions";
 import FieldAnnotationRotation from "./FieldAnnotationRotation";
 
 export default function PanelAnnotationProperties() {
@@ -72,7 +68,7 @@ export default function PanelAnnotationProperties() {
       </Box>
 
       <Box sx={{ width: 1, p: 1, gap: 1, display: "flex", flexDirection: "column" }}>
-        <FieldAnnotationSizeAndUnit annotation={annotation} />
+        <FieldWrapperDimensions annotation={annotation} />
         <FieldAnnotationRotation annotation={annotation} />
       </Box>
 
