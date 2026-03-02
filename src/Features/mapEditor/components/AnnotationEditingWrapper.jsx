@@ -25,10 +25,14 @@ export default function AnnotationEditingWrapper({
     return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
   }, [containerK]);
 
-  // If rotationCenter is provided (e.g. from a group rotation), use it as pivot;
-  // otherwise default to the bbox's own center.
-  const cx = rotationCenter ? rotationCenter.x - x : width / 2;
-  const cy = rotationCenter ? rotationCenter.y - y : height / 2;
+  // Rotation pivot: if rotationCenter is provided (e.g. from a group rotation),
+  // use it; otherwise default to the bbox's own center.
+  const pivotX = rotationCenter ? rotationCenter.x - x : width / 2;
+  const pivotY = rotationCenter ? rotationCenter.y - y : height / 2;
+
+  // Handle layout center: always the bbox's own center (for handle positioning)
+  const cx = width / 2;
+  const cy = height / 2;
 
   const selectedColor = theme.palette.editor?.selected || "#00ff00";
 
@@ -96,7 +100,7 @@ export default function AnnotationEditingWrapper({
   if (width == null || height == null) return null;
 
   return (
-    <g transform={`translate(${x || 0}, ${y || 0}) rotate(${rotation}, ${cx}, ${cy})`}>
+    <g transform={`translate(${x || 0}, ${y || 0}) rotate(${rotation}, ${pivotX}, ${pivotY})`}>
       {/* Draggable body (invisible hit area) */}
       <rect
         x={0}
