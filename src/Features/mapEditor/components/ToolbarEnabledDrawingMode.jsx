@@ -1,6 +1,7 @@
 import { useSelector, useDispatch } from "react-redux";
 
 import { setEnabledDrawingMode } from "../mapEditorSlice";
+import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
 import { Paper, Box, Typography } from "@mui/material";
 import { Mouse, Rectangle, RadioButtonUnchecked, WaterDrop, MyLocation as TARGET, Brush, Insights as Smart } from "@mui/icons-material";
@@ -8,8 +9,18 @@ import theme from "Styles/theme";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
-
 import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
+import { getDrawingToolByKey } from "../constants/drawingTools.jsx";
+
+// Returns the specific tool key for a given annotation type and behavior.
+// e.g. ("POLYLINE", "CLICK") → "POLYLINE_CLICK"
+function resolveToolKey(type, behavior) {
+    if (["POLYLINE", "POLYGON"].includes(type)) {
+        const specificKey = `${type}_${behavior}`;
+        if (getDrawingToolByKey(specificKey)) return specificKey;
+    }
+    return behavior;
+}
 
 export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
 
@@ -45,19 +56,19 @@ export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
             show: showOneClick
         },
         {
-            key: "CLICK",
+            key: resolveToolKey(type, "CLICK"),
             label: "Clic",
             icon: <Mouse sx={{ color }} />,
             show: ["POLYLINE", "POLYGON", "STRIP", "CUT", "SPLIT"].includes(type)
         },
         {
-            key: "RECTANGLE",
+            key: resolveToolKey(type, "RECTANGLE"),
             label: "Rectangle",
             icon: <Rectangle sx={{ color }} />,
             show: ["POLYGON", "POLYLINE", "RECTANGLE", "CUT", "SPLIT"].includes(type)
         },
         {
-            key: "CIRCLE",
+            key: resolveToolKey(type, "CIRCLE"),
             label: "Cercle",
             icon: <RadioButtonUnchecked sx={{ color }} />,
             show: ["POLYGON", "POLYLINE"].includes(type)
@@ -92,6 +103,10 @@ export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
 
     function handleChange(mode) {
         dispatch(setEnabledDrawingMode(mode));
+        const tool = getDrawingToolByKey(mode);
+        if (tool?.annotationType) {
+            dispatch(setNewAnnotation({ ...newAnnotation, type: tool.annotationType }));
+        }
     }
 
     // render
