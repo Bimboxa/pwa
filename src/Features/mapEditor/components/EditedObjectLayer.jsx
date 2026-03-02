@@ -89,7 +89,7 @@ export default function EditedObjectLayer({
 
     // Wrapper bbox for point-based annotations (POLYLINE, POLYGON, STRIP)
     const pointBasedAnnotations = annotationsToRender.filter(a => POINT_BASED_TYPES.includes(a.type));
-    const isMultiSelection = selectedNodes?.length > 0;
+    const isMultiSelection = selectedNodes?.length > 1;
     const showWrapper = pointBasedAnnotations.length > 0 &&
         (isMultiSelection || (selectedNode && wrapperMode)) &&
         !selectedPointId;
