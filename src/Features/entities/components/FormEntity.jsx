@@ -32,6 +32,7 @@ export default function FormEntity({
         item={entity}
         onItemChange={handleItemChange}
         sectionContainerEl={sectionContainerEl}
+        variant="whiteSections"
       />
     </Box>
   );

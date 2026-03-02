@@ -16,6 +16,7 @@ import getPageDimensions from "../utils/getPageDimensions";
 
 import PortfolioPageSvg from "./PortfolioPageSvg";
 import ButtonAddPage from "./ButtonAddPage";
+import SectionPortfolioPageArticles from "Features/articles/utils/components/SectionPortfolioPageArticles";
 
 export default function PortfolioEditorViewport() {
   const dispatch = useDispatch();
@@ -127,15 +128,22 @@ export default function PortfolioEditorViewport() {
             minHeight: "100%",
           }}
         >
-          {pages?.map((page, index) => (
-            <PortfolioPageSvg
-              key={page.id}
-              page={page}
-              pageIndex={index}
-              totalPages={pages.length}
-              zoom={zoom}
-            />
-          ))}
+          {pages?.map((page, index) => {
+            const dims = getPageDimensions(page.format, page.orientation);
+            return (
+              <Box key={page.id} sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                <PortfolioPageSvg
+                  page={page}
+                  pageIndex={index}
+                  totalPages={pages.length}
+                  zoom={zoom}
+                />
+                <Box sx={{ width: dims.width }}>
+                  <SectionPortfolioPageArticles page={page} />
+                </Box>
+              </Box>
+            );
+          })}
 
           <ButtonAddPage onClick={handleAddPage} />
         </Box>

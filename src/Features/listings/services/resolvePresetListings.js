@@ -53,6 +53,15 @@ export default async function resolvePresetListings({
     presetListing.spriteImageKey =
       presetListing?.spriteImageKey ?? entityModel.defaultSpriteImageKey;
 
+    // articlesNomenclatures — resolve keys into full objects
+    if (presetListing.articlesNomenclaturesKeys?.length > 0) {
+      const articlesNomenclaturesObject = appConfig.articlesNomenclaturesObject ?? {};
+      presetListing.articlesNomenclatures = presetListing.articlesNomenclaturesKeys
+        .map((key) => articlesNomenclaturesObject[key])
+        .filter(Boolean);
+      delete presetListing.articlesNomenclaturesKeys;
+    }
+
     // existing listing
     let existingListing;
     if (presetListing.uniqueByProject) {

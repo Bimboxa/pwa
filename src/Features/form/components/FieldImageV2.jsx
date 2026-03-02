@@ -1,120 +1,223 @@
-import { useRef, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { useRef, useState } from "react";
 
-import { Box, Typography, Grid } from "@mui/material";
-import { Image as ImageIcon } from "@mui/icons-material";
+import { Box, Typography, IconButton, Chip } from "@mui/material";
+import { Delete, ContentPaste } from "@mui/icons-material";
 
-import SelectorImage from "Features/images/components/SelectorImage";
-import PanelPdfConverter from "Features/pdf/components/PanelPdfConverter";
-import FieldCheck from "Features/form/components/FieldCheck";
+import WhiteSectionGeneric from "./WhiteSectionGeneric";
 
-import testIsPngImage from "Features/files/utils/testIsPngImage";
-import getImageSizeAsync from "Features/misc/utils/getImageSize";
 import resizeImageToLowResolution from "Features/images/utils/resizeImageToLowResolution";
 import ImageObject from "Features/images/js/ImageObject";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
-export default function FieldImageV2({
-  label,
-  value,
-  onChange,
-  size = 8,
-  options,
-  formContainerRef,
-}) {
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+async function processFile(file, maxSize) {
+  if (!file) return null;
+  if (maxSize && file.size > maxSize * 1024) {
+    file = await resizeImageToLowResolution(file, maxSize * 1024);
+  }
+  const imageObject = await ImageObject.create({ imageFile: file });
+  return { entityField: imageObject.toEntityField(), size: file.size };
+}
+
+// ─── component ───────────────────────────────────────────────────────────────
+
+export default function FieldImageV2({ label, value, onChange, options }) {
   const inputRef = useRef(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [fileSizeAsString, setFileSizeAsString] = useState(null);
 
   // options
+  const maxSize = options?.maxSize; // in KB
 
-  const maxSize = options?.maxSize;
-  const fromPdf = options?.fromPdf;
-  const buttonLabel = options?.buttonLabel;
-  const showAsSection = options?.showAsSection;
-
-  // strings
-
-  const takePictureS = buttonLabel ?? "Prendre une photo";
-
-  // state
-
-  const [fileSizeAsString, setFileSizeAsString] = useState(null);
-  const [applyMaxSize, setApplyMaxSize] = useState(true);
-
-  // helpers
-
+  // derived
   const imageSrc = value?.imageUrlClient;
+  const hasImage = Boolean(imageSrc);
 
-  // helpers - file size
+  // ── file handling ──────────────────────────────────────────────────────────
 
-  const sizeLabel = `Taille finale: ${fileSizeAsString}`;
-  const maxSizeLabel = `Compresser si > ${stringifyFileSize(maxSize * 1024)}`;
-
-  // helpers - func
-
-  async function handleImageFileChange(file) {
-    console.log("debug_1707 handleImageFileChange", maxSize, file);
-
-    if (!file) return onChange(null);
-
-    if (maxSize && file && applyMaxSize) {
-      file = await resizeImageToLowResolution(file, maxSize * 1024);
-    }
-    setFileSizeAsString(stringifyFileSize(file.size));
-    const imageObject = await ImageObject.create({ imageFile: file });
-    onChange(imageObject.toEntityField());
+  async function handleFile(file) {
+    if (!file) return;
+    const result = await processFile(file, maxSize);
+    if (!result) return;
+    setFileSizeAsString(stringifyFileSize(result.size));
+    onChange(result.entityField);
   }
 
+  // ── browse ─────────────────────────────────────────────────────────────────
+
+  function handleBrowseClick() {
+    inputRef.current?.click();
+  }
+
+  function handleInputChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // reset so same file can be re-selected
+    handleFile(file);
+  }
+
+  // ── paste ──────────────────────────────────────────────────────────────────
+
+  async function handlePaste() {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imageType = item.types.find((t) => t.startsWith("image/"));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const file = new File([blob], "pasted-image.png", { type: imageType });
+          handleFile(file);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Clipboard paste failed:", err);
+    }
+  }
+
+  // ── drag & drop ───────────────────────────────────────────────────────────
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    setIsDragOver(true);
+  }
+
+  function handleDragLeave() {
+    setIsDragOver(false);
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    handleFile(file);
+  }
+
+  // ── delete ────────────────────────────────────────────────────────────────
+
+  function handleDelete() {
+    setFileSizeAsString(null);
+    onChange(null);
+  }
+
+  // ─── render ───────────────────────────────────────────────────────────────
+
   return (
-    <Box sx={{ width: 1 }}>
-      {showAsSection && (
-        <Box
-          sx={{
-            p: 1,
-            borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-          }}
-        >
-          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-            {label}
-          </Typography>
-        </Box>
-      )}
+    <WhiteSectionGeneric>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
 
-      <Box sx={{ p: 1, pb: maxSize ? 0 : 1 }}>
-        <Box
-          sx={{
-            //border: (theme) => `1px solid ${theme.palette.divider}`,
-            borderRadius: 1,
-          }}
-        >
-          <SelectorImage
-            selectedImageUrl={imageSrc}
-            onImageFileChange={handleImageFileChange}
-          />
-        </Box>
-      </Box>
+        {/* Header */}
+        <Typography variant="body2" sx={{ fontWeight: "bold", color: "text.primary" }}>
+          {label ?? "Image"}
+        </Typography>
 
-      {maxSize && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {maxSize && (
-            <FieldCheck
-              label={maxSizeLabel}
-              value={applyMaxSize}
-              onChange={(value) => setApplyMaxSize(value)}
-              options={{
-                textColor: "text.secondary",
+        {hasImage ? (
+          /* ── Filled state ─────────────────────────────────────────────── */
+          <Box sx={{ position: "relative", borderRadius: 1.5, overflow: "hidden" }}>
+            <Box
+              component="img"
+              src={imageSrc}
+              sx={{
+                width: "100%",
+                display: "block",
+                objectFit: "cover",
+                borderRadius: 1.5,
+                maxHeight: 200,
               }}
             />
-          )}
-          {/* {fileSizeAsString && (
-            <Typography
-              variant="body2"
-              sx={{ fontSize: 12, color: "text.secondary", px: 2 }}
+
+            {/* Delete button — top-right corner */}
+            <IconButton
+              size="small"
+              onClick={handleDelete}
+              sx={{
+                position: "absolute",
+                top: 6,
+                right: 6,
+                bgcolor: "background.paper",
+                boxShadow: 1,
+                "&:hover": { bgcolor: "error.light", color: "error.contrastText" },
+              }}
             >
-              {sizeLabel}
-            </Typography>
-          )} */}
-        </Box>
-      )}
-    </Box>
+              <Delete sx={{ fontSize: 16 }} />
+            </IconButton>
+
+            {/* File size chip — bottom-left corner */}
+            {fileSizeAsString && (
+              <Chip
+                label={fileSizeAsString}
+                size="small"
+                sx={{
+                  position: "absolute",
+                  bottom: 6,
+                  left: 6,
+                  fontSize: "0.7rem",
+                  bgcolor: "background.paper",
+                  boxShadow: 1,
+                }}
+              />
+            )}
+          </Box>
+        ) : (
+          /* ── Empty state ──────────────────────────────────────────────── */
+          <>
+            {/* Drag-and-drop zone */}
+            <Box
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              sx={{
+                border: (theme) =>
+                  `2px dashed ${isDragOver ? theme.palette.primary.main : theme.palette.divider}`,
+                borderRadius: 1.5,
+                minHeight: 100,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: isDragOver ? "action.hover" : "transparent",
+                transition: "all 0.15s ease",
+                cursor: "pointer",
+              }}
+              onClick={handleBrowseClick}
+            />
+
+            {/* Action row: Parcourir (left) · Coller (right, greyed) */}
+            <Box sx={{ display: "flex", justifyContent: "space-between", px: 0.5 }}>
+              <Typography
+                variant="body2"
+                onClick={handleBrowseClick}
+                sx={{ cursor: "pointer", "&:hover": { color: "primary.main" } }}
+              >
+                Parcourir
+              </Typography>
+
+              <Typography
+                variant="body2"
+                onClick={handlePaste}
+                sx={{
+                  cursor: "pointer",
+                  color: "text.disabled",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  "&:hover": { color: "primary.main" },
+                }}
+              >
+                Coller
+              </Typography>
+            </Box>
+          </>
+        )}
+
+        {/* Hidden file input */}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={handleInputChange}
+        />
+      </Box>
+    </WhiteSectionGeneric>
   );
 }

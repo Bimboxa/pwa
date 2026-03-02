@@ -142,7 +142,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   }
 
   if (showAsField) {
-    return <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1, width: 1, justifyContent: "space-between" }}>
+    return <WhiteSectionGeneric><Box sx={{ display: "flex", alignItems: "center", width: 1, justifyContent: "space-between" }}>
       <Typography variant="body2" sx={{ fontWeight: "bold" }} noWrap>
         {label}
       </Typography>
@@ -150,6 +150,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
         {textField}
       </Box>
     </Box>
+    </WhiteSectionGeneric>
   }
 
   if (showAsSection) {

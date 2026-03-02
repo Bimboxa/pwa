@@ -67,9 +67,9 @@ export default function PanelEntityProperties() {
                     sectionContainerEl={containerRef?.current}
                 />
 
-                {entity?.annotations?.length > 0 && <SectionEntityAnnotations
+                {entity?.annotations?.length > 0 && <Box sx={{ py: 1 }}><SectionEntityAnnotations
                     entity={entity}
-                />}
+                /></Box>}
 
             </BoxFlexVStretch>
         </BoxFlexVStretch>

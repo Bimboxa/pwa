@@ -9,7 +9,7 @@ import { Button, Typography, Menu, MenuItem, Box } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
-import AnnotationIcon from "./AnnotationIcon";
+import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 
 export default function ButtonAnnotationTemplate({ annotation, bgcolor = null, ...props }) {
 
@@ -39,17 +39,16 @@ export default function ButtonAnnotationTemplate({ annotation, bgcolor = null, .
     };
 
     async function handleTemplateChange(annotationTemplateId) {
-        await updateAnnotation({ ...annotation, annotationTemplateId });
+
+        await updateAnnotation({ id: annotation.id, annotationTemplateId });
         handleClose();
     }
-
-
 
 
     return <>
         <Button endIcon={<ArrowDropDownIcon size="small" />} onClick={handleClick} sx={{ bgcolor }} {...props}>
             <Box sx={{ display: "flex", alignItems: "center", width: 1, gap: 1 }}>
-                <AnnotationIcon annotation={annotation} />
+                <AnnotationTemplateIcon template={annotation} />
                 <Typography variant="body2" sx={{ ml: 1 }}>{templateLabel}</Typography>
             </Box>
         </Button>

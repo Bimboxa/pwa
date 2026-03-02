@@ -17,6 +17,16 @@ const LIBRARIES_LOADERS = import.meta.glob("../../../Data/*/annotationTemplatesL
   eager: false,
 });
 
+// Dynamic loaders for articles nomenclatures libraries
+const ARTICLES_NOMENCLATURES_LOADERS = import.meta.glob("../../../Data/*/articlesNomenclaturesLibraries.js", {
+  eager: false,
+});
+
+// Dynamic loaders for mapping categories
+const MAPPING_CATEGORIES_LOADERS = import.meta.glob("../../../Data/*/mappingCategories.js", {
+  eager: false,
+});
+
 // Dynamic loader for Data files
 const DATA_LOADERS = import.meta.glob("../../../Data/**/*", {
   eager: false,
@@ -87,6 +97,40 @@ export default async function resolveAppConfig(appConfig) {
       }
     } else {
       console.warn(`[resolveAppConfig] No libraries found for orgaCode "${orgaCode}" at ${libraryKey}`);
+    }
+  }
+
+  // articles nomenclatures libraries
+  if (orgaCode && appConfig.features?.articlesNomenclatures?.fromArticlesNomenclaturesLibraries) {
+    const libraryKey = `../../../Data/${orgaCode}/articlesNomenclaturesLibraries.js`;
+    const loader = ARTICLES_NOMENCLATURES_LOADERS[libraryKey];
+
+    if (loader) {
+      try {
+        const module = await loader();
+        newAppConfig.articlesNomenclaturesObject = module.default;
+      } catch (error) {
+        console.error(`[resolveAppConfig] Error loading articlesNomenclaturesLibraries for "${orgaCode}":`, error);
+      }
+    } else {
+      console.warn(`[resolveAppConfig] No articlesNomenclaturesLibraries found for orgaCode "${orgaCode}" at ${libraryKey}`);
+    }
+  }
+
+  // mapping categories
+  if (orgaCode && appConfig.features?.articlesNomenclatures?.fromArticlesNomenclaturesLibraries) {
+    const categoryKey = `../../../Data/${orgaCode}/mappingCategories.js`;
+    const loader = MAPPING_CATEGORIES_LOADERS[categoryKey];
+
+    if (loader) {
+      try {
+        const module = await loader();
+        newAppConfig.mappingCategories = module.default;
+      } catch (error) {
+        console.error(`[resolveAppConfig] Error loading mappingCategories for "${orgaCode}":`, error);
+      }
+    } else {
+      console.warn(`[resolveAppConfig] No mappingCategories found for orgaCode "${orgaCode}" at ${categoryKey}`);
     }
   }
 

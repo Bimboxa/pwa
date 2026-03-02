@@ -3,17 +3,42 @@ import { useState, useRef, useEffect } from "react";
 import { Refresh, ArrowDropDown as Down } from "@mui/icons-material";
 import WhiteSectionGeneric from "./WhiteSectionGeneric";
 
-// Composant interne pour l'auto-resize
+// --- COMPOSANT INTERNE : AutoResizeInput (Inchangé) ---
 function AutoResizeInput({ value, onChange, placeholder }) {
+  const [localValue, setLocalValue] = useState(value ?? "");
   const [width, setWidth] = useState(30);
   const spanRef = useRef(null);
 
   useEffect(() => {
+    setLocalValue(value ?? "");
+  }, [value]);
+
+  useEffect(() => {
     if (spanRef.current) {
-      // Calcul de la largeur basé sur le texte ou le placeholder si vide
       setWidth(Math.max(20, spanRef.current.offsetWidth + 4));
     }
-  }, [value, placeholder]);
+  }, [localValue, placeholder]);
+
+  const handleChange = (e) => {
+    const rawValue = e.target.value.replace(",", ".");
+    setLocalValue(rawValue);
+    const isNumeric = !isNaN(parseFloat(rawValue)) && isFinite(rawValue);
+    if (rawValue === "" || (isNumeric && !rawValue.endsWith("."))) {
+      onChange(rawValue === "" ? null : parseFloat(rawValue));
+    }
+  };
+
+  const handleBlur = () => {
+    const numericValue = parseFloat(localValue);
+    if (!isNaN(numericValue)) {
+      setLocalValue(numericValue.toString());
+      onChange(numericValue);
+    } else if (localValue === "") {
+      onChange(null);
+    } else {
+      setLocalValue(value ?? "");
+    }
+  };
 
   return (
     <Box sx={{ display: "inline-flex", alignItems: "center", position: "relative" }}>
@@ -28,12 +53,13 @@ function AutoResizeInput({ value, onChange, placeholder }) {
           fontFamily: "inherit"
         }}
       >
-        {value || placeholder}
+        {localValue || placeholder}
       </span>
       <InputBase
-        value={value ?? ""}
+        value={localValue}
         placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value.replace(",", "."))}
+        onChange={handleChange}
+        onBlur={handleBlur}
         sx={{
           width: width,
           fontSize: "0.875rem",
@@ -49,38 +75,56 @@ function AutoResizeInput({ value, onChange, placeholder }) {
   );
 }
 
+// --- COMPOSANT PRINCIPAL : FieldSizeAndUnit ---
 export default function FieldSizeAndUnit({ value, onChange }) {
-  const { size, sizeUnit = "PX" } = value ?? {};
-  const { width, height } = size ?? {};
+  // On extrait les valeurs actuelles pour les préserver lors des updates
+  const size = value?.size ?? { width: null, height: null };
+  const sizeUnit = value?.sizeUnit ?? "PX";
+
   const [anchorEl, setAnchorEl] = useState(null);
 
   const unitOptions = [
     { key: "PX", label: "px" },
-    { key: "M", label: 'm' },
+    { key: "M", label: "m" },
   ];
 
-  const selectedOption = unitOptions.find(u => u.key === sizeUnit);
+  const selectedOption = unitOptions.find((u) => u.key === sizeUnit);
   const unitLabel = selectedOption?.label || "px";
+  const isEmpty = !size.width && !size.height;
 
-  // Détermine si les champs sont vides pour l'affichage spécial de l'unité
-  const isEmpty = !width && !height;
+  /**
+   * CORRECTION : Fusion profonde de l'état
+   * On s'assure de toujours conserver le reste de 'value' 
+   * ET le reste de 'size' lors d'une modif.
+   */
+  const handleUpdate = (newSizeProps, newUnit) => {
+    onChange({
+      ...value,
+      sizeUnit: newUnit ?? sizeUnit,
+      size: {
+        ...size,
+        ...newSizeProps
+      }
+    });
+  };
 
   return (
     <WhiteSectionGeneric>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
 
-        {/* Header : Titre + Reset */}
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Typography variant="body2" sx={{ fontWeight: "bold", color: "text.primary" }}>
             Dimensions
           </Typography>
-
-          <IconButton size="small" onClick={() => onChange({ ...value, size: null })} sx={{ p: 0.5 }}>
+          <IconButton
+            size="small"
+            onClick={() => onChange({ ...value, size: null })}
+            sx={{ p: 0.5 }}
+          >
             <Refresh sx={{ fontSize: 18 }} />
           </IconButton>
         </Box>
 
-        {/* Bloc principal de saisie */}
         <Box
           sx={{
             display: "flex",
@@ -90,30 +134,28 @@ export default function FieldSizeAndUnit({ value, onChange }) {
             py: 0.75,
             px: 2,
             minHeight: 40,
-            justifyContent: "center"
+            justifyContent: "center",
           }}
         >
-          {/* Zone des nombres */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <AutoResizeInput
-              value={width}
-              onChange={(v) => onChange({ ...value, size: { ...size, width: v } })}
+              value={size.width}
+              // On ne met à jour que width, handleUpdate préserve le reste
+              onChange={(v) => handleUpdate({ width: v })}
               placeholder="0"
             />
-
             <Typography sx={{ color: "text.disabled", fontSize: "0.75rem", fontWeight: "bold" }}>
               ×
             </Typography>
-
             <AutoResizeInput
-              value={height}
-              onChange={(v) => onChange({ ...value, size: { ...size, height: v } })}
+              value={size.height}
+              // On ne met à jour que height, handleUpdate préserve le reste
+              onChange={(v) => handleUpdate({ height: v })}
               placeholder="0"
             />
           </Box>
 
-          {/* Sélecteur d'unité intégré à droite */}
-          <Box sx={{ ml: 1, borderLeft: '1px solid', borderColor: 'divider', pl: 1 }}>
+          <Box sx={{ ml: 1, borderLeft: "1px solid", borderColor: "divider", pl: 1 }}>
             <Button
               size="small"
               onClick={(e) => setAnchorEl(e.currentTarget)}
@@ -125,7 +167,7 @@ export default function FieldSizeAndUnit({ value, onChange }) {
                 fontSize: "0.8125rem",
                 minWidth: 0,
                 p: 0,
-                "&:hover": { bgcolor: "transparent", color: "primary.main" }
+                "&:hover": { bgcolor: "transparent", color: "primary.main" },
               }}
             >
               {isEmpty ? `(${unitLabel})` : unitLabel}
@@ -138,14 +180,16 @@ export default function FieldSizeAndUnit({ value, onChange }) {
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={() => setAnchorEl(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
       >
         {unitOptions.map((opt) => (
           <MenuItem
             key={opt.key}
+            selected={opt.key === sizeUnit}
             onClick={() => {
-              onChange({ ...value, sizeUnit: opt.key });
+              // On met à jour l'unité, handleUpdate préserve l'objet size (width/height)
+              handleUpdate({}, opt.key);
               setAnchorEl(null);
             }}
           >

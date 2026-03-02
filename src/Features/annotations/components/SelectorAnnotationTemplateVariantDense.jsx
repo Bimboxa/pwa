@@ -10,8 +10,7 @@ import {
 } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import MarkerIcon from "Features/markers/components/MarkerIcon";
-import AnnotationIcon from "./AnnotationIcon";
+import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 
 export default function SelectorAnnotationTemplateVariantDense({
@@ -59,8 +58,8 @@ export default function SelectorAnnotationTemplateVariantDense({
                 onClick={() => onChange(id)}
             >
                 <ListItemIcon>
-                    <AnnotationIcon
-                        annotation={annotation}
+                    <AnnotationTemplateIcon
+                        template={annotation}
                         spriteImage={spriteImage}
                         size={size}
                     />

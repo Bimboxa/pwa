@@ -65,6 +65,11 @@ db.version(15).stores({
   entityModels: "id, projectId, key",
 });
 
+db.version(16).stores({
+  // {id, annotationId, nomenclatureKey, categoryKey, projectId}
+  relAnnotationMappingCategory: "id, annotationId, projectId, [nomenclatureKey+categoryKey]",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [

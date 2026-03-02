@@ -14,6 +14,8 @@ import FieldAnnotationPreview from "./FieldAnnotationPreview";
 import ButtonAnnotationTemplate from "./ButtonAnnotationTemplate";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionAnnotationQties from "./SectionAnnotationQties";
+import FieldAnnotationSizeAndUnit from "./FieldAnnotationSizeAndUnit";
+import FieldAnnotationRotation from "./FieldAnnotationRotation";
 
 export default function PanelAnnotationProperties() {
   const dispatch = useDispatch();
@@ -25,8 +27,6 @@ export default function PanelAnnotationProperties() {
   // helper
 
   const label = annotation?.label || "Annotation";
-
-
 
   // render - no selection
 
@@ -69,6 +69,11 @@ export default function PanelAnnotationProperties() {
 
       <Box sx={{ p: 1, width: 1 }}>
         <ButtonAnnotationTemplate annotation={annotation} bgcolor="white" fullWidth />
+      </Box>
+
+      <Box sx={{ width: 1, p: 1, gap: 1, display: "flex", flexDirection: "column" }}>
+        <FieldAnnotationSizeAndUnit annotation={annotation} />
+        <FieldAnnotationRotation annotation={annotation} />
       </Box>
 
 
