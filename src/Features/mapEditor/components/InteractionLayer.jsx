@@ -1866,7 +1866,7 @@ const InteractionLayer = forwardRef(({
     const resolveWrapperInfo = (nodeId) => {
       if (nodeId !== "wrapper") return {};
       const wrapperAnnotationIds = selectedItems
-        .filter(item => item.type === "NODE" && POINT_BASED_TYPES.includes(item.nodeType))
+        .filter(item => item.type === "NODE" && POINT_BASED_TYPES.includes(item.annotationType))
         .map(item => item.nodeId);
       const wrapperAnnotations = annotations?.filter(a => wrapperAnnotationIds.includes(a.id)) ?? [];
       const wrapperBbox = computeWrapperBbox(wrapperAnnotations);

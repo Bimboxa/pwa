@@ -105,16 +105,6 @@ export default function EditedObjectLayer({
             style={{ pointerEvents: 'auto' }}
             transform={`translate(${finalPose.x}, ${finalPose.y}) scale(${finalPose.k})`}
         >
-            {/* Annotation Editing Wrapper for point-based types */}
-            {showWrapper && wrapperBbox && (
-                <AnnotationEditingWrapper
-                    bbox={wrapperBbox}
-                    containerK={finalPose.k}
-                    annotationIds={pointBasedAnnotations.map(a => a.id)}
-                    dragged={isWrapperDragged}
-                />
-            )}
-
             {annotationsToRender.map(annotation => {
 
                 // Style spécifique pour chaque annotation
@@ -179,6 +169,16 @@ export default function EditedObjectLayer({
                     </g>
                 );
             })}
+
+            {/* Annotation Editing Wrapper — rendered on top of annotations */}
+            {showWrapper && wrapperBbox && (
+                <AnnotationEditingWrapper
+                    bbox={wrapperBbox}
+                    containerK={finalPose.k}
+                    annotationIds={pointBasedAnnotations.map(a => a.id)}
+                    dragged={isWrapperDragged}
+                />
+            )}
         </g>
     );
 }
