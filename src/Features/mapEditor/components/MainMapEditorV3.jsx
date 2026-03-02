@@ -570,19 +570,8 @@ export default function MainMapEditorV3() {
                 imageSize,
                 rotationDelta: partType === "ROTATE" ? deltaPos.x : null,
                 wrapperBbox,
+                moveDelta: (!partType || partType === "MOVE") ? deltaPos : null,
             });
-
-            // Update rotationCenter on MOVE (translate by same delta)
-            if ((!partType || partType === "MOVE") && wrapperAnnotations.some(a => a.rotationCenter)) {
-                await Promise.all(wrapperAnnotations.filter(a => a.rotationCenter).map(ann =>
-                    db.annotations.update(ann.id, {
-                        rotationCenter: {
-                            x: (ann.rotationCenter.x + deltaPos.x) / imageSize.width,
-                            y: (ann.rotationCenter.y + deltaPos.y) / imageSize.height,
-                        },
-                    })
-                ));
-            }
 
             dispatch(triggerAnnotationsUpdate());
             return;

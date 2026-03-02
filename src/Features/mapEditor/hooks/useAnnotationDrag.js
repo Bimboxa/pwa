@@ -100,8 +100,13 @@ export default function useAnnotationDrag({
         ann.labelPoint?.y !== snap.labelY;
     } else {
       const firstPt = ann.points?.[0];
-      hasChanged =
+      const pointsChanged =
         firstPt?.x !== snap.firstPointX || firstPt?.y !== snap.firstPointY;
+      // For rotation, also wait for the rotation metadata to be updated
+      const rotationChanged = snap.rotation !== undefined
+        ? ann.rotation !== snap.rotation
+        : true;
+      hasChanged = pointsChanged && rotationChanged;
     }
 
     if (hasChanged) {
@@ -280,10 +285,16 @@ export default function useAnnotationDrag({
         const firstAnnId = _state.wrapperAnnotationIds[0];
         const ann = annotationsRef.current?.find((a) => a.id === firstAnnId);
         if (ann) {
-          commitSnapshotRef.current = {
+          const snap = {
             firstPointX: ann.points?.[0]?.x,
             firstPointY: ann.points?.[0]?.y,
           };
+          // For ROTATE, also track rotation to avoid detecting convergence
+          // before the annotation metadata (rotation/rotationCenter) is committed.
+          if (_state.partType === "ROTATE") {
+            snap.rotation = ann.rotation;
+          }
+          commitSnapshotRef.current = snap;
         }
         commitPendingRef.current = firstAnnId;
         commitPendingIdsRef.current = [..._state.wrapperAnnotationIds];

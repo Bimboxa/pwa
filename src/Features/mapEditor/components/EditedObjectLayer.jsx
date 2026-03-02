@@ -96,9 +96,17 @@ export default function EditedObjectLayer({
     })();
     const wrapperRotationCenter = pointBasedAnnotations[0]?.rotationCenter ?? null;
 
+    // Safety: only un-rotate if rotationCenter is available, otherwise fall back to
+    // axis-aligned bbox without visual rotation (prevents "double rotation" artifact
+    // if rotationCenter hasn't been committed yet).
+    const canUnrotate = wrapperRotation !== 0 && wrapperRotationCenter != null;
+    const effectiveRotation = canUnrotate ? wrapperRotation : 0;
+
     const wrapperBbox = useMemo(() => {
         if (!showWrapper) return null;
-        return computeWrapperBbox(pointBasedAnnotations, wrapperRotation, wrapperRotationCenter);
+        return canUnrotate
+            ? computeWrapperBbox(pointBasedAnnotations, wrapperRotation, wrapperRotationCenter)
+            : computeWrapperBbox(pointBasedAnnotations);
     }, [showWrapper, pointBasedAnnotations.map(a => a.id).join(","), pendingMovesVersion, wrapperRotation, wrapperRotationCenter?.x, wrapperRotationCenter?.y]);
 
     const isWrapperDragged = showWrapper && (
@@ -186,7 +194,7 @@ export default function EditedObjectLayer({
                     bbox={wrapperBbox}
                     containerK={finalPose.k}
                     annotationIds={pointBasedAnnotations.map(a => a.id)}
-                    rotation={wrapperRotation}
+                    rotation={effectiveRotation}
                 />
             )}
         </g>

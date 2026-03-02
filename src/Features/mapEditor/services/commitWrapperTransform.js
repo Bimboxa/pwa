@@ -14,6 +14,7 @@ import { nanoid } from "@reduxjs/toolkit";
  * @param {Map<string, {x: number, y: number}>} params.pointUpdates - pointId → new position in PIXEL coords
  * @param {{ width: number, height: number }} params.imageSize
  * @param {number|null} params.rotationDelta - Rotation delta for ROTATE (degrees), null otherwise
+ * @param {{ x: number, y: number }|null} params.moveDelta - Pixel delta for MOVE (to translate rotationCenter), null otherwise
  */
 export default async function commitWrapperTransform({
   selectedAnnotationIds,
@@ -22,6 +23,7 @@ export default async function commitWrapperTransform({
   imageSize,
   rotationDelta,
   wrapperBbox,
+  moveDelta,
 }) {
   if (!selectedAnnotationIds?.length || !allAnnotations?.length || !imageSize) return;
 
@@ -60,23 +62,7 @@ export default async function commitWrapperTransform({
     }
   }
 
-  // 3. Execute updates
-
-  // 3a. Exclusive points: direct update
-  const directUpdates = [];
-  for (const pointId of exclusivePoints) {
-    const newPos = pointUpdates.get(pointId);
-    if (!newPos) continue;
-    directUpdates.push(
-      db.points.update(pointId, {
-        x: newPos.x / imageSize.width,
-        y: newPos.y / imageSize.height,
-      })
-    );
-  }
-
-  // 3b. Shared external points: duplicate
-  // One new point per old point (shared within selection stays shared)
+  // 3. Prepare shared external point duplicates (need original data before transaction)
   const oldToNewIdMap = new Map(); // oldPointId → newPointId
   const newPointsToAdd = [];
 
@@ -87,7 +73,6 @@ export default async function commitWrapperTransform({
     const newPointId = nanoid();
     oldToNewIdMap.set(oldPointId, newPointId);
 
-    // Fetch original point to copy its properties
     const originalPoint = await db.points.get(oldPointId);
     if (originalPoint) {
       newPointsToAdd.push({
@@ -99,80 +84,110 @@ export default async function commitWrapperTransform({
     }
   }
 
-  // Add all new points
-  if (newPointsToAdd.length > 0) {
-    await db.points.bulkAdd(newPointsToAdd);
-  }
+  // 4. Execute ALL updates in a single transaction so useLiveQuery
+  //    never observes an intermediate state (e.g. rotated points
+  //    without the updated rotation/rotationCenter on the annotation).
+  await db.transaction("rw", db.points, db.annotations, async () => {
+    const ops = [];
 
-  // 3c. Update annotation references for duplicated points
-  const annotationUpdates = [];
+    // 4a. Exclusive points: direct update
+    for (const pointId of exclusivePoints) {
+      const newPos = pointUpdates.get(pointId);
+      if (!newPos) continue;
+      ops.push(
+        db.points.update(pointId, {
+          x: newPos.x / imageSize.width,
+          y: newPos.y / imageSize.height,
+        })
+      );
+    }
 
-  if (oldToNewIdMap.size > 0) {
-    const replacePointId = (pt) => {
-      const newId = oldToNewIdMap.get(pt.id);
-      return newId ? { ...pt, id: newId } : pt;
-    };
+    // 4b. Add duplicated points
+    if (newPointsToAdd.length > 0) {
+      ops.push(db.points.bulkAdd(newPointsToAdd));
+    }
 
-    for (const annId of selectedAnnotationIds) {
-      const ann = allAnnotations.find((a) => a.id === annId);
-      if (!ann) continue;
+    // 4c. Update annotation references for duplicated points
+    if (oldToNewIdMap.size > 0) {
+      const replacePointId = (pt) => {
+        const newId = oldToNewIdMap.get(pt.id);
+        return newId ? { ...pt, id: newId } : pt;
+      };
 
-      const updates = {};
-      let hasChanges = false;
+      for (const annId of selectedAnnotationIds) {
+        const ann = allAnnotations.find((a) => a.id === annId);
+        if (!ann) continue;
 
-      // Update main points
-      if (ann.points) {
-        const newPoints = ann.points.map(replacePointId);
-        if (newPoints.some((pt, i) => pt.id !== ann.points[i].id)) {
-          updates.points = newPoints;
-          hasChanges = true;
+        const updates = {};
+        let hasChanges = false;
+
+        if (ann.points) {
+          const newPoints = ann.points.map(replacePointId);
+          if (newPoints.some((pt, i) => pt.id !== ann.points[i].id)) {
+            updates.points = newPoints;
+            hasChanges = true;
+          }
+        }
+
+        if (ann.cuts) {
+          const newCuts = ann.cuts.map((cut) => ({
+            ...cut,
+            points: cut.points?.map(replacePointId),
+          }));
+          const cutsChanged = newCuts.some((cut, ci) =>
+            cut.points?.some((pt, pi) => pt.id !== ann.cuts[ci].points?.[pi]?.id)
+          );
+          if (cutsChanged) {
+            updates.cuts = newCuts;
+            hasChanges = true;
+          }
+        }
+
+        if (hasChanges) {
+          ops.push(db.annotations.update(annId, updates));
         }
       }
+    }
 
-      // Update cuts
-      if (ann.cuts) {
-        const newCuts = ann.cuts.map((cut) => ({
-          ...cut,
-          points: cut.points?.map(replacePointId),
-        }));
-        const cutsChanged = newCuts.some((cut, ci) =>
-          cut.points?.some((pt, pi) => pt.id !== ann.cuts[ci].points?.[pi]?.id)
+    // 4d. Handle rotation
+    if (rotationDelta != null && rotationDelta !== 0) {
+      for (const annId of selectedAnnotationIds) {
+        const ann = allAnnotations.find((a) => a.id === annId);
+        if (!ann) continue;
+        const currentRotation = ann.rotation ?? 0;
+        let newRotation = (currentRotation + rotationDelta) % 360;
+        if (newRotation < 0) newRotation += 360;
+
+        const updates = { rotation: newRotation };
+
+        // Store rotation center (normalized) on first rotation
+        if (!ann.rotationCenter && wrapperBbox) {
+          updates.rotationCenter = {
+            x: (wrapperBbox.x + wrapperBbox.width / 2) / imageSize.width,
+            y: (wrapperBbox.y + wrapperBbox.height / 2) / imageSize.height,
+          };
+        }
+
+        ops.push(db.annotations.update(annId, updates));
+      }
+    }
+
+    // 4e. Translate rotationCenter on MOVE
+    if (moveDelta) {
+      for (const annId of selectedAnnotationIds) {
+        const ann = allAnnotations.find((a) => a.id === annId);
+        if (!ann?.rotationCenter) continue;
+        ops.push(
+          db.annotations.update(annId, {
+            rotationCenter: {
+              x: (ann.rotationCenter.x + moveDelta.x) / imageSize.width,
+              y: (ann.rotationCenter.y + moveDelta.y) / imageSize.height,
+            },
+          })
         );
-        if (cutsChanged) {
-          updates.cuts = newCuts;
-          hasChanges = true;
-        }
-      }
-
-      if (hasChanges) {
-        annotationUpdates.push(db.annotations.update(annId, updates));
       }
     }
-  }
 
-  // 3d. Handle rotation
-  if (rotationDelta != null && rotationDelta !== 0) {
-    for (const annId of selectedAnnotationIds) {
-      const ann = allAnnotations.find((a) => a.id === annId);
-      if (!ann) continue;
-      const currentRotation = ann.rotation ?? 0;
-      let newRotation = (currentRotation + rotationDelta) % 360;
-      if (newRotation < 0) newRotation += 360;
-
-      const updates = { rotation: newRotation };
-
-      // Store rotation center (normalized) on first rotation
-      if (!ann.rotationCenter && wrapperBbox) {
-        updates.rotationCenter = {
-          x: (wrapperBbox.x + wrapperBbox.width / 2) / imageSize.width,
-          y: (wrapperBbox.y + wrapperBbox.height / 2) / imageSize.height,
-        };
-      }
-
-      annotationUpdates.push(db.annotations.update(annId, updates));
-    }
-  }
-
-  // Execute all operations
-  await Promise.all([...directUpdates, ...annotationUpdates]);
+    await Promise.all(ops);
+  });
 }
