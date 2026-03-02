@@ -2152,16 +2152,31 @@ const InteractionLayer = forwardRef(({
             let transientWrapperBbox;
             let wrapperRotation = 0;
 
+            const cumulativeRotation = annotations?.find(a => a.id === wrapperAnnIds[0])?.rotation ?? 0;
+            const existingCenter = annotations?.find(a => a.id === wrapperAnnIds[0])?.rotationCenter ?? null;
+
             if (isRotation && wrapperBbox) {
               transientWrapperBbox = wrapperBbox;
-              const cumulativeRotation = annotations?.find(a => a.id === wrapperAnnIds[0])?.rotation ?? 0;
               wrapperRotation = cumulativeRotation + (deltaPos?.x ?? 0);
             } else {
               const transformedAnnotations = wrapperAnnIds
                 .map(annId => annotations?.find(a => a.id === annId))
                 .filter(Boolean)
                 .map(ann => applyDeltaPosToAnnotation(ann, deltaPos, partType, wrapperBbox));
-              transientWrapperBbox = computeWrapperBbox(transformedAnnotations);
+
+              // For MOVE on a rotated annotation, compute the canonical (un-rotated) bbox
+              // using the translated rotation center, and preserve the visual rotation.
+              const isMove = !partType || partType === "MOVE";
+              if (isMove && cumulativeRotation !== 0 && existingCenter) {
+                const translatedCenter = {
+                  x: existingCenter.x + (deltaPos?.x ?? 0),
+                  y: existingCenter.y + (deltaPos?.y ?? 0),
+                };
+                transientWrapperBbox = computeWrapperBbox(transformedAnnotations, cumulativeRotation, translatedCenter);
+                wrapperRotation = cumulativeRotation;
+              } else {
+                transientWrapperBbox = computeWrapperBbox(transformedAnnotations);
+              }
             }
 
             return (
