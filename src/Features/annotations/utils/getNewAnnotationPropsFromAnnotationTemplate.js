@@ -2,7 +2,6 @@
 // These are template-level concerns and do not belong on individual annotations.
 const TEMPLATE_ONLY_KEYS = [
   "id",
-  "drawingShape",
   "drawingOpacity",
   "drawingTools",
   "hidden",
