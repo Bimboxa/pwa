@@ -407,10 +407,37 @@ export default function MainMapEditorV3() {
 
     // handlers - move point
 
-    const handlePointMoveCommit = (pointId, newPos) => {
+    const handlePointMoveCommit = async (pointId, newPos) => {
         const imageSize = baseMap?.image?.imageSize;
-        //dispatch(updatePoint({ id: pointId, ...newPos }));
-        db.points.update(pointId, { x: newPos.x / imageSize.width, y: newPos.y / imageSize.height });
+        if (!imageSize) return;
+
+        // Find annotations that reference this point and have rotation metadata.
+        // Moving a vertex "bakes in" the rotation for that point, so rotation
+        // metadata is no longer valid and must be cleared.
+        const rotatedAnns = annotations?.filter((ann) => {
+            if (!ann.rotation && !ann.rotationCenter) return false;
+            const inMain = ann.points?.some((pt) => pt.id === pointId);
+            const inCuts = ann.cuts?.some((cut) => cut.points?.some((pt) => pt.id === pointId));
+            return inMain || inCuts;
+        }) ?? [];
+
+        await db.transaction("rw", db.points, db.annotations, async () => {
+            const ops = [
+                db.points.update(pointId, {
+                    x: newPos.x / imageSize.width,
+                    y: newPos.y / imageSize.height,
+                }),
+            ];
+            for (const ann of rotatedAnns) {
+                ops.push(
+                    db.annotations.update(ann.id, {
+                        rotation: 0,
+                        rotationCenter: null,
+                    })
+                );
+            }
+            await Promise.all(ops);
+        });
     };
 
     const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
