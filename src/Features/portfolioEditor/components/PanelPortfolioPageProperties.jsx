@@ -12,6 +12,7 @@ import IconButtonMoreActionsPortfolioPage from "./IconButtonMoreActionsPortfolio
 import CardPageContent from "./CardPageContent";
 import CardPortfolioPageSize from "./CardPortfolioPageSize";
 import CardPortfolioPageOrientation from "./CardPortfolioPageOrientation";
+import SectionPortfolioPageArticles from "./SectionPortfolioPageArticles";
 
 import usePortfolioPageContent from "../hooks/usePortfolioPageContent";
 
@@ -63,6 +64,7 @@ export default function PanelPortfolioPageProperties() {
         <CardPageContent content={content} page={page} />
         <CardPortfolioPageSize page={page} />
         <CardPortfolioPageOrientation page={page} />
+        <SectionPortfolioPageArticles pageId={page.id} />
       </Box>
     </BoxFlexVStretch>
   );
