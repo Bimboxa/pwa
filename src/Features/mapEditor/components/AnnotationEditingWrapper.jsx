@@ -66,22 +66,21 @@ export default function AnnotationEditingWrapper({
 
   const renderRotationHandle = () => (
     <g
-      transform={`translate(${cx}, ${-ROTATION_HANDLE_OFFSET})`}
+      transform={`translate(${cx}, 0)`}
       style={{ pointerEvents: "auto" }}
     >
-      <line
-        x1={0}
-        y1={0}
-        x2={0}
-        y2={ROTATION_HANDLE_OFFSET}
-        stroke={selectedColor}
-        strokeWidth={1}
-        vectorEffect="non-scaling-stroke"
-      />
       <g style={{ transform: handleScaleTransform }}>
+        <line
+          x1={0}
+          y1={0}
+          x2={0}
+          y2={-ROTATION_HANDLE_OFFSET}
+          stroke={selectedColor}
+          strokeWidth={1}
+        />
         <circle
           cx={0}
-          cy={0}
+          cy={-ROTATION_HANDLE_OFFSET}
           r={HALF_HANDLE}
           fill="#fff"
           stroke={selectedColor}
