@@ -47,6 +47,10 @@ export default function ToolbarEditAnnotation() {
   const updateAnnotation = useUpdateAnnotation();
   const updateEntity = useUpdateEntity();
 
+  // helper
+
+  const type = selectedAnnotation?.type;
+
   // helpers - show
 
   const showCloseLine = selectedAnnotation?.type === "POLYLINE";
@@ -60,10 +64,6 @@ export default function ToolbarEditAnnotation() {
       dispatch(setWrapperMode(false));
     };
   }, []);
-
-  // helper
-
-  const type = selectedAnnotation?.type;
 
   // handler
 
