@@ -1,6 +1,7 @@
 import { useSelector, useDispatch } from "react-redux";
 
 import { setEnabledDrawingMode } from "../mapEditorSlice";
+import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
 import { Paper, Box, Typography } from "@mui/material";
 import { Mouse, Rectangle, RadioButtonUnchecked, WaterDrop, MyLocation as TARGET, Brush, Insights as Smart } from "@mui/icons-material";
@@ -8,10 +9,11 @@ import theme from "Styles/theme";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
-
 import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
+import { getDrawingToolByKey, getDrawingToolsByShape } from "../constants/drawingTools.jsx";
+import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 
-export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
+export default function ToolbarEnabledDrawingMode() {
 
     const dispatch = useDispatch();
 
@@ -24,74 +26,96 @@ export default function ToolbarEnabledDrawingMode({ allAnnotations }) {
     const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
     const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
     const type = newAnnotation?.type;
+    const drawingShape = newAnnotation?.drawingShape;
 
     // helper
 
     const color = getAnnotationColor(newAnnotation) ?? theme.palette.secondary.main;
 
-    // helper - show one click
+    // options — use drawingShape when available (new template system),
+    // fall back to type-based options for legacy templates.
 
-    let showOneClick = ["LABEL", "MARKER", "POINT", "IMAGE"].includes(type);
-    if (type === "RECTANGLE" && (newAnnotation?.size?.width && newAnnotation?.size?.height)) showOneClick = true;
+    let options;
 
+    if (drawingShape) {
+        // New system: derive tools from drawingShape
+        const shapeCategory = resolveShapeCategory(drawingShape);
+        const iconColor = shapeCategory === "polyline"
+            ? (newAnnotation?.strokeColor ?? newAnnotation?.fillColor ?? color)
+            : (newAnnotation?.fillColor ?? newAnnotation?.strokeColor ?? color);
 
-    // options
+        const tools = getDrawingToolsByShape(drawingShape);
+        options = tools.map(({ key, label, Icon }) => ({
+            key,
+            label,
+            icon: <Icon sx={{ color: iconColor }} />,
+            show: true,
+        }));
+    } else {
+        // Legacy system: derive tools from type
+        let showOneClick = ["LABEL", "MARKER", "POINT", "IMAGE"].includes(type);
+        if (type === "RECTANGLE" && (newAnnotation?.size?.width && newAnnotation?.size?.height)) showOneClick = true;
 
-    const options = [
-        {
-            key: "ONE_CLICK",
-            label: "1 Clic",
-            icon: <TARGET sx={{ color }} />,
-            show: showOneClick
-        },
-        {
-            key: "CLICK",
-            label: "Clic",
-            icon: <Mouse sx={{ color }} />,
-            show: ["POLYLINE", "POLYGON", "STRIP", "CUT", "SPLIT"].includes(type)
-        },
-        {
-            key: "RECTANGLE",
-            label: "Rectangle",
-            icon: <Rectangle sx={{ color }} />,
-            show: ["POLYGON", "POLYLINE", "RECTANGLE", "CUT", "SPLIT"].includes(type)
-        },
-        {
-            key: "CIRCLE",
-            label: "Cercle",
-            icon: <RadioButtonUnchecked sx={{ color }} />,
-            show: ["POLYGON", "POLYLINE"].includes(type)
-        },
-        {
-            key: "SURFACE_DROP",
-            label: "Remplissage",
-            icon: <WaterDrop sx={{ color }} />,
-            show: ["POLYGON", "RECTANGLE"].includes(type)
-        },
-        {
-            key: "BRUSH",
-            label: "Brush",
-            icon: <Brush sx={{ color }} />,
-            //show: ["POLYGON"].includes(type),
-            show: false
-        },
-        {
-            key: "SMART_DETECT",
-            label: "Détection automatique",
-            icon: <Smart sx={{ color }} />,
-            //show: ["POLYLINE"].includes(type)
-            show: false
-        },
-    ]
+        options = [
+            {
+                key: "ONE_CLICK",
+                label: "1 Clic",
+                icon: <TARGET sx={{ color }} />,
+                show: showOneClick
+            },
+            {
+                key: "CLICK",
+                label: "Clic",
+                icon: <Mouse sx={{ color }} />,
+                show: ["POLYLINE", "POLYGON", "STRIP", "CUT", "SPLIT"].includes(type)
+            },
+            {
+                key: "RECTANGLE",
+                label: "Rectangle",
+                icon: <Rectangle sx={{ color }} />,
+                show: ["POLYGON", "POLYLINE", "RECTANGLE", "CUT", "SPLIT"].includes(type)
+            },
+            {
+                key: "CIRCLE",
+                label: "Cercle",
+                icon: <RadioButtonUnchecked sx={{ color }} />,
+                show: ["POLYGON", "POLYLINE"].includes(type)
+            },
+            {
+                key: "SURFACE_DROP",
+                label: "Remplissage",
+                icon: <WaterDrop sx={{ color }} />,
+                show: ["POLYGON", "RECTANGLE"].includes(type)
+            },
+            {
+                key: "BRUSH",
+                label: "Brush",
+                icon: <Brush sx={{ color }} />,
+                show: false
+            },
+            {
+                key: "SMART_DETECT",
+                label: "Détection automatique",
+                icon: <Smart sx={{ color }} />,
+                show: false
+            },
+        ];
+    }
 
     // helpers - show mode
 
-    const showMode = ["POLYLINE", "POLYGON", "STRIP", "CUT", "SPLIT", "LABEL", "MARKER", "POINT", "IMAGE", "RECTANGLE"].includes(type);
+    const showMode = drawingShape
+        ? options.length > 0
+        : ["POLYLINE", "POLYGON", "STRIP", "CUT", "SPLIT", "LABEL", "MARKER", "POINT", "IMAGE", "RECTANGLE"].includes(type);
 
     // handlers
 
     function handleChange(mode) {
         dispatch(setEnabledDrawingMode(mode));
+        const tool = getDrawingToolByKey(mode);
+        if (tool?.annotationType) {
+            dispatch(setNewAnnotation({ ...newAnnotation, type: tool.annotationType }));
+        }
     }
 
     // render

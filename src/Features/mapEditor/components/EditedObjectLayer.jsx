@@ -3,9 +3,15 @@ import { useSelector } from 'react-redux';
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
+import AnnotationEditingWrapper from "./AnnotationEditingWrapper";
+import computeWrapperBbox from "../utils/computeWrapperBbox";
 import theme from 'Styles/theme';
 import { selectSelectedItems, selectSelectedPointId, selectSelectedPartId } from "Features/selection/selectionSlice";
 import useSelectedNodes from '../hooks/useSelectedNodes';
+
+const selectWrapperMode = (state) => state.mapEditor.wrapperMode;
+
+const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
 
 export default function EditedObjectLayer({
     basePose,
@@ -21,6 +27,7 @@ export default function EditedObjectLayer({
     const selectedItems = useSelector(selectSelectedItems);
     const selectedPointId = useSelector(selectSelectedPointId);
     const selectedPartId = useSelector(selectSelectedPartId);
+    const wrapperMode = useSelector(selectWrapperMode);
 
     // Compat with existing logic
     const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
@@ -80,6 +87,39 @@ export default function EditedObjectLayer({
     // On filtre celles qui sont cachées (topology/segment split)
     const annotationsToRender = activeAnnotations.filter(a => !hiddenAnnotationIds.includes(a.id));
 
+    // Wrapper bbox for point-based annotations (POLYLINE, POLYGON, STRIP)
+    const pointBasedAnnotations = annotationsToRender.filter(a => POINT_BASED_TYPES.includes(a.type));
+    const isMultiSelection = selectedNodes?.length > 1;
+    const showWrapper = pointBasedAnnotations.length > 0 &&
+        (isMultiSelection || (selectedNode && wrapperMode)) &&
+        !selectedPointId;
+
+    // Extract cumulative rotation and rotation center (all annotations in the wrapper share the same values)
+    const wrapperRotation = (() => {
+        if (pointBasedAnnotations.length === 0) return 0;
+        const first = pointBasedAnnotations[0].rotation ?? 0;
+        return pointBasedAnnotations.every(a => (a.rotation ?? 0) === first) ? first : 0;
+    })();
+    const wrapperRotationCenter = pointBasedAnnotations[0]?.rotationCenter ?? null;
+
+    // Safety: only un-rotate if rotationCenter is available, otherwise fall back to
+    // axis-aligned bbox without visual rotation (prevents "double rotation" artifact
+    // if rotationCenter hasn't been committed yet).
+    const canUnrotate = wrapperRotation !== 0 && wrapperRotationCenter != null;
+    const effectiveRotation = canUnrotate ? wrapperRotation : 0;
+
+    const wrapperBbox = useMemo(() => {
+        if (!showWrapper) return null;
+        return canUnrotate
+            ? computeWrapperBbox(pointBasedAnnotations, wrapperRotation, wrapperRotationCenter)
+            : computeWrapperBbox(pointBasedAnnotations);
+    }, [showWrapper, pointBasedAnnotations.map(a => a.id).join(","), pendingMovesVersion, wrapperRotation, wrapperRotationCenter?.x, wrapperRotationCenter?.y]);
+
+    const isWrapperDragged = showWrapper && (
+        !!getPendingMove("wrapper") ||
+        pointBasedAnnotations.some(a => !!getPendingMove(a.id))
+    );
+
     if (annotationsToRender.length === 0) return null;
 
     return (
@@ -135,8 +175,9 @@ export default function EditedObjectLayer({
                             spriteImage={spriteImage}
                             baseMapMeterByPx={baseMapMeterByPx}
 
-                            // On active le mode "selected" pour voir les vertices
-                            selected={isNodeSelected}
+                            // When wrapper is active, hide vertices on point-based annotations
+                            // (the wrapper handles replace them)
+                            selected={isNodeSelected && !(showWrapper && POINT_BASED_TYPES.includes(annotation.type))}
 
                             sizeVariant="FIXED_IN_SCREEN"
                             containerK={finalPose.k}
@@ -151,6 +192,18 @@ export default function EditedObjectLayer({
                     </g>
                 );
             })}
+
+            {/* Annotation Editing Wrapper — rendered on top of annotations */}
+            {/* Hidden during drag (transient wrapper is rendered by InteractionLayer) */}
+            {showWrapper && wrapperBbox && !isWrapperDragged && (
+                <AnnotationEditingWrapper
+                    bbox={wrapperBbox}
+                    containerK={finalPose.k}
+                    annotationIds={pointBasedAnnotations.map(a => a.id)}
+                    rotation={effectiveRotation}
+                    rotationCenter={canUnrotate ? wrapperRotationCenter : undefined}
+                />
+            )}
         </g>
     );
 }

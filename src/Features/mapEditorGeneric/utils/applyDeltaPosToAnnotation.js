@@ -2,15 +2,16 @@
  * Apply a delta position to an annotation, returning a new annotation object
  * with transformed geometry. Pure function, no React dependencies.
  *
- * Handles all annotation types: MARKER, POINT, LABEL, POLYLINE, POLYGON, IMAGE, RECTANGLE
+ * Handles all annotation types: MARKER, POINT, LABEL, POLYLINE, POLYGON, STRIP, IMAGE, RECTANGLE
  * Handles partTypes: MOVE (default), TARGET, LABEL_BOX, ROTATE, RESIZE_*
  *
  * @param {Object} annotation - The annotation to transform
  * @param {Object} deltaPos - { x, y } delta to apply
  * @param {string|null} partType - e.g. "TARGET", "LABEL_BOX", "RESIZE_SE", "ROTATE", or null for move
+ * @param {Object} [wrapperBbox] - Optional bbox for wrapper resize/rotate on point-based types { x, y, width, height }
  * @returns {Object} A new annotation object with transformed coordinates
  */
-export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType) {
+export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType, wrapperBbox) {
     if (!deltaPos || !annotation) return annotation;
 
     const _annotation = { ...annotation };
@@ -177,13 +178,80 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         }
     }
 
-    // POLYLINE / POLYGON
-    if (_annotation.type === "POLYLINE" || _annotation.type === "POLYGON") {
-        _annotation.points = _annotation.points.map(pt => ({
-            ...pt,
-            x: pt.x + deltaPos.x,
-            y: pt.y + deltaPos.y
-        }));
+    // POLYLINE / POLYGON / STRIP
+    if (_annotation.type === "POLYLINE" || _annotation.type === "POLYGON" || _annotation.type === "STRIP") {
+
+        const transformPoints = (points) => {
+            if (!points) return points;
+
+            // RESIZE with wrapper bbox
+            if (partType?.startsWith("RESIZE_") && wrapperBbox) {
+                const handle = partType.replace("RESIZE_", "");
+                const { x: bx, y: by, width: bw, height: bh } = wrapperBbox;
+
+                let anchorX, anchorY;
+                if (handle === "SE") { anchorX = bx; anchorY = by; }
+                else if (handle === "SW") { anchorX = bx + bw; anchorY = by; }
+                else if (handle === "NE") { anchorX = bx; anchorY = by + bh; }
+                else if (handle === "NW") { anchorX = bx + bw; anchorY = by + bh; }
+                else return points;
+
+                let newW = bw, newH = bh;
+                if (handle === "SE") { newW = bw + deltaPos.x; newH = bh + deltaPos.y; }
+                else if (handle === "SW") { newW = bw - deltaPos.x; newH = bh + deltaPos.y; }
+                else if (handle === "NE") { newW = bw + deltaPos.x; newH = bh - deltaPos.y; }
+                else if (handle === "NW") { newW = bw - deltaPos.x; newH = bh - deltaPos.y; }
+
+                if (Math.abs(newW) < 20) newW = 20 * Math.sign(newW || 1);
+                if (Math.abs(newH) < 20) newH = 20 * Math.sign(newH || 1);
+
+                const scaleX = bw > 0 ? newW / bw : 1;
+                const scaleY = bh > 0 ? newH / bh : 1;
+
+                return points.map(pt => ({
+                    ...pt,
+                    x: anchorX + (pt.x - anchorX) * scaleX,
+                    y: anchorY + (pt.y - anchorY) * scaleY,
+                }));
+            }
+
+            // ROTATE with wrapper bbox
+            if (partType === "ROTATE" && wrapperBbox) {
+                const { x: bx, y: by, width: bw, height: bh } = wrapperBbox;
+                const centerX = bx + bw / 2;
+                const centerY = by + bh / 2;
+                const angleDeg = deltaPos.x;
+                const angleRad = (angleDeg * Math.PI) / 180;
+                const cos = Math.cos(angleRad);
+                const sin = Math.sin(angleRad);
+
+                return points.map(pt => {
+                    const dx = pt.x - centerX;
+                    const dy = pt.y - centerY;
+                    return {
+                        ...pt,
+                        x: centerX + dx * cos - dy * sin,
+                        y: centerY + dx * sin + dy * cos,
+                    };
+                });
+            }
+
+            // MOVE (default)
+            return points.map(pt => ({
+                ...pt,
+                x: pt.x + deltaPos.x,
+                y: pt.y + deltaPos.y,
+            }));
+        };
+
+        _annotation.points = transformPoints(_annotation.points);
+
+        if (_annotation.cuts) {
+            _annotation.cuts = _annotation.cuts.map(cut => ({
+                ...cut,
+                points: transformPoints(cut.points),
+            }));
+        }
     }
 
     return _annotation;

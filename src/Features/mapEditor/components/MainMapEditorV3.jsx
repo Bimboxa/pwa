@@ -12,6 +12,7 @@ import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
 import { setTempAnnotationToolbarPosition } from "Features/mapEditor/mapEditorSlice";
 import { setBgImageRawTextAnnotations } from "Features/bgImage/bgImageSlice";
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
+import { selectSelectedItems } from "Features/selection/selectionSlice";
 
 import useMeasure from "react-use-measure";
 
@@ -67,6 +68,9 @@ import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getA
 import deletePointAsync from "../services/deletePointAsync";
 import duplicateAndMovePoint from "../services/duplicateAndMovePoint";
 import toggleAnnotationPointType from "../services/toggleAnnotationPointType";
+import commitWrapperTransform from "../services/commitWrapperTransform";
+import computeWrapperBbox from "../utils/computeWrapperBbox";
+import applyWrapperTransformToPoints from "../utils/applyWrapperTransformToPoints";
 import removeCutAsync from "../services/removeCutAsync";
 import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -127,6 +131,7 @@ export default function MainMapEditorV3() {
 
     // Selection from new Redux slice
     const { nodes: selectedNodes, node: selectedNode } = useSelectedNodes();
+    const selectedItems = useSelector(selectSelectedItems);
 
     const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
     const grayLevelThreshold = useSelector((s) => s.baseMapEditor.grayLevelThreshold);
@@ -402,10 +407,37 @@ export default function MainMapEditorV3() {
 
     // handlers - move point
 
-    const handlePointMoveCommit = (pointId, newPos) => {
+    const handlePointMoveCommit = async (pointId, newPos) => {
         const imageSize = baseMap?.image?.imageSize;
-        //dispatch(updatePoint({ id: pointId, ...newPos }));
-        db.points.update(pointId, { x: newPos.x / imageSize.width, y: newPos.y / imageSize.height });
+        if (!imageSize) return;
+
+        // Find annotations that reference this point and have rotation metadata.
+        // Moving a vertex "bakes in" the rotation for that point, so rotation
+        // metadata is no longer valid and must be cleared.
+        const rotatedAnns = annotations?.filter((ann) => {
+            if (!ann.rotation && !ann.rotationCenter) return false;
+            const inMain = ann.points?.some((pt) => pt.id === pointId);
+            const inCuts = ann.cuts?.some((cut) => cut.points?.some((pt) => pt.id === pointId));
+            return inMain || inCuts;
+        }) ?? [];
+
+        await db.transaction("rw", db.points, db.annotations, async () => {
+            const ops = [
+                db.points.update(pointId, {
+                    x: newPos.x / imageSize.width,
+                    y: newPos.y / imageSize.height,
+                }),
+            ];
+            for (const ann of rotatedAnns) {
+                ops.push(
+                    db.annotations.update(ann.id, {
+                        rotation: 0,
+                        rotationCenter: null,
+                    })
+                );
+            }
+            await Promise.all(ops);
+        });
     };
 
     const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
@@ -533,6 +565,45 @@ export default function MainMapEditorV3() {
     const handleAnnotationMoveCommit = async (annotationId, deltaPos, partType, localPos) => {
         const imageSize = baseMap?.image?.imageSize;
         if (!imageSize) return;
+
+        // WRAPPER (group transform for point-based annotations)
+        if (annotationId === "wrapper") {
+            const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
+            const wrapperAnnotationIds = selectedItems
+                .filter(item => item.type === "NODE" && POINT_BASED_TYPES.includes(item.annotationType))
+                .map(item => item.nodeId);
+            const wrapperAnnotations = annotations?.filter(a => wrapperAnnotationIds.includes(a.id)) ?? [];
+            if (wrapperAnnotations.length === 0) return;
+
+            // For ROTATE with existing rotation, use canonical bbox (consistent pivot)
+            const cumulativeRotation = wrapperAnnotations[0]?.rotation ?? 0;
+            const rotationCenter = wrapperAnnotations[0]?.rotationCenter ?? null;
+            const wrapperBbox = (partType === "ROTATE" && cumulativeRotation !== 0 && rotationCenter)
+                ? computeWrapperBbox(wrapperAnnotations, cumulativeRotation, rotationCenter)
+                : computeWrapperBbox(wrapperAnnotations);
+            if (!wrapperBbox) return;
+
+            const pointUpdates = applyWrapperTransformToPoints({
+                annotations: wrapperAnnotations,
+                wrapperBbox,
+                deltaPos,
+                partType,
+            });
+
+            await commitWrapperTransform({
+                selectedAnnotationIds: wrapperAnnotationIds,
+                allAnnotations: annotations,
+                pointUpdates,
+                imageSize,
+                rotationDelta: partType === "ROTATE" ? deltaPos.x : null,
+                wrapperBbox,
+                moveDelta: (!partType || partType === "MOVE") ? deltaPos : null,
+                isResize: partType?.startsWith("RESIZE_"),
+            });
+
+            dispatch(triggerAnnotationsUpdate());
+            return;
+        }
 
         // LABEL
         if (annotationId.startsWith("label::")) {

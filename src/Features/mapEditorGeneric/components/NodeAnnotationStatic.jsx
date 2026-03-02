@@ -49,6 +49,11 @@ export default function NodeAnnotationStatic({
     highlightConnectedSegments,
   };
 
+  // Note: point-based types (POLYGON, POLYLINE, STRIP) store their points
+  // at the final rotated positions in the DB. The annotation.rotation field
+  // is metadata used only for wrapper bbox computation — no SVG rotation
+  // should be applied here (it would cause double rotation).
+
   switch (annotation.type) {
     case "MARKER":
       return <NodeMarkerStatic {...props} marker={annotation} />;

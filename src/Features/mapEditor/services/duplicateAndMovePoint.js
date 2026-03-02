@@ -46,6 +46,12 @@ export default async function duplicateAndMovePoint({ originalPointId, annotatio
             });
         }
 
+        // C. Clear rotation metadata: moving a vertex "bakes in" the rotation
+        if (annotation.rotation || annotation.rotationCenter) {
+            updates.rotation = 0;
+            updates.rotationCenter = null;
+        }
+
         // 3. Sauvegarde des modifications (points et/ou cuts)
         await db.annotations.update(annotationId, updates);
     }

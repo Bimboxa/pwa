@@ -5,7 +5,6 @@ import { selectSelectedItems } from "Features/selection/selectionSlice";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
-import getAnnotationTemplateProps from "Features/annotations/utils/getAnnotationTemplateProps";
 
 import db from "App/db/db";
 import useAnnotationsV2 from "./useAnnotationsV2";
@@ -74,7 +73,7 @@ export default function useSelectedAnnotation() {
   );
 
   if (!annotation?.isBaseMapAnnotation) {
-    annotation = { ...annotation, ...getAnnotationTemplateProps(template), templateLabel: template?.label || "-?", annotationTemplate: template };
+    annotation = { ...annotation, templateLabel: template?.label || "-?", annotationTemplate: template };
   }
 
   // return

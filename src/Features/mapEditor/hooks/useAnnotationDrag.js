@@ -1,10 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
 const DRAG_THRESHOLD_PX = 3;
+const WRAPPER_NODE_ID = "wrapper";
 
 /**
  * Hook qui gère le drag d'annotation entière (move, resize, rotate).
  * Inclut la logique de permission + convergence DB (optimistic updates).
+ * Supports wrapper mode for group transforms on point-based annotations.
  *
  * Pattern performance : annotations et callbacks stockés dans des refs.
  */
@@ -37,11 +39,23 @@ export default function useAnnotationDrag({
 
   const commitSnapshotRef = useRef(null);
   const commitTimeoutRef = useRef(null);
+  // Store multiple pending IDs for wrapper mode
+  const commitPendingIdsRef = useRef(null);
 
   const clearCommitPending = useCallback(() => {
+    // Clear single annotation pending
     if (commitPendingRef.current) {
       pendingMovesRef.current.delete(commitPendingRef.current);
       commitPendingRef.current = null;
+      commitSnapshotRef.current = null;
+      setPendingMovesVersion((v) => v + 1);
+    }
+    // Clear wrapper pending (multiple annotations)
+    if (commitPendingIdsRef.current) {
+      for (const id of commitPendingIdsRef.current) {
+        pendingMovesRef.current.delete(id);
+      }
+      commitPendingIdsRef.current = null;
       commitSnapshotRef.current = null;
       setPendingMovesVersion((v) => v + 1);
     }
@@ -86,8 +100,13 @@ export default function useAnnotationDrag({
         ann.labelPoint?.y !== snap.labelY;
     } else {
       const firstPt = ann.points?.[0];
-      hasChanged =
+      const pointsChanged =
         firstPt?.x !== snap.firstPointX || firstPt?.y !== snap.firstPointY;
+      // For rotation, also wait for the rotation metadata to be updated
+      const rotationChanged = snap.rotation !== undefined
+        ? ann.rotation !== snap.rotation
+        : true;
+      hasChanged = pointsChanged && rotationChanged;
     }
 
     if (hasChanged) {
@@ -101,13 +120,15 @@ export default function useAnnotationDrag({
    * Démarre un drag d'annotation (move, resize, ou rotate).
    * Retourne false si l'utilisateur n'a pas la permission.
    *
-   * @param {{ nodeId: string, startMouseInLocal: {x,y}, partType: string|null, startMouseScreen: {x,y}, nodeContext?: string }} params
+   * @param {{ nodeId: string, startMouseInLocal: {x,y}, partType: string|null, startMouseScreen: {x,y}, nodeContext?: string, wrapperAnnotationIds?: string[], wrapperBbox?: Object }} params
    * @returns {boolean} true si le drag a été initié
    */
   const initAnnotationDrag = useCallback(
-    ({ nodeId, startMouseInLocal, partType, startMouseScreen, nodeContext }) => {
+    ({ nodeId, startMouseInLocal, partType, startMouseScreen, nodeContext, wrapperAnnotationIds, wrapperBbox }) => {
+      const isWrapper = nodeId === WRAPPER_NODE_ID;
+
       // GUARD : bloquer si pas propriétaire
-      if (!permissions.canEditAnnotation(nodeId)) return false;
+      if (!isWrapper && !permissions.canEditAnnotation(nodeId)) return false;
 
       const newState = {
         active: false,
@@ -117,6 +138,10 @@ export default function useAnnotationDrag({
         partType: partType || null,
         startMouseScreen,
         nodeContext,
+        // Wrapper-specific state
+        isWrapper,
+        wrapperAnnotationIds: isWrapper ? wrapperAnnotationIds : null,
+        wrapperBbox: isWrapper ? wrapperBbox : null,
       };
 
       setDragAnnotationState(newState);
@@ -156,10 +181,21 @@ export default function useAnnotationDrag({
           dragAnnotationStateRef.current = newState;
 
           // Optimistic overlay
-          pendingMovesRef.current.set(_state.selectedAnnotationId, {
-            deltaPos: { x: 0, y: 0 },
-            partType: _state.partType || null,
-          });
+          if (_state.isWrapper && _state.wrapperAnnotationIds) {
+            // Set pending moves for ALL wrapped annotations
+            for (const annId of _state.wrapperAnnotationIds) {
+              pendingMovesRef.current.set(annId, {
+                deltaPos: { x: 0, y: 0 },
+                partType: _state.partType || null,
+                wrapperBbox: _state.wrapperBbox,
+              });
+            }
+          } else {
+            pendingMovesRef.current.set(_state.selectedAnnotationId, {
+              deltaPos: { x: 0, y: 0 },
+              partType: _state.partType || null,
+            });
+          }
           setPendingMovesVersion((v) => v + 1);
         } else {
           return true; // Absorber le mouvement
@@ -183,13 +219,24 @@ export default function useAnnotationDrag({
         };
 
         // Update pendingMove ref (pas de re-render, lu par TransientAnnotationLayer)
-        pendingMovesRef.current.set(
-          dragAnnotationStateRef.current.selectedAnnotationId,
-          {
-            deltaPos,
-            partType: dragAnnotationStateRef.current.partType || null,
+        if (dragAnnotationStateRef.current.isWrapper && dragAnnotationStateRef.current.wrapperAnnotationIds) {
+          // Update pending moves for ALL wrapped annotations
+          for (const annId of dragAnnotationStateRef.current.wrapperAnnotationIds) {
+            pendingMovesRef.current.set(annId, {
+              deltaPos,
+              partType: dragAnnotationStateRef.current.partType || null,
+              wrapperBbox: dragAnnotationStateRef.current.wrapperBbox,
+            });
           }
-        );
+        } else {
+          pendingMovesRef.current.set(
+            dragAnnotationStateRef.current.selectedAnnotationId,
+            {
+              deltaPos,
+              partType: dragAnnotationStateRef.current.partType || null,
+            }
+          );
+        }
 
         const newState = {
           ...dragAnnotationStateRef.current,
@@ -233,27 +280,47 @@ export default function useAnnotationDrag({
         );
       }
 
-      // Snapshot pour convergence
-      const annId = _state.selectedAnnotationId;
-      const ann = annotationsRef.current?.find((a) => a.id === annId);
-      if (ann) {
-        commitSnapshotRef.current = {
-          bboxX: ann.bbox?.x,
-          bboxY: ann.bbox?.y,
-          bboxW: ann.bbox?.width,
-          bboxH: ann.bbox?.height,
-          rotation: ann.rotation,
-          pointX: ann.point?.x,
-          pointY: ann.point?.y,
-          targetX: ann.targetPoint?.x,
-          targetY: ann.targetPoint?.y,
-          labelX: ann.labelPoint?.x,
-          labelY: ann.labelPoint?.y,
-          firstPointX: ann.points?.[0]?.x,
-          firstPointY: ann.points?.[0]?.y,
-        };
+      if (_state.isWrapper && _state.wrapperAnnotationIds) {
+        // Wrapper mode: track convergence on the first wrapped annotation
+        const firstAnnId = _state.wrapperAnnotationIds[0];
+        const ann = annotationsRef.current?.find((a) => a.id === firstAnnId);
+        if (ann) {
+          const snap = {
+            firstPointX: ann.points?.[0]?.x,
+            firstPointY: ann.points?.[0]?.y,
+          };
+          // For ROTATE, also track rotation to avoid detecting convergence
+          // before the annotation metadata (rotation/rotationCenter) is committed.
+          if (_state.partType === "ROTATE") {
+            snap.rotation = ann.rotation;
+          }
+          commitSnapshotRef.current = snap;
+        }
+        commitPendingRef.current = firstAnnId;
+        commitPendingIdsRef.current = [..._state.wrapperAnnotationIds];
+      } else {
+        // Single annotation mode
+        const annId = _state.selectedAnnotationId;
+        const ann = annotationsRef.current?.find((a) => a.id === annId);
+        if (ann) {
+          commitSnapshotRef.current = {
+            bboxX: ann.bbox?.x,
+            bboxY: ann.bbox?.y,
+            bboxW: ann.bbox?.width,
+            bboxH: ann.bbox?.height,
+            rotation: ann.rotation,
+            pointX: ann.point?.x,
+            pointY: ann.point?.y,
+            targetX: ann.targetPoint?.x,
+            targetY: ann.targetPoint?.y,
+            labelX: ann.labelPoint?.x,
+            labelY: ann.labelPoint?.y,
+            firstPointX: ann.points?.[0]?.x,
+            firstPointY: ann.points?.[0]?.y,
+          };
+        }
+        commitPendingRef.current = annId;
       }
-      commitPendingRef.current = annId;
       startCommitPendingWatch();
     }
 
