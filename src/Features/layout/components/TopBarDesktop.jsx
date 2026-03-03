@@ -109,7 +109,7 @@ export default function TopBarDesktop() {
               Portfolio
             </Button>
           )}
-          {viewerKey === "MAP" && <BaseMapSelectorInMapEditorV2 />}
+          {/* BaseMapSelectorInMapEditorV2 moved to UILayerDesktop */}
 
         </Box>
 

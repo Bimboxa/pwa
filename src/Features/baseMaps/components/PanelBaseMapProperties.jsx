@@ -1,0 +1,111 @@
+import { useState } from "react";
+
+import { useSelector, useDispatch } from "react-redux";
+
+import {
+  selectSelectedItems,
+  setSelectedItem,
+} from "Features/selection/selectionSlice";
+import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
+
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useDeleteEntity from "Features/entities/hooks/useDeleteEntity";
+
+import { Box, Typography, IconButton, Menu, MenuItem } from "@mui/material";
+import { MoreVert as MoreActionsIcon } from "@mui/icons-material";
+
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
+import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
+
+export default function PanelBaseMapProperties() {
+  const dispatch = useDispatch();
+
+  // data
+
+  const baseMap = useMainBaseMap();
+  const selectedItems = useSelector(selectSelectedItems);
+  const selectedItem = selectedItems[0];
+  const deleteEntity = useDeleteEntity();
+
+  // state
+
+  const [anchorEl, setAnchorEl] = useState(null);
+  const menuOpen = Boolean(anchorEl);
+  const [openDelete, setOpenDelete] = useState(false);
+
+  // handlers
+
+  function handleMenuClick(event) {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+  }
+
+  function handleMenuClose() {
+    setAnchorEl(null);
+  }
+
+  function handleDelete() {
+    setAnchorEl(null);
+    setOpenDelete(true);
+  }
+
+  // render
+
+  if (!baseMap) return null;
+
+  return (
+    <BoxFlexVStretch>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          p: 0.5,
+          pl: 1,
+        }}
+      >
+        <Typography variant="body2" sx={{ fontWeight: "bold", ml: 1 }}>
+          {baseMap.name || "Fond de plan"}
+        </Typography>
+
+        <IconButton onClick={handleMenuClick}>
+          <MoreActionsIcon />
+        </IconButton>
+      </Box>
+
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+          p: 1.5,
+          overflow: "auto",
+        }}
+      >
+        <WhiteSectionGeneric>
+          <FieldBaseMapOpacity baseMap={baseMap} />
+        </WhiteSectionGeneric>
+      </Box>
+
+      <Menu open={menuOpen} anchorEl={anchorEl} onClose={handleMenuClose}>
+        <MenuItem onClick={handleDelete}>Supprimer</MenuItem>
+      </Menu>
+
+      <DialogDeleteRessource
+        open={openDelete}
+        onClose={() => setOpenDelete(false)}
+        onConfirmAsync={async () => {
+          await deleteEntity({
+            id: baseMap.id,
+            listingId: selectedItem?.listingId,
+          });
+          dispatch(setSelectedItem({}));
+          dispatch(setSelectedMainBaseMapId(null));
+          setOpenDelete(false);
+        }}
+      />
+    </BoxFlexVStretch>
+  );
+}

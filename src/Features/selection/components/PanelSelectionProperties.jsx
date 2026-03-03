@@ -12,6 +12,7 @@ import PanelBaseMapContainerProperties from "Features/portfolioEditor/components
 import PanelLegendBlockProperties from "Features/portfolioEditor/components/PanelLegendBlockProperties";
 import PanelPortfolioHeaderProperties from "Features/portfolioEditor/components/PanelPortfolioHeaderProperties";
 import PanelPortfolioPageProperties from "Features/portfolioEditor/components/PanelPortfolioPageProperties";
+import PanelBaseMapProperties from "Features/baseMaps/components/PanelBaseMapProperties";
 
 export default function PanelSelectionProperties() {
   // data
@@ -29,9 +30,12 @@ export default function PanelSelectionProperties() {
   // helper - type
 
   const isPortfolioViewer = selectedViewerKey === "PORTFOLIO";
+  const isBaseMapsViewer = selectedViewerKey === "BASE_MAPS";
 
   let type = "LISTING";
-  if (isPortfolioViewer) {
+  if (isBaseMapsViewer && selectedItem?.type === "BASE_MAP") {
+    type = "BASE_MAP";
+  } else if (isPortfolioViewer) {
     if (selectedItem?.type === "LEGEND_BLOCK") {
       type = "LEGEND_BLOCK";
     } else if (selectedItem?.type === "BASE_MAP_CONTAINER") {
@@ -77,6 +81,8 @@ export default function PanelSelectionProperties() {
       {type === "PORTFOLIO_PAGE" && <PanelPortfolioPageProperties />}
 
       {type === "PORTFOLIO_HEADER" && <PanelPortfolioHeaderProperties />}
+
+      {type === "BASE_MAP" && <PanelBaseMapProperties />}
     </BoxFlexVStretch>
   );
 }

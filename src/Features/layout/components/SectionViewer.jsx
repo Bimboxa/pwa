@@ -12,6 +12,7 @@ import MainLeafletEditor from "Features/leafletEditor/components/MainLeafletEdit
 import MainGoogleMapEditor from "Features/gmap/components/MainGoogleMapEditor";
 import TableViewer from "Features/tables/components/ViewerTable";
 import MainPortfolioEditor from "Features/portfolioEditor/components/MainPortfolioEditor";
+import MainBaseMapViewer from "Features/baseMapEditor/components/MainBaseMapViewer";
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 
@@ -28,6 +29,7 @@ export default function SectionViewer() {
   const showLeaflet = viewerKey === "LEAFLET";
   const showTable = viewerKey === "TABLE";
   const showPortfolio = viewerKey === "PORTFOLIO";
+  const showBaseMaps = viewerKey === "BASE_MAPS";
   const showAdmin = viewerKey === "ADMIN";
 
   return (
@@ -57,6 +59,10 @@ export default function SectionViewer() {
 
       <PanelShowable show={showPortfolio} sx={{ position: "absolute", zIndex: 0 }}>
         <MainPortfolioEditor />
+      </PanelShowable>
+
+      <PanelShowable show={showBaseMaps} sx={{ position: "absolute", zIndex: 0 }}>
+        <MainBaseMapViewer />
       </PanelShowable>
 
       <PanelShowable show={showAdmin} sx={{ position: "absolute", zIndex: 0 }}>

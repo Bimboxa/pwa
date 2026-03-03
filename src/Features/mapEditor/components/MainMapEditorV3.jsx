@@ -136,6 +136,7 @@ export default function MainMapEditorV3() {
 
     const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
     const grayLevelThreshold = useSelector((s) => s.baseMapEditor.grayLevelThreshold);
+    const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
     // viewport
 
@@ -1100,7 +1101,7 @@ export default function MainMapEditorV3() {
             <LayerTools />
             <LayerCreateBaseMap />
 
-            <PopperMapListings />
+            {viewerKey !== "BASE_MAPS" && <PopperMapListings />}
         </Box>
 
     );

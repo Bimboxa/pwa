@@ -26,7 +26,7 @@ import FieldTextV2 from "Features/form/components/FieldTextV2";
 import ImageGeneric from "Features/images/components/ImageGeneric";
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
 
-export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onCreated }) {
+export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onCreated, listing: listingProp }) {
   const dispatch = useDispatch();
 
   // strings
@@ -67,7 +67,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
   const selectedImageUrl = imageFile ? URL.createObjectURL(imageFile) : null;
 
   async function _createBaseMap(file) {
-    const listing = projectBaseMapListings?.[0];
+    const listing = listingProp ?? projectBaseMapListings?.[0];
     console.log("baseMaps listing", listing, file);
 
     if (listing) {
