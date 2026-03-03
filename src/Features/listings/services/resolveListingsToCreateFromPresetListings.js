@@ -45,6 +45,15 @@ export default async function resolveListingsToCreateFromPresetListings(
       appConfig.entityModelsObject[presetListing.entityModelKey];
     presetListing.entityModel = entityModel;
 
+    // articlesNomenclatures — resolve keys into full objects
+    if (presetListing.articlesNomenclaturesKeys?.length > 0) {
+      const articlesNomenclaturesObject = appConfig.articlesNomenclaturesObject ?? {};
+      presetListing.articlesNomenclatures = presetListing.articlesNomenclaturesKeys
+        .map((key) => articlesNomenclaturesObject[key])
+        .filter(Boolean);
+      delete presetListing.articlesNomenclaturesKeys;
+    }
+
     // resolve nomenclature listings
     if (presetListing.type === "NOMENCLATURE") {
       presetListing = resolveListingNomenclature(

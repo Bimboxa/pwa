@@ -13,6 +13,7 @@ export default function resolvePresetListingsAndScopesObjectFromAnnotationTempla
             iconKey: library.iconKey,
             annotationTemplatesLibrary: library.templates,
             keywords: library.keywords,
+            articlesNomenclaturesKeys: library.articlesNomenclaturesKeys,
         }
 
         return listing;

@@ -35,7 +35,7 @@ const METRIC_TO_FIELD = {
 
 function getAnnotationValue(annotation, metric) {
     const field = METRIC_TO_FIELD[metric] ?? metric.toLowerCase();
-    return Number(annotation[field]) || 0;
+    return Number(annotation.qties?.[field] ?? annotation[field]) || 0;
 }
 
 /**

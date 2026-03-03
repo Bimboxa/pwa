@@ -14,6 +14,8 @@ import {
 import db from "App/db/db";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import usePortfolioBaseMapContainers from "Features/portfolioBaseMapContainers/hooks/usePortfolioBaseMapContainers";
+import resolvePoints from "Features/annotations/utils/resolvePoints";
+import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 import resolveArticlesNomenclaturesWithQties from "../resolveArticlesNomenclaturesWithQties";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -134,7 +136,7 @@ export default function SectionPortfolioPageArticles({ page }) {
         [baseMaps]
     );
 
-    // 3. Annotations per baseMap, filtered by each container's viewBox
+    // 3. Annotations per baseMap, filtered by each container's viewBox, with qties
     const annotations = useLiveQuery(async () => {
         if (!containersWithBaseMap.length) return [];
 
@@ -152,7 +154,32 @@ export default function SectionPortfolioPageArticles({ page }) {
                 const viewBox = container.viewBox;
 
                 // Filter annotations that are (at least partially) within the viewBox
-                return active.filter((a) => annotationInViewBox(a, viewBox, imageSize));
+                const filtered = active.filter((a) => annotationInViewBox(a, viewBox, imageSize));
+
+                // Resolve points and compute qties
+                if (!imageSize) return filtered;
+
+                const points = (await db.points
+                    .where("baseMapId")
+                    .equals(container.baseMapId)
+                    .toArray()
+                ).filter((p) => !p.deletedAt);
+
+                const pointsIndex = Object.fromEntries(points.map((p) => [p.id, p]));
+                const meterByPx = baseMap?.meterByPx ?? 0;
+
+                return filtered.map((annotation) => {
+                    const resolved = resolvePoints({
+                        points: annotation.points,
+                        pointsIndex,
+                        imageSize,
+                    });
+                    const qties = getAnnotationQties({
+                        annotation: { ...annotation, points: resolved },
+                        meterByPx,
+                    });
+                    return { ...annotation, qties };
+                });
             })
         );
 
@@ -204,10 +231,18 @@ export default function SectionPortfolioPageArticles({ page }) {
 
     // ── render ────────────────────────────────────────────────────────────────
 
-    if (!nomenclaturesWithValidArticles.length) return null;
+    if (!nomenclaturesWithValidArticles.length) {
+        return (
+            <Box sx={{ width: 1 }}>
+                <Typography variant="body2" color="text.secondary">
+                    Aucun article
+                </Typography>
+            </Box>
+        );
+    }
 
     return (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box sx={{ width: 1, display: "flex", flexDirection: "column", gap: 2 }}>
             {nomenclaturesWithValidArticles.map((nomenclature) => (
                 <Box key={nomenclature.key}>
                     <Typography

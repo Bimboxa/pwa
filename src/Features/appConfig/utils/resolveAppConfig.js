@@ -108,7 +108,10 @@ export default async function resolveAppConfig(appConfig) {
     if (loader) {
       try {
         const module = await loader();
-        newAppConfig.articlesNomenclaturesObject = module.default;
+        const libraries = module.default;
+        newAppConfig.articlesNomenclaturesObject = Object.fromEntries(
+          libraries.map((nom) => [nom.key, nom])
+        );
       } catch (error) {
         console.error(`[resolveAppConfig] Error loading articlesNomenclaturesLibraries for "${orgaCode}":`, error);
       }
