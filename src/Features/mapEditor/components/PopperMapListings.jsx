@@ -31,6 +31,8 @@ import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTe
 import ToolbarCreateAnnotationFromTabAnnotationTemplates from "Features/annotations/components/ToolbarCreateAnnotationFromTabAnnotationTemplates";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
+import SectionSmartDetect from "Features/smartDetect/components/SectionSmartDetect";
+import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 
 import useListings from "Features/listings/hooks/useListings";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
@@ -455,19 +457,17 @@ function ListingRow({ listing, isExpanded, onToggleExpand, hiddenListingsIds }) 
         </Box>
 
         {/* Eye icon on hover */}
-        {isHovered && (
-          <IconButton
-            size="small"
-            onClick={handleToggleVisibility}
-            sx={{ p: 0.25 }}
-          >
-            {isHidden ? (
-              <VisibilityOff sx={{ fontSize: 18 }} />
-            ) : (
-              <Visibility sx={{ fontSize: 18 }} />
-            )}
-          </IconButton>
-        )}
+        <IconButton
+          size="small"
+          onClick={handleToggleVisibility}
+          sx={{ p: 0.25, visibility: isHovered ? "visible" : "hidden" }}
+        >
+          {isHidden ? (
+            <VisibilityOff sx={{ fontSize: 18 }} />
+          ) : (
+            <Visibility sx={{ fontSize: 18 }} />
+          )}
+        </IconButton>
       </Box>
 
       <Collapse in={isExpanded}>
@@ -480,7 +480,74 @@ function ListingRow({ listing, isExpanded, onToggleExpand, hiddenListingsIds }) 
 }
 
 // ---------------------------------------------------------------------------
-// PopperMapListings — main floating panel
+// PopperDrawingHelper — floating panel shown while drawing
+// ---------------------------------------------------------------------------
+
+function PopperDrawingHelper() {
+  // strings
+
+  const titleS = "Mode dessin";
+
+  // state
+
+  const { position, isDragging, handleMouseDown } = usePanelDrag();
+
+  // render
+
+  return (
+    <Paper
+      elevation={4}
+      sx={{
+        position: "absolute",
+        top: 60,
+        left: 16,
+        zIndex: 10,
+        width: 280,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        borderRadius: 2,
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        transition: isDragging.current ? "none" : "transform 0.1s ease-out",
+      }}
+    >
+      {/* Drag handle header */}
+      <Box
+        onMouseDown={handleMouseDown}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.5,
+          px: 1,
+          py: 0.75,
+          bgcolor: "grey.100",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          cursor: "grab",
+          "&:active": { cursor: "grabbing" },
+          userSelect: "none",
+        }}
+      >
+        <DragIndicatorIcon fontSize="small" sx={{ color: "text.secondary" }} />
+        <Typography
+          variant="body2"
+          sx={{ fontWeight: 500, color: "text.secondary" }}
+        >
+          {titleS}
+        </Typography>
+      </Box>
+
+      <SectionSmartDetect />
+
+      <Box sx={{ p: 1 }}>
+        <SectionShortcutHelpers />
+      </Box>
+    </Paper>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PopperMapListings — main floating panel (or drawing helper when drawing)
 // ---------------------------------------------------------------------------
 
 export default function PopperMapListings() {
@@ -492,6 +559,9 @@ export default function PopperMapListings() {
   // data
 
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const enabledDrawingMode = useSelector(
+    (s) => s.mapEditor.enabledDrawingMode
+  );
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
   );
@@ -518,6 +588,10 @@ export default function PopperMapListings() {
   }
 
   // render
+
+  if (Boolean(enabledDrawingMode)) {
+    return <PopperDrawingHelper />;
+  }
 
   if (!listings?.length && !openCreateListing) return null;
 
