@@ -77,6 +77,10 @@ const mapEditorInitialState = {
   // fixed length
   fixedLength: null,
   fixedDims: null, // "x; y"
+
+  // default height
+  defaultHeightByBaseMap: {}, // { [baseMapId]: number }
+  defaultHeightCategories: [], // ["OUVRAGE:VCT", "OUVRAGE:SOL", ...]
 };
 
 export const mapEditorSlice = createSlice({
@@ -304,6 +308,19 @@ export const mapEditorSlice = createSlice({
     setFixedDims: (state, action) => {
       state.fixedDims = action.payload;
     },
+
+    // default height
+    setDefaultHeightForBaseMap: (state, action) => {
+      const { baseMapId, height } = action.payload;
+      if (height == null || height === "") {
+        delete state.defaultHeightByBaseMap[baseMapId];
+      } else {
+        state.defaultHeightByBaseMap[baseMapId] = height;
+      }
+    },
+    setDefaultHeightCategories: (state, action) => {
+      state.defaultHeightCategories = action.payload;
+    },
   },
 });
 
@@ -387,6 +404,10 @@ export const {
   triggerScreenToBaseLocalUpdate,
   // dialogs
   setOpenDialogAutoSelectAnnotationTemplateToCreateEntity,
+
+  // default height
+  setDefaultHeightForBaseMap,
+  setDefaultHeightCategories,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;

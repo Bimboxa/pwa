@@ -13,6 +13,7 @@ import SectionShowedFWC from "Features/fwc/components/SectionShowedFWC";
 import BaseMapSelectorInMapEditorV2 from "Features/baseMaps/components/BaseMapSelectorInMapEditorV2";
 import ButtonRunningTransform from "Features/baseMapTransforms/components/ButtonRunningTransform";
 import SelectorMapEditorMode from "./SelectorMapEditorMode";
+import SectionDefaultHeight from "./SectionDefaultHeight";
 
 
 export default function UILayerDesktop({ mapController, onResetCamera, viewport }) {
@@ -124,6 +125,15 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                 <SectionShowedFWC />
             </Box>
 
+
+            <Box sx={{
+                position: "absolute",
+                left: "16px",
+                top: "16px",
+                zIndex: 1,
+            }}>
+                <SectionDefaultHeight />
+            </Box>
 
             <Box sx={{
                 position: "absolute",
