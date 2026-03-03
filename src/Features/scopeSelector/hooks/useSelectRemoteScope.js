@@ -79,7 +79,6 @@ export default function useSelectRemoteScope() {
       if (!localScope) {
         const name = remoteScope.name;
         const clientRef = remoteScope.clientRef;
-        const sortedListings = remoteScope.sortedListings ?? [];
         const createdBy = remoteScope.createdBy;
         const createdAt = remoteScope.createdAt;
         const id = remoteScope.id;
@@ -92,12 +91,11 @@ export default function useSelectRemoteScope() {
             projectId,
             createdBy,
             createdAt,
-            sortedListings,
           },
           {updateSyncFile: true}
         );
       }
-      dispatch(setSelectedScopeId(id));
+      dispatch(setSelectedScopeId(remoteScope.id));
     } catch (e) {
       console.log("error selecting remote scope", e);
     }

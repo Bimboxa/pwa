@@ -8,7 +8,6 @@ import {setOpenDialogAddListing, setSelectedListingId} from "../listingsSlice";
 
 import useResolvedPresetListings from "../hooks/useResolvedPresetListings";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
-import useUpdateScope from "Features/scopes/hooks/useUpdateScope";
 import useCreateListings from "../hooks/useCreateListings";
 
 import Panel from "Features/layout/components/Panel";
@@ -17,7 +16,6 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
-import updateSyncFile from "Features/sync/services/updateSyncFile";
 
 export default function PanelAddListingsFromPresets() {
   const dispatch = useDispatch();
@@ -29,7 +27,6 @@ export default function PanelAddListingsFromPresets() {
 
   const listings = useResolvedPresetListings();
   const {value: scope} = useSelectedScope();
-  const updateScope = useUpdateScope();
   const createListings = useCreateListings();
   const autoSyncMacro = useSelector((s) => s.sync.autoSyncMacro);
 
@@ -54,17 +51,6 @@ export default function PanelAddListingsFromPresets() {
     const listingsById = getItemsByKey(listings, "id");
     const newListings = tempSelection.map((id) => listingsById[id]);
 
-    const newScopeListings = newListings.map(({id, table, type}) => ({
-      id,
-      table,
-      type,
-    }));
-
-    const updates = {
-      id: scope.id,
-      sortedListings: [...scope.sortedListings, ...newScopeListings],
-    };
-
     // update
     setLoading(true);
 
@@ -73,8 +59,6 @@ export default function PanelAddListingsFromPresets() {
       {listings: newListings, scope},
       {forceLocalToRemote: autoSyncMacro}
     );
-    // update scope
-    await updateScope(updates, {forceLocalToRemote: autoSyncMacro});
     setLoading(false);
     dispatch(setSelectedListingId(newListings[0].id));
     dispatch(setOpenDialogAddListing(false));

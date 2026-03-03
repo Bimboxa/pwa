@@ -15,7 +15,7 @@ export default function useAutoSelectListing() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector(s => s.scopes.selectedScopeId)
 
-  const listings = useListings({
+  const {value: listings} = useListings({
     filterByProjectId: projectId,
     filterByScopeId: scopeId,
     //includeListingsWithoutScope: true,

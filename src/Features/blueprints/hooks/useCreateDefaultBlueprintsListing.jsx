@@ -1,6 +1,6 @@
 import { useSelector } from "react-redux";
 
-import useCreateListing from "Features/listings/hooks/useCreateListing";
+import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useDefaultBlueprintsListingProps from "./useDefaultBlueprintsListingProps";
 
 export default function useCreateDefaultBlueprintsListing() {
@@ -10,7 +10,7 @@ export default function useCreateDefaultBlueprintsListing() {
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const props = useDefaultBlueprintsListingProps();
 
-  const createListing = useCreateListing();
+  const createListings = useCreateListings();
 
   return async (options) => {
     // options
@@ -20,6 +20,7 @@ export default function useCreateDefaultBlueprintsListing() {
     // main
 
     const listing = { projectId: _projectId ?? projectId, scopeId, ...props };
-    return await createListing({ listing });
+    const [created] = await createListings({ listings: [listing] });
+    return created;
   };
 }

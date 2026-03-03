@@ -21,8 +21,6 @@ export default function computeSyncConfig_listings({listings, direction}) {
         listingsIds: {
           doNotResolve: true,
           value: listings.map((l) => l.id),
-          //from: "scope.sortedListings",
-          //transform: {type: "map", key: "id"},
         },
       },
       remoteMetadata: {

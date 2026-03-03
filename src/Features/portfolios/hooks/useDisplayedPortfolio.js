@@ -1,17 +1,13 @@
-import { useLiveQuery } from "dexie-react-hooks";
 import { useSelector } from "react-redux";
 
-import db from "App/db/db";
+import useListingById from "Features/listings/hooks/useListingById";
 
-export default function useDisplayedPortfolio() {
+export default function useDisplayedPortfolio(options) {
   const id = useSelector((s) => s.portfolios.displayedPortfolioId);
 
-  const portfolio = useLiveQuery(async () => {
-    if (!id) return null;
-    const record = await db.listings.get(id);
-    if (!record || record.deletedAt) return null;
-    return record;
-  }, [id]);
+  const listing = useListingById(id, { withFiles: options?.withFiles });
 
-  return { value: portfolio };
+  const value = listing?.deletedAt ? null : listing ?? null;
+
+  return { value };
 }

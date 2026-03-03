@@ -27,7 +27,6 @@ export default function useCreateScope() {
       projectId,
       newListings,
       newEntities,
-      sortedListings,
       presetScopeKey,
     },
     options
@@ -45,13 +44,6 @@ export default function useCreateScope() {
       };
     });
     //
-    sortedListings =
-      sortedListings ??
-      listingsWithIds?.map((listing) => ({
-        id: listing.id,
-        table: listing.table,
-      }));
-    //
     const scope = {
       id: id ?? nanoid(),
       presetScopeKey,
@@ -59,7 +51,6 @@ export default function useCreateScope() {
       name,
       clientRef,
       projectId: projectId ?? _projectId,
-      sortedListings,
     };
     await db.scopes.add(scope);
     console.log("debug_25_04 [db] added scope", scope);

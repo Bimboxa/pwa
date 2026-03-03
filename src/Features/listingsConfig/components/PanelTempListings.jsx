@@ -5,7 +5,6 @@ import {setOpenPanel} from "../listingsConfigSlice";
 
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
-import useUpdateScope from "Features/scopes/hooks/useUpdateScope";
 
 import ListListings from "Features/listings/components/ListListings";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -18,7 +17,6 @@ export default function PanelTempListings() {
 
   const tempListings = useSelector((s) => s.listingsConfig.tempListings);
   const createListings = useCreateListings();
-  const updateScope = useUpdateScope();
   const autoSyncMacro = useSelector((s) => s.sync.autoSyncMacro);
 
   const {value: scope} = useSelectedScope();
@@ -35,16 +33,6 @@ export default function PanelTempListings() {
 
   async function handleClick() {
     setLoading(true);
-    // scope
-    const sortedListings = tempListings.map((l) => ({
-      id: l.id,
-      table: l.table,
-      type: l.type,
-    }));
-    const updates = {id: scope.id, sortedListings};
-    await updateScope(updates, {forceLocalToRemote: autoSyncMacro});
-
-    // listings
     await createListings(
       {listings: tempListings, scope},
       {forceLocalToRemote: autoSyncMacro}

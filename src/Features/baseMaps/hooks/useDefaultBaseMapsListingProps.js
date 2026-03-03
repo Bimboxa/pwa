@@ -1,5 +1,5 @@
 /*
- * this hook is used to get the default listing object to use in the useCreateListing hook.
+ * this hook is used to get the default listing object to use in the useCreateListings hook.
  */
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";

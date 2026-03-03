@@ -6,8 +6,7 @@ import { setSelectedListingId, setOpenedPanel } from "../listingsSlice";
 
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useCreateListingsFromPresetListingsKeys from "../hooks/useCreateListingsFromPresetListingsKeys";
-import useCreateListing from "../hooks/useCreateListing";
-import useAddListingToScope from "Features/scopes/hooks/useAddListingToScope";
+import useCreateListings from "../hooks/useCreateListings";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import { Box, Typography } from "@mui/material";
@@ -36,8 +35,7 @@ export default function PanelCreateListingsV3({ onListingCreated }) {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const { value: scope } = useSelectedScope();
   const createListingsFromPresets = useCreateListingsFromPresetListingsKeys();
-  const createListing = useCreateListing();
-  const addListingToScope = useAddListingToScope();
+  const createListings = useCreateListings();
 
   // state
 
@@ -56,6 +54,7 @@ export default function PanelCreateListingsV3({ onListingCreated }) {
   async function handleAddListings() {
     const listings = await createListingsFromPresets({
       presetListingsKeys: selectedKeys,
+      scope,
     });
     if (listings?.length > 0) {
       dispatch(setSelectedListingId(listings[0].id));
@@ -93,15 +92,7 @@ export default function PanelCreateListingsV3({ onListingCreated }) {
       newListing.entityModelKey = newListing.entityModel?.key;
     }
 
-    const _newListing = await createListing({ listing: newListing, scope });
-
-    if (scope) {
-      await addListingToScope({
-        listingId: _newListing.id,
-        listingTable: _newListing.table,
-        scope,
-      });
-    }
+    const [_newListing] = await createListings({ listings: [newListing], scope });
 
     dispatch(setSelectedListingId(_newListing.id));
     dispatch(setOpenedPanel("LISTING"));

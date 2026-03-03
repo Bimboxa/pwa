@@ -6,7 +6,7 @@ import {AddCircle as Add} from "@mui/icons-material";
 export default function IconButtonCreateEntity({listing}) {
   // data
 
-  const {value: _listing} = useSelectedListing({withEntityModel: true});
+  const {value: _listing} = useSelectedListing();
   listing = listing ?? _listing;
 
   // helper - listings props

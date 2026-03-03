@@ -1,15 +1,11 @@
-import {useState} from "react";
-
-import {useSelector, useDispatch} from "react-redux";
+import {useDispatch} from "react-redux";
 
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
-import useRemoteToken from "Features/sync/hooks/useRemoteToken";
+import useListings from "Features/listings/hooks/useListings";
 import useRemoteContainer from "../hooks/useRemoteContainer";
 
 import syncService from "../services/syncService";
-import {overrideSyncConfig} from "../utils/overrideSyncConfig";
 
-import RemoteProvider from "../js/RemoteProvider";
 import useRemoteProvider from "./useRemoteProvider";
 
 import computeSyncConfig from "../utils/computeSyncConfig";
@@ -20,7 +16,7 @@ export default function useDownloadScopeData() {
   // data
 
   const {value: scope} = useSelectedScope({withProject: true});
-  const listings = scope.sortedListings;
+  const {value: listings = []} = useListings({filterByScopeId: scope?.id});
 
   // TODO : add listings & relScopItem ? to the context
   // TODO : override syncFilesPath to add the items if they do not exists on dropbox.

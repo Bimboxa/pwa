@@ -24,7 +24,7 @@ export default function AdminColumnListings() {
     (s) => s.adminEditor.selectedListingId
   );
 
-  const listings = useListings({ filterByProjectId: projectId });
+  const {value: listings} = useListings({ filterByProjectId: projectId });
 
   // state
 

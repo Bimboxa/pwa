@@ -4,11 +4,8 @@ import { useSelector, useDispatch } from "react-redux";
 import { setSelectedListingId } from "../listingsSlice";
 
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
-import useAddListingToScope from "Features/scopes/hooks/useAddListingToScope";
-import useCreateListing from "Features/listings/hooks/useCreateListing";
 
 import Panel from "Features/layout/components/Panel";
-import FormListing from "./FormListing";
 import ButtonInPanel from "Features/layout/components/ButtonInPanel";
 import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
 import SectionSelectorPresetListings from "./SectionSelectorPresetListings";
@@ -27,6 +24,7 @@ export default function PanelCreateListingFromPresetListings({
 
   // data
 
+  const { value: scope } = useSelectedScope();
   const createListings = useCreateListingsFromPresetListingsKeys();
 
   // state
@@ -38,6 +36,7 @@ export default function PanelCreateListingFromPresetListings({
   async function handleSave() {
     const listings = await createListings({
       presetListingsKeys: [selectedKey],
+      scope,
     });
     dispatch(setSelectedListingId(listings?.[0]?.id));
   }

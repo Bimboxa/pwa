@@ -1,114 +1,90 @@
+import { useEffect, useMemo, useRef } from "react";
+import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
-import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import db from "App/db/db";
-import testObjectHasProp from "Features/misc/utils/testObjectHasProp";
+import { getListingsSelector } from "../services/listingsSelectorCache";
+import getObjectHash from "Features/misc/utils/getObjectHash";
 
 export default function useListings(options) {
   // options
 
-  const filterByProjectId = options?.filterByProjectId;
-  const filterByScopeId = options?.filterByScopeId;
-
-  const filterByEntityModelType = options?.filterByEntityModelType;
-  const relsZoneEntityListings = options?.relsZoneEntityListings;
-
-  const includeListingsWithoutScope = options?.includeListingsWithoutScope;
   const withFiles = options?.withFiles;
 
+  // selector options (everything except Dexie-only options)
 
-  // data
+  const selectorOptions = useMemo(() => {
+    if (!options) return {};
+    const { withFiles: _wf, ...rest } = options;
+    return rest;
+  }, [getObjectHash(options)]);
 
-  const appConfig = useAppConfig();
+  const selector = useMemo(
+    () => getListingsSelector(selectorOptions),
+    [getObjectHash(selectorOptions)]
+  );
 
-  // main
+  // data from Redux (fast, memoized)
 
-  const listings = useLiveQuery(async () => {
-    // edge case
+  const listings = useSelector((s) => selector(s));
 
-    if (!appConfig) return;
+  // enrich with files from Dexie (only when withFiles is true)
 
-    // main
+  const listingsIds = withFiles
+    ? listings?.map((l) => l.id).sort().join(",") ?? ""
+    : "";
 
-    let _listings;
+  const blobUrlsRef = useRef([]);
 
-    if (filterByProjectId) {
-      _listings = (await db.listings
-        .where("projectId")
-        .equals(filterByProjectId)
-        .toArray()).filter(r => !r.deletedAt);
-    } else {
-      _listings = (await db.listings.toArray()).filter(r => !r.deletedAt);
-    }
+  const enrichedListings = useLiveQuery(async () => {
+    if (!withFiles || !listings?.length) return null;
 
-    // add entityModel
+    // revoke previous blob URLs
+    blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    blobUrlsRef.current = [];
 
-    _listings = _listings?.map((_listing) => {
-      const entityModel =
-        appConfig?.entityModelsObject?.[_listing?.entityModelKey] ?? null;
+    return Promise.all(
+      listings.map(async (listing) => {
+        if (!listing.metadata) return listing;
 
-      return { ..._listing, entityModel };
-    });
-
-    if (filterByScopeId) {
-      _listings = _listings.filter((listing) => {
-        const test = testObjectHasProp(listing, "scopeId");
-        const isLocatedEntities =
-          listing.entityModel?.type === "LOCATED_ENTITY";
-        return (
-          (!test && !isLocatedEntities) ||
-          (!listing.scopeId && includeListingsWithoutScope) ||
-          (test && listing.scopeId === filterByScopeId)
+        const entriesWithFiles = Object.entries(listing.metadata).filter(
+          ([, value]) => value?.fileName
         );
-      });
-    }
+        if (entriesWithFiles.length === 0) return listing;
 
-    // filter by entityModelType
-    if (filterByEntityModelType) {
-      _listings = _listings.filter(
-        (l) => l.entityModel?.type === filterByEntityModelType
-      );
-    }
+        const processedMetadata = { ...listing.metadata };
+        await Promise.all(
+          entriesWithFiles.map(async ([key, value]) => {
+            const file = await db.files.get(value.fileName);
+            if (file && file.fileArrayBuffer) {
+              const fileUrlClient = URL.createObjectURL(
+                new Blob([file.fileArrayBuffer], { type: file.fileMime })
+              );
+              blobUrlsRef.current.push(fileUrlClient);
+              processedMetadata[key] = {
+                ...value,
+                file,
+                fileUrlClient,
+              };
+            }
+          })
+        );
+        return { ...listing, metadata: processedMetadata };
+      })
+    );
+  }, [withFiles, listingsIds]);
 
-    // keep relsZoneEntityListings
-    if (relsZoneEntityListings) {
-      _listings = _listings.filter((listing) => {
-        return Boolean(listing.entityModel?.relsZoneEntity);
-      });
-    }
+  // cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      blobUrlsRef.current = [];
+    };
+  }, []);
 
-    // load metadata files
-    if (withFiles) {
-      _listings = await Promise.all(
-        _listings.map(async (listing) => {
-          if (!listing.metadata) return listing;
-          const entriesWithFiles = Object.entries(listing.metadata).filter(
-            ([, value]) => value?.fileName
-          );
-          if (entriesWithFiles.length === 0) return listing;
+  // result
 
-          const processedMetadata = { ...listing.metadata };
-          await Promise.all(
-            entriesWithFiles.map(async ([key, value]) => {
-              const file = await db.files.get(value.fileName);
-              if (file && file.fileArrayBuffer) {
-                processedMetadata[key] = {
-                  ...value,
-                  file,
-                  fileUrlClient: URL.createObjectURL(
-                    new Blob([file.fileArrayBuffer], { type: file.fileMime })
-                  ),
-                };
-              }
-            })
-          );
-          return { ...listing, metadata: processedMetadata };
-        })
-      );
-    }
+  const value = withFiles && enrichedListings ? enrichedListings : listings;
 
-    return _listings;
-  }, [appConfig, filterByProjectId, filterByScopeId, filterByEntityModelType, relsZoneEntityListings, withFiles]);
-
-  return listings;
+  return { value, loading: false };
 }

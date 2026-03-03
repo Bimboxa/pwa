@@ -12,7 +12,7 @@ import { setSelectedListingId } from "Features/listings/listingsSlice";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useProjects from "Features/projects/hooks/useProjects";
 import useCreateProject from "Features/projects/hooks/useCreateProject";
-import useCreateListing from "Features/listings/hooks/useCreateListing";
+import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
 
 import { Box, TextField, Typography } from "@mui/material";
@@ -47,7 +47,7 @@ export default function SectionSelectProject({ onProjectSelected }) {
   const { value: projects } = useProjects();
   const appConfig = useAppConfig();
   const defaultBaseMapsListingProps = useDefaultBaseMapsListingProps();
-  const createListing = useCreateListing();
+  const createListings = useCreateListings();
   const createBlueprintsListing = useCreateDefaultBlueprintsListing();
 
   // data - func
@@ -97,8 +97,8 @@ export default function SectionSelectProject({ onProjectSelected }) {
     dispatch(setSelectedProjectId(newProject.id));
 
     // baseMaps listing
-    const baseMapsListing = await createListing({
-      listing: { ...defaultBaseMapsListingProps, projectId: newProject.id },
+    const [baseMapsListing] = await createListings({
+      listings: [{ ...defaultBaseMapsListingProps, projectId: newProject.id }],
     });
     dispatch(setSelectedListingId(baseMapsListing.id));
 

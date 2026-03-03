@@ -3,7 +3,7 @@ import useListings from "Features/listings/hooks/useListings";
 
 export default function useProjectBlueprintsListings() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const listings = useListings({
+  const {value: listings} = useListings({
     filterByProjectId: projectId,
     filterByEntityModelType: "BLUEPRINT",
   });

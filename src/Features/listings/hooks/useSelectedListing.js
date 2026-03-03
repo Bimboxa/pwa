@@ -1,5 +1,4 @@
 import { useSelector } from "react-redux";
-import useListingsByScope from "./useListingsByScope";
 import useListingById from "./useListingById";
 
 export default function useSelectedListing() {

@@ -1,18 +1,17 @@
-import { useSelector } from "react-redux";
+import { useMemo } from "react";
 
-import { useLiveQuery } from "dexie-react-hooks";
-import db from "App/db/db";
+import useListingById from "Features/listings/hooks/useListingById";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
-export default function useMainBaseMapListing() {
-  // data
-
+export default function useMainBaseMapListing(options) {
   const baseMap = useMainBaseMap();
 
-  return useLiveQuery(async () => {
-    if (baseMap?.id && baseMap?.listingId) {
-      const listing = await db.listings.get(baseMap.listingId);
-      return { ...listing, table: "baseMaps" };
-    }
-  }, [baseMap?.id]);
+  const listing = useListingById(baseMap?.listingId, {
+    withFiles: options?.withFiles,
+  });
+
+  return useMemo(() => {
+    if (!listing) return undefined;
+    return { ...listing, table: "baseMaps" };
+  }, [listing]);
 }

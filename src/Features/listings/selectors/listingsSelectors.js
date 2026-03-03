@@ -1,7 +1,6 @@
 import { createSelectorCreator, lruMemoize } from "reselect";
 import isEqual from "fast-deep-equal";
 
-import getSortedListings from "../utils/getSortedListings";
 import testObjectHasProp from "Features/misc/utils/testObjectHasProp";
 
 const createDeepEqualSelector = createSelectorCreator(lruMemoize, isEqual);
@@ -12,16 +11,16 @@ export const makeGetListingsByOptions = (options) =>
       (state) => state.listings.listingsUpdatedAt,
       (state) => state.listings.listingsById,
       (state) => state.appConfig.value?.entityModelsObject,
-      (state) => state.scopes.scopesById[options?.filterByScopeId],
     ],
-    (listingsUpdatedAt, listingsById, entityModelsObject, scope) => {
+    (listingsUpdatedAt, listingsById, entityModelsObject) => {
       // options
 
       const filterByProjectId = options?.filterByProjectId;
       const filterByScopeId = options?.filterByScopeId;
-      const withEntityModel = options?.withEntityModel;
       const filterByKeys = options?.filterByKeys;
       const filterByListingsIds = options?.filterByListingsIds;
+      const filterByEntityModelType = options?.filterByEntityModelType;
+      const relsZoneEntityListings = options?.relsZoneEntityListings;
       const baseMapsOnly = options?.baseMapsOnly;
 
       // edge case
@@ -33,32 +32,33 @@ export const makeGetListingsByOptions = (options) =>
       let listings = Object.values(listingsById ?? {}) ?? [];
 
       const test = testObjectHasProp(options, "filterByProjectId");
-      console.log("debug_2409_test", test, options);
       if (test) {
         listings = listings.filter((l) => l.projectId === filterByProjectId);
       }
 
-      // add entity model
+      // add entity model (fallback for listings created before entityModel was stored)
       listings = listings?.map((listing) => {
-        return {
-          ...listing,
-          entityModel: entityModelsObject?.[listing?.entityModelKey] ?? null,
-        };
+        if (listing.entityModel) return listing;
+        const entityModel =
+          entityModelsObject?.[listing?.entityModelKey] ?? null;
+        return entityModel ? { ...listing, entityModel } : listing;
       });
 
+      // scope filter: shared (BASE_MAP) + scoped listings
       if (filterByScopeId) {
-        const sharedListings = listings.filter((l) =>
-          ["BASE_MAP", "BLUEPRINT"].includes(l?.entityModel?.type)
+        listings = listings.filter(
+          (l) =>
+            l?.entityModel?.type === "BASE_MAP" ||
+            l.scopeId === filterByScopeId
         );
-        const scopedListings = listings.filter(
-          (l) => !["BASE_MAP", "BLUEPRINT"].includes(l?.entityModel?.type)
-        );
-        listings = [
-          ...sharedListings,
-          ...getSortedListings(scopedListings, scope?.sortedListings),
-        ];
       }
-      console.log("listings1", filterByScopeId, listings);
+
+      // filter by entity model type
+      if (filterByEntityModelType) {
+        listings = listings.filter(
+          (l) => l?.entityModel?.type === filterByEntityModelType
+        );
+      }
 
       // filter
       if (filterByKeys) {
@@ -68,14 +68,10 @@ export const makeGetListingsByOptions = (options) =>
         listings = listings?.filter((l) => filterByListingsIds.includes(l?.id));
       }
 
-      // relations. Need entityModel for baseMapsOnly
-      if (withEntityModel || baseMapsOnly) {
-        listings = listings?.map((listing) => {
-          return {
-            ...listing,
-            entityModel: entityModelsObject?.[listing?.entityModelKey] ?? null,
-          };
-        });
+      if (relsZoneEntityListings) {
+        listings = listings.filter((l) =>
+          Boolean(l?.entityModel?.relsZoneEntity)
+        );
       }
 
       if (baseMapsOnly) {

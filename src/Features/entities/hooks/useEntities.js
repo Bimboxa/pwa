@@ -39,7 +39,6 @@ export default function useEntities(options) {
   // data
 
   const { value: listings, loading: loadingList } = useListingsByScope({
-    withEntityModel: true,
     filterByKeys: filterByListingsKeys ?? null,
     filterByListingsIds: filterByListingsIds ?? null,
   });

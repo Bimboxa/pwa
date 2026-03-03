@@ -16,6 +16,7 @@ export default async function resolvePresetListings({
   projectId,
   scopeId,
   appConfig,
+  presetListingsKeys,
 }) {
   // edge case
 
@@ -24,7 +25,9 @@ export default async function resolvePresetListings({
   // helpers
 
   const { presetListingsObject } = appConfig;
-  const presetListings = Object.values(presetListingsObject);
+  const presetListings = presetListingsKeys
+    ? presetListingsKeys.map((key) => presetListingsObject[key]).filter(Boolean)
+    : Object.values(presetListingsObject);
 
   const projectListings = await db.listings
     .where("projectId")
@@ -72,7 +75,7 @@ export default async function resolvePresetListings({
 
     // resolve nomenclature listings
     if (presetListing.type === "NOMENCLATURE") {
-      presetListing = await resolveListingNomenclature(presetListing);
+      presetListing = resolveListingNomenclature(presetListing, appConfig);
     }
 
     // add id & projectId

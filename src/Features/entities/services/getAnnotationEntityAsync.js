@@ -8,11 +8,11 @@ export default async function getAnnotationEntityAsync(annotation, appConfig) {
   // data
 
   const listing = await db.listings.get(annotation.listingId);
-  const entityModel = appConfig?.entityModelsObject?.[listing?.entityModelKey];
+  const entityModel =
+    listing?.entityModel ??
+    appConfig?.entityModelsObject?.[listing?.entityModelKey];
   const entityModelType = entityModel?.type;
   const table = listing?.table;
-
-  console.log("debug_1311_listing", listing, entityModel);
 
   if (!table) return null;
 

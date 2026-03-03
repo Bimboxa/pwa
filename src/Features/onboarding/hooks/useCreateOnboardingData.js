@@ -4,7 +4,6 @@ import { useSelector } from "react-redux";
 
 import useCreateProject from "Features/projects/hooks/useCreateProject";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
-import useCreateListing from "Features/listings/hooks/useCreateListing";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 
 import getAppConfigDefault from "Features/appConfig/services/getAppConfigDefault";
@@ -23,7 +22,6 @@ export default function useCreateOnboardingData() {
 
   const createProject = useCreateProject();
   const createListings = useCreateListings();
-  const createListing = useCreateListing();
   const createEntity = useCreateEntity();
 
   // return
@@ -54,7 +52,7 @@ export default function useCreateOnboardingData() {
         projectId: project.id,
         ...presetMapListing,
       };
-      const mapsListing = await createListing({ listing: _mapsListing });
+      const [mapsListing] = await createListings({ listings: [_mapsListing] });
 
       // map
 
@@ -81,7 +79,7 @@ export default function useCreateOnboardingData() {
         ...presetIssuesListing,
         name: issuesListingName,
       };
-      const issuesListing = await createListing({ listing: _issuesListing });
+      const [issuesListing] = await createListings({ listings: [_issuesListing] });
 
       // return
 

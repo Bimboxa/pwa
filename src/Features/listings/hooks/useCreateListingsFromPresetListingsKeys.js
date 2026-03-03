@@ -9,12 +9,12 @@ export default function useCreateListingsFromPresetListingsKeys() {
 
   const createListings = useCreateListings();
   const filterByProjectId = useSelector((s) => s.projects.selectedProjectId);
-  const projectListings = useListings({ filterByProjectId });
+  const {value: projectListings} = useListings({ filterByProjectId });
   const projectListingsKeys = projectListings?.map((l) => l.key);
 
   const resolvedPresetListings = useResolvedPresetListings();
 
-  const create = async ({ presetListingsKeys }) => {
+  const create = async ({ presetListingsKeys, scope }) => {
     let listings = resolvedPresetListings.filter(({ key }) =>
       presetListingsKeys.includes(key)
     );
@@ -33,7 +33,7 @@ export default function useCreateListingsFromPresetListingsKeys() {
 
     listings = [...listings, ...atListings];
 
-    listings = await createListings({ listings });
+    listings = await createListings({ listings, scope });
 
     return listings;
   };

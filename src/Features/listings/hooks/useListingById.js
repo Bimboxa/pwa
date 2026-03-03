@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -12,19 +13,28 @@ export default function useListingById(id, options) {
 
   const appConfig = useAppConfig();
 
+  const blobUrlsRef = useRef([]);
+
   // main
 
   const listing = useLiveQuery(async () => {
     if (id) {
       const _listing = await db.listings.get(id);
 
+      // fallback for listings created before entityModel was stored
       const entityModel =
-        appConfig?.entityModelsObject?.[_listing?.entityModelKey] ?? null;
+        _listing?.entityModel ??
+        appConfig?.entityModelsObject?.[_listing?.entityModelKey] ??
+        null;
 
       const result = { ..._listing, entityModel };
 
       // load metadata files
       if (withFiles && result.metadata) {
+        // revoke previous blob URLs
+        blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+        blobUrlsRef.current = [];
+
         const processedMetadata = { ...result.metadata };
         const entriesWithFiles = Object.entries(result.metadata).filter(
           ([, value]) => value?.fileName
@@ -34,12 +44,14 @@ export default function useListingById(id, options) {
           entriesWithFiles.map(async ([key, value]) => {
             const file = await db.files.get(value.fileName);
             if (file && file.fileArrayBuffer) {
+              const fileUrlClient = URL.createObjectURL(
+                new Blob([file.fileArrayBuffer], { type: file.fileMime })
+              );
+              blobUrlsRef.current.push(fileUrlClient);
               processedMetadata[key] = {
                 ...value,
                 file,
-                fileUrlClient: URL.createObjectURL(
-                  new Blob([file.fileArrayBuffer], { type: file.fileMime })
-                ),
+                fileUrlClient,
               };
             }
           })
@@ -51,6 +63,14 @@ export default function useListingById(id, options) {
       return result;
     }
   }, [id, appConfig?.version, withFiles]);
+
+  // cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      blobUrlsRef.current = [];
+    };
+  }, []);
 
   return listing;
 }

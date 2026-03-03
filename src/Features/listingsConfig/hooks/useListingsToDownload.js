@@ -7,17 +7,10 @@ export default function useListingsToDownload() {
   const {value: scope} = useSelectedScope();
 
   const listingsToDownload = useLiveQuery(async () => {
-    const scopeListings = scope?.sortedListings;
-    let _listingsToDownload = [];
-    if (!scope?.id || !scopeListings || scopeListings.length === 0) return [];
-    for (let listing of scopeListings) {
-      if (listing.id && listing.table) {
-        const listingInDb = await db.listings.get(listing.id);
-
-        if (!listingInDb) _listingsToDownload.push(listing);
-      }
-    }
-    return _listingsToDownload;
+    if (!scope?.id) return [];
+    // listings are now associated via scopeId, no longer via scope.sortedListings
+    // missing listings will be fetched during sync
+    return [];
   }, [scope?.id]);
 
   return listingsToDownload;

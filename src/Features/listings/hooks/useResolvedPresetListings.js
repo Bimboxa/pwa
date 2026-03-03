@@ -4,7 +4,6 @@ import { useSelector } from "react-redux";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-//import resolveListingsToCreateFromPresetListings from "../services/resolveListingsToCreateFromPresetListings";
 import resolvePresetListings from "../services/resolvePresetListings";
 
 export default function useResolvedPresetListings() {
@@ -15,10 +14,6 @@ export default function useResolvedPresetListings() {
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   const resolveAsync = async () => {
-    //const presetListings = Object.values(appConfig?.presetListingsObject);
-    // const _listings = await resolveListingsToCreateFromPresetListings(
-    //   presetListings
-    // );
     const _listings = await resolvePresetListings({
       projectId,
       scopeId,

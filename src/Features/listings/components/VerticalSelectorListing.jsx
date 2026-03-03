@@ -98,7 +98,7 @@ export default function VerticalSelectorListing({ onSeeAllClick }) {
 
   const moveAnnotationTemplateToListing = useMoveAnnotationTemplateToListing();
 
-  const listings = useListings({
+  const {value: listings} = useListings({
     filterByProjectId: projectId ?? null,
     filterByScopeId: scopeId,
     //includeListingsWithoutScope: true

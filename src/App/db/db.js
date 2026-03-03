@@ -17,13 +17,13 @@ db.version(12).stores({
 
   projectFiles: "id",
 
-  scopes: "id,projectId", // {id,name,projectId,sortedListings:[{id,table}]}. Table is used to resolve syncConfig
+  scopes: "id,projectId", // {id,name,projectId}
   baseMaps: "id,listingId,projectId",
   baseMapViews: "id,scopeId,baseMapId",
   baseMapTransforms: "id", // {id, description, prompt}
   blueprints: "id,projectId,scopeId,listingId",
 
-  listings: "id,key,uniqueByProject,projectId",
+  listings: "id,key,uniqueByProject,projectId,scopeId",
   entities: "id,projectId,listingId,[listingId+createdBy]",
 
   maps: "id,projectId,listingId,[listingId+createdBy]",

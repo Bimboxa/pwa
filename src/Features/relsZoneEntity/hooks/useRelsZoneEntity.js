@@ -15,7 +15,7 @@ export default function useRelsZoneEntity({ entityId }) {
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
-  const listings = useListings({
+  const {value: listings} = useListings({
     //filterByScopeId: scopeId,
     filterByProjectId: projectId,
     relsZoneEntityListings: true,
