@@ -25,9 +25,10 @@ export default function LegendBlockSvg({ container, zoom }) {
   // data
 
   const selectedItems = useSelector(selectSelectedItems);
-  const legendItems = useLegendItemsByBaseMapId(container.baseMapId);
+  const viewBox = container.viewBox;
+  const legendItems = useLegendItemsByBaseMapId(container.baseMapId, { viewBox });
   const spriteImage = useAnnotationSpriteImage();
-  const qtiesById = useAnnotationTemplateQtiesByIdForBaseMap(container.baseMapId);
+  const qtiesById = useAnnotationTemplateQtiesByIdForBaseMap(container.baseMapId, { viewBox });
 
   // refs
 

@@ -11,11 +11,12 @@ import { FitScreen } from "@mui/icons-material";
 import usePortfolioPages from "Features/portfolioPages/hooks/usePortfolioPages";
 import useCreatePortfolioPage from "Features/portfolioPages/hooks/useCreatePortfolioPage";
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 import getPageDimensions from "../utils/getPageDimensions";
 
 import PortfolioPageSvg from "./PortfolioPageSvg";
-import SectionPortfolioPageArticles from "Features/articles/utils/components/SectionPortfolioPageArticles";
+import SectionPortfolioPageArticles from "Features/articles/components/SectionPortfolioPageArticles";
 import ButtonAddPage from "./ButtonAddPage";
 
 export default function PortfolioEditorViewport() {
@@ -32,6 +33,11 @@ export default function PortfolioEditorViewport() {
     filterByPortfolioId: displayedPortfolioId,
   });
   const createPage = useCreatePortfolioPage();
+  const annotations = useAnnotationsV2({
+    filterBySelectedScope: true,
+    withQties: true,
+    withListingName: true,
+  });
 
   const selectedItem = useSelector(selectSelectedItem);
 
@@ -101,6 +107,13 @@ export default function PortfolioEditorViewport() {
 
   // render
 
+  if (!displayedPortfolioId) {
+    return (
+      <Box sx={{ width: 1, height: 1, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "background.default" }}>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ width: 1, height: 1, position: "relative" }}>
       <Box
@@ -139,7 +152,7 @@ export default function PortfolioEditorViewport() {
                   zoom={zoom}
                 />
                 <Box sx={{ width: dims.width }}>
-                  <SectionPortfolioPageArticles page={page} />
+                  <SectionPortfolioPageArticles page={page} annotations={annotations} />
                 </Box>
               </Box>
             );

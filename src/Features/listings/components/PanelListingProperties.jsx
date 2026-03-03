@@ -5,7 +5,10 @@ import useListings from "../hooks/useListings";
 import useUpdateListing from "../hooks/useUpdateListing";
 import useListingEntityModel from "../hooks/useListingEntityModel";
 
+import { Box, Typography, Chip } from "@mui/material";
+
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FormListing from "./FormListing";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import HeaderListing from "./HeaderListing";
@@ -13,7 +16,7 @@ import HeaderListing from "./HeaderListing";
 export default function PanelListingProperties({ listing, onSaved }) {
     // 1. Data & Hooks
     const projectId = useSelector((s) => s.projects.selectedProjectId);
-    const {value: listings} = useListings({ filterByProjectId: projectId });
+    const { value: listings } = useListings({ filterByProjectId: projectId });
     const updateListing = useUpdateListing();
     const entityModel = useListingEntityModel(listing);
 
@@ -56,6 +59,25 @@ export default function PanelListingProperties({ listing, onSaved }) {
                     relatedListings={listings}
                     onChange={handleChange}
                 />
+                {listing?.articlesNomenclatures?.length > 0 && (
+                    <Box sx={{ mt: 1 }}>
+                        <WhiteSectionGeneric>
+                            <Typography variant="body2" sx={{ fontWeight: "bold", mb: 0.5 }}>
+                                Articles
+                            </Typography>
+                            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                                {listing.articlesNomenclatures.map((nom) => (
+                                    <Chip
+                                        key={nom.key}
+                                        label={nom.label ?? nom.key}
+                                        size="small"
+                                        variant="outlined"
+                                    />
+                                ))}
+                            </Box>
+                        </WhiteSectionGeneric>
+                    </Box>
+                )}
             </BoxFlexVStretch>
 
             <ButtonInPanelV2

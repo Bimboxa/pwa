@@ -7,11 +7,13 @@ import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getAnnotationTemplateMainQtyLabel from "Features/annotations/utils/getAnnotationTemplateMainQtyLabel";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
+import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 
-export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId) {
+export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { viewBox } = {}) {
   // data
 
-  const annotations = useAnnotationsV2({ filterByBaseMapId: baseMapId });
+  const allAnnotations = useAnnotationsV2({ filterByBaseMapId: baseMapId, filterBySelectedScope: true });
+  const annotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
   const annotationTemplates = useAnnotationTemplates();
   const baseMap = useBaseMap({ id: baseMapId });
 

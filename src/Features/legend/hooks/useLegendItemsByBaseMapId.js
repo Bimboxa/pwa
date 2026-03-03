@@ -2,16 +2,20 @@ import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemp
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 
-export default function useLegendItemsByBaseMapId(baseMapId) {
+export default function useLegendItemsByBaseMapId(baseMapId, { viewBox } = {}) {
   // data
 
   const annotationTemplates = useAnnotationTemplates();
 
-  const annotations = useAnnotationsV2({
+  const allAnnotations = useAnnotationsV2({
     filterByBaseMapId: baseMapId,
+    filterBySelectedScope: true,
     withListingName: true,
   });
+
+  const annotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
 
   // helpers - annotationTemplateById
 

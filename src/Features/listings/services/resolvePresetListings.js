@@ -84,7 +84,7 @@ export default async function resolvePresetListings({
 
     // scope id
 
-    if (["LOCATED_ENTITY", "BLUEPRINT"].includes(entityModel.type)) {
+    if (["LOCATED_ENTITY", "BLUEPRINT", "PORTFOLIO_PAGE"].includes(entityModel.type)) {
       presetListing.scopeId = scopeId;
     }
 
