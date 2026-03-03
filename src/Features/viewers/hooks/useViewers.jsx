@@ -9,6 +9,8 @@ import {
   TableChart as Table,
   Print,
   AdminPanelSettings,
+  Draw,
+  Layers,
 } from "@mui/icons-material";
 
 import theme from "Styles/theme";
@@ -23,27 +25,37 @@ export default function useViewers() {
     //   icon: <Print />,
     // },
     {
-      key: "PORTFOLIO",
-      label: "Portfolio",
-      icon: <MenuBook />,
-      bgcolor: theme.palette.viewers.portfolio,
+      key: "BASE_MAPS",
+      label: "Fonds de plan",
+      shortLabel: "Fonds de plan",
+      icon: <Layers />,
+      bgcolor: theme.palette.viewers.map,
     },
     {
       key: "MAP",
       label: "Repérage sur fond de plan",
-      //icon: <Image />,
-      icon: <Typography>2D</Typography>,
+      shortLabel: "Repérages",
+      icon: <Draw />,
       bgcolor: theme.palette.viewers.map,
+    },
+    {
+      key: "PORTFOLIO",
+      label: "Portfolio",
+      shortLabel: "Portfolio",
+      icon: <MenuBook />,
+      bgcolor: theme.palette.viewers.portfolio,
     },
     {
       key: "PRINT",
       label: "Format impression",
+      shortLabel: "Impression",
       icon: <Print />,
       disabled: true,
     },
     {
       key: "TABLE",
       label: "Quantités",
+      shortLabel: "Quantités",
       icon: <Table />,
       bgcolor: theme.palette.viewers.map,
       //disabled: true,
@@ -51,6 +63,7 @@ export default function useViewers() {
     {
       key: "THREED",
       label: "3D",
+      shortLabel: "3D",
       bgcolor: theme.palette.viewers.threed,
       icon: <Typography>3D</Typography>,
       disabled: !enabledTreed,
@@ -58,12 +71,14 @@ export default function useViewers() {
     {
       key: "ADMIN",
       label: "Gestionnaire de donnees",
+      shortLabel: "Admin",
       icon: <AdminPanelSettings />,
       bgcolor: theme.palette.viewers.admin,
     },
     {
       key: "LEAFLET",
       label: "Carte satellite",
+      shortLabel: "Satellite",
       icon: <Map />,
       bgcolor: theme.palette.viewers.map,
       disabled: true,
@@ -71,6 +86,7 @@ export default function useViewers() {
     {
       key: "PDF",
       label: "PDF",
+      shortLabel: "PDF",
       bgcolor: theme.palette.viewers.threed,
       icon: <PdfIcon />,
       disabled: true,

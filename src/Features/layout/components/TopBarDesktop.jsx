@@ -15,7 +15,7 @@ import BoxFlexH from "Features/layout/components/BoxFlexH";
 //import SelectorProject from "Features/projectSelector/components/SelectorProject";
 import ButtonSelectorProject from "Features/projects/components/ButtonSelectorProject";
 import ButtonSelectorScope from "Features/scopes/components/ButtonSelectorScope";
-import SelectorViewer from "Features/viewers/components/SelectorViewer";
+
 import IconButtonDialogSync from "Features/remoteScopeConfigurations/components/IconButtonDialogSync";
 import IconButtonShareScope from "Features/scopes/components/IconButtonShareScope";
 //import ButtonSelectorScopeInTopBar from "Features/scopes/components/ButtonSelectorScopeInTopBar";
@@ -109,7 +109,6 @@ export default function TopBarDesktop() {
               Portfolio
             </Button>
           )}
-          <SelectorViewer />
           {viewerKey === "MAP" && <BaseMapSelectorInMapEditorV2 />}
 
         </Box>
