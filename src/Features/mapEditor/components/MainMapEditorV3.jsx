@@ -54,6 +54,7 @@ import PopperEditScale from "./PopperEditScale";
 import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
 import PopperSaveTempAnnotations from "Features/mapEditor/components/PopperSaveTempAnnotations";
+import PopperMapListings from "./PopperMapListings";
 
 
 import { InteractionProvider } from "../context/InteractionContext";
@@ -1098,6 +1099,8 @@ export default function MainMapEditorV3() {
 
             <LayerTools />
             <LayerCreateBaseMap />
+
+            <PopperMapListings />
         </Box>
 
     );

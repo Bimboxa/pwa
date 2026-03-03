@@ -9,7 +9,7 @@ import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import theme from "Styles/theme";
 import { DialogTitle, Box } from "@mui/material";
 
-export default function DialogCreateAnnotationTemplate({ open, onClose }) {
+export default function DialogCreateAnnotationTemplate({ open, onClose, listingId }) {
   // strings
 
   const createS = "Créer";
@@ -47,7 +47,7 @@ export default function DialogCreateAnnotationTemplate({ open, onClose }) {
 
   async function handleCreate() {
     console.log("handleSave", tempAnnotationTemplate);
-    await createAnnotationTemplate(tempAnnotationTemplate);
+    await createAnnotationTemplate(tempAnnotationTemplate, { listingId });
     onClose();
   }
 

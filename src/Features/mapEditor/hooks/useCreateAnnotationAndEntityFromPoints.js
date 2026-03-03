@@ -33,9 +33,10 @@ export default function useCreateAnnotationAndEntityFromPoints() {
       type,
       points,
       entityId: entity?.id,
-      listingId,
+      listingId: newAnnotation?.listingId ?? listingId,
       baseMapId,
-      annotationTemplateId,
+      annotationTemplateId:
+        newAnnotation?.annotationTemplateId ?? annotationTemplateId,
     });
 
     console.log("[MainMapEditor] new polyline created", annotation, entity);
