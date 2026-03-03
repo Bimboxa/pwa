@@ -238,6 +238,22 @@ export default function useAnnotationsV2(options) {
             // Create a map for quick lookup
             const listingsMap = getItemsByKey(listings, "id");
 
+            // -- SCOPE FILTER --
+
+            if (filterBySelectedScope && scope?.id) {
+                const scopeListingIds = new Set(
+                    listings
+                        .filter((l) => {
+                            const em = appConfig?.entityModelsObject?.[l.entityModelKey];
+                            return em?.type === "BASE_MAP" || l.scopeId === scope?.id;
+                        })
+                        .map((l) => l.id)
+                );
+                _annotations = _annotations.filter(
+                    (a) => a.isBaseMapAnnotation || scopeListingIds.has(a.listingId)
+                );
+            }
+
             // -- LISTING NAME --
 
             if (withListingName) {

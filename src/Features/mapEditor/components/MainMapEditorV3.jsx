@@ -217,6 +217,7 @@ export default function MainMapEditorV3() {
         excludeListingsIds: hiddenListingsIds,
         hideBaseMapAnnotations,
         filterByMainBaseMap: true,
+        filterBySelectedScope: true,
         sortByOrderIndex: true,
     });
 
