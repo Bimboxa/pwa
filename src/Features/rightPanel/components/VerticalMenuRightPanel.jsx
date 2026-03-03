@@ -21,6 +21,7 @@ import {
   Chat,
   CameraAlt,
   Tune,
+  AutoFixHigh,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -53,6 +54,10 @@ export default function VerticalMenuRightPanel() {
       icon: <Tune />,
     },
 
+    ANNOTATIONS_AUTO: {
+      label: "Dessin auto",
+      icon: <AutoFixHigh />,
+    },
     ENTITY: {
       label: "Édition",
       icon: <Edit />,

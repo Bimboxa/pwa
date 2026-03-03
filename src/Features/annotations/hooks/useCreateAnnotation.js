@@ -92,6 +92,7 @@ export default function useCreateAnnotation() {
               projectId,
               nomenclatureKey: mc.nomenclatureKey,
               categoryKey: mc.categoryKey,
+              source: "annotationTemplate",
             }));
             await db.relAnnotationMappingCategory.bulkAdd(rels);
           }

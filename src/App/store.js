@@ -61,6 +61,8 @@ import portfolioPagesReducer from "Features/portfolioPages/portfolioPagesSlice";
 import portfolioBaseMapContainersReducer from "Features/portfolioBaseMapContainers/portfolioBaseMapContainersSlice";
 //
 import adminEditorReducer from "Features/adminEditor/adminEditorSlice";
+//
+import annotationsAutoReducer from "Features/annotationsAuto/annotationsAutoSlice";
 
 //import syncTabsMiddleware from "./syncTabsMiddleware";
 //import webrtcMiddleware from "Features/webrtc/webrtcMiddleware";
@@ -127,6 +129,8 @@ const store = configureStore({
     portfolioBaseMapContainers: portfolioBaseMapContainersReducer,
     //
     adminEditor: adminEditorReducer,
+    //
+    annotationsAuto: annotationsAutoReducer,
   },
   // middleware: (getDefaultMiddleware) =>
   //   getDefaultMiddleware({

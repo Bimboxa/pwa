@@ -420,12 +420,17 @@ function ListingRow({ listing, isExpanded, onToggleExpand, hiddenListingsIds }) 
     dispatch(setHiddenListingsIds(next));
   }
 
+  function handleSelectListing() {
+    dispatch(setSelectedListingId(listing.id));
+    dispatch(setSelectedItem({ id: listing.id, listingId: listing.id }));
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+  }
+
   // render
 
   return (
     <Box>
       <Box
-        onClick={() => onToggleExpand(listing.id)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         sx={{
@@ -434,7 +439,6 @@ function ListingRow({ listing, isExpanded, onToggleExpand, hiddenListingsIds }) 
           justifyContent: "space-between",
           px: 1,
           py: 0.75,
-          cursor: "pointer",
           "&:hover": { bgcolor: "action.hover" },
           borderBottom: "1px solid",
           borderColor: "divider",
@@ -442,15 +446,26 @@ function ListingRow({ listing, isExpanded, onToggleExpand, hiddenListingsIds }) 
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1, minWidth: 0 }}>
-          {isExpanded ? (
-            <Remove sx={{ fontSize: 18, color: "text.secondary" }} />
-          ) : (
-            <Add sx={{ fontSize: 18, color: "secondary.main" }} />
-          )}
+          <Box
+            onClick={() => onToggleExpand(listing.id)}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            {isExpanded ? (
+              <Remove sx={{ fontSize: 18, color: "text.secondary" }} />
+            ) : (
+              <Add sx={{ fontSize: 18, color: "secondary.main" }} />
+            )}
+          </Box>
           <Typography
             variant="body2"
-            sx={{ fontWeight: 500 }}
+            sx={{ fontWeight: 500, cursor: "pointer" }}
             noWrap
+            onClick={handleSelectListing}
           >
             {listing.name ?? listing.label ?? "Liste"}
           </Typography>
