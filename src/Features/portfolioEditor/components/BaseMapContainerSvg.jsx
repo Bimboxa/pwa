@@ -24,6 +24,7 @@ function FilledContainerContent({ container, baseMap, innerSvgRef }) {
   const annotations = useAnnotationsV2({
     filterByBaseMapId: container.baseMapId,
     filterBySelectedScope: true,
+    excludeIsForBaseMapsListings: true,
   });
 
   // helpers

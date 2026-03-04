@@ -7,6 +7,7 @@ export default function DialogCreateListing({
   open,
   onClose,
   fromPresetListings,
+  isForBaseMaps,
 }) {
   return (
     <DialogGeneric open={open} onClose={onClose} maxWidth={false} >
@@ -14,7 +15,10 @@ export default function DialogCreateListing({
 
 
         {!fromPresetListings && (
-          <PanelCreateListingsV3 onListingCreated={onClose} />
+          <PanelCreateListingsV3
+            onListingCreated={onClose}
+            isForBaseMaps={isForBaseMaps}
+          />
         )}
 
         {fromPresetListings && (

@@ -37,6 +37,7 @@ export default function PortfolioEditorViewport() {
     filterBySelectedScope: true,
     withQties: true,
     withListingName: true,
+    excludeIsForBaseMapsListings: true,
   });
 
   const selectedItem = useSelector(selectSelectedItem);

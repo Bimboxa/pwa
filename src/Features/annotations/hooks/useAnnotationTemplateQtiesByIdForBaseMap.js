@@ -12,7 +12,7 @@ import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotat
 export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { viewBox } = {}) {
   // data
 
-  const allAnnotations = useAnnotationsV2({ filterByBaseMapId: baseMapId, filterBySelectedScope: true });
+  const allAnnotations = useAnnotationsV2({ filterByBaseMapId: baseMapId, filterBySelectedScope: true, excludeIsForBaseMapsListings: true });
   const annotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
   const annotationTemplates = useAnnotationTemplates();
   const baseMap = useBaseMap({ id: baseMapId });

@@ -22,6 +22,8 @@ export const makeGetListingsByOptions = (options) =>
       const filterByEntityModelType = options?.filterByEntityModelType;
       const relsZoneEntityListings = options?.relsZoneEntityListings;
       const baseMapsOnly = options?.baseMapsOnly;
+      const filterByIsForBaseMaps = options?.filterByIsForBaseMaps;
+      const excludeIsForBaseMaps = options?.excludeIsForBaseMaps;
 
       // edge case
 
@@ -76,6 +78,14 @@ export const makeGetListingsByOptions = (options) =>
 
       if (baseMapsOnly) {
         listings = listings?.filter((l) => l?.entityModel?.type === "BASE_MAP");
+      }
+
+      if (filterByIsForBaseMaps === true) {
+        listings = listings?.filter((l) => l?.isForBaseMaps === true);
+      }
+
+      if (excludeIsForBaseMaps === true) {
+        listings = listings?.filter((l) => !l?.isForBaseMaps);
       }
 
       return listings;

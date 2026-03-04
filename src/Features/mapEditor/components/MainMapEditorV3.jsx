@@ -226,6 +226,7 @@ export default function MainMapEditorV3() {
         filterByMainBaseMap: true,
         filterBySelectedScope: true,
         sortByOrderIndex: true,
+        excludeIsForBaseMapsListings: viewerKey === "MAP",
     });
 
     // legend
@@ -1090,8 +1091,8 @@ export default function MainMapEditorV3() {
 
             <DialogDeleteSelectedAnnotation />
             <DialogAutoCreateEntity />
-            <PopperEditAnnotation viewerKey="MAP" />
-            <PopperEditAnnotations viewerKey="MAP" allAnnotations={annotations} />
+            <PopperEditAnnotation viewerKey={viewerKey} />
+            <PopperEditAnnotations viewerKey={viewerKey} allAnnotations={annotations} />
             <PopperEditScale />
             <PopperContextMenu />
 
@@ -1101,7 +1102,7 @@ export default function MainMapEditorV3() {
             <LayerTools />
             <LayerCreateBaseMap />
 
-            {viewerKey !== "BASE_MAPS" && <PopperMapListings />}
+            <PopperMapListings />
         </Box>
 
     );

@@ -14,7 +14,7 @@ export default function useCreateListingsFromPresetListingsKeys() {
 
   const resolvedPresetListings = useResolvedPresetListings();
 
-  const create = async ({ presetListingsKeys, scope }) => {
+  const create = async ({ presetListingsKeys, scope, isForBaseMaps }) => {
     let listings = resolvedPresetListings.filter(({ key }) =>
       presetListingsKeys.includes(key)
     );
@@ -32,6 +32,10 @@ export default function useCreateListingsFromPresetListingsKeys() {
     );
 
     listings = [...listings, ...atListings];
+
+    if (isForBaseMaps) {
+      listings = listings.map((l) => ({ ...l, isForBaseMaps: true }));
+    }
 
     listings = await createListings({ listings, scope });
 

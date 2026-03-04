@@ -13,6 +13,7 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox } = {}) {
     filterByBaseMapId: baseMapId,
     filterBySelectedScope: true,
     withListingName: true,
+    excludeIsForBaseMapsListings: true,
   });
 
   const annotations = filterAnnotationsByViewBox(allAnnotations, viewBox);

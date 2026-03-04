@@ -568,7 +568,6 @@ function PopperDrawingHelper() {
 export default function PopperMapListings() {
   // strings
 
-  const titleS = "Créer une annotation";
   const addListS = "Ajouter une liste";
 
   // data
@@ -580,10 +579,19 @@ export default function PopperMapListings() {
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
   );
+  const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const isBaseMapsViewer = viewerKey === "BASE_MAPS";
+
+  const titleS = isBaseMapsViewer
+    ? "Dessins sur fond de plan"
+    : "Créer une annotation";
 
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
+    ...(isBaseMapsViewer
+      ? { filterByIsForBaseMaps: true }
+      : { excludeIsForBaseMaps: true }),
   });
 
   // state
@@ -608,7 +616,7 @@ export default function PopperMapListings() {
     return <PopperDrawingHelper />;
   }
 
-  if (!listings?.length && !openCreateListing) return null;
+  if (!listings?.length && !openCreateListing && !isBaseMapsViewer) return null;
 
   return (
     <Paper
@@ -688,6 +696,7 @@ export default function PopperMapListings() {
           open={openCreateListing}
           onClose={() => setOpenCreateListing(false)}
           fromPresetListings={false}
+          isForBaseMaps={isBaseMapsViewer}
         />
       )}
     </Paper>
