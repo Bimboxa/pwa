@@ -1,6 +1,6 @@
-export default function resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries(libraries) {
+export default function resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries(libraries, presetScopeItems) {
 
-    // listings
+    // listings — one per library (unchanged)
 
     const presetListings = libraries?.map((library) => {
         const listing = {
@@ -20,17 +20,33 @@ export default function resolvePresetListingsAndScopesObjectFromAnnotationTempla
         return listing;
     });
 
-    // scopes
+    // scopes — from presetScopeItems if provided, otherwise one per library
 
-    const presetScopes = libraries?.map((library) => {
-        const presetScope = {
+    let presetScopes;
+
+    if (presetScopeItems?.length > 0) {
+        presetScopes = presetScopeItems.map((item) => {
+            const matchedListingKeys = item.keywords?.length > 0
+                ? libraries
+                    .filter((library) =>
+                        item.keywords.every((kw) => library.keywords?.includes(kw))
+                    )
+                    .map((library) => library.key)
+                : [];
+
+            return {
+                key: item.key,
+                name: item.label,
+                listings: matchedListingKeys,
+            };
+        });
+    } else {
+        presetScopes = libraries?.map((library) => ({
             key: library.key,
             name: library.name,
             listings: [library.key],
-        }
-
-        return presetScope;
-    });
+        }));
+    }
 
     // objects
 

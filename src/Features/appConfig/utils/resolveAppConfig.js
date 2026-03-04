@@ -73,9 +73,11 @@ export default async function resolveAppConfig(appConfig) {
         const module = await loader();
         const libraries = module.default;
 
+        const presetScopeItems = appConfig.features.presetScopes.items;
+
         const { presetListingsObject,
           presetScopesObject,
-          presetScopesSortedKeys } = resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries(libraries);
+          presetScopesSortedKeys } = resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries(libraries, presetScopeItems);
 
         newAppConfig.presetListingsObject = {
           ...newAppConfig.presetListingsObject,

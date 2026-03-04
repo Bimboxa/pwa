@@ -140,7 +140,8 @@ function AnnotationTemplateRow({
           bgcolor: "white",
           alignItems: "center",
           justifyContent: "space-between",
-          px: 1,
+          pl: 3,
+          pr: 1,
           py: 0.5,
           "&:hover": { bgcolor: "action.hover" },
         }}
@@ -185,7 +186,6 @@ function AnnotationTemplateRow({
               variant="body2"
               color={isHidden ? "text.disabled" : "text.primary"}
               sx={{ lineHeight: 1.3 }}
-              noWrap
             >
               {annotationTemplate.label}
             </Typography>
@@ -346,7 +346,7 @@ function AnnotationTemplatesForListing({ listingId }) {
   // render
 
   return (
-    <Box sx={{ pl: 2 }}>
+    <Box>
       <List dense disablePadding>
         {annotationTemplates?.map((template) => {
           if (template?.isDivider) return null;
@@ -367,22 +367,13 @@ function AnnotationTemplatesForListing({ listingId }) {
       </List>
 
       {/* + Nouveau modele */}
-      <Box
+      <ListItemButton
         onClick={() => setOpenCreateDialog(true)}
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 0.5,
-          px: 1,
-          py: 0.5,
-          cursor: "pointer",
-          color: "text.secondary",
-          "&:hover": { color: "primary.main" },
-        }}
+        sx={{ gap: 0.5, pl: 3, pr: 1, py: 0.5, color: "text.secondary" }}
       >
-        <Add sx={{ fontSize: 16 }} />
-        <Typography variant="body2">Nouveau modèle</Typography>
-      </Box>
+        <Add sx={{ fontSize: 14 }} />
+        <Typography variant="caption">Nouveau modèle</Typography>
+      </ListItemButton>
 
       {openCreateDialog && (
         <DialogCreateAnnotationTemplate
@@ -420,10 +411,9 @@ function ListingRow({ listing, isExpanded, onToggleExpand, hiddenListingsIds }) 
     dispatch(setHiddenListingsIds(next));
   }
 
-  function handleSelectListing() {
+  function handleListingClick() {
+    onToggleExpand(listing.id);
     dispatch(setSelectedListingId(listing.id));
-    dispatch(setSelectedItem({ id: listing.id, listingId: listing.id }));
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   }
 
   // render
@@ -431,6 +421,7 @@ function ListingRow({ listing, isExpanded, onToggleExpand, hiddenListingsIds }) 
   return (
     <Box>
       <Box
+        onClick={handleListingClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         sx={{
@@ -439,7 +430,9 @@ function ListingRow({ listing, isExpanded, onToggleExpand, hiddenListingsIds }) 
           justifyContent: "space-between",
           px: 1,
           py: 0.75,
-          "&:hover": { bgcolor: "action.hover" },
+          cursor: "pointer",
+          bgcolor: "grey.200",
+          "&:hover": { bgcolor: "grey.300" },
           borderBottom: "1px solid",
           borderColor: "divider",
           opacity: isHidden ? 0.5 : 1,
@@ -447,11 +440,9 @@ function ListingRow({ listing, isExpanded, onToggleExpand, hiddenListingsIds }) 
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1, minWidth: 0 }}>
           <Box
-            onClick={() => onToggleExpand(listing.id)}
             sx={{
               display: "flex",
               alignItems: "center",
-              cursor: "pointer",
               flexShrink: 0,
             }}
           >
@@ -463,9 +454,7 @@ function ListingRow({ listing, isExpanded, onToggleExpand, hiddenListingsIds }) 
           </Box>
           <Typography
             variant="body2"
-            sx={{ fontWeight: 500, cursor: "pointer" }}
-            noWrap
-            onClick={handleSelectListing}
+            sx={{ fontWeight: 600 }}
           >
             {listing.name ?? listing.label ?? "Liste"}
           </Typography>
@@ -485,10 +474,8 @@ function ListingRow({ listing, isExpanded, onToggleExpand, hiddenListingsIds }) 
         </IconButton>
       </Box>
 
-      <Collapse in={isExpanded}>
-        {isExpanded && (
-          <AnnotationTemplatesForListing listingId={listing.id} />
-        )}
+      <Collapse in={isExpanded} timeout={150} unmountOnExit>
+        <AnnotationTemplatesForListing listingId={listing.id} />
       </Collapse>
     </Box>
   );
@@ -596,18 +583,14 @@ export default function PopperMapListings() {
 
   // state
 
-  const [expandedListingIds, setExpandedListingIds] = useState([]);
+  const [expandedListingId, setExpandedListingId] = useState(null);
   const [openCreateListing, setOpenCreateListing] = useState(false);
   const { position, isDragging, handleMouseDown } = usePanelDrag();
 
   // handlers
 
   function handleToggleExpand(listingId) {
-    setExpandedListingIds((prev) =>
-      prev.includes(listingId)
-        ? prev.filter((id) => id !== listingId)
-        : [...prev, listingId]
-    );
+    setExpandedListingId((prev) => (prev === listingId ? null : listingId));
   }
 
   // render
@@ -645,7 +628,7 @@ export default function PopperMapListings() {
           gap: 0.5,
           px: 1,
           py: 0.75,
-          bgcolor: "grey.100",
+          bgcolor: "background.paper",
           borderBottom: "1px solid",
           borderColor: "divider",
           cursor: "grab",
@@ -665,29 +648,20 @@ export default function PopperMapListings() {
           <ListingRow
             key={listing.id}
             listing={listing}
-            isExpanded={expandedListingIds.includes(listing.id)}
+            isExpanded={expandedListingId === listing.id}
             onToggleExpand={handleToggleExpand}
             hiddenListingsIds={hiddenListingsIds}
           />
         ))}
 
         {/* + Ajouter une liste */}
-        <Box
+        <ListItemButton
           onClick={() => setOpenCreateListing(true)}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.5,
-            px: 1,
-            py: 1,
-            cursor: "pointer",
-            color: "text.secondary",
-            "&:hover": { color: "primary.main" },
-          }}
+          sx={{ gap: 0.5, px: 1, py: 0.5, color: "text.secondary" }}
         >
-          <Add sx={{ fontSize: 16 }} />
-          <Typography variant="body2">{addListS}</Typography>
-        </Box>
+          <Add sx={{ fontSize: 14 }} />
+          <Typography variant="caption">{addListS}</Typography>
+        </ListItemButton>
       </Box>
 
       {/* Create listing dialog */}
