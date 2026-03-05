@@ -6,7 +6,7 @@ import { Box, Typography } from "@mui/material";
 
 import FieldCode from "Features/form/components/FieldCode";
 import verifyMFACodeService from "../services/verifyMFACodeService";
-import getAppConfigDefault from "Features/appConfig/services/getAppConfigDefault";
+import resolveRequestBody from "Features/appConfig/utils/resolveRequestBody";
 
 function formatFrenchPhoneNumber(value) {
   const digits = value.replace(/\D/g, "");
@@ -39,14 +39,11 @@ export default function SectionStepMFACode({ phoneNumber, onSuccess }) {
       return;
     }
     setLocked(true);
-    //const appConfig = await getAppConfigDefault();
     const serviceUrl = appConfig.auth.verifyMfaCodeUrl;
+    const bodyTemplate = appConfig.auth.verifyMfaCodeBody;
+    const body = resolveRequestBody(bodyTemplate, { mfaCode: code, phoneNumber });
     verifyingRef.current = true;
-    const jwt = await verifyMFACodeService({
-      phoneNumber,
-      mfaCode: code,
-      serviceUrl,
-    });
+    const jwt = await verifyMFACodeService({ serviceUrl, body });
     console.log("jwt", jwt);
     if (jwt) onSuccess({ jwt });
     verifyingRef.current = false;
