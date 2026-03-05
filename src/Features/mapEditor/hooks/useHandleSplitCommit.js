@@ -106,7 +106,7 @@ export default function useHandleSplitCommit() {
 
     const handleSplitCommit = async (rawCuttingPoints) => {
 
-        const imageSize = baseMap?.image?.imageSize;
+        const imageSize = baseMap?.getImageSize?.() || baseMap?.image?.imageSize;
         if (!imageSize) {
             console.warn("[useHandleSplitCommit] No image size available");
             return;

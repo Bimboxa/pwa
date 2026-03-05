@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { clearOpencvPreviewUrl, setOpencvPreviewUrl } from "../opencvSlice";
@@ -6,14 +6,10 @@ import { clearOpencvPreviewUrl, setOpencvPreviewUrl } from "../opencvSlice";
 import { Box } from "@mui/material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ButtonActionInPanel from "Features/layout/components/ButtonActionInPanel";
-import useUpdateBaseMapWithImageEnhanced from "Features/baseMaps/hooks/useUpdateBaseMapWithImageEnhanced";
-import ImageGeneric from "Features/images/components/ImageGeneric";
 
 import SectionColorPicker from "./SectionColorPicker";
 
-import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import cv from "../services/opencvService";
 import editor from "App/editor";
 import base64ToBlob from "Features/images/utils/base64ToBlob";
@@ -24,7 +20,6 @@ export default function ButtonKeepColoredContent() {
   // strings
 
   const label = "Conserver les couleurs";
-  const saveLabel = "Enregistrer";
 
   // state
 
@@ -34,23 +29,12 @@ export default function ButtonKeepColoredContent() {
 
   // data
 
-  const previewUrl = useSelector((state) => state.opencv.opencvPreviewUrl);
   const baseMap = useMainBaseMap();
-  const update = useUpdateBaseMapWithImageEnhanced();
   const selectedColors = useSelector(
     (state) => state.opencv.selectedColors ?? []
   );
 
-  const baseMapImageUrl = useMemo(() => {
-    if (!baseMap) return null;
-    const enhanced = baseMap?.showEnhanced && baseMap?.imageEnhanced;
-    if (enhanced) {
-      return baseMap.imageEnhanced.imageUrlClient
-        ? baseMap.imageEnhanced.imageUrlClient
-        : baseMap.imageEnhanced.imageUrlRemote;
-    }
-    return baseMap?.image?.imageUrlClient ?? baseMap?.image?.imageUrlRemote;
-  }, [baseMap]);
+  const baseMapImageUrl = baseMap?.getUrl();
 
   useEffect(() => {
     return () => {

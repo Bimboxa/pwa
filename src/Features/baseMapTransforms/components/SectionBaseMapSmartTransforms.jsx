@@ -4,8 +4,8 @@ import { useDispatch, useSelector } from "react-redux"; // Ajout pour dispatch
 import { setEnhancingBaseMap } from "Features/baseMaps/baseMapsSlice";
 
 import useBaseMapTransforms from "../hooks/useBaseMapTransforms";
-import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap"; // Pour récupérer le fichier et l'ID
-import useUpdateBaseMapWithImageEnhanced from "Features/baseMaps/hooks/useUpdateBaseMapWithImageEnhanced";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 
 import {
     Box,
@@ -47,7 +47,7 @@ export default function SectionBaseMapTransforms() {
     const enhancingBaseMap = useSelector(
         (s) => s.baseMaps?.enhancingBaseMapIds?.[baseMap?.id]
     );
-    const updateBaseMapWithImageEnhanced = useUpdateBaseMapWithImageEnhanced();
+    const createVersion = useCreateBaseMapVersion();
 
     // --- State ---
     const [menuAnchor, setMenuAnchor] = useState(null);
@@ -151,7 +151,8 @@ export default function SectionBaseMapTransforms() {
     async function handleEnhanceImage() {
         if (!enhancedResult?.blob) return;
         const file = new File([enhancedResult.blob], "enhanced.png");
-        await updateBaseMapWithImageEnhanced(baseMap.id, file);
+        const transformName = activeTransform?.name || "Smart transform";
+        await createVersion(baseMap.id, file, { label: transformName });
         setOpenCompare(false)
     }
 

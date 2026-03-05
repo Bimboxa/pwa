@@ -1,5 +1,5 @@
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
-import useUpdateBaseMapWithImageEnhanced from "Features/baseMaps/hooks/useUpdateBaseMapWithImageEnhanced";
+import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 
 import { Box, Typography, ListItemButton } from "@mui/material";
 
@@ -14,20 +14,19 @@ export default function ToolMergeAnnotations({ baseMap }) {
     // data
 
     const baseMapAnnotations = useAnnotationsV2({ baseMapAnnotationsOnly: true });
-    const updateBaseMapWithImageFile = useUpdateBaseMapWithImageEnhanced();
+    const createVersion = useCreateBaseMapVersion();
 
     // handlers
 
     async function handleMerge() {
         const annotations = baseMapAnnotations.filter(a => a.isEraser);
-        console.log("debug_51_merge annotations", annotations, baseMapAnnotations);
         await cv.load();
         const { processedImageFile } = await cv.eraseFromAnnotations({
-            imageUrl: baseMap.image.imageUrlClient,
+            imageUrl: baseMap.getUrl(),
             annotations,
         });
 
-        if (processedImageFile) await updateBaseMapWithImageFile(baseMap.id, processedImageFile);
+        if (processedImageFile) await createVersion(baseMap.id, processedImageFile, { label: "Fusion annotations" });
     }
 
     // render

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import useUpdateBaseMapWithImageEnhanced from "Features/baseMaps/hooks/useUpdateBaseMapWithImageEnhanced";
+import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 
 import { ListItemButton, Typography } from "@mui/material";
 
@@ -20,7 +20,7 @@ export default function ToolCropBaseMapImage({ baseMap }) {
 
     // data
 
-    const update = useUpdateBaseMapWithImageEnhanced()
+    const createVersion = useCreateBaseMapVersion()
 
     // helpers
 
@@ -29,7 +29,7 @@ export default function ToolCropBaseMapImage({ baseMap }) {
     // handlers
 
     async function updateWithFile(file) {
-        await update(baseMap?.id, file)
+        await createVersion(baseMap?.id, file, { label: "Recadrage" })
         setOpen(false)
     }
 

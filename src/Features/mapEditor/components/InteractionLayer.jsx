@@ -11,6 +11,7 @@ import { setSelectedEntityId } from 'Features/entities/entitiesSlice';
 import { setEnabledDrawingMode, setSelectedNodes } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
+import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
 import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations } from 'Features/annotations/annotationsSlice';
 import {
   setAnchorPosition,
@@ -36,6 +37,7 @@ import usePointDrag from 'Features/mapEditor/hooks/usePointDrag';
 import useAnnotationDrag from 'Features/mapEditor/hooks/useAnnotationDrag';
 import useDrawingCommit from 'Features/mapEditor/hooks/useDrawingCommit';
 import useBaseMapDrag from 'Features/mapEditor/hooks/useBaseMapDrag';
+import useVersionDrag from 'Features/mapEditor/hooks/useVersionDrag';
 import useLegendDrag from 'Features/mapEditor/hooks/useLegendDrag';
 
 import Box from '@mui/material/Box';
@@ -525,6 +527,19 @@ const InteractionLayer = forwardRef(({
     bgPose,
     onBaseMapPoseChange,
     onBaseMapPoseCommit,
+    viewportRef,
+  });
+
+  // drag state — version drag (extracted to useVersionDrag)
+
+  const {
+    versionDragState,
+    versionTransformOverride,
+    initVersionDrag,
+    handleVersionDragMove,
+    handleVersionDragEnd,
+  } = useVersionDrag({
+    basePose,
     viewportRef,
   });
 
@@ -1234,7 +1249,20 @@ const InteractionLayer = forwardRef(({
       const hit = nativeTarget.closest?.("[data-node-type]");
       if (hit) {
         console.log("[InteractionLayer] selected node", hit?.dataset)
-        if (
+
+        // 3a. Click on a version image in BASE_MAPS viewer → select version
+        if (hit?.dataset?.nodeType === "BASE_MAP_VERSION") {
+          const versionId = hit?.dataset?.nodeId;
+          dispatch(setSelectedVersionId(versionId));
+          dispatch(setSelectedItem({
+            id: versionId,
+            type: "BASE_MAP_VERSION",
+          }));
+          setHiddenAnnotationIds([]);
+          dispatch(setAnnotationToolbarPosition(null));
+        }
+
+        else if (
           !showBgImage && hit?.dataset?.nodeType === "BASE_MAP"
           || showBgImage && hit?.dataset?.nodeType === "BG_IMAGE"
 
@@ -1429,6 +1457,12 @@ const InteractionLayer = forwardRef(({
     // B1. DRAG BASEMAP (Image de fond) — délégué à useBaseMapDrag
     if (dragBaseMapState?.active) {
       const consumed = handleBaseMapDragMove(worldPos);
+      if (consumed) return;
+    }
+
+    // B1b. DRAG VERSION — délégué à useVersionDrag
+    if (versionDragState?.active) {
+      const consumed = handleVersionDragMove(worldPos);
       if (consumed) return;
     }
 
@@ -1772,6 +1806,9 @@ const InteractionLayer = forwardRef(({
     // BaseMap drag end — délégué à useBaseMapDrag
     handleBaseMapDragEnd();
 
+    // Version drag end — délégué à useVersionDrag
+    handleVersionDragEnd();
+
     // Legend drag end — délégué à useLegendDrag
     handleLegendDragEnd();
 
@@ -1836,6 +1873,7 @@ const InteractionLayer = forwardRef(({
 
     const resizeHandle = target.closest('[data-interaction="resize-annotation"]');
     const basemapHandle = target.closest('[data-interaction="transform-basemap"]');
+    const versionHandle = target.closest('[data-interaction="transform-version"]');
     const legendHandle = target.closest('[data-interaction="transform-legend"]');
     const textHandle = target.closest('[data-interaction="transform-text"]');
     const rotateHandle = target.closest('[data-interaction="rotate-annotation"]');
@@ -1857,7 +1895,7 @@ const InteractionLayer = forwardRef(({
 
 
     console.log("debug_A_selectedNode", selectedNode)
-    if (!selectedNode && !showBgImage && !draggableGroup && !resizeHandle && !rotateHandle) return;
+    if (!selectedNode && !showBgImage && !draggableGroup && !resizeHandle && !rotateHandle && !versionHandle) return;
 
 
 
@@ -1957,6 +1995,14 @@ const InteractionLayer = forwardRef(({
       }
     }
 
+    if (versionHandle) {
+      e.stopPropagation();
+      e.preventDefault();
+      const { handleType, versionId, baseMapId } = versionHandle.dataset;
+      const startTransform = JSON.parse(versionHandle.dataset.versionTransform || '{"x":0,"y":0,"rotation":0,"scale":1}');
+      const imageSize = JSON.parse(versionHandle.dataset.versionImageSize || '{}');
+      initVersionDrag(versionId, handleType, e, startTransform, imageSize, baseMapId);
+    }
 
 
   }

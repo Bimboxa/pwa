@@ -9,7 +9,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle"; // Assurez-vous d
 import { clearEnhancedImageResult } from "Features/baseMaps/baseMapsSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useUpdateBaseMapWithImageEnhanced from "Features/baseMaps/hooks/useUpdateBaseMapWithImageEnhanced";
+import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
@@ -32,7 +32,7 @@ export default function ButtonRunningTransform() {
     const enhancingBaseMap = useSelector(
         (s) => s.baseMaps?.enhancingBaseMapIds?.[baseMap?.id]
     );
-    const updateBaseMapWithImageEnhanced = useUpdateBaseMapWithImageEnhanced();
+    const createVersion = useCreateBaseMapVersion();
     const enhancedResult = useSelector(
         (s) => s.baseMaps?.enhancedImageResults?.[baseMap?.id]
     );
@@ -60,7 +60,7 @@ export default function ButtonRunningTransform() {
         }
         const fileName = `transformed_${Date.now()}.png`;
         const file = new File([enhancedResult.blob], fileName, { type: "image/png" });
-        await updateBaseMapWithImageEnhanced(baseMap.id, file);
+        await createVersion(baseMap.id, file, { label: "Transformation" });
         dispatch(clearEnhancedImageResult(baseMap.id));
         setOpen(false);
     }

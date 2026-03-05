@@ -9,7 +9,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
 import cv from "Features/opencv/services/opencvService";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useUpdateBaseMapWithImageEnhanced from "Features/baseMaps/hooks/useUpdateBaseMapWithImageEnhanced";
+import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 
 export default function ToolRemoveGrayLevel({ onSave }) {
     const dispatch = useDispatch();
@@ -17,7 +17,7 @@ export default function ToolRemoveGrayLevel({ onSave }) {
     // data
 
     const baseMap = useMainBaseMap();
-    const update = useUpdateBaseMapWithImageEnhanced();
+    const createVersion = useCreateBaseMapVersion();
 
     // Récupération de la valeur (0 = coupe tout / noir, 255 = laisse tout passer / blanc)
     const grayLevelThreshold = useSelector((s) => s.baseMapEditor.grayLevelThreshold) ?? 255;
@@ -55,7 +55,7 @@ export default function ToolRemoveGrayLevel({ onSave }) {
             grayLevelThreshold,
         });
         if (processedImageFile) {
-            update(baseMap?.id, processedImageFile);
+            createVersion(baseMap?.id, processedImageFile, { label: "Seuil de gris" });
         }
     };
 

@@ -1,6 +1,7 @@
 import imageMap from "../assets/imageMap.png";
 
 import { useState, useEffect } from "react";
+import { nanoid } from "@reduxjs/toolkit";
 
 import { useDispatch } from "react-redux";
 
@@ -8,6 +9,8 @@ import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
+
+import db from "App/db/db";
 
 import { Box, Typography, TextField, Button } from "@mui/material";
 
@@ -68,7 +71,6 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
 
   async function _createBaseMap(file) {
     const listing = listingProp ?? projectBaseMapListings?.[0];
-    console.log("baseMaps listing", listing, file);
 
     if (listing) {
       const entity = {
@@ -78,8 +80,26 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
       };
       const _entity = await createEntity(entity, { listing });
 
-      //const baseMap = await createBaseMap({ imageFile: file });
-      //const baseMapView = await createBaseMapView({ name: nameS, baseMap });
+      // Post-process: set up version system with initial version
+      if (_entity?.id) {
+        const record = await db.baseMaps.get(_entity.id);
+        if (record?.image?.imageSize) {
+          const initialVersion = {
+            id: nanoid(),
+            label: "Image d'origine",
+            fractionalIndex: "a0",
+            isActive: true,
+            image: record.image,
+            transform: { x: 0, y: 0, rotation: 0, scale: 1 },
+          };
+          await db.baseMaps.update(_entity.id, {
+            refWidth: record.image.imageSize.width,
+            refHeight: record.image.imageSize.height,
+            versions: [initialVersion],
+          });
+        }
+      }
+
       dispatch(setSelectedMainBaseMapId(_entity?.id));
 
       // clean

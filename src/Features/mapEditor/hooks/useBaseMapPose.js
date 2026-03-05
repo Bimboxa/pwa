@@ -8,11 +8,11 @@ export default function useBaseMapPose({
     bgPose = { x: 0, y: 0, k: 1 }
 }) {
     // 1. État local pour la taille de l'image (si pas fournie par la DB)
-    const imageSize = baseMap?.image?.imageSize;
+    const imageSize = baseMap?.getImageSize?.() || baseMap?.image?.imageSize;
 
     // 2. Le calcul (Votre logique existante)
     const pose = useMemo(() => {
-        const imageSize = baseMap?.image?.imageSize;
+        const imageSize = baseMap?.getImageSize?.() || baseMap?.image?.imageSize;
         // Sécurité : Si pas de viewport ou pas d'image, on renvoie une pose par défaut
         if (!viewport.w || !viewport.h || !imageSize?.width || !imageSize?.height) {
             return { x: 0, y: 0, k: 1, r: 0 };
@@ -26,7 +26,7 @@ export default function useBaseMapPose({
         };
 
 
-    }, [imageSize?.width, imageSize?.height, viewport, basePoseInBg?.k, bgPose, baseMap?.showEnhanced]);
+    }, [imageSize?.width, imageSize?.height, viewport, basePoseInBg?.k, bgPose]);
 
     return { pose, imageSize };
 }

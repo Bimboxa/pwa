@@ -12,7 +12,7 @@ export default function getDefaultBaseMapPoseInBg({
 }) {
 
   const { bbox, imageSize: bgSize } = bgImage || {};
-  const baseMapSize = baseMap?.image?.imageSize;
+  const baseMapSize = baseMap?.getImageSize?.() || baseMap?.image?.imageSize;
   const rotation = baseMap.rotation ?? 0;
 
   const bmW = Math.max(1, Number(baseMapSize?.width) || 1);

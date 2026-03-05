@@ -1,5 +1,6 @@
 import Dexie from "dexie";
 import "dexie-export-import";
+import { nanoid } from "@reduxjs/toolkit";
 
 import store from "App/store";
 import { UNDO_TABLES, _skipUndo, pushUndo } from "./undoManager";
@@ -69,6 +70,52 @@ db.version(16).stores({
   // {id, annotationId, nomenclatureKey, categoryKey, projectId}
   relAnnotationMappingCategory: "id, annotationId, projectId, [nomenclatureKey+categoryKey]",
 });
+
+// BaseMap versions migration: convert image/imageEnhanced to versions array
+db.version(17)
+  .stores({})
+  .upgrade(async (tx) => {
+    const baseMaps = await tx.table("baseMaps").toArray();
+    for (const bm of baseMaps) {
+      if (bm.versions?.length > 0) continue; // already migrated
+      if (!bm.image) continue; // no image to migrate
+
+      const versions = [];
+
+      // Version 1: original image
+      versions.push({
+        id: nanoid(),
+        label: "Image d'origine",
+        fractionalIndex: "a0",
+        isActive: !bm.showEnhanced,
+        image: bm.image,
+        transform: { x: 0, y: 0, rotation: 0, scale: 1 },
+      });
+
+      // Version 2: enhanced image (if exists)
+      if (bm.imageEnhanced?.fileName) {
+        versions.push({
+          id: nanoid(),
+          label: "Image améliorée",
+          fractionalIndex: "a1",
+          isActive: Boolean(bm.showEnhanced),
+          image: bm.imageEnhanced,
+          transform: { x: 0, y: 0, rotation: 0, scale: 1 },
+        });
+      }
+
+      // If no version is active, activate the first one
+      if (!versions.some((v) => v.isActive)) {
+        versions[0].isActive = true;
+      }
+
+      await tx.table("baseMaps").update(bm.id, {
+        versions,
+        refWidth: bm.image.imageSize?.width,
+        refHeight: bm.image.imageSize?.height,
+      });
+    }
+  });
 
 // --- AUDIT HOOKS ---
 

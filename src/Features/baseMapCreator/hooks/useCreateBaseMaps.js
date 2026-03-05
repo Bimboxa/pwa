@@ -1,3 +1,4 @@
+import { nanoid } from "@reduxjs/toolkit";
 import { useSelector, useDispatch } from "react-redux";
 
 import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
@@ -6,6 +7,8 @@ import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
+
+import db from "App/db/db";
 
 export default function useCreateBaseMaps() {
 
@@ -24,7 +27,6 @@ export default function useCreateBaseMaps() {
 
         if (!listing) {
             console.error("ERROR - No baseMap listing found => create new listing");
-            // create baseMaps listing
             const [created] = await createListings({
                 listings: [{ ...defaultProps, projectId }],
             });
@@ -38,7 +40,29 @@ export default function useCreateBaseMaps() {
                 image: { file: baseMap.imageFile },
                 meterByPx: baseMap.meterByPx,
             };
-            return await createEntity(entity, { listing });
+            const _entity = await createEntity(entity, { listing });
+
+            // Post-process: set up version system with initial version
+            if (_entity?.id) {
+                const record = await db.baseMaps.get(_entity.id);
+                if (record?.image?.imageSize) {
+                    const initialVersion = {
+                        id: nanoid(),
+                        label: "Image d'origine",
+                        fractionalIndex: "a0",
+                        isActive: true,
+                        image: record.image,
+                        transform: { x: 0, y: 0, rotation: 0, scale: 1 },
+                    };
+                    await db.baseMaps.update(_entity.id, {
+                        refWidth: record.image.imageSize.width,
+                        refHeight: record.image.imageSize.height,
+                        versions: [initialVersion],
+                    });
+                }
+            }
+
+            return _entity;
         }));
 
         return entities;

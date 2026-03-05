@@ -1,4 +1,4 @@
-import useUpdateBaseMapWithImageEnhanced from "Features/baseMaps/hooks/useUpdateBaseMapWithImageEnhanced";
+import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 
 import { ListItemButton, Typography } from "@mui/material";
 
@@ -12,14 +12,14 @@ export default function ToolConvertToBlackAndWhite({ baseMap }) {
 
     // data
 
-    const update = useUpdateBaseMapWithImageEnhanced()
+    const createVersion = useCreateBaseMapVersion()
 
     // handlers
 
     async function handleClick() {
         const imageUrl = baseMap?.getUrl()
         const processedImageFile = await convertToBlackAndWhite(imageUrl)
-        if (processedImageFile) await update(baseMap?.id, processedImageFile)
+        if (processedImageFile) await createVersion(baseMap?.id, processedImageFile, { label: "Noir et blanc" })
     }
 
     return <>
