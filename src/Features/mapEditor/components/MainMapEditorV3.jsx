@@ -43,6 +43,7 @@ import LayerTools from "./LayerTools";
 import StaticMapContent from "./StaticMapContent";
 import EditedObjectLayer from "./EditedObjectLayer";
 import EditedBaseMapLayer from "./EditedBaseMapLayer";
+import EditedVersionLayer from "./EditedVersionLayer";
 import EditedLegendLayer from "./EditedLegendLayer";
 import LayerCreateBaseMap from "./LayerCreateBaseMap";
 
@@ -137,6 +138,9 @@ export default function MainMapEditorV3() {
     const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
     const grayLevelThreshold = useSelector((s) => s.baseMapEditor.grayLevelThreshold);
     const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+    const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
+    const selectedVersionId = useSelector((s) => s.baseMapEditor.selectedVersionId);
+    const versionTransformOverride = useSelector((s) => s.baseMapEditor.versionTransformOverride);
 
     // viewport
 
@@ -248,7 +252,7 @@ export default function MainMapEditorV3() {
     defaultCameraMatrixRef.current = getDefaultCameraMatrix({
         showBgImage,
         bgSize: bgImage?.imageSize,
-        baseSize: baseMap?.image?.imageSize,
+        baseSize: baseMap?.getImageSize?.(),
         viewport,
         basePose,
     });
@@ -412,7 +416,7 @@ export default function MainMapEditorV3() {
     // handlers - move point
 
     const handlePointMoveCommit = async (pointId, newPos) => {
-        const imageSize = baseMap?.image?.imageSize;
+        const imageSize = baseMap?.getImageSize?.();
         if (!imageSize) return;
 
         // Find annotations that reference this point and have rotation metadata.
@@ -445,7 +449,7 @@ export default function MainMapEditorV3() {
     };
 
     const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
-        const imageSize = baseMap?.image?.imageSize;
+        const imageSize = baseMap?.getImageSize?.();
         await duplicateAndMovePoint({ originalPointId, annotationId, newPos, imageSize, annotations });
     };
 
@@ -458,7 +462,7 @@ export default function MainMapEditorV3() {
     const handleSegmentSplit = async (segment) => {
         console.log("splitSegment", segment);
         const { segmentStartId, segmentEndId, x, y } = segment;
-        const imageSize = baseMap?.image?.imageSize;
+        const imageSize = baseMap?.getImageSize?.();
         if (!imageSize) return;
 
         const newPointId = nanoid();
@@ -567,7 +571,7 @@ export default function MainMapEditorV3() {
     };
 
     const handleAnnotationMoveCommit = async (annotationId, deltaPos, partType, localPos) => {
-        const imageSize = baseMap?.image?.imageSize;
+        const imageSize = baseMap?.getImageSize?.();
         if (!imageSize) return;
 
         // WRAPPER (group transform for point-based annotations)
@@ -991,7 +995,7 @@ export default function MainMapEditorV3() {
                     onCommitSplitAtVertex={handlePolylineSplitAtVertex}
                     onCommitImageDrop={handleCommitImageDrop}
                     onCommitPointsFromSurfaceDrop={handleCommitPointsFromSurfaceDrop}
-                    baseMapImageSize={baseMap?.image?.imageSize}
+                    baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
                     baseMapImageScale={baseMap?.getImageScale()}
                     baseMapImageOffset={baseMap?.getImageOffset()}
                     baseMapImageUrl={baseMap?.getUrl()}
@@ -1022,10 +1026,8 @@ export default function MainMapEditorV3() {
                             bgImageSize={bgImage?.imageSize}
                             showBgImage={showBgImage}
                             basePose={basePose}
-                            baseMapImageUrl={baseMap?.image?.imageUrlClient}
-                            baseMapImageEnhancedUrl={baseMap?.imageEnhanced?.imageUrlClient}
-                            baseMapShowEnhanced={baseMap?.showEnhanced}
-                            baseMapImageSize={baseMap?.image?.imageSize}
+                            baseMapImageUrl={baseMap?.getUrl()}
+                            baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
                             annotations={annotations}
                             legendItems={legendItems}
                             legendFormat={legendFormat}
@@ -1033,22 +1035,43 @@ export default function MainMapEditorV3() {
                             isEditingBaseMap={isBaseMapSelected}
                             baseMapMeterByPx={baseMap?.meterByPx}
                             opacity={baseMapOpacity}
-                            opacityEnhanced={baseMap?.opacityEnhanced}
                             grayScale={baseMapGrayScale}
                             grayLevelThreshold={grayLevelThreshold}
+                            versions={baseMap?.versions}
+                            hiddenVersionIds={hiddenVersionIds}
+                            selectedVersionId={selectedVersionId}
+                            isBaseMapsViewer={viewerKey === "BASE_MAPS"}
+                            isEditingVersion={viewerKey === "BASE_MAPS" && !!selectedVersionId && showBgImage}
                         />
                     </g>
                     {/* 2. LAYER ÉDITION BASEMAP (Exclusif) */}
                     {isBaseMapSelected && (
                         <EditedBaseMapLayer
-                            basePose={basePose} // La pose qui vient du hook (et donc de Redux)
+                            basePose={basePose}
                             baseMapImageUrl={baseMap?.getUrl()}
-                            baseMapImageSize={baseMap?.image?.imageSize}
-                        // Pas besoin de passer onChange ici car InteractionLayer 
-                        // intercepte les événements via data-interaction="transform-basemap"
-                        // et appelle onBaseMapPoseChange du InteractionLayer
+                            baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
                         />
                     )}
+                    {/* 2b. LAYER ÉDITION VERSION (BASE_MAPS viewer only) */}
+                    {viewerKey === "BASE_MAPS" && selectedVersionId && showBgImage && (() => {
+                        const selectedVersion = baseMap?.versions?.find(v => v.id === selectedVersionId);
+                        if (!selectedVersion) return null;
+                        const vUrl = selectedVersion.image?.imageUrlClient ?? selectedVersion.image?.imageUrlRemote;
+                        const vSize = selectedVersion.image?.imageSize;
+                        const vTransform = versionTransformOverride?.versionId === selectedVersionId
+                            ? versionTransformOverride.transform
+                            : selectedVersion.transform || { x: 0, y: 0, rotation: 0, scale: 1 };
+                        return (
+                            <EditedVersionLayer
+                                basePose={basePose}
+                                versionTransform={vTransform}
+                                versionImageUrl={vUrl}
+                                versionImageSize={vSize}
+                                versionId={selectedVersionId}
+                                baseMapId={baseMap?.id}
+                            />
+                        );
+                    })()}
                     {isLegendSelected && (
                         <EditedLegendLayer
                             legendItems={legendItems}
@@ -1081,7 +1104,7 @@ export default function MainMapEditorV3() {
                 showBgImage={showBgImage}
                 basePose={basePose}
                 baseMapImageUrl={baseMap?.getUrl()}
-                baseMapImageSize={baseMap?.image?.imageSize}
+                baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
                 annotations={annotations}
                 spriteImage={spriteImage}
                 baseMapMeterByPx={baseMap?.getMeterByPx()}

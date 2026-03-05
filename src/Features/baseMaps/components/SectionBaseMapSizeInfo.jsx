@@ -8,8 +8,8 @@ export default function SectionBaseMapSizeInfo({ baseMap }) {
     // helpers
 
     const imageSize = baseMap?.getImageSize();
-    const showEnhanced = baseMap?.showEnhanced;
-    const imageFile = showEnhanced && baseMap?.imageEnhanced?.file ? baseMap?.imageEnhanced?.file : baseMap?.image?.file;
+    const activeVersion = baseMap?.getActiveVersion?.();
+    const imageFile = activeVersion?.image?.file ?? baseMap?.image?.file;
 
 
     // helper - sizeLabel

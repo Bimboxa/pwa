@@ -39,11 +39,7 @@ export default function ButtonRemoveText() {
 
   // helpers
 
-  const baseMapImageUrl =
-    baseMap?.showEnhanced && baseMap?.imageEnhanced
-      ? baseMap.imageEnhanced.imageUrlClient ??
-        baseMap.imageEnhanced.imageUrlRemote
-      : baseMap?.image?.imageUrlClient ?? baseMap?.image?.imageUrlRemote;
+  const baseMapImageUrl = baseMap?.getUrl();
 
   // handlers
 

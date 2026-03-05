@@ -9,7 +9,7 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ButtonActionInPanel from "Features/layout/components/ButtonActionInPanel";
 import ImageGeneric from "Features/images/components/ImageGeneric";
 
-import useUpdateBaseMapWithImageEnhanced from "../hooks/useUpdateBaseMapWithImageEnhanced";
+import useCreateBaseMapVersion from "../hooks/useCreateBaseMapVersion";
 import enhanceBaseMapService, {
   getActiveEnhanceFetch,
 } from "../services/enhanceBaseMapService";
@@ -44,7 +44,7 @@ export default function ButtonEnhanceBaseMap() {
 
   // data - update
 
-  const update = useUpdateBaseMapWithImageEnhanced();
+  const createVersion = useCreateBaseMapVersion();
 
   // handlers
 
@@ -121,7 +121,7 @@ export default function ButtonEnhanceBaseMap() {
     if (!enhancedResult?.blob || !baseMap?.id) return;
 
     const file = new File([enhancedResult.blob], "enhanced.png");
-    await update(baseMap.id, file);
+    await createVersion(baseMap.id, file, { label: "Sat. => Plan masse" });
 
     // Clear the result after saving
     dispatch(clearEnhancedImageResult(baseMap.id));

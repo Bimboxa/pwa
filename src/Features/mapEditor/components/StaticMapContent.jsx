@@ -20,21 +20,22 @@ function StaticMapContent({
     bgPose = { x: 0, y: 0, k: 1 },
     basePose,
     baseMapImageUrl,
-    baseMapImageEnhancedUrl,
-    baseMapShowEnhanced,
     baseMapImageSize,
     baseMapMeterByPx,
     annotations,
     legendItems,
     legendFormat,
-    // selectedNode, // Ignored, using Redux
-    // selectedNodes, // Ignored
     sizeVariant,
     isEditingBaseMap = false,
     opacity = 1,
-    opacityEnhanced = 1,
     grayScale = false,
-    grayLevelThreshold = 0
+    grayLevelThreshold = 0,
+    // multi-version (BASE_MAPS viewer only)
+    versions,
+    hiddenVersionIds,
+    selectedVersionId,
+    isBaseMapsViewer = false,
+    isEditingVersion = false,
 }) {
 
     // data
@@ -139,31 +140,52 @@ function StaticMapContent({
             <g transform={`translate(${basePose.x}, ${basePose.y}) scale(${basePose.k})`} style={{ pointerEvents: 'auto' }}>
 
 
-                {baseMapShowEnhanced && <NodeSvgImage
-                    src={baseMapImageEnhancedUrl}
-                    //dataNodeType="BASE_MAP"
-                    dataNodeId={baseMapImageEnhancedUrl}
-                    width={baseMapImageSize?.width}
-                    height={baseMapImageSize?.height}
-                    //hovered={baseMapIsHovered}
-                    //selected={baseMapIsSelected}
-                    opacity={opacity}
-                    grayScale={grayScale}
-                    grayLevelThreshold={grayLevelThreshold}
-                />}
-
-                {!isEditingBaseMap && <NodeSvgImage
-                    src={baseMapImageUrl}
-                    dataNodeType="BASE_MAP"
-                    dataNodeId={baseMapImageUrl}
-                    width={baseMapImageSize?.width}
-                    height={baseMapImageSize?.height}
-                    hovered={baseMapIsHovered}
-                    selected={baseMapIsSelected}
-                    opacity={baseMapShowEnhanced ? opacityEnhanced * opacity : opacity}
-                    grayScale={grayScale}
-                    grayLevelThreshold={grayLevelThreshold}
-                />}
+                {/* Multi-version rendering for BASE_MAPS viewer */}
+                {isBaseMapsViewer && versions?.length > 0 ? (
+                    versions
+                        .filter(v => !hiddenVersionIds?.includes(v.id))
+                        .sort((a, b) => (b.fractionalIndex || "").localeCompare(a.fractionalIndex || ""))
+                        .map(version => {
+                            if (isEditingVersion && selectedVersionId === version.id) return null;
+                            const vUrl = version.image?.imageUrlClient ?? version.image?.imageUrlRemote;
+                            const vSize = version.image?.imageSize;
+                            if (!vUrl || !vSize) return null;
+                            const t = version.transform || { x: 0, y: 0, rotation: 0, scale: 1 };
+                            const isSelected = selectedVersionId === version.id;
+                            return (
+                                <g
+                                    key={version.id}
+                                    transform={`translate(${t.x}, ${t.y}) scale(${t.scale}) rotate(${t.rotation || 0})`}
+                                >
+                                    <NodeSvgImage
+                                        src={vUrl}
+                                        dataNodeType="BASE_MAP_VERSION"
+                                        dataNodeId={version.id}
+                                        width={vSize.width}
+                                        height={vSize.height}
+                                        hovered={hoveredNode?.nodeId === version.id}
+                                        selected={isSelected}
+                                        opacity={version.isActive ? opacity : 0.5}
+                                        grayScale={grayScale}
+                                        grayLevelThreshold={grayLevelThreshold}
+                                    />
+                                </g>
+                            );
+                        })
+                ) : (
+                    !isEditingBaseMap && <NodeSvgImage
+                        src={baseMapImageUrl}
+                        dataNodeType="BASE_MAP"
+                        dataNodeId={baseMapImageUrl}
+                        width={baseMapImageSize?.width}
+                        height={baseMapImageSize?.height}
+                        hovered={baseMapIsHovered}
+                        selected={baseMapIsSelected}
+                        opacity={opacity}
+                        grayScale={grayScale}
+                        grayLevelThreshold={grayLevelThreshold}
+                    />
+                )}
 
                 {baseMapAnnotations?.map(annotation => {
 

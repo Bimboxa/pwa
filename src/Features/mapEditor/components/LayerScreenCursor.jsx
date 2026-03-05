@@ -212,7 +212,7 @@ export default function LayerScreenCursor({ containerEl }) {
           baseMapImageUrl={baseMapImageUrl}
           screenToBaseLocal={editor.screenToBaseLocal}
           baseMapSize={
-            baseMap?.imageEnhanced?.imageSize ?? baseMap?.image?.imageSize
+            baseMap?.getImageSize?.() || baseMap?.image?.imageSize
           }
           enableOcr={isRemoveTextMode}
           opencvMode={mode}

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Box, Typography, IconButton } from "@mui/material";
 
 import RotateLeftIcon from '@mui/icons-material/RotateLeft';
-import useUpdateBaseMapWithImageEnhanced from "Features/baseMaps/hooks/useUpdateBaseMapWithImageEnhanced";
+import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 
 import rotateImageAsync from "Features/images/utils/rotateImageAsync";
@@ -16,7 +16,7 @@ export default function ListItemButtonBaseMapRotate({ baseMap }) {
 
     // data
 
-    const updateBaseMap = useUpdateBaseMapWithImageEnhanced();
+    const createVersion = useCreateBaseMapVersion();
 
     // state
 
@@ -29,7 +29,7 @@ export default function ListItemButtonBaseMapRotate({ baseMap }) {
         setLoading(true);
         const imageUrl = baseMap.getUrl();
         const file = await rotateImageAsync({ imageUrl, rotation });
-        updateBaseMap(baseMap.id, file);
+        await createVersion(baseMap.id, file, { label: `Rotation ${rotation}°` });
         setLoading(false);
     }
 

@@ -21,10 +21,8 @@ import ButtonGetHorizontalAndVerticalLines from "./ButtonGetHorizontalAndVertica
 import ButtonCalculateOverlayTransform from "./ButtonCalculateOverlayTransform";
 import ButtonDetectContours from "./ButtonDetectContours";
 import ButtonDetectStraightLine from "./ButtonDetectStraightLine";
-import SectionShowEnhanced from "Features/baseMaps/components/SectionShowEnhanced";
 import SectionSaveOpencvPreview from "./SectionSaveOpencvPreview";
 
-import ButtonToggleShowEnhanced from "./ButtonToggleShowEnhanced";
 import ButtonOpencvDebug from "./ButtonOpencvDebug";
 import ButtonFillHatch from "./ButtonFillHatch";
 import ButtonRemoveThinRegions from "./ButtonRemoveThinRegions";
@@ -193,7 +191,6 @@ export default function PanelOpencv() {
       </Box>
       {open && (
         <BoxFlexVStretch>
-          <SectionShowEnhanced />
           {groupNames.length > 0 && tabValue && (
             <>
               <Tabs

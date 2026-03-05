@@ -6,7 +6,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ButtonActionInPanel from "Features/layout/components/ButtonActionInPanel";
-import useUpdateBaseMapWithImageEnhanced from "Features/baseMaps/hooks/useUpdateBaseMapWithImageEnhanced";
+import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 import ImageGeneric from "Features/images/components/ImageGeneric";
 
 import cv from "../services/opencvService";
@@ -27,15 +27,11 @@ export default function ButtonRemoveColoredContent() {
   // data
 
   const baseMap = useMainBaseMap();
-  const update = useUpdateBaseMapWithImageEnhanced();
+  const createVersion = useCreateBaseMapVersion();
 
   // helpers
 
-  const baseMapImageUrl =
-    baseMap?.showEnhanced && baseMap?.imageEnhanced
-      ? baseMap.imageEnhanced.imageUrlClient ??
-        baseMap.imageEnhanced.imageUrlRemote
-      : baseMap?.image?.imageUrlClient ?? baseMap?.image?.imageUrlRemote;
+  const baseMapImageUrl = baseMap?.getUrl();
 
   // handlers
 
@@ -85,7 +81,7 @@ export default function ButtonRemoveColoredContent() {
     if (!blob || !baseMap?.id) return;
 
     const file = new File([blob], "no-color.png");
-    await update(baseMap.id, file);
+    await createVersion(baseMap.id, file, { label: "Retrait couleurs" });
 
     // Clear preview after saving
     if (previewUrl) {

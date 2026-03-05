@@ -152,10 +152,7 @@ export default function useAnnotationsV2(options) {
 
 
                 const baseMap = baseMapById[annotation.baseMapId];
-                const imageSize = baseMap?.image?.imageSize;
-                // const scale = (baseMap?.image?.imageSize && baseMap?.imageEnhanced?.imageSize && baseMap?.showEnhanced) ?
-                //     baseMap.imageEnhanced.imageSize.width / baseMap.image.imageSize.width :
-                //     1;
+                const imageSize = baseMap?.getImageSize?.() || baseMap?.image?.imageSize;
 
                 if (!imageSize) return [];
                 const { width, height } = imageSize;

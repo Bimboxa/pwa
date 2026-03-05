@@ -41,12 +41,7 @@ export default function ButtonCalculateOverlayTransform() {
     planMasseBaseMap?.image?.imageUrlClient ??
     planMasseBaseMap?.image?.imageUrlRemote;
 
-  const detailImageUrl =
-    mainBaseMap?.showEnhanced && mainBaseMap?.imageEnhanced
-      ? mainBaseMap.imageEnhanced.imageUrlClient ??
-        mainBaseMap.imageEnhanced.imageUrlRemote
-      : mainBaseMap?.image?.imageUrlClient ??
-        mainBaseMap?.image?.imageUrlRemote;
+  const detailImageUrl = mainBaseMap?.getUrl();
 
   // handlers
   useEffect(() => {

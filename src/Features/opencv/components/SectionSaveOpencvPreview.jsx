@@ -5,7 +5,7 @@ import { clearKeepColorsPreviewUrl } from "../opencvSlice";
 import { setTempAnnotations } from "Features/annotations/annotationsSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useUpdateBaseMapWithImageEnhanced from "Features/baseMaps/hooks/useUpdateBaseMapWithImageEnhanced";
+import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 
 import { Box } from "@mui/material";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
@@ -23,7 +23,7 @@ export default function SectionSaveOpencvPreview() {
 
   const previewUrl = useSelector((state) => state.opencv.opencvPreviewUrl);
   const baseMap = useMainBaseMap();
-  const update = useUpdateBaseMapWithImageEnhanced();
+  const createVersion = useCreateBaseMapVersion();
 
   // handlers
 
@@ -32,7 +32,7 @@ export default function SectionSaveOpencvPreview() {
       url: previewUrl,
       name: "keep-color.png",
     });
-    await update(baseMap.id, file);
+    await createVersion(baseMap.id, file, { label: "OpenCV" });
     dispatch(clearKeepColorsPreviewUrl());
     setBlob(null);
   }
