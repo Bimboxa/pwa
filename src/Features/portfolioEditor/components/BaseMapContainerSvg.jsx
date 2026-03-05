@@ -25,11 +25,13 @@ function FilledContainerContent({ container, baseMap, innerSvgRef }) {
     filterByBaseMapId: container.baseMapId,
     filterBySelectedScope: true,
     excludeIsForBaseMapsListings: true,
+    excludeBgAnnotations: true,
   });
 
   // helpers
 
   const imageSize = baseMap.getImageSize();
+  const meterByPx = baseMap.getMeterByPx();
   const viewBox =
     container.viewBox || computeDefaultViewBox(baseMap, container);
 
@@ -52,12 +54,14 @@ function FilledContainerContent({ container, baseMap, innerSvgRef }) {
         dataNodeType="BASE_MAP_CONTAINER"
         width={imageSize.width}
         height={imageSize.height}
+        opacity={container.baseMapOpacity ?? 1}
       />
       {annotations?.map((annotation) => (
         <NodeAnnotationStatic
           key={annotation.id}
           annotation={annotation}
           imageSize={imageSize}
+          baseMapMeterByPx={meterByPx}
           printMode
         />
       ))}

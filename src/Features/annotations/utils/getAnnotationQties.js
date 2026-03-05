@@ -80,13 +80,24 @@ export default function getAnnotationQties({ annotation, meterByPx }) {
     if (!meterByPx || !Number.isFinite(meterByPx) || meterByPx <= 0) return { enabled: false };
 
     if (annotation.type === "STRIP") {
+      // Surface: from the offset polygons (the ribbon)
       const polygons = getStripePolygons(annotation, meterByPx);
-      return polygons.reduce((acc, polygon) => {
+      const surface = polygons.reduce((acc, polygon) => {
         const qty = getAnnotationQties({ annotation: { ...polygon, type: "POLYGON" }, meterByPx });
-        acc.length += qty.length;
-        acc.surface += qty.surface;
-        return acc;
-      }, { enabled: true, length: 0, surface: 0 });
+        return acc + (qty?.surface || 0);
+      }, 0);
+
+      // Length: from the neutral/director line (original points as a POLYLINE)
+      const neutralLineQty = getAnnotationQties({
+        annotation: { ...annotation, type: "POLYLINE" },
+        meterByPx,
+      });
+
+      return {
+        enabled: true,
+        length: neutralLineQty?.length || 0,
+        surface,
+      };
     }
 
     const points = (annotation.points || []).filter(p => p && typeof p.x === "number");

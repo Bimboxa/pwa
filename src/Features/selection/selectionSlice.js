@@ -75,7 +75,7 @@ export const selectionSlice = createSlice({
     },
     triggerSelectionBack: (state) => {
       const item = state.selectedItems[0];
-      console.log("[ANNOTATION] item", item.type);
+      console.log("[ANNOTATION] item", item?.type);
       if (item) {
         if (item.type === "ANNOTATION_TEMPLATE") {
           item.type = "LISTING";

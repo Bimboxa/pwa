@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
 
 import {
   setSelectedListingId,
@@ -18,7 +19,6 @@ import {
   InputBase,
   Popper,
   Fade,
-  Collapse,
 } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import Add from "@mui/icons-material/Add";
@@ -26,6 +26,9 @@ import Remove from "@mui/icons-material/Remove";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { Edit, Check, Close } from "@mui/icons-material";
+
+import db from "App/db/db";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import ToolbarCreateAnnotationFromTabAnnotationTemplates from "Features/annotations/components/ToolbarCreateAnnotationFromTabAnnotationTemplates";
@@ -390,7 +393,13 @@ function AnnotationTemplatesForListing({ listingId }) {
 // ListingRow — one listing with expand/collapse and visibility toggle
 // ---------------------------------------------------------------------------
 
-function ListingRow({ listing, isExpanded, onToggleExpand, hiddenListingsIds }) {
+function ListingRow({
+  listing,
+  isExpanded,
+  onToggleExpand,
+  hiddenListingsIds,
+  annotationCount,
+}) {
   const dispatch = useDispatch();
 
   // state
@@ -460,23 +469,44 @@ function ListingRow({ listing, isExpanded, onToggleExpand, hiddenListingsIds }) 
           </Typography>
         </Box>
 
-        {/* Eye icon on hover */}
-        <IconButton
-          size="small"
-          onClick={handleToggleVisibility}
-          sx={{ p: 0.25, visibility: isHovered ? "visible" : "hidden" }}
-        >
-          {isHidden ? (
-            <VisibilityOff sx={{ fontSize: 18 }} />
-          ) : (
-            <Visibility sx={{ fontSize: 18 }} />
-          )}
-        </IconButton>
+        {/* Right side: count (default) / visibility icon (hover) — stacked with visibility toggle */}
+        <Box sx={{ position: "relative", minWidth: 24, height: 24, flexShrink: 0 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              fontSize: "11px",
+              fontWeight: 500,
+              color: annotationCount > 0 ? "secondary.main" : "grey.400",
+              visibility: isHovered ? "hidden" : "visible",
+            }}
+          >
+            {annotationCount}
+          </Typography>
+          <IconButton
+            size="small"
+            onClick={handleToggleVisibility}
+            sx={{
+              position: "absolute",
+              inset: 0,
+              p: 0,
+              visibility: isHovered ? "visible" : "hidden",
+            }}
+          >
+            {isHidden ? (
+              <VisibilityOff sx={{ fontSize: 18 }} />
+            ) : (
+              <Visibility sx={{ fontSize: 18 }} />
+            )}
+          </IconButton>
+        </Box>
       </Box>
 
-      <Collapse in={isExpanded} timeout={150} unmountOnExit>
-        <AnnotationTemplatesForListing listingId={listing.id} />
-      </Collapse>
+      {isExpanded && <AnnotationTemplatesForListing listingId={listing.id} />}
     </Box>
   );
 }
@@ -568,6 +598,30 @@ export default function PopperMapListings() {
   );
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const isBaseMapsViewer = viewerKey === "BASE_MAPS";
+  const annotationsUpdatedAt = useSelector(
+    (s) => s.annotations.annotationsUpdatedAt
+  );
+
+  const baseMap = useMainBaseMap();
+
+  const annotationCountByListingId = useLiveQuery(
+    async () => {
+      if (!baseMap?.id) return {};
+      const annotations = await db.annotations
+        .where("baseMapId")
+        .equals(baseMap.id)
+        .toArray();
+      return annotations
+        .filter((a) => !a.deletedAt && !a.isBaseMapAnnotation)
+        .reduce((acc, a) => {
+          if (a.listingId) {
+            acc[a.listingId] = (acc[a.listingId] || 0) + 1;
+          }
+          return acc;
+        }, {});
+    },
+    [baseMap?.id, annotationsUpdatedAt]
+  );
 
   const titleS = isBaseMapsViewer
     ? "Dessins sur fond de plan"
@@ -651,6 +705,9 @@ export default function PopperMapListings() {
             isExpanded={expandedListingId === listing.id}
             onToggleExpand={handleToggleExpand}
             hiddenListingsIds={hiddenListingsIds}
+            annotationCount={
+              annotationCountByListingId?.[listing.id] || 0
+            }
           />
         ))}
 

@@ -109,7 +109,9 @@ export default function TopBarDesktop() {
               Portfolio
             </Button>
           )}
-          {/* BaseMapSelectorInMapEditorV2 moved to UILayerDesktop */}
+          {(viewerKey === "MAP" || viewerKey === "BASE_MAPS") && (
+            <BaseMapSelectorInMapEditorV2 />
+          )}
 
         </Box>
 

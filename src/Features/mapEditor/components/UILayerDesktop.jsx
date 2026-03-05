@@ -1,26 +1,20 @@
-import { useSelector, useDispatch } from "react-redux";
-
-import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
+import { useSelector } from "react-redux";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import { useInteraction } from "../context/InteractionContext";
 
-import { Box, Button } from "@mui/material";
-import { Draw } from "@mui/icons-material";
+import { Box } from "@mui/material";
 
-import ButtonSelectorBaseMapInMapEditor from "Features/baseMaps/components/ButtonSelectorBaseMapInMapEditor";
 import ToolbarMapEditorV3 from "./ToolbarMapEditorV3";
 import ButtonEditScaleVariantFirst from "./ButtonEditScaleVariantFirst";
 import ButtonAutoLayoutLabels from "Features/tools/components/ButtonAutoLayoutLabels";
 import SectionShowedFWC from "Features/fwc/components/SectionShowedFWC";
-import BaseMapSelectorInMapEditorV2 from "Features/baseMaps/components/BaseMapSelectorInMapEditorV2";
 import ButtonRunningTransform from "Features/baseMapTransforms/components/ButtonRunningTransform";
 import SelectorMapEditorMode from "./SelectorMapEditorMode";
 import SectionDefaultHeight from "./SectionDefaultHeight";
 
 
 export default function UILayerDesktop({ mapController, onResetCamera, viewport }) {
-    const dispatch = useDispatch();
 
     // data
 
@@ -36,49 +30,12 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
 
     // helpers - show
 
-    const isBaseMapsViewer = viewerKey === "BASE_MAPS";
-    const isMapViewer = viewerKey === "MAP";
     const showDrawingTools = emType === "LOCATED_ENTITY" || listing?.entityModel?.annotationEnabled || openedPanel === "BASE_MAP_DETAIL";
     const showEditScale = true;
 
-    // handlers
-
-    function handleGoToMapViewer() {
-        dispatch(setSelectedViewerKey("MAP"));
-    }
-
     return (
         <>
-            {isBaseMapsViewer && <Box
-                sx={{
-                    position: "absolute",
-                    left: "50%",
-                    top: "8px",
-                    transform: "translateX(-50%)",
-                    zIndex: 1,
-                }}
-            >
-                <Button
-                    variant="contained"
-                    size="small"
-                    startIcon={<Draw />}
-                    onClick={handleGoToMapViewer}
-                >
-                    Editer le repérage
-                </Button>
-            </Box>}
-
-            {isMapViewer && <Box
-                sx={{
-                    position: "absolute",
-                    left: "50%",
-                    top: "8px",
-                    transform: "translateX(-50%)",
-                    zIndex: 1,
-                }}
-            >
-                <BaseMapSelectorInMapEditorV2 viewportWidth={viewport?.w} />
-            </Box>}
+            {/* BaseMapSelector moved to TopBarDesktop for both MAP and BASE_MAPS viewers */}
 
             <Box
                 sx={{

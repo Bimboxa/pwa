@@ -38,6 +38,7 @@ export default function PortfolioEditorViewport() {
     withQties: true,
     withListingName: true,
     excludeIsForBaseMapsListings: true,
+    excludeBgAnnotations: true,
   });
 
   const selectedItem = useSelector(selectSelectedItem);

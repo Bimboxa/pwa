@@ -13,6 +13,8 @@ import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import FieldSlider from "Features/form/components/FieldSlider";
 
 import db from "App/db/db";
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
@@ -26,6 +28,12 @@ export default function PanelBaseMapContainerProperties() {
   const { value: portfolio } = useDisplayedPortfolio();
 
   // handlers
+
+  async function handleOpacityChange(value) {
+    await db.portfolioBaseMapContainers.update(container.id, {
+      baseMapOpacity: value,
+    });
+  }
 
   async function handleBaseMapChange(e) {
     const baseMapId = e.target.value || null;
@@ -78,6 +86,16 @@ export default function PanelBaseMapContainerProperties() {
           <Typography variant="body2" color="text.secondary">
             {Math.round(container.width)} x {Math.round(container.height)} pt
           </Typography>
+        </Box>
+
+        <Box sx={{ mt: 2 }}>
+          <WhiteSectionGeneric>
+            <FieldSlider
+              label="Opacité"
+              value={container.baseMapOpacity ?? 1}
+              onChange={handleOpacityChange}
+            />
+          </WhiteSectionGeneric>
         </Box>
       </Box>
     </BoxFlexVStretch>
