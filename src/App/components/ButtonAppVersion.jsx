@@ -14,8 +14,8 @@ export default function ButtonAppVersion() {
 
   // data
 
-  const version = useSelector((s) => s.appConfig.appVersion);
   const appConfig = useAppConfig();
+  const version = appConfig?.appVersion ?? "...";
 
   // helper
 
