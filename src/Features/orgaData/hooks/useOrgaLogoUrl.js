@@ -1,13 +1,23 @@
-import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import { useState, useEffect } from "react";
 
-import logoEdx from "Features/appConfig/assets/logo_edx.png";
+const LOGO_LOADERS = import.meta.glob("../../appConfig/assets/logo_*.png", {
+  as: "url",
+  eager: false,
+});
+
+const configCode = import.meta.env.VITE_CONFIG_CODE;
 
 export default function useOrgaLogoUrl() {
-  const appConfig = useAppConfig();
+  const [logoUrl, setLogoUrl] = useState(null);
 
-  if (appConfig?.orgaCode === "edx") {
-    return logoEdx;
-  }
+  useEffect(() => {
+    if (!configCode) return;
+    const key = `../../appConfig/assets/logo_${configCode}.png`;
+    const loader = LOGO_LOADERS[key];
+    if (loader) {
+      loader().then(setLogoUrl).catch(() => setLogoUrl(null));
+    }
+  }, []);
 
-  return null;
+  return logoUrl;
 }
