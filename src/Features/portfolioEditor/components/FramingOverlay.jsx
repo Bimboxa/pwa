@@ -8,7 +8,7 @@ import db from "App/db/db";
 
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
 
-export default function FramingOverlay({ container, baseMap, innerSvgRef }) {
+export default function FramingOverlay({ container, baseMap, innerSvgRef, labelSvgRef }) {
   const dispatch = useDispatch();
 
   // refs
@@ -38,11 +38,20 @@ export default function FramingOverlay({ container, baseMap, innerSvgRef }) {
 
   function applyViewBox() {
     const vb = viewBoxRef.current;
-    if (!innerSvgRef?.current) return;
-    innerSvgRef.current.setAttribute(
-      "viewBox",
-      `${vb.x} ${vb.y} ${vb.width} ${vb.height}`
-    );
+    const vbStr = `${vb.x} ${vb.y} ${vb.width} ${vb.height}`;
+    if (innerSvgRef?.current) {
+      innerSvgRef.current.setAttribute("viewBox", vbStr);
+    }
+    if (labelSvgRef?.current) {
+      labelSvgRef.current.setAttribute("viewBox", vbStr);
+      // update label scale to match new viewBox
+      const newScale = `scale(${vb.width / container.width})`;
+      labelSvgRef.current
+        .querySelectorAll("[data-label-scale]")
+        .forEach((el) => {
+          el.style.transform = newScale;
+        });
+    }
   }
 
   function commitViewBox() {

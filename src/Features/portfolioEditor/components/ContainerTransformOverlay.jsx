@@ -58,6 +58,7 @@ export default function ContainerTransformOverlay({
   container,
   zoom = 1,
   innerSvgRef,
+  labelSvgRef,
   framing = false,
 }) {
   // refs — all transient drag state, zero re-renders during drag
@@ -132,6 +133,25 @@ export default function ContainerTransformOverlay({
       innerSvgRef.current.setAttribute("width", r.width);
       innerSvgRef.current.setAttribute("height", r.height);
 
+      // keep label SVG in sync with inner SVG
+      if (labelSvgRef?.current) {
+        labelSvgRef.current.setAttribute("x", r.x);
+        labelSvgRef.current.setAttribute("y", r.y);
+        labelSvgRef.current.setAttribute("width", r.width);
+        labelSvgRef.current.setAttribute("height", r.height);
+
+        // keep label text at fixed display size during resize
+        const vb = innerSvgRef.current.viewBox.baseVal;
+        if (vb?.width) {
+          const newScale = `scale(${vb.width / r.width})`;
+          labelSvgRef.current
+            .querySelectorAll("[data-label-scale]")
+            .forEach((el) => {
+              el.style.transform = newScale;
+            });
+        }
+      }
+
       // during framing, also adjust viewBox so the baseMap stays at same scale/position
       if (framingRef.current && startViewBoxRef.current && startRectRef.current) {
         const old = startRectRef.current;
@@ -144,10 +164,11 @@ export default function ContainerTransformOverlay({
           width: vb.width * (r.width / old.width),
           height: vb.height * (r.height / old.height),
         };
-        innerSvgRef.current.setAttribute(
-          "viewBox",
-          `${newVB.x} ${newVB.y} ${newVB.width} ${newVB.height}`
-        );
+        const newVBStr = `${newVB.x} ${newVB.y} ${newVB.width} ${newVB.height}`;
+        innerSvgRef.current.setAttribute("viewBox", newVBStr);
+        if (labelSvgRef?.current) {
+          labelSvgRef.current.setAttribute("viewBox", newVBStr);
+        }
       }
     }
   }

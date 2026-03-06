@@ -64,13 +64,12 @@ export default function NodeLabelStatic({
     }, [containerK]);
 
     // --- 3. COORDONNÉES ---
-    const imgW = imageSize?.width || 1;
-    const imgH = imageSize?.height || 1;
-
-    const targetPx = { x: targetPoint.x * imgW, y: targetPoint.y * imgH };
+    // targetPoint and labelPoint are already in pixel coordinates
+    // (resolved by useAnnotationsV2 or computed from resolved points in polyline/marker sub-labels)
+    const targetPx = { x: targetPoint.x, y: targetPoint.y };
     const labelPx = {
-        x: (labelPoint.x ?? targetPoint.x) * imgW,
-        y: (labelPoint.y ?? targetPoint.y) * imgH
+        x: labelPoint.x ?? targetPoint.x,
+        y: labelPoint.y ?? targetPoint.y,
     };
 
     // --- 4. GESTION TEXTE ---
@@ -236,7 +235,7 @@ export default function NodeLabelStatic({
 
             {/* B. CIBLE */}
             <g transform={`translate(${targetPx.x}, ${targetPx.y})`}>
-                <g style={{ transform: scaleTransform, transformBox: "fill-box", transformOrigin: "center" }}>
+                <g data-label-scale style={{ transform: scaleTransform, transformBox: "fill-box", transformOrigin: "center" }}>
                     <circle r={DOT_RADIUS} fill={activeColor} stroke="white" strokeWidth={1} pointerEvents="visible" data-part-type="TARGET" />
                     <circle r={10} fill="transparent" stroke="transparent" data-part-type="TARGET" />
                 </g>
@@ -244,7 +243,7 @@ export default function NodeLabelStatic({
 
             {/* C. LABEL BOX */}
             <g transform={`translate(${labelPx.x}, ${labelPx.y})`}>
-                <g style={{ transform: scaleTransform }}>
+                <g data-label-scale style={{ transform: scaleTransform }}>
                     <foreignObject
                         x={-labelSize.w / 2}
                         y={-labelSize.h / 2}
