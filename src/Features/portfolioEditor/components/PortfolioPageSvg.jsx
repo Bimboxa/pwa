@@ -5,7 +5,7 @@ import { setSelectedItem } from "Features/selection/selectionSlice";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 import {
   setSelectedViewerKey,
-  setPortfolioReturnContext,
+  setViewerReturnContext,
 } from "Features/viewers/viewersSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import { setFramingContainerId } from "Features/portfolioBaseMapContainers/portfolioBaseMapContainersSlice";
@@ -244,8 +244,8 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
   function handleEditInMap() {
     if (!selectedContainer?.baseMapId) return;
     dispatch(
-      setPortfolioReturnContext({
-        fromPortfolio: true,
+      setViewerReturnContext({
+        fromViewer: "PORTFOLIO",
         portfolioId: displayedPortfolioId,
         pageId: page.id,
         containerId: selectedContainer.id,

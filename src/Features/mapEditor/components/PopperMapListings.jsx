@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
@@ -637,9 +637,26 @@ export default function PopperMapListings() {
 
   // state
 
+  const selectedListingId = useSelector((s) => s.listings.selectedListingId);
+  const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
+  const comesFromListing = viewerReturnContext?.fromViewer === "LISTING";
   const [expandedListingId, setExpandedListingId] = useState(null);
   const [openCreateListing, setOpenCreateListing] = useState(false);
   const { position, isDragging, handleMouseDown } = usePanelDrag();
+
+  // helpers - filter listings when coming from LISTING viewer
+
+  const displayedListings = comesFromListing && selectedListingId
+    ? listings?.filter((l) => l.id === selectedListingId)
+    : listings;
+
+  // effects - auto-expand selected listing
+
+  useEffect(() => {
+    if (selectedListingId && listings?.some((l) => l.id === selectedListingId)) {
+      setExpandedListingId(selectedListingId);
+    }
+  }, [selectedListingId, listings]);
 
   // handlers
 
@@ -653,7 +670,7 @@ export default function PopperMapListings() {
     return <PopperDrawingHelper />;
   }
 
-  if (!listings?.length && !openCreateListing && !isBaseMapsViewer) return null;
+  if (!displayedListings?.length && !openCreateListing && !isBaseMapsViewer) return null;
 
   return (
     <Paper
@@ -698,7 +715,7 @@ export default function PopperMapListings() {
 
       {/* Scrollable listings */}
       <Box sx={{ overflow: "auto", flex: 1 }}>
-        {listings?.map((listing) => (
+        {displayedListings?.map((listing) => (
           <ListingRow
             key={listing.id}
             listing={listing}
@@ -712,13 +729,15 @@ export default function PopperMapListings() {
         ))}
 
         {/* + Ajouter une liste */}
-        <ListItemButton
-          onClick={() => setOpenCreateListing(true)}
-          sx={{ gap: 0.5, px: 1, py: 0.5, color: "text.secondary" }}
-        >
-          <Add sx={{ fontSize: 14 }} />
-          <Typography variant="caption">{addListS}</Typography>
-        </ListItemButton>
+        {!comesFromListing && (
+          <ListItemButton
+            onClick={() => setOpenCreateListing(true)}
+            sx={{ gap: 0.5, px: 1, py: 0.5, color: "text.secondary" }}
+          >
+            <Add sx={{ fontSize: 14 }} />
+            <Typography variant="caption">{addListS}</Typography>
+          </ListItemButton>
+        )}
       </Box>
 
       {/* Create listing dialog */}

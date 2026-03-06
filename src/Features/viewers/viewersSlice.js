@@ -3,7 +3,7 @@ import { createSlice } from "@reduxjs/toolkit";
 const viewersInitialState = {
   //
   selectedViewerKey: "MAP", // "MAP", "THREED", "LEAFLET", "TABLE", "PORTFOLIO"
-  portfolioReturnContext: null,
+  viewerReturnContext: null, // { fromViewer, portfolioId, listingId, ... }
 };
 
 export const viewersSlice = createSlice({
@@ -13,15 +13,15 @@ export const viewersSlice = createSlice({
     setSelectedViewerKey: (state, action) => {
       state.selectedViewerKey = action.payload;
     },
-    setPortfolioReturnContext: (state, action) => {
-      state.portfolioReturnContext = action.payload;
+    setViewerReturnContext: (state, action) => {
+      state.viewerReturnContext = action.payload;
     },
   },
 });
 
 export const {
   setSelectedViewerKey,
-  setPortfolioReturnContext,
+  setViewerReturnContext,
   //
 } = viewersSlice.actions;
 

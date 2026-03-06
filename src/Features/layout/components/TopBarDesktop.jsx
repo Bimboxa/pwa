@@ -2,9 +2,10 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   setSelectedViewerKey,
-  setPortfolioReturnContext,
+  setViewerReturnContext,
 } from "Features/viewers/viewersSlice";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
+import { setListingViewerSelectedListingId } from "Features/listingViewer/listingViewerSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -38,8 +39,8 @@ export default function TopBarDesktop() {
   const height = useSelector((s) => s.layout.topBarHeight);
   const appConfig = useAppConfig();
   const { value: listing } = useSelectedListing();
-  const portfolioReturnContext = useSelector(
-    (s) => s.viewers.portfolioReturnContext
+  const viewerReturnContext = useSelector(
+    (s) => s.viewers.viewerReturnContext
   );
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
@@ -50,16 +51,27 @@ export default function TopBarDesktop() {
   // helpers
 
   const scopesEnabled = appConfig?.features?.scopes?.enabled;
-  const showReturnToPortfolio = portfolioReturnContext?.fromPortfolio;
+  const returnViewer = viewerReturnContext?.fromViewer;
+
+  const returnLabelByViewer = {
+    PORTFOLIO: "Portfolio",
+    LISTING: "Objets",
+  };
+  const returnLabel = returnLabelByViewer[returnViewer];
 
   // handlers
 
-  function handleReturnToPortfolio() {
-    if (portfolioReturnContext?.portfolioId) {
-      dispatch(setDisplayedPortfolioId(portfolioReturnContext.portfolioId));
+  function handleReturnToViewer() {
+    if (returnViewer === "PORTFOLIO" && viewerReturnContext?.portfolioId) {
+      dispatch(setDisplayedPortfolioId(viewerReturnContext.portfolioId));
     }
-    dispatch(setSelectedViewerKey("PORTFOLIO"));
-    dispatch(setPortfolioReturnContext(null));
+    if (returnViewer === "LISTING" && viewerReturnContext?.listingId) {
+      dispatch(
+        setListingViewerSelectedListingId(viewerReturnContext.listingId)
+      );
+    }
+    dispatch(setSelectedViewerKey(returnViewer));
+    dispatch(setViewerReturnContext(null));
   }
 
   return (
@@ -98,15 +110,14 @@ export default function TopBarDesktop() {
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, pl: 3 }}>
           <Divider orientation="vertical" sx={{ height: 24 }} />
-          {showReturnToPortfolio && (
+          {returnLabel && (
             <Button
               size="small"
-              //variant="contained"
               color="secondary"
               startIcon={<ArrowBack />}
-              onClick={handleReturnToPortfolio}
+              onClick={handleReturnToViewer}
             >
-              Portfolio
+              {returnLabel}
             </Button>
           )}
           {(viewerKey === "MAP" || viewerKey === "BASE_MAPS") && (

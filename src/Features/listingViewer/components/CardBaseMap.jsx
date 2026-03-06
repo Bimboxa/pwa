@@ -2,7 +2,10 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
-import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
+import {
+  setSelectedViewerKey,
+  setViewerReturnContext,
+} from "Features/viewers/viewersSlice";
 import {
   setSelectedMainBaseMapId,
   setSelectedBaseMapsListingId,
@@ -45,6 +48,12 @@ export default function CardBaseMap({ baseMap, listing }) {
   // handlers
 
   function handleOpenInMapViewer() {
+    dispatch(
+      setViewerReturnContext({
+        fromViewer: "LISTING",
+        listingId: listing.id,
+      })
+    );
     dispatch(setSelectedListingId(listing.id));
     dispatch(setSelectedBaseMapsListingId(baseMap.listingId));
     dispatch(setSelectedMainBaseMapId(baseMap.id));
