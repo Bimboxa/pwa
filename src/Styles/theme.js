@@ -124,6 +124,7 @@ let theme = createTheme(
         threed: pink[600],
         portfolio: purple[600],
         admin: teal[700],
+        listing: green[600],
       },
       anchor: {
         default: red[500],

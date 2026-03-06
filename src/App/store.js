@@ -63,6 +63,7 @@ import portfolioBaseMapContainersReducer from "Features/portfolioBaseMapContaine
 import adminEditorReducer from "Features/adminEditor/adminEditorSlice";
 //
 import annotationsAutoReducer from "Features/annotationsAuto/annotationsAutoSlice";
+import listingViewerReducer from "Features/listingViewer/listingViewerSlice";
 
 //import syncTabsMiddleware from "./syncTabsMiddleware";
 //import webrtcMiddleware from "Features/webrtc/webrtcMiddleware";
@@ -131,6 +132,8 @@ const store = configureStore({
     adminEditor: adminEditorReducer,
     //
     annotationsAuto: annotationsAutoReducer,
+    //
+    listingViewer: listingViewerReducer,
   },
   // middleware: (getDefaultMiddleware) =>
   //   getDefaultMiddleware({

@@ -14,6 +14,7 @@ import TableViewer from "Features/tables/components/ViewerTable";
 import MainPortfolioEditor from "Features/portfolioEditor/components/MainPortfolioEditor";
 import MainBaseMapViewer from "Features/baseMapEditor/components/MainBaseMapViewer";
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
+import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 
 export default function SectionViewer() {
@@ -30,6 +31,7 @@ export default function SectionViewer() {
   const showTable = viewerKey === "TABLE";
   const showPortfolio = viewerKey === "PORTFOLIO";
   const showBaseMaps = viewerKey === "BASE_MAPS";
+  const showListing = viewerKey === "LISTING";
   const showAdmin = viewerKey === "ADMIN";
 
   return (
@@ -63,6 +65,10 @@ export default function SectionViewer() {
 
       <PanelShowable show={showBaseMaps} sx={{ position: "absolute", zIndex: 0 }}>
         <MainBaseMapViewer />
+      </PanelShowable>
+
+      <PanelShowable show={showListing} sx={{ position: "absolute", zIndex: 0 }}>
+        <MainListingViewer />
       </PanelShowable>
 
       <PanelShowable show={showAdmin} sx={{ position: "absolute", zIndex: 0 }}>

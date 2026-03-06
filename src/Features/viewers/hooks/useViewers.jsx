@@ -11,6 +11,7 @@ import {
   AdminPanelSettings,
   Draw,
   Layers,
+  FormatListBulleted,
 } from "@mui/icons-material";
 
 import theme from "Styles/theme";
@@ -30,6 +31,13 @@ export default function useViewers() {
       shortLabel: "Fonds de plan",
       icon: <Layers />,
       bgcolor: theme.palette.viewers.map,
+    },
+    {
+      key: "LISTING",
+      label: "Liste d'objets",
+      shortLabel: "Objets",
+      icon: <FormatListBulleted />,
+      bgcolor: theme.palette.viewers.listing,
     },
     {
       key: "MAP",
