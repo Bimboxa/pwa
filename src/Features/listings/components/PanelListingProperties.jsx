@@ -11,19 +11,20 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FormListing from "./FormListing";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
-import HeaderListing from "./HeaderListing";
+import IconButtonMoreActionsListing from "./IconButtonMoreActionsListing";
 
 export default function PanelListingProperties({ listing, onSaved }) {
-    // 1. Data & Hooks
+    // data
+
     const projectId = useSelector((s) => s.projects.selectedProjectId);
     const { value: listings } = useListings({ filterByProjectId: projectId });
     const updateListing = useUpdateListing();
     const entityModel = useListingEntityModel(listing);
 
-    // 2. État local pour le formulaire
+    // state
+
     const [tempListing, setTempListing] = useState(listing);
 
-    // Synchronisation si le listing ou l'entityModel change
     useEffect(() => {
         if (listing) {
             setTempListing({
@@ -33,7 +34,12 @@ export default function PanelListingProperties({ listing, onSaved }) {
         }
     }, [listing?.id, entityModel?.key]);
 
-    // 3. Handlers
+    // helpers
+
+    const label = listing?.name ?? "Liste";
+
+    // handlers
+
     function handleChange(updatedListing) {
         setTempListing(updatedListing);
     }
@@ -46,13 +52,26 @@ export default function PanelListingProperties({ listing, onSaved }) {
         console.log("[PanelListingProperties] Saving...", _listing);
         await updateListing(_listing, { updateSyncFile: true });
 
-        // Callback optionnel pour fermer un parent ou notifier du succès
         if (onSaved) onSaved();
     }
 
     return (
         <BoxFlexVStretch sx={{ height: '100%' }}>
-            <HeaderListing listing={listing} showMoreButton={false} />
+            <Box sx={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                p: 0.5,
+                pl: 2,
+            }}>
+                <Box>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ fontStyle: "italic", fontSize: (theme) => theme.typography.caption.fontSize }}>
+                        Liste
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                        {label}
+                    </Typography>
+                </Box>
+                <IconButtonMoreActionsListing listing={listing} />
+            </Box>
             <BoxFlexVStretch sx={{ overflow: "auto" }}>
                 <FormListing
                     listing={tempListing}

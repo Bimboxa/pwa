@@ -2,9 +2,10 @@ import React from "react";
 
 import {Box} from "@mui/material";
 
-export default function BoxFlexVStretch({children, sx}) {
+export default function BoxFlexVStretch({children, sx, ref}) {
   return (
     <Box
+      ref={ref}
       sx={{
         display: "flex",
         flexDirection: "column",

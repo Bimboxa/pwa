@@ -41,7 +41,7 @@ export default function PanelEntityProperties() {
     }
 
     return (
-        <BoxFlexVStretch ref={containerRef} sx={{ p: 1 }}>
+        <BoxFlexVStretch ref={containerRef} sx={{ p: 1, position: "relative" }}>
 
             <Box sx={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
