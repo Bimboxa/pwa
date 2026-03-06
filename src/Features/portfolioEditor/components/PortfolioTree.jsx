@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -11,6 +11,7 @@ import usePortfolios from "Features/portfolios/hooks/usePortfolios";
 import useCreatePortfolio from "Features/portfolios/hooks/useCreatePortfolio";
 
 import PortfolioTreeItem from "./PortfolioTreeItem";
+import DialogCreatePortfolio from "./DialogCreatePortfolio";
 
 export default function PortfolioTree() {
   const dispatch = useDispatch();
@@ -25,6 +26,10 @@ export default function PortfolioTree() {
   const { value: portfolios } = usePortfolios({ filterByScopeId: scopeId });
   const createPortfolio = useCreatePortfolio();
 
+  // state
+
+  const [openDialog, setOpenDialog] = useState(false);
+
   // effects
 
   useEffect(() => {
@@ -37,11 +42,11 @@ export default function PortfolioTree() {
 
   // handlers
 
-  async function handleCreatePortfolio() {
+  async function handleCreate(title) {
     const portfolio = await createPortfolio({
       scopeId,
       projectId,
-      title: `Portfolio ${(portfolios?.length || 0) + 1}`,
+      title,
     });
     dispatch(setDisplayedPortfolioId(portfolio.id));
   }
@@ -56,11 +61,17 @@ export default function PortfolioTree() {
         ))}
       </List>
 
-      <ListItemButton onClick={handleCreatePortfolio} sx={{ py: 1 }}>
+      <ListItemButton onClick={() => setOpenDialog(true)} sx={{ py: 1 }}>
         <Typography variant="body2" color="text.secondary">
           + Nouveau portfolio
         </Typography>
       </ListItemButton>
+
+      <DialogCreatePortfolio
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        onCreate={handleCreate}
+      />
     </Box>
   );
 }

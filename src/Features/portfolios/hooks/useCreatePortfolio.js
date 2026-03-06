@@ -10,7 +10,12 @@ export default function useCreatePortfolio() {
   const logoDefault = useLogoDefault();
 
   const create = async ({ scopeId, projectId, title, sortIndex }) => {
-    const entityModel = appConfig?.entityModelsObject?.portfolioPage;
+    const entityModel = appConfig?.entityModelsObject?.portfolioPage ?? {
+      key: "portfolioPage",
+      name: "Plan",
+      type: "PORTFOLIO_PAGE",
+      defaultTable: "portfolioPages",
+    };
     const listingId = nanoid();
 
     // store default logo in db.files if available
