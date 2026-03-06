@@ -63,8 +63,8 @@ export default async function resolveAppConfig(appConfig) {
 
 
   // annotation template libraries
-  console.log("debug_3012_appConfig", orgaCode && appConfig.features.presetScopes.fromAnnotationTemplatesLibraries);
-  if (orgaCode && appConfig.features.presetScopes.fromAnnotationTemplatesLibraries) {
+  console.log("debug_3012_appConfig", orgaCode && appConfig.features.presetScopes?.fromAnnotationTemplatesLibraries);
+  if (orgaCode && appConfig.features.presetScopes?.fromAnnotationTemplatesLibraries) {
     const libraryKey = `../../../Data/${orgaCode}/annotationTemplatesLibraries.js`;
     const loader = LIBRARIES_LOADERS[libraryKey];
 
