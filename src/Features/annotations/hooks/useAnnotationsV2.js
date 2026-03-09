@@ -390,6 +390,9 @@ export default function useAnnotationsV2(options) {
 
         })
 
+        // filter out annotations whose template is hidden
+        annotations = annotations?.filter(a => !a.hidden);
+
         // override with temp annotations
         annotations = [...(annotations ?? []), ...(tempAnnotations ?? [])];
 

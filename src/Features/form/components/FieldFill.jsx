@@ -38,7 +38,7 @@ function OpacityInput({ value, onChange }) {
   );
 }
 
-export default function FieldFill({ value, onChange, label = "Remplissage" }) {
+export default function FieldFill({ value, onChange, label = "Remplissage", disabledFields }) {
   const { fillColor = "#ffffff", fillType = "SOLID", fillOpacity = 1 } = value ?? {};
   const [anchorEl, setAnchorEl] = useState(null);
 
@@ -50,6 +50,10 @@ export default function FieldFill({ value, onChange, label = "Remplissage" }) {
   };
 
   const open = Boolean(anchorEl);
+  const disabledSx = { opacity: 0.4, pointerEvents: "none" };
+  const isColorDisabled = Array.isArray(disabledFields) && disabledFields.includes("fillColor");
+  const isTypeDisabled = Array.isArray(disabledFields) && disabledFields.includes("fillType");
+  const isOpacityDisabled = Array.isArray(disabledFields) && disabledFields.includes("fillOpacity");
 
   return (
     <WhiteSectionGeneric>
@@ -58,7 +62,7 @@ export default function FieldFill({ value, onChange, label = "Remplissage" }) {
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
 
         {/* LIGNE 1 : COULEUR (Style FieldColorV2) */}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", ...(isColorDisabled ? disabledSx : {}) }}>
           <Typography variant="body2" color="text.secondary">Couleur</Typography>
           <Box
             onClick={(e) => setAnchorEl(e.currentTarget)}
@@ -71,7 +75,7 @@ export default function FieldFill({ value, onChange, label = "Remplissage" }) {
         </Box>
 
         {/* LIGNE 2 : REMPLISSAGE (Toggle avec Icônes) */}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", ...(isTypeDisabled ? disabledSx : {}) }}>
           <Typography variant="body2" color="text.secondary">Type</Typography>
           <ToggleButtonGroup
             value={fillType}
@@ -93,7 +97,7 @@ export default function FieldFill({ value, onChange, label = "Remplissage" }) {
         </Box>
 
         {/* LIGNE 3 : OPACITÉ (Slider + TextField %) */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, ...(isOpacityDisabled ? disabledSx : {}) }}>
           <Typography variant="body2" color="text.secondary" sx={{ minWidth: 60 }}>Opacité</Typography>
           <Slider
             size="small"

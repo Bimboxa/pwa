@@ -5,7 +5,7 @@ import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice"
 import db from "App/db/db";
 import FieldFill from "Features/form/components/FieldFill";
 
-export default function FieldAnnotationFill({ annotation }) {
+export default function FieldAnnotationFill({ annotation, overrideFields }) {
   const dispatch = useDispatch();
 
   // helpers
@@ -30,5 +30,5 @@ export default function FieldAnnotationFill({ annotation }) {
 
   // render
 
-  return <FieldFill value={fillValue} onChange={handleChange} />;
+  return <FieldFill value={fillValue} onChange={handleChange} disabledFields={overrideFields} />;
 }

@@ -11,7 +11,7 @@ import getAnnotationTemplateMainQtyLabel from "Features/annotations/utils/getAnn
 // Assurez-vous que le chemin est correct vers votre nouveau fichier utilitaire
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 
-export default function useAnnotationTemplateQtiesById() {
+export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {}) {
   // --- DATA ---
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const annotations = useAnnotationsV2({ filterByProjectId: projectId });
@@ -34,6 +34,7 @@ export default function useAnnotationTemplateQtiesById() {
     if (!annotations) return {};
 
     const qtiesById = annotations.reduce((acc, annotation) => {
+      if (filterByBaseMapId && annotation.baseMapId !== filterByBaseMapId) return acc;
       const templateId = annotation?.annotationTemplateId;
       if (!templateId) return acc;
 
@@ -85,5 +86,5 @@ export default function useAnnotationTemplateQtiesById() {
     });
 
     return qtiesById;
-  }, [annotations, baseMapById, annotationTemplateById]);
+  }, [annotations, baseMapById, annotationTemplateById, filterByBaseMapId]);
 }

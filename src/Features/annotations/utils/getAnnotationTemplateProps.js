@@ -34,6 +34,8 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     iconKey: annotationTemplate?.iconKey,
 
     hidden: annotationTemplate?.hidden,
+
+    overrideFields: annotationTemplate?.overrideFields,
   };
 
   return props;

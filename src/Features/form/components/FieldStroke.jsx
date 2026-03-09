@@ -58,7 +58,7 @@ function AutoResizeInput({ value, onChange, placeholder = "0", suffix = "" }) {
   );
 }
 
-export default function FieldStroke({ value, onChange, label = "Contour" }) {
+export default function FieldStroke({ value, onChange, label = "Contour", disabledFields }) {
   // Valeurs par défaut avec strokeType forcé sur SOLID si non défini
   const {
     strokeColor = "#000000",
@@ -70,6 +70,12 @@ export default function FieldStroke({ value, onChange, label = "Contour" }) {
 
   const [anchorColor, setAnchorColor] = useState(null);
   const [anchorUnit, setAnchorUnit] = useState(null);
+
+  const disabledSx = { opacity: 0.4, pointerEvents: "none" };
+  const isColorDisabled = Array.isArray(disabledFields) && disabledFields.includes("strokeColor");
+  const isTypeDisabled = Array.isArray(disabledFields) && disabledFields.includes("strokeType");
+  const isOpacityDisabled = Array.isArray(disabledFields) && disabledFields.includes("strokeOpacity");
+  const isWidthDisabled = Array.isArray(disabledFields) && disabledFields.includes("strokeWidth");
 
   const strokeWidthUnitsOptions = [
     { key: "PX", label: "px" },
@@ -96,7 +102,7 @@ export default function FieldStroke({ value, onChange, label = "Contour" }) {
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
 
         {/* LIGNE 1 : COULEUR (Style FieldColorV2) */}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", ...(isColorDisabled ? disabledSx : {}) }}>
           <Typography variant="body2" color="text.secondary">Couleur</Typography>
           <Box
             onClick={(e) => setAnchorColor(e.currentTarget)}
@@ -109,7 +115,7 @@ export default function FieldStroke({ value, onChange, label = "Contour" }) {
         </Box>
 
         {/* LIGNE 2 : TYPE DE TRAIT (Plein / Pointillé) */}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", ...(isTypeDisabled ? disabledSx : {}) }}>
           <Typography variant="body2" color="text.secondary">Style</Typography>
           <ToggleButtonGroup
             value={strokeType}
@@ -138,7 +144,7 @@ export default function FieldStroke({ value, onChange, label = "Contour" }) {
         </Box>
 
         {/* LIGNE 3 : OPACITÉ (Slider + % dynamique) */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, ...(isOpacityDisabled ? disabledSx : {}) }}>
           <Typography variant="body2" color="text.secondary" sx={{ minWidth: 65 }}>Opacité</Typography>
           <Slider
             size="small"
@@ -159,7 +165,7 @@ export default function FieldStroke({ value, onChange, label = "Contour" }) {
         </Box>
 
         {/* LIGNE 4 : ÉPAISSEUR (Input + Unité intégrée) */}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", ...(isWidthDisabled ? disabledSx : {}) }}>
           <Typography variant="body2" color="text.secondary">Épaisseur</Typography>
 
           <Box sx={{

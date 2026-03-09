@@ -5,7 +5,7 @@ import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice"
 import db from "App/db/db";
 import FieldStroke from "Features/form/components/FieldStroke";
 
-export default function FieldAnnotationStroke({ annotation }) {
+export default function FieldAnnotationStroke({ annotation, overrideFields }) {
   const dispatch = useDispatch();
 
   // helpers
@@ -34,5 +34,5 @@ export default function FieldAnnotationStroke({ annotation }) {
 
   // render
 
-  return <FieldStroke value={strokeValue} onChange={handleChange} />;
+  return <FieldStroke value={strokeValue} onChange={handleChange} disabledFields={overrideFields} />;
 }

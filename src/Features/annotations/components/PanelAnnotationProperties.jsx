@@ -26,6 +26,7 @@ export default function PanelAnnotationProperties() {
 
   const label = annotation?.label || "Annotation";
   const type = annotation?.type;
+  const overrideFields = annotation?.annotationTemplate?.overrideFields;
 
   const FILL_TYPES = ["POLYGON", "RECTANGLE", "STRIP", "POINT", "MARKER"];
   const STROKE_TYPES = ["POLYGON", "POLYLINE", "RECTANGLE", "STRIP", "POINT"];
@@ -80,8 +81,8 @@ export default function PanelAnnotationProperties() {
         <Box sx={{ width: 1, p: 1, gap: 1, display: "flex", flexDirection: "column" }}>
           <FieldWrapperDimensions annotation={annotation} />
           <FieldAnnotationRotation annotation={annotation} />
-          {showFill && <FieldAnnotationFill annotation={annotation} />}
-          {showStroke && <FieldAnnotationStroke annotation={annotation} />}
+          {showFill && <FieldAnnotationFill annotation={annotation} overrideFields={overrideFields} />}
+          {showStroke && <FieldAnnotationStroke annotation={annotation} overrideFields={overrideFields} />}
         </Box>
 
       </BoxFlexVStretch>

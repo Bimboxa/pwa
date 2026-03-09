@@ -58,6 +58,8 @@ export default function PanelSelectionProperties() {
     }
   } else if (selectedItem?.type === "ENTITY") {
     type = "ENTITY";
+  } else if (selectedItem?.type === "ANNOTATION_TEMPLATE") {
+    type = "ANNOTATION_TEMPLATE";
   } else if (showAnnotationsProperties) {
     type = "ANNOTATION";
   } else if (
@@ -66,8 +68,6 @@ export default function PanelSelectionProperties() {
     Boolean(selectedItem.entityId)
   ) {
     type = "ENTITY_WITH_ANNOTATIONS";
-  } else if (selectedItem?.type === "ANNOTATION_TEMPLATE") {
-    type = "ANNOTATION_TEMPLATE";
   }
 
   // render

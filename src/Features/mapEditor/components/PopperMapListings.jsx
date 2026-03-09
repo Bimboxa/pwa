@@ -335,12 +335,13 @@ function AnnotationTemplateRow({
 function AnnotationTemplatesForListing({ listingId }) {
   // data
 
+  const baseMap = useMainBaseMap();
   const annotationTemplates = useAnnotationTemplates({
     filterByListingId: listingId,
     sortByLabel: true,
   });
-  const annotationTemplateCountById = useAnnotationTemplateCountById();
-  const annotationTemplateQtiesById = useAnnotationTemplateQtiesById();
+  const annotationTemplateCountById = useAnnotationTemplateCountById({ filterByBaseMapId: baseMap?.id });
+  const annotationTemplateQtiesById = useAnnotationTemplateQtiesById({ filterByBaseMapId: baseMap?.id });
 
   // state
 

@@ -25,6 +25,8 @@ import FieldIconVariantToolbar from "Features/form/components/FieldIconVariantTo
 import FieldImageV2 from "Features/form/components/FieldImageV2";
 import FieldFill from "Features/form/components/FieldFill";
 import FieldStroke from "Features/form/components/FieldStroke";
+import FieldAnnotationTemplateFill from "./FieldAnnotationTemplateFill";
+import FieldAnnotationTemplateStroke from "./FieldAnnotationTemplateStroke";
 import FieldPoint from "Features/form/components/FieldPointSize";
 import FieldCheck from "Features/form/components/FieldCheck";
 import FieldSizeAndUnit from "Features/form/components/FieldSizeAndUnit";
@@ -35,6 +37,7 @@ import FieldColorV2 from "Features/form/components/FieldColorV2";
 import FieldIcon from "Features/form/components/FieldIcon";
 import FieldPointSize from "Features/form/components/FieldPointSize";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
+import OverrideToggle from "./OverrideToggle";
 
 export default function FormAnnotationTemplateVariantBlock({
   annotationTemplate,
@@ -78,6 +81,7 @@ export default function FormAnnotationTemplateVariantBlock({
     sizeUnit,
     mainQtyKey,
     drawingShape,
+    overrideFields,
 
   } = annotationTemplate ?? {};
 
@@ -221,6 +225,21 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, hidden })
   }
 
+  function handleOverrideFieldsChange(newOverrideFields) {
+    onChange({ ...annotationTemplate, overrideFields: newOverrideFields });
+  }
+
+  function handleToggleOverride(field) {
+    const current = Array.isArray(overrideFields) ? [...overrideFields] : [];
+    const index = current.indexOf(field);
+    if (index >= 0) {
+      current.splice(index, 1);
+    } else {
+      current.push(field);
+    }
+    handleOverrideFieldsChange(current);
+  }
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1, width: 1, p: 1 }}>
 
@@ -237,11 +256,21 @@ export default function FormAnnotationTemplateVariantBlock({
       />
 
       {drawingShape === "POLYLINE_2D" && (
-        <FieldStroke value={stroke} onChange={handleStrokeChange} />
+        <FieldAnnotationTemplateStroke
+          value={stroke}
+          onChange={handleStrokeChange}
+          overrideFields={overrideFields}
+          onOverrideFieldsChange={handleOverrideFieldsChange}
+        />
       )}
 
       {["POINT_2D", "SURFACE_2D"].includes(drawingShape) && (
-        <FieldFill value={fill} onChange={handleFillChange} />
+        <FieldAnnotationTemplateFill
+          value={fill}
+          onChange={handleFillChange}
+          overrideFields={overrideFields}
+          onOverrideFieldsChange={handleOverrideFieldsChange}
+        />
       )}
 
       {/* <Typography variant="body2">{typeS}</Typography> */}
@@ -268,57 +297,113 @@ export default function FormAnnotationTemplateVariantBlock({
               p: 2,
             }}
           >
-            <FieldFill value={fill} onChange={handleFillChange} />
+            <FieldAnnotationTemplateFill
+              value={fill}
+              onChange={handleFillChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
+            />
           </Box>
         </Box>
       )}
 
       {type === "LABEL" && (
-
-        <FieldColorV2
-          value={fillColor}
-          onChange={handleFillColorChange}
-          label="Couleur"
-          options={{ showAsSection: true }}
-        />
-
-
+        <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+          <OverrideToggle
+            field="fillColor"
+            overrideFields={overrideFields}
+            onToggle={handleToggleOverride}
+          />
+          <Box sx={{ flex: 1 }}>
+            <FieldColorV2
+              value={fillColor}
+              onChange={handleFillColorChange}
+              label="Couleur"
+              options={{ showAsSection: true }}
+            />
+          </Box>
+        </Box>
       )}
 
       {type === "MARKER" && (
         <>
-          <FieldColorV2
-            label="Couleur"
-            value={fillColor}
-            onChange={handleFillColorChange}
-            options={{ showAsSection: true }}
-          />
-          <FieldIcon
-            label="Icône"
-            value={iconKey}
-            onChange={handleIconKeyChange}
-            spriteImage={spriteImage}
-            options={{ iconColor: fillColor, showAsSection: true }}
-          />
+          <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+            <OverrideToggle
+              field="fillColor"
+              overrideFields={overrideFields}
+              onToggle={handleToggleOverride}
+            />
+            <Box sx={{ flex: 1 }}>
+              <FieldColorV2
+                label="Couleur"
+                value={fillColor}
+                onChange={handleFillColorChange}
+                options={{ showAsSection: true }}
+              />
+            </Box>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+            <OverrideToggle
+              field="iconKey"
+              overrideFields={overrideFields}
+              onToggle={handleToggleOverride}
+            />
+            <Box sx={{ flex: 1 }}>
+              <FieldIcon
+                label="Icône"
+                value={iconKey}
+                onChange={handleIconKeyChange}
+                spriteImage={spriteImage}
+                options={{ iconColor: fillColor, showAsSection: true }}
+              />
+            </Box>
+          </Box>
         </>
       )}
 
       {type === "POINT" && (
         <>
-          <FieldColorV2
-            label="Couleur"
-            value={fillColor}
-            onChange={handleFillColorChange}
-            options={{ showAsSection: true }}
-          />
-          <FieldOptionKeyFromIconsVariantToolbar
-            label="Forme"
-            value={variant}
-            onChange={handlePointVariantChange}
-            valueOptions={pointVariants}
-            options={{ showAsSection: true, inline: true }}
-          />
-          <FieldPointSize value={point} onChange={handlePointChange} label="Dimension" />
+          <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+            <OverrideToggle
+              field="fillColor"
+              overrideFields={overrideFields}
+              onToggle={handleToggleOverride}
+            />
+            <Box sx={{ flex: 1 }}>
+              <FieldColorV2
+                label="Couleur"
+                value={fillColor}
+                onChange={handleFillColorChange}
+                options={{ showAsSection: true }}
+              />
+            </Box>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+            <OverrideToggle
+              field="variant"
+              overrideFields={overrideFields}
+              onToggle={handleToggleOverride}
+            />
+            <Box sx={{ flex: 1 }}>
+              <FieldOptionKeyFromIconsVariantToolbar
+                label="Forme"
+                value={variant}
+                onChange={handlePointVariantChange}
+                valueOptions={pointVariants}
+                options={{ showAsSection: true, inline: true }}
+              />
+            </Box>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+            <OverrideToggle
+              field="size"
+              overrideFields={overrideFields}
+              onToggle={handleToggleOverride}
+            />
+            <Box sx={{ flex: 1 }}>
+              <FieldPointSize value={point} onChange={handlePointChange} label="Dimension" />
+            </Box>
+          </Box>
         </>
 
 
@@ -329,11 +414,21 @@ export default function FormAnnotationTemplateVariantBlock({
       {["SEGMENT", "POLYLINE", "POLYGON", "STRIP"].includes(type) && (
         <>
           {showFill && (
-            <FieldFill value={fill} onChange={handleFillChange} />
+            <FieldAnnotationTemplateFill
+              value={fill}
+              onChange={handleFillChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
+            />
           )}
 
           {showStroke && (
-            <FieldStroke value={stroke} onChange={handleStrokeChange} />
+            <FieldAnnotationTemplateStroke
+              value={stroke}
+              onChange={handleStrokeChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
+            />
           )}
 
         </>
@@ -341,7 +436,12 @@ export default function FormAnnotationTemplateVariantBlock({
 
       {type === "RECTANGLE" && (
         <>
-          <FieldFill value={fill} onChange={handleFillChange} />
+          <FieldAnnotationTemplateFill
+            value={fill}
+            onChange={handleFillChange}
+            overrideFields={overrideFields}
+            onOverrideFieldsChange={handleOverrideFieldsChange}
+          />
           <FieldSizeAndUnit value={sizeAndUnit} onChange={handleSizeAndUnitChange} />
         </>
       )}

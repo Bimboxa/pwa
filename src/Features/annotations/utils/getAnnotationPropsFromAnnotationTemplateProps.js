@@ -8,8 +8,16 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
         return result;
     }
 
+    const overrideFields = annotationTemplateProps.overrideFields;
+
     // 2. On parcourt toutes les clés des props du template
     Object.keys(annotationTemplateProps).forEach((key) => {
+        if (key === "overrideFields" || key === "hidden") return;
+
+        // Only override if the field is in overrideFields (when defined and non-empty)
+        if (Array.isArray(overrideFields) && overrideFields.length > 0 && !overrideFields.includes(key)) {
+            return;
+        }
 
         if (key === "label") {
             result[key] = annotation?.label || annotationTemplateProps.label;
@@ -31,7 +39,8 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
 
     // edge case
 
-    if (annotationTemplateProps.size) {
+    const sizeAllowed = !Array.isArray(overrideFields) || overrideFields.length === 0 || overrideFields.includes("size");
+    if (sizeAllowed && annotationTemplateProps.size) {
         const { width, height } = annotationTemplateProps.size;
         const sizeUnit = annotationTemplateProps.sizeUnit;
 
@@ -63,6 +72,11 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
             }
         }
         result.bbox = bbox;
+    }
+
+    // hidden is always applied (not gated by overrideFields)
+    if (annotationTemplateProps.hidden !== null && annotationTemplateProps.hidden !== undefined) {
+        result.hidden = annotationTemplateProps.hidden;
     }
 
     result.annotationTemplateProps = annotationTemplateProps;
