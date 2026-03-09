@@ -18,11 +18,15 @@ import {
   MenuItem,
   InputBase,
 } from "@mui/material";
-import { MoreVert as MoreActionsIcon } from "@mui/icons-material";
+import {
+  MoreVert as MoreActionsIcon,
+  ArrowBack as Back,
+} from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
+import SectionVersionTransforms from "./SectionVersionTransforms";
 
 import { nanoid } from "@reduxjs/toolkit";
 import { generateKeyBetween } from "fractional-indexing";
@@ -55,6 +59,17 @@ export default function PanelBaseMapVersionProperties() {
   const displayLabel = isEditing ? labelValue : version?.label || "";
 
   // handlers
+
+  function handleBack() {
+    dispatch(setSelectedVersionId(null));
+    dispatch(
+      setSelectedItem({
+        id: baseMap.id,
+        type: "BASE_MAP",
+        listingId: selectedItem?.listingId,
+      })
+    );
+  }
 
   function handleMenuClick(event) {
     event.stopPropagation();
@@ -157,9 +172,19 @@ export default function PanelBaseMapVersionProperties() {
           pl: 1,
         }}
       >
-        <Typography variant="body2" sx={{ fontWeight: "bold", ml: 1 }}>
-          {version.label || "Version"}
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <IconButton onClick={handleBack}>
+            <Back />
+          </IconButton>
+          <Box sx={{ ml: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Version
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+              {version.label || "Version"}
+            </Typography>
+          </Box>
+        </Box>
 
         <IconButton onClick={handleMenuClick}>
           <MoreActionsIcon />
@@ -191,6 +216,11 @@ export default function PanelBaseMapVersionProperties() {
             />
           </Box>
         </WhiteSectionGeneric>
+
+        <SectionVersionTransforms
+          baseMap={baseMap}
+          versionId={selectedVersionId}
+        />
       </Box>
 
       <Menu open={menuOpen} anchorEl={anchorEl} onClose={handleMenuClose}>

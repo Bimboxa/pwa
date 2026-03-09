@@ -22,6 +22,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
+import FieldBaseMapVersions from "./FieldBaseMapVersions";
 
 export default function PanelBaseMapProperties() {
   const dispatch = useDispatch();
@@ -74,9 +75,14 @@ export default function PanelBaseMapProperties() {
           <IconButton onClick={() => dispatch(triggerSelectionBack())}>
             <Back />
           </IconButton>
-          <Typography variant="body2" sx={{ fontWeight: "bold", ml: 1 }}>
-            {baseMap.name || "Fond de plan"}
-          </Typography>
+          <Box sx={{ ml: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Fond de plan
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+              {baseMap.name || "Fond de plan"}
+            </Typography>
+          </Box>
         </Box>
 
         <IconButton onClick={handleMenuClick}>
@@ -96,6 +102,8 @@ export default function PanelBaseMapProperties() {
         <WhiteSectionGeneric>
           <FieldBaseMapOpacity baseMap={baseMap} />
         </WhiteSectionGeneric>
+
+        <FieldBaseMapVersions baseMap={baseMap} />
       </Box>
 
       <Menu open={menuOpen} anchorEl={anchorEl} onClose={handleMenuClose}>

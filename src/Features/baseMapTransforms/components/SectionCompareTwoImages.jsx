@@ -103,7 +103,7 @@ export default function SectionCompareTwoImages({
                     height: "100%",
                     width: "auto",
                     display: "block",
-                    border: "1px solid red"
+                    //border: "1px solid red"
                     //objectFit: "contain" // S'assure que l'img 1 respecte la hauteur
                 }}
             />
@@ -139,9 +139,9 @@ export default function SectionCompareTwoImages({
                     top: 0,
                     bottom: 0,
                     left: `${sliderPosition}%`,
-                    width: "2px",
-                    bgcolor: "white",
-                    boxShadow: "0 0 5px rgba(0,0,0,0.5)",
+                    width: "1px",
+                    bgcolor: "secondary.main",
+                    boxShadow: "none",
                     transform: "translateX(-50%)",
                     pointerEvents: "none",
                 }}

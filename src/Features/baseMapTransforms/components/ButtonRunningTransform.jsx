@@ -106,7 +106,7 @@ export default function ButtonRunningTransform() {
             />
 
             {open && (
-                <DialogGeneric open={open} onClose={() => setOpen(false)} vh={70}>
+                <DialogGeneric open={open} onClose={() => setOpen(false)} vh={90}>
                     <BoxFlexVStretch sx={{ height: 1, width: 1, position: "relative" }}>
 
                         <SectionCompareTwoImages

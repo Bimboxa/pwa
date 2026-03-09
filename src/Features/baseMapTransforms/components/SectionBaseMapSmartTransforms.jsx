@@ -265,7 +265,7 @@ export default function SectionBaseMapTransforms() {
             />
 
             {
-                openCompare && <DialogGeneric open={openCompare} vh={70} onClose={() => setOpenCompare(false)}>
+                openCompare && <DialogGeneric open={openCompare} vh={90} onClose={() => setOpenCompare(false)}>
 
                     <BoxFlexVStretch sx={{ width: 1, height: 1, position: "relative" }}>
                         <SectionCompareTwoImages
