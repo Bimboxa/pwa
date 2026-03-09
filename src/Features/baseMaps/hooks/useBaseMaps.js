@@ -4,7 +4,6 @@ import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import BaseMap from "../js/BaseMap";
-import getSortedItems from "Features/misc/utils/getSortedItems";
 
 export default function useBaseMaps(options) {
   // options
@@ -51,9 +50,16 @@ export default function useBaseMaps(options) {
       );
     }
 
-    // sort
+    // sort by sortIndex (fractional), fallback to name
 
-    records = getSortedItems(records, "name");
+    records = records.sort((a, b) => {
+      if (a.sortIndex != null && b.sortIndex != null) {
+        return a.sortIndex < b.sortIndex ? -1 : a.sortIndex > b.sortIndex ? 1 : 0;
+      }
+      if (a.sortIndex != null) return -1;
+      if (b.sortIndex != null) return 1;
+      return (a.name || "").localeCompare(b.name || "");
+    });
 
     const _baseMaps = await Promise.all(
       records.map(async (record) => await BaseMap.createFromRecord(record))

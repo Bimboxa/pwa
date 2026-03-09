@@ -2,6 +2,7 @@ import { useSelector } from "react-redux";
 import { selectSelectedItems } from "../selectionSlice";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import useListingById from "Features/listings/hooks/useListingById";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PanelListingProperties from "Features/listings/components/PanelListingProperties";
@@ -20,13 +21,19 @@ export default function PanelSelectionProperties() {
 
   const selectedItems = useSelector(selectSelectedItems);
   const selectedItem = selectedItems[0];
-  const { value: listing } = useSelectedListing(selectedItem?.listingId);
-  const showAnnotationsProperties = useSelector(
-    (s) => s.selection.showAnnotationsProperties
-  );
+  const { value: defaultListing } = useSelectedListing();
   const selectedViewerKey = useSelector(
     (s) => s.viewers.selectedViewerKey
   );
+  const showAnnotationsProperties = useSelector(
+    (s) => s.selection.showAnnotationsProperties
+  );
+
+  // When selectedItem is a LISTING (e.g. back from BASE_MAP), use its id directly
+  const selectionListingId =
+    selectedItem?.type === "LISTING" ? selectedItem.id : null;
+  const listingById = useListingById(selectionListingId);
+  const listing = listingById || defaultListing;
 
   // helper - type
 

@@ -18,7 +18,17 @@ export default function useProjectBaseMapListings(options) {
     filterByEntityModelType: "BASE_MAP",
   });
 
+  // sort alphabetically by name
+
+  const sorted = listings
+    ? [...listings].sort((a, b) =>
+        (a.name || "").localeCompare(b.name || "", undefined, {
+          sensitivity: "base",
+        })
+      )
+    : listings;
+
   // result
 
-  return listings;
+  return sorted;
 }

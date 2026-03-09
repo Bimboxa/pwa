@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from "react-redux";
 import {
   selectSelectedItems,
   setSelectedItem,
+  triggerSelectionBack,
 } from "Features/selection/selectionSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
@@ -12,7 +13,10 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useDeleteEntity from "Features/entities/hooks/useDeleteEntity";
 
 import { Box, Typography, IconButton, Menu, MenuItem } from "@mui/material";
-import { MoreVert as MoreActionsIcon } from "@mui/icons-material";
+import {
+  MoreVert as MoreActionsIcon,
+  ArrowBack as Back,
+} from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
@@ -66,9 +70,14 @@ export default function PanelBaseMapProperties() {
           pl: 1,
         }}
       >
-        <Typography variant="body2" sx={{ fontWeight: "bold", ml: 1 }}>
-          {baseMap.name || "Fond de plan"}
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <IconButton onClick={() => dispatch(triggerSelectionBack())}>
+            <Back />
+          </IconButton>
+          <Typography variant="body2" sx={{ fontWeight: "bold", ml: 1 }}>
+            {baseMap.name || "Fond de plan"}
+          </Typography>
+        </Box>
 
         <IconButton onClick={handleMenuClick}>
           <MoreActionsIcon />

@@ -24,13 +24,13 @@ import {
   List,
   ListItemButton,
   ListItemText,
+  Tooltip,
   Typography,
   IconButton,
   Avatar,
 } from "@mui/material";
+import { Add as AddIcon } from "@mui/icons-material";
 import {
-  Add,
-  Remove,
   Edit,
   Check,
   Close,
@@ -38,6 +38,8 @@ import {
   ChevronRight,
   Visibility,
   VisibilityOff,
+  Folder,
+  FolderOpen,
 } from "@mui/icons-material";
 
 import {
@@ -56,10 +58,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { generateKeyBetween } from "fractional-indexing";
+import { nanoid } from "@reduxjs/toolkit";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
+import IconNewBaseMapVersion from "Features/icons/IconNewBaseMapVersion";
 
 import db from "App/db/db";
 
@@ -155,6 +159,7 @@ function SortableBaseMapRow({
   hasVersions,
   isVersionsExpanded,
   onToggleVersions,
+  onAddVersion,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: baseMap.id });
@@ -175,7 +180,7 @@ function SortableBaseMapRow({
       sx={{
         pl: hasVersions ? 2 : 4,
         ...style,
-        "&:hover .edit-icon": { opacity: 1 },
+        "&:hover .hover-action": { opacity: 1 },
       }}
     >
       {hasVersions && (
@@ -248,17 +253,32 @@ function SortableBaseMapRow({
           </IconButton>
         </Box>
       ) : (
-        <IconButton
-          size="small"
-          className="edit-icon"
-          onClick={(e) => {
-            e.stopPropagation();
-            onStartEdit();
-          }}
-          sx={{ opacity: 0, transition: "0.2s" }}
-        >
-          <Edit fontSize="inherit" />
-        </IconButton>
+        <Box sx={{ display: "flex" }}>
+          <IconButton
+            size="small"
+            className="hover-action"
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartEdit();
+            }}
+            sx={{ opacity: 0, transition: "0.2s" }}
+          >
+            <Edit fontSize="inherit" />
+          </IconButton>
+          <Tooltip title="Nouvelle version">
+            <IconButton
+              size="small"
+              className="hover-action"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddVersion();
+              }}
+              sx={{ opacity: 0, transition: "0.2s" }}
+            >
+              <IconNewBaseMapVersion sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
       )}
     </ListItemButton>
   );
@@ -326,6 +346,14 @@ export default function BaseMapTreeItem({ listing }) {
   function handleListingClick() {
     if (editingItemId === listing.id) return;
     dispatch(setDisplayedBaseMapListingId(listing.id));
+    dispatch(setSelectedMainBaseMapId(null));
+    dispatch(setSelectedVersionId(null));
+    dispatch(
+      setSelectedItem({
+        id: listing.id,
+        type: "LISTING",
+      })
+    );
   }
 
   function handleBaseMapClick(baseMap) {
@@ -368,18 +396,43 @@ export default function BaseMapTreeItem({ listing }) {
     const newIndex = baseMapIds.indexOf(over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
+    // Ensure all baseMaps have a sortIndex before computing new position
+    const needsInit = baseMaps.some((bm) => bm.sortIndex == null);
+    let sortIndices;
+    if (needsInit) {
+      sortIndices = [];
+      let prev = null;
+      for (let i = 0; i < baseMaps.length; i++) {
+        const idx = baseMaps[i].sortIndex ?? generateKeyBetween(prev, null);
+        sortIndices.push(idx);
+        prev = idx;
+      }
+      // Persist initial sortIndex for items that don't have one
+      await Promise.all(
+        baseMaps.map((bm, i) => {
+          if (bm.sortIndex == null) {
+            return updateEntity(
+              bm.id,
+              { sortIndex: sortIndices[i] },
+              { listing }
+            );
+          }
+          return null;
+        })
+      );
+    } else {
+      sortIndices = baseMaps.map((bm) => bm.sortIndex);
+    }
+
+    // Compute new sortIndex for dragged item
     let newSortIndex;
     if (oldIndex < newIndex) {
-      const b = baseMaps[newIndex]?.sortIndex ?? null;
-      const a =
-        newIndex + 1 < baseMaps.length
-          ? baseMaps[newIndex + 1]?.sortIndex
-          : null;
+      const b = sortIndices[newIndex];
+      const a = newIndex + 1 < baseMaps.length ? sortIndices[newIndex + 1] : null;
       newSortIndex = generateKeyBetween(b, a);
     } else {
-      const b =
-        newIndex > 0 ? baseMaps[newIndex - 1]?.sortIndex : null;
-      const a = baseMaps[newIndex]?.sortIndex ?? null;
+      const b = newIndex > 0 ? sortIndices[newIndex - 1] : null;
+      const a = sortIndices[newIndex];
       newSortIndex = generateKeyBetween(b, a);
     }
 
@@ -487,6 +540,60 @@ export default function BaseMapTreeItem({ listing }) {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  async function handleDuplicateActiveVersion(baseMap) {
+    const record = await db.baseMaps.get(baseMap.id);
+    if (!record?.versions?.length) return;
+
+    const activeVersion =
+      record.versions.find((v) => v.isActive) || record.versions[0];
+
+    // Copy the image file
+    const versionId = nanoid();
+    let newImage = activeVersion.image;
+    if (activeVersion.image?.fileName) {
+      const srcFile = await db.files.get(activeVersion.image.fileName);
+      if (srcFile) {
+        const ext = activeVersion.image.fileName.split(".").pop() || "png";
+        const newFileName = `version_${versionId}_${baseMap.id}.${ext}`;
+        await db.files.put({
+          ...srcFile,
+          fileName: newFileName,
+        });
+        newImage = {
+          ...activeVersion.image,
+          fileName: newFileName,
+          fileUpdatedAt: new Date().toISOString(),
+        };
+      }
+    }
+
+    // Build new version from active version properties
+    const lastIndex =
+      record.versions.length > 0
+        ? record.versions[record.versions.length - 1].fractionalIndex
+        : null;
+
+    const newVersion = {
+      id: versionId,
+      label: `${activeVersion.label} (copie)`,
+      fractionalIndex: generateKeyBetween(lastIndex, null),
+      isActive: true,
+      image: newImage,
+      transform: activeVersion.transform
+        ? { ...activeVersion.transform }
+        : { x: 0, y: 0, rotation: 0, scale: 1 },
+    };
+
+    // Deactivate all existing versions, append the new one
+    const updatedVersions = record.versions.map((v) => ({
+      ...v,
+      isActive: false,
+    }));
+    updatedVersions.push(newVersion);
+
+    await db.baseMaps.update(baseMap.id, { versions: updatedVersions });
+  }
+
   // render
 
   const isEditingListing = editingItemId === listing.id;
@@ -502,7 +609,6 @@ export default function BaseMapTreeItem({ listing }) {
       />
 
       <ListItemButton
-        selected={isDisplayed}
         onClick={handleListingClick}
         sx={{
           pl: 1,
@@ -511,14 +617,13 @@ export default function BaseMapTreeItem({ listing }) {
       >
         <IconButton
           size="small"
-          color="secondary"
           onClick={handleToggleCollapsed}
           sx={{ mr: 1, p: 0 }}
         >
           {isExpanded ? (
-            <Remove fontSize="small" />
+            <FolderOpen fontSize="small" color="action" />
           ) : (
-            <Add fontSize="small" />
+            <Folder fontSize="small" color="action" />
           )}
         </IconButton>
         {isEditingListing ? (
@@ -581,7 +686,11 @@ export default function BaseMapTreeItem({ listing }) {
       </ListItemButton>
 
       {isExpanded && (
-        <>
+        <Box
+          sx={{
+            "&:hover .add-basemap-btn": { opacity: 1 },
+          }}
+        >
           <Divider />
           <DndContext
             sensors={sensors}
@@ -631,6 +740,9 @@ export default function BaseMapTreeItem({ listing }) {
                           dispatch(
                             toggleBaseMapVersionsExpanded(baseMap.id)
                           )
+                        }
+                        onAddVersion={() =>
+                          handleDuplicateActiveVersion(baseMap)
                         }
                       />
                       {hasVersions && isVersionsExpanded && (
@@ -726,21 +838,6 @@ export default function BaseMapTreeItem({ listing }) {
                           </SortableContext>
                         </DndContext>
                       )}
-                      {hasVersions && isVersionsExpanded && (
-                        <ListItemButton
-                          sx={{ pl: 7, py: 0.25 }}
-                          onClick={() =>
-                            handleAddVersionClick(baseMap.id)
-                          }
-                        >
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                          >
-                            + nouvelle version
-                          </Typography>
-                        </ListItemButton>
-                      )}
                     </Box>
                   );
                 })}
@@ -748,12 +845,36 @@ export default function BaseMapTreeItem({ listing }) {
             </SortableContext>
           </DndContext>
 
-          <ListItemButton sx={{ pl: 4 }} onClick={handleAddBaseMap}>
-            <Typography variant="body2" color="text.secondary">
-              + Ajouter un fond de plan
+          <ListItemButton
+            className="add-basemap-btn"
+            onClick={handleAddBaseMap}
+            sx={{
+              opacity: 0,
+              transition: "opacity 0.2s",
+              pl: 4,
+              gap: 1,
+              color: "text.disabled",
+            }}
+          >
+            <Box
+              sx={{
+                width: 28,
+                height: 28,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 1,
+                border: "1.5px dashed",
+                borderColor: "divider",
+              }}
+            >
+              <AddIcon sx={{ fontSize: 16, color: "text.disabled" }} />
+            </Box>
+            <Typography variant="body2" color="text.disabled">
+              Nouveau fond de plan
             </Typography>
           </ListItemButton>
-        </>
+        </Box>
       )}
     </Box>
   );
