@@ -12,6 +12,8 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionAnnotationQties from "./SectionAnnotationQties";
 import FieldWrapperDimensions from "./FieldWrapperDimensions";
 import FieldAnnotationRotation from "./FieldAnnotationRotation";
+import FieldAnnotationFill from "./FieldAnnotationFill";
+import FieldAnnotationStroke from "./FieldAnnotationStroke";
 
 export default function PanelAnnotationProperties() {
   const dispatch = useDispatch();
@@ -23,6 +25,12 @@ export default function PanelAnnotationProperties() {
   // helper
 
   const label = annotation?.label || "Annotation";
+  const type = annotation?.type;
+
+  const FILL_TYPES = ["POLYGON", "RECTANGLE", "STRIP", "POINT", "MARKER"];
+  const STROKE_TYPES = ["POLYGON", "POLYLINE", "RECTANGLE", "STRIP", "POINT"];
+  const showFill = FILL_TYPES.includes(type);
+  const showStroke = STROKE_TYPES.includes(type);
 
   // render - no selection
 
@@ -57,22 +65,26 @@ export default function PanelAnnotationProperties() {
         {/* <IconButtonMoreActionsAnnotationTemplate annotationTemplate={selectedAnnotationTemplate} /> */}
       </Box>
 
-      <Box sx={{ width: 1, p: 1 }}>
-        <FieldAnnotationPreview annotation={annotation} imageHeight={200} />
-      </Box>
+      <BoxFlexVStretch sx={{ overflowY: "auto" }}>
 
-      <SectionAnnotationQties annotation={annotation} />
+        <Box sx={{ width: 1, p: 1 }}>
+          <FieldAnnotationPreview annotation={annotation} imageHeight={200} />
+        </Box>
 
-      <Box sx={{ p: 1, width: 1 }}>
-        <ButtonAnnotationTemplate annotation={annotation} bgcolor="white" fullWidth />
-      </Box>
+        <SectionAnnotationQties annotation={annotation} />
 
-      <Box sx={{ width: 1, p: 1, gap: 1, display: "flex", flexDirection: "column" }}>
-        <FieldWrapperDimensions annotation={annotation} />
-        <FieldAnnotationRotation annotation={annotation} />
-      </Box>
+        <Box sx={{ p: 1, width: 1 }}>
+          <ButtonAnnotationTemplate annotation={annotation} bgcolor="white" fullWidth />
+        </Box>
 
+        <Box sx={{ width: 1, p: 1, gap: 1, display: "flex", flexDirection: "column" }}>
+          <FieldWrapperDimensions annotation={annotation} />
+          <FieldAnnotationRotation annotation={annotation} />
+          {showFill && <FieldAnnotationFill annotation={annotation} />}
+          {showStroke && <FieldAnnotationStroke annotation={annotation} />}
+        </Box>
 
+      </BoxFlexVStretch>
 
     </BoxFlexVStretch>
   );
