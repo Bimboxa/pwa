@@ -19,11 +19,21 @@ export default async function resolvePresetScopeListings({
   const presetScope = appConfig.presetScopesObject[presetScopeKey];
   const presetListingsKeys = presetScope?.listings;
 
+  // add isForBaseMaps listings
+
+  const isForBaseMapsKeys = Object.values(appConfig.presetListingsObject)
+    .filter((l) => l.isForBaseMaps)
+    .map((l) => l.key);
+
+  const allKeys = [
+    ...new Set([...(presetListingsKeys ?? []), ...isForBaseMapsKeys]),
+  ];
+
   // main
 
   return resolvePresetListings({
     projectId,
     appConfig,
-    presetListingsKeys,
+    presetListingsKeys: allKeys,
   });
 }

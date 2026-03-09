@@ -49,6 +49,7 @@ export default function useAnnotationsV2(options) {
         const groupByBaseMap = options?.groupByBaseMap;
         const sortByOrderIndex = options?.sortByOrderIndex;
         const excludeIsForBaseMapsListings = options?.excludeIsForBaseMapsListings;
+        const onlyIsForBaseMapsListings = options?.onlyIsForBaseMapsListings;
 
         // data
 
@@ -253,6 +254,15 @@ export default function useAnnotationsV2(options) {
                 );
                 _annotations = _annotations.filter(
                     (a) => !forBaseMapsListingIds.has(a.listingId)
+                );
+            }
+
+            if (onlyIsForBaseMapsListings) {
+                const forBaseMapsListingIds = new Set(
+                    listings.filter((l) => l.isForBaseMaps).map((l) => l.id)
+                );
+                _annotations = _annotations.filter(
+                    (a) => forBaseMapsListingIds.has(a.listingId)
                 );
             }
 

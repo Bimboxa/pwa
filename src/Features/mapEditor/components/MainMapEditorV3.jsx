@@ -231,6 +231,7 @@ export default function MainMapEditorV3() {
         filterBySelectedScope: true,
         sortByOrderIndex: true,
         excludeIsForBaseMapsListings: viewerKey === "MAP",
+        onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
     });
 
     // legend
