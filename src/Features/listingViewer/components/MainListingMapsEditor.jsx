@@ -1,15 +1,20 @@
 import { useSelector } from "react-redux";
 
-import { Box, Typography, Grid } from "@mui/material";
+import { Box, Typography, Divider } from "@mui/material";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
-import CardBaseMap from "./CardBaseMap";
+import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
+import SectionBaseMap from "./SectionBaseMap";
 
 export default function MainListingMapsEditor({ listing }) {
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const { value: baseMaps } = useBaseMaps({ filterByProject: projectId });
+  const annotationTemplates = useAnnotationTemplates({
+    filterByListingId: listing?.id,
+    sortByLabel: true,
+  });
 
   // helpers
 
@@ -63,13 +68,16 @@ export default function MainListingMapsEditor({ listing }) {
         p: 2,
       }}
     >
-      <Grid container spacing={2} columns={2}>
-        {baseMaps.map((baseMap) => (
-          <Grid key={baseMap.id} size={1}>
-            <CardBaseMap baseMap={baseMap} listing={listing} />
-          </Grid>
-        ))}
-      </Grid>
+      {baseMaps.map((baseMap, index) => (
+        <Box key={baseMap.id}>
+          <SectionBaseMap
+            baseMap={baseMap}
+            listing={listing}
+            annotationTemplates={annotationTemplates}
+          />
+          {index < baseMaps.length - 1 && <Divider sx={{ my: 2 }} />}
+        </Box>
+      ))}
     </Box>
   );
 }

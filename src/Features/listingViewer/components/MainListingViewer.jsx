@@ -4,6 +4,8 @@ import { useSelector } from "react-redux";
 import { Box } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import PanelListingViewerTabs from "./PanelListingViewerTabs";
+import PanelListingAnnotationTemplates from "./PanelListingAnnotationTemplates";
 import PanelListingEntities from "./PanelListingEntities";
 import SelectorListingForViewer from "./SelectorListingForViewer";
 import HeaderListingViewerPanel from "./HeaderListingViewerPanel";
@@ -15,6 +17,7 @@ export default function MainListingViewer() {
   // data
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
+  const selectedTabId = useSelector((s) => s.listingViewer.selectedTabId);
   const listing = useListingById(selectedListingId);
 
   // state
@@ -54,6 +57,7 @@ export default function MainListingViewer() {
             listing={listing}
             onSelectListing={handleSelectListing}
           />
+          {!showSelector && listing && <PanelListingViewerTabs />}
           <BoxFlexVStretch sx={{ overflow: "auto" }}>
             {showSelector ? (
               <SelectorListingForViewer
@@ -61,7 +65,11 @@ export default function MainListingViewer() {
                 selectedListingId={selectedListingId}
               />
             ) : listing ? (
-              <PanelListingEntities listing={listing} />
+              selectedTabId === "ENTITIES" ? (
+                <PanelListingEntities listing={listing} />
+              ) : (
+                <PanelListingAnnotationTemplates listing={listing} />
+              )
             ) : (
               <Box sx={{ p: 2, color: "text.secondary" }}>
                 Select a listing to view its entities.
