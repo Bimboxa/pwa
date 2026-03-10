@@ -31,8 +31,6 @@ import DialogAutoAddListing from "Features/listings/components/DialogAutoAddList
 import DialogAutoScopeCreator from "Features/scopeCreator/components/DialogAutoScopeCreator";
 import DialogBaseMapCreator from "Features/baseMapCreator/components/DialogBaseMapCreator";
 
-import { SmartZoomProvider } from "App/contexts/SmartZoomContext";
-
 
 
 export default function MainAppLayout() {
@@ -74,7 +72,6 @@ export default function MainAppLayout() {
 
   return (
     <DndContext sensors={sensors}>
-      <SmartZoomProvider>
         <Box
           sx={{
             position: "fixed",
@@ -88,7 +85,6 @@ export default function MainAppLayout() {
           {deviceType === "DESKTOP" && <LayoutDesktop />}
           {deviceType === "MOBILE" && <LayoutMobile />}
         </Box>
-      </SmartZoomProvider>
       <Toaster />
       <PageLanding />
       {/* {!openLandingPage && (warningWasShowed || !remoteContainer) && (

@@ -92,6 +92,7 @@ const PAN_STEP = 30;
 
 const InteractionLayer = forwardRef(({
   children,
+  isActiveViewer = true,
   enabledDrawingMode,
   newAnnotation,
   onCommitDrawing,
@@ -2332,8 +2333,8 @@ const InteractionLayer = forwardRef(({
           crossOrigin="anonymous"
         />
 
-        {/* Le composant Loupe */}
-        {zoomContainer ? createPortal(<SmartDetectLayer
+        {/* Le composant Loupe — only render in the active viewer */}
+        {zoomContainer && isActiveViewer ? createPortal(<SmartDetectLayer
           ref={smartDetectRef}
           sourceImage={sourceImageEl}
           baseMapImageScale={baseMapImageScale}

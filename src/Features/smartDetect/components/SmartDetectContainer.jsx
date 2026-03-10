@@ -8,23 +8,16 @@ export default function SmartDetectContainer() {
 
   const { setZoomContainer } = useSmartZoom();
 
-
   return <Box sx={{
     p: 0,
     mt: 1,
     display: "flex", alignItems: "center", justifyContent: "center",
-    position: "relative",
   }}>
     <Box
-      //elevation={0}
       id="smart-zoom-target"
-      ref={setZoomContainer} // On passe la ref au Context
+      ref={setZoomContainer}
       sx={{
-        //width: LOUPE_SIZE,
-        //height: LOUPE_SIZE,
-        //bgcolor: '#000',
-        position: 'relative',
-        overflow: 'hidden'
+        width: 1,
       }}
     />
   </Box>
