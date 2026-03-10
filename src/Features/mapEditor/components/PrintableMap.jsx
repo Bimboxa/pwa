@@ -16,7 +16,8 @@ const PrintableMap = forwardRef(({
     legendFormat,
     showBgImage,
     spriteImage,
-    baseMapMeterByPx
+    baseMapMeterByPx,
+    versions,
 }, ref) => {
 
     // On utilise la taille du fond de plan (ou de l'image de fond) comme viewBox
@@ -78,11 +79,29 @@ const PrintableMap = forwardRef(({
                     transform={`translate(${(basePose.x - bgPose.x) / (bgPose.k || 1)}, ${(basePose.y - bgPose.y) / (bgPose.k || 1)
                         }) scale(${(basePose.k || 1) / (bgPose.k || 1)})`}
                 >
-                    <NodeSvgImage
-                        src={baseMapImageUrl}
-                        width={baseMapImageSize?.width}
-                        height={baseMapImageSize?.height}
-                    />
+                    {versions?.length > 0 ? (() => {
+                        const activeVersion = versions.find(v => v.isActive) || versions[0];
+                        if (!activeVersion) return null;
+                        const vUrl = activeVersion.image?.imageUrlClient ?? activeVersion.image?.imageUrlRemote;
+                        const vSize = activeVersion.image?.imageSize;
+                        if (!vUrl || !vSize) return null;
+                        const t = activeVersion.transform || { x: 0, y: 0, rotation: 0, scale: 1 };
+                        return (
+                            <g transform={`translate(${t.x}, ${t.y}) scale(${t.scale}) rotate(${t.rotation || 0})`}>
+                                <NodeSvgImage
+                                    src={vUrl}
+                                    width={vSize.width}
+                                    height={vSize.height}
+                                />
+                            </g>
+                        );
+                    })() : (
+                        <NodeSvgImage
+                            src={baseMapImageUrl}
+                            width={baseMapImageSize?.width}
+                            height={baseMapImageSize?.height}
+                        />
+                    )}
 
                     {baseMapAnnotations?.map(ann => (
                         <NodeAnnotationStatic

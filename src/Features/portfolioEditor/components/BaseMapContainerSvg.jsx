@@ -57,6 +57,7 @@ export default function BaseMapContainerSvg({
 
   const imageSize = hasBaseMap ? baseMap.getImageSize() : null;
   const meterByPx = hasBaseMap ? baseMap.getMeterByPx() : null;
+  const version = hasBaseMap ? baseMap.getVersion(container.versionId) : null;
   const viewBox =
     hasBaseMap && imageSize
       ? container.viewBox || computeDefaultViewBox(baseMap, container)
@@ -139,14 +140,33 @@ export default function BaseMapContainerSvg({
           </defs>
 
           <g clipPath={`url(#${clipId})`}>
-            <NodeSvgImage
-              src={baseMap.getUrl()}
-              dataNodeId={container.id}
-              dataNodeType="BASE_MAP_CONTAINER"
-              width={imageSize.width}
-              height={imageSize.height}
-              opacity={container.baseMapOpacity ?? 1}
-            />
+            {version ? (() => {
+              const vUrl = version.image?.imageUrlClient ?? version.image?.imageUrlRemote;
+              const vSize = version.image?.imageSize;
+              if (!vUrl || !vSize) return null;
+              const t = version.transform || { x: 0, y: 0, rotation: 0, scale: 1 };
+              return (
+                <g transform={`translate(${t.x}, ${t.y}) scale(${t.scale}) rotate(${t.rotation || 0})`}>
+                  <NodeSvgImage
+                    src={vUrl}
+                    dataNodeId={container.id}
+                    dataNodeType="BASE_MAP_CONTAINER"
+                    width={vSize.width}
+                    height={vSize.height}
+                    opacity={container.baseMapOpacity ?? 1}
+                  />
+                </g>
+              );
+            })() : (
+              <NodeSvgImage
+                src={baseMap.getUrl()}
+                dataNodeId={container.id}
+                dataNodeType="BASE_MAP_CONTAINER"
+                width={imageSize.width}
+                height={imageSize.height}
+                opacity={container.baseMapOpacity ?? 1}
+              />
+            )}
             {nonLabelAnnotations?.map((annotation) => (
               <NodeAnnotationStatic
                 key={annotation.id}

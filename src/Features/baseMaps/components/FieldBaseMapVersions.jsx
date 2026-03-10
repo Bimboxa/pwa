@@ -1,8 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
-import { nanoid } from "@reduxjs/toolkit";
 import { generateKeyBetween } from "fractional-indexing";
 
 import { setSelectedVersionId } from "Features/baseMapEditor/baseMapEditorSlice";
@@ -27,66 +26,83 @@ import {
   Add as AddIcon,
 } from "@mui/icons-material";
 
-import { DndContext, closestCenter } from "@dnd-kit/core";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import {
   SortableContext,
   useSortable,
+  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import useDndSensors from "App/hooks/useDndSensors";
+import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 import db from "App/db/db";
 
 function SortableVersionRow({ version, isSelected, onClick, onDoubleClick }) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: version.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: version.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    zIndex: isDragging ? 1200 : "auto",
+    opacity: isDragging ? 0.8 : 1,
   };
 
   return (
-    <ListItemButton
-      ref={setNodeRef}
-      {...attributes}
-      component="div"
-      selected={isSelected}
-      onClick={onClick}
-      onDoubleClick={onDoubleClick}
-      sx={{ py: 0.5, px: 2, ...style }}
-    >
-      <ListItemIcon
-        {...listeners}
-        sx={{ minWidth: 24, mr: 0.5, cursor: "grab" }}
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <ListItemButton
+        component="div"
+        selected={isSelected}
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
+        sx={{ py: 0.5, px: 2 }}
       >
-        <DragIndicator fontSize="small" sx={{ opacity: 0.4 }} />
-      </ListItemIcon>
-      <Avatar
-        src={version.image?.thumbnail}
-        variant="rounded"
-        sx={{ width: 24, height: 24, mr: 1 }}
-      />
-      <ListItemText
-        primary={version.label || "Version"}
-        slotProps={{
-          primary: {
-            variant: "body2",
-            noWrap: true,
-            fontWeight: version.isActive ? "bold" : "normal",
-          },
-        }}
-      />
-      {version.isActive && (
-        <Chip
-          label="Active"
-          size="small"
-          color="primary"
-          sx={{ height: 18, fontSize: "0.65rem" }}
+        <ListItemIcon
+          {...listeners}
+          sx={{ minWidth: 24, mr: 0.5, cursor: "grab" }}
+        >
+          <DragIndicator fontSize="small" sx={{ opacity: 0.4 }} />
+        </ListItemIcon>
+        <Avatar
+          src={version.image?.thumbnail}
+          variant="rounded"
+          sx={{ width: 24, height: 24, mr: 1 }}
         />
-      )}
-    </ListItemButton>
+        <ListItemText
+          primary={version.label || "Version"}
+          slotProps={{
+            primary: {
+              variant: "body2",
+              noWrap: true,
+              fontWeight: version.isActive ? "bold" : "normal",
+            },
+          }}
+        />
+        {version.isActive && (
+          <Chip
+            label="Active"
+            size="small"
+            color="primary"
+            sx={{ height: 18, fontSize: "0.65rem" }}
+          />
+        )}
+      </ListItemButton>
+    </div>
   );
 }
 
@@ -95,7 +111,12 @@ export default function FieldBaseMapVersions({ baseMap }) {
 
   // data
 
-  const sensors = useDndSensors();
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+  const createVersion = useCreateBaseMapVersion();
+  const fileInputRef = useRef(null);
   const selectedVersionId = useSelector(
     (s) => s.baseMapEditor.selectedVersionId
   );
@@ -143,83 +164,50 @@ export default function FieldBaseMapVersions({ baseMap }) {
     const { active, over } = event;
     if (!active || !over || active.id === over.id) return;
 
-    const oldIdx = sortedVersions.findIndex((v) => v.id === active.id);
-    const newIdx = sortedVersions.findIndex((v) => v.id === over.id);
-    if (oldIdx === -1 || newIdx === -1) return;
+    try {
+      const record = await db.baseMaps.get(baseMap.id);
+      if (!record?.versions) return;
 
-    let newFI;
-    if (oldIdx < newIdx) {
-      const b = sortedVersions[newIdx]?.fractionalIndex ?? null;
-      const a =
-        newIdx + 1 < sortedVersions.length
-          ? sortedVersions[newIdx + 1]?.fractionalIndex
-          : null;
-      newFI = generateKeyBetween(b, a);
-    } else {
-      const b =
-        newIdx > 0
-          ? sortedVersions[newIdx - 1]?.fractionalIndex
-          : null;
-      const a = sortedVersions[newIdx]?.fractionalIndex ?? null;
-      newFI = generateKeyBetween(b, a);
+      const sorted = [...record.versions].sort((a, b) =>
+        (a.fractionalIndex || "").localeCompare(b.fractionalIndex || "")
+      );
+
+      const oldIdx = sorted.findIndex((v) => v.id === active.id);
+      const newIdx = sorted.findIndex((v) => v.id === over.id);
+      if (oldIdx === -1 || newIdx === -1) return;
+
+      // Reorder then reassign all fractional indices to handle duplicates
+      const reordered = arrayMove(sorted, oldIdx, newIdx);
+      const newIndices = {};
+      let prev = null;
+      for (const v of reordered) {
+        const fi = generateKeyBetween(prev, null);
+        newIndices[v.id] = fi;
+        prev = fi;
+      }
+
+      const updatedVersions = record.versions.map((v) => ({
+        ...v,
+        fractionalIndex: newIndices[v.id] ?? v.fractionalIndex,
+      }));
+      await db.baseMaps.update(baseMap.id, { versions: updatedVersions });
+    } catch (e) {
+      console.error("[FieldBaseMapVersions] DnD reorder error:", e);
     }
-
-    const record = await db.baseMaps.get(baseMap.id);
-    if (!record?.versions) return;
-    const updatedVersions = record.versions.map((v) =>
-      v.id === active.id ? { ...v, fractionalIndex: newFI } : v
-    );
-    await db.baseMaps.update(baseMap.id, { versions: updatedVersions });
   }
 
-  async function handleAddVersion() {
-    if (!baseMap?.id) return;
+  function handleAddClick() {
+    fileInputRef.current?.click();
+  }
 
-    const record = await db.baseMaps.get(baseMap.id);
-    if (!record?.versions?.length) return;
-
-    const activeVersion =
-      record.versions.find((v) => v.isActive) || record.versions[0];
-
-    const versionId = nanoid();
-    let newImage = activeVersion.image;
-    if (activeVersion.image?.fileName) {
-      const srcFile = await db.files.get(activeVersion.image.fileName);
-      if (srcFile) {
-        const ext = activeVersion.image.fileName.split(".").pop() || "png";
-        const newFileName = `version_${versionId}_${baseMap.id}.${ext}`;
-        await db.files.put({ ...srcFile, fileName: newFileName });
-        newImage = {
-          ...activeVersion.image,
-          fileName: newFileName,
-          fileUpdatedAt: new Date().toISOString(),
-        };
-      }
+  async function handleFileSelected(e) {
+    const file = e.target.files?.[0];
+    if (file && baseMap?.id) {
+      await createVersion(baseMap.id, file, {
+        label: file.name.replace(/\.[^/.]+$/, ""),
+      });
     }
-
-    const lastIndex =
-      record.versions.length > 0
-        ? record.versions[record.versions.length - 1].fractionalIndex
-        : null;
-
-    const newVersion = {
-      id: versionId,
-      label: `${activeVersion.label} (copie)`,
-      fractionalIndex: generateKeyBetween(lastIndex, null),
-      isActive: true,
-      image: newImage,
-      transform: activeVersion.transform
-        ? { ...activeVersion.transform }
-        : { x: 0, y: 0, rotation: 0, scale: 1 },
-    };
-
-    const updatedVersions = record.versions.map((v) => ({
-      ...v,
-      isActive: false,
-    }));
-    updatedVersions.push(newVersion);
-
-    await db.baseMaps.update(baseMap.id, { versions: updatedVersions });
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   // render
@@ -227,6 +215,14 @@ export default function FieldBaseMapVersions({ baseMap }) {
   if (!sortedVersions.length) return null;
 
   return (
+    <>
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="image/*"
+      style={{ display: "none" }}
+      onChange={handleFileSelected}
+    />
     <Box
       sx={{
         bgcolor: "white",
@@ -248,12 +244,13 @@ export default function FieldBaseMapVersions({ baseMap }) {
         <Typography variant="body2" sx={{ fontWeight: "bold" }}>
           Versions
         </Typography>
-        <IconButton size="small" onClick={handleAddVersion}>
+        <IconButton size="small" onClick={handleAddClick}>
           <AddIcon fontSize="small" />
         </IconButton>
       </Box>
 
       <DndContext
+        id={`field-versions-${baseMap.id}`}
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
@@ -276,5 +273,6 @@ export default function FieldBaseMapVersions({ baseMap }) {
         </SortableContext>
       </DndContext>
     </Box>
+    </>
   );
 }

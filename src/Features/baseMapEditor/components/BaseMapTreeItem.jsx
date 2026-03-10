@@ -55,6 +55,7 @@ import {
   useSortable,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { generateKeyBetween } from "fractional-indexing";
@@ -443,43 +444,6 @@ export default function BaseMapTreeItem({ listing }) {
     );
   }
 
-  async function handleVersionDragEnd(baseMap, sortedVersions) {
-    return async (event) => {
-      const { active, over } = event;
-      if (!active || !over || active.id === over.id) return;
-
-      const oldIndex = sortedVersions.findIndex((v) => v.id === active.id);
-      const newIndex = sortedVersions.findIndex((v) => v.id === over.id);
-      if (oldIndex === -1 || newIndex === -1) return;
-
-      let newFractionalIndex;
-      if (oldIndex < newIndex) {
-        const b = sortedVersions[newIndex]?.fractionalIndex ?? null;
-        const a =
-          newIndex + 1 < sortedVersions.length
-            ? sortedVersions[newIndex + 1]?.fractionalIndex
-            : null;
-        newFractionalIndex = generateKeyBetween(b, a);
-      } else {
-        const b =
-          newIndex > 0
-            ? sortedVersions[newIndex - 1]?.fractionalIndex
-            : null;
-        const a = sortedVersions[newIndex]?.fractionalIndex ?? null;
-        newFractionalIndex = generateKeyBetween(b, a);
-      }
-
-      const record = await db.baseMaps.get(baseMap.id);
-      if (!record?.versions) return;
-      const updatedVersions = record.versions.map((v) =>
-        v.id === active.id
-          ? { ...v, fractionalIndex: newFractionalIndex }
-          : v
-      );
-      await db.baseMaps.update(baseMap.id, { versions: updatedVersions });
-    };
-  }
-
   async function handleActivateVersion(baseMap, version) {
     const record = await db.baseMaps.get(baseMap.id);
     if (!record?.versions) return;
@@ -693,6 +657,7 @@ export default function BaseMapTreeItem({ listing }) {
         >
           <Divider />
           <DndContext
+            id="basemap-tree-dnd"
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
@@ -759,53 +724,66 @@ export default function BaseMapTreeItem({ listing }) {
                             )
                               return;
 
-                            const oldIdx = sortedVersions.findIndex(
-                              (v) => v.id === active.id
-                            );
-                            const newIdx = sortedVersions.findIndex(
-                              (v) => v.id === over.id
-                            );
-                            if (oldIdx === -1 || newIdx === -1) return;
-
-                            let newFI;
-                            if (oldIdx < newIdx) {
-                              const b =
-                                sortedVersions[newIdx]
-                                  ?.fractionalIndex ?? null;
-                              const a =
-                                newIdx + 1 < sortedVersions.length
-                                  ? sortedVersions[newIdx + 1]
-                                      ?.fractionalIndex
-                                  : null;
-                              newFI = generateKeyBetween(b, a);
-                            } else {
-                              const b =
-                                newIdx > 0
-                                  ? sortedVersions[newIdx - 1]
-                                      ?.fractionalIndex
-                                  : null;
-                              const a =
-                                sortedVersions[newIdx]
-                                  ?.fractionalIndex ?? null;
-                              newFI = generateKeyBetween(b, a);
-                            }
-
-                            const record = await db.baseMaps.get(
-                              baseMap.id
-                            );
-                            if (!record?.versions) return;
-                            const updatedVersions =
-                              record.versions.map((v) =>
-                                v.id === active.id
-                                  ? {
-                                      ...v,
-                                      fractionalIndex: newFI,
-                                    }
-                                  : v
+                            try {
+                              const record = await db.baseMaps.get(
+                                baseMap.id
                               );
-                            await db.baseMaps.update(baseMap.id, {
-                              versions: updatedVersions,
-                            });
+                              if (!record?.versions) return;
+
+                              const sorted = [
+                                ...record.versions,
+                              ].sort((a, b) =>
+                                (
+                                  a.fractionalIndex || ""
+                                ).localeCompare(
+                                  b.fractionalIndex || ""
+                                )
+                              );
+
+                              const oldIdx = sorted.findIndex(
+                                (v) => v.id === active.id
+                              );
+                              const newIdx = sorted.findIndex(
+                                (v) => v.id === over.id
+                              );
+                              if (oldIdx === -1 || newIdx === -1)
+                                return;
+
+                              const reordered = arrayMove(
+                                sorted,
+                                oldIdx,
+                                newIdx
+                              );
+                              const newIndices = {};
+                              let prev = null;
+                              for (const v of reordered) {
+                                const fi = generateKeyBetween(
+                                  prev,
+                                  null
+                                );
+                                newIndices[v.id] = fi;
+                                prev = fi;
+                              }
+
+                              const updatedVersions =
+                                record.versions.map((v) => ({
+                                  ...v,
+                                  fractionalIndex:
+                                    newIndices[v.id] ??
+                                    v.fractionalIndex,
+                                }));
+                              await db.baseMaps.update(
+                                baseMap.id,
+                                {
+                                  versions: updatedVersions,
+                                }
+                              );
+                            } catch (e) {
+                              console.error(
+                                "[BaseMapTreeItem] DnD reorder error:",
+                                e
+                              );
+                            }
                           }}
                         >
                           <SortableContext

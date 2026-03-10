@@ -30,6 +30,7 @@ import ToolbarDrawingTools from "Features/mapEditor/components/ToolbarDrawingToo
 import BlockVersionInTopBar from "Features/versions/components/BlockVersionInTopBar";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import BaseMapSelectorInMapEditorV2 from "Features/baseMaps/components/BaseMapSelectorInMapEditorV2";
+import BaseMapVersionSelectorInTopBar from "Features/baseMaps/components/BaseMapVersionSelectorInTopBar";
 
 export default function TopBarDesktop() {
   const dispatch = useDispatch();
@@ -121,7 +122,10 @@ export default function TopBarDesktop() {
             </Button>
           )}
           {(viewerKey === "MAP" || viewerKey === "BASE_MAPS") && (
-            <BaseMapSelectorInMapEditorV2 />
+            <>
+              <BaseMapSelectorInMapEditorV2 />
+              <BaseMapVersionSelectorInTopBar />
+            </>
           )}
 
         </Box>

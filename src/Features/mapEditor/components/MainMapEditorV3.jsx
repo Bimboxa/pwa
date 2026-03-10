@@ -1111,6 +1111,7 @@ export default function MainMapEditorV3() {
                 baseMapMeterByPx={baseMap?.getMeterByPx()}
                 legendItems={legendItems}
                 legendFormat={legendFormat}
+                versions={baseMap?.versions}
             />
 
             <DialogDeleteSelectedAnnotation />

@@ -172,6 +172,32 @@ function StaticMapContent({
                                 </g>
                             );
                         })
+                ) : versions?.length > 0 ? (
+                    // MAP viewer with versions: render active version at actual size with transform
+                    (() => {
+                        const activeVersion = versions.find(v => v.isActive) || versions[0];
+                        if (!activeVersion || isEditingBaseMap) return null;
+                        const vUrl = activeVersion.image?.imageUrlClient ?? activeVersion.image?.imageUrlRemote;
+                        const vSize = activeVersion.image?.imageSize;
+                        if (!vUrl || !vSize) return null;
+                        const t = activeVersion.transform || { x: 0, y: 0, rotation: 0, scale: 1 };
+                        return (
+                            <g transform={`translate(${t.x}, ${t.y}) scale(${t.scale}) rotate(${t.rotation || 0})`}>
+                                <NodeSvgImage
+                                    src={vUrl}
+                                    dataNodeType="BASE_MAP"
+                                    dataNodeId={vUrl}
+                                    width={vSize.width}
+                                    height={vSize.height}
+                                    hovered={baseMapIsHovered}
+                                    selected={baseMapIsSelected}
+                                    opacity={opacity}
+                                    grayScale={grayScale}
+                                    grayLevelThreshold={grayLevelThreshold}
+                                />
+                            </g>
+                        );
+                    })()
                 ) : (
                     !isEditingBaseMap && <NodeSvgImage
                         src={baseMapImageUrl}

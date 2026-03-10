@@ -243,6 +243,14 @@ export default class BaseMap {
     return null;
   };
 
+  getVersion = (versionId) => {
+    if (versionId) {
+      const v = this.versions?.find((v) => v.id === versionId);
+      if (v) return v;
+    }
+    return this.getActiveVersion();
+  };
+
   getVersionUrl = (versionId) => {
     const version = this.versions?.find((v) => v.id === versionId);
     if (!version) return null;

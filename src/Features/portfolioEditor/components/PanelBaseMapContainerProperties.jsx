@@ -9,6 +9,7 @@ import {
 
 import useSelectedBaseMapContainer from "Features/portfolioBaseMapContainers/hooks/useSelectedBaseMapContainer";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 
@@ -24,8 +25,19 @@ export default function PanelBaseMapContainerProperties() {
 
   const { value: container } = useSelectedBaseMapContainer();
   const { value: baseMaps } = useBaseMaps();
+  const baseMap = useBaseMap({ id: container?.baseMapId });
   const updateEntity = useUpdateEntity();
   const { value: portfolio } = useDisplayedPortfolio();
+
+  // helpers
+
+  const versions = baseMap?.versions;
+  const hasMultipleVersions = versions && versions.length > 1;
+  const sortedVersions = hasMultipleVersions
+    ? [...versions].sort((a, b) =>
+        (a.fractionalIndex || "").localeCompare(b.fractionalIndex || "")
+      )
+    : [];
 
   // handlers
 
@@ -35,6 +47,11 @@ export default function PanelBaseMapContainerProperties() {
     });
   }
 
+  async function handleVersionChange(e) {
+    const versionId = e.target.value || null;
+    await db.portfolioBaseMapContainers.update(container.id, { versionId });
+  }
+
   async function handleBaseMapChange(e) {
     const baseMapId = e.target.value || null;
     const bm = baseMaps?.find((b) => b.id === baseMapId);
@@ -42,6 +59,7 @@ export default function PanelBaseMapContainerProperties() {
     await db.portfolioBaseMapContainers.update(container.id, {
       baseMapId,
       viewBox,
+      versionId: null,
     });
 
     // rename page title to baseMap name on first assignment
@@ -81,6 +99,26 @@ export default function PanelBaseMapContainerProperties() {
             ))}
           </Select>
         </FormControl>
+
+        {hasMultipleVersions && (
+          <FormControl fullWidth size="small" sx={{ mt: 1.5 }}>
+            <InputLabel>Version</InputLabel>
+            <Select
+              value={container.versionId || ""}
+              label="Version"
+              onChange={handleVersionChange}
+            >
+              <MenuItem value="">
+                <em>Active version</em>
+              </MenuItem>
+              {sortedVersions.map((v) => (
+                <MenuItem key={v.id} value={v.id}>
+                  {v.label || "Version"}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
 
         <Box sx={{ mt: 2 }}>
           <Typography variant="body2" color="text.secondary">
