@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+
 import {
   Popover,
   List,
@@ -13,6 +15,8 @@ import AddIcon from "@mui/icons-material/Add";
 import MapIcon from "@mui/icons-material/Map";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
+import SelectorVariantChips from "Features/layout/components/SelectorVariantChips";
 
 export default function BaseMapSelectorPopover({
   anchorEl,
@@ -24,7 +28,39 @@ export default function BaseMapSelectorPopover({
 }) {
   // data
 
-  const { value: baseMaps = [] } = useBaseMaps();
+  const baseMapsListings = useProjectBaseMapListings();
+
+  // state
+
+  const [selectedListingId, setSelectedListingId] = useState(null);
+
+  // helpers
+
+  const listingOptions = baseMapsListings?.map((listing) => ({
+    key: listing.id,
+    label: listing.name,
+  }));
+
+  const listingSelection = selectedListingId ? [selectedListingId] : [];
+
+  const { value: baseMaps = [] } = useBaseMaps({
+    filterByListingId: selectedListingId,
+  });
+
+  // effects
+
+  useEffect(() => {
+    if (!selectedListingId && baseMapsListings?.length > 0) {
+      setSelectedListingId(baseMapsListings[0].id);
+    }
+  }, [baseMapsListings?.length]);
+
+  // handlers
+
+  function handleListingChange(selection) {
+    const id = selection?.length > 0 ? selection[0] : null;
+    setSelectedListingId(id);
+  }
 
   // render
 
@@ -44,8 +80,15 @@ export default function BaseMapSelectorPopover({
       }}
       disableRestoreFocus
     >
-      <Box sx={{ p: 1.5 }}>
+      <Box sx={{ px: 1.5, pt: 1.5, pb: 0.5 }}>
         <Typography variant="subtitle2">Fond de plan</Typography>
+        {baseMapsListings?.length > 1 && (
+          <SelectorVariantChips
+            options={listingOptions}
+            selection={listingSelection}
+            onChange={handleListingChange}
+          />
+        )}
       </Box>
       <Divider />
       <List dense sx={{ maxHeight: 240, overflowY: "auto" }}>

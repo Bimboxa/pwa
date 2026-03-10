@@ -79,12 +79,45 @@ export default async function resolveArticlesNomenclaturesWithQties({
         .anyOf(annotationIds)
         .toArray();
 
+    // ── Step 2b: build parent lookup from mappingCategories ──────────────────
+    // For each nomenclature, map each categoryKey to its parent categoryKeys
+    // based on the "num" hierarchy (e.g. "2.1" is a child of "2").
+    // numToKey: "OUVRAGE|2.1" → "VCT"
+    // keyToNum: "OUVRAGE|VCT" → "2.1"
+    const numToKey = {};
+    const keyToNum = {};
+    for (const mc of mappingCategories) {
+        const nomKey = mc.nomenclature?.key;
+        if (!nomKey) continue;
+        for (const cat of mc.categories ?? []) {
+            numToKey[`${nomKey}|${cat.num}`] = cat.key;
+            keyToNum[`${nomKey}|${cat.key}`] = cat.num;
+        }
+    }
+
     // Index by "nomenclatureKey|categoryKey" → annotationId[]
+    // Also propagate to parent categories based on num hierarchy.
     const relIndex = {};
     for (const rel of allRels) {
         const key = `${rel.nomenclatureKey}|${rel.categoryKey}`;
         if (!relIndex[key]) relIndex[key] = [];
         relIndex[key].push(rel.annotationId);
+
+        // Propagate to parent categories
+        const num = keyToNum[key];
+        if (num && num.includes(".")) {
+            const parts = num.split(".");
+            // Walk up the hierarchy: "2.1.3" → "2.1" → "2"
+            for (let i = parts.length - 1; i >= 1; i--) {
+                const parentNum = parts.slice(0, i).join(".");
+                const parentKey = numToKey[`${rel.nomenclatureKey}|${parentNum}`];
+                if (parentKey) {
+                    const parentRelKey = `${rel.nomenclatureKey}|${parentKey}`;
+                    if (!relIndex[parentRelKey]) relIndex[parentRelKey] = [];
+                    relIndex[parentRelKey].push(rel.annotationId);
+                }
+            }
+        }
     }
 
     // ── Step 3 : resolve qty for each article ────────────────────────────────
