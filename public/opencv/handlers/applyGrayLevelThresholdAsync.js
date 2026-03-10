@@ -52,6 +52,28 @@ async function applyGrayLevelThresholdAsync({ msg, payload }) {
             data[i + 3] = newAlpha;
         }
 
+        // 2b. MORPHOLOGICAL CLOSE on alpha channel (dilate then erode)
+        // Closes small holes left by the threshold
+        const channels = new cv.MatVector();
+        track(channels);
+        cv.split(src, channels);
+        const alpha = channels.get(3); // alpha channel
+        track(alpha);
+
+        const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(2, 2));
+        track(kernel);
+        const closedAlpha = track(new cv.Mat());
+        cv.morphologyEx(alpha, closedAlpha, cv.MORPH_CLOSE, kernel);
+
+        // Put the closed alpha back
+        const mergedChannels = new cv.MatVector();
+        track(mergedChannels);
+        mergedChannels.push_back(channels.get(0));
+        mergedChannels.push_back(channels.get(1));
+        mergedChannels.push_back(channels.get(2));
+        mergedChannels.push_back(closedAlpha);
+        cv.merge(mergedChannels, src);
+
         // 3. EXPORT VERS FILE
         // On crée un ImageData avec les pixels modifiés
         const finalImgData = new ImageData(

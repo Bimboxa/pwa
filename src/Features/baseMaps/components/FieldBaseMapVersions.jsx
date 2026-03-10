@@ -44,6 +44,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
+import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 import db from "App/db/db";
 
 function SortableVersionRow({ version, isSelected, onClick, onDoubleClick }) {
@@ -151,13 +152,7 @@ export default function FieldBaseMapVersions({ baseMap }) {
 
   async function handleActivateVersion(version) {
     if (!baseMap?.id || version.isActive) return;
-    const record = await db.baseMaps.get(baseMap.id);
-    if (!record?.versions) return;
-    const updatedVersions = record.versions.map((v) => ({
-      ...v,
-      isActive: v.id === version.id,
-    }));
-    await db.baseMaps.update(baseMap.id, { versions: updatedVersions });
+    await activateBaseMapVersion(baseMap.id, version.id, dispatch);
   }
 
   async function handleDragEnd(event) {
@@ -165,32 +160,19 @@ export default function FieldBaseMapVersions({ baseMap }) {
     if (!active || !over || active.id === over.id) return;
 
     try {
-      const record = await db.baseMaps.get(baseMap.id);
-      if (!record?.versions) return;
-
-      const sorted = [...record.versions].sort((a, b) =>
-        (a.fractionalIndex || "").localeCompare(b.fractionalIndex || "")
-      );
-
-      const oldIdx = sorted.findIndex((v) => v.id === active.id);
-      const newIdx = sorted.findIndex((v) => v.id === over.id);
+      const oldIdx = sortedVersions.findIndex((v) => v.id === active.id);
+      const newIdx = sortedVersions.findIndex((v) => v.id === over.id);
       if (oldIdx === -1 || newIdx === -1) return;
 
-      // Reorder then reassign all fractional indices to handle duplicates
-      const reordered = arrayMove(sorted, oldIdx, newIdx);
-      const newIndices = {};
+      const reordered = arrayMove([...sortedVersions], oldIdx, newIdx);
       let prev = null;
+      const updates = [];
       for (const v of reordered) {
         const fi = generateKeyBetween(prev, null);
-        newIndices[v.id] = fi;
+        updates.push(db.baseMapVersions.update(v.id, { fractionalIndex: fi }));
         prev = fi;
       }
-
-      const updatedVersions = record.versions.map((v) => ({
-        ...v,
-        fractionalIndex: newIndices[v.id] ?? v.fractionalIndex,
-      }));
-      await db.baseMaps.update(baseMap.id, { versions: updatedVersions });
+      await Promise.all(updates);
     } catch (e) {
       console.error("[FieldBaseMapVersions] DnD reorder error:", e);
     }

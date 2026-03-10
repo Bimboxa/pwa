@@ -69,6 +69,9 @@ export const baseMapEditorSlice = createSlice({
         state.hiddenVersionIds.splice(idx, 1);
       }
     },
+    setHiddenVersionIds: (state, action) => {
+      state.hiddenVersionIds = action.payload;
+    },
   },
 });
 
@@ -82,6 +85,7 @@ export const {
   setSelectedVersionId,
   setVersionTransformOverride,
   toggleVersionHidden,
+  setHiddenVersionIds,
 } = baseMapEditorSlice.actions;
 
 export default baseMapEditorSlice.reducer;

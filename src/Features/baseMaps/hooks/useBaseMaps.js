@@ -61,8 +61,22 @@ export default function useBaseMaps(options) {
       return (a.name || "").localeCompare(b.name || "");
     });
 
+    // Fetch all versions for these baseMaps in a single query
+    const bmIds = records.map((r) => r.id);
+    const allVersions = bmIds.length > 0
+      ? (await db.baseMapVersions.where("baseMapId").anyOf(bmIds).toArray())
+          .filter((v) => !v.deletedAt)
+      : [];
+    const versionsByBaseMapId = {};
+    for (const v of allVersions) {
+      if (!versionsByBaseMapId[v.baseMapId]) versionsByBaseMapId[v.baseMapId] = [];
+      versionsByBaseMapId[v.baseMapId].push(v);
+    }
+
     const _baseMaps = await Promise.all(
-      records.map(async (record) => await BaseMap.createFromRecord(record))
+      records.map(async (record) =>
+        await BaseMap.createFromRecord(record, versionsByBaseMapId[record.id] || [])
+      )
     );
     return _baseMaps;
   }, [projectId, baseMapsUpdatedAt, filterByListingId, filterByProjectId]);

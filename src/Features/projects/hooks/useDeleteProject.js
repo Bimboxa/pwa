@@ -35,6 +35,7 @@ export default function useDeleteProject() {
       await db.projects.delete(projectId);
       await db.scopes.where("projectId").equals(projectId).delete();
       await db.baseMaps.where("projectId").equals(projectId).delete();
+      await db.baseMapVersions.where("projectId").equals(projectId).delete();
       await db.blueprints.where("projectId").equals(projectId).delete();
       await db.listings.where("projectId").equals(projectId).delete();
       await db.annotationTemplates

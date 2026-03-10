@@ -33,6 +33,7 @@ export default function ButtonDialogDeleteBaseMap({ baseMap }) {
 
     async function confirmDelete() {
         setOpen(false);
+        await db.baseMapVersions.where("baseMapId").equals(baseMap.id).delete();
         await db.baseMaps.delete(baseMap.id);
         dispatch(setSelectedBaseMapId(null))
     }

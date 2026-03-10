@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 
+import { useDispatch } from "react-redux";
+
 import {
   Box,
   Typography,
@@ -14,9 +16,11 @@ import CheckIcon from "@mui/icons-material/Check";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import db from "App/db/db";
+import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 
 export default function BaseMapVersionSelectorInTopBar() {
+  const dispatch = useDispatch();
+
   // data
 
   const baseMap = useMainBaseMap();
@@ -51,13 +55,7 @@ export default function BaseMapVersionSelectorInTopBar() {
 
   async function handleSelectVersion(version) {
     if (!baseMap?.id || version.isActive) return;
-    const record = await db.baseMaps.get(baseMap.id);
-    if (!record?.versions) return;
-    const updatedVersions = record.versions.map((v) => ({
-      ...v,
-      isActive: v.id === version.id,
-    }));
-    await db.baseMaps.update(baseMap.id, { versions: updatedVersions });
+    await activateBaseMapVersion(baseMap.id, version.id, dispatch);
     handleClose();
   }
 

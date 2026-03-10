@@ -153,13 +153,7 @@ export default function useVersionDrag({ basePose, viewportRef }) {
 
     // Persist to DB
     if (baseMapId && versionId && finalTransform) {
-      const record = await db.baseMaps.get(baseMapId);
-      if (record?.versions) {
-        const updatedVersions = record.versions.map((v) =>
-          v.id === versionId ? { ...v, transform: finalTransform } : v
-        );
-        await db.baseMaps.update(baseMapId, { versions: updatedVersions });
-      }
+      await db.baseMapVersions.update(versionId, { transform: finalTransform });
     }
 
     lastTransformRef.current = null;

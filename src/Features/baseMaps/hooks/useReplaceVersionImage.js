@@ -21,11 +21,11 @@ function getImageSizeFromFile(file) {
 
 export default function useReplaceVersionImage() {
   return async (baseMapId, versionId, file) => {
-    const record = await db.baseMaps.get(baseMapId);
-    if (!record?.versions) return;
-
-    const version = record.versions.find((v) => v.id === versionId);
+    const version = await db.baseMapVersions.get(versionId);
     if (!version) return;
+
+    const record = await db.baseMaps.get(baseMapId);
+    if (!record) return;
 
     // Store new file in db.files
     const fileExtension = file.name?.split(".").pop() || "png";
@@ -50,23 +50,16 @@ export default function useReplaceVersionImage() {
     });
 
     // Update version's image metadata
-    const updatedVersions = record.versions.map((v) =>
-      v.id === versionId
-        ? {
-            ...v,
-            image: {
-              fileName: newFileName,
-              fileSize: file.size,
-              imageSize,
-              thumbnail,
-              isImage: true,
-              fileType: "IMAGE",
-              fileUpdatedAt: new Date().toISOString(),
-            },
-          }
-        : v
-    );
-
-    await db.baseMaps.update(baseMapId, { versions: updatedVersions });
+    await db.baseMapVersions.update(versionId, {
+      image: {
+        fileName: newFileName,
+        fileSize: file.size,
+        imageSize,
+        thumbnail,
+        isImage: true,
+        fileType: "IMAGE",
+        fileUpdatedAt: new Date().toISOString(),
+      },
+    });
   };
 }

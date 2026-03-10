@@ -46,18 +46,20 @@ export default function useCreateBaseMaps() {
             if (_entity?.id) {
                 const record = await db.baseMaps.get(_entity.id);
                 if (record?.image?.imageSize) {
-                    const initialVersion = {
+                    await db.baseMaps.update(_entity.id, {
+                        refWidth: record.image.imageSize.width,
+                        refHeight: record.image.imageSize.height,
+                    });
+                    await db.baseMapVersions.put({
                         id: nanoid(),
+                        baseMapId: _entity.id,
+                        projectId: record.projectId,
+                        listingId: record.listingId,
                         label: "Image d'origine",
                         fractionalIndex: "a0",
                         isActive: true,
                         image: record.image,
                         transform: { x: 0, y: 0, rotation: 0, scale: 1 },
-                    };
-                    await db.baseMaps.update(_entity.id, {
-                        refWidth: record.image.imageSize.width,
-                        refHeight: record.image.imageSize.height,
-                        versions: [initialVersion],
                     });
                 }
             }

@@ -31,6 +31,7 @@ import SectionVersionTransforms from "./SectionVersionTransforms";
 import { nanoid } from "@reduxjs/toolkit";
 import { generateKeyBetween } from "fractional-indexing";
 import db from "App/db/db";
+import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 
 export default function PanelBaseMapVersionProperties() {
   const dispatch = useDispatch();
@@ -88,22 +89,14 @@ export default function PanelBaseMapVersionProperties() {
   async function handleSetActive() {
     setAnchorEl(null);
     if (!baseMap?.id || !selectedVersionId) return;
-    const record = await db.baseMaps.get(baseMap.id);
-    if (!record?.versions) return;
-    const updatedVersions = record.versions.map((v) => ({
-      ...v,
-      isActive: v.id === selectedVersionId,
-    }));
-    await db.baseMaps.update(baseMap.id, { versions: updatedVersions });
+    await activateBaseMapVersion(baseMap.id, selectedVersionId, dispatch);
   }
 
   async function handleDuplicate() {
     setAnchorEl(null);
     if (!baseMap?.id || !version) return;
-    const record = await db.baseMaps.get(baseMap.id);
-    if (!record?.versions) return;
 
-    const sortedVersions = [...record.versions].sort((a, b) =>
+    const sortedVersions = [...(baseMap.versions || [])].sort((a, b) =>
       (a.fractionalIndex || "").localeCompare(b.fractionalIndex || "")
     );
     const currentIdx = sortedVersions.findIndex(
@@ -116,16 +109,20 @@ export default function PanelBaseMapVersionProperties() {
         : null;
     const newFractionalIndex = generateKeyBetween(afterIndex, beforeIndex);
 
-    const newVersion = {
-      ...version,
+    // Read version record to get raw image metadata (without hydrated ImageObject)
+    const versionRecord = await db.baseMapVersions.get(selectedVersionId);
+
+    await db.baseMapVersions.put({
       id: nanoid(),
+      baseMapId: baseMap.id,
+      projectId: baseMap.projectId,
+      listingId: baseMap.listingId,
       label: `${version.label} (copie)`,
       fractionalIndex: newFractionalIndex,
       isActive: false,
-    };
-
-    const updatedVersions = [...record.versions, newVersion];
-    await db.baseMaps.update(baseMap.id, { versions: updatedVersions });
+      image: versionRecord?.image || version.image,
+      transform: versionRecord?.transform || version.transform || { x: 0, y: 0, rotation: 0, scale: 1 },
+    });
   }
 
   // handlers - label
@@ -136,13 +133,7 @@ export default function PanelBaseMapVersionProperties() {
 
   async function handleLabelBlur() {
     if (labelValue !== null && baseMap?.id && selectedVersionId) {
-      const record = await db.baseMaps.get(baseMap.id);
-      if (record?.versions) {
-        const updatedVersions = record.versions.map((v) =>
-          v.id === selectedVersionId ? { ...v, label: labelValue } : v
-        );
-        await db.baseMaps.update(baseMap.id, { versions: updatedVersions });
-      }
+      await db.baseMapVersions.update(selectedVersionId, { label: labelValue });
     }
     setLabelValue(null);
   }
@@ -238,12 +229,7 @@ export default function PanelBaseMapVersionProperties() {
         onClose={() => setOpenDelete(false)}
         onConfirmAsync={async () => {
           if (!baseMap?.id || !selectedVersionId) return;
-          const record = await db.baseMaps.get(baseMap.id);
-          if (!record?.versions) return;
-          const updatedVersions = record.versions.filter(
-            (v) => v.id !== selectedVersionId
-          );
-          await db.baseMaps.update(baseMap.id, { versions: updatedVersions });
+          await db.baseMapVersions.delete(selectedVersionId);
           dispatch(setSelectedVersionId(null));
           dispatch(
             setSelectedItem({

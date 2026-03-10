@@ -3,6 +3,7 @@ import { generateKeyBetween } from "fractional-indexing";
 
 import db from "App/db/db";
 import generateThumbnail from "Features/images/utils/generateThumbnail";
+import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 
 async function getImageSizeFromFile(file) {
   const url = URL.createObjectURL(file);
@@ -32,8 +33,6 @@ export default function useCreateBaseMapVersion() {
     const record = await db.baseMaps.get(baseMapId);
     if (!record) return;
 
-    const versions = record.versions || [];
-
     // helpers
 
     const versionId = nanoid();
@@ -59,15 +58,27 @@ export default function useCreateBaseMapVersion() {
       listingTable: "baseMaps",
     });
 
-    // Build version metadata
+    // Compute fractionalIndex from existing versions in the table
+    const existingVersions = await db.baseMapVersions
+      .where("baseMapId")
+      .equals(baseMapId)
+      .toArray();
+    const activeVersions = existingVersions
+      .filter((v) => !v.deletedAt)
+      .sort((a, b) =>
+        (a.fractionalIndex || "").localeCompare(b.fractionalIndex || "")
+      );
     const lastIndex =
-      versions.length > 0
-        ? versions[versions.length - 1].fractionalIndex
+      activeVersions.length > 0
+        ? activeVersions[activeVersions.length - 1].fractionalIndex
         : null;
     const fractionalIndex = generateKeyBetween(lastIndex, null);
 
     const newVersion = {
       id: versionId,
+      baseMapId,
+      projectId: record.projectId,
+      listingId: record.listingId,
       label,
       fractionalIndex,
       isActive: true,
@@ -83,11 +94,9 @@ export default function useCreateBaseMapVersion() {
       transform,
     };
 
-    // Deactivate all existing versions, append the new one
-    const updatedVersions = versions.map((v) => ({ ...v, isActive: false }));
-    updatedVersions.push(newVersion);
-
-    await db.baseMaps.update(baseMapId, { versions: updatedVersions });
+    // Deactivate all existing versions, then create the new one
+    await activateBaseMapVersion(baseMapId, null);
+    await db.baseMapVersions.put(newVersion);
 
     return newVersion;
   };

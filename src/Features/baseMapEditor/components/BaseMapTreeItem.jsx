@@ -67,6 +67,7 @@ import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVer
 import IconNewBaseMapVersion from "Features/icons/IconNewBaseMapVersion";
 
 import db from "App/db/db";
+import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 
 function SortableVersionRow({
   version,
@@ -445,13 +446,7 @@ export default function BaseMapTreeItem({ listing }) {
   }
 
   async function handleActivateVersion(baseMap, version) {
-    const record = await db.baseMaps.get(baseMap.id);
-    if (!record?.versions) return;
-    const updatedVersions = record.versions.map((v) => ({
-      ...v,
-      isActive: v.id === version.id,
-    }));
-    await db.baseMaps.update(baseMap.id, { versions: updatedVersions });
+    await activateBaseMapVersion(baseMap.id, version.id, dispatch);
   }
 
   // handlers - edit title
@@ -505,57 +500,62 @@ export default function BaseMapTreeItem({ listing }) {
   }
 
   async function handleDuplicateActiveVersion(baseMap) {
-    const record = await db.baseMaps.get(baseMap.id);
-    if (!record?.versions?.length) return;
+    if (!baseMap?.versions?.length) return;
 
-    const activeVersion =
-      record.versions.find((v) => v.isActive) || record.versions[0];
+    // Read the active version record from the new table
+    const activeVersionHydrated =
+      baseMap.versions.find((v) => v.isActive) || baseMap.versions[0];
+    const activeVersionRecord = await db.baseMapVersions.get(activeVersionHydrated.id);
+    if (!activeVersionRecord) return;
 
     // Copy the image file
     const versionId = nanoid();
-    let newImage = activeVersion.image;
-    if (activeVersion.image?.fileName) {
-      const srcFile = await db.files.get(activeVersion.image.fileName);
+    let newImage = activeVersionRecord.image;
+    if (activeVersionRecord.image?.fileName) {
+      const srcFile = await db.files.get(activeVersionRecord.image.fileName);
       if (srcFile) {
-        const ext = activeVersion.image.fileName.split(".").pop() || "png";
+        const ext = activeVersionRecord.image.fileName.split(".").pop() || "png";
         const newFileName = `version_${versionId}_${baseMap.id}.${ext}`;
         await db.files.put({
           ...srcFile,
           fileName: newFileName,
         });
         newImage = {
-          ...activeVersion.image,
+          ...activeVersionRecord.image,
           fileName: newFileName,
           fileUpdatedAt: new Date().toISOString(),
         };
       }
     }
 
-    // Build new version from active version properties
+    // Compute fractionalIndex
+    const existingVersions = await db.baseMapVersions
+      .where("baseMapId")
+      .equals(baseMap.id)
+      .toArray();
+    const sorted = existingVersions
+      .filter((v) => !v.deletedAt)
+      .sort((a, b) =>
+        (a.fractionalIndex || "").localeCompare(b.fractionalIndex || "")
+      );
     const lastIndex =
-      record.versions.length > 0
-        ? record.versions[record.versions.length - 1].fractionalIndex
-        : null;
+      sorted.length > 0 ? sorted[sorted.length - 1].fractionalIndex : null;
 
-    const newVersion = {
+    // Deactivate all existing versions, then create the new one
+    await activateBaseMapVersion(baseMap.id, null);
+    await db.baseMapVersions.put({
       id: versionId,
-      label: `${activeVersion.label} (copie)`,
+      baseMapId: baseMap.id,
+      projectId: baseMap.projectId,
+      listingId: baseMap.listingId,
+      label: `${activeVersionRecord.label} (copie)`,
       fractionalIndex: generateKeyBetween(lastIndex, null),
       isActive: true,
       image: newImage,
-      transform: activeVersion.transform
-        ? { ...activeVersion.transform }
+      transform: activeVersionRecord.transform
+        ? { ...activeVersionRecord.transform }
         : { x: 0, y: 0, rotation: 0, scale: 1 },
-    };
-
-    // Deactivate all existing versions, append the new one
-    const updatedVersions = record.versions.map((v) => ({
-      ...v,
-      isActive: false,
-    }));
-    updatedVersions.push(newVersion);
-
-    await db.baseMaps.update(baseMap.id, { versions: updatedVersions });
+    });
   }
 
   // render
@@ -725,59 +725,36 @@ export default function BaseMapTreeItem({ listing }) {
                               return;
 
                             try {
-                              const record = await db.baseMaps.get(
-                                baseMap.id
-                              );
-                              if (!record?.versions) return;
-
-                              const sorted = [
-                                ...record.versions,
-                              ].sort((a, b) =>
-                                (
-                                  a.fractionalIndex || ""
-                                ).localeCompare(
-                                  b.fractionalIndex || ""
-                                )
-                              );
-
-                              const oldIdx = sorted.findIndex(
+                              const oldIdx = sortedVersions.findIndex(
                                 (v) => v.id === active.id
                               );
-                              const newIdx = sorted.findIndex(
+                              const newIdx = sortedVersions.findIndex(
                                 (v) => v.id === over.id
                               );
                               if (oldIdx === -1 || newIdx === -1)
                                 return;
 
                               const reordered = arrayMove(
-                                sorted,
+                                [...sortedVersions],
                                 oldIdx,
                                 newIdx
                               );
-                              const newIndices = {};
                               let prev = null;
+                              const updates = [];
                               for (const v of reordered) {
                                 const fi = generateKeyBetween(
                                   prev,
                                   null
                                 );
-                                newIndices[v.id] = fi;
+                                updates.push(
+                                  db.baseMapVersions.update(
+                                    v.id,
+                                    { fractionalIndex: fi }
+                                  )
+                                );
                                 prev = fi;
                               }
-
-                              const updatedVersions =
-                                record.versions.map((v) => ({
-                                  ...v,
-                                  fractionalIndex:
-                                    newIndices[v.id] ??
-                                    v.fractionalIndex,
-                                }));
-                              await db.baseMaps.update(
-                                baseMap.id,
-                                {
-                                  versions: updatedVersions,
-                                }
-                              );
+                              await Promise.all(updates);
                             } catch (e) {
                               console.error(
                                 "[BaseMapTreeItem] DnD reorder error:",

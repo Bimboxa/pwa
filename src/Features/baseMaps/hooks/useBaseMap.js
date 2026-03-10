@@ -12,6 +12,9 @@ export default function useBaseMap(options) {
     if (!id) return null;
     const record = await db.baseMaps.get(id);
     if (!record) return null;
-    return await BaseMap.createFromRecord(record);
+    const versions = (
+      await db.baseMapVersions.where("baseMapId").equals(id).toArray()
+    ).filter((v) => !v.deletedAt);
+    return await BaseMap.createFromRecord(record, versions);
   }, [id]);
 }

@@ -95,7 +95,7 @@ export default class BaseMap {
     return baseMap;
   }
 
-  static async createFromRecord(record) {
+  static async createFromRecord(record, versions = []) {
 
     try {
       if (!record) return null;
@@ -104,11 +104,11 @@ export default class BaseMap {
       const cacheEntry = editor.baseMapsCache[record.id];
 
       // --- Version system: load ALL version images ---
-      if (record.versions?.length > 0) {
+      if (versions?.length > 0) {
         const cachedImages = cacheEntry?.versionImages || {};
 
         const hydratedVersions = await Promise.all(
-          record.versions.map(async (v) => {
+          versions.map(async (v) => {
             const key = getImageCacheKey(v.image);
             let loadedImage =
               cachedImages[v.id]?.key === key

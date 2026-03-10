@@ -43,7 +43,7 @@ export default async function createKrtoZip(scopeId, options) {
 
     // Tables avec projectId + listingId
     const tablesWithProjectIdAndListingId = new Set([
-        "baseMaps", "entities", "maps", "materials", "relsZoneEntity",
+        "baseMaps", "baseMapVersions", "entities", "maps", "materials", "relsZoneEntity",
         "points", "annotations", "annotationTemplates", "files",
     ]);
 

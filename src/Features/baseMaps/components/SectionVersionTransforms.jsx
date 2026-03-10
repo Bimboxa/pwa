@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
 import { setEnhancingBaseMap } from "Features/baseMaps/baseMapsSlice";
+import { setGrayLevelThreshold } from "Features/baseMapEditor/baseMapEditorSlice";
 
 import useBaseMapTransforms from "Features/baseMapTransforms/hooks/useBaseMapTransforms";
 import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
@@ -20,6 +21,7 @@ import {
   FormControlLabel,
   Menu,
   MenuItem,
+  Slider,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -28,6 +30,7 @@ import {
   Delete,
   Stop,
   Compare,
+  Save as SaveIcon,
 } from "@mui/icons-material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
@@ -76,6 +79,18 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
   const [openEditTransform, setOpenEditTransform] = useState(false);
   const [openDeleteTransform, setOpenDeleteTransform] = useState(false);
   const [openCreateTransform, setOpenCreateTransform] = useState(false);
+  // gray level threshold
+  const [grayLevelValue, setGrayLevelValue] = useState(255);
+  const [grayLevelProcessing, setGrayLevelProcessing] = useState(false);
+
+  // effect - sync gray level to viewer and reset on unmount
+  useEffect(() => {
+    dispatch(setGrayLevelThreshold(grayLevelValue));
+  }, [grayLevelValue, dispatch]);
+
+  useEffect(() => {
+    return () => dispatch(setGrayLevelThreshold(255));
+  }, [dispatch]);
 
   // handlers - shared
 
@@ -116,6 +131,25 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
     if (!versionUrl) return;
     const file = await addBackgroundToImage(versionUrl, "#FFFFFF");
     if (file) handleTransformResult(file, "Fond blanc");
+  }
+
+  async function handleGrayLevelConfirm() {
+    if (!versionUrl) return;
+    setGrayLevelProcessing(true);
+    try {
+      const cv = (await import("Features/opencv/services/opencvService")).default;
+      await cv.load();
+      const { processedImageFile } = await cv.applyGrayLevelThresholdAsync({
+        imageUrl: versionUrl,
+        grayLevelThreshold: grayLevelValue,
+      });
+      if (processedImageFile) {
+        handleTransformResult(processedImageFile, "Seuil de gris");
+      }
+    } finally {
+      setGrayLevelProcessing(false);
+      setGrayLevelValue(255);
+    }
   }
 
   // handlers - smart transforms
@@ -291,6 +325,74 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
               Noir et blanc
             </Typography>
           </ListItemButton>
+
+          <Box
+            sx={{
+              borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+              px: 2,
+              py: 1,
+            }}
+          >
+            {/* Line 1: title + save button */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                mb: 0.5,
+              }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                Filtre en niveaux de gris
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={handleGrayLevelConfirm}
+                disabled={grayLevelProcessing || grayLevelValue === 255}
+                title="Enregistrer"
+              >
+                {grayLevelProcessing ? (
+                  <CircularProgress size={18} />
+                ) : (
+                  <SaveIcon fontSize="small" />
+                )}
+              </IconButton>
+            </Box>
+
+            {/* Line 2: slider full width */}
+            <Slider
+              value={255 - grayLevelValue}
+              min={0}
+              max={255}
+              onChange={(e, pos) => setGrayLevelValue(255 - pos)}
+              sx={{
+                height: 12,
+                padding: "6px 0",
+                "& .MuiSlider-rail": {
+                  opacity: 1,
+                  background:
+                    "linear-gradient(90deg, #ffffff 0%, #000000 100%)",
+                  border: "1px solid rgba(0,0,0,0.1)",
+                },
+                "& .MuiSlider-track": {
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #bdbdbd",
+                  opacity: 1,
+                },
+                "& .MuiSlider-thumb": {
+                  height: 22,
+                  width: 22,
+                  backgroundColor: `rgb(${grayLevelValue}, ${grayLevelValue}, ${grayLevelValue})`,
+                  border: `2px solid ${grayLevelValue > 128 ? "#000" : "#fff"}`,
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                  "&:hover": {
+                    boxShadow: "0 0 0 8px rgba(33, 150, 243, 0.16)",
+                  },
+                  "&::before": { boxShadow: "none" },
+                },
+              }}
+            />
+          </Box>
         </List>
       </Box>
 
