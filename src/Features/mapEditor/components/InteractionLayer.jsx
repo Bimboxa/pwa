@@ -76,6 +76,7 @@ import editor from "App/editor";
 import getTopMiddlePoint from 'Features/geometry/utils/getTopMiddlePoint';
 
 import getAnnotationBBox from 'Features/annotations/utils/getAnnotationBbox';
+import orthogonalizePolyline from 'Features/geometry/utils/orthogonalizePolyline';
 
 import { useSmartZoom } from "App/contexts/SmartZoomContext";
 import useUndo from "App/db/useUndo";
@@ -1193,10 +1194,16 @@ const InteractionLayer = forwardRef(({
         x: p.x * baseMapImageScale + baseMapImageOffset.x,
         y: p.y * baseMapImageScale + baseMapImageOffset.y,
       });
-      const localPoints = points.map(toLocal);
-      const localCuts = cuts?.map(cut => ({
+      const rawLocalPoints = points.map(toLocal);
+      const rawLocalCuts = cuts?.map(cut => ({
         ...cut,
         points: cut.points.map(toLocal),
+      }));
+
+      const localPoints = orthogonalizePolyline(rawLocalPoints);
+      const localCuts = rawLocalCuts?.map(cut => ({
+        ...cut,
+        points: orthogonalizePolyline(cut.points),
       }));
 
       const topMiddlePoint = getTopMiddlePoint(localPoints);

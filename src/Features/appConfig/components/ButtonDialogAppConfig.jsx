@@ -1,10 +1,10 @@
-import {useDispatch, useSelector} from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
-import {setOpenAppConfig} from "../appConfigSlice";
+import { setOpenAppConfig } from "../appConfigSlice";
 
 import useAppConfig from "../hooks/useAppConfig";
 
-import {Button, Typography} from "@mui/material";
+import { Button, Typography } from "@mui/material";
 
 import DialogAppConfig from "./DialogAppConfig";
 
@@ -20,7 +20,7 @@ export default function ButtonDialogAppConfig() {
 
   // helpers
 
-  const label = `${appConfig?.name ?? "-?-"}`;
+  const label = `${appConfig?.name + "." ?? "-?-"}`;
 
   // handlers
 
