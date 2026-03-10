@@ -63,10 +63,19 @@ export default function BaseMapContainerSvg({
       ? container.viewBox || computeDefaultViewBox(baseMap, container)
       : null;
 
-  const nonLabelAnnotations = annotations?.filter((a) => a.type !== "LABEL");
+  const disabledTemplates = container.disabledAnnotationTemplates;
+  const visibleAnnotations = disabledTemplates?.length
+    ? annotations?.filter(
+        (a) => !disabledTemplates.includes(a.annotationTemplateId)
+      )
+    : annotations;
+
+  const nonLabelAnnotations = visibleAnnotations?.filter(
+    (a) => a.type !== "LABEL"
+  );
   const labelAnnotations = viewBox
     ? filterAnnotationsByViewBox(
-        annotations?.filter((a) => a.type === "LABEL"),
+        visibleAnnotations?.filter((a) => a.type === "LABEL"),
         viewBox
       )
     : [];
@@ -83,7 +92,11 @@ export default function BaseMapContainerSvg({
     e.stopPropagation();
     if (framingContainerId) return;
     dispatch(
-      setSelectedItem({ id: container.id, type: "BASE_MAP_CONTAINER" })
+      setSelectedItem({
+        id: container.id,
+        type: "BASE_MAP_CONTAINER",
+        portfolioPageId: container.portfolioPageId,
+      })
     );
   }
 
