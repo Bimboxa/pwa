@@ -80,7 +80,7 @@ export default function MainBaseMapViewer() {
             onCreated={handleCreated}
           />
         ) : (
-          <MainMapEditorV3 />
+          <MainMapEditorV3 forViewerKey="BASE_MAPS" />
         )}
       </Box>
     </Box>

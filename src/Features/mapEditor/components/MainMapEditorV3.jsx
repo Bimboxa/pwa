@@ -59,6 +59,7 @@ import PopperMapListings from "./PopperMapListings";
 
 
 import { InteractionProvider } from "../context/InteractionContext";
+import { SmartZoomProvider } from "App/contexts/SmartZoomContext";
 
 import db from "App/db/db";
 import editor from "App/editor";
@@ -98,7 +99,7 @@ const contextNormalStyle = {
 };
 
 
-export default function MainMapEditorV3() {
+export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const dispatch = useDispatch();
 
     // const
@@ -138,6 +139,7 @@ export default function MainMapEditorV3() {
     const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
     const grayLevelThreshold = useSelector((s) => s.baseMapEditor.grayLevelThreshold);
     const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+    const isActiveViewer = viewerKey === forViewerKey;
     const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
     const selectedVersionId = useSelector((s) => s.baseMapEditor.selectedVersionId);
     const versionTransformOverride = useSelector((s) => s.baseMapEditor.versionTransformOverride);
@@ -962,9 +964,11 @@ export default function MainMapEditorV3() {
     }, [baseMaps?.length]);
 
     return (
+        <SmartZoomProvider>
         <Box ref={containerRef} sx={{ width: '100%', height: '100%', position: "relative", bgcolor: "background.default" }}>
             <InteractionProvider>
                 <InteractionLayer
+                    isActiveViewer={isActiveViewer}
                     enabledDrawingMode={enabledDrawingMode}
                     selectedNode={selectedNode}
                     selectedNodes={selectedNodes}
@@ -1129,6 +1133,6 @@ export default function MainMapEditorV3() {
 
             <PopperMapListings />
         </Box>
-
+        </SmartZoomProvider>
     );
 }
