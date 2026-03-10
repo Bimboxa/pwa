@@ -92,6 +92,10 @@ export const selectionSlice = createSlice({
           item.id = item.listingId;
           item.listingId = item.listingId;
         }
+        else if (item.type === "BASE_MAP_CONTAINER") {
+          item.type = "PORTFOLIO_PAGE";
+          item.id = item.portfolioPageId;
+        }
         else if (item.type === "BASE_MAP") {
           item.type = "LISTING";
           item.id = item.listingId;

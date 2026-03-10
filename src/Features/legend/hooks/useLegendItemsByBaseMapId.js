@@ -4,7 +4,7 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 
-export default function useLegendItemsByBaseMapId(baseMapId, { viewBox } = {}) {
+export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabledAnnotationTemplates, includeHidden } = {}) {
   // data
 
   const annotationTemplates = useAnnotationTemplates();
@@ -32,7 +32,9 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox } = {}) {
     const templateId = annotation.annotationTemplateId;
     if (templateId) {
       const template = annotationTemplateById[templateId];
-      if (!idsMap[templateId] && !template?.hidden) {
+      const isTemplateHidden = template?.hidden && !includeHidden;
+      const isDisabledInContainer = !includeHidden && disabledAnnotationTemplates?.includes(templateId);
+      if (!idsMap[templateId] && !isTemplateHidden && !isDisabledInContainer) {
         idsMap[templateId] = annotation;
         const { iconKey, fillColor, strokeColor, type, closeLine, listingName, variant, strokeType, fillType } =
           annotation;
