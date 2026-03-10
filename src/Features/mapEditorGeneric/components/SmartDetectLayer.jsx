@@ -202,8 +202,8 @@ const SmartDetectLayer = forwardRef(({
                     const scaleX = currentRoi.width / loupeSize;
                     const scaleY = currentRoi.height / loupeSize;
                     const point = {
-                        x: (currentRoi.x + (x * scaleX)) / baseMapImageScale + baseMapImageOffset.x,
-                        y: (currentRoi.y + (y * scaleY)) / baseMapImageScale + baseMapImageOffset.y,
+                        x: (currentRoi.x + (x * scaleX)) * baseMapImageScale + baseMapImageOffset.x,
+                        y: (currentRoi.y + (y * scaleY)) * baseMapImageScale + baseMapImageOffset.y,
                     };
                     detectedShape = { type: 'POINT', points: [point] };
                 }
@@ -216,8 +216,8 @@ const SmartDetectLayer = forwardRef(({
                     const scaleY = currentRoi.height / loupeSize;
                     const points = bestL.points.map(p => (
                         {
-                            x: (currentRoi.x + (p.x * scaleX)) / baseMapImageScale + baseMapImageOffset.x,
-                            y: (currentRoi.y + (p.y * scaleY)) / baseMapImageScale + baseMapImageOffset.y,
+                            x: (currentRoi.x + (p.x * scaleX)) * baseMapImageScale + baseMapImageOffset.x,
+                            y: (currentRoi.y + (p.y * scaleY)) * baseMapImageScale + baseMapImageOffset.y,
                         }));
                     detectedShape = { type: 'LINE', points };
                 }
@@ -227,8 +227,8 @@ const SmartDetectLayer = forwardRef(({
                     const scaleX = currentRoi.width / loupeSize;
                     const scaleY = currentRoi.height / loupeSize;
                     const points = result.mainRectangle.points.map(p => ({
-                        x: (currentRoi.x + (p.x * scaleX)) / baseMapImageScale + baseMapImageOffset.x,
-                        y: (currentRoi.y + (p.y * scaleY)) / baseMapImageScale + baseMapImageOffset.y,
+                        x: (currentRoi.x + (p.x * scaleX)) * baseMapImageScale + baseMapImageOffset.x,
+                        y: (currentRoi.y + (p.y * scaleY)) * baseMapImageScale + baseMapImageOffset.y,
                     }));
                     detectedShape = { type: 'RECTANGLE', points };
                 }

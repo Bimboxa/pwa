@@ -393,10 +393,10 @@ const InteractionLayer = forwardRef(({
     const localPos = toLocalCoords(worldPos);
 
     const sourceROI = {
-      x: (localPos.x - sourceWidthInImage / 2 - baseMapImageOffset.x) * baseMapImageScale,
-      y: (localPos.y - sourceHeightInImage / 2 - baseMapImageOffset.y) * baseMapImageScale,
-      width: sourceWidthInImage * baseMapImageScale,
-      height: sourceHeightInImage * baseMapImageScale
+      x: (localPos.x - sourceWidthInImage / 2 - baseMapImageOffset.x) / baseMapImageScale,
+      y: (localPos.y - sourceHeightInImage / 2 - baseMapImageOffset.y) / baseMapImageScale,
+      width: sourceWidthInImage / baseMapImageScale,
+      height: sourceHeightInImage / baseMapImageScale
     };
 
     // B. VISUEL : Positionner la loupe avec les coordonnées LOCALES (viewportPos)
@@ -1158,7 +1158,12 @@ const InteractionLayer = forwardRef(({
     // -- CASE 4: SURFACE_DROP (opencv contour detection)
     else if (enabledDrawingMode === "SURFACE_DROP") {
       await cv.load();
-      let finalPos = toLocalCoords(worldPos);
+      const localPos = toLocalCoords(worldPos);
+
+      // Convert local coords to source image pixel coords
+      const pixelX = (localPos.x - baseMapImageOffset.x) / baseMapImageScale;
+      const pixelY = (localPos.y - baseMapImageOffset.y) / baseMapImageScale;
+
       const viewportBounds = editor.viewportInBase?.bounds;
       let viewportBBox;
       if (
@@ -1169,27 +1174,38 @@ const InteractionLayer = forwardRef(({
         Number.isFinite(viewportBounds.height)
       ) {
         viewportBBox = {
-          x: viewportBounds.x,
-          y: viewportBounds.y,
-          width: Math.max(1, viewportBounds.width),
-          height: Math.max(1, viewportBounds.height),
+          x: (viewportBounds.x - baseMapImageOffset.x) / baseMapImageScale,
+          y: (viewportBounds.y - baseMapImageOffset.y) / baseMapImageScale,
+          width: Math.max(1, viewportBounds.width / baseMapImageScale),
+          height: Math.max(1, viewportBounds.height / baseMapImageScale),
         };
       }
 
       const { points, cuts } = await cv.detectContoursAsync({
         imageUrl: baseMapImageUrl,
-        x: finalPos.x,
-        y: finalPos.y,
+        x: pixelX,
+        y: pixelY,
         viewportBBox,
       });
 
-      const topMiddlePoint = getTopMiddlePoint(points);
+      // Convert returned points from source pixel coords back to local coords
+      const toLocal = (p) => ({
+        x: p.x * baseMapImageScale + baseMapImageOffset.x,
+        y: p.y * baseMapImageScale + baseMapImageOffset.y,
+      });
+      const localPoints = points.map(toLocal);
+      const localCuts = cuts?.map(cut => ({
+        ...cut,
+        points: cut.points.map(toLocal),
+      }));
+
+      const topMiddlePoint = getTopMiddlePoint(localPoints);
       const pose = getTargetPose(); // getTargetPose retourne basePose par défaut
       const worldX = topMiddlePoint.x * pose.k + pose.x;
       const worldY = topMiddlePoint.y * pose.k + pose.y;
       const screenPos = viewportRef.current?.worldToScreen(worldX, worldY);
       if (onCommitPointsFromSurfaceDrop) {
-        onCommitPointsFromSurfaceDrop({ points, cuts, screenPos });
+        onCommitPointsFromSurfaceDrop({ points: localPoints, cuts: localCuts, screenPos });
       }
       dispatch(setEnabledDrawingMode(null));
     }
