@@ -39,10 +39,12 @@ export function PopperDragHandle({ children, sx, ...props }) {
   return (
     <Box
       onMouseDown={startDrag}
+      onDragStart={(e) => e.preventDefault()}
+      draggable={false}
       sx={{
         cursor: "grab",
         "&:active": { cursor: "grabbing" },
-        // On fusionne les styles passés en props
+        userSelect: "none",
         ...sx
       }}
       {...props}
@@ -157,6 +159,8 @@ export default function PopperBox({
                   position: 'relative',
                   transform: `translate(${position.x}px, ${position.y}px)`,
                   transition: isDragging.current ? 'none' : 'transform 0.1s ease-out',
+                  willChange: 'transform',
+                  userSelect: isDragging.current ? 'none' : 'auto',
                 }}
               >
                 {/* --- 4. PROVIDER : On expose la fonction de drag --- */}

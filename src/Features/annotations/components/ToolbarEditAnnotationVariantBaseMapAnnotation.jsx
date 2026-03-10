@@ -11,7 +11,6 @@ import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import { Box, IconButton, Paper } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 
-import FieldAnnotationLabel from "./FieldAnnotationLabel";
 import FieldAnnotationColor from "./FieldAnnotationColor";
 import FieldAnnotationIsEraser from "./FieldAnnotationIsEraser";
 import IconButtonToggleAnnotationCloseLine from "./IconButtonToggleAnnotationCloseLine";
@@ -78,7 +77,6 @@ export default function ToolbarEditAnnotationVariantBaseMapAnnotation() {
 
       {type === "POLYGON" && (
         <Box sx={{ display: "flex", alignItems: "center", mr: 1, gap: 1 }}>
-          <FieldAnnotationLabel annotation={selectedAnnotation} onChange={handleChange} />
           <FieldAnnotationColor annotation={selectedAnnotation} onChange={handleChange} />
           <FieldAnnotationIsEraser annotation={selectedAnnotation} onChange={handleChange} />
         </Box>
@@ -86,15 +84,8 @@ export default function ToolbarEditAnnotationVariantBaseMapAnnotation() {
 
       {type === "POLYLINE" && (
         <Box sx={{ display: "flex", alignItems: "center", mr: 1, gap: 1 }}>
-          <FieldAnnotationLabel annotation={selectedAnnotation} onChange={handleChange} />
           <FieldAnnotationColor annotation={selectedAnnotation} onChange={handleChange} />
           <IconButtonToggleAnnotationCloseLine annotation={selectedAnnotation} />
-        </Box>
-      )}
-
-      {type === "IMAGE" && (
-        <Box sx={{ display: "flex", alignItems: "center", mr: 1, gap: 1 }}>
-          <FieldAnnotationLabel annotation={selectedAnnotation} onChange={handleChange} />
         </Box>
       )}
 

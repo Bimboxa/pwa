@@ -1,5 +1,10 @@
 import db from "App/db/db";
-import { setHiddenVersionIds } from "Features/baseMapEditor/baseMapEditorSlice";
+import store from "App/store";
+import {
+  setHiddenVersionIds,
+  setSelectedVersionId,
+} from "Features/baseMapEditor/baseMapEditorSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
 
 export default async function activateBaseMapVersion(
   baseMapId,
@@ -29,5 +34,21 @@ export default async function activateBaseMapVersion(
       .filter((v) => v.id !== versionId)
       .map((v) => v.id);
     dispatch(setHiddenVersionIds(hiddenIds));
+
+    // If a version is currently selected, update selection to the newly activated version
+    if (versionId) {
+      const selectedItem = store.getState().selection.selectedItems[0];
+      if (selectedItem?.type === "BASE_MAP_VERSION") {
+        dispatch(setSelectedVersionId(versionId));
+        dispatch(
+          setSelectedItem({
+            id: versionId,
+            type: "BASE_MAP_VERSION",
+            listingId: selectedItem.listingId,
+            baseMapId,
+          })
+        );
+      }
+    }
   }
 }

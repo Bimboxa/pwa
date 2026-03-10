@@ -1120,8 +1120,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             <DialogDeleteSelectedAnnotation />
             <DialogAutoCreateEntity />
-            <PopperEditAnnotation viewerKey={viewerKey} />
-            <PopperEditAnnotations viewerKey={viewerKey} allAnnotations={annotations} />
+            <PopperEditAnnotation viewerKey={forViewerKey} />
+            <PopperEditAnnotations viewerKey={forViewerKey} allAnnotations={annotations} />
             <PopperEditScale />
             <PopperContextMenu />
 

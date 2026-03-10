@@ -41,6 +41,7 @@ import SectionCompareTwoImages from "Features/baseMapTransforms/components/Secti
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
+import ToolMergeVisibleAnnotations from "Features/baseMapEditor/components/ToolMergeVisibleAnnotations";
 import convertToBlackAndWhite from "Features/images/utils/convertToBlackAndWhite";
 import addBackgroundToImage from "Features/images/utils/addBackgroundToImage";
 import enhanceBaseMapService, {
@@ -109,12 +110,31 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
 
   async function handleSave() {
     if (!tempResult?.file || !baseMap?.id || !versionId) return;
+
+    // Compute transform so a smaller AI image overlays the original at the same size
+    const originalTransform = baseMap.getActiveVersionTransform();
+    const originalImageSize = baseMap.getActiveImageSize();
+    let transform;
+    if (originalImageSize && tempResult.objectUrl) {
+      const newSize = await new Promise((resolve) => {
+        const img = new window.Image();
+        img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onerror = () => resolve(null);
+        img.src = tempResult.objectUrl;
+      });
+      if (newSize && newSize.width > 0) {
+        const scale = (originalImageSize.width * (originalTransform.scale || 1)) / newSize.width;
+        transform = { ...originalTransform, scale };
+      }
+    }
+
     if (createNewVersion) {
       await createVersion(baseMap.id, tempResult.file, {
         label: tempResult.label,
+        transform,
       });
     } else {
-      await replaceVersionImage(baseMap.id, versionId, tempResult.file);
+      await replaceVersionImage(baseMap.id, versionId, tempResult.file, { transform });
     }
     handleCloseCompare();
   }
@@ -393,6 +413,8 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
               }}
             />
           </Box>
+
+          <ToolMergeVisibleAnnotations baseMap={baseMap} onResult={handleTransformResult} />
         </List>
       </Box>
 

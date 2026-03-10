@@ -5,6 +5,7 @@ import ToolConvertToBlackAndWhite from "./ToolConvertToBlackAndWhite";
 import ToolRemoveGrayLevel from "./ToolRemoveGrayLevel";
 import ToolCropBaseMapImage from "./ToolCropBaseMapImage";
 import ListItemButtonBaseMapRotate from "./ListItemButtonBaseMapRotate";
+import ToolMergeVisibleAnnotations from "./ToolMergeVisibleAnnotations";
 
 export default function SectionBaseMapBasicTransforms({ baseMap }) {
     return <Box sx={{ width: 1, bgcolor: "white" }}>
@@ -13,5 +14,6 @@ export default function SectionBaseMapBasicTransforms({ baseMap }) {
         <ToolRemoveGrayLevel />
         <ToolCropBaseMapImage baseMap={baseMap} />
         <ListItemButtonBaseMapRotate baseMap={baseMap} />
+        <ToolMergeVisibleAnnotations baseMap={baseMap} />
     </Box>
 }

@@ -1,4 +1,6 @@
 import { useSelector, useDispatch } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
+
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
@@ -6,6 +8,7 @@ import useSelectedNodes from "../hooks/useSelectedNodes";
 
 import { setAnnotationToolbarPosition } from "../mapEditorSlice";
 
+import db from "App/db/db";
 import PopperBox from "Features/layout/components/PopperBox";
 import ToolbarEditAnnotation from "Features/annotations/components/ToolbarEditAnnotation";
 import ToolbarEditAnnotationVariantBaseMapAnnotation from "Features/annotations/components/ToolbarEditAnnotationVariantBaseMapAnnotation";
@@ -44,7 +47,11 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
 
   // helper - isBaseMapAnnotation
 
-  const isBaseMapAnnotation = selectedAnnotation?.isBaseMapAnnotation;
+  const listing = useLiveQuery(
+    () => selectedAnnotation?.listingId ? db.listings.get(selectedAnnotation.listingId) : null,
+    [selectedAnnotation?.listingId]
+  );
+  const isBaseMapAnnotation = listing?.isForBaseMaps === true;
 
   // helper - anchorPlacement
 

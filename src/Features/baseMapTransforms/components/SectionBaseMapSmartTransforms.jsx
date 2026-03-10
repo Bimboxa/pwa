@@ -6,6 +6,7 @@ import { setEnhancingBaseMap } from "Features/baseMaps/baseMapsSlice";
 import useBaseMapTransforms from "../hooks/useBaseMapTransforms";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
+import useReplaceVersionImage from "Features/baseMaps/hooks/useReplaceVersionImage";
 
 import {
     Box,
@@ -17,7 +18,9 @@ import {
     Menu,
     MenuItem,
     Typography,
-    CircularProgress
+    CircularProgress,
+    Checkbox,
+    FormControlLabel,
 } from "@mui/material";
 import { MoreVert, Edit, Delete, Stop, Compare } from "@mui/icons-material";
 
@@ -34,6 +37,15 @@ import enhanceBaseMapService from "Features/baseMaps/services/enhanceBaseMapServ
 import { cancelEnhanceBaseMap } from "Features/baseMaps/services/enhanceBaseMapService";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
+function getImageSizeFromUrl(url) {
+    return new Promise((resolve) => {
+        const img = new window.Image();
+        img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onerror = () => resolve(null);
+        img.src = url;
+    });
+}
+
 export default function SectionBaseMapTransforms() {
 
     const dispatch = useDispatch();
@@ -48,6 +60,7 @@ export default function SectionBaseMapTransforms() {
         (s) => s.baseMaps?.enhancingBaseMapIds?.[baseMap?.id]
     );
     const createVersion = useCreateBaseMapVersion();
+    const replaceVersionImage = useReplaceVersionImage();
 
     // --- State ---
     const [menuAnchor, setMenuAnchor] = useState(null);
@@ -55,6 +68,7 @@ export default function SectionBaseMapTransforms() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [openDelete, setOpenDelete] = useState(false);
     const [openCompare, setOpenCompare] = useState(false);
+    const [createNewVersion, setCreateNewVersion] = useState(false);
 
     // State pour savoir quel ID de transform est en cours de traitement
     const enhancingTransformId = enhancingBaseMap?.transformId;
@@ -149,11 +163,32 @@ export default function SectionBaseMapTransforms() {
     };
 
     async function handleEnhanceImage() {
-        if (!enhancedResult?.blob) return;
-        const file = new File([enhancedResult.blob], "enhanced.png");
+        if (!enhancedResult?.objectUrl || !baseMap?.id) return;
+        const freshBlob = await fetch(enhancedResult.objectUrl).then((r) => r.blob());
+        const file = new File([freshBlob], "enhanced.png", { type: "image/png" });
         const transformName = activeTransform?.name || "Smart transform";
-        await createVersion(baseMap.id, file, { label: transformName });
-        setOpenCompare(false)
+
+        // Compute transform so the AI image overlays the original at the same size
+        const originalTransform = baseMap.getActiveVersionTransform();
+        const originalImageSize = baseMap.getActiveImageSize();
+        const newImageSize = await getImageSizeFromUrl(enhancedResult.objectUrl);
+        let transform;
+        if (originalImageSize && newImageSize && newImageSize.width > 0) {
+            const scale = (originalImageSize.width * (originalTransform.scale || 1)) / newImageSize.width;
+            transform = { ...originalTransform, scale };
+        }
+
+        if (createNewVersion) {
+            await createVersion(baseMap.id, file, { label: transformName, transform });
+        } else {
+            const activeVersion = baseMap.getActiveVersion();
+            if (activeVersion) {
+                await replaceVersionImage(baseMap.id, activeVersion.id, file, { transform });
+            } else {
+                await createVersion(baseMap.id, file, { label: transformName, transform });
+            }
+        }
+        setOpenCompare(false);
     }
 
     // --- Render ---
@@ -273,9 +308,35 @@ export default function SectionBaseMapTransforms() {
                             imageUrl1={enhancedResult.objectUrl}
 
                         />
-                        <Box sx={{ position: "absolute", bottom: "8px", right: "8px" }}>
+                        <Box sx={{
+                            position: "absolute",
+                            bottom: 8,
+                            right: 8,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            bgcolor: "white",
+                            borderRadius: 1,
+                            px: 1.5,
+                            py: 0.5,
+                            boxShadow: 2,
+                        }}>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={createNewVersion}
+                                        onChange={(e) => setCreateNewVersion(e.target.checked)}
+                                        size="small"
+                                    />
+                                }
+                                label={
+                                    <Typography variant="caption" color="text.primary">
+                                        Nouvelle version
+                                    </Typography>
+                                }
+                            />
                             <ButtonGeneric
-                                label="Utiliser l'image modifiée"
+                                label="Enregistrer"
                                 variant="contained"
                                 color="secondary"
                                 onClick={handleEnhanceImage}
