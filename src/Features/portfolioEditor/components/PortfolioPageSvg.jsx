@@ -12,7 +12,7 @@ import { setFramingContainerId } from "Features/portfolioBaseMapContainers/portf
 import { setSourceContainer, clearSourceContainer } from "Features/baseMapCreator/baseMapCreatorSlice";
 
 import { Box } from "@mui/material";
-import { Edit, CropFree, RestartAlt } from "@mui/icons-material";
+import { Draw, CropFree, RestartAlt } from "@mui/icons-material";
 
 import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
@@ -323,11 +323,12 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
           }}
         >
           <ButtonGeneric
-            label="Modifier le repérage"
+            label="Repérer"
             variant="outlined"
             size="small"
-            startIcon={<Edit />}
+            startIcon={<Draw />}
             onClick={handleEditInMap}
+            sx={{ bgcolor: "white" }}
           />
           <ButtonGeneric
             label="Cadrer"
@@ -335,6 +336,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
             size="small"
             startIcon={<CropFree />}
             onClick={handleFrame}
+            sx={{ bgcolor: "white" }}
           />
         </Box>
       )}

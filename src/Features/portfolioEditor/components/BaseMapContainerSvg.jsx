@@ -186,6 +186,7 @@ export default function BaseMapContainerSvg({
                 annotation={annotation}
                 imageSize={imageSize}
                 baseMapMeterByPx={meterByPx}
+                containerK={containerK}
                 printMode
               />
             ))}
