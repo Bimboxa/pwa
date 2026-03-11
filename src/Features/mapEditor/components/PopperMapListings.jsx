@@ -598,6 +598,9 @@ export default function PopperMapListings() {
     (s) => s.listings.hiddenListingsIds || []
   );
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const showMapListingsPanel = useSelector(
+    (s) => s.mapEditor.showMapListingsPanel
+  );
   const isBaseMapsViewer = viewerKey === "BASE_MAPS";
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
@@ -670,6 +673,8 @@ export default function PopperMapListings() {
   if (Boolean(enabledDrawingMode)) {
     return <PopperDrawingHelper />;
   }
+
+  if (isBaseMapsViewer && !showMapListingsPanel) return null;
 
   if (!displayedListings?.length && !openCreateListing && !isBaseMapsViewer) return null;
 

@@ -12,6 +12,7 @@ import SectionShowedFWC from "Features/fwc/components/SectionShowedFWC";
 import ButtonRunningTransform from "Features/baseMapTransforms/components/ButtonRunningTransform";
 import SelectorMapEditorMode from "./SelectorMapEditorMode";
 import SectionDefaultHeight from "./SectionDefaultHeight";
+import SelectorDrawingPanel from "./SelectorDrawingPanel";
 
 
 export default function UILayerDesktop({ mapController, onResetCamera, viewport }) {
@@ -23,6 +24,8 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
     const viewerKey = useSelector(s => s.viewers.selectedViewerKey);
 
     const { basePose } = useInteraction();
+
+    const isBaseMapsViewer = viewerKey === "BASE_MAPS";
 
     // helpers
 
@@ -133,6 +136,17 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
             }}>
                 <SelectorMapEditorMode />
             </Box>
+
+            {isBaseMapsViewer && (
+                <Box sx={{
+                    position: "absolute",
+                    left: "16px",
+                    top: "16px",
+                    zIndex: 1,
+                }}>
+                    <SelectorDrawingPanel />
+                </Box>
+            )}
         </>
     );
 }

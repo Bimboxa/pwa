@@ -12,6 +12,7 @@ const mapEditorInitialState = {
   loadedMainBaseMapId: null,
   //
   showShapes: true,
+  showMapListingsPanel: false,
   //
   mapEditorMode: "SELECT", // "SELECT", "DRAW"
   enabledDrawingMode: null, // "CLICK", "RECTANGLE", "SURFACE_DROP",
@@ -107,6 +108,9 @@ export const mapEditorSlice = createSlice({
     },
     setShowShapes: (state, action) => {
       state.showShapes = action.payload;
+    },
+    toggleShowMapListingsPanel: (state) => {
+      state.showMapListingsPanel = !state.showMapListingsPanel;
     },
     setEnabledDrawingMode: (state, action) => {
       const drawingMode = action.payload;
@@ -334,6 +338,7 @@ export const {
   setLoadedMainBaseMapId,
   //
   setShowShapes,
+  toggleShowMapListingsPanel,
   setEnabledDrawingMode,
   setMapEditorMode,
   //
