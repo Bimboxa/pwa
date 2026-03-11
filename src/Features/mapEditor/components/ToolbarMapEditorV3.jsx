@@ -13,18 +13,11 @@ import FieldNewAnnotationColor from "./FieldNewAnnotationColor";
 import ButtonDrawMarker from "./ButtonDrawMarker";
 import ButtonDrawPolygon from "./ButtonDrawPolygon";
 import ButtonDrawPolyline from "./ButtonDrawPolyline";
-import ButtonDrawCut from "./ButtonDrawCut";
-import ButtonDrawSplit from "./ButtonDrawSplit";
 import ButtonDrawLabel from "./ButtonDrawLabel";
-import ButtonDrawImage from "./ButtonDrawImage";
 import ButtonEditScale from "./ButtonEditScale";
 import ButtonDrawStrip from "./ButtonDrawStrip";
 
-import IconButtonStartTransformer from "Features/transformers/components/IconButtonStartTransformer";
-import IconButtonSmartDetectLine from "Features/smartDetect/components/IconButtonSmartDetectLine";
-
 import ToolbarEnabledDrawingMode from "./ToolbarEnabledDrawingMode";
-import ToolbarNewAnnotation from "Features/annotations/components/ToolbarNewAnnotation";
 
 
 export default function ToolbarMapEditorV3() {
@@ -85,17 +78,6 @@ export default function ToolbarMapEditorV3() {
             </Box>
 
         </Paper >}
-
-        <Paper sx={{ display: "flex", alignItems: "center", p: 0.5, px: 1, borderRadius: 2, gap: 0.5 }}>
-            <ButtonDrawCut />
-            <ButtonDrawSplit />
-            <ButtonDrawImage />
-            {/* <ButtonDrawLabel /> */}
-            {/* <ButtonDrawMarker /> */}
-            {/* <IconButtonStartTransformer /> */}
-            {/* <IconButtonSmartDetectLine /> */}
-
-        </Paper>
 
         {meterByPx && < Paper sx={{ display: "flex", alignItems: "center", p: 0.5, px: 1, borderRadius: 2 }}>
             <ButtonEditScale />

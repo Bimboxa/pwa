@@ -885,7 +885,7 @@ const InteractionLayer = forwardRef(({
                 commitPoint();
               }
 
-              else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE"].includes(enabledDrawingMode) && newPoints.length === 2) {
+              else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode) && newPoints.length === 2) {
                 commitPolyline();
               }
 
@@ -929,7 +929,7 @@ const InteractionLayer = forwardRef(({
           break;
 
         case "Enter":
-          if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "BRUSH"].includes(enabledDrawingModeRef.current)) {
+          if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "BRUSH"].includes(enabledDrawingModeRef.current)) {
             commitPolyline();
           }
 
@@ -1078,7 +1078,7 @@ const InteractionLayer = forwardRef(({
       }
     }
 
-    if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK"].includes(enabledDrawingMode)) {
+    if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK"].includes(enabledDrawingMode)) {
       // Apply snapping if Shift is pressed
       let finalPos = toLocalCoords(worldPos);
       if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
@@ -1109,7 +1109,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- CASE 3: MEASURE / SEGMENT (Auto-commit after 2 points) ---
-    else if (["MEASURE", "SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE"].includes(enabledDrawingMode)) {
+    else if (["MEASURE", "SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
       // Apply Angle Snap (Ortho) if Shift is held and it's the 2nd point
@@ -1139,7 +1139,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- CASE 3b: CIRCLE (Auto-commit after 3 points) ---
-    else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE"].includes(enabledDrawingMode)) {
+    else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
       if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
@@ -1578,7 +1578,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -1676,7 +1676,7 @@ const InteractionLayer = forwardRef(({
     if (enabledDrawingMode) {
 
       // SPLIT at vertex: if clicking a VERTEX snap on a POLYLINE/STRIP, split immediately
-      if (enabledDrawingMode === "CLICK"
+      if (["CLICK", "SPLIT_CLICK"].includes(enabledDrawingMode)
         && newAnnotation?.type === "SPLIT"
         && snap.type === "VERTEX"
         && ["POLYLINE", "STRIP"].includes(snap.annotationType)
@@ -1715,7 +1715,7 @@ const InteractionLayer = forwardRef(({
         commitPoint();
       }
 
-      else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "MEASURE", "SEGMENT"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
+      else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "MEASURE", "SEGMENT"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
         commitPolyline(e); // add "e" to get clientX & clientY to set the measurePopper anchor position.
       }
 

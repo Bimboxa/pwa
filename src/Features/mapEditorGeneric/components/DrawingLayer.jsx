@@ -23,8 +23,8 @@ const DrawingLayer = forwardRef(({
 
     // Détection des types
     const isPolygon = type === "POLYGON";
-    const drawRectangle = ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE"].includes(enabledDrawingMode);
-    const drawCircle = ["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE"].includes(enabledDrawingMode);
+    const drawRectangle = ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode);
+    const drawCircle = ["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode);
 
     const firstPoint = points?.[0];
 

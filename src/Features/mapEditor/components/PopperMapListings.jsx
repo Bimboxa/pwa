@@ -30,12 +30,20 @@ import { Edit, Check, Close } from "@mui/icons-material";
 import db from "App/db/db";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
+import { StopCircle } from "@mui/icons-material";
+import ContentCut from "@mui/icons-material/ContentCut";
+
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import ToolbarCreateAnnotationFromTabAnnotationTemplates from "Features/annotations/components/ToolbarCreateAnnotationFromTabAnnotationTemplates";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import SectionSmartDetect from "Features/smartDetect/components/SectionSmartDetect";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
+import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
+
+import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
+import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import { getDrawingToolsByType } from "Features/mapEditor/constants/drawingTools.jsx";
 
 import useListings from "Features/listings/hooks/useListings";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
@@ -43,6 +51,171 @@ import useAnnotationTemplateCountById from "Features/annotations/hooks/useAnnota
 import useAnnotationTemplateQtiesById from "Features/annotations/hooks/useAnnotationTemplateQtiesById";
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
+
+// ---------------------------------------------------------------------------
+// TOOL_ITEMS — static tool definitions for the "Outils" section
+// ---------------------------------------------------------------------------
+
+const TOOL_ITEMS = [
+  { type: "CUT", label: "Ouverture", Icon: StopCircle },
+  { type: "SPLIT", label: "Diviser", Icon: ContentCut },
+];
+
+// ---------------------------------------------------------------------------
+// ToolRow — one tool item with hover popper (like AnnotationTemplateRow)
+// ---------------------------------------------------------------------------
+
+function ToolRow({ type, label, Icon }) {
+  const dispatch = useDispatch();
+  const enabledDrawingMode = useSelector(
+    (s) => s.mapEditor.enabledDrawingMode
+  );
+  const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
+
+  // state
+
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const hoverTimeoutRef = useRef(null);
+  const isOpen = Boolean(anchorEl);
+
+  // helpers
+
+  const tools = getDrawingToolsByType(type);
+  const options = tools.map(({ key, label: toolLabel, Icon: ToolIcon }) => ({
+    key,
+    label: toolLabel,
+    icon: <ToolIcon />,
+  }));
+
+  // handlers
+
+  const handleListItemEnter = (event) => {
+    setIsHovered(true);
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleListItemLeave = () => {
+    setIsHovered(false);
+    hoverTimeoutRef.current = setTimeout(() => {
+      setAnchorEl(null);
+    }, 50);
+  };
+
+  const handlePopperEnter = () => {
+    setIsHovered(true);
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+  };
+
+  const handleToolChange = (mode) => {
+    dispatch(setEnabledDrawingMode(mode));
+    dispatch(setNewAnnotation({ ...newAnnotation, type }));
+  };
+
+  // render
+
+  return (
+    <Box>
+      <ListItemButton
+        onMouseEnter={handleListItemEnter}
+        onMouseLeave={handleListItemLeave}
+        sx={{
+          position: "relative",
+          bgcolor: "white",
+          alignItems: "center",
+          justifyContent: "space-between",
+          pl: 3,
+          pr: 1,
+          py: 0.5,
+          "&:hover": { bgcolor: "action.hover" },
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "24px",
+              height: "24px",
+              mr: 1,
+            }}
+          >
+            <Icon sx={{ fontSize: 18, color: "text.secondary" }} />
+          </Box>
+          <Typography variant="body2">{label}</Typography>
+        </Box>
+      </ListItemButton>
+
+      {/* Drawing toolbar popper on hover */}
+      <Popper
+        open={isOpen}
+        anchorEl={anchorEl}
+        placement="right"
+        transition
+        modifiers={[{ name: "offset", options: { offset: [0, 16] } }]}
+        style={{ zIndex: 1500 }}
+        onMouseEnter={handlePopperEnter}
+        onMouseLeave={handleListItemLeave}
+      >
+        {({ TransitionProps }) => (
+          <Fade {...TransitionProps} timeout={100}>
+            <Paper
+              elevation={6}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                borderRadius: 1.5,
+                bgcolor: "background.paper",
+                position: "relative",
+                border: "1px solid",
+                borderColor: "divider",
+                "&::before": {
+                  content: '""',
+                  position: "absolute",
+                  left: -18,
+                  top: 0,
+                  width: 18,
+                  height: "100%",
+                  bgcolor: "transparent",
+                },
+                "&::after": {
+                  content: '""',
+                  position: "absolute",
+                  left: -5,
+                  top: "50%",
+                  transform: "translateY(-50%) rotate(45deg)",
+                  width: 10,
+                  height: 10,
+                  bgcolor: "background.paper",
+                  borderLeft: "1px solid",
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
+                },
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", p: 1 }}>
+                <ToggleSingleSelectorGeneric
+                  options={options}
+                  selectedKey={enabledDrawingMode}
+                  onChange={handleToolChange}
+                />
+              </Box>
+            </Paper>
+          </Fade>
+        )}
+      </Popper>
+    </Box>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // AnnotationTemplateRow — one template inside an expanded listing
@@ -373,10 +546,42 @@ function AnnotationTemplatesForListing({ listingId }) {
       {/* + Nouveau modele */}
       <ListItemButton
         onClick={() => setOpenCreateDialog(true)}
-        sx={{ gap: 0.5, pl: 3, pr: 1, py: 0.5, color: "text.secondary" }}
+        sx={{
+          pl: 3,
+          pr: 1,
+          py: 0.5,
+          alignItems: "center",
+          "&:hover": { bgcolor: "action.hover" },
+        }}
       >
-        <Add sx={{ fontSize: 14 }} />
-        <Typography variant="caption">Nouveau modèle</Typography>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 24,
+            height: 24,
+            mr: 1,
+          }}
+        >
+          <Box
+            sx={{
+              width: 18,
+              height: 18,
+              border: "1.5px dashed",
+              borderColor: "grey.400",
+              borderRadius: 0.5,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Add sx={{ fontSize: 12, color: "grey.400" }} />
+          </Box>
+        </Box>
+        <Typography variant="body2" color="text.disabled">
+          Nouveau modèle
+        </Typography>
       </ListItemButton>
 
       {openCreateDialog && (
@@ -654,11 +859,13 @@ export default function PopperMapListings() {
     ? listings?.filter((l) => l.id === selectedListingId)
     : listings;
 
-  // effects - auto-expand selected listing
+  // effects - auto-expand selected listing (or first listing by default)
 
   useEffect(() => {
     if (selectedListingId && listings?.some((l) => l.id === selectedListingId)) {
       setExpandedListingId(selectedListingId);
+    } else if (listings?.length && !expandedListingId) {
+      setExpandedListingId(listings[0].id);
     }
   }, [selectedListingId, listings]);
 
@@ -721,21 +928,28 @@ export default function PopperMapListings() {
 
       {/* Scrollable listings */}
       <Box sx={{ overflow: "auto", flex: 1 }}>
-        {displayedListings?.map((listing) => (
-          <ListingRow
-            key={listing.id}
-            listing={listing}
-            isExpanded={expandedListingId === listing.id}
-            onToggleExpand={handleToggleExpand}
-            hiddenListingsIds={hiddenListingsIds}
-            annotationCount={
-              annotationCountByListingId?.[listing.id] || 0
-            }
-          />
-        ))}
+        {isBaseMapsViewer
+          ? displayedListings?.map((listing) => (
+              <AnnotationTemplatesForListing
+                key={listing.id}
+                listingId={listing.id}
+              />
+            ))
+          : displayedListings?.map((listing) => (
+              <ListingRow
+                key={listing.id}
+                listing={listing}
+                isExpanded={expandedListingId === listing.id}
+                onToggleExpand={handleToggleExpand}
+                hiddenListingsIds={hiddenListingsIds}
+                annotationCount={
+                  annotationCountByListingId?.[listing.id] || 0
+                }
+              />
+            ))}
 
         {/* + Ajouter une liste */}
-        {!comesFromListing && (
+        {!comesFromListing && !isBaseMapsViewer && (
           <ListItemButton
             onClick={() => setOpenCreateListing(true)}
             sx={{ gap: 0.5, px: 1, py: 0.5, color: "text.secondary" }}
@@ -744,6 +958,29 @@ export default function PopperMapListings() {
             <Typography variant="caption">{addListS}</Typography>
           </ListItemButton>
         )}
+
+        {/* Outils section */}
+        <Box
+          sx={{
+            px: 1,
+            py: 0.5,
+            bgcolor: "grey.200",
+          }}
+        >
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+            Outils de découpe
+          </Typography>
+        </Box>
+        <List dense disablePadding>
+          {TOOL_ITEMS.map((tool) => (
+            <ToolRow
+              key={tool.type}
+              type={tool.type}
+              label={tool.label}
+              Icon={tool.Icon}
+            />
+          ))}
+        </List>
       </Box>
 
       {/* Create listing dialog */}

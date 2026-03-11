@@ -107,12 +107,47 @@ const DRAWING_TOOLS = [
     annotationType: null,
     behavior: "SMART_DETECT",
   },
+  // CUT tools (Ouverture)
+  {
+    key: "CUT_CLICK",
+    label: "Ligne",
+    Icon: IconPolylineClick,
+    annotationType: "CUT",
+    behavior: "CLICK",
+  },
+  {
+    key: "CUT_RECTANGLE",
+    label: "Rectangle",
+    Icon: IconPolylineRectangle,
+    annotationType: "CUT",
+    behavior: "RECTANGLE",
+  },
+  {
+    key: "CUT_CIRCLE",
+    label: "Cercle",
+    Icon: IconPolylineCircle,
+    annotationType: "CUT",
+    behavior: "CIRCLE",
+  },
+  // SPLIT tools (Diviser)
+  {
+    key: "SPLIT_CLICK",
+    label: "Ligne",
+    Icon: IconPolylineClick,
+    annotationType: "SPLIT",
+    behavior: "CLICK",
+  },
 ];
 
 export const DRAWING_TOOLS_BY_SHAPE = {
   POINT_2D: ["ONE_CLICK"],
   POLYLINE_2D: ["POLYLINE_CLICK", "POLYLINE_RECTANGLE", "POLYLINE_CIRCLE"],
   SURFACE_2D: ["POLYGON_CLICK", "POLYGON_RECTANGLE", "POLYGON_CIRCLE", "SURFACE_DROP"],
+};
+
+export const DRAWING_TOOLS_BY_TYPE = {
+  CUT: ["CUT_CLICK", "CUT_RECTANGLE", "CUT_CIRCLE"],
+  SPLIT: ["SPLIT_CLICK"],
 };
 
 export function getDrawingToolsByShape(drawingShape) {
@@ -122,6 +157,11 @@ export function getDrawingToolsByShape(drawingShape) {
 
 export function getDrawingToolByKey(key) {
   return DRAWING_TOOLS.find((tool) => tool.key === key) ?? null;
+}
+
+export function getDrawingToolsByType(type) {
+  const keys = DRAWING_TOOLS_BY_TYPE[type] ?? [];
+  return DRAWING_TOOLS.filter((tool) => keys.includes(tool.key));
 }
 
 export default DRAWING_TOOLS;

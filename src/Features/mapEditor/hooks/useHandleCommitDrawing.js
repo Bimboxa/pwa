@@ -184,7 +184,13 @@ export default function useHandleCommitDrawing() {
             // ETAPE 3 : update annotation cuts
 
             if (_updatedAnnotation) {
-                const cut = { points: finalPointIds.map(id => ({ id })) };
+                const cut = {
+                    points: finalPointIds.map((id, i) => {
+                        const entry = { id };
+                        if (rawPoints[i]?.type) entry.type = rawPoints[i].type;
+                        return entry;
+                    }),
+                };
                 if (newAnnotation.label) cut.label = newAnnotation.label;
                 const newCuts = _updatedAnnotation?.cuts ? [..._updatedAnnotation?.cuts, cut] : [cut];
                 _updatedAnnotation = {

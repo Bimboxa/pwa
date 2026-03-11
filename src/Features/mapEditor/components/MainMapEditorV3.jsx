@@ -980,16 +980,17 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             handleSplitCommit(points);
                         }
                         else if (cutHostId) {
-                            if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE"].includes(enabledDrawingMode)) points = getPolylinePointsFromRectangle(points)
+                            if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode)) points = getPolylinePointsFromRectangle(points)
+                            else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) points = getPolylinePointsFromCircle(points)
                             handleCommitDrawing(points, { cutHostId });
                         }
                         else if (enabledDrawingMode === 'MEASURE') {
                             handleMeasureCommit(points, event);
                         }
-                        else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE"].includes(enabledDrawingMode)) {
+                        else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode)) {
                             handleCommitDrawingFromRectangle(points, event);
                         }
-                        else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE"].includes(enabledDrawingMode)) {
+                        else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
                             handleCommitDrawingFromCircle(points);
                         }
                         else {
