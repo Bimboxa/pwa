@@ -8,8 +8,10 @@ import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 
 import { IconButton, Box, Typography, Tooltip } from "@mui/material";
-
 import HomeIcon from "@mui/icons-material/Home";
+import { ViewSidebar } from "@mui/icons-material";
+
+import { setLeftPanelDocked } from "Features/leftPanel/leftPanelSlice";
 import ButtonGeneric from "./ButtonGeneric";
 import ButtonDialogOnboardingSelectProject from "Features/projects/components/ButtonDialogOnboardingSelectProject";
 import ButtonDialogOnboardingSelectScope from "Features/scopes/components/ButtonDialogOnboardingSelectScope";
@@ -22,6 +24,7 @@ export default function TopBarBreadcrumbs() {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
 
   const { value: selectedProject } = useSelectedProject();
   const { value: selectedScope } = useSelectedScope();
@@ -59,6 +62,29 @@ export default function TopBarBreadcrumbs() {
     </IconButton>
   );
 
+  const ToggleDock = () => (
+    <Tooltip
+      title={
+        leftPanelDocked
+          ? "Masquer le panneau latéral"
+          : "Garder le panneau latéral ouvert"
+      }
+    >
+      <IconButton
+        size="small"
+        onClick={() => dispatch(setLeftPanelDocked(!leftPanelDocked))}
+        sx={{
+          color: "action.active",
+          bgcolor: leftPanelDocked ? "action.selected" : "transparent",
+          borderRadius: 1,
+          p: 0.5,
+        }}
+      >
+        <ViewSidebar sx={{ fontSize: 20 }} />
+      </IconButton>
+    </Tooltip>
+  );
+
   const Project = () => (
     <Box sx={{ maxWidth: 200, display: "flex" }}>
       <Tooltip title={selectedProject?.name}>
@@ -83,6 +109,7 @@ export default function TopBarBreadcrumbs() {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Home />
+        <ToggleDock />
         <Separator />
         <ButtonDialogOnboardingSelectProject />
       </Box>
@@ -101,6 +128,7 @@ export default function TopBarBreadcrumbs() {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Home />
+        <ToggleDock />
         <Separator />
         <Project />
         {/* <Separator />

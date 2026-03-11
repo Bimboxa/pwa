@@ -1,6 +1,8 @@
+import { useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedViewerKey } from "../viewersSlice";
+import { setLeftDrawerHovered } from "Features/leftPanel/leftPanelSlice";
 
 import useViewers from "../hooks/useViewers";
 
@@ -17,6 +19,8 @@ export default function VerticalMenuViewers() {
 
   const viewers = useViewers();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
+  const leaveTimeoutRef = useRef(null);
 
   // handlers
 
@@ -24,10 +28,30 @@ export default function VerticalMenuViewers() {
     dispatch(setSelectedViewerKey(viewerKey));
   }
 
+  function handleMouseEnter() {
+    if (!leftPanelDocked) {
+      if (leaveTimeoutRef.current) {
+        clearTimeout(leaveTimeoutRef.current);
+        leaveTimeoutRef.current = null;
+      }
+      dispatch(setLeftDrawerHovered(true));
+    }
+  }
+
+  function handleMouseLeave() {
+    if (!leftPanelDocked) {
+      leaveTimeoutRef.current = setTimeout(() => {
+        dispatch(setLeftDrawerHovered(false));
+      }, 300);
+    }
+  }
+
   // render
 
   return (
     <Box
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       sx={{
         display: "flex",
         flexDirection: "column",

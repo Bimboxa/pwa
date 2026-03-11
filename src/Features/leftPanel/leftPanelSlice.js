@@ -4,6 +4,8 @@ const leftPanelInitialState = {
   verticalBarWidth: 80, //64
   width: 320,
   openLeftPanel: true,
+  leftPanelDocked: true,
+  leftDrawerHovered: false,
   //
 };
 
@@ -14,9 +16,16 @@ export const leftPanelSlice = createSlice({
     setOpenLeftPanel: (state, action) => {
       state.openLeftPanel = action.payload;
     },
+    setLeftPanelDocked: (state, action) => {
+      state.leftPanelDocked = action.payload;
+    },
+    setLeftDrawerHovered: (state, action) => {
+      state.leftDrawerHovered = action.payload;
+    },
   },
 });
 
-export const { setOpenLeftPanel } = leftPanelSlice.actions;
+export const { setOpenLeftPanel, setLeftPanelDocked, setLeftDrawerHovered } =
+  leftPanelSlice.actions;
 
 export default leftPanelSlice.reducer;

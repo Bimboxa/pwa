@@ -82,7 +82,6 @@ export default function TopBarDesktop() {
         height,
         minHeight: height,
         display: "flex",
-        justifyContent: "space-between",
         alignItems: "center",
         bgcolor: "white",
         zIndex: 1000,
@@ -91,27 +90,13 @@ export default function TopBarDesktop() {
         borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
       }}
     >
-      {/* <ButtonSelectorScopeInTopBar /> */}
-      {/* <BoxFlexH>
-        <ButtonSelectorProject />
-        <Box sx={{ px: 1 }}>
-          <Divider orientation="vertical" flexItem sx={{ height: 24 }} />
-        </Box>
-        <ButtonSelectorScope />
-      </BoxFlexH> */}
-
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-
+      {/* Left section - breadcrumbs */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
         <TopBarBreadcrumbs />
-        {/* <BlockVersionInTopBar /> */}
-        {/* <TopBarProjectAndScope /> */}
         {scopesEnabled && <ButtonSelectorScope />}
-
-
-
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, pl: 3 }}>
-          <Divider orientation="vertical" sx={{ height: 24 }} />
-          {returnLabel && (
+        {returnLabel && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, pl: 3 }}>
+            <Divider orientation="vertical" sx={{ height: 24 }} />
             <Button
               size="small"
               color="secondary"
@@ -120,27 +105,20 @@ export default function TopBarDesktop() {
             >
               {returnLabel}
             </Button>
-          )}
-          {(viewerKey === "MAP" || viewerKey === "BASE_MAPS") && (
-            <>
-              <BaseMapSelectorInMapEditorV2 />
-              <BaseMapVersionSelectorInTopBar />
-            </>
-          )}
-
-        </Box>
-
-
+          </Box>
+        )}
       </Box>
 
+      {/* Center section - baseMap selectors */}
+      {(viewerKey === "MAP" || viewerKey === "BASE_MAPS") && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <BaseMapSelectorInMapEditorV2 />
+          <BaseMapVersionSelectorInTopBar />
+        </Box>
+      )}
 
-
-      {/* <AuthButtons /> */}
-      <Box sx={{ display: "flex", alignItems: "center" }}>
-        {/* <Box sx={{ mr: 3 }}>
-          <ToolbarDrawingTools />
-        </Box> */}
-
+      {/* Right section - actions */}
+      <Box sx={{ display: "flex", alignItems: "center", flex: 1, justifyContent: "flex-end" }}>
         <IconButtonDialogSync />
         <IconButtonShareScope />
       </Box>

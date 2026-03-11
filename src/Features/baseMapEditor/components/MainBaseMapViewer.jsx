@@ -12,6 +12,7 @@ import { Box } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import MainMapEditorV3 from "Features/mapEditor/components/MainMapEditorV3";
 import SectionCreateBaseMapFullscreen from "Features/mapEditor/components/SectionCreateBaseMapFullscreen";
+import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
 
 import useListingById from "Features/listings/hooks/useListingById";
 
@@ -54,21 +55,15 @@ export default function MainBaseMapViewer() {
   // render
 
   return (
-    <Box sx={{ width: 1, height: 1, display: "flex" }}>
+    <Box sx={{ width: 1, height: 1, display: "flex", position: "relative", overflow: "hidden" }}>
       {/* Left column: tree */}
-      <Box
-        sx={{
-          width: treeWidth,
-          minWidth: treeWidth,
-          bgcolor: "background.default",
-        }}
-      >
+      <LeftDrawerPanel width={treeWidth} viewerKey="BASE_MAPS">
         <BoxFlexVStretch sx={{ height: 1 }}>
           <BoxFlexVStretch sx={{ overflow: "auto" }}>
             <BaseMapTree />
           </BoxFlexVStretch>
         </BoxFlexVStretch>
-      </Box>
+      </LeftDrawerPanel>
 
       {/* Center: map editor or create form */}
       <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
