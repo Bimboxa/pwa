@@ -20,7 +20,8 @@ const formatNumber = (value, unit) => {
 export default function DatagridAnnotations({
     annotations,
     selectedIds = [], // Valeur par défaut importante
-    onSelectionChange
+    onSelectionChange,
+    showListingName = false,
 }) {
 
 
@@ -48,6 +49,7 @@ export default function DatagridAnnotations({
                 fillColor: annotation.fillColor,
                 fillType: annotation.fillType,
                 strokeColor: annotation.strokeColor,
+                listingName: annotation.listingName,
                 templateLabel: annotation.annotationTemplateProps?.label || "Sans Label",
                 height: annotation.height,
                 length: annotation.qties?.enabled ? annotation.qties.length : 0,
@@ -57,33 +59,38 @@ export default function DatagridAnnotations({
     }, [annotations, baseMapById]);
 
     // --- COLUMNS ---
-    const columns = useMemo(() => [
-        {
-            field: "icon",
-            headerName: "", // Pas de titre pour l'icône
-            width: 50,
-            align: "center",
-            headerAlign: "center",
-            sortable: false,
-            filterable: false,
-            disableColumnMenu: true,
-            renderCell: (params) => {
-                // params.row contient toutes les données de l'objet row ci-dessus
-                return <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 1 }}><AnnotationIcon annotation={params.row} /></Box>;
-            }
-        },
-        { field: "templateLabel", headerName: "Modèle", flex: 1, minWidth: 150 },
-        { field: "baseMapName", headerName: "Fond de plan", flex: 1, minWidth: 150 },
-        {
-            field: "height", headerName: "Hauteur", width: 120, type: "number",
-            valueFormatter: (value) => formatNumber(value, "m"),
-            editable: true,
-        },
-
-        { field: "length", headerName: "Longueur", width: 120, type: "number", valueFormatter: (value) => formatNumber(value, "m") },
-        { field: "surface", headerName: "Surface", width: 120, type: "number", valueFormatter: (value) => formatNumber(value, "m²") }
-
-    ], []);
+    const columns = useMemo(() => {
+        const cols = [
+            {
+                field: "icon",
+                headerName: "",
+                width: 50,
+                align: "center",
+                headerAlign: "center",
+                sortable: false,
+                filterable: false,
+                disableColumnMenu: true,
+                renderCell: (params) => {
+                    return <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 1 }}><AnnotationIcon annotation={params.row} /></Box>;
+                }
+            },
+            { field: "templateLabel", headerName: "Modèle", flex: 1, minWidth: 150 },
+        ];
+        if (showListingName) {
+            cols.push({ field: "listingName", headerName: "Liste", flex: 1, minWidth: 150 });
+        }
+        cols.push(
+            { field: "baseMapName", headerName: "Fond de plan", flex: 1, minWidth: 150 },
+            {
+                field: "height", headerName: "Hauteur", width: 120, type: "number",
+                valueFormatter: (value) => formatNumber(value, "m"),
+                editable: true,
+            },
+            { field: "length", headerName: "Longueur", width: 120, type: "number", valueFormatter: (value) => formatNumber(value, "m") },
+            { field: "surface", headerName: "Surface", width: 120, type: "number", valueFormatter: (value) => formatNumber(value, "m²") },
+        );
+        return cols;
+    }, [showListingName]);
 
     const internalRowSelectionModel = useMemo(() => {
         return { type: "include", ids: new Set(selectedIds ?? []) };

@@ -31,6 +31,7 @@ const CUVELAGE_ETANTOP_302 = {
             fillType: "HATCHING",
             fillOpacity: 0.8,
             drawingTools: ["POLYGON_CLICK", "POYLGON_CIRCLE_3_POINTS", "POLYGON_RECTANGLE", "DROP"],
+            mappingCategories: ["OUVRAGE:SOL"]
         },
         {
             label: "Etantop 302 en fosses",

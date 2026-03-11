@@ -855,8 +855,9 @@ export default function PopperMapListings() {
 
   // helpers - filter listings when coming from LISTING viewer
 
-  const displayedListings = comesFromListing && selectedListingId
-    ? listings?.filter((l) => l.id === selectedListingId)
+  const returnListingId = viewerReturnContext?.listingId;
+  const displayedListings = comesFromListing && returnListingId
+    ? listings?.filter((l) => l.id === returnListingId)
     : listings;
 
   // effects - auto-expand selected listing (or first listing by default)
