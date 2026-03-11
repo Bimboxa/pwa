@@ -91,7 +91,7 @@ export default function TopBarDesktop() {
       }}
     >
       {/* Left section - breadcrumbs */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, flex: 1 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
         <TopBarBreadcrumbs />
         {scopesEnabled && <ButtonSelectorScope />}
         {returnLabel && (

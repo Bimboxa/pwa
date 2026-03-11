@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { Box } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
 import PanelListingViewerTabs from "./PanelListingViewerTabs";
 import PanelListingAnnotationTemplates from "./PanelListingAnnotationTemplates";
 import PanelListingEntities from "./PanelListingEntities";
@@ -41,17 +42,9 @@ export default function MainListingViewer() {
   // render
 
   return (
-    <Box sx={{ width: 1, height: 1, display: "flex" }}>
+    <Box sx={{ width: 1, height: 1, display: "flex", position: "relative", overflow: "hidden" }}>
       {/* Left panel */}
-      <Box
-        sx={{
-          width: panelWidth,
-          minWidth: panelWidth,
-          bgcolor: "background.default",
-          borderRight: "1px solid",
-          borderColor: "divider",
-        }}
-      >
+      <LeftDrawerPanel width={panelWidth} viewerKey="LISTING">
         <BoxFlexVStretch sx={{ height: 1 }}>
           <HeaderListingViewerPanel
             listing={listing}
@@ -77,7 +70,7 @@ export default function MainListingViewer() {
             )}
           </BoxFlexVStretch>
         </BoxFlexVStretch>
-      </Box>
+      </LeftDrawerPanel>
 
       {/* Right: baseMaps grid editor */}
       <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
