@@ -18,10 +18,12 @@ export default function PopperEditAnnotations({ viewerKey = null, allAnnotations
 
   const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
+  // Only show popper if viewerKey matches active viewer (or if viewerKey is not specified, show for MAP)
+  const shouldShow = viewerKey
+    ? activeViewerKey === viewerKey
+    : activeViewerKey === "MAP";
 
-  const open = Boolean(anchorPosition) && selectedNodes?.length > 1;
-
-  console.log("debug_151_open", anchorPosition)
+  const open = shouldShow && Boolean(anchorPosition) && selectedNodes?.length > 1;
 
   // helper - anchorPlacement
 
@@ -48,6 +50,7 @@ export default function PopperEditAnnotations({ viewerKey = null, allAnnotations
           anchorPlacement={anchorPlacement}
           showGrabHandle={true}
           offset={[0, -50]}
+          paperProps={{ elevation: 0, sx: { background: "transparent" } }}
         >
 
           <ToolbarEditAnnotations allAnnotations={allAnnotations} />

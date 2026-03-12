@@ -451,7 +451,7 @@ const InteractionLayer = forwardRef(({
       return {
         id: id,
         nodeId: id,
-        type: 'ANNOTATION',
+        type: 'NODE',
         nodeType: ann?.type,
         entityId: ann?.entityId,
         listingId: ann?.listingId,

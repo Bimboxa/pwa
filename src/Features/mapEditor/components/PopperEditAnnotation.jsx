@@ -26,8 +26,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
 
   const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const selectedAnnotation = useSelectedAnnotation();
-
-  console.log("debug_2701_A_selectedAnnotation", selectedAnnotation, selectedNode);
+  const selectedItems = useSelector(selectSelectedItems);
 
   // Note: used annotationType if available in item (it wasn't in InteractionLayer), falling back to selectedAnnotation logic
   const type = selectedNode?.annotationType || selectedAnnotation?.type;
@@ -39,8 +38,12 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
     ? activeViewerKey === viewerKey
     : activeViewerKey === "MAP";
 
+  // Only show single toolbar when exactly 1 item is selected (not multi-selection)
+  const isSingleSelection = selectedItems.length === 1;
+
   const open =
     shouldShow &&
+    isSingleSelection &&
     Boolean(anchorPosition) &&
     ["MARKER", "POINT", "POLYLINE", "POLYGON", "IMAGE", "RECTANGLE", "STRIP",].includes(type) &&
     selectedNode?.nodeType === "ANNOTATION";
@@ -88,6 +91,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
           anchorPlacement={anchorPlacement}
           showGrabHandle={true}
           offset={offset}
+          paperProps={{ elevation: 0, sx: { background: "transparent" } }}
         >
 
           {!isBaseMapAnnotation ? <ToolbarEditAnnotation /> : <ToolbarEditAnnotationVariantBaseMapAnnotation />}

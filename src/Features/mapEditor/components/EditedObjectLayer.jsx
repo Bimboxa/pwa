@@ -91,7 +91,7 @@ export default function EditedObjectLayer({
     const pointBasedAnnotations = annotationsToRender.filter(a => POINT_BASED_TYPES.includes(a.type));
     const isMultiSelection = selectedNodes?.length > 1;
     const showWrapper = pointBasedAnnotations.length > 0 &&
-        (isMultiSelection || (selectedNode && wrapperMode)) &&
+        wrapperMode &&
         !selectedPointId;
 
     // Extract cumulative rotation and rotation center (all annotations in the wrapper share the same values)

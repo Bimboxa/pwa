@@ -64,6 +64,7 @@ export default function PopperBox({
   addHeader, // Optionnel maintenant
   anchorPlacement = "topLeft",
   offset = [0, 0],
+  paperProps = {},
 }) {
   // --- Gestion du Virtual Ref ---
   function generateBBCR(x, y) {
@@ -145,15 +146,17 @@ export default function PopperBox({
               open={open}
               anchorEl={virtualElementRef.current}
               placement={muiPlacement}
+              style={{ pointerEvents: "none" }}
               modifiers={[
                 { name: "arrow", enabled: true },
                 { name: "offset", options: { offset: offset } },
-                //{ name: "preventOverflow", enabled: true, options: { rootBoundary: "viewport", padding: 8, altAxis: true } },
               ]}
             >
               <Paper
                 elevation={3}
+                {...paperProps}
                 sx={{
+                  pointerEvents: 'auto',
                   maxWidth: '100vw',
                   overflow: 'visible',
                   position: 'relative',
@@ -161,6 +164,7 @@ export default function PopperBox({
                   transition: isDragging.current ? 'none' : 'transform 0.1s ease-out',
                   willChange: 'transform',
                   userSelect: isDragging.current ? 'none' : 'auto',
+                  ...paperProps.sx,
                 }}
               >
                 {/* --- 4. PROVIDER : On expose la fonction de drag --- */}

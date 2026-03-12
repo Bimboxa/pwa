@@ -1,51 +1,248 @@
-import { useSelector } from "react-redux";
-import { Box, Typography, Paper } from "@mui/material";
-import { DragIndicator } from "@mui/icons-material";
+import { useMemo } from "react";
 
-import { selectSelectedItems } from "Features/selection/selectionSlice";
+import { useDispatch, useSelector } from "react-redux";
 
-import IconButtonMoreActionsSelectedAnnotations from "./IconButtonMoreActionsSelectedAnnotations";
-import IconButtonCreateAnnotationsSelectionBorder from "./IconButtonCreateAnnotationsSelectionBorder";
+import {
+  selectSelectedItems,
+  removeSelectedItem,
+  clearSelection,
+} from "Features/selection/selectionSlice";
+
+import { setWrapperMode } from "Features/mapEditor/mapEditorSlice";
+
+import useDeleteAnnotation from "../hooks/useDeleteAnnotation";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+
+import getAnnotationQties from "../utils/getAnnotationQties";
+
+import {
+  Box,
+  Divider,
+  IconButton,
+  Paper,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import {
+  DragIndicator as GripIcon,
+  Close as RemoveIcon,
+} from "@mui/icons-material";
 
 import { PopperDragHandle } from "Features/layout/components/PopperBox";
+import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
+import AnnotationMeasurements from "./AnnotationMeasurements";
+import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 
 export default function ToolbarEditAnnotations({ allAnnotations }) {
+  const dispatch = useDispatch();
 
-    // data
+  // data
 
-    const selectedItems = useSelector(selectSelectedItems);
-    const selectedNodes = selectedItems.map(i => ({ nodeId: i.nodeId, nodeType: i.type }));
+  const selectedItems = useSelector(selectSelectedItems);
+  const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
+  const deleteAnnotation = useDeleteAnnotation();
+  const baseMap = useMainBaseMap();
 
-    // helpers
+  // helpers - selected annotations
 
-    const annotations = allAnnotations.filter((a) => selectedNodes.map((n) => n.nodeId).includes(a.id));
+  const annotations = allAnnotations.filter((a) =>
+    selectedItems.some((item) => item.nodeId === a.id)
+  );
 
-    // helpers - selection count
+  const count = annotations.length;
+  const countLabel = `${count} annotation${count > 1 ? "s" : ""} sélectionnée${count > 1 ? "s" : ""}`;
 
-    const count = selectedNodes?.length || 0;
-    const countS = `${count} annotations sélectionnées`;
+  // helpers - group by annotationTemplateId with aggregated quantities
 
-    return (
-        <Paper elevation={6} sx={{ display: "flex", alignItems: "center", p: 0.5 }}>
-            <PopperDragHandle>
-                <Box sx={{ display: "flex", alignItems: "center", mr: 1 }}>
-                    <DragIndicator fontSize="small" />
-                </Box>
-            </PopperDragHandle>
+  const templateGroups = useMemo(() => {
+    const groups = new Map();
+    const meterByPx = baseMap?.meterByPx;
 
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+    for (const annotation of annotations) {
+      const key = annotation.annotationTemplateId || annotation.id;
+      const existing = groups.get(key);
 
-                <Typography variant="body2" sx={{ mr: 1 }}>
-                    {countS}
-                </Typography>
+      const qties = getAnnotationQties({ annotation, meterByPx });
 
-                <IconButtonCreateAnnotationsSelectionBorder />
+      if (existing) {
+        existing.annotationIds.push(annotation.id);
+        existing.count += 1;
+        if (qties?.enabled) {
+          existing.totalSurface += qties.surface || 0;
+          existing.totalLength += qties.length || 0;
+        }
+      } else {
+        groups.set(key, {
+          templateId: key,
+          annotation,
+          annotationIds: [annotation.id],
+          count: 1,
+          totalSurface: qties?.enabled ? (qties.surface || 0) : 0,
+          totalLength: qties?.enabled ? (qties.length || 0) : 0,
+          hasSurface: ["RECTANGLE", "POLYGON", "STRIP"].includes(annotation.type),
+        });
+      }
+    }
 
-                <IconButtonMoreActionsSelectedAnnotations annotations={annotations} />
-            </Box>
+    return Array.from(groups.values());
+  }, [annotations, baseMap?.meterByPx]);
 
-        </Paper>
+  // handlers
 
+  function handleRemoveTemplateFromSelection(annotationIds) {
+    for (const annotationId of annotationIds) {
+      const item = selectedItems.find((i) => i.nodeId === annotationId);
+      if (item) {
+        dispatch(removeSelectedItem(item.id));
+      }
+    }
+  }
 
-    );
+  function handleCloneClick() {
+    // TODO: bulk clone
+  }
+
+  function handleResizeClick() {
+    dispatch(setWrapperMode(!wrapperMode));
+  }
+
+  async function handleDeleteClick() {
+    for (const annotation of annotations) {
+      await deleteAnnotation(annotation.id);
+    }
+    dispatch(clearSelection());
+  }
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <Paper
+        elevation={6}
+        sx={{
+          borderRadius: 3,
+          overflow: "hidden",
+          minWidth: 250,
+        }}
+      >
+        {/* Header - draggable */}
+        <PopperDragHandle>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              px: 1.5,
+              py: 1,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              cursor: "grab",
+              userSelect: "none",
+              "&:hover": { bgcolor: "action.hover" },
+              transition: "background 0.1s",
+            }}
+          >
+            <GripIcon fontSize="small" sx={{ color: "text.disabled", flexShrink: 0 }} />
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: 600, fontSize: "0.8rem" }}
+            >
+              {countLabel}
+            </Typography>
+          </Box>
+        </PopperDragHandle>
+
+        {/* Template group rows */}
+        <Box sx={{ py: 0.5 }}>
+          {templateGroups.map((group) => (
+            <TemplateGroupRow
+              key={group.templateId}
+              group={group}
+              onRemove={() =>
+                handleRemoveTemplateFromSelection(group.annotationIds)
+              }
+            />
+          ))}
+        </Box>
+
+        <Divider />
+
+        {/* Actions row */}
+        <ToolbarAnnotationActions
+          accentColor="#6366F1"
+          onClone={handleCloneClick}
+          onResize={handleResizeClick}
+          resizeActive={wrapperMode}
+          onDelete={handleDeleteClick}
+        />
+      </Paper>
+
+    </Box>
+  );
+}
+
+// --- Template group row within multi-selection toolbar ---
+
+function TemplateGroupRow({ group, onRemove }) {
+  // helpers
+
+  const { annotation, count, totalSurface, totalLength, hasSurface } = group;
+  const label = annotation?.annotationTemplateProps?.label || annotation?.label || "-";
+  const countSuffix = count > 1 ? ` (×${count})` : "";
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        px: 1.25,
+        py: 0.75,
+        "&:hover": { bgcolor: "action.hover" },
+        transition: "background 0.1s",
+      }}
+    >
+      <AnnotationTemplateIcon template={annotation || {}} size={16} />
+
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: 600,
+            fontSize: "0.8rem",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {label}
+          {countSuffix && (
+            <Typography
+              component="span"
+              variant="body2"
+              sx={{ fontSize: "0.8rem", fontWeight: 400, color: "text.secondary" }}
+            >
+              {countSuffix}
+            </Typography>
+          )}
+        </Typography>
+        <AnnotationMeasurements
+          surface={hasSurface && totalSurface > 0 ? totalSurface : null}
+          length={totalLength > 0 ? totalLength : null}
+        />
+      </Box>
+
+      <Tooltip title="Retirer de la sélection">
+        <IconButton
+          size="small"
+          onClick={onRemove}
+          sx={{
+            flexShrink: 0,
+            color: "text.disabled",
+            "&:hover": { color: "error.main", bgcolor: "error.lighter" },
+          }}
+        >
+          <RemoveIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Tooltip>
+    </Box>
+  );
 }

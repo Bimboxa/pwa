@@ -1,35 +1,34 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
-import { setEditedAnnotation } from "../annotationsSlice";
-
 import { setCanTransformNode, setWrapperMode } from "Features/mapEditor/mapEditorSlice";
+import { clearSelection } from "Features/selection/selectionSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
-import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
-import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
+import useDeleteAnnotation from "../hooks/useDeleteAnnotation";
+import useCloneAnnotationAndEntity from "Features/mapEditor/hooks/useCloneAnnotationAndEntity";
+import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
 
-import { Box, IconButton, Paper } from "@mui/material";
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import { MoreHoriz as More, OpenWith as OpenWithIcon } from "@mui/icons-material";
-
-import FieldAnnotationEntityLabel from "./FieldAnnotationEntityLabel";
-import FieldAnnotationHeight from "./FieldAnnotationHeight";
-import FieldAnnotationShapeCode from "./FieldAnnotationShapeCode";
-import FieldAnnotationFillAndStroke from "./FieldAnnotationFillAndStroke";
-import FieldToggleFWC from "Features/fwc/components/FieldToggleFWC";
-import IconButtonDialogCloneAnnotation from "./IconButtonDialogCloneAnnotation";
-import IconButtonToggleAnnotationCloseLine from "./IconButtonToggleAnnotationCloseLine";
-import ButtonAnnotationTemplate from "./ButtonAnnotationTemplate";
-import IconButtonCloneAnnotation from "./IconButtonCloneAnnotation";
-import IconButtonAnnotationOpacity from "./IconButtonAnnotationOpacity";
-import IconButtonAnnotationBboxSize from "./IconButtonAnnotationBboxSize";
-import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
-import IconButtonToggleAnnotationShowLabel from "./IconButtonToggleAnnotationShowLabel";
+import {
+  Box,
+  IconButton,
+  Menu,
+  Paper,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import { DragIndicator as GripIcon, Edit as EditIcon } from "@mui/icons-material";
 
 import { PopperDragHandle } from "Features/layout/components/PopperBox";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
+import AnnotationMeasurements from "./AnnotationMeasurements";
+import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
+import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
+
+import getAnnotationColor from "../utils/getAnnotationColor";
+import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
 
 export default function ToolbarEditAnnotation() {
   const dispatch = useDispatch();
@@ -37,26 +36,28 @@ export default function ToolbarEditAnnotation() {
   // data
 
   const selectedAnnotation = useSelectedAnnotation();
-  const canTransformNode = useSelector((s) => s.mapEditor.canTransformNode);
+  const deleteAnnotation = useDeleteAnnotation();
+  const cloneAnnotationAndEntity = useCloneAnnotationAndEntity();
+  const filterByListingId = useSelector((s) => s.listings.selectedListingId);
+  const annotationTemplates = useAnnotationTemplateCandidates(
+    selectedAnnotation,
+    { filterByListingId }
+  );
+
   const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
 
-  console.log("selectedAnnotation", selectedAnnotation);
+  // state
 
-  // data
+  const [cloneAnchorEl, setCloneAnchorEl] = useState(null);
 
-  const updateAnnotation = useUpdateAnnotation();
-  const updateEntity = useUpdateEntity();
+  // helpers
 
-  // helper
-
-  const type = selectedAnnotation?.type;
-
-  // helpers - show
-
-  const showCloseLine = selectedAnnotation?.type === "POLYLINE";
-  const showMoveButton = ["POLYGON", "POLYLINE", "STRIP"].includes(type);
-
-  console.log("showMoveButton", showMoveButton, type, selectedAnnotation)
+  const accentColor = getAnnotationColor(selectedAnnotation) || "#6366F1";
+  const label =
+    selectedAnnotation?.templateLabel ||
+    selectedAnnotation?.annotationTemplateProps?.label ||
+    selectedAnnotation?.label ||
+    "-";
 
   // useEffect
 
@@ -68,124 +69,132 @@ export default function ToolbarEditAnnotation() {
     };
   }, [selectedAnnotation?.id]);
 
-  // handler
+  // handlers
 
-  function handleCanTransformChange() {
-    dispatch(setCanTransformNode(!canTransformNode));
+  function handleEditClick() {
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   }
-  function handleToggleWrapperMode() {
+
+  function handleCloneClick(event) {
+    setCloneAnchorEl(event.currentTarget);
+  }
+
+  function handleCloneClose() {
+    setCloneAnchorEl(null);
+  }
+
+  async function handleCloneTemplateChange(annotationTemplateId) {
+    const template = annotationTemplates?.find(
+      (t) => t.id === annotationTemplateId
+    );
+    const newAnnotation = {
+      ...getAnnotationTemplateProps(template),
+      annotationTemplateId: template?.id,
+      label: template?.label,
+    };
+    await cloneAnnotationAndEntity(selectedAnnotation, { newAnnotation });
+    handleCloneClose();
+  }
+
+  function handleResizeClick() {
     dispatch(setWrapperMode(!wrapperMode));
   }
-  async function handleChange(newAnnotation) {
-    await updateAnnotation(newAnnotation);
-  }
 
-  async function handleEntityLabelChange(label) {
-    const entityId = selectedAnnotation?.entityId;
-    if (!entityId) return;
-    await updateEntity(entityId, { label });
-  }
-
-  async function handleToggleFWC(fwc) {
-    const entityId = selectedAnnotation?.entityId;
-    if (!entityId) return;
-    await updateEntity(entityId, { fwc });
-  }
-
-  function handleMoreClick() {
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"))
+  async function handleDeleteClick() {
+    if (!selectedAnnotation?.id) return;
+    await deleteAnnotation(selectedAnnotation.id);
+    dispatch(clearSelection());
   }
 
   return (
-    <Paper elevation={6} sx={{ display: "flex", alignItems: "center", p: 0.5 }}>
-      <PopperDragHandle>
-        <Box sx={{ display: "flex", alignItems: "center", mr: 1 }}>
-          <DragIndicatorIcon fontSize="small" />
-        </Box>
-      </PopperDragHandle>
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <Paper
+        elevation={6}
+        sx={{
+          borderRadius: 3,
+          overflow: "hidden",
+          minWidth: 230,
+        }}
+      >
+        {/* Header - draggable */}
+        <PopperDragHandle>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              px: 1.25,
+              py: 1,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              cursor: "grab",
+              userSelect: "none",
+              "&:hover": { bgcolor: "action.hover" },
+              transition: "background 0.1s",
+            }}
+          >
+            <GripIcon fontSize="small" sx={{ color: "text.disabled", flexShrink: 0 }} />
 
-      {type === "MARKER" && <Box sx={{ display: "flex", alignItems: "center" }}>
-        {/* <ButtonAnnotationTemplate annotation={selectedAnnotation} /> */}
-        <IconButtonCloneAnnotation annotation={selectedAnnotation} />
-      </Box>}
-      {type === "POINT" && <Box sx={{ display: "flex", alignItems: "center" }}>
-        {/* <ButtonAnnotationTemplate annotation={selectedAnnotation} /> */}
-      </Box>}
+            <AnnotationTemplateIcon template={selectedAnnotation || {}} size={16} />
 
-      {type === "POLYGON" && <Box sx={{ display: "flex", alignItems: "center" }}>
-        {/* <ButtonAnnotationTemplate annotation={selectedAnnotation} /> */}
-        <IconButtonCloneAnnotation annotation={selectedAnnotation} />
-      </Box>}
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {label}
+              </Typography>
+              <AnnotationMeasurements annotation={selectedAnnotation} />
+            </Box>
 
-      {type === "POLYLINE" && <Box sx={{ display: "flex", alignItems: "center" }}>
-        {/* <ButtonAnnotationTemplate annotation={selectedAnnotation} /> */}
-        <IconButtonToggleAnnotationCloseLine annotation={selectedAnnotation} />
-        <IconButtonCloneAnnotation annotation={selectedAnnotation} />
-        <FieldAnnotationHeight
-          annotation={selectedAnnotation}
-          onChange={handleChange}
+            <Tooltip title="Éditer le modèle">
+              <IconButton
+                size="small"
+                onClick={handleEditClick}
+                onMouseDown={(e) => e.stopPropagation()}
+                sx={{
+                  flexShrink: 0,
+                  color: "text.disabled",
+                  "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+                }}
+              >
+                <EditIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </PopperDragHandle>
+
+        {/* Actions row */}
+        <ToolbarAnnotationActions
+          accentColor={accentColor}
+          onClone={handleCloneClick}
+          onResize={handleResizeClick}
+          resizeActive={wrapperMode}
+          onDelete={handleDeleteClick}
         />
-      </Box>}
 
-      {type === "STRIP" && <Box sx={{ display: "flex", alignItems: "center" }}>
-        <ButtonAnnotationTemplate annotation={selectedAnnotation} />
-        <IconButtonFlipStripAnnotation annotation={selectedAnnotation} />
-        <IconButtonCloneAnnotation annotation={selectedAnnotation} />
-      </Box>}
-
-      {type === "IMAGE" && <Box sx={{ display: "flex", alignItems: "center" }}>
-        <IconButtonAnnotationOpacity annotation={selectedAnnotation} />
-      </Box>}
-
-      {type === "RECTANGLE" && <Box sx={{ display: "flex", alignItems: "center" }}>
-        <IconButtonAnnotationBboxSize annotation={selectedAnnotation} />
-      </Box>}
-
-      {showMoveButton && (
-        <IconButton
-          onClick={handleToggleWrapperMode}
-          size="small"
-          sx={{ color: wrapperMode ? "primary.main" : "inherit" }}
+        {/* Clone template selector menu */}
+        <Menu
+          open={Boolean(cloneAnchorEl)}
+          anchorEl={cloneAnchorEl}
+          onClose={handleCloneClose}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
         >
-          <OpenWithIcon fontSize="small" />
-        </IconButton>
-      )}
+          <SelectorAnnotationTemplateVariantDense
+            selectedAnnotationTemplateId={selectedAnnotation?.annotationTemplateId}
+            onChange={handleCloneTemplateChange}
+            annotationTemplates={annotationTemplates}
+          />
+        </Menu>
+      </Paper>
 
-      <IconButtonToggleAnnotationShowLabel annotation={selectedAnnotation} />
-
-
-
-
-      {/* <IconButton onClick={handleCanTransformChange} size="small">
-        {canTransformNode ? (
-          <LockOpen fontSize="small" />
-        ) : (
-          <Lock fontSize="small" />
-        )}
-      </IconButton> */}
-      {/* <FieldAnnotationEntityLabel
-        value={selectedAnnotation?.entity?.label}
-        onChange={handleEntityLabelChange}
-      /> */}
-
-      {/* <FieldToggleFWC value={selectedAnnotation?.entity?.fwc} onChange={handleToggleFWC} /> */}
-      {/* <FieldAnnotationFillAndStroke
-        annotation={selectedAnnotation}
-        onChange={handleChange}
-      /> */}
-      {/* <FieldAnnotationShapeCode
-        annotation={selectedAnnotation}
-        onChange={handleChange}
-      /> */}
-      {/* <FieldAnnotationHeight
-        annotation={selectedAnnotation}
-        onChange={handleChange}
-      /> */}
-
-      <IconButton onClick={handleMoreClick}>
-        <More />
-      </IconButton>
-
-    </Paper>
+    </Box>
   );
 }
