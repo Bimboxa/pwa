@@ -1,35 +1,51 @@
+import { useSelector } from "react-redux";
+
 import useAnnotationTemplates from "./useAnnotationTemplates";
+import useListings from "Features/listings/hooks/useListings";
+import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
+
+// Lines and surfaces share compatible geometry, so they are interchangeable.
+// Points can only clone to other points.
+const COMPATIBLE_SHAPE_CATEGORIES = {
+    polyline: ["polyline", "rectangle"],
+    rectangle: ["polyline", "rectangle"],
+    circle: ["circle"],
+};
+
+function getTemplateShape(template) {
+    return template?.drawingShape ?? template?.type;
+}
 
 export default function useAnnotationTemplateCandidates(annotation, options) {
 
     const variant = options?.variant; // sameType
     const filterByListingId = options?.filterByListingId;
 
-    const annotationTemplates = useAnnotationTemplates({ filterByListingId, sortByLabel: true });
+    const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
 
+    const annotationTemplates = useAnnotationTemplates({
+        filterByListingId,
+        sortByLabel: true,
+    });
+
+    const { value: listings } = useListings({
+        filterByScopeId: selectedScopeId,
+        filterByEntityModelType: "LOCATED_ENTITY",
+        excludeIsForBaseMaps: true,
+    });
 
     const currentTemplate = annotationTemplates?.find((t) => t.id === annotation?.annotationTemplateId);
 
-    const typeCandidatesMap = {
-        MARKER: ["MARKER"],
-        POLYGON: ["POLYGON", "POLYLINE"],
-        POLYLINE: ["POLYLINE", "POLYGON", "STRIP"],
-        STRIP: ["STRIP", "POLYGON", "POLYLINE"],
-        TEXT: ["TEXT"]
-    }
-
+    const currentCategory = resolveShapeCategory(getTemplateShape(currentTemplate));
+    const compatibleCategories = COMPATIBLE_SHAPE_CATEGORIES[currentCategory] ?? [];
 
     const candidates = annotationTemplates?.filter((t) => {
         if (variant === "sameType") {
-            return currentTemplate?.type === t.type;
+            return getTemplateShape(currentTemplate) === getTemplateShape(t);
         }
-        else {
-            return typeCandidatesMap[currentTemplate?.type]?.includes(t.type)
-        }
-
+        const candidateCategory = resolveShapeCategory(getTemplateShape(t));
+        return compatibleCategories.includes(candidateCategory);
     });
 
-
-
-    return candidates;
+    return { candidates, listings };
 }

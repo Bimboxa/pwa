@@ -38,11 +38,8 @@ export default function ToolbarEditAnnotation() {
   const selectedAnnotation = useSelectedAnnotation();
   const deleteAnnotation = useDeleteAnnotation();
   const cloneAnnotationAndEntity = useCloneAnnotationAndEntity();
-  const filterByListingId = useSelector((s) => s.listings.selectedListingId);
-  const annotationTemplates = useAnnotationTemplateCandidates(
-    selectedAnnotation,
-    { filterByListingId }
-  );
+  const { candidates: annotationTemplates, listings } =
+    useAnnotationTemplateCandidates(selectedAnnotation) ?? {};
 
   const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
 
@@ -92,6 +89,12 @@ export default function ToolbarEditAnnotation() {
       annotationTemplateId: template?.id,
       label: template?.label,
     };
+    // Derive the correct annotation type from the target template drawingShape
+    const drawingShape = template?.drawingShape ?? template?.type;
+    if (drawingShape === "POLYLINE_2D") newAnnotation.type = "POLYLINE";
+    else if (drawingShape === "SURFACE_2D") newAnnotation.type = "POLYGON";
+    else if (drawingShape === "POINT_2D") newAnnotation.type = "MARKER";
+
     await cloneAnnotationAndEntity(selectedAnnotation, { newAnnotation });
     handleCloneClose();
   }
@@ -191,6 +194,7 @@ export default function ToolbarEditAnnotation() {
             selectedAnnotationTemplateId={selectedAnnotation?.annotationTemplateId}
             onChange={handleCloneTemplateChange}
             annotationTemplates={annotationTemplates}
+            listings={listings}
           />
         </Menu>
       </Paper>

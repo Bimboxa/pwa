@@ -1,7 +1,5 @@
 import { useState } from "react";
 
-import { useSelector } from "react-redux";
-
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
 import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
 
@@ -18,9 +16,8 @@ export default function ButtonAnnotationTemplate({ annotation, bgcolor = null, .
 
     // data
 
-    const filterByListingId = useSelector((s) => s.listings.selectedListingId);
-    const annotationTemplates = useAnnotationTemplateCandidates(annotation,
-        { variant: "sameType", filterByListingId });
+    const { candidates: annotationTemplates, listings } =
+        useAnnotationTemplateCandidates(annotation, { variant: "sameType" }) ?? {};
     const updateAnnotation = useUpdateAnnotation();
 
 
@@ -69,6 +66,7 @@ export default function ButtonAnnotationTemplate({ annotation, bgcolor = null, .
                 selectedAnnotationTemplateId={annotation?.annotationTemplateId}
                 onChange={handleTemplateChange}
                 annotationTemplates={annotationTemplates}
+                listings={listings}
             />
         </Menu>
     </>

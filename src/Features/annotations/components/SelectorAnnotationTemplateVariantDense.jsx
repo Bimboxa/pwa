@@ -1,12 +1,12 @@
+import { useMemo } from "react";
+
 import {
     Box,
-    IconButton,
-    Tooltip,
     Typography,
     List,
     ListItemButton,
-    ListItemText,
     ListItemIcon,
+    ListSubheader,
 } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -17,17 +17,11 @@ export default function SelectorAnnotationTemplateVariantDense({
     selectedAnnotationTemplateId,
     onChange,
     annotationTemplates,
+    listings,
     title = "Bibliothèque d'annotations",
     size = 18,
     showTitle = false,
 }) {
-
-    console.log("debug_1612_templateId", selectedAnnotationTemplateId);
-
-    // strings
-
-    const noTemplateS = "Aucun style prédéfini";
-    const otherS = "Autre";
 
     // data
 
@@ -36,13 +30,32 @@ export default function SelectorAnnotationTemplateVariantDense({
     // helpers
 
     const noTemplates = !annotationTemplates?.length > 0;
-    const newTemplates =
-        annotationTemplates?.filter((t) => t.isFromAnnotation)?.length > 0;
+
+    const groups = useMemo(() => {
+        if (!listings?.length || !annotationTemplates?.length) return null;
+
+        const listingMap = new Map(listings.map((l) => [l.id, l]));
+        const grouped = new Map();
+
+        for (const t of annotationTemplates) {
+            const listingId = t.listingId;
+            if (!grouped.has(listingId)) {
+                grouped.set(listingId, {
+                    listing: listingMap.get(listingId),
+                    templates: [],
+                });
+            }
+            grouped.get(listingId).templates.push(t);
+        }
+
+        // Only return groups that have a matching listing
+        return [...grouped.values()].filter((g) => g.listing);
+    }, [listings, annotationTemplates]);
 
     if (noTemplates)
         return (
             <Box sx={{ p: 2 }}>
-                <Typography variant="body2">{noTemplateS}</Typography>
+                <Typography variant="body2">Aucun style prédéfini</Typography>
             </Box>
         );
 
@@ -70,10 +83,50 @@ export default function SelectorAnnotationTemplateVariantDense({
                 >
                     {annotation?.label}
                 </Typography>
-                {/* <ListItemText primary={label} /> */}
             </ListItemButton>
         );
     };
+
+    // Grouped by listing
+    if (groups?.length) {
+        return (
+            <BoxFlexVStretch>
+                {showTitle && <Typography sx={{ p: 2 }}>{title}</Typography>}
+                <BoxFlexVStretch sx={{ overflow: "auto" }}>
+                    {groups.map(({ listing, templates }) => (
+                        <List
+                            key={listing.id}
+                            dense
+                            subheader={
+                                <ListSubheader
+                                    sx={{
+                                        lineHeight: "32px",
+                                        fontWeight: 600,
+                                        fontSize: "0.75rem",
+                                        color: "text.secondary",
+                                        bgcolor: "action.hover",
+                                    }}
+                                >
+                                    {listing.name ?? listing.label ?? "Liste"}
+                                </ListSubheader>
+                            }
+                        >
+                            {templates.map((t) => (
+                                <ListItem
+                                    key={t.id}
+                                    id={t.id}
+                                    annotation={t}
+                                    selected={t.id === selectedAnnotationTemplateId}
+                                />
+                            ))}
+                        </List>
+                    ))}
+                </BoxFlexVStretch>
+            </BoxFlexVStretch>
+        );
+    }
+
+    // Flat fallback (no listings provided)
     return (
         <BoxFlexVStretch>
             {showTitle && <Typography sx={{ p: 2 }}>{title}</Typography>}
@@ -82,9 +135,8 @@ export default function SelectorAnnotationTemplateVariantDense({
                     {annotationTemplates
                         ?.filter((t) => !t.isFromAnnotation)
                         .map((annotationTemplate) => {
-                            const { fillColor, iconKey, id, label } = annotationTemplate;
+                            const { id } = annotationTemplate;
                             const selected = id === selectedAnnotationTemplateId;
-
                             return (
                                 <ListItem
                                     key={id}
@@ -95,41 +147,6 @@ export default function SelectorAnnotationTemplateVariantDense({
                             );
                         })}
                 </List>
-
-                {newTemplates && (
-                    <Box
-                        sx={{
-                            mt: 2,
-                            width: 1,
-                        }}
-                    >
-                        <Typography sx={{ p: 2 }} variant="body2" color="text.secondary">
-                            {otherS}
-                        </Typography>
-                        <List
-                            dense
-                            sx={{
-                                borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-                            }}
-                        >
-                            {annotationTemplates
-                                ?.filter((t) => t.isFromAnnotation)
-                                .map((annotationTemplate) => {
-                                    const { id } = annotationTemplate;
-                                    const selected = id === selectedAnnotationTemplateId;
-
-                                    return (
-                                        <ListItem
-                                            key={id}
-                                            id={id}
-                                            selected={selected}
-                                            annotation={annotationTemplate}
-                                        />
-                                    );
-                                })}
-                        </List>
-                    </Box>
-                )}
             </BoxFlexVStretch>
         </BoxFlexVStretch>
     );

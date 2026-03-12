@@ -1,7 +1,5 @@
 import { useState } from "react";
 
-import { useSelector } from "react-redux";
-
 import useCloneAnnotationAndEntity from "Features/mapEditor/hooks/useCloneAnnotationAndEntity";
 import useAnnotationTemplateCandidates from "Features/annotations/hooks/useAnnotationTemplateCandidates";
 
@@ -27,8 +25,8 @@ export default function IconButtonCloneAnnotation({ annotation }) {
 
     // data
 
-    const filterByListingId = useSelector((s) => s.listings.selectedListingId);
-    const annotationTemplates = useAnnotationTemplateCandidates(annotation, { filterByListingId });
+    const { candidates: annotationTemplates, listings } =
+        useAnnotationTemplateCandidates(annotation) ?? {};
     const cloneAnnotationAndEntity = useCloneAnnotationAndEntity();
 
     // handlers
@@ -48,6 +46,12 @@ export default function IconButtonCloneAnnotation({ annotation }) {
             annotationTemplateId: template?.id,
             label: template?.label,
         };
+        // Derive the correct annotation type from the target template drawingShape
+        const drawingShape = template?.drawingShape ?? template?.type;
+        if (drawingShape === "POLYLINE_2D") newAnnotation.type = "POLYLINE";
+        else if (drawingShape === "SURFACE_2D") newAnnotation.type = "POLYGON";
+        else if (drawingShape === "POINT_2D") newAnnotation.type = "MARKER";
+
         await cloneAnnotationAndEntity(annotation, { newAnnotation });
         handleClose();
     }
@@ -75,6 +79,7 @@ export default function IconButtonCloneAnnotation({ annotation }) {
                 selectedAnnotationTemplateId={annotation?.annotationTemplateId}
                 onChange={handleTemplateChange}
                 annotationTemplates={annotationTemplates}
+                listings={listings}
             />
         </Menu>
     </>
