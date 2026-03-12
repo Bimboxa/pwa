@@ -66,7 +66,7 @@ export default function useViewers() {
       shortLabel: "Quantités",
       icon: <Table />,
       bgcolor: theme.palette.viewers.map,
-      //disabled: true,
+      disabled: true,
     },
     {
       key: "THREED",
@@ -82,6 +82,7 @@ export default function useViewers() {
       shortLabel: "Admin",
       icon: <AdminPanelSettings />,
       bgcolor: theme.palette.viewers.admin,
+      disabled: true,
     },
     {
       key: "LEAFLET",
