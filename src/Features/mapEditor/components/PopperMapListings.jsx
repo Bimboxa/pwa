@@ -39,6 +39,7 @@ import DialogCreateAnnotationTemplate from "Features/annotations/components/Dial
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import SectionSmartDetect from "Features/smartDetect/components/SectionSmartDetect";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
+import SectionDefaultHeight from "Features/mapEditor/components/SectionDefaultHeight";
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
@@ -926,6 +927,13 @@ export default function PopperMapListings() {
           {titleS}
         </Typography>
       </Box>
+
+      {/* Default height (MAP viewer only) */}
+      {viewerKey === "MAP" && (
+        <Box sx={{ px: 1, py: 1, borderBottom: "1px solid", borderColor: "divider" }}>
+          <SectionDefaultHeight />
+        </Box>
+      )}
 
       {/* Scrollable listings */}
       <Box sx={{ overflow: "auto", flex: 1 }}>

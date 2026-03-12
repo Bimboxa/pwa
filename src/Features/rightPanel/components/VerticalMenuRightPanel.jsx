@@ -17,7 +17,6 @@ import {
   Insights as OpencvIcon,
   MoreHoriz as More,
   Image,
-  Map,
   Chat,
   CameraAlt,
   Tune,
@@ -40,11 +39,6 @@ export default function VerticalMenuRightPanel() {
   // const
 
   const toolsMap = {
-    BASE_MAP: {
-      label: "Fond de plan",
-      icon: <Map />
-    },
-
     EXPORT: {
       label: "Export",
       icon: <Export />,

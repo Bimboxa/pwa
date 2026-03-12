@@ -108,22 +108,21 @@ export default function SectionDefaultHeight() {
       sx={{
         display: "flex",
         alignItems: "center",
-        bgcolor: "background.paper",
-        borderRadius: 1,
-        boxShadow: 1,
-        px: 0.5,
+        justifyContent: "space-between",
       }}
     >
-      <Typography
-        variant="body2"
-        color="text.secondary"
-        noWrap
-        sx={{ pl: 0.5 }}
-      >
-        ht.
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          noWrap
+        >
+          Hauteur de l'annotation
+        </Typography>
+      </Box>
 
-      <InputBase
+      <Box sx={{ display: "flex", alignItems: "center" }}>
+        <InputBase
         value={localValue}
         onChange={handleHeightChange}
         onKeyDown={handleKeyDown}
@@ -150,6 +149,7 @@ export default function SectionDefaultHeight() {
       >
         <FilterListIcon fontSize="small" />
       </IconButton>
+      </Box>
 
       <Popover
         open={open}

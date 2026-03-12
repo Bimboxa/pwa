@@ -21,7 +21,6 @@ import PanelOpencv from "Features/opencv/components/PanelOpencv.jsx";
 import PanelTools from "Features/tools/components/PanelTools";
 import PanelMasterProjectPictures from "Features/masterProjectPictures/components/PanelMasterProjectPictures";
 import PanelChat from "Features/chat/components/PanelChat";
-import BaseMapDetail from "Features/baseMapEditor/components/PanelBaseMapDetail";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PanelExport from "Features/export/components/PanelExport";
 import PanelSelectionProperties from "Features/selection/components/PanelSelectionProperties";
@@ -85,7 +84,6 @@ export default function RightPanelContainer() {
           {selectedKey === "MASTER_PROJECT_PICTURES" && <PanelMasterProjectPictures />}
           {selectedKey === "TOOLS" && <PanelTools />}
           {selectedKey === "CHAT" && <PanelChat />}
-          {selectedKey === "BASE_MAP" && <BaseMapDetail />}
           {selectedKey === "ADMIN_MODEL" && <PanelAdminEntityModel />}
           {selectedKey === "ADMIN_LISTING" && <PanelAdminListing />}
           {selectedKey === "ADMIN_ENTITY" && <PanelAdminEntity />}
