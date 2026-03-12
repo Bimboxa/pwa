@@ -82,6 +82,9 @@ const mapEditorInitialState = {
   // default height
   defaultHeightByBaseMap: {}, // { [baseMapId]: number }
   defaultHeightCategories: [], // ["OUVRAGE:VCT", "OUVRAGE:SOL", ...]
+
+  // last selected drawing tool per annotation template / tool type
+  selectedToolKeyByTemplateId: {}, // { [templateId|toolType]: toolKey }
 };
 
 export const mapEditorSlice = createSlice({
@@ -325,6 +328,12 @@ export const mapEditorSlice = createSlice({
     setDefaultHeightCategories: (state, action) => {
       state.defaultHeightCategories = action.payload;
     },
+
+    // selected tool per template
+    setSelectedToolKeyForTemplate: (state, action) => {
+      const { templateId, toolKey } = action.payload;
+      state.selectedToolKeyByTemplateId[templateId] = toolKey;
+    },
   },
 });
 
@@ -413,6 +422,9 @@ export const {
   // default height
   setDefaultHeightForBaseMap,
   setDefaultHeightCategories,
+
+  // selected tool per template
+  setSelectedToolKeyForTemplate,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;

@@ -149,12 +149,24 @@ let theme = createTheme(
       anchor: {
         passive: grey[500],
         active: red[500],
-      }
+      },
+      panel: {
+        headerBg: "#fafafa",
+        sectionBg: "#f5f5fb",
+        border: "#eaeaf5",
+        textPrimary: "#1a1a2e",
+        textSecondary: "#3d3d4e",
+        textMuted: "#7070a0",
+        textLight: "#b0b0c8",
+        countEmpty: "#d0d0e0",
+        iconMuted: "#9090a8",
+      },
     },
     typography: {
+      fontFamily: "'DM Sans', sans-serif",
       fontSize: 13,
       button: {
-        textTransform: "none", // Supprime les majuscules ici aussi
+        textTransform: "none",
         fontWeight: 500,
       },
     },
