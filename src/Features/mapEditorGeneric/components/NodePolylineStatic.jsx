@@ -110,8 +110,9 @@ export default function NodePolylineStatic({
     const computedStrokeWidth = useMemo(() => {
         if (type === "POLYGON") return 0.5;
         if (isCmUnit) return (strokeWidth * 0.01) / baseMapMeterByPx;
-        return strokeWidth / (containerK ?? 1);
-    }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit, type, containerK]);
+        // PX mode: raw value, vectorEffect="non-scaling-stroke" keeps it fixed on screen
+        return strokeWidth;
+    }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit, type]);
 
 
 
@@ -370,7 +371,7 @@ export default function NodePolylineStatic({
                         style={{ cursor: isTransient ? "crosshair" : "pointer" }}
                     >
                         {/* Hit Area Large */}
-                        <path d={seg.d} fill="none" stroke="transparent" strokeWidth={Math.max(14, computedStrokeWidth * 3)} />
+                        <path d={seg.d} fill="none" stroke="transparent" strokeWidth={Math.max(14, isCmUnit ? computedStrokeWidth * 3 : 14)} vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"} />
                         {/* Visuel Ghost */}
                         <path
                             d={seg.d}
@@ -380,6 +381,7 @@ export default function NodePolylineStatic({
                             strokeDasharray="4 12"
                             strokeOpacity={STYLE_CONSTANTS.OPACITIES.GHOST_STROKE}
                             strokeLinecap="round"
+                            vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
                             style={{ pointerEvents: "none" }}
                         />
                     </g>
@@ -414,7 +416,7 @@ export default function NodePolylineStatic({
                         fill="none"
                         stroke="transparent"
                         strokeWidth={Math.max(14, isCmUnit ? computedStrokeWidth * 3 : 14)}
-                    //vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
+                        vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
                     />
                     <path
                         d={seg.d}
@@ -422,16 +424,9 @@ export default function NodePolylineStatic({
                         stroke={displayColor}
                         strokeWidth={displayedStrokeWidth}
                         strokeOpacity={finalStrokeOpacity}
-                        // strokeDasharray={
-                        //     strokeType === "DASHED"
-                        //         ? `${computedStrokeWidth * 1} ${computedStrokeWidth * 1.5}`
-                        //         : undefined
-                        // }
-
-                        strokeLinecap="round" // round, bevel, ...
-                        // strokeLinejoin={strokeType === "DASHED" ? "bevel" : "round"}
+                        strokeLinecap="round"
                         strokeLinejoin="round"
-                        //vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
+                        vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
                         style={{ pointerEvents: "none", transition: "stroke 0.2s" }}
 
                         {...(strokeType === "DASHED" && {
@@ -489,6 +484,13 @@ export default function NodePolylineStatic({
         const k = containerK || 1;
         return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
     }, [containerK]);
+
+    // Counter-scale for patterns (hatching, eraser) to keep fixed size on screen in PX mode
+    const patternTransformStyle = useMemo(() => {
+        if (isCmUnit) return undefined;
+        const k = containerK || 1;
+        return { transform: `scale(calc(1 / (var(--map-zoom, 1) * ${k})))` };
+    }, [containerK, isCmUnit]);
 
     const renderVertex = (pt) => {
         const isPointSelected = selectedPointId === pt.id;
@@ -590,6 +592,7 @@ export default function NodePolylineStatic({
                         patternUnits="userSpaceOnUse"
                         width={ERASER_SPACING}
                         height={ERASER_SPACING}
+                        style={patternTransformStyle}
                     >
                         {/* Petit trait horizontal centré */}
                         <line
@@ -604,7 +607,7 @@ export default function NodePolylineStatic({
 
                 {/* 2. PATTERN HACHURES (Existant) */}
                 {!isEraser && showFill && (fillType === "HATCHING" || fillType === "HATCHING_LEFT") && (
-                    <pattern id={patternIdRef.current} patternUnits="userSpaceOnUse" width={HATCHING_SPACING} height={HATCHING_SPACING}>
+                    <pattern id={patternIdRef.current} patternUnits="userSpaceOnUse" width={HATCHING_SPACING} height={HATCHING_SPACING} style={patternTransformStyle}>
                         {fillType === "HATCHING" ? (
                             <path d={`M 0,${HATCHING_SPACING} L ${HATCHING_SPACING},0`} stroke={fillColor} strokeWidth={2} />
                         ) : (
