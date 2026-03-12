@@ -9,8 +9,8 @@ export default function LayerTools() {
         <Box
             sx={{
                 position: "absolute",
-                right: "8px",
-                top: "8px",
+                right: "16px",
+                top: "16px",
                 zIndex: 1,
             }}
         >

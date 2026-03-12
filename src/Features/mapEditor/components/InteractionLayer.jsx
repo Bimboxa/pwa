@@ -2129,7 +2129,7 @@ const InteractionLayer = forwardRef(({
         }
         htmlOverlay={
           <>
-            <Box sx={{ position: 'absolute', bottom: "4px", left: "40px", zIndex: 1 }}>
+            <Box sx={{ position: 'absolute', bottom: "16px", left: "76px", zIndex: 1 }}>
               <HelperScale
                 ref={helperScaleRef} // <--- Brancher la ref
                 meterByPx={baseMapMeterByPx} // Passer la prop statique venant de baseMap

@@ -7,7 +7,7 @@ import usePdfReportName from "../hooks/usePdfReportName";
 
 import { styled, useTheme } from "@mui/material/styles";
 import { FormControlLabel, Switch, Box, Paper, Button, Typography, CircularProgress, Divider } from "@mui/material";
-import { Wallpaper as PdfIcon, Download as DownloadIcon } from "@mui/icons-material";
+import { Settings as PdfIcon, Download as DownloadIcon } from "@mui/icons-material";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import SliderBaseMapOpacity from "Features/mapEditor/components/SliderBaseMapOpacity";
@@ -100,7 +100,7 @@ export default function SectionPdfReportInMapEditor() {
                     display: "flex",
                     flexDirection: "column",
 
-                    borderRadius: "20px",
+                    borderRadius: "8px",
                     bgcolor: "background.paper",
                     overflow: "hidden",
 

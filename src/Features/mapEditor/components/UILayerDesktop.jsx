@@ -5,7 +5,7 @@ import { useInteraction } from "../context/InteractionContext";
 
 import { Box } from "@mui/material";
 
-import ToolbarMapEditorV3 from "./ToolbarMapEditorV3";
+
 import ButtonEditScaleVariantFirst from "./ButtonEditScaleVariantFirst";
 import ButtonAutoLayoutLabels from "Features/tools/components/ButtonAutoLayoutLabels";
 import SectionShowedFWC from "Features/fwc/components/SectionShowedFWC";
@@ -33,7 +33,6 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
 
     // helpers - show
 
-    const showDrawingTools = emType === "LOCATED_ENTITY" || listing?.entityModel?.annotationEnabled || openedPanel === "BASE_MAP_DETAIL";
     const showEditScale = true;
 
     return (
@@ -69,21 +68,13 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
 
 
 
-            {showDrawingTools && <Box sx={{
-                position: "absolute",
-                left: "50%",
-                bottom: "24px",
-                transform: "translateX(-50%)",
-                zIndex: 1,
-            }}>
-                <ToolbarMapEditorV3 />
-            </Box>}
+            {/* ToolbarMapEditorV3 removed — harmonize icon buttons (#67) */}
 
             {showEditScale && <Box
                 sx={{
                     position: "absolute",
-                    left: "4px",
-                    bottom: "4px",
+                    left: "16px",
+                    bottom: "16px",
                     zIndex: 1,
                     display: "flex",
                     alignItems: "center",
@@ -128,8 +119,8 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
 
             <Box sx={{
                 position: "absolute",
-                right: "24px",
-                bottom: "24px",
+                right: "16px",
+                bottom: "16px",
                 zIndex: 1,
                 display: "flex",
                 alignItems: "center",

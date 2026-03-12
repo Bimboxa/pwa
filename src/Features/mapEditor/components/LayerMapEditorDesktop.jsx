@@ -60,8 +60,8 @@ export default function LayerMapEditorDesktop({ svgElement }) {
       <Box
         sx={{
           position: "absolute",
-          left: "8px",
-          bottom: "8px",
+          left: "16px",
+          bottom: "16px",
           zIndex: 10000,
           display: "flex",
           alignItems: "center",
