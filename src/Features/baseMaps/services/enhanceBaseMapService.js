@@ -10,6 +10,7 @@ export default async function enhanceBaseMapService({
   file,
   prompt, // Nouveau paramètre requis
   transformId,
+  serviceUrl,
   dispatch,
   onSuccess,
   onError,
@@ -37,7 +38,7 @@ export default async function enhanceBaseMapService({
       formData.append("prompt", prompt || "Améliore cette image"); // Valeur par défaut si prompt vide
 
       const res = await fetch(
-        "https://n8nk.etandex.fr/webhook/gemini-image", // Nouvelle URL
+        serviceUrl,
         {
           method: "POST",
           // IMPORTANT : Pas de header "Content-Type" ici. 

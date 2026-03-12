@@ -44,6 +44,8 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ToolMergeVisibleAnnotations from "Features/baseMapEditor/components/ToolMergeVisibleAnnotations";
 import convertToBlackAndWhite from "Features/images/utils/convertToBlackAndWhite";
 import addBackgroundToImage from "Features/images/utils/addBackgroundToImage";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import enhanceBaseMapService, {
   cancelEnhanceBaseMap,
 } from "Features/baseMaps/services/enhanceBaseMapService";
@@ -52,6 +54,8 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
   const dispatch = useDispatch();
 
   // data
+
+  const appConfig = useAppConfig();
 
   const baseMapTransforms = useBaseMapTransforms();
   const createVersion = useCreateBaseMapVersion();
@@ -183,6 +187,7 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
       transformId: transform.id,
       file: version.image.file,
       prompt: transform.prompt,
+      serviceUrl: appConfig?.features?.enhanceBaseMap?.fetchParams?.url,
       dispatch,
       onSuccess: ({ blob }) => {
         const file = new File([blob], "enhanced.png", { type: "image/png" });

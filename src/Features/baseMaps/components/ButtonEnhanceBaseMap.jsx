@@ -9,6 +9,8 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ButtonActionInPanel from "Features/layout/components/ButtonActionInPanel";
 import ImageGeneric from "Features/images/components/ImageGeneric";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import useCreateBaseMapVersion from "../hooks/useCreateBaseMapVersion";
 import enhanceBaseMapService, {
   getActiveEnhanceFetch,
@@ -27,6 +29,7 @@ export default function ButtonEnhanceBaseMap() {
 
   // data
 
+  const appConfig = useAppConfig();
   const baseMap = useMainBaseMap();
   const enhancedResult = useSelector(
     (s) => s.baseMaps?.enhancedImageResults?.[baseMap?.id]
@@ -104,6 +107,7 @@ export default function ButtonEnhanceBaseMap() {
     enhanceBaseMapService({
       baseMapId: baseMap.id,
       file: baseMap.image.file,
+      serviceUrl: appConfig?.features?.enhanceBaseMap?.fetchParams?.url,
       dispatch,
       onSuccess: () => {
         setLoading(false);

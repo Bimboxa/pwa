@@ -10,6 +10,7 @@ import MenuGeneric from "Features/layout/components/MenuGeneric";
 
 import getAvatarStringFromUserProfile from "../utils/getAvatarStringFromUserProfile";
 import { getUserDataService } from "../services/getUserDataService";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function ButtonUserAvatar() {
   const dispatch = useDispatch();
@@ -17,6 +18,7 @@ export default function ButtonUserAvatar() {
   // data
 
   const userProfile = useSelector((s) => s.auth.userProfile);
+  const appConfig = useAppConfig();
 
   const avatarString = getAvatarStringFromUserProfile(userProfile);
 
@@ -36,7 +38,11 @@ export default function ButtonUserAvatar() {
     {
       label: "Debug",
       handler: async () => {
-        const info = await getUserDataService({});
+        const getUserDataConfig = appConfig?.auth?.getUserData;
+        const info = await getUserDataService({
+          serviceUrl: getUserDataConfig?.url,
+          queryParams: getUserDataConfig?.queryParams,
+        });
         console.log("info", info);
       },
     },

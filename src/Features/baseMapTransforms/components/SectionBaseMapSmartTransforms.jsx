@@ -33,6 +33,8 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 import db from "App/db/db";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import enhanceBaseMapService from "Features/baseMaps/services/enhanceBaseMapService";
 import { cancelEnhanceBaseMap } from "Features/baseMaps/services/enhanceBaseMapService";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -51,6 +53,7 @@ export default function SectionBaseMapTransforms() {
     const dispatch = useDispatch();
 
     // --- Data ---
+    const appConfig = useAppConfig();
     const baseMapTransforms = useBaseMapTransforms();
     const baseMap = useMainBaseMap(); // Nécessaire pour avoir l'ID et le fichier image
     const enhancedResult = useSelector(
@@ -139,6 +142,7 @@ export default function SectionBaseMapTransforms() {
             transformId: transform.id,
             file: baseMap.image.file,
             prompt: transform.prompt, // On utilise le prompt de l'objet transform
+            serviceUrl: appConfig?.features?.enhanceBaseMap?.fetchParams?.url,
             dispatch,
             onSuccess: () => {
                 //setEnhancingTransformId(null);
