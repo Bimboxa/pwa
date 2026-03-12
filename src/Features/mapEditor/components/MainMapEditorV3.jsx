@@ -70,6 +70,7 @@ import getDefaultBaseMapPoseInBg from "../utils/getDefaultBaseMapPoseInBg";
 import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getAnnotationLabelDeltaFromDeltaPos";
 import deletePointAsync from "../services/deletePointAsync";
 import duplicateAndMovePoint from "../services/duplicateAndMovePoint";
+import replacePointBySnap from "../services/replacePointBySnap";
 import toggleAnnotationPointType from "../services/toggleAnnotationPointType";
 import commitWrapperTransform from "../services/commitWrapperTransform";
 import computeWrapperBbox from "../utils/computeWrapperBbox";
@@ -454,6 +455,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
         const imageSize = baseMap?.getImageSize?.();
         await duplicateAndMovePoint({ originalPointId, annotationId, newPos, imageSize, annotations });
+    };
+
+    const handlePointSnapReplace = async ({ oldPointId, snapPointId, affectedAnnotationIds }) => {
+        await replacePointBySnap({ oldPointId, snapPointId, affectedAnnotationIds, annotations });
     };
 
     const handleToggleAnnotationPointType = async ({ annotationId, pointId }) => {
@@ -1011,6 +1016,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     activeContext={activeContext}
                     annotations={annotations}
                     onPointMoveCommit={handlePointMoveCommit}
+                    onPointSnapReplace={handlePointSnapReplace}
                     onToggleAnnotationPointType={handleToggleAnnotationPointType}
                     onPointDuplicateAndMoveCommit={handleDuplicateAndMovePoint}
                     onDeletePoint={handleDeletePoint}

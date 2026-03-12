@@ -21,6 +21,7 @@ export default function usePointDrag({
   setHiddenAnnotationIds,
   // callbacks
   onPointMoveCommit,
+  onPointSnapReplace,
   onPointDuplicateAndMoveCommit,
   onSegmentSplit,
   onToggleAnnotationPointType,
@@ -46,12 +47,14 @@ export default function usePointDrag({
 
   const callbacksRef = useRef({
     onPointMoveCommit,
+    onPointSnapReplace,
     onPointDuplicateAndMoveCommit,
     onSegmentSplit,
     onToggleAnnotationPointType,
   });
   callbacksRef.current = {
     onPointMoveCommit,
+    onPointSnapReplace,
     onPointDuplicateAndMoveCommit,
     onSegmentSplit,
     onToggleAnnotationPointType,
@@ -160,10 +163,11 @@ export default function usePointDrag({
    *
    * @param {{ x: number, y: number }} worldPos - Position monde
    * @param {MouseEvent} event
+   * @param {{ x: number, y: number, pointId?: string }|null} snapOverride - If provided, use this position instead of worldPos (snap to vertex). pointId is the snap target's point ID.
    * @returns {boolean} true si l'événement a été consommé (action exclusive)
    */
   const handlePointDragMove = useCallback(
-    (worldPos, event) => {
+    (worldPos, event, snapOverride) => {
       const _dragState = dragStateRef.current;
       if (!_dragState) return false;
 
@@ -209,8 +213,17 @@ export default function usePointDrag({
 
       // B. Active → mettre à jour la position
       if (dragStateRef.current?.active) {
-        const localPos = toLocalCoords(worldPos);
-        const newDragState = { ...dragStateRef.current, currentPos: localPos };
+        const localPos = snapOverride
+          ? { x: snapOverride.x, y: snapOverride.y }
+          : toLocalCoords(worldPos);
+        const snapTarget = snapOverride?.pointId
+          ? { pointId: snapOverride.pointId }
+          : null;
+        const newDragState = {
+          ...dragStateRef.current,
+          currentPos: localPos,
+          snapTarget,
+        };
         setDragState(newDragState);
         dragStateRef.current = newDragState;
         return true; // Action exclusive
@@ -234,6 +247,7 @@ export default function usePointDrag({
     const _virtualInsertion = virtualInsertion;
     const {
       onPointMoveCommit: _onPointMoveCommit,
+      onPointSnapReplace: _onPointSnapReplace,
       onPointDuplicateAndMoveCommit: _onPointDuplicateAndMoveCommit,
       onSegmentSplit: _onSegmentSplit,
       onToggleAnnotationPointType: _onToggleAnnotationPointType,
@@ -255,6 +269,22 @@ export default function usePointDrag({
           annotationId: _dragState.affectedIds[0],
           newPos: _dragState.currentPos,
         });
+      } else if (_dragState.snapTarget && _onPointSnapReplace) {
+        // Snap replace: check if the annotation owning this point is NOT selected
+        const _selectedAnnotation = selectedAnnotationRef.current;
+        const isSelectedAnnotation = _selectedAnnotation && _dragState.affectedIds?.includes(_selectedAnnotation.id);
+
+        if (isSelectedAnnotation) {
+          // Selected annotation: just move to snapped position (keep own point ID)
+          _onPointMoveCommit?.(_dragState.pointId, _dragState.currentPos);
+        } else {
+          // Quick edit (unselected): replace point ID with snap target
+          _onPointSnapReplace({
+            oldPointId: _dragState.pointId,
+            snapPointId: _dragState.snapTarget.pointId,
+            affectedAnnotationIds: _dragState.affectedIds,
+          });
+        }
       } else if (_onPointMoveCommit) {
         _onPointMoveCommit(_dragState.pointId, _dragState.currentPos);
       }

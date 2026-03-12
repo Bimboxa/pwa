@@ -112,6 +112,7 @@ const InteractionLayer = forwardRef(({
   activeContext = "BASE_MAP",
   annotations, // <= snapping source.
   onPointMoveCommit,
+  onPointSnapReplace,
   onToggleAnnotationPointType,
   onPointDuplicateAndMoveCommit,
   onDeletePoint,
@@ -489,6 +490,7 @@ const InteractionLayer = forwardRef(({
     permissions,
     setHiddenAnnotationIds,
     onPointMoveCommit,
+    onPointSnapReplace,
     onPointDuplicateAndMoveCommit,
     onSegmentSplit,
     onToggleAnnotationPointType,
@@ -1473,8 +1475,48 @@ const InteractionLayer = forwardRef(({
 
     // A. DRAG POINT (Vertex) — délégué à usePointDrag
     if (dragState?.pending || dragState?.active) {
-      if (dragState?.active) snappingLayerRef.current?.update(null);
-      const consumed = handlePointDragMove(worldPos, event);
+
+      // Snap detection during active drag (VERTEX only)
+      let snapOverride = null;
+      if (dragState?.active && snappingEnabled) {
+        const imageScale = getTargetScale();
+        const currentCameraZoom = viewportRef.current?.getZoom() || 1;
+        const scale = imageScale * currentCameraZoom;
+        const localPos = toLocalCoords(worldPos);
+        const snapThreshold = SNAP_THRESHOLD_ABSOLUTE / scale;
+
+        // Exclude the dragged point from snap targets
+        const dragPointId = dragStateRef.current?.originalPointId || dragStateRef.current?.pointId;
+        const annotationsExcludingDragPoint = annotations?.map(ann => ({
+          ...ann,
+          points: ann.points?.filter(pt => pt.id !== dragPointId),
+          cuts: ann.cuts?.map(cut => ({
+            ...cut,
+            points: cut.points?.filter(pt => pt.id !== dragPointId),
+          })),
+        }));
+
+        const snapResult = getBestSnap(localPos, annotationsExcludingDragPoint, snapThreshold);
+
+        if (snapResult?.type === "VERTEX") {
+          currentSnapRef.current = snapResult;
+          snapOverride = { x: snapResult.x, y: snapResult.y, pointId: snapResult.id };
+
+          // Show snap helper
+          const pose = getTargetPose();
+          const worldSnapX = snapResult.x * pose.k + pose.x;
+          const worldSnapY = snapResult.y * pose.k + pose.y;
+          const screenSnap = viewportRef.current?.worldToViewport(worldSnapX, worldSnapY);
+          if (screenSnap) {
+            snappingLayerRef.current?.update({ ...screenSnap, type: "VERTEX" });
+          }
+        } else {
+          currentSnapRef.current = null;
+          snappingLayerRef.current?.update(null);
+        }
+      }
+
+      const consumed = handlePointDragMove(worldPos, event, snapOverride);
       if (consumed) return;
     }
 
