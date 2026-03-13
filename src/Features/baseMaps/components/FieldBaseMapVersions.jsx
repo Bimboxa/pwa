@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -20,6 +20,8 @@ import {
   IconButton,
   Avatar,
   Chip,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material";
 import {
   DragIndicator,
@@ -44,8 +46,14 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
+import useReplaceVersionImage from "Features/baseMaps/hooks/useReplaceVersionImage";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 import db from "App/db/db";
+
+import DialogGeneric from "Features/layout/components/DialogGeneric";
+import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import SectionCompareTwoImages from "Features/baseMapTransforms/components/SectionCompareTwoImages";
 
 function SortableVersionRow({ version, isSelected, onClick, onDoubleClick }) {
   const {
@@ -117,7 +125,12 @@ export default function FieldBaseMapVersions({ baseMap }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
   const createVersion = useCreateBaseMapVersion();
+  const replaceVersionImage = useReplaceVersionImage();
   const fileInputRef = useRef(null);
+  const [openCompare, setOpenCompare] = useState(false);
+  const [newFileObjectUrl, setNewFileObjectUrl] = useState(null);
+  const [newFile, setNewFile] = useState(null);
+  const [createNewVersion, setCreateNewVersion] = useState(true);
   const selectedVersionId = useSelector(
     (s) => s.baseMapEditor.selectedVersionId
   );
@@ -182,14 +195,54 @@ export default function FieldBaseMapVersions({ baseMap }) {
     fileInputRef.current?.click();
   }
 
-  async function handleFileSelected(e) {
+  function handleFileSelected(e) {
     const file = e.target.files?.[0];
     if (file && baseMap?.id) {
-      await createVersion(baseMap.id, file, {
-        label: file.name.replace(/\.[^/.]+$/, ""),
-      });
+      setNewFile(file);
+      setNewFileObjectUrl(URL.createObjectURL(file));
+      setOpenCompare(true);
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleCloseCompare() {
+    setOpenCompare(false);
+    if (newFileObjectUrl) URL.revokeObjectURL(newFileObjectUrl);
+    setNewFileObjectUrl(null);
+    setNewFile(null);
+  }
+
+  async function handleSaveVersion() {
+    if (!newFile || !baseMap?.id) return;
+
+    const originalTransform = baseMap.getActiveVersionTransform();
+    const originalImageSize = baseMap.getActiveImageSize();
+    const newImageSize = await new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.src = newFileObjectUrl;
+    });
+
+    let transform;
+    if (originalImageSize && newImageSize && newImageSize.width > 0) {
+      const scale = (originalImageSize.width * (originalTransform?.scale || 1)) / newImageSize.width;
+      transform = { ...(originalTransform || { x: 0, y: 0, rotation: 0 }), scale };
+    }
+
+    const label = newFile.name.replace(/\.[^/.]+$/, "");
+
+    if (createNewVersion) {
+      await createVersion(baseMap.id, newFile, { label, transform });
+    } else {
+      const activeVersion = baseMap.getActiveVersion();
+      if (activeVersion) {
+        await replaceVersionImage(baseMap.id, activeVersion.id, newFile, { transform });
+      } else {
+        await createVersion(baseMap.id, newFile, { label, transform });
+      }
+    }
+
+    handleCloseCompare();
   }
 
   // render
@@ -255,6 +308,53 @@ export default function FieldBaseMapVersions({ baseMap }) {
         </SortableContext>
       </DndContext>
     </Box>
+
+    {openCompare && (
+      <DialogGeneric open={openCompare} vh={90} onClose={handleCloseCompare}>
+        <BoxFlexVStretch sx={{ width: 1, height: 1, position: "relative" }}>
+          <SectionCompareTwoImages
+            imageUrl2={baseMap.getUrl()}
+            imageUrl1={newFileObjectUrl}
+          />
+          <Box
+            sx={{
+              position: "absolute",
+              bottom: 8,
+              right: 8,
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              bgcolor: "white",
+              borderRadius: 1,
+              px: 1.5,
+              py: 0.5,
+              boxShadow: 2,
+            }}
+          >
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={createNewVersion}
+                  onChange={(e) => setCreateNewVersion(e.target.checked)}
+                  size="small"
+                />
+              }
+              label={
+                <Typography variant="caption" color="text.primary">
+                  Nouvelle version
+                </Typography>
+              }
+            />
+            <ButtonGeneric
+              label="Enregistrer"
+              variant="contained"
+              color="secondary"
+              onClick={handleSaveVersion}
+            />
+          </Box>
+        </BoxFlexVStretch>
+      </DialogGeneric>
+    )}
     </>
   );
 }

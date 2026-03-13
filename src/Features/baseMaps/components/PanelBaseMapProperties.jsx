@@ -11,6 +11,8 @@ import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useDeleteEntity from "Features/entities/hooks/useDeleteEntity";
+import downloadBlob from "Features/files/utils/downloadBlob";
+import addBackgroundToImage from "Features/images/utils/addBackgroundToImage";
 
 import { Box, Typography, IconButton, Menu, MenuItem } from "@mui/material";
 import {
@@ -54,6 +56,14 @@ export default function PanelBaseMapProperties() {
   function handleDelete() {
     setAnchorEl(null);
     setOpenDelete(true);
+  }
+
+  async function handleDownloadImage() {
+    setAnchorEl(null);
+    const imageUrl = baseMap.getUrl();
+    if (!imageUrl) return;
+    const processedImageFile = await addBackgroundToImage(imageUrl, "#FFFFFF");
+    if (processedImageFile) downloadBlob(processedImageFile, baseMap.name);
   }
 
   // render
@@ -107,6 +117,7 @@ export default function PanelBaseMapProperties() {
       </Box>
 
       <Menu open={menuOpen} anchorEl={anchorEl} onClose={handleMenuClose}>
+        <MenuItem onClick={handleDownloadImage}>Télécharger l'image</MenuItem>
         <MenuItem onClick={handleDelete}>Supprimer</MenuItem>
       </Menu>
 
