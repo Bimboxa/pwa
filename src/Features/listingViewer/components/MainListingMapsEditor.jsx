@@ -33,6 +33,7 @@ export default function MainListingMapsEditor({ listing, showAllListings }) {
     excludeBgAnnotations: true,
     withQties: true,
     withListingName: showAllListings,
+    withEntity: true,
   });
 
   // state

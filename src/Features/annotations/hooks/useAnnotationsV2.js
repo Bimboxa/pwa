@@ -373,6 +373,7 @@ export default function useAnnotationsV2(options) {
             annotationsUpdatedAt,
             baseMapsUpdatedAt,
             baseMaps?.length,
+            withEntity,
         ]);
 
 

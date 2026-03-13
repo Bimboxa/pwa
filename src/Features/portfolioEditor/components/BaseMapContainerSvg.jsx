@@ -39,6 +39,7 @@ export default function BaseMapContainerSvg({
     filterBySelectedScope: true,
     excludeIsForBaseMapsListings: true,
     excludeBgAnnotations: true,
+    withEntity: true,
   });
 
   // refs
