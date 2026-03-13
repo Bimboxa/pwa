@@ -1,4 +1,4 @@
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { selectSelectedItems } from "Features/selection/selectionSlice";
@@ -6,23 +6,20 @@ import { selectSelectedItems } from "Features/selection/selectionSlice";
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
 import useSelectedNodes from "../hooks/useSelectedNodes";
 
-import { setAnnotationToolbarPosition } from "../mapEditorSlice";
-
 import db from "App/db/db";
-import PopperBox from "Features/layout/components/PopperBox";
+import { Box } from "@mui/material";
 import ToolbarEditAnnotation from "Features/annotations/components/ToolbarEditAnnotation";
 import ToolbarEditAnnotationVariantBaseMapAnnotation from "Features/annotations/components/ToolbarEditAnnotationVariantBaseMapAnnotation";
 
 
 export default function PopperEditAnnotation({ viewerKey = null }) {
-  const dispatch = useDispatch();
-
   // data
+
   const anchorPosition = useSelector(
     (s) => s.mapEditor.annotationToolbarPosition
   );
 
-  const { node: selectedNode } = useSelectedNodes()
+  const { node: selectedNode } = useSelectedNodes();
 
   const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const selectedAnnotation = useSelectedAnnotation();
@@ -33,7 +30,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
 
   // helpers
 
-  // Only show popper if viewerKey matches active viewer (or if viewerKey is not specified, show for MAP)
+  // Only show if viewerKey matches active viewer (or if viewerKey is not specified, show for MAP)
   const shouldShow = viewerKey
     ? activeViewerKey === viewerKey
     : activeViewerKey === "MAP";
@@ -45,7 +42,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
     shouldShow &&
     isSingleSelection &&
     Boolean(anchorPosition) &&
-    ["MARKER", "POINT", "POLYLINE", "POLYGON", "IMAGE", "RECTANGLE", "STRIP",].includes(type) &&
+    ["MARKER", "POINT", "POLYLINE", "POLYGON", "IMAGE", "RECTANGLE", "STRIP"].includes(type) &&
     selectedNode?.nodeType === "ANNOTATION";
 
   // helper - isBaseMapAnnotation
@@ -56,48 +53,28 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   );
   const isBaseMapAnnotation = listing?.isForBaseMaps === true;
 
-  // helper - anchorPlacement
-
-  let anchorPlacement = "bottomMiddle";
-
-  if (["IMAGE", "RECTANGLE"].includes(selectedAnnotation.type)) {
-    anchorPlacement = "topLeft";
-  }
-
-  let offset = [0, -100];
-  if (["IMAGE", "RECTANGLE"].includes(selectedAnnotation.type)) {
-    offset = [10, 0];
-  }
-
-  // handlers
-
-  const handleClose = () => {
-    // Only close if this popper's viewer is active
-    if (shouldShow) {
-      dispatch(setAnnotationToolbarPosition(null));
-    }
-  };
+  if (!open) return null;
 
   return (
-    <>
-      {open && (
-        <PopperBox
-          key={`annotation-toolbar-${selectedNode?.id || "none"}-${viewerKey || "MAP"
-            }`}
-          open={open}
-          anchorPosition={anchorPosition}
-          onClose={handleClose}
-          disableClickAway={true}
-          anchorPlacement={anchorPlacement}
-          showGrabHandle={true}
-          offset={offset}
-          paperProps={{ elevation: 0, sx: { background: "transparent" } }}
-        >
-
-          {!isBaseMapAnnotation ? <ToolbarEditAnnotation /> : <ToolbarEditAnnotationVariantBaseMapAnnotation />}
-
-        </PopperBox>
-      )}
-    </>
+    <Box
+      sx={{
+        position: "absolute",
+        top: 16,
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 1000,
+        pointerEvents: "none",
+        display: "flex",
+        justifyContent: "center",
+      }}
+    >
+      <Box sx={{ pointerEvents: "auto" }}>
+        {!isBaseMapAnnotation ? (
+          <ToolbarEditAnnotation />
+        ) : (
+          <ToolbarEditAnnotationVariantBaseMapAnnotation />
+        )}
+      </Box>
+    </Box>
   );
 }

@@ -23,12 +23,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import {
-  DragIndicator as GripIcon,
-  Close as RemoveIcon,
-} from "@mui/icons-material";
-
-import { PopperDragHandle } from "Features/layout/components/PopperBox";
+import { Close as RemoveIcon } from "@mui/icons-material";
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
@@ -123,32 +118,25 @@ export default function ToolbarEditAnnotations({ allAnnotations }) {
           minWidth: 250,
         }}
       >
-        {/* Header - draggable */}
-        <PopperDragHandle>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              px: 1.5,
-              py: 1,
-              borderBottom: "1px solid",
-              borderColor: "divider",
-              cursor: "grab",
-              userSelect: "none",
-              "&:hover": { bgcolor: "action.hover" },
-              transition: "background 0.1s",
-            }}
+        {/* Header */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            px: 1.5,
+            py: 1,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 600, fontSize: "0.8rem" }}
           >
-            <GripIcon fontSize="small" sx={{ color: "text.disabled", flexShrink: 0 }} />
-            <Typography
-              variant="body2"
-              sx={{ fontWeight: 600, fontSize: "0.8rem" }}
-            >
-              {countLabel}
-            </Typography>
-          </Box>
-        </PopperDragHandle>
+            {countLabel}
+          </Typography>
+        </Box>
 
         {/* Template group rows */}
         <Box sx={{ py: 0.5 }}>

@@ -19,9 +19,8 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { DragIndicator as GripIcon, Edit as EditIcon } from "@mui/icons-material";
+import { Edit as EditIcon } from "@mui/icons-material";
 
-import { PopperDragHandle } from "Features/layout/components/PopperBox";
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
@@ -119,59 +118,50 @@ export default function ToolbarEditAnnotation() {
           minWidth: 230,
         }}
       >
-        {/* Header - draggable */}
-        <PopperDragHandle>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              px: 1.25,
-              py: 1,
-              borderBottom: "1px solid",
-              borderColor: "divider",
-              cursor: "grab",
-              userSelect: "none",
-              "&:hover": { bgcolor: "action.hover" },
-              transition: "background 0.1s",
-            }}
-          >
-            <GripIcon fontSize="small" sx={{ color: "text.disabled", flexShrink: 0 }} />
+        {/* Header */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            px: 1.25,
+            py: 1,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <AnnotationTemplateIcon template={selectedAnnotation || {}} size={16} />
 
-            <AnnotationTemplateIcon template={selectedAnnotation || {}} size={16} />
-
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography
-                variant="body2"
-                sx={{
-                  fontWeight: 600,
-                  fontSize: "0.8rem",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {label}
-              </Typography>
-              <AnnotationMeasurements annotation={selectedAnnotation} />
-            </Box>
-
-            <Tooltip title="Éditer le modèle">
-              <IconButton
-                size="small"
-                onClick={handleEditClick}
-                onMouseDown={(e) => e.stopPropagation()}
-                sx={{
-                  flexShrink: 0,
-                  color: "text.disabled",
-                  "&:hover": { bgcolor: "action.hover", color: "text.primary" },
-                }}
-              >
-                <EditIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Tooltip>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 600,
+                fontSize: "0.8rem",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {label}
+            </Typography>
+            <AnnotationMeasurements annotation={selectedAnnotation} />
           </Box>
-        </PopperDragHandle>
+
+          <Tooltip title="Éditer le modèle">
+            <IconButton
+              size="small"
+              onClick={handleEditClick}
+              sx={{
+                flexShrink: 0,
+                color: "text.disabled",
+                "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+              }}
+            >
+              <EditIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
 
         {/* Actions row */}
         <ToolbarAnnotationActions
