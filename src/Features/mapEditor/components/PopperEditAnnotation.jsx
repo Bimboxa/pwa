@@ -5,6 +5,7 @@ import { selectSelectedItems } from "Features/selection/selectionSlice";
 
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
 import useSelectedNodes from "../hooks/useSelectedNodes";
+import useToolbarDrag from "../hooks/useToolbarDrag";
 
 import db from "App/db/db";
 import { Box } from "@mui/material";
@@ -53,6 +54,10 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   );
   const isBaseMapAnnotation = listing?.isForBaseMaps === true;
 
+  // drag
+
+  const { dragOffset, isDragging, handleDragStart } = useToolbarDrag();
+
   if (!open) return null;
 
   return (
@@ -61,16 +66,15 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
         position: "absolute",
         top: 16,
         left: "50%",
-        transform: "translateX(-50%)",
+        transform: `translate(calc(-50% + ${dragOffset.x}px), ${dragOffset.y}px)`,
         zIndex: 1000,
         pointerEvents: "none",
-        display: "flex",
-        justifyContent: "center",
+        transition: isDragging.current ? "none" : "transform 0.1s ease-out",
       }}
     >
       <Box sx={{ pointerEvents: "auto" }}>
         {!isBaseMapAnnotation ? (
-          <ToolbarEditAnnotation />
+          <ToolbarEditAnnotation onDragStart={handleDragStart} />
         ) : (
           <ToolbarEditAnnotationVariantBaseMapAnnotation />
         )}

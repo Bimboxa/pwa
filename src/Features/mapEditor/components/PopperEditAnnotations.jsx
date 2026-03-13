@@ -1,6 +1,8 @@
 import { useSelector } from "react-redux";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 
+import useToolbarDrag from "../hooks/useToolbarDrag";
+
 import { Box } from "@mui/material";
 import ToolbarEditAnnotations from "Features/annotations/components/ToolbarEditAnnotations";
 
@@ -23,6 +25,10 @@ export default function PopperEditAnnotations({ viewerKey = null, allAnnotations
 
   const open = shouldShow && Boolean(anchorPosition) && selectedNodes?.length > 1;
 
+  // drag
+
+  const { dragOffset, isDragging, handleDragStart } = useToolbarDrag();
+
   if (!open) return null;
 
   return (
@@ -31,15 +37,14 @@ export default function PopperEditAnnotations({ viewerKey = null, allAnnotations
         position: "absolute",
         top: 16,
         left: "50%",
-        transform: "translateX(-50%)",
+        transform: `translate(calc(-50% + ${dragOffset.x}px), ${dragOffset.y}px)`,
         zIndex: 1000,
         pointerEvents: "none",
-        display: "flex",
-        justifyContent: "center",
+        transition: isDragging.current ? "none" : "transform 0.1s ease-out",
       }}
     >
       <Box sx={{ pointerEvents: "auto" }}>
-        <ToolbarEditAnnotations allAnnotations={allAnnotations} />
+        <ToolbarEditAnnotations allAnnotations={allAnnotations} onDragStart={handleDragStart} />
       </Box>
     </Box>
   );

@@ -19,7 +19,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { Edit as EditIcon } from "@mui/icons-material";
+import { DragIndicator as GripIcon, Edit as EditIcon } from "@mui/icons-material";
 
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
@@ -29,7 +29,7 @@ import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplate
 import getAnnotationColor from "../utils/getAnnotationColor";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
 
-export default function ToolbarEditAnnotation() {
+export default function ToolbarEditAnnotation({ onDragStart }) {
   const dispatch = useDispatch();
 
   // data
@@ -118,8 +118,9 @@ export default function ToolbarEditAnnotation() {
           minWidth: 230,
         }}
       >
-        {/* Header */}
+        {/* Header - draggable */}
         <Box
+          onMouseDown={onDragStart}
           sx={{
             display: "flex",
             alignItems: "center",
@@ -128,8 +129,13 @@ export default function ToolbarEditAnnotation() {
             py: 1,
             borderBottom: "1px solid",
             borderColor: "divider",
+            cursor: "grab",
+            userSelect: "none",
+            "&:active": { cursor: "grabbing" },
           }}
         >
+          <GripIcon fontSize="small" sx={{ color: "text.disabled", flexShrink: 0 }} />
+
           <AnnotationTemplateIcon template={selectedAnnotation || {}} size={16} />
 
           <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -152,6 +158,7 @@ export default function ToolbarEditAnnotation() {
             <IconButton
               size="small"
               onClick={handleEditClick}
+              onMouseDown={(e) => e.stopPropagation()}
               sx={{
                 flexShrink: 0,
                 color: "text.disabled",

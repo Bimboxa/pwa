@@ -23,12 +23,15 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { Close as RemoveIcon } from "@mui/icons-material";
+import {
+  DragIndicator as GripIcon,
+  Close as RemoveIcon,
+} from "@mui/icons-material";
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 
-export default function ToolbarEditAnnotations({ allAnnotations }) {
+export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) {
   const dispatch = useDispatch();
 
   // data
@@ -118,8 +121,9 @@ export default function ToolbarEditAnnotations({ allAnnotations }) {
           minWidth: 250,
         }}
       >
-        {/* Header */}
+        {/* Header - draggable */}
         <Box
+          onMouseDown={onDragStart}
           sx={{
             display: "flex",
             alignItems: "center",
@@ -128,8 +132,12 @@ export default function ToolbarEditAnnotations({ allAnnotations }) {
             py: 1,
             borderBottom: "1px solid",
             borderColor: "divider",
+            cursor: "grab",
+            userSelect: "none",
+            "&:active": { cursor: "grabbing" },
           }}
         >
+          <GripIcon fontSize="small" sx={{ color: "text.disabled", flexShrink: 0 }} />
           <Typography
             variant="body2"
             sx={{ fontWeight: 600, fontSize: "0.8rem" }}

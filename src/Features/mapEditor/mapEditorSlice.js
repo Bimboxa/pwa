@@ -38,6 +38,7 @@ const mapEditorInitialState = {
   annotationToolbarPosition: null,
   annotationsToolbarPosition: null,
   tempAnnotationToolbarPosition: null,
+  toolbarDragOffset: { x: 0, y: 0 },
   //
   legendFormat: { x: 1320, y: 216, width: 200, height: 50 },
   //
@@ -218,6 +219,9 @@ export const mapEditorSlice = createSlice({
     setAnnotationToolbarPosition: (state, action) => {
       state.annotationToolbarPosition = action.payload;
     },
+    setToolbarDragOffset: (state, action) => {
+      state.toolbarDragOffset = action.payload;
+    },
     setAnnotationsToolbarPosition: (state, action) => {
       state.annotationsToolbarPosition = action.payload;
     },
@@ -380,6 +384,7 @@ export const {
   setEditedNode,
   setCanTransformNode,
   setAnnotationToolbarPosition,
+  setToolbarDragOffset,
   setAnnotationsToolbarPosition,
   setTempAnnotationToolbarPosition,
   //
