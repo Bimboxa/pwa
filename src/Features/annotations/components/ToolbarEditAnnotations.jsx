@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -26,10 +26,14 @@ import {
 import {
   DragIndicator as GripIcon,
   Close as RemoveIcon,
+  TableChart as TableChartIcon,
 } from "@mui/icons-material";
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
+import DialogGeneric from "Features/layout/components/DialogGeneric";
+import DatagridAnnotations from "./DatagridAnnotations";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) {
   const dispatch = useDispatch();
@@ -40,6 +44,10 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
   const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
   const deleteAnnotation = useDeleteAnnotation();
   const baseMap = useMainBaseMap();
+
+  // state
+
+  const [openDatagrid, setOpenDatagrid] = useState(false);
 
   // helpers - selected annotations
 
@@ -127,6 +135,7 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
           sx={{
             display: "flex",
             alignItems: "center",
+            justifyContent: "space-between",
             gap: 1,
             px: 1.5,
             py: 1,
@@ -137,13 +146,25 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
             "&:active": { cursor: "grabbing" },
           }}
         >
-          <GripIcon fontSize="small" sx={{ color: "text.disabled", flexShrink: 0 }} />
-          <Typography
-            variant="body2"
-            sx={{ fontWeight: 600, fontSize: "0.8rem" }}
-          >
-            {countLabel}
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <GripIcon fontSize="small" sx={{ color: "text.disabled", flexShrink: 0 }} />
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: 600, fontSize: "0.8rem" }}
+            >
+              {countLabel}
+            </Typography>
+          </Box>
+          <Tooltip title="Voir les données">
+            <IconButton
+              size="small"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => setOpenDatagrid(true)}
+              sx={{ flexShrink: 0 }}
+            >
+              <TableChartIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
         </Box>
 
         {/* Template group rows */}
@@ -171,6 +192,17 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
         />
       </Paper>
 
+      <DialogGeneric
+        title={countLabel}
+        open={openDatagrid}
+        onClose={() => setOpenDatagrid(false)}
+        vw="90"
+        vh="80"
+      >
+        <BoxFlexVStretch>
+          <DatagridAnnotations annotations={annotations} />
+        </BoxFlexVStretch>
+      </DialogGeneric>
     </Box>
   );
 }
