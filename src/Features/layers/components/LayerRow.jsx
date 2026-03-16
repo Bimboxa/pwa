@@ -107,46 +107,45 @@ export default function LayerRow({
   // render
 
   return (
-    <Box
+    <ListItemButton
       ref={setNodeRef}
-      sx={sortableStyle}
       {...(!isNoLayerRow ? attributes : {})}
+      component="div"
+      onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      sx={{
+        ...sortableStyle,
+        bgcolor: "white",
+        alignItems: "center",
+        justifyContent: "space-between",
+        pl: isNoLayerRow ? 2 : 0.5,
+        pr: 1,
+        py: 0.5,
+        borderLeft: "3px solid",
+        borderColor: isActive ? "secondary.main" : "transparent",
+        opacity: isHidden ? 0.5 : 1,
+        "&:hover": { bgcolor: "action.hover" },
+      }}
     >
-      <ListItemButton
-        onClick={handleClick}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        sx={{
-          bgcolor: "white",
-          alignItems: "center",
-          justifyContent: "space-between",
-          pl: isNoLayerRow ? 2 : 0.5,
-          pr: 1,
-          py: 0.5,
-          borderLeft: "3px solid",
-          borderColor: isActive ? "secondary.main" : "transparent",
-          opacity: isHidden ? 0.5 : 1,
-          "&:hover": { bgcolor: "action.hover" },
-        }}
-      >
-        {/* Left: drag handle (layers only, visible on hover) */}
-        {!isNoLayerRow && (
-          <Box
-            {...listeners}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              cursor: "grab",
-              "&:active": { cursor: "grabbing" },
-              visibility: isHovered ? "visible" : "hidden",
-              mr: -0.5,
-            }}
-          >
-            <DragIndicatorIcon
-              sx={{ fontSize: 16, color: "panel.textLight" }}
-            />
-          </Box>
-        )}
+      {/* Left: drag handle (layers only, visible on hover) */}
+      {!isNoLayerRow && (
+        <Box
+          {...listeners}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            cursor: "grab",
+            "&:active": { cursor: "grabbing" },
+            visibility: isHovered || isDragging ? "visible" : "hidden",
+            mr: 0.5,
+          }}
+        >
+          <DragIndicatorIcon
+            sx={{ fontSize: 16, color: "panel.textLight" }}
+          />
+        </Box>
+      )}
 
         {/* Layer name */}
         <Typography
@@ -238,6 +237,5 @@ export default function LayerRow({
           </Box>
         </Box>
       </ListItemButton>
-    </Box>
   );
 }

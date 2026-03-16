@@ -17,7 +17,7 @@ export default function useLayers({ filterByBaseMapId } = {}) {
         .filter((r) => !r.deletedAt)
         .sort((a, b) => {
           if (a.orderIndex != null && b.orderIndex != null) {
-            return a.orderIndex.localeCompare(b.orderIndex);
+            return a.orderIndex < b.orderIndex ? -1 : a.orderIndex > b.orderIndex ? 1 : 0;
           }
           if (a.orderIndex != null) return -1;
           if (b.orderIndex != null) return 1;

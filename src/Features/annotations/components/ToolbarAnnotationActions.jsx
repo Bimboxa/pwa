@@ -13,6 +13,7 @@ export default function ToolbarAnnotationActions({
   onResize,
   resizeActive = false,
   onDelete,
+  layerChip,
 }) {
   // state
 
@@ -81,6 +82,8 @@ export default function ToolbarAnnotationActions({
       </Tooltip>
 
       <Box sx={{ flex: 1 }} />
+
+      {layerChip}
 
       <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 

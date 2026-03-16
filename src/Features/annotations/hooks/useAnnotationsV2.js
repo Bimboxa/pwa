@@ -143,7 +143,11 @@ export default function useAnnotationsV2(options) {
             if (baseMapId) {
                 const layers = (await db.layers.where("baseMapId").equals(baseMapId).toArray())
                     .filter(l => !l.deletedAt)
-                    .sort((a, b) => (a.orderIndex ?? "").localeCompare(b.orderIndex ?? ""));
+                    .sort((a, b) => {
+                        const ai = a.orderIndex ?? "";
+                        const bi = b.orderIndex ?? "";
+                        return ai < bi ? -1 : ai > bi ? 1 : 0;
+                    });
                 if (layers.length > 0) {
                     const layerOrder = {};
                     layers.forEach((l, i) => { layerOrder[l.id] = i; });
@@ -442,7 +446,7 @@ export default function useAnnotationsV2(options) {
             annotations = annotations.sort((a, b) => {
                 // Cas 1 : Les deux ont un index -> Tri lexicographique
                 if ((a.orderIndex !== null && a.orderIndex !== undefined) && (b.orderIndex !== null && b.orderIndex !== undefined)) {
-                    return a.orderIndex.localeCompare(b.orderIndex);
+                    return a.orderIndex < b.orderIndex ? -1 : a.orderIndex > b.orderIndex ? 1 : 0;
                 }
 
                 // Cas 2 : Un seul a un index -> L'indexé est "plus grand" (au-dessus)

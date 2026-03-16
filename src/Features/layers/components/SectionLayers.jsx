@@ -4,13 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 
 import { setActiveLayerId } from "../layersSlice";
 
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
+import { DndContext, closestCenter } from "@dnd-kit/core";
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -23,6 +17,7 @@ import Add from "@mui/icons-material/Add";
 import db from "App/db/db";
 import useLayers from "../hooks/useLayers";
 import useCreateLayer from "../hooks/useCreateLayer";
+import useDndSensors from "App/hooks/useDndSensors";
 import useMoveLayer from "../hooks/useMoveLayer";
 import LayerRow from "./LayerRow";
 import DialogCreateLayer from "./DialogCreateLayer";
@@ -65,11 +60,7 @@ export default function SectionLayers({ baseMapId }) {
 
   // DnD sensors
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 },
-    })
-  );
+  const sensors = useDndSensors();
 
   // effects - clear active layer when switching baseMap
 
@@ -100,18 +91,22 @@ export default function SectionLayers({ baseMapId }) {
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (!active || !over || active.id === over.id || !layers) return;
+    if (!over || active.id === over.id || !layers?.length) return;
 
     const oldIndex = layers.findIndex((l) => l.id === active.id);
     const newIndex = layers.findIndex((l) => l.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    // build the new order to compute neighbors
-    const reordered = [...layers];
-    const [moved] = reordered.splice(oldIndex, 1);
-    reordered.splice(newIndex, 0, moved);
+    let prev, next;
+    if (oldIndex < newIndex) {
+      prev = layers[newIndex]?.orderIndex ?? null;
+      next = newIndex + 1 < layers.length ? layers[newIndex + 1]?.orderIndex : null;
+    } else {
+      prev = newIndex > 0 ? layers[newIndex - 1]?.orderIndex : null;
+      next = layers[newIndex]?.orderIndex ?? null;
+    }
 
-    moveLayer(active.id, reordered, newIndex);
+    moveLayer(active.id, prev, next);
   };
 
   // render

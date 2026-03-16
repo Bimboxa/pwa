@@ -25,6 +25,7 @@ import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
+import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 
 import getAnnotationColor from "../utils/getAnnotationColor";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
@@ -177,6 +178,15 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           onResize={handleResizeClick}
           resizeActive={wrapperMode}
           onDelete={handleDeleteClick}
+          layerChip={
+            selectedAnnotation && !selectedAnnotation.isBaseMapAnnotation ? (
+              <ChipLayerSelector
+                annotationIds={[selectedAnnotation.id]}
+                annotations={[selectedAnnotation]}
+                baseMapId={selectedAnnotation.baseMapId}
+              />
+            ) : null
+          }
         />
 
         {/* Clone template selector menu */}

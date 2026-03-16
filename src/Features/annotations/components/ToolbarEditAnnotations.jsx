@@ -31,6 +31,7 @@ import {
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
+import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "./DatagridAnnotations";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -189,6 +190,15 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
           onResize={handleResizeClick}
           resizeActive={wrapperMode}
           onDelete={handleDeleteClick}
+          layerChip={
+            annotations.length > 0 ? (
+              <ChipLayerSelector
+                annotationIds={annotations.map((a) => a.id)}
+                annotations={annotations}
+                baseMapId={baseMap?.id}
+              />
+            ) : null
+          }
         />
       </Paper>
 
