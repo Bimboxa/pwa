@@ -931,7 +931,7 @@ const InteractionLayer = forwardRef(({
           break;
 
         case "Enter":
-          if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "BRUSH"].includes(enabledDrawingModeRef.current)) {
+          if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP", "BRUSH"].includes(enabledDrawingModeRef.current)) {
             commitPolyline();
           }
 
@@ -1080,7 +1080,7 @@ const InteractionLayer = forwardRef(({
       }
     }
 
-    if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK"].includes(enabledDrawingMode)) {
+    if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP"].includes(enabledDrawingMode)) {
       // Apply snapping if Shift is pressed
       let finalPos = toLocalCoords(worldPos);
       if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
@@ -1620,7 +1620,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
