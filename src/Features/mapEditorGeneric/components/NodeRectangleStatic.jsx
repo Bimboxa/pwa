@@ -51,7 +51,7 @@ export default memo(function NodeRectangleStatic({
     const cy = height / 2;
 
     // --- 2. CALCUL FILL ---
-    let finalFill = fillColor || theme.palette.secondary.main;
+    let finalFill = fillColor;
     if (fillType === "HATCHING" || fillType === "HATCHING_LEFT") {
         finalFill = `url(#${patternIdRef.current})`;
     }

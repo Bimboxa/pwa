@@ -7,6 +7,8 @@ import NodeImageStatic from "./NodeImageStatic";
 import NodePointStatic from "./NodePointStatic";
 import NodeRectangleStatic from "./NodeRectangleStatic";
 
+import resolveAnnotationDefaults from "Features/annotations/utils/resolveAnnotationDefaults";
+
 export default function NodeAnnotationStatic({
   annotation,
   annotationOverride,
@@ -29,6 +31,9 @@ export default function NodeAnnotationStatic({
 
 }) {
   annotation = { ...annotation ?? {}, ...annotationOverride ?? {} };
+
+  // Apply shape-based defaults for any missing style properties
+  annotation = resolveAnnotationDefaults(annotation);
 
   const props = {
     hovered,

@@ -79,7 +79,7 @@ export default function NodeMarkerStatic({
   const hitStrokePx = 10;
 
   // --- COULEURS ---
-  let fillColor = marker?.fillColor ?? "#f44336";
+  let fillColor = marker?.fillColor;
   const hoverFillColor = useMemo(() => {
     try { return darken(fillColor, 0.2); } catch { return fillColor; }
   }, [fillColor]);

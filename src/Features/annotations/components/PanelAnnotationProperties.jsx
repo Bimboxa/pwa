@@ -15,6 +15,11 @@ import FieldAnnotationRotation from "./FieldAnnotationRotation";
 import FieldAnnotationFill from "./FieldAnnotationFill";
 import FieldAnnotationStroke from "./FieldAnnotationStroke";
 
+import {
+  resolveDrawingShapeFromType,
+  getConfigurableProps,
+} from "Features/annotations/constants/drawingShapeConfig";
+
 export default function PanelAnnotationProperties() {
   const dispatch = useDispatch();
 
@@ -28,10 +33,14 @@ export default function PanelAnnotationProperties() {
   const type = annotation?.type;
   const overrideFields = annotation?.annotationTemplate?.overrideFields;
 
-  const FILL_TYPES = ["POLYGON", "RECTANGLE", "STRIP", "POINT", "MARKER"];
-  const STROKE_TYPES = ["POLYGON", "POLYLINE", "RECTANGLE", "STRIP", "POINT"];
-  const showFill = FILL_TYPES.includes(type);
-  const showStroke = STROKE_TYPES.includes(type);
+  const drawingShape = resolveDrawingShapeFromType(type);
+  const configurableProps = getConfigurableProps(drawingShape);
+  const showFill =
+    configurableProps.includes("fillColor") ||
+    configurableProps.includes("fillOpacity");
+  const showStroke =
+    configurableProps.includes("strokeColor") ||
+    configurableProps.includes("strokeWidth");
 
   // render - no selection
 

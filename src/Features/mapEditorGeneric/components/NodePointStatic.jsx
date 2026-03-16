@@ -17,10 +17,10 @@ export default function NodePointStatic({
     const {
         id,
         listingId,
-        fillColor = "#2196f3", // Bleu par défaut
-        variant = "CIRCLE",    // "CIRCLE" | "SQUARE"
-        size = 20,             // Taille par défaut
-        sizeUnit = "PX"        // "PX" | "CM"
+        fillColor,
+        variant,
+        size,
+        sizeUnit
     } = mergedAnnotation;
 
     // 2. Gestion Robuste de la Position

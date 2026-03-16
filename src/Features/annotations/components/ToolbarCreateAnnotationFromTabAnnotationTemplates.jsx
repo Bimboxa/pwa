@@ -10,6 +10,7 @@ import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingle
 
 import { getDrawingToolsByShape, getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.jsx";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
+import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 import getNewAnnotationPropsFromAnnotationTemplate from "../utils/getNewAnnotationPropsFromAnnotationTemplate";
 
 export default function ToolbarCreateAnnotationFromTabAnnotationTemplates({ annotationTemplate }) {
@@ -19,7 +20,7 @@ export default function ToolbarCreateAnnotationFromTabAnnotationTemplates({ anno
     // data
 
     const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
-    const drawingShape = annotationTemplate?.drawingShape;
+    const drawingShape = resolveDrawingShape(annotationTemplate);
 
     // helpers
 
@@ -45,7 +46,7 @@ export default function ToolbarCreateAnnotationFromTabAnnotationTemplates({ anno
         const baseProps = getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate);
 
         // If a drawing tool is already active and valid for this shape, use its annotationType
-        const availableTools = getDrawingToolsByShape(annotationTemplate.drawingShape);
+        const availableTools = getDrawingToolsByShape(drawingShape);
         const currentTool = getDrawingToolByKey(enabledDrawingMode);
         const isCurrentToolValid = availableTools.some((t) => t.key === enabledDrawingMode);
 

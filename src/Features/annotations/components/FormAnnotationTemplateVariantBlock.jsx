@@ -1,43 +1,28 @@
 import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 
-import {
-  LocationPin as Marker,
-  Polyline,
-  Pentagon,
-  Rectangle,
-  HorizontalRule,
-  LabelOutlined as Label,
-  Image,
-  TextFields,
-  Circle,
-  StackedLineChart as Strip,
-  Square,
-} from "@mui/icons-material";
+import { Box } from "@mui/material";
 
-import { Box, Typography } from "@mui/material";
-
-import AnnotationIcon from "./AnnotationIcon";
-
-import FieldOptionKeyFromIconsVariantToolbar from "Features/form/components/FieldOptionKeyFromIconsVariantToolbar";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
-import FieldColorVariantToolbar from "Features/form/components/FieldColorVariantToolbar";
-import FieldIconVariantToolbar from "Features/form/components/FieldIconVariantToolbar";
-import FieldImageV2 from "Features/form/components/FieldImageV2";
-import FieldFill from "Features/form/components/FieldFill";
-import FieldStroke from "Features/form/components/FieldStroke";
-import FieldAnnotationTemplateFill from "./FieldAnnotationTemplateFill";
-import FieldAnnotationTemplateStroke from "./FieldAnnotationTemplateStroke";
-import FieldPoint from "Features/form/components/FieldPointSize";
-import FieldCheck from "Features/form/components/FieldCheck";
-import FieldSizeAndUnit from "Features/form/components/FieldSizeAndUnit";
-import FieldQty from "Features/form/components/FieldQty";
-
-import getImageAnnotationPropsFromFileName from "../utils/getImageAnnotationPropsFromFileName";
 import FieldColorV2 from "Features/form/components/FieldColorV2";
+import FieldImageV2 from "Features/form/components/FieldImageV2";
 import FieldIcon from "Features/form/components/FieldIcon";
 import FieldPointSize from "Features/form/components/FieldPointSize";
+import FieldAnnotationTemplateFill from "./FieldAnnotationTemplateFill";
+import FieldAnnotationTemplateStroke from "./FieldAnnotationTemplateStroke";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
+import FieldOptionKeyFromIconsVariantToolbar from "Features/form/components/FieldOptionKeyFromIconsVariantToolbar";
+import FieldQty from "Features/form/components/FieldQty";
+import FieldCheck from "Features/form/components/FieldCheck";
 import OverrideToggle from "./OverrideToggle";
+
+import { Circle, Square } from "@mui/icons-material";
+
+import getImageAnnotationPropsFromFileName from "../utils/getImageAnnotationPropsFromFileName";
+import {
+  getConfigurableProps,
+  getDefaultsForShape,
+  resolveDrawingShape,
+} from "Features/annotations/constants/drawingShapeConfig";
 
 export default function FormAnnotationTemplateVariantBlock({
   annotationTemplate,
@@ -45,22 +30,19 @@ export default function FormAnnotationTemplateVariantBlock({
 }) {
   // strings
 
-  const typeS = "Type d'objet";
   const qtyS = "Quantité principale";
-  const annotationTypeS = "Type de forme";
 
   // data
 
   const spriteImage = useAnnotationSpriteImage();
 
-  // helper
+  // helpers
 
-  const isCreating = !annotationTemplate?.id
-
-  // helpers - item
+  const isCreating = !annotationTemplate?.id;
+  const drawingShape = resolveDrawingShape(annotationTemplate);
+  const configurableProps = getConfigurableProps(drawingShape);
 
   const {
-    type,
     fillColor,
     fillType = "SOLID",
     fillOpacity = 1,
@@ -72,20 +54,16 @@ export default function FormAnnotationTemplateVariantBlock({
     strokeOffset = null,
     iconKey,
     label,
-    closeLine,
     image,
     meterByPx,
-    cutHost,
     variant,
     size,
     sizeUnit,
     mainQtyKey,
-    drawingShape,
     overrideFields,
-
   } = annotationTemplate ?? {};
 
-  // helper - fill
+  // derived values for field components
 
   const fill = { fillColor, fillType, fillOpacity };
   const stroke = {
@@ -96,63 +74,41 @@ export default function FormAnnotationTemplateVariantBlock({
     strokeWidthUnit,
     strokeOffset: strokeOffset === 0 ? true : false,
   };
-
-  const point = {
-    fillColor,
-    variant,
-    size,
-    sizeUnit,
-  };
-
-  const pointSize = {
-    size,
-    sizeUnit
-  }
-
-  const sizeAndUnit = {
-    size,
-    sizeUnit,
-  };
-
-
-  // helpers - annotationTypes
-
-  const annotationTypes = [
-    { key: "LABEL", icon: <Label fontSize="small" />, label: "Etiquette" },
-    { key: "MARKER", icon: <Marker fontSize="small" />, label: "Repère" },
-    { key: "POINT", icon: <Circle fontSize="small" />, label: "Point" },
-    //{ key: "SEGMENT", icon: <HorizontalRule />, label: "Segment" },
-    { key: "POLYLINE", icon: <Polyline fontSize="small" />, label: "Ligne" },
-    { key: "STRIP", icon: <Strip fontSize="small" />, label: "Bande" },
-    { key: "POLYGON", icon: <Pentagon fontSize="small" />, label: "Surface" },
-    { key: "RECTANGLE", icon: <Rectangle fontSize="small" />, label: "Rectangle" },
-    { key: "IMAGE", icon: <Image fontSize="small" />, label: "Image" },
-    // { key: "TEXT", icon: <TextFields fontSize="small" />, label: "Texte" },
-  ];
+  const point = { fillColor, variant, size, sizeUnit };
 
   const pointVariants = [
     { key: "SQUARE", icon: <Square fontSize="small" />, label: "Carré" },
     { key: "CIRCLE", icon: <Circle fontSize="small" />, label: "Cercle" },
-  ]
+  ];
 
-  // helpers
+  // helpers — which field groups to show based on configurable props
 
-  //const optionKey = type === "POLYLINE" && closeLine ? "POLYGON" : type;
-  const optionKey = type;
+  const hasFill =
+    configurableProps.includes("fillColor") ||
+    configurableProps.includes("fillOpacity") ||
+    configurableProps.includes("fillType");
+  const hasStroke =
+    configurableProps.includes("strokeColor") ||
+    configurableProps.includes("strokeWidth");
+  const hasIcon = configurableProps.includes("iconKey");
+  const hasVariant = configurableProps.includes("variant");
+  const hasSize = configurableProps.includes("size");
+  const hasImage = configurableProps.includes("image");
+  const hasMeterByPx = configurableProps.includes("meterByPx");
 
-  // helpers - show fill and stroke
-
-  const showFill = ["RECTANGLE", "POLYGON"].includes(type);
-  const showStroke = ["POLYLINE", "STRIP"].includes(type);
+  // For simple shapes (MARKER, LABEL, TEXT, POINT), show a simple color field
+  // For complex shapes (POLYLINE, POLYGON), show full fill/stroke fields
+  const useSimpleFillColor =
+    hasFill && !configurableProps.includes("fillOpacity");
 
   // handlers
 
-  function handleTypeChange(type) {
+  function handleDrawingShapeChange(newDrawingShape) {
+    const defaults = getDefaultsForShape(newDrawingShape);
     onChange({
       ...annotationTemplate,
-      type,
-      //type: type === "POLYGON" ? "POLYLINE" : type,
-      //closeLine: type === "POLYGON",
+      drawingShape: newDrawingShape,
+      ...defaults,
     });
   }
 
@@ -177,7 +133,6 @@ export default function FormAnnotationTemplateVariantBlock({
       newAnnotationTemplate.label = label;
     if (!newAnnotationTemplate.meterByPx && meterByPx)
       newAnnotationTemplate.meterByPx = meterByPx;
-
     onChange(newAnnotationTemplate);
   }
 
@@ -198,31 +153,15 @@ export default function FormAnnotationTemplateVariantBlock({
   }
 
   function handlePointVariantChange(variant) {
-    onChange({ ...annotationTemplate, variant })
-  }
-
-  function handlePointSizeChange(pointSize) {
-    onChange({ ...annotationTemplate, ...pointSize })
-  }
-
-  function handleCutHostChange(cutHost) {
-    onChange({ ...annotationTemplate, cutHost });
-  }
-
-  function handleSizeAndUnitChange(sizeAndUnit) {
-    onChange({ ...annotationTemplate, ...sizeAndUnit });
+    onChange({ ...annotationTemplate, variant });
   }
 
   function handleMainQtyKeyChange(mainQtyKey) {
     onChange({ ...annotationTemplate, mainQtyKey });
   }
 
-  function handleDrawingShapeChange(drawingShape) {
-    onChange({ ...annotationTemplate, drawingShape });
-  }
-
   function handleHiddenChange(hidden) {
-    onChange({ ...annotationTemplate, hidden })
+    onChange({ ...annotationTemplate, hidden });
   }
 
   function handleOverrideFieldsChange(newOverrideFields) {
@@ -240,14 +179,27 @@ export default function FormAnnotationTemplateVariantBlock({
     handleOverrideFieldsChange(current);
   }
 
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 1, width: 1, p: 1 }}>
+  // render
 
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+        width: 1,
+        p: 1,
+      }}
+    >
       <FieldTextV2
         label="Libellé"
         value={label}
         onChange={handleLabelChange}
-        options={{ fullWidth: true, placeholder: "Libellé", showAsSection: "true" }}
+        options={{
+          fullWidth: true,
+          placeholder: "Libellé",
+          showAsSection: "true",
+        }}
       />
 
       <FieldAnnotationTemplateDrawingShape
@@ -255,59 +207,8 @@ export default function FormAnnotationTemplateVariantBlock({
         onChange={handleDrawingShapeChange}
       />
 
-      {drawingShape === "POLYLINE_2D" && (
-        <FieldAnnotationTemplateStroke
-          value={stroke}
-          onChange={handleStrokeChange}
-          overrideFields={overrideFields}
-          onOverrideFieldsChange={handleOverrideFieldsChange}
-        />
-      )}
-
-      {["POINT_2D", "SURFACE_2D"].includes(drawingShape) && (
-        <FieldAnnotationTemplateFill
-          value={fill}
-          onChange={handleFillChange}
-          overrideFields={overrideFields}
-          onOverrideFieldsChange={handleOverrideFieldsChange}
-        />
-      )}
-
-      {/* <Typography variant="body2">{typeS}</Typography> */}
-      <FieldOptionKeyFromIconsVariantToolbar
-        label={annotationTypeS}
-        value={optionKey}
-        onChange={handleTypeChange}
-        valueOptions={annotationTypes}
-        options={{ showAsSection: true }}
-      />
-
-
-      {type === "TEXT" && (
-        <Box>
-          <FieldTextV2
-            value={label}
-            onChange={handleLabelChange}
-            options={{ fullWidth: true, placeholder: "Libellé", showAsSection: true }}
-          />
-          <Box
-            sx={{
-              width: 1,
-              borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-              p: 2,
-            }}
-          >
-            <FieldAnnotationTemplateFill
-              value={fill}
-              onChange={handleFillChange}
-              overrideFields={overrideFields}
-              onOverrideFieldsChange={handleOverrideFieldsChange}
-            />
-          </Box>
-        </Box>
-      )}
-
-      {type === "LABEL" && (
+      {/* Simple fill color (MARKER, LABEL, TEXT, POINT) */}
+      {useSimpleFillColor && (
         <Box sx={{ display: "flex", alignItems: "flex-start" }}>
           <OverrideToggle
             field="fillColor"
@@ -316,137 +217,95 @@ export default function FormAnnotationTemplateVariantBlock({
           />
           <Box sx={{ flex: 1 }}>
             <FieldColorV2
+              label="Couleur"
               value={fillColor}
               onChange={handleFillColorChange}
-              label="Couleur"
               options={{ showAsSection: true }}
             />
           </Box>
         </Box>
       )}
 
-      {type === "MARKER" && (
-        <>
-          <Box sx={{ display: "flex", alignItems: "flex-start" }}>
-            <OverrideToggle
-              field="fillColor"
-              overrideFields={overrideFields}
-              onToggle={handleToggleOverride}
-            />
-            <Box sx={{ flex: 1 }}>
-              <FieldColorV2
-                label="Couleur"
-                value={fillColor}
-                onChange={handleFillColorChange}
-                options={{ showAsSection: true }}
-              />
-            </Box>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "flex-start" }}>
-            <OverrideToggle
-              field="iconKey"
-              overrideFields={overrideFields}
-              onToggle={handleToggleOverride}
-            />
-            <Box sx={{ flex: 1 }}>
-              <FieldIcon
-                label="Icône"
-                value={iconKey}
-                onChange={handleIconKeyChange}
-                spriteImage={spriteImage}
-                options={{ iconColor: fillColor, showAsSection: true }}
-              />
-            </Box>
-          </Box>
-        </>
+      {/* Full fill controls (POLYGON) */}
+      {hasFill && !useSimpleFillColor && (
+        <FieldAnnotationTemplateFill
+          value={fill}
+          onChange={handleFillChange}
+          overrideFields={overrideFields}
+          onOverrideFieldsChange={handleOverrideFieldsChange}
+        />
       )}
 
-      {type === "POINT" && (
-        <>
-          <Box sx={{ display: "flex", alignItems: "flex-start" }}>
-            <OverrideToggle
-              field="fillColor"
-              overrideFields={overrideFields}
-              onToggle={handleToggleOverride}
-            />
-            <Box sx={{ flex: 1 }}>
-              <FieldColorV2
-                label="Couleur"
-                value={fillColor}
-                onChange={handleFillColorChange}
-                options={{ showAsSection: true }}
-              />
-            </Box>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "flex-start" }}>
-            <OverrideToggle
-              field="variant"
-              overrideFields={overrideFields}
-              onToggle={handleToggleOverride}
-            />
-            <Box sx={{ flex: 1 }}>
-              <FieldOptionKeyFromIconsVariantToolbar
-                label="Forme"
-                value={variant}
-                onChange={handlePointVariantChange}
-                valueOptions={pointVariants}
-                options={{ showAsSection: true, inline: true }}
-              />
-            </Box>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "flex-start" }}>
-            <OverrideToggle
-              field="size"
-              overrideFields={overrideFields}
-              onToggle={handleToggleOverride}
-            />
-            <Box sx={{ flex: 1 }}>
-              <FieldPointSize value={point} onChange={handlePointChange} label="Dimension" />
-            </Box>
-          </Box>
-        </>
-
-
-
-
+      {/* Stroke controls (POLYLINE) */}
+      {hasStroke && (
+        <FieldAnnotationTemplateStroke
+          value={stroke}
+          onChange={handleStrokeChange}
+          overrideFields={overrideFields}
+          onOverrideFieldsChange={handleOverrideFieldsChange}
+        />
       )}
 
-      {["SEGMENT", "POLYLINE", "POLYGON", "STRIP"].includes(type) && (
-        <>
-          {showFill && (
-            <FieldAnnotationTemplateFill
-              value={fill}
-              onChange={handleFillChange}
-              overrideFields={overrideFields}
-              onOverrideFieldsChange={handleOverrideFieldsChange}
-            />
-          )}
-
-          {showStroke && (
-            <FieldAnnotationTemplateStroke
-              value={stroke}
-              onChange={handleStrokeChange}
-              overrideFields={overrideFields}
-              onOverrideFieldsChange={handleOverrideFieldsChange}
-            />
-          )}
-
-        </>
-      )}
-
-      {type === "RECTANGLE" && (
-        <>
-          <FieldAnnotationTemplateFill
-            value={fill}
-            onChange={handleFillChange}
+      {/* Icon selector (MARKER) */}
+      {hasIcon && (
+        <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+          <OverrideToggle
+            field="iconKey"
             overrideFields={overrideFields}
-            onOverrideFieldsChange={handleOverrideFieldsChange}
+            onToggle={handleToggleOverride}
           />
-          <FieldSizeAndUnit value={sizeAndUnit} onChange={handleSizeAndUnitChange} />
-        </>
+          <Box sx={{ flex: 1 }}>
+            <FieldIcon
+              label="Icône"
+              value={iconKey}
+              onChange={handleIconKeyChange}
+              spriteImage={spriteImage}
+              options={{ iconColor: fillColor, showAsSection: true }}
+            />
+          </Box>
+        </Box>
       )}
 
-      {type === "IMAGE" && (
+      {/* Point variant selector (POINT) */}
+      {hasVariant && (
+        <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+          <OverrideToggle
+            field="variant"
+            overrideFields={overrideFields}
+            onToggle={handleToggleOverride}
+          />
+          <Box sx={{ flex: 1 }}>
+            <FieldOptionKeyFromIconsVariantToolbar
+              label="Forme"
+              value={variant}
+              onChange={handlePointVariantChange}
+              valueOptions={pointVariants}
+              options={{ showAsSection: true, inline: true }}
+            />
+          </Box>
+        </Box>
+      )}
+
+      {/* Point size (POINT) */}
+      {hasSize && (
+        <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+          <OverrideToggle
+            field="size"
+            overrideFields={overrideFields}
+            onToggle={handleToggleOverride}
+          />
+          <Box sx={{ flex: 1 }}>
+            <FieldPointSize
+              value={point}
+              onChange={handlePointChange}
+              label="Dimension"
+            />
+          </Box>
+        </Box>
+      )}
+
+      {/* Image fields (IMAGE) */}
+      {hasImage && (
         <Box sx={{ width: 1 }}>
           <Box
             sx={{
@@ -465,40 +324,41 @@ export default function FormAnnotationTemplateVariantBlock({
                 }}
               />
             </Box>
-            <Box
-              sx={{
-                width: "130px",
-                minWidth: 0,
-                p: 1
-              }}
-            >
-              <FieldTextV2
-                value={meterByPx}
-                onChange={handleMeterByPxChange}
-                options={{
-                  fullWidth: true,
-                  placeholder: "Echelle m/px",
-                  isNumber: true,
-                }}
-              />
-            </Box>
+            {hasMeterByPx && (
+              <Box sx={{ width: "130px", minWidth: 0, p: 1 }}>
+                <FieldTextV2
+                  value={meterByPx}
+                  onChange={handleMeterByPxChange}
+                  options={{
+                    fullWidth: true,
+                    placeholder: "Echelle m/px",
+                    isNumber: true,
+                  }}
+                />
+              </Box>
+            )}
           </Box>
           <FieldImageV2 value={image} onChange={handleImageChange} />
         </Box>
       )}
 
-      {!isCreating && <FieldQty value={mainQtyKey} onChange={handleMainQtyKeyChange} label={qtyS} options={{ showAsSection: true }} />}
+      {!isCreating && (
+        <FieldQty
+          value={mainQtyKey}
+          onChange={handleMainQtyKeyChange}
+          label={qtyS}
+          options={{ showAsSection: true }}
+        />
+      )}
 
-      {!isCreating && <FieldCheck
-        label="Masquer les annotations"
-        value={annotationTemplate?.hidden}
-        onChange={handleHiddenChange}
-        options={{ showAsSection: true }}
-      />}
-
-
-
-
+      {!isCreating && (
+        <FieldCheck
+          label="Masquer les annotations"
+          value={annotationTemplate?.hidden}
+          onChange={handleHiddenChange}
+          options={{ showAsSection: true }}
+        />
+      )}
     </Box>
   );
 }

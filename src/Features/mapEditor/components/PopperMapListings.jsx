@@ -57,6 +57,7 @@ import {
   getDrawingToolByKey,
 } from "Features/mapEditor/constants/drawingTools.jsx";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
+import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
 import useListings from "Features/listings/hooks/useListings";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
@@ -246,7 +247,7 @@ function ToolPickerMenu({
 }) {
   // helpers
 
-  const drawingShape = annotationTemplate?.drawingShape;
+  const drawingShape = resolveDrawingShape(annotationTemplate);
   const tools = getDrawingToolsByShape(drawingShape);
 
   // render
@@ -349,7 +350,7 @@ function AnnotationTemplateRow({
   // helpers
 
   const isHidden = annotationTemplate?.hidden;
-  const drawingShape = annotationTemplate?.drawingShape;
+  const drawingShape = resolveDrawingShape(annotationTemplate);
   const tools = getDrawingToolsByShape(drawingShape);
   const activeTool = selectedToolKey
     ? getDrawingToolByKey(selectedToolKey) ?? tools[0]
