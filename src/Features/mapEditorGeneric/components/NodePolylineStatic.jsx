@@ -123,8 +123,8 @@ export default function NodePolylineStatic({
         if (!selectedPartId) {
             if (hoveredPartId === currentPartId && !isTransient) {
                 return {
-                    stroke: darken(strokeColor, 0.2),
-                    fill: darken(fillColor, 0.2),
+                    stroke: hoverStrokeColor,
+                    fill: hoverFillColor,
                     strokeWidth: computedStrokeWidth + 1
                 };
             }

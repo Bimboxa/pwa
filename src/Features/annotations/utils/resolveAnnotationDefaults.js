@@ -19,7 +19,9 @@ export default function resolveAnnotationDefaults(annotation) {
   let patched = null;
 
   for (const [key, defaultValue] of Object.entries(defaults)) {
-    if (annotation[key] === null || annotation[key] === undefined) {
+    const val = annotation[key];
+    // Treat null, undefined, and empty string as "missing"
+    if (val === null || val === undefined || val === "") {
       if (!patched) patched = { ...annotation };
       patched[key] = defaultValue;
     }

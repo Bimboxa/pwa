@@ -3,6 +3,61 @@ import React, { forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
 
 import { getCircleFrom3Points } from "Features/geometry/utils/getPolylinePointsFromCircle";
 
+// Compute offset polyline with proper miter joints at corners
+function offsetPolyline(pts, distance) {
+    const len = pts.length;
+    if (len < 2) return [];
+
+    // Compute per-segment offset lines (point + direction vector)
+    const lines = [];
+    for (let i = 0; i < len - 1; i++) {
+        const dx = pts[i + 1].x - pts[i].x;
+        const dy = pts[i + 1].y - pts[i].y;
+        const segLen = Math.sqrt(dx * dx + dy * dy);
+        if (segLen === 0) continue;
+        const ux = dx / segLen, uy = dy / segLen;
+        const nx = -uy, ny = ux; // normal (90° rotation)
+        lines.push({
+            p: { x: pts[i].x + nx * distance, y: pts[i].y + ny * distance },
+            v: { x: ux, y: uy },
+            segLen,
+        });
+    }
+    if (lines.length === 0) return [];
+
+    const result = [lines[0].p]; // first point
+
+    // Interior points: miter joint via line-line intersection
+    for (let i = 1; i < lines.length; i++) {
+        const prev = lines[i - 1], curr = lines[i];
+        const cross = prev.v.x * curr.v.y - prev.v.y * curr.v.x;
+        if (Math.abs(cross) < 1e-5) {
+            result.push(curr.p); // parallel segments
+        } else {
+            const dp = { x: curr.p.x - prev.p.x, y: curr.p.y - prev.p.y };
+            const t = (dp.x * curr.v.y - dp.y * curr.v.x) / cross;
+            result.push({ x: prev.p.x + t * prev.v.x, y: prev.p.y + t * prev.v.y });
+        }
+    }
+
+    // Last point: project along last segment direction
+    const last = lines[lines.length - 1];
+    result.push({ x: last.p.x + last.v.x * last.segLen, y: last.p.y + last.v.y * last.segLen });
+
+    return result;
+}
+
+// Compute strip band path: original polyline + offset polyline reversed
+function computeStripPath(pts, distance) {
+    if (pts.length < 2) return "";
+    const offset = offsetPolyline(pts, distance);
+    if (offset.length < 2) return "";
+    const all = [...pts, ...offset.reverse()];
+    return "M " + all.map(p => `${p.x} ${p.y}`).join(" L ") + " Z";
+}
+
+const STRIP_DEFAULT_WIDTH = 20; // px, same as getStripePolygons default
+
 const DrawingLayer = forwardRef(({
     points,
     newAnnotation,
@@ -18,11 +73,13 @@ const DrawingLayer = forwardRef(({
     const previewFillRef = useRef(null);
     const previewRectRef = useRef(null); // <--- NOUVELLE REF
     const previewCircleRef = useRef(null);
+    const previewStripRef = useRef(null);
 
     const { strokeColor, fillColor, type } = newAnnotation || {};
 
     // Détection des types
     const isPolygon = type === "POLYGON";
+    const isStrip = type === "STRIP";
     const drawRectangle = ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode);
     const drawCircle = ["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode);
 
@@ -83,11 +140,35 @@ const DrawingLayer = forwardRef(({
             if (previewCircleRef.current) previewCircleRef.current.style.display = 'none';
 
             // ------------------------------------------------
+            // CAS 2b : STRIP (Band preview)
+            // ------------------------------------------------
+            if (isStrip && previewStripRef.current) {
+                if (previewRectRef.current) previewRectRef.current.style.display = 'none';
+
+                const allPts = [...points, cursorPos];
+                const stripWidth = newAnnotation?.strokeWidth ?? STRIP_DEFAULT_WIDTH;
+                const d = computeStripPath(allPts, stripWidth);
+                previewStripRef.current.setAttribute('d', d);
+                previewStripRef.current.style.display = 'block';
+
+                // Also show elastic line
+                if (previewLineRef.current) {
+                    previewLineRef.current.setAttribute('x1', lastPoint.x);
+                    previewLineRef.current.setAttribute('y1', lastPoint.y);
+                    previewLineRef.current.setAttribute('x2', cursorPos.x);
+                    previewLineRef.current.setAttribute('y2', cursorPos.y);
+                    previewLineRef.current.style.display = 'block';
+                }
+                return;
+            }
+
+            // ------------------------------------------------
             // CAS 2 : POLYLINE / POLYGON / SEGMENT
             // ------------------------------------------------
 
             // On s'assure que le rectangle est caché
             if (previewRectRef.current) previewRectRef.current.style.display = 'none';
+            if (previewStripRef.current) previewStripRef.current.style.display = 'none';
 
             // 1. Mise à jour de la ligne élastique
             if (previewLineRef.current) {
@@ -112,6 +193,7 @@ const DrawingLayer = forwardRef(({
             if (previewFillRef.current) previewFillRef.current.style.display = 'none';
             if (previewRectRef.current) previewRectRef.current.style.display = 'none';
             if (previewCircleRef.current) previewCircleRef.current.style.display = 'none';
+            if (previewStripRef.current) previewStripRef.current.style.display = 'none';
         }
     }));
 
@@ -129,6 +211,17 @@ const DrawingLayer = forwardRef(({
 
     return (
         <g className="drawing-layer">
+
+            {/* A0. Strip band — dynamic preview (all points + cursor) */}
+            {isStrip && (
+                <path
+                    ref={previewStripRef}
+                    fill={strokeColor || fillColor || "rgba(92, 92, 236, 0.3)"}
+                    opacity={0.25}
+                    stroke="none"
+                    style={{ display: 'none', pointerEvents: 'none' }}
+                />
+            )}
 
             {/* A. Dynamic Fill (Polygon) */}
             {isPolygon && (
