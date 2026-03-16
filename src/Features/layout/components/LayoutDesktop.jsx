@@ -1,81 +1,90 @@
-import { useSelector } from "react-redux";
+import { useRef, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+
+import { setLeftDrawerHovered } from "Features/leftPanel/leftPanelSlice";
+import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
 
 import { Box } from "@mui/material";
 
 import BoxFlexV from "./BoxFlexV";
-import BoxFlexVStretch from "./BoxFlexVStretch";
-import BoxFlexHStretch from "./BoxFlexHStretch";
-
-import LayerDesktop from "./LayerDesktop";
 
 import TopBarDesktop from "./TopBarDesktop";
 import SectionViewer from "./SectionViewer";
-import ListPanel from "Features/listPanel/components/ListPanel";
-import PanelChatContainer from "./PanelChatContainer";
-
-import PanelListItem from "Features/listPanel/components/PanelListItem";
-import PanelLegend from "Features/legend/components/PanelLegend";
 import BottomBarDesktop from "./BottomBarDesktop";
-import ListPanelsContainer from "Features/listPanel/components/ListPanelsContainer";
-import VerticalMenuListTypes from "Features/listPanel/components/VerticalMenuListTypes";
-import ListPanelV2 from "Features/listPanel/components/ListPanelV2";
 import LeftPanel from "Features/leftPanel/components/LeftPanel";
 
 import RightPanelContainer from "Features/rightPanel/components/RightPanelContainer";
-import VerticalSelectorListing from "Features/listings/components/VerticalSelectorListing";
 import VerticalMenuViewers from "Features/viewers/components/VerticalMenuViewers";
 
+function LeftEdgeHoverZone() {
+  const dispatch = useDispatch();
+  const leaveTimeoutRef = useRef(null);
+
+  function handleMouseEnter() {
+    if (leaveTimeoutRef.current) {
+      clearTimeout(leaveTimeoutRef.current);
+      leaveTimeoutRef.current = null;
+    }
+    dispatch(setLeftDrawerHovered(true));
+  }
+
+  function handleMouseLeave() {
+    leaveTimeoutRef.current = setTimeout(() => {
+      dispatch(setLeftDrawerHovered(false));
+    }, 300);
+  }
+
+  return (
+    <Box
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      sx={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 12,
+        zIndex: 5,
+      }}
+    />
+  );
+}
+
 export default function LayoutDesktop() {
+  const dispatch = useDispatch();
+
   // data
 
-  const openPanelListItem = useSelector((s) => s.listPanel.openPanelListItem);
-  const listPanelWidth = useSelector((s) => s.listPanel.width);
-  const top = useSelector((s) => s.layout.topBarHeight);
   const isFullScreen = useSelector((s) => s.layout.isFullScreen);
+  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
+
+  // effects
+
+  useEffect(() => {
+    if (!advancedLayout) {
+      dispatch(setSelectedViewerKey("MAP"));
+    }
+  }, [advancedLayout, dispatch]);
 
   // helpers
 
-  const transform = openPanelListItem
-    ? "translateX(0px)"
-    : `translateX(-${listPanelWidth}px)`;
+  const showVerticalMenu = advancedLayout && !isFullScreen;
 
   return (
     <BoxFlexV sx={{ position: "relative" }}>
-      {/* <LayerDesktop /> */}
       {!isFullScreen && <TopBarDesktop />}
       <Box sx={{ display: "flex", width: 1, flexGrow: 1, minHeight: 0 }}>
-        {!isFullScreen && <VerticalMenuViewers />}
+        {showVerticalMenu && <VerticalMenuViewers />}
+        {!showVerticalMenu && !isFullScreen && <LeftEdgeHoverZone />}
         <Box sx={{ display: "flex", width: 1, minWidth: 0, minHeight: 0 }}>
           <LeftPanel />
           <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
             <SectionViewer />
           </Box>
           <RightPanelContainer />
-
-          {/*  */}
         </Box>
       </Box>
       <BottomBarDesktop />
-      {/* <PanelChatContainer /> */}
-
-      {/* <Box
-        sx={{
-          position: "absolute",
-
-          top,
-          bottom: 0,
-          left: 0,
-          width: listPanelWidth,
-          transform,
-          zIndex: 100,
-          boxSizing: "border-box",
-          bgcolor: "background.default",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <PanelListItem />
-      </Box> */}
     </BoxFlexV>
   );
 }

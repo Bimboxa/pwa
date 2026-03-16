@@ -1,40 +1,55 @@
-import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
+import { useSelector, useDispatch } from "react-redux";
 
-import { Box, Divider } from "@mui/material";
+import { setAdvancedLayout } from "../appConfigSlice";
+
+import useAppConfig from "../hooks/useAppConfig";
+
+import { Box, Typography } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-//import BlockEditableAppConfigItem from "./BlockEditableAppConfigItem";
-//import SectionOrgaData from "Features/orgaData/components/SectionOrgaData";
-import SectionUpdateAppConfigFromFile from "./SectionUpdateAppConfigFromFile";
-import SectionAppConfigTitle from "./SectionAppConfigTitle";
-import SectionRemoteContainerOverview from "Features/sync/components/SectionRemoteContainerOverview";
+import FieldCheck from "Features/form/components/FieldCheck";
 
 import ButtonDeleteProjects from "./ButtonDeleteProjects";
-import SwitchDisableRemoteContainer from "Features/sync/components/SwitchDisableRemoteContainer";
-import SectionEnableThreed from "./SectionEnableThreed";
-import SectionEnableMapEditorLegacy from "Features/mapEditor/components/SectionEnableMapEditorLegacy";
 
 export default function PanelAppConfig({ onClose }) {
+  const dispatch = useDispatch();
+
   // data
 
-  const remoteContainer = useRemoteContainer();
+  const appConfig = useAppConfig();
+  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
+
+  // helpers
+
+  const version = appConfig?.version ?? "-";
+
+  // handlers
+
+  function handleAdvancedLayoutChange(v) {
+    dispatch(setAdvancedLayout(v));
+  }
+
+  // render
 
   return (
     <BoxFlexVStretch>
-      <SectionEnableMapEditorLegacy />
+      <Box sx={{ p: 1 }}>
+        <Typography variant="body2" color="text.secondary">
+          Version : {version}
+        </Typography>
+      </Box>
 
-      <SectionEnableThreed />
-      <Divider sx={{ my: 2 }} />
-      <SectionAppConfigTitle />
+      <Box sx={{ px: 1, py: 0.5 }}>
+        <FieldCheck
+          value={advancedLayout}
+          onChange={handleAdvancedLayoutChange}
+          label="Mode avancé"
+          options={{ type: "switch" }}
+        />
+      </Box>
 
-      <SectionUpdateAppConfigFromFile />
       <BoxFlexVStretch sx={{ overflow: "auto", flexGrow: 1 }}>
-        {/* {remoteContainer && <SectionRemoteContainerOverview />} */}
-        {/* <SectionOrgaData /> */}
         <ButtonDeleteProjects onDeleted={onClose} />
       </BoxFlexVStretch>
-      {/* <Box sx={{ width: 1, display: "flex", justifyContent: "end" }}>
-        <SwitchDisableRemoteContainer />
-      </Box> */}
     </BoxFlexVStretch>
   );
 }

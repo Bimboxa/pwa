@@ -10,7 +10,7 @@ const appConfigSlice = createSlice({
     openAppConfig: false,
     forceUpdateAt: null,
     useDefault: false, // use default config
-    //enableMapEditorLegacy: true
+    advancedLayout: false,
   },
   reducers: {
     setConfigCode: (state, action) => {
@@ -35,6 +35,9 @@ const appConfigSlice = createSlice({
     setEnableMapEditorLegacy: (state, action) => {
       state.enableMapEditorLegacy = action.payload;
     },
+    setAdvancedLayout: (state, action) => {
+      state.advancedLayout = action.payload;
+    },
   },
 });
 
@@ -45,6 +48,7 @@ export const {
   setNewVersionAvailable,
   forceUpdate,
   setUseDefault,
-  setEnableMapEditorLegacy
+  setEnableMapEditorLegacy,
+  setAdvancedLayout,
 } = appConfigSlice.actions;
 export default appConfigSlice.reducer;
