@@ -858,7 +858,7 @@ function PopperDrawingHelper() {
       elevation={4}
       sx={{
         position: "absolute",
-        top: 60,
+        top: 16,
         left: 16,
         zIndex: 10,
         width: "fit-content",
@@ -1018,7 +1018,7 @@ export default function PopperMapListings() {
       elevation={4}
       sx={{
         position: "absolute",
-        top: 60,
+        top: 16,
         left: 16,
         zIndex: 10,
         width: 290,

@@ -11,7 +11,6 @@ import ButtonAutoLayoutLabels from "Features/tools/components/ButtonAutoLayoutLa
 import SectionShowedFWC from "Features/fwc/components/SectionShowedFWC";
 import ButtonRunningTransform from "Features/baseMapTransforms/components/ButtonRunningTransform";
 import SelectorMapEditorMode from "./SelectorMapEditorMode";
-import SectionDefaultHeight from "./SectionDefaultHeight";
 import SelectorDrawingPanel from "./SelectorDrawingPanel";
 
 
@@ -107,15 +106,6 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                 <SectionShowedFWC />
             </Box>
 
-
-            {viewerKey !== "BASE_MAPS" && <Box sx={{
-                position: "absolute",
-                left: "16px",
-                top: "16px",
-                zIndex: 1,
-            }}>
-                <SectionDefaultHeight />
-            </Box>}
 
             <Box sx={{
                 position: "absolute",
