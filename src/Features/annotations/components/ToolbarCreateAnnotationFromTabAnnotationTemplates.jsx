@@ -10,7 +10,10 @@ import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingle
 
 import { getDrawingToolsByShape, getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.jsx";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
+import { resolveDrawingShape, getDefaultsForShape } from "Features/annotations/constants/drawingShapeConfig";
 import getNewAnnotationPropsFromAnnotationTemplate from "../utils/getNewAnnotationPropsFromAnnotationTemplate";
+
+const STRIP_DEFAULT_STROKE_WIDTH = 20; // px
 
 export default function ToolbarCreateAnnotationFromTabAnnotationTemplates({ annotationTemplate }) {
 
@@ -19,7 +22,7 @@ export default function ToolbarCreateAnnotationFromTabAnnotationTemplates({ anno
     // data
 
     const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
-    const drawingShape = annotationTemplate?.drawingShape;
+    const drawingShape = resolveDrawingShape(annotationTemplate);
 
     // helpers
 
@@ -45,12 +48,16 @@ export default function ToolbarCreateAnnotationFromTabAnnotationTemplates({ anno
         const baseProps = getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate);
 
         // If a drawing tool is already active and valid for this shape, use its annotationType
-        const availableTools = getDrawingToolsByShape(annotationTemplate.drawingShape);
+        const availableTools = getDrawingToolsByShape(drawingShape);
         const currentTool = getDrawingToolByKey(enabledDrawingMode);
         const isCurrentToolValid = availableTools.some((t) => t.key === enabledDrawingMode);
 
         if (isCurrentToolValid && currentTool?.annotationType) {
-            dispatch(setNewAnnotation({ ...baseProps, type: currentTool.annotationType }));
+            const props = { ...baseProps, type: currentTool.annotationType };
+            if (currentTool.annotationType === "STRIP") {
+                applyStripDefaults(props, annotationTemplate);
+            }
+            dispatch(setNewAnnotation(props));
         } else {
             dispatch(setNewAnnotation(baseProps));
         }
@@ -66,7 +73,23 @@ export default function ToolbarCreateAnnotationFromTabAnnotationTemplates({ anno
         const tool = getDrawingToolByKey(mode);
         if (tool?.annotationType && annotationTemplate) {
             const baseProps = getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate);
-            dispatch(setNewAnnotation({ ...baseProps, type: tool.annotationType }));
+            const props = { ...baseProps, type: tool.annotationType };
+            if (tool.annotationType === "STRIP") {
+                applyStripDefaults(props, annotationTemplate);
+            }
+            dispatch(setNewAnnotation(props));
+        }
+    }
+
+    // Ensure STRIP annotations have a usable strokeWidth (template may not define one)
+    function applyStripDefaults(props, template) {
+        const polylineDefaults = getDefaultsForShape("POLYLINE");
+        if (!props.strokeWidth || props.strokeWidth < 5) {
+            props.strokeWidth = template?.strokeWidth ?? STRIP_DEFAULT_STROKE_WIDTH;
+            props.strokeWidthUnit = template?.strokeWidthUnit ?? polylineDefaults.strokeWidthUnit ?? "PX";
+        }
+        if (!props.strokeColor) {
+            props.strokeColor = template?.strokeColor ?? template?.fillColor ?? polylineDefaults.strokeColor;
         }
     }
 

@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import useAnnotationTemplates from "./useAnnotationTemplates";
 import useListings from "Features/listings/hooks/useListings";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
+import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
 // Lines and surfaces share compatible geometry, so they are interchangeable.
 // Points can only clone to other points.
@@ -13,7 +14,7 @@ const COMPATIBLE_SHAPE_CATEGORIES = {
 };
 
 function getTemplateShape(template) {
-    return template?.drawingShape ?? template?.type;
+    return resolveDrawingShape(template);
 }
 
 export default function useAnnotationTemplateCandidates(annotation, options) {

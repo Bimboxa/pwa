@@ -58,14 +58,14 @@ export default function NodePolylineStatic({
         type,
         points = [],
         cuts = [],
-        strokeColor = theme.palette.secondary.main,
+        strokeColor,
         closeLine = type === "POLYGON",
-        fillColor = theme.palette.secondary.main,
-        fillOpacity = STYLE_CONSTANTS.OPACITIES.FILL_DEFAULT,
+        fillColor,
+        fillOpacity,
         fillType = "SOLID",
         strokeType = "SOLID",
-        strokeOpacity = 1,
-        strokeWidth = 2,
+        strokeOpacity,
+        strokeWidth,
         strokeWidthUnit = "PX",
         hiddenSegmentsIdx = [],
     } = mergedAnnotation || {};
@@ -76,9 +76,6 @@ export default function NodePolylineStatic({
     const showLabel = mergedAnnotation.showLabel;
     //const showLabel = false;
 
-    // Fallback couleurs
-    if (!strokeColor) strokeColor = theme.palette.secondary.main;
-    if (!fillColor) fillColor = theme.palette.secondary.main;
     strokeColor = type === "POLYGON" ? fillColor : strokeColor;
 
     // --- DATA ATTRIBUTES ---
@@ -126,8 +123,8 @@ export default function NodePolylineStatic({
         if (!selectedPartId) {
             if (hoveredPartId === currentPartId && !isTransient) {
                 return {
-                    stroke: darken(strokeColor, 0.2),
-                    fill: darken(fillColor, 0.2),
+                    stroke: hoverStrokeColor,
+                    fill: hoverFillColor,
                     strokeWidth: computedStrokeWidth + 1
                 };
             }

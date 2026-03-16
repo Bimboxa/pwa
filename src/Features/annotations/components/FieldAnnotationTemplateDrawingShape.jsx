@@ -12,7 +12,7 @@ export default function FieldAnnotationTemplateDrawingShape({
       label="Forme 2D"
       onChange={onChange}
       valueOptions={DRAWING_SHAPES}
-      options={{ showAsSection: true, inline: true }}
+      options={{ showAsSection: true }}
     />
   );
 }

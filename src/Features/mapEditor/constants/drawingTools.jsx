@@ -6,6 +6,7 @@ import {
   MyLocation as Target,
   Brush,
   Insights as Smart,
+  ViewDay,
 } from "@mui/icons-material";
 
 import IconPolylineClick from "Features/icons/IconPolylineClick";
@@ -14,6 +15,8 @@ import IconPolylineRectangle from "Features/icons/IconPolylineRectangle";
 import IconPolygonRectangle from "Features/icons/IconPolygonRectangle";
 import IconPolylineCircle from "Features/icons/IconPolylineCircle";
 import IconPolygonCircle from "Features/icons/IconPolygonCircle";
+
+import { getToolsForShape } from "Features/annotations/constants/drawingShapeConfig";
 
 const DRAWING_TOOLS = [
   {
@@ -137,13 +140,15 @@ const DRAWING_TOOLS = [
     annotationType: "SPLIT",
     behavior: "CLICK",
   },
+  // STRIP tool (Bande)
+  {
+    key: "STRIP",
+    label: "Bande",
+    Icon: ViewDay,
+    annotationType: "STRIP",
+    behavior: "STRIP",
+  },
 ];
-
-export const DRAWING_TOOLS_BY_SHAPE = {
-  POINT_2D: ["ONE_CLICK"],
-  POLYLINE_2D: ["POLYLINE_CLICK", "POLYLINE_RECTANGLE", "POLYLINE_CIRCLE"],
-  SURFACE_2D: ["POLYGON_CLICK", "POLYGON_RECTANGLE", "POLYGON_CIRCLE", "SURFACE_DROP"],
-};
 
 export const DRAWING_TOOLS_BY_TYPE = {
   CUT: ["CUT_CLICK", "CUT_RECTANGLE", "CUT_CIRCLE"],
@@ -151,7 +156,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
 };
 
 export function getDrawingToolsByShape(drawingShape) {
-  const keys = DRAWING_TOOLS_BY_SHAPE[drawingShape] ?? [];
+  const keys = getToolsForShape(drawingShape);
   return DRAWING_TOOLS.filter((tool) => keys.includes(tool.key));
 }
 

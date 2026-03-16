@@ -1,5 +1,4 @@
 import { createSlice } from "@reduxjs/toolkit";
-import theme from "Styles/theme";
 
 //import demoAnnotation from "./data/demoAnnotation";
 
@@ -10,14 +9,9 @@ const annotationsInitialState = {
   //
   selectedAnnotationTemplateId: null,
   //
-  newAnnotation: {
-    fillColor: theme.palette.secondary.main,
-    strokeColor: theme.palette.secondary.main,
-    fillOpacity: 0.6,
-    strokeOpacity: 0.8,
-    strokeWidth: 1,
-    strokeWidthUnit: "PX",
-  },
+  // Style defaults are now provided by DRAWING_SHAPE_CONFIG at template selection time.
+  // This object holds transient state during drawing; style props come from the template.
+  newAnnotation: {},
   // props used when adding a annotation
   editedAnnotation: null,
   isEditingAnnotation: false,

@@ -3,11 +3,12 @@ import { useMemo } from "react";
 import { Box } from "@mui/material";
 
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
+import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
 export default function AnnotationTemplateIcon({ template, size = 20 }) {
   // helpers
 
-  const shape = template.drawingShape ?? template.type;
+  const shape = resolveDrawingShape(template);
   const shapeType = resolveShapeCategory(shape);
   const color =
     shapeType === "polyline"

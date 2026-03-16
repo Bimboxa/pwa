@@ -6,8 +6,8 @@ import FormAnnotationTemplateVariantBlock from "./FormAnnotationTemplateVariantB
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 
-import theme from "Styles/theme";
 import { DialogTitle, Box } from "@mui/material";
+import { getDefaultsForShape } from "Features/annotations/constants/drawingShapeConfig";
 
 export default function DialogCreateAnnotationTemplate({ open, onClose, listingId }) {
   // strings
@@ -22,12 +22,10 @@ export default function DialogCreateAnnotationTemplate({ open, onClose, listingI
   // state
 
   const initialAnnotationTemplate = {
-    type: "MARKER",
-    fillColor: theme.palette.secondary.main,
-    strokeColor: theme.palette.secondary.main,
-    iconKey: "circle",
+    drawingShape: "MARKER",
     label: "",
     isFromAnnotation: true,
+    ...getDefaultsForShape("MARKER"),
   };
 
   const [tempAnnotationTemplate, setTempAnnotationTemplate] = useState(

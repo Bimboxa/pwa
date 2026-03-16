@@ -28,6 +28,7 @@ import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplate
 
 import getAnnotationColor from "../utils/getAnnotationColor";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
+import { resolveDrawingShape, getAnnotationType } from "../constants/drawingShapeConfig";
 
 export default function ToolbarEditAnnotation({ onDragStart }) {
   const dispatch = useDispatch();
@@ -88,11 +89,10 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
       annotationTemplateId: template?.id,
       label: template?.label,
     };
-    // Derive the correct annotation type from the target template drawingShape
-    const drawingShape = template?.drawingShape ?? template?.type;
-    if (drawingShape === "POLYLINE_2D") newAnnotation.type = "POLYLINE";
-    else if (drawingShape === "SURFACE_2D") newAnnotation.type = "POLYGON";
-    else if (drawingShape === "POINT_2D") newAnnotation.type = "MARKER";
+    // Derive the correct annotation type from the template's drawingShape
+    const resolvedShape = resolveDrawingShape(template);
+    const resolvedType = getAnnotationType(resolvedShape);
+    if (resolvedType) newAnnotation.type = resolvedType;
 
     await cloneAnnotationAndEntity(selectedAnnotation, { newAnnotation });
     handleCloneClose();
