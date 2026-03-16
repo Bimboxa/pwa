@@ -208,7 +208,7 @@ function DraggableAnnotationTemplateItem({
             <Typography
               align="right"
               noWrap
-              sx={{ fontSize: "12px", minWidth: "40px" }}
+              sx={{ fontSize: "12px", minWidth: "40px", fontFamily: "monospace", fontWeight: 500 }}
               color={isHidden ? "text.disabled" : (count > 0 ? "secondary.main" : "grey.200")}
             >
               {qtyLabel}

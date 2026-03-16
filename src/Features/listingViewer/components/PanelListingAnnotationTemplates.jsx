@@ -128,7 +128,7 @@ export default function PanelListingAnnotationTemplates({ listing }) {
                 <Typography
                   align="right"
                   noWrap
-                  sx={{ fontSize: "12px", minWidth: "40px", ml: 1 }}
+                  sx={{ fontSize: "12px", minWidth: "40px", ml: 1, fontFamily: "monospace", fontWeight: 500 }}
                   color={count > 0 ? "secondary.main" : "grey.200"}
                 >
                   {qtyLabel}

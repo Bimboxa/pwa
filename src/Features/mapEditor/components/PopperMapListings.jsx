@@ -587,7 +587,7 @@ function AnnotationTemplateRow({
             <Typography
               align="right"
               noWrap
-              sx={{ fontSize: "12px", minWidth: "40px" }}
+              sx={{ fontSize: "10px", minWidth: "40px", fontFamily: "monospace", fontWeight: 500 }}
               color={
                 isHidden
                   ? "text.disabled"

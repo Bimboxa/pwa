@@ -355,6 +355,7 @@ export default function SectionBaseMap({
                           variant="body2"
                           color="text.secondary"
                           noWrap
+                          sx={{ fontFamily: "monospace", fontWeight: 500 }}
                         >
                           {template.mainQtyLabel}
                         </Typography>
@@ -379,7 +380,7 @@ export default function SectionBaseMap({
                   <Typography variant="body2" noWrap sx={{ flex: 1 }}>
                     {template.label}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" noWrap>
+                  <Typography variant="body2" color="text.secondary" noWrap sx={{ fontFamily: "monospace", fontWeight: 500 }}>
                     {template.mainQtyLabel}
                   </Typography>
                 </Box>
