@@ -39,6 +39,7 @@ export default function useHandleCommitDrawing() {
 
     const baseMap = useMainBaseMap();
     const resetNewAnnotation = useResetNewAnnotation();
+    const activeLayerId = useSelector(s => s.layers?.activeLayerId);
 
     // helpers
 
@@ -112,6 +113,7 @@ export default function useHandleCommitDrawing() {
                 baseMapId,
                 projectId,
                 listingId,
+                ...(activeLayerId && !isBaseMapAnnotation ? { layerId: activeLayerId } : {}),
 
                 // ... props de style
             };
@@ -209,6 +211,7 @@ export default function useHandleCommitDrawing() {
                 baseMapId,
                 projectId,
                 listingId,
+                ...(activeLayerId && !isBaseMapAnnotation ? { layerId: activeLayerId } : {}),
 
                 // ... props de style
             };

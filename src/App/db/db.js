@@ -77,6 +77,10 @@ db.version(18).stores({
   baseMapVersions: "id,baseMapId,projectId,listingId",
 });
 
+db.version(19).stores({
+  layers: "id,baseMapId,projectId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -105,6 +109,7 @@ const AUDIT_TABLES = [
   "portfolioBaseMapContainers",
   "entityModels",
   "baseMapVersions",
+  "layers",
 ];
 
 AUDIT_TABLES.forEach((tableName) => {
@@ -179,6 +184,7 @@ const SOFT_DELETE_TABLES = new Set([
   "portfolioBaseMapContainers",
   "entityModels",
   "baseMapVersions",
+  "layers",
 ]);
 
 let _skipSoftDelete = false;

@@ -15,6 +15,7 @@ import PanelPortfolioHeaderProperties from "Features/portfolioEditor/components/
 import PanelPortfolioPageProperties from "Features/portfolioEditor/components/PanelPortfolioPageProperties";
 import PanelBaseMapProperties from "Features/baseMaps/components/PanelBaseMapProperties";
 import PanelBaseMapVersionProperties from "Features/baseMaps/components/PanelBaseMapVersionProperties";
+import PanelLayerProperties from "Features/layers/components/PanelLayerProperties";
 
 export default function PanelSelectionProperties() {
   // data
@@ -60,6 +61,8 @@ export default function PanelSelectionProperties() {
     type = "ENTITY";
   } else if (selectedItem?.type === "ANNOTATION_TEMPLATE") {
     type = "ANNOTATION_TEMPLATE";
+  } else if (selectedItem?.type === "LAYER") {
+    type = "LAYER";
   } else if (showAnnotationsProperties) {
     type = "ANNOTATION";
   } else if (
@@ -95,6 +98,8 @@ export default function PanelSelectionProperties() {
       {type === "BASE_MAP" && <PanelBaseMapProperties />}
 
       {type === "BASE_MAP_VERSION" && <PanelBaseMapVersionProperties />}
+
+      {type === "LAYER" && <PanelLayerProperties />}
     </BoxFlexVStretch>
   );
 }

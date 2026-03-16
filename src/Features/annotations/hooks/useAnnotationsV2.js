@@ -72,6 +72,10 @@ export default function useAnnotationsV2(options) {
             (s) => s.annotations.annotationsUpdatedAt
         );
 
+        const hiddenLayerIds = useSelector(s => s.layers?.hiddenLayerIds || []);
+        const showAnnotationsWithoutLayer = useSelector(s => s.layers?.showAnnotationsWithoutLayer ?? true);
+        const layersUpdatedAt = useSelector(s => s.layers?.layersUpdatedAt);
+
         const { value: baseMaps, baseMapsUpdatedAt } = useBaseMaps();
         const baseMapById = getItemsByKey(baseMaps, "id");
 
@@ -126,6 +130,35 @@ export default function useAnnotationsV2(options) {
                 _annotations = _annotations.filter(a => !a.isBaseMapAnnotation)
             }
 
+            // layer visibility filter
+            if (hiddenLayerIds.length > 0 || !showAnnotationsWithoutLayer) {
+                _annotations = _annotations.filter(a => {
+                    if (a.isBaseMapAnnotation) return true;
+                    if (!a.layerId) return showAnnotationsWithoutLayer;
+                    return !hiddenLayerIds.includes(a.layerId);
+                });
+            }
+
+            // layer sort order — first layer's annotations drawn on top (last in array)
+            if (baseMapId) {
+                const layers = (await db.layers.where("baseMapId").equals(baseMapId).toArray())
+                    .filter(l => !l.deletedAt)
+                    .sort((a, b) => (a.orderIndex ?? "").localeCompare(b.orderIndex ?? ""));
+                if (layers.length > 0) {
+                    const layerOrder = {};
+                    layers.forEach((l, i) => { layerOrder[l.id] = i; });
+                    const maxOrder = layers.length;
+                    _annotations = _annotations.sort((a, b) => {
+                        if (a.isBaseMapAnnotation !== b.isBaseMapAnnotation) {
+                            return a.isBaseMapAnnotation ? -1 : 1;
+                        }
+                        const orderA = a.layerId ? (layerOrder[a.layerId] ?? maxOrder) : maxOrder + 1;
+                        const orderB = b.layerId ? (layerOrder[b.layerId] ?? maxOrder) : maxOrder + 1;
+                        // reverse: first layer (index 0) should be on top = last in array
+                        return orderB - orderA;
+                    });
+                }
+            }
 
             // add images (for annotation type = "IMAGE")
 
@@ -374,6 +407,9 @@ export default function useAnnotationsV2(options) {
             baseMapsUpdatedAt,
             baseMaps?.length,
             withEntity,
+            hiddenLayerIds,
+            showAnnotationsWithoutLayer,
+            layersUpdatedAt,
         ]);
 
 
