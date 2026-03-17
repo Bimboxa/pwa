@@ -10,6 +10,7 @@ import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useDeleteAnnotation from "../hooks/useDeleteAnnotation";
 import useCloneAnnotationAndEntity from "Features/mapEditor/hooks/useCloneAnnotationAndEntity";
 import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
+import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
 
 import {
   Box,
@@ -19,13 +20,17 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { DragIndicator as GripIcon, Edit as EditIcon } from "@mui/icons-material";
+import {
+  DragIndicator as GripIcon,
+  ArrowDropDown as ArrowDropDownIcon,
+} from "@mui/icons-material";
 
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
+import FieldAnnotationHeight from "./FieldAnnotationHeight";
 
 import getAnnotationColor from "../utils/getAnnotationColor";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
@@ -39,13 +44,21 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   const selectedAnnotation = useSelectedAnnotation();
   const deleteAnnotation = useDeleteAnnotation();
   const cloneAnnotationAndEntity = useCloneAnnotationAndEntity();
-  const { candidates: annotationTemplates, listings } =
+  const updateAnnotation = useUpdateAnnotation();
+
+  // Template candidates: same type for the dropdown, compatible for clone
+  const { candidates: sameTypeCandidates, listings: sameTypeListings } =
+    useAnnotationTemplateCandidates(selectedAnnotation, {
+      variant: "sameType",
+    }) ?? {};
+  const { candidates: cloneCandidates, listings: cloneListings } =
     useAnnotationTemplateCandidates(selectedAnnotation) ?? {};
 
   const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
 
   // state
 
+  const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
   const [cloneAnchorEl, setCloneAnchorEl] = useState(null);
 
   // helpers
@@ -69,8 +82,36 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
 
   // handlers
 
-  function handleEditClick() {
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+  function handleTemplateDropdownClick(event) {
+    event.stopPropagation();
+    setTemplateAnchorEl(event.currentTarget);
+  }
+
+  function handleTemplateDropdownClose() {
+    setTemplateAnchorEl(null);
+  }
+
+  async function handleTemplateChange(annotationTemplateId) {
+    const template = sameTypeCandidates?.find(
+      (t) => t.id === annotationTemplateId
+    );
+    if (!template || !selectedAnnotation?.id) return;
+
+    const templateProps = getAnnotationTemplateProps(template);
+    const resolvedShape = resolveDrawingShape(template);
+    const resolvedType = getAnnotationType(resolvedShape);
+
+    const updates = {
+      id: selectedAnnotation.id,
+      ...templateProps,
+      annotationTemplateId: template.id,
+      templateLabel: template.label,
+      listingId: template.listingId,
+    };
+    if (resolvedType) updates.type = resolvedType;
+
+    await updateAnnotation(updates);
+    handleTemplateDropdownClose();
   }
 
   function handleCloneClick(event) {
@@ -82,7 +123,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   }
 
   async function handleCloneTemplateChange(annotationTemplateId) {
-    const template = annotationTemplates?.find(
+    const template = cloneCandidates?.find(
       (t) => t.id === annotationTemplateId
     );
     const newAnnotation = {
@@ -90,7 +131,6 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
       annotationTemplateId: template?.id,
       label: template?.label,
     };
-    // Derive the correct annotation type from the template's drawingShape
     const resolvedShape = resolveDrawingShape(template);
     const resolvedType = getAnnotationType(resolvedShape);
     if (resolvedType) newAnnotation.type = resolvedType;
@@ -109,6 +149,14 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     dispatch(clearSelection());
   }
 
+  async function handleHeightChange(updatedAnnotation) {
+    if (!updatedAnnotation?.id) return;
+    await updateAnnotation({
+      id: updatedAnnotation.id,
+      height: updatedAnnotation.height,
+    });
+  }
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
       <Paper
@@ -119,15 +167,15 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           minWidth: 230,
         }}
       >
-        {/* Header - draggable */}
+        {/* Row 1 - Template selector (draggable) */}
         <Box
           onMouseDown={onDragStart}
           sx={{
             display: "flex",
             alignItems: "center",
-            gap: 1,
+            gap: 0.5,
             px: 1.25,
-            py: 1,
+            py: 0.75,
             borderBottom: "1px solid",
             borderColor: "divider",
             cursor: "grab",
@@ -139,26 +187,25 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
 
           <AnnotationTemplateIcon template={selectedAnnotation || {}} size={16} />
 
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              variant="body2"
-              sx={{
-                fontWeight: 600,
-                fontSize: "0.8rem",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {label}
-            </Typography>
-            <AnnotationMeasurements annotation={selectedAnnotation} />
-          </Box>
+          <Typography
+            variant="body2"
+            sx={{
+              flex: 1,
+              fontWeight: 600,
+              fontSize: "0.8rem",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              minWidth: 0,
+            }}
+          >
+            {label}
+          </Typography>
 
-          <Tooltip title="Éditer le modèle">
+          <Tooltip title="Changer le modèle">
             <IconButton
               size="small"
-              onClick={handleEditClick}
+              onClick={handleTemplateDropdownClick}
               onMouseDown={(e) => e.stopPropagation()}
               sx={{
                 flexShrink: 0,
@@ -166,12 +213,32 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 "&:hover": { bgcolor: "action.hover", color: "text.primary" },
               }}
             >
-              <EditIcon sx={{ fontSize: 16 }} />
+              <ArrowDropDownIcon sx={{ fontSize: 20 }} />
             </IconButton>
           </Tooltip>
         </Box>
 
-        {/* Actions row */}
+        {/* Row 2 - Height field + measurements */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            px: 1.25,
+            py: 0.25,
+            gap: 0.5,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <FieldAnnotationHeight
+            annotation={selectedAnnotation}
+            onChange={handleHeightChange}
+          />
+          <Box sx={{ flex: 1 }} />
+          <AnnotationMeasurements annotation={selectedAnnotation} />
+        </Box>
+
+        {/* Row 3 - Actions row */}
         <ToolbarAnnotationActions
           accentColor={accentColor}
           onClone={handleCloneClick}
@@ -189,7 +256,23 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           }
         />
 
-        {/* Clone template selector menu */}
+        {/* Template selector menu (same type) */}
+        <Menu
+          open={Boolean(templateAnchorEl)}
+          anchorEl={templateAnchorEl}
+          onClose={handleTemplateDropdownClose}
+          anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+          transformOrigin={{ vertical: "top", horizontal: "left" }}
+        >
+          <SelectorAnnotationTemplateVariantDense
+            selectedAnnotationTemplateId={selectedAnnotation?.annotationTemplateId}
+            onChange={handleTemplateChange}
+            annotationTemplates={sameTypeCandidates}
+            listings={sameTypeListings}
+          />
+        </Menu>
+
+        {/* Clone template selector menu (compatible types) */}
         <Menu
           open={Boolean(cloneAnchorEl)}
           anchorEl={cloneAnchorEl}
@@ -200,12 +283,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           <SelectorAnnotationTemplateVariantDense
             selectedAnnotationTemplateId={selectedAnnotation?.annotationTemplateId}
             onChange={handleCloneTemplateChange}
-            annotationTemplates={annotationTemplates}
-            listings={listings}
+            annotationTemplates={cloneCandidates}
+            listings={cloneListings}
           />
         </Menu>
       </Paper>
-
     </Box>
   );
 }
