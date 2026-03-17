@@ -11,6 +11,7 @@ import { setSelectedEntityId } from 'Features/entities/entitiesSlice';
 import { setEnabledDrawingMode, setSelectedNodes } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
+import { setAnchorSourceAnnotationId } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
 import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnotation } from 'Features/annotations/annotationsSlice';
 import {
@@ -52,6 +53,7 @@ import DropZoneLayer from 'Features/mapEditorGeneric/components/DropZoneLayer';
 
 import TransientDetectedShapeLayer from 'Features/mapEditorGeneric/components/TransientDetectedShapeLayer';
 import computeWrapperBbox from '../utils/computeWrapperBbox';
+import anchorAnnotationToTarget from 'Features/annotations/services/anchorAnnotationToTarget';
 import AnnotationEditingWrapper from './AnnotationEditingWrapper';
 import applyDeltaPosToAnnotation from 'Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation';
 
@@ -180,6 +182,9 @@ const InteractionLayer = forwardRef(({
 
   // Computed selectedNode equivalent (first item)
   const { node: selectedNode } = useSelectedNodes();
+
+  // Anchor snap mode
+  const anchorSourceAnnotationId = useSelector((s) => s.mapEditor.anchorSourceAnnotationId);
 
   const { zoomContainer } = useSmartZoom();
 
@@ -614,6 +619,11 @@ const InteractionLayer = forwardRef(({
     newAnnotationRef.current = newAnnotation;
   }, [newAnnotation]);
 
+  const anchorSourceAnnotationIdRef = useRef(anchorSourceAnnotationId);
+  useEffect(() => {
+    anchorSourceAnnotationIdRef.current = anchorSourceAnnotationId;
+  }, [anchorSourceAnnotationId]);
+
   const onCommitDrawingRef = useRef(onCommitDrawing);
   useEffect(() => {
     onCommitDrawingRef.current = onCommitDrawing;
@@ -850,6 +860,13 @@ const InteractionLayer = forwardRef(({
             console.log("Action: Deselect Point");
             dispatch(setSubSelection({ pointId: null }));
             e.stopPropagation(); // Empêcher le resetNewAnnotation
+            return;
+          }
+
+          // Cancel anchor pick mode if active
+          if (anchorSourceAnnotationIdRef.current) {
+            dispatch(setAnchorSourceAnnotationId(null));
+            e.stopPropagation();
             return;
           }
 
@@ -1109,6 +1126,23 @@ const InteractionLayer = forwardRef(({
           setCutHostId(nodeId)
         }
       }
+    }
+
+    // Anchor pick mode: click selects the target annotation
+    if (anchorSourceAnnotationId && !enabledDrawingMode) {
+      const nativeTarget = event.nativeEvent?.target || event.target;
+      const hit = nativeTarget.closest?.('[data-node-type="ANNOTATION"]');
+      if (hit) {
+        const targetId = hit.dataset.nodeId;
+        if (targetId !== anchorSourceAnnotationId) {
+          await anchorAnnotationToTarget(anchorSourceAnnotationId, targetId);
+          dispatch(setAnchorSourceAnnotationId(null));
+        }
+      } else {
+        // Click on empty space cancels anchor mode
+        dispatch(setAnchorSourceAnnotationId(null));
+      }
+      return;
     }
 
     if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP"].includes(enabledDrawingMode)) {

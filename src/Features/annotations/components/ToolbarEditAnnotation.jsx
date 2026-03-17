@@ -33,6 +33,7 @@ import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplate
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
+import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
 
 import getAnnotationColor from "../utils/getAnnotationColor";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
@@ -274,9 +275,14 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           resizeActive={wrapperMode}
           onDelete={handleDeleteClick}
           extraActions={
-            selectedAnnotation?.type === "STRIP" ? (
-              <IconButtonFlipStripAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
-            ) : null
+            <>
+              {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
+                <IconButtonAnchorAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
+              )}
+              {selectedAnnotation?.type === "STRIP" && (
+                <IconButtonFlipStripAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
+              )}
+            </>
           }
           layerChip={
             selectedAnnotation && !selectedAnnotation.isBaseMapAnnotation ? (

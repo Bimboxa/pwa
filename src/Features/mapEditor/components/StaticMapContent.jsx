@@ -49,6 +49,7 @@ function StaticMapContent({
 
     const spriteImage = useAnnotationSpriteImage();
     const _showedFWC = useSelector(s => s.fwc.showedFWC);
+    const anchorSourceAnnotationId = useSelector(s => s.mapEditor.anchorSourceAnnotationId);
 
     // helpers
 
@@ -219,7 +220,9 @@ function StaticMapContent({
                     const isHiddenByDrag = hiddenAnnotationIds?.includes(annotation.id);
 
                     // B. Caché par la Sélection Globale (EditedLayer mode Objet)
-                    const isSelectedGlobal = selectedNode?.nodeId === annotation.id || selectedNodes?.map(n => n.nodeId)?.includes(annotation.id);
+                    // In anchor mode, the source stays visible (dimmed) in static layer
+                    const isAnchorSource = anchorSourceAnnotationId === annotation.id;
+                    const isSelectedGlobal = !isAnchorSource && (selectedNode?.nodeId === annotation.id || selectedNodes?.map(n => n.nodeId)?.includes(annotation.id));
 
                     // C. Caché par la Sélection de Point (EditedLayer mode Topologie)
                     const isConnectedToPoint = idsAffectedBySelectedPoint.has(annotation.id);
@@ -232,11 +235,17 @@ function StaticMapContent({
                     // Optimistic overlay : rendre invisible (opacity:0) au lieu de démonter
                     const hasPendingMove = !!getPendingMove(annotation.id);
 
-                    return <g key={annotation.id} style={hasPendingMove ? { opacity: 0 } : undefined}>
+                    return <g
+                        key={annotation.id}
+                        style={{
+                            ...(hasPendingMove && { opacity: 0 }),
+                            ...(isAnchorSource && { opacity: 0.3, filter: "grayscale(1)" }),
+                        }}
+                    >
                         <NodeAnnotationStatic
                             annotation={annotation}
                             spriteImage={spriteImage}
-                            hovered={annotation.id === hoveredNode?.nodeId}
+                            hovered={!isAnchorSource && annotation.id === hoveredNode?.nodeId}
                             selected={false}
                             sizeVariant={sizeVariant}
                             containerK={basePose.k}

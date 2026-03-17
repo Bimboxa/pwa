@@ -86,6 +86,9 @@ const mapEditorInitialState = {
 
   // last selected drawing tool per annotation template / tool type
   selectedToolKeyByTemplateId: {}, // { [templateId|toolType]: toolKey }
+
+  // anchor snap mode
+  anchorSourceAnnotationId: null, // annotation ID whose extremities will be anchored
 };
 
 export const mapEditorSlice = createSlice({
@@ -338,6 +341,12 @@ export const mapEditorSlice = createSlice({
       const { templateId, toolKey } = action.payload;
       state.selectedToolKeyByTemplateId[templateId] = toolKey;
     },
+
+    // anchor snap
+    setAnchorSourceAnnotationId: (state, action) => {
+      state.anchorSourceAnnotationId = action.payload;
+      state.showLayerScreenCursor = Boolean(action.payload);
+    },
   },
 });
 
@@ -430,6 +439,9 @@ export const {
 
   // selected tool per template
   setSelectedToolKeyForTemplate,
+
+  // anchor snap
+  setAnchorSourceAnnotationId,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;
