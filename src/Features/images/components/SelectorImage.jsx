@@ -9,6 +9,7 @@ import { Delete } from "@mui/icons-material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
 import ContainerFilesSelector from "Features/files/components/ContainerFilesSelector";
+import ContainerFilesSelectorV2 from "Features/files/components/ContainerFilesSelectorV2";
 
 import testIsPdf from "Features/pdf/utils/testIsPdf";
 import pdfToPngAsync from "Features/pdf/utils/pdfToPngAsync";
@@ -23,6 +24,7 @@ export default function SelectorImage({
   bgImageUrl,
   bgColor,
   variant, // "BASE_MAP_CREATOR" | "DEFAULT"
+  BgIcon,
 }) {
   const dispatch = useDispatch();
 
@@ -78,8 +80,10 @@ export default function SelectorImage({
     <BoxCenter
       sx={{
         position: "relative",
-        border: (theme) => `1px solid ${theme.palette.divider}`,
-        borderRadius: "8px",
+        ...(variant !== "BASE_MAP_CREATOR" && {
+          border: (theme) => `1px solid ${theme.palette.divider}`,
+          borderRadius: "8px",
+        }),
         ...(bgColor && { bgcolor: bgColor }),
       }}
     >
@@ -155,38 +159,46 @@ export default function SelectorImage({
             justifyContent: "center",
           }}
         >
-          {bgImageUrl && (
-            <Box
-              sx={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                bottom: 0,
-                right: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-
-                //zIndex: 1,
-              }}
-            >
-              <img
-                src={bgImageUrl}
-                style={{
-                  width: "100%",
-                  height: "auto",
-                  maxHeight: "100%",
-                  objectFit: "contain",
-                  //objectFit: "fill",
-                }}
+          {variant === "BASE_MAP_CREATOR" ? (
+            <ContainerFilesSelectorV2
+              onFilesChange={handleFilesChange}
+              callToActionLabel={labelS}
+              accept=".png, .jpeg, .pdf"
+              BgIcon={BgIcon}
+            />
+          ) : (
+            <>
+              {bgImageUrl && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    bottom: 0,
+                    right: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <img
+                    src={bgImageUrl}
+                    style={{
+                      width: "100%",
+                      height: "auto",
+                      maxHeight: "100%",
+                      objectFit: "contain",
+                    }}
+                  />
+                </Box>
+              )}
+              <ContainerFilesSelector
+                onFilesChange={handleFilesChange}
+                callToActionLabel={labelS}
+                accept=".png, .jpeg, .pdf"
               />
-            </Box>
+            </>
           )}
-          <ContainerFilesSelector
-            onFilesChange={handleFilesChange}
-            callToActionLabel={labelS}
-            accept=".png, .jpeg, .pdf"
-          />
         </Box>
       )}
     </BoxCenter>

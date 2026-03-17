@@ -48,6 +48,8 @@ export default function BaseMapSelectorInMapEditorV2() {
     const baseMapsListing = useListingById(listingId);
     const updateEntity = useUpdateEntity();
 
+    const showCreateBaseMapSection = useSelector((s) => s.mapEditor.showCreateBaseMapSection);
+
     const [anchorEl, setAnchorEl] = useState(null);
     const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
     const [editingMapId, setEditingMapId] = useState(null);
@@ -74,6 +76,8 @@ export default function BaseMapSelectorInMapEditorV2() {
         dispatch(setSelectedMainBaseMapId(map.id));
         handleClose();
     };
+
+    if (showCreateBaseMapSection) return null;
 
     return (
         <ThemeProvider theme={darkTheme}>

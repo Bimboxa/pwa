@@ -1,41 +1,29 @@
 import { blue, brown, orange, purple, red } from "@mui/material/colors"
 
-const CUVELAGE_ETANTOP_302 = {
-    key: "CUVELAGE_ETANTOP_302",
-    name: "Cuvelage - Etantop",
+const CUVELAGE_QUICKSKIN = {
+    key: "CUVELAGE_QUICKSKIN",
+    name: "Cuvelage - Quicksin",
     iconKey: "shapes",
     color: blue[500],
     keywords: ["type:repérage", "secteur:cuvelage", "système:etantop"],
     articlesNomenclaturesKeys: ["CUVELAGE"],
     templates: [
         {
-            label: "Etantop 302 CA-N en VCT sur 3,17m",
+            label: "Etantop 302 en VCT sur x,xx m",
             drawingShape: "POLYLINE",
             strokeColor: "#2d43d1ff",
             strokeOpacity: 0.8,
             strokeWidth: 4,
             strokeWidthUnit: "PX",
             mainQtyKey: "S",
-            mappingCategories: ["OUVRAGE:VCT"]
         },
         {
-            label: "Etantop en voiles sur 1,00m",
-            drawingShape: "POLYLINE",
-            strokeColor: "#FEAE00",
-            strokeOpacity: 0.8,
-            strokeWidth: 4,
-            strokeWidthUnit: "PX",
-            mainQtyKey: "S",
-            mappingCategories: ["OUVRAGE:VI"]
-        },
-        {
-            label: "Kentrec MR au sol",
+            label: "Quicksin au sol",
             drawingShape: "POLYGON",
-            fillColor: "#305d0eff",
+            fillColor: "#62a72dff",
             fillType: "HATCHING",
             fillOpacity: 0.8,
             mainQtyKey: "S",
-            mappingCategories: ["OUVRAGE:SOL"]
         },
         {
             label: "Etantop 302 en fosses",
@@ -48,4 +36,4 @@ const CUVELAGE_ETANTOP_302 = {
     ]
 }
 
-export default CUVELAGE_ETANTOP_302;
+export default CUVELAGE_QUICKSKIN;

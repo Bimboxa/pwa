@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import { setOpenBaseMapSelector } from "Features/mapEditor/mapEditorSlice";
@@ -32,6 +32,7 @@ export default function ButtonSelectorBaseMapInMapEditor({ onResetCamera }) {
 
   const mainBaseMap = useMainBaseMap();
   const isMobile = useIsMobile();
+  const showCreateBaseMapSection = useSelector((s) => s.mapEditor.showCreateBaseMapSection);
 
   // helper
 
@@ -48,6 +49,8 @@ export default function ButtonSelectorBaseMapInMapEditor({ onResetCamera }) {
     dispatch(setSelectedMainBaseMapId(mapId));
     setOpen(false);
   }
+
+  if (showCreateBaseMapSection) return null;
 
   return (
     <Box>

@@ -1,4 +1,4 @@
-import imageMap from "../assets/imageMap.png";
+import IconFloorPlan from "../assets/IconFloorPlan";
 
 import { useState, useEffect } from "react";
 import { nanoid } from "@reduxjs/toolkit";
@@ -180,17 +180,16 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
           }}
         >
           <SelectorImage
-            bgImageUrl={imageMap}
-            bgColor="white"
+            BgIcon={IconFloorPlan}
             selectedImageUrl={selectedImageUrl}
             onImageFileChange={handleImageFileChange}
             variant="BASE_MAP_CREATOR"
           />
         </Box>
 
-        <Box sx={{ p: 1, width: 1, display: "flex", justifyContent: "flex-end" }}>
+        {/* <Box sx={{ p: 1, width: 1, display: "flex", justifyContent: "flex-end" }}>
           <Button onClick={handleOpenPageGmap} variant="outlined" size="small">Ouvrir Google Maps</Button>
-        </Box>
+        </Box> */}
 
       </BoxCenter>
 
