@@ -26,7 +26,7 @@ export default function PanelListingAnnotationTemplates() {
   // data - func
 
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
-  const deleteAnnotationTemplate = useDeleteAnnotationTemplate();
+  const { deleteAnnotationTemplate } = useDeleteAnnotationTemplate();
 
   // state
 

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setCanTransformNode, setWrapperMode } from "Features/mapEditor/mapEditorSlice";
-import { clearSelection } from "Features/selection/selectionSlice";
+import { clearSelection, setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
@@ -23,6 +23,7 @@ import {
 import {
   DragIndicator as GripIcon,
   ArrowDropDown as ArrowDropDownIcon,
+  SettingsOutlined as SettingsIcon,
 } from "@mui/icons-material";
 
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
@@ -31,6 +32,7 @@ import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
+import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
 
 import getAnnotationColor from "../utils/getAnnotationColor";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
@@ -149,6 +151,17 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     dispatch(clearSelection());
   }
 
+  function handleOpenTemplateProperties() {
+    if (!selectedAnnotation?.annotationTemplateId) return;
+    dispatch(
+      setSelectedItem({
+        id: selectedAnnotation.annotationTemplateId,
+        type: "ANNOTATION_TEMPLATE",
+      })
+    );
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+  }
+
   async function handleHeightChange(updatedAnnotation) {
     if (!updatedAnnotation?.id) return;
     await updateAnnotation({
@@ -216,6 +229,21 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               <ArrowDropDownIcon sx={{ fontSize: 20 }} />
             </IconButton>
           </Tooltip>
+
+          <Tooltip title="Propriétés du modèle">
+            <IconButton
+              size="small"
+              onClick={handleOpenTemplateProperties}
+              onMouseDown={(e) => e.stopPropagation()}
+              sx={{
+                flexShrink: 0,
+                color: "text.disabled",
+                "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+              }}
+            >
+              <SettingsIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
         </Box>
 
         {/* Row 2 - Height field + measurements */}
@@ -245,6 +273,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           onResize={handleResizeClick}
           resizeActive={wrapperMode}
           onDelete={handleDeleteClick}
+          extraActions={
+            selectedAnnotation?.type === "STRIP" ? (
+              <IconButtonFlipStripAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
+            ) : null
+          }
           layerChip={
             selectedAnnotation && !selectedAnnotation.isBaseMapAnnotation ? (
               <ChipLayerSelector

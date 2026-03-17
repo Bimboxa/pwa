@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useDispatch } from "react-redux";
 import { useDraggable, useDndMonitor, DragOverlay } from "@dnd-kit/core";
 
@@ -7,9 +7,6 @@ import {
   ListItemButton,
   Typography,
   Box,
-  Popper,
-  Paper,
-  Fade,
   IconButton,
   InputBase,
 } from "@mui/material";
@@ -19,7 +16,6 @@ import { Edit, Check, Close } from "@mui/icons-material";
 
 import AnnotationIcon from "Features/annotations/components/AnnotationIcon";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
-import ToolbarCreateAnnotationFromTabAnnotationTemplates from "Features/annotations/components/ToolbarCreateAnnotationFromTabAnnotationTemplates";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import IconButtonAnnotationTemplatesDownload from "Features/annotations/components/IconButtonAnnotationTemplatesDownload";
 import IconButtonAnnotationTemplatesUpload from "Features/annotations/components/IconButtonAnnotationTemplatesUpload";
@@ -55,30 +51,9 @@ function DraggableAnnotationTemplateItem({
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined;
 
-  const [anchorEl, setAnchorEl] = useState(null);
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [tempLabel, setTempLabel] = useState("");
-  const hoverTimeoutRef = useRef(null);
-  const isOpen = Boolean(anchorEl) && !isEditing;
-
-  const handleListItemEnter = (event) => {
-    setIsHovered(true);
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleListItemLeave = () => {
-    setIsHovered(false);
-    hoverTimeoutRef.current = setTimeout(() => {
-      setAnchorEl(null);
-    }, 50);
-  };
-
-  const handlePopperEnter = () => {
-    setIsHovered(true);
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-  };
 
   const handleToggleHidden = async (e) => {
     e.stopPropagation(); // Évite de déclencher le clic de création sur la ligne
@@ -110,8 +85,8 @@ function DraggableAnnotationTemplateItem({
       <ListItemButton
         onClick={(e) => !isEditing && onCreateClick(e, annotationTemplate)}
         divider
-        onMouseEnter={handleListItemEnter}
-        onMouseLeave={handleListItemLeave}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         sx={{
           position: "relative",
           bgcolor: "white",
@@ -217,59 +192,6 @@ function DraggableAnnotationTemplateItem({
         </Box>
       </ListItemButton>
 
-      <Popper
-        open={isOpen}
-        anchorEl={anchorEl}
-        placement="right"
-        transition
-        modifiers={[{ name: 'offset', options: { offset: [0, 16] } }]}
-        style={{ zIndex: 1500 }}
-        onMouseEnter={handlePopperEnter}
-        onMouseLeave={handleListItemLeave}
-      >
-        {({ TransitionProps }) => (
-          <Fade {...TransitionProps} timeout={100}>
-            <Paper
-              elevation={6}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                borderRadius: 1.5,
-                bgcolor: 'background.paper',
-                position: 'relative',
-                border: '1px solid',
-                borderColor: 'divider',
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  left: -18,
-                  top: 0,
-                  width: 18,
-                  height: '100%',
-                  bgcolor: 'transparent',
-                },
-                '&::after': {
-                  content: '""',
-                  position: 'absolute',
-                  left: -5,
-                  top: '50%',
-                  transform: 'translateY(-50%) rotate(45deg)',
-                  width: 10,
-                  height: 10,
-                  bgcolor: 'background.paper',
-                  borderLeft: '1px solid',
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                }
-              }}
-            >
-              <ToolbarCreateAnnotationFromTabAnnotationTemplates
-                annotationTemplate={annotationTemplate}
-              />
-            </Paper>
-          </Fade>
-        )}
-      </Popper>
     </Box>
   );
 }

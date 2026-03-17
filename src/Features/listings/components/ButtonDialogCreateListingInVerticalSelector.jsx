@@ -37,8 +37,6 @@ export default function ButtonDialogCreateListingInVerticalSelector() {
         <DialogCreateListing
           open={open}
           onClose={handleClose}
-          fromPresetListings={false}
-          locatedListingOnly={true}
         />
       )}
     </>

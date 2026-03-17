@@ -11,6 +11,7 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import {
   Box,
+  Button,
   Paper,
   Typography,
   List,
@@ -1013,7 +1014,6 @@ export default function PopperMapListings() {
 
   if (isBaseMapsViewer && !showMapListingsPanel) return null;
 
-  if (!displayedListings?.length && !openCreateListing && !isBaseMapsViewer) return null;
 
   return (
     <Paper
@@ -1090,78 +1090,115 @@ export default function PopperMapListings() {
         )}
       </Box>
 
-      {/* Default height (MAP viewer only) */}
-      {viewerKey === "MAP" && (
-        <Box sx={{ px: 1, py: 1, borderBottom: "1px solid", borderColor: "panel.border" }}>
-          <SectionDefaultHeight />
-        </Box>
-      )}
-
-      {/* Scrollable listings */}
-      <Box sx={{ overflow: "auto", flex: 1 }}>
-        {viewerKey === "MAP" && <SectionLayers baseMapId={baseMap?.id} />}
-
-        {isBaseMapsViewer
-          ? displayedListings?.map((listing) => (
-              <AnnotationTemplatesForListing
-                key={listing.id}
-                listingId={listing.id}
-              />
-            ))
-          : displayedListings?.map((listing) => (
-              <ListingRow
-                key={listing.id}
-                listing={listing}
-                isExpanded={expandedListingIds.includes(listing.id)}
-                onToggleExpand={handleToggleExpand}
-                hiddenListingsIds={hiddenListingsIds}
-                annotationCount={
-                  annotationCountByListingId?.[listing.id] || 0
-                }
-              />
-            ))}
-
-        {/* Outils section */}
+      {!displayedListings?.length && !isBaseMapsViewer ? (
+        /* Empty state helper */
         <Box
           sx={{
-            px: 1,
-            py: 0.5,
-            bgcolor: "panel.sectionBg",
-            borderTop: "1px solid",
-            borderColor: "panel.border",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1.5,
+            px: 3,
+            py: 4,
           }}
         >
           <Typography
-            variant="caption"
+            variant="body2"
             sx={{
               color: "panel.textMuted",
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              fontSize: "11px",
+              textAlign: "center",
+              lineHeight: 1.5,
             }}
           >
-            Outils de découpe
+            Pour dessiner, créez d'abord une liste de modèles d'annotations
           </Typography>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={() => setOpenCreateListing(true)}
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+            }}
+          >
+            Nouvelle liste
+          </Button>
         </Box>
-        <List dense disablePadding>
-          {TOOL_ITEMS.map((tool) => (
-            <ToolRow
-              key={tool.type}
-              type={tool.type}
-              label={tool.label}
-              Icon={tool.Icon}
-            />
-          ))}
-        </List>
-      </Box>
+      ) : (
+        <>
+          {/* Default height (MAP viewer only) */}
+          {viewerKey === "MAP" && (
+            <Box sx={{ px: 1, py: 1, borderBottom: "1px solid", borderColor: "panel.border" }}>
+              <SectionDefaultHeight />
+            </Box>
+          )}
+
+          {/* Scrollable listings */}
+          <Box sx={{ overflow: "auto", flex: 1 }}>
+            {viewerKey === "MAP" && <SectionLayers baseMapId={baseMap?.id} />}
+
+            {isBaseMapsViewer
+              ? displayedListings?.map((listing) => (
+                  <AnnotationTemplatesForListing
+                    key={listing.id}
+                    listingId={listing.id}
+                  />
+                ))
+              : displayedListings?.map((listing) => (
+                  <ListingRow
+                    key={listing.id}
+                    listing={listing}
+                    isExpanded={expandedListingIds.includes(listing.id)}
+                    onToggleExpand={handleToggleExpand}
+                    hiddenListingsIds={hiddenListingsIds}
+                    annotationCount={
+                      annotationCountByListingId?.[listing.id] || 0
+                    }
+                  />
+                ))}
+
+            {/* Outils section */}
+            <Box
+              sx={{
+                px: 1,
+                py: 0.5,
+                bgcolor: "panel.sectionBg",
+                borderTop: "1px solid",
+                borderColor: "panel.border",
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "panel.textMuted",
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  fontSize: "11px",
+                }}
+              >
+                Outils de découpe
+              </Typography>
+            </Box>
+            <List dense disablePadding>
+              {TOOL_ITEMS.map((tool) => (
+                <ToolRow
+                  key={tool.type}
+                  type={tool.type}
+                  label={tool.label}
+                  Icon={tool.Icon}
+                />
+              ))}
+            </List>
+          </Box>
+        </>
+      )}
 
       {/* Create listing dialog */}
       {openCreateListing && (
         <DialogCreateListing
           open={openCreateListing}
           onClose={() => setOpenCreateListing(false)}
-          fromPresetListings={false}
           isForBaseMaps={isBaseMapsViewer}
         />
       )}

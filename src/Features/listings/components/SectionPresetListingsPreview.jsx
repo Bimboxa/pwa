@@ -11,13 +11,11 @@ import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTe
 export default function SectionPresetListingsPreview({
   selectedKeys,
   onAddListings,
-  onAddEmptyListing,
 }) {
   // strings
 
   const count = selectedKeys?.length ?? 0;
   const addListingsS = `Ajouter les ${count} listes`;
-  const addEmptyS = "Ajouter une liste sans modèles d'objets";
 
   // data
 
@@ -46,33 +44,49 @@ export default function SectionPresetListingsPreview({
           border: (theme) => `1px solid ${theme.palette.divider}`,
         }}
       >
-        {selectedListings.map((listing) => (
-          <Box key={listing.key} sx={{ mb: 2, width: 1 }}>
-            <Typography
-              variant="subtitle1"
-              sx={{ fontWeight: "bold", mb: 0.5 }}
-            >
-              {listing.fullName ?? listing.name}
+        {selectedListings.length === 0 ? (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flex: 1,
+              py: 4,
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Sélectionnez une ou plusieurs listes
             </Typography>
-            {listing.annotationTemplatesLibrary?.map((template, i) => (
-              <Box
-                key={i}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  mb: 0.5,
-                  ml: 1,
-                  width: 1
-                }}
-              >
-                <AnnotationTemplateIcon template={template} size={20} />
-                <Typography variant="body2" sx={{ ml: 1 }}>
-                  {template.label}
-                </Typography>
-              </Box>
-            ))}
           </Box>
-        ))}
+        ) : (
+          selectedListings.map((listing) => (
+            <Box key={listing.key} sx={{ mb: 2, width: 1 }}>
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: "bold", mb: 0.5 }}
+              >
+                {listing.fullName ?? listing.name}
+              </Typography>
+              {listing.annotationTemplatesLibrary?.map((template, i) => (
+                <Box
+                  key={i}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    mb: 0.5,
+                    ml: 1,
+                    width: 1,
+                  }}
+                >
+                  <AnnotationTemplateIcon template={template} size={20} />
+                  <Typography variant="body2" sx={{ ml: 1 }}>
+                    {template.label}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          ))
+        )}
       </BoxFlexVStretch>
 
       <Box>
@@ -86,11 +100,6 @@ export default function SectionPresetListingsPreview({
             color: "white",
             "&:hover": { bgcolor: "grey.800" },
           }}
-        />
-        <ButtonInPanelV2
-          label={addEmptyS}
-          onClick={onAddEmptyListing}
-          variant="outlined"
         />
       </Box>
     </BoxFlexVStretch>

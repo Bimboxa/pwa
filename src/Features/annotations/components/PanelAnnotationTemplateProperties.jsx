@@ -59,7 +59,12 @@ export default function PanelAnnotationTemplateProperties() {
                     <Back />
                 </IconButton>
 
-                <Typography variant="body2" sx={{ fontWeight: "bold", ml: 1 }}>{label}</Typography>
+                <Box sx={{ ml: 1 }}>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ fontStyle: "italic", fontSize: (theme) => theme.typography.caption.fontSize }}>
+                        Modèle d'annotation
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: "bold" }}>{label}</Typography>
+                </Box>
             </Box>
 
             <IconButtonMoreActionsAnnotationTemplate annotationTemplate={selectedAnnotationTemplate} />

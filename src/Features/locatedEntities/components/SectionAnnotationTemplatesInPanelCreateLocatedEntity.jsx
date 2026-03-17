@@ -66,7 +66,7 @@ export default function SectionAnnotationTemplatesInPanelCreateLocatedEntity({
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const resetSelection = useResetSelection();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
-  const deleteAnnotationTemplate = useDeleteAnnotationTemplate();
+  const { deleteAnnotationTemplate } = useDeleteAnnotationTemplate();
   const editedAnnotationTemplate = useSelector(
     (s) => s.annotations.editedAnnotationTemplate
   );

@@ -28,7 +28,9 @@ export default function AnnotationMeasurements({ annotation, surface, length }) 
   const showSurface =
     computedSurface != null &&
     computedSurface > 0 &&
-    (surface != null || ["RECTANGLE", "POLYGON", "STRIP"].includes(annotation?.type));
+    (surface != null ||
+      ["RECTANGLE", "POLYGON", "STRIP"].includes(annotation?.type) ||
+      (annotation?.type === "POLYLINE" && annotation?.height));
 
   const showLength = computedLength != null && computedLength > 0;
 

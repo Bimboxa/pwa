@@ -7,77 +7,108 @@ import useCreateAnnotationTemplate from "../hooks/useCreateAnnotationTemplate";
 
 import { setSelectedItem } from "Features/selection/selectionSlice";
 
-import { IconButton, Menu, MenuItem, Divider } from "@mui/material";
+import {
+  IconButton,
+  Menu,
+  MenuItem,
+  Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Typography,
+} from "@mui/material";
 import { MoreVert as MoreActionsIcon } from "@mui/icons-material";
-import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 
+export default function IconButtonMoreActionsAnnotationTemplate({
+  annotationTemplate,
+}) {
+  const dispatch = useDispatch();
 
-export default function IconButtonMoreActionsAnnotationTemplate({ annotationTemplate }) {
+  // data
 
-    const dispatch = useDispatch();
+  const { deleteAnnotationTemplate, getAnnotationCount } =
+    useDeleteAnnotationTemplate();
+  const createAnnotationTemplate = useCreateAnnotationTemplate();
 
-    // data
+  // state
 
-    const deleteAnnotationTemplate = useDeleteAnnotationTemplate();
-    const createAnnotationTemplate = useCreateAnnotationTemplate();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
+  const [openDelete, setOpenDelete] = useState(false);
+  const [annotationCount, setAnnotationCount] = useState(0);
 
-    // state
+  // handlers
 
-    const [anchorEl, setAnchorEl] = useState(null);
-    const open = Boolean(anchorEl);
+  const handleClick = (event) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+  };
 
-    // handlers
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
 
-    const handleClick = (event) => {
-        event.stopPropagation();
-        setAnchorEl(event.currentTarget);
+  const handleDuplicate = async () => {
+    const newTemplate = {
+      ...annotationTemplate,
+      label: annotationTemplate.label + " (copie)",
     };
+    await createAnnotationTemplate(newTemplate);
+    setAnchorEl(null);
+  };
 
-    const handleClose = () => {
-        setAnchorEl(null);
-    };
+  const handleDelete = async () => {
+    setAnchorEl(null);
+    const count = await getAnnotationCount(annotationTemplate.id);
+    setAnnotationCount(count);
+    setOpenDelete(true);
+  };
 
-    const handleDuplicate = async () => {
-        const newTemplate = {
-            ...annotationTemplate,
-            label: annotationTemplate.label + " (copie)",
-        }
-        await createAnnotationTemplate(newTemplate);
-        setAnchorEl(null);
-    };
+  const handleConfirmDelete = async () => {
+    await deleteAnnotationTemplate(annotationTemplate.id);
+    dispatch(setSelectedItem({}));
+    setOpenDelete(false);
+  };
 
-    const [openDelete, setOpenDelete] = useState(false);
+  // render
 
-    const handleDelete = () => {
-        setAnchorEl(null);
-        setOpenDelete(true);
-    };
+  return (
+    <>
+      <IconButton onClick={handleClick}>
+        <MoreActionsIcon />
+      </IconButton>
 
-    return (
-        <>
-            <IconButton onClick={handleClick}>
-                <MoreActionsIcon />
-            </IconButton>
+      <Menu open={open} anchorEl={anchorEl} onClose={handleClose}>
+        <MenuItem onClick={handleDuplicate}>Dupliquer</MenuItem>
+        <Divider />
+        <MenuItem onClick={handleDelete}>Supprimer</MenuItem>
+      </Menu>
 
-            <Menu
-                open={open}
-                anchorEl={anchorEl}
-                onClose={handleClose}
-            >
-                <MenuItem onClick={handleDuplicate}>Dupliquer</MenuItem>
-                <Divider />
-                <MenuItem onClick={handleDelete}>Supprimer</MenuItem>
-            </Menu>
-
-            <DialogDeleteRessource
-                open={openDelete}
-                onClose={() => setOpenDelete(false)}
-                onConfirmAsync={async () => {
-                    await deleteAnnotationTemplate(annotationTemplate.id);
-                    dispatch(setSelectedItem({}))
-                    setOpenDelete(false);
-                }}
-            />
-        </>
-    );
+      <Dialog open={openDelete} onClose={() => setOpenDelete(false)}>
+        <DialogTitle>Supprimer le modèle</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            {annotationCount > 0
+              ? `${annotationCount} annotation${annotationCount > 1 ? "s" : ""} associée${annotationCount > 1 ? "s" : ""} à ce modèle seront également supprimées.`
+              : "Aucune annotation associée à ce modèle."}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDelete(false)} variant="outlined">
+            Annuler
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            color="error"
+            variant="contained"
+            autoFocus
+          >
+            Supprimer
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
 }

@@ -14,6 +14,7 @@ export default function ToolbarAnnotationActions({
   resizeActive = false,
   onDelete,
   layerChip,
+  extraActions,
 }) {
   // state
 
@@ -80,6 +81,8 @@ export default function ToolbarAnnotationActions({
           <ResizeIcon fontSize="small" />
         </IconButton>
       </Tooltip>
+
+      {extraActions}
 
       <Box sx={{ flex: 1 }} />
 

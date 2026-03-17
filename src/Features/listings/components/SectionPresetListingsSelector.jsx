@@ -209,7 +209,7 @@ export default function SectionPresetListingsSelector({
         </Menu>
       </Box>
 
-      <BoxFlexVStretch sx={{ overflow: "auto" }}>
+      <BoxFlexVStretch sx={{ overflow: "auto", bgcolor: "white", borderRadius: 1 }}>
         <List dense disablePadding>
           {filteredListings.map((listing) => {
             const checked = selectedKeys?.includes(listing.key);

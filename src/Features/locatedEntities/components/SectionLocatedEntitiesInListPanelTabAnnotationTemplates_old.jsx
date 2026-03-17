@@ -43,7 +43,6 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import AnnotationIcon from "Features/annotations/components/AnnotationIcon";
 import FormAnnotationTemplateVariantBlock from "Features/annotations/components/FormAnnotationTemplateVariantBlock";
 import ToolbarCreateAnnotationFromListItemEntity from "Features/annotations/components/ToolbarCreateAnnotationFromListItemEntity"; // Added
-import ToolbarCreateAnnotationFromTabAnnotationTemplates from "Features/annotations/components/ToolbarCreateAnnotationFromTabAnnotationTemplates"; // Added
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import SectionCreateAnnotationTemplateVariantBlock from "Features/annotations/components/SectionCreateAnnotationTemplateVariantBlock.jsx";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
@@ -230,45 +229,6 @@ function DraggableAnnotationTemplateItem({
         </Box>
       </ListItemButton>
 
-      {/* Popper Logic */}
-      <Popper
-        open={isOpen}
-        anchorEl={anchorEl}
-        placement="right"
-        transition
-        modifiers={[
-          {
-            name: 'offset',
-            options: {
-              offset: [0, -8],
-            },
-          },
-          {
-            name: 'preventOverflow',
-            options: { padding: 8 },
-          },
-        ]}
-        style={{ zIndex: 1500, pointerEvents: 'auto' }}
-        onMouseEnter={handlePopperEnter}
-        onMouseLeave={handleListItemLeave}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {({ TransitionProps }) => (
-          <Fade {...TransitionProps} timeout={10}>
-            <Paper
-              elevation={4}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                borderRadius: 1,
-                bgcolor: 'background.paper'
-              }}
-            >
-              <ToolbarCreateAnnotationFromTabAnnotationTemplates annotationTemplate={annotationTemplate} />
-            </Paper>
-          </Fade>
-        )}
-      </Popper>
 
       <Collapse in={editingId === annotationTemplate.id}>
         <Box
@@ -339,7 +299,7 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotationTemplates(
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const resetSelection = useResetSelection();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
-  const deleteAnnotationTemplate = useDeleteAnnotationTemplate();
+  const { deleteAnnotationTemplate } = useDeleteAnnotationTemplate();
   const editedAnnotationTemplate = useSelector(
     (s) => s.annotations.editedAnnotationTemplate
   );

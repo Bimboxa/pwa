@@ -12,7 +12,7 @@ import { setEnabledDrawingMode, setSelectedNodes } from 'Features/mapEditor/mapE
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
-import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations } from 'Features/annotations/annotationsSlice';
+import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnotation } from 'Features/annotations/annotationsSlice';
 import {
   setAnchorPosition,
   setClickedNode,
@@ -138,6 +138,7 @@ const InteractionLayer = forwardRef(({
 
   const viewportRef = useRef(null); // Ref vers la caméra
   const drawingLayerRef = useRef(null);
+  const lastPreviewPosRef = useRef(null);
   const brushLayerRef = useRef(null);
   const screenCursorRef = useRef(null);
   const snappingLayerRef = useRef(null);
@@ -586,6 +587,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // Magnétiser le trait de dessin sur le premier point
+    lastPreviewPosRef.current = pointCoordinates;
     drawingLayerRef.current?.updatePreview(pointCoordinates);
   };
 
@@ -597,10 +599,20 @@ const InteractionLayer = forwardRef(({
 
   // syncRef
 
+  const isActiveViewerRef = useRef(isActiveViewer);
+  useEffect(() => {
+    isActiveViewerRef.current = isActiveViewer;
+  }, [isActiveViewer]);
+
   const enabledDrawingModeRef = useRef(enabledDrawingMode);
   useEffect(() => {
     enabledDrawingModeRef.current = enabledDrawingMode;
   }, [enabledDrawingMode]);
+
+  const newAnnotationRef = useRef(newAnnotation);
+  useEffect(() => {
+    newAnnotationRef.current = newAnnotation;
+  }, [newAnnotation]);
 
   const onCommitDrawingRef = useRef(onCommitDrawing);
   useEffect(() => {
@@ -929,6 +941,25 @@ const InteractionLayer = forwardRef(({
           console.log("press m")
           if (showSmartDetect) smartDetectRef.current?.changeMorphKernelSize(-1);
           break;
+
+        case "s": {
+          if (!isActiveViewerRef.current) break;
+          const na = newAnnotationRef.current;
+          if (enabledDrawingMode && na?.type === "STRIP") {
+            const newOrientation = (na.stripOrientation ?? 1) * -1;
+            dispatch(setNewAnnotation({
+              ...na,
+              stripOrientation: newOrientation,
+            }));
+            // Force redraw with last cursor position
+            if (lastPreviewPosRef.current) {
+              requestAnimationFrame(() => {
+                drawingLayerRef.current?.updatePreview(lastPreviewPosRef.current);
+              });
+            }
+          }
+          break;
+        }
 
         case "Enter":
           if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP", "BRUSH"].includes(enabledDrawingModeRef.current)) {
@@ -1629,6 +1660,7 @@ const InteractionLayer = forwardRef(({
         const lastPoint = drawingPoints[drawingPoints.length - 1];
         previewPos = snapToAngle(localPos, lastPoint);
       }
+      lastPreviewPosRef.current = previewPos;
       drawingLayerRef.current?.updatePreview(previewPos);
     }
 

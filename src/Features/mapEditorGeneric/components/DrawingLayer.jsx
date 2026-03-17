@@ -1,5 +1,5 @@
 // components/DrawingLayer.jsx
-import React, { forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef, useMemo, useEffect } from 'react';
 
 import { getCircleFrom3Points } from "Features/geometry/utils/getPolylinePointsFromCircle";
 
@@ -75,6 +75,12 @@ const DrawingLayer = forwardRef(({
     const previewCircleRef = useRef(null);
     const previewStripRef = useRef(null);
 
+    // Keep a ref to newAnnotation so the imperative handle always reads fresh values
+    const newAnnotationRef = useRef(newAnnotation);
+    useEffect(() => {
+        newAnnotationRef.current = newAnnotation;
+    }, [newAnnotation]);
+
     const { strokeColor, fillColor, type } = newAnnotation || {};
 
     // Détection des types
@@ -146,8 +152,10 @@ const DrawingLayer = forwardRef(({
                 if (previewRectRef.current) previewRectRef.current.style.display = 'none';
 
                 const allPts = [...points, cursorPos];
-                const stripWidth = newAnnotation?.strokeWidth ?? STRIP_DEFAULT_WIDTH;
-                const d = computeStripPath(allPts, stripWidth);
+                const na = newAnnotationRef.current;
+                const stripWidth = na?.strokeWidth ?? STRIP_DEFAULT_WIDTH;
+                const stripOrientation = na?.stripOrientation ?? 1;
+                const d = computeStripPath(allPts, stripWidth * stripOrientation);
                 previewStripRef.current.setAttribute('d', d);
                 previewStripRef.current.style.display = 'block';
 

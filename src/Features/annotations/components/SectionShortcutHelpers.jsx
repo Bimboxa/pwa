@@ -1,21 +1,27 @@
 import React from 'react';
+import { useSelector } from 'react-redux';
 import { Box, Typography, Stack, alpha } from '@mui/material';
-// Import de l'icône pour la touche Entrée
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
 
 export default function SectionShortcutHelpers() {
+    // data
+
+    const newAnnotationType = useSelector((s) => s.annotations.newAnnotation?.type);
+
+    // helpers
 
     const shortcuts = [
         {
-            // On passe directement le composant Icône ici
             key: <KeyboardReturnIcon sx={{ fontSize: '1rem' }} />,
             label: "Terminer le dessin",
         },
         {
-            // On passe "Esc" en texte
             key: "Esc",
             label: "Quitter le mode dessin",
         },
+        ...(newAnnotationType === "STRIP"
+            ? [{ key: "S", label: "Inverser le sens du strip" }]
+            : []),
     ];
 
     return (
@@ -27,8 +33,6 @@ export default function SectionShortcutHelpers() {
                 border: '1px solid',
                 borderColor: 'divider',
                 p: 2,
-                //boxShadow: (theme) => theme.shadows[4],
-                //maxWidth: 300,
             }}
         >
             <Typography
@@ -60,21 +64,20 @@ export default function SectionShortcutHelpers() {
                             {shortcut.label}
                         </Typography>
 
-                        {/* Touche Clavier (Keycap Style) */}
                         <Box
                             component="span"
                             sx={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                minWidth: '28px', // Légèrement plus large pour être confortable
+                                minWidth: '28px',
                                 height: '24px',
                                 px: 0.5,
                                 borderRadius: '6px',
                                 border: '1px solid',
                                 borderColor: 'text.disabled',
                                 backgroundColor: (theme) => theme.palette.action.hover,
-                                borderBottomWidth: '3px', // Effet 3D
+                                borderBottomWidth: '3px',
                                 color: 'text.primary',
                                 fontFamily: 'monospace',
                                 fontWeight: 'bold',
@@ -82,7 +85,6 @@ export default function SectionShortcutHelpers() {
                                 lineHeight: 1,
                             }}
                         >
-                            {/* Rendu conditionnel : Si c'est du texte ou un objet (icône) */}
                             {shortcut.key}
                         </Box>
                     </Box>

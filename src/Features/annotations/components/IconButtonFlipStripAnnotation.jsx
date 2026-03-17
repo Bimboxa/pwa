@@ -1,14 +1,12 @@
 import { IconButton, Tooltip } from "@mui/material";
-import {
-  Flip as FlipIcon,
-} from "@mui/icons-material";
+import { Flip as FlipIcon } from "@mui/icons-material";
 
 import db from "App/db/db";
 
-export default function IconButtonFlipStripAnnotation({ annotation }) {
+export default function IconButtonFlipStripAnnotation({ annotation, accentColor }) {
   // helpers
 
-  const title = "Inverser";
+  const title = "Inverser le sens";
 
   // handlers
 
@@ -20,8 +18,20 @@ export default function IconButtonFlipStripAnnotation({ annotation }) {
 
   return (
     <Tooltip title={title}>
-      <IconButton onClick={handleToggleFlip}>
-        <FlipIcon />
+      <IconButton
+        size="small"
+        onClick={handleToggleFlip}
+        sx={{
+          color: "text.disabled",
+          ...(accentColor && {
+            "&:hover": {
+              color: accentColor,
+              bgcolor: accentColor + "18",
+            },
+          }),
+        }}
+      >
+        <FlipIcon fontSize="small" />
       </IconButton>
     </Tooltip>
   );
