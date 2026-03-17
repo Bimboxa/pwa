@@ -122,6 +122,7 @@ const InteractionLayer = forwardRef(({
   onRemoveCut,
   onAnnotationMoveCommit,
   onSegmentSplit,
+  onProjectionSnapInsert,
   snappingEnabled = true,
   // selectedNode, // Removed prop usage, use Redux
   // selectedNodes, // Removed prop usage
@@ -500,6 +501,7 @@ const InteractionLayer = forwardRef(({
     onPointDuplicateAndMoveCommit,
     onSegmentSplit,
     onToggleAnnotationPointType,
+    onProjectionSnapInsert,
     currentSnapRef,
     viewportRef,
     dispatch,
@@ -1541,7 +1543,7 @@ const InteractionLayer = forwardRef(({
     // A. DRAG POINT (Vertex) — délégué à usePointDrag
     if (dragState?.pending || dragState?.active) {
 
-      // Snap detection during active drag (VERTEX only)
+      // Snap detection during active drag (VERTEX, MIDPOINT, PROJECTION)
       let snapOverride = null;
       if (dragState?.active && snappingEnabled) {
         const imageScale = getTargetScale();
@@ -1561,19 +1563,53 @@ const InteractionLayer = forwardRef(({
           })),
         }));
 
-        const snapResult = getBestSnap(localPos, annotationsExcludingDragPoint, snapThreshold);
+        const snapResult = getBestSnap(localPos, annotationsExcludingDragPoint, snapThreshold, true, true);
 
         if (snapResult?.type === "VERTEX") {
           currentSnapRef.current = snapResult;
           snapOverride = { x: snapResult.x, y: snapResult.y, pointId: snapResult.id };
 
-          // Show snap helper
           const pose = getTargetPose();
           const worldSnapX = snapResult.x * pose.k + pose.x;
           const worldSnapY = snapResult.y * pose.k + pose.y;
           const screenSnap = viewportRef.current?.worldToViewport(worldSnapX, worldSnapY);
           if (screenSnap) {
             snappingLayerRef.current?.update({ ...screenSnap, type: "VERTEX" });
+          }
+        } else if (snapResult?.type === "MIDPOINT" || snapResult?.type === "PROJECTION") {
+          const pose = getTargetPose();
+          const worldSnapX = snapResult.x * pose.k + pose.x;
+          const worldSnapY = snapResult.y * pose.k + pose.y;
+          const screenSnap = viewportRef.current?.worldToViewport(worldSnapX, worldSnapY);
+
+          // For PROJECTION, check screen distance — skip snap if too far (>10px)
+          let screenDistance;
+          let tooFar = false;
+          if (snapResult.type === 'PROJECTION' && screenSnap) {
+            const dx = screenSnap.x - viewportPos.x;
+            const dy = screenSnap.y - viewportPos.y;
+            screenDistance = Math.sqrt(dx * dx + dy * dy);
+            tooFar = screenDistance > 10;
+          }
+
+          if (tooFar) {
+            currentSnapRef.current = null;
+            snappingLayerRef.current?.update(null);
+          } else {
+            currentSnapRef.current = snapResult;
+            snapOverride = {
+              x: snapResult.x, y: snapResult.y,
+              projectionSnap: {
+                annotationId: snapResult.previewAnnotationId,
+                segmentStartId: snapResult.segmentStartId,
+                segmentEndId: snapResult.segmentEndId,
+                cutIndex: snapResult.cutIndex,
+              },
+            };
+
+            if (screenSnap) {
+              snappingLayerRef.current?.update({ ...screenSnap, type: snapResult.type, screenDistance });
+            }
           }
         } else {
           currentSnapRef.current = null;
@@ -1664,7 +1700,7 @@ const InteractionLayer = forwardRef(({
       const localPos = toLocalCoords(worldPos);
       const snapThreshold = SNAP_THRESHOLD_ABSOLUTE / scale;
 
-      snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, true);
+      snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, true, Boolean(enabledDrawingMode));
 
       if (snapResult) {
         currentSnapRef.current = snapResult;
@@ -1674,7 +1710,14 @@ const InteractionLayer = forwardRef(({
         const screenSnap = viewportRef.current?.worldToViewport(worldSnapX, worldSnapY);
 
         if (screenSnap) {
-          snappingLayerRef.current?.update({ ...screenSnap, type: snapResult.type });
+          // Compute screen distance for PROJECTION type (used to hide helper when too far)
+          let screenDistance;
+          if (snapResult.type === 'PROJECTION') {
+            const dx = screenSnap.x - viewportPos.x;
+            const dy = screenSnap.y - viewportPos.y;
+            screenDistance = Math.sqrt(dx * dx + dy * dy);
+          }
+          snappingLayerRef.current?.update({ ...screenSnap, type: snapResult.type, screenDistance });
         }
       } else {
         snappingLayerRef.current?.update(null);
@@ -1805,6 +1848,17 @@ const InteractionLayer = forwardRef(({
       // 2. LOGIQUE CLÉ : Si c'est un point existant (VERTEX), on passe son ID
       if (snap.type === 'VERTEX') {
         pointToAdd.existingPointId = snap.id;
+      }
+
+      // 3. If snapping to a PROJECTION or MIDPOINT on an existing segment,
+      // store metadata so the new point can be inserted into the target annotation at creation
+      if ((snap.type === 'PROJECTION' || snap.type === 'MIDPOINT') && snap.previewAnnotationId) {
+        pointToAdd.snapSegment = {
+          annotationId: snap.previewAnnotationId,
+          segmentStartId: snap.segmentStartId,
+          segmentEndId: snap.segmentEndId,
+          cutIndex: snap.cutIndex,
+        };
       }
 
       // ATTENTION : setDrawingPoints est asynchrone. 

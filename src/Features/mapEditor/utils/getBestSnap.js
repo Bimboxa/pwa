@@ -134,7 +134,7 @@ const projectOnArc = (px, py, center, r, start, end, isCW, forceCenter) => {
 // --- MAIN FUNCTION ---
 
 // Returns { x, y, distance, type: 'VERTEX' | 'PROJECTION', cutIndex?: number, ... }
-const getBestSnap = (mousePos, annotations, threshold, forceCenter = false) => {
+const getBestSnap = (mousePos, annotations, threshold, forceCenter = false, fallbackProjection = false) => {
     if (!annotations || !annotations.length) return null;
 
     annotations = annotations.filter((ann) => !ann.outOfSnapScope);
@@ -190,7 +190,56 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false) => {
     // 2. Check Segments/Projections (Edges/Arcs) - Priority 2
     // =========================================================
 
+    // When forceCenter + fallbackProjection: track midpoint (within threshold)
+    // AND projection (no threshold, as fallback) separately.
+    let bestFallbackProj = null;
+    let minFallbackProjDistSq = Infinity;
+
     const typeOf = (p) => (p?.type === "circle" ? "circle" : "square");
+
+    // Helper: process a snap candidate (projection or midpoint on a segment)
+    const processSegmentSnap = (projSnap, ann, segIndex, startPt, endPt, cutIdx, midSnap) => {
+        if (forceCenter) {
+            // Check midpoint within threshold
+            const midD2 = dist2(mousePos, { x: midSnap.x, y: midSnap.y });
+            if (midD2 < minDistSq) {
+                minDistSq = midD2;
+                bestSnap = {
+                    x: midSnap.x, y: midSnap.y, type: 'MIDPOINT',
+                    previewAnnotationId: ann.id,
+                    previewSegmentIndex: segIndex,
+                    segmentStartId: startPt.id,
+                    segmentEndId: endPt.id,
+                    cutIndex: cutIdx,
+                };
+            }
+            // Track projection as fallback (no threshold)
+            if (fallbackProjection && projSnap.d2 < minFallbackProjDistSq) {
+                minFallbackProjDistSq = projSnap.d2;
+                bestFallbackProj = {
+                    x: projSnap.x, y: projSnap.y, type: 'PROJECTION',
+                    previewAnnotationId: ann.id,
+                    previewSegmentIndex: segIndex,
+                    segmentStartId: startPt.id,
+                    segmentEndId: endPt.id,
+                    cutIndex: cutIdx,
+                };
+            }
+        } else {
+            // Original behavior: projection within threshold
+            if (projSnap.d2 < minDistSq) {
+                minDistSq = projSnap.d2;
+                bestSnap = {
+                    x: projSnap.x, y: projSnap.y, type: 'PROJECTION',
+                    previewAnnotationId: ann.id,
+                    previewSegmentIndex: segIndex,
+                    segmentStartId: startPt.id,
+                    segmentEndId: endPt.id,
+                    cutIndex: cutIdx,
+                };
+            }
+        }
+    };
 
     for (const ann of annotations) {
 
@@ -202,7 +251,7 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false) => {
             contoursToCheck.push({
                 points: mainPts,
                 shouldClose: ann.closeLine || ann.type === 'RECTANGLE' || ann.type === 'POLYGON',
-                cutIndex: undefined // <--- Principal
+                cutIndex: undefined
             });
         }
 
@@ -212,8 +261,8 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false) => {
                 if (cut.points) {
                     contoursToCheck.push({
                         points: cut.points,
-                        shouldClose: true, // Les trous sont fermés
-                        cutIndex: index    // <--- On capture l'index
+                        shouldClose: true,
+                        cutIndex: index
                     });
                 }
             });
@@ -226,7 +275,7 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false) => {
             const n = pts.length;
             const shouldClose = contour.shouldClose;
             const limit = shouldClose ? n : n - 1;
-            const currentCutIndex = contour.cutIndex; // Pour accès dans la boucle
+            const currentCutIndex = contour.cutIndex;
 
             const getPt = (i) => pts[(i + n) % n];
 
@@ -243,19 +292,9 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false) => {
                     }
 
                     if (!shouldClose && j >= n) {
-                        // Fallback line
-                        const snap = projectOnSegment(mousePos.x, mousePos.y, p0.x, p0.y, p1.x, p1.y, forceCenter);
-                        if (snap.d2 < minDistSq) {
-                            minDistSq = snap.d2;
-                            bestSnap = {
-                                x: snap.x, y: snap.y, type: 'PROJECTION',
-                                previewAnnotationId: ann.id,
-                                previewSegmentIndex: i,
-                                segmentStartId: p0.id,
-                                segmentEndId: p1.id,
-                                cutIndex: currentCutIndex // <--- Ajouté
-                            };
-                        }
+                        const projSnap = projectOnSegment(mousePos.x, mousePos.y, p0.x, p0.y, p1.x, p1.y, false);
+                        const midSnap = projectOnSegment(mousePos.x, mousePos.y, p0.x, p0.y, p1.x, p1.y, true);
+                        processSegmentSnap(projSnap, ann, i, p0, p1, currentCutIndex, midSnap);
                         i++;
                         continue;
                     }
@@ -269,32 +308,14 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false) => {
 
                         if (circ && circ.r > 0) {
                             // Arc 1
-                            const snap1 = projectOnArc(mousePos.x, mousePos.y, circ.center, circ.r, p0, p1, circ.isCW, forceCenter);
-                            if (snap1.d2 < minDistSq) {
-                                minDistSq = snap1.d2;
-                                bestSnap = {
-                                    x: snap1.x, y: snap1.y, type: 'PROJECTION',
-                                    previewAnnotationId: ann.id,
-                                    previewSegmentIndex: i,
-                                    segmentStartId: p0.id,
-                                    segmentEndId: p1.id,
-                                    cutIndex: currentCutIndex // <--- Ajouté
-                                };
-                            }
+                            const projSnap1 = projectOnArc(mousePos.x, mousePos.y, circ.center, circ.r, p0, p1, circ.isCW, false);
+                            const midSnap1 = projectOnArc(mousePos.x, mousePos.y, circ.center, circ.r, p0, p1, circ.isCW, true);
+                            processSegmentSnap(projSnap1, ann, i, p0, p1, currentCutIndex, midSnap1);
 
                             // Arc 2
-                            const snap2 = projectOnArc(mousePos.x, mousePos.y, circ.center, circ.r, p1, p2, circ.isCW, forceCenter);
-                            if (snap2.d2 < minDistSq) {
-                                minDistSq = snap2.d2;
-                                bestSnap = {
-                                    x: snap2.x, y: snap2.y, type: 'PROJECTION',
-                                    previewAnnotationId: ann.id,
-                                    previewSegmentIndex: i + 1,
-                                    segmentStartId: p1.id,
-                                    segmentEndId: p2.id,
-                                    cutIndex: currentCutIndex // <--- Ajouté
-                                };
-                            }
+                            const projSnap2 = projectOnArc(mousePos.x, mousePos.y, circ.center, circ.r, p1, p2, circ.isCW, false);
+                            const midSnap2 = projectOnArc(mousePos.x, mousePos.y, circ.center, circ.r, p1, p2, circ.isCW, true);
+                            processSegmentSnap(projSnap2, ann, i + 1, p1, p2, currentCutIndex, midSnap2);
 
                             i += 2;
                             continue;
@@ -306,18 +327,9 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false) => {
                     while (k < j) {
                         const pk = getPt(k);
                         const pkNext = getPt(k + 1);
-                        const snap = projectOnSegment(mousePos.x, mousePos.y, pk.x, pk.y, pkNext.x, pkNext.y, forceCenter);
-                        if (snap.d2 < minDistSq) {
-                            minDistSq = snap.d2;
-                            bestSnap = {
-                                x: snap.x, y: snap.y, type: 'PROJECTION',
-                                previewAnnotationId: ann.id,
-                                previewSegmentIndex: k,
-                                segmentStartId: pk.id,
-                                segmentEndId: pkNext.id,
-                                cutIndex: currentCutIndex // <--- Ajouté
-                            };
-                        }
+                        const projSnap = projectOnSegment(mousePos.x, mousePos.y, pk.x, pk.y, pkNext.x, pkNext.y, false);
+                        const midSnap = projectOnSegment(mousePos.x, mousePos.y, pk.x, pk.y, pkNext.x, pkNext.y, true);
+                        processSegmentSnap(projSnap, ann, k, pk, pkNext, currentCutIndex, midSnap);
                         k++;
                     }
                     i = j;
@@ -325,29 +337,27 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false) => {
                 }
 
                 // --- Default: Linear Segment ---
-                const snap = projectOnSegment(mousePos.x, mousePos.y, p0.x, p0.y, p1.x, p1.y, forceCenter);
-                if (snap.d2 < minDistSq) {
-                    minDistSq = snap.d2;
-                    bestSnap = {
-                        x: snap.x, y: snap.y, type: 'PROJECTION',
-                        previewAnnotationId: ann.id,
-                        previewSegmentIndex: i,
-                        segmentStartId: p0.id,
-                        segmentEndId: p1.id,
-                        cutIndex: currentCutIndex // <--- Ajouté
-                    };
-                }
+                const projSnap = projectOnSegment(mousePos.x, mousePos.y, p0.x, p0.y, p1.x, p1.y, false);
+                const midSnap = projectOnSegment(mousePos.x, mousePos.y, p0.x, p0.y, p1.x, p1.y, true);
+                processSegmentSnap(projSnap, ann, i, p0, p1, currentCutIndex, midSnap);
 
                 i++;
             }
         }
     }
 
+    // Return priority: MIDPOINT (within threshold) > PROJECTION fallback
     if (bestSnap) {
         bestSnap.distance = Math.sqrt(minDistSq);
+        return bestSnap;
     }
 
-    return bestSnap;
+    if (bestFallbackProj) {
+        bestFallbackProj.distance = Math.sqrt(minFallbackProjDistSq);
+        return bestFallbackProj;
+    }
+
+    return null;
 };
 
 export default getBestSnap;

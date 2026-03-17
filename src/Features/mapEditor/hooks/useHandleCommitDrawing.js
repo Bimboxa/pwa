@@ -152,10 +152,76 @@ export default function useHandleCommitDrawing() {
 
             // ÉTAPE 2 : Sauvegarde des Nouveaux Points (Batch)
             if (newPointsToSave.length > 0) {
-                // Mise à jour Optimiste Redux
-                //dispatch(addPoints(newPointsToSave));
-                // Sauvegarde DB
                 await db.points.bulkAdd(newPointsToSave);
+            }
+
+            // ÉTAPE 2.1 : Insert snapped points into target annotations' segments
+            // When a drawing point was snapped to a PROJECTION/MIDPOINT on an existing
+            // annotation segment, we insert the new shared point into that segment.
+            const snapInsertions = [];
+            for (let idx = 0; idx < rawPoints.length; idx++) {
+                const pt = rawPoints[idx];
+                if (pt.snapSegment && !pt.existingPointId) {
+                    snapInsertions.push({
+                        pointId: finalPointIds[idx],
+                        annotationId: pt.snapSegment.annotationId,
+                        segmentStartId: pt.snapSegment.segmentStartId,
+                        segmentEndId: pt.snapSegment.segmentEndId,
+                        cutIndex: pt.snapSegment.cutIndex,
+                    });
+                }
+            }
+
+            if (snapInsertions.length > 0) {
+                const insertPointInPath = (pointsList, segStartId, segEndId, newPointObj) => {
+                    if (!pointsList || pointsList.length < 2) return null;
+                    for (let i = 0; i < pointsList.length; i++) {
+                        const cur = pointsList[i];
+                        const next = pointsList[(i + 1) % pointsList.length];
+                        if ((cur.id === segStartId && next.id === segEndId) ||
+                            (cur.id === segEndId && next.id === segStartId)) {
+                            // Skip arc segments: inserting a point would break the arc geometry
+                            if (cur.type === 'circle' || next.type === 'circle') return null;
+                            const newPoints = [...pointsList];
+                            newPoints.splice(i + 1, 0, newPointObj);
+                            return newPoints;
+                        }
+                    }
+                    return null;
+                };
+
+                // Group insertions by annotation to avoid conflicting updates
+                const byAnnotation = {};
+                for (const ins of snapInsertions) {
+                    if (!byAnnotation[ins.annotationId]) byAnnotation[ins.annotationId] = [];
+                    byAnnotation[ins.annotationId].push(ins);
+                }
+
+                for (const [annId, insertions] of Object.entries(byAnnotation)) {
+                    const ann = await db.annotations.get(annId);
+                    if (!ann) continue;
+
+                    let updatedPoints = ann.points ? [...ann.points] : null;
+                    let updatedCuts = ann.cuts ? ann.cuts.map(c => ({ ...c, points: [...c.points] })) : null;
+
+                    for (const ins of insertions) {
+                        const newPointObj = { id: ins.pointId, type: 'square' };
+                        if (ins.cutIndex != null && updatedCuts?.[ins.cutIndex]) {
+                            const result = insertPointInPath(updatedCuts[ins.cutIndex].points, ins.segmentStartId, ins.segmentEndId, newPointObj);
+                            if (result) updatedCuts[ins.cutIndex].points = result;
+                        } else if (updatedPoints) {
+                            const result = insertPointInPath(updatedPoints, ins.segmentStartId, ins.segmentEndId, newPointObj);
+                            if (result) updatedPoints = result;
+                        }
+                    }
+
+                    const changes = {};
+                    if (updatedPoints) changes.points = updatedPoints;
+                    if (updatedCuts) changes.cuts = updatedCuts;
+                    if (Object.keys(changes).length > 0) {
+                        await db.annotations.update(annId, changes);
+                    }
+                }
             }
 
             let annotationTemplateId;

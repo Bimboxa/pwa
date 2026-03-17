@@ -9,6 +9,7 @@ const SnappingLayer = forwardRef(({
 
     const circleRef = useRef(null);
     const rectRef = useRef(null);
+    const projCircleRef = useRef(null);
     const lastPosRef = useRef(null); // Pour mémoriser la dernière position snappée
 
     const radius = 6;
@@ -16,7 +17,7 @@ const SnappingLayer = forwardRef(({
 
     useImperativeHandle(ref, () => ({
         update: (pos) => {
-            if (!circleRef.current || !rectRef.current) return;
+            if (!circleRef.current || !rectRef.current || !projCircleRef.current) return;
 
             if (pos) {
                 if (pos.type === 'VERTEX') {
@@ -29,26 +30,46 @@ const SnappingLayer = forwardRef(({
                     circleRef.current.style.strokeWidth = "2px";
 
                     rectRef.current.style.display = 'none';
+                    projCircleRef.current.style.display = 'none';
                 }
-                else {
-                    // --- CAS PROJECTION (Nouveau point sur segment) ---
-                    // C'est cette partie qui manquait ou ne s'exécutait pas
+                else if (pos.type === 'MIDPOINT') {
+                    // --- CAS MIDPOINT (Milieu de segment) ---
                     rectRef.current.style.display = 'block';
 
-                    // Centrer le carré (x - size/2)
                     rectRef.current.setAttribute('x', pos.x - size / 2);
                     rectRef.current.setAttribute('y', pos.y - size / 2);
 
-                    // Style spécifique pour la projection (ex: gris ou couleur thème)
                     rectRef.current.style.stroke = theme.palette.anchor.passive || color;
                     rectRef.current.style.strokeWidth = "2px";
 
                     circleRef.current.style.display = 'none';
+                    projCircleRef.current.style.display = 'none';
+                }
+                else {
+                    // --- CAS PROJECTION (Projection sur segment le plus proche) ---
+                    // Hide if mouse is too far from projection point (screen space)
+                    const PROJ_DISPLAY_THRESHOLD = 10; // px
+                    if (pos.screenDistance != null && pos.screenDistance > PROJ_DISPLAY_THRESHOLD) {
+                        circleRef.current.style.display = 'none';
+                        rectRef.current.style.display = 'none';
+                        projCircleRef.current.style.display = 'none';
+                    } else {
+                        projCircleRef.current.style.display = 'block';
+                        projCircleRef.current.setAttribute('cx', pos.x);
+                        projCircleRef.current.setAttribute('cy', pos.y);
+
+                        projCircleRef.current.style.stroke = theme.palette.anchor.passive || "#999";
+                        projCircleRef.current.style.strokeWidth = "2px";
+
+                        circleRef.current.style.display = 'none';
+                        rectRef.current.style.display = 'none';
+                    }
                 }
             } else {
                 // HIDE ALL
                 circleRef.current.style.display = 'none';
                 rectRef.current.style.display = 'none';
+                projCircleRef.current.style.display = 'none';
             }
         }
     }));
@@ -63,11 +84,14 @@ const SnappingLayer = forwardRef(({
             component="g"
             sx={{
                 pointerEvents: 'auto',
-                "& .vertex, & .projection": {
-                    transition: 'stroke 0.1s ease', // Transition rapide
+                "& .vertex, & .projection, & .midpoint": {
+                    transition: 'stroke 0.1s ease',
                     vectorEffect: "non-scaling-stroke",
                     fill: "transparent",
                     cursor: "grab",
+                },
+                "& .projection:hover, & .midpoint:hover": {
+                    stroke: "#ff00ff !important",
                 },
                 // On gère les couleurs via JS (style inline) pour plus de contrôle
             }}>
@@ -81,9 +105,16 @@ const SnappingLayer = forwardRef(({
 
             <rect
                 ref={rectRef}
-                className="projection"
+                className="midpoint"
                 width={size}
                 height={size}
+                {...eventHandlers}
+            />
+
+            <circle
+                ref={projCircleRef}
+                className="projection"
+                r={radius}
                 {...eventHandlers}
             />
         </Box>

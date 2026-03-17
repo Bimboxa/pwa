@@ -578,6 +578,45 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         }
     };
 
+    // Insert an existing point into a target annotation's segment (projection snap during drag)
+    const handleProjectionSnapInsert = async ({ pointId, annotationId, segmentStartId, segmentEndId, cutIndex }) => {
+        const ann = await db.annotations.get(annotationId);
+        if (!ann) return;
+
+        const insertPointInPath = (pointsList) => {
+            if (!pointsList || pointsList.length < 2) return null;
+            for (let i = 0; i < pointsList.length; i++) {
+                const cur = pointsList[i];
+                const next = pointsList[(i + 1) % pointsList.length];
+                if ((cur.id === segmentStartId && next.id === segmentEndId) ||
+                    (cur.id === segmentEndId && next.id === segmentStartId)) {
+                    // Skip arc segments to preserve arc geometry
+                    if (cur.type === 'circle' || next.type === 'circle') return null;
+                    const newPoints = [...pointsList];
+                    newPoints.splice(i + 1, 0, { id: pointId, type: 'square' });
+                    return newPoints;
+                }
+            }
+            return null;
+        };
+
+        const changes = {};
+        if (cutIndex != null && ann.cuts?.[cutIndex]) {
+            const result = insertPointInPath(ann.cuts[cutIndex].points);
+            if (result) {
+                const newCuts = ann.cuts.map((c, i) => i === cutIndex ? { ...c, points: result } : c);
+                changes.cuts = newCuts;
+            }
+        } else {
+            const result = insertPointInPath(ann.points);
+            if (result) changes.points = result;
+        }
+
+        if (Object.keys(changes).length > 0) {
+            await db.annotations.update(annotationId, changes);
+        }
+    };
+
     const handleAnnotationMoveCommit = async (annotationId, deltaPos, partType, localPos) => {
         const imageSize = baseMap?.getImageSize?.();
         if (!imageSize) return;
@@ -1024,6 +1063,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onRemoveCut={handleRemoveCut}
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
+                    onProjectionSnapInsert={handleProjectionSnapInsert}
                     snappingEnabled={isSnappingEnabled}
                     baseMapMeterByPx={baseMap?.getMeterByPx()}
                     legendFormat={legendFormat}

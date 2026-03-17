@@ -25,6 +25,7 @@ export default function usePointDrag({
   onPointDuplicateAndMoveCommit,
   onSegmentSplit,
   onToggleAnnotationPointType,
+  onProjectionSnapInsert,
   // refs
   currentSnapRef,
   viewportRef,
@@ -51,6 +52,7 @@ export default function usePointDrag({
     onPointDuplicateAndMoveCommit,
     onSegmentSplit,
     onToggleAnnotationPointType,
+    onProjectionSnapInsert,
   });
   callbacksRef.current = {
     onPointMoveCommit,
@@ -58,6 +60,7 @@ export default function usePointDrag({
     onPointDuplicateAndMoveCommit,
     onSegmentSplit,
     onToggleAnnotationPointType,
+    onProjectionSnapInsert,
   };
 
   // --- Handlers ---
@@ -124,8 +127,8 @@ export default function usePointDrag({
         return true;
       }
 
-      // --- CAS 2 : PROJECTION (Nouveau Point sur segment) ---
-      else if (snap.type === "PROJECTION") {
+      // --- CAS 2 : PROJECTION / MIDPOINT (Nouveau Point sur segment) ---
+      else if (snap.type === "PROJECTION" || snap.type === "MIDPOINT") {
 
         // Permission check : vérifier que l'annotation cible est à moi
         if (!permissions.canEditAnnotation(snap.previewAnnotationId)) return false;
@@ -219,10 +222,12 @@ export default function usePointDrag({
         const snapTarget = snapOverride?.pointId
           ? { pointId: snapOverride.pointId }
           : null;
+        const projectionSnap = snapOverride?.projectionSnap || null;
         const newDragState = {
           ...dragStateRef.current,
           currentPos: localPos,
           snapTarget,
+          projectionSnap,
         };
         setDragState(newDragState);
         dragStateRef.current = newDragState;
@@ -251,6 +256,7 @@ export default function usePointDrag({
       onPointDuplicateAndMoveCommit: _onPointDuplicateAndMoveCommit,
       onSegmentSplit: _onSegmentSplit,
       onToggleAnnotationPointType: _onToggleAnnotationPointType,
+      onProjectionSnapInsert: _onProjectionSnapInsert,
     } = callbacksRef.current;
 
     // CAS A : DRAG actif → commit
@@ -283,6 +289,20 @@ export default function usePointDrag({
             oldPointId: _dragState.pointId,
             snapPointId: _dragState.snapTarget.pointId,
             affectedAnnotationIds: _dragState.affectedIds,
+          });
+        }
+      } else if (_dragState.projectionSnap) {
+        // Move point to projected position
+        _onPointMoveCommit?.(_dragState.pointId, _dragState.currentPos);
+
+        // If the dragged annotation is NOT the selected (edited) one,
+        // also insert this point into the target annotation's segment
+        const _selectedAnnotation = selectedAnnotationRef.current;
+        const isSelectedAnnotation = _selectedAnnotation && _dragState.affectedIds?.includes(_selectedAnnotation.id);
+        if (!isSelectedAnnotation && _onProjectionSnapInsert) {
+          _onProjectionSnapInsert({
+            pointId: _dragState.pointId,
+            ...(_dragState.projectionSnap),
           });
         }
       } else if (_onPointMoveCommit) {
