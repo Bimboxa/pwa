@@ -92,7 +92,10 @@ const SCREEN_BRUSH_RADIUS_PX = 12; // Rayon fixe à l'écran
 const LOUPE_SIZE = 200; // Taille écran de la loupe
 const SMART_ZOOM = 3.0; // Facteur de grossissement
 const MAX_FAILURES = 0; // On autorise 1 frames d'échec avant de stopper le autopan
+import mergeDetectedPolyIntoDrawing from 'Features/smartDetect/utils/mergeDetectedPolyIntoDrawing';
+
 const PAN_STEP = 30;
+
 
 const InteractionLayer = forwardRef(({
   children,
@@ -938,26 +941,30 @@ const InteractionLayer = forwardRef(({
           break;
 
         case ' ':
-          // --- ORTHO_PATHS: commit all detected paths ---
+          // --- ORTHO_PATHS: add detected path to drawing points ---
           if (detectedOrthoPathsRef.current) {
             e.preventDefault();
             const { imageCoords, localCoords } = detectedOrthoPathsRef.current;
-            // Accumulate committed segments (in image coords) for exclusion
+
+            if (localCoords.length > 0 && localCoords[0].length >= 2) {
+              const newPoints = mergeDetectedPolyIntoDrawing(
+                drawingPointsRef.current,
+                localCoords[0],
+              );
+              setDrawingPoints(newPoints);
+              drawingPointsRef.current = newPoints;
+              // Force DrawingLayer to use new points immediately (bypasses render cycle)
+              drawingLayerRef.current?.setPoints?.(newPoints);
+            }
+
+            // Accumulate committed segments (in image coords) for exclusion on next click
             committedOrthoSegmentsRef.current = [
               ...committedOrthoSegmentsRef.current,
               ...imageCoords,
             ];
-            // Clear display immediately
+            // Clear detection display
             detectedOrthoPathsRef.current = null;
             transientOrthoPathsRef.current?.clear();
-            // Commit each polyline sequentially (async) to avoid race conditions
-            (async () => {
-              for (const points of localCoords) {
-                if (points.length >= 2) {
-                  await onCommitDrawingRef.current?.({ points });
-                }
-              }
-            })();
             return;
           }
 
@@ -1277,6 +1284,12 @@ const InteractionLayer = forwardRef(({
       const currentDetectMode = smartDetectRef.current?.getSelectedDetectMode?.();
       if (currentDetectMode === "ORTHO_PATHS" && showSmartDetectRef.current) {
         const localPos = toLocalCoords(worldPos);
+
+        // Add click point to drawing points so DrawingLayer renders the polyline in progress
+        const newPoints = [...drawingPointsRef.current, localPos];
+        setDrawingPoints(newPoints);
+        drawingPointsRef.current = newPoints;
+
         // Convert local coords to source image pixel coords
         const pixelX = (localPos.x - baseMapImageOffset.x) / baseMapImageScale;
         const pixelY = (localPos.y - baseMapImageOffset.y) / baseMapImageScale;
@@ -1290,6 +1303,9 @@ const InteractionLayer = forwardRef(({
               y: (p.y - baseMapImageOffset.y) / baseMapImageScale,
             }))
           );
+        // committedOrthoSegmentsRef has image-pixel coords of all previously validated
+        // detections — no need to also add drawingPoints (would double-exclude and
+        // cause tiny BFS results). The merge function handles overlap cleanup.
         const allVisitedSegments = [
           ...existingAnnotationSegments,
           ...committedOrthoSegmentsRef.current,
@@ -1908,9 +1924,10 @@ const InteractionLayer = forwardRef(({
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
-      // Angle snap drawing
-      if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
-        const lastPoint = drawingPoints[drawingPoints.length - 1];
+      // Angle snap drawing (use ref to always get latest points, even before re-render)
+      const currentDrawingPts = drawingPointsRef.current;
+      if ((event.shiftKey || event.evt?.shiftKey) && currentDrawingPts.length > 0) {
+        const lastPoint = currentDrawingPts[currentDrawingPts.length - 1];
         previewPos = snapToAngle(localPos, lastPoint);
       }
       lastPreviewPosRef.current = previewPos;

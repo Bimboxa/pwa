@@ -75,11 +75,15 @@ const DrawingLayer = forwardRef(({
     const previewCircleRef = useRef(null);
     const previewStripRef = useRef(null);
 
-    // Keep a ref to newAnnotation so the imperative handle always reads fresh values
+    // Keep refs so the imperative handle always reads fresh values
     const newAnnotationRef = useRef(newAnnotation);
     useEffect(() => {
         newAnnotationRef.current = newAnnotation;
     }, [newAnnotation]);
+
+    // Sync ref immediately during render (not in useEffect which runs after paint)
+    const pointsRef = useRef(points);
+    pointsRef.current = points;
 
     const { strokeColor, fillColor, type } = newAnnotation || {};
 
@@ -92,11 +96,17 @@ const DrawingLayer = forwardRef(({
     const firstPoint = points?.[0];
 
     useImperativeHandle(ref, () => ({
+        // Force-update the points ref immediately (bypasses React render cycle)
+        setPoints: (newPoints) => {
+            pointsRef.current = newPoints;
+        },
         updatePreview: (cursorPos) => {
+            // Use ref to always get the latest points
+            const currentPoints = pointsRef.current;
             // S'il n'y a pas encore de point posé, on ne dessine rien
-            if (points.length === 0) return;
+            if (!currentPoints || currentPoints.length === 0) return;
 
-            const lastPoint = points[points.length - 1];
+            const lastPoint = currentPoints[currentPoints.length - 1];
 
             // ------------------------------------------------
             // CAS 1 : RECTANGLE (1er point fixe -> Curseur)
@@ -125,12 +135,12 @@ const DrawingLayer = forwardRef(({
             // ------------------------------------------------
             // CAS 1b : CIRCLE (2 points placed -> preview with cursor as 3rd)
             // ------------------------------------------------
-            if (drawCircle && points.length >= 2 && previewCircleRef.current) {
+            if (drawCircle && currentPoints.length >= 2 && previewCircleRef.current) {
                 if (previewLineRef.current) previewLineRef.current.style.display = 'none';
                 if (previewFillRef.current) previewFillRef.current.style.display = 'none';
                 if (previewRectRef.current) previewRectRef.current.style.display = 'none';
 
-                const circle = getCircleFrom3Points(points[0], points[1], cursorPos);
+                const circle = getCircleFrom3Points(currentPoints[0], currentPoints[1], cursorPos);
                 if (circle) {
                     previewCircleRef.current.setAttribute('cx', circle.cx);
                     previewCircleRef.current.setAttribute('cy', circle.cy);
@@ -151,7 +161,7 @@ const DrawingLayer = forwardRef(({
             if (isStrip && previewStripRef.current) {
                 if (previewRectRef.current) previewRectRef.current.style.display = 'none';
 
-                const allPts = [...points, cursorPos];
+                const allPts = [...currentPoints, cursorPos];
                 const na = newAnnotationRef.current;
                 const stripWidth = na?.strokeWidth ?? STRIP_DEFAULT_WIDTH;
                 const stripOrientation = na?.stripOrientation ?? 1;
@@ -189,7 +199,7 @@ const DrawingLayer = forwardRef(({
 
             // 2. Mise à jour du remplissage dynamique (Polygone uniquement)
             if (isPolygon && previewFillRef.current) {
-                const staticPart = points.map(p => `${p.x} ${p.y}`).join(' L ');
+                const staticPart = currentPoints.map(p => `${p.x} ${p.y}`).join(' L ');
                 const d = `M ${staticPart} L ${cursorPos.x} ${cursorPos.y} Z`;
                 previewFillRef.current.setAttribute('d', d);
                 previewFillRef.current.style.display = 'block';

@@ -138,6 +138,22 @@ export default function traceOrthoPaths({
     if (!found) return [];
   }
 
+  // --- Snap to band center (median line) ---
+  {
+    let le = 0, re = 0, te = 0, be = 0;
+    for (let d = 1; d < 200; d++) { if (brightness(startX - d, startY) < darknessThreshold) le = d; else break; }
+    for (let d = 1; d < 200; d++) { if (brightness(startX + d, startY) < darknessThreshold) re = d; else break; }
+    for (let d = 1; d < 200; d++) { if (brightness(startX, startY - d) < darknessThreshold) te = d; else break; }
+    for (let d = 1; d < 200; d++) { if (brightness(startX, startY + d) < darknessThreshold) be = d; else break; }
+    const hExt = le + re + 1;
+    const vExt = te + be + 1;
+    if (hExt <= vExt) {
+      startX = startX - le + Math.floor(hExt / 2);
+    } else {
+      startY = startY - te + Math.floor(vExt / 2);
+    }
+  }
+
   const lineThickness = measureThickness(startX, startY);
   const stepSize = Math.max(lineThickness, 6);
 
@@ -205,7 +221,106 @@ export default function traceOrthoPaths({
     queue.push({ x, y, dir, path });
   }
 
-  return segments.map(simplifyPolyline).filter((s) => s.length >= 2);
+  const simplified = segments.map(simplifyPolyline).filter((s) => s.length >= 2);
+
+  // --- Reconstruct the longest continuous polyline through the start point ---
+  const best = findLongestPathThroughStart(simplified, startX, startY, stepSize);
+  return best ? [best] : simplified;
+}
+
+/**
+ * Find the longest continuous polyline passing through the start point.
+ */
+function findLongestPathThroughStart(segments, startX, startY, stepSize) {
+  if (segments.length === 0) return null;
+  if (segments.length === 1) return segments[0];
+
+  const tolerance = stepSize * 1.5;
+
+  function ptKey(p) {
+    const gx = Math.round(p.x / stepSize) * stepSize;
+    const gy = Math.round(p.y / stepSize) * stepSize;
+    return gx + "," + gy;
+  }
+
+  function near(a, b) {
+    return Math.abs(a.x - b.x) <= tolerance && Math.abs(a.y - b.y) <= tolerance;
+  }
+
+  function segLength(seg) {
+    let len = 0;
+    for (let i = 1; i < seg.length; i++) {
+      const dx = seg[i].x - seg[i - 1].x;
+      const dy = seg[i].y - seg[i - 1].y;
+      len += Math.sqrt(dx * dx + dy * dy);
+    }
+    return len;
+  }
+
+  const startIndex = {};
+  for (let i = 0; i < segments.length; i++) {
+    const key = ptKey(segments[i][0]);
+    if (!startIndex[key]) startIndex[key] = [];
+    startIndex[key].push(i);
+  }
+
+  function extend(path, usedSet) {
+    let current = path;
+    for (let iter = 0; iter < 1000; iter++) {
+      const endPt = current[current.length - 1];
+      const key = ptKey(endPt);
+      const candidates = startIndex[key] || [];
+      let bestSeg = null;
+      let bestLen = 0;
+      for (const idx of candidates) {
+        if (usedSet.has(idx)) continue;
+        if (!near(segments[idx][0], endPt)) continue;
+        const len = segLength(segments[idx]);
+        if (len > bestLen) { bestLen = len; bestSeg = idx; }
+      }
+      if (bestSeg === null) break;
+      usedSet.add(bestSeg);
+      current = [...current, ...segments[bestSeg].slice(1)];
+    }
+    return current;
+  }
+
+  const startPt = { x: startX, y: startY };
+  const rootIndices = [];
+  for (let i = 0; i < segments.length; i++) {
+    if (near(segments[i][0], startPt)) rootIndices.push(i);
+  }
+
+  if (rootIndices.length === 0) return segments[0];
+
+  let bestPath = null;
+  let bestLen = 0;
+
+  for (let a = 0; a < rootIndices.length; a++) {
+    for (let b = a; b < rootIndices.length; b++) {
+      const idxA = rootIndices[a];
+      const idxB = rootIndices[b];
+      const used = new Set([idxA, idxB]);
+
+      let merged;
+      if (a === b) {
+        merged = [...segments[idxA]];
+      } else {
+        const revA = [...segments[idxA]].reverse();
+        merged = [...revA, ...segments[idxB].slice(1)];
+      }
+
+      const revMerged = [...merged].reverse();
+      const extStart = extend(revMerged, new Set(used));
+      const fullyExtended = [...extStart].reverse();
+      const final = extend(fullyExtended, used);
+
+      const len = segLength(final);
+      if (len > bestLen) { bestLen = len; bestPath = final; }
+    }
+  }
+
+  return bestPath || segments[0];
 }
 
 function simplifyPolyline(points) {
