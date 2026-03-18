@@ -31,6 +31,7 @@ import {
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
+import IconButtonExtractStripBoundaries from "./IconButtonExtractStripBoundaries";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "./DatagridAnnotations";
@@ -58,6 +59,10 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
 
   const count = annotations.length;
   const countLabel = `${count} annotation${count > 1 ? "s" : ""} sélectionnée${count > 1 ? "s" : ""}`;
+
+  const hasStrips = annotations.some((a) => a.type === "STRIP");
+  const hasPolylines = annotations.some((a) => a.type === "POLYLINE");
+  const showExtractBoundaries = hasStrips && hasPolylines;
 
   // helpers - group by annotationTemplateId with aggregated quantities
 
@@ -190,6 +195,14 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
           onResize={handleResizeClick}
           resizeActive={wrapperMode}
           onDelete={handleDeleteClick}
+          extraActions={
+            showExtractBoundaries ? (
+              <IconButtonExtractStripBoundaries
+                annotations={annotations}
+                accentColor="#6366F1"
+              />
+            ) : null
+          }
           layerChip={
             annotations.length > 0 ? (
               <ChipLayerSelector
