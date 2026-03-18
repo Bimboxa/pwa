@@ -15,6 +15,7 @@ import IconPolylineRectangle from "Features/icons/IconPolylineRectangle";
 import IconPolygonRectangle from "Features/icons/IconPolygonRectangle";
 import IconPolylineCircle from "Features/icons/IconPolylineCircle";
 import IconPolygonCircle from "Features/icons/IconPolygonCircle";
+import IconCutSegment from "Features/icons/IconCutSegment";
 
 import { getToolsForShape } from "Features/annotations/constants/drawingShapeConfig";
 
@@ -140,6 +141,14 @@ const DRAWING_TOOLS = [
     annotationType: "SPLIT",
     behavior: "CLICK",
   },
+  // CUT_SEGMENT tool (Découpe segment)
+  {
+    key: "CUT_SEGMENT",
+    label: "Découpe segment",
+    Icon: IconCutSegment,
+    annotationType: "CUT_SEGMENT",
+    behavior: "CUT_SEGMENT",
+  },
   // STRIP tool (Bande)
   {
     key: "STRIP",
@@ -153,6 +162,7 @@ const DRAWING_TOOLS = [
 export const DRAWING_TOOLS_BY_TYPE = {
   CUT: ["CUT_CLICK", "CUT_RECTANGLE", "CUT_CIRCLE"],
   SPLIT: ["SPLIT_CLICK"],
+  CUT_SEGMENT: ["CUT_SEGMENT"],
 };
 
 export function getDrawingToolsByShape(drawingShape) {

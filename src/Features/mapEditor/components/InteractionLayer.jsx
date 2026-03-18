@@ -122,6 +122,7 @@ const InteractionLayer = forwardRef(({
   onRemoveCut,
   onAnnotationMoveCommit,
   onSegmentSplit,
+  onCutSegment,
   onProjectionSnapInsert,
   snappingEnabled = true,
   // selectedNode, // Removed prop usage, use Redux
@@ -1143,6 +1144,24 @@ const InteractionLayer = forwardRef(({
       } else {
         // Click on empty space cancels anchor mode
         dispatch(setAnchorSourceAnnotationId(null));
+      }
+      return;
+    }
+
+    // --- CUT_SEGMENT: click on a segment to cut the polyline ---
+    if (enabledDrawingMode === "CUT_SEGMENT") {
+      const nativeTarget = event.nativeEvent?.target || event.target;
+      const hitPart = nativeTarget.closest?.("[data-part-id]");
+      if (hitPart) {
+        const { partId, nodeId, partType: dataPartType } = hitPart.dataset;
+        if (partId) {
+          const parts = partId.split("::"); // annotationId::SEG::index
+          const partType = dataPartType || parts[1];
+          const segmentIndex = parseInt(parts[2], 10);
+          if (partType === "SEG" && onCutSegment && !isNaN(segmentIndex)) {
+            onCutSegment(nodeId, segmentIndex);
+          }
+        }
       }
       return;
     }
