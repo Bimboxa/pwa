@@ -39,6 +39,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import { StopCircle } from "@mui/icons-material";
 import ContentCut from "@mui/icons-material/ContentCut";
+import IconSegmentSplit from "Features/icons/IconSegmentSplit";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
@@ -75,6 +76,7 @@ import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 const TOOL_ITEMS = [
   { type: "CUT", label: "Ouverture", Icon: StopCircle },
   { type: "SPLIT", label: "Diviser", Icon: ContentCut },
+  { type: "SEGMENT_SPLIT", label: "Retour technique", Icon: IconSegmentSplit },
 ];
 
 // ---------------------------------------------------------------------------

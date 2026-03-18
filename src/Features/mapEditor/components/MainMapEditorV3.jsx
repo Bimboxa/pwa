@@ -26,6 +26,7 @@ import useAutoShowBgImage from "Features/bgImage/hooks/useAutoShowBgImage";
 import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgImageRawTextAnnotations";
 import useHandleCommitDrawing from "../hooks/useHandleCommitDrawing";
 import useHandleSplitCommit from "../hooks/useHandleSplitCommit";
+import useHandleSegmentSplitCommit from "../hooks/useHandleSegmentSplitCommit";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationType";
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
@@ -301,6 +302,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     const _handleCommitDrawing = useHandleCommitDrawing();
     const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit();
+    const { handleSegmentSplitCommit } = useHandleSegmentSplitCommit();
 
     const handleCommitDrawing = (rawPoints, options) => {
 
@@ -1063,6 +1065,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onRemoveCut={handleRemoveCut}
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
+                    onSegmentSplitCommit={handleSegmentSplitCommit}
                     onProjectionSnapInsert={handleProjectionSnapInsert}
                     snappingEnabled={isSnappingEnabled}
                     baseMapMeterByPx={baseMap?.getMeterByPx()}

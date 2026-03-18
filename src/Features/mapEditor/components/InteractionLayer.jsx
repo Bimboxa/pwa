@@ -122,6 +122,7 @@ const InteractionLayer = forwardRef(({
   onRemoveCut,
   onAnnotationMoveCommit,
   onSegmentSplit,
+  onSegmentSplitCommit,
   onProjectionSnapInsert,
   snappingEnabled = true,
   // selectedNode, // Removed prop usage, use Redux
@@ -635,6 +636,16 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     onCommitSplitAtVertexRef.current = onCommitSplitAtVertex;
   }, [onCommitSplitAtVertex]);
+
+  const onSegmentSplitCommitRef = useRef(onSegmentSplitCommit);
+  useEffect(() => {
+    onSegmentSplitCommitRef.current = onSegmentSplitCommit;
+  }, [onSegmentSplitCommit]);
+
+  const annotationsRef = useRef(annotations);
+  useEffect(() => {
+    annotationsRef.current = annotations;
+  }, [annotations]);
 
   // drawing state + commit (extracted to useDrawingCommit)
 
@@ -1728,7 +1739,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'SEGMENT_SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -1833,6 +1844,28 @@ const InteractionLayer = forwardRef(({
         && ["POLYLINE", "STRIP"].includes(snap.annotationType)
       ) {
         onCommitSplitAtVertexRef.current?.(snap.annotationId, snap.id);
+        setDrawingPoints([]);
+        drawingPointsRef.current = [];
+        return;
+      }
+
+      // SEGMENT_SPLIT: click on a segment to create 1m technical return
+      if (enabledDrawingMode === "SEGMENT_SPLIT_CLICK"
+        && newAnnotation?.type === "SEGMENT_SPLIT"
+      ) {
+        if ((snap.type === "PROJECTION" || snap.type === "MIDPOINT")
+          && snap.previewAnnotationId
+          && snap.segmentStartId
+          && snap.segmentEndId
+        ) {
+          onSegmentSplitCommitRef.current?.({
+            annotationId: snap.previewAnnotationId,
+            segmentStartId: snap.segmentStartId,
+            segmentEndId: snap.segmentEndId,
+            annotations: annotationsRef.current,
+          });
+        }
+        // Always return in SEGMENT_SPLIT mode (no point drawing)
         setDrawingPoints([]);
         drawingPointsRef.current = [];
         return;
