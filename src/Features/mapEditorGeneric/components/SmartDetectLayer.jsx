@@ -106,6 +106,7 @@ const SmartDetectLayer = forwardRef(({
     onSmartShapeDetected, // <--- Unified Callback
     baseMapImageScale = 1,
     baseMapImageOffset = { x: 0, y: 0 },
+    initialDetectMode,
 }, ref) => {
     const dispatch = useDispatch();
     const canvasRef = useRef(null);
@@ -139,6 +140,13 @@ const SmartDetectLayer = forwardRef(({
         detectedPolylines: [],
         morphKernelSize: 3,
     });
+
+    // --- SYNC INITIAL DETECT MODE ---
+    useEffect(() => {
+        if (initialDetectMode) {
+            setSelectedDetectMode(initialDetectMode);
+        }
+    }, [initialDetectMode]);
 
     // --- KEYBOARD LISTENER ---
     useEffect(() => {

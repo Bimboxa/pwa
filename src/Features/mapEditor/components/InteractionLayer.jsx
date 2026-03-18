@@ -2547,6 +2547,7 @@ const InteractionLayer = forwardRef(({
           loupeSize={LOUPE_SIZE}
           onSmartShapeDetected={handleSmartShapeDetected}
           enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetectRef.current}
+          initialDetectMode={["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode) ? "RECTANGLE" : undefined}
         />, zoomContainer) : null}
       </>
 
