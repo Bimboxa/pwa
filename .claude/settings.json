@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gws *)",
+      "Bash(gws *|*)",
+      "Bash(python3 /tmp/*)"
+    ]
+  }
+}

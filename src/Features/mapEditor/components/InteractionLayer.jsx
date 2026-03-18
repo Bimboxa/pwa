@@ -122,6 +122,7 @@ const InteractionLayer = forwardRef(({
   onRemoveCut,
   onAnnotationMoveCommit,
   onSegmentSplit,
+  onCutSegment,
   onProjectionSnapInsert,
   snappingEnabled = true,
   // selectedNode, // Removed prop usage, use Redux
@@ -1147,6 +1148,24 @@ const InteractionLayer = forwardRef(({
       return;
     }
 
+    // --- CUT_SEGMENT: click on a segment to cut the polyline ---
+    if (enabledDrawingMode === "CUT_SEGMENT") {
+      const nativeTarget = event.nativeEvent?.target || event.target;
+      const hitPart = nativeTarget.closest?.("[data-part-id]");
+      if (hitPart) {
+        const { partId, nodeId, partType: dataPartType } = hitPart.dataset;
+        if (partId) {
+          const parts = partId.split("::"); // annotationId::SEG::index
+          const partType = dataPartType || parts[1];
+          const segmentIndex = parseInt(parts[2], 10);
+          if (partType === "SEG" && onCutSegment && !isNaN(segmentIndex)) {
+            onCutSegment(nodeId, segmentIndex);
+          }
+        }
+      }
+      return;
+    }
+
     if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP"].includes(enabledDrawingMode)) {
       // Apply snapping if Shift is pressed
       let finalPos = toLocalCoords(worldPos);
@@ -1689,7 +1708,7 @@ const InteractionLayer = forwardRef(({
     // D. SNAPPING
     // Correction : On autorise le snapping pendant le dessin (enabledDrawingMode)
     // On l'interdit seulement pour le Pan ou le Drag d'objets lourds
-    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active;
+    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || enabledDrawingMode === "CUT_SEGMENT";
 
     let snapResult;
     if (snappingEnabled && !preventSnapping) {
