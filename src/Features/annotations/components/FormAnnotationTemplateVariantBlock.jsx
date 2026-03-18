@@ -1,6 +1,9 @@
 import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
+
+import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import FieldAnnotationHeight from "./FieldAnnotationHeight";
 
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldColorV2 from "Features/form/components/FieldColorV2";
@@ -10,6 +13,7 @@ import FieldPointSize from "Features/form/components/FieldPointSize";
 import FieldAnnotationTemplateFill from "./FieldAnnotationTemplateFill";
 import FieldAnnotationTemplateStroke from "./FieldAnnotationTemplateStroke";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
+import DRAWING_SHAPES from "Features/annotations/constants/drawingShapes.jsx";
 import FieldOptionKeyFromIconsVariantToolbar from "Features/form/components/FieldOptionKeyFromIconsVariantToolbar";
 import FieldQty from "Features/form/components/FieldQty";
 import FieldCheck from "Features/form/components/FieldCheck";
@@ -54,6 +58,8 @@ export default function FormAnnotationTemplateVariantBlock({
     strokeOffset = null,
     iconKey,
     label,
+    labelLegend,
+    height,
     image,
     meterByPx,
     variant,
@@ -122,6 +128,14 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handleLabelChange(label) {
     onChange({ ...annotationTemplate, label });
+  }
+
+  function handleLabelLegendChange(labelLegend) {
+    onChange({ ...annotationTemplate, labelLegend });
+  }
+
+  function handleHeightChange(height) {
+    onChange({ ...annotationTemplate, height });
   }
 
   function handleImageChange(image) {
@@ -202,10 +216,39 @@ export default function FormAnnotationTemplateVariantBlock({
         }}
       />
 
-      <FieldAnnotationTemplateDrawingShape
-        value={drawingShape}
-        onChange={handleDrawingShapeChange}
+      <FieldTextV2
+        label="Libellé légende"
+        value={labelLegend}
+        onChange={handleLabelLegendChange}
+        options={{
+          fullWidth: true,
+          placeholder: "Libellé légende",
+          showAsSection: true,
+        }}
       />
+
+      <WhiteSectionGeneric>
+        <Typography variant="body2" sx={{ fontWeight: "bold", mb: 2 }}>
+          Forme 2D
+        </Typography>
+        <FieldOptionKeyFromIconsVariantToolbar
+          value={drawingShape}
+          onChange={handleDrawingShapeChange}
+          valueOptions={DRAWING_SHAPES}
+        />
+        <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+          <OverrideToggle
+            field="height"
+            overrideFields={overrideFields}
+            onToggle={handleToggleOverride}
+          />
+          <FieldAnnotationHeight
+            annotation={annotationTemplate}
+            onChange={(updated) => handleHeightChange(updated.height)}
+            label="Hauteur"
+          />
+        </Box>
+      </WhiteSectionGeneric>
 
       {/* Simple fill color (MARKER, LABEL, TEXT, POINT) */}
       {useSimpleFillColor && (

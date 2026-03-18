@@ -53,7 +53,7 @@ export default function useLegendItems() {
           strokeType,
           fillColor,
           fillType,
-          label: template?.label ?? "A définir",
+          label: template?.labelLegend || (template?.label ?? "A définir"),
           closeLine,
           variant,
         };

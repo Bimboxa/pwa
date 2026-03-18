@@ -80,10 +80,6 @@ const mapEditorInitialState = {
   fixedLength: null,
   fixedDims: null, // "x; y"
 
-  // default height
-  defaultHeightByBaseMap: {}, // { [baseMapId]: number }
-  defaultHeightCategories: [], // ["OUVRAGE:VCT", "OUVRAGE:SOL", ...]
-
   // last selected drawing tool per annotation template / tool type
   selectedToolKeyByTemplateId: {}, // { [templateId|toolType]: toolKey }
 
@@ -323,19 +319,6 @@ export const mapEditorSlice = createSlice({
       state.fixedDims = action.payload;
     },
 
-    // default height
-    setDefaultHeightForBaseMap: (state, action) => {
-      const { baseMapId, height } = action.payload;
-      if (height == null || height === "") {
-        delete state.defaultHeightByBaseMap[baseMapId];
-      } else {
-        state.defaultHeightByBaseMap[baseMapId] = height;
-      }
-    },
-    setDefaultHeightCategories: (state, action) => {
-      state.defaultHeightCategories = action.payload;
-    },
-
     // selected tool per template
     setSelectedToolKeyForTemplate: (state, action) => {
       const { templateId, toolKey } = action.payload;
@@ -432,10 +415,6 @@ export const {
   triggerScreenToBaseLocalUpdate,
   // dialogs
   setOpenDialogAutoSelectAnnotationTemplateToCreateEntity,
-
-  // default height
-  setDefaultHeightForBaseMap,
-  setDefaultHeightCategories,
 
   // selected tool per template
   setSelectedToolKeyForTemplate,

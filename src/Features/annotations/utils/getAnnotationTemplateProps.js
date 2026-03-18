@@ -35,6 +35,8 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
 
     hidden: annotationTemplate?.hidden,
 
+    height: annotationTemplate?.height,
+
     overrideFields: annotationTemplate?.overrideFields,
   };
 

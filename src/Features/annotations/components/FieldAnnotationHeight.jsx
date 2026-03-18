@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Typography, InputBase, Box } from "@mui/material";
 
-export default function FieldAnnotationHeight({ annotation, onChange }) {
-  const label = "ht.";
+export default function FieldAnnotationHeight({ annotation, onChange, label: labelProp }) {
+  const label = labelProp ?? "ht.";
 
   // 1. We need local state to manage the input value immediately while typing
   const [localValue, setLocalValue] = useState(annotation?.height ?? "");

@@ -37,16 +37,6 @@ export default function useCreateAnnotation() {
   const { value: listing } = useSelectedListing();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
-  const defaultHeightByBaseMap = useSelector(
-    (s) => s.mapEditor.defaultHeightByBaseMap
-  );
-  const selectedBaseMapId = useSelector(
-    (s) => s.mapEditor.selectedBaseMapId
-  );
-  const defaultHeightCategories = useSelector(
-    (s) => s.mapEditor.defaultHeightCategories
-  );
-
   const createEntity = useCreateEntity();
 
   return async (annotation, options) => {
@@ -97,29 +87,7 @@ export default function useCreateAnnotation() {
             await db.relAnnotationMappingCategory.bulkAdd(rels);
           }
 
-          // ── default height ──────────────────────────────────────────────────
-          const defaultHeight = selectedBaseMapId
-            ? defaultHeightByBaseMap[selectedBaseMapId]
-            : null;
-          if (
-            defaultHeight != null &&
-            defaultHeightCategories.length > 0 &&
-            _annotation.height == null
-          ) {
-            const templateCatKeys = rawMappingCategories.filter(
-              (e) => typeof e === "string"
-            );
-            const hasMatch = templateCatKeys.some((k) =>
-              defaultHeightCategories.includes(k)
-            );
-            if (hasMatch) {
-              _annotation.height = defaultHeight;
-              await db.annotations.update(_annotation.id, {
-                height: defaultHeight,
-              });
-            }
-          }
-        } catch (relError) {
+} catch (relError) {
           // Non-blocking: log but do not fail the annotation creation
           console.warn("[useCreateAnnotation] Could not create relAnnotationMappingCategory:", relError);
         }

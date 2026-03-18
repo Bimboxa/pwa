@@ -47,7 +47,7 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
           strokeType,
           fillColor,
           fillType,
-          label: template?.label ?? "A définir",
+          label: template?.labelLegend || (template?.label ?? "A définir"),
           closeLine,
           variant,
         };

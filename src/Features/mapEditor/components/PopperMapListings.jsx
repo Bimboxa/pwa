@@ -46,7 +46,6 @@ import DialogCreateAnnotationTemplate from "Features/annotations/components/Dial
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import SectionSmartDetect from "Features/smartDetect/components/SectionSmartDetect";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
-import SectionDefaultHeight from "Features/mapEditor/components/SectionDefaultHeight";
 import SectionLayers from "Features/layers/components/SectionLayers";
 import { alpha } from "@mui/material/styles";
 import {
@@ -1169,13 +1168,6 @@ export default function PopperMapListings() {
         </Box>
       ) : (
         <>
-          {/* Default height (MAP viewer only) */}
-          {viewerKey === "MAP" && (
-            <Box sx={{ px: 1, py: 1, borderBottom: "1px solid", borderColor: "panel.border" }}>
-              <SectionDefaultHeight />
-            </Box>
-          )}
-
           {/* Scrollable listings */}
           <Box sx={{ overflow: "auto", flex: 1 }}>
             {viewerKey === "MAP" && <SectionLayers baseMapId={baseMap?.id} />}

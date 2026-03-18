@@ -12,6 +12,7 @@ const ALWAYS_COPY_KEYS = [
   "label",
   "overrideFields",
   "drawingShape",
+  "height",
 ];
 
 export default function getNewAnnotationPropsFromAnnotationTemplate(
