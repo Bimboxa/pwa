@@ -161,8 +161,7 @@ const DRAWING_TOOLS = [
 
 export const DRAWING_TOOLS_BY_TYPE = {
   CUT: ["CUT_CLICK", "CUT_RECTANGLE", "CUT_CIRCLE"],
-  SPLIT: ["SPLIT_CLICK"],
-  CUT_SEGMENT: ["CUT_SEGMENT"],
+  SPLIT: ["SPLIT_CLICK", "CUT_SEGMENT"],
 };
 
 export function getDrawingToolsByShape(drawingShape) {

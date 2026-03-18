@@ -39,8 +39,6 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import { StopCircle } from "@mui/icons-material";
 import ContentCut from "@mui/icons-material/ContentCut";
-import IconCutSegment from "Features/icons/IconCutSegment";
-
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
@@ -76,7 +74,6 @@ import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 const TOOL_ITEMS = [
   { type: "CUT", label: "Ouverture", Icon: StopCircle },
   { type: "SPLIT", label: "Diviser", Icon: ContentCut },
-  { type: "CUT_SEGMENT", label: "Découpe segment", Icon: IconCutSegment },
 ];
 
 // ---------------------------------------------------------------------------
