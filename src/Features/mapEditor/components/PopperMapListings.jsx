@@ -32,6 +32,7 @@ import ChevronRight from "@mui/icons-material/ChevronRight";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
+import Tune from "@mui/icons-material/Tune";
 import { Check, Close } from "@mui/icons-material";
 
 import db from "App/db/db";
@@ -474,12 +475,43 @@ function AnnotationTemplateRow({
               justifyContent: "center",
               width: "24px",
               height: "24px",
-              opacity: isHidden ? 0.4 : 1,
-              filter: isHidden ? "grayscale(100%)" : "none",
               mr: 1,
+              flexShrink: 0,
+              cursor: "pointer",
+              "& .icon-default": { display: "flex" },
+              "& .icon-settings": { display: "none" },
+              "&:hover .icon-default": { display: "none" },
+              "&:hover .icon-settings": { display: "flex" },
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditTemplate();
             }}
           >
-            <AnnotationTemplateIcon template={annotationTemplate} size={18} />
+            <Box
+              className="icon-default"
+              sx={{
+                alignItems: "center",
+                justifyContent: "center",
+                width: 24,
+                height: 24,
+                opacity: isHidden ? 0.4 : 1,
+                filter: isHidden ? "grayscale(100%)" : "none",
+              }}
+            >
+              <AnnotationTemplateIcon template={annotationTemplate} size={18} />
+            </Box>
+            <Box
+              className="icon-settings"
+              sx={{
+                alignItems: "center",
+                justifyContent: "center",
+                width: 24,
+                height: 24,
+              }}
+            >
+              <Tune sx={{ fontSize: 18, color: annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "panel.textMuted" }} />
+            </Box>
           </Box>
           {isEditing ? (
             <InputBase
