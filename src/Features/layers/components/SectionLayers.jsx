@@ -83,9 +83,9 @@ export default function SectionLayers({ baseMapId }) {
 
   // handlers
 
-  const handleCreate = async (name) => {
+  const handleCreate = async ({ name, annotationIdsToDuplicate }) => {
     if (!baseMapId) return;
-    await createLayer({ baseMapId, name });
+    await createLayer({ baseMapId, name, annotationIdsToDuplicate });
     setOpenCreateDialog(false);
   };
 
@@ -188,6 +188,7 @@ export default function SectionLayers({ baseMapId }) {
           open={openCreateDialog}
           onClose={() => setOpenCreateDialog(false)}
           onConfirm={handleCreate}
+          baseMapId={baseMapId}
         />
       )}
     </Box>
