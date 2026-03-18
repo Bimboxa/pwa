@@ -78,6 +78,7 @@ function avgDistToPolyline(contour, pathIndices, polylineCoords) {
  */
 function projectOntoPolyline(point, polylineCoords) {
   let best = null;
+  let bestSegIdx = -1;
   for (let s = 0; s < polylineCoords.length - 1; s++) {
     const result = projectPointOnSegment(
       point,
@@ -86,7 +87,14 @@ function projectOntoPolyline(point, polylineCoords) {
     );
     if (!best || result.distance < best.distance) {
       best = result;
+      bestSegIdx = s;
     }
+  }
+  if (best) {
+    best.segmentIndex = bestSegIdx;
+    // Store the IDs of the two endpoints forming the segment
+    best.segmentStartId = polylineCoords[bestSegIdx]?.id;
+    best.segmentEndId = polylineCoords[bestSegIdx + 1]?.id;
   }
   return best;
 }
@@ -139,13 +147,32 @@ export default function extractBoundaryPolylines(mergedPolygon, connections) {
       if (eIdx !== -1) excludedEdges.add(eIdx);
     }
 
+    // Tag shared vertex with original pointId (reuse existing point)
+    if (conn.sharedPointId) {
+      vertexReplacements.set(sharedIdx, {
+        x: conn.sharedCoord.x,
+        y: conn.sharedCoord.y,
+        id: conn.sharedPointId,
+        isExistingPoint: true,
+      });
+    }
+
     // Project the offset vertex onto the polyline → blue point
-    const projection = projectOntoPolyline(contour[offsetIdx], conn.polylineCoords);
+    const projection = projectOntoPolyline(
+      contour[offsetIdx],
+      conn.polylineCoords
+    );
     if (projection) {
+      const bluePointId = nanoid();
       vertexReplacements.set(offsetIdx, {
         x: projection.projectedPoint.x,
         y: projection.projectedPoint.y,
-        id: nanoid(),
+        id: bluePointId,
+        isProjection: true,
+        polylineAnnotationId: conn.polylineAnnotationId,
+        segmentStartId: projection.segmentStartId,
+        segmentEndId: projection.segmentEndId,
+        t: projection.t,
       });
     }
   }

@@ -137,14 +137,40 @@ export default function useExtractStripBoundaries() {
 
           connections.push({
             sharedCoord: { x: pt.x, y: pt.y },
+            sharedPointId: pt.id,
             offsetCoord,
-            polylineCoords: polyline.points.map((p) => ({ x: p.x, y: p.y })),
+            polylineAnnotationId: polyline.id,
+            polylineCoords: polyline.points.map((p) => ({
+              x: p.x,
+              y: p.y,
+              id: p.id,
+            })),
           });
         }
       }
     }
 
     if (allStripPolygons.length === 0) return [];
+
+    // 4b. Slightly expand each polygon to ensure overlap at T-junctions
+    // (when a strip starts from a point on another strip's centerline,
+    // polygons may only touch at a point/edge — expansion fixes this)
+    const EXPAND_EPSILON = 1.5; // pixels
+    for (const poly of allStripPolygons) {
+      const pts = poly.points;
+      const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+      const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+      for (const p of pts) {
+        const dx = p.x - cx;
+        const dy = p.y - cy;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d > 0) {
+          const scale = (d + EXPAND_EPSILON) / d;
+          p.x = cx + dx * scale;
+          p.y = cy + dy * scale;
+        }
+      }
+    }
 
     // 5. Merge all strip polygons
     const mergeResult = mergeAllPolygons(allStripPolygons);
@@ -163,19 +189,50 @@ export default function useExtractStripBoundaries() {
     const template = await db.annotationTemplates.get(annotationTemplateId);
     const createdAnnotations = [];
 
+    // Collect blue dots to insert into existing polylines
+    // Map: polylineAnnotationId → [{ pointId, segmentIndex, x, y }]
+    const blueDotsByPolyline = new Map();
+
     for (const polylinePoints of boundaryPolylines) {
       if (polylinePoints.length < 2) continue;
 
-      // Convert points to ratio coordinates and persist to db.points
-      const dbPoints = polylinePoints.map((p) => ({
-        id: p.id || nanoid(),
-        x: p.x / width,
-        y: p.y / height,
-        projectId: annotation0.projectId,
-        baseMapId: annotation0.baseMapId,
-      }));
+      const newPointsToCreate = [];
+      const dbPointRefs = [];
 
-      await db.points.bulkAdd(dbPoints);
+      for (const p of polylinePoints) {
+        if (p.isExistingPoint) {
+          // Reuse existing point (shared red dot) — no db creation needed
+          dbPointRefs.push({ id: p.id });
+        } else {
+          // New point to create
+          const pointId = p.id || nanoid();
+          newPointsToCreate.push({
+            id: pointId,
+            x: p.x / width,
+            y: p.y / height,
+            projectId: annotation0.projectId,
+            baseMapId: annotation0.baseMapId,
+          });
+          dbPointRefs.push({ id: pointId });
+
+          // Track blue dots for polyline insertion
+          if (p.isProjection && p.polylineAnnotationId != null) {
+            if (!blueDotsByPolyline.has(p.polylineAnnotationId)) {
+              blueDotsByPolyline.set(p.polylineAnnotationId, []);
+            }
+            blueDotsByPolyline.get(p.polylineAnnotationId).push({
+              pointId,
+              segmentStartId: p.segmentStartId,
+              segmentEndId: p.segmentEndId,
+              t: p.t,
+            });
+          }
+        }
+      }
+
+      if (newPointsToCreate.length > 0) {
+        await db.points.bulkAdd(newPointsToCreate);
+      }
 
       const newAnnotation = await createAnnotation({
         type: "POLYLINE",
@@ -183,7 +240,7 @@ export default function useExtractStripBoundaries() {
         annotationTemplateProps: {
           label: template?.label,
         },
-        points: dbPoints.map((p) => ({ id: p.id })),
+        points: dbPointRefs,
         baseMapId: annotation0.baseMapId,
         strokeColor: template?.strokeColor,
         strokeWidth: template?.strokeWidth,
@@ -193,6 +250,39 @@ export default function useExtractStripBoundaries() {
       });
 
       if (newAnnotation) createdAnnotations.push(newAnnotation);
+    }
+
+    // 8. Insert blue dots into existing polyline annotations
+    for (const [polylineAnnotationId, blueDots] of blueDotsByPolyline) {
+      const polylineAnnotation = await db.annotations.get(polylineAnnotationId);
+      if (!polylineAnnotation?.points) continue;
+
+      const updatedPoints = [...polylineAnnotation.points];
+
+      // Process in reverse order of found position to avoid index shift issues
+      const dotsWithPos = blueDots
+        .map((dot) => {
+          // Find the segment by matching the two consecutive point IDs
+          for (let i = 0; i < updatedPoints.length - 1; i++) {
+            if (
+              updatedPoints[i].id === dot.segmentStartId &&
+              updatedPoints[i + 1].id === dot.segmentEndId
+            ) {
+              return { ...dot, insertAt: i + 1 };
+            }
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.insertAt - a.insertAt || b.t - a.t);
+
+      for (const dot of dotsWithPos) {
+        updatedPoints.splice(dot.insertAt, 0, { id: dot.pointId });
+      }
+
+      await db.annotations.update(polylineAnnotationId, {
+        points: updatedPoints,
+      });
     }
 
     dispatch(triggerAnnotationsUpdate());

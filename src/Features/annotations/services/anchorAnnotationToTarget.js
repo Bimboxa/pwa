@@ -170,11 +170,17 @@ export default async function anchorAnnotationToTarget(sourceId, targetId) {
     });
 
     // Reuse the SAME pointId in target's path (shared topology point)
+    // Store segment endpoint IDs for robust insertion (avoids index shift issues)
+    const path = targetPaths[pathIndex];
+    const segStartId = path.refs[segmentIndex]?.id;
+    const segEndId = path.refs[segmentIndex + 1]?.id;
+
     if (!insertionsByPath.has(pathIndex)) {
       insertionsByPath.set(pathIndex, []);
     }
     insertionsByPath.get(pathIndex).push({
-      segmentIndex,
+      segStartId,
+      segEndId,
       pointRef: { id: pointId },
     });
   }
@@ -193,18 +199,29 @@ export default async function anchorAnnotationToTarget(sourceId, targetId) {
   for (const [pathIndex, insertions] of insertionsByPath) {
     const pathInfo = targetPaths[pathIndex];
 
-    // Sort descending so earlier insertions don't shift later indices
-    insertions.sort((a, b) => b.segmentIndex - a.segmentIndex);
+    const targetArr =
+      pathInfo.key === "points"
+        ? newTargetPointRefs
+        : newTargetCuts[pathInfo.cutIndex].points;
 
-    if (pathInfo.key === "points") {
-      for (const ins of insertions) {
-        newTargetPointRefs.splice(ins.segmentIndex + 1, 0, ins.pointRef);
-      }
-    } else if (pathInfo.key === "cuts") {
-      const cutPoints = newTargetCuts[pathInfo.cutIndex].points;
-      for (const ins of insertions) {
-        cutPoints.splice(ins.segmentIndex + 1, 0, ins.pointRef);
-      }
+    // Find insertion positions by matching consecutive point IDs
+    const resolved = insertions
+      .map((ins) => {
+        for (let i = 0; i < targetArr.length - 1; i++) {
+          if (
+            targetArr[i].id === ins.segStartId &&
+            targetArr[i + 1].id === ins.segEndId
+          ) {
+            return { ...ins, insertAt: i + 1 };
+          }
+        }
+        return null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.insertAt - a.insertAt);
+
+    for (const ins of resolved) {
+      targetArr.splice(ins.insertAt, 0, ins.pointRef);
     }
   }
 
