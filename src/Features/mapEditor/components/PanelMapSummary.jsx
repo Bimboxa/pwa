@@ -1,11 +1,19 @@
 import { useMemo } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
-import { setSelectedItem } from "Features/selection/selectionSlice";
+import {
+  setSelectedItem,
+  setSelectedItems,
+} from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import { Box, Typography, IconButton, Button, Chip } from "@mui/material";
-import { Visibility, VisibilityOff, ChevronRight } from "@mui/icons-material";
+import {
+  Visibility,
+  VisibilityOff,
+  ChevronRight,
+  PlaylistAddCheck,
+} from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
@@ -72,7 +80,7 @@ export default function PanelMapSummary() {
           );
 
     const items = filtered.map((a) => ({
-      id: a.entityId,
+      id: a.id,
       nodeId: a.id,
       type: "NODE",
       nodeType: a.type,
@@ -84,7 +92,7 @@ export default function PanelMapSummary() {
     }));
 
     if (items.length > 0) {
-      dispatch({ type: "selection/setSelectedItems", payload: items });
+      dispatch(setSelectedItems(items));
     }
   }
 
@@ -168,12 +176,17 @@ export default function PanelMapSummary() {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              py: 0.5,
-              borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+              py: 0.75,
+              px: 0.5,
+              bgcolor: "action.hover",
+              borderRadius: 1,
+              mb: 0.5,
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Typography variant="body2">Total</Typography>
+              <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                Total
+              </Typography>
               <Chip label={totalAnnotations} size="small" />
             </Box>
             <IconButton
@@ -181,7 +194,7 @@ export default function PanelMapSummary() {
               onClick={() => handleSelectAnnotationsByLayerId("__ALL__")}
               disabled={totalAnnotations === 0}
             >
-              <ChevronRight fontSize="small" />
+              <PlaylistAddCheck fontSize="small" />
             </IconButton>
           </Box>
 
@@ -213,7 +226,7 @@ export default function PanelMapSummary() {
                   onClick={() => handleSelectAnnotationsByLayerId(layer.id)}
                   disabled={count === 0}
                 >
-                  <ChevronRight fontSize="small" />
+                  <PlaylistAddCheck fontSize="small" />
                 </IconButton>
               </Box>
             );
@@ -250,7 +263,7 @@ export default function PanelMapSummary() {
                   handleSelectAnnotationsByLayerId("__NO_LAYER__")
                 }
               >
-                <ChevronRight fontSize="small" />
+                <PlaylistAddCheck fontSize="small" />
               </IconButton>
             </Box>
           )}
