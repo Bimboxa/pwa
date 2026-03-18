@@ -61,6 +61,7 @@ import ClosingMarker from 'Features/mapEditorGeneric/components/ClosingMarker';
 import HelperScale from 'Features/mapEditorGeneric/components/HelperScale';
 import MapTooltip from 'Features/mapEditorGeneric/components/MapTooltip';
 import SmartDetectLayer from 'Features/mapEditorGeneric/components/SmartDetectLayer';
+import TransientOrthoPathsLayer from 'Features/mapEditorGeneric/components/TransientOrthoPathsLayer';
 import SmartTransformerLayer from 'Features/transformers/components/SmartTransformerLayer';
 import LassoOverlay from 'Features/mapEditorGeneric/components/LassoOverlay';
 import DialogAutoLoadingModel from 'Features/transformers/components/DialogAutoLoadingModel';
@@ -155,6 +156,9 @@ const InteractionLayer = forwardRef(({
   // baseMapRafRef — now managed by useBaseMapDrag
   const smartDetectRef = useRef(null); // <--- REF VERS LA LOUPE
   const smartTransformerRef = useRef(null);
+  const transientOrthoPathsRef = useRef(null);
+  const detectedOrthoPathsRef = useRef(null); // current ortho detection results (image coords)
+  const committedOrthoSegmentsRef = useRef([]); // accumulated committed segments for exclusion
   const lastSmartROI = useRef(null); // pour la reconversion inverse Loupe => World.
   const lastMouseScreenPosRef = useRef({
     screenPos: { x: 0, y: 0 },
@@ -280,7 +284,7 @@ const InteractionLayer = forwardRef(({
   };
 
   // Legacy handlers placeholders if references exist elsewhere (can be removed if safe)
-  // const handleSmartLineDetected = () => {}; 
+  // const handleSmartLineDetected = () => {};
   // const handleCornerDetected = () => {};
 
 
@@ -920,6 +924,10 @@ const InteractionLayer = forwardRef(({
           if (transientDetectedShapeLayerRef.current) {
             transientDetectedShapeLayerRef.current.updateShape(null);
           }
+          // Clear ortho paths detection
+          detectedOrthoPathsRef.current = null;
+          committedOrthoSegmentsRef.current = [];
+          transientOrthoPathsRef.current?.clear();
           break;
 
         case 'd':
@@ -930,6 +938,29 @@ const InteractionLayer = forwardRef(({
           break;
 
         case ' ':
+          // --- ORTHO_PATHS: commit all detected paths ---
+          if (detectedOrthoPathsRef.current) {
+            e.preventDefault();
+            const { imageCoords, localCoords } = detectedOrthoPathsRef.current;
+            // Accumulate committed segments (in image coords) for exclusion
+            committedOrthoSegmentsRef.current = [
+              ...committedOrthoSegmentsRef.current,
+              ...imageCoords,
+            ];
+            // Clear display immediately
+            detectedOrthoPathsRef.current = null;
+            transientOrthoPathsRef.current?.clear();
+            // Commit each polyline sequentially (async) to avoid race conditions
+            (async () => {
+              for (const points of localCoords) {
+                if (points.length >= 2) {
+                  await onCommitDrawingRef.current?.({ points });
+                }
+              }
+            })();
+            return;
+          }
+
           if (detectedShapeRef.current) {
             e.preventDefault();
 
@@ -1242,6 +1273,57 @@ const InteractionLayer = forwardRef(({
     }
 
     if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP"].includes(enabledDrawingMode)) {
+      // --- ORTHO_PATHS intercept: run BFS tracing instead of adding a point ---
+      const currentDetectMode = smartDetectRef.current?.getSelectedDetectMode?.();
+      if (currentDetectMode === "ORTHO_PATHS" && showSmartDetectRef.current) {
+        const localPos = toLocalCoords(worldPos);
+        // Convert local coords to source image pixel coords
+        const pixelX = (localPos.x - baseMapImageOffset.x) / baseMapImageScale;
+        const pixelY = (localPos.y - baseMapImageOffset.y) / baseMapImageScale;
+
+        // Build visited segments from existing annotations + committed this session
+        const existingAnnotationSegments = (annotations || [])
+          .filter((a) => a.points && a.points.length >= 2 && ["POLYLINE", "POLYGON"].includes(a.type))
+          .map((a) =>
+            a.points.map((p) => ({
+              x: (p.x - baseMapImageOffset.x) / baseMapImageScale,
+              y: (p.y - baseMapImageOffset.y) / baseMapImageScale,
+            }))
+          );
+        const allVisitedSegments = [
+          ...existingAnnotationSegments,
+          ...committedOrthoSegmentsRef.current,
+        ];
+
+        // Run async ortho path tracing
+        (async () => {
+          try {
+            const polylines = await smartDetectRef.current.runOrthoPaths({
+              clickX: pixelX,
+              clickY: pixelY,
+              visitedSegments: allVisitedSegments,
+            });
+            if (polylines && polylines.length > 0) {
+              // Convert from image pixel coords to local coords
+              const localPolylines = polylines.map((seg) =>
+                seg.map((p) => ({
+                  x: p.x * baseMapImageScale + baseMapImageOffset.x,
+                  y: p.y * baseMapImageScale + baseMapImageOffset.y,
+                }))
+              );
+              detectedOrthoPathsRef.current = { imageCoords: polylines, localCoords: localPolylines };
+              transientOrthoPathsRef.current?.updatePaths(localPolylines);
+            } else {
+              detectedOrthoPathsRef.current = null;
+              transientOrthoPathsRef.current?.clear();
+            }
+          } catch (err) {
+            console.error("[ORTHO_PATHS] tracing error:", err);
+          }
+        })();
+        return; // Don't add a regular drawing point
+      }
+
       // Apply snapping if Shift is pressed
       let finalPos = toLocalCoords(worldPos);
       if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
@@ -2436,6 +2518,7 @@ const InteractionLayer = forwardRef(({
             ref={transientDetectedShapeLayerRef}
             containerK={targetPose.k}
           />
+          <TransientOrthoPathsLayer ref={transientOrthoPathsRef} />
         </g>
 
         {(dragState?.active || dragState?.frozen) && (
@@ -2644,7 +2727,11 @@ const InteractionLayer = forwardRef(({
           loupeSize={LOUPE_SIZE}
           onSmartShapeDetected={handleSmartShapeDetected}
           enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetectRef.current}
-          initialDetectMode={["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode) ? "RECTANGLE" : undefined}
+          initialDetectMode={
+            ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode) ? "RECTANGLE"
+            : enabledDrawingMode === "POLYLINE_CLICK" ? "ORTHO_PATHS"
+            : undefined
+          }
         />, zoomContainer) : null}
       </>
 

@@ -256,6 +256,12 @@ class CV {
       payload
     });
   }
+  traceOrthoPathsAsync(payload) {
+    return this._dispatch({
+      msg: "traceOrthoPathsAsync",
+      payload
+    });
+  }
 }
 
 // Export the same instant everywhere

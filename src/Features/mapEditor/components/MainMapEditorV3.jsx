@@ -1027,25 +1027,25 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     showBgImage={showBgImage}
                     onCommitDrawing={({ points, event, cutHostId, options }) => {
                         if (type === "SPLIT") {
-                            handleSplitCommit(points);
+                            return handleSplitCommit(points);
                         }
                         else if (cutHostId) {
                             if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode) && points.length === 2) points = getPolylinePointsFromRectangle(points)
                             else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) points = getPolylinePointsFromCircle(points)
-                            handleCommitDrawing(points, { cutHostId });
+                            return handleCommitDrawing(points, { cutHostId });
                         }
                         else if (enabledDrawingMode === 'MEASURE') {
-                            handleMeasureCommit(points, event);
+                            return handleMeasureCommit(points, event);
                         }
                         else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode)) {
-                            handleCommitDrawingFromRectangle(points, event);
+                            return handleCommitDrawingFromRectangle(points, event);
                         }
                         else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
-                            handleCommitDrawingFromCircle(points);
+                            return handleCommitDrawingFromCircle(points);
                         }
                         else {
                             console.log("handleCommitDrawing - points", points);
-                            handleCommitDrawing(points, options);
+                            return handleCommitDrawing(points, options);
                         }
                     }}
                     onCommitSplitAtVertex={handlePolylineSplitAtVertex}

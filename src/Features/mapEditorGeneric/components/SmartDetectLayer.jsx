@@ -25,7 +25,8 @@ const pulseAnimation = keyframes`
 const COLORS = {
     POINT: "#00ff00",    // Lime Green
     LINE: "#00ccff",     // Cyan
-    RECTANGLE: "#FFD700" // Gold
+    RECTANGLE: "#FFD700", // Gold
+    ORTHO_PATHS: "#00ff00", // Lime Green (same as POINT for ortho paths)
 };
 
 const ModeListItem = styled(ListItemButton, {
@@ -118,6 +119,7 @@ const SmartDetectLayer = forwardRef(({
         { key: "POINT", label: "Point", color: COLORS.POINT, shortcut: "P" },
         { key: "LINE", label: "Ligne", color: COLORS.LINE, shortcut: "L" },
         { key: "RECTANGLE", label: "Rect.", color: COLORS.RECTANGLE, shortcut: "R" },
+        { key: "ORTHO_PATHS", label: "Ortho", color: COLORS.ORTHO_PATHS, shortcut: "O" },
     ];
 
     // --- STATES ---
@@ -140,6 +142,7 @@ const SmartDetectLayer = forwardRef(({
         detectedPolylines: [],
         morphKernelSize: 3,
     });
+    const cachedImageUrlRef = useRef(null); // cached full-image dataURL for ORTHO_PATHS
 
     // --- SYNC INITIAL DETECT MODE ---
     useEffect(() => {
@@ -147,6 +150,23 @@ const SmartDetectLayer = forwardRef(({
             setSelectedDetectMode(initialDetectMode);
         }
     }, [initialDetectMode]);
+
+    // --- PRE-CACHE IMAGE FOR ORTHO_PATHS ---
+    useEffect(() => {
+        if (selectedDetectMode === "ORTHO_PATHS" && enabled && sourceImage) {
+            // Pre-convert sourceImage to dataURL once, reuse for all clicks
+            const canvas = document.createElement("canvas");
+            canvas.width = sourceImage.naturalWidth || sourceImage.width;
+            canvas.height = sourceImage.naturalHeight || sourceImage.height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(sourceImage, 0, 0);
+            cachedImageUrlRef.current = canvas.toDataURL("image/jpeg", 0.9);
+            // Pre-load the worker too
+            cv.load();
+        } else {
+            cachedImageUrlRef.current = null;
+        }
+    }, [selectedDetectMode, enabled, sourceImage]);
 
     // --- KEYBOARD LISTENER ---
     useEffect(() => {
@@ -157,6 +177,7 @@ const SmartDetectLayer = forwardRef(({
             if (key === 'P') setSelectedDetectMode('POINT');
             if (key === 'L') setSelectedDetectMode('LINE');
             if (key === 'R') setSelectedDetectMode('RECTANGLE');
+            if (key === 'O') setSelectedDetectMode('ORTHO_PATHS');
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
@@ -177,6 +198,8 @@ const SmartDetectLayer = forwardRef(({
     // --- ANALYSE OPENCV ---
     const analyzeImageThrottled = useMemo(() => throttle(async (imageUrl, currentRoi) => {
         if (!imageUrl || !enabled) return;
+        // ORTHO_PATHS mode does not use continuous analysis — it runs on click
+        if (selectedDetectMode === "ORTHO_PATHS") return;
         const currentKernelSize = stateRef.current.morphKernelSize;
 
         try {
@@ -217,7 +240,6 @@ const SmartDetectLayer = forwardRef(({
                 }
             }
             else if (selectedDetectMode === "LINE") {
-                // On utilise bestLine calculé au dessus (ou on le recalcule ici si le state n'est pas encore maj, ce qui est le cas dans ce tick)
                 const bestL = polylines.find(l => l.isBest) || polylines.find(l => l.type.includes('horizontal') || l.type.includes('vertical'));
                 if (bestL) {
                     const scaleX = currentRoi.width / loupeSize;
@@ -282,6 +304,26 @@ const SmartDetectLayer = forwardRef(({
             if (selectedDetectMode === "RECTANGLE" && mainRectangle) return mainRectangle.points;
             return [];
         },
+        getSelectedDetectMode: () => selectedDetectMode,
+        /**
+         * Run orthogonal path tracing from a click point (in image-pixel coords).
+         * Returns an array of polylines (each is an array of {x, y} in image coords).
+         */
+        runOrthoPaths: async ({ clickX, clickY, visitedSegments = [] }) => {
+            const imageUrl = cachedImageUrlRef.current;
+            if (!imageUrl) return [];
+
+            await cv.load();
+            const polylines = await cv.traceOrthoPathsAsync({
+                imageUrl,
+                clickX,
+                clickY,
+                visitedSegments,
+                darknessThreshold: 128,
+                windowSize: 6,
+            });
+            return polylines || [];
+        },
         detectOrientationNow: async () => { return null; }
     }));
 
@@ -292,7 +334,8 @@ const SmartDetectLayer = forwardRef(({
     const hasDetected = {
         POINT: !!bestCorner,
         LINE: !!bestLine,
-        RECTANGLE: !!mainRectangle
+        RECTANGLE: !!mainRectangle,
+        ORTHO_PATHS: false, // ORTHO_PATHS detection happens on click, not continuously
     };
 
     // Est-ce que le mode ACTUEL a trouvé quelque chose ?
