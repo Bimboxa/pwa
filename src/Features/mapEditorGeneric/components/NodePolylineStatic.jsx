@@ -40,6 +40,7 @@ export default function NodePolylineStatic({
     selectedPointId,
     selectedPartId,
     highlightConnectedSegments = false,
+    selectMode,
 }) {
 
     // select temp annotation
@@ -118,7 +119,18 @@ export default function NodePolylineStatic({
 
     const getPartId = (category, index = 0) => `${annotationId}::${category}::${index}`;
 
+    const SEGMENT_HOVER_COLOR = "#76ff03"; // neon green
+
     const getPartStyle = (currentPartId) => {
+        // A0. Segment selection mode — highlight hovered segment in neon green
+        if (selectMode === "SEGMENT" && hoveredPartId === currentPartId && !isTransient) {
+            return {
+                stroke: SEGMENT_HOVER_COLOR,
+                fill: SEGMENT_HOVER_COLOR,
+                strokeWidth: computedStrokeWidth + 2,
+            };
+        }
+
         // A. Mode Standard (Pas de sous-sélection)
         if (!selectedPartId) {
             if (hoveredPartId === currentPartId && !isTransient) {

@@ -39,6 +39,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import { StopCircle } from "@mui/icons-material";
 import ContentCut from "@mui/icons-material/ContentCut";
+import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
@@ -74,6 +75,7 @@ import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 const TOOL_ITEMS = [
   { type: "CUT", label: "Ouverture", Icon: StopCircle },
   { type: "SPLIT", label: "Diviser", Icon: ContentCut },
+  { type: "TECHNICAL_RETURN", label: "Retour 1m", Icon: IconTechnicalReturn },
 ];
 
 // ---------------------------------------------------------------------------
@@ -844,10 +846,20 @@ function ListingRow({
 // PopperDrawingHelper — floating panel shown while drawing
 // ---------------------------------------------------------------------------
 
+// Modes that select existing geometry — no smart detect needed
+const SEGMENT_SELECT_MODES = ["TECHNICAL_RETURN", "CUT_SEGMENT"];
+
 function PopperDrawingHelper() {
   // strings
 
   const titleS = "Mode dessin";
+
+  // data
+
+  const enabledDrawingMode = useSelector(
+    (s) => s.mapEditor.enabledDrawingMode
+  );
+  const isSegmentSelectMode = SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
 
   // state
 
@@ -898,7 +910,7 @@ function PopperDrawingHelper() {
         </Typography>
       </Box>
 
-      <SectionSmartDetect />
+      {!isSegmentSelectMode && <SectionSmartDetect />}
 
       <Box sx={{ p: 1 }}>
         <SectionShortcutHelpers />

@@ -77,6 +77,7 @@ import computeWrapperBbox from "../utils/computeWrapperBbox";
 import applyWrapperTransformToPoints from "../utils/applyWrapperTransformToPoints";
 import removeCutAsync from "../services/removeCutAsync";
 import useHandleCutSegment from "../hooks/useHandleCutSegment";
+import useHandleTechnicalReturn from "../hooks/useHandleTechnicalReturn";
 import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import fitBoundsToViewport from "../utils/fitBoundsToViewport";
@@ -303,6 +304,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const _handleCommitDrawing = useHandleCommitDrawing();
     const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit();
     const handleCutSegment = useHandleCutSegment();
+    const handleTechnicalReturn = useHandleTechnicalReturn();
 
     const handleCommitDrawing = (rawPoints, options) => {
 
@@ -1066,6 +1068,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
                     onCutSegment={handleCutSegment}
+                    onTechnicalReturn={handleTechnicalReturn}
                     onProjectionSnapInsert={handleProjectionSnapInsert}
                     snappingEnabled={isSnappingEnabled}
                     baseMapMeterByPx={baseMap?.getMeterByPx()}

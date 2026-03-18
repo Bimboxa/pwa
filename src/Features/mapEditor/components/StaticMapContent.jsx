@@ -51,6 +51,14 @@ function StaticMapContent({
     const _showedFWC = useSelector(s => s.fwc.showedFWC);
     const anchorSourceAnnotationId = useSelector(s => s.mapEditor.anchorSourceAnnotationId);
 
+    // Derive selectMode from the active drawing tool
+    const enabledDrawingMode = useSelector(s => s.mapEditor.enabledDrawingMode);
+    const selectMode = useMemo(() => {
+        if (["TECHNICAL_RETURN", "CUT_SEGMENT"].includes(enabledDrawingMode)) return "SEGMENT";
+        // Future: add "VERTEX" for point-selection modes
+        return null;
+    }, [enabledDrawingMode]);
+
     // helpers
 
     const fwcCountMap = annotations.reduce((acc, { entity }) => {
@@ -252,6 +260,7 @@ function StaticMapContent({
                             baseMapMeterByPx={baseMapMeterByPx}
                             showBgImage={showBgImage}
                             forceHideLabel={hiddenAnnotationIds?.includes("label::" + annotation.id)}
+                            selectMode={selectMode}
                         />
                     </g>
                 })}

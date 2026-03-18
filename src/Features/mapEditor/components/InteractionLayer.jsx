@@ -123,6 +123,7 @@ const InteractionLayer = forwardRef(({
   onAnnotationMoveCommit,
   onSegmentSplit,
   onCutSegment,
+  onTechnicalReturn,
   onProjectionSnapInsert,
   snappingEnabled = true,
   // selectedNode, // Removed prop usage, use Redux
@@ -374,10 +375,13 @@ const InteractionLayer = forwardRef(({
 
   // updateSmartDetect
 
+  // Drawing modes that only select existing geometry (no smart detect needed)
+  const SEGMENT_SELECT_MODES = ["TECHNICAL_RETURN", "CUT_SEGMENT"];
+
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
   useEffect(() => {
-    const show = Boolean(enabledDrawingMode)
+    const show = Boolean(enabledDrawingMode) && !SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
     //showSmartDetectRef.current = showSmartDetect;
     showSmartDetectRef.current = show;
   }, [showSmartDetect, enabledDrawingMode])
@@ -679,6 +683,7 @@ const InteractionLayer = forwardRef(({
   // 1. Calculer le style curseur du conteneur
   const getCursorStyle = () => {
     if (dragState?.active) return 'crosshair';
+    if (SEGMENT_SELECT_MODES.includes(enabledDrawingMode)) return 'pointer';
     if (enabledDrawingMode) return 'crosshair'; // Priorité 1           // Priorité 2
     return 'default';                           // Défaut
   };
@@ -1160,6 +1165,24 @@ const InteractionLayer = forwardRef(({
           const segmentIndex = parseInt(parts[2], 10);
           if (partType === "SEG" && onCutSegment && !isNaN(segmentIndex)) {
             onCutSegment(nodeId, segmentIndex);
+          }
+        }
+      }
+      return;
+    }
+
+    // --- TECHNICAL_RETURN: click on a segment to create 1m return ---
+    if (enabledDrawingMode === "TECHNICAL_RETURN") {
+      const nativeTarget = event.nativeEvent?.target || event.target;
+      const hitPart = nativeTarget.closest?.("[data-part-id]");
+      if (hitPart) {
+        const { partId, nodeId, partType: dataPartType } = hitPart.dataset;
+        if (partId) {
+          const parts = partId.split("::"); // annotationId::SEG::index
+          const partType = dataPartType || parts[1];
+          const segmentIndex = parseInt(parts[2], 10);
+          if (partType === "SEG" && onTechnicalReturn && !isNaN(segmentIndex)) {
+            onTechnicalReturn(nodeId, segmentIndex);
           }
         }
       }
@@ -1708,7 +1731,7 @@ const InteractionLayer = forwardRef(({
     // D. SNAPPING
     // Correction : On autorise le snapping pendant le dessin (enabledDrawingMode)
     // On l'interdit seulement pour le Pan ou le Drag d'objets lourds
-    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || enabledDrawingMode === "CUT_SEGMENT";
+    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
 
     let snapResult;
     if (snappingEnabled && !preventSnapping) {
@@ -2278,9 +2301,15 @@ const InteractionLayer = forwardRef(({
 
         // B. L'Override "Nucléaire" pour le mode dessin
         // Si on dessine, on force TOUS les enfants (& *) à avoir crosshair
-        ...(enabledDrawingMode && {
+        // Sauf pour les modes de sélection de segment (pointer)
+        ...(enabledDrawingMode && !SEGMENT_SELECT_MODES.includes(enabledDrawingMode) && {
           '& *': {
             cursor: 'crosshair !important',
+          },
+        }),
+        ...(SEGMENT_SELECT_MODES.includes(enabledDrawingMode) && {
+          '& *': {
+            cursor: 'pointer !important',
           },
         }),
       }}>
@@ -2293,7 +2322,7 @@ const InteractionLayer = forwardRef(({
         staticOverlay={
           <><ScreenCursorV2
             ref={screenCursorRef}
-            visible={!!enabledDrawingMode || dragState?.active}
+            visible={(!!enabledDrawingMode && !SEGMENT_SELECT_MODES.includes(enabledDrawingMode)) || dragState?.active}
             newAnnotation={newAnnotation}
           />
             <SnappingLayer

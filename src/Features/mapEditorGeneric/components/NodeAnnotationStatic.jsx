@@ -28,6 +28,7 @@ export default function NodeAnnotationStatic({
   onTextValueChange,
   forceHideLabel,
   highlightConnectedSegments,
+  selectMode,
 
 }) {
   annotation = { ...annotation ?? {}, ...annotationOverride ?? {} };
@@ -52,6 +53,7 @@ export default function NodeAnnotationStatic({
     printMode,
     forceHideLabel,
     highlightConnectedSegments,
+    selectMode,
   };
 
   // Note: point-based types (POLYGON, POLYLINE, STRIP) store their points
