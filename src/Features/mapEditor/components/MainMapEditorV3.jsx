@@ -78,6 +78,7 @@ import applyWrapperTransformToPoints from "../utils/applyWrapperTransformToPoint
 import removeCutAsync from "../services/removeCutAsync";
 import useHandleCutSegment from "../hooks/useHandleCutSegment";
 import useHandleTechnicalReturn from "../hooks/useHandleTechnicalReturn";
+import useHandleSplitPolyline from "../hooks/useHandleSplitPolyline";
 import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import fitBoundsToViewport from "../utils/fitBoundsToViewport";
@@ -305,6 +306,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit();
     const handleCutSegment = useHandleCutSegment();
     const handleTechnicalReturn = useHandleTechnicalReturn();
+    const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline();
 
     const handleCommitDrawing = (rawPoints, options) => {
 
@@ -1069,6 +1071,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onSegmentSplit={handleSegmentSplit}
                     onCutSegment={handleCutSegment}
                     onTechnicalReturn={handleTechnicalReturn}
+                    onSplitPolylineClick={handleSplitPolylineClick}
+                    onSplitPolylineEnter={handleSplitPolylineEnter}
+                    onSplitPolylineReset={resetSplitPolyline}
                     onProjectionSnapInsert={handleProjectionSnapInsert}
                     snappingEnabled={isSnappingEnabled}
                     baseMapMeterByPx={baseMap?.getMeterByPx()}

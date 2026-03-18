@@ -847,7 +847,7 @@ function ListingRow({
 // ---------------------------------------------------------------------------
 
 // Modes that select existing geometry — no smart detect needed
-const SEGMENT_SELECT_MODES = ["TECHNICAL_RETURN", "CUT_SEGMENT"];
+const SEGMENT_SELECT_MODES = ["TECHNICAL_RETURN", "CUT_SEGMENT", "SPLIT_POLYLINE"];
 
 function PopperDrawingHelper() {
   // strings

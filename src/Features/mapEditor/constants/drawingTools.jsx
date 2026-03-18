@@ -16,6 +16,8 @@ import IconPolygonRectangle from "Features/icons/IconPolygonRectangle";
 import IconPolylineCircle from "Features/icons/IconPolylineCircle";
 import IconPolygonCircle from "Features/icons/IconPolygonCircle";
 import IconCutSegment from "Features/icons/IconCutSegment";
+import IconSplitPolygon from "Features/icons/IconSplitPolygon";
+import IconSplitPolyline from "Features/icons/IconSplitPolyline";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 
 import { getToolsForShape } from "Features/annotations/constants/drawingShapeConfig";
@@ -137,18 +139,26 @@ const DRAWING_TOOLS = [
   // SPLIT tools (Diviser)
   {
     key: "SPLIT_CLICK",
-    label: "Ligne",
-    Icon: IconPolylineClick,
+    label: "Couper surfaces",
+    Icon: IconSplitPolygon,
     annotationType: "SPLIT",
     behavior: "CLICK",
   },
-  // CUT_SEGMENT tool (Découpe segment)
+  // CUT_SEGMENT tool (Retirer segment)
   {
     key: "CUT_SEGMENT",
-    label: "Découpe segment",
+    label: "Retirer segment",
     Icon: IconCutSegment,
     annotationType: "CUT_SEGMENT",
     behavior: "CUT_SEGMENT",
+  },
+  // SPLIT_POLYLINE tool (Couper polyligne)
+  {
+    key: "SPLIT_POLYLINE",
+    label: "Couper polyligne",
+    Icon: IconSplitPolyline,
+    annotationType: "SPLIT_POLYLINE",
+    behavior: "SPLIT_POLYLINE",
   },
   // TECHNICAL_RETURN tool (Retour technique 1m)
   {
@@ -170,7 +180,7 @@ const DRAWING_TOOLS = [
 
 export const DRAWING_TOOLS_BY_TYPE = {
   CUT: ["CUT_CLICK", "CUT_RECTANGLE", "CUT_CIRCLE"],
-  SPLIT: ["SPLIT_CLICK", "CUT_SEGMENT"],
+  SPLIT: ["SPLIT_CLICK", "CUT_SEGMENT", "SPLIT_POLYLINE"],
   TECHNICAL_RETURN: ["TECHNICAL_RETURN"],
 };
 

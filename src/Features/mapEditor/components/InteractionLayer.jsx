@@ -124,6 +124,9 @@ const InteractionLayer = forwardRef(({
   onSegmentSplit,
   onCutSegment,
   onTechnicalReturn,
+  onSplitPolylineClick,
+  onSplitPolylineEnter,
+  onSplitPolylineReset,
   onProjectionSnapInsert,
   snappingEnabled = true,
   // selectedNode, // Removed prop usage, use Redux
@@ -377,11 +380,12 @@ const InteractionLayer = forwardRef(({
 
   // Drawing modes that only select existing geometry (no smart detect needed)
   const SEGMENT_SELECT_MODES = ["TECHNICAL_RETURN", "CUT_SEGMENT"];
+  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE"];
 
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
   useEffect(() => {
-    const show = Boolean(enabledDrawingMode) && !SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
+    const show = Boolean(enabledDrawingMode) && !NO_SMART_DETECT_MODES.includes(enabledDrawingMode);
     //showSmartDetectRef.current = showSmartDetect;
     showSmartDetectRef.current = show;
   }, [showSmartDetect, enabledDrawingMode])
@@ -641,6 +645,21 @@ const InteractionLayer = forwardRef(({
     onCommitSplitAtVertexRef.current = onCommitSplitAtVertex;
   }, [onCommitSplitAtVertex]);
 
+  const onSplitPolylineClickRef = useRef(onSplitPolylineClick);
+  useEffect(() => {
+    onSplitPolylineClickRef.current = onSplitPolylineClick;
+  }, [onSplitPolylineClick]);
+
+  const onSplitPolylineEnterRef = useRef(onSplitPolylineEnter);
+  useEffect(() => {
+    onSplitPolylineEnterRef.current = onSplitPolylineEnter;
+  }, [onSplitPolylineEnter]);
+
+  const onSplitPolylineResetRef = useRef(onSplitPolylineReset);
+  useEffect(() => {
+    onSplitPolylineResetRef.current = onSplitPolylineReset;
+  }, [onSplitPolylineReset]);
+
   // drawing state + commit (extracted to useDrawingCommit)
 
   const {
@@ -878,6 +897,9 @@ const InteractionLayer = forwardRef(({
             return;
           }
 
+          // Reset split polyline state if active
+          onSplitPolylineResetRef.current?.();
+
           // setSelectedPointId(null); // Removed
           resetNewAnnotation();
           dispatch(setEnabledDrawingMode(null));
@@ -987,6 +1009,14 @@ const InteractionLayer = forwardRef(({
         }
 
         case "Enter":
+          if (enabledDrawingModeRef.current === "SPLIT_POLYLINE") {
+            const splitResult = await onSplitPolylineEnterRef.current?.();
+            if (splitResult?.status === "split_done") {
+              setDrawingPoints([]);
+              drawingPointsRef.current = [];
+            }
+            break;
+          }
           if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP", "BRUSH"].includes(enabledDrawingModeRef.current)) {
             commitPolyline();
           }
@@ -1186,6 +1216,28 @@ const InteractionLayer = forwardRef(({
           }
         }
       }
+      return;
+    }
+
+    // --- SPLIT_POLYLINE: 2-click snap-based polyline split ---
+    if (enabledDrawingMode === "SPLIT_POLYLINE") {
+      const snap = currentSnapRef.current;
+      if (!snap) return; // No snap → ignore click
+
+      // Convert snap pixel position to drawingPoints for visual feedback
+      const pose = viewportRef.current?.getPose?.() || { x: 0, y: 0, k: 1 };
+      const localX = snap.x;
+      const localY = snap.y;
+
+      const result = await onSplitPolylineClick(snap);
+      if (result?.status === "first_point_set") {
+        setDrawingPoints([{ x: localX, y: localY }]);
+        drawingPointsRef.current = [{ x: localX, y: localY }];
+      } else if (result?.status === "split_done") {
+        setDrawingPoints([]);
+        drawingPointsRef.current = [];
+      }
+      // On error, keep current state
       return;
     }
 
@@ -1877,6 +1929,22 @@ const InteractionLayer = forwardRef(({
         onCommitSplitAtVertexRef.current?.(snap.annotationId, snap.id);
         setDrawingPoints([]);
         drawingPointsRef.current = [];
+        return;
+      }
+
+      // SPLIT_POLYLINE: 2-click snap-based polyline split (via snap marker)
+      if (enabledDrawingMode === "SPLIT_POLYLINE") {
+        const localX = snap.x;
+        const localY = snap.y;
+        onSplitPolylineClickRef.current?.(snap).then((result) => {
+          if (result?.status === "first_point_set") {
+            setDrawingPoints([{ x: localX, y: localY }]);
+            drawingPointsRef.current = [{ x: localX, y: localY }];
+          } else if (result?.status === "split_done") {
+            setDrawingPoints([]);
+            drawingPointsRef.current = [];
+          }
+        });
         return;
       }
 

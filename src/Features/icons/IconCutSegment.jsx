@@ -2,64 +2,42 @@ import SvgIcon from "@mui/material/SvgIcon";
 
 const IconCutSegment = (props) => (
   <SvgIcon {...props} viewBox="0 0 24 24">
-    {/* Left polyline piece: two points connected by a line */}
-    <circle cx="4" cy="18" r="2" fill="currentColor" />
-    <line
-      x1="4"
-      y1="16"
-      x2="4"
-      y2="10"
+    {/* Left piece of polyline */}
+    <polyline
+      points="3,20 6,14 10,12"
+      fill="none"
       stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
+      strokeLinejoin="round"
     />
-    <circle cx="4" cy="8" r="2" fill="currentColor" />
 
-    {/* Removed segment in the middle: dashed line with scissors effect */}
+    {/* Removed segment (dashed gap) */}
     <line
-      x1="4"
-      y1="6"
-      x2="12"
-      y2="4"
+      x1="10"
+      y1="12"
+      x2="14"
+      y2="10"
       stroke="currentColor"
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeDasharray="2 2"
-      opacity="0.35"
+      opacity="0.3"
     />
 
-    {/* Scissors / cut mark */}
-    <line
-      x1="6.5"
-      y1="3"
-      x2="9.5"
-      y2="7"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-    />
-    <line
-      x1="9.5"
-      y1="3"
-      x2="6.5"
-      y2="7"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-    />
+    {/* X mark on removed segment */}
+    <line x1="10.5" y1="9" x2="13.5" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <line x1="13.5" y1="9" x2="10.5" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
 
-    {/* Right polyline piece: two points connected by a line */}
-    <circle cx="14" cy="4" r="2" fill="currentColor" />
-    <line
-      x1="16"
-      y1="4.5"
-      x2="19"
-      y2="8"
+    {/* Right piece of polyline */}
+    <polyline
+      points="14,10 18,8 21,4"
+      fill="none"
       stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
+      strokeLinejoin="round"
     />
-    <circle cx="20" cy="9" r="2" fill="currentColor" />
   </SvgIcon>
 );
 
