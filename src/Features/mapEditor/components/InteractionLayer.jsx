@@ -1708,7 +1708,7 @@ const InteractionLayer = forwardRef(({
     // D. SNAPPING
     // Correction : On autorise le snapping pendant le dessin (enabledDrawingMode)
     // On l'interdit seulement pour le Pan ou le Drag d'objets lourds
-    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active;
+    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || enabledDrawingMode === "CUT_SEGMENT";
 
     let snapResult;
     if (snappingEnabled && !preventSnapping) {
