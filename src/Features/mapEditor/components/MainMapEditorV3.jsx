@@ -366,7 +366,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // handlers - rectangle
 
     const handleCommitDrawingFromRectangle = (points, event) => {
-        if (["POLYGON", "POLYLINE"].includes(type)) {
+        if (["POLYGON", "POLYLINE"].includes(type) && points.length === 2) {
             points = getPolylinePointsFromRectangle(points)
         }
         const options = {}
@@ -1024,7 +1024,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             handleSplitCommit(points);
                         }
                         else if (cutHostId) {
-                            if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode)) points = getPolylinePointsFromRectangle(points)
+                            if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode) && points.length === 2) points = getPolylinePointsFromRectangle(points)
                             else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) points = getPolylinePointsFromCircle(points)
                             handleCommitDrawing(points, { cutHostId });
                         }
