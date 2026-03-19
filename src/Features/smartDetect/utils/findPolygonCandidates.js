@@ -21,12 +21,122 @@
 export default function findPolygonCandidates(paths, tolerance = 5) {
   if (!paths || paths.length === 0) return [];
 
+  // Step 0: Insert junction points where a path endpoint falls on another path's segment
+  const enrichedPaths = insertJunctions(paths, tolerance);
+
   // Step 1: Build graph
-  const graph = buildGraph(paths, tolerance);
+  const graph = buildGraph(enrichedPaths, tolerance);
   if (graph.nodes.length === 0) return [];
 
   // Step 2: Find all cycles via DFS
   return findAllCycles(graph);
+}
+
+// ---------------------------------------------------------------------------
+// Step 0: Insert junction points
+// ---------------------------------------------------------------------------
+
+/**
+ * For each endpoint of each path, check if it falls on a segment of another path.
+ * If so, insert that point into the other path, splitting the segment.
+ * This creates proper graph junctions where polylines meet mid-segment.
+ */
+function insertJunctions(paths, tolerance) {
+  // Collect all endpoints (first and last point of each path)
+  const endpoints = [];
+  for (let pi = 0; pi < paths.length; pi++) {
+    const path = paths[pi];
+    if (path.length < 2) continue;
+    endpoints.push({ pt: path[0], pathIdx: pi });
+    endpoints.push({ pt: path[path.length - 1], pathIdx: pi });
+    // Also collect intermediate points that have _id (shared topology points)
+    for (let k = 1; k < path.length - 1; k++) {
+      if (path[k]._id) endpoints.push({ pt: path[k], pathIdx: pi });
+    }
+  }
+
+  // For each endpoint, check against all segments of OTHER paths
+  // Collect insertions: { pathIdx, segmentIdx, point }
+  const insertions = []; // grouped by pathIdx
+
+  for (const { pt, pathIdx: srcPathIdx } of endpoints) {
+    for (let pi = 0; pi < paths.length; pi++) {
+      if (pi === srcPathIdx) continue;
+      const path = paths[pi];
+      for (let si = 0; si < path.length - 1; si++) {
+        const a = path[si], b = path[si + 1];
+        if (isPointOnSegment(pt, a, b, tolerance)) {
+          insertions.push({ pathIdx: pi, segmentIdx: si, point: { ...pt } });
+        }
+      }
+    }
+  }
+
+  if (insertions.length === 0) return paths;
+
+  // Group insertions by path, sort by segment index (descending to insert from end)
+  const byPath = {};
+  for (const ins of insertions) {
+    if (!byPath[ins.pathIdx]) byPath[ins.pathIdx] = [];
+    byPath[ins.pathIdx].push(ins);
+  }
+
+  // Clone paths and insert points
+  const result = paths.map((p) => [...p]);
+  for (const [pathIdx, insList] of Object.entries(byPath)) {
+    // Sort by segmentIdx descending, then by distance from segment start descending
+    // (inserting from the end avoids index shifting issues)
+    const pi = Number(pathIdx);
+    const path = result[pi];
+
+    // Deduplicate: don't insert if a point already exists nearby
+    const tolSq = tolerance * tolerance;
+    const filtered = insList.filter((ins) => {
+      // Check if this point already exists in the path near the insertion position
+      const nearby = path.some((p) => {
+        const dx = p.x - ins.point.x, dy = p.y - ins.point.y;
+        return dx * dx + dy * dy <= tolSq;
+      });
+      return !nearby;
+    });
+
+    // Sort by segment index descending, then by parameter t descending
+    filtered.sort((a, b) => {
+      if (a.segmentIdx !== b.segmentIdx) return b.segmentIdx - a.segmentIdx;
+      // Compute t parameter for ordering within same segment
+      const segA = path[a.segmentIdx], segB = path[a.segmentIdx + 1];
+      const dx = segB.x - segA.x, dy = segB.y - segA.y;
+      const lenSq = dx * dx + dy * dy;
+      const tA = lenSq > 0 ? ((a.point.x - segA.x) * dx + (a.point.y - segA.y) * dy) / lenSq : 0;
+      const tB = lenSq > 0 ? ((b.point.x - segA.x) * dx + (b.point.y - segA.y) * dy) / lenSq : 0;
+      return tB - tA;
+    });
+
+    for (const ins of filtered) {
+      result[pi].splice(ins.segmentIdx + 1, 0, ins.point);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Check if point P falls on segment A-B within tolerance.
+ * Returns true if the projection of P onto A-B is within the segment
+ * and the distance from P to the projection is within tolerance.
+ */
+function isPointOnSegment(p, a, b, tolerance) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return false;
+
+  const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+  // Must be strictly inside the segment (not at endpoints)
+  if (t <= 0.01 || t >= 0.99) return false;
+
+  const projX = a.x + t * dx, projY = a.y + t * dy;
+  const distSq = (p.x - projX) ** 2 + (p.y - projY) ** 2;
+  return distSq <= tolerance * tolerance;
 }
 
 // ---------------------------------------------------------------------------

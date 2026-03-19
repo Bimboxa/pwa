@@ -43,15 +43,15 @@ export default function detectPolygonFromAnnotations({
     if (cutContainingMouse) {
       const innerEnvelope = selectEnvelopeInsideRegion(candidates, mousePos, cutContainingMouse);
       if (innerEnvelope) {
-        const innerCuts = findCuts(annotations, innerEnvelope, tolerance);
+        const innerCuts = findCutsFromCycles(candidates, innerEnvelope);
         return { outerRing: innerEnvelope, cuts: innerCuts };
       }
     }
     return null;
   }
 
-  // Step 4: Find cuts
-  const cuts = findCuts(annotations, envelope, tolerance);
+  // Step 4: Find cuts — other DFS cycles fully inside the envelope
+  const cuts = findCutsFromCycles(candidates, envelope);
 
   return { outerRing: envelope, cuts };
 }
@@ -130,32 +130,24 @@ function selectEnvelope(candidates, mousePos) {
 // Cuts detection
 // ---------------------------------------------------------------------------
 
-function findCuts(annotations, envelope, tolerance) {
+/**
+ * Find cuts from DFS-detected cycles: any cycle that is smaller than
+ * the envelope AND fully inside it becomes a cut (hole).
+ */
+function findCutsFromCycles(allCycles, envelope) {
   const cuts = [];
   const envelopeArea = Math.abs(polygonArea(envelope));
-  const tolSq = tolerance * tolerance;
 
-  for (const ann of annotations) {
-    if (!ann.points || ann.points.length < 3) continue;
-
-    let isClosed = ann.type === "POLYGON";
-    if (ann.type === "POLYLINE") {
-      if (ann.closeLine) {
-        isClosed = true;
-      } else {
-        const first = ann.points[0], last = ann.points[ann.points.length - 1];
-        if ((first.x - last.x) ** 2 + (first.y - last.y) ** 2 <= tolSq) isClosed = true;
-      }
-    }
-    if (!isClosed) continue;
-
-    const ring = ann.points.map((p) => ({ x: p.x, y: p.y }));
+  for (const ring of allCycles) {
+    const area = Math.abs(polygonArea(ring));
+    // Skip the envelope itself (same area)
+    if (envelopeArea > 0 && Math.abs(area - envelopeArea) / envelopeArea < 0.01) continue;
+    // Must be smaller
+    if (area >= envelopeArea) continue;
+    // All points must be inside the envelope
     if (!ring.every((p) => pointInPolygon(p, envelope))) continue;
 
-    const ringArea = Math.abs(polygonArea(ring));
-    if (envelopeArea > 0 && Math.abs(ringArea - envelopeArea) / envelopeArea < 0.01) continue;
-
-    cuts.push([...ring, { x: ring[0].x, y: ring[0].y }]);
+    cuts.push(ring);
   }
 
   return cuts;
