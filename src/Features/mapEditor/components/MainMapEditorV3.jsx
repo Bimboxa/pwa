@@ -994,7 +994,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     //const isSnappingEnabled = enabledDrawingMode || !selectedNode;
     const isSnappingEnabled =
         enabledDrawingMode ||
-        !Boolean(selectedNode) && mapEditorMode === "QUICK_POINTS_CHANGE" ||
+        !Boolean(selectedNode) ||
         (Boolean(selectedNode) && selectedNode.nodeType === "ANNOTATION");
 
 

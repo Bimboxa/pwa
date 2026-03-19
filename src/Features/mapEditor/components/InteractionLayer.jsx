@@ -1975,7 +1975,7 @@ const InteractionLayer = forwardRef(({
       const localPos = toLocalCoords(worldPos);
       const snapThreshold = SNAP_THRESHOLD_ABSOLUTE / scale;
 
-      snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, true, Boolean(enabledDrawingMode) || !selectedAnnotation?.id);
+      snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, true, Boolean(enabledDrawingMode) || (mapEditorMode === "QUICK_POINTS_CHANGE" && !selectedAnnotation?.id));
 
       if (snapResult) {
         currentSnapRef.current = snapResult;
