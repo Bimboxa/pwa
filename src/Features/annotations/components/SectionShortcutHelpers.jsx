@@ -20,7 +20,7 @@ export default function SectionShortcutHelpers() {
             label: "Quitter le mode dessin",
         },
         ...(newAnnotationType === "STRIP"
-            ? [{ key: "S", label: "Inverser le sens du strip" }]
+            ? [{ key: "S", label: "Inverser le sens de la bande" }]
             : []),
     ];
 

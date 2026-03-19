@@ -6,7 +6,6 @@ import {
   MyLocation as Target,
   Brush,
   Insights as Smart,
-  ViewDay,
 } from "@mui/icons-material";
 
 import IconPolylineClick from "Features/icons/IconPolylineClick";
@@ -19,6 +18,7 @@ import IconCutSegment from "Features/icons/IconCutSegment";
 import IconSplitPolygon from "Features/icons/IconSplitPolygon";
 import IconSplitPolyline from "Features/icons/IconSplitPolyline";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
+import IconStrip from "Features/icons/IconStrip";
 
 import { getToolsForShape } from "Features/annotations/constants/drawingShapeConfig";
 
@@ -172,7 +172,7 @@ const DRAWING_TOOLS = [
   {
     key: "STRIP",
     label: "Bande",
-    Icon: ViewDay,
+    Icon: IconStrip,
     annotationType: "STRIP",
     behavior: "STRIP",
   },

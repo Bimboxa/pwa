@@ -65,6 +65,7 @@ const DrawingLayer = forwardRef(({
     onHoverFirstPoint,
     onLeaveFirstPoint,
     containerK,
+    meterByPx,
 }, ref) => {
 
 
@@ -84,6 +85,9 @@ const DrawingLayer = forwardRef(({
     // Sync ref immediately during render (not in useEffect which runs after paint)
     const pointsRef = useRef(points);
     pointsRef.current = points;
+
+    const meterByPxRef = useRef(meterByPx);
+    meterByPxRef.current = meterByPx;
 
     const { strokeColor, fillColor, type } = newAnnotation || {};
 
@@ -163,8 +167,10 @@ const DrawingLayer = forwardRef(({
 
                 const allPts = [...currentPoints, cursorPos];
                 const na = newAnnotationRef.current;
-                const stripWidth = na?.strokeWidth ?? STRIP_DEFAULT_WIDTH;
+                const rawWidth = na?.strokeWidth ?? STRIP_DEFAULT_WIDTH;
                 const stripOrientation = na?.stripOrientation ?? 1;
+                const isCm = na?.strokeWidthUnit === "CM" && meterByPxRef.current > 0;
+                const stripWidth = isCm ? (rawWidth * 0.01) / meterByPxRef.current : rawWidth;
                 const d = computeStripPath(allPts, stripWidth * stripOrientation);
                 previewStripRef.current.setAttribute('d', d);
                 previewStripRef.current.style.display = 'block';

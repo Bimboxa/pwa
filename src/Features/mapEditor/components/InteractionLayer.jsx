@@ -2750,6 +2750,7 @@ const InteractionLayer = forwardRef(({
               onLeaveFirstPoint={handleLeaveFirstPoint}
               enabledDrawingMode={enabledDrawingMode}
               containerK={targetPose.k}
+              meterByPx={baseMapMeterByPx}
             />
           </g>
 

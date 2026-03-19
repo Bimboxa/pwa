@@ -184,6 +184,9 @@ export default function useExtractStripBoundaries() {
 
     if (boundaryPolylines.length === 0) return [];
 
+    // When no polylines are present, boundary contours are closed loops
+    const closeLine = connections.length === 0;
+
     // 7. Create annotations for each boundary polyline
     const annotation0 = resolvedById[strips[0].id];
     const template = await db.annotationTemplates.get(annotationTemplateId);
@@ -247,6 +250,7 @@ export default function useExtractStripBoundaries() {
         strokeWidthUnit: template?.strokeWidthUnit,
         strokeOpacity: template?.strokeOpacity,
         strokeType: template?.strokeType,
+        ...(closeLine && { closeLine: true }),
       });
 
       if (newAnnotation) createdAnnotations.push(newAnnotation);

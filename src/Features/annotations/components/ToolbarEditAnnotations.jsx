@@ -62,8 +62,7 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
   const countLabel = `${count} annotation${count > 1 ? "s" : ""} sélectionnée${count > 1 ? "s" : ""}`;
 
   const hasStrips = annotations.some((a) => a.type === "STRIP");
-  const hasPolylines = annotations.some((a) => a.type === "POLYLINE");
-  const showExtractBoundaries = hasStrips && hasPolylines;
+  const showExtractBoundaries = hasStrips;
 
   // helpers - group by annotationTemplateId with aggregated quantities
 

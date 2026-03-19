@@ -25,10 +25,6 @@ export default function StripAnnotationIcon({
                     display: "flex",
                     justifyContent: "center",
                     alignItems: "center",
-                    // NOTE: You can set the primary color using the `color` prop below,
-                    // but if you want to use the theme's colors (like 'primary' or 'secondary'),
-                    // you would set `color` here:
-                    // color: 'primary.main', 
                 }}
             >
 
