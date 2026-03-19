@@ -39,8 +39,9 @@ import db from "App/db/db";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import { StopCircle } from "@mui/icons-material";
-import ContentCut from "@mui/icons-material/ContentCut";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
+import IconCutLine from "Features/icons/IconCutLine";
+import IconCutSurface from "Features/icons/IconCutSurface";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
@@ -74,7 +75,8 @@ import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 
 const TOOL_ITEMS = [
   { type: "CUT", label: "Ouverture", Icon: StopCircle },
-  { type: "SPLIT", label: "Diviser", Icon: ContentCut },
+  { type: "SPLIT_LINE", label: "Couper une ligne", Icon: IconCutLine },
+  { type: "SPLIT_SURFACE", label: "Couper des surfaces", Icon: IconCutSurface },
   { type: "TECHNICAL_RETURN", label: "Retour 1m", Icon: IconTechnicalReturn },
 ];
 
@@ -107,7 +109,9 @@ function ToolRow({ type, label, Icon }) {
   const handleRowClick = () => {
     if (!activeTool) return;
     dispatch(setEnabledDrawingMode(activeTool.key));
-    dispatch(setNewAnnotation({ ...newAnnotation, type }));
+    dispatch(
+      setNewAnnotation({ ...newAnnotation, type: activeTool.annotationType })
+    );
   };
 
   const handleToolBtnClick = (e) => {
@@ -116,9 +120,11 @@ function ToolRow({ type, label, Icon }) {
   };
 
   const handleSelectTool = (tool) => {
-    dispatch(setSelectedToolKeyForTemplate({ templateId: type, toolKey: tool.key }));
+    dispatch(
+      setSelectedToolKeyForTemplate({ templateId: type, toolKey: tool.key })
+    );
     dispatch(setEnabledDrawingMode(tool.key));
-    dispatch(setNewAnnotation({ ...newAnnotation, type }));
+    dispatch(setNewAnnotation({ ...newAnnotation, type: tool.annotationType }));
   };
 
   const handleMenuClose = () => {

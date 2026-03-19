@@ -179,8 +179,9 @@ const DRAWING_TOOLS = [
 ];
 
 export const DRAWING_TOOLS_BY_TYPE = {
-  CUT: ["CUT_CLICK", "CUT_RECTANGLE", "CUT_CIRCLE"],
-  SPLIT: ["SPLIT_CLICK", "CUT_SEGMENT", "SPLIT_POLYLINE"],
+  CUT: ["CUT_RECTANGLE", "CUT_CLICK", "CUT_CIRCLE"],
+  SPLIT_LINE: ["CUT_SEGMENT", "SPLIT_POLYLINE"],
+  SPLIT_SURFACE: ["SPLIT_CLICK"],
   TECHNICAL_RETURN: ["TECHNICAL_RETURN"],
 };
 
@@ -195,7 +196,7 @@ export function getDrawingToolByKey(key) {
 
 export function getDrawingToolsByType(type) {
   const keys = DRAWING_TOOLS_BY_TYPE[type] ?? [];
-  return DRAWING_TOOLS.filter((tool) => keys.includes(tool.key));
+  return keys.map((k) => DRAWING_TOOLS.find((t) => t.key === k)).filter(Boolean);
 }
 
 export default DRAWING_TOOLS;
