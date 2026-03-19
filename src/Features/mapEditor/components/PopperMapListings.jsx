@@ -355,9 +355,12 @@ function AnnotationTemplateRow({
   const isHidden = annotationTemplate?.hidden;
   const drawingShape = resolveDrawingShape(annotationTemplate);
   const tools = getDrawingToolsByShape(drawingShape);
-  const activeTool = selectedToolKey
-    ? getDrawingToolByKey(selectedToolKey) ?? tools[0]
+  const fallbackTool = annotationTemplate?.defaultTool
+    ? getDrawingToolByKey(annotationTemplate.defaultTool) ?? tools[0]
     : tools[0];
+  const activeTool = selectedToolKey
+    ? getDrawingToolByKey(selectedToolKey) ?? fallbackTool
+    : fallbackTool;
   const ActiveToolIcon = activeTool?.Icon;
 
   // handlers

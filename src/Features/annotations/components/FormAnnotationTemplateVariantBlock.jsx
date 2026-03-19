@@ -27,6 +27,7 @@ import {
   getDefaultsForShape,
   resolveDrawingShape,
 } from "Features/annotations/constants/drawingShapeConfig";
+import { getDrawingToolsByShape } from "Features/mapEditor/constants/drawingTools.jsx";
 
 export default function FormAnnotationTemplateVariantBlock({
   annotationTemplate,
@@ -66,6 +67,7 @@ export default function FormAnnotationTemplateVariantBlock({
     size,
     sizeUnit,
     mainQtyKey,
+    defaultTool,
     overrideFields,
   } = annotationTemplate ?? {};
 
@@ -88,6 +90,14 @@ export default function FormAnnotationTemplateVariantBlock({
   ];
 
   // helpers — which field groups to show based on configurable props
+
+  const shapeTools = getDrawingToolsByShape(drawingShape);
+  const toolOptions = shapeTools.map(({ key, label, Icon }) => ({
+    key,
+    label,
+    icon: <Icon fontSize="small" />,
+  }));
+  const hasTools = shapeTools.length > 1;
 
   const hasFill =
     configurableProps.includes("fillColor") ||
@@ -168,6 +178,10 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handlePointVariantChange(variant) {
     onChange({ ...annotationTemplate, variant });
+  }
+
+  function handleDefaultToolChange(defaultTool) {
+    onChange({ ...annotationTemplate, defaultTool });
   }
 
   function handleMainQtyKeyChange(mainQtyKey) {
@@ -385,14 +399,22 @@ export default function FormAnnotationTemplateVariantBlock({
         </Box>
       )}
 
-      {!isCreating && (
-        <FieldQty
-          value={mainQtyKey}
-          onChange={handleMainQtyKeyChange}
-          label={qtyS}
+      {hasTools && (
+        <FieldOptionKeyFromIconsVariantToolbar
+          value={defaultTool}
+          onChange={handleDefaultToolChange}
+          valueOptions={toolOptions}
+          label="Outil par défaut"
           options={{ showAsSection: true }}
         />
       )}
+
+      <FieldQty
+        value={mainQtyKey}
+        onChange={handleMainQtyKeyChange}
+        label={qtyS}
+        options={{ showAsSection: true }}
+      />
 
       {!isCreating && (
         <FieldCheck
