@@ -23,12 +23,14 @@ export default function useAutoAuth() {
                 if (response.ok) {
                     const data = await response.json();
 
-                    console.log("[useAutoAuth] data", data);
+
 
                     // userProfile
 
                     const userProfile = transformObject(data, authDataMapping.userProfile);
                     dispatch(setUserProfile(userProfile));
+
+                    console.log("[useAutoAuth] userProfile", userProfile);
 
                     // jwt
 
