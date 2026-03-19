@@ -9,7 +9,9 @@ const CUVELAGE_TECTOPROOF = {
     articlesNomenclaturesKeys: ["CUVELAGE"],
     templates: [
         {
-            label: "Tectoproof CA-N en VCT sur 3,17m",
+            label: "VCT [ht 3.17 m]",
+            labelLegend: "Tectoproof CA-N en VCT sur 3,17m",
+            height: 3.17,
             drawingShape: "POLYLINE",
             strokeColor: "#FF644E",
             strokeOpacity: 0.8,
@@ -18,7 +20,9 @@ const CUVELAGE_TECTOPROOF = {
             mainQtyKey: "S",
         },
         {
-            label: "Tectoproof CA-N en voiles sur 1,00m",
+            label: "Voiles [ht 1.00 m]",
+            labelLegend: "Tectoproof CA-N en voiles sur 1,00m",
+            height: 1.0,
             drawingShape: "POLYLINE",
             strokeColor: "#FEAE00",
             strokeOpacity: 0.8,
@@ -27,7 +31,8 @@ const CUVELAGE_TECTOPROOF = {
             mainQtyKey: "S",
         },
         {
-            label: "Tectoproof CA-N au sol",
+            label: "Sol",
+            labelLegend: "Tectoproof CA-N au sol",
             drawingShape: "POLYGON",
             fillColor: "#4a9410ff",
             fillType: "HATCHING",
@@ -35,7 +40,9 @@ const CUVELAGE_TECTOPROOF = {
             mainQtyKey: "S",
         },
         {
-            label: "Tectoproof CA-N en retours plafond sur 1,00m",
+            label: "Retours plafond [ht 1.00 m]",
+            labelLegend: "Tectoproof CA-N en retours plafond sur 1,00m",
+            height: 1.0,
             drawingShape: "POLYGON",
             strokeColor: "#AE7F44",
             strokeOpacity: 0.8,

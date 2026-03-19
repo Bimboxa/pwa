@@ -9,7 +9,9 @@ const CUVELAGE_QUICKSKIN = {
     articlesNomenclaturesKeys: ["CUVELAGE"],
     templates: [
         {
-            label: "Etantop 302 en VCT sur x,xx m",
+            label: "VCT [ht 3.17 m] (Etantop 302)",
+            labelLegend: "Etantop 302 en VCT sur 3,17m",
+            height: 3.17,
             drawingShape: "POLYLINE",
             strokeColor: "#2d43d1ff",
             strokeOpacity: 0.8,
@@ -18,7 +20,8 @@ const CUVELAGE_QUICKSKIN = {
             mainQtyKey: "S",
         },
         {
-            label: "Quicksin au sol",
+            label: "Sol",
+            labelLegend: "Quicksin au sol",
             drawingShape: "POLYGON",
             fillColor: "#62a72dff",
             fillType: "HATCHING",
@@ -26,7 +29,8 @@ const CUVELAGE_QUICKSKIN = {
             mainQtyKey: "S",
         },
         {
-            label: "Etantop 302 en fosses",
+            label: "Fosses (Etantop 302)",
+            labelLegend: "Etantop 302 en fosses",
             drawingShape: "POLYGON",
             fillColor: "#f1e457ff",
             fillOpacity: 0.8,
