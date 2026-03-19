@@ -56,7 +56,6 @@ export default function FieldBaseMapOpacity({ baseMap }) {
             alignItems: "center",
             width: 1,
             p: 1,
-            borderBottom: theme => `1px solid ${theme.palette.divider}`,
             gap: 1
         }}>
             <Box sx={{ flexGrow: 1, display: 'flex', alignItems: "center" }}>
