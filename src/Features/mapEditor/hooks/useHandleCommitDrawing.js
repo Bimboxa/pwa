@@ -59,6 +59,7 @@ export default function useHandleCommitDrawing() {
         const cutHostId = options?.cutHostId;
         const drawRectangle = options?.drawRectangle;
         const skipTemplateCreation = options?.skipTemplateCreation;
+        const detectedCuts = options?.detectedCuts; // from polygon auto-detection
 
         // newAnnotation
 
@@ -293,6 +294,37 @@ export default function useHandleCommitDrawing() {
                     if (rawPoints[i]?.type) entry.type = rawPoints[i].type;
                     return entry;
                 });
+            }
+
+            // Handle detected cuts from polygon auto-detection
+            if (detectedCuts && detectedCuts.length > 0 && width && height) {
+                const cutEntries = [];
+                for (const cutRing of detectedCuts) {
+                    if (!cutRing || cutRing.length < 3) continue;
+                    const cutPointIds = [];
+                    const cutPointsToSave = [];
+                    for (const pt of cutRing) {
+                        const newId = nanoid();
+                        cutPointsToSave.push({
+                            id: newId,
+                            x: pt.x / width,
+                            y: pt.y / height,
+                            baseMapId,
+                            projectId,
+                            listingId,
+                        });
+                        cutPointIds.push(newId);
+                    }
+                    if (cutPointsToSave.length > 0) {
+                        await db.points.bulkAdd(cutPointsToSave);
+                    }
+                    cutEntries.push({
+                        points: cutPointIds.map(id => ({ id })),
+                    });
+                }
+                if (cutEntries.length > 0) {
+                    _newAnnotation.cuts = cutEntries;
+                }
             }
 
             if (drawRectangle) {

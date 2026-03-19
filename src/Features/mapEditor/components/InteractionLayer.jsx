@@ -62,6 +62,9 @@ import HelperScale from 'Features/mapEditorGeneric/components/HelperScale';
 import MapTooltip from 'Features/mapEditorGeneric/components/MapTooltip';
 import SmartDetectLayer from 'Features/mapEditorGeneric/components/SmartDetectLayer';
 import TransientOrthoPathsLayer from 'Features/mapEditorGeneric/components/TransientOrthoPathsLayer';
+import TransientDetectedPolygonLayer from 'Features/mapEditorGeneric/components/TransientDetectedPolygonLayer';
+import detectPolygonFromAnnotations from 'Features/smartDetect/utils/detectPolygonFromAnnotations';
+import throttle from 'Features/misc/utils/throttle';
 import SmartTransformerLayer from 'Features/transformers/components/SmartTransformerLayer';
 import LassoOverlay from 'Features/mapEditorGeneric/components/LassoOverlay';
 import DialogAutoLoadingModel from 'Features/transformers/components/DialogAutoLoadingModel';
@@ -162,6 +165,8 @@ const InteractionLayer = forwardRef(({
   const transientOrthoPathsRef = useRef(null);
   const detectedOrthoPathsRef = useRef(null); // current ortho detection results (image coords)
   const committedOrthoSegmentsRef = useRef([]); // accumulated committed segments for exclusion
+  const transientDetectedPolygonRef = useRef(null);
+  const detectedPolygonRef = useRef(null); // current polygon detection result { outerRing, cuts }
   const lastSmartROI = useRef(null); // pour la reconversion inverse Loupe => World.
   const lastMouseScreenPosRef = useRef({
     screenPos: { x: 0, y: 0 },
@@ -206,6 +211,22 @@ const InteractionLayer = forwardRef(({
 
   // undo / redo (CTRL-Z / CTRL-SHIFT-Z)
   useUndo();
+
+  // throttled polygon detection from annotations
+  const runPolygonDetection = useMemo(() => throttle((localMousePos, currentAnnotations, currentDrawingPoints) => {
+    const result = detectPolygonFromAnnotations({
+      annotations: currentAnnotations,
+      drawingPoints: currentDrawingPoints,
+      mousePos: localMousePos,
+      tolerance: 5,
+    });
+    detectedPolygonRef.current = result;
+    if (result) {
+      transientDetectedPolygonRef.current?.updatePolygon(result);
+    } else {
+      transientDetectedPolygonRef.current?.clear();
+    }
+  }, 120), []);
 
   // sourceImage for smart detect
 
@@ -427,7 +448,9 @@ const InteractionLayer = forwardRef(({
     // B. VISUEL : Positionner la loupe avec les coordonnées LOCALES (viewportPos)
     // car le composant SmartDetectLayer est rendu en 'absolute' dans cette Box
     if (smartDetectRef.current) {
-      smartDetectRef.current.update(viewportPos, sourceROI);
+      // In POLYGON_CLICK mode, only update the loupe visual (no OpenCV analysis)
+      const skipAnalysis = enabledDrawingModeRef.current === "POLYGON_CLICK";
+      smartDetectRef.current.update(viewportPos, sourceROI, { skipAnalysis });
     }
 
     lastSmartROI.current = { ...sourceROI, zoomFactor: SMART_ZOOM, totalScale };
@@ -931,6 +954,9 @@ const InteractionLayer = forwardRef(({
           detectedOrthoPathsRef.current = null;
           committedOrthoSegmentsRef.current = [];
           transientOrthoPathsRef.current?.clear();
+          // Clear polygon detection
+          detectedPolygonRef.current = null;
+          transientDetectedPolygonRef.current?.clear();
           break;
 
         case 'd':
@@ -941,6 +967,27 @@ const InteractionLayer = forwardRef(({
           break;
 
         case ' ':
+          // --- POLYGON DETECTION: commit detected polygon ---
+          if (detectedPolygonRef.current) {
+            e.preventDefault();
+            const { outerRing, cuts } = detectedPolygonRef.current;
+            if (outerRing && outerRing.length >= 3) {
+              // Commit the detected polygon with cuts
+              onCommitDrawingRef.current({
+                points: outerRing,
+                options: { closeLine: true, detectedCuts: cuts },
+              });
+              // Reset drawing state
+              setDrawingPoints([]);
+              drawingPointsRef.current = [];
+              drawingLayerRef.current?.setPoints?.([]);
+              // Clear detection
+              detectedPolygonRef.current = null;
+              transientDetectedPolygonRef.current?.clear();
+            }
+            return;
+          }
+
           // --- ORTHO_PATHS: add detected path to drawing points ---
           if (detectedOrthoPathsRef.current) {
             e.preventDefault();
@@ -1934,6 +1981,22 @@ const InteractionLayer = forwardRef(({
       drawingLayerRef.current?.updatePreview(previewPos);
     }
 
+    // --- POLYGON DETECTION FROM ANNOTATIONS ---
+    if (enabledDrawingModeRef.current === "POLYGON_CLICK") {
+      const localPos = toLocalCoords(worldPos);
+      // DEBUG: log once every 2s
+      if (!window._lastPolygonDetectLog || Date.now() - window._lastPolygonDetectLog > 2000) {
+        window._lastPolygonDetectLog = Date.now();
+        console.log("[POLYGON_DETECT] mousemove", {
+          localPos,
+          annotationsCount: annotations?.length,
+          annotationTypes: annotations?.map(a => `${a.type}${a.closeLine ? "(closed)" : ""}`),
+          drawingPointsCount: drawingPointsRef.current?.length,
+        });
+      }
+      runPolygonDetection(localPos, annotations, drawingPointsRef.current);
+    }
+
     // --- LOGIQUE BRUSH ---
     if (enabledDrawingMode === "BRUSH") {
       if (event.shiftKey && event.buttons === 1) {
@@ -2536,6 +2599,7 @@ const InteractionLayer = forwardRef(({
             containerK={targetPose.k}
           />
           <TransientOrthoPathsLayer ref={transientOrthoPathsRef} />
+          <TransientDetectedPolygonLayer ref={transientDetectedPolygonRef} />
         </g>
 
         {(dragState?.active || dragState?.frozen) && (
