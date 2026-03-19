@@ -203,6 +203,7 @@ const InteractionLayer = forwardRef(({
 
   // Anchor snap mode
   const anchorSourceAnnotationId = useSelector((s) => s.mapEditor.anchorSourceAnnotationId);
+  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
 
   const { zoomContainer } = useSmartZoom();
 
@@ -449,7 +450,9 @@ const InteractionLayer = forwardRef(({
     // car le composant SmartDetectLayer est rendu en 'absolute' dans cette Box
     if (smartDetectRef.current) {
       // In POLYGON_CLICK mode, only update the loupe visual (no OpenCV analysis)
-      const skipAnalysis = enabledDrawingModeRef.current === "POLYGON_CLICK";
+      // In POLYLINE_CLICK/STRIP mode without advancedLayout, also skip analysis (loupe only)
+      const skipAnalysis = enabledDrawingModeRef.current === "POLYGON_CLICK"
+        || (["POLYLINE_CLICK", "STRIP"].includes(enabledDrawingModeRef.current) && !advancedLayout);
       smartDetectRef.current.update(viewportPos, sourceROI, { skipAnalysis });
     }
 
@@ -1330,7 +1333,7 @@ const InteractionLayer = forwardRef(({
       // --- ORTHO_PATHS intercept: run BFS tracing instead of adding a point ---
       // (not for POLYGON_CLICK — polygon detection uses annotation geometry, not ORTHO_PATHS)
       const currentDetectMode = smartDetectRef.current?.getSelectedDetectMode?.();
-      if (currentDetectMode === "ORTHO_PATHS" && showSmartDetectRef.current && enabledDrawingMode !== "POLYGON_CLICK") {
+      if (currentDetectMode === "ORTHO_PATHS" && showSmartDetectRef.current && enabledDrawingMode !== "POLYGON_CLICK" && advancedLayout) {
         let localPos = toLocalCoords(worldPos);
 
         // Apply shift-snap (ortho/45°) before adding the point
@@ -2808,9 +2811,10 @@ const InteractionLayer = forwardRef(({
           enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetectRef.current}
           initialDetectMode={
             ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode) ? "RECTANGLE"
-            : enabledDrawingMode === "POLYLINE_CLICK" ? "ORTHO_PATHS"
+            : (enabledDrawingMode === "POLYLINE_CLICK" && advancedLayout) ? "ORTHO_PATHS"
             : undefined
           }
+          loupeOnly={["POLYLINE_CLICK", "STRIP"].includes(enabledDrawingMode) && !advancedLayout}
         />, zoomContainer) : null}
       </>
 

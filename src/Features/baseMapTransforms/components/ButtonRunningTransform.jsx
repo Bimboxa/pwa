@@ -52,7 +52,7 @@ export default function ButtonRunningTransform() {
 
     // state
     const [open, setOpen] = useState(false);
-    const [createNewVersion, setCreateNewVersion] = useState(false);
+    const [createNewVersion, setCreateNewVersion] = useState(true);
 
     const enhancingTransformId = enhancingBaseMap?.transformId;
 

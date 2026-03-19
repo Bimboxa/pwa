@@ -890,7 +890,9 @@ function PopperDrawingHelper() {
   const enabledDrawingMode = useSelector(
     (s) => s.mapEditor.enabledDrawingMode
   );
+  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const isSegmentSelectMode = SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
+  const isLoupeOnly = ["POLYLINE_CLICK", "STRIP"].includes(enabledDrawingMode) && !advancedLayout;
 
   // state
 
@@ -941,7 +943,7 @@ function PopperDrawingHelper() {
         </Typography>
       </Box>
 
-      {!isSegmentSelectMode && <SectionSmartDetect />}
+      {!isSegmentSelectMode && <SectionSmartDetect loupeOnly={isLoupeOnly} />}
 
       <Box sx={{ p: 1 }}>
         <SectionShortcutHelpers />

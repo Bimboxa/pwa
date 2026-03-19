@@ -65,7 +65,7 @@ export default function SectionSmartTransforms({ baseMap }) {
 
   const [tempResult, setTempResult] = useState(null);
   const [openCompare, setOpenCompare] = useState(false);
-  const [createNewVersion, setCreateNewVersion] = useState(false);
+  const [createNewVersion, setCreateNewVersion] = useState(true);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [activeTransform, setActiveTransform] = useState(null);
   const [openEditTransform, setOpenEditTransform] = useState(false);
@@ -78,7 +78,7 @@ export default function SectionSmartTransforms({ baseMap }) {
     const objectUrl = URL.createObjectURL(file);
     setTempResult({ file, label, objectUrl });
     setOpenCompare(true);
-    setCreateNewVersion(false);
+    setCreateNewVersion(true);
   }
 
   function handleCloseCompare() {

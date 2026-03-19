@@ -108,6 +108,7 @@ const SmartDetectLayer = forwardRef(({
     baseMapImageScale = 1,
     baseMapImageOffset = { x: 0, y: 0 },
     initialDetectMode,
+    loupeOnly = false,
 }, ref) => {
     const dispatch = useDispatch();
     const canvasRef = useRef(null);
@@ -153,7 +154,7 @@ const SmartDetectLayer = forwardRef(({
 
     // --- PRE-CACHE IMAGE FOR ORTHO_PATHS ---
     useEffect(() => {
-        if (selectedDetectMode === "ORTHO_PATHS" && enabled && sourceImage) {
+        if (selectedDetectMode === "ORTHO_PATHS" && enabled && sourceImage && !loupeOnly) {
             // Pre-convert sourceImage to dataURL once, reuse for all clicks
             const canvas = document.createElement("canvas");
             canvas.width = sourceImage.naturalWidth || sourceImage.width;
@@ -197,7 +198,7 @@ const SmartDetectLayer = forwardRef(({
 
     // --- ANALYSE OPENCV ---
     const analyzeImageThrottled = useMemo(() => throttle(async (imageUrl, currentRoi) => {
-        if (!imageUrl || !enabled) return;
+        if (!imageUrl || !enabled || loupeOnly) return;
         // ORTHO_PATHS mode does not use continuous analysis — it runs on click
         if (selectedDetectMode === "ORTHO_PATHS") return;
         const currentKernelSize = stateRef.current.morphKernelSize;
@@ -343,7 +344,7 @@ const SmartDetectLayer = forwardRef(({
     const currentColor = COLORS[selectedDetectMode];
 
     return (
-        <Box sx={{ width: 1, display: "flex", gap: 1 }} ref={containerRef}> {/* Gap réduit à 1 */}
+        <Box sx={{ width: 1, display: "flex", gap: 1, justifyContent: loupeOnly ? "center" : "flex-start" }} ref={containerRef}>
 
             {/* 1. LOUPE / HUD */}
             <div
@@ -412,7 +413,7 @@ const SmartDetectLayer = forwardRef(({
 
             {/* 2. UI PANEL */}
             <Box sx={{
-                display: enabled ? 'flex' : 'none',
+                display: (enabled && !loupeOnly) ? 'flex' : 'none',
                 flexDirection: 'column',
                 //backgroundColor: 'rgba(0,0,0,0.8)',
                 backdropFilter: 'blur(4px)',
