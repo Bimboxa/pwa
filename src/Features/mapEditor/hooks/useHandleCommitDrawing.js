@@ -299,13 +299,13 @@ export default function useHandleCommitDrawing() {
             // Handle detected cuts from polygon auto-detection
             if (detectedCuts && detectedCuts.length > 0 && width && height) {
                 const cutEntries = [];
+                const allCutPointsToSave = [];
                 for (const cutRing of detectedCuts) {
                     if (!cutRing || cutRing.length < 3) continue;
                     const cutPointIds = [];
-                    const cutPointsToSave = [];
                     for (const pt of cutRing) {
                         const newId = nanoid();
-                        cutPointsToSave.push({
+                        allCutPointsToSave.push({
                             id: newId,
                             x: pt.x / width,
                             y: pt.y / height,
@@ -315,12 +315,13 @@ export default function useHandleCommitDrawing() {
                         });
                         cutPointIds.push(newId);
                     }
-                    if (cutPointsToSave.length > 0) {
-                        await db.points.bulkAdd(cutPointsToSave);
-                    }
                     cutEntries.push({
                         points: cutPointIds.map(id => ({ id })),
                     });
+                }
+                // Single bulk insert for all cut points
+                if (allCutPointsToSave.length > 0) {
+                    await db.points.bulkAdd(allCutPointsToSave);
                 }
                 if (cutEntries.length > 0) {
                     _newAnnotation.cuts = cutEntries;
