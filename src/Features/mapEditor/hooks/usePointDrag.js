@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { nanoid } from "@reduxjs/toolkit";
 import { setSubSelection } from "Features/selection/selectionSlice";
+import { setToaster } from "Features/layout/layoutSlice";
 
 const DRAG_THRESHOLD_PX = 3;
 
@@ -37,6 +38,8 @@ export default function usePointDrag({
   const dragStateRef = useRef(null);
 
   const [virtualInsertion, setVirtualInsertion] = useState(null);
+
+  const [pointInsertedAt, setPointInsertedAt] = useState(null);
 
   // --- Refs pour accès synchrone (éviter stale closures) ---
 
@@ -139,6 +142,7 @@ export default function usePointDrag({
           active: true,
           pointId: tempId,
           currentPos: { x: snap.x, y: snap.y },
+          originPos: { x: snap.x, y: snap.y },
         };
         setDragState(newDragState);
         dragStateRef.current = newDragState;
@@ -269,6 +273,17 @@ export default function usePointDrag({
           x: _dragState.currentPos.x,
           y: _dragState.currentPos.y,
         });
+
+        // Click (not drag) → show toaster + pulse animation
+        if (_dragState.originPos) {
+          const dx = _dragState.currentPos.x - _dragState.originPos.x;
+          const dy = _dragState.currentPos.y - _dragState.originPos.y;
+          if (Math.hypot(dx, dy) < 1e-6) {
+            dispatch(setToaster({ message: "Point added" }));
+            setPointInsertedAt({ x: _dragState.currentPos.x, y: _dragState.currentPos.y });
+            setTimeout(() => setPointInsertedAt(null), 600);
+          }
+        }
       } else if (_dragState.isDuplicateMode && _onPointDuplicateAndMoveCommit) {
         _onPointDuplicateAndMoveCommit({
           originalPointId: _dragState.originalPointId,
@@ -354,6 +369,7 @@ export default function usePointDrag({
     dragState,
     dragStateRef,
     virtualInsertion,
+    pointInsertedAt,
     handleVertexOrProjectionMouseDown,
     handlePointDragMove,
     handlePointDragEnd,

@@ -8,7 +8,7 @@ import { nanoid } from '@reduxjs/toolkit';
 import { useInteraction } from '../context/InteractionContext';
 
 import { setSelectedEntityId } from 'Features/entities/entitiesSlice';
-import { setEnabledDrawingMode, setSelectedNodes } from 'Features/mapEditor/mapEditorSlice';
+import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setAnchorSourceAnnotationId } from 'Features/mapEditor/mapEditorSlice';
@@ -203,6 +203,7 @@ const InteractionLayer = forwardRef(({
 
   // Anchor snap mode
   const anchorSourceAnnotationId = useSelector((s) => s.mapEditor.anchorSourceAnnotationId);
+  const mapEditorMode = useSelector((s) => s.mapEditor.mapEditorMode);
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
 
   const { zoomContainer } = useSmartZoom();
@@ -528,6 +529,7 @@ const InteractionLayer = forwardRef(({
     dragState,
     dragStateRef,
     virtualInsertion,
+    pointInsertedAt,
     handleVertexOrProjectionMouseDown,
     handlePointDragMove,
     handlePointDragEnd,
@@ -548,6 +550,19 @@ const InteractionLayer = forwardRef(({
     viewportRef,
     dispatch,
   });
+
+  // Pulse animation when a point is inserted via click on snap helper
+  useEffect(() => {
+    if (pointInsertedAt) {
+      const pose = getTargetPose();
+      const worldX = pointInsertedAt.x * pose.k + pose.x;
+      const worldY = pointInsertedAt.y * pose.k + pose.y;
+      const screenPos = viewportRef.current?.worldToViewport(worldX, worldY);
+      if (screenPos) {
+        snappingLayerRef.current?.triggerPulse(screenPos.x, screenPos.y);
+      }
+    }
+  }, [pointInsertedAt]);
 
   // drag state — annotation drag (extracted to useAnnotationDrag)
 
@@ -662,6 +677,11 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     newAnnotationRef.current = newAnnotation;
   }, [newAnnotation]);
+
+  const mapEditorModeRef = useRef(mapEditorMode);
+  useEffect(() => {
+    mapEditorModeRef.current = mapEditorMode;
+  }, [mapEditorMode]);
 
   const anchorSourceAnnotationIdRef = useRef(anchorSourceAnnotationId);
   useEffect(() => {
@@ -1072,8 +1092,14 @@ const InteractionLayer = forwardRef(({
           if (showSmartDetect) smartDetectRef.current?.changeMorphKernelSize(1);
           break;
 
+        case "M": { // Shift+M → toggle quick point editing mode
+          if (!isActiveViewerRef.current) break;
+          const newMode = mapEditorModeRef.current === "QUICK_POINTS_CHANGE" ? null : "QUICK_POINTS_CHANGE";
+          dispatch(setMapEditorMode(newMode));
+          break;
+        }
+
         case "m":
-          console.log("press m")
           if (showSmartDetect) smartDetectRef.current?.changeMorphKernelSize(-1);
           break;
 
@@ -1949,7 +1975,7 @@ const InteractionLayer = forwardRef(({
       const localPos = toLocalCoords(worldPos);
       const snapThreshold = SNAP_THRESHOLD_ABSOLUTE / scale;
 
-      snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, true, Boolean(enabledDrawingMode));
+      snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, true, Boolean(enabledDrawingMode) || !selectedAnnotation?.id);
 
       if (snapResult) {
         currentSnapRef.current = snapResult;

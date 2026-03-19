@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { Box } from "@mui/material";
 import theme from "Styles/theme";
 
@@ -10,7 +10,7 @@ const SnappingLayer = forwardRef(({
     const circleRef = useRef(null);
     const rectRef = useRef(null);
     const projCircleRef = useRef(null);
-    const lastPosRef = useRef(null); // Pour mémoriser la dernière position snappée
+    const pulseCircleRef = useRef(null);
 
     const radius = 6;
     const size = 10;
@@ -71,7 +71,24 @@ const SnappingLayer = forwardRef(({
                 rectRef.current.style.display = 'none';
                 projCircleRef.current.style.display = 'none';
             }
-        }
+        },
+
+        triggerPulse: (x, y) => {
+            const el = pulseCircleRef.current;
+            if (!el) return;
+            el.setAttribute('cx', x);
+            el.setAttribute('cy', y);
+            el.style.display = 'block';
+            // Restart animation by removing/re-adding the element class
+            el.classList.remove('pulse-active');
+            // Force reflow to restart animation
+            void el.getBoundingClientRect();
+            el.classList.add('pulse-active');
+            setTimeout(() => {
+                el.style.display = 'none';
+                el.classList.remove('pulse-active');
+            }, 500);
+        },
     }));
 
 
@@ -93,7 +110,22 @@ const SnappingLayer = forwardRef(({
                 "& .projection:hover, & .midpoint:hover": {
                     stroke: "#ff00ff !important",
                 },
-                // On gère les couleurs via JS (style inline) pour plus de contrôle
+                "& .pulse": {
+                    vectorEffect: "non-scaling-stroke",
+                    fill: "transparent",
+                    pointerEvents: "none",
+                    display: "none",
+                    stroke: "#ff00ff",
+                    strokeWidth: "2px",
+                    opacity: 0,
+                },
+                "& .pulse-active": {
+                    animation: "snap-pulse 0.5s ease-out forwards",
+                },
+                "@keyframes snap-pulse": {
+                    "0%": { r: 6, opacity: 1, strokeWidth: "2px" },
+                    "100%": { r: 20, opacity: 0, strokeWidth: "1px" },
+                },
             }}>
 
             <circle
@@ -116,6 +148,12 @@ const SnappingLayer = forwardRef(({
                 className="projection"
                 r={radius}
                 {...eventHandlers}
+            />
+
+            <circle
+                ref={pulseCircleRef}
+                className="pulse"
+                r={radius}
             />
         </Box>
     );

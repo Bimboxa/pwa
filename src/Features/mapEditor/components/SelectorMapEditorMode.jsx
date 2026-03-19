@@ -13,7 +13,7 @@ export default function SelectorMapEditorMode() {
     const options = [
         {
             key: "QUICK_POINTS_CHANGE",
-            label: "Modification rapide des points",
+            label: "Modification rapide des points (Shift+M)",
             icon: <QUICK_POINTS_CHANGE />
         },
     ]
