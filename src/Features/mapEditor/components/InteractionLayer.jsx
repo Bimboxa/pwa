@@ -1328,9 +1328,16 @@ const InteractionLayer = forwardRef(({
 
     if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP"].includes(enabledDrawingMode)) {
       // --- ORTHO_PATHS intercept: run BFS tracing instead of adding a point ---
+      // (not for POLYGON_CLICK — polygon detection uses annotation geometry, not ORTHO_PATHS)
       const currentDetectMode = smartDetectRef.current?.getSelectedDetectMode?.();
-      if (currentDetectMode === "ORTHO_PATHS" && showSmartDetectRef.current) {
-        const localPos = toLocalCoords(worldPos);
+      if (currentDetectMode === "ORTHO_PATHS" && showSmartDetectRef.current && enabledDrawingMode !== "POLYGON_CLICK") {
+        let localPos = toLocalCoords(worldPos);
+
+        // Apply shift-snap (ortho/45°) before adding the point
+        if ((event.shiftKey || event.evt?.shiftKey) && drawingPointsRef.current.length > 0) {
+          const lastPoint = drawingPointsRef.current[drawingPointsRef.current.length - 1];
+          localPos = snapToAngle(localPos, lastPoint);
+        }
 
         // Add click point to drawing points so DrawingLayer renders the polyline in progress
         const newPoints = [...drawingPointsRef.current, localPos];
@@ -1984,16 +1991,6 @@ const InteractionLayer = forwardRef(({
     // --- POLYGON DETECTION FROM ANNOTATIONS ---
     if (enabledDrawingModeRef.current === "POLYGON_CLICK") {
       const localPos = toLocalCoords(worldPos);
-      // DEBUG: log once every 2s
-      if (!window._lastPolygonDetectLog || Date.now() - window._lastPolygonDetectLog > 2000) {
-        window._lastPolygonDetectLog = Date.now();
-        console.log("[POLYGON_DETECT] mousemove", {
-          localPos,
-          annotationsCount: annotations?.length,
-          annotationTypes: annotations?.map(a => `${a.type}${a.closeLine ? "(closed)" : ""}`),
-          drawingPointsCount: drawingPointsRef.current?.length,
-        });
-      }
       runPolygonDetection(localPos, annotations, drawingPointsRef.current);
     }
 

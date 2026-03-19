@@ -27,6 +27,7 @@ import {
   DragIndicator as GripIcon,
   Close as RemoveIcon,
   TableChart as TableChartIcon,
+  BugReport as BugReportIcon,
 } from "@mui/icons-material";
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
@@ -161,6 +162,26 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
               {countLabel}
             </Typography>
           </Box>
+          <Tooltip title="Copy annotations data">
+            <IconButton
+              size="small"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => {
+                if (annotations?.length > 0) {
+                  const data = JSON.stringify(annotations, null, 2);
+                  navigator.clipboard.writeText(data);
+                }
+              }}
+              sx={{
+                flexShrink: 0,
+                color: "text.disabled",
+                opacity: 0.4,
+                "&:hover": { opacity: 1, bgcolor: "action.hover" },
+              }}
+            >
+              <BugReportIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Voir les données">
             <IconButton
               size="small"

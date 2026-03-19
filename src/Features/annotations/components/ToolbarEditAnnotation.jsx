@@ -24,6 +24,7 @@ import {
   DragIndicator as GripIcon,
   ArrowDropDown as ArrowDropDownIcon,
   SettingsOutlined as SettingsIcon,
+  BugReport as BugReportIcon,
 } from "@mui/icons-material";
 
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
@@ -228,6 +229,27 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               }}
             >
               <ArrowDropDownIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Copy annotation data">
+            <IconButton
+              size="small"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => {
+                if (selectedAnnotation) {
+                  const data = JSON.stringify(selectedAnnotation, null, 2);
+                  navigator.clipboard.writeText(data);
+                }
+              }}
+              sx={{
+                flexShrink: 0,
+                color: "text.disabled",
+                opacity: 0.4,
+                "&:hover": { opacity: 1, bgcolor: "action.hover" },
+              }}
+            >
+              <BugReportIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
 
