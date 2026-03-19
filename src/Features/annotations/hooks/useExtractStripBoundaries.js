@@ -70,10 +70,6 @@ export default function useExtractStripBoundaries() {
 
   return async ({ annotations, annotationTemplateId }) => {
     const meterByPx = baseMap?.meterByPx;
-    const { width, height } = baseMap?.image?.imageSize || {
-      width: 1,
-      height: 1,
-    };
 
     // 1. Separate strips from polylines
     const strips = annotations.filter((a) => a.type === "STRIP");
@@ -189,6 +185,10 @@ export default function useExtractStripBoundaries() {
 
     // 7. Create annotations for each boundary polyline
     const annotation0 = resolvedById[strips[0].id];
+    const { width, height } = annotation0.baseMapImageSize || {
+      width: 1,
+      height: 1,
+    };
     const template = await db.annotationTemplates.get(annotationTemplateId);
     const createdAnnotations = [];
 
@@ -243,6 +243,7 @@ export default function useExtractStripBoundaries() {
         annotationTemplateProps: {
           label: template?.label,
         },
+        listingId: template?.listingId,
         points: dbPointRefs,
         baseMapId: annotation0.baseMapId,
         strokeColor: template?.strokeColor,

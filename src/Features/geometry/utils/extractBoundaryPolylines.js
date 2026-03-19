@@ -125,6 +125,7 @@ export default function extractBoundaryPolylines(mergedPolygon, connections) {
   // 1. For each connection, find excluded edges and blue dot replacements
   const excludedEdges = new Set();
   const vertexReplacements = new Map(); // offsetIdx → blue point
+  const processedConns = []; // saved for bridge detection (step 1b)
 
   for (const conn of connections) {
     const sharedIdx = findNearestVertexIndex(contour, conn.sharedCoord);
@@ -174,6 +175,64 @@ export default function extractBoundaryPolylines(mergedPolygon, connections) {
         segmentEndId: projection.segmentEndId,
         t: projection.t,
       });
+    }
+
+    processedConns.push({
+      offsetIdx,
+      polylineAnnotationId: conn.polylineAnnotationId,
+      polylineCoords: conn.polylineCoords,
+    });
+  }
+
+  // 1b. Exclude bridge sections between connections on the same polyline.
+  // When multiple strips connect to the same polyline, the contour section
+  // between their individual excluded paths (the "bridge") also runs along
+  // the polyline and must be excluded.  We detect bridges by checking pairs
+  // of offset vertices: the path closer to the polyline is the bridge.
+  const connsByPolyline = new Map();
+  for (const pc of processedConns) {
+    if (!pc.polylineAnnotationId) continue;
+    const key = pc.polylineAnnotationId;
+    if (!connsByPolyline.has(key)) connsByPolyline.set(key, []);
+    connsByPolyline.get(key).push(pc);
+  }
+
+  for (const [, group] of connsByPolyline) {
+    if (group.length < 2) continue;
+    const polylineCoords = group[0].polylineCoords;
+
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        const a = group[i].offsetIdx;
+        const b = group[j].offsetIdx;
+        if (a === b) continue;
+
+        const cwPath = getPathIndices(n, a, b, true);
+        const ccwPath = getPathIndices(n, a, b, false);
+
+        const cwDist = avgDistToPolyline(contour, cwPath, polylineCoords);
+        const ccwDist = avgDistToPolyline(contour, ccwPath, polylineCoords);
+
+        // Determine bridge: the path closer to the polyline
+        let bridgePath = null;
+        if (cwDist === 0 && ccwDist === 0) {
+          // No interior vertices on either side → exclude the shorter path
+          bridgePath = cwPath.length <= ccwPath.length ? cwPath : ccwPath;
+        } else {
+          const bridgeDist = Math.min(cwDist, ccwDist);
+          const outerDist = Math.max(cwDist, ccwDist);
+          if (outerDist > 0 && bridgeDist < outerDist * 0.5) {
+            bridgePath = cwDist <= ccwDist ? cwPath : ccwPath;
+          }
+        }
+
+        if (bridgePath) {
+          for (let k = 0; k < bridgePath.length - 1; k++) {
+            const eIdx = edgeIndex(bridgePath[k], bridgePath[k + 1], n);
+            if (eIdx !== -1) excludedEdges.add(eIdx);
+          }
+        }
+      }
     }
   }
 
