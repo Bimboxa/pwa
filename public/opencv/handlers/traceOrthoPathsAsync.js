@@ -338,7 +338,12 @@ function _traceOrthoPaths({
 
   // --- Reconstruct the longest continuous polyline through the start point ---
   const best = findLongestPathThroughStart(simplified, startX, startY, stepSize);
-  return best ? [best] : simplified;
+  const result = best ? [best] : simplified;
+
+  // --- Adjust the FINAL polyline to run along the band's median line ---
+  return result.map((seg) =>
+    adjustSegmentsToMiddleLine(seg, brightness, darknessThreshold, width, height)
+  );
 }
 
 function simplifyPolyline(points) {
@@ -357,6 +362,135 @@ function simplifyPolyline(points) {
     }
   }
   result.push(points[points.length - 1]);
+  return result;
+}
+
+/**
+ * Adjust each segment of a simplified polyline to run along the band's median line.
+ *
+ * For each segment, compute the median perpendicular coordinate (band center).
+ * Corner points are the INTERSECTION of consecutive median lines:
+ *   H segment (y = Y) ∩ V segment (x = X) → corner at (X, Y)
+ * This guarantees all segments remain perfectly orthogonal.
+ */
+function adjustSegmentsToMiddleLine(poly, brightness, darknessThreshold, imgWidth, imgHeight) {
+  if (poly.length < 2) return poly;
+
+  // --- Step 0: Force each segment to be strictly H or V ---
+  // Classify each segment, then snap: H → same Y for both ends, V → same X.
+  const dirs = []; // true = H, false = V
+  for (let i = 0; i < poly.length - 1; i++) {
+    dirs.push(Math.abs(poly[i + 1].x - poly[i].x) >= Math.abs(poly[i + 1].y - poly[i].y));
+  }
+
+  // Force orthogonal: snap minor axis to the start point's value
+  const snapped = [{ ...poly[0] }];
+  for (let i = 0; i < dirs.length; i++) {
+    const p0 = snapped[snapped.length - 1];
+    const p1 = poly[i + 1];
+    if (dirs[i]) {
+      // H → force same Y as p0
+      snapped.push({ x: p1.x, y: p0.y });
+    } else {
+      // V → force same X as p0
+      snapped.push({ x: p0.x, y: p1.y });
+    }
+  }
+
+  // --- Step 1: Merge consecutive same-direction segments ---
+  const merged = [snapped[0]];
+  const mergedDirs = [];
+  for (let i = 1; i < snapped.length; i++) {
+    const currDir = dirs[i - 1];
+    if (mergedDirs.length > 0 && mergedDirs[mergedDirs.length - 1] === currDir) {
+      merged[merged.length - 1] = snapped[i]; // replace endpoint
+    } else {
+      merged.push(snapped[i]);
+      mergedDirs.push(currDir);
+    }
+  }
+  if (merged.length < 2) return merged;
+
+  // --- Step 2: For each segment, sample 4 points to find band median ---
+  function findBandCenter(p0, p1, isH) {
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    const centers = [];
+    for (let k = 0; k < 4; k++) {
+      const t = (k + 0.5) / 4;
+      const sx = Math.round(p0.x + dx * t);
+      const sy = Math.round(p0.y + dy * t);
+      if (isH) {
+        let top = 0, bot = 0;
+        for (let d = 1; d < 200; d++) { if (sy - d >= 0 && brightness(sx, sy - d) < darknessThreshold) top = d; else break; }
+        for (let d = 1; d < 200; d++) { if (sy + d < imgHeight && brightness(sx, sy + d) < darknessThreshold) bot = d; else break; }
+        centers.push(sy - top + Math.floor((top + bot + 1) / 2));
+      } else {
+        let le = 0, ri = 0;
+        for (let d = 1; d < 200; d++) { if (sx - d >= 0 && brightness(sx - d, sy) < darknessThreshold) le = d; else break; }
+        for (let d = 1; d < 200; d++) { if (sx + d < imgWidth && brightness(sx + d, sy) < darknessThreshold) ri = d; else break; }
+        centers.push(sx - le + Math.floor((le + ri + 1) / 2));
+      }
+    }
+    return Math.round(centers.reduce((a, b) => a + b, 0) / centers.length);
+  }
+
+  const segMedians = [];
+  for (let i = 0; i < mergedDirs.length; i++) {
+    segMedians.push({
+      isH: mergedDirs[i],
+      center: findBandCenter(merged[i], merged[i + 1], mergedDirs[i]),
+    });
+  }
+
+  // --- Step 3: Build result using intersections of consecutive median lines ---
+  const result = [];
+
+  // First point
+  const f = segMedians[0];
+  result.push(f.isH ? { x: merged[0].x, y: f.center } : { x: f.center, y: merged[0].y });
+
+  // Corners = intersection of adjacent median lines
+  for (let i = 1; i < merged.length - 1; i++) {
+    const prev = segMedians[i - 1];
+    const curr = segMedians[i];
+    if (prev.isH && !curr.isH) {
+      result.push({ x: curr.center, y: prev.center });
+    } else if (!prev.isH && curr.isH) {
+      result.push({ x: prev.center, y: curr.center });
+    } else {
+      // Same direction after merge (shouldn't happen)
+      result.push({ ...merged[i] });
+    }
+  }
+
+  // Last point
+  const l = segMedians[segMedians.length - 1];
+  result.push(l.isH ? { x: merged[merged.length - 1].x, y: l.center } : { x: l.center, y: merged[merged.length - 1].y });
+
+  // --- Step 4: Ensure first and last points are strictly aligned with their segment ---
+  // The first point must share the perpendicular coordinate of the second point (same segment)
+  if (result.length >= 2) {
+    const p0 = result[0];
+    const p1 = result[1];
+    if (f.isH) {
+      // First segment is H → both must have same Y
+      result[0] = { x: p0.x, y: p1.y };
+    } else {
+      // First segment is V → both must have same X
+      result[0] = { x: p1.x, y: p0.y };
+    }
+  }
+  if (result.length >= 2) {
+    const pN = result[result.length - 1];
+    const pN1 = result[result.length - 2];
+    if (l.isH) {
+      result[result.length - 1] = { x: pN.x, y: pN1.y };
+    } else {
+      result[result.length - 1] = { x: pN1.x, y: pN.y };
+    }
+  }
+
   return result;
 }
 
