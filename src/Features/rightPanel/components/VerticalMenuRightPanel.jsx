@@ -36,6 +36,11 @@ export default function VerticalMenuRightPanel() {
 
   const appConfig = useAppConfig();
 
+  // data
+
+  const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
+  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
+
   // const
 
   const toolsMap = {
@@ -51,6 +56,7 @@ export default function VerticalMenuRightPanel() {
     ANNOTATIONS_AUTO: {
       label: "Dessin auto",
       icon: <AutoFixHigh />,
+      disabled: !advancedLayout,
     },
     ENTITY: {
       label: "Édition",
@@ -71,15 +77,15 @@ export default function VerticalMenuRightPanel() {
     },
   };
 
-  // data
 
-  const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
 
   // helper
 
   const toolsKeys = appConfig?.features?.tools ?? [];
   let menuItems = toolsKeys.map((key) => ({ ...toolsMap[key], key, enabled: Boolean(toolsMap[key]) })).filter(t => t.enabled);
 
+  // filter
+  menuItems = menuItems.filter(t => !t.disabled);
 
   // handlers
 

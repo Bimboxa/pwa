@@ -1,13 +1,13 @@
-import {useState, useEffect} from "react";
-import {useSelector, useDispatch} from "react-redux";
+import { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 
-import {setOpenLandingPage} from "Features/init/initSlice";
-import {setToaster} from "Features/layout/layoutSlice";
+import { setOpenLandingPage } from "Features/init/initSlice";
+import { setToaster } from "Features/layout/layoutSlice";
 
-import {Box, Typography, Button} from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
-import LogoBimboxa from "Features/layout/components/LogoBimboxa";
+
 import LogoAnimated from "Features/layout/components/LogoAnimated";
 
 export default function PageLanding() {
@@ -58,7 +58,7 @@ export default function PageLanding() {
     e.stopPropagation();
     console.log("version click");
 
-    dispatch(setToaster({message: "Vérification mise à jour ..."}));
+    dispatch(setToaster({ message: "Vérification mise à jour ..." }));
   }
 
   return (
@@ -84,11 +84,9 @@ export default function PageLanding() {
           bgcolor: "background.default",
         }}
       >
-        <BoxCenter sx={{display: "flex", flexDirection: "column"}}>
+        <BoxCenter sx={{ display: "flex", flexDirection: "column" }}>
           <LogoAnimated />
-          <Button sx={{mt: 2}} onClick={handleVersionClick}>
-            <Typography>{version}</Typography>
-          </Button>
+
         </BoxCenter>
       </Box>
     </Box>
