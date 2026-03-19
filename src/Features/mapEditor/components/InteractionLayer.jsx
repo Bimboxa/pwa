@@ -134,6 +134,7 @@ const InteractionLayer = forwardRef(({
   onSplitPolylineClick,
   onSplitPolylineEnter,
   onSplitPolylineReset,
+  onSplitPolylineClickPoint,
   onProjectionSnapInsert,
   snappingEnabled = true,
   // selectedNode, // Removed prop usage, use Redux
@@ -410,7 +411,7 @@ const InteractionLayer = forwardRef(({
 
   // Drawing modes that only select existing geometry (no smart detect needed)
   const SEGMENT_SELECT_MODES = ["TECHNICAL_RETURN", "CUT_SEGMENT"];
-  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE"];
+  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK"];
 
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
@@ -629,6 +630,14 @@ const InteractionLayer = forwardRef(({
   const [dragTextState, setDragTextState] = useState(null);
   // { active: true, handleType: 'MOVE'|'SE'..., startMouseScreen: {x,y}, startText }
 
+  // Split flash effect — transient circle at the split point
+  const [splitFlashPoint, setSplitFlashPoint] = useState(null);
+  useEffect(() => {
+    if (!splitFlashPoint) return;
+    const timer = setTimeout(() => setSplitFlashPoint(null), 600);
+    return () => clearTimeout(timer);
+  }, [splitFlashPoint]);
+
   // virtual insertion — now managed by usePointDrag (see above)
 
   // is closing
@@ -712,6 +721,11 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     onSplitPolylineResetRef.current = onSplitPolylineReset;
   }, [onSplitPolylineReset]);
+
+  const onSplitPolylineClickPointRef = useRef(onSplitPolylineClickPoint);
+  useEffect(() => {
+    onSplitPolylineClickPointRef.current = onSplitPolylineClickPoint;
+  }, [onSplitPolylineClickPoint]);
 
   // drawing state + commit (extracted to useDrawingCommit)
 
@@ -1329,6 +1343,17 @@ const InteractionLayer = forwardRef(({
             onTechnicalReturn(nodeId, segmentIndex);
           }
         }
+      }
+      return;
+    }
+
+    // --- SPLIT_POLYLINE_CLICK: single-click split at snap point ---
+    if (enabledDrawingMode === "SPLIT_POLYLINE_CLICK") {
+      const snap = currentSnapRef.current;
+      if (!snap) return;
+      const result = await onSplitPolylineClickPoint(snap);
+      if (result?.status === "split_done") {
+        setSplitFlashPoint({ x: snap.x, y: snap.y });
       }
       return;
     }
@@ -2120,6 +2145,16 @@ const InteractionLayer = forwardRef(({
         return;
       }
 
+      // SPLIT_POLYLINE_CLICK: single-click split at snap point (via snap marker)
+      if (enabledDrawingMode === "SPLIT_POLYLINE_CLICK") {
+        onSplitPolylineClickPointRef.current?.(snap).then((result) => {
+          if (result?.status === "split_done") {
+            setSplitFlashPoint({ x: snap.x, y: snap.y });
+          }
+        });
+        return;
+      }
+
       // SPLIT_POLYLINE: 2-click snap-based polyline split (via snap marker)
       if (enabledDrawingMode === "SPLIT_POLYLINE") {
         const localX = snap.x;
@@ -2590,6 +2625,65 @@ const InteractionLayer = forwardRef(({
               ref={closingMarkerRef}
               onClick={handleClosingClick}
             />
+            {splitFlashPoint && (
+              <svg
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  pointerEvents: "none",
+                  overflow: "visible",
+                }}
+              >
+                <circle
+                  cx={splitFlashPoint.x}
+                  cy={splitFlashPoint.y}
+                  r="4"
+                  fill="#ff00ff"
+                  opacity="0.9"
+                >
+                  <animate
+                    attributeName="r"
+                    from="4"
+                    to="20"
+                    dur="0.5s"
+                    fill="freeze"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    from="0.9"
+                    to="0"
+                    dur="0.5s"
+                    fill="freeze"
+                  />
+                </circle>
+                <circle
+                  cx={splitFlashPoint.x}
+                  cy={splitFlashPoint.y}
+                  r="4"
+                  fill="none"
+                  stroke="#ff00ff"
+                  strokeWidth="2"
+                >
+                  <animate
+                    attributeName="r"
+                    from="4"
+                    to="30"
+                    dur="0.6s"
+                    fill="freeze"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    from="0.8"
+                    to="0"
+                    dur="0.6s"
+                    fill="freeze"
+                  />
+                </circle>
+              </svg>
+            )}
 
           </>
         }

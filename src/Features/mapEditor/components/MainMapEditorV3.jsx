@@ -79,6 +79,7 @@ import removeCutAsync from "../services/removeCutAsync";
 import useHandleCutSegment from "../hooks/useHandleCutSegment";
 import useHandleTechnicalReturn from "../hooks/useHandleTechnicalReturn";
 import useHandleSplitPolyline from "../hooks/useHandleSplitPolyline";
+import useHandleSplitPolylineClick from "../hooks/useHandleSplitPolylineClick";
 import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import fitBoundsToViewport from "../utils/fitBoundsToViewport";
@@ -307,6 +308,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const handleCutSegment = useHandleCutSegment();
     const handleTechnicalReturn = useHandleTechnicalReturn();
     const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline();
+    const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick();
 
     const handleCommitDrawing = (rawPoints, options) => {
 
@@ -1074,6 +1076,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onSplitPolylineClick={handleSplitPolylineClick}
                     onSplitPolylineEnter={handleSplitPolylineEnter}
                     onSplitPolylineReset={resetSplitPolyline}
+                    onSplitPolylineClickPoint={handleSplitPolylineClickPoint}
                     onProjectionSnapInsert={handleProjectionSnapInsert}
                     snappingEnabled={isSnappingEnabled}
                     baseMapMeterByPx={baseMap?.getMeterByPx()}

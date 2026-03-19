@@ -17,6 +17,7 @@ import IconPolygonCircle from "Features/icons/IconPolygonCircle";
 import IconCutSegment from "Features/icons/IconCutSegment";
 import IconSplitPolygon from "Features/icons/IconSplitPolygon";
 import IconSplitPolyline from "Features/icons/IconSplitPolyline";
+import IconSplitPolylineClick from "Features/icons/IconSplitPolylineClick";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import IconStrip from "Features/icons/IconStrip";
 
@@ -152,7 +153,15 @@ const DRAWING_TOOLS = [
     annotationType: "CUT_SEGMENT",
     behavior: "CUT_SEGMENT",
   },
-  // SPLIT_POLYLINE tool (Couper polyligne)
+  // SPLIT_POLYLINE_CLICK tool (Couper au point — single click)
+  {
+    key: "SPLIT_POLYLINE_CLICK",
+    label: "Couper au point",
+    Icon: IconSplitPolylineClick,
+    annotationType: "SPLIT_POLYLINE_CLICK",
+    behavior: "SPLIT_POLYLINE_CLICK",
+  },
+  // SPLIT_POLYLINE tool (Couper polyligne — two clicks)
   {
     key: "SPLIT_POLYLINE",
     label: "Couper polyligne",
@@ -180,7 +189,7 @@ const DRAWING_TOOLS = [
 
 export const DRAWING_TOOLS_BY_TYPE = {
   CUT: ["CUT_RECTANGLE", "CUT_CLICK", "CUT_CIRCLE"],
-  SPLIT_LINE: ["CUT_SEGMENT", "SPLIT_POLYLINE"],
+  SPLIT_LINE: ["SPLIT_POLYLINE_CLICK", "CUT_SEGMENT", "SPLIT_POLYLINE"],
   SPLIT_SURFACE: ["SPLIT_CLICK"],
   TECHNICAL_RETURN: ["TECHNICAL_RETURN"],
 };
