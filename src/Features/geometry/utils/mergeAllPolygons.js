@@ -53,6 +53,7 @@ export default function mergeAllPolygons(polygonsList) {
 
     return {
         mergedPolygon: currentShape,
-        newPoints: allNewPoints
+        newPoints: allNewPoints,
+        remainingPool: pool,
     };
 }

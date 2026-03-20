@@ -11,8 +11,10 @@ import {
 import { setWrapperMode } from "Features/mapEditor/mapEditorSlice";
 
 import useDeleteAnnotation from "../hooks/useDeleteAnnotation";
+import useMergeAnnotations from "../hooks/useMergeAnnotations";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
+import { resolveDrawingShapeFromType } from "../constants/drawingShapeConfig";
 import getAnnotationQties from "../utils/getAnnotationQties";
 
 import {
@@ -28,6 +30,7 @@ import {
   Close as RemoveIcon,
   TableChart as TableChartIcon,
   BugReport as BugReportIcon,
+  CallMerge as MergeIcon,
 } from "@mui/icons-material";
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
@@ -46,6 +49,7 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
   const selectedItems = useSelector(selectSelectedItems);
   const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
   const deleteAnnotation = useDeleteAnnotation();
+  const mergeAnnotations = useMergeAnnotations();
   const baseMap = useMainBaseMap();
 
   // state
@@ -63,6 +67,23 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
 
   const hasStrips = annotations.some((a) => a.type === "STRIP");
   const showExtractBoundaries = hasStrips;
+
+  // helpers - can merge
+
+  const canMerge = useMemo(() => {
+    if (annotations.length < 2) return null;
+    const templateIds = new Set(
+      annotations.map((a) => a.annotationTemplateId).filter(Boolean)
+    );
+    if (templateIds.size !== 1) return null;
+    const shapes = new Set(
+      annotations.map((a) => resolveDrawingShapeFromType(a.type))
+    );
+    if (shapes.size !== 1) return null;
+    const shape = [...shapes][0];
+    if (shape !== "POLYLINE" && shape !== "POLYGON") return null;
+    return { shape, annotations };
+  }, [annotations]);
 
   // helpers - group by annotationTemplateId with aggregated quantities
 
@@ -112,6 +133,12 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
 
   function handleCloneClick() {
     // TODO: bulk clone
+  }
+
+  async function handleMergeClick() {
+    if (!canMerge) return;
+    await mergeAnnotations(canMerge.annotations, { shape: canMerge.shape });
+    dispatch(clearSelection());
   }
 
   function handleResizeClick() {
@@ -216,12 +243,31 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
           resizeActive={wrapperMode}
           onDelete={handleDeleteClick}
           extraActions={
-            showExtractBoundaries ? (
-              <IconButtonExtractStripBoundaries
-                annotations={annotations}
-                accentColor="#6366F1"
-              />
-            ) : null
+            <>
+              {canMerge && (
+                <Tooltip title="Fusionner les annotations">
+                  <IconButton
+                    size="small"
+                    onClick={handleMergeClick}
+                    sx={{
+                      color: "text.disabled",
+                      "&:hover": {
+                        color: "#6366F1",
+                        bgcolor: "#6366F1" + "18",
+                      },
+                    }}
+                  >
+                    <MergeIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {showExtractBoundaries && (
+                <IconButtonExtractStripBoundaries
+                  annotations={annotations}
+                  accentColor="#6366F1"
+                />
+              )}
+            </>
           }
           layerChip={
             annotations.length > 0 ? (
