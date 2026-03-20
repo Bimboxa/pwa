@@ -1095,6 +1095,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             sizeVariant={sizeVariant}
                             isEditingBaseMap={isBaseMapSelected}
                             baseMapMeterByPx={baseMap?.meterByPx}
+                            baseMapImageScale={baseMap?.getImageScale?.() ?? 1}
                             opacity={baseMapOpacity}
                             grayScale={baseMapGrayScale}
                             grayLevelThreshold={grayLevelThreshold}
@@ -1148,6 +1149,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         selectedNode={selectedNode}
                         selectedNodes={selectedNodes}
                         baseMapMeterByPx={baseMap?.getMeterByPx()} // If needed for width calc
+                        baseMapImageScale={baseMap?.getImageScale?.() ?? 1}
                         onTextValueChange={handleTextValueChange}
                     />}
 

@@ -9,6 +9,7 @@ export default function TransientAnnotationLayer({
     partType,
     wrapperBbox,
     baseMapMeterByPx,
+    baseMapImageScale = 1,
     basePose,
 }) {
 
@@ -33,6 +34,7 @@ export default function TransientAnnotationLayer({
             <NodeAnnotationStatic
                 annotation={modifiedAnnotation}
                 baseMapMeterByPx={baseMapMeterByPx}
+                baseMapImageScale={baseMapImageScale}
                 dragged={true}
                 sizeVariant="FIXED_IN_SCREEN"
                 containerK={basePose.k}

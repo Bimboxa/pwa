@@ -12,8 +12,10 @@ export default memo(function NodeRectangleStatic({
     selected,
     dragged,
     containerK = 1,
+    baseMapImageScale = 1,
 }) {
     const { bbox, id, fillColor, strokeColor, rotation = 0, fillType = "SOLID", fillOpacity = 1 } = annotation;
+    const isForBaseMaps = annotation.isForBaseMaps;
     const { x, y, width, height } = bbox ?? {};
 
     // Contraintes template : dimensions verrouillées par le annotationTemplate
@@ -158,8 +160,8 @@ export default memo(function NodeRectangleStatic({
                     }}
                     {...((selected || fillType === "HATCHING" || fillType === "HATCHING_LEFT") && {
                         stroke: fillColor,
-                        strokeWidth: 1,
-                        vectorEffect: "non-scaling-stroke"
+                        strokeWidth: isForBaseMaps ? 1 * (baseMapImageScale || 1) : 1,
+                        ...(isForBaseMaps ? {} : { vectorEffect: "non-scaling-stroke" }),
                     })}
                 />
             </g>

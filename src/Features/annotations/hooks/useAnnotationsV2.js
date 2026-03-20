@@ -283,21 +283,19 @@ export default function useAnnotationsV2(options) {
             // Create a map for quick lookup
             const listingsMap = getItemsByKey(listings, "id");
 
-            // -- EXCLUDE isForBaseMaps LISTINGS --
+            // -- isForBaseMaps LISTINGS --
+
+            const forBaseMapsListingIds = new Set(
+                listings.filter((l) => l.isForBaseMaps).map((l) => l.id)
+            );
 
             if (excludeIsForBaseMapsListings) {
-                const forBaseMapsListingIds = new Set(
-                    listings.filter((l) => l.isForBaseMaps).map((l) => l.id)
-                );
                 _annotations = _annotations.filter(
                     (a) => !forBaseMapsListingIds.has(a.listingId)
                 );
             }
 
             if (onlyIsForBaseMapsListings) {
-                const forBaseMapsListingIds = new Set(
-                    listings.filter((l) => l.isForBaseMaps).map((l) => l.id)
-                );
                 _annotations = _annotations.filter(
                     (a) => forBaseMapsListingIds.has(a.listingId)
                 );
@@ -341,6 +339,12 @@ export default function useAnnotationsV2(options) {
                 );
             }
 
+            // -- TAG isForBaseMaps --
+
+            _annotations = _annotations.map((a) => ({
+                ...a,
+                isForBaseMaps: forBaseMapsListingIds.has(a.listingId),
+            }));
 
             // -- SORT --
             // outdated : use fractional indexing insteaad.

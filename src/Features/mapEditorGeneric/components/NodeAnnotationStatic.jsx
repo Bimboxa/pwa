@@ -18,6 +18,7 @@ export default function NodeAnnotationStatic({
   selectedPartId,
   dragged,
   baseMapMeterByPx,
+  baseMapImageScale = 1,
   spriteImage,
   imageSize, // for text annotations
   containerK,
@@ -43,6 +44,7 @@ export default function NodeAnnotationStatic({
     selectedPartId,
     dragged,
     baseMapMeterByPx,
+    baseMapImageScale,
     spriteImage,
     containerK,
     sizeVariant,

@@ -126,10 +126,12 @@ export default function PanelAnnotationTemplateProperties() {
             </Box>
         )}
 
-        <FormAnnotationTemplateVariantBlock
-            annotationTemplate={selectedAnnotationTemplate}
-            onChange={handleChange}
-        />
+        <BoxFlexVStretch sx={{ overflow: "auto" }}>
+            <FormAnnotationTemplateVariantBlock
+                annotationTemplate={selectedAnnotationTemplate}
+                onChange={handleChange}
+            />
+        </BoxFlexVStretch>
     </BoxFlexVStretch>
 }
 

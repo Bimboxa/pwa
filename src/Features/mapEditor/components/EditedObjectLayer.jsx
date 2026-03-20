@@ -20,6 +20,7 @@ export default function EditedObjectLayer({
     // selectedNode, // Ignored
     // selectedNodes, // Ignored
     baseMapMeterByPx,
+    baseMapImageScale = 1,
     onTextValueChange,
 }) {
 
@@ -174,6 +175,7 @@ export default function EditedObjectLayer({
                             annotationOverride={overrideStyle}
                             spriteImage={spriteImage}
                             baseMapMeterByPx={baseMapMeterByPx}
+                            baseMapImageScale={baseMapImageScale}
 
                             // When wrapper is active, hide vertices on point-based annotations
                             // (the wrapper handles replace them)

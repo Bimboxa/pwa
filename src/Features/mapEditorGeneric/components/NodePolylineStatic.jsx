@@ -34,6 +34,7 @@ export default function NodePolylineStatic({
     hovered,
     selected,
     baseMapMeterByPx,
+    baseMapImageScale = 1,
     containerK,
     forceHideLabel,
     isTransient,
@@ -104,13 +105,16 @@ export default function NodePolylineStatic({
 
     // --- CALCUL ÉPAISSEUR TRAIT ---
     const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx > 0;
+    const isForBaseMaps = mergedAnnotation.isForBaseMaps;
+    const scalesWithZoom = isCmUnit || isForBaseMaps;
 
     const computedStrokeWidth = useMemo(() => {
         if (type === "POLYGON") return 0.5;
         if (isCmUnit) return (strokeWidth * 0.01) / baseMapMeterByPx;
+        if (isForBaseMaps) return strokeWidth * (baseMapImageScale || 1);
         // PX mode: raw value, vectorEffect="non-scaling-stroke" keeps it fixed on screen
         return strokeWidth;
-    }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit, type]);
+    }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit, isForBaseMaps, baseMapImageScale, type]);
 
 
 
@@ -380,7 +384,7 @@ export default function NodePolylineStatic({
                         style={{ cursor: isTransient ? "crosshair" : "pointer" }}
                     >
                         {/* Hit Area Large */}
-                        <path d={seg.d} fill="none" stroke="transparent" strokeWidth={Math.max(14, isCmUnit ? computedStrokeWidth * 3 : 14)} vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"} />
+                        <path d={seg.d} fill="none" stroke="transparent" strokeWidth={Math.max(14, scalesWithZoom ? computedStrokeWidth * 3 : 14)} vectorEffect={scalesWithZoom ? undefined : "non-scaling-stroke"} />
                         {/* Visuel Ghost */}
                         <path
                             d={seg.d}
@@ -390,7 +394,7 @@ export default function NodePolylineStatic({
                             strokeDasharray="4 12"
                             strokeOpacity={STYLE_CONSTANTS.OPACITIES.GHOST_STROKE}
                             strokeLinecap="round"
-                            vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
+                            vectorEffect={scalesWithZoom ? undefined : "non-scaling-stroke"}
                             style={{ pointerEvents: "none" }}
                         />
                     </g>
@@ -424,8 +428,8 @@ export default function NodePolylineStatic({
                         d={seg.d}
                         fill="none"
                         stroke="transparent"
-                        strokeWidth={Math.max(14, isCmUnit ? computedStrokeWidth * 3 : 14)}
-                        vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
+                        strokeWidth={Math.max(14, scalesWithZoom ? computedStrokeWidth * 3 : 14)}
+                        vectorEffect={scalesWithZoom ? undefined : "non-scaling-stroke"}
                     />
                     <path
                         d={seg.d}
@@ -435,7 +439,7 @@ export default function NodePolylineStatic({
                         strokeOpacity={finalStrokeOpacity}
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        vectorEffect={isCmUnit ? undefined : "non-scaling-stroke"}
+                        vectorEffect={scalesWithZoom ? undefined : "non-scaling-stroke"}
                         style={{ pointerEvents: "none", transition: "stroke 0.2s" }}
 
                         {...(strokeType === "DASHED" && {
@@ -496,10 +500,10 @@ export default function NodePolylineStatic({
 
     // Counter-scale for patterns (hatching, eraser) to keep fixed size on screen in PX mode
     const patternTransformStyle = useMemo(() => {
-        if (isCmUnit) return undefined;
+        if (scalesWithZoom) return undefined;
         const k = containerK || 1;
         return { transform: `scale(calc(1 / (var(--map-zoom, 1) * ${k})))` };
-    }, [containerK, isCmUnit]);
+    }, [containerK, scalesWithZoom]);
 
     const renderVertex = (pt) => {
         const isPointSelected = selectedPointId === pt.id;

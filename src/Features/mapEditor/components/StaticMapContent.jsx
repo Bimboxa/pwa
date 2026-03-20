@@ -22,6 +22,7 @@ function StaticMapContent({
     baseMapImageUrl,
     baseMapImageSize,
     baseMapMeterByPx,
+    baseMapImageScale = 1,
     annotations,
     legendItems,
     legendFormat,
@@ -258,6 +259,7 @@ function StaticMapContent({
                             sizeVariant={sizeVariant}
                             containerK={basePose.k}
                             baseMapMeterByPx={baseMapMeterByPx}
+                            baseMapImageScale={baseMapImageScale}
                             showBgImage={showBgImage}
                             forceHideLabel={hiddenAnnotationIds?.includes("label::" + annotation.id)}
                             selectMode={selectMode}
