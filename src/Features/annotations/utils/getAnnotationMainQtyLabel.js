@@ -29,7 +29,7 @@ export default function getAnnotationMainQtyLabel(
   }
 
   else if (["POINT"].includes(type)) {
-    variant = "COUNT";
+    variant = (annotation?.height && qties?.length) ? "LENGTH" : "COUNT";
   }
 
   // --- LABEL ---

@@ -79,6 +79,15 @@ export default function getAnnotationQties({ annotation, meterByPx }) {
     if (!annotation) return null;
     if (!meterByPx || !Number.isFinite(meterByPx) || meterByPx <= 0) return { enabled: false };
 
+    if (annotation.type === "POINT") {
+      const h = parseFloat(annotation.height);
+      return {
+        enabled: true,
+        length: h && Number.isFinite(h) ? h : 0,
+        surface: 0,
+      };
+    }
+
     if (annotation.type === "STRIP") {
       // Surface: from the offset polygons (the ribbon)
       const polygons = getStripePolygons(annotation, meterByPx);

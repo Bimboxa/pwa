@@ -414,6 +414,7 @@ export default function FormAnnotationTemplateVariantBlock({
         onChange={handleMainQtyKeyChange}
         label={qtyS}
         options={{ showAsSection: true }}
+        drawingShape={drawingShape}
       />
 
       {!isCreating && (

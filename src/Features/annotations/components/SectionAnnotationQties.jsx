@@ -12,18 +12,22 @@ export default function SectionAnnotationQties({ annotation }) {
   const baseMap = useMainBaseMap();
 
   const qties = getAnnotationQties({ annotation, meterByPx: baseMap?.meterByPx });
-  console.log("debug_1902_qties", annotation, baseMap, qties)
 
   const showSurface = ["RECTANGLE", "POLYGON", "STRIP"].includes(type)
     || (type === "POLYLINE" && annotation?.height)
+
+  const lengthLabel = type === "POINT" ? "Hauteur" : "Longueur";
+  const showLength = qties?.length > 0;
 
   if (!qties) return null;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, p: 1 }}>
-      <Typography variant="caption" color="text.secondary">
-        Longueur : {qties.length?.toFixed?.(2) ?? 0} m
-      </Typography>
+      {showLength && (
+        <Typography variant="caption" color="text.secondary">
+          {lengthLabel} : {qties.length?.toFixed?.(2) ?? 0} m
+        </Typography>
+      )}
       {showSurface && (
         <Typography variant="caption" color="text.secondary">
           Surface : {qties.surface?.toFixed?.(2) ?? 0} m²
