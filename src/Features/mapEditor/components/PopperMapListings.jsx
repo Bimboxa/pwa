@@ -57,6 +57,7 @@ import {
 import { setShowCalibration } from "Features/baseMapEditor/baseMapEditorSlice";
 import DialogCalibration2D from "./DialogCalibration2D";
 import GpsFixed from "@mui/icons-material/GpsFixed";
+import WarningAmber from "@mui/icons-material/WarningAmber";
 
 import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 import useReplaceVersionImage from "Features/baseMaps/hooks/useReplaceVersionImage";
@@ -1248,6 +1249,33 @@ export default function PopperMapListings() {
           </Box>
         )}
       </Box>
+
+      {/* Warning: base map has no scale */}
+      {baseMap && !baseMap.meterByPx && (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            mx: 1,
+            mt: 1,
+            px: 1.5,
+            py: 1,
+            borderRadius: 1,
+            bgcolor: (theme) => alpha(theme.palette.error.main, 0.08),
+            border: "1px solid",
+            borderColor: (theme) => alpha(theme.palette.error.main, 0.3),
+          }}
+        >
+          <WarningAmber sx={{ fontSize: 18, color: "error.main", flexShrink: 0 }} />
+          <Typography
+            variant="caption"
+            sx={{ color: "error.main", fontWeight: 500, lineHeight: 1.3 }}
+          >
+            Ce plan n'est pas à l'échelle. Les mesures ne seront pas fiables.
+          </Typography>
+        </Box>
+      )}
 
       {!displayedListings?.length && !isBaseMapsViewer ? (
         /* Empty state helper */

@@ -115,14 +115,14 @@ export default function LayerRow({
       onMouseLeave={() => setIsHovered(false)}
       sx={{
         ...sortableStyle,
-        bgcolor: "white",
+        bgcolor: isActive ? (theme) => theme.palette.secondary.main + "14" : "white",
         alignItems: "center",
         pl: 0.5,
         pr: 1,
         py: 0.5,
         borderLeft: "3px solid",
         borderColor: isActive ? "secondary.main" : "transparent",
-        "&:hover": { bgcolor: "action.hover" },
+        "&:hover": { bgcolor: isActive ? (theme) => theme.palette.secondary.main + "20" : "action.hover" },
       }}
     >
       {/* Drag handle — layers: visible on hover; "Sans calque": invisible spacer */}

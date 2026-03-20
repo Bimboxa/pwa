@@ -6,6 +6,7 @@ import useDeleteListing from "../hooks/useDeleteListing";
 import useCreateListings from "../hooks/useCreateListings";
 
 import { setSelectedListingId } from "../listingsSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import { IconButton, Menu, MenuItem, Divider } from "@mui/material";
 import { MoreVert as MoreActionsIcon } from "@mui/icons-material";
@@ -74,6 +75,7 @@ export default function IconButtonMoreActionsListing({ listing }) {
         onClose={() => setOpenDelete(false)}
         onConfirmAsync={async () => {
           await deleteListing(listing.id);
+          dispatch(setSelectedItem(null));
           setOpenDelete(false);
         }}
       />
