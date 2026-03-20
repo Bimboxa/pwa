@@ -52,6 +52,12 @@ export default function NodePointStatic({
         return `scale(${1 / k})`;
     }, [sizeUnit, containerK]);
 
+    // 4b. Transformation d'échelle fixe pour la zone de hit (toujours fixe, quel que soit le sizeUnit)
+    const hitZoneScaleTransform = useMemo(() => {
+        const k = containerK || 1;
+        return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
+    }, [containerK]);
+
     // 5. Gestion des Couleurs
     const displayFillColor = useMemo(() => {
         if (hovered || selected) {
@@ -90,16 +96,18 @@ export default function NodePointStatic({
             }}
             {...dataProps}
         >
-            {/* GROUPE DE SCALE : Gère la taille visuelle (Fixe ou Physique) */}
-            <g style={{ transform: scaleTransform }}>
-
-                {/* Zone de hit invisible plus large (pour attraper facilement les petits points) */}
+            {/* Zone de hit invisible — taille fixe à l'écran quel que soit le zoom */}
+            <g style={{ transform: hitZoneScaleTransform }}>
                 <circle
-                    r={Math.max(halfSize, 10)}
+                    r={12}
                     fill="transparent"
                     stroke="transparent"
                     strokeWidth={5}
                 />
+            </g>
+
+            {/* GROUPE DE SCALE : Gère la taille visuelle (Fixe ou Physique) */}
+            <g style={{ transform: scaleTransform }}>
 
                 {/* Forme Visuelle */}
                 {variant === "SQUARE" ? (

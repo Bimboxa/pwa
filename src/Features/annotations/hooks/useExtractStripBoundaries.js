@@ -1,4 +1,4 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
 
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
@@ -67,6 +67,7 @@ export default function useExtractStripBoundaries() {
   const dispatch = useDispatch();
   const baseMap = useMainBaseMap();
   const createAnnotation = useCreateAnnotation();
+  const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
 
   return async ({ annotations, annotationTemplateId }) => {
     const meterByPx = baseMap?.meterByPx;
@@ -252,6 +253,7 @@ export default function useExtractStripBoundaries() {
         strokeOpacity: template?.strokeOpacity,
         strokeType: template?.strokeType,
         ...(closeLine && { closeLine: true }),
+        ...(activeLayerId ? { layerId: activeLayerId } : {}),
       });
 
       if (newAnnotation) createdAnnotations.push(newAnnotation);

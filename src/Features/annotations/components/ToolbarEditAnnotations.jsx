@@ -36,6 +36,7 @@ import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import IconButtonExtractStripBoundaries from "./IconButtonExtractStripBoundaries";
+import IconButtonReentrantAngles from "./IconButtonReentrantAngles";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "./DatagridAnnotations";
@@ -67,6 +68,10 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
 
   const hasStrips = annotations.some((a) => a.type === "STRIP");
   const showExtractBoundaries = hasStrips;
+
+  const hasPolylinesAndPolygons =
+    annotations.some((a) => a.type === "POLYLINE") &&
+    annotations.some((a) => a.type === "POLYGON");
 
   // helpers - can merge
 
@@ -263,6 +268,12 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
               )}
               {showExtractBoundaries && (
                 <IconButtonExtractStripBoundaries
+                  annotations={annotations}
+                  accentColor="#6366F1"
+                />
+              )}
+              {hasPolylinesAndPolygons && (
+                <IconButtonReentrantAngles
                   annotations={annotations}
                   accentColor="#6366F1"
                 />

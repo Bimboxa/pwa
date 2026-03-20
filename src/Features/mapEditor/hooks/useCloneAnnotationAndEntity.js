@@ -15,6 +15,7 @@ export default function useCloneAnnotationAndEntity() {
     const baseMap = useMainBaseMap()
 
     const _newAnnotation = useSelector((state) => state.annotations.newAnnotation);
+    const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
 
     return async (annotation, options) => {
         // options
@@ -94,6 +95,7 @@ export default function useCloneAnnotationAndEntity() {
                 entityId: entity?.id, // Link to the newly created entity
                 points: item.points,
                 cuts: item.cuts,
+                ...(activeLayerId ? { layerId: activeLayerId } : {}),
             };
 
             // Ensure lines are closed if converting from Polygon to Polyline

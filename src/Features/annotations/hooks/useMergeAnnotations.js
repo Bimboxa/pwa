@@ -1,4 +1,4 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { resolveDrawingShapeFromType } from "Features/annotations/constants/drawingShapeConfig";
@@ -16,6 +16,7 @@ const DILATION = 2;
 export default function useMergeAnnotations() {
   const dispatch = useDispatch();
   const baseMap = useMainBaseMap();
+  const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
 
   return async (annotations, { shape } = {}) => {
     const resolvedShape =
@@ -29,7 +30,10 @@ export default function useMergeAnnotations() {
       const polylinesList = annotations.map((a) => a.points);
       const mergedPoints = mergePolylines(polylinesList);
 
-      await db.annotations.update(annotation0.id, { points: mergedPoints });
+      await db.annotations.update(annotation0.id, {
+        points: mergedPoints,
+        ...(activeLayerId ? { layerId: activeLayerId } : {}),
+      });
     } else if (resolvedShape === "POLYGON") {
       // polygon merge
 
@@ -97,6 +101,7 @@ export default function useMergeAnnotations() {
       await db.annotations.update(annotation0.id, {
         points: result.mergedPolygon.points,
         cuts: result.mergedPolygon.cuts,
+        ...(activeLayerId ? { layerId: activeLayerId } : {}),
       });
     }
 
