@@ -23,7 +23,7 @@ export default function PopperEditAnnotations({ viewerKey = null, allAnnotations
     ? activeViewerKey === viewerKey
     : activeViewerKey === "MAP";
 
-  const open = shouldShow && Boolean(anchorPosition) && selectedNodes?.length > 1;
+  const open = shouldShow && selectedNodes?.length > 1;
 
   // drag
 
