@@ -28,6 +28,7 @@ import PanelAdminEntityModel from "Features/entityModels/components/PanelAdminEn
 import PanelAdminListing from "Features/adminEditor/components/PanelAdminListing";
 import PanelAdminEntity from "Features/adminEditor/components/PanelAdminEntity";
 import PanelAnnotationsAuto from "Features/annotationsAuto/components/PanelAnnotationsAuto";
+import PanelPrint from "Features/print/components/PanelPrint";
 
 export default function RightPanelContainer() {
 
@@ -88,6 +89,7 @@ export default function RightPanelContainer() {
           {selectedKey === "ADMIN_LISTING" && <PanelAdminListing />}
           {selectedKey === "ADMIN_ENTITY" && <PanelAdminEntity />}
           {selectedKey === "ANNOTATIONS_AUTO" && <PanelAnnotationsAuto />}
+          {selectedKey === "PRINT" && <PanelPrint />}
         </Box>
       )}
 

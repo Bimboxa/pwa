@@ -9,7 +9,7 @@ export default function useCreatePortfolio() {
   const appConfig = useAppConfig();
   const logoDefault = useLogoDefault();
 
-  const create = async ({ scopeId, projectId, title, sortIndex }) => {
+  const create = async ({ scopeId, projectId, title, sortIndex, metadata: extraMetadata }) => {
     const entityModel = appConfig?.entityModelsObject?.portfolioPage ?? {
       key: "portfolioPage",
       name: "Plan",
@@ -52,7 +52,7 @@ export default function useCreatePortfolio() {
       entityModelKey: "portfolioPage",
       entityModel,
       table: entityModel?.defaultTable || "portfolioPages",
-      metadata,
+      metadata: { ...metadata, ...extraMetadata },
     };
 
     await db.listings.add(listing);

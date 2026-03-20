@@ -21,6 +21,7 @@ import {
   CameraAlt,
   Tune,
   AutoFixHigh,
+  Print,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -70,6 +71,10 @@ export default function VerticalMenuRightPanel() {
     MASTER_PROJECT_PICTURES: {
       label: appConfig?.features?.masterProjectPictures?.title,
       icon: <CameraAlt />,
+    },
+    PRINT: {
+      label: "Impression",
+      icon: <Print />,
     },
     CHAT: {
       label: "Chat",

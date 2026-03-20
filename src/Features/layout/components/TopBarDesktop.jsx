@@ -60,7 +60,14 @@ export default function TopBarDesktop() {
   };
   const returnLabel = returnLabelByViewer[returnViewer];
 
+  const isPortfolioViewer = viewerKey === "PORTFOLIO";
+
   // handlers
+
+  function handleReturnToDrawing() {
+    dispatch(setSelectedViewerKey("MAP"));
+    dispatch(setViewerReturnContext(null));
+  }
 
   function handleReturnToViewer() {
     if (returnViewer === "PORTFOLIO" && viewerReturnContext?.portfolioId) {
@@ -109,12 +116,27 @@ export default function TopBarDesktop() {
         )}
       </Box>
 
-      {/* Center section - baseMap selectors */}
+      {/* Center section - baseMap selectors or portfolio return */}
       {(viewerKey === "MAP" || viewerKey === "BASE_MAPS") && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <BaseMapSelectorInMapEditorV2 />
           <BaseMapVersionSelectorInTopBar />
         </Box>
+      )}
+      {isPortfolioViewer && (
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<ArrowBack />}
+          onClick={handleReturnToDrawing}
+          sx={{
+            bgcolor: "warning.main",
+            color: "warning.contrastText",
+            "&:hover": { bgcolor: "warning.dark" },
+          }}
+        >
+          Revenir au module Dessin
+        </Button>
       )}
 
       {/* Right section - actions */}

@@ -271,6 +271,7 @@ export default function PanelMapSummary() {
             </Box>
           )}
         </WhiteSectionGeneric>
+
       </BoxFlexVStretch>
     </BoxFlexVStretch>
   );
