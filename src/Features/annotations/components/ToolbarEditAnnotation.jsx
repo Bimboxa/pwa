@@ -35,6 +35,7 @@ import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
 import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
+import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
 
 import getAnnotationColor from "../utils/getAnnotationColor";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
@@ -68,6 +69,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   // helpers
 
   const accentColor = getAnnotationColor(selectedAnnotation) || "#6366F1";
+  const isClosedShape =
+    selectedAnnotation?.type === "POLYGON" ||
+    (selectedAnnotation?.type === "POLYLINE" && selectedAnnotation?.closeLine);
   const label =
     selectedAnnotation?.templateLabel ||
     selectedAnnotation?.annotationTemplateProps?.label ||
@@ -303,6 +307,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               )}
               {selectedAnnotation?.type === "STRIP" && (
                 <IconButtonFlipStripAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
+              )}
+              {isClosedShape && (
+                <IconButtonDilateAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
               )}
             </>
           }
