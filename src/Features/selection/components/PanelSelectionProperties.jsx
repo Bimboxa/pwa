@@ -6,6 +6,7 @@ import useListingById from "Features/listings/hooks/useListingById";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PanelListingProperties from "Features/listings/components/PanelListingProperties";
+import PanelPropertiesListingV2 from "Features/listings/components/PanelPropertiesListingV2";
 import PanelAnnotationProperties from "Features/annotations/components/PanelAnnotationProperties";
 import PanelAnnotationTemplateProperties from "Features/annotations/components/PanelAnnotationTemplateProperties";
 import PanelEntityProperties from "Features/entities/components/PanelEntityProperties";
@@ -93,7 +94,8 @@ export default function PanelSelectionProperties() {
     <BoxFlexVStretch>
       {type === "MAP_SUMMARY" && <PanelMapSummary />}
 
-      {type === "LISTING" && <PanelListingProperties listing={listing} />}
+      {type === "LISTING" && isMapViewer && <PanelPropertiesListingV2 listing={listing} />}
+      {type === "LISTING" && !isMapViewer && <PanelListingProperties listing={listing} />}
 
       {type === "ENTITY" && <PanelEntityProperties />}
 

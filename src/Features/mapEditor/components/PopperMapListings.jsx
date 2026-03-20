@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useLiveQuery } from "dexie-react-hooks";
 
 import {
   setSelectedListingId,
@@ -38,7 +37,6 @@ import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import Tune from "@mui/icons-material/Tune";
 import { Check, Close } from "@mui/icons-material";
 
-import db from "App/db/db";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import { StopCircle } from "@mui/icons-material";
@@ -78,10 +76,12 @@ import { resolveDrawingShape } from "Features/annotations/constants/drawingShape
 
 import useListings from "Features/listings/hooks/useListings";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
-import useAnnotationTemplateCountById from "Features/annotations/hooks/useAnnotationTemplateCountById";
-import useAnnotationTemplateQtiesById from "Features/annotations/hooks/useAnnotationTemplateQtiesById";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
+
+import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
 
 // ---------------------------------------------------------------------------
 // TOOL_ITEMS — static tool definitions for the "Outils" section
@@ -676,16 +676,18 @@ function AnnotationTemplateRow({
 // AnnotationTemplatesForListing — templates list for one expanded listing
 // ---------------------------------------------------------------------------
 
-function AnnotationTemplatesForListing({ listingId }) {
+function AnnotationTemplatesForListing({ listingId, annotations, annotationTemplateById }) {
   // data
 
-  const baseMap = useMainBaseMap();
   const annotationTemplates = useAnnotationTemplates({
     filterByListingId: listingId,
     sortByLabel: true,
   });
-  const annotationTemplateCountById = useAnnotationTemplateCountById({ filterByBaseMapId: baseMap?.id });
-  const annotationTemplateQtiesById = useAnnotationTemplateQtiesById({ filterByBaseMapId: baseMap?.id });
+
+  const qtiesById = useMemo(
+    () => computeAnnotationTemplateQties(annotations, annotationTemplateById),
+    [annotations, annotationTemplateById]
+  );
 
   // state
 
@@ -698,10 +700,9 @@ function AnnotationTemplatesForListing({ listingId }) {
       <List dense disablePadding>
         {annotationTemplates?.map((template) => {
           if (template?.isDivider) return null;
-          const count =
-            annotationTemplateCountById?.[template.id] || 0;
-          const qtyLabel =
-            annotationTemplateQtiesById?.[template.id]?.mainQtyLabel;
+          const templateQties = qtiesById?.[template.id];
+          const count = templateQties?.count || 0;
+          const qtyLabel = templateQties?.mainQtyLabel;
           return (
             <AnnotationTemplateRow
               key={template.id}
@@ -776,6 +777,8 @@ function ListingRow({
   onToggleExpand,
   hiddenListingsIds,
   annotationCount,
+  annotations,
+  annotationTemplateById,
   extraAction,
 }) {
   const dispatch = useDispatch();
@@ -801,6 +804,8 @@ function ListingRow({
   function handleListingClick() {
     onToggleExpand(listing.id);
     dispatch(setSelectedListingId(listing.id));
+    dispatch(setSelectedItem({ id: listing.id, type: "LISTING" }));
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   }
 
   // render
@@ -894,7 +899,13 @@ function ListingRow({
         </Box>
       </Box>
 
-      {isExpanded && <AnnotationTemplatesForListing listingId={listing.id} />}
+      {isExpanded && (
+        <AnnotationTemplatesForListing
+          listingId={listing.id}
+          annotations={annotations}
+          annotationTemplateById={annotationTemplateById}
+        />
+      )}
     </Box>
   );
 }
@@ -1002,9 +1013,6 @@ export default function PopperMapListings() {
     (s) => s.mapEditor.showMapListingsPanel
   );
   const isBaseMapsViewer = viewerKey === "BASE_MAPS";
-  const annotationsUpdatedAt = useSelector(
-    (s) => s.annotations.annotationsUpdatedAt
-  );
 
   const baseMap = useMainBaseMap();
   const showCalibration = useSelector(
@@ -1012,24 +1020,38 @@ export default function PopperMapListings() {
   );
   const versionsCount = baseMap?.versions?.length ?? 0;
 
-  const annotationCountByListingId = useLiveQuery(
-    async () => {
-      if (!baseMap?.id) return {};
-      const annotations = await db.annotations
-        .where("baseMapId")
-        .equals(baseMap.id)
-        .toArray();
-      return annotations
-        .filter((a) => !a.deletedAt && !a.isBaseMapAnnotation)
-        .reduce((acc, a) => {
-          if (a.listingId) {
-            acc[a.listingId] = (acc[a.listingId] || 0) + 1;
-          }
-          return acc;
-        }, {});
-    },
-    [baseMap?.id, annotationsUpdatedAt]
+  // single annotation source for all counts
+  const allAnnotations = useAnnotationsV2({
+    filterByMainBaseMap: true,
+    hideBaseMapAnnotations: true,
+    excludeBgAnnotations: true,
+    withQties: true,
+  });
+
+  const annotationTemplates = useAnnotationTemplates();
+  const annotationTemplateById = useMemo(
+    () => getItemsByKey(annotationTemplates ?? [], "id"),
+    [annotationTemplates]
   );
+
+  const annotationCountByListingId = useMemo(() => {
+    if (!allAnnotations) return {};
+    return allAnnotations.reduce((acc, a) => {
+      if (a.listingId) acc[a.listingId] = (acc[a.listingId] || 0) + 1;
+      return acc;
+    }, {});
+  }, [allAnnotations]);
+
+  const annotationsByListingId = useMemo(() => {
+    if (!allAnnotations) return {};
+    return allAnnotations.reduce((acc, a) => {
+      if (a.listingId) {
+        if (!acc[a.listingId]) acc[a.listingId] = [];
+        acc[a.listingId].push(a);
+      }
+      return acc;
+    }, {});
+  }, [allAnnotations]);
 
   const titleS = isBaseMapsViewer
     ? "Dessins sur fond de plan"
@@ -1272,6 +1294,8 @@ export default function PopperMapListings() {
                   <AnnotationTemplatesForListing
                     key={listing.id}
                     listingId={listing.id}
+                    annotations={annotationsByListingId?.[listing.id]}
+                    annotationTemplateById={annotationTemplateById}
                   />
                 ))
               : <>
@@ -1285,6 +1309,8 @@ export default function PopperMapListings() {
                       annotationCount={
                         annotationCountByListingId?.[listing.id] || 0
                       }
+                      annotations={annotationsByListingId?.[listing.id]}
+                      annotationTemplateById={annotationTemplateById}
                       extraAction={
                         <ButtonMergeListingAnnotations
                           listingId={listing.id}
@@ -1304,6 +1330,8 @@ export default function PopperMapListings() {
                       annotationCount={
                         annotationCountByListingId?.[listing.id] || 0
                       }
+                      annotations={annotationsByListingId?.[listing.id]}
+                      annotationTemplateById={annotationTemplateById}
                     />
                   ))}
                 </>}

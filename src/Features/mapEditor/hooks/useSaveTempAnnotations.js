@@ -24,6 +24,7 @@ export default function useSaveTempAnnotations() {
     const createAnnotation = useCreateAnnotation();
 
     const baseMap = useMainBaseMap();
+    const activeLayerId = useSelector(s => s.layers?.activeLayerId);
 
     const saveTempAnnotations = async (annotationsParam) => {
 
@@ -89,6 +90,7 @@ export default function useSaveTempAnnotations() {
                 baseMapId,
                 projectId,
                 listingId,
+                ...(activeLayerId ? { layerId: activeLayerId } : {}),
 
                 // Main Points
                 points: mainPointIds.map(id => ({ id })),

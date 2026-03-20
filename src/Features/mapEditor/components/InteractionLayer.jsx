@@ -1601,7 +1601,6 @@ const InteractionLayer = forwardRef(({
       if (onCommitPointsFromSurfaceDrop) {
         onCommitPointsFromSurfaceDrop({ points: localPoints, cuts: localCuts, screenPos });
       }
-      dispatch(setEnabledDrawingMode(null));
     }
 
     else if (enabledDrawingMode === "SMART_DETECT") {
@@ -2028,9 +2027,10 @@ const InteractionLayer = forwardRef(({
       const snapThreshold = SNAP_THRESHOLD_ABSOLUTE / scale;
 
       const isQuickEdit = mapEditorMode === "QUICK_POINTS_CHANGE";
-      snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, true, Boolean(enabledDrawingMode) || (isQuickEdit && !selectedAnnotation?.id));
+      const fullSnap = Boolean(enabledDrawingMode) || isQuickEdit;
+      snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, fullSnap, fullSnap && !selectedAnnotation?.id);
 
-      if (snapResult && !isQuickEdit && snapResult.type !== "VERTEX") {
+      if (snapResult && !fullSnap && snapResult.type !== "VERTEX") {
         snapResult = null;
       }
 

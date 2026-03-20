@@ -16,10 +16,9 @@ import {
   ListItemButton,
   Typography,
   IconButton,
+  Switch,
   Tooltip,
 } from "@mui/material";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import Tune from "@mui/icons-material/Tune";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 
@@ -71,9 +70,9 @@ export default function LayerRow({
   const isActive = isNoLayerRow
     ? activeLayerId === null
     : activeLayerId === layer?.id;
-  const isHidden = isNoLayerRow
-    ? !showAnnotationsWithoutLayer
-    : hiddenLayerIds.includes(layer?.id);
+  const isEnabled = isNoLayerRow
+    ? showAnnotationsWithoutLayer
+    : !hiddenLayerIds.includes(layer?.id);
 
   // handlers
 
@@ -89,7 +88,7 @@ export default function LayerRow({
     }
   };
 
-  const handleToggleVisibility = (e) => {
+  const handleToggleEnabled = (e) => {
     e.stopPropagation();
     if (isNoLayerRow) {
       dispatch(toggleShowAnnotationsWithoutLayer());
@@ -118,124 +117,124 @@ export default function LayerRow({
         ...sortableStyle,
         bgcolor: "white",
         alignItems: "center",
-        justifyContent: "space-between",
-        pl: isNoLayerRow ? 2 : 0.5,
+        pl: 0.5,
         pr: 1,
         py: 0.5,
         borderLeft: "3px solid",
         borderColor: isActive ? "secondary.main" : "transparent",
-        opacity: isHidden ? 0.5 : 1,
         "&:hover": { bgcolor: "action.hover" },
       }}
     >
-      {/* Left: drag handle (layers only, visible on hover) */}
-      {!isNoLayerRow && (
-        <Box
-          {...listeners}
-          sx={{
-            display: "flex",
-            alignItems: "center",
+      {/* Drag handle — layers: visible on hover; "Sans calque": invisible spacer */}
+      <Box
+        {...(!isNoLayerRow ? listeners : {})}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          width: 20,
+          flexShrink: 0,
+          ...(!isNoLayerRow && {
             cursor: "grab",
             "&:active": { cursor: "grabbing" },
             visibility: isHovered || isDragging ? "visible" : "hidden",
-            mr: 0.5,
-          }}
-        >
+          }),
+        }}
+      >
+        {!isNoLayerRow && (
           <DragIndicatorIcon
             sx={{ fontSize: 16, color: "panel.textLight" }}
           />
-        </Box>
-      )}
+        )}
+      </Box>
 
-        {/* Layer name */}
+      {/* Switch to enable/disable layer */}
+      <Switch
+        size="small"
+        checked={isEnabled}
+        onClick={handleToggleEnabled}
+        sx={{
+          mr: 0.5,
+          "& .MuiSwitch-switchBase": { p: 0.4 },
+          "& .MuiSwitch-thumb": { width: 10, height: 10 },
+          "& .MuiSwitch-track": { borderRadius: 10 },
+          width: 30,
+          height: 20,
+        }}
+      />
+
+      {/* Layer name */}
+      <Typography
+        variant="body2"
+        sx={{
+          fontSize: "0.8125rem",
+          fontWeight: isActive ? 600 : 400,
+          color: !isEnabled
+            ? "text.disabled"
+            : isActive
+              ? "secondary.main"
+              : "panel.textSecondary",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          userSelect: "none",
+          fontStyle: isNoLayerRow ? "italic" : "normal",
+          flex: 1,
+          minWidth: 0,
+        }}
+      >
+        {isNoLayerRow ? "Sans calque" : layer.name}
+      </Typography>
+
+      {/* Right side: edit button (hover only) + count */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          ml: 1,
+          gap: 0.5,
+          minWidth: 40,
+          flexShrink: 0,
+        }}
+      >
+        {/* Edit button — visible on hover only, layers only */}
+        {!isNoLayerRow && (
+          <Tooltip title="Propriétés" arrow>
+            <IconButton
+              size="small"
+              onClick={handleEdit}
+              sx={{
+                p: 0,
+                color: "panel.iconMuted",
+                visibility: isHovered ? "visible" : "hidden",
+              }}
+            >
+              <Tune sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+
+        {/* Annotation count — always visible */}
         <Typography
-          variant="body2"
+          align="right"
+          noWrap
           sx={{
-            fontSize: "0.8125rem",
-            fontWeight: isActive ? 600 : 400,
-            color: isActive ? "secondary.main" : "panel.textSecondary",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            userSelect: "none",
-            fontStyle: isNoLayerRow ? "italic" : "normal",
-            flex: 1,
-            minWidth: 0,
+            fontSize: "10px",
+            fontFamily: "monospace",
+            fontWeight: 500,
+            minWidth: 20,
+            color: !isEnabled
+              ? "panel.countEmpty"
+              : isActive && count > 0
+                ? "secondary.main"
+                : count > 0
+                  ? "text.primary"
+                  : "panel.countEmpty",
           }}
         >
-          {isNoLayerRow ? "Sans calque" : layer.name}
+          {count}
         </Typography>
-
-        {/* Right side: count + buttons stacked with visibility toggle */}
-        <Box
-          sx={{
-            position: "relative",
-            display: "flex",
-            alignItems: "center",
-            ml: 1,
-            minWidth: isNoLayerRow ? 24 : 48,
-            height: 24,
-            flexShrink: 0,
-          }}
-        >
-          {/* Count — always in DOM, hidden on hover */}
-          <Typography
-            align="right"
-            noWrap
-            sx={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              fontSize: "10px",
-              fontFamily: "monospace",
-              fontWeight: 500,
-              color: isActive && count > 0 ? "secondary.main" : "panel.countEmpty",
-              visibility: isHovered ? "hidden" : "visible",
-            }}
-          >
-            {count}
-          </Typography>
-
-          {/* Buttons — always in DOM, visible on hover */}
-          <Box
-            sx={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              gap: 0.75,
-              visibility: isHovered ? "visible" : "hidden",
-            }}
-          >
-            {!isNoLayerRow && (
-              <Tooltip title="Propriétés" arrow>
-                <IconButton
-                  size="small"
-                  onClick={handleEdit}
-                  sx={{ p: 0, color: "panel.iconMuted" }}
-                >
-                  <Tune sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-            )}
-            <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow>
-              <IconButton
-                size="small"
-                onClick={handleToggleVisibility}
-                sx={{ p: 0, color: isHidden ? "secondary.main" : "panel.iconMuted" }}
-              >
-                {isHidden ? (
-                  <VisibilityOff sx={{ fontSize: 16 }} />
-                ) : (
-                  <Visibility sx={{ fontSize: 16 }} />
-                )}
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
-      </ListItemButton>
+      </Box>
+    </ListItemButton>
   );
 }

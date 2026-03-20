@@ -35,7 +35,9 @@ export default function SectionLayers({ baseMapId }) {
     (s) => s.annotations.annotationsUpdatedAt
   );
 
-  // annotation counts per layer
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+
+  // annotation counts per layer (filtered by scope, not by layer visibility)
   const countByLayerId = useLiveQuery(
     async () => {
       if (!baseMapId) return {};
@@ -43,19 +45,39 @@ export default function SectionLayers({ baseMapId }) {
         .where("baseMapId")
         .equals(baseMapId)
         .toArray();
+      const filtered = annotations.filter(
+        (a) => !a.deletedAt && !a.isBaseMapAnnotation
+      );
+
+      // scope filter: only count annotations whose listing belongs to the current scope
+      let scopeFiltered = filtered;
+      if (selectedScopeId) {
+        const listingIds = [
+          ...new Set(filtered.map((a) => a.listingId).filter(Boolean)),
+        ];
+        const listings = await db.listings
+          .where("id")
+          .anyOf(listingIds)
+          .toArray();
+        const scopeListingIds = new Set(
+          listings.filter((l) => l.scopeId === selectedScopeId).map((l) => l.id)
+        );
+        scopeFiltered = filtered.filter(
+          (a) => !a.listingId || scopeListingIds.has(a.listingId)
+        );
+      }
+
       const counts = { __no_layer__: 0 };
-      annotations
-        .filter((a) => !a.deletedAt && !a.isBaseMapAnnotation)
-        .forEach((a) => {
-          if (a.layerId) {
-            counts[a.layerId] = (counts[a.layerId] || 0) + 1;
-          } else {
-            counts.__no_layer__ += 1;
-          }
-        });
+      scopeFiltered.forEach((a) => {
+        if (a.layerId) {
+          counts[a.layerId] = (counts[a.layerId] || 0) + 1;
+        } else {
+          counts.__no_layer__ += 1;
+        }
+      });
       return counts;
     },
-    [baseMapId, annotationsUpdatedAt]
+    [baseMapId, annotationsUpdatedAt, selectedScopeId]
   );
 
   // DnD sensors
