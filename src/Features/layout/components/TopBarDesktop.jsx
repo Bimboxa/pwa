@@ -138,6 +138,21 @@ export default function TopBarDesktop() {
           Revenir au module Dessin
         </Button>
       )}
+      {viewerKey === "BASE_MAPS" && returnViewer === "MAP" && (
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<ArrowBack />}
+          onClick={handleReturnToDrawing}
+          sx={{
+            bgcolor: "warning.main",
+            color: "warning.contrastText",
+            "&:hover": { bgcolor: "warning.dark" },
+          }}
+        >
+          Revenir au Dessin
+        </Button>
+      )}
 
       {/* Right section - actions */}
       <Box sx={{ display: "flex", alignItems: "center", flex: 1, justifyContent: "flex-end" }}>

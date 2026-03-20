@@ -12,6 +12,7 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
 export default function SectionEntityAnnotations({
   entity,
+  selectedAnnotationId,
 }) {
   const dispatch = useDispatch();
 
@@ -36,6 +37,7 @@ export default function SectionEntityAnnotations({
       annotationType: annotation.type,
       listingId: annotation.listingId,
       entityId: annotation.entityId,
+      annotationTemplateId: annotation.annotationTemplateId,
     }))
     dispatch(setShowAnnotationsProperties(true))
   }
@@ -56,7 +58,7 @@ export default function SectionEntityAnnotations({
           width: 1,
         }}
       >{entity?.annotations?.map(annotation => {
-        return <ListItemButton key={annotation.id} dense onClick={() => handleClick(annotation)}>
+        return <ListItemButton key={annotation.id} dense selected={annotation.id === selectedAnnotationId} onClick={() => handleClick(annotation)}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <AnnotationIcon annotation={annotation} spriteImage={spriteImage} />
             <Typography variant="body2" sx={{ ml: 1 }}>

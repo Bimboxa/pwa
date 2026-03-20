@@ -15,6 +15,7 @@ export default function SectionAnnotationQties({ annotation }) {
   console.log("debug_1902_qties", annotation, baseMap, qties)
 
   const showSurface = ["RECTANGLE", "POLYGON", "STRIP"].includes(type)
+    || (type === "POLYLINE" && annotation?.height)
 
   if (!qties) return null;
 

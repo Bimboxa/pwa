@@ -24,6 +24,8 @@ import {
   ListItemIcon,
   ListItemText,
   Tooltip,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import Add from "@mui/icons-material/Add";
@@ -53,6 +55,9 @@ import {
   setEnabledDrawingMode,
   setSelectedToolKeyForTemplate,
 } from "Features/mapEditor/mapEditorSlice";
+import { setShowCalibration } from "Features/baseMapEditor/baseMapEditorSlice";
+import DialogCalibration2D from "./DialogCalibration2D";
+import GpsFixed from "@mui/icons-material/GpsFixed";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import {
   getDrawingToolsByType,
@@ -972,6 +977,7 @@ export default function PopperMapListings() {
 
   // data
 
+  const dispatch = useDispatch();
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const enabledDrawingMode = useSelector(
     (s) => s.mapEditor.enabledDrawingMode
@@ -989,6 +995,10 @@ export default function PopperMapListings() {
   );
 
   const baseMap = useMainBaseMap();
+  const showCalibration = useSelector(
+    (s) => s.baseMapEditor.showCalibration
+  );
+  const versionsCount = baseMap?.versions?.length ?? 0;
 
   const annotationCountByListingId = useLiveQuery(
     async () => {
@@ -1028,6 +1038,7 @@ export default function PopperMapListings() {
   const comesFromListing = viewerReturnContext?.fromViewer === "LISTING";
   const [expandedListingIds, setExpandedListingIds] = useState([]);
   const [openCreateListing, setOpenCreateListing] = useState(false);
+  const [openCalibrationDialog, setOpenCalibrationDialog] = useState(false);
   const { position, isDragging, handleMouseDown } = usePanelDrag();
 
   // helpers - filter listings when coming from LISTING viewer
@@ -1065,7 +1076,7 @@ export default function PopperMapListings() {
     return <PopperDrawingHelper />;
   }
 
-  if (isBaseMapsViewer && !showMapListingsPanel) return null;
+  // PopperMapListings is always visible in BASE_MAPS viewer
 
 
   return (
@@ -1236,6 +1247,71 @@ export default function PopperMapListings() {
                 />
               ))}
             </List>
+
+            {/* Positionner la vue section */}
+            {isBaseMapsViewer && versionsCount >= 2 && (
+              <>
+                <Box
+                  sx={{
+                    px: 1,
+                    py: 0.5,
+                    bgcolor: "panel.sectionBg",
+                    borderTop: "1px solid",
+                    borderColor: "panel.border",
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "panel.textMuted",
+                      fontWeight: 700,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      fontSize: "11px",
+                    }}
+                  >
+                    Positionner la vue
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    px: 1.5,
+                    py: 0.25,
+                  }}
+                >
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        size="small"
+                        checked={showCalibration}
+                        onChange={(e) =>
+                          dispatch(setShowCalibration(e.target.checked))
+                        }
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ fontSize: "0.8125rem" }}>
+                        Afficher les cibles
+                      </Typography>
+                    }
+                    sx={{ m: 0 }}
+                  />
+                  <Tooltip title="Recalculer la position de la vue" arrow>
+                    <IconButton
+                      size="small"
+                      onClick={() => setOpenCalibrationDialog(true)}
+                      disabled={!showCalibration}
+                      sx={{ color: "primary.main" }}
+                    >
+                      <GpsFixed sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </>
+            )}
           </Box>
         </>
       )}
@@ -1246,6 +1322,14 @@ export default function PopperMapListings() {
           open={openCreateListing}
           onClose={() => setOpenCreateListing(false)}
           isForBaseMaps={isBaseMapsViewer}
+        />
+      )}
+
+      {/* Calibration dialog */}
+      {openCalibrationDialog && (
+        <DialogCalibration2D
+          open={openCalibrationDialog}
+          onClose={() => setOpenCalibrationDialog(false)}
         />
       )}
     </Paper>

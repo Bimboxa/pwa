@@ -27,7 +27,8 @@ import {
   clearSelection,
   selectSelectedItems,
   selectSelectedPointId,
-  selectSelectedPartId
+  selectSelectedPartId,
+  setShowAnnotationsProperties
 } from "Features/selection/selectionSlice";
 
 import useResetNewAnnotation from 'Features/annotations/hooks/useResetNewAnnotation';
@@ -39,6 +40,7 @@ import useAnnotationDrag from 'Features/mapEditor/hooks/useAnnotationDrag';
 import useDrawingCommit from 'Features/mapEditor/hooks/useDrawingCommit';
 import useBaseMapDrag from 'Features/mapEditor/hooks/useBaseMapDrag';
 import useVersionDrag from 'Features/mapEditor/hooks/useVersionDrag';
+import useCalibrationDrag from 'Features/mapEditor/hooks/useCalibrationDrag';
 import useLegendDrag from 'Features/mapEditor/hooks/useLegendDrag';
 
 import Box from '@mui/material/Box';
@@ -66,6 +68,8 @@ import TransientDetectedPolygonLayer from 'Features/mapEditorGeneric/components/
 import detectPolygonFromAnnotations from 'Features/smartDetect/utils/detectPolygonFromAnnotations';
 import throttle from 'Features/misc/utils/throttle';
 import SmartTransformerLayer from 'Features/transformers/components/SmartTransformerLayer';
+import CalibrationLayer from './CalibrationLayer';
+import useMainBaseMap from 'Features/mapEditor/hooks/useMainBaseMap';
 import LassoOverlay from 'Features/mapEditorGeneric/components/LassoOverlay';
 import DialogAutoLoadingModel from 'Features/transformers/components/DialogAutoLoadingModel';
 
@@ -611,6 +615,20 @@ const InteractionLayer = forwardRef(({
   } = useVersionDrag({
     basePose,
     viewportRef,
+  });
+
+  // drag state — calibration targets
+
+  const calibrationBaseMap = useMainBaseMap();
+  const {
+    calibrationDragState,
+    initCalibrationDrag,
+    handleCalibrationDragMove,
+    handleCalibrationDragEnd,
+  } = useCalibrationDrag({
+    basePose,
+    viewportRef,
+    baseMap: calibrationBaseMap,
   });
 
   // drag state — legend drag (extracted to useLegendDrag)
@@ -1690,6 +1708,7 @@ const InteractionLayer = forwardRef(({
             annotationType: hit.dataset.annotationType, // "POLYLINE", "MARKER", etc.
             entityId: hit.dataset.nodeEntityId,
             listingId: hit.dataset.nodeListingId,
+            annotationTemplateId: annotation?.annotationTemplateId,
             nodeContext: hit.dataset.nodeContext, // Optional but useful for EditedObjectLayer
             partId: null,
             partType: null
@@ -1709,6 +1728,7 @@ const InteractionLayer = forwardRef(({
             // Replace
             _selectedItems = [newItem];
             dispatch(setSelectedItem(newItem));
+            dispatch(setShowAnnotationsProperties(true));
           }
 
 
@@ -1808,6 +1828,7 @@ const InteractionLayer = forwardRef(({
       dragBaseMapState?.active ||
       dragLegendState?.active ||
       dragTextState?.active ||
+      calibrationDragState?.active ||
       enabledDrawingModeRef.current ||
       selectedNode;
 
@@ -1930,6 +1951,12 @@ const InteractionLayer = forwardRef(({
     // B1b. DRAG VERSION — délégué à useVersionDrag
     if (versionDragState?.active) {
       const consumed = handleVersionDragMove(worldPos);
+      if (consumed) return;
+    }
+
+    // B1c. DRAG CALIBRATION TARGET
+    if (calibrationDragState?.active) {
+      const consumed = handleCalibrationDragMove(worldPos);
       if (consumed) return;
     }
 
@@ -2265,6 +2292,7 @@ const InteractionLayer = forwardRef(({
         annotationType: annotation?.type,
         entityId: annotation?.entityId,
         listingId: annotation?.listingId,
+        annotationTemplateId: annotation?.annotationTemplateId,
         nodeContext: dragAnnotationState.nodeContext,
         partId: null,
         partType: null
@@ -2283,6 +2311,7 @@ const InteractionLayer = forwardRef(({
       } else {
         _selectedItems = [newItem];
         dispatch(setSelectedItem(newItem));
+        dispatch(setShowAnnotationsProperties(true));
       }
 
       // -- Afichage du toolbar pour édition --
@@ -2327,6 +2356,9 @@ const InteractionLayer = forwardRef(({
 
     // Version drag end — délégué à useVersionDrag
     handleVersionDragEnd();
+
+    // Calibration target drag end
+    handleCalibrationDragEnd();
 
     // Legend drag end — délégué à useLegendDrag
     handleLegendDragEnd();
@@ -2393,6 +2425,7 @@ const InteractionLayer = forwardRef(({
     const resizeHandle = target.closest('[data-interaction="resize-annotation"]');
     const basemapHandle = target.closest('[data-interaction="transform-basemap"]');
     const versionHandle = target.closest('[data-interaction="transform-version"]');
+    const calibrationHandle = target.closest('[data-interaction="calibration-target"]');
     const legendHandle = target.closest('[data-interaction="transform-legend"]');
     const textHandle = target.closest('[data-interaction="transform-text"]');
     const rotateHandle = target.closest('[data-interaction="rotate-annotation"]');
@@ -2414,7 +2447,7 @@ const InteractionLayer = forwardRef(({
 
 
     console.log("debug_A_selectedNode", selectedNode)
-    if (!selectedNode && !showBgImage && !draggableGroup && !resizeHandle && !rotateHandle && !versionHandle) return;
+    if (!selectedNode && !showBgImage && !draggableGroup && !resizeHandle && !rotateHandle && !versionHandle && !calibrationHandle) return;
 
 
 
@@ -2521,6 +2554,13 @@ const InteractionLayer = forwardRef(({
       const startTransform = JSON.parse(versionHandle.dataset.versionTransform || '{"x":0,"y":0,"rotation":0,"scale":1}');
       const imageSize = JSON.parse(versionHandle.dataset.versionImageSize || '{}');
       initVersionDrag(versionId, handleType, e, startTransform, imageSize, baseMapId);
+    }
+
+    if (calibrationHandle) {
+      e.stopPropagation();
+      e.preventDefault();
+      const { targetColor } = calibrationHandle.dataset;
+      initCalibrationDrag(targetColor, e);
     }
 
 
@@ -2878,6 +2918,11 @@ const InteractionLayer = forwardRef(({
           </g>
 
         )}
+
+        {/* Calibration targets layer */}
+        <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
+          <CalibrationLayer containerK={targetPose.k} />
+        </g>
 
         {enabledDrawingMode === "BRUSH" && (
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>

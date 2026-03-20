@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
+import { nanoid } from "nanoid";
 import { generateKeyBetween } from "fractional-indexing";
 
 import { setSelectedVersionId } from "Features/baseMapEditor/baseMapEditorSlice";
@@ -54,6 +55,7 @@ import DialogGeneric from "Features/layout/components/DialogGeneric";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionCompareTwoImages from "Features/baseMapTransforms/components/SectionCompareTwoImages";
+import DialogCreateBaseMapVersion from "Features/baseMapEditor/components/DialogCreateBaseMapVersion";
 
 function SortableVersionRow({ version, isSelected, onClick, onDoubleClick }) {
   const {
@@ -128,6 +130,7 @@ export default function FieldBaseMapVersions({ baseMap }) {
   const replaceVersionImage = useReplaceVersionImage();
   const fileInputRef = useRef(null);
   const [openCompare, setOpenCompare] = useState(false);
+  const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [newFileObjectUrl, setNewFileObjectUrl] = useState(null);
   const [newFile, setNewFile] = useState(null);
   const [createNewVersion, setCreateNewVersion] = useState(true);
@@ -192,7 +195,61 @@ export default function FieldBaseMapVersions({ baseMap }) {
   }
 
   function handleAddClick() {
-    fileInputRef.current?.click();
+    setOpenCreateDialog(true);
+  }
+
+  async function handleCreateVersionFromDialog({ label, sourceBaseMap, sourceVersion }) {
+    if (!baseMap?.id) return;
+    try {
+      // Copy the image file from the source version
+      const versionId = nanoid();
+      let newImage = sourceVersion.image;
+      if (sourceVersion.image?.fileName) {
+        const srcFile = await db.files.get(sourceVersion.image.fileName);
+        if (srcFile) {
+          const ext = sourceVersion.image.fileName.split(".").pop() || "png";
+          const newFileName = `version_${versionId}_${baseMap.id}.${ext}`;
+          await db.files.put({
+            ...srcFile,
+            fileName: newFileName,
+          });
+          newImage = {
+            ...sourceVersion.image,
+            fileName: newFileName,
+            fileUpdatedAt: new Date().toISOString(),
+          };
+        }
+      }
+
+      // Compute fractionalIndex
+      const existingVersions = await db.baseMapVersions
+        .where("baseMapId")
+        .equals(baseMap.id)
+        .toArray();
+      const sorted = existingVersions
+        .filter((v) => !v.deletedAt)
+        .sort((a, b) =>
+          (a.fractionalIndex || "").localeCompare(b.fractionalIndex || "")
+        );
+      const lastIndex =
+        sorted.length > 0 ? sorted[sorted.length - 1].fractionalIndex : null;
+
+      // Deactivate all existing versions, then create the new one
+      await activateBaseMapVersion(baseMap.id, null, dispatch);
+      await db.baseMapVersions.put({
+        id: versionId,
+        baseMapId: baseMap.id,
+        projectId: baseMap.projectId,
+        listingId: baseMap.listingId,
+        label,
+        fractionalIndex: generateKeyBetween(lastIndex, null),
+        isActive: true,
+        image: newImage,
+        transform: { x: 0, y: 0, rotation: 0, scale: 1 },
+      });
+    } catch (e) {
+      console.error("[FieldBaseMapVersions] create version error:", e);
+    }
   }
 
   function handleFileSelected(e) {
@@ -308,6 +365,14 @@ export default function FieldBaseMapVersions({ baseMap }) {
         </SortableContext>
       </DndContext>
     </Box>
+
+    {openCreateDialog && (
+      <DialogCreateBaseMapVersion
+        open={openCreateDialog}
+        onClose={() => setOpenCreateDialog(false)}
+        onConfirm={handleCreateVersionFromDialog}
+      />
+    )}
 
     {openCompare && (
       <DialogGeneric open={openCompare} vh={90} onClose={handleCloseCompare}>

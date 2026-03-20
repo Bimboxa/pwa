@@ -1,46 +1,53 @@
-import { useDispatch } from "react-redux";
+import { useRef } from "react";
 
-import { triggerSelectionBack } from "Features/selection/selectionSlice";
+import { useSelector, useDispatch } from "react-redux";
+
+import { triggerSelectionBack, setAnnotationPropertiesTab } from "Features/selection/selectionSlice";
 
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
-import { Box, Typography, IconButton } from "@mui/material";
+import useSelectedEntity from "Features/entities/hooks/useSelectedEntity";
+import useEntityFormTemplate from "Features/entities/hooks/useEntityFormTemplate";
+import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
+
+import { Box, Typography, IconButton, Tabs, Tab } from "@mui/material";
 import { ArrowBack as Back } from "@mui/icons-material";
 
-import FieldAnnotationPreview from "./FieldAnnotationPreview";
-import ButtonAnnotationTemplate from "./ButtonAnnotationTemplate";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import SectionAnnotationQties from "./SectionAnnotationQties";
-import FieldWrapperDimensions from "./FieldWrapperDimensions";
-import FieldAnnotationRotation from "./FieldAnnotationRotation";
-import FieldAnnotationFill from "./FieldAnnotationFill";
-import FieldAnnotationStroke from "./FieldAnnotationStroke";
+import SectionAnnotationPropertiesContent from "./SectionAnnotationPropertiesContent";
+import FormEntity from "Features/entities/components/FormEntity";
+import SectionEntityAnnotations from "Features/entities/components/SectionEntityAnnotations";
 
-import {
-  resolveDrawingShapeFromType,
-  getConfigurableProps,
-} from "Features/annotations/constants/drawingShapeConfig";
+const tabs = [
+  { id: "PROPERTIES", label: "Propriété" },
+  { id: "ENTITY", label: "Objet" },
+];
 
 export default function PanelAnnotationProperties() {
   const dispatch = useDispatch();
+  const containerRef = useRef();
 
   // data
 
   const annotation = useSelectedAnnotation();
+  const tab = useSelector((s) => s.selection.annotationPropertiesTab);
+  const { value: entity } = useSelectedEntity({ withImages: true, withAnnotations: true });
+  const template = useEntityFormTemplate();
+  const updateEntity = useUpdateEntity();
 
-  // helper
+  // helpers
 
   const label = annotation?.label || "Annotation";
-  const type = annotation?.type;
-  const overrideFields = annotation?.annotationTemplate?.overrideFields;
+  const idx = tabs.map(({ id }) => id).indexOf(tab);
 
-  const drawingShape = resolveDrawingShapeFromType(type);
-  const configurableProps = getConfigurableProps(drawingShape);
-  const showFill =
-    configurableProps.includes("fillColor") ||
-    configurableProps.includes("fillOpacity");
-  const showStroke =
-    configurableProps.includes("strokeColor") ||
-    configurableProps.includes("strokeWidth");
+  // handlers
+
+  function handleTabChange(e, newIdx) {
+    dispatch(setAnnotationPropertiesTab(tabs[newIdx]?.id));
+  }
+
+  async function handleEntityChange(entity) {
+    await updateEntity(entity?.id, entity);
+  }
 
   // render - no selection
 
@@ -57,42 +64,65 @@ export default function PanelAnnotationProperties() {
   // render
 
   return (
-    <BoxFlexVStretch>
+    <BoxFlexVStretch ref={containerRef}>
 
       <Box sx={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
+        display: "flex", alignItems: "center",
         p: 0.5,
         pl: 1,
       }}>
-        <Box sx={{ display: "flex", alignItems: "center" }}>
-          <IconButton onClick={() => dispatch(triggerSelectionBack())}>
-            <Back />
-          </IconButton>
+        <IconButton onClick={() => dispatch(triggerSelectionBack())}>
+          <Back />
+        </IconButton>
 
-          <Typography variant="body2" sx={{ fontWeight: "bold", ml: 1 }}>{label}</Typography>
+        <Box sx={{ ml: 1 }}>
+          <Typography variant="caption" color="text.secondary">
+            Annotation
+          </Typography>
+          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+            {label}
+          </Typography>
         </Box>
-
-        {/* <IconButtonMoreActionsAnnotationTemplate annotationTemplate={selectedAnnotationTemplate} /> */}
       </Box>
+
+      <Tabs value={idx} onChange={handleTabChange}>
+        {tabs.map(({ id, label }) => (
+          <Tab key={id} label={label} id={id} />
+        ))}
+      </Tabs>
 
       <BoxFlexVStretch sx={{ overflowY: "auto" }}>
 
-        <Box sx={{ width: 1, p: 1 }}>
-          <FieldAnnotationPreview annotation={annotation} imageHeight={200} />
-        </Box>
+        {tab === "PROPERTIES" && (
+          <SectionAnnotationPropertiesContent annotation={annotation} />
+        )}
 
-        <SectionAnnotationQties annotation={annotation} />
-
-        <Box sx={{ p: 1, width: 1 }}>
-          <ButtonAnnotationTemplate annotation={annotation} bgcolor="white" fullWidth />
-        </Box>
-
-        <Box sx={{ width: 1, p: 1, gap: 1, display: "flex", flexDirection: "column" }}>
-          <FieldWrapperDimensions annotation={annotation} />
-          <FieldAnnotationRotation annotation={annotation} />
-          {showFill && <FieldAnnotationFill annotation={annotation} overrideFields={overrideFields} />}
-          {showStroke && <FieldAnnotationStroke annotation={annotation} overrideFields={overrideFields} />}
-        </Box>
+        {tab === "ENTITY" && (
+          entity ? (
+            <>
+              <FormEntity
+                template={template}
+                entity={entity}
+                onEntityChange={handleEntityChange}
+                sectionContainerEl={containerRef?.current}
+              />
+              {entity?.annotations?.length > 0 && (
+                <Box sx={{ py: 1 }}>
+                  <SectionEntityAnnotations
+                    entity={entity}
+                    selectedAnnotationId={annotation?.id}
+                  />
+                </Box>
+              )}
+            </>
+          ) : (
+            <Box sx={{ p: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Aucun objet associé
+              </Typography>
+            </Box>
+          )
+        )}
 
       </BoxFlexVStretch>
 

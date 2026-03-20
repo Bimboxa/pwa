@@ -16,6 +16,11 @@ const baseMapEditorInitialState = {
   selectedVersionId: null,
   hiddenVersionIds: [],
   versionTransformOverride: null, // { versionId, transform } during drag
+  // calibration
+  showCalibration: false,
+  // Per-version calibration target positions (relative to image, 0..1)
+  // { [versionId]: { red: {x, y}, green: {x, y} } }
+  calibrationTargetsByVersionId: {},
 };
 
 export const baseMapEditorSlice = createSlice({
@@ -72,6 +77,14 @@ export const baseMapEditorSlice = createSlice({
     setHiddenVersionIds: (state, action) => {
       state.hiddenVersionIds = action.payload;
     },
+    // calibration
+    setShowCalibration: (state, action) => {
+      state.showCalibration = action.payload;
+    },
+    setCalibrationTargets: (state, action) => {
+      const { versionId, red, green } = action.payload;
+      state.calibrationTargetsByVersionId[versionId] = { red, green };
+    },
   },
 });
 
@@ -86,6 +99,8 @@ export const {
   setVersionTransformOverride,
   toggleVersionHidden,
   setHiddenVersionIds,
+  setShowCalibration,
+  setCalibrationTargets,
 } = baseMapEditorSlice.actions;
 
 export default baseMapEditorSlice.reducer;

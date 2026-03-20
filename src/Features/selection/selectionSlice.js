@@ -5,6 +5,7 @@ const selectionInitialState = {
   openDialogDeleteSelectedItem: false,
   //
   showAnnotationsProperties: false,
+  annotationPropertiesTab: "PROPERTIES",
 };
 
 export const selectionSlice = createSlice({
@@ -82,10 +83,11 @@ export const selectionSlice = createSlice({
           item.id = item.listingId;
         }
         else if (item.type === "NODE" && state.showAnnotationsProperties) {
-          item.type = "ENTITY";
-          item.id = item.entityId;
+          item.type = "ANNOTATION_TEMPLATE";
+          item.id = item.annotationTemplateId;
           item.listingId = item.listingId;
           state.showAnnotationsProperties = false;
+          state.annotationPropertiesTab = "PROPERTIES";
         }
         else if (item.type === "NODE" && !state.showAnnotationsProperties) {
           item.type = "LISTING";
@@ -109,6 +111,9 @@ export const selectionSlice = createSlice({
     },
     setShowAnnotationsProperties: (state, action) => {
       state.showAnnotationsProperties = action.payload;
+    },
+    setAnnotationPropertiesTab: (state, action) => {
+      state.annotationPropertiesTab = action.payload;
     }
   },
 });
@@ -124,7 +129,8 @@ export const {
   setOpenDialogDeleteSelectedAnnotation,
   clearSelection,
   triggerSelectionBack,
-  setShowAnnotationsProperties
+  setShowAnnotationsProperties,
+  setAnnotationPropertiesTab
 } = selectionSlice.actions;
 
 // Selectors

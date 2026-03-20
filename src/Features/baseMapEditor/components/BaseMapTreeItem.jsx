@@ -68,6 +68,7 @@ import IconNewBaseMapVersion from "Features/icons/IconNewBaseMapVersion";
 
 import db from "App/db/db";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
+import DialogCreateBaseMapVersion from "./DialogCreateBaseMapVersion";
 
 function SortableVersionRow({
   version,
@@ -91,7 +92,6 @@ function SortableVersionRow({
       {...attributes}
       {...listeners}
       component="div"
-      selected={isSelected}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       style={style}
@@ -321,6 +321,7 @@ export default function BaseMapTreeItem({ listing }) {
   const [tempTitle, setTempTitle] = useState("");
   const fileInputRef = useRef(null);
   const [addVersionBaseMapId, setAddVersionBaseMapId] = useState(null);
+  const [createVersionForBaseMap, setCreateVersionForBaseMap] = useState(null);
 
   // helpers
 
@@ -374,12 +375,11 @@ export default function BaseMapTreeItem({ listing }) {
     );
   }
 
-  function handleVersionClick(baseMap, version) {
+  async function handleVersionClick(baseMap, version) {
     dispatch(setDisplayedBaseMapListingId(listing.id));
     dispatch(setSelectedBaseMapsListingId(listing.id));
     dispatch(setSelectedMainBaseMapId(baseMap.id));
     dispatch(setCreatingInListingId(null));
-    dispatch(setSelectedVersionId(version.id));
     dispatch(
       setSelectedItem({
         id: version.id,
@@ -388,6 +388,7 @@ export default function BaseMapTreeItem({ listing }) {
         baseMapId: baseMap.id,
       })
     );
+    await activateBaseMapVersion(baseMap.id, version.id, dispatch);
   }
 
   async function handleDragEnd(event) {
@@ -558,6 +559,60 @@ export default function BaseMapTreeItem({ listing }) {
     });
   }
 
+  async function handleCreateVersionFromDialog({ label, sourceBaseMap, sourceVersion }) {
+    const targetBaseMap = createVersionForBaseMap;
+    if (!targetBaseMap) return;
+
+    // Copy the image file from the source version
+    const versionId = nanoid();
+    let newImage = sourceVersion.image;
+    if (sourceVersion.image?.fileName) {
+      const srcFile = await db.files.get(sourceVersion.image.fileName);
+      if (srcFile) {
+        const ext = sourceVersion.image.fileName.split(".").pop() || "png";
+        const newFileName = `version_${versionId}_${targetBaseMap.id}.${ext}`;
+        await db.files.put({
+          ...srcFile,
+          fileName: newFileName,
+        });
+        newImage = {
+          ...sourceVersion.image,
+          fileName: newFileName,
+          fileUpdatedAt: new Date().toISOString(),
+        };
+      }
+    }
+
+    // Compute fractionalIndex
+    const existingVersions = await db.baseMapVersions
+      .where("baseMapId")
+      .equals(targetBaseMap.id)
+      .toArray();
+    const sorted = existingVersions
+      .filter((v) => !v.deletedAt)
+      .sort((a, b) =>
+        (a.fractionalIndex || "").localeCompare(b.fractionalIndex || "")
+      );
+    const lastIndex =
+      sorted.length > 0 ? sorted[sorted.length - 1].fractionalIndex : null;
+
+    // Deactivate all existing versions, then create the new one
+    await activateBaseMapVersion(targetBaseMap.id, null);
+    await db.baseMapVersions.put({
+      id: versionId,
+      baseMapId: targetBaseMap.id,
+      projectId: targetBaseMap.projectId,
+      listingId: targetBaseMap.listingId,
+      label,
+      fractionalIndex: generateKeyBetween(lastIndex, null),
+      isActive: true,
+      image: newImage,
+      transform: { x: 0, y: 0, rotation: 0, scale: 1 },
+    });
+
+    setCreateVersionForBaseMap(null);
+  }
+
   // render
 
   const isEditingListing = editingItemId === listing.id;
@@ -707,7 +762,7 @@ export default function BaseMapTreeItem({ listing }) {
                           )
                         }
                         onAddVersion={() =>
-                          handleDuplicateActiveVersion(baseMap)
+                          setCreateVersionForBaseMap(baseMap)
                         }
                       />
                       {hasVersions && isVersionsExpanded && (
@@ -830,6 +885,14 @@ export default function BaseMapTreeItem({ listing }) {
             </Typography>
           </ListItemButton>
         </Box>
+      )}
+
+      {createVersionForBaseMap && (
+        <DialogCreateBaseMapVersion
+          open={!!createVersionForBaseMap}
+          onClose={() => setCreateVersionForBaseMap(null)}
+          onConfirm={handleCreateVersionFromDialog}
+        />
       )}
     </Box>
   );

@@ -168,10 +168,23 @@ export default function PanelMapSummary() {
                 backgroundRepeat: "no-repeat",
                 borderRadius: 1,
                 border: (theme) => `1px solid ${theme.palette.divider}`,
-                mb: 1,
               }}
             />
           )}
+
+          {(() => {
+            const activeVersion = baseMap?.getActiveVersion?.();
+            const imageSize = baseMap?.getActiveImageSize?.();
+            const aspectRatio = imageSize?.width && imageSize?.height
+              ? (imageSize.width / imageSize.height).toFixed(2)
+              : null;
+            if (!activeVersion) return null;
+            return (
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
+                {activeVersion.label || "Version"}{aspectRatio ? ` — ${aspectRatio}` : ""}
+              </Typography>
+            );
+          })()}
 
           {baseMap && <FieldBaseMapOpacity baseMap={baseMap} />}
 

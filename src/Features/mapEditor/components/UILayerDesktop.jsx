@@ -1,10 +1,11 @@
+import { useState } from "react";
 import { useSelector } from "react-redux";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import { useInteraction } from "../context/InteractionContext";
 
-import { Box } from "@mui/material";
-
+import { Box, Button } from "@mui/material";
+import { GpsFixed } from "@mui/icons-material";
 
 import ButtonEditScaleVariantFirst from "./ButtonEditScaleVariantFirst";
 import ButtonAutoLayoutLabels from "Features/tools/components/ButtonAutoLayoutLabels";
@@ -12,6 +13,7 @@ import SectionShowedFWC from "Features/fwc/components/SectionShowedFWC";
 import ButtonRunningTransform from "Features/baseMapTransforms/components/ButtonRunningTransform";
 import SelectorMapEditorMode from "./SelectorMapEditorMode";
 import SelectorDrawingPanel from "./SelectorDrawingPanel";
+import DialogCalibration2D from "./DialogCalibration2D";
 
 
 export default function UILayerDesktop({ mapController, onResetCamera, viewport }) {
@@ -21,10 +23,15 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
     const { value: listing } = useSelectedListing();
     const openedPanel = useSelector(s => s.listings.openedPanel);
     const viewerKey = useSelector(s => s.viewers.selectedViewerKey);
+    const showCalibration = useSelector(s => s.baseMapEditor.showCalibration);
 
     const { basePose } = useInteraction();
 
     const isBaseMapsViewer = viewerKey === "BASE_MAPS";
+
+    // state
+
+    const [openCalibrationDialog, setOpenCalibrationDialog] = useState(false);
 
     // helpers
 
@@ -118,16 +125,6 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                 <SelectorMapEditorMode />
             </Box>
 
-            {isBaseMapsViewer && (
-                <Box sx={{
-                    position: "absolute",
-                    left: "16px",
-                    top: "16px",
-                    zIndex: 1,
-                }}>
-                    <SelectorDrawingPanel />
-                </Box>
-            )}
         </>
     );
 }

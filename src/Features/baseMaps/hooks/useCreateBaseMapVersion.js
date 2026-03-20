@@ -1,6 +1,8 @@
 import { nanoid } from "@reduxjs/toolkit";
 import { generateKeyBetween } from "fractional-indexing";
 
+import { useDispatch } from "react-redux";
+
 import db from "App/db/db";
 import generateThumbnail from "Features/images/utils/generateThumbnail";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
@@ -22,6 +24,8 @@ async function getImageSizeFromFile(file) {
 }
 
 export default function useCreateBaseMapVersion() {
+  const dispatch = useDispatch();
+
   return async (baseMapId, file, options = {}) => {
     const {
       label = "Nouvelle version",
@@ -95,7 +99,7 @@ export default function useCreateBaseMapVersion() {
     };
 
     // Deactivate all existing versions, then create the new one
-    await activateBaseMapVersion(baseMapId, null);
+    await activateBaseMapVersion(baseMapId, null, dispatch);
     await db.baseMapVersions.put(newVersion);
 
     return newVersion;
