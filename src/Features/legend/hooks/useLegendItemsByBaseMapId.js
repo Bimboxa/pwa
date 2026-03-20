@@ -4,7 +4,7 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 
-export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabledAnnotationTemplates, includeHidden } = {}) {
+export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabledAnnotationTemplates, disabledLayerIds, includeHidden } = {}) {
   // data
 
   const annotationTemplates = useAnnotationTemplates();
@@ -16,7 +16,14 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
     excludeIsForBaseMapsListings: true,
   });
 
-  const annotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
+  let annotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
+
+  if (disabledLayerIds?.length) {
+    annotations = annotations?.filter((a) => {
+      if (!a.layerId) return !disabledLayerIds.includes("__no_layer__");
+      return !disabledLayerIds.includes(a.layerId);
+    });
+  }
 
   // helpers - annotationTemplateById
 

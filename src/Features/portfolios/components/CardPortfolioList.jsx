@@ -4,6 +4,8 @@ import { useDispatch } from "react-redux";
 
 import { setSelectedViewerKey, setViewerReturnContext } from "Features/viewers/viewersSlice";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import {
   Box,
@@ -51,6 +53,8 @@ export default function CardPortfolioList() {
     dispatch(setDisplayedPortfolioId(portfolioId));
     dispatch(setViewerReturnContext({ fromViewer: "MAP" }));
     dispatch(setSelectedViewerKey("PORTFOLIO"));
+    dispatch(setSelectedItem({ id: portfolioId, type: "PORTFOLIO" }));
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   }
 
   function handleOpenDialog() {

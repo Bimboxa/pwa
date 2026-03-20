@@ -9,11 +9,23 @@ import getAnnotationTemplateMainQtyLabel from "Features/annotations/utils/getAnn
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 
-export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { viewBox } = {}) {
+export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { viewBox, disabledAnnotationTemplates, disabledLayerIds } = {}) {
   // data
 
   const allAnnotations = useAnnotationsV2({ filterByBaseMapId: baseMapId, filterBySelectedScope: true, excludeIsForBaseMapsListings: true });
-  const annotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
+  let annotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
+
+  if (disabledAnnotationTemplates?.length) {
+    annotations = annotations?.filter(
+      (a) => !disabledAnnotationTemplates.includes(a.annotationTemplateId)
+    );
+  }
+  if (disabledLayerIds?.length) {
+    annotations = annotations?.filter((a) => {
+      if (!a.layerId) return !disabledLayerIds.includes("__no_layer__");
+      return !disabledLayerIds.includes(a.layerId);
+    });
+  }
   const annotationTemplates = useAnnotationTemplates();
   const baseMap = useBaseMap({ id: baseMapId });
 

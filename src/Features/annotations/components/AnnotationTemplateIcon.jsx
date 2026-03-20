@@ -20,6 +20,19 @@ export default function AnnotationTemplateIcon({ template, size = 20 }) {
       : (template.fillOpacity ?? 1);
   const fillType = template.fillType;
 
+  // helpers - light color detection
+
+  const isLightColor = useMemo(() => {
+    if (!color) return false;
+    const hex = color.replace("#", "");
+    if (hex.length < 6) return false;
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.85;
+  }, [color]);
+
   // helpers - hatching
 
   const isHatching = fillType === "HATCHING" || fillType === "HATCHING_LEFT";
@@ -66,7 +79,19 @@ export default function AnnotationTemplateIcon({ template, size = 20 }) {
         )}
 
         {shapeType === "circle" && (
-          <circle cx="10" cy="10" r="7" fill={color} opacity={opacity} />
+          <circle cx="10" cy="10" r="7" fill={color} opacity={opacity}
+            stroke={isLightColor ? "#bbb" : "none"} strokeWidth={isLightColor ? 1 : 0} />
+        )}
+        {shapeType === "polyline" && isLightColor && (
+          <line
+            x1="2"
+            y1="10"
+            x2="18"
+            y2="10"
+            stroke="#bbb"
+            strokeWidth="5.5"
+            strokeLinecap="round"
+          />
         )}
         {shapeType === "polyline" && (
           <line
@@ -81,7 +106,8 @@ export default function AnnotationTemplateIcon({ template, size = 20 }) {
           />
         )}
         {shapeType === "rectangle" && !isHatching && (
-          <rect x="2" y="3" width="16" height="14" rx="2" fill={color} opacity={opacity} />
+          <rect x="2" y="3" width="16" height="14" rx="2" fill={color} opacity={opacity}
+            stroke={isLightColor ? "#bbb" : "none"} strokeWidth={isLightColor ? 1 : 0} />
         )}
         {shapeType === "rectangle" && isHatching && (
           <g opacity={opacity}>

@@ -7,9 +7,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import { setAnchorPositionScale, setScaleInPx, setAngleInRad } from "../mapEditorSlice";
 import { setEnabledDrawingMode } from "../mapEditorSlice";
 import { setTempAnnotations, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
-import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
-import { setTempAnnotationToolbarPosition } from "Features/mapEditor/mapEditorSlice";
 import { setBgImageRawTextAnnotations } from "Features/bgImage/bgImageSlice";
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
@@ -54,7 +52,7 @@ import PopperEditAnnotations from "./PopperEditAnnotations";
 import PopperEditScale from "./PopperEditScale";
 import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
-import PopperSaveTempAnnotations from "Features/mapEditor/components/PopperSaveTempAnnotations";
+import useSaveTempAnnotations from "Features/mapEditor/hooks/useSaveTempAnnotations";
 import PopperMapListings from "./PopperMapListings";
 
 
@@ -309,6 +307,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const handleTechnicalReturn = useHandleTechnicalReturn();
     const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline();
     const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick();
+    const saveTempAnnotations = useSaveTempAnnotations();
 
     const handleCommitDrawing = (rawPoints, options) => {
 
@@ -344,18 +343,14 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     // handler - commit points from drop_fill
 
-    const handleCommitPointsFromSurfaceDrop = ({ points, cuts, screenPos }) => {
-        const tempAnnotation = {
+    const handleCommitPointsFromSurfaceDrop = async ({ points, cuts }) => {
+        const annotation = {
             ...newAnnotation,
             baseMapId: baseMap.id,
             points,
             cuts,
-            id: "temp",
-            screenPos,
         };
-        dispatch(setTempAnnotations([tempAnnotation]));
-        dispatch(setTempAnnotationToolbarPosition(screenPos));
-        dispatch(setSelectedAnnotationId("temp"));
+        await saveTempAnnotations([annotation]);
     }
 
     // handlers - image drop
@@ -1186,7 +1181,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             <PopperEditScale />
             <PopperContextMenu />
 
-            <PopperSaveTempAnnotations />
             {/* <DialogAutoMigrateToMapEditorV3 /> */}
 
             <LayerTools />

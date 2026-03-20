@@ -25,15 +25,16 @@ export default function useSaveTempAnnotations() {
 
     const baseMap = useMainBaseMap();
 
-    const saveTempAnnotations = async () => {
+    const saveTempAnnotations = async (annotationsParam) => {
 
-        if (!tempAnnotations || tempAnnotations.length === 0) return;
+        const annotations = annotationsParam || tempAnnotations;
+        if (!annotations || annotations.length === 0) return;
 
         // image size for normalization
         const { width, height } = baseMap?.getImageSize?.() ?? { width: 1, height: 1 };
 
-        // Process each temp annotation
-        for (const tempAnn of tempAnnotations) {
+        // Process each annotation
+        for (const tempAnn of annotations) {
 
             // 1. Create Entity
             const entity = await createEntity({});
@@ -108,8 +109,10 @@ export default function useSaveTempAnnotations() {
             await createAnnotation(_newAnnotation);
         }
 
-        // Clear temp annotations
-        dispatch(setTempAnnotations([]));
+        // Clear temp annotations (only when using Redux state)
+        if (!annotationsParam) {
+            dispatch(setTempAnnotations([]));
+        }
     };
 
     return saveTempAnnotations;

@@ -44,9 +44,9 @@ export default function PanelLegendBlockProperties() {
     y: container.y + 16,
     width: 140,
     fontSize: 12,
-    showQty: false,
+    showQty: true,
   };
-  const showQty = legendFormat.showQty ?? false;
+  const showQty = legendFormat.showQty ?? true;
   const fontSize = legendFormat.fontSize || 12;
 
   // handlers

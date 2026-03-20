@@ -9,6 +9,9 @@ import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 import useLegendItemsByBaseMapId from "Features/legend/hooks/useLegendItemsByBaseMapId";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+import useLayers from "Features/layers/hooks/useLayers";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
+import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 
 import {
   Box,
@@ -26,6 +29,7 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldSlider from "Features/form/components/FieldSlider";
 import IconButtonMoreActionsBaseMapContainer from "./IconButtonMoreActionsBaseMapContainer";
 import SectionAnnotationVisibility from "./SectionAnnotationVisibility";
+import SectionLayerVisibility from "./SectionLayerVisibility";
 
 import db from "App/db/db";
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
@@ -51,6 +55,24 @@ export default function PanelBaseMapContainerProperties() {
     viewBox,
     includeHidden: true,
   });
+  const layers = useLayers({ filterByBaseMapId: container?.baseMapId }) ?? [];
+  const allAnnotations = useAnnotationsV2({
+    filterByBaseMapId: container?.baseMapId,
+    filterBySelectedScope: true,
+    excludeIsForBaseMapsListings: true,
+  });
+  const viewBoxAnnotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
+
+  // helpers - layer annotation counts
+  const annotationCountByLayerId = {};
+  let hasAnnotationsWithoutLayer = false;
+  viewBoxAnnotations?.forEach((a) => {
+    if (a.type === "IMAGE") return;
+    const key = a.layerId || "__no_layer__";
+    if (!a.layerId) hasAnnotationsWithoutLayer = true;
+    annotationCountByLayerId[key] = (annotationCountByLayerId[key] || 0) + 1;
+  });
+  const presentLayers = layers.filter((l) => annotationCountByLayerId[l.id] > 0);
 
   // helpers
 
@@ -125,6 +147,17 @@ export default function PanelBaseMapContainerProperties() {
     }
     await db.portfolioBaseMapContainers.update(container.id, {
       disabledAnnotationTemplates: updated,
+    });
+  }
+
+  async function handleToggleLayer(layerId) {
+    const disabled = container.disabledLayerIds || [];
+    const isDisabled = disabled.includes(layerId);
+    const updated = isDisabled
+      ? disabled.filter((id) => id !== layerId)
+      : [...disabled, layerId];
+    await db.portfolioBaseMapContainers.update(container.id, {
+      disabledLayerIds: updated,
     });
   }
 
@@ -209,6 +242,20 @@ export default function PanelBaseMapContainerProperties() {
             />
           </WhiteSectionGeneric>
         </Box>
+
+        {(presentLayers.length > 0 || hasAnnotationsWithoutLayer) && (
+          <Box sx={{ mt: 1 }}>
+            <WhiteSectionGeneric>
+              <SectionLayerVisibility
+                layers={presentLayers}
+                disabledLayerIds={container.disabledLayerIds || []}
+                annotationCountByLayerId={annotationCountByLayerId}
+                hasAnnotationsWithoutLayer={hasAnnotationsWithoutLayer}
+                onToggleLayer={handleToggleLayer}
+              />
+            </WhiteSectionGeneric>
+          </Box>
+        )}
 
         {allLegendItems?.length > 0 && (
           <Box sx={{ mt: 1 }}>

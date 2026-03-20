@@ -29,9 +29,14 @@ export default function LegendBlockSvg({ container, zoom }) {
   const legendItems = useLegendItemsByBaseMapId(container.baseMapId, {
     viewBox,
     disabledAnnotationTemplates: container.disabledAnnotationTemplates,
+    disabledLayerIds: container.disabledLayerIds,
   });
   const spriteImage = useAnnotationSpriteImage();
-  const qtiesById = useAnnotationTemplateQtiesByIdForBaseMap(container.baseMapId, { viewBox });
+  const qtiesById = useAnnotationTemplateQtiesByIdForBaseMap(container.baseMapId, {
+    viewBox,
+    disabledAnnotationTemplates: container.disabledAnnotationTemplates,
+    disabledLayerIds: container.disabledLayerIds,
+  });
 
   // refs
 
@@ -45,7 +50,7 @@ export default function LegendBlockSvg({ container, zoom }) {
     y: container.y + PADDING,
     width: DEFAULT_WIDTH,
     fontSize: DEFAULT_FONT_SIZE,
-    showQty: false,
+    showQty: true,
   };
   // Ensure fontSize has a default even for persisted records without it
   if (!legendFormat.fontSize) legendFormat.fontSize = DEFAULT_FONT_SIZE;

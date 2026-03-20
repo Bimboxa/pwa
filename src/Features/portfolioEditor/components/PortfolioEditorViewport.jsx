@@ -16,7 +16,7 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import getPageDimensions from "../utils/getPageDimensions";
 
 import PortfolioPageSvg from "./PortfolioPageSvg";
-import SectionPortfolioPageArticles from "Features/articles/components/SectionPortfolioPageArticles";
+// import SectionPortfolioPageArticles from "Features/articles/components/SectionPortfolioPageArticles";
 import ButtonAddPage from "./ButtonAddPage";
 
 export default function PortfolioEditorViewport() {
@@ -153,9 +153,9 @@ export default function PortfolioEditorViewport() {
                   totalPages={pages.length}
                   zoom={zoom}
                 />
-                <Box sx={{ width: dims.width }}>
+                {/* <Box sx={{ width: dims.width }}>
                   <SectionPortfolioPageArticles page={page} annotations={annotations} />
-                </Box>
+                </Box> */}
               </Box>
             );
           })}

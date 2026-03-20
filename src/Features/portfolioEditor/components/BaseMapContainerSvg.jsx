@@ -65,11 +65,18 @@ export default function BaseMapContainerSvg({
       : null;
 
   const disabledTemplates = container.disabledAnnotationTemplates;
-  const visibleAnnotations = disabledTemplates?.length
+  const disabledLayers = container.disabledLayerIds;
+  let visibleAnnotations = disabledTemplates?.length
     ? annotations?.filter(
         (a) => !disabledTemplates.includes(a.annotationTemplateId)
       )
     : annotations;
+  if (disabledLayers?.length) {
+    visibleAnnotations = visibleAnnotations?.filter((a) => {
+      if (!a.layerId) return !disabledLayers.includes("__no_layer__");
+      return !disabledLayers.includes(a.layerId);
+    });
+  }
 
   const nonLabelAnnotations = visibleAnnotations?.filter(
     (a) => a.type !== "LABEL"

@@ -2027,7 +2027,12 @@ const InteractionLayer = forwardRef(({
       const localPos = toLocalCoords(worldPos);
       const snapThreshold = SNAP_THRESHOLD_ABSOLUTE / scale;
 
-      snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, true, Boolean(enabledDrawingMode) || (mapEditorMode === "QUICK_POINTS_CHANGE" && !selectedAnnotation?.id));
+      const isQuickEdit = mapEditorMode === "QUICK_POINTS_CHANGE";
+      snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, true, Boolean(enabledDrawingMode) || (isQuickEdit && !selectedAnnotation?.id));
+
+      if (snapResult && !isQuickEdit && snapResult.type !== "VERTEX") {
+        snapResult = null;
+      }
 
       if (snapResult) {
         currentSnapRef.current = snapResult;
