@@ -27,6 +27,7 @@ import FieldBaseMapOpacity from "Features/baseMaps/components/FieldBaseMapOpacit
 import SectionSmartTransforms from "Features/baseMapTransforms/components/SectionSmartTransforms";
 import SectionBasicTransforms from "Features/baseMapTransforms/components/SectionBasicTransforms";
 
+import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
@@ -178,10 +179,14 @@ export default function PanelMapSummary() {
             const aspectRatio = imageSize?.width && imageSize?.height
               ? (imageSize.width / imageSize.height).toFixed(2)
               : null;
+            const fileSizeS = stringifyFileSize(activeVersion?.image?.file?.size);
             if (!activeVersion) return null;
+            const parts = [activeVersion.label || "Version"];
+            if (aspectRatio) parts.push(`r:${aspectRatio}`);
+            if (fileSizeS) parts.push(fileSizeS);
             return (
               <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
-                {activeVersion.label || "Version"}{aspectRatio ? ` — ${aspectRatio}` : ""}
+                {parts.join(" — ")}
               </Typography>
             );
           })()}

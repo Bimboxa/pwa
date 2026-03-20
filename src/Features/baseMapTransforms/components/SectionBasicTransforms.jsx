@@ -124,6 +124,27 @@ export default function SectionBasicTransforms({ baseMap }) {
     if (file) handleTransformResult(file, "Noir et blanc");
   }
 
+  async function handleHalveSize() {
+    if (!versionUrl) return;
+    const img = await new Promise((resolve, reject) => {
+      const i = new window.Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = versionUrl;
+    });
+    const w = Math.round(img.naturalWidth / 2);
+    const h = Math.round(img.naturalHeight / 2);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+    const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+    if (blob) {
+      const file = new File([blob], "halved.png", { type: "image/png" });
+      handleTransformResult(file, "Taille / 2");
+    }
+  }
+
   async function handleGrayLevelConfirm() {
     if (!versionUrl) return;
     setGrayLevelProcessing(true);
@@ -173,6 +194,12 @@ export default function SectionBasicTransforms({ baseMap }) {
           <ListItemButton onClick={handleBlackAndWhite} divider>
             <Typography variant="body2" color="text.secondary">
               Noir et blanc
+            </Typography>
+          </ListItemButton>
+
+          <ListItemButton onClick={handleHalveSize} divider>
+            <Typography variant="body2" color="text.secondary">
+              Diviser la taille par 2
             </Typography>
           </ListItemButton>
 
