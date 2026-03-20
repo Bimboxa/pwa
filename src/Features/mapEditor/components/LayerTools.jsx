@@ -2,8 +2,6 @@
 import { Box } from "@mui/material";
 
 //import ButtonMenuMapEditorSettings from "./ButtonMenuMapEditorSettings";
-import SectionPdfReportInMapEditor from "Features/pdfReport/components/SectionPdfReportInMapEditor";
-
 export default function LayerTools() {
     return <>
         <Box
@@ -14,8 +12,6 @@ export default function LayerTools() {
                 zIndex: 1,
             }}
         >
-
-            <SectionPdfReportInMapEditor />
         </Box>
     </>;
 }

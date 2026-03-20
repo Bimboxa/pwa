@@ -175,7 +175,7 @@ export default function DialogCalibration2D({ open, onClose }) {
       <DialogContent>
         <Typography variant="body2" sx={{ mb: 2 }}>
           La version active ({activeVersion.label || "Sans nom"}) sera recalée
-          par rapport ?? la version de référence ci-dessous. Positionnez les
+          par rapport à la version de référence ci-dessous. Positionnez les
           cibles rouge et verte sur des points identifiables communs aux deux
           versions.
         </Typography>

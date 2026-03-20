@@ -1,5 +1,4 @@
 import { useSelector } from "react-redux";
-import { useLiveQuery } from "dexie-react-hooks";
 
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 
@@ -7,10 +6,8 @@ import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotat
 import useSelectedNodes from "../hooks/useSelectedNodes";
 import useToolbarDrag from "../hooks/useToolbarDrag";
 
-import db from "App/db/db";
 import { Box } from "@mui/material";
 import ToolbarEditAnnotation from "Features/annotations/components/ToolbarEditAnnotation";
-import ToolbarEditAnnotationVariantBaseMapAnnotation from "Features/annotations/components/ToolbarEditAnnotationVariantBaseMapAnnotation";
 
 
 export default function PopperEditAnnotation({ viewerKey = null }) {
@@ -45,14 +42,6 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
     ["MARKER", "POINT", "POLYLINE", "POLYGON", "IMAGE", "RECTANGLE", "STRIP"].includes(type) &&
     selectedNode?.nodeType === "ANNOTATION";
 
-  // helper - isBaseMapAnnotation
-
-  const listing = useLiveQuery(
-    () => selectedAnnotation?.listingId ? db.listings.get(selectedAnnotation.listingId) : null,
-    [selectedAnnotation?.listingId]
-  );
-  const isBaseMapAnnotation = listing?.isForBaseMaps === true;
-
   // drag
 
   const { dragOffset, isDragging, handleDragStart } = useToolbarDrag();
@@ -72,11 +61,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
       }}
     >
       <Box sx={{ pointerEvents: "auto" }}>
-        {!isBaseMapAnnotation ? (
-          <ToolbarEditAnnotation onDragStart={handleDragStart} />
-        ) : (
-          <ToolbarEditAnnotationVariantBaseMapAnnotation />
-        )}
+        <ToolbarEditAnnotation onDragStart={handleDragStart} />
       </Box>
     </Box>
   );

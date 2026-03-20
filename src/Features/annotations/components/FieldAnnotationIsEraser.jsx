@@ -1,22 +1,29 @@
-import { ToggleButton } from "@mui/material";
-import IconEraser from "Features/icons/IconEraser";
+import { useDispatch } from "react-redux";
 
-export default function FieldAnnotationIsEraser({ annotation, onChange }) {
+import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
+import db from "App/db/db";
+import FieldCheck from "Features/form/components/FieldCheck";
 
-    // helpers
+export default function FieldAnnotationIsEraser({ annotation }) {
+  const dispatch = useDispatch();
 
-    const isEraser = annotation.isEraser;
+  // handlers
 
-    // handlers
+  async function handleChange(checked) {
+    if (!annotation?.id) return;
+    await db.annotations.update(annotation.id, { isEraser: checked });
+    dispatch(triggerAnnotationsUpdate());
+  }
 
-    function handleChange() {
-        onChange({ ...annotation, isEraser: !isEraser });
-    }
+  // render
 
-    return (
-        <ToggleButton size="small" selected={isEraser} onChange={handleChange}>
-            <IconEraser />
-        </ToggleButton>
-    );
+  return (
+    <FieldCheck
+      value={Boolean(annotation?.isEraser)}
+      onChange={handleChange}
+      label="Gomme"
+      options={{ type: "switch", showAsSection: true }}
+    />
+  );
 }

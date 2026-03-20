@@ -15,6 +15,7 @@ import FieldWrapperDimensions from "./FieldWrapperDimensions";
 import FieldAnnotationRotation from "./FieldAnnotationRotation";
 import FieldAnnotationFill from "./FieldAnnotationFill";
 import FieldAnnotationStroke from "./FieldAnnotationStroke";
+import FieldAnnotationIsEraser from "./FieldAnnotationIsEraser";
 
 export default function SectionAnnotationPropertiesContent({ annotation }) {
   // data
@@ -71,6 +72,7 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
         <FieldAnnotationRotation annotation={annotation} />
         {showFill && <FieldAnnotationFill annotation={annotation} overrideFields={overrideFields} />}
         {showStroke && <FieldAnnotationStroke annotation={annotation} overrideFields={overrideFields} />}
+        <FieldAnnotationIsEraser annotation={annotation} />
       </Box>
     </>
   );
