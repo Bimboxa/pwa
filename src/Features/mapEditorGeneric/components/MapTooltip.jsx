@@ -12,14 +12,19 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations }, ref) => {
 
     const annotation = annotations.find(a => a.id === hoveredNode.nodeId);
 
+    // helper - template label
+    const templateLabel = annotation?.annotationTemplateProps?.label || annotation?.templateLabel;
+
+    // helper - entity
+    const entity = annotation?.entity;
+    const entityLabel = annotation?.label;
+    const entityDescription = entity?.description;
+
     // helper - image
-    const imageUrl_entity = annotation?.entity?.image?.imageUrlClient;
+    const imageUrl_entity = entity?.image?.imageUrlClient;
     const imageUrl_0 = annotation?.images?.[0]?.imageUrlClient || annotation?.images?.[0]?.imageUrlRemote;
     const imageUrl = imageUrl_entity || imageUrl_0;
     const hasImage = Boolean(imageUrl);
-
-    // helper - description
-    const description = annotation?.entity?.text;
 
     // render
 
@@ -65,11 +70,16 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations }, ref) => {
                 />
             )}
             <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', color: '#90caf9' }}>
-                {annotation.label}
+                {templateLabel}
             </Typography>
-            {description && (
-                <Typography variant="body2">
-                    {description}
+            {entityLabel && (
+                <Typography variant="caption" sx={{ display: 'block' }}>
+                    {entityLabel}
+                </Typography>
+            )}
+            {entityDescription && (
+                <Typography variant="caption" sx={{ display: 'block', color: 'grey.400', mt: 0.5 }}>
+                    {entityDescription}
                 </Typography>
             )}
             {/* <Typography variant="caption" sx={{ color: 'grey.500', fontSize: '0.7rem' }}>

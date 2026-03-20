@@ -21,7 +21,6 @@ import NodeRectangle from "./NodeRectangle";
 import NodeSegment from "./NodeSegment";
 import SelectedAnnotationGroup from "./SelectedAnnotationGroup";
 import LayerMarkerTooltip from "Features/mapEditor/components/LayerMarkerTooltip";
-import LayerAnnotationTooltip from "Features/mapEditor/components/LayerAnnotationTooltip";
 import DraggableFabMarker from "Features/markers/components/DraggableFabMarker";
 import HelperScale from "./HelperScale";
 
@@ -2253,11 +2252,7 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
         mousePos={mousePos}
         annotationSpriteImage={annotationSpriteImage}
       />
-      <LayerAnnotationTooltip
-        containerEl={containerRef.current}
-        hoveredAnnotation={hoveredAnnotation}
-        mousePos={mousePos}
-      />
+
     </Box>
   );
 });
