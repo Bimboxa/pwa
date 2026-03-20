@@ -235,7 +235,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         filterByMainBaseMap: true,
         filterBySelectedScope: true,
         sortByOrderIndex: true,
-        excludeIsForBaseMapsListings: viewerKey === "MAP",
+        excludeIsForBaseMapsListings: false,
         onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
     });
 

@@ -328,6 +328,7 @@ export default async function mergeAnnotationsOnImage({
   refSize,
   annotations,
   meterByPx,
+  clipToImage = false,
 }) {
   if (!imageUrl || !annotations?.length) return null;
 
@@ -340,28 +341,38 @@ export default async function mergeAnnotationsOnImage({
   const imgRight = t.x + baseImg.width * t.scale;
   const imgBottom = t.y + baseImg.height * t.scale;
 
-  // Compute the bounding box of all annotations
-  const annotBounds = getAnnotationsBounds(annotations);
+  let minX, minY, maxX, maxY;
 
-  // Determine the total bounds (image + annotations)
-  let minX = Math.min(imgLeft, 0);
-  let minY = Math.min(imgTop, 0);
-  let maxX = Math.max(imgRight, refSize.width);
-  let maxY = Math.max(imgBottom, refSize.height);
+  if (clipToImage) {
+    // Keep canvas exactly at the base image bounds
+    minX = Math.floor(imgLeft);
+    minY = Math.floor(imgTop);
+    maxX = Math.ceil(imgRight);
+    maxY = Math.ceil(imgBottom);
+  } else {
+    // Compute the bounding box of all annotations
+    const annotBounds = getAnnotationsBounds(annotations);
 
-  if (annotBounds) {
-    minX = Math.min(minX, annotBounds.minX);
-    minY = Math.min(minY, annotBounds.minY);
-    maxX = Math.max(maxX, annotBounds.maxX);
-    maxY = Math.max(maxY, annotBounds.maxY);
+    // Determine the total bounds (image + annotations)
+    minX = Math.min(imgLeft, 0);
+    minY = Math.min(imgTop, 0);
+    maxX = Math.max(imgRight, refSize.width);
+    maxY = Math.max(imgBottom, refSize.height);
+
+    if (annotBounds) {
+      minX = Math.min(minX, annotBounds.minX);
+      minY = Math.min(minY, annotBounds.minY);
+      maxX = Math.max(maxX, annotBounds.maxX);
+      maxY = Math.max(maxY, annotBounds.maxY);
+    }
+
+    // Add a small margin
+    const margin = 2;
+    minX = Math.floor(minX - margin);
+    minY = Math.floor(minY - margin);
+    maxX = Math.ceil(maxX + margin);
+    maxY = Math.ceil(maxY + margin);
   }
-
-  // Add a small margin
-  const margin = 2;
-  minX = Math.floor(minX - margin);
-  minY = Math.floor(minY - margin);
-  maxX = Math.ceil(maxX + margin);
-  maxY = Math.ceil(maxY + margin);
 
   const canvasW = maxX - minX;
   const canvasH = maxY - minY;

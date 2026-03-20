@@ -26,6 +26,7 @@ import {
   Tooltip,
   Switch,
   FormControlLabel,
+  Checkbox,
 } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import Add from "@mui/icons-material/Add";
@@ -58,6 +59,14 @@ import {
 import { setShowCalibration } from "Features/baseMapEditor/baseMapEditorSlice";
 import DialogCalibration2D from "./DialogCalibration2D";
 import GpsFixed from "@mui/icons-material/GpsFixed";
+
+import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
+import useReplaceVersionImage from "Features/baseMaps/hooks/useReplaceVersionImage";
+import DialogGeneric from "Features/layout/components/DialogGeneric";
+import SectionCompareTwoImages from "Features/baseMapTransforms/components/SectionCompareTwoImages";
+import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import ButtonMergeListingAnnotations from "Features/baseMapEditor/components/ButtonMergeListingAnnotations";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import {
   getDrawingToolsByType,
@@ -767,6 +776,7 @@ function ListingRow({
   onToggleExpand,
   hiddenListingsIds,
   annotationCount,
+  extraAction,
 }) {
   const dispatch = useDispatch();
 
@@ -843,6 +853,8 @@ function ListingRow({
             {listing.name ?? listing.label ?? "Liste"}
           </Typography>
         </Box>
+
+        {extraAction}
 
         {/* Right side: count (default) / visibility icon (hover) */}
         <Box sx={{ position: "relative", minWidth: 24, height: 24, flexShrink: 0 }}>
@@ -1031,6 +1043,15 @@ export default function PopperMapListings() {
       : { excludeIsForBaseMaps: true }),
   });
 
+  const { value: baseMapListings } = useListings({
+    filterByScopeId: selectedScopeId,
+    filterByEntityModelType: "LOCATED_ENTITY",
+    filterByIsForBaseMaps: true,
+  });
+
+  const createVersion = useCreateBaseMapVersion();
+  const replaceVersionImage = useReplaceVersionImage();
+
   // state
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
@@ -1039,6 +1060,9 @@ export default function PopperMapListings() {
   const [expandedListingIds, setExpandedListingIds] = useState([]);
   const [openCreateListing, setOpenCreateListing] = useState(false);
   const [openCalibrationDialog, setOpenCalibrationDialog] = useState(false);
+  const [mergeResult, setMergeResult] = useState(null);
+  const [openMergeCompare, setOpenMergeCompare] = useState(false);
+  const [mergeCreateNewVersion, setMergeCreateNewVersion] = useState(true);
   const { position, isDragging, handleMouseDown } = usePanelDrag();
 
   // helpers - filter listings when coming from LISTING viewer
@@ -1068,6 +1092,55 @@ export default function PopperMapListings() {
         ? prev.filter((id) => id !== listingId)
         : [...prev, listingId]
     );
+  }
+
+  function handleMergeResult(file, listingName) {
+    const objectUrl = URL.createObjectURL(file);
+    setMergeResult({ file, label: `Fusion ${listingName || "annotations"}`, objectUrl });
+    setOpenMergeCompare(true);
+    setMergeCreateNewVersion(true);
+  }
+
+  function handleCloseMergeCompare() {
+    if (mergeResult?.objectUrl) URL.revokeObjectURL(mergeResult.objectUrl);
+    setMergeResult(null);
+    setOpenMergeCompare(false);
+  }
+
+  async function handleSaveMerge() {
+    const activeVersion = baseMap?.getActiveVersion?.();
+    if (!mergeResult?.file || !baseMap?.id || !activeVersion?.id) return;
+
+    const originalTransform = baseMap.getActiveVersionTransform();
+    const originalImageSize = baseMap.getActiveImageSize();
+    let transform;
+    if (originalImageSize && mergeResult.objectUrl) {
+      const newSize = await new Promise((resolve) => {
+        const img = new window.Image();
+        img.onload = () =>
+          resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onerror = () => resolve(null);
+        img.src = mergeResult.objectUrl;
+      });
+      if (newSize && newSize.width > 0) {
+        const scale =
+          (originalImageSize.width * (originalTransform.scale || 1)) /
+          newSize.width;
+        transform = { ...originalTransform, scale };
+      }
+    }
+
+    if (mergeCreateNewVersion) {
+      await createVersion(baseMap.id, mergeResult.file, {
+        label: mergeResult.label,
+        transform,
+      });
+    } else {
+      await replaceVersionImage(baseMap.id, activeVersion.id, mergeResult.file, {
+        transform,
+      });
+    }
+    handleCloseMergeCompare();
   }
 
   // render
@@ -1201,18 +1274,39 @@ export default function PopperMapListings() {
                     listingId={listing.id}
                   />
                 ))
-              : displayedListings?.map((listing) => (
-                  <ListingRow
-                    key={listing.id}
-                    listing={listing}
-                    isExpanded={expandedListingIds.includes(listing.id)}
-                    onToggleExpand={handleToggleExpand}
-                    hiddenListingsIds={hiddenListingsIds}
-                    annotationCount={
-                      annotationCountByListingId?.[listing.id] || 0
-                    }
-                  />
-                ))}
+              : <>
+                  {baseMapListings?.map((listing) => (
+                    <ListingRow
+                      key={listing.id}
+                      listing={listing}
+                      isExpanded={expandedListingIds.includes(listing.id)}
+                      onToggleExpand={handleToggleExpand}
+                      hiddenListingsIds={hiddenListingsIds}
+                      annotationCount={
+                        annotationCountByListingId?.[listing.id] || 0
+                      }
+                      extraAction={
+                        <ButtonMergeListingAnnotations
+                          listingId={listing.id}
+                          baseMap={baseMap}
+                          onResult={(file) => handleMergeResult(file, listing.name)}
+                        />
+                      }
+                    />
+                  ))}
+                  {displayedListings?.map((listing) => (
+                    <ListingRow
+                      key={listing.id}
+                      listing={listing}
+                      isExpanded={expandedListingIds.includes(listing.id)}
+                      onToggleExpand={handleToggleExpand}
+                      hiddenListingsIds={hiddenListingsIds}
+                      annotationCount={
+                        annotationCountByListingId?.[listing.id] || 0
+                      }
+                    />
+                  ))}
+                </>}
 
             {/* Outils section */}
             <Box
@@ -1331,6 +1425,58 @@ export default function PopperMapListings() {
           open={openCalibrationDialog}
           onClose={() => setOpenCalibrationDialog(false)}
         />
+      )}
+
+      {/* Merge compare dialog */}
+      {openMergeCompare && mergeResult && (
+        <DialogGeneric
+          open={openMergeCompare}
+          vh={90}
+          onClose={handleCloseMergeCompare}
+        >
+          <BoxFlexVStretch sx={{ width: 1, height: 1, position: "relative" }}>
+            <SectionCompareTwoImages
+              imageUrl1={mergeResult.objectUrl}
+              imageUrl2={baseMap?.getUrl?.()}
+            />
+            <Box
+              sx={{
+                position: "absolute",
+                bottom: 8,
+                right: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                bgcolor: "white",
+                borderRadius: 1,
+                px: 1.5,
+                py: 0.5,
+                boxShadow: 2,
+              }}
+            >
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={mergeCreateNewVersion}
+                    onChange={(e) => setMergeCreateNewVersion(e.target.checked)}
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography variant="caption" color="text.primary">
+                    Nouvelle version
+                  </Typography>
+                }
+              />
+              <ButtonGeneric
+                label="Enregistrer"
+                variant="contained"
+                color="secondary"
+                onClick={handleSaveMerge}
+              />
+            </Box>
+          </BoxFlexVStretch>
+        </DialogGeneric>
       )}
     </Paper>
   );

@@ -14,8 +14,8 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
     Object.keys(annotationTemplateProps).forEach((key) => {
         if (key === "overrideFields" || key === "hidden") return;
 
-        // Only override if the field is in overrideFields (when defined and non-empty)
-        if (Array.isArray(overrideFields) && overrideFields.length > 0 && !overrideFields.includes(key)) {
+        // Only override fields explicitly listed in overrideFields
+        if (!Array.isArray(overrideFields) || !overrideFields.includes(key)) {
             return;
         }
 

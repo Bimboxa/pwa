@@ -25,7 +25,6 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 import ToolMorphology from "Features/baseMapEditor/components/ToolMorphology";
-import ToolMergeVisibleAnnotations from "Features/baseMapEditor/components/ToolMergeVisibleAnnotations";
 import convertToBlackAndWhite from "Features/images/utils/convertToBlackAndWhite";
 import addBackgroundToImage from "Features/images/utils/addBackgroundToImage";
 
@@ -271,10 +270,6 @@ export default function SectionBasicTransforms({ baseMap }) {
             />
           </Box>
 
-          <ToolMergeVisibleAnnotations
-            baseMap={baseMap}
-            onResult={handleTransformResult}
-          />
         </List>
       </Box>
 
