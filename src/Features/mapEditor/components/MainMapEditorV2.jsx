@@ -984,12 +984,67 @@ export default function MainMapEditorV2() {
 
         if (points && points.length >= 2) {
           const _color = theme.palette.secondary.main;
-          const polyline = {
+          const { width, height } = mainBaseMap?.getImageSize?.() ?? { width: 1, height: 1 };
+          const baseMapId = mainBaseMap?.id;
+
+          // Create entity
+          const entity = await createEntity({});
+          const entityId = entity.id;
+
+          // Process main points
+          const allNewPoints = [];
+          const mainPointIds = [];
+          for (const pt of points) {
+            const id = nanoid();
+            allNewPoints.push({
+              id,
+              x: pt.x / width,
+              y: pt.y / height,
+              baseMapId,
+              projectId,
+              listingId,
+              forMarker: false,
+            });
+            mainPointIds.push(id);
+          }
+
+          // Process cuts
+          const finalCuts = [];
+          if (cuts && cuts.length > 0) {
+            for (const cut of cuts) {
+              const cutPointIds = [];
+              for (const pt of cut.points || []) {
+                const id = nanoid();
+                allNewPoints.push({
+                  id,
+                  x: pt.x / width,
+                  y: pt.y / height,
+                  baseMapId,
+                  projectId,
+                  listingId,
+                  forMarker: false,
+                });
+                cutPointIds.push(id);
+              }
+              finalCuts.push({ points: cutPointIds.map((id) => ({ id })) });
+            }
+          }
+
+          // Save all points
+          if (allNewPoints.length > 0) {
+            await db.points.bulkAdd(allNewPoints);
+          }
+
+          // Create annotation directly
+          await createAnnotation({
             id: nanoid(),
-            baseMapId: mainBaseMap?.id,
+            entityId,
+            baseMapId,
+            projectId,
+            listingId,
             type: "POLYLINE",
-            points: points,
-            cuts: cuts && cuts.length > 0 ? cuts : undefined,
+            points: mainPointIds.map((id) => ({ id })),
+            cuts: finalCuts,
             fillColor: _color,
             strokeColor: _color,
             strokeWidth: 1,
@@ -999,10 +1054,7 @@ export default function MainMapEditorV2() {
             strokeOffset: 0,
             closeLine: true,
             fillOpacity: 0.5,
-            isTemp: true,
-          };
-
-          dispatch(setTempAnnotations([polyline]));
+          });
         }
       } else if (opencvClickMode === "DETECT_STRAIGHT_LINE") {
         const viewportBounds = editor.viewportInBase?.bounds;

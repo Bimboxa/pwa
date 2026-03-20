@@ -6,6 +6,10 @@ import {
   setSelectedItems,
 } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import {
+  setSelectedViewerKey,
+  setViewerReturnContext,
+} from "Features/viewers/viewersSlice";
 
 import { Box, Typography, IconButton, Button, Chip, Tooltip } from "@mui/material";
 import {
@@ -21,6 +25,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldBaseMapOpacity from "Features/baseMaps/components/FieldBaseMapOpacity";
 import SectionSmartTransforms from "Features/baseMapTransforms/components/SectionSmartTransforms";
+import SectionBasicTransforms from "Features/baseMapTransforms/components/SectionBasicTransforms";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
@@ -81,6 +86,8 @@ export default function PanelMapSummary() {
       })
     );
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+    dispatch(setSelectedViewerKey("BASE_MAPS"));
+    dispatch(setViewerReturnContext({ fromViewer: "MAP" }));
   }
 
   function handleCopyAnnotationsDebug() {
@@ -169,6 +176,8 @@ export default function PanelMapSummary() {
           {baseMap && <FieldBaseMapOpacity baseMap={baseMap} />}
 
           {baseMap && <SectionSmartTransforms baseMap={baseMap} />}
+
+          {baseMap && <SectionBasicTransforms baseMap={baseMap} />}
 
           <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
             <Button

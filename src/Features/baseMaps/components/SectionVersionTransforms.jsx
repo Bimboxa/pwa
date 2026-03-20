@@ -42,6 +42,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 import ToolMergeVisibleAnnotations from "Features/baseMapEditor/components/ToolMergeVisibleAnnotations";
+import ToolMorphology from "Features/baseMapEditor/components/ToolMorphology";
 import convertToBlackAndWhite from "Features/images/utils/convertToBlackAndWhite";
 import addBackgroundToImage from "Features/images/utils/addBackgroundToImage";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -350,6 +351,8 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
               Noir et blanc
             </Typography>
           </ListItemButton>
+
+          <ToolMorphology baseMap={baseMap} onResult={handleTransformResult} />
 
           <Box
             sx={{

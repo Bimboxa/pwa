@@ -256,6 +256,12 @@ class CV {
       payload
     });
   }
+  applyMorphologyAsync(payload) {
+    return this._dispatch({
+      msg: "applyMorphologyAsync",
+      payload
+    });
+  }
   traceOrthoPathsAsync(payload) {
     return this._dispatch({
       msg: "traceOrthoPathsAsync",

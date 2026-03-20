@@ -25,6 +25,7 @@ self.importScripts("./handlers/extendLineAsync.js");
 self.importScripts("./handlers/eraseFromAnnotations.js");
 self.importScripts("./handlers/addBackground.js");
 self.importScripts("./handlers/applyGrayLevelThresholdAsync.js");
+self.importScripts("./handlers/applyMorphologyAsync.js");
 self.importScripts("./handlers/traceOrthoPathsAsync.js");
 /**
  * This exists to capture all the events that are thrown out of the worker
@@ -118,6 +119,9 @@ onmessage = function (e) {
 
     case "applyGrayLevelThresholdAsync":
       return applyGrayLevelThresholdAsync(e.data);
+
+    case "applyMorphologyAsync":
+      return applyMorphologyAsync(e.data);
 
     case "traceOrthoPathsAsync":
       return traceOrthoPathsAsync(e.data);
