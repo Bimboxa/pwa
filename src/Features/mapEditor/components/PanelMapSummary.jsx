@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -7,12 +7,14 @@ import {
 } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
-import { Box, Typography, IconButton, Button, Chip } from "@mui/material";
+import { Box, Typography, IconButton, Button, Chip, Tooltip } from "@mui/material";
 import {
   Visibility,
   VisibilityOff,
   ChevronRight,
   PlaylistAddCheck,
+  BugReport,
+  TableChart,
 } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -24,7 +26,11 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useAnnotations from "Features/annotations/hooks/useAnnotations";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useLayers from "Features/layers/hooks/useLayers";
+
+import DialogGeneric from "Features/layout/components/DialogGeneric";
+import DatagridAnnotations from "Features/annotations/components/DatagridAnnotations";
 
 export default function PanelMapSummary() {
   // data
@@ -37,7 +43,13 @@ export default function PanelMapSummary() {
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
   const annotations = useAnnotations({ filterByBaseMapId: baseMapId });
+  const annotationsV2 = useAnnotationsV2({
+    filterByBaseMapId: baseMapId,
+    excludeBgAnnotations: true,
+  });
   const layers = useLayers({ filterByBaseMapId: baseMapId });
+
+  const [openDatagrid, setOpenDatagrid] = useState(false);
 
   // helpers
 
@@ -69,6 +81,11 @@ export default function PanelMapSummary() {
       })
     );
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+  }
+
+  function handleCopyAnnotationsDebug() {
+    const json = JSON.stringify(annotationsV2 ?? [], null, 2);
+    navigator.clipboard.writeText(json);
   }
 
   function handleSelectAnnotationsByLayerId(layerId) {
@@ -166,12 +183,37 @@ export default function PanelMapSummary() {
 
         {/* Card 2: Annotations summary */}
         <WhiteSectionGeneric>
-          <Typography
-            variant="body2"
-            sx={{ fontWeight: "bold", mb: 1 }}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: 1,
+            }}
           >
-            Annotations
-          </Typography>
+            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+              Annotations
+            </Typography>
+            <Box sx={{ display: "flex", gap: 0.5 }}>
+              <Tooltip title="Copier les annotations (debug)">
+                <IconButton
+                  size="small"
+                  onClick={handleCopyAnnotationsDebug}
+                  sx={{ color: "divider" }}
+                >
+                  <BugReport fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Voir les données">
+                <IconButton
+                  size="small"
+                  onClick={() => setOpenDatagrid(true)}
+                >
+                  <TableChart fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
 
           {/* Total row */}
           <Box
@@ -273,6 +315,18 @@ export default function PanelMapSummary() {
         </WhiteSectionGeneric>
 
       </BoxFlexVStretch>
+
+      <DialogGeneric
+        title={`${totalAnnotations} annotation(s)`}
+        open={openDatagrid}
+        onClose={() => setOpenDatagrid(false)}
+        vw="90"
+        vh="80"
+      >
+        <BoxFlexVStretch>
+          <DatagridAnnotations annotations={annotationsV2 ?? []} />
+        </BoxFlexVStretch>
+      </DialogGeneric>
     </BoxFlexVStretch>
   );
 }
