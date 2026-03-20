@@ -37,9 +37,12 @@ import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
 import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
 import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
 
+import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
+
 import getAnnotationColor from "../utils/getAnnotationColor";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
 import { resolveDrawingShape, getAnnotationType } from "../constants/drawingShapeConfig";
+import getCloneTypeOptions from "../utils/getCloneTypeOptions";
 
 export default function ToolbarEditAnnotation({ onDragStart }) {
   const dispatch = useDispatch();
@@ -65,9 +68,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
 
   const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
   const [cloneAnchorEl, setCloneAnchorEl] = useState(null);
+  const [selectedCloneType, setSelectedCloneType] = useState(selectedAnnotation?.type);
 
   // helpers
 
+  const cloneTypeOptions = getCloneTypeOptions(selectedAnnotation?.type);
   const accentColor = getAnnotationColor(selectedAnnotation) || "#6366F1";
   const isClosedShape =
     selectedAnnotation?.type === "POLYGON" ||
@@ -123,6 +128,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   }
 
   function handleCloneClick(event) {
+    setSelectedCloneType(selectedAnnotation?.type);
     setCloneAnchorEl(event.currentTarget);
   }
 
@@ -142,6 +148,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     const resolvedShape = resolveDrawingShape(template);
     const resolvedType = getAnnotationType(resolvedShape);
     if (resolvedType) newAnnotation.type = resolvedType;
+
+    // Override type if user selected a different one
+    if (selectedCloneType) newAnnotation.type = selectedCloneType;
 
     await cloneAnnotationAndEntity(selectedAnnotation, { newAnnotation });
     handleCloneClose();
@@ -354,6 +363,21 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
             annotationTemplates={cloneCandidates}
             listings={cloneListings}
           />
+          {cloneTypeOptions && (
+            <>
+              <Box sx={{ borderTop: 1, borderColor: "divider" }} />
+              <Box sx={{ px: 2, py: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
+                  Type
+                </Typography>
+                <ToggleSingleSelectorGeneric
+                  selectedKey={selectedCloneType}
+                  options={cloneTypeOptions}
+                  onChange={(v) => setSelectedCloneType(v ?? selectedAnnotation?.type)}
+                />
+              </Box>
+            </>
+          )}
         </Menu>
       </Paper>
     </Box>

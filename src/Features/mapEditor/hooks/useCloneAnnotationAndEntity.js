@@ -7,6 +7,17 @@ import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 
 import getPolygonsPointsFromStripAnnotation from "Features/annotations/utils/getPolygonsPointsFromStripAnnotation";
 
+// Compute signed area to determine polygon winding order.
+// Positive = counter-clockwise, negative = clockwise.
+function getSignedArea(points) {
+    let area = 0;
+    for (let i = 0; i < points.length; i++) {
+        const j = (i + 1) % points.length;
+        area += points[i].x * points[j].y;
+        area -= points[j].x * points[i].y;
+    }
+    return area / 2;
+}
 
 export default function useCloneAnnotationAndEntity() {
 
@@ -34,6 +45,8 @@ export default function useCloneAnnotationAndEntity() {
 
         const isStripToPolygon =
             annotation.type === "STRIP" && newAnnotation.type === "POLYGON";
+
+        const isToStrip = newAnnotation.type === "STRIP" && annotation.type !== "STRIP";
 
         // 2. Prepare the list of items (geometry sets) to create
         // Each item contains { points: [], cuts: [] }
@@ -101,6 +114,19 @@ export default function useCloneAnnotationAndEntity() {
             // Ensure lines are closed if converting from Polygon to Polyline
             if (isPolygonToPolyline || isStripToPolygon) {
                 clonedAnnotation.closeLine = true;
+            }
+
+            // Handle conversion to STRIP
+            if (isToStrip) {
+                clonedAnnotation.stripOrientation = 1; // default
+                // For polygon/closed-line → strip, orient band inside
+                if (annotation.type === "POLYGON" || annotation.closeLine) {
+                    clonedAnnotation.closeLine = true;
+                    const signedArea = getSignedArea(item.points);
+                    // CCW (positive area) → left side is inside → orientation 1
+                    // CW (negative area) → right side is inside → orientation -1
+                    clonedAnnotation.stripOrientation = signedArea >= 0 ? 1 : -1;
+                }
             }
 
             const _annotation = await createAnnotation(clonedAnnotation);

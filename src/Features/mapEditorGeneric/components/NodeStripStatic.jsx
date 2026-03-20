@@ -6,6 +6,8 @@ import NodeLabelStatic from "./NodeLabelStatic";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import getStripePolygons from "Features/geometry/utils/getStripePolygons";
 
+const HATCHING_SPACING = 12;
+
 // --- CONSTANTES DE STYLE ---
 const STYLE_CONSTANTS = {
     COLORS: {
@@ -44,6 +46,8 @@ export default function NodeStripStatic({
     const mergedAnnotation = { ...annotation, ...annotationOverride };
     const isForBaseMaps = mergedAnnotation.isForBaseMaps;
 
+    const patternIdRef = useRef(`strip-hatching-${Math.random().toString(36).substr(2, 9)}`);
+
     // --- PROPS ---
     let {
         id: annotationId,
@@ -53,6 +57,7 @@ export default function NodeStripStatic({
         fillColor = theme.palette.secondary.main,
         fillOpacity = STYLE_CONSTANTS.OPACITIES.FILL_DEFAULT,
         strokeOpacity = STYLE_CONSTANTS.OPACITIES.FILL_DEFAULT,
+        strokeType,
         hiddenSegmentsIdx = [],
     } = mergedAnnotation || {};
 
@@ -106,6 +111,7 @@ export default function NodeStripStatic({
 
 
     // --- 3. CALCUL GEOMETRIE : STROKE (LES SEGMENTS DIRECTEURS) ---
+    const _closeLine = mergedAnnotation.closeLine;
     const directorSegments = useMemo(() => {
         if (!points || points.length < 2) return [];
         const segs = [];
@@ -118,9 +124,29 @@ export default function NodeStripStatic({
                 isHidden: hiddenSegmentsIdx.includes(i)
             });
         }
+        // Add closing segment for closed strips
+        if (_closeLine && points.length >= 3) {
+            const last = points[points.length - 1];
+            const first = points[0];
+            if (last.x !== first.x || last.y !== first.y) {
+                segs.push({
+                    index: points.length - 1,
+                    d: `M ${last.x} ${last.y} L ${first.x} ${first.y}`,
+                    isHidden: hiddenSegmentsIdx.includes(points.length - 1)
+                });
+            }
+        }
         return segs;
-    }, [points, hiddenSegmentsIdx]);
+    }, [points, hiddenSegmentsIdx, _closeLine]);
 
+
+    // --- HATCHING ---
+    const useHatching = strokeType === "DASHED";
+    const patternTransformStyle = useMemo(() => {
+        if (isForBaseMaps) return undefined;
+        const k = containerK || 1;
+        return { transform: `scale(calc(1 / (var(--map-zoom, 1) * ${k})))` };
+    }, [containerK, isForBaseMaps]);
 
     // --- HELPERS STYLE ---
     const getFillStyle = () => {
@@ -213,8 +239,29 @@ export default function NodeStripStatic({
     const fillStyle = getFillStyle();
     const mainPartId = `${annotationId}::MAIN`;
 
+    const stripFill = useHatching ? `url(#${patternIdRef.current})` : null;
+
     return (
         <g {...commonDataProps}>
+
+            {/* HATCHING PATTERN DEF */}
+            {useHatching && (
+                <defs>
+                    <pattern
+                        id={patternIdRef.current}
+                        patternUnits="userSpaceOnUse"
+                        width={HATCHING_SPACING}
+                        height={HATCHING_SPACING}
+                        style={patternTransformStyle}
+                    >
+                        <path
+                            d={`M 0,${HATCHING_SPACING} L ${HATCHING_SPACING},0`}
+                            stroke={strokeColor}
+                            strokeWidth={2}
+                        />
+                    </pattern>
+                </defs>
+            )}
 
             {/* 1. LAYER FILL (Strip + Cuts via evenodd) */}
             <g
@@ -231,7 +278,7 @@ export default function NodeStripStatic({
                     <path
                         key={poly.id}
                         d={poly.d}
-                        fill={fillStyle.fill}
+                        fill={stripFill ?? fillStyle.fill}
                         fillOpacity={fillStyle.opacity}
                         fillRule="evenodd"
                         stroke="none"

@@ -7,9 +7,8 @@ import useCloneAnnotationAndEntity from "Features/mapEditor/hooks/useCloneAnnota
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
-import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
-import ButtonGeneric from "Features/layout/components/ButtonGeneric";
-
+import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
+import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
 import { Typography, Box } from "@mui/material";
 
@@ -19,7 +18,7 @@ import SelectorAnnotationTemplateVariantList from "./SelectorAnnotationTemplateV
 import { setNewAnnotation } from "../annotationsSlice";
 
 import getNewAnnotationPropsFromAnnotationTemplate from "../utils/getNewAnnotationPropsFromAnnotationTemplate";
-import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
+import getCloneTypeOptions from "../utils/getCloneTypeOptions";
 import FieldToggleFWC from "Features/fwc/components/FieldToggleFWC";
 
 
@@ -40,10 +39,12 @@ export default function DialogCloneAnnotation({ open, onClose, annotation }) {
     // state
     const [entityLabel, setEntityLabel] = useState(null);
     const [fwc, setFwc] = useState(null);
+    const [selectedType, setSelectedType] = useState(annotation?.type);
 
     // helpers
 
     const annotationTemplateId = newAnnotation?.annotationTemplateId;
+    const typeOptions = getCloneTypeOptions(annotation?.type);
 
     // handlers
 
@@ -53,7 +54,11 @@ export default function DialogCloneAnnotation({ open, onClose, annotation }) {
 
     async function handleClone() {
         try {
-            await cloneAnnotationAndEntity(annotation, { entityLabel });
+            const typeOverride = selectedType ? { type: selectedType } : {};
+            await cloneAnnotationAndEntity(annotation, {
+                entityLabel,
+                newAnnotation: { ...newAnnotation, ...typeOverride },
+            });
             handleClose();
         } catch (error) {
             console.error(error);
@@ -83,6 +88,18 @@ export default function DialogCloneAnnotation({ open, onClose, annotation }) {
                     annotationTemplates={annotationTemplates}
                 />
             </Box>
+            {typeOptions && (
+                <Box sx={{ px: 1, pb: 2 }}>
+                    <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
+                        Type
+                    </Typography>
+                    <ToggleSingleSelectorGeneric
+                        selectedKey={selectedType}
+                        options={typeOptions}
+                        onChange={(v) => setSelectedType(v ?? annotation?.type)}
+                    />
+                </Box>
+            )}
             <FieldTextV2
                 label="Libellé de l'ouvrage" value={entityLabel} onChange={setEntityLabel}
                 options={{ showAsSection: true, fullWidth: true }}
