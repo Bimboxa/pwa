@@ -164,7 +164,7 @@ export default memo(function NodeLegendStatic({
         const col = idx % columns;
 
         return (
-            <div style={{ ...commonStyle, background: fillColor || "#f44336" }}>
+            <div style={{ ...commonStyle, borderRadius: "50%", background: fillColor || "#f44336" }}>
                 {url && (
                     <svg
                         width={ICON_PX * 0.8}

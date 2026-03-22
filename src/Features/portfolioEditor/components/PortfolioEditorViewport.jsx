@@ -11,12 +11,11 @@ import { FitScreen } from "@mui/icons-material";
 import usePortfolioPages from "Features/portfolioPages/hooks/usePortfolioPages";
 import useCreatePortfolioPage from "Features/portfolioPages/hooks/useCreatePortfolioPage";
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
-import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 import getPageDimensions from "../utils/getPageDimensions";
 
 import PortfolioPageSvg from "./PortfolioPageSvg";
-// import SectionPortfolioPageArticles from "Features/articles/components/SectionPortfolioPageArticles";
+import SectionPageEntityImages from "./SectionPageEntityImages";
 import ButtonAddPage from "./ButtonAddPage";
 
 export default function PortfolioEditorViewport() {
@@ -33,14 +32,6 @@ export default function PortfolioEditorViewport() {
     filterByPortfolioId: displayedPortfolioId,
   });
   const createPage = useCreatePortfolioPage();
-  const annotations = useAnnotationsV2({
-    filterBySelectedScope: true,
-    withQties: true,
-    withListingName: true,
-    excludeIsForBaseMapsListings: true,
-    excludeBgAnnotations: true,
-  });
-
   const selectedItem = useSelector(selectSelectedItem);
 
   // helpers
@@ -144,7 +135,6 @@ export default function PortfolioEditorViewport() {
           }}
         >
           {pages?.map((page, index) => {
-            const dims = getPageDimensions(page.format, page.orientation);
             return (
               <Box key={page.id} sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                 <PortfolioPageSvg
@@ -153,9 +143,7 @@ export default function PortfolioEditorViewport() {
                   totalPages={pages.length}
                   zoom={zoom}
                 />
-                {/* <Box sx={{ width: dims.width }}>
-                  <SectionPortfolioPageArticles page={page} annotations={annotations} />
-                </Box> */}
+                <SectionPageEntityImages page={page} />
               </Box>
             );
           })}

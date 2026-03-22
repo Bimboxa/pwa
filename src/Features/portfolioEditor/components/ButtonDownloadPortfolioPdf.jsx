@@ -6,7 +6,10 @@ import { PictureAsPdf } from "@mui/icons-material";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
+import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import usePortfolioPages from "Features/portfolioPages/hooks/usePortfolioPages";
+import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+import usePortfolioLogoUrl from "Features/portfolios/hooks/usePortfolioLogoUrl";
 
 import useDownloadPortfolioPdf from "../hooks/useDownloadPortfolioPdf";
 
@@ -17,15 +20,18 @@ export default function ButtonDownloadPortfolioPdf() {
     (s) => s.portfolios.displayedPortfolioId
   );
   const { value: portfolio } = useDisplayedPortfolio();
+  const { value: project } = useSelectedProject();
   const { value: pages } = usePortfolioPages({
     filterByPortfolioId: displayedPortfolioId,
   });
+  const spriteImage = useAnnotationSpriteImage();
+  const portfolioLogoUrl = usePortfolioLogoUrl(portfolio?.metadata?.logo);
   const { download, loading } = useDownloadPortfolioPdf();
 
   // handlers
 
   function handleClick() {
-    download({ portfolio, pages });
+    download({ portfolio, project, pages, spriteImage, portfolioLogoUrl });
   }
 
   // render

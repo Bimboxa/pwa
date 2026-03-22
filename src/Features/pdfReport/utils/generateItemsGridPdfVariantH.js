@@ -130,19 +130,136 @@ export default async function generateItemsGridPdfVariantH(items, opts = {}) {
     logoImg = await embedPhoto(opts.logoImage.url);
   }
 
+  // ==== Cartouche constants (must match PortfolioHeaderSvg / computeHeaderPosition)
+  const CARTOUCHE_MARGIN = 16;
+  const CARTOUCHE_HEIGHT = 84;
+  const CARTOUCHE_ROW_HEIGHT = 28;
+  const CARTOUCHE_LOGO_COL_WIDTH = 126;
+  const cartouche = opts.cartouche; // { projectName, portfolioName, pageTitle, author, date, refInterne, labels }
+
   // ==== Header + nouvelle page
   function addPageWithHeader() {
     const page = pdf.addPage([pageW, pageH]);
 
-    const headerWidth = pageW - headerMargin * 2;
+    if (cartouche) {
+      // Draw full cartouche matching PortfolioHeaderSvg layout
+      const cx = CARTOUCHE_MARGIN;
+      const cWidth = pageW - 2 * CARTOUCHE_MARGIN;
+      // In PDF coords, y=0 is bottom. Cartouche top = pageH - CARTOUCHE_MARGIN
+      const cTopY = pageH - CARTOUCHE_MARGIN;
+      const cBottomY = cTopY - CARTOUCHE_HEIGHT;
+
+      // Column widths — use minimum widths to ensure labels fit on narrow pages (A4 portrait)
+      const logoW = CARTOUCHE_LOGO_COL_WIDTH;
+      const contentW_c = cWidth - logoW;
+      const labelW_c = Math.max(55, Math.round(contentW_c * 0.08));
+      const metaLabelW = Math.max(65, Math.round(contentW_c * 0.11));
+      const metaValueW = Math.max(80, Math.round(contentW_c * 0.15));
+      const mainW_c = contentW_c - labelW_c - metaLabelW - metaValueW;
+
+      // Column x positions
+      const xLogo = cx;
+      const xLabel = cx + logoW;
+      const xMain = xLabel + labelW_c;
+      const xMetaLabel = xMain + mainW_c;
+      const xMetaValue = xMetaLabel + metaLabelW;
+
+      // Row y positions (PDF bottom-up)
+      const row0Y = cTopY; // top of row 1
+      const row1Y = cTopY - CARTOUCHE_ROW_HEIGHT; // top of row 2
+      const row2Y = cTopY - 2 * CARTOUCHE_ROW_HEIGHT; // top of row 3
+
+      const borderColor = rgb(0.2, 0.2, 0.2);
+      const borderW = 0.5;
+      const labelFontSize = 8;
+      const valueFontSize = 10;
+      const labelFontColor = rgb(0.53, 0.53, 0.53);
+      const valueFontColor = rgb(0.2, 0.2, 0.2);
+
+      // Outer border
+      page.drawRectangle({
+        x: cx, y: cBottomY, width: cWidth, height: CARTOUCHE_HEIGHT,
+        borderColor, borderWidth: 1, color: rgb(1, 1, 1),
+      });
+
+      // Vertical separators
+      [xLabel, xMain, xMetaLabel, xMetaValue].forEach((x) => {
+        page.drawLine({ start: { x, y: cTopY }, end: { x, y: cBottomY }, thickness: borderW, color: borderColor });
+      });
+
+      // Horizontal row separators
+      [row1Y, row2Y].forEach((y) => {
+        page.drawLine({ start: { x: xLabel, y }, end: { x: cx + cWidth, y }, thickness: borderW, color: borderColor });
+      });
+
+      // Page number separator
+      const PAGE_NUM_W = 50;
+      const xPageNum = xMain + mainW_c - PAGE_NUM_W;
+      page.drawLine({ start: { x: xPageNum, y: row2Y }, end: { x: xPageNum, y: cBottomY }, thickness: borderW, color: borderColor });
+
+      // Helper to draw centered text in a cell
+      function drawCellLabel(text, cellX, cellY, cellW, cellH) {
+        if (!text) return;
+        const t = sanitizeText(text);
+        const tw = fontRegular.widthOfTextAtSize(t, labelFontSize);
+        const tx = cellX + cellW - tw - 6; // right-aligned with padding
+        const ty = cellY - (cellH + labelFontSize) / 2;
+        page.drawText(t, { x: tx, y: ty, size: labelFontSize, font: fontRegular, color: labelFontColor });
+      }
+
+      function drawCellValue(text, cellX, cellY, cellW, cellH, bold, center) {
+        if (!text) return;
+        const t = sanitizeText(text);
+        const f = bold ? fontBold : fontRegular;
+        const tw = f.widthOfTextAtSize(t, valueFontSize);
+        const tx = center ? cellX + (cellW - tw) / 2 : cellX + 8;
+        const ty = cellY - (cellH + valueFontSize) / 2;
+        page.drawText(t, { x: tx, y: ty, size: valueFontSize, font: f, color: valueFontColor });
+      }
+
+      const labels = cartouche.labels || {};
+
+      // Row 1
+      drawCellLabel(labels.labelChantier || "Chantier", xLabel, row0Y, labelW_c, CARTOUCHE_ROW_HEIGHT);
+      drawCellValue(cartouche.projectName, xMain, row0Y, mainW_c, CARTOUCHE_ROW_HEIGHT, true);
+      drawCellLabel(labels.labelRefInterne || "Réf. Interne", xMetaLabel, row0Y, metaLabelW, CARTOUCHE_ROW_HEIGHT);
+      drawCellValue(cartouche.refInterne, xMetaValue, row0Y, metaValueW, CARTOUCHE_ROW_HEIGHT);
+
+      // Row 2
+      drawCellLabel(labels.labelPortfolio || "Portfolio", xLabel, row1Y, labelW_c, CARTOUCHE_ROW_HEIGHT);
+      drawCellValue(cartouche.portfolioName, xMain, row1Y, mainW_c, CARTOUCHE_ROW_HEIGHT, true);
+      drawCellLabel(labels.labelAuteur || "Auteur", xMetaLabel, row1Y, metaLabelW, CARTOUCHE_ROW_HEIGHT);
+      drawCellValue(cartouche.author, xMetaValue, row1Y, metaValueW, CARTOUCHE_ROW_HEIGHT);
+
+      // Row 3
+      drawCellLabel(labels.labelPage || "Page", xLabel, row2Y, labelW_c, CARTOUCHE_ROW_HEIGHT);
+      drawCellValue(cartouche.pageTitle, xMain, row2Y, mainW_c - PAGE_NUM_W, CARTOUCHE_ROW_HEIGHT);
+      // page number cell left empty — filled globally after merge
+      drawCellLabel(labels.labelDate || "Date", xMetaLabel, row2Y, metaLabelW, CARTOUCHE_ROW_HEIGHT);
+      drawCellValue(cartouche.date, xMetaValue, row2Y, metaValueW, CARTOUCHE_ROW_HEIGHT);
+
+      // Logo
+      if (logoImg) {
+        const maxLogoH = CARTOUCHE_HEIGHT - 8;
+        const maxLogoW = CARTOUCHE_LOGO_COL_WIDTH - 8;
+        const ratio = Math.min(maxLogoW / logoImg.width, maxLogoH / logoImg.height);
+        const drawW = logoImg.width * ratio;
+        const drawH = logoImg.height * ratio;
+        const logoX = xLogo + (CARTOUCHE_LOGO_COL_WIDTH - drawW) / 2;
+        const logoY = cBottomY + (CARTOUCHE_HEIGHT - drawH) / 2;
+        page.drawImage(logoImg, { x: logoX, y: logoY, width: drawW, height: drawH });
+      }
+
+      const bodyTopY = cBottomY - 20;
+      return { page, bodyTopY };
+    }
+
+    // Fallback: simple header (no cartouche)
     const headerLeft = headerMargin;
     const headerRight = pageW - headerMargin;
     const headerTopY = pageH - headerMargin;
     const headerBottomY = headerTopY - headerHeight;
 
-    // ⚠️ plus de ligne sous le titre : on laisse la page propre.
-
-    // logo à gauche
     if (logoImg) {
       const maxLogoH = headerHeight - 10;
       const maxLogoW = 100;
@@ -162,7 +279,6 @@ export default async function generateItemsGridPdfVariantH(items, opts = {}) {
       });
     }
 
-    // titre centré
     const title = opts.title || "Titre";
     const titleWidth = fontBold.widthOfTextAtSize(title, headerTitleSize);
     const titleX = Math.max(
@@ -178,7 +294,6 @@ export default async function generateItemsGridPdfVariantH(items, opts = {}) {
       color: labelColor,
     });
 
-    // position de départ pour le contenu
     const bodyTopY = headerBottomY - 20;
     return { page, bodyTopY };
   }

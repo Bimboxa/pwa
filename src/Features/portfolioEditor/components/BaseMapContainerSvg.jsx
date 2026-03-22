@@ -9,6 +9,7 @@ import {
 
 import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
+import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 
 import NodeSvgImage from "Features/mapEditorGeneric/components/NodeSvgImage";
@@ -34,6 +35,7 @@ export default function BaseMapContainerSvg({
     (s) => s.portfolioBaseMapContainers.framingContainerId
   );
   const baseMap = useBaseMap({ id: container.baseMapId });
+  const spriteImage = useAnnotationSpriteImage();
   const annotations = useAnnotationsV2({
     filterByBaseMapId: container.baseMapId,
     filterBySelectedScope: true,
@@ -195,6 +197,7 @@ export default function BaseMapContainerSvg({
                 imageSize={imageSize}
                 baseMapMeterByPx={meterByPx}
                 containerK={containerK}
+                spriteImage={spriteImage}
                 printMode
               />
             ))}

@@ -52,7 +52,7 @@ function LabelCell({ x, y, width, height, text }) {
   );
 }
 
-function ValueCell({ x, y, width, height, text, bold, center }) {
+function ValueCell({ x, y, width, height, text, bold, center, dataAttr }) {
   return (
     <foreignObject
       x={x}
@@ -60,6 +60,7 @@ function ValueCell({ x, y, width, height, text, bold, center }) {
       width={width}
       height={height}
       style={{ overflow: "visible", pointerEvents: "none" }}
+      {...(dataAttr ? { "data-page-number": true } : {})}
     >
       <div
         style={{
@@ -274,7 +275,7 @@ export default function PortfolioHeaderSvg({
       {/* Row 3: Page + pageNum / Date */}
       <LabelCell x={xLabel} y={y2} width={labelW} height={ROW_HEIGHT} text={config.labelPage || "Page"} />
       <ValueCell x={xMain} y={y2} width={mainW - PAGE_NUM_WIDTH} height={ROW_HEIGHT} text={pageValue} />
-      <ValueCell x={xPageNum} y={y2} width={PAGE_NUM_WIDTH} height={ROW_HEIGHT} text={pageNum} center bold />
+      <ValueCell x={xPageNum} y={y2} width={PAGE_NUM_WIDTH} height={ROW_HEIGHT} text={pageNum} center bold dataAttr />
       <LabelCell x={xMetaLabel} y={y2} width={metaLabelW} height={ROW_HEIGHT} text={config.labelDate || "Date"} />
       <ValueCell x={xMetaValue} y={y2} width={metaValueW} height={ROW_HEIGHT} text={config.date || ""} />
 
