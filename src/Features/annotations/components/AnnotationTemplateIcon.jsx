@@ -5,7 +5,7 @@ import { Box } from "@mui/material";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
-export default function AnnotationTemplateIcon({ template, size = 20 }) {
+export default function AnnotationTemplateIcon({ template, size = 20, spriteImage }) {
   // helpers
 
   const shape = resolveDrawingShape(template);
@@ -43,7 +43,65 @@ export default function AnnotationTemplateIcon({ template, size = 20 }) {
     return `hatching-${Math.random().toString(36).slice(2, 8)}`;
   }, [isHatching]);
 
+  // helpers - sprite
+
+  const hasSprite = shapeType === "circle" && spriteImage?.url && template.iconKey;
+  const spriteOffset = useMemo(() => {
+    if (!hasSprite) return null;
+    const { iconKeys, columns, tile } = spriteImage;
+    const index = iconKeys?.indexOf(template.iconKey);
+    if (index == null || index < 0) return null;
+    const col = index % columns;
+    const row = Math.floor(index / columns);
+    return { x: col * tile, y: row * tile, tile };
+  }, [hasSprite, spriteImage, template.iconKey]);
+
   // render
+
+  if (hasSprite && spriteOffset) {
+    const { url, columns, rows, tile } = spriteImage;
+    const scale = (size - 8) / tile;
+    const spriteW = columns * tile;
+    const spriteH = rows * tile;
+    return (
+      <Box
+        sx={{
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: "50%",
+          bgcolor: color,
+          opacity,
+        }}
+      >
+        <Box
+          sx={{
+            width: size,
+            height: size,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Box>
+            <Box
+              sx={{
+                width: tile,
+                height: tile,
+                backgroundImage: `url(${url})`,
+                backgroundPosition: `-${spriteOffset.x}px -${spriteOffset.y}px`,
+                backgroundSize: `${spriteW}px ${spriteH}px`,
+                backgroundRepeat: "no-repeat",
+                transform: `scale(${scale})`,
+                transformOrigin: "center",
+              }}
+            />
+          </Box>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box

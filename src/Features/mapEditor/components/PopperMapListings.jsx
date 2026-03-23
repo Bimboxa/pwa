@@ -77,6 +77,7 @@ import { resolveDrawingShape } from "Features/annotations/constants/drawingShape
 
 import useListings from "Features/listings/hooks/useListings";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
+import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
@@ -357,6 +358,7 @@ function AnnotationTemplateRow({
   count,
   qtyLabel,
   listingId,
+  spriteImage,
 }) {
   const dispatch = useDispatch();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
@@ -522,7 +524,7 @@ function AnnotationTemplateRow({
                 filter: isHidden ? "grayscale(100%)" : "none",
               }}
             >
-              <AnnotationTemplateIcon template={annotationTemplate} size={18} />
+              <AnnotationTemplateIcon template={annotationTemplate} size={18} spriteImage={spriteImage} />
             </Box>
             <Box
               className="icon-settings"
@@ -684,6 +686,7 @@ function AnnotationTemplatesForListing({ listingId, annotations, annotationTempl
     filterByListingId: listingId,
     sortByLabel: true,
   });
+  const spriteImage = useAnnotationSpriteImage();
 
   const qtiesById = useMemo(
     () => computeAnnotationTemplateQties(annotations, annotationTemplateById),
@@ -711,6 +714,7 @@ function AnnotationTemplatesForListing({ listingId, annotations, annotationTempl
               count={count}
               qtyLabel={qtyLabel}
               listingId={listingId}
+              spriteImage={spriteImage}
             />
           );
         })}
