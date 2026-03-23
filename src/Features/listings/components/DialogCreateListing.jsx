@@ -8,6 +8,7 @@ import useCreateListings from "../hooks/useCreateListings";
 import useCreateListingsFromPresetListingsKeys from "../hooks/useCreateListingsFromPresetListingsKeys";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useResolvedPresetListings from "../hooks/useResolvedPresetListings";
+import useFavoriteListings from "../hooks/useFavoriteListings";
 
 import {
   Box,
@@ -42,6 +43,7 @@ export default function DialogCreateListing({
   const { value: scope } = useSelectedScope();
   const createListings = useCreateListings();
   const createListingsFromPresets = useCreateListingsFromPresetListingsKeys();
+  const { favoriteListings } = useFavoriteListings();
 
   // state
 
@@ -77,13 +79,52 @@ export default function DialogCreateListing({
   }
 
   async function handleAddPresets() {
-    const listings = await createListingsFromPresets({
-      presetListingsKeys: selectedKeys,
-      scope,
-      isForBaseMaps,
-    });
-    if (listings?.length > 0) {
-      dispatch(setSelectedListingId(listings[0].id));
+    const favoriteKeys = selectedKeys.filter((k) => k.startsWith("fav_"));
+    const presetKeys = selectedKeys.filter((k) => !k.startsWith("fav_"));
+
+    let allCreated = [];
+
+    // create from preset listings
+    if (presetKeys.length > 0) {
+      const listings = await createListingsFromPresets({
+        presetListingsKeys: presetKeys,
+        scope,
+        isForBaseMaps,
+      });
+      allCreated.push(...(listings ?? []));
+    }
+
+    // create from favorite listings
+    if (favoriteKeys.length > 0) {
+      const favListings = favoriteKeys.map((key) => {
+        const sourceId = key.replace("fav_", "");
+        const fav = favoriteListings.find(
+          (f) => f.sourceListingId === sourceId
+        );
+        if (!fav) return null;
+        return {
+          name: fav.name,
+          projectId,
+          canCreateItem: fav.canCreateItem ?? true,
+          table: fav.table ?? "entities",
+          entityModel: fav.entityModel,
+          entityModelKey: fav.entityModelKey,
+          color: fav.color,
+          iconKey: fav.iconKey,
+          showNewAnnotationToolbar: fav.showNewAnnotationToolbar,
+          annotationTemplatesLibrary: fav.annotationTemplates,
+          ...(isForBaseMaps && { isForBaseMaps: true }),
+        };
+      }).filter(Boolean);
+
+      if (favListings.length > 0) {
+        const created = await createListings({ listings: favListings, scope });
+        allCreated.push(...(created ?? []));
+      }
+    }
+
+    if (allCreated.length > 0) {
+      dispatch(setSelectedListingId(allCreated[0].id));
       dispatch(setOpenedPanel("LISTING"));
     }
     onClose?.();

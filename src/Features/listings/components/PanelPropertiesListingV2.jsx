@@ -10,16 +10,20 @@ import {
   Box,
   Typography,
   InputBase,
+  IconButton,
   List,
   ListItemButton,
   ListItemText,
 } from "@mui/material";
 import ChevronRight from "@mui/icons-material/ChevronRight";
+import Favorite from "@mui/icons-material/Favorite";
+import FavoriteBorder from "@mui/icons-material/FavoriteBorder";
 
 import db from "App/db/db";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import IconButtonMoreActionsListing from "./IconButtonMoreActionsListing";
+import useFavoriteListings from "../hooks/useFavoriteListings";
 
 export default function PanelPropertiesListingV2({ listing }) {
   const dispatch = useDispatch();
@@ -27,6 +31,7 @@ export default function PanelPropertiesListingV2({ listing }) {
   // data
 
   const updateListing = useUpdateListing();
+  const { isFavorite, toggleFavorite } = useFavoriteListings();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const selectedBaseMapId = useSelector(
     (s) => s.mapEditor.selectedBaseMapId
@@ -99,6 +104,17 @@ export default function PanelPropertiesListingV2({ listing }) {
     dispatch(setSelectedMainBaseMapId(baseMapId));
   };
 
+  const handleToggleFavorite = async () => {
+    if (!listing?.id) return;
+    const templates = (
+      await db.annotationTemplates
+        .where("listingId")
+        .equals(listing.id)
+        .toArray()
+    ).filter((t) => !t.deletedAt);
+    toggleFavorite({ listing, annotationTemplates: templates });
+  };
+
   // render
 
   return (
@@ -159,6 +175,32 @@ export default function PanelPropertiesListingV2({ listing }) {
               },
             }}
           />
+        </WhiteSectionGeneric>
+
+        {/* Favorite toggle */}
+        <WhiteSectionGeneric>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ fontWeight: 600 }}
+            >
+              Favori
+            </Typography>
+            <IconButton size="small" onClick={handleToggleFavorite}>
+              {isFavorite(listing?.id) ? (
+                <Favorite sx={{ color: "orange", fontSize: 20 }} />
+              ) : (
+                <FavoriteBorder sx={{ color: "text.disabled", fontSize: 20 }} />
+              )}
+            </IconButton>
+          </Box>
         </WhiteSectionGeneric>
 
         {/* Annotations per base map */}

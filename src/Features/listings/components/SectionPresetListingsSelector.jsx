@@ -20,9 +20,11 @@ import {
   Close,
   CheckBoxOutlineBlank,
   CheckBox,
+  Favorite,
 } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import useFavoriteListings from "../hooks/useFavoriteListings";
 
 export default function SectionPresetListingsSelector({
   selectedKeys,
@@ -38,6 +40,7 @@ export default function SectionPresetListingsSelector({
 
   const presetListings = useResolvedPresetListings();
   const appConfig = useAppConfig();
+  const { favoriteListings } = useFavoriteListings();
 
   // state
 
@@ -45,6 +48,7 @@ export default function SectionPresetListingsSelector({
   const [activeFilters, setActiveFilters] = useState({});
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuGroup, setMenuGroup] = useState(null);
+  const [showFavorites, setShowFavorites] = useState(false);
 
   // helpers - keyword groups from appConfig
 
@@ -80,7 +84,33 @@ export default function SectionPresetListingsSelector({
 
   // helpers - filtered listings
 
+  // helpers - favorite listings formatted as selectable items
+
+  const favoriteItems = useMemo(() => {
+    return favoriteListings.map((fav) => ({
+      key: `fav_${fav.sourceListingId}`,
+      name: fav.name,
+      fullName: fav.name,
+      annotationTemplatesLibrary: fav.annotationTemplates,
+      isForBaseMaps: fav.isForBaseMaps,
+      isFavorite: true,
+      ...fav,
+    }));
+  }, [favoriteListings]);
+
   const filteredListings = useMemo(() => {
+    if (showFavorites) {
+      let items = favoriteItems;
+      if (isForBaseMaps) {
+        items = items.filter((l) => l.isForBaseMaps === true);
+      }
+      if (searchText) {
+        const search = searchText.toLowerCase();
+        items = items.filter((l) => l.name?.toLowerCase().includes(search));
+      }
+      return items;
+    }
+
     let items =
       presetListings?.filter((l) => l.annotationTemplatesLibrary) ?? [];
 
@@ -106,7 +136,7 @@ export default function SectionPresetListingsSelector({
     });
 
     return items;
-  }, [presetListings, searchText, activeFilters, isForBaseMaps]);
+  }, [presetListings, searchText, activeFilters, isForBaseMaps, showFavorites, favoriteItems]);
 
   // handlers
 
@@ -118,6 +148,7 @@ export default function SectionPresetListingsSelector({
         return next;
       });
     } else {
+      setShowFavorites(false);
       setMenuAnchor(event.currentTarget);
       setMenuGroup(group);
     }
@@ -173,6 +204,21 @@ export default function SectionPresetListingsSelector({
       </Box>
 
       <Box sx={{ px: 1, pb: 1, mb: 2, display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+        {favoriteListings.length > 0 && (
+          <Chip
+            label="Favoris"
+            size="small"
+            icon={<Favorite sx={{ fontSize: 16 }} />}
+            onClick={() => {
+              setShowFavorites((prev) => !prev);
+              setActiveFilters({});
+            }}
+            onDelete={showFavorites ? () => setShowFavorites(false) : undefined}
+            deleteIcon={showFavorites ? <Close fontSize="small" /> : undefined}
+            variant={showFavorites ? "filled" : "outlined"}
+            color={showFavorites ? "warning" : "default"}
+          />
+        )}
         {keywordsGroups.map((group) => {
           const isActive = Boolean(activeFilters[group]);
           return (

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import useResolvedPresetListings from "../hooks/useResolvedPresetListings";
+import useFavoriteListings from "../hooks/useFavoriteListings";
 
 import { Box, Typography } from "@mui/material";
 
@@ -20,16 +21,31 @@ export default function SectionPresetListingsPreview({
   // data
 
   const presetListings = useResolvedPresetListings();
+  const { favoriteListings } = useFavoriteListings();
 
   // helpers
+
+  const favoriteItems = useMemo(() => {
+    return favoriteListings.map((fav) => ({
+      key: `fav_${fav.sourceListingId}`,
+      name: fav.name,
+      fullName: fav.name,
+      annotationTemplatesLibrary: fav.annotationTemplates,
+    }));
+  }, [favoriteListings]);
 
   const selectedListings = useMemo(() => {
     return (
       selectedKeys
-        ?.map((key) => presetListings?.find((l) => l.key === key))
+        ?.map((key) => {
+          if (key.startsWith("fav_")) {
+            return favoriteItems.find((f) => f.key === key);
+          }
+          return presetListings?.find((l) => l.key === key);
+        })
         .filter(Boolean) ?? []
     );
-  }, [selectedKeys, presetListings]);
+  }, [selectedKeys, presetListings, favoriteItems]);
 
   // render
 
