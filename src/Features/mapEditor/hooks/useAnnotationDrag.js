@@ -130,6 +130,13 @@ export default function useAnnotationDrag({
       // GUARD : bloquer si pas propriétaire
       if (!isWrapper && !permissions.canEditAnnotation(nodeId)) return false;
 
+      // GUARD : en mode wrapper, vérifier toutes les annotations
+      if (isWrapper && wrapperAnnotationIds?.length > 0) {
+        for (const annId of wrapperAnnotationIds) {
+          if (!permissions.canEditAnnotation(annId)) return false;
+        }
+      }
+
       const newState = {
         active: false,
         pending: true,
