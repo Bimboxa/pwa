@@ -204,10 +204,10 @@ export default function PageScopeLoader() {
     // effect
 
     useEffect(() => {
-        if (scopeId && appConfig) {
+        if (scopeId && appConfig && jwt) {
             loadScope();
         }
-    }, [scopeId, !!appConfig]);
+    }, [scopeId, !!appConfig, jwt]);
 
     // render
 
