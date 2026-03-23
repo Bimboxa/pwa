@@ -24,7 +24,6 @@ export default function BaseMapSelectorPopover({
   onClose,
   onSelectBaseMap,
   onCreateBaseMap,
-  onMouseEnter,
 }) {
   // data
 
@@ -74,8 +73,6 @@ export default function BaseMapSelectorPopover({
       slotProps={{
         paper: {
           sx: { width: 280, maxHeight: 360 },
-          onMouseEnter,
-          onMouseLeave: onClose,
         },
       }}
       disableRestoreFocus

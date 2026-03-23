@@ -23,8 +23,7 @@ import ContainerTransformOverlay from "./ContainerTransformOverlay";
 export default function BaseMapContainerSvg({
   container,
   zoom,
-  onPlaceholderHover,
-  onPlaceholderLeave,
+  onPlaceholderClick,
 }) {
   const dispatch = useDispatch();
 
@@ -110,15 +109,12 @@ export default function BaseMapContainerSvg({
     );
   }
 
-  function handlePlaceholderMouseEnter() {
-    onPlaceholderHover?.({
+  function handlePlaceholderClick(e) {
+    e.stopPropagation();
+    onPlaceholderClick?.({
       anchorEl: placeholderSvgRef.current,
       containerId: container.id,
     });
-  }
-
-  function handlePlaceholderMouseLeave() {
-    onPlaceholderLeave?.();
   }
 
   // render
@@ -136,8 +132,7 @@ export default function BaseMapContainerSvg({
           <EmptyContainerPlaceholder
             width={container.width}
             height={container.height}
-            onMouseEnter={handlePlaceholderMouseEnter}
-            onMouseLeave={handlePlaceholderMouseLeave}
+            onClick={handlePlaceholderClick}
           />
         </svg>
       )}

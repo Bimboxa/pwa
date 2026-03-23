@@ -20,7 +20,10 @@ import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import usePortfolioBaseMapContainers from "Features/portfolioBaseMapContainers/hooks/usePortfolioBaseMapContainers";
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 
+import useCreatePortfolioBaseMapContainer from "Features/portfolioBaseMapContainers/hooks/useCreatePortfolioBaseMapContainer";
+
 import BaseMapContainerSvg from "./BaseMapContainerSvg";
+import EmptyContainerPlaceholder from "./EmptyContainerPlaceholder";
 import LegendBlockSvg from "./LegendBlockSvg";
 import BaseMapSelectorPopover from "./BaseMapSelectorPopover";
 import PortfolioHeaderSvg from "./PortfolioHeaderSvg";
@@ -53,7 +56,8 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
   const [popoverAnchorEl, setPopoverAnchorEl] = useState(null);
   const [popoverContainerId, setPopoverContainerId] = useState(null);
   const [creatingContainerId, setCreatingContainerId] = useState(null);
-  const closeTimerRef = useRef(null);
+  const emptyPlaceholderRef = useRef(null);
+  const createContainer = useCreatePortfolioBaseMapContainer();
 
   // helpers
 
@@ -122,32 +126,39 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
     );
   }
 
-  function handlePlaceholderHover({ anchorEl, containerId }) {
+  function handlePlaceholderClick({ anchorEl, containerId }) {
     if (creatingContainerId) return;
-    clearTimeout(closeTimerRef.current);
     setPopoverAnchorEl(anchorEl);
     setPopoverContainerId(containerId);
   }
 
-  function handlePlaceholderLeave() {
-    closeTimerRef.current = setTimeout(() => {
-      setPopoverAnchorEl(null);
-      setPopoverContainerId(null);
-    }, 200);
-  }
-
-  function handlePopoverMouseEnter() {
-    clearTimeout(closeTimerRef.current);
+  function handleEmptyPagePlaceholderClick(e) {
+    e.stopPropagation();
+    setPopoverAnchorEl(emptyPlaceholderRef.current);
+    setPopoverContainerId(null);
   }
 
   function handlePopoverClose() {
-    clearTimeout(closeTimerRef.current);
     setPopoverAnchorEl(null);
     setPopoverContainerId(null);
   }
 
   async function handleSelectBaseMap(baseMap) {
-    if (!popoverContainerId) return;
+    let containerId = popoverContainerId;
+
+    // create a container if the page is empty
+    if (!containerId) {
+      const created = await createContainer({
+        portfolioPageId: page.id,
+        scopeId: page.scopeId,
+        projectId: page.projectId,
+        x: contentArea.x,
+        y: contentArea.y,
+        width: contentArea.width,
+        height: contentArea.height,
+      });
+      containerId = created.id;
+    }
 
     const imageSize = baseMap.getImageSize();
 
@@ -159,7 +170,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
         width: imageSize.width,
         height: imageSize.height,
       };
-      await db.portfolioBaseMapContainers.update(popoverContainerId, {
+      await db.portfolioBaseMapContainers.update(containerId, {
         baseMapId: baseMap.id,
         x: fitted.x,
         y: fitted.y,
@@ -168,7 +179,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
         viewBox,
       });
     } else {
-      await db.portfolioBaseMapContainers.update(popoverContainerId, {
+      await db.portfolioBaseMapContainers.update(containerId, {
         baseMapId: baseMap.id,
       });
     }
@@ -184,8 +195,23 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
     handlePopoverClose();
   }
 
-  function handleCreateBaseMap() {
-    const containerId = popoverContainerId;
+  async function handleCreateBaseMap() {
+    let containerId = popoverContainerId;
+
+    // create a container if the page is empty
+    if (!containerId) {
+      const created = await createContainer({
+        portfolioPageId: page.id,
+        scopeId: page.scopeId,
+        projectId: page.projectId,
+        x: contentArea.x,
+        y: contentArea.y,
+        width: contentArea.width,
+        height: contentArea.height,
+      });
+      containerId = created.id;
+    }
+
     handlePopoverClose();
     setCreatingContainerId(containerId);
     dispatch(setSourceContainer({
@@ -276,13 +302,27 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
         viewBox={`0 0 ${dims.width} ${dims.height}`}
         style={{ display: "block", background: "white" }}
       >
+        {displayContainers?.length === 0 && (
+          <svg
+            ref={emptyPlaceholderRef}
+            x={contentArea.x}
+            y={contentArea.y}
+            width={contentArea.width}
+            height={contentArea.height}
+          >
+            <EmptyContainerPlaceholder
+              width={contentArea.width}
+              height={contentArea.height}
+              onClick={handleEmptyPagePlaceholderClick}
+            />
+          </svg>
+        )}
         {displayContainers?.map((container) => (
           <BaseMapContainerSvg
             key={container.id}
             container={container}
             zoom={zoom}
-            onPlaceholderHover={handlePlaceholderHover}
-            onPlaceholderLeave={handlePlaceholderLeave}
+            onPlaceholderClick={handlePlaceholderClick}
           />
         ))}
         {displayContainers
@@ -308,7 +348,6 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
         onClose={handlePopoverClose}
         onSelectBaseMap={handleSelectBaseMap}
         onCreateBaseMap={handleCreateBaseMap}
-        onMouseEnter={handlePopoverMouseEnter}
       />
 
       {showEditButton && !isFraming && (

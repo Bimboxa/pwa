@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState } from "react";
 
 import {
   Box,
@@ -97,27 +97,14 @@ export default function CardPageContent({ content, page }) {
   // state
 
   const [popoverAnchorEl, setPopoverAnchorEl] = useState(null);
-  const closeTimerRef = useRef(null);
 
   // handlers
 
-  function handleAddHover(e) {
-    clearTimeout(closeTimerRef.current);
+  function handleAddClick(e) {
     setPopoverAnchorEl(e.currentTarget);
   }
 
-  function handleAddLeave() {
-    closeTimerRef.current = setTimeout(() => {
-      setPopoverAnchorEl(null);
-    }, 200);
-  }
-
-  function handlePopoverMouseEnter() {
-    clearTimeout(closeTimerRef.current);
-  }
-
   function handlePopoverClose() {
-    clearTimeout(closeTimerRef.current);
     setPopoverAnchorEl(null);
   }
 
@@ -253,8 +240,7 @@ export default function CardPageContent({ content, page }) {
         </Typography>
         <IconButton
           size="small"
-          onMouseEnter={handleAddHover}
-          onMouseLeave={handleAddLeave}
+          onClick={handleAddClick}
         >
           <AddIcon fontSize="small" />
         </IconButton>
@@ -291,7 +277,6 @@ export default function CardPageContent({ content, page }) {
         onClose={handlePopoverClose}
         onSelectBaseMap={handleSelectBaseMap}
         onCreateBaseMap={handleCreateBaseMap}
-        onMouseEnter={handlePopoverMouseEnter}
       />
     </Box>
   );
