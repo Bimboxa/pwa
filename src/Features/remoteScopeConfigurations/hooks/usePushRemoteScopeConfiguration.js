@@ -36,7 +36,7 @@ export default function usePushRemoteScopeConfiguration() {
 
     // push
 
-    const push = async () => {
+    const push = async (existingFile) => {
         try {
             if (!pushConfig) throw new Error("Push config manquante (remoteScopeConfigurations.push)");
             if (!scope) throw new Error("Aucun scope sélectionné");
@@ -45,8 +45,8 @@ export default function usePushRemoteScopeConfiguration() {
             const fetchParams = pushConfig.fetchParams;
             if (!fetchParams) throw new Error("fetchParams manquant dans la config push");
 
-            // 1. Créer le fichier ZIP
-            const file = await createKrtoZip(scope.id);
+            // 1. Créer le fichier ZIP (or use pre-generated one)
+            const file = existingFile ?? await createKrtoZip(scope.id);
 
             // 2. Résoudre l'URL (avec {{scopeId}} dans la route)
             const urlConfig = {

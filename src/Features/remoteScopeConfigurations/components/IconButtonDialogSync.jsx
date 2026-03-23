@@ -2,8 +2,8 @@ import { useState } from "react";
 
 import { useSelector } from "react-redux";
 
-import { Badge, IconButton, Box } from "@mui/material";
-import SyncIcon from "@mui/icons-material/Sync";
+import { Badge, Button, Box } from "@mui/material";
+import SaveIcon from "@mui/icons-material/Save";
 
 import usePullLastRemoteScopeConfiguration from "../hooks/usePullLastRemoteScopeConfiguration";
 import DialogSync from "./DialogSync";
@@ -46,12 +46,16 @@ export default function IconButtonDialogSync() {
 
     return (
         <Box>
-            <IconButton onClick={handleOpen} size="small">
-                <Badge color="error" variant="dot" size="small" invisible={!isPullRequired}>
-                    <SyncIcon />
-                </Badge>
-
-            </IconButton>
+            <Badge color="error" variant="dot" invisible={!isPullRequired}>
+                <Button
+                    onClick={handleOpen}
+                    size="small"
+                    variant="outlined"
+                    startIcon={<SaveIcon />}
+                >
+                    Sauvegarder
+                </Button>
+            </Badge>
             <DialogSync open={open} onClose={handleClose} isPullRequired={isPullRequired} />
         </Box>
     );

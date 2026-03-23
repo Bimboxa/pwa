@@ -7,6 +7,7 @@ import useFetchScopeConfiguration from "Features/remoteScopeConfigurations/hooks
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
 import {
+    Button,
     IconButton,
     Popover,
     Box,
@@ -14,6 +15,7 @@ import {
     InputBase,
     Tooltip,
     CircularProgress,
+    Alert,
 } from "@mui/material";
 import {
     Share as ShareIcon,
@@ -49,9 +51,12 @@ export default function IconButtonShareScope() {
     const shareUrl = scopeId ? `${window.location.origin}/scopes/${scopeId}` : "";
     const open = Boolean(anchorEl);
 
-    const isPullRequired = lastRemoteConfiguration
+    const hasRemoteConfig = Boolean(lastRemoteConfiguration);
+    const isPullRequired = hasRemoteConfig
         && lastSyncedVersion
         && lastRemoteConfiguration.version > lastSyncedVersion;
+
+    const isShareReady = hasRemoteConfig && !isPullRequired;
 
     const date = lastRemoteConfiguration?.createdAt ? new Date(lastRemoteConfiguration.createdAt) : null;
     const dateS = date?.toLocaleDateString();
@@ -98,11 +103,14 @@ export default function IconButtonShareScope() {
 
     return (
         <>
-            <Tooltip title={`Partager le ${scopeS}`}>
-                <IconButton onClick={handleOpen} size="small">
-                    <ShareIcon fontSize="small" />
-                </IconButton>
-            </Tooltip>
+            <Button
+                onClick={handleOpen}
+                size="small"
+                variant="outlined"
+                startIcon={<ShareIcon />}
+            >
+                Partager
+            </Button>
 
             <Popover
                 open={open}
@@ -116,40 +124,8 @@ export default function IconButtonShareScope() {
                     <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
                         Partager le {scopeS}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
-                        Partagez ce lien pour permettre l'accès à ce {scopeS}.
-                        L'utilisateur pourra charger les données directement depuis ce lien.
-                    </Typography>
 
-                    <Box
-                        sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            bgcolor: "grey.100",
-                            borderRadius: 1,
-                            px: 1.5,
-                            py: 0.5,
-                        }}
-                    >
-                        <InputBase
-                            ref={inputRef}
-                            value={shareUrl}
-                            readOnly
-                            fullWidth
-                            sx={{ fontSize: 13, color: "text.secondary" }}
-                            onClick={(e) => e.target.select()}
-                        />
-                        <Tooltip title={copied ? "Copié !" : "Copier"}>
-                            <IconButton size="small" onClick={handleCopy}>
-                                {copied
-                                    ? <CheckIcon fontSize="small" color="success" />
-                                    : <CopyIcon fontSize="small" />
-                                }
-                            </IconButton>
-                        </Tooltip>
-                    </Box>
-
-                    {/* État du pull en cours */}
+                    {/* Loading state */}
                     {pulling && (
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1.5 }}>
                             <CircularProgress size={14} />
@@ -159,36 +135,81 @@ export default function IconButtonShareScope() {
                         </Box>
                     )}
 
-                    {/* Warning si pas à jour */}
+                    {/* No remote config yet */}
+                    {!pulling && !hasRemoteConfig && (
+                        <Alert severity="warning" sx={{ mt: 1 }}>
+                            Aucune sauvegarde serveur n'a été effectuée.
+                            Veuillez d'abord sauvegarder vos données avant de partager.
+                        </Alert>
+                    )}
+
+                    {/* Pull required: version mismatch */}
                     {!pulling && isPullRequired && (
-                        <Box
-                            sx={{
-                                mt: 1.5,
-                                p: 1.5,
-                                bgcolor: "warning.light",
-                                borderRadius: 1,
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 1,
-                            }}
-                        >
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                                <WarningIcon sx={{ fontSize: 16, color: "warning.dark" }} />
-                                <Typography variant="caption" sx={{ fontWeight: 600, color: "warning.dark" }}>
-                                    Une version plus récente est disponible
+                        <Box>
+                            <Alert severity="warning" sx={{ mt: 1, mb: 1 }}>
+                                La version locale n'est pas à jour avec la version serveur.
+                                Téléchargez la dernière version ou effectuez une nouvelle sauvegarde.
+                            </Alert>
+                            <Box
+                                sx={{
+                                    p: 1.5,
+                                    bgcolor: "grey.50",
+                                    borderRadius: 1,
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 1,
+                                }}
+                            >
+                                <Typography variant="caption" color="text.secondary">
+                                    Version du {dateS} par {userS} ({fileSizeS})
                                 </Typography>
+                                <ButtonGeneric
+                                    variant="contained"
+                                    size="small"
+                                    label="Télécharger la dernière version"
+                                    onClick={handleFetch}
+                                    loading={fetching}
+                                />
                             </Box>
-                            <Typography variant="caption" color="text.secondary">
-                                Version du {dateS} par {userS} ({fileSizeS})
-                            </Typography>
-                            <ButtonGeneric
-                                variant="contained"
-                                size="small"
-                                label="Télécharger la dernière version"
-                                onClick={handleFetch}
-                                loading={fetching}
-                            />
                         </Box>
+                    )}
+
+                    {/* Share ready: show URL */}
+                    {!pulling && isShareReady && (
+                        <>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
+                                Partagez ce lien pour permettre l'accès à ce {scopeS}.
+                                L'utilisateur pourra charger les données directement depuis ce lien.
+                            </Typography>
+
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    bgcolor: "grey.100",
+                                    borderRadius: 1,
+                                    px: 1.5,
+                                    py: 0.5,
+                                }}
+                            >
+                                <InputBase
+                                    ref={inputRef}
+                                    value={shareUrl}
+                                    readOnly
+                                    fullWidth
+                                    sx={{ fontSize: 13, color: "text.secondary" }}
+                                    onClick={(e) => e.target.select()}
+                                />
+                                <Tooltip title={copied ? "Copié !" : "Copier"}>
+                                    <IconButton size="small" onClick={handleCopy}>
+                                        {copied
+                                            ? <CheckIcon fontSize="small" color="success" />
+                                            : <CopyIcon fontSize="small" />
+                                        }
+                                    </IconButton>
+                                </Tooltip>
+                            </Box>
+                        </>
                     )}
                 </Box>
             </Popover>

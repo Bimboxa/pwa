@@ -155,7 +155,7 @@ export default function TopBarDesktop() {
       )}
 
       {/* Right section - actions */}
-      <Box sx={{ display: "flex", alignItems: "center", flex: 1, justifyContent: "flex-end" }}>
+      <Box sx={{ display: "flex", alignItems: "center", flex: 1, justifyContent: "flex-end", gap: 1 }}>
         <IconButtonDialogSync />
         <IconButtonShareScope />
       </Box>
