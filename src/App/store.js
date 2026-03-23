@@ -46,7 +46,7 @@ import selectionReducer from "Features/selection/selectionSlice";
 import fwcReducer from "Features/fwc/fwcSlice";
 import baseMapCreatorReducer from "Features/baseMapCreator/baseMapCreatorSlice";
 import baseMapEditorReducer from "Features/baseMapEditor/baseMapEditorSlice";
-import remoteScopeConfigurationsReducer from "Features/remoteScopeConfigurations/remoteScopeConfigurationsSlice";
+import remoteScopeConfigurationsReducer, { syncedVersionPersistMiddleware } from "Features/remoteScopeConfigurations/remoteScopeConfigurationsSlice";
 //
 import chatReducer from "Features/chat/chatSlice";
 import showerReducer from "Features/shower/showerSlice";
@@ -148,7 +148,7 @@ const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,
-    }),
+    }).concat(syncedVersionPersistMiddleware),
 });
 
 export default store;

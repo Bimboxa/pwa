@@ -18,6 +18,8 @@ import useInitWarningWasShowed from "Features/sync/hooks/useInitWarningWasShowed
 import useAutoRefreshRemoteToken from "Features/sync/hooks/useAutoRefreshRemoteToken";
 import useInitRcUserAccount from "Features/sync/hooks/useInitRcUserAccount";
 
+import useInitCheckRemoteScopeConfiguration from "Features/remoteScopeConfigurations/hooks/useInitCheckRemoteScopeConfiguration";
+
 //import useInitFetchServicesCredentials from "Features/servicesCredentials/hooks/useInitFetchServicesCredentials";
 //import useInitServicesConfig from "Features/settings/hooks/useInitServicesConfig";
 
@@ -44,4 +46,8 @@ export default function useInit() {
   useInitSelectListing();
   //useInitFetchServicesCredentials();
   //useInitServicesConfig();
+
+  const remoteScopeConfigCheck = useInitCheckRemoteScopeConfiguration();
+
+  return { remoteScopeConfigCheck };
 }

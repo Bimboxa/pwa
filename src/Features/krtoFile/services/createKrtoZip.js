@@ -31,7 +31,10 @@ export default async function createKrtoZip(scopeId, options) {
     const listingKeys = new Set(relevantListings.map((l) => l.key).filter(Boolean));
 
     // Tables avec scopeId direct
-    const tablesWithScopeId = new Set(["baseMapViews", "syncFiles"]);
+    const tablesWithScopeId = new Set([
+        "baseMapViews", "syncFiles", "layers",
+        "portfolioPages", "portfolioBaseMapContainers",
+    ]);
 
     // Tables avec listingId (sans projectId)
     const tablesWithListingIdOnly = new Set([
@@ -64,6 +67,11 @@ export default async function createKrtoZip(scopeId, options) {
             // Blueprints (ont scopeId directement)
             if (table === "blueprints") return value.scopeId === scopeId;
 
+            // Tables avec projectId uniquement
+            if (table === "entityModels" || table === "relAnnotationMappingCategory") {
+                return value.projectId === projectId;
+            }
+
             // Tables indexées par scopeId
             if (tablesWithScopeId.has(table)) return value.scopeId === scopeId;
 
@@ -82,7 +90,7 @@ export default async function createKrtoZip(scopeId, options) {
                 return listingKeys.has(value.listingKey);
             }
 
-            // Tables ignorées (orgaData, projectFiles, baseMapTransforms)
+            // Tables ignorées (orgaData, projectFiles, baseMapTransforms, portfolios [deleted v14])
             return false;
         },
     });
