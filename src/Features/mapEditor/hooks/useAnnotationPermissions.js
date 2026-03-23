@@ -1,5 +1,7 @@
 import { useRef, useCallback } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+
+import { setToaster } from "Features/layout/layoutSlice";
 
 /**
  * Hook central de vérification des permissions d'annotation.
@@ -12,7 +14,10 @@ import { useSelector } from "react-redux";
  * @param {{ annotations: Array }} params
  * @returns {{ currentUserId: string, canEditAnnotation: Function, checkPointPermission: Function }}
  */
+const PERMISSION_MESSAGE = "Vous ne pouvez pas modifier une annotation dont vous n'êtes pas le créateur";
+
 export default function useAnnotationPermissions({ annotations }) {
+  const dispatch = useDispatch();
   const currentUserId = useSelector(
     (state) => state.auth.userProfile?.userIdMaster
   );
@@ -32,9 +37,11 @@ export default function useAnnotationPermissions({ annotations }) {
     (annotationId) => {
       const ann = annotationsRef.current?.find((a) => a.id === annotationId);
       if (ann?.createdByUserIdMaster === "anonymous") return true;
-      return ann?.createdByUserIdMaster === currentUserId;
+      if (ann?.createdByUserIdMaster === currentUserId) return true;
+      dispatch(setToaster({ message: PERMISSION_MESSAGE, isError: true }));
+      return false;
     },
-    [currentUserId]
+    [currentUserId, dispatch]
   );
 
   /**
@@ -73,15 +80,20 @@ export default function useAnnotationPermissions({ annotations }) {
         }
       }
 
+      const blocked = myIds.length === 0;
+      if (blocked) {
+        dispatch(setToaster({ message: PERMISSION_MESSAGE, isError: true }));
+      }
+
       return {
         allowed: myIds.length > 0,
         mustFork: myIds.length > 0 && foreignIds.length > 0,
-        blocked: myIds.length === 0,
+        blocked,
         myAnnotationIds: myIds,
         foreignAnnotationIds: foreignIds,
       };
     },
-    [currentUserId]
+    [currentUserId, dispatch]
   );
 
   return { currentUserId, canEditAnnotation, checkPointPermission };
