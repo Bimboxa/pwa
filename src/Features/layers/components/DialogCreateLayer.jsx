@@ -35,9 +35,9 @@ export default function DialogCreateLayer({ open, onClose, onConfirm, baseMapId 
 
   // data
 
-  const layers = useLayers({ filterByBaseMapId: baseMapId });
-  const appConfig = useAppConfig();
   const { value: scope } = useSelectedScope();
+  const layers = useLayers({ filterByBaseMapId: baseMapId, filterByScopeId: scope?.id });
+  const appConfig = useAppConfig();
   const annotationTemplates = useAnnotationTemplates();
   const hiddenTemplateIds = useMemo(() => {
     if (!annotationTemplates) return new Set();

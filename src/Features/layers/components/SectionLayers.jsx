@@ -29,13 +29,12 @@ export default function SectionLayers({ baseMapId }) {
 
   // data
 
-  const layers = useLayers({ filterByBaseMapId: baseMapId });
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const layers = useLayers({ filterByBaseMapId: baseMapId, filterByScopeId: selectedScopeId });
   const activeLayerId = useSelector((s) => s.layers.activeLayerId);
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
   );
-
-  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   // annotation counts per layer (filtered by scope, not by layer visibility)
   const countByLayerId = useLiveQuery(

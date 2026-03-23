@@ -53,7 +53,7 @@ export default function PanelMapSummary() {
     filterByBaseMapId: baseMapId,
     excludeBgAnnotations: true,
   });
-  const layers = useLayers({ filterByBaseMapId: baseMapId });
+  const layers = useLayers({ filterByBaseMapId: baseMapId, filterByScopeId: selectedScope?.id });
 
   const [openDatagrid, setOpenDatagrid] = useState(false);
 

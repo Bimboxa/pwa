@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { useSelector } from "react-redux";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import useLayers from "../hooks/useLayers";
 
@@ -19,10 +20,11 @@ export default function ChipLayerSelector({
   baseMapId,
 }) {
   const updateAnnotation = useUpdateAnnotation();
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   // data
 
-  const layers = useLayers({ filterByBaseMapId: baseMapId });
+  const layers = useLayers({ filterByBaseMapId: baseMapId, filterByScopeId: selectedScopeId });
 
   // state
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import useDeleteLayer from "../hooks/useDeleteLayer";
 import useLayers from "../hooks/useLayers";
@@ -14,7 +14,8 @@ import DialogDeleteLayer from "./DialogDeleteLayer";
 export default function IconButtonMoreActionsLayer({ layer }) {
   const dispatch = useDispatch();
   const deleteLayer = useDeleteLayer();
-  const allLayers = useLayers({ filterByBaseMapId: layer?.baseMapId });
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const allLayers = useLayers({ filterByBaseMapId: layer?.baseMapId, filterByScopeId: selectedScopeId });
 
   // state
 

@@ -1,4 +1,4 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { triggerSelectionBack } from "Features/selection/selectionSlice";
 
@@ -55,7 +55,8 @@ export default function PanelBaseMapContainerProperties() {
     viewBox,
     includeHidden: true,
   });
-  const layers = useLayers({ filterByBaseMapId: container?.baseMapId }) ?? [];
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const layers = useLayers({ filterByBaseMapId: container?.baseMapId, filterByScopeId: selectedScopeId }) ?? [];
   const allAnnotations = useAnnotationsV2({
     filterByBaseMapId: container?.baseMapId,
     filterBySelectedScope: true,

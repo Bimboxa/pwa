@@ -81,6 +81,10 @@ db.version(19).stores({
   layers: "id,baseMapId,projectId",
 });
 
+db.version(20).stores({
+  layers: "id,baseMapId,projectId,scopeId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [

@@ -9,6 +9,7 @@ import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice"
 export default function useCreateLayer() {
   const dispatch = useDispatch();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   const createLayer = async ({ baseMapId, name, annotationIdsToDuplicate }) => {
     // compute orderIndex after the last existing layer
@@ -27,6 +28,7 @@ export default function useCreateLayer() {
       id: nanoid(),
       baseMapId,
       projectId,
+      scopeId,
       name,
       orderIndex,
     };

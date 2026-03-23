@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 
 import db from "App/db/db";
 
-export default function useLayers({ filterByBaseMapId } = {}) {
+export default function useLayers({ filterByBaseMapId, filterByScopeId } = {}) {
   const layersUpdatedAt = useSelector((s) => s.layers.layersUpdatedAt);
 
   const layers = useLiveQuery(
@@ -15,6 +15,7 @@ export default function useLayers({ filterByBaseMapId } = {}) {
         .toArray();
       return records
         .filter((r) => !r.deletedAt)
+        .filter((r) => !filterByScopeId || r.scopeId === filterByScopeId)
         .sort((a, b) => {
           if (a.orderIndex != null && b.orderIndex != null) {
             return a.orderIndex < b.orderIndex ? -1 : a.orderIndex > b.orderIndex ? 1 : 0;
@@ -24,7 +25,7 @@ export default function useLayers({ filterByBaseMapId } = {}) {
           return 0;
         });
     },
-    [filterByBaseMapId, layersUpdatedAt]
+    [filterByBaseMapId, filterByScopeId, layersUpdatedAt]
   );
 
   return layers;
