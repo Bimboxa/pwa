@@ -174,13 +174,13 @@ export default function PageScopeLoader() {
             setProgress(95);
 
             // 5. Sélectionner le scope et mettre à jour la synchro
-            dispatch(setLastSyncedRemoteConfigurationVersion(configuration.version));
-
             const importedScope = await db.scopes.get(scopeId);
             if (importedScope) {
                 dispatch(setSelectedProjectId(importedScope.projectId));
             }
+            // Set scopeId BEFORE synced version so the middleware can persist to localStorage
             dispatch(setSelectedScopeId(scopeId));
+            dispatch(setLastSyncedRemoteConfigurationVersion(configuration.version));
 
             setProgress(100);
             setStatus("done");

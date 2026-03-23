@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
 
+import db from "App/db/db";
 import useDeleteLayer from "../hooks/useDeleteLayer";
 import useLayers from "../hooks/useLayers";
 
@@ -15,12 +17,52 @@ export default function IconButtonMoreActionsLayer({ layer }) {
   const dispatch = useDispatch();
   const deleteLayer = useDeleteLayer();
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const annotationsUpdatedAt = useSelector(
+    (s) => s.annotations.annotationsUpdatedAt
+  );
   const allLayers = useLayers({ filterByBaseMapId: layer?.baseMapId, filterByScopeId: selectedScopeId });
 
   // state
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [openDelete, setOpenDelete] = useState(false);
+
+  // data
+
+  const annotationCount = useLiveQuery(
+    async () => {
+      if (!layer?.id || !layer?.baseMapId) return 0;
+      const annotations = await db.annotations
+        .where("baseMapId")
+        .equals(layer.baseMapId)
+        .toArray();
+      let filtered = annotations.filter(
+        (a) => !a.deletedAt && !a.isBaseMapAnnotation && a.layerId === layer.id
+      );
+      if (selectedScopeId) {
+        const listingIds = [
+          ...new Set(filtered.map((a) => a.listingId).filter(Boolean)),
+        ];
+        if (listingIds.length > 0) {
+          const listings = await db.listings
+            .where("id")
+            .anyOf(listingIds)
+            .toArray();
+          const scopeListingIds = new Set(
+            listings
+              .filter((l) => l.scopeId === selectedScopeId)
+              .map((l) => l.id)
+          );
+          filtered = filtered.filter(
+            (a) => !a.listingId || scopeListingIds.has(a.listingId)
+          );
+        }
+      }
+      return filtered.length;
+    },
+    [layer?.id, layer?.baseMapId, selectedScopeId, annotationsUpdatedAt],
+    0
+  );
 
   // helpers
 
@@ -50,9 +92,6 @@ export default function IconButtonMoreActionsLayer({ layer }) {
 
   // render
 
-  // count annotations for this layer
-  const annotationCount = 0; // will be resolved inside DialogDeleteLayer via prop
-
   return (
     <>
       <IconButton onClick={handleClick}>
@@ -69,7 +108,7 @@ export default function IconButtonMoreActionsLayer({ layer }) {
           onClose={() => setOpenDelete(false)}
           layer={layer}
           otherLayers={otherLayers}
-          annotationCount={0}
+          annotationCount={annotationCount}
           onConfirm={handleConfirmDelete}
         />
       )}
