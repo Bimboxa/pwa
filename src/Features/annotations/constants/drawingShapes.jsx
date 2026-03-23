@@ -24,24 +24,6 @@ const DRAWING_SHAPES = [
     ),
   },
   {
-    key: "TEXT",
-    label: "Texte",
-    icon: (
-      <SvgIcon fontSize="small" viewBox="0 0 20 20">
-        <text
-          x="10"
-          y="15"
-          textAnchor="middle"
-          fontSize="14"
-          fontWeight="bold"
-          fill="currentColor"
-        >
-          T
-        </text>
-      </SvgIcon>
-    ),
-  },
-  {
     key: "LABEL",
     label: "Étiquette",
     icon: (
@@ -65,32 +47,6 @@ const DRAWING_SHAPES = [
         >
           Ab
         </text>
-      </SvgIcon>
-    ),
-  },
-  {
-    key: "IMAGE",
-    label: "Image",
-    icon: (
-      <SvgIcon fontSize="small" viewBox="0 0 20 20">
-        <rect
-          x="2"
-          y="3"
-          width="16"
-          height="14"
-          rx="2"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <circle cx="7" cy="8" r="2" fill="currentColor" />
-        <polyline
-          points="2,15 7,10 11,14 14,11 18,15"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-        />
       </SvgIcon>
     ),
   },

@@ -2,6 +2,7 @@ import { useDispatch } from "react-redux";
 
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
+import db from "App/db/db";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
@@ -24,6 +25,9 @@ export default function FieldAnnotationRotation({ annotation }) {
 
   const currentRotation = annotation?.rotation ?? 0;
   const displayRotation = Math.round(currentRotation * 10) / 10;
+  const isBboxAnnotation =
+    annotation?.type === "IMAGE" ||
+    annotation?.type === "RECTANGLE";
 
   // handlers
 
@@ -34,6 +38,15 @@ export default function FieldAnnotationRotation({ annotation }) {
     const target = Math.round(targetRotation * 10) / 10;
     const delta = target - currentRotation;
     if (Math.abs(delta) < 0.01) return;
+
+    // Bbox-based annotations (IMAGE, RECTANGLE): no points to rotate, just update the rotation field
+    if (isBboxAnnotation) {
+      let newRotation = target % 360;
+      if (newRotation < 0) newRotation += 360;
+      await db.annotations.update(annotation.id, { rotation: newRotation });
+      dispatch(triggerAnnotationsUpdate());
+      return;
+    }
 
     const rotCenter = annotation.rotationCenter ?? null;
     const hasExistingRotation = currentRotation !== 0 && rotCenter != null;

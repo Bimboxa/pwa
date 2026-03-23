@@ -4,7 +4,7 @@ const initialTransforms = [
         name: "Image satellite => plan masse",
         prompt: `Génère un plan masse à partir d'une image satellite
 
-A partir de la photo satellite jointe, génère un plan masse d’architecte. Conserve le plan général, les formes et les dimensions. Les dimensions de l'image générées doivent êtres exactement les même que l'image fournit, car je dois pouvoir superposer les 2 images. L'image générée doit donc être carrée (aspect ratio 1:1)
+A partir de la photo satellite jointe, génère un plan masse d’architecte. Conserve le plan général, les formes et les dimensions. Les dimensions de l'image générées doivent êtres exactement les même que l'image fournit, car je dois pouvoir superposer les 2 images.
 
 Reproduit fidèlement la forme des bâtiments, les routes, tous les détails présents sur les toitures et mets les bien en évidence par rapport au reste, notamment la végétation. Retire tous les noms d’emplacement et annotations de la photo. N’ajoute pas d’éléments qui n’existent pas et conserve tous les détails.
 

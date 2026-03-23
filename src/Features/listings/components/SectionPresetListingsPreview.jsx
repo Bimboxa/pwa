@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import useResolvedPresetListings from "../hooks/useResolvedPresetListings";
 import useFavoriteListings from "../hooks/useFavoriteListings";
+import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 
 import { Box, Typography } from "@mui/material";
 
@@ -22,6 +23,7 @@ export default function SectionPresetListingsPreview({
 
   const presetListings = useResolvedPresetListings();
   const { favoriteListings } = useFavoriteListings();
+  const spriteImage = useAnnotationSpriteImage();
 
   // helpers
 
@@ -94,7 +96,7 @@ export default function SectionPresetListingsPreview({
                     width: 1,
                   }}
                 >
-                  <AnnotationTemplateIcon template={template} size={20} />
+                  <AnnotationTemplateIcon template={template} size={20} spriteImage={spriteImage} />
                   <Typography variant="body2" sx={{ ml: 1 }}>
                     {template.label}
                   </Typography>

@@ -457,8 +457,8 @@ const InteractionLayer = forwardRef(({
     if (smartDetectRef.current) {
       // In POLYGON_CLICK mode, only update the loupe visual (no OpenCV analysis)
       // In POLYLINE_CLICK/STRIP mode without advancedLayout, also skip analysis (loupe only)
-      const skipAnalysis = enabledDrawingModeRef.current === "POLYGON_CLICK"
-        || (["POLYLINE_CLICK", "STRIP"].includes(enabledDrawingModeRef.current) && !advancedLayout);
+      const smartModes = ["POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE", "SMART_DETECT"];
+      const skipAnalysis = !smartModes.includes(enabledDrawingModeRef.current);
       smartDetectRef.current.update(viewportPos, sourceROI, { skipAnalysis });
     }
 
@@ -1186,6 +1186,8 @@ const InteractionLayer = forwardRef(({
         // 2. DELETE / BACKSPACE : Supprimer
         case 'Delete':
         case 'Backspace':
+          // Don't intercept when user is typing in an input field
+          if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) break;
           console.log("Action: Delete Selected");
           // 1. Si un point est sélectionné, on le supprime
           if (selectedPointId && onDeletePoint) {
@@ -2984,7 +2986,7 @@ const InteractionLayer = forwardRef(({
             : (enabledDrawingMode === "POLYLINE_CLICK" && advancedLayout) ? "ORTHO_PATHS"
             : undefined
           }
-          loupeOnly={["POLYLINE_CLICK", "STRIP"].includes(enabledDrawingMode) && !advancedLayout}
+          loupeOnly={!["POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE", "SMART_DETECT"].includes(enabledDrawingMode)}
         />, zoomContainer) : null}
       </>
 

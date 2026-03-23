@@ -47,11 +47,16 @@ export default function FieldWrapperDimensions({ annotation }) {
   const rotCenter = annotation?.rotationCenter ?? null;
   const hasRotation = rotation !== 0 && rotCenter != null;
 
-  const bbox = computeWrapperBbox(
-    annotation ? [annotation] : [],
-    rotation,
-    rotCenter ?? undefined
-  );
+  const isBboxAnnotation =
+    annotation?.type === "IMAGE" || annotation?.type === "RECTANGLE";
+
+  const bbox = isBboxAnnotation
+    ? annotation?.bbox ?? null
+    : computeWrapperBbox(
+        annotation ? [annotation] : [],
+        rotation,
+        rotCenter ?? undefined
+      );
 
   const bboxWidth = bbox?.width ?? 0;
   const bboxHeight = bbox?.height ?? 0;

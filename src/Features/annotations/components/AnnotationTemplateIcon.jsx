@@ -56,7 +56,53 @@ export default function AnnotationTemplateIcon({ template, size = 20, spriteImag
     return { x: col * tile, y: row * tile, tile };
   }, [hasSprite, spriteImage, template.iconKey]);
 
-  // render
+  // render — IMAGE template: show image preview or image icon
+  if (shape === "IMAGE") {
+    const imgUrl = template.image?.imageUrlClient;
+    if (imgUrl) {
+      return (
+        <Box
+          sx={{
+            width: size,
+            height: size,
+            flexShrink: 0,
+            borderRadius: 0.5,
+            overflow: "hidden",
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Box
+            component="img"
+            src={imgUrl}
+            sx={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          />
+        </Box>
+      );
+    }
+    return (
+      <Box sx={{ width: size, height: size, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <svg width={size} height={size} viewBox="0 0 20 20">
+          <rect x="2" y="3" width="16" height="14" rx="2" fill="none" stroke="#999" strokeWidth="1.5" />
+          <circle cx="7" cy="8" r="2" fill="#999" />
+          <polyline points="2,15 7,10 11,14 14,11 18,15" fill="none" stroke="#999" strokeWidth="1.5" strokeLinejoin="round" />
+        </svg>
+      </Box>
+    );
+  }
+
+  // render — LABEL template: rectangle with text inside
+  if (shape === "LABEL") {
+    return (
+      <Box sx={{ width: size, height: size, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <svg width={size} height={size} viewBox="0 0 20 20">
+          <rect x="1" y="4" width="18" height="12" rx="2" fill={color} opacity={opacity}
+            stroke={isLightColor ? "#bbb" : "none"} strokeWidth={isLightColor ? 1 : 0} />
+          <text x="10" y="13" textAnchor="middle" fontSize="7" fontWeight="bold" fill={isLightColor ? "#666" : "#fff"} fontFamily="sans-serif">Ab</text>
+        </svg>
+      </Box>
+    );
+  }
 
   if (hasSprite && spriteOffset) {
     const { url, columns, rows, tile } = spriteImage;
