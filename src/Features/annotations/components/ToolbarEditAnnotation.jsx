@@ -36,6 +36,7 @@ import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
 import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
 import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
+import IconButtonRepairAnnotation from "./IconButtonRepairAnnotation";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
@@ -332,6 +333,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               )}
               {isClosedShape && (
                 <IconButtonDilateAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
+              )}
+              {["POLYLINE", "POLYGON"].includes(selectedAnnotation?.type) && (
+                <IconButtonRepairAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
               )}
             </>
           }
