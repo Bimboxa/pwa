@@ -37,7 +37,7 @@ function getPageNumPosition(pageWidth, pageHeight) {
 export default function useDownloadPortfolioPdf() {
   const [loading, setLoading] = useState(false);
 
-  async function download({ portfolio, project, pages, spriteImage, portfolioLogoUrl }) {
+  async function download({ portfolio, project, pages, spriteImage, portfolioLogoUrl, hdExport }) {
     if (!pages?.length) return;
     setLoading(true);
 
@@ -57,7 +57,9 @@ export default function useDownloadPortfolioPdf() {
         if (pageNumEl) pageNumEl.style.visibility = "hidden";
 
         // capture SVG as PNG blob
-        const blob = await getImageFromSvg(svgEl);
+        // Always render at 2x for non-retina screens; HD doubles again to 4x
+        const pixelRatio = hdExport ? 4 : 2;
+        const blob = await getImageFromSvg(svgEl, { pixelRatio });
 
         // restore page number visibility
         if (pageNumEl) pageNumEl.style.visibility = "";

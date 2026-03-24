@@ -51,9 +51,14 @@ export default function PanelPortfolioPageProperties() {
             <Back />
           </IconButton>
 
-          <Typography variant="body2" sx={{ fontWeight: "bold", ml: 1 }}>
-            {label}
-          </Typography>
+          <Box sx={{ ml: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Page
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+              {label}
+            </Typography>
+          </Box>
         </Box>
 
         <IconButtonMoreActionsPortfolioPage page={page} />

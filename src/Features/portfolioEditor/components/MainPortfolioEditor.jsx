@@ -5,7 +5,6 @@ import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
 
 import PortfolioTree from "./PortfolioTree";
 import PortfolioEditorViewport from "./PortfolioEditorViewport";
-import ButtonDownloadPortfolioPdf from "./ButtonDownloadPortfolioPdf";
 import usePortfolioEditorShortcuts from "../hooks/usePortfolioEditorShortcuts";
 
 export default function MainPortfolioEditor() {
@@ -27,7 +26,6 @@ export default function MainPortfolioEditor() {
           <BoxFlexVStretch sx={{ overflow: "auto" }}>
             <PortfolioTree />
           </BoxFlexVStretch>
-          <ButtonDownloadPortfolioPdf />
         </BoxFlexVStretch>
       </LeftDrawerPanel>
 

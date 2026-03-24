@@ -13,7 +13,7 @@ import usePortfolioLogoUrl from "Features/portfolios/hooks/usePortfolioLogoUrl";
 
 import useDownloadPortfolioPdf from "../hooks/useDownloadPortfolioPdf";
 
-export default function ButtonDownloadPortfolioPdf() {
+export default function ButtonDownloadPortfolioPdf({ hdExport }) {
   // data
 
   const displayedPortfolioId = useSelector(
@@ -31,7 +31,7 @@ export default function ButtonDownloadPortfolioPdf() {
   // handlers
 
   function handleClick() {
-    download({ portfolio, project, pages, spriteImage, portfolioLogoUrl });
+    download({ portfolio, project, pages, spriteImage, portfolioLogoUrl, hdExport });
   }
 
   // render
@@ -41,7 +41,8 @@ export default function ButtonDownloadPortfolioPdf() {
   return (
     <ButtonInPanelV2
       label={loading ? "Export..." : "Telecharger PDF"}
-      variant="outlined"
+      variant="contained"
+      color="secondary"
       size="small"
       startIcon={loading ? <CircularProgress size={16} /> : <PictureAsPdf />}
       onClick={handleClick}
