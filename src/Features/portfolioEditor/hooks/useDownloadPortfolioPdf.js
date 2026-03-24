@@ -9,26 +9,29 @@ import downloadBlob from "Features/files/utils/downloadBlob";
 import createAnnotationsPdfReport from "Features/pdfReport/utils/createAnnotationsPdfReport";
 
 import getPageDimensions from "../utils/getPageDimensions";
+import getPageLayout from "../utils/getPageLayout";
 import getPageAnnotationsWithDetails from "../utils/getPageAnnotationsWithDetails";
 
-// Cartouche layout constants (must match computeHeaderPosition + PortfolioHeaderSvg)
-const HEADER_MARGIN = 16;
-const ROW_HEIGHT = 28;
-const PAGE_NUM_WIDTH = 50;
-const LOGO_COL_WIDTH = 126;
+import { ROW_HEIGHT, LOGO_COL_WIDTH } from "../utils/computeHeaderPosition";
 
-function getPageNumPosition(pageWidth, pageHeight) {
-  const headerWidth = pageWidth - 2 * HEADER_MARGIN;
-  const contentW = headerWidth - LOGO_COL_WIDTH;
-  const labelW = Math.round(contentW * 0.08);
-  const metaLabelW = Math.round(contentW * 0.11);
-  const metaValueW = Math.round(contentW * 0.15);
+const PAGE_NUM_WIDTH = 50;
+
+function getPageNumPosition(layout, pageHeight) {
+  const rect = layout.cartouche;
+  const isNarrow = layout.variant === "BOTTOM_RIGHT";
+  const logoW = isNarrow
+    ? Math.min(LOGO_COL_WIDTH, Math.round(rect.width * 0.2))
+    : LOGO_COL_WIDTH;
+  const contentW = rect.width - logoW;
+  const labelW = isNarrow ? 55 : Math.max(55, Math.round(contentW * 0.08));
+  const metaLabelW = isNarrow ? 65 : Math.max(65, Math.round(contentW * 0.11));
+  const metaValueW = isNarrow ? 80 : Math.max(80, Math.round(contentW * 0.15));
   const mainW = contentW - labelW - metaLabelW - metaValueW;
 
-  const xPageNum = HEADER_MARGIN + LOGO_COL_WIDTH + labelW + mainW - PAGE_NUM_WIDTH;
-  // Row 3 in SVG: y = HEADER_MARGIN + 2 * ROW_HEIGHT (from top)
+  const xPageNum = rect.x + logoW + labelW + mainW - PAGE_NUM_WIDTH;
+  // Row 3 in SVG: y = cartouche.y + 2 * ROW_HEIGHT
   // In PDF coords (bottom-left origin): y = pageHeight - svgY - ROW_HEIGHT
-  const svgY = HEADER_MARGIN + 2 * ROW_HEIGHT;
+  const svgY = rect.y + 2 * ROW_HEIGHT;
   const pdfY = pageHeight - svgY - ROW_HEIGHT;
 
   return { x: xPageNum, y: pdfY, width: PAGE_NUM_WIDTH, height: ROW_HEIGHT };
@@ -43,6 +46,7 @@ export default function useDownloadPortfolioPdf() {
 
     try {
       const pagePdfs = [];
+      const pageLayouts = []; // layout per PDF page (for page number positioning)
 
       for (const page of pages) {
         const svgEl = document.querySelector(
@@ -51,6 +55,7 @@ export default function useDownloadPortfolioPdf() {
         if (!svgEl) continue;
 
         const dims = getPageDimensions(page.format, page.orientation);
+        const layout = getPageLayout(page.format, page.orientation);
 
         // hide page number in cartouche before SVG capture
         const pageNumEl = svgEl.querySelector("[data-page-number]");
@@ -75,6 +80,7 @@ export default function useDownloadPortfolioPdf() {
 
         URL.revokeObjectURL(url);
         pagePdfs.push(pdf);
+        pageLayouts.push(layout);
 
         // generate annotation summary pages for this plan page
         const annotationsWithDetails = await getPageAnnotationsWithDetails(
@@ -109,6 +115,15 @@ export default function useDownloadPortfolioPdf() {
             }
           );
           pagePdfs.push(summaryPdf);
+          // Summary pages use A4 portrait layout (TOP_FULL)
+          const summaryLayout = getPageLayout("A4", "portrait");
+          // A summary PDF may contain multiple pages
+          const summaryBytes = await summaryPdf.arrayBuffer();
+          const summaryDoc = await PDFDocument.load(summaryBytes);
+          const summaryPageCount = summaryDoc.getPageCount();
+          for (let i = 0; i < summaryPageCount; i++) {
+            pageLayouts.push(summaryLayout);
+          }
         }
       }
 
@@ -122,11 +137,12 @@ export default function useDownloadPortfolioPdf() {
       const pdfDoc = await PDFDocument.load(mergedBytes);
       const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const allPages = pdfDoc.getPages();
-      const totalPages = allPages.length;
 
       allPages.forEach((pdfPage, index) => {
-        const { width, height } = pdfPage.getSize();
-        const pos = getPageNumPosition(width, height);
+        const { height } = pdfPage.getSize();
+        const pageLayout = pageLayouts[index];
+        if (!pageLayout) return;
+        const pos = getPageNumPosition(pageLayout, height);
         const text = `p. ${index + 1}`;
         const fontSize = 10;
         const textWidth = font.widthOfTextAtSize(text, fontSize);

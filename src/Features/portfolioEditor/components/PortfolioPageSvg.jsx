@@ -27,11 +27,12 @@ import EmptyContainerPlaceholder from "./EmptyContainerPlaceholder";
 import LegendBlockSvg from "./LegendBlockSvg";
 import BaseMapSelectorPopover from "./BaseMapSelectorPopover";
 import PortfolioHeaderSvg from "./PortfolioHeaderSvg";
+import PortfolioTitleBarSvg from "./PortfolioTitleBarSvg";
 import SectionCreateBaseMapFullscreen from "Features/mapEditor/components/SectionCreateBaseMapFullscreen";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 import getPageDimensions from "../utils/getPageDimensions";
-import computeContentArea from "../utils/computeContentArea";
+import getPageLayout from "../utils/getPageLayout";
 import fitContainerToBaseMap from "../utils/fitContainerToBaseMap";
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
 
@@ -66,7 +67,8 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
   );
   const dims = getPageDimensions(page.format, page.orientation);
   const footerHeight = portfolio?.metadata?.footerHeight || 0;
-  const contentArea = computeContentArea(dims, footerHeight);
+  const layout = getPageLayout(page.format, page.orientation, footerHeight);
+  const contentArea = layout.contentArea;
 
   const updateEntity = useUpdateEntity();
   const displayedPortfolioId = useSelector(
@@ -336,9 +338,14 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
           ))}
         <PortfolioHeaderSvg
           page={page}
-          pageDims={dims}
+          layout={layout}
           pageIndex={pageIndex}
           totalPages={totalPages}
+        />
+        <PortfolioTitleBarSvg
+          titleBar={layout.titleBar}
+          portfolioName={portfolio?.name}
+          pageName={page?.title}
         />
       </svg>
 

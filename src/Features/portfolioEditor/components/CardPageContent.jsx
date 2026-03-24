@@ -33,8 +33,7 @@ import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfol
 import useCreatePortfolioBaseMapContainer from "Features/portfolioBaseMapContainers/hooks/useCreatePortfolioBaseMapContainer";
 import BaseMapSelectorPopover from "./BaseMapSelectorPopover";
 
-import getPageDimensions from "../utils/getPageDimensions";
-import computeContentArea from "../utils/computeContentArea";
+import getPageLayout from "../utils/getPageLayout";
 import fitContainerToBaseMap from "../utils/fitContainerToBaseMap";
 
 const ICON_BY_TYPE = {
@@ -115,9 +114,9 @@ export default function CardPageContent({ content, page }) {
       ? content[content.length - 1].sortIndex
       : null;
 
-    const dims = getPageDimensions(page.format, page.orientation);
     const footerHeight = portfolio?.metadata?.footerHeight || 0;
-    const contentArea = computeContentArea(dims, footerHeight);
+    const layout = getPageLayout(page.format, page.orientation, footerHeight);
+    const contentArea = layout.contentArea;
 
     const imageSize = baseMap.getImageSize();
     let x = contentArea.x;
@@ -166,9 +165,9 @@ export default function CardPageContent({ content, page }) {
       ? content[content.length - 1].sortIndex
       : null;
 
-    const dims = getPageDimensions(page.format, page.orientation);
     const footerHeight = portfolio?.metadata?.footerHeight || 0;
-    const contentArea = computeContentArea(dims, footerHeight);
+    const layout = getPageLayout(page.format, page.orientation, footerHeight);
+    const contentArea = layout.contentArea;
 
     await createContainer({
       portfolioPageId: page.id,

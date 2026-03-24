@@ -9,6 +9,7 @@ import usePortfolioLogoUrl from "Features/portfolios/hooks/usePortfolioLogoUrl";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import DebouncedTextField from "Features/form/components/DebouncedTextField";
 import IconButtonMoreActionsPortfolio from "./IconButtonMoreActionsPortfolio";
 import ButtonDownloadPortfolioPdf from "./ButtonDownloadPortfolioPdf";
 
@@ -157,12 +158,12 @@ export default function PanelPortfolioHeaderProperties() {
               fullWidth
               helperText="Valeur automatique (projet)"
             />
-            <TextField
+            <DebouncedTextField
               label={config.labelPortfolio || "Portfolio"}
               size="small"
               value={portfolio.name || ""}
-              onChange={async (e) =>
-                db.listings.update(portfolio.id, { name: e.target.value })
+              onChange={(val) =>
+                db.listings.update(portfolio.id, { name: val })
               }
               fullWidth
             />
@@ -175,25 +176,25 @@ export default function PanelPortfolioHeaderProperties() {
             <Typography variant="body2" sx={{ fontWeight: "bold" }}>
               Champs secondaires
             </Typography>
-            <TextField
-              label={config.labelRefInterne || "Ref. Interne"}
+            <DebouncedTextField
+              label={config.labelRefInterne || "Numéro"}
               size="small"
               value={config.refInterne || ""}
-              onChange={(e) => updateConfig({ refInterne: e.target.value })}
+              onChange={(val) => updateConfig({ refInterne: val })}
               fullWidth
             />
-            <TextField
+            <DebouncedTextField
               label={config.labelAuteur || "Auteur"}
               size="small"
               value={config.author || ""}
-              onChange={(e) => updateConfig({ author: e.target.value })}
+              onChange={(val) => updateConfig({ author: val })}
               fullWidth
             />
-            <TextField
+            <DebouncedTextField
               label={config.labelDate || "Date"}
               size="small"
               value={config.date || ""}
-              onChange={(e) => updateConfig({ date: e.target.value })}
+              onChange={(val) => updateConfig({ date: val })}
               fullWidth
             />
           </Box>
@@ -205,50 +206,46 @@ export default function PanelPortfolioHeaderProperties() {
             <Typography variant="body2" sx={{ fontWeight: "bold" }}>
               Titres des champs
             </Typography>
-            <TextField
+            <DebouncedTextField
               label="Titre: Chantier"
               size="small"
               value={config.labelChantier || "Chantier"}
-              onChange={(e) => updateConfig({ labelChantier: e.target.value })}
+              onChange={(val) => updateConfig({ labelChantier: val })}
               fullWidth
             />
-            <TextField
+            <DebouncedTextField
               label="Titre: Portfolio"
               size="small"
               value={config.labelPortfolio || "Portfolio"}
-              onChange={(e) =>
-                updateConfig({ labelPortfolio: e.target.value })
-              }
+              onChange={(val) => updateConfig({ labelPortfolio: val })}
               fullWidth
             />
-            <TextField
+            <DebouncedTextField
               label="Titre: Page"
               size="small"
               value={config.labelPage || "Page"}
-              onChange={(e) => updateConfig({ labelPage: e.target.value })}
+              onChange={(val) => updateConfig({ labelPage: val })}
               fullWidth
             />
-            <TextField
-              label="Titre: Ref. Interne"
+            <DebouncedTextField
+              label="Titre: Numéro"
               size="small"
-              value={config.labelRefInterne || "Ref. Interne"}
-              onChange={(e) =>
-                updateConfig({ labelRefInterne: e.target.value })
-              }
+              value={config.labelRefInterne || "Numéro"}
+              onChange={(val) => updateConfig({ labelRefInterne: val })}
               fullWidth
             />
-            <TextField
+            <DebouncedTextField
               label="Titre: Auteur"
               size="small"
               value={config.labelAuteur || "Auteur"}
-              onChange={(e) => updateConfig({ labelAuteur: e.target.value })}
+              onChange={(val) => updateConfig({ labelAuteur: val })}
               fullWidth
             />
-            <TextField
+            <DebouncedTextField
               label="Titre: Date"
               size="small"
               value={config.labelDate || "Date"}
-              onChange={(e) => updateConfig({ labelDate: e.target.value })}
+              onChange={(val) => updateConfig({ labelDate: val })}
               fullWidth
             />
           </Box>

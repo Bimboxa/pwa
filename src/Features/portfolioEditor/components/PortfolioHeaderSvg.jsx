@@ -10,7 +10,7 @@ import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfol
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import usePortfolioLogoUrl from "Features/portfolios/hooks/usePortfolioLogoUrl";
 
-import computeHeaderPosition, {
+import {
   ROW_HEIGHT,
   LOGO_COL_WIDTH,
 } from "../utils/computeHeaderPosition";
@@ -90,7 +90,7 @@ function ValueCell({ x, y, width, height, text, bold, center, dataAttr }) {
 
 export default function PortfolioHeaderSvg({
   page,
-  pageDims,
+  layout,
   pageIndex,
   totalPages,
 }) {
@@ -107,18 +107,21 @@ export default function PortfolioHeaderSvg({
 
   const config = portfolio?.metadata || {};
   const logoUrl = usePortfolioLogoUrl(config.logo);
-  const rect = computeHeaderPosition(pageDims);
+  const rect = layout.cartouche;
 
   const isSelected = selectedItems.some(
     (i) => i.id === portfolio?.id && i.type === "PORTFOLIO_HEADER"
   );
 
   // column layout (logo always visible)
-  const logoW = LOGO_COL_WIDTH;
+  const isNarrow = layout.variant === "BOTTOM_RIGHT";
+  const logoW = isNarrow
+    ? Math.min(LOGO_COL_WIDTH, Math.round(rect.width * 0.2))
+    : LOGO_COL_WIDTH;
   const contentW = rect.width - logoW;
-  const labelW = Math.round(contentW * 0.08);
-  const metaLabelW = Math.round(contentW * 0.11);
-  const metaValueW = Math.round(contentW * 0.15);
+  const labelW = isNarrow ? 55 : Math.max(55, Math.round(contentW * 0.08));
+  const metaLabelW = isNarrow ? 65 : Math.max(65, Math.round(contentW * 0.11));
+  const metaValueW = isNarrow ? 80 : Math.max(80, Math.round(contentW * 0.15));
   const mainW = contentW - labelW - metaLabelW - metaValueW;
 
   // column x positions
@@ -260,10 +263,10 @@ export default function PortfolioHeaderSvg({
         </foreignObject>
       )}
 
-      {/* Row 1: Chantier / Réf. Interne */}
+      {/* Row 1: Chantier / Numéro */}
       <LabelCell x={xLabel} y={y0} width={labelW} height={ROW_HEIGHT} text={config.labelChantier || "Chantier"} />
       <ValueCell x={xMain} y={y0} width={mainW} height={ROW_HEIGHT} text={chantierValue} bold />
-      <LabelCell x={xMetaLabel} y={y0} width={metaLabelW} height={ROW_HEIGHT} text={config.labelRefInterne || "Réf. Interne"} />
+      <LabelCell x={xMetaLabel} y={y0} width={metaLabelW} height={ROW_HEIGHT} text={config.labelRefInterne || "Numéro"} />
       <ValueCell x={xMetaValue} y={y0} width={metaValueW} height={ROW_HEIGHT} text={config.refInterne || ""} />
 
       {/* Row 2: Portfolio / Auteur */}

@@ -222,7 +222,7 @@ export default async function generateItemsGridPdfVariantH(items, opts = {}) {
       // Row 1
       drawCellLabel(labels.labelChantier || "Chantier", xLabel, row0Y, labelW_c, CARTOUCHE_ROW_HEIGHT);
       drawCellValue(cartouche.projectName, xMain, row0Y, mainW_c, CARTOUCHE_ROW_HEIGHT, true);
-      drawCellLabel(labels.labelRefInterne || "Réf. Interne", xMetaLabel, row0Y, metaLabelW, CARTOUCHE_ROW_HEIGHT);
+      drawCellLabel(labels.labelRefInterne || "Numéro", xMetaLabel, row0Y, metaLabelW, CARTOUCHE_ROW_HEIGHT);
       drawCellValue(cartouche.refInterne, xMetaValue, row0Y, metaValueW, CARTOUCHE_ROW_HEIGHT);
 
       // Row 2

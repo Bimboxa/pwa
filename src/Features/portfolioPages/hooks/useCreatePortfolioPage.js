@@ -5,8 +5,7 @@ import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 
 import db from "App/db/db";
 
-import getPageDimensions from "Features/portfolioEditor/utils/getPageDimensions";
-import computeContentArea from "Features/portfolioEditor/utils/computeContentArea";
+import getPageLayout from "Features/portfolioEditor/utils/getPageLayout";
 
 export default function useCreatePortfolioPage() {
   const createEntity = useCreateEntity();
@@ -20,7 +19,7 @@ export default function useCreatePortfolioPage() {
     afterSortIndex,
   }) => {
     const sortIndex = generateKeyBetween(afterSortIndex ?? null, null);
-    const _format = format || "A4";
+    const _format = format || "A3";
     const _orientation = orientation || "landscape";
 
     const pageData = {
@@ -33,9 +32,9 @@ export default function useCreatePortfolioPage() {
 
     const page = await createEntity(pageData, { listing });
 
-    // auto-create one empty container filling the content area (below header)
-    const dims = getPageDimensions(_format, _orientation);
-    const contentArea = computeContentArea(dims);
+    // auto-create one empty container filling the content area
+    const layout = getPageLayout(_format, _orientation);
+    const contentArea = layout.contentArea;
     const container = {
       id: nanoid(),
       portfolioPageId: page.id,
