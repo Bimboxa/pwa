@@ -435,6 +435,19 @@ export default function useAnnotationsV2(options) {
 
         })
 
+        // recompute qties after template overrides so overridden height is reflected
+        if (withQties) {
+            annotations = annotations?.map(annotation => {
+                if (annotation?.isBaseMapAnnotation) return annotation;
+                const baseMap = baseMapById[annotation?.baseMapId];
+                const meterByPx = baseMap?.getMeterByPx?.();
+                if (meterByPx) {
+                    annotation.qties = getAnnotationQties({ annotation, meterByPx });
+                }
+                return annotation;
+            });
+        }
+
         // filter out annotations whose template is hidden
         annotations = annotations?.filter(a => !a.hidden);
 
