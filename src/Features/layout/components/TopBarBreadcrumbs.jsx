@@ -25,6 +25,7 @@ export default function TopBarBreadcrumbs() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
+  const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
   const { value: selectedProject } = useSelectedProject();
   const { value: selectedScope } = useSelectedScope();
@@ -109,7 +110,7 @@ export default function TopBarBreadcrumbs() {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Home />
-        <ToggleDock />
+        {selectedViewerKey !== "MAP" && <ToggleDock />}
         <Separator />
         <ButtonDialogOnboardingSelectProject />
       </Box>
@@ -128,7 +129,7 @@ export default function TopBarBreadcrumbs() {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Home />
-        <ToggleDock />
+        {selectedViewerKey !== "MAP" && <ToggleDock />}
         <Separator />
         <Project />
         {/* <Separator />
