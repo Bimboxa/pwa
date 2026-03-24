@@ -41,7 +41,7 @@ import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingle
 
 import getAnnotationColor from "../utils/getAnnotationColor";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
-import { resolveDrawingShape, getAnnotationType } from "../constants/drawingShapeConfig";
+import { resolveDrawingShape, resolveDrawingShapeFromType, getAnnotationType } from "../constants/drawingShapeConfig";
 import getCloneTypeOptions from "../utils/getCloneTypeOptions";
 
 export default function ToolbarEditAnnotation({ onDragStart }) {
@@ -73,6 +73,19 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   // helpers
 
   const cloneTypeOptions = getCloneTypeOptions(selectedAnnotation?.type);
+
+  // Filter clone candidates based on selected clone type
+  const filteredCloneCandidates = (() => {
+    if (!cloneCandidates || !selectedCloneType) return cloneCandidates;
+    // STRIP shows all compatible templates (polyline + polygon)
+    if (selectedCloneType === "STRIP") return cloneCandidates;
+    const targetDrawingShape = resolveDrawingShapeFromType(selectedCloneType);
+    if (!targetDrawingShape) return cloneCandidates;
+    return cloneCandidates.filter(
+      (t) => resolveDrawingShape(t) === targetDrawingShape
+    );
+  })();
+
   const accentColor = getAnnotationColor(selectedAnnotation) || "#6366F1";
   const isClosedShape =
     selectedAnnotation?.type === "POLYGON" ||
@@ -137,7 +150,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   }
 
   async function handleCloneTemplateChange(annotationTemplateId) {
-    const template = cloneCandidates?.find(
+    const template = filteredCloneCandidates?.find(
       (t) => t.id === annotationTemplateId
     );
     const newAnnotation = {
@@ -357,27 +370,24 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
           transformOrigin={{ vertical: "top", horizontal: "right" }}
         >
+          {cloneTypeOptions && (
+            <Box sx={{ px: 2, py: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
+                Type de l'annotation dupliquée
+              </Typography>
+              <ToggleSingleSelectorGeneric
+                selectedKey={selectedCloneType}
+                options={cloneTypeOptions}
+                onChange={(v) => setSelectedCloneType(v ?? selectedAnnotation?.type)}
+              />
+            </Box>
+          )}
           <SelectorAnnotationTemplateVariantDense
             selectedAnnotationTemplateId={selectedAnnotation?.annotationTemplateId}
             onChange={handleCloneTemplateChange}
-            annotationTemplates={cloneCandidates}
+            annotationTemplates={filteredCloneCandidates}
             listings={cloneListings}
           />
-          {cloneTypeOptions && (
-            <>
-              <Box sx={{ borderTop: 1, borderColor: "divider" }} />
-              <Box sx={{ px: 2, py: 1 }}>
-                <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
-                  Type
-                </Typography>
-                <ToggleSingleSelectorGeneric
-                  selectedKey={selectedCloneType}
-                  options={cloneTypeOptions}
-                  onChange={(v) => setSelectedCloneType(v ?? selectedAnnotation?.type)}
-                />
-              </Box>
-            </>
-          )}
         </Menu>
       </Paper>
     </Box>

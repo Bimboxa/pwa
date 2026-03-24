@@ -11,16 +11,22 @@ import {
 import { setWrapperMode } from "Features/mapEditor/mapEditorSlice";
 
 import useDeleteAnnotation from "../hooks/useDeleteAnnotation";
+import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
 import useMergeAnnotations from "../hooks/useMergeAnnotations";
+import useCloneAnnotationAndEntity from "Features/mapEditor/hooks/useCloneAnnotationAndEntity";
+import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
-import { resolveDrawingShapeFromType } from "../constants/drawingShapeConfig";
+import { resolveDrawingShape, resolveDrawingShapeFromType, getAnnotationType } from "../constants/drawingShapeConfig";
 import getAnnotationQties from "../utils/getAnnotationQties";
+import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
+import getCloneTypeOptions from "../utils/getCloneTypeOptions";
 
 import {
   Box,
   Divider,
   IconButton,
+  Menu,
   Paper,
   Tooltip,
   Typography,
@@ -31,10 +37,13 @@ import {
   TableChart as TableChartIcon,
   BugReport as BugReportIcon,
   CallMerge as MergeIcon,
+  ArrowDropDown as ArrowDropDownIcon,
 } from "@mui/icons-material";
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
+import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
+import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import IconButtonExtractStripBoundaries from "./IconButtonExtractStripBoundaries";
 import IconButtonReentrantAngles from "./IconButtonReentrantAngles";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
@@ -51,11 +60,25 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
   const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
   const deleteAnnotation = useDeleteAnnotation();
   const mergeAnnotations = useMergeAnnotations();
+  const cloneAnnotationAndEntity = useCloneAnnotationAndEntity();
   const baseMap = useMainBaseMap();
+
+  // Template candidates based on first selected annotation
+  const firstAnnotation = allAnnotations.find((a) =>
+    selectedItems.some((item) => item.nodeId === a.id)
+  );
+  const { candidates: cloneCandidates, listings: cloneListings } =
+    useAnnotationTemplateCandidates(firstAnnotation) ?? {};
+  const { candidates: sameTypeCandidates, listings: sameTypeListings } =
+    useAnnotationTemplateCandidates(firstAnnotation, { variant: "sameType" }) ?? {};
+  const updateAnnotation = useUpdateAnnotation();
 
   // state
 
   const [openDatagrid, setOpenDatagrid] = useState(false);
+  const [cloneAnchorEl, setCloneAnchorEl] = useState(null);
+  const [selectedCloneType, setSelectedCloneType] = useState(null);
+  const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
 
   // helpers - selected annotations
 
@@ -136,8 +159,80 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
     }
   }
 
-  function handleCloneClick() {
-    // TODO: bulk clone
+  // helpers - clone
+
+  const cloneTypeOptions = getCloneTypeOptions(firstAnnotation?.type);
+
+  const filteredCloneCandidates = (() => {
+    if (!cloneCandidates || !selectedCloneType) return cloneCandidates;
+    if (selectedCloneType === "STRIP") return cloneCandidates;
+    const targetDrawingShape = resolveDrawingShapeFromType(selectedCloneType);
+    if (!targetDrawingShape) return cloneCandidates;
+    return cloneCandidates.filter(
+      (t) => resolveDrawingShape(t) === targetDrawingShape
+    );
+  })();
+
+  function handleCloneClick(event) {
+    setSelectedCloneType(firstAnnotation?.type);
+    setCloneAnchorEl(event.currentTarget);
+  }
+
+  function handleCloneClose() {
+    setCloneAnchorEl(null);
+  }
+
+  async function handleCloneTemplateChange(annotationTemplateId) {
+    const template = filteredCloneCandidates?.find(
+      (t) => t.id === annotationTemplateId
+    );
+    const newAnnotation = {
+      ...getAnnotationTemplateProps(template),
+      annotationTemplateId: template?.id,
+      label: template?.label,
+    };
+    const resolvedShape = resolveDrawingShape(template);
+    const resolvedType = getAnnotationType(resolvedShape);
+    if (resolvedType) newAnnotation.type = resolvedType;
+    if (selectedCloneType) newAnnotation.type = selectedCloneType;
+
+    for (const annotation of annotations) {
+      await cloneAnnotationAndEntity(annotation, { newAnnotation });
+    }
+    handleCloneClose();
+  }
+
+  function handleTemplateDropdownClick(event) {
+    event.stopPropagation();
+    setTemplateAnchorEl(event.currentTarget);
+  }
+
+  function handleTemplateDropdownClose() {
+    setTemplateAnchorEl(null);
+  }
+
+  async function handleTemplateChange(annotationTemplateId) {
+    const template = sameTypeCandidates?.find(
+      (t) => t.id === annotationTemplateId
+    );
+    if (!template) return;
+
+    const templateProps = getAnnotationTemplateProps(template);
+    const resolvedShape = resolveDrawingShape(template);
+    const resolvedType = getAnnotationType(resolvedShape);
+
+    for (const annotation of annotations) {
+      const updates = {
+        id: annotation.id,
+        ...templateProps,
+        annotationTemplateId: template.id,
+        templateLabel: template.label,
+        listingId: template.listingId,
+      };
+      if (resolvedType) updates.type = resolvedType;
+      await updateAnnotation(updates);
+    }
+    handleTemplateDropdownClose();
   }
 
   async function handleMergeClick() {
@@ -236,6 +331,33 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
               }
             />
           ))}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              px: 1.25,
+              py: 0.5,
+            }}
+          >
+            <Tooltip title="Changer le modèle">
+              <IconButton
+                size="small"
+                onClick={handleTemplateDropdownClick}
+                sx={{
+                  borderRadius: 1,
+                  fontSize: "0.75rem",
+                  color: "text.secondary",
+                  "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+                }}
+              >
+                <ArrowDropDownIcon sx={{ fontSize: 18, mr: 0.25 }} />
+                <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                  Changer le modèle
+                </Typography>
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
 
         <Divider />
@@ -290,6 +412,49 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
             ) : null
           }
         />
+        {/* Clone template selector menu */}
+        <Menu
+          open={Boolean(cloneAnchorEl)}
+          anchorEl={cloneAnchorEl}
+          onClose={handleCloneClose}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+        >
+          {cloneTypeOptions && (
+            <Box sx={{ px: 2, py: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
+                Type de l'annotation dupliquée
+              </Typography>
+              <ToggleSingleSelectorGeneric
+                selectedKey={selectedCloneType}
+                options={cloneTypeOptions}
+                onChange={(v) => setSelectedCloneType(v ?? firstAnnotation?.type)}
+              />
+            </Box>
+          )}
+          <SelectorAnnotationTemplateVariantDense
+            selectedAnnotationTemplateId={firstAnnotation?.annotationTemplateId}
+            onChange={handleCloneTemplateChange}
+            annotationTemplates={filteredCloneCandidates}
+            listings={cloneListings}
+          />
+        </Menu>
+
+        {/* Template change menu (same type) */}
+        <Menu
+          open={Boolean(templateAnchorEl)}
+          anchorEl={templateAnchorEl}
+          onClose={handleTemplateDropdownClose}
+          anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+          transformOrigin={{ vertical: "top", horizontal: "left" }}
+        >
+          <SelectorAnnotationTemplateVariantDense
+            selectedAnnotationTemplateId={firstAnnotation?.annotationTemplateId}
+            onChange={handleTemplateChange}
+            annotationTemplates={sameTypeCandidates}
+            listings={sameTypeListings}
+          />
+        </Menu>
       </Paper>
 
       <DialogGeneric
