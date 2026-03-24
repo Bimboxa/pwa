@@ -64,16 +64,31 @@ export default async function getPageAnnotationsWithDetails(pageId) {
     .toArray();
   const listingsMap = getItemsByKey(listings, "id");
 
+  // fetch annotation templates for labelLegend resolution
+  const templateIds = [
+    ...new Set(visibleAnnotations.map((a) => a.annotationTemplateId).filter(Boolean)),
+  ];
+  const annotationTemplates = templateIds.length
+    ? await db.annotationTemplates.where("id").anyOf(templateIds).toArray()
+    : [];
+  const annotationTemplatesMap = getItemsByKey(annotationTemplates, "id");
+
   // hydrate entities with images
   const enriched = await Promise.all(
     visibleAnnotations.map(async (annotation) => {
       const table =
         annotation.listingTable ||
         listingsMap[annotation.listingId]?.table;
-      if (!table || !annotation.entityId) return annotation;
+
+      const template = annotationTemplatesMap[annotation.annotationTemplateId];
+      const annotationTemplateProps = template
+        ? { label: template.label, labelLegend: template.labelLegend }
+        : undefined;
+
+      if (!table || !annotation.entityId) return { ...annotation, annotationTemplateProps };
 
       const entity = await db[table].get(annotation.entityId);
-      if (!entity) return annotation;
+      if (!entity) return { ...annotation, annotationTemplateProps };
 
       const { entityWithImages, hasImages } =
         await getEntityWithImagesAsync(entity);
@@ -83,6 +98,7 @@ export default async function getPageAnnotationsWithDetails(pageId) {
         entity: entityWithImages,
         hasImages,
         label: entityWithImages?.label,
+        annotationTemplateProps,
       };
     })
   );

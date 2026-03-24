@@ -11,11 +11,13 @@ export default async function createAnnotationsPdfReport(
   // helpers issues => items
 
   let items = annotations.map((annotation) => {
+    const templateProps = annotation.annotationTemplateProps;
     return {
       ...annotation,
       description: annotation.entity?.text || annotation.entity?.description,
       number: annotation.entity?.num ? Number(annotation.entity?.num) : "",
       imageUrl: annotation.entity?.image?.imageUrlClient,
+      label: templateProps?.labelLegend || templateProps?.label || annotation.label,
     };
   });
 
