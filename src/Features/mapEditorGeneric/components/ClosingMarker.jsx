@@ -3,36 +3,71 @@ import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 
 import theme from "Styles/theme";
 
+const HOVER_COLOR = "#FF00FF";
+
 const ClosingMarker = forwardRef(({ onClick, color = "green" }, ref) => {
+    const groupRef = useRef(null);
     const circleRef = useRef(null);
 
     useImperativeHandle(ref, () => ({
         update: (pos) => {
-            if (!circleRef.current) return;
+            if (!groupRef.current) return;
             if (pos) {
-                circleRef.current.style.display = 'block';
-                circleRef.current.setAttribute('cx', pos.x);
-                circleRef.current.setAttribute('cy', pos.y);
+                groupRef.current.style.display = 'block';
+                groupRef.current.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
             } else {
-                circleRef.current.style.display = 'none';
+                groupRef.current.style.display = 'none';
+                // Reset hover state when hidden
+                if (circleRef.current) {
+                    circleRef.current.setAttribute('stroke', color);
+                    circleRef.current.setAttribute('fill', 'transparent');
+                }
             }
         }
     }));
 
+    const handleMouseEnter = () => {
+        if (!circleRef.current) return;
+        circleRef.current.setAttribute('stroke', HOVER_COLOR);
+        circleRef.current.setAttribute('fill', HOVER_COLOR);
+        circleRef.current.setAttribute('fill-opacity', '0.3');
+    };
+
+    const handleMouseLeave = () => {
+        if (!circleRef.current) return;
+        circleRef.current.setAttribute('stroke', color);
+        circleRef.current.setAttribute('fill', 'transparent');
+        circleRef.current.removeAttribute('fill-opacity');
+    };
+
+    const handleMouseDown = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onClick && onClick();
+    };
+
     return (
-        <g style={{ pointerEvents: 'auto', cursor: 'pointer' }}>
+        <g
+            ref={groupRef}
+            style={{ display: 'none', cursor: 'pointer', pointerEvents: 'auto' }}
+        >
+            {/* Large invisible hit area for reliable hover/click detection */}
+            <circle
+                r={14}
+                fill="transparent"
+                stroke="transparent"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                onMouseDown={handleMouseDown}
+            />
+            {/* Visible marker */}
             <circle
                 ref={circleRef}
-                r={6} // Fixed 6px radius (12px size)
+                r={6}
                 fill="transparent"
                 stroke={color}
                 strokeWidth={2}
-                style={{ display: 'none' }}
-                onMouseDown={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    onClick && onClick();
-                }}
+                style={{ pointerEvents: 'none' }}
             />
         </g>
     );

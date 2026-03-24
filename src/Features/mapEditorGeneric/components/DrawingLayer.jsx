@@ -61,9 +61,7 @@ const STRIP_DEFAULT_WIDTH = 20; // px, same as getStripePolygons default
 const DrawingLayer = forwardRef(({
     points,
     newAnnotation,
-    enabledDrawingMode, // <--- NOUVELLE PROP
-    onHoverFirstPoint,
-    onLeaveFirstPoint,
+    enabledDrawingMode,
     containerK,
     meterByPx,
 }, ref) => {
@@ -311,21 +309,7 @@ const DrawingLayer = forwardRef(({
                 />
             ))}
 
-            {/* E. Zone Closing (Polygon uniquement) */}
-            {isPolygon && firstPoint && points.length >= 3 && (
-                <circle
-                    cx={firstPoint.x}
-                    cy={firstPoint.y}
-                    r={18}
-                    fill="transparent"
-                    stroke="transparent"
-                    strokeWidth={20}
-                    vectorEffect="non-scaling-stroke"
-                    style={{ cursor: 'pointer', pointerEvents: 'all' }}
-                    onMouseEnter={() => onHoverFirstPoint && onHoverFirstPoint(firstPoint)}
-                    onMouseLeave={() => onLeaveFirstPoint && onLeaveFirstPoint()}
-                />
-            )}
+            {/* E. Zone Closing — now handled in InteractionLayer via screen-distance check */}
 
             {/* F. Dynamic Rubber Band (Ligne élastique pour polyline/segment) */}
             {!drawRectangle && !(drawCircle && points.length >= 2) && (

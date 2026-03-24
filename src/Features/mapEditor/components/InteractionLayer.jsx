@@ -661,31 +661,8 @@ const InteractionLayer = forwardRef(({
   // is closing
   const isClosingRef = useRef(false);
 
-  const handleHoverFirstPoint = (pointCoordinates) => {
-    isClosingRef.current = true;
-
-    // Optionnel : Afficher le ClosingMarker visuel (le rond vert)
-    // On doit convertir les coords locales du point en écran pour l'overlay
-    const pose = getTargetPose();
-    const worldX = pointCoordinates.x * pose.k + pose.x;
-    const worldY = pointCoordinates.y * pose.k + pose.y;
-
-    //const screenPos = viewportRef.current?.worldToViewport(pointCoordinates.x, pointCoordinates.y);
-    const screenPos = viewportRef.current?.worldToViewport(worldX, worldY);
-
-    if (screenPos) {
-      closingMarkerRef.current?.update(screenPos);
-    }
-
-    // Magnétiser le trait de dessin sur le premier point
-    lastPreviewPosRef.current = pointCoordinates;
-    drawingLayerRef.current?.updatePreview(pointCoordinates);
-  };
-
-  const handleLeaveFirstPoint = () => {
-    isClosingRef.current = false;
-    closingMarkerRef.current?.update(null);
-  };
+  // handleHoverFirstPoint / handleLeaveFirstPoint — replaced by screen-distance
+  // check in handleWorldMouseMove (section F. CLOSING DETECTION)
 
 
   // syncRef
@@ -2072,6 +2049,37 @@ const InteractionLayer = forwardRef(({
         const lastPoint = currentDrawingPts[currentDrawingPts.length - 1];
         previewPos = snapToAngle(localPos, lastPoint);
       }
+
+      // F. CLOSING DETECTION (screen-distance based, zoom-independent)
+      const closingType = newAnnotation?.type;
+      const canClose = (closingType === "POLYGON" || closingType === "POLYLINE") && currentDrawingPts.length >= 3;
+      if (canClose) {
+        const firstPt = currentDrawingPts[0];
+        const pose = getTargetPose();
+        const worldFirstX = firstPt.x * pose.k + pose.x;
+        const worldFirstY = firstPt.y * pose.k + pose.y;
+        const screenFirst = viewportRef.current?.worldToViewport(worldFirstX, worldFirstY);
+        if (screenFirst) {
+          const dx = viewportPos.x - screenFirst.x;
+          const dy = viewportPos.y - screenFirst.y;
+          const screenDist = Math.sqrt(dx * dx + dy * dy);
+          const CLOSING_THRESHOLD_PX = 20;
+          if (screenDist < CLOSING_THRESHOLD_PX) {
+            if (!isClosingRef.current) {
+              isClosingRef.current = true;
+              closingMarkerRef.current?.update(screenFirst);
+              // Snap preview to first point
+              previewPos = firstPt;
+            }
+          } else {
+            if (isClosingRef.current) {
+              isClosingRef.current = false;
+              closingMarkerRef.current?.update(null);
+            }
+          }
+        }
+      }
+
       lastPreviewPosRef.current = previewPos;
       drawingLayerRef.current?.updatePreview(previewPos);
     }
@@ -2385,8 +2393,11 @@ const InteractionLayer = forwardRef(({
 
   // --- HANDLER DU CLIC SUR LE CLOSING MARKER ---
   const handleClosingClick = () => {
-    console.log("Closing Polygon via Marker Click");
-    commitPolyline(); // Votre fonction existante qui ferme et sauvegarde
+    const isPolyline = newAnnotation?.type === "POLYLINE";
+    console.log(`Closing ${isPolyline ? "Polyline" : "Polygon"} via Marker Click`);
+    isClosingRef.current = false;
+    closingMarkerRef.current?.update(null);
+    commitPolyline(null, isPolyline ? { closeLine: true } : undefined);
   };
 
   const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
@@ -2913,11 +2924,9 @@ const InteractionLayer = forwardRef(({
         {(enabledDrawingMode && drawingPoints.length > 0) && (
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
             <DrawingLayer
-              ref={drawingLayerRef} // <--- On branche la télécommande ici
+              ref={drawingLayerRef}
               points={drawingPoints}
               newAnnotation={newAnnotation}
-              onHoverFirstPoint={handleHoverFirstPoint}
-              onLeaveFirstPoint={handleLeaveFirstPoint}
               enabledDrawingMode={enabledDrawingMode}
               containerK={targetPose.k}
               meterByPx={baseMapMeterByPx}
