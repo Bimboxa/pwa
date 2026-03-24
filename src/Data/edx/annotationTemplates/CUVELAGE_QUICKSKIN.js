@@ -2,7 +2,7 @@ import { blue, brown, orange, purple, red } from "@mui/material/colors"
 
 const CUVELAGE_QUICKSKIN = {
     key: "CUVELAGE_QUICKSKIN",
-    name: "Cuvelage - Quicksin",
+    name: "Cuvelage - Quickskin",
     iconKey: "shapes",
     color: blue[500],
     keywords: ["type:repérage", "secteur:cuvelage", "système:etantop"],

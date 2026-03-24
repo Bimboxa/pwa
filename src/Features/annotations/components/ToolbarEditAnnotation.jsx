@@ -226,7 +226,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
         >
           <GripIcon fontSize="small" sx={{ color: "text.disabled", flexShrink: 0 }} />
 
-          <AnnotationTemplateIcon template={selectedAnnotation || {}} size={16} />
+          <AnnotationTemplateIcon template={selectedAnnotation?.annotationTemplate || selectedAnnotation || {}} size={16} />
 
           <Typography
             variant="body2"
