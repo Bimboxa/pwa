@@ -1,6 +1,6 @@
 // utils/getBestSnap.js
 
-// --- GEOMETRY HELPERS (Inchangés) ---
+// --- GEOMETRY HELPERS ---
 
 const dist2 = (p1, p2) => {
     const dx = p1.x - p2.x;
@@ -133,8 +133,9 @@ const projectOnArc = (px, py, center, r, start, end, isCW, forceCenter) => {
 
 // --- MAIN FUNCTION ---
 
-// Returns { x, y, distance, type: 'VERTEX' | 'PROJECTION', cutIndex?: number, ... }
-const getBestSnap = (mousePos, annotations, threshold, forceCenter = false, fallbackProjection = false) => {
+// Returns { x, y, distance, type: 'VERTEX' | 'MIDPOINT' | 'PROJECTION', cutIndex?, ... }
+// modes: { vertex, midpoint, projection } — controls which snap types are computed
+const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint = false, projection = false } = {}) => {
     if (!annotations || !annotations.length) return null;
 
     annotations = annotations.filter((ann) => !ann.outOfSnapScope);
@@ -145,62 +146,61 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false, fall
     // =========================================================
     // 1. Check Vertices (Points) - Priority 1
     // =========================================================
-    for (const ann of annotations) {
+    if (vertex) {
+        for (const ann of annotations) {
 
-        // Liste des tableaux de points avec leur metadata (cutIndex)
-        const pointArraysToCheck = [];
+            const pointArraysToCheck = [];
 
-        // A. Points Principaux (cutIndex undefined)
-        if (ann.points) {
-            pointArraysToCheck.push({ list: ann.points, cutIndex: undefined });
-        }
+            // A. Main points (cutIndex undefined)
+            if (ann.points) {
+                pointArraysToCheck.push({ list: ann.points, cutIndex: undefined });
+            }
 
-        // B. Points des Trous (avec cutIndex)
-        if (ann.cuts && Array.isArray(ann.cuts)) {
-            ann.cuts.forEach((cut, index) => {
-                if (cut.points) {
-                    pointArraysToCheck.push({ list: cut.points, cutIndex: index });
-                }
-            });
-        }
+            // B. Cut points (with cutIndex)
+            if (ann.cuts && Array.isArray(ann.cuts)) {
+                ann.cuts.forEach((cut, index) => {
+                    if (cut.points) {
+                        pointArraysToCheck.push({ list: cut.points, cutIndex: index });
+                    }
+                });
+            }
 
-        for (const { list, cutIndex } of pointArraysToCheck) {
-            for (const pt of list) {
-                const d2 = dist2(pt, mousePos);
-                if (d2 < minDistSq) {
-                    minDistSq = d2;
-                    bestSnap = {
-                        x: pt.x,
-                        y: pt.y,
-                        id: pt.id,
-                        type: 'VERTEX',
-                        cutIndex: cutIndex,
-                        annotationId: ann.id,
-                        annotationType: ann.type,
-                    };
+            for (const { list, cutIndex } of pointArraysToCheck) {
+                for (const pt of list) {
+                    const d2 = dist2(pt, mousePos);
+                    if (d2 < minDistSq) {
+                        minDistSq = d2;
+                        bestSnap = {
+                            x: pt.x,
+                            y: pt.y,
+                            id: pt.id,
+                            type: 'VERTEX',
+                            cutIndex: cutIndex,
+                            annotationId: ann.id,
+                            annotationType: ann.type,
+                        };
+                    }
                 }
             }
         }
+
+        if (bestSnap) return bestSnap;
     }
 
-    if (bestSnap) return bestSnap;
-
-
     // =========================================================
-    // 2. Check Segments/Projections (Edges/Arcs) - Priority 2
+    // 2. Check Segments (Midpoints / Projections) - Priority 2
     // =========================================================
+    if (!midpoint && !projection) return null;
 
-    // When forceCenter + fallbackProjection: track midpoint (within threshold)
-    // AND projection (no threshold, as fallback) separately.
     let bestFallbackProj = null;
     let minFallbackProjDistSq = Infinity;
 
     const typeOf = (p) => (p?.type === "circle" ? "circle" : "square");
 
-    // Helper: process a snap candidate (projection or midpoint on a segment)
+    // Helper: process a snap candidate on a segment
     const processSegmentSnap = (projSnap, ann, segIndex, startPt, endPt, cutIdx, midSnap) => {
-        if (forceCenter) {
-            // Check midpoint within threshold
+        // MIDPOINT: within threshold
+        if (midpoint && midSnap) {
             const midD2 = dist2(mousePos, { x: midSnap.x, y: midSnap.y });
             if (midD2 < minDistSq) {
                 minDistSq = midD2;
@@ -213,39 +213,49 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false, fall
                     cutIndex: cutIdx,
                 };
             }
-            // Track projection as fallback (no threshold)
-            if (fallbackProjection && projSnap.d2 < minFallbackProjDistSq) {
-                minFallbackProjDistSq = projSnap.d2;
-                bestFallbackProj = {
-                    x: projSnap.x, y: projSnap.y, type: 'PROJECTION',
-                    previewAnnotationId: ann.id,
-                    previewSegmentIndex: segIndex,
-                    segmentStartId: startPt.id,
-                    segmentEndId: endPt.id,
-                    cutIndex: cutIdx,
-                };
-            }
-        } else {
-            // Original behavior: projection within threshold
-            if (projSnap.d2 < minDistSq) {
-                minDistSq = projSnap.d2;
-                bestSnap = {
-                    x: projSnap.x, y: projSnap.y, type: 'PROJECTION',
-                    previewAnnotationId: ann.id,
-                    previewSegmentIndex: segIndex,
-                    segmentStartId: startPt.id,
-                    segmentEndId: endPt.id,
-                    cutIndex: cutIdx,
-                };
-            }
         }
+
+        // PROJECTION: fallback (no threshold, closest wins)
+        if (projection && projSnap && projSnap.d2 < minFallbackProjDistSq) {
+            minFallbackProjDistSq = projSnap.d2;
+            bestFallbackProj = {
+                x: projSnap.x, y: projSnap.y, type: 'PROJECTION',
+                previewAnnotationId: ann.id,
+                previewSegmentIndex: segIndex,
+                segmentStartId: startPt.id,
+                segmentEndId: endPt.id,
+                cutIndex: cutIdx,
+            };
+        }
+    };
+
+    // Helper: compute proj/mid for a linear segment and process
+    const processLinearSegment = (mx, my, ax, ay, bx, by, ann, segIdx, startPt, endPt, cutIdx) => {
+        const projSnap = projection
+            ? projectOnSegment(mx, my, ax, ay, bx, by, false)
+            : null;
+        const midSnap = midpoint
+            ? projectOnSegment(mx, my, ax, ay, bx, by, true)
+            : null;
+        processSegmentSnap(projSnap, ann, segIdx, startPt, endPt, cutIdx, midSnap);
+    };
+
+    // Helper: compute proj/mid for an arc segment and process
+    const processArcSegment = (mx, my, center, r, startPt, endPt, isCW, ann, segIdx, cutIdx) => {
+        const projSnap = projection
+            ? projectOnArc(mx, my, center, r, startPt, endPt, isCW, false)
+            : null;
+        const midSnap = midpoint
+            ? projectOnArc(mx, my, center, r, startPt, endPt, isCW, true)
+            : null;
+        processSegmentSnap(projSnap, ann, segIdx, startPt, endPt, cutIdx, midSnap);
     };
 
     for (const ann of annotations) {
 
         const contoursToCheck = [];
 
-        // A. Contour Principal
+        // A. Main contour
         const mainPts = ann.points || ann.polyline?.points || ann.rectangle?.points;
         if (mainPts) {
             contoursToCheck.push({
@@ -255,7 +265,7 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false, fall
             });
         }
 
-        // B. Trous (Cuts)
+        // B. Cuts
         if (ann.cuts && Array.isArray(ann.cuts)) {
             ann.cuts.forEach((cut, index) => {
                 if (cut.points) {
@@ -292,9 +302,7 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false, fall
                     }
 
                     if (!shouldClose && j >= n) {
-                        const projSnap = projectOnSegment(mousePos.x, mousePos.y, p0.x, p0.y, p1.x, p1.y, false);
-                        const midSnap = projectOnSegment(mousePos.x, mousePos.y, p0.x, p0.y, p1.x, p1.y, true);
-                        processSegmentSnap(projSnap, ann, i, p0, p1, currentCutIndex, midSnap);
+                        processLinearSegment(mousePos.x, mousePos.y, p0.x, p0.y, p1.x, p1.y, ann, i, p0, p1, currentCutIndex);
                         i++;
                         continue;
                     }
@@ -307,29 +315,20 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false, fall
                         const circ = getCircleFrom3Points(p0, p1, p2);
 
                         if (circ && circ.r > 0) {
-                            // Arc 1
-                            const projSnap1 = projectOnArc(mousePos.x, mousePos.y, circ.center, circ.r, p0, p1, circ.isCW, false);
-                            const midSnap1 = projectOnArc(mousePos.x, mousePos.y, circ.center, circ.r, p0, p1, circ.isCW, true);
-                            processSegmentSnap(projSnap1, ann, i, p0, p1, currentCutIndex, midSnap1);
-
-                            // Arc 2
-                            const projSnap2 = projectOnArc(mousePos.x, mousePos.y, circ.center, circ.r, p1, p2, circ.isCW, false);
-                            const midSnap2 = projectOnArc(mousePos.x, mousePos.y, circ.center, circ.r, p1, p2, circ.isCW, true);
-                            processSegmentSnap(projSnap2, ann, i + 1, p1, p2, currentCutIndex, midSnap2);
+                            processArcSegment(mousePos.x, mousePos.y, circ.center, circ.r, p0, p1, circ.isCW, ann, i, currentCutIndex);
+                            processArcSegment(mousePos.x, mousePos.y, circ.center, circ.r, p1, p2, circ.isCW, ann, i + 1, currentCutIndex);
 
                             i += 2;
                             continue;
                         }
                     }
 
-                    // Fallback loops
+                    // Fallback: treat as linear segments
                     let k = i;
                     while (k < j) {
                         const pk = getPt(k);
                         const pkNext = getPt(k + 1);
-                        const projSnap = projectOnSegment(mousePos.x, mousePos.y, pk.x, pk.y, pkNext.x, pkNext.y, false);
-                        const midSnap = projectOnSegment(mousePos.x, mousePos.y, pk.x, pk.y, pkNext.x, pkNext.y, true);
-                        processSegmentSnap(projSnap, ann, k, pk, pkNext, currentCutIndex, midSnap);
+                        processLinearSegment(mousePos.x, mousePos.y, pk.x, pk.y, pkNext.x, pkNext.y, ann, k, pk, pkNext, currentCutIndex);
                         k++;
                     }
                     i = j;
@@ -337,9 +336,7 @@ const getBestSnap = (mousePos, annotations, threshold, forceCenter = false, fall
                 }
 
                 // --- Default: Linear Segment ---
-                const projSnap = projectOnSegment(mousePos.x, mousePos.y, p0.x, p0.y, p1.x, p1.y, false);
-                const midSnap = projectOnSegment(mousePos.x, mousePos.y, p0.x, p0.y, p1.x, p1.y, true);
-                processSegmentSnap(projSnap, ann, i, p0, p1, currentCutIndex, midSnap);
+                processLinearSegment(mousePos.x, mousePos.y, p0.x, p0.y, p1.x, p1.y, ann, i, p0, p1, currentCutIndex);
 
                 i++;
             }

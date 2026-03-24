@@ -77,6 +77,7 @@ import DialogAutoLoadingModel from 'Features/transformers/components/DialogAutoL
 import mergeBboxes from 'Features/misc/utils/mergeBboxes';
 import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
 import getBestSnap from 'Features/mapEditor/utils/getBestSnap';
+import getSnapModes from 'Features/mapEditor/utils/getSnapModes';
 import getAnnotationEditionPanelAnchor from 'Features/annotations/utils/getAnnotationEditionPanelAnchor';
 import getAnnotationLabelPropsFromAnnotation from 'Features/annotations/utils/getAnnotationLabelPropsFromAnnotation';
 import toggleSelectedNodeFunction from '../utils/toggleSelectedNode';
@@ -282,7 +283,6 @@ const InteractionLayer = forwardRef(({
   // Only restrict to selected annotation when actively drawing or moving the whole annotation
 
   let annotationsForSnap = annotations;
-  console.log("debug_1602_selectedAnnotation", selectedAnnotation)
   if (selectedAnnotation?.id && !selectedPointId && !selectedPartId) {
     annotationsForSnap = [selectedAnnotation];
   }
@@ -1862,7 +1862,7 @@ const InteractionLayer = forwardRef(({
           })),
         }));
 
-        const snapResult = getBestSnap(localPos, annotationsExcludingDragPoint, snapThreshold, true, true);
+        const snapResult = getBestSnap(localPos, annotationsExcludingDragPoint, snapThreshold, {vertex: true, midpoint: true, projection: true});
 
         if (snapResult?.type === "VERTEX") {
           currentSnapRef.current = snapResult;
@@ -2005,13 +2005,12 @@ const InteractionLayer = forwardRef(({
       const localPos = toLocalCoords(worldPos);
       const snapThreshold = SNAP_THRESHOLD_ABSOLUTE / scale;
 
-      const isQuickEdit = mapEditorMode === "QUICK_POINTS_CHANGE";
-      const fullSnap = Boolean(enabledDrawingMode) || isQuickEdit;
-      snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, fullSnap, fullSnap && !selectedAnnotation?.id);
-
-      if (snapResult && !fullSnap && snapResult.type !== "VERTEX") {
-        snapResult = null;
-      }
+      const snapModes = getSnapModes({
+        isDrawing: Boolean(enabledDrawingMode),
+        isQuickEdit: mapEditorMode === "QUICK_POINTS_CHANGE",
+        hasSelection: Boolean(selectedAnnotation?.id),
+      });
+      snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, snapModes);
 
       if (snapResult) {
         currentSnapRef.current = snapResult;
