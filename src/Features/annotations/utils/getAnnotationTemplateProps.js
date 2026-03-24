@@ -9,6 +9,7 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
 
     image: annotationTemplate?.image,
     label: annotationTemplate?.label,
+    labelLegend: annotationTemplate?.labelLegend,
     meterByPx: annotationTemplate?.meterByPx,
 
     fillColor: annotationTemplate?.fillColor,
