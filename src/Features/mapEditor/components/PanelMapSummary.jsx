@@ -52,6 +52,7 @@ export default function PanelMapSummary() {
   const annotationsV2 = useAnnotationsV2({
     filterByBaseMapId: baseMapId,
     excludeBgAnnotations: true,
+    withQties: true,
   });
   const layers = useLayers({ filterByBaseMapId: baseMapId, filterByScopeId: selectedScope?.id });
 
