@@ -96,11 +96,15 @@ async function detectSimilarPolylinesAsync({ msg, payload }) {
     const maxThickness = thickness * 4; // reject solid fills thicker than this
 
     // 5. Build exclusion mask from existing segments
+    //    Two masks: clear isMatch for band scanning, and keep a separate
+    //    excludedMask for the fill passes (which use brightness, not isMatch).
+    const excludedMask = new Uint8Array(width * height); // 1 = excluded
     if (existingSegments.length > 0) {
       const radius = thickness;
       for (const seg of existingSegments) {
         for (let i = 0; i < seg.length - 1; i++) {
           _rasterizeSegment(isMatch, width, height, seg[i], seg[i + 1], radius, 0);
+          _rasterizeSegment(excludedMask, width, height, seg[i], seg[i + 1], radius, 1);
         }
       }
     }
@@ -136,17 +140,26 @@ async function detectSimilarPolylinesAsync({ msg, payload }) {
 
     // 9d. Fill dashed lines — merge consecutive segments on the same line
     //     when the gap between them is actually covered by dark pixels.
-    //     This handles cases where noise/antialiasing causes the band scanner
-    //     to produce short gaps in what is visually a continuous line.
-    const filledH = _fillDashedLines(dedupH, brightness, width, height, "H");
-    const filledV = _fillDashedLines(dedupV, brightness, width, height, "V");
+    //     Skips gaps that overlap with existing annotations (excludedMask).
+    const filledH = _fillDashedLines(dedupH, brightness, width, height, "H", bandHeight, excludedMask);
+    const filledV = _fillDashedLines(dedupV, brightness, width, height, "V", bandHeight, excludedMask);
+
+    // 9e. Grid alignment — snap positions and endpoints to a common grid.
+    const gridTolerance = Math.max(Math.round(thickness * 0.75), 2);
+    _alignToGrid(filledH, filledV, gridTolerance);
+
+    // 9f. Cross-axis fill — collect ALL endpoints (from both H and V segments)
+    //     on each grid line and try to fill gaps between consecutive points.
+    const { newH, newV } = _fillGridGaps(filledH, filledV, brightness, width, height, gridTolerance, excludedMask);
+    const finalH = _mergeColinear([...filledH, ...newH], gridTolerance, mergeGap);
+    const finalV = _mergeColinear([...filledV, ...newV], gridTolerance, mergeGap);
 
     // 10. Snap endpoints to perpendicular segments
     const snapTolerance = thickness * 2;
-    _snapEndpoints(filledH, filledV, snapTolerance);
+    _snapEndpoints(finalH, finalV, snapTolerance);
 
     // 11. Resolve topology — find intersections and split
-    const allSegments = _resolveTopology(filledH, filledV, mergeTolerance);
+    const allSegments = _resolveTopology(finalH, finalV, mergeTolerance);
 
     // 12. Convert to polylines [{x,y},{x,y}]
     const polylines = allSegments.map((seg) => {
@@ -389,42 +402,55 @@ function _scanVertical(isMatch, width, height, bandHeight, step, minRunLength) {
  * (it's a solid filled zone, not a thin line).
  */
 function _filterThickSegments(segments, isMatch, width, height, axis, maxThickness) {
+  // Toggle to enable/disable asymmetry rejection (wall-edge halo filter)
+  const REJECT_ASYMMETRIC = true;
+  // A real line has roughly equal extent on both sides of its center.
+  // A wall-edge halo has most extent on one side (the wall) and little on the other.
+  // Reject if the ratio min(left,right)/max(left,right) < this threshold.
+  const MIN_SYMMETRY_RATIO = 0.2;
+
   return segments.filter((seg) => {
     const len = seg.end - seg.start;
     const numSamples = Math.min(5, Math.max(2, Math.floor(len / 10)));
     const extents = [];
+    const symmetryRatios = [];
 
     for (let s = 0; s < numSamples; s++) {
       const t = seg.start + Math.round((s + 0.5) * len / numSamples);
-      let extent = 1;
+      let extentNeg = 0; // extent in negative direction
+      let extentPos = 0; // extent in positive direction
 
       if (axis === "H") {
-        // Measure vertical extent at x=t, y=seg.position
         for (let d = 1; d < 300; d++) {
           const py = seg.position - d;
           if (py < 0 || !isMatch[py * width + t]) break;
-          extent++;
+          extentNeg++;
         }
         for (let d = 1; d < 300; d++) {
           const py = seg.position + d;
           if (py >= height || !isMatch[py * width + t]) break;
-          extent++;
+          extentPos++;
         }
       } else {
-        // Measure horizontal extent at y=t, x=seg.position
         for (let d = 1; d < 300; d++) {
           const px = seg.position - d;
           if (px < 0 || !isMatch[t * width + px]) break;
-          extent++;
+          extentNeg++;
         }
         for (let d = 1; d < 300; d++) {
           const px = seg.position + d;
           if (px >= width || !isMatch[t * width + px]) break;
-          extent++;
+          extentPos++;
         }
       }
 
+      const extent = extentNeg + 1 + extentPos;
       extents.push(extent);
+
+      // Symmetry ratio: 0 = completely one-sided, 1 = perfectly symmetric
+      const maxSide = Math.max(extentNeg, extentPos);
+      const minSide = Math.min(extentNeg, extentPos);
+      symmetryRatios.push(maxSide > 0 ? minSide / maxSide : 1);
     }
 
     // Median extent
@@ -432,9 +458,16 @@ function _filterThickSegments(segments, isMatch, width, height, axis, maxThickne
     const median = extents[Math.floor(extents.length / 2)];
     // Reject solid fills
     if (median > maxThickness) return false;
-    // Reject curve artifacts: segment length must be >= 3× perpendicular extent
-    // (a real H/V line is much longer than it is thick)
+    // Reject curve artifacts
     if (len < median * 3) return false;
+
+    // Reject asymmetric segments (wall-edge halos)
+    if (REJECT_ASYMMETRIC) {
+      symmetryRatios.sort((a, b) => a - b);
+      const medianSymmetry = symmetryRatios[Math.floor(symmetryRatios.length / 2)];
+      if (medianSymmetry < MIN_SYMMETRY_RATIO) return false;
+    }
+
     return true;
   });
 }
@@ -589,6 +622,265 @@ function _centerOnMedian(segments, brightness, width, height, axis) {
   }
 }
 
+// ─── GRID ALIGNMENT ──────────────────────────────────────────────────────
+
+/**
+ * Snap segment positions and endpoints to a common grid.
+ *
+ * Collects all significant coordinates:
+ *   - H segment positions (Y values) + V segment start/end (Y values)
+ *   - V segment positions (X values) + H segment start/end (X values)
+ *
+ * Clusters nearby values (within tolerance) into a single representative
+ * value (the average of the cluster). Then snaps all segment coordinates
+ * to the nearest grid value.
+ *
+ * This aligns segments that are visually on the same line but were detected
+ * at slightly different positions due to antialiasing or scan stepping.
+ *
+ * Mutates segments in place.
+ */
+function _alignToGrid(hSegments, vSegments, tolerance) {
+  // --- Collect Y coordinates ---
+  const yValues = [];
+  for (const seg of hSegments) yValues.push(seg.position);
+  for (const seg of vSegments) { yValues.push(seg.start); yValues.push(seg.end); }
+
+  // --- Collect X coordinates ---
+  const xValues = [];
+  for (const seg of vSegments) xValues.push(seg.position);
+  for (const seg of hSegments) { xValues.push(seg.start); xValues.push(seg.end); }
+
+  // --- Build grid by clustering ---
+  const yGrid = _clusterValues(yValues, tolerance);
+  const xGrid = _clusterValues(xValues, tolerance);
+
+  // --- Snap H segments ---
+  for (const seg of hSegments) {
+    seg.position = _snapToGrid(seg.position, yGrid, tolerance);
+    seg.start = _snapToGrid(seg.start, xGrid, tolerance);
+    seg.end = _snapToGrid(seg.end, xGrid, tolerance);
+  }
+
+  // --- Snap V segments ---
+  for (const seg of vSegments) {
+    seg.position = _snapToGrid(seg.position, xGrid, tolerance);
+    seg.start = _snapToGrid(seg.start, yGrid, tolerance);
+    seg.end = _snapToGrid(seg.end, yGrid, tolerance);
+  }
+}
+
+/**
+ * Cluster an array of numeric values: group values within `tolerance`
+ * of each other and replace each group with its average.
+ * Returns a sorted array of unique grid values.
+ */
+function _clusterValues(values, tolerance) {
+  if (values.length === 0) return [];
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const clusters = [];
+  let clusterStart = 0;
+
+  for (let i = 1; i <= sorted.length; i++) {
+    // End of array or gap too large → close current cluster
+    if (i === sorted.length || sorted[i] - sorted[clusterStart] > tolerance) {
+      // Average of cluster
+      let sum = 0;
+      for (let j = clusterStart; j < i; j++) sum += sorted[j];
+      clusters.push(Math.round(sum / (i - clusterStart)));
+      clusterStart = i;
+    }
+  }
+
+  return clusters;
+}
+
+/**
+ * Snap a value to the nearest grid value if within tolerance.
+ */
+function _snapToGrid(value, grid, tolerance) {
+  let bestDist = Infinity;
+  let bestVal = value;
+  for (const g of grid) {
+    const dist = Math.abs(value - g);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestVal = g;
+    }
+    // Grid is sorted, no need to check further once we're past tolerance
+    if (g > value + tolerance) break;
+  }
+  return bestDist <= tolerance ? bestVal : value;
+}
+
+// ─── FILL GRID GAPS (CROSS-AXIS) ─────────────────────────────────────────
+
+/**
+ * Collect ALL endpoints (from both H and V segments) on each grid line,
+ * then check consecutive pairs for dark pixels in the gap.
+ *
+ * For horizontal grid lines (Y = constant):
+ *   - Collect X coords from: H segment start/end, V segment start/end that sit on this Y
+ *   - Sort by X, check consecutive pairs → if gap is dark, create new H segment
+ *
+ * For vertical grid lines (X = constant):
+ *   - Collect Y coords from: V segment start/end, H segment start/end that sit on this X
+ *   - Sort by Y, check consecutive pairs → if gap is dark, create new V segment
+ *
+ * Returns { newH: [...], newV: [...] } — new segments to add.
+ */
+function _fillGridGaps(hSegments, vSegments, brightness, width, height, gridTolerance, excludedMask) {
+  // Use a strict threshold: the gap must contain pixels as dark as the
+  // initial detection mask (128), not just "somewhat gray" (180).
+  // This prevents filling across white space where only wall edges are dark.
+  const gapDarkThreshold = 128;
+  // Max consecutive white pixels allowed inside a gap.
+  // If a white stretch longer than this is found, the gap is not continuous.
+  const maxWhiteGap = Math.max(gridTolerance * 2, 6);
+  const newH = [];
+  const newV = [];
+
+  // --- Horizontal grid lines (Y = constant) → produce new H segments ---
+  // Only consider Y positions that come from V segment endpoints (cross-axis).
+  // Y positions from H segments are already handled by _fillDashedLines.
+  const yPositions = new Set();
+  for (const seg of vSegments) {
+    yPositions.add(seg.start);
+    yPositions.add(seg.end);
+  }
+
+  for (const y of yPositions) {
+    // Collect all X coordinates that touch this Y line
+    const xPoints = [];
+
+    // From H segments on this line: their start and end
+    for (const seg of hSegments) {
+      if (Math.abs(seg.position - y) <= gridTolerance) {
+        xPoints.push({ x: seg.start, covered: true });
+        xPoints.push({ x: seg.end, covered: true });
+      }
+    }
+
+    // From V segments: if their start or end is on this Y line
+    for (const seg of vSegments) {
+      if (Math.abs(seg.start - y) <= gridTolerance) {
+        xPoints.push({ x: seg.position, covered: false });
+      }
+      if (Math.abs(seg.end - y) <= gridTolerance) {
+        xPoints.push({ x: seg.position, covered: false });
+      }
+    }
+
+    if (xPoints.length < 2) continue;
+
+    // Sort by X
+    xPoints.sort((a, b) => a.x - b.x);
+
+    // Check consecutive pairs
+    for (let i = 0; i < xPoints.length - 1; i++) {
+      const from = xPoints[i];
+      const to = xPoints[i + 1];
+      const gapStart = from.x + 1;
+      const gapEnd = to.x - 1;
+      const gapLen = gapEnd - gapStart + 1;
+
+      if (gapLen <= 0) continue; // overlapping or adjacent, no gap
+
+      // Check if this gap is already covered by an H segment
+      let alreadyCovered = false;
+      for (const seg of hSegments) {
+        if (Math.abs(seg.position - y) <= gridTolerance &&
+            seg.start <= gapStart && seg.end >= gapEnd) {
+          alreadyCovered = true;
+          break;
+        }
+      }
+      if (alreadyCovered) continue;
+
+      // Check if gap overlaps with existing annotations
+      const py = Math.round(y);
+      if (py < 0 || py >= height) continue;
+      if (excludedMask && _gapIsExcluded(excludedMask, width, height, "H", py, gapStart, gapEnd)) continue;
+
+      // Check continuity: the gap must be dark without any white stretch
+      // longer than maxWhiteGap. If there's a significant white hole, reject.
+      if (_gapIsContinuous(brightness, width, height, "H", py, gapStart, gapEnd, gapDarkThreshold, maxWhiteGap)) {
+        newH.push({ axis: "H", position: y, start: from.x, end: to.x });
+      }
+    }
+  }
+
+  // --- Vertical grid lines (X = constant) → produce new V segments ---
+  // Only consider X positions that come from H segment endpoints (cross-axis).
+  // X positions from V segments are already handled by _fillDashedLines.
+  const xPositions = new Set();
+  for (const seg of hSegments) {
+    xPositions.add(seg.start);
+    xPositions.add(seg.end);
+  }
+
+  for (const x of xPositions) {
+    const yPoints = [];
+
+    // From V segments on this line
+    for (const seg of vSegments) {
+      if (Math.abs(seg.position - x) <= gridTolerance) {
+        yPoints.push({ y: seg.start, covered: true });
+        yPoints.push({ y: seg.end, covered: true });
+      }
+    }
+
+    // From H segments: if their start or end is on this X line
+    for (const seg of hSegments) {
+      if (Math.abs(seg.start - x) <= gridTolerance) {
+        yPoints.push({ y: seg.position, covered: false });
+      }
+      if (Math.abs(seg.end - x) <= gridTolerance) {
+        yPoints.push({ y: seg.position, covered: false });
+      }
+    }
+
+    if (yPoints.length < 2) continue;
+
+    yPoints.sort((a, b) => a.y - b.y);
+
+    for (let i = 0; i < yPoints.length - 1; i++) {
+      const from = yPoints[i];
+      const to = yPoints[i + 1];
+      const gapStart = from.y + 1;
+      const gapEnd = to.y - 1;
+      const gapLen = gapEnd - gapStart + 1;
+
+      if (gapLen <= 0) continue;
+
+      let alreadyCovered = false;
+      for (const seg of vSegments) {
+        if (Math.abs(seg.position - x) <= gridTolerance &&
+            seg.start <= gapStart && seg.end >= gapEnd) {
+          alreadyCovered = true;
+          break;
+        }
+      }
+      if (alreadyCovered) continue;
+
+      const px = Math.round(x);
+      if (px < 0 || px >= width) continue;
+
+      // Check if gap overlaps with existing annotations
+      if (excludedMask && _gapIsExcluded(excludedMask, width, height, "V", px, gapStart, gapEnd)) continue;
+
+      // Check continuity: the gap must be dark without any white stretch
+      // longer than maxWhiteGap. If there's a significant white hole, reject.
+      if (_gapIsContinuous(brightness, width, height, "V", px, gapStart, gapEnd, gapDarkThreshold, maxWhiteGap)) {
+        newV.push({ axis: "V", position: x, start: from.y, end: to.y });
+      }
+    }
+  }
+
+  return { newH, newV };
+}
+
 // ─── FILL DASHED LINES ───────────────────────────────────────────────────
 
 /**
@@ -601,7 +893,7 @@ function _centerOnMedian(segments, brightness, width, height, axis) {
  *   3. If most of the gap pixels are dark (> 60% below threshold),
  *      the gap is a continuous line that the band scanner missed → merge
  */
-function _fillDashedLines(segments, brightness, width, height, axis) {
+function _fillDashedLines(segments, brightness, width, height, axis, bandHeight, excludedMask) {
   if (segments.length <= 1) return segments;
 
   // Sort by position then by start
@@ -610,10 +902,9 @@ function _fillDashedLines(segments, brightness, width, height, axis) {
     return a.start - b.start;
   });
 
-  // Use a generous brightness threshold for gap checking:
-  // if the gap contains pixels darker than this, it's a line not a real gap.
-  const gapDarkThreshold = 180;
-  const minDarkRatio = 0.8; // 80% of gap pixels must be dark
+  const halfBand = Math.floor(bandHeight / 2);
+  // Max consecutive "empty" samples before we consider the line broken
+  const maxWhiteStreak = Math.max(halfBand, 3);
 
   const result = [];
   let current = { ...sorted[0] };
@@ -621,8 +912,8 @@ function _fillDashedLines(segments, brightness, width, height, axis) {
   for (let i = 1; i < sorted.length; i++) {
     const next = sorted[i];
 
-    // Only merge segments at the same position (within a few pixels)
-    const samePosition = Math.abs(next.position - current.position) <= 3;
+    // Only merge segments at the EXACT same position (after dedup/centering).
+    const samePosition = current.position === next.position;
     if (!samePosition) {
       result.push(current);
       current = { ...next };
@@ -639,40 +930,66 @@ function _fillDashedLines(segments, brightness, width, height, axis) {
       continue;
     }
 
-    // Sample the brightness along the gap at the segment's perpendicular position
+    // Check if gap overlaps with excluded mask (existing annotations)
+    if (excludedMask && _gapIsExcluded(excludedMask, width, height, axis,
+        Math.round((current.position + next.position) / 2), gapStart, gapEnd)) {
+      result.push(current);
+      current = { ...next };
+      continue;
+    }
+
+    // Check gap using the SAME method as the band scanner:
+    // For each sample along the gap, project perpendicular across bandHeight
+    // and require density > 0.4. If there's a white streak > maxWhiteStreak, reject.
+    const pos = current.position;
     let darkCount = 0;
-    const pos = Math.round((current.position + next.position) / 2);
+    let whiteStreak = 0;
+    let broken = false;
 
     if (axis === "H") {
-      // H segment: position = Y, start/end = X range
-      // Sample along X from gapStart to gapEnd at Y = pos
-      if (pos >= 0 && pos < height) {
-        for (let x = gapStart; x <= gapEnd; x++) {
-          if (x >= 0 && x < width && brightness[pos * width + x] < gapDarkThreshold) {
-            darkCount++;
-          }
+      // H segment: pos=Y, gap along X. Check vertical band at each X.
+      const y0 = Math.max(0, pos - halfBand);
+      const y1 = Math.min(height - 1, pos + halfBand);
+      const bH = y1 - y0 + 1;
+      for (let x = gapStart; x <= gapEnd && !broken; x++) {
+        if (x < 0 || x >= width) { whiteStreak++; continue; }
+        let matchCount = 0;
+        for (let y = y0; y <= y1; y++) {
+          if (brightness[y * width + x] < 128) matchCount++;
+        }
+        if (matchCount / bH > 0.4) {
+          darkCount++;
+          whiteStreak = 0;
+        } else {
+          whiteStreak++;
+          if (whiteStreak > maxWhiteStreak) broken = true;
         }
       }
     } else {
-      // V segment: position = X, start/end = Y range
-      // Sample along Y from gapStart to gapEnd at X = pos
-      if (pos >= 0 && pos < width) {
-        for (let y = gapStart; y <= gapEnd; y++) {
-          if (y >= 0 && y < height && brightness[y * width + pos] < gapDarkThreshold) {
-            darkCount++;
-          }
+      // V segment: pos=X, gap along Y. Check horizontal band at each Y.
+      const x0 = Math.max(0, pos - halfBand);
+      const x1 = Math.min(width - 1, pos + halfBand);
+      const bW = x1 - x0 + 1;
+      for (let y = gapStart; y <= gapEnd && !broken; y++) {
+        if (y < 0 || y >= height) { whiteStreak++; continue; }
+        let matchCount = 0;
+        for (let x = x0; x <= x1; x++) {
+          if (brightness[y * width + x] < 128) matchCount++;
+        }
+        if (matchCount / bW > 0.4) {
+          darkCount++;
+          whiteStreak = 0;
+        } else {
+          whiteStreak++;
+          if (whiteStreak > maxWhiteStreak) broken = true;
         }
       }
     }
 
-    const darkRatio = gapLen > 0 ? darkCount / gapLen : 0;
-
-    if (darkRatio >= minDarkRatio) {
-      // Gap is mostly dark → fill it, merge the two segments
+    // Merge if the line is continuous (no break) and mostly dark
+    if (!broken && gapLen > 0 && darkCount / gapLen >= 0.8) {
       current.end = Math.max(current.end, next.end);
-      current.position = Math.round((current.position + next.position) / 2);
     } else {
-      // Real gap → keep them separate
       result.push(current);
       current = { ...next };
     }
@@ -680,6 +997,72 @@ function _fillDashedLines(segments, brightness, width, height, axis) {
   result.push(current);
 
   return result;
+}
+
+/**
+ * Check if a gap overlaps with the exclusion mask (existing annotations).
+ * Returns true if > 30% of the gap pixels are excluded.
+ */
+/**
+ * Check if a gap is continuously dark (no white stretch > maxWhiteGap).
+ * Samples brightness along the gap and tracks consecutive white pixels.
+ * Returns true if the gap is continuous (safe to fill).
+ */
+function _gapIsContinuous(brightness, width, height, axis, pos, gapStart, gapEnd, darkThreshold, maxWhiteGap) {
+  const gapLen = gapEnd - gapStart + 1;
+  if (gapLen <= 0) return true;
+
+  let whiteStreak = 0;
+  let darkCount = 0;
+
+  if (axis === "H") {
+    if (pos < 0 || pos >= height) return false;
+    for (let x = gapStart; x <= gapEnd; x++) {
+      if (x < 0 || x >= width) { whiteStreak++; continue; }
+      if (brightness[pos * width + x] < darkThreshold) {
+        darkCount++;
+        whiteStreak = 0;
+      } else {
+        whiteStreak++;
+        if (whiteStreak > maxWhiteGap) return false;
+      }
+    }
+  } else {
+    if (pos < 0 || pos >= width) return false;
+    for (let y = gapStart; y <= gapEnd; y++) {
+      if (y < 0 || y >= height) { whiteStreak++; continue; }
+      if (brightness[y * width + pos] < darkThreshold) {
+        darkCount++;
+        whiteStreak = 0;
+      } else {
+        whiteStreak++;
+        if (whiteStreak > maxWhiteGap) return false;
+      }
+    }
+  }
+
+  // Also require a minimum overall dark ratio (at least 60%)
+  return darkCount / gapLen >= 0.6;
+}
+
+function _gapIsExcluded(excludedMask, width, height, axis, pos, gapStart, gapEnd) {
+  let excludedCount = 0;
+  const gapLen = gapEnd - gapStart + 1;
+  if (gapLen <= 0) return false;
+
+  if (axis === "H") {
+    if (pos < 0 || pos >= height) return false;
+    for (let x = gapStart; x <= gapEnd; x++) {
+      if (x >= 0 && x < width && excludedMask[pos * width + x]) excludedCount++;
+    }
+  } else {
+    if (pos < 0 || pos >= width) return false;
+    for (let y = gapStart; y <= gapEnd; y++) {
+      if (y >= 0 && y < height && excludedMask[y * width + pos]) excludedCount++;
+    }
+  }
+
+  return excludedCount / gapLen > 0.3;
 }
 
 // ─── SNAP ENDPOINTS ───────────────────────────────────────────────────────
