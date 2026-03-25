@@ -11,7 +11,7 @@ import { setSelectedEntityId } from 'Features/entities/entitiesSlice';
 import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
-import { setAnchorSourceAnnotationId } from 'Features/mapEditor/mapEditorSlice';
+import { setAnchorSourceAnnotationId, setOrthoSnapEnabled } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
 import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnotation } from 'Features/annotations/annotationsSlice';
 import {
@@ -210,6 +210,8 @@ const InteractionLayer = forwardRef(({
   // Anchor snap mode
   const anchorSourceAnnotationId = useSelector((s) => s.mapEditor.anchorSourceAnnotationId);
   const mapEditorMode = useSelector((s) => s.mapEditor.mapEditorMode);
+  const orthoSnapEnabled = useSelector((s) => s.mapEditor.orthoSnapEnabled);
+  const orthoSnapAngleOffset = useSelector((s) => s.mapEditor.orthoSnapAngleOffset);
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
 
   const { zoomContainer } = useSmartZoom();
@@ -692,6 +694,16 @@ const InteractionLayer = forwardRef(({
     anchorSourceAnnotationIdRef.current = anchorSourceAnnotationId;
   }, [anchorSourceAnnotationId]);
 
+  const orthoSnapEnabledRef = useRef(orthoSnapEnabled);
+  useEffect(() => {
+    orthoSnapEnabledRef.current = orthoSnapEnabled;
+  }, [orthoSnapEnabled]);
+
+  const orthoSnapAngleOffsetRef = useRef(orthoSnapAngleOffset);
+  useEffect(() => {
+    orthoSnapAngleOffsetRef.current = orthoSnapAngleOffset;
+  }, [orthoSnapAngleOffset]);
+
   const onCommitDrawingRef = useRef(onCommitDrawing);
   useEffect(() => {
     onCommitDrawingRef.current = onCommitDrawing;
@@ -1108,6 +1120,12 @@ const InteractionLayer = forwardRef(({
           break;
         }
 
+        case "O": { // Shift+O → toggle ortho snap
+          if (!isActiveViewerRef.current) break;
+          dispatch(setOrthoSnapEnabled(!orthoSnapEnabledRef.current));
+          break;
+        }
+
         case "m":
           if (showSmartDetect) smartDetectRef.current?.changeMorphKernelSize(-1);
           break;
@@ -1385,9 +1403,10 @@ const InteractionLayer = forwardRef(({
         let localPos = toLocalCoords(worldPos);
 
         // Apply shift-snap (ortho/45°) before adding the point
-        if ((event.shiftKey || event.evt?.shiftKey) && drawingPointsRef.current.length > 0) {
+        if ((event.shiftKey || event.evt?.shiftKey || orthoSnapEnabledRef.current) && drawingPointsRef.current.length > 0) {
           const lastPoint = drawingPointsRef.current[drawingPointsRef.current.length - 1];
-          localPos = snapToAngle(localPos, lastPoint);
+          const offset = orthoSnapEnabledRef.current ? orthoSnapAngleOffsetRef.current : 0;
+          localPos = snapToAngle(localPos, lastPoint, offset);
         }
 
         // Add click point to drawing points so DrawingLayer renders the polyline in progress
@@ -1445,11 +1464,12 @@ const InteractionLayer = forwardRef(({
         return; // Don't add a regular drawing point
       }
 
-      // Apply snapping if Shift is pressed
+      // Apply snapping if Shift is pressed or ortho snap is enabled
       let finalPos = toLocalCoords(worldPos);
-      if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
+      if ((event.shiftKey || event.evt?.shiftKey || orthoSnapEnabledRef.current) && drawingPoints.length > 0) {
         const lastPoint = drawingPoints[drawingPoints.length - 1];
-        finalPos = snapToAngle(finalPos, lastPoint);
+        const offset = orthoSnapEnabledRef.current ? orthoSnapAngleOffsetRef.current : 0;
+        finalPos = snapToAngle(finalPos, lastPoint, offset);
       }
 
       // 1. Ajouter le point (Déclenche un re-render de DrawingLayer pour la partie statique)
@@ -1461,11 +1481,12 @@ const InteractionLayer = forwardRef(({
 
     // --- CASE 2: ONE_CLICK (Auto-commit after 1 point) ---
     else if (enabledDrawingMode === 'ONE_CLICK') {
-      // Apply snapping if Shift is pressed
+      // Apply snapping if Shift is pressed or ortho snap is enabled
       let finalPos = toLocalCoords(worldPos);
-      if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
+      if ((event.shiftKey || event.evt?.shiftKey || orthoSnapEnabledRef.current) && drawingPoints.length > 0) {
         const lastPoint = drawingPoints[drawingPoints.length - 1];
-        finalPos = snapToAngle(finalPos, lastPoint);
+        const offset = orthoSnapEnabledRef.current ? orthoSnapAngleOffsetRef.current : 0;
+        finalPos = snapToAngle(finalPos, lastPoint, offset);
       }
 
       // 1. Ajouter le point (Déclenche un re-render de DrawingLayer pour la partie statique)
@@ -1478,10 +1499,11 @@ const InteractionLayer = forwardRef(({
     else if (["MEASURE", "SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
-      // Apply Angle Snap (Ortho) if Shift is held and it's the 2nd point
-      if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
+      // Apply Angle Snap (Ortho) if Shift is held or ortho snap is enabled
+      if ((event.shiftKey || event.evt?.shiftKey || orthoSnapEnabledRef.current) && drawingPoints.length > 0) {
         const lastPoint = drawingPoints[drawingPoints.length - 1];
-        finalPos = snapToAngle(finalPos, lastPoint);
+        const offset = orthoSnapEnabledRef.current ? orthoSnapAngleOffsetRef.current : 0;
+        finalPos = snapToAngle(finalPos, lastPoint, offset);
       }
 
       // Calculate the new list of points
@@ -1508,9 +1530,10 @@ const InteractionLayer = forwardRef(({
     else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
-      if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
+      if ((event.shiftKey || event.evt?.shiftKey || orthoSnapEnabledRef.current) && drawingPoints.length > 0) {
         const lastPoint = drawingPoints[drawingPoints.length - 1];
-        finalPos = snapToAngle(finalPos, lastPoint);
+        const offset = orthoSnapEnabledRef.current ? orthoSnapAngleOffsetRef.current : 0;
+        finalPos = snapToAngle(finalPos, lastPoint, offset);
       }
 
       const nextPoints = [...drawingPoints, finalPos];
@@ -2044,9 +2067,10 @@ const InteractionLayer = forwardRef(({
 
       // Angle snap drawing (use ref to always get latest points, even before re-render)
       const currentDrawingPts = drawingPointsRef.current;
-      if ((event.shiftKey || event.evt?.shiftKey) && currentDrawingPts.length > 0) {
+      if ((event.shiftKey || event.evt?.shiftKey || orthoSnapEnabledRef.current) && currentDrawingPts.length > 0) {
         const lastPoint = currentDrawingPts[currentDrawingPts.length - 1];
-        previewPos = snapToAngle(localPos, lastPoint);
+        const offset = orthoSnapEnabledRef.current ? orthoSnapAngleOffsetRef.current : 0;
+        previewPos = snapToAngle(localPos, lastPoint, offset);
       }
 
       // F. CLOSING DETECTION (screen-distance based, zoom-independent)

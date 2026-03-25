@@ -12,6 +12,7 @@ import ButtonAutoLayoutLabels from "Features/tools/components/ButtonAutoLayoutLa
 import SectionShowedFWC from "Features/fwc/components/SectionShowedFWC";
 import ButtonRunningTransform from "Features/baseMapTransforms/components/ButtonRunningTransform";
 import SelectorMapEditorMode from "./SelectorMapEditorMode";
+import SelectorOrthoSnap from "./SelectorOrthoSnap";
 import SelectorDrawingPanel from "./SelectorDrawingPanel";
 import DialogCalibration2D from "./DialogCalibration2D";
 
@@ -121,7 +122,9 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                 zIndex: 1,
                 display: "flex",
                 alignItems: "center",
+                gap: 1,
             }}>
+                <SelectorOrthoSnap />
                 <SelectorMapEditorMode />
             </Box>
 

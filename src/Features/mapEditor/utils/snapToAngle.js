@@ -1,4 +1,4 @@
-const snapToAngle = (currentPos, lastPoint) => {
+const snapToAngle = (currentPos, lastPoint, angleOffsetDeg = 0) => {
     if (!lastPoint) return currentPos;
 
     const dx = currentPos.x - lastPoint.x;
@@ -8,9 +8,11 @@ const snapToAngle = (currentPos, lastPoint) => {
     const angleRad = Math.atan2(dy, dx);
     const angleDeg = (angleRad * 180) / Math.PI;
 
-    // 2. Trouver l'angle cible le plus proche (par pas de 45°)
+    // 2. Trouver l'angle cible le plus proche (par pas de 45°, décalé par l'offset)
+    // Negate offset so a positive value rotates the snap grid counter-clockwise (screen coords)
     const snapIncrement = 45;
-    const snappedAngleDeg = Math.round(angleDeg / snapIncrement) * snapIncrement;
+    const shifted = angleDeg + angleOffsetDeg;
+    const snappedAngleDeg = Math.round(shifted / snapIncrement) * snapIncrement - angleOffsetDeg;
     const snappedAngleRad = (snappedAngleDeg * Math.PI) / 180;
 
     // 3. PROJECTION (La correction magique)

@@ -85,6 +85,10 @@ const mapEditorInitialState = {
 
   // anchor snap mode
   anchorSourceAnnotationId: null, // annotation ID whose extremities will be anchored
+
+  // ortho snap
+  orthoSnapEnabled: false,
+  orthoSnapAngleOffset: 0, // degrees
 };
 
 export const mapEditorSlice = createSlice({
@@ -330,6 +334,14 @@ export const mapEditorSlice = createSlice({
       state.anchorSourceAnnotationId = action.payload;
       state.showLayerScreenCursor = Boolean(action.payload);
     },
+
+    // ortho snap
+    setOrthoSnapEnabled: (state, action) => {
+      state.orthoSnapEnabled = action.payload;
+    },
+    setOrthoSnapAngleOffset: (state, action) => {
+      state.orthoSnapAngleOffset = action.payload;
+    },
   },
 });
 
@@ -421,6 +433,10 @@ export const {
 
   // anchor snap
   setAnchorSourceAnnotationId,
+
+  // ortho snap
+  setOrthoSnapEnabled,
+  setOrthoSnapAngleOffset,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;
