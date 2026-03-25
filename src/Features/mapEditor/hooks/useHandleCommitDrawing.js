@@ -385,7 +385,32 @@ export default function useHandleCommitDrawing() {
             ? (selectedListing?.table ?? selectedListing?.entityModel?.defaultTable)
             : null;
 
-        const allPoints = [];
+        // --- Phase 1: Deduplicate shared points (topology) ---
+        // Two segments meeting at the same intersection must share a single point.
+        // We collect all endpoints, group by proximity, and assign one pointId per unique location.
+        const SNAP_TOLERANCE = 1.5; // pixels in local coords — endpoints within this are the same point
+
+        // Map from "rounded coord key" → { id, nx, ny } (normalized coords + assigned pointId)
+        const pointIndex = new Map();
+
+        // Quantize a local coord to a grid key for fast lookup
+        const coordKey = (x, y) => `${Math.round(x / SNAP_TOLERANCE)},${Math.round(y / SNAP_TOLERANCE)}`;
+
+        // Get or create a shared point for a given local coordinate
+        const getOrCreatePoint = (localX, localY) => {
+            const key = coordKey(localX, localY);
+            if (pointIndex.has(key)) return pointIndex.get(key).id;
+
+            const pointId = nanoid();
+            pointIndex.set(key, {
+                id: pointId,
+                nx: localX / width,
+                ny: localY / height,
+            });
+            return pointId;
+        };
+
+        // --- Phase 2: Build annotations referencing shared points ---
         const allAnnotations = [];
         const allEntities = [];
 
@@ -403,21 +428,11 @@ export default function useHandleCommitDrawing() {
                 });
             }
 
-            // Points
-            const pointRefs = [];
-            for (const pt of polyline) {
-                const pointId = nanoid();
-                allPoints.push({
-                    id: pointId,
-                    x: pt.x / width,
-                    y: pt.y / height,
-                    baseMapId,
-                    projectId,
-                    listingId,
-                    forMarker: false,
-                });
-                pointRefs.push({ id: pointId, type: "square" });
-            }
+            // Points — resolve shared IDs via the index
+            const pointRefs = polyline.map((pt) => ({
+                id: getOrCreatePoint(pt.x, pt.y),
+                type: "square",
+            }));
 
             // Annotation
             const annotation = {
@@ -434,6 +449,20 @@ export default function useHandleCommitDrawing() {
                 ...(isBaseMapAnnotation ? { isBaseMapAnnotation: true } : {}),
             };
             allAnnotations.push(annotation);
+        }
+
+        // --- Phase 3: Build unique points array from the index ---
+        const allPoints = [];
+        for (const entry of pointIndex.values()) {
+            allPoints.push({
+                id: entry.id,
+                x: entry.nx,
+                y: entry.ny,
+                baseMapId,
+                projectId,
+                listingId,
+                forMarker: false,
+            });
         }
 
         // Bulk write — points and annotations always, entities if we have a table
