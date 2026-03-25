@@ -1,3 +1,5 @@
+import simplifyPillar from "./simplifyPillar";
+
 /**
  * Align all polygons (main contour + cuts) to a shared orthogonal grid.
  *
@@ -156,6 +158,17 @@ export default function alignPolygonsToGrid(mainPoints, cuts, options = {}) {
           pts[vi] = { x: snappedX, y: snappedY };
         }
       }
+    }
+  }
+
+  // -- Step 5b: simplify small cut polygons (pillars) to clean shapes
+  for (let polyIdx = 1; polyIdx < rotated.length; polyIdx++) {
+    const { points: simplified, simplified: wasSimplified } = simplifyPillar(
+      rotated[polyIdx],
+      { meterByPx }
+    );
+    if (wasSimplified) {
+      rotated[polyIdx] = simplified;
     }
   }
 
