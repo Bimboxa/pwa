@@ -18,6 +18,7 @@ export default async function createAnnotationsPdfReport(
       number: annotation.entity?.num ? Number(annotation.entity?.num) : "",
       imageUrl: annotation.entity?.image?.imageUrlClient,
       label: templateProps?.labelLegend || templateProps?.label || annotation.label,
+      groupLabel: templateProps?.groupLabel,
     };
   });
 

@@ -1,5 +1,20 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
+
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { generateKeyBetween } from "fractional-indexing";
 
 import {
   setSelectedListingId,
@@ -84,6 +99,7 @@ import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
+import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
 
 // ---------------------------------------------------------------------------
 // TOOL_ITEMS — static tool definitions for the "Outils" section
@@ -350,6 +366,37 @@ function ToolPickerMenu({
 }
 
 // ---------------------------------------------------------------------------
+// SortableAnnotationTemplateRow — wrapper for DnD
+// ---------------------------------------------------------------------------
+
+function SortableAnnotationTemplateRow(props) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.annotationTemplate.id });
+
+  const sortableStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <AnnotationTemplateRow
+      {...props}
+      sortableRef={setNodeRef}
+      sortableStyle={sortableStyle}
+      sortableAttributes={attributes}
+      dragListeners={listeners}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
 // AnnotationTemplateRow — one template inside an expanded listing
 // ---------------------------------------------------------------------------
 
@@ -359,6 +406,10 @@ function AnnotationTemplateRow({
   qtyLabel,
   listingId,
   spriteImage,
+  sortableRef,
+  sortableStyle,
+  sortableAttributes,
+  dragListeners,
 }) {
   const dispatch = useDispatch();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
@@ -463,7 +514,7 @@ function AnnotationTemplateRow({
   // render
 
   return (
-    <Box>
+    <Box ref={sortableRef} style={sortableStyle} {...(sortableAttributes ?? {})}>
       <ListItemButton
         onClick={handleRowClick}
         onMouseEnter={() => setIsHovered(true)}
@@ -473,7 +524,7 @@ function AnnotationTemplateRow({
           bgcolor: "white",
           alignItems: "center",
           justifyContent: "space-between",
-          pl: 3,
+          pl: 1,
           pr: 1,
           py: 0.5,
           borderLeft: "3px solid",
@@ -485,6 +536,22 @@ function AnnotationTemplateRow({
           },
         }}
       >
+        {/* Drag handle */}
+        <Box
+          {...(dragListeners ?? {})}
+          onClick={(e) => e.stopPropagation()}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            cursor: "grab",
+            opacity: isHovered ? 1 : 0,
+            transition: "opacity 0.15s",
+            mr: 0.5,
+            flexShrink: 0,
+          }}
+        >
+          <DragIndicatorIcon sx={{ fontSize: 16, color: "panel.textLight" }} />
+        </Box>
         <Box
           sx={{
             display: "flex",
@@ -684,41 +751,167 @@ function AnnotationTemplatesForListing({ listingId, annotations, annotationTempl
 
   const annotationTemplates = useAnnotationTemplates({
     filterByListingId: listingId,
-    sortByLabel: true,
+    sortByOrder: true,
   });
   const spriteImage = useAnnotationSpriteImage();
+  const updateAnnotationTemplate = useUpdateAnnotationTemplate();
 
   const qtiesById = useMemo(
     () => computeAnnotationTemplateQties(annotations, annotationTemplateById),
     [annotations, annotationTemplateById]
   );
 
+  // helpers - grouped templates (with group headers inserted)
+
+  const groupedItems = useMemo(
+    () => groupAnnotationTemplatesByGroupLabel(annotationTemplates),
+    [annotationTemplates]
+  );
+
+  // helpers - sortable IDs (only real templates, not group headers)
+
+  const sortableIds = useMemo(
+    () => (annotationTemplates ?? []).map((t) => t.id),
+    [annotationTemplates]
+  );
+
   // state
 
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
+
+  // dnd sensors
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  // dnd handlers
+
+  const handleDragEnd = useCallback(
+    async (event) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id || !annotationTemplates?.length) return;
+
+      const oldIndex = sortableIds.indexOf(active.id);
+      const newIndex = sortableIds.indexOf(over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const normalizeGroup = (g) =>
+        (g ?? "").trim().toUpperCase().replace(/\s+/g, "");
+
+      const draggedTemplate = annotationTemplates[oldIndex];
+      const overTemplate = annotationTemplates[newIndex];
+      const draggedGroup = normalizeGroup(draggedTemplate?.groupLabel);
+      const overGroup = normalizeGroup(overTemplate?.groupLabel);
+
+      // Determine if this is a within-group reorder or a cross-group move
+      const isWithinGroup = draggedGroup && draggedGroup === overGroup;
+
+      let newOrder;
+      if (isWithinGroup) {
+        // Within-group: move just the dragged item within the list
+        newOrder = [...annotationTemplates];
+        newOrder.splice(oldIndex, 1);
+        const adjustedNewIndex = newOrder.findIndex((t) => t.id === over.id);
+        newOrder.splice(adjustedNewIndex, 0, draggedTemplate);
+      } else {
+        // Cross-group: move all group members together
+        const groupMembers = draggedGroup
+          ? annotationTemplates.filter(
+              (t) => normalizeGroup(t.groupLabel) === draggedGroup
+            )
+          : [draggedTemplate];
+
+        const remaining = annotationTemplates.filter(
+          (t) => !groupMembers.some((m) => m.id === t.id)
+        );
+
+        const overInRemaining = remaining.findIndex((t) => t.id === over.id);
+        const insertAt =
+          overInRemaining === -1 ? remaining.length : overInRemaining;
+
+        newOrder = [...remaining];
+        newOrder.splice(insertAt, 0, ...groupMembers);
+      }
+
+      // Assign new orderIndex values using fractional indexing
+      let lastIndex = null;
+      for (const template of newOrder) {
+        const newOrderIndex = generateKeyBetween(lastIndex, null);
+        lastIndex = newOrderIndex;
+        if (template.orderIndex !== newOrderIndex) {
+          await updateAnnotationTemplate({
+            ...template,
+            orderIndex: newOrderIndex,
+          });
+        }
+      }
+    },
+    [annotationTemplates, sortableIds, updateAnnotationTemplate]
+  );
 
   // render
 
   return (
     <Box>
-      <List dense disablePadding>
-        {annotationTemplates?.map((template) => {
-          if (template?.isDivider) return null;
-          const templateQties = qtiesById?.[template.id];
-          const count = templateQties?.count || 0;
-          const qtyLabel = templateQties?.mainQtyLabel;
-          return (
-            <AnnotationTemplateRow
-              key={template.id}
-              annotationTemplate={template}
-              count={count}
-              qtyLabel={qtyLabel}
-              listingId={listingId}
-              spriteImage={spriteImage}
-            />
-          );
-        })}
-      </List>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={sortableIds}
+          strategy={verticalListSortingStrategy}
+        >
+          <List dense disablePadding>
+            {groupedItems?.map((item, idx) => {
+              if (item.isGroupDivider) {
+                return (
+                  <Divider
+                    key={`divider-${idx}`}
+                    sx={{ mx: 3, my: 0.5, borderColor: "divider" }}
+                  />
+                );
+              }
+              if (item.isGroupHeader) {
+                return (
+                  <Typography
+                    key={`group-${item.groupLabel}`}
+                    variant="caption"
+                    sx={{
+                      display: "block",
+                      pl: 3,
+                      pt: idx > 0 ? 1 : 0.5,
+                      pb: 0.5,
+                      color: "text.secondary",
+                      textTransform: "uppercase",
+                      fontWeight: 600,
+                      fontSize: "0.7rem",
+                      letterSpacing: 0.5,
+                    }}
+                  >
+                    {item.groupLabel}
+                  </Typography>
+                );
+              }
+              if (item?.isDivider) return null;
+              const templateQties = qtiesById?.[item.id];
+              const count = templateQties?.count || 0;
+              const qtyLabel = templateQties?.mainQtyLabel;
+              return (
+                <SortableAnnotationTemplateRow
+                  key={item.id}
+                  annotationTemplate={item}
+                  count={count}
+                  qtyLabel={qtyLabel}
+                  listingId={listingId}
+                  spriteImage={spriteImage}
+                />
+              );
+            })}
+          </List>
+        </SortableContext>
+      </DndContext>
 
       {/* + Nouveau modele */}
       <ListItemButton

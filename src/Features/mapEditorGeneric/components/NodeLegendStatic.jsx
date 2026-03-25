@@ -242,6 +242,46 @@ export default memo(function NodeLegendStatic({
                                 );
                             }
 
+                            // Group label header
+                            if (it.type === "groupLabel") {
+                                return (
+                                    <div key={i} style={{ display: "contents" }}>
+                                        <div style={{ gridColumn: "1 / -1" }}>
+                                            <div
+                                                style={{
+                                                    fontSize: fontSize * 0.75,
+                                                    fontWeight: 500,
+                                                    textTransform: "uppercase",
+                                                    letterSpacing: 0.5,
+                                                    marginTop: i > 0 ? ROW_GAP : 0,
+                                                    marginBottom: ROW_GAP * 0.5,
+                                                    color: "#999",
+                                                }}
+                                            >
+                                                {it.name}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            // Group divider
+                            if (it.type === "groupDivider") {
+                                return (
+                                    <div key={i} style={{ display: "contents" }}>
+                                        <div style={{ gridColumn: "1 / -1" }}>
+                                            <div
+                                                style={{
+                                                    borderTop: "1px solid #ddd",
+                                                    marginTop: ROW_GAP * 0.5,
+                                                    marginBottom: ROW_GAP * 0.5,
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            }
+
                             // Legend item
                             return (
                                 <div key={i} style={{ display: "contents" }}>

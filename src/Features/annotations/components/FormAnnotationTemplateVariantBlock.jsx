@@ -60,6 +60,7 @@ export default function FormAnnotationTemplateVariantBlock({
     iconKey,
     label,
     labelLegend,
+    groupLabel,
     height,
     image,
     meterByPx,
@@ -142,6 +143,10 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handleLabelLegendChange(labelLegend) {
     onChange({ ...annotationTemplate, labelLegend });
+  }
+
+  function handleGroupLabelChange(groupLabel) {
+    onChange({ ...annotationTemplate, groupLabel });
   }
 
   function handleHeightChange(height) {
@@ -237,6 +242,17 @@ export default function FormAnnotationTemplateVariantBlock({
         options={{
           fullWidth: true,
           placeholder: "Libellé légende",
+          showAsSection: true,
+        }}
+      />
+
+      <FieldTextV2
+        label="Groupe"
+        value={groupLabel}
+        onChange={handleGroupLabelChange}
+        options={{
+          fullWidth: true,
+          placeholder: "Groupe",
           showAsSection: true,
         }}
       />

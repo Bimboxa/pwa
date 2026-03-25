@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import {
   Box,
   IconButton,
@@ -7,12 +9,14 @@ import {
   ListItemButton,
   ListItemText,
   ListItemIcon,
+  ListSubheader,
 } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import MarkerIcon from "Features/markers/components/MarkerIcon";
 import AnnotationIcon from "./AnnotationIcon";
 import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
+import groupAnnotationTemplatesByGroupLabel from "../utils/groupAnnotationTemplatesByGroupLabel";
 
 export default function SelectorAnnotationTemplateVariantList({
   selectedAnnotationTemplateId,
@@ -80,21 +84,38 @@ export default function SelectorAnnotationTemplateVariantList({
       {showTitle && <Typography sx={{ p: 2 }}>{title}</Typography>}
       <BoxFlexVStretch sx={{ overflow: "auto" }}>
         <List dense>
-          {annotationTemplates
-            ?.filter((t) => !t.isFromAnnotation)
-            .map((annotationTemplate) => {
-              const { fillColor, iconKey, id, label } = annotationTemplate;
-              const selected = id === selectedAnnotationTemplateId;
-
+          {groupAnnotationTemplatesByGroupLabel(
+            annotationTemplates?.filter((t) => !t.isFromAnnotation)
+          ).map((item) => {
+            if (item.isGroupHeader) {
               return (
-                <ListItem
-                  key={id}
-                  id={id}
-                  annotation={annotationTemplate}
-                  selected={selected}
-                />
+                <ListSubheader
+                  key={`group-${item.groupLabel}`}
+                  sx={{
+                    lineHeight: "24px",
+                    fontSize: "0.65rem",
+                    color: "text.disabled",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                    bgcolor: "transparent",
+                  }}
+                >
+                  {item.groupLabel}
+                </ListSubheader>
               );
-            })}
+            }
+            const { id } = item;
+            const selected = id === selectedAnnotationTemplateId;
+
+            return (
+              <ListItem
+                key={id}
+                id={id}
+                annotation={item}
+                selected={selected}
+              />
+            );
+          })}
         </List>
 
         {newTemplates && (

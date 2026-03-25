@@ -467,9 +467,41 @@ export default async function generateItemsGridPdfVariantH(items, opts = {}) {
   let { page, bodyTopY } = addPageWithHeader();
   let cursorY = bodyTopY;
   const bottomLimit = margin + 20;
+  let currentGroupLabel = null;
 
   for (let idx = 0; idx < items.length; idx++) {
     const item = items[idx];
+
+    // Group header
+    const gl = item.groupLabel?.trim() || "";
+    if (gl && gl !== currentGroupLabel) {
+      currentGroupLabel = gl;
+      const groupHeaderHeight = labelSize + 16;
+      if (cursorY - groupHeaderHeight < bottomLimit) {
+        ({ page, bodyTopY } = addPageWithHeader());
+        cursorY = bodyTopY;
+      }
+      cursorY -= 8;
+      page.drawText(gl.toUpperCase(), {
+        x: margin,
+        y: cursorY - labelSize,
+        size: labelSize * 0.85,
+        font: fontBold,
+        color: rgb(0.6, 0.6, 0.6),
+      });
+      cursorY -= groupHeaderHeight;
+    } else if (!gl && currentGroupLabel) {
+      currentGroupLabel = null;
+      // Draw a light divider line when leaving a group
+      cursorY -= 4;
+      page.drawLine({
+        start: { x: margin, y: cursorY },
+        end: { x: margin + contentW, y: cursorY },
+        thickness: 0.5,
+        color: rgb(0.8, 0.8, 0.8),
+      });
+      cursorY -= 8;
+    }
 
     const photo = await embedPhoto(item.imageUrl);
     const icon = await embedIcon(item);

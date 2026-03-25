@@ -54,6 +54,7 @@ export default function useLegendItems() {
           fillColor,
           fillType,
           label: template?.labelLegend || (template?.label ?? "A définir"),
+          groupLabel: template?.groupLabel,
           closeLine,
           variant,
         };
@@ -74,8 +75,30 @@ export default function useLegendItems() {
   // legendItemsByListingName => legendItems
   Object.entries(legendItemsByListingName).forEach(([listingName, items]) => {
     legendItems.push({ type: "listingName", name: listingName });
-    const sortedItems = items.sort((a, b) => a.label.localeCompare(b.label));
-    legendItems.push(...sortedItems);
+    // Sort by groupLabel first (blanks last), then by label
+    const normalize = (g) => (g ?? "").trim().toUpperCase().replace(/\s+/g, "");
+    const sortedItems = items.sort((a, b) => {
+      const gA = normalize(a.groupLabel);
+      const gB = normalize(b.groupLabel);
+      if (gA !== gB) {
+        if (!gA) return 1;
+        if (!gB) return -1;
+        return gA.localeCompare(gB);
+      }
+      return a.label.localeCompare(b.label);
+    });
+    // Insert groupLabel separators and dividers
+    let currentGroup = null;
+    for (const item of sortedItems) {
+      const ng = normalize(item.groupLabel);
+      if (ng && ng !== currentGroup) {
+        legendItems.push({ type: "groupLabel", name: item.groupLabel?.trim() });
+      } else if (!ng && currentGroup) {
+        legendItems.push({ type: "groupDivider" });
+      }
+      currentGroup = ng;
+      legendItems.push(item);
+    }
   });
 
   // sort
