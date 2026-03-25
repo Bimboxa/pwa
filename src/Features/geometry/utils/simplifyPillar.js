@@ -1,3 +1,27 @@
+// ─── Pillar detection thresholds ─────────────────────────────────────
+// These values define what counts as a "pillar" and how to classify it.
+
+/** Max bounding-box diagonal (meters) for a polygon to be considered a pillar. */
+const PILLAR_MAX_DIAGONAL_M = 5.0;
+
+/** Min wall thickness (meters). Used as minimum resolution reference. */
+const MIN_WALL_THICKNESS_M = 0.15;
+
+/**
+ * Area ratio (polygon area / bbox area) thresholds:
+ *   - ratio >= RECTANGULAR → rectangular pillar (square/rectangle)
+ *   - CIRCULAR <= ratio < RECTANGULAR → circular pillar
+ *   - ratio < CIRCULAR → irregular shape, skip
+ *
+ * Reference values:
+ *   - Perfect square:  1.0
+ *   - Square with rounded corners: ~0.9
+ *   - Perfect circle inscribed in bbox: π/4 ≈ 0.785
+ *   - Octagon inscribed in bbox: ~0.828
+ */
+const AREA_RATIO_RECTANGULAR = 0.85;
+const AREA_RATIO_CIRCULAR = 0.65;
+
 /**
  * Simplify a small polygon (pillar/column) to a clean shape.
  *
@@ -11,20 +35,20 @@
  *
  * @param {Array<{x: number, y: number}>} points - Polygon vertices (in axis-aligned rotated space)
  * @param {Object} [options]
- * @param {number} [options.maxDiagonalM=1.0] - Max diagonal in meters to qualify as pillar
+ * @param {number} [options.maxDiagonalM=PILLAR_MAX_DIAGONAL_M] - Max diagonal in meters to qualify as pillar
  * @param {number} [options.meterByPx=0] - Scale (meters per pixel). 0 = use fallbackMaxDiagonal.
  * @param {number} [options.fallbackMaxDiagonal=Infinity] - Fallback pixel threshold when no scale is available
- * @param {number} [options.circularityThreshold=0.85] - Area ratio above this = rectangular, below = circular candidate
- * @param {number} [options.circularityMin=0.65] - Area ratio below this = irregular shape, skip simplification
+ * @param {number} [options.circularityThreshold=AREA_RATIO_RECTANGULAR] - Area ratio above this = rectangular
+ * @param {number} [options.circularityMin=AREA_RATIO_CIRCULAR] - Area ratio below this = irregular shape
  * @returns {{ points: Array<{x: number, y: number, type?: string}>, simplified: boolean }}
  */
 export default function simplifyPillar(points, options = {}) {
   const {
-    maxDiagonalM = 1.0,
+    maxDiagonalM = PILLAR_MAX_DIAGONAL_M,
     meterByPx = 0,
     fallbackMaxDiagonal = Infinity,
-    circularityThreshold = 0.85,
-    circularityMin = 0.65,
+    circularityThreshold = AREA_RATIO_RECTANGULAR,
+    circularityMin = AREA_RATIO_CIRCULAR,
   } = options;
 
   const result = { points, simplified: false };

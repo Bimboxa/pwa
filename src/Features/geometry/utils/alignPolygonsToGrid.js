@@ -1,39 +1,66 @@
 import simplifyPillar from "./simplifyPillar";
 
+// ─── Grid alignment defaults ────────────────────────────────────────
+// Physical reference: minimum wall thickness is 15cm.
+// Grid tolerance and max displacement are capped to half that (7.5cm)
+// to prevent vertices from snapping across walls.
+
+/** Grid clustering tolerance as ratio of combined bbox diagonal. */
+const DEFAULT_GRID_TOLERANCE_RATIO = 0.006;
+
+/** Max vertex displacement as ratio of bbox diagonal (safety guard). */
+const DEFAULT_MAX_DISPLACEMENT_RATIO = 0.02;
+
+/** Min wall thickness in meters. Tolerance/displacement are capped to half this. */
+const MIN_WALL_THICKNESS_M = 0.15;
+
+/** Max angle deviation from 0°/90° to classify a segment as orthogonal (~15°). */
+const DEFAULT_ANGLE_TOLERANCE = Math.PI / 12;
+
+/** Min consecutive short segments to detect a curve (arc, ramp). */
+const DEFAULT_CURVE_MIN_SEGMENTS = 4;
+
+/** Min distance between adjacent vertices after cleanup. */
+const DEFAULT_MIN_VERTEX_DISTANCE = 0.3;
+
+/** Collinear vertex removal threshold (~2.9°). */
+const DEFAULT_COLLINEAR_THRESHOLD = 0.05;
+
 /**
  * Align all polygons (main contour + cuts) to a shared orthogonal grid.
  *
  * Building floor plans have walls meeting at right angles. After OpenCV contour
  * detection (SURFACE_DROP), vertices from the main contour and cut polygons
  * (pillars, columns) should share a common coordinate grid. This function:
- * 1. Determines the dominant wall orientation (from user angle or auto-detect)
+ * 1. Determines the wall orientation from user-provided angle (or 0° by default)
  * 2. Rotates everything to axis-aligned space
  * 3. Clusters X/Y coordinates across ALL polygons to build a shared grid
  * 4. Snaps eligible vertices to grid intersections
- * 5. Rotates back and cleans up
+ * 5. Simplifies small cuts (pillars) into clean rectangles or circles
+ * 6. Rotates back and cleans up
  *
  * @param {Array<{x: number, y: number}>} mainPoints - Main contour vertices
  * @param {Array<{points: Array<{x: number, y: number}>, ...}>|null|undefined} cuts - Cut polygons
  * @param {Object} [options]
- * @param {number|null} [options.referenceAngle=null] - Grid base angle in DEGREES (from orthoSnapAngleOffset). null = auto-detect.
- * @param {number} [options.gridToleranceRatio=0.015] - Grid clustering tolerance as ratio of combined bbox diagonal
- * @param {number} [options.angleTolerance=0.26] - Max deviation to classify segment as orthogonal (radians, ~15°)
- * @param {number} [options.minVertexDistance=0.3] - Min distance between adjacent vertices (cleanup)
- * @param {number} [options.collinearThreshold=0.05] - Threshold for removing collinear vertices (radians, ~2.9°)
- * @param {number} [options.curveMinSegments=4] - Min consecutive short segments to detect a curve
- * @param {number} [options.maxDisplacementRatio=0.02] - Max vertex displacement as ratio of bbox diagonal (safety guard)
- * @param {number} [options.meterByPx=0] - Scale factor (meters per local pixel). When > 0, caps tolerance and displacement to physical wall thickness.
+ * @param {number|null} [options.referenceAngle=null] - Grid base angle in DEGREES (from orthoSnapAngleOffset). 0/null = axis-aligned.
+ * @param {number} [options.gridToleranceRatio] - Grid clustering tolerance as ratio of combined bbox diagonal
+ * @param {number} [options.angleTolerance] - Max deviation to classify segment as orthogonal (radians)
+ * @param {number} [options.minVertexDistance] - Min distance between adjacent vertices (cleanup)
+ * @param {number} [options.collinearThreshold] - Threshold for removing collinear vertices (radians)
+ * @param {number} [options.curveMinSegments] - Min consecutive short segments to detect a curve
+ * @param {number} [options.maxDisplacementRatio] - Max vertex displacement as ratio of bbox diagonal
+ * @param {number} [options.meterByPx=0] - Scale factor (meters per local pixel). Caps tolerance to physical wall thickness.
  * @returns {{ points: Array<{x: number, y: number}>, cuts: Array<{points: Array<{x: number, y: number}>, ...}>|undefined }}
  */
 export default function alignPolygonsToGrid(mainPoints, cuts, options = {}) {
   const {
     referenceAngle = null,
-    gridToleranceRatio = 0.006,
-    angleTolerance = Math.PI / 12,
-    minVertexDistance = 0.3,
-    collinearThreshold = 0.05,
-    curveMinSegments = 4,
-    maxDisplacementRatio = 0.02,
+    gridToleranceRatio = DEFAULT_GRID_TOLERANCE_RATIO,
+    angleTolerance = DEFAULT_ANGLE_TOLERANCE,
+    minVertexDistance = DEFAULT_MIN_VERTEX_DISTANCE,
+    collinearThreshold = DEFAULT_COLLINEAR_THRESHOLD,
+    curveMinSegments = DEFAULT_CURVE_MIN_SEGMENTS,
+    maxDisplacementRatio = DEFAULT_MAX_DISPLACEMENT_RATIO,
     meterByPx = 0,
   } = options;
 
@@ -53,22 +80,16 @@ export default function alignPolygonsToGrid(mainPoints, cuts, options = {}) {
   }));
 
   // -- Step 1: determine reference angle (radians)
-  let refRad;
+  // When referenceAngle is provided (non-zero), use it directly.
+  // When 0 or null, use 0 (no rotation). Auto-detection was removed because
+  // it gets fooled by hatching patterns (e.g. 45° parking hatches) that
+  // dominate segment lengths over actual wall/pillar orientations.
+  let refRad = 0;
   if (referenceAngle != null && referenceAngle !== 0) {
     refRad = (referenceAngle * Math.PI) / 180;
-  } else {
-    // Auto-detect from all segments combined
-    const allSegments = [
-      ...computeSegments(mainPts, true),
-      ...cutPolygons.flatMap((c) =>
-        c.points.length >= 3 ? computeSegments(c.points, true) : []
-      ),
-    ];
-    refRad = findDominantAngle(allSegments);
+    // Normalize to [0, π/2) — orthogonal grids are 90°-periodic
+    refRad = ((refRad % HALF_PI) + HALF_PI) % HALF_PI;
   }
-
-  // Normalize to [0, π/2) — orthogonal grids are 90°-periodic
-  refRad = ((refRad % HALF_PI) + HALF_PI) % HALF_PI;
 
   // -- Step 2: rotate all points to axis-aligned space
   // The orthoSnapAngleOffset convention: walls are oriented AT the offset angle.
