@@ -19,7 +19,12 @@ function dist(a, b) {
  * Two annotations are connected when they reference the same point by id.
  * Returns the matched annotation or null.
  */
-async function findConnectedPolyline(point, sourceAnnotationId, baseMapId) {
+async function findConnectedPolyline(
+  point,
+  sourceAnnotationId,
+  baseMapId,
+  visibleIds
+) {
   const candidates = await db.annotations
     .where("baseMapId")
     .equals(baseMapId)
@@ -29,6 +34,7 @@ async function findConnectedPolyline(point, sourceAnnotationId, baseMapId) {
 
   for (const ann of candidates) {
     if (ann.id === sourceAnnotationId) continue;
+    if (visibleIds && !visibleIds.has(ann.id)) continue;
     if (!["POLYLINE", "STRIP"].includes(ann.type)) continue;
     if (!ann.points?.length) continue;
 
@@ -65,7 +71,7 @@ async function resolvePointCoords(point, imageSize) {
   return null;
 }
 
-export default function useHandleTechnicalReturn() {
+export default function useHandleTechnicalReturn({ annotations } = {}) {
   const dispatch = useDispatch();
   const baseMap = useMainBaseMap();
   const createEntity = useCreateEntity();
@@ -74,6 +80,8 @@ export default function useHandleTechnicalReturn() {
   const updateAnnotation = useUpdateAnnotation();
 
   const handleTechnicalReturn = async (annotationId, segmentIndex) => {
+    const visibleIds = new Set(annotations?.map((a) => a.id));
+
     // 1. Fetch the clicked annotation
     const annotation = await db.annotations.get(annotationId);
     if (!annotation) {
@@ -104,12 +112,14 @@ export default function useHandleTechnicalReturn() {
     const connectedAtA = await findConnectedPolyline(
       pRefA,
       annotationId,
-      annotation.baseMapId
+      annotation.baseMapId,
+      visibleIds
     );
     const connectedAtB = await findConnectedPolyline(
       pRefB,
       annotationId,
-      annotation.baseMapId
+      annotation.baseMapId,
+      visibleIds
     );
 
     if (!connectedAtA && !connectedAtB) {
@@ -122,8 +132,18 @@ export default function useHandleTechnicalReturn() {
       return;
     }
 
-    // 4. Determine which end is the contact point
-    const contactIsA = Boolean(connectedAtA);
+    // 4. Determine which end is the contact point.
+    // Prefer the endpoint connected to an annotation with a different template.
+    let contactIsA;
+    if (connectedAtA && connectedAtB) {
+      const diffA =
+        connectedAtA.annotationTemplateId !== annotation.annotationTemplateId;
+      const diffB =
+        connectedAtB.annotationTemplateId !== annotation.annotationTemplateId;
+      contactIsA = diffA || !diffB;
+    } else {
+      contactIsA = Boolean(connectedAtA);
+    }
     const contactRef = contactIsA ? pRefA : pRefB;
     const otherRef = contactIsA ? pRefB : pRefA;
     const connectedAnnotation = contactIsA ? connectedAtA : connectedAtB;
