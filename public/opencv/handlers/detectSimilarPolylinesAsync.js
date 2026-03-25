@@ -134,12 +134,19 @@ async function detectSimilarPolylinesAsync({ msg, payload }) {
     _centerOnMedian(dedupH, brightness, width, height, "H");
     _centerOnMedian(dedupV, brightness, width, height, "V");
 
+    // 9d. Fill dashed lines — merge consecutive segments on the same line
+    //     when the gap between them is actually covered by dark pixels.
+    //     This handles cases where noise/antialiasing causes the band scanner
+    //     to produce short gaps in what is visually a continuous line.
+    const filledH = _fillDashedLines(dedupH, brightness, width, height, "H");
+    const filledV = _fillDashedLines(dedupV, brightness, width, height, "V");
+
     // 10. Snap endpoints to perpendicular segments
     const snapTolerance = thickness * 2;
-    _snapEndpoints(dedupH, dedupV, snapTolerance);
+    _snapEndpoints(filledH, filledV, snapTolerance);
 
     // 11. Resolve topology — find intersections and split
-    const allSegments = _resolveTopology(dedupH, dedupV, mergeTolerance);
+    const allSegments = _resolveTopology(filledH, filledV, mergeTolerance);
 
     // 12. Convert to polylines [{x,y},{x,y}]
     const polylines = allSegments.map((seg) => {
@@ -580,6 +587,99 @@ function _centerOnMedian(segments, brightness, width, height, axis) {
       seg.position = centers[Math.floor(centers.length / 2)];
     }
   }
+}
+
+// ─── FILL DASHED LINES ───────────────────────────────────────────────────
+
+/**
+ * Post-processing pass: merge consecutive segments on the same line when
+ * the gap between them is covered by dark pixels in the source image.
+ *
+ * For each pair of consecutive segments (same axis, close position):
+ *   1. Compute the gap between seg[i].end and seg[i+1].start
+ *   2. Sample the brightness along the gap at the segment's position
+ *   3. If most of the gap pixels are dark (> 60% below threshold),
+ *      the gap is a continuous line that the band scanner missed → merge
+ */
+function _fillDashedLines(segments, brightness, width, height, axis) {
+  if (segments.length <= 1) return segments;
+
+  // Sort by position then by start
+  const sorted = [...segments].sort((a, b) => {
+    if (a.position !== b.position) return a.position - b.position;
+    return a.start - b.start;
+  });
+
+  // Use a generous brightness threshold for gap checking:
+  // if the gap contains pixels darker than this, it's a line not a real gap.
+  const gapDarkThreshold = 180;
+  const minDarkRatio = 0.6; // 60% of gap pixels must be dark
+
+  const result = [];
+  let current = { ...sorted[0] };
+
+  for (let i = 1; i < sorted.length; i++) {
+    const next = sorted[i];
+
+    // Only merge segments at the same position (within a few pixels)
+    const samePosition = Math.abs(next.position - current.position) <= 3;
+    if (!samePosition) {
+      result.push(current);
+      current = { ...next };
+      continue;
+    }
+
+    const gapStart = current.end + 1;
+    const gapEnd = next.start - 1;
+    const gapLen = gapEnd - gapStart + 1;
+
+    // No gap or overlapping → just merge
+    if (gapLen <= 0) {
+      current.end = Math.max(current.end, next.end);
+      continue;
+    }
+
+    // Sample the brightness along the gap at the segment's perpendicular position
+    let darkCount = 0;
+    const pos = Math.round((current.position + next.position) / 2);
+
+    if (axis === "H") {
+      // H segment: position = Y, start/end = X range
+      // Sample along X from gapStart to gapEnd at Y = pos
+      if (pos >= 0 && pos < height) {
+        for (let x = gapStart; x <= gapEnd; x++) {
+          if (x >= 0 && x < width && brightness[pos * width + x] < gapDarkThreshold) {
+            darkCount++;
+          }
+        }
+      }
+    } else {
+      // V segment: position = X, start/end = Y range
+      // Sample along Y from gapStart to gapEnd at X = pos
+      if (pos >= 0 && pos < width) {
+        for (let y = gapStart; y <= gapEnd; y++) {
+          if (y >= 0 && y < height && brightness[y * width + pos] < gapDarkThreshold) {
+            darkCount++;
+          }
+        }
+      }
+    }
+
+    const darkRatio = gapLen > 0 ? darkCount / gapLen : 0;
+
+    if (darkRatio >= minDarkRatio) {
+      // Gap is mostly dark → fill it, merge the two segments
+      current.end = Math.max(current.end, next.end);
+      current.position = Math.round((current.position + next.position) / 2);
+    } else {
+      // Real gap → keep them separate
+      result.push(current);
+      current = { ...next };
+    }
+  }
+  result.push(current);
+
+  return result;
 }
 
 // ─── SNAP ENDPOINTS ───────────────────────────────────────────────────────
