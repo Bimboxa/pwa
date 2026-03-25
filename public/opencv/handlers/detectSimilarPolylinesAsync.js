@@ -613,7 +613,7 @@ function _fillDashedLines(segments, brightness, width, height, axis) {
   // Use a generous brightness threshold for gap checking:
   // if the gap contains pixels darker than this, it's a line not a real gap.
   const gapDarkThreshold = 180;
-  const minDarkRatio = 0.6; // 60% of gap pixels must be dark
+  const minDarkRatio = 0.8; // 80% of gap pixels must be dark
 
   const result = [];
   let current = { ...sorted[0] };
