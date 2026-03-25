@@ -105,7 +105,7 @@ export default function useSaveTempAnnotations() {
                 strokeColor: tempAnn.strokeColor || "#2196f3", // Default blue if missing
                 fillColor: tempAnn.fillColor || "#2196f3",
 
-                closeLine: true // Force closed for polygons coming from temp
+                closeLine: tempAnn.closeLine !== undefined ? tempAnn.closeLine : true
             };
 
             await createAnnotation(_newAnnotation);

@@ -20,6 +20,7 @@ import IconSplitPolyline from "Features/icons/IconSplitPolyline";
 import IconSplitPolylineClick from "Features/icons/IconSplitPolylineClick";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import IconStrip from "Features/icons/IconStrip";
+import IconDetectSimilarPolylines from "Features/icons/IconDetectSimilarPolylines";
 
 import { getToolsForShape } from "Features/annotations/constants/drawingShapeConfig";
 
@@ -184,6 +185,14 @@ const DRAWING_TOOLS = [
     Icon: IconStrip,
     annotationType: "STRIP",
     behavior: "STRIP",
+  },
+  // DETECT_SIMILAR_POLYLINES tool (Auto-detect lines)
+  {
+    key: "DETECT_SIMILAR_POLYLINES",
+    label: "Détection auto.",
+    Icon: IconDetectSimilarPolylines,
+    annotationType: "POLYLINE",
+    behavior: "DETECT_SIMILAR_POLYLINES",
   },
 ];
 

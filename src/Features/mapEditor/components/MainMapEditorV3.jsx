@@ -301,7 +301,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     // handler - commit drawing
 
-    const _handleCommitDrawing = useHandleCommitDrawing();
+    const { handleDrawingCommit: _handleCommitDrawing, handleBulkCommit } = useHandleCommitDrawing();
     const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit();
     const handleCutSegment = useHandleCutSegment();
     const handleTechnicalReturn = useHandleTechnicalReturn();
@@ -1023,6 +1023,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     ref={interactionLayerRef}
                     showBgImage={showBgImage}
                     onCommitDrawing={({ points, event, cutHostId, options }) => {
+                        // Bulk commit for DETECT_SIMILAR_POLYLINES
+                        if (options?.bulkPolylines) {
+                            return handleBulkCommit(options.bulkPolylines, options);
+                        }
                         if (type === "SPLIT") {
                             return handleSplitCommit(points);
                         }

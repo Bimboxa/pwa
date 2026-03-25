@@ -1,34 +1,65 @@
 // components/layers/ScreenCursor.jsx
-import React, { forwardRef, useImperativeHandle, useRef } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
 
-const ScreenCursorV2 = forwardRef(({ newAnnotation, visible }, ref) => {
+const SPINNER_STYLE = `
+@keyframes cursor-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+`;
+
+const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0 }, ref) => {
     const vLineRef = useRef(null);
     const hLineRef = useRef(null);
     const groupRef = useRef(null);
+    const linesGroupRef = useRef(null);
+    const spinnerRef = useRef(null);
+    const lastPosRef = useRef({ x: 0, y: 0 });
+    const rotationAngleRef = useRef(rotationAngle);
+    useEffect(() => { rotationAngleRef.current = rotationAngle; }, [rotationAngle]);
 
     const color = newAnnotation?.strokeColor ?? newAnnotation?.fillColor ?? "red";
 
     useImperativeHandle(ref, () => ({
         move: (x, y) => {
+            lastPosRef.current = { x, y };
             if (!vLineRef.current || !hLineRef.current) return;
             vLineRef.current.setAttribute('x1', x);
             vLineRef.current.setAttribute('x2', x);
             hLineRef.current.setAttribute('y1', y);
             hLineRef.current.setAttribute('y2', y);
+            // Rotate lines around cursor position
+            if (linesGroupRef.current) {
+                linesGroupRef.current.setAttribute('transform', `rotate(${-rotationAngleRef.current}, ${x}, ${y})`);
+            }
+            if (spinnerRef.current) {
+                spinnerRef.current.setAttribute('cx', x);
+                spinnerRef.current.setAttribute('cy', y);
+            }
         },
 
         triggerFlash: () => {
             if (!groupRef.current) return;
-
-            // L'animation fonctionne maintenant car les enfants n'ont plus de stroke fixe
             groupRef.current.animate([
-                { stroke: 'white', strokeWidth: 4, strokeOpacity: 1 }, // Flash brillant
-                { stroke: color, strokeWidth: 1, strokeOpacity: 0.8 }  // Retour à la normale
+                { stroke: 'white', strokeWidth: 4, strokeOpacity: 1 },
+                { stroke: color, strokeWidth: 1, strokeOpacity: 0.8 }
             ], {
                 duration: 300,
                 easing: 'ease-out'
             });
-        }
+        },
+
+        showSpinner: () => {
+            if (spinnerRef.current) {
+                spinnerRef.current.style.display = '';
+            }
+        },
+
+        hideSpinner: () => {
+            if (spinnerRef.current) {
+                spinnerRef.current.style.display = 'none';
+            }
+        },
     }));
 
     if (!visible) return null;
@@ -37,25 +68,44 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible }, ref) => {
         <g
             ref={groupRef}
             style={{ pointerEvents: 'none' }}
-            // --- CORRECTION ICI ---
-            // On définit les styles par défaut sur le PARENT
             stroke={color}
             strokeWidth={1}
             strokeDasharray="4,2"
             strokeOpacity={0.8}
         >
-            <line
-                ref={vLineRef}
-                y1="0"
-                y2="100%"
-                // On garde vectorEffect ici car il ne s'hérite pas toujours bien
+            <style>{SPINNER_STYLE}</style>
+            <g ref={linesGroupRef}>
+                <line
+                    ref={vLineRef}
+                    y1="0"
+                    y2="100%"
+                    vectorEffect="non-scaling-stroke"
+                />
+                <line
+                    ref={hLineRef}
+                    x1="0"
+                    x2="100%"
+                    vectorEffect="non-scaling-stroke"
+                />
+            </g>
+            <circle
+                ref={spinnerRef}
+                cx={0}
+                cy={0}
+                r="12"
+                fill="none"
+                stroke="#00ff00"
+                strokeWidth="2.5"
+                strokeDasharray="20,12"
+                strokeLinecap="round"
+                strokeOpacity={1}
                 vectorEffect="non-scaling-stroke"
-            />
-            <line
-                ref={hLineRef}
-                x1="0"
-                x2="100%"
-                vectorEffect="non-scaling-stroke"
+                style={{
+                    display: 'none',
+                    animation: 'cursor-spin 0.8s linear infinite',
+                    transformOrigin: 'center',
+                    transformBox: 'fill-box',
+                }}
             />
         </g>
     );

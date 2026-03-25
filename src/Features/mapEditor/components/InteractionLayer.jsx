@@ -13,7 +13,7 @@ import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEdito
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setAnchorSourceAnnotationId, setOrthoSnapEnabled } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
-import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnotation } from 'Features/annotations/annotationsSlice';
+import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnotation, triggerAnnotationsUpdate } from 'Features/annotations/annotationsSlice';
 import {
   setAnchorPosition,
   setClickedNode,
@@ -38,6 +38,7 @@ import useAnnotationPermissions from 'Features/mapEditor/hooks/useAnnotationPerm
 import usePointDrag from 'Features/mapEditor/hooks/usePointDrag';
 import useAnnotationDrag from 'Features/mapEditor/hooks/useAnnotationDrag';
 import useDrawingCommit from 'Features/mapEditor/hooks/useDrawingCommit';
+import useSaveTempAnnotations from 'Features/mapEditor/hooks/useSaveTempAnnotations';
 import useBaseMapDrag from 'Features/mapEditor/hooks/useBaseMapDrag';
 import useVersionDrag from 'Features/mapEditor/hooks/useVersionDrag';
 import useCalibrationDrag from 'Features/mapEditor/hooks/useCalibrationDrag';
@@ -64,6 +65,7 @@ import HelperScale from 'Features/mapEditorGeneric/components/HelperScale';
 import MapTooltip from 'Features/mapEditorGeneric/components/MapTooltip';
 import SmartDetectLayer from 'Features/mapEditorGeneric/components/SmartDetectLayer';
 import TransientOrthoPathsLayer from 'Features/mapEditorGeneric/components/TransientOrthoPathsLayer';
+import TransientDetectedPolylinesLayer from 'Features/mapEditorGeneric/components/TransientDetectedPolylinesLayer';
 import TransientDetectedPolygonLayer from 'Features/mapEditorGeneric/components/TransientDetectedPolygonLayer';
 import detectPolygonFromAnnotations from 'Features/smartDetect/utils/detectPolygonFromAnnotations';
 import throttle from 'Features/misc/utils/throttle';
@@ -82,6 +84,8 @@ import getAnnotationEditionPanelAnchor from 'Features/annotations/utils/getAnnot
 import getAnnotationLabelPropsFromAnnotation from 'Features/annotations/utils/getAnnotationLabelPropsFromAnnotation';
 import toggleSelectedNodeFunction from '../utils/toggleSelectedNode';
 
+import { setToaster } from "Features/layout/layoutSlice";
+import db from "App/db/db";
 import cv from "Features/opencv/services/opencvService";
 import editor from "App/editor";
 import getTopMiddlePoint from 'Features/geometry/utils/getTopMiddlePoint';
@@ -173,6 +177,9 @@ const InteractionLayer = forwardRef(({
   const committedOrthoSegmentsRef = useRef([]); // accumulated committed segments for exclusion
   const transientDetectedPolygonRef = useRef(null);
   const detectedPolygonRef = useRef(null); // current polygon detection result { outerRing, cuts }
+  const transientDetectedPolylinesRef = useRef(null);
+  const detectedSimilarPolylinesRef = useRef(null); // {imageCoords, localCoords}
+  const cachedDetectImageUrlRef = useRef(null);
   const lastSmartROI = useRef(null); // pour la reconversion inverse Loupe => World.
   const lastMouseScreenPosRef = useRef({
     screenPos: { x: 0, y: 0 },
@@ -213,7 +220,6 @@ const InteractionLayer = forwardRef(({
   const orthoSnapEnabled = useSelector((s) => s.mapEditor.orthoSnapEnabled);
   const orthoSnapAngleOffset = useSelector((s) => s.mapEditor.orthoSnapAngleOffset);
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
-
   const { zoomContainer } = useSmartZoom();
 
   // permissions (ownership-based)
@@ -303,6 +309,9 @@ const InteractionLayer = forwardRef(({
 
   const handleSmartShapeDetected = (shape) => {
     // shape: { type: 'POINT'|'LINE'|'RECTANGLE', points: [] } ou null
+    // In DETECT_SIMILAR_POLYLINES mode, don't show preview on the map
+    if (enabledDrawingModeRef.current === "DETECT_SIMILAR_POLYLINES") return;
+
     detectedShapeRef.current = shape;
 
     if (transientDetectedShapeLayerRef.current) {
@@ -459,7 +468,7 @@ const InteractionLayer = forwardRef(({
     if (smartDetectRef.current) {
       // In POLYGON_CLICK mode, only update the loupe visual (no OpenCV analysis)
       // In POLYLINE_CLICK/STRIP mode without advancedLayout, also skip analysis (loupe only)
-      const smartModes = ["POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE", "SMART_DETECT"];
+      const smartModes = ["POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE", "SMART_DETECT", "DETECT_SIMILAR_POLYLINES"];
       const skipAnalysis = !smartModes.includes(enabledDrawingModeRef.current);
       smartDetectRef.current.update(viewportPos, sourceROI, { skipAnalysis });
     }
@@ -749,6 +758,8 @@ const InteractionLayer = forwardRef(({
     lastSmartROI,
   });
 
+  const saveTempAnnotations = useSaveTempAnnotations();
+
   const stateRef = useRef({
     selectedNode,
     selectedPointId,
@@ -1000,6 +1011,10 @@ const InteractionLayer = forwardRef(({
           transientOrthoPathsRef.current?.clear();
           // Clear polygon detection
           detectedPolygonRef.current = null;
+          // Clear detected similar polylines
+          detectedSimilarPolylinesRef.current = null;
+          transientDetectedPolylinesRef.current?.clear();
+          cachedDetectImageUrlRef.current = null;
           transientDetectedPolygonRef.current?.clear();
           break;
 
@@ -1011,6 +1026,35 @@ const InteractionLayer = forwardRef(({
           break;
 
         case ' ':
+          // --- DETECT_SIMILAR_POLYLINES: bulk commit all detected polylines ---
+          // Uses onCommitDrawingRef (same path as rectangle/polygon detection)
+          // with bulkPolylines option for batch creation.
+          if (detectedSimilarPolylinesRef.current) {
+            e.preventDefault();
+            const { localCoords, strokeWidth: detectedStrokeWidth } = detectedSimilarPolylinesRef.current;
+            if (localCoords && localCoords.length > 0) {
+              console.log("[DETECT_SIMILAR_POLYLINES] Bulk committing", localCoords.length, "polylines");
+              const na = newAnnotationRef.current || {};
+
+              // Override strokeWidth with detected thickness
+              const overrideAnnotation = detectedStrokeWidth
+                ? { ...na, strokeWidth: detectedStrokeWidth, strokeWidthUnit: "PX" }
+                : na;
+
+              const validPolylines = localCoords.filter((pl) => pl.length >= 2);
+              onCommitDrawingRef.current({
+                points: validPolylines[0] || [], // dummy, not used for bulk
+                options: {
+                  bulkPolylines: validPolylines,
+                  newAnnotation: overrideAnnotation,
+                },
+              });
+            }
+            detectedSimilarPolylinesRef.current = null;
+            transientDetectedPolylinesRef.current?.clear();
+            return;
+          }
+
           // --- POLYGON DETECTION: commit detected polygon ---
           if (detectedPolygonRef.current) {
             e.preventDefault();
@@ -1392,6 +1436,91 @@ const InteractionLayer = forwardRef(({
         drawingPointsRef.current = [];
       }
       // On error, keep current state
+      return;
+    }
+
+    // --- DETECT_SIMILAR_POLYLINES: full-image detection from click calibration ---
+    if (enabledDrawingMode === "DETECT_SIMILAR_POLYLINES") {
+      // Clear previous detection on re-click
+      detectedSimilarPolylinesRef.current = null;
+      transientDetectedPolylinesRef.current?.clear();
+
+      const localPos = toLocalCoords(worldPos);
+      const pixelX = (localPos.x - baseMapImageOffset.x) / baseMapImageScale;
+      const pixelY = (localPos.y - baseMapImageOffset.y) / baseMapImageScale;
+
+      // Gather visible annotation segments for exclusion mask.
+      // The `annotations` prop is already filtered by useAnnotationsV2 (layers, scopes,
+      // visibility, etc.) so only currently visible annotations are excluded.
+      // Convert from local coords to image pixel coords for the worker.
+      const existingSegments = (annotations || [])
+        .filter((a) => a.points && a.points.length >= 2 && ["POLYLINE", "POLYGON"].includes(a.type))
+        .map((a) =>
+          a.points.map((p) => ({
+            x: (p.x - baseMapImageOffset.x) / baseMapImageScale,
+            y: (p.y - baseMapImageOffset.y) / baseMapImageScale,
+          }))
+        );
+
+      // Lazy-build image data URL
+      if (!cachedDetectImageUrlRef.current && sourceImageEl) {
+        const canvas = document.createElement("canvas");
+        canvas.width = sourceImageEl.naturalWidth || sourceImageEl.width;
+        canvas.height = sourceImageEl.naturalHeight || sourceImageEl.height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(sourceImageEl, 0, 0);
+        cachedDetectImageUrlRef.current = canvas.toDataURL("image/jpeg", 0.9);
+      }
+
+      const imageUrl = cachedDetectImageUrlRef.current;
+      if (!imageUrl) return;
+
+      // Show spinner on cursor
+      screenCursorRef.current?.showSpinner?.();
+
+      (async () => {
+        try {
+          await cv.load();
+          const result = await cv.detectSimilarPolylinesAsync({
+            imageUrl,
+            clickX: pixelX,
+            clickY: pixelY,
+            existingSegments,
+            offsetAngle: orthoSnapAngleOffsetRef.current || 0,
+          });
+          console.log("[DETECT_SIMILAR_POLYLINES] Worker result:", result);
+          const segments = result?.polylines || (Array.isArray(result) ? result : []);
+          const detectedThickness = result?.thickness || 2;
+          // Convert thickness from image pixels to local coords
+          const localThickness = detectedThickness * baseMapImageScale;
+
+          if (segments && segments.length > 0) {
+            const localPolylines = segments.map(seg =>
+              seg.map(p => ({
+                x: p.x * baseMapImageScale + baseMapImageOffset.x,
+                y: p.y * baseMapImageScale + baseMapImageOffset.y,
+              }))
+            );
+            detectedSimilarPolylinesRef.current = {
+              imageCoords: segments,
+              localCoords: localPolylines,
+              strokeWidth: localThickness,
+            };
+            transientDetectedPolylinesRef.current?.updatePolylines(localPolylines);
+            dispatch(setToaster({
+              message: `${segments.length} segments detected — press [Space] to validate`,
+            }));
+          } else {
+            detectedSimilarPolylinesRef.current = null;
+            transientDetectedPolylinesRef.current?.clear();
+            dispatch(setToaster({ message: "No similar lines detected", isError: true }));
+          }
+        } catch (err) {
+          console.error("[DETECT_SIMILAR_POLYLINES] detection error:", err);
+        } finally {
+          screenCursorRef.current?.hideSpinner?.();
+        }
+      })();
       return;
     }
 
@@ -2696,6 +2825,7 @@ const InteractionLayer = forwardRef(({
             ref={screenCursorRef}
             visible={(!!enabledDrawingMode && !SEGMENT_SELECT_MODES.includes(enabledDrawingMode)) || dragState?.active}
             newAnnotation={newAnnotation}
+            rotationAngle={orthoSnapAngleOffset || 0}
           />
             <SnappingLayer
               ref={snappingLayerRef}
@@ -2800,6 +2930,7 @@ const InteractionLayer = forwardRef(({
             containerK={targetPose.k}
           />
           <TransientOrthoPathsLayer ref={transientOrthoPathsRef} />
+          <TransientDetectedPolylinesLayer ref={transientDetectedPolylinesRef} />
           <TransientDetectedPolygonLayer ref={transientDetectedPolygonRef} />
         </g>
 
@@ -3015,10 +3146,12 @@ const InteractionLayer = forwardRef(({
           enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetectRef.current}
           initialDetectMode={
             ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode) ? "RECTANGLE"
+            : enabledDrawingMode === "DETECT_SIMILAR_POLYLINES" ? "SIMILAR_LINE"
             : (enabledDrawingMode === "POLYLINE_CLICK" && advancedLayout) ? "ORTHO_PATHS"
             : undefined
           }
-          loupeOnly={!["POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE", "SMART_DETECT"].includes(enabledDrawingMode)}
+          loupeOnly={!["POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE", "SMART_DETECT", "DETECT_SIMILAR_POLYLINES"].includes(enabledDrawingMode)}
+          orthoSnapAngleOffset={orthoSnapAngleOffset}
         />, zoomContainer) : null}
       </>
 

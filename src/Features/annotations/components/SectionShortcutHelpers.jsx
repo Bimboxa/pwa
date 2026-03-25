@@ -7,22 +7,31 @@ export default function SectionShortcutHelpers() {
     // data
 
     const newAnnotationType = useSelector((s) => s.annotations.newAnnotation?.type);
+    const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
 
     // helpers
 
-    const shortcuts = [
-        {
-            key: <KeyboardReturnIcon sx={{ fontSize: '1rem' }} />,
-            label: "Terminer le dessin",
-        },
-        {
-            key: "Esc",
-            label: "Quitter le mode dessin",
-        },
-        ...(newAnnotationType === "STRIP"
-            ? [{ key: "S", label: "Inverser le sens de la bande" }]
-            : []),
-    ];
+    const isDetectSimilar = enabledDrawingMode === "DETECT_SIMILAR_POLYLINES";
+
+    const shortcuts = isDetectSimilar
+        ? [
+            { key: "Clic", label: "Cliquer sur une ligne pour détecter les lignes similaires" },
+            { key: "␣", label: "Valider les lignes détectées" },
+            { key: "Esc", label: "Quitter le mode dessin" },
+        ]
+        : [
+            {
+                key: <KeyboardReturnIcon sx={{ fontSize: '1rem' }} />,
+                label: "Terminer le dessin",
+            },
+            {
+                key: "Esc",
+                label: "Quitter le mode dessin",
+            },
+            ...(newAnnotationType === "STRIP"
+                ? [{ key: "S", label: "Inverser le sens de la bande" }]
+                : []),
+        ];
 
     return (
         <Box
