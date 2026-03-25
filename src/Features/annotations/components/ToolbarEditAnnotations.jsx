@@ -46,6 +46,7 @@ import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplate
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import IconButtonExtractStripBoundaries from "./IconButtonExtractStripBoundaries";
 import IconButtonReentrantAngles from "./IconButtonReentrantAngles";
+import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "./DatagridAnnotations";
@@ -95,6 +96,10 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
   const hasPolylinesAndPolygons =
     annotations.some((a) => a.type === "POLYLINE") &&
     annotations.some((a) => a.type === "POLYGON");
+
+  const hasPolylinesOrPolygons = annotations.some(
+    (a) => a.type === "POLYLINE" || a.type === "POLYGON"
+  );
 
   // helpers - can merge
 
@@ -397,6 +402,14 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
               {hasPolylinesAndPolygons && (
                 <IconButtonReentrantAngles
                   annotations={annotations}
+                  accentColor="#6366F1"
+                />
+              )}
+              {hasPolylinesOrPolygons && (
+                <IconButtonSplitInSegments
+                  annotations={annotations.filter(
+                    (a) => a.type === "POLYLINE" || a.type === "POLYGON"
+                  )}
                   accentColor="#6366F1"
                 />
               )}
