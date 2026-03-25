@@ -1449,10 +1449,18 @@ const InteractionLayer = forwardRef(({
       const pixelX = (localPos.x - baseMapImageOffset.x) / baseMapImageScale;
       const pixelY = (localPos.y - baseMapImageOffset.y) / baseMapImageScale;
 
-      // Gather visible annotation segments for deduplication
-      // Only exclude annotations that are currently visible on the map
-      // (annotations prop is already filtered by useAnnotationsV2: layers, scopes, etc.)
-      const existingSegments = []; // TODO: re-enable when exclusion logic is validated
+      // Gather visible annotation segments for exclusion mask.
+      // The `annotations` prop is already filtered by useAnnotationsV2 (layers, scopes,
+      // visibility, etc.) so only currently visible annotations are excluded.
+      // Convert from local coords to image pixel coords for the worker.
+      const existingSegments = (annotations || [])
+        .filter((a) => a.points && a.points.length >= 2 && ["POLYLINE", "POLYGON"].includes(a.type))
+        .map((a) =>
+          a.points.map((p) => ({
+            x: (p.x - baseMapImageOffset.x) / baseMapImageScale,
+            y: (p.y - baseMapImageOffset.y) / baseMapImageScale,
+          }))
+        );
 
       // Lazy-build image data URL
       if (!cachedDetectImageUrlRef.current && sourceImageEl) {
