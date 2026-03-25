@@ -268,6 +268,12 @@ class CV {
       payload
     });
   }
+  detectSimilarPolylinesAsync(payload) {
+    return this._dispatch({
+      msg: "detectSimilarPolylinesAsync",
+      payload,
+    });
+  }
 }
 
 // Export the same instant everywhere

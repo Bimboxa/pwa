@@ -27,6 +27,7 @@ self.importScripts("./handlers/addBackground.js");
 self.importScripts("./handlers/applyGrayLevelThresholdAsync.js");
 self.importScripts("./handlers/applyMorphologyAsync.js");
 self.importScripts("./handlers/traceOrthoPathsAsync.js");
+self.importScripts("./handlers/detectSimilarPolylinesAsync.js");
 /**
  * This exists to capture all the events that are thrown out of the worker
  * into the worker. Without this, there would be no communication possible
@@ -125,6 +126,9 @@ onmessage = function (e) {
 
     case "traceOrthoPathsAsync":
       return traceOrthoPathsAsync(e.data);
+
+    case "detectSimilarPolylinesAsync":
+      return detectSimilarPolylinesAsync(e.data);
 
     default:
       break;

@@ -27,6 +27,7 @@ const COLORS = {
     LINE: "#00ccff",     // Cyan
     RECTANGLE: "#FFD700", // Gold
     ORTHO_PATHS: "#00ff00", // Lime Green (same as POINT for ortho paths)
+    SIMILAR_LINE: "#00ff00", // Lime Green for detected similar lines
 };
 
 const ModeListItem = styled(ListItemButton, {
@@ -121,6 +122,7 @@ const SmartDetectLayer = forwardRef(({
         { key: "LINE", label: "Ligne", color: COLORS.LINE, shortcut: "L" },
         { key: "RECTANGLE", label: "Rect.", color: COLORS.RECTANGLE, shortcut: "R" },
         { key: "ORTHO_PATHS", label: "Ortho", color: COLORS.ORTHO_PATHS, shortcut: "O" },
+        { key: "SIMILAR_LINE", label: "Sim.", color: COLORS.SIMILAR_LINE, shortcut: "S" },
     ];
 
     // --- STATES ---
@@ -132,6 +134,7 @@ const SmartDetectLayer = forwardRef(({
     const [bestCorner, setBestCorner] = useState(null);
     const [bestLine, setBestLine] = useState(null);
     const [mainRectangle, setMainRectangle] = useState(null);
+    const [similarLines, setSimilarLines] = useState([]); // polylines from SIMILAR_LINE mode
 
     const [centerColor, setCenterColor] = useState(theme.palette.primary.main);
     //const contrastedColor = theme.palette.getContrastText(theme.palette.getContrastText(centerColor));
@@ -179,6 +182,7 @@ const SmartDetectLayer = forwardRef(({
             if (key === 'L') setSelectedDetectMode('LINE');
             if (key === 'R') setSelectedDetectMode('RECTANGLE');
             if (key === 'O') setSelectedDetectMode('ORTHO_PATHS');
+            if (key === 'S') setSelectedDetectMode('SIMILAR_LINE');
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
@@ -201,6 +205,28 @@ const SmartDetectLayer = forwardRef(({
         if (!imageUrl || !enabled || loupeOnly) return;
         // ORTHO_PATHS mode does not use continuous analysis — it runs on click
         if (selectedDetectMode === "ORTHO_PATHS") return;
+
+        // --- SIMILAR_LINE mode: use detectSimilarPolylinesAsync on the loupe image ---
+        if (selectedDetectMode === "SIMILAR_LINE") {
+            try {
+                await cv.load();
+                const centerX = loupeSize / 2;
+                const centerY = loupeSize / 2;
+                const result = await cv.detectSimilarPolylinesAsync({
+                    imageUrl,
+                    clickX: centerX,
+                    clickY: centerY,
+                    existingSegments: [],
+                    colorTolerance: 80,
+                });
+                const polylines = result?.polylines || [];
+                setSimilarLines(polylines);
+            } catch (e) {
+                setSimilarLines([]);
+            }
+            return;
+        }
+
         const currentKernelSize = stateRef.current.morphKernelSize;
 
         try {
@@ -337,6 +363,7 @@ const SmartDetectLayer = forwardRef(({
         LINE: !!bestLine,
         RECTANGLE: !!mainRectangle,
         ORTHO_PATHS: false, // ORTHO_PATHS detection happens on click, not continuously
+        SIMILAR_LINE: similarLines.length > 0,
     };
 
     // Est-ce que le mode ACTUEL a trouvé quelque chose ?
@@ -386,6 +413,16 @@ const SmartDetectLayer = forwardRef(({
                             fill="none" stroke={COLORS.LINE} strokeWidth="3"
                             style={{ animation: `${flashAnimation} 1.5s infinite ease-in-out` }}
                         />
+                    )}
+                    {selectedDetectMode === "SIMILAR_LINE" && similarLines.length > 0 && (
+                        similarLines.map((pl, i) => (
+                            <polyline
+                                key={i}
+                                points={pl.map(p => `${p.x},${p.y}`).join(' ')}
+                                fill="none" stroke={COLORS.SIMILAR_LINE} strokeWidth="3"
+                                style={{ animation: `${flashAnimation} 1.5s infinite ease-in-out` }}
+                            />
+                        ))
                     )}
                     {selectedDetectMode === "RECTANGLE" && mainRectangle && (
                         <polygon

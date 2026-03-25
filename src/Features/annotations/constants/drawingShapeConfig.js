@@ -77,6 +77,7 @@ const DRAWING_SHAPE_CONFIG = {
       "POLYLINE_RECTANGLE",
       "POLYLINE_CIRCLE",
       "STRIP",
+      "DETECT_SIMILAR_POLYLINES",
     ],
     configurableProps: [
       "strokeColor",
