@@ -88,16 +88,10 @@ export default function alignPolygonsToGrid(mainPoints, cuts, options = {}) {
     return { isOrthogonal, isCurved };
   });
 
-  // Build per-vertex snappable flag: both adjacent segments must be orthogonal
+  // Build per-vertex snappable flag
   const snappable = rotated.map((pts, polyIdx) => {
-    const n = pts.length;
     const { isOrthogonal } = classifications[polyIdx];
-    if (!isOrthogonal.length) return new Array(n).fill(false);
-    return pts.map((_, vi) => {
-      const segBefore = (vi - 1 + n) % n;
-      const segAfter = vi % isOrthogonal.length;
-      return isOrthogonal[segBefore] && isOrthogonal[segAfter];
-    });
+    return classifySnappableVertices(pts, isOrthogonal);
   });
 
   // -- Step 4: build shared grid from all snappable vertex coordinates
@@ -199,6 +193,32 @@ export default function alignPolygonsToGrid(mainPoints, cuts, options = {}) {
 
 const TWO_PI = 2 * Math.PI;
 const HALF_PI = Math.PI / 2;
+
+// ─── vertex snappability classification ─────────────────────────────
+
+/**
+ * For each vertex, determine if it should be snapped to the grid.
+ *
+ * A vertex is snappable if at least one of its adjacent segments is
+ * orthogonal (OR condition, not AND). This is needed to handle wall
+ * endpoints: the short transverse segment at the end of a wall is
+ * often slightly off-axis after OpenCV detection, but the wall itself
+ * (the long segment) IS orthogonal. Without this, wall endpoints would
+ * be excluded from grid snapping.
+ *
+ * Curved segments are safe: detectCurvedSegments already marks them as
+ * non-orthogonal, so a vertex between two curved segments remains
+ * non-snappable (false || false = false).
+ */
+function classifySnappableVertices(points, isOrthogonal) {
+  const n = points.length;
+  if (!isOrthogonal || !isOrthogonal.length) return new Array(n).fill(false);
+  return points.map((_, vi) => {
+    const segBefore = (vi - 1 + n) % n;
+    const segAfter = vi % isOrthogonal.length;
+    return isOrthogonal[segBefore] || isOrthogonal[segAfter];
+  });
+}
 
 // ─── rotation ───────────────────────────────────────────────────────
 
