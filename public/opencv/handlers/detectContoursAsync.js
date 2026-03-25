@@ -72,7 +72,7 @@ async function detectContoursAsync({ msg, payload }) {
 
     // --- 4b. DRAW EXISTING ANNOTATION BOUNDARIES AS BARRIERS ---
     if (boundaries?.length) {
-      drawBoundariesOnBinary(processedBinary, boundaries, 3);
+      drawBoundariesOnBinary(processedBinary, boundaries, track);
     }
 
     // --- 5. DÉFINITION DE LA ROI ---

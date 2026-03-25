@@ -1701,15 +1701,15 @@ const InteractionLayer = forwardRef(({
         };
       }
 
-      // Collect visible annotation boundaries as barriers (in source image pixel coords)
+      // Collect visible polygon annotations as filled barriers (in source image pixel coords).
+      // Only POLYGON (not POLYLINE) — surfaces are filled to avoid white gaps from stroke thickness.
       const boundaries = (annotations || [])
-        .filter(a => (a.type === "POLYLINE" || a.type === "POLYGON") && a.points?.length >= 2)
+        .filter(a => a.type === "POLYGON" && a.points?.length >= 3)
         .map(a => ({
           points: a.points.map(p => ({
             x: (p.x - baseMapImageOffset.x) / baseMapImageScale,
             y: (p.y - baseMapImageOffset.y) / baseMapImageScale,
           })),
-          closed: a.type === "POLYGON",
         }));
 
       const { points, cuts } = await cv.detectContoursAsync({
