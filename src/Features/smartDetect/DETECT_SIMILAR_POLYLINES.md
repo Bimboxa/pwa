@@ -21,6 +21,7 @@ Image source
   ↓ Merge colinear segments
   ↓ Deduplicate parallel segments (antialiasing collapse)
   ↓ Center on median line of dark band
+  ↓ Re-deduplicate (±2px tolerance after centering shifts)
   ↓ Fill dashed lines (bridge dark gaps on same axis)
   ↓ Grid alignment (snap to common grid)
   ↓ Cross-axis fill (bridge gaps between H/V endpoints on grid)
@@ -106,6 +107,10 @@ After merge, collapse segments at nearly the same position with overlapping rang
 ### 10. Center on median
 
 For each segment, sample the perpendicular brightness profile at several points. Find the center of the dark band (brightness < 200) and adjust `position` to the median center. Uses median for robustness against outliers.
+
+### 10b. Re-deduplicate after centering
+
+The `_centerOnMedian` step may shift segments from the same physical line to slightly different positions (±1-2px), especially after image rotation where interpolation creates sub-pixel offsets. A second `_deduplicateParallel` pass with a tight tolerance of **2px** collapses these back onto a single position. This ensures `_fillDashedLines` (which uses strict position matching `===`) sees all fragments of the same line at the exact same coordinate.
 
 ### 11. Fill dashed lines
 

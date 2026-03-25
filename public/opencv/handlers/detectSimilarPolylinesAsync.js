@@ -92,6 +92,19 @@ async function detectSimilarPolylinesAsync({ msg, payload }) {
           };
         })
       );
+
+      // Re-threshold the rotated image to eliminate interpolation blur.
+      // Canvas bilinear interpolation softens sharp black/white edges into gradients.
+      // Apply a hard threshold on the pixel data to restore crisp lines.
+      const threshold = 160; // slightly above 128 to be generous with rotated antialiasing
+      for (let i = 0; i < width * height; i++) {
+        const idx = i * 4;
+        const b = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
+        const v = b < threshold ? 0 : 255;
+        data[idx] = v;
+        data[idx + 1] = v;
+        data[idx + 2] = v;
+      }
     }
 
     // 2. Extract target color at click point
@@ -201,17 +214,23 @@ async function detectSimilarPolylinesAsync({ msg, payload }) {
     _centerOnMedian(dedupH, brightness, width, height, "H");
     _centerOnMedian(dedupV, brightness, width, height, "V");
 
-    // 9d. Fill dashed lines — merge consecutive segments on the same line
+    // 9d. Re-deduplicate after centering — centering may have shifted segments
+    //     from the same line to slightly different positions (±1px).
+    //     Collapse them again so _fillDashedLines sees a single position.
+    const reAlignedH = _deduplicateParallel(dedupH, 2);
+    const reAlignedV = _deduplicateParallel(dedupV, 2);
+
+    // 9e. Fill dashed lines — merge consecutive segments on the same line
     //     when the gap between them is actually covered by dark pixels.
     //     Skips gaps that overlap with existing annotations (excludedMask).
-    const filledH = _fillDashedLines(dedupH, brightness, width, height, "H", bandHeight, excludedMask);
-    const filledV = _fillDashedLines(dedupV, brightness, width, height, "V", bandHeight, excludedMask);
+    const filledH = _fillDashedLines(reAlignedH, brightness, width, height, "H", bandHeight, excludedMask);
+    const filledV = _fillDashedLines(reAlignedV, brightness, width, height, "V", bandHeight, excludedMask);
 
-    // 9e. Grid alignment — snap positions and endpoints to a common grid.
+    // 9f. Grid alignment — snap positions and endpoints to a common grid.
     const gridTolerance = Math.max(Math.round(thickness * 0.75), 2);
     _alignToGrid(filledH, filledV, gridTolerance);
 
-    // 9f. Cross-axis fill — collect ALL endpoints (from both H and V segments)
+    // 9g. Cross-axis fill — collect ALL endpoints (from both H and V segments)
     //     on each grid line and try to fill gaps between consecutive points.
     const { newH, newV } = _fillGridGaps(filledH, filledV, brightness, width, height, gridTolerance, excludedMask);
     const finalH = _mergeColinear([...filledH, ...newH], gridTolerance, mergeGap);
