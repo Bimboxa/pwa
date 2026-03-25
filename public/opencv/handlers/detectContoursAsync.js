@@ -12,6 +12,7 @@ async function detectContoursAsync({ msg, payload }) {
       morphIterations = 2,
       floodWindowSize = 256,
       viewportBBox,
+      boundaries,
     } = payload ?? {};
 
     if (!imageUrl || x === undefined || y === undefined) {
@@ -68,6 +69,11 @@ async function detectContoursAsync({ msg, payload }) {
 
     const processedBinary = track(new cv.Mat());
     cv.bitwise_not(closedInverted, processedBinary);
+
+    // --- 4b. DRAW EXISTING ANNOTATION BOUNDARIES AS BARRIERS ---
+    if (boundaries?.length) {
+      drawBoundariesOnBinary(processedBinary, boundaries, 3);
+    }
 
     // --- 5. DÉFINITION DE LA ROI ---
     let roiX = Math.max(0, pixelX - Math.floor(floodWindowSize / 2));

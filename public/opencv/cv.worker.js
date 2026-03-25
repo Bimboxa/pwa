@@ -16,6 +16,7 @@ self.importScripts("./handlers/fillHatchAsync.js");
 self.importScripts("./handlers/removeThinRegionsAsync.js");
 self.importScripts("./handlers/detectLinesAsync.js");
 self.importScripts("./handlers/detectTextAsync.js");
+self.importScripts("./handlers/drawBoundariesOnBinary.js");
 self.importScripts("./handlers/detectContoursAsync.js");
 self.importScripts("./handlers/detectStraightLineAsync.js");
 self.importScripts("./handlers/extractPolygonsFromMaskAsync.js");

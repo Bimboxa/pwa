@@ -92,6 +92,7 @@ import getTopMiddlePoint from 'Features/geometry/utils/getTopMiddlePoint';
 
 import getAnnotationBBox from 'Features/annotations/utils/getAnnotationBbox';
 import orthogonalizePolyline from 'Features/geometry/utils/orthogonalizePolyline';
+import alignPolygonsToGrid from 'Features/geometry/utils/alignPolygonsToGrid';
 
 import { useSmartZoom } from "App/contexts/SmartZoomContext";
 import useUndo from "App/db/useUndo";
@@ -1700,11 +1701,23 @@ const InteractionLayer = forwardRef(({
         };
       }
 
+      // Collect visible annotation boundaries as barriers (in source image pixel coords)
+      const boundaries = (annotations || [])
+        .filter(a => (a.type === "POLYLINE" || a.type === "POLYGON") && a.points?.length >= 2)
+        .map(a => ({
+          points: a.points.map(p => ({
+            x: (p.x - baseMapImageOffset.x) / baseMapImageScale,
+            y: (p.y - baseMapImageOffset.y) / baseMapImageScale,
+          })),
+          closed: a.type === "POLYGON",
+        }));
+
       const { points, cuts } = await cv.detectContoursAsync({
         imageUrl: baseMapImageUrl,
         x: pixelX,
         y: pixelY,
         viewportBBox,
+        boundaries,
       });
 
       // Convert returned points from source pixel coords back to local coords
@@ -1718,11 +1731,14 @@ const InteractionLayer = forwardRef(({
         points: cut.points.map(toLocal),
       }));
 
-      const localPoints = orthogonalizePolyline(rawLocalPoints);
-      const localCuts = rawLocalCuts?.map(cut => ({
-        ...cut,
-        points: orthogonalizePolyline(cut.points),
-      }));
+      const { points: localPoints, cuts: localCuts } = alignPolygonsToGrid(
+        rawLocalPoints,
+        rawLocalCuts,
+        {
+          referenceAngle: orthoSnapAngleOffsetRef.current || null,
+          meterByPx: baseMapMeterByPx || 0,
+        }
+      );
 
       const topMiddlePoint = getTopMiddlePoint(localPoints);
       const pose = getTargetPose(); // getTargetPose retourne basePose par défaut
