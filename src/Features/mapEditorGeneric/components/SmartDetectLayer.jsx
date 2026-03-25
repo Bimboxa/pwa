@@ -110,6 +110,7 @@ const SmartDetectLayer = forwardRef(({
     baseMapImageOffset = { x: 0, y: 0 },
     initialDetectMode,
     loupeOnly = false,
+    orthoSnapAngleOffset = 0,
 }, ref) => {
     const dispatch = useDispatch();
     const canvasRef = useRef(null);
@@ -218,6 +219,7 @@ const SmartDetectLayer = forwardRef(({
                     clickY: centerY,
                     existingSegments: [],
                     colorTolerance: 80,
+                    offsetAngle: orthoSnapAngleOffset || 0,
                 });
                 const polylines = result?.polylines || [];
                 setSimilarLines(polylines);

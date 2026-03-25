@@ -1486,6 +1486,7 @@ const InteractionLayer = forwardRef(({
             clickX: pixelX,
             clickY: pixelY,
             existingSegments,
+            offsetAngle: orthoSnapAngleOffsetRef.current || 0,
           });
           console.log("[DETECT_SIMILAR_POLYLINES] Worker result:", result);
           const segments = result?.polylines || (Array.isArray(result) ? result : []);
@@ -2824,6 +2825,7 @@ const InteractionLayer = forwardRef(({
             ref={screenCursorRef}
             visible={(!!enabledDrawingMode && !SEGMENT_SELECT_MODES.includes(enabledDrawingMode)) || dragState?.active}
             newAnnotation={newAnnotation}
+            rotationAngle={orthoSnapAngleOffset || 0}
           />
             <SnappingLayer
               ref={snappingLayerRef}
@@ -3149,6 +3151,7 @@ const InteractionLayer = forwardRef(({
             : undefined
           }
           loupeOnly={!["POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE", "SMART_DETECT", "DETECT_SIMILAR_POLYLINES"].includes(enabledDrawingMode)}
+          orthoSnapAngleOffset={orthoSnapAngleOffset}
         />, zoomContainer) : null}
       </>
 

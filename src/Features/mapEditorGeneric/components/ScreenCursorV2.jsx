@@ -1,5 +1,5 @@
 // components/layers/ScreenCursor.jsx
-import React, { forwardRef, useImperativeHandle, useRef } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
 
 const SPINNER_STYLE = `
 @keyframes cursor-spin {
@@ -8,12 +8,15 @@ const SPINNER_STYLE = `
 }
 `;
 
-const ScreenCursorV2 = forwardRef(({ newAnnotation, visible }, ref) => {
+const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0 }, ref) => {
     const vLineRef = useRef(null);
     const hLineRef = useRef(null);
     const groupRef = useRef(null);
+    const linesGroupRef = useRef(null);
     const spinnerRef = useRef(null);
     const lastPosRef = useRef({ x: 0, y: 0 });
+    const rotationAngleRef = useRef(rotationAngle);
+    useEffect(() => { rotationAngleRef.current = rotationAngle; }, [rotationAngle]);
 
     const color = newAnnotation?.strokeColor ?? newAnnotation?.fillColor ?? "red";
 
@@ -25,6 +28,10 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible }, ref) => {
             vLineRef.current.setAttribute('x2', x);
             hLineRef.current.setAttribute('y1', y);
             hLineRef.current.setAttribute('y2', y);
+            // Rotate lines around cursor position
+            if (linesGroupRef.current) {
+                linesGroupRef.current.setAttribute('transform', `rotate(${-rotationAngleRef.current}, ${x}, ${y})`);
+            }
             if (spinnerRef.current) {
                 spinnerRef.current.setAttribute('cx', x);
                 spinnerRef.current.setAttribute('cy', y);
@@ -67,18 +74,20 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible }, ref) => {
             strokeOpacity={0.8}
         >
             <style>{SPINNER_STYLE}</style>
-            <line
-                ref={vLineRef}
-                y1="0"
-                y2="100%"
-                vectorEffect="non-scaling-stroke"
-            />
-            <line
-                ref={hLineRef}
-                x1="0"
-                x2="100%"
-                vectorEffect="non-scaling-stroke"
-            />
+            <g ref={linesGroupRef}>
+                <line
+                    ref={vLineRef}
+                    y1="0"
+                    y2="100%"
+                    vectorEffect="non-scaling-stroke"
+                />
+                <line
+                    ref={hLineRef}
+                    x1="0"
+                    x2="100%"
+                    vectorEffect="non-scaling-stroke"
+                />
+            </g>
             <circle
                 ref={spinnerRef}
                 cx={0}

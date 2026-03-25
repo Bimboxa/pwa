@@ -23,17 +23,80 @@ async function detectSimilarPolylinesAsync({ msg, payload }) {
       clickY,
       existingSegments = [],
       colorTolerance = 80,
+      offsetAngle = 0, // degrees, counter-clockwise (trigonometric)
     } = payload;
 
     if (!imageUrl) throw new Error("imageUrl is required");
 
     // 1. Load image data
     const imageData = await loadImageDataFromUrl(imageUrl);
-    const { width, height, data } = imageData;
+    let { width, height, data } = imageData;
+
+    // 1b. If offsetAngle is set, rotate the image so building axes become H/V.
+    //     We rotate the image by -offsetAngle, run the H/V pipeline, then
+    //     rotate output coordinates back by +offsetAngle.
+    const angleRad = (offsetAngle * Math.PI) / 180;
+    let rotatedClickX = clickX;
+    let rotatedClickY = clickY;
+    let rotatedExistingSegments = existingSegments;
+    let origCenterX, origCenterY; // center of original image (rotation pivot)
+
+    if (offsetAngle !== 0) {
+      origCenterX = width / 2;
+      origCenterY = height / 2;
+
+      // Compute rotated image dimensions
+      const cosA = Math.abs(Math.cos(angleRad));
+      const sinA = Math.abs(Math.sin(angleRad));
+      const newWidth = Math.ceil(width * cosA + height * sinA);
+      const newHeight = Math.ceil(width * sinA + height * cosA);
+      const newCenterX = newWidth / 2;
+      const newCenterY = newHeight / 2;
+
+      // Rotate image pixels using OffscreenCanvas
+      const rotCanvas = new OffscreenCanvas(newWidth, newHeight);
+      const rotCtx = rotCanvas.getContext("2d");
+      // Fill with white (background)
+      rotCtx.fillStyle = "#ffffff";
+      rotCtx.fillRect(0, 0, newWidth, newHeight);
+      // Rotate around new center: translate to center, rotate, translate back
+      rotCtx.translate(newCenterX, newCenterY);
+      rotCtx.rotate(angleRad); // rotate image by -angle so building axes become H/V
+      rotCtx.translate(-origCenterX, -origCenterY);
+      // Draw original image
+      const origCanvas = new OffscreenCanvas(width, height);
+      const origCtx = origCanvas.getContext("2d");
+      const imgDataObj = new ImageData(new Uint8ClampedArray(data), width, height);
+      origCtx.putImageData(imgDataObj, 0, 0);
+      rotCtx.drawImage(origCanvas, 0, 0);
+      // Extract rotated image data
+      const rotImageData = rotCtx.getImageData(0, 0, newWidth, newHeight);
+      data = rotImageData.data;
+      width = newWidth;
+      height = newHeight;
+
+      // Rotate click point: apply same transform (rotate around orig center, then offset to new center)
+      const dx = clickX - origCenterX;
+      const dy = clickY - origCenterY;
+      rotatedClickX = dx * Math.cos(angleRad) - dy * Math.sin(angleRad) + newCenterX;
+      rotatedClickY = dx * Math.sin(angleRad) + dy * Math.cos(angleRad) + newCenterY;
+
+      // Rotate existing segments
+      rotatedExistingSegments = existingSegments.map((seg) =>
+        seg.map((p) => {
+          const pdx = p.x - origCenterX;
+          const pdy = p.y - origCenterY;
+          return {
+            x: pdx * Math.cos(angleRad) - pdy * Math.sin(angleRad) + newCenterX,
+            y: pdx * Math.sin(angleRad) + pdy * Math.cos(angleRad) + newCenterY,
+          };
+        })
+      );
+    }
 
     // 2. Extract target color at click point
-    const cx = Math.round(clickX);
-    const cy = Math.round(clickY);
+    const cx = Math.round(rotatedClickX);
+    const cy = Math.round(rotatedClickY);
     const targetColor = _extractClickColor(data, width, height, cx, cy);
 
     // 3. Build brightness array (for visual thickness measurement)
@@ -99,9 +162,9 @@ async function detectSimilarPolylinesAsync({ msg, payload }) {
     //    Two masks: clear isMatch for band scanning, and keep a separate
     //    excludedMask for the fill passes (which use brightness, not isMatch).
     const excludedMask = new Uint8Array(width * height); // 1 = excluded
-    if (existingSegments.length > 0) {
+    if (rotatedExistingSegments.length > 0) {
       const radius = thickness;
-      for (const seg of existingSegments) {
+      for (const seg of rotatedExistingSegments) {
         for (let i = 0; i < seg.length - 1; i++) {
           _rasterizeSegment(isMatch, width, height, seg[i], seg[i + 1], radius, 0);
           _rasterizeSegment(excludedMask, width, height, seg[i], seg[i + 1], radius, 1);
@@ -183,7 +246,25 @@ async function detectSimilarPolylinesAsync({ msg, payload }) {
       return Math.sqrt(dx * dx + dy * dy) >= minRunLength;
     });
 
-    postMessage({ msg, payload: { polylines: filtered, thickness: visualThickness } });
+    // 14. If image was rotated, rotate output coordinates back to original space
+    let finalPolylines = filtered;
+    if (offsetAngle !== 0) {
+      const newCenterX = width / 2;
+      const newCenterY = height / 2;
+      finalPolylines = filtered.map((pl) =>
+        pl.map((p) => {
+          // Rotate back by -angleRad (inverse of the +angleRad applied to the image)
+          const dx = p.x - newCenterX;
+          const dy = p.y - newCenterY;
+          return {
+            x: dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad) + origCenterX,
+            y: dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad) + origCenterY,
+          };
+        })
+      );
+    }
+
+    postMessage({ msg, payload: { polylines: finalPolylines, thickness: visualThickness } });
   } catch (err) {
     postMessage({ msg, error: err.message || String(err) });
   }
