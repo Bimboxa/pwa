@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Box, Typography, IconButton, CircularProgress } from "@mui/material";
 
 const KERNEL_SIZES = [
+  { size: 2, boxSize: 5 },
   { size: 3, boxSize: 8 },
   { size: 5, boxSize: 12 },
   { size: 7, boxSize: 16 },

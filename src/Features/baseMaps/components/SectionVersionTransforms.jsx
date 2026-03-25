@@ -44,6 +44,7 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ToolMergeVisibleAnnotations from "Features/baseMapEditor/components/ToolMergeVisibleAnnotations";
 import ToolMorphology from "Features/baseMapEditor/components/ToolMorphology";
 import convertToBlackAndWhite from "Features/images/utils/convertToBlackAndWhite";
+import convertToBinary from "Features/images/utils/convertToBinary";
 import addBackgroundToImage from "Features/images/utils/addBackgroundToImage";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -150,6 +151,12 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
     if (!versionUrl) return;
     const file = await convertToBlackAndWhite(versionUrl);
     if (file) handleTransformResult(file, "Noir et blanc");
+  }
+
+  async function handleBinary() {
+    if (!versionUrl) return;
+    const file = await convertToBinary(versionUrl);
+    if (file) handleTransformResult(file, "Binaire");
   }
 
   async function handleHalveSize() {
@@ -370,6 +377,12 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
           <ListItemButton onClick={handleBlackAndWhite} divider>
             <Typography variant="body2" color="text.secondary">
               Noir et blanc
+            </Typography>
+          </ListItemButton>
+
+          <ListItemButton onClick={handleBinary} divider>
+            <Typography variant="body2" color="text.secondary">
+              Binaire
             </Typography>
           </ListItemButton>
 
