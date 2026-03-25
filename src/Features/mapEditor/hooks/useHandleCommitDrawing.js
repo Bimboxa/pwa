@@ -8,13 +8,14 @@ import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation"
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 
-import { setOpenDialogCreateEntity } from "Features/entities/entitiesSlice";
-import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import { setOpenDialogCreateEntity, triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
+import { setNewAnnotation, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
 import db from "App/db/db";
 import getAnnotationTemplateFromNewAnnotation from "Features/annotations/utils/getAnnotationTemplateFromNewAnnotation";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useNewEntity from "Features/entities/hooks/useNewEntity";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 
 export default function useHandleCommitDrawing() {
@@ -40,6 +41,7 @@ export default function useHandleCommitDrawing() {
     const baseMap = useMainBaseMap();
     const resetNewAnnotation = useResetNewAnnotation();
     const activeLayerId = useSelector(s => s.layers?.activeLayerId);
+    const { value: selectedListing } = useSelectedListing();
 
     // helpers
 
@@ -361,5 +363,95 @@ export default function useHandleCommitDrawing() {
 
     }
 
-    return handleDrawingCommit
+    /**
+     * Bulk commit multiple polylines in a single batch.
+     * Used by DETECT_SIMILAR_POLYLINES to create many annotations at once.
+     *
+     * @param {Array<Array<{x,y}>>} polylines - Array of polylines, each being [{x,y},{x,y},...]
+     * @param {Object} options - { newAnnotation, strokeWidth }
+     */
+    const handleBulkCommit = async (polylines, options = {}) => {
+        const newAnnotation = options.newAnnotation ?? newAnnotationInState;
+        // Try baseMap from hook, then fallback to options.imageSize
+        const imageSize = baseMap?.getImageSize?.() ?? options.imageSize;
+        const { width, height } = imageSize ?? {};
+        if (!width || !height) {
+            console.error("[handleBulkCommit] No image size available. baseMap:", baseMap, "options.imageSize:", options.imageSize);
+            return;
+        }
+
+        // Resolve entity table from the selected listing
+        const entityTable = !isBaseMapAnnotation
+            ? (selectedListing?.table ?? selectedListing?.entityModel?.defaultTable)
+            : null;
+
+        const allPoints = [];
+        const allAnnotations = [];
+        const allEntities = [];
+
+        for (const polyline of polylines) {
+            if (!polyline || polyline.length < 2) continue;
+
+            // Entity (skip for baseMap annotations)
+            let entityId;
+            if (!isBaseMapAnnotation && entityTable) {
+                entityId = nanoid();
+                allEntities.push({
+                    id: entityId,
+                    listingId,
+                    projectId,
+                });
+            }
+
+            // Points
+            const pointRefs = [];
+            for (const pt of polyline) {
+                const pointId = nanoid();
+                allPoints.push({
+                    id: pointId,
+                    x: pt.x / width,
+                    y: pt.y / height,
+                    baseMapId,
+                    projectId,
+                    listingId,
+                    forMarker: false,
+                });
+                pointRefs.push({ id: pointId, type: "square" });
+            }
+
+            // Annotation
+            const annotation = {
+                ...newAnnotation,
+                id: nanoid(),
+                type: "POLYLINE",
+                entityId,
+                baseMapId,
+                projectId,
+                listingId,
+                ...(activeLayerId && !isBaseMapAnnotation ? { layerId: activeLayerId } : {}),
+                points: pointRefs,
+                closeLine: false,
+                ...(isBaseMapAnnotation ? { isBaseMapAnnotation: true } : {}),
+            };
+            allAnnotations.push(annotation);
+        }
+
+        // Bulk write — points and annotations always, entities if we have a table
+        const tables = [db.points, db.annotations];
+        if (entityTable && allEntities.length > 0) tables.push(db[entityTable]);
+
+        await db.transaction("rw", tables, async () => {
+            if (allPoints.length > 0) await db.points.bulkAdd(allPoints);
+            if (entityTable && allEntities.length > 0) await db[entityTable].bulkAdd(allEntities);
+            if (allAnnotations.length > 0) await db.annotations.bulkAdd(allAnnotations);
+        });
+
+        // Single Redux update at the end
+        dispatch(triggerAnnotationsUpdate());
+        if (entityTable) dispatch(triggerEntitiesTableUpdate(entityTable));
+
+        console.log(`[handleBulkCommit] Created ${allAnnotations.length} annotations, ${allPoints.length} points, ${allEntities.length} entities in table "${entityTable}"`);
+    };
+
+    return { handleDrawingCommit, handleBulkCommit };
 }

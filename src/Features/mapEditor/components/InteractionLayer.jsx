@@ -1026,40 +1026,29 @@ const InteractionLayer = forwardRef(({
           break;
 
         case ' ':
-          // --- DETECT_SIMILAR_POLYLINES: commit all detected polylines via saveTempAnnotations ---
+          // --- DETECT_SIMILAR_POLYLINES: bulk commit all detected polylines ---
+          // Uses onCommitDrawingRef (same path as rectangle/polygon detection)
+          // with bulkPolylines option for batch creation.
           if (detectedSimilarPolylinesRef.current) {
             e.preventDefault();
             const { localCoords, strokeWidth: detectedStrokeWidth } = detectedSimilarPolylinesRef.current;
             if (localCoords && localCoords.length > 0) {
-              console.log("[DETECT_SIMILAR_POLYLINES] Committing", localCoords.length, "polylines, sample:", localCoords[0]);
+              console.log("[DETECT_SIMILAR_POLYLINES] Bulk committing", localCoords.length, "polylines");
               const na = newAnnotationRef.current || {};
 
-              // Build temp annotations array for saveTempAnnotations
-              // Points are in local coords (pixels) — saveTempAnnotations normalizes them
-              const tempAnns = localCoords
-                .filter((pl) => pl.length >= 2)
-                .map((polyline) => ({
-                  type: "POLYLINE",
-                  annotationTemplateId: na.annotationTemplateId,
-                  drawingShape: na.drawingShape,
-                  strokeColor: na.strokeColor || "#000000",
-                  strokeWidth: detectedStrokeWidth || na.strokeWidth || 2,
-                  strokeWidthUnit: "PX",
-                  strokeOpacity: na.strokeOpacity ?? 1,
-                  strokeType: na.strokeType || "SOLID",
-                  strokeOffset: na.strokeOffset,
-                  points: polyline,
-                  closeLine: false,
-                }));
+              // Override strokeWidth with detected thickness
+              const overrideAnnotation = detectedStrokeWidth
+                ? { ...na, strokeWidth: detectedStrokeWidth, strokeWidthUnit: "PX" }
+                : na;
 
-              (async () => {
-                try {
-                  await saveTempAnnotations(tempAnns);
-                  console.log("[DETECT_SIMILAR_POLYLINES] Commit done:", tempAnns.length, "annotations");
-                } catch (err) {
-                  console.error("[DETECT_SIMILAR_POLYLINES] Commit error:", err);
-                }
-              })();
+              const validPolylines = localCoords.filter((pl) => pl.length >= 2);
+              onCommitDrawingRef.current({
+                points: validPolylines[0] || [], // dummy, not used for bulk
+                options: {
+                  bulkPolylines: validPolylines,
+                  newAnnotation: overrideAnnotation,
+                },
+              });
             }
             detectedSimilarPolylinesRef.current = null;
             transientDetectedPolylinesRef.current?.clear();
