@@ -51,7 +51,7 @@ export default function useEntities(options) {
   const selectedListing = listings?.find((l) => l?.id === selectedListingId);
   const entitiesUpdatedAt = useSelector((s) => s.entities.entitiesUpdatedAt);
   const annotationTemplates = useAnnotationTemplates();
-  const annotations = useAnnotationsV2({ withQties });
+  const annotations = useAnnotationsV2({ caller: "useEntities", withQties });
 
   // helpers
   const annotationTemplatesById = getItemsByKey(annotationTemplates, "id");

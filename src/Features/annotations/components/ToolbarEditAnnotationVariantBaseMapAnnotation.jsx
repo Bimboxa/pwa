@@ -61,12 +61,6 @@ export default function ToolbarEditAnnotationVariantBaseMapAnnotation() {
     await updateEntity(entityId, { label });
   }
 
-  async function handleToggleFWC(fwc) {
-    const entityId = selectedAnnotation?.entityId;
-    if (!entityId) return;
-    await updateEntity(entityId, { fwc });
-  }
-
   return (
     <Paper elevation={6} sx={{ display: "flex", alignItems: "center", p: 0.5 }}>
       <PopperDragHandle>

@@ -45,16 +45,6 @@ const projectConfigExample = {
           label: "Code Catégorie",
           type: "text",
         },
-        fwc: {
-          key: "fwc",
-          label: "Sol/Mur/Plafond",
-          type: "optionsObject",
-          options: [
-            {key: "floor", label: "Sol"},
-            {key: "wall", label: "Mur"},
-            {key: "ceiling", label: "Plafond"},
-          ],
-        },
       },
       formView: [
         {
@@ -70,7 +60,6 @@ const projectConfigExample = {
             {key: "categoryCode"},
             {key: "categoryId"},
             {section: "Localisation"},
-            {key: "fwc"},
           ],
         },
       ],

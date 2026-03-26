@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setShowBgImageInMapEditor } from "Features/bgImage/bgImageSlice";
+import { setShowPrintableMap } from "Features/mapEditor/mapEditorSlice";
 import useDownladPdfReport from "../hooks/useDownladPdfReport";
 import usePdfReportName from "../hooks/usePdfReportName";
 
@@ -65,6 +66,8 @@ export default function SectionPdfReportInMapEditor() {
     async function handleGenerateClick(e) {
         e.stopPropagation();
         setLoading(true);
+        dispatch(setShowPrintableMap(true));
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         try {
             await exportPdf({
                 svgElement: editor.printableMapSvgElement,
@@ -74,6 +77,7 @@ export default function SectionPdfReportInMapEditor() {
         } catch (error) {
             console.error(error);
         }
+        dispatch(setShowPrintableMap(false));
         setLoading(false);
     }
 

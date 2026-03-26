@@ -40,6 +40,7 @@ export default function PanelAnnotationTemplateProperties() {
     const hideBaseMapAnnotations = openedPanel !== "BASE_MAP_DETAIL";
 
     const allAnnotations = useAnnotationsV2({
+        caller: "PanelAnnotationTemplateProperties",
         excludeListingsIds: hiddenListingsIds,
         hideBaseMapAnnotations,
         filterByMainBaseMap: true,

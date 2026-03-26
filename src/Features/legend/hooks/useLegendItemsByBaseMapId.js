@@ -10,6 +10,7 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
   const annotationTemplates = useAnnotationTemplates();
 
   const allAnnotations = useAnnotationsV2({
+    caller: "useLegendItemsByBaseMapId",
     filterByBaseMapId: baseMapId,
     filterBySelectedScope: true,
     withListingName: true,

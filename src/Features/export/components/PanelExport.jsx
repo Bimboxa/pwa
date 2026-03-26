@@ -5,6 +5,7 @@ import { Switch, Box, Typography, CircularProgress, Divider, FormControlLabel } 
 import { Download as DownloadIcon } from "@mui/icons-material";
 
 import { setShowBgImageInMapEditor } from "Features/bgImage/bgImageSlice";
+import { setShowPrintableMap } from "Features/mapEditor/mapEditorSlice";
 import useDownladPdfReport from "Features/pdfReport/hooks/useDownladPdfReport";
 import usePdfReportName from "Features/pdfReport/hooks/usePdfReportName";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
@@ -61,6 +62,9 @@ export default function PanelExport() {
 
     async function handleGenerateClick() {
         setLoading(true);
+        dispatch(setShowPrintableMap(true));
+        // Wait for PrintableMap to mount and render
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         try {
             await exportPdf({
                 svgElement: editor.printableMapSvgElement,
@@ -70,6 +74,7 @@ export default function PanelExport() {
         } catch (error) {
             console.error(error);
         }
+        dispatch(setShowPrintableMap(false));
         setLoading(false);
     }
 

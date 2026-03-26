@@ -9,7 +9,7 @@ export default function TabBaseMapAnnotations({ baseMap }) {
 
     // data
 
-    const annotations = useAnnotationsV2({ baseMapAnnotationsOnly: true });
+    const annotations = useAnnotationsV2({ caller: "TabBaseMapAnnotations", baseMapAnnotationsOnly: true });
 
     console.log("annotations", annotations)
 

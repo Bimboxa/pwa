@@ -5,7 +5,6 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
-import useNewEntity from "Features/entities/hooks/useNewEntity";
 import splitPolylineAtVertex from "Features/mapEditor/utils/splitPolylineAtVertex";
 import { setToaster } from "Features/layout/layoutSlice";
 
@@ -27,14 +26,13 @@ function normalizeSnap(snap) {
   };
 }
 
-export default function useHandleSplitPolylineClick() {
+export default function useHandleSplitPolylineClick({ newEntity } = {}) {
   const dispatch = useDispatch();
   const baseMap = useMainBaseMap();
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const listingId = useSelector((s) => s.listings.selectedListingId);
   const createEntity = useCreateEntity();
-  const newEntity = useNewEntity();
   const createAnnotation = useCreateAnnotation();
   const updateAnnotation = useUpdateAnnotation();
 

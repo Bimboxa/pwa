@@ -47,6 +47,7 @@ export default function PanelMapSummary() {
 
   const annotations = useAnnotations({ filterByBaseMapId: baseMapId });
   const annotationsV2 = useAnnotationsV2({
+    caller: "PanelMapSummary",
     filterByBaseMapId: baseMapId,
     excludeBgAnnotations: true,
     withQties: true,

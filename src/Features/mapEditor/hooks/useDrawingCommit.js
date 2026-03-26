@@ -54,6 +54,7 @@ export default function useDrawingCommit({
     const pointsToSave = drawingPointsRef.current;
     if (pointsToSave.length === 1) {
       console.log("COMMIT POINT", pointsToSave);
+      performance.mark("marker-commit-start");
       onCommitDrawingRef.current({ points: pointsToSave });
     } else {
       console.log("⚠️ erreur création d'un point.");

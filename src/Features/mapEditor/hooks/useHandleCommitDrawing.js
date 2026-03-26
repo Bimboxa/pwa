@@ -14,11 +14,10 @@ import { setNewAnnotation, triggerAnnotationsUpdate } from "Features/annotations
 import db from "App/db/db";
 import getAnnotationTemplateFromNewAnnotation from "Features/annotations/utils/getAnnotationTemplateFromNewAnnotation";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
-import useNewEntity from "Features/entities/hooks/useNewEntity";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 
-export default function useHandleCommitDrawing() {
+export default function useHandleCommitDrawing({ newEntity } = {}) {
 
     // dispatch
 
@@ -33,7 +32,6 @@ export default function useHandleCommitDrawing() {
     const openedPanel = useSelector(s => s.listings.openedPanel);
 
     const createEntity = useCreateEntity();
-    const newEntity = useNewEntity();
 
     const updateAnnotation = useUpdateAnnotation();
     const createAnnotation = useCreateAnnotation();

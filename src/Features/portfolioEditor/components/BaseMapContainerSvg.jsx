@@ -36,6 +36,7 @@ export default function BaseMapContainerSvg({
   const baseMap = useBaseMap({ id: container.baseMapId });
   const spriteImage = useAnnotationSpriteImage();
   const annotations = useAnnotationsV2({
+    caller: "BaseMapContainerSvg",
     filterByBaseMapId: container.baseMapId,
     filterBySelectedScope: true,
     excludeIsForBaseMapsListings: true,

@@ -6,6 +6,7 @@ import {
   setShowBgImageInMapEditor,
   setBgImageRawTextAnnotations,
 } from "Features/bgImage/bgImageSlice";
+import { setShowPrintableMap } from "Features/mapEditor/mapEditorSlice";
 
 import useBgImageFormItem from "Features/bgImage/hooks/useBgImageFormItem";
 import useBgImageFormTemplate from "Features/bgImage/hooks/useBgImageFormTemplate";
@@ -54,12 +55,15 @@ export default function PanelPdfReport() {
 
   async function handleGenerateClick() {
     setLoading(true);
+    dispatch(setShowPrintableMap(true));
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     console.log("handleGenerateClick");
     await exportPdf({
       svgElement: editor.printableMapSvgElement,
       name: title,
       addTable: true,
     });
+    dispatch(setShowPrintableMap(false));
     setLoading(false);
   }
 

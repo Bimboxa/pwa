@@ -1289,6 +1289,8 @@ export default function PopperMapListings() {
 
   // single annotation source for all counts
   const allAnnotations = useAnnotationsV2({
+    caller: "PopperMapListings",
+    enabled: viewerKey === "MAP" || viewerKey === "BASE_MAPS",
     filterByMainBaseMap: true,
     hideBaseMapAnnotations: true,
     excludeBgAnnotations: true,

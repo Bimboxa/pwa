@@ -13,7 +13,7 @@ export default function ToolMergeAnnotations({ baseMap }) {
 
     // data
 
-    const baseMapAnnotations = useAnnotationsV2({ baseMapAnnotationsOnly: true });
+    const baseMapAnnotations = useAnnotationsV2({ caller: "ToolMergeAnnotations", baseMapAnnotationsOnly: true });
     const createVersion = useCreateBaseMapVersion();
 
     // handlers

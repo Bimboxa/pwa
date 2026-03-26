@@ -21,6 +21,7 @@ export default function useDownladPdfReport() {
   const orgaLogoUrl = useOrgaLogoUrl();
 
   const annotations = useAnnotationsV2({
+    caller: "useDownladPdfReport",
     addDemoAnnotations: false,
     filterByBaseMapId: mainBaseMap?.id,
     excludeListingsIds: hiddenListingsIds,

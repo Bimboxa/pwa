@@ -14,7 +14,7 @@ import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {}) {
   // --- DATA ---
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const annotations = useAnnotationsV2({ filterByProjectId: projectId });
+  const annotations = useAnnotationsV2({ caller: "useAnnotationTemplateQtiesById", filterByProjectId: projectId });
   const annotationTemplates = useAnnotationTemplates();
   const { value: baseMaps } = useBaseMaps({ filterByProjectId: projectId }) ?? {};
 

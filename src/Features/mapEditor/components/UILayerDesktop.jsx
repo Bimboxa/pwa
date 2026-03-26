@@ -9,7 +9,6 @@ import { GpsFixed } from "@mui/icons-material";
 
 import ButtonEditScaleVariantFirst from "./ButtonEditScaleVariantFirst";
 import ButtonAutoLayoutLabels from "Features/tools/components/ButtonAutoLayoutLabels";
-import SectionShowedFWC from "Features/fwc/components/SectionShowedFWC";
 import ButtonRunningTransform from "Features/baseMapTransforms/components/ButtonRunningTransform";
 import SelectorMapEditorMode from "./SelectorMapEditorMode";
 import SelectorOrthoSnap from "./SelectorOrthoSnap";
@@ -103,16 +102,6 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                 <ButtonAutoLayoutLabels basePose={basePose} />
             </Box> */}
 
-            <Box sx={{
-                position: "absolute",
-                left: "8px",
-                top: "8px",
-                zIndex: 1,
-                display: "flex",
-                alignItems: "center",
-            }}>
-                <SectionShowedFWC />
-            </Box>
 
 
             <Box sx={{

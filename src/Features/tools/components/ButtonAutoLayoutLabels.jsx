@@ -23,6 +23,7 @@ export default function ButtonAutoLayoutLabels({ basePose }) {
     const mainBaseMap = useMainBaseMap();
 
     const annotations = useAnnotationsV2({
+        caller: "ButtonAutoLayoutLabels",
         addDemoAnnotations: false,
         filterByBaseMapId: mainBaseMap?.id,
         excludeListingsIds: hiddenListingsIds,

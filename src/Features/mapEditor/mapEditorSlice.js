@@ -89,6 +89,9 @@ const mapEditorInitialState = {
   // ortho snap
   orthoSnapEnabled: false,
   orthoSnapAngleOffset: 0, // degrees
+
+  // printable map (lazy mount for export/pdf only)
+  showPrintableMap: false,
 };
 
 export const mapEditorSlice = createSlice({
@@ -342,6 +345,9 @@ export const mapEditorSlice = createSlice({
     setOrthoSnapAngleOffset: (state, action) => {
       state.orthoSnapAngleOffset = action.payload;
     },
+    setShowPrintableMap: (state, action) => {
+      state.showPrintableMap = action.payload;
+    },
   },
 });
 
@@ -437,6 +443,9 @@ export const {
   // ortho snap
   setOrthoSnapEnabled,
   setOrthoSnapAngleOffset,
+
+  // printable map
+  setShowPrintableMap,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;

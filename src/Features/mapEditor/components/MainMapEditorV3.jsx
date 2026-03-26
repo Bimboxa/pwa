@@ -80,6 +80,7 @@ import useHandleCutSegment from "../hooks/useHandleCutSegment";
 import useHandleTechnicalReturn from "../hooks/useHandleTechnicalReturn";
 import useHandleSplitPolyline from "../hooks/useHandleSplitPolyline";
 import useHandleSplitPolylineClick from "../hooks/useHandleSplitPolylineClick";
+import useNewEntity from "Features/entities/hooks/useNewEntity";
 import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import fitBoundsToViewport from "../utils/fitBoundsToViewport";
@@ -104,7 +105,21 @@ const contextNormalStyle = {
 };
 
 
+// Render tracker — logs which values changed between renders
+const _prevValues = {};
+function _track(label, value) {
+    const prev = _prevValues[label];
+    const serialized = typeof value === "object" ? JSON.stringify(value)?.slice(0, 80) : String(value);
+    const prevSerialized = typeof prev === "object" ? JSON.stringify(prev)?.slice(0, 80) : String(prev);
+    if (prevSerialized !== serialized) {
+        console.log(`[debug_perf] ⚡ CHANGED: ${label}`, prevSerialized?.slice(0, 40), "→", serialized?.slice(0, 40));
+        _prevValues[label] = value;
+    }
+    return value;
+}
+
 export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
+    console.log(`[debug_perf] MainMapEditorV3 RENDER forViewerKey=${forViewerKey}`);
     const dispatch = useDispatch();
 
     // const
@@ -134,12 +149,17 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const projectId = useSelector((state) => state.projects.selectedProjectId);
     const listingId = useSelector((state) => state.listings.selectedListingId);
     const spriteImage = useAnnotationSpriteImage();
+    _track("spriteImage", spriteImage?.src);
     const enabledDrawingMode = useSelector((state) => state.mapEditor.enabledDrawingMode);
+    _track("enabledDrawingMode", enabledDrawingMode);
     const mapEditorMode = useSelector((state) => state.mapEditor.mapEditorMode);
 
     // Selection from new Redux slice
     const { nodes: selectedNodes, node: selectedNode } = useSelectedNodes();
+    _track("selectedNodes", selectedNodes);
+    _track("selectedNode", selectedNode?.nodeId);
     const selectedItems = useSelector(selectSelectedItems);
+    _track("selectedItems", selectedItems);
 
     const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
     const grayLevelThreshold = useSelector((s) => s.baseMapEditor.grayLevelThreshold);
@@ -170,6 +190,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     useAutoShowBgImage();
     const bgImage = useBgImageInMapEditor();
+    _track("bgImage", bgImage?.url);
     const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
     const showBgImageRef = useRef(showBgImage);
     useEffect(() => {
@@ -192,12 +213,15 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // baseMaps
 
     const { value: baseMaps } = useBaseMaps();
+    _track("baseMaps.length", baseMaps?.length);
 
     // baseMap
     const baseMap = useMainBaseMap();
+    _track("baseMap", baseMap?.id);
 
     const baseMapOpacity = useSelector((s) => s.mapEditor.baseMapOpacity);
     const baseMapGrayScale = useSelector((s) => s.mapEditor.baseMapGrayScale);
+    const showPrintableMap = useSelector((s) => s.mapEditor.showPrintableMap);
 
     useEffect(() => {
         if (baseMap && bgImage) {
@@ -228,7 +252,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         dispatch(setBaseMapPoseInBg(newPose));
     };
     const isBaseMapSelected = showBgImage && selectedNode?.nodeType === "BASE_MAP";
-    console.log("isBaseMapSelected", isBaseMapSelected, selectedNode)
 
     // annotation
 
@@ -240,7 +263,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const openedPanel = useSelector(s => s.listings.openedPanel);
     const hideBaseMapAnnotations = openedPanel !== "BASE_MAP_DETAIL";
 
+    _track("newAnnotation", newAnnotation?.id);
     const annotations = useAnnotationsV2({
+        caller: "MainMapEditorV3",
+        enabled: isActiveViewer,
         withEntity: true,
         excludeListingsIds: hiddenListingsIds,
         hideBaseMapAnnotations,
@@ -250,6 +276,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         excludeIsForBaseMapsListings: false,
         onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
     });
+
+    _track("annotations.length", annotations?.length);
 
     // legend
 
@@ -313,12 +341,15 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     // handler - commit drawing
 
-    const { handleDrawingCommit: _handleCommitDrawing, handleBulkCommit } = useHandleCommitDrawing();
-    const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit();
-    const handleCutSegment = useHandleCutSegment();
-    const handleTechnicalReturn = useHandleTechnicalReturn({ annotations });
-    const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline();
-    const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick();
+    _track("legendItems.length", legendItems?.length);
+    const newEntity = useNewEntity();
+    _track("newEntity", newEntity);
+    const { handleDrawingCommit: _handleCommitDrawing, handleBulkCommit } = useHandleCommitDrawing({ newEntity });
+    const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit({ newEntity });
+    const handleCutSegment = useHandleCutSegment({ newEntity });
+    const handleTechnicalReturn = useHandleTechnicalReturn({ annotations, newEntity });
+    const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline({ newEntity });
+    const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick({ newEntity });
     const saveTempAnnotations = useSaveTempAnnotations();
 
     const handleCommitDrawing = (rawPoints, options) => {
@@ -1191,21 +1222,23 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 />
             )}
 
-            <PrintableMap
-                ref={printableMapRef}
-                bgImageUrl={bgImage?.url}
-                bgImageSize={bgImage?.imageSize}
-                showBgImage={showBgImage}
-                basePose={basePose}
-                baseMapImageUrl={baseMap?.getUrl()}
-                baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
-                annotations={annotations}
-                spriteImage={spriteImage}
-                baseMapMeterByPx={baseMap?.getMeterByPx()}
-                legendItems={legendItems}
-                legendFormat={legendFormat}
-                versions={baseMap?.versions}
-            />
+            {showPrintableMap && (
+                <PrintableMap
+                    ref={printableMapRef}
+                    bgImageUrl={bgImage?.url}
+                    bgImageSize={bgImage?.imageSize}
+                    showBgImage={showBgImage}
+                    basePose={basePose}
+                    baseMapImageUrl={baseMap?.getUrl()}
+                    baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
+                    annotations={annotations}
+                    spriteImage={spriteImage}
+                    baseMapMeterByPx={baseMap?.getMeterByPx()}
+                    legendItems={legendItems}
+                    legendFormat={legendFormat}
+                    versions={baseMap?.versions}
+                />
+            )}
 
             <DialogDeleteSelectedAnnotation />
             <DialogAutoCreateEntity />
