@@ -63,7 +63,7 @@ export default function PortfolioTree() {
 
       <ListItemButton onClick={() => setOpenDialog(true)} sx={{ py: 1 }}>
         <Typography variant="body2" color="text.secondary">
-          + Nouveau portfolio
+          + Nouveau carnet de plans
         </Typography>
       </ListItemButton>
 

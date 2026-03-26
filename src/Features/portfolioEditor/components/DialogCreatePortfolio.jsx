@@ -10,7 +10,7 @@ import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
   // strings
 
-  const titleS = "Nouveau portfolio";
+  const titleS = "Nouveau carnet de plans";
   const labelS = "Nom";
   const createS = "Créer";
 

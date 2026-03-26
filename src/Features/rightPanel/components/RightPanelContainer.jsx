@@ -22,7 +22,6 @@ import PanelTools from "Features/tools/components/PanelTools";
 import PanelMasterProjectPictures from "Features/masterProjectPictures/components/PanelMasterProjectPictures";
 import PanelChat from "Features/chat/components/PanelChat";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import PanelExport from "Features/export/components/PanelExport";
 import PanelSelectionProperties from "Features/selection/components/PanelSelectionProperties";
 import PanelAdminEntityModel from "Features/entityModels/components/PanelAdminEntityModel";
 import PanelAdminListing from "Features/adminEditor/components/PanelAdminListing";
@@ -73,7 +72,7 @@ export default function RightPanelContainer() {
         >
           {selectedKey === "SHOWER" && <PanelShower />}
           {selectedKey === "EDITOR_EXPORT" && <PanelEditorExport />}
-          {selectedKey === "EXPORT" && <PanelExport />}
+          {/* EXPORT merged into PRINT panel */}
           {/* {selectedKey === "ANNOTATION_FORMAT" && <PanelAnnotationFormat />} */}
           {selectedKey === "NODE_FORMAT" && <PanelNodeFormat />}
           {selectedKey === "ENTITY" && <PanelEditEntity showCloseButton={false} />}

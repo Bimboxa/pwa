@@ -70,7 +70,7 @@ export default function CardPortfolioList() {
 
   async function handleConfirmCreate() {
     if (!scopeId || !projectId) return;
-    const title = name.trim() || "Portfolio";
+    const title = name.trim() || "Carnet de plans";
     const listing = await createPortfolio({
       scopeId,
       projectId,
@@ -93,9 +93,12 @@ export default function CardPortfolioList() {
           mb: 0.5,
         }}
       >
-        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-          Portfolios
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <MenuBook fontSize="small" color="action" />
+          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+            Carnets de plans
+          </Typography>
+        </Box>
         <IconButton size="small" onClick={handleOpenDialog}>
           <Add fontSize="small" />
         </IconButton>
@@ -103,7 +106,7 @@ export default function CardPortfolioList() {
 
       {(!portfolios || portfolios.length === 0) && (
         <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-          Aucun portfolio
+          Aucun carnet de plans
         </Typography>
       )}
 
@@ -122,19 +125,16 @@ export default function CardPortfolioList() {
             "&:hover": { bgcolor: "action.hover" },
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <MenuBook fontSize="small" color="action" />
-            <Typography variant="body2" noWrap sx={{ maxWidth: 180 }}>
-              {portfolio.name || "Sans nom"}
-            </Typography>
-          </Box>
+          <Typography variant="body2" noWrap sx={{ maxWidth: 180 }}>
+            {portfolio.name || "Sans nom"}
+          </Typography>
           <ChevronRight fontSize="small" color="action" />
         </Box>
       ))}
 
       {/* Dialog create portfolio */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="xs" fullWidth>
-        <DialogTitle>Nouveau portfolio</DialogTitle>
+        <DialogTitle>Nouveau carnet de plans</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 3 }}>
           <TextField
             autoFocus

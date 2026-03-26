@@ -270,7 +270,7 @@ export default function PortfolioHeaderSvg({
       <ValueCell x={xMetaValue} y={y0} width={metaValueW} height={ROW_HEIGHT} text={config.refInterne || ""} />
 
       {/* Row 2: Portfolio / Auteur */}
-      <LabelCell x={xLabel} y={y1} width={labelW} height={ROW_HEIGHT} text={config.labelPortfolio || "Portfolio"} />
+      <LabelCell x={xLabel} y={y1} width={labelW} height={ROW_HEIGHT} text={config.labelPortfolio || "Carnet"} />
       <ValueCell x={xMain} y={y1} width={mainW} height={ROW_HEIGHT} text={portfolioValue} bold />
       <LabelCell x={xMetaLabel} y={y1} width={metaLabelW} height={ROW_HEIGHT} text={config.labelAuteur || "Auteur"} />
       <ValueCell x={xMetaValue} y={y1} width={metaValueW} height={ROW_HEIGHT} text={config.author || ""} />

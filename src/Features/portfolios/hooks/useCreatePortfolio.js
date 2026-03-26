@@ -47,7 +47,7 @@ export default function useCreatePortfolio() {
       id: listingId,
       scopeId,
       projectId,
-      name: title || "Portfolio",
+      name: title || "Carnet de plans",
       sortIndex: sortIndex ?? null,
       entityModelKey: "portfolioPage",
       entityModel,

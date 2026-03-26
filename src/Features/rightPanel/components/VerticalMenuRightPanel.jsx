@@ -13,7 +13,7 @@ import {
   Edit,
   Wallpaper,
   Room,
-  PictureAsPdf as Export,
+  PictureAsPdf,
   Insights as OpencvIcon,
   MoreHoriz as More,
   Image,
@@ -45,10 +45,6 @@ export default function VerticalMenuRightPanel() {
   // const
 
   const toolsMap = {
-    EXPORT: {
-      label: "Export",
-      icon: <Export />,
-    },
     SELECTION_PROPERTIES: {
       label: "Propriétés",
       icon: <Tune />,
@@ -73,7 +69,7 @@ export default function VerticalMenuRightPanel() {
       icon: <CameraAlt />,
     },
     PRINT: {
-      label: "Impression",
+      label: "Export",
       icon: <Print />,
     },
     CHAT: {

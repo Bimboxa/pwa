@@ -19,9 +19,10 @@ const formatNumber = (value, unit) => {
 
 export default function DatagridAnnotations({
     annotations,
-    selectedIds = [], // Valeur par défaut importante
+    selectedIds = [],
     onSelectionChange,
     showListingName = false,
+    showLayerName = false,
 }) {
 
 
@@ -50,6 +51,7 @@ export default function DatagridAnnotations({
                 fillType: annotation.fillType,
                 strokeColor: annotation.strokeColor,
                 listingName: annotation.listingName,
+                layerName: annotation.layerName,
                 templateLabel: annotation.annotationTemplateProps?.label || "Sans Label",
                 height: annotation.height,
                 length: annotation.qties?.enabled ? annotation.qties.length : 0,
@@ -81,6 +83,11 @@ export default function DatagridAnnotations({
         }
         cols.push(
             { field: "baseMapName", headerName: "Fond de plan", flex: 1, minWidth: 150 },
+        );
+        if (showLayerName) {
+            cols.push({ field: "layerName", headerName: "Calque", flex: 1, minWidth: 120 });
+        }
+        cols.push(
             {
                 field: "height", headerName: "Hauteur", width: 120, type: "number",
                 valueFormatter: (value) => formatNumber(value, "m"),
@@ -90,7 +97,7 @@ export default function DatagridAnnotations({
             { field: "surface", headerName: "Surface", width: 120, type: "number", valueFormatter: (value) => formatNumber(value, "m²") },
         );
         return cols;
-    }, [showListingName]);
+    }, [showListingName, showLayerName]);
 
     const internalRowSelectionModel = useMemo(() => {
         return { type: "include", ids: new Set(selectedIds ?? []) };

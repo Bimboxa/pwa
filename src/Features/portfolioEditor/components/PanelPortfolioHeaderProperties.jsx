@@ -65,10 +65,10 @@ export default function PanelPortfolioHeaderProperties() {
       >
         <Box sx={{ ml: 1 }}>
           <Typography variant="caption" color="text.secondary">
-            Portfolio
+            Carnet de plans
           </Typography>
           <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-            {portfolio.name || "Portfolio"}
+            {portfolio.name || "Carnet de plans"}
           </Typography>
         </Box>
 
@@ -159,7 +159,7 @@ export default function PanelPortfolioHeaderProperties() {
               helperText="Valeur automatique (projet)"
             />
             <DebouncedTextField
-              label={config.labelPortfolio || "Portfolio"}
+              label={config.labelPortfolio || "Carnet"}
               size="small"
               value={portfolio.name || ""}
               onChange={(val) =>
@@ -214,9 +214,9 @@ export default function PanelPortfolioHeaderProperties() {
               fullWidth
             />
             <DebouncedTextField
-              label="Titre: Portfolio"
+              label="Titre: Carnet"
               size="small"
-              value={config.labelPortfolio || "Portfolio"}
+              value={config.labelPortfolio || "Carnet"}
               onChange={(val) => updateConfig({ labelPortfolio: val })}
               fullWidth
             />
