@@ -18,7 +18,8 @@ const CUVELAGE_ETANTOP_302 = {
             strokeWidth: 4,
             strokeWidthUnit: "PX",
             mainQtyKey: "S",
-            mappingCategories: ["OUVRAGE:VCT"]
+            mappingCategories: ["OUVRAGE:VCT"],
+            overrideFields: ["height", "strokeColor", "strokeWidth", "strokeWidthUnit"],
         },
         {
             label: "Voiles [ht 1.00 m]",
@@ -30,7 +31,8 @@ const CUVELAGE_ETANTOP_302 = {
             strokeWidth: 4,
             strokeWidthUnit: "PX",
             mainQtyKey: "S",
-            mappingCategories: ["OUVRAGE:VI"]
+            mappingCategories: ["OUVRAGE:VI"],
+            overrideFields: ["height", "strokeColor", "strokeWidth", "strokeWidthUnit"],
         },
         {
             label: "Sol (Kentrec MR)",
@@ -40,7 +42,8 @@ const CUVELAGE_ETANTOP_302 = {
             fillType: "HATCHING",
             fillOpacity: 0.8,
             mainQtyKey: "S",
-            mappingCategories: ["OUVRAGE:SOL"]
+            mappingCategories: ["OUVRAGE:SOL"],
+            overrideFields: ["fillColor"],
         },
         {
             label: "Fosses",
@@ -49,6 +52,7 @@ const CUVELAGE_ETANTOP_302 = {
             fillColor: "#f1e457ff",
             fillOpacity: 0.8,
             mainQtyKey: "S",
+            overrideFields: ["fillColor"],
         }
 
     ]

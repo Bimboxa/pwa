@@ -19,8 +19,33 @@ function medianAbsoluteDeviation(values) {
   return median(deviations);
 }
 
+function repairTwoPoints(points) {
+  const [a, b] = points;
+  const magA = Math.abs(a.x) + Math.abs(a.y);
+  const magB = Math.abs(b.x) + Math.abs(b.y);
+  const ratio = magA > 0 && magB > 0 ? Math.max(magA, magB) / Math.min(magA, magB) : 0;
+
+  // If coordinates are within the same order of magnitude, no outlier
+  if (ratio < 100) return { points, outlierCount: 0 };
+
+  // The point with larger magnitude is the outlier; snap it near the other
+  const OFFSET = 10;
+  if (magB > magA) {
+    return {
+      points: [a, { ...b, x: a.x + OFFSET, y: a.y }],
+      outlierCount: 1,
+    };
+  }
+  return {
+    points: [{ ...a, x: b.x + OFFSET, y: b.y }, b],
+    outlierCount: 1,
+  };
+}
+
 function repairPoints(points, isClosed) {
-  if (!points || points.length < 3) return { points, outlierCount: 0 };
+  if (!points || points.length < 2) return { points, outlierCount: 0 };
+
+  if (points.length === 2) return repairTwoPoints(points);
 
   const xs = points.map((p) => p.x);
   const ys = points.map((p) => p.y);
@@ -50,14 +75,19 @@ function repairPoints(points, isClosed) {
     const prevIdx = isClosed ? (i - 1 + n) % n : Math.max(0, i - 1);
     const nextIdx = isClosed ? (i + 1) % n : Math.min(n - 1, i + 1);
 
+    // For open-polyline endpoints, one neighbor clamps to itself.
+    // Use only the valid neighbor so the outlier's own coords don't leak in.
+    const hasPrev = prevIdx !== i;
+    const hasNext = nextIdx !== i;
     const prev = points[prevIdx];
     const next = points[nextIdx];
 
-    return {
-      ...point,
-      x: (prev.x + next.x) / 2,
-      y: (prev.y + next.y) / 2,
-    };
+    const newX =
+      hasPrev && hasNext ? (prev.x + next.x) / 2 : hasPrev ? prev.x : next.x;
+    const newY =
+      hasPrev && hasNext ? (prev.y + next.y) / 2 : hasPrev ? prev.y : next.y;
+
+    return { ...point, x: newX, y: newY };
   });
 
   return { points: repairedPoints, outlierCount };

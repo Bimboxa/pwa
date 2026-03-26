@@ -18,6 +18,7 @@ const CUVELAGE_QUICKSKIN = {
             strokeWidth: 4,
             strokeWidthUnit: "PX",
             mainQtyKey: "S",
+            overrideFields: ["height", "strokeColor", "strokeWidth", "strokeWidthUnit"],
         },
         {
             label: "Sol",
@@ -27,6 +28,7 @@ const CUVELAGE_QUICKSKIN = {
             fillType: "HATCHING",
             fillOpacity: 0.8,
             mainQtyKey: "S",
+            overrideFields: ["fillColor"],
         },
         {
             label: "Fosses (Etantop 302)",
@@ -35,6 +37,7 @@ const CUVELAGE_QUICKSKIN = {
             fillColor: "#f1e457ff",
             fillOpacity: 0.8,
             mainQtyKey: "S",
+            overrideFields: ["fillColor"],
         }
 
     ]

@@ -18,6 +18,7 @@ const CUVELAGE_TECTOPROOF = {
             strokeWidth: 4,
             strokeWidthUnit: "PX",
             mainQtyKey: "S",
+            overrideFields: ["height", "strokeColor", "strokeWidth", "strokeWidthUnit"],
         },
         {
             label: "Voiles [ht 1.00 m]",
@@ -29,6 +30,7 @@ const CUVELAGE_TECTOPROOF = {
             strokeWidth: 4,
             strokeWidthUnit: "PX",
             mainQtyKey: "S",
+            overrideFields: ["height", "strokeColor", "strokeWidth", "strokeWidthUnit"],
         },
         {
             label: "Sol",
@@ -38,6 +40,7 @@ const CUVELAGE_TECTOPROOF = {
             fillType: "HATCHING",
             fillOpacity: 0.8,
             mainQtyKey: "S",
+            overrideFields: ["fillColor"],
         },
         {
             label: "Retours plafond [ht 1.00 m]",
@@ -49,6 +52,7 @@ const CUVELAGE_TECTOPROOF = {
             strokeWidth: 20,
             strokeWidthUnit: "CM",
             mainQtyKey: "S",
+            overrideFields: ["height", "strokeColor", "strokeWidth", "strokeWidthUnit"],
         }
 
     ]

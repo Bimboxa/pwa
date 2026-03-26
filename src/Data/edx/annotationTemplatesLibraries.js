@@ -1,7 +1,6 @@
 import DEFAULT from "./annotationTemplates/DEFAULT";
 import PIC_VARIANT_1 from "./annotationTemplates/PIC_VARIANT_1";
 import RECEPTION_SUPPORT_VARIANT_1 from "./annotationTemplates/RECEPTION_SUPPORT_VARIANT_1";
-import REPERAGE_GENERIC_1 from "./annotationTemplates/REPERAGE_GENERIQUE_1";
 import CUVELAGE_ETANTOP_302 from "./annotationTemplates/CUVELAGE_ETANTOP_302";
 import CUVELAGE_TECTOPROOF from "./annotationTemplates/CUVELAGE_TECTOPROOF";
 import CUVELAGE_QUICKSKIN from "./annotationTemplates/CUVELAGE_QUICKSKIN";
@@ -12,7 +11,6 @@ import CUVELAGE_POINTS_SINGULIERS from "./annotationTemplates/CUVELAGE_POINTS_SI
 const annotationTemplatesLibraries = [
     BASE_MAP_ANNOTATIONS,
     DEFAULT,
-    REPERAGE_GENERIC_1,
     PIC_VARIANT_1,
     RECEPTION_SUPPORT_VARIANT_1,
     CUVELAGE_REPERAGE_PREPARATION,
