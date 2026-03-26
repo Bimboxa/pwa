@@ -10,10 +10,10 @@ import {
 
 import { setWrapperMode } from "Features/mapEditor/mapEditorSlice";
 
-import useDeleteAnnotation from "../hooks/useDeleteAnnotation";
-import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
+import useDeleteAnnotations from "../hooks/useDeleteAnnotations";
+import useUpdateAnnotations from "../hooks/useUpdateAnnotations";
 import useMergeAnnotations from "../hooks/useMergeAnnotations";
-import useCloneAnnotationAndEntity from "Features/mapEditor/hooks/useCloneAnnotationAndEntity";
+import useCloneAnnotationsAndEntities from "Features/mapEditor/hooks/useCloneAnnotationsAndEntities";
 import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
@@ -59,9 +59,9 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
 
   const selectedItems = useSelector(selectSelectedItems);
   const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
-  const deleteAnnotation = useDeleteAnnotation();
+  const deleteAnnotations = useDeleteAnnotations();
   const mergeAnnotations = useMergeAnnotations();
-  const cloneAnnotationAndEntity = useCloneAnnotationAndEntity();
+  const cloneAnnotationsAndEntities = useCloneAnnotationsAndEntities();
   const baseMap = useMainBaseMap();
 
   // Template candidates based on first selected annotation
@@ -72,7 +72,7 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
     useAnnotationTemplateCandidates(firstAnnotation) ?? {};
   const { candidates: sameTypeCandidates, listings: sameTypeListings } =
     useAnnotationTemplateCandidates(firstAnnotation, { variant: "sameType" }) ?? {};
-  const updateAnnotation = useUpdateAnnotation();
+  const updateAnnotations = useUpdateAnnotations();
 
   // state
 
@@ -201,9 +201,7 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
     if (resolvedType) newAnnotation.type = resolvedType;
     if (selectedCloneType) newAnnotation.type = selectedCloneType;
 
-    for (const annotation of annotations) {
-      await cloneAnnotationAndEntity(annotation, { newAnnotation });
-    }
+    await cloneAnnotationsAndEntities(annotations, { newAnnotation });
     handleCloneClose();
   }
 
@@ -226,17 +224,15 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
     const resolvedShape = resolveDrawingShape(template);
     const resolvedType = getAnnotationType(resolvedShape);
 
-    for (const annotation of annotations) {
-      const updates = {
-        id: annotation.id,
-        ...templateProps,
-        annotationTemplateId: template.id,
-        templateLabel: template.label,
-        listingId: template.listingId,
-      };
-      if (resolvedType) updates.type = resolvedType;
-      await updateAnnotation(updates);
-    }
+    const updates = annotations.map((annotation) => ({
+      id: annotation.id,
+      ...templateProps,
+      annotationTemplateId: template.id,
+      templateLabel: template.label,
+      listingId: template.listingId,
+      ...(resolvedType ? { type: resolvedType } : {}),
+    }));
+    await updateAnnotations(updates);
     handleTemplateDropdownClose();
   }
 
@@ -251,9 +247,7 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
   }
 
   async function handleDeleteClick() {
-    for (const annotation of annotations) {
-      await deleteAnnotation(annotation.id);
-    }
+    await deleteAnnotations(annotations.map((a) => a.id));
     dispatch(clearSelection());
   }
 

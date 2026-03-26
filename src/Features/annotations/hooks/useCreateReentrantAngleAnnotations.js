@@ -1,8 +1,14 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
+import {
+  triggerAnnotationsUpdate,
+  triggerAnnotationTemplatesUpdate,
+} from "Features/annotations/annotationsSlice";
+import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
-import useCreateAnnotation from "./useCreateAnnotation";
+import { nanoid } from "@reduxjs/toolkit";
+
+import useUserEmail from "Features/auth/hooks/useUserEmail";
 
 import getAnnotationsWithResolvedPointsAsync from "../services/getAnnotationsWithResolvedPointsAsync";
 import findReentrantAngles from "Features/geometry/utils/findReentrantAngles";
@@ -11,8 +17,9 @@ import db from "App/db/db";
 
 export default function useCreateReentrantAngleAnnotations() {
   const dispatch = useDispatch();
-  const createAnnotation = useCreateAnnotation();
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const { value: userEmail } = useUserEmail();
 
   return async ({ annotations, annotationTemplateId }) => {
     // data
@@ -46,20 +53,23 @@ export default function useCreateReentrantAngleAnnotations() {
 
     if (reentrantAngles.length === 0) return [];
 
-    // create POINT annotations
+    // build all POINT annotations in memory
 
     const template = await db.annotationTemplates.get(annotationTemplateId);
     const annotation0 = resolved[0];
-    const createdAnnotations = [];
 
+    const allAnnotations = [];
     for (const angle of reentrantAngles) {
-      const newAnnotation = await createAnnotation({
+      allAnnotations.push({
+        id: nanoid(),
         type: "POINT",
         annotationTemplateId,
         annotationTemplateProps: {
           label: template?.label,
         },
         listingId: template?.listingId,
+        projectId,
+        createdBy: userEmail,
         point: { id: angle.pointId },
         baseMapId: annotation0.baseMapId,
         fillColor: template?.fillColor,
@@ -69,11 +79,47 @@ export default function useCreateReentrantAngleAnnotations() {
         height: angle.height,
         ...(activeLayerId ? { layerId: activeLayerId } : {}),
       });
-
-      if (newAnnotation) createdAnnotations.push(newAnnotation);
     }
 
+    // build mapping category rels
+
+    const rawCategories = template?.mappingCategories ?? [];
+    const allMappingRels = [];
+    for (const a of allAnnotations) {
+      for (const entry of rawCategories) {
+        if (typeof entry !== "string") continue;
+        const parts = entry.split(":");
+        if (parts.length !== 2) continue;
+        allMappingRels.push({
+          id: nanoid(),
+          annotationId: a.id,
+          projectId,
+          nomenclatureKey: parts[0].trim(),
+          categoryKey: parts[1].trim(),
+          source: "annotationTemplate",
+        });
+      }
+    }
+
+    // batch write in single transaction
+
+    await db.transaction(
+      "rw",
+      [db.annotations, db.relAnnotationMappingCategory],
+      async () => {
+        if (allAnnotations.length > 0) {
+          await db.annotations.bulkAdd(allAnnotations);
+        }
+        if (allMappingRels.length > 0) {
+          await db.relAnnotationMappingCategory.bulkAdd(allMappingRels);
+        }
+      }
+    );
+
     dispatch(triggerAnnotationsUpdate());
-    return createdAnnotations;
+    dispatch(triggerAnnotationTemplatesUpdate());
+    dispatch(triggerEntitiesTableUpdate("annotations"));
+
+    return allAnnotations;
   };
 }
