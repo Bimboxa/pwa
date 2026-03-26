@@ -43,6 +43,7 @@ temp
 
 # Data
 Data
+src/Data/
 
 # Gemini
 gemini.jsx
