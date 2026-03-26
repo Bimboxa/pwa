@@ -10,12 +10,15 @@ import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
-import procedures from "Data/edx/automatedAnnotationsProcedures";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function useAnnotationsAutoRun() {
   const dispatch = useDispatch();
 
   // data
+
+  const appConfig = useAppConfig();
+  const procedures = appConfig?.automatedAnnotationsProcedures ?? [];
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const baseMap = useMainBaseMap();

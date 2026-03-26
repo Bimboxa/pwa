@@ -24,12 +24,15 @@ import { PlayArrow } from "@mui/icons-material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import DialogAnnotationsAutoConfirm from "./DialogAnnotationsAutoConfirm";
 
-import procedures from "Data/edx/automatedAnnotationsProcedures";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function PanelAnnotationsAuto() {
   const dispatch = useDispatch();
 
   // data
+
+  const appConfig = useAppConfig();
+  const procedures = appConfig?.automatedAnnotationsProcedures ?? [];
 
   const selectedSourceListingId = useSelector(
     (s) => s.annotationsAuto.selectedSourceListingId

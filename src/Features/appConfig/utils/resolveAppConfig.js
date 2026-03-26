@@ -27,6 +27,11 @@ const MAPPING_CATEGORIES_LOADERS = import.meta.glob("../../../Data/*/mappingCate
   eager: false,
 });
 
+// Dynamic loaders for automated annotation procedures
+const AUTOMATED_PROCEDURES_LOADERS = import.meta.glob("../../../Data/*/automatedAnnotationsProcedures/index.js", {
+  eager: false,
+});
+
 // Dynamic loader for Data files
 const DATA_LOADERS = import.meta.glob("../../../Data/**/*", {
   eager: false,
@@ -136,6 +141,21 @@ export default async function resolveAppConfig(appConfig) {
       }
     } else {
       console.warn(`[resolveAppConfig] No mappingCategories found for orgaCode "${orgaCode}" at ${categoryKey}`);
+    }
+  }
+
+  // automated annotation procedures
+  if (orgaCode) {
+    const proceduresKey = `../../../Data/${orgaCode}/automatedAnnotationsProcedures/index.js`;
+    const loader = AUTOMATED_PROCEDURES_LOADERS[proceduresKey];
+
+    if (loader) {
+      try {
+        const module = await loader();
+        newAppConfig.automatedAnnotationsProcedures = module.default;
+      } catch (error) {
+        console.error(`[resolveAppConfig] Error loading automatedAnnotationsProcedures for "${orgaCode}":`, error);
+      }
     }
   }
 
