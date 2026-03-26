@@ -64,6 +64,10 @@ import DialogCreateListing from "Features/listings/components/DialogCreateListin
 import SectionSmartDetect from "Features/smartDetect/components/SectionSmartDetect";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import SectionLayers from "Features/layers/components/SectionLayers";
+import {
+  setSoloVisibleTemplateIds,
+  setSoloListingId,
+} from "Features/popperMapListings/popperMapListingsSlice";
 import { alpha } from "@mui/material/styles";
 import {
   setEnabledDrawingMode,
@@ -410,6 +414,7 @@ function AnnotationTemplateRow({
   sortableStyle,
   sortableAttributes,
   dragListeners,
+  onSoloToggle,
 }) {
   const dispatch = useDispatch();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
@@ -423,10 +428,21 @@ function AnnotationTemplateRow({
   const selectedToolKey = useSelector(
     (s) => s.mapEditor.selectedToolKeyByTemplateId[annotationTemplate?.id]
   );
+  const soloMode = useSelector((s) => s.popperMapListings.soloMode);
+  const soloVisibleTemplateIds = useSelector(
+    (s) => s.popperMapListings.soloVisibleTemplateIds
+  );
+  const soloListingId = useSelector((s) => s.popperMapListings.soloListingId);
 
   // helpers
 
-  const isHidden = annotationTemplate?.hidden;
+  const isHiddenByBase = annotationTemplate?.hidden;
+  const isHiddenBySolo =
+    soloMode &&
+    soloVisibleTemplateIds != null &&
+    soloListingId === listingId &&
+    !soloVisibleTemplateIds.includes(annotationTemplate?.id);
+  const isHidden = isHiddenBySolo || isHiddenByBase;
   const drawingShape = resolveDrawingShape(annotationTemplate);
   const tools = getDrawingToolsByShape(drawingShape);
   const fallbackTool = annotationTemplate?.defaultTool
@@ -487,10 +503,14 @@ function AnnotationTemplateRow({
 
   const handleToggleHidden = async (e) => {
     e.stopPropagation();
-    await updateAnnotationTemplate({
-      ...annotationTemplate,
-      hidden: !annotationTemplate?.hidden,
-    });
+    if (soloMode && onSoloToggle) {
+      onSoloToggle(annotationTemplate.id, listingId);
+    } else {
+      await updateAnnotationTemplate({
+        ...annotationTemplate,
+        hidden: !annotationTemplate?.hidden,
+      });
+    }
   };
 
   const handleStartEdit = (e) => {
@@ -565,45 +585,19 @@ function AnnotationTemplateRow({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: "24px",
-              height: "24px",
+              width: 24,
+              height: 24,
               mr: 1,
               flexShrink: 0,
-              cursor: "pointer",
-              "& .icon-default": { display: "flex" },
-              "& .icon-settings": { display: "none" },
-              "&:hover .icon-default": { display: "none" },
-              "&:hover .icon-settings": { display: "flex" },
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEditTemplate();
+              opacity: isHidden ? 0.4 : 1,
+              filter: isHidden ? "grayscale(100%)" : "none",
             }}
           >
-            <Box
-              className="icon-default"
-              sx={{
-                alignItems: "center",
-                justifyContent: "center",
-                width: 24,
-                height: 24,
-                opacity: isHidden ? 0.4 : 1,
-                filter: isHidden ? "grayscale(100%)" : "none",
-              }}
-            >
-              <AnnotationTemplateIcon template={annotationTemplate} size={18} spriteImage={spriteImage} />
-            </Box>
-            <Box
-              className="icon-settings"
-              sx={{
-                alignItems: "center",
-                justifyContent: "center",
-                width: 24,
-                height: 24,
-              }}
-            >
-              <Tune sx={{ fontSize: 18, color: annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "panel.textMuted" }} />
-            </Box>
+            <AnnotationTemplateIcon
+              template={annotationTemplate}
+              size={18}
+              spriteImage={spriteImage}
+            />
           </Box>
           {isEditing ? (
             <InputBase
@@ -672,6 +666,25 @@ function AnnotationTemplateRow({
             </>
           ) : isHovered ? (
             <>
+              {/* Properties button */}
+              <Tooltip title="Propriétés" arrow placement="bottom">
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditTemplate();
+                  }}
+                  sx={{
+                    p: 0.25,
+                    color:
+                      annotationTemplate?.fillColor ??
+                      annotationTemplate?.strokeColor ??
+                      "panel.textMuted",
+                  }}
+                >
+                  <Tune sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
               {/* Active tool button */}
               {ActiveToolIcon && (
                 <Tooltip title="Changer d'outil" arrow>
@@ -696,7 +709,7 @@ function AnnotationTemplateRow({
                 </Tooltip>
               )}
               {/* Visibility button */}
-              <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow>
+              <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow placement="right">
                 <IconButton
                   size="small"
                   onClick={handleToggleHidden}
@@ -747,6 +760,8 @@ function AnnotationTemplateRow({
 // ---------------------------------------------------------------------------
 
 function AnnotationTemplatesForListing({ listingId, annotations, annotationTemplateById }) {
+  const dispatch = useDispatch();
+
   // data
 
   const annotationTemplates = useAnnotationTemplates({
@@ -755,6 +770,9 @@ function AnnotationTemplatesForListing({ listingId, annotations, annotationTempl
   });
   const spriteImage = useAnnotationSpriteImage();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
+  const soloVisibleTemplateIds = useSelector(
+    (s) => s.popperMapListings.soloVisibleTemplateIds
+  );
 
   const qtiesById = useMemo(
     () => computeAnnotationTemplateQties(annotations, annotationTemplateById),
@@ -773,6 +791,25 @@ function AnnotationTemplatesForListing({ listingId, annotations, annotationTempl
   const sortableIds = useMemo(
     () => (annotationTemplates ?? []).map((t) => t.id),
     [annotationTemplates]
+  );
+
+  // handlers - solo mode
+
+  const handleSoloToggle = useCallback(
+    (templateId, templateListingId) => {
+      const isOnlyVisible =
+        soloVisibleTemplateIds != null &&
+        soloVisibleTemplateIds.length === 1 &&
+        soloVisibleTemplateIds[0] === templateId;
+      if (isOnlyVisible) {
+        dispatch(setSoloVisibleTemplateIds(null));
+        dispatch(setSoloListingId(null));
+      } else {
+        dispatch(setSoloVisibleTemplateIds([templateId]));
+        dispatch(setSoloListingId(templateListingId));
+      }
+    },
+    [dispatch, soloVisibleTemplateIds]
   );
 
   // state
@@ -906,6 +943,7 @@ function AnnotationTemplatesForListing({ listingId, annotations, annotationTempl
                   qtyLabel={qtyLabel}
                   listingId={listingId}
                   spriteImage={spriteImage}
+                  onSoloToggle={handleSoloToggle}
                 />
               );
             })}
@@ -984,6 +1022,11 @@ function ListingRow({
   // state
 
   const [isHovered, setIsHovered] = useState(false);
+  const soloMode = useSelector((s) => s.popperMapListings.soloMode);
+  const soloVisibleTemplateIds = useSelector(
+    (s) => s.popperMapListings.soloVisibleTemplateIds
+  );
+  const soloListingId = useSelector((s) => s.popperMapListings.soloListingId);
 
   // helpers
 
@@ -993,10 +1036,25 @@ function ListingRow({
 
   function handleToggleVisibility(e) {
     e.stopPropagation();
-    const next = isHidden
-      ? hiddenListingsIds.filter((id) => id !== listing.id)
-      : [...hiddenListingsIds, listing.id];
-    dispatch(setHiddenListingsIds(next));
+    if (soloMode) {
+      const listingTemplateIds = Object.values(annotationTemplateById ?? {})
+        .filter((t) => t.listingId === listing.id)
+        .map((t) => t.id);
+      const isAlreadySolo =
+        soloListingId === listing.id && soloVisibleTemplateIds != null;
+      if (isAlreadySolo) {
+        dispatch(setSoloVisibleTemplateIds(null));
+        dispatch(setSoloListingId(null));
+      } else {
+        dispatch(setSoloVisibleTemplateIds(listingTemplateIds));
+        dispatch(setSoloListingId(listing.id));
+      }
+    } else {
+      const next = isHidden
+        ? hiddenListingsIds.filter((id) => id !== listing.id)
+        : [...hiddenListingsIds, listing.id];
+      dispatch(setHiddenListingsIds(next));
+    }
   }
 
   function handleListingClick() {
@@ -1211,6 +1269,7 @@ export default function PopperMapListings() {
     (s) => s.mapEditor.showMapListingsPanel
   );
   const isBaseMapsViewer = viewerKey === "BASE_MAPS";
+  const showLayers = useSelector((s) => s.popperMapListings.showLayers);
 
   const baseMap = useMainBaseMap();
   const showCalibration = useSelector(
@@ -1263,12 +1322,6 @@ export default function PopperMapListings() {
       : { excludeIsForBaseMaps: true }),
   });
 
-  const { value: baseMapListings } = useListings({
-    filterByScopeId: selectedScopeId,
-    filterByEntityModelType: "LOCATED_ENTITY",
-    filterByIsForBaseMaps: true,
-  });
-
   const createVersion = useCreateBaseMapVersion();
   const replaceVersionImage = useReplaceVersionImage();
 
@@ -1279,6 +1332,7 @@ export default function PopperMapListings() {
   const comesFromListing = viewerReturnContext?.fromViewer === "LISTING";
   const [expandedListingIds, setExpandedListingIds] = useState([]);
   const [openCreateListing, setOpenCreateListing] = useState(false);
+  const [headerHovered, setHeaderHovered] = useState(false);
   const [openCalibrationDialog, setOpenCalibrationDialog] = useState(false);
   const [mergeResult, setMergeResult] = useState(null);
   const [openMergeCompare, setOpenMergeCompare] = useState(false);
@@ -1394,28 +1448,64 @@ export default function PopperMapListings() {
     >
       {/* Drag handle header */}
       <Box
-        onMouseDown={handleMouseDown}
+        onMouseEnter={() => setHeaderHovered(true)}
+        onMouseLeave={() => setHeaderHovered(false)}
         sx={{
           display: "flex",
           alignItems: "center",
           gap: 0.5,
-          px: 1,
+          pl: 0.25,
+          pr: 1,
           py: 0.75,
           bgcolor: "panel.headerBg",
           borderBottom: "1px solid",
           borderColor: "panel.border",
-          cursor: "grab",
-          "&:active": { cursor: "grabbing" },
-          userSelect: "none",
         }}
       >
-        <DragIndicatorIcon fontSize="small" sx={{ color: "panel.textLight" }} />
+        <Box
+          onMouseDown={handleMouseDown}
+          sx={{
+            cursor: "grab",
+            "&:active": { cursor: "grabbing" },
+            userSelect: "none",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <DragIndicatorIcon
+            fontSize="small"
+            sx={{ color: "panel.textLight" }}
+          />
+        </Box>
+
         <Typography
           variant="body2"
           sx={{ fontWeight: 600, color: "panel.textPrimary", flex: 1 }}
         >
           {titleS}
         </Typography>
+
+        {/* Properties button (on hover, left of +Liste) */}
+        {headerHovered && !isBaseMapsViewer && (
+          <Tooltip title="Propriétés">
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                dispatch(
+                  setSelectedItem({
+                    id: selectedScopeId,
+                    type: "SCOPE",
+                  })
+                );
+                dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+              }}
+              sx={{ color: "panel.textLight", p: 0.25 }}
+            >
+              <Tune sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        )}
 
         {/* + Liste button in header */}
         {!comesFromListing && !isBaseMapsViewer && (
@@ -1512,7 +1602,9 @@ export default function PopperMapListings() {
         <>
           {/* Scrollable listings */}
           <Box sx={{ overflow: "auto", flex: 1 }}>
-            {viewerKey === "MAP" && <SectionLayers baseMapId={baseMap?.id} />}
+            {viewerKey === "MAP" && showLayers && (
+              <SectionLayers baseMapId={baseMap?.id} />
+            )}
 
             {isBaseMapsViewer
               ? displayedListings?.map((listing) => (
@@ -1524,27 +1616,6 @@ export default function PopperMapListings() {
                   />
                 ))
               : <>
-                  {baseMapListings?.map((listing) => (
-                    <ListingRow
-                      key={listing.id}
-                      listing={listing}
-                      isExpanded={expandedListingIds.includes(listing.id)}
-                      onToggleExpand={handleToggleExpand}
-                      hiddenListingsIds={hiddenListingsIds}
-                      annotationCount={
-                        annotationCountByListingId?.[listing.id] || 0
-                      }
-                      annotations={annotationsByListingId?.[listing.id]}
-                      annotationTemplateById={annotationTemplateById}
-                      extraAction={
-                        <ButtonMergeListingAnnotations
-                          listingId={listing.id}
-                          baseMap={baseMap}
-                          onResult={(file) => handleMergeResult(file, listing.name)}
-                        />
-                      }
-                    />
-                  ))}
                   {displayedListings?.map((listing) => (
                     <ListingRow
                       key={listing.id}

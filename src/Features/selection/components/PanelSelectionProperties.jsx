@@ -19,6 +19,7 @@ import PanelBaseMapVersionProperties from "Features/baseMaps/components/PanelBas
 import PanelLayerProperties from "Features/layers/components/PanelLayerProperties";
 import PanelMapSummary from "Features/mapEditor/components/PanelMapSummary";
 import PanelMultiAnnotationProperties from "./PanelMultiAnnotationProperties";
+import PanelPropertiesPopperMapListings from "Features/popperMapListings/components/PanelPropertiesPopperMapListings";
 
 export default function PanelSelectionProperties() {
   // data
@@ -78,6 +79,8 @@ export default function PanelSelectionProperties() {
     type = "ANNOTATION_TEMPLATE";
   } else if (selectedItem?.type === "LAYER") {
     type = "LAYER";
+  } else if (selectedItem?.type === "SCOPE") {
+    type = "SCOPE";
   } else if (showAnnotationsProperties) {
     type = "ANNOTATION";
   } else if (
@@ -118,6 +121,8 @@ export default function PanelSelectionProperties() {
       {type === "BASE_MAP_VERSION" && <PanelBaseMapVersionProperties />}
 
       {type === "LAYER" && <PanelLayerProperties />}
+
+      {type === "SCOPE" && <PanelPropertiesPopperMapListings />}
 
       {type === "MULTI_ANNOTATION" && <PanelMultiAnnotationProperties />}
     </BoxFlexVStretch>

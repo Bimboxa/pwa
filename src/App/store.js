@@ -65,6 +65,7 @@ import adminEditorReducer from "Features/adminEditor/adminEditorSlice";
 import annotationsAutoReducer from "Features/annotationsAuto/annotationsAutoSlice";
 import listingViewerReducer from "Features/listingViewer/listingViewerSlice";
 import layersReducer from "Features/layers/layersSlice";
+import popperMapListingsReducer from "Features/popperMapListings/popperMapListingsSlice";
 
 //import syncTabsMiddleware from "./syncTabsMiddleware";
 //import webrtcMiddleware from "Features/webrtc/webrtcMiddleware";
@@ -136,6 +137,7 @@ const store = configureStore({
     //
     listingViewer: listingViewerReducer,
     layers: layersReducer,
+    popperMapListings: popperMapListingsReducer,
   },
   // middleware: (getDefaultMiddleware) =>
   //   getDefaultMiddleware({

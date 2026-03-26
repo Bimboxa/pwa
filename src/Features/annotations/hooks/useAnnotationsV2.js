@@ -76,6 +76,10 @@ export default function useAnnotationsV2(options) {
         const showAnnotationsWithoutLayer = useSelector(s => s.layers?.showAnnotationsWithoutLayer ?? true);
         const layersUpdatedAt = useSelector(s => s.layers?.layersUpdatedAt);
 
+        const soloMode = useSelector(s => s.popperMapListings.soloMode);
+        const soloVisibleTemplateIds = useSelector(s => s.popperMapListings.soloVisibleTemplateIds);
+        const soloListingId = useSelector(s => s.popperMapListings.soloListingId);
+
         const { value: baseMaps, baseMapsUpdatedAt } = useBaseMaps();
         const baseMapById = getItemsByKey(baseMaps, "id");
 
@@ -451,6 +455,14 @@ export default function useAnnotationsV2(options) {
 
         // filter out annotations whose template is hidden
         annotations = annotations?.filter(a => !a.hidden);
+
+        // solo mode: keep only annotations whose template is in the visible set
+        if (soloMode && soloVisibleTemplateIds != null && soloListingId) {
+            const soloSet = new Set(soloVisibleTemplateIds);
+            annotations = annotations?.filter(a =>
+                a.listingId !== soloListingId || soloSet.has(a.annotationTemplateId)
+            );
+        }
 
         // override with temp annotations
         annotations = [...(annotations ?? []), ...(tempAnnotations ?? [])];

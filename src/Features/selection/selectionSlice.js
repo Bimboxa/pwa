@@ -111,6 +111,9 @@ export const selectionSlice = createSlice({
           item.id = item.listingId;
           item.listingId = item.listingId;
         }
+        else if (item.type === "SCOPE") {
+          state.selectedItems = [];
+        }
       }
     },
     setShowAnnotationsProperties: (state, action) => {
