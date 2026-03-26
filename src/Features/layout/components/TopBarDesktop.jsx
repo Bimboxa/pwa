@@ -4,13 +4,14 @@ import {
   setSelectedViewerKey,
   setViewerReturnContext,
 } from "Features/viewers/viewersSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
 import { setListingViewerSelectedListingId } from "Features/listingViewer/listingViewerSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import { Box, Button, Divider } from "@mui/material";
-import { ArrowBack } from "@mui/icons-material";
+import { ArrowBack, ChevronRight } from "@mui/icons-material";
 
 import BoxFlexH from "Features/layout/components/BoxFlexH";
 //import SelectorProject from "Features/projectSelector/components/SelectorProject";
@@ -69,6 +70,12 @@ export default function TopBarDesktop() {
     dispatch(setViewerReturnContext(null));
   }
 
+  function handleGoToBaseMapsDetail() {
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+    dispatch(setSelectedViewerKey("BASE_MAPS"));
+    dispatch(setViewerReturnContext({ fromViewer: "MAP" }));
+  }
+
   function handleReturnToViewer() {
     if (returnViewer === "PORTFOLIO" && viewerReturnContext?.portfolioId) {
       dispatch(setDisplayedPortfolioId(viewerReturnContext.portfolioId));
@@ -121,6 +128,16 @@ export default function TopBarDesktop() {
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <BaseMapSelectorInMapEditorV2 />
           <BaseMapVersionSelectorInTopBar />
+          {viewerKey === "MAP" && (
+            <Button
+              size="small"
+              endIcon={<ChevronRight />}
+              onClick={handleGoToBaseMapsDetail}
+              sx={{ color: "grey.400" }}
+            >
+              Voir le détail
+            </Button>
+          )}
         </Box>
       )}
       {isPortfolioViewer && (
@@ -145,6 +162,7 @@ export default function TopBarDesktop() {
           startIcon={<ArrowBack />}
           onClick={handleReturnToDrawing}
           sx={{
+            ml: 2,
             bgcolor: "warning.main",
             color: "warning.contrastText",
             "&:hover": { bgcolor: "warning.dark" },

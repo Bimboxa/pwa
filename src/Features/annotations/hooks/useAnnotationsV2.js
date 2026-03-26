@@ -409,6 +409,7 @@ export default function useAnnotationsV2(options) {
             baseMapId,
             excludeListingsIds?.join("-"),
             excludeIsForBaseMapsListings,
+            onlyIsForBaseMapsListings,
             baseMapAnnotationsOnly,
             hideBaseMapAnnotations,
             annotationsUpdatedAt,

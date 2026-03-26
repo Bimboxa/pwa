@@ -87,6 +87,9 @@ const MapEditorViewport = forwardRef(({
                 y: viewportY + rect.top
             };
         },
+        getCameraMatrix: () => {
+            return { ...cameraMatrix.current };
+        },
         getZoom: () => {
             return cameraMatrix.current.k;
         },

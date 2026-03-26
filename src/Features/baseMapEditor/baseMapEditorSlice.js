@@ -16,6 +16,9 @@ const baseMapEditorInitialState = {
   selectedVersionId: null,
   hiddenVersionIds: [],
   versionTransformOverride: null, // { versionId, transform } during drag
+  // version compare
+  versionCompareEnabled: false,
+  versionCompareId: null, // ID of version to compare against active
   // calibration
   showCalibration: false,
   // Per-version calibration target positions (relative to image, 0..1)
@@ -77,6 +80,17 @@ export const baseMapEditorSlice = createSlice({
     setHiddenVersionIds: (state, action) => {
       state.hiddenVersionIds = action.payload;
     },
+    // version compare
+    setVersionCompareEnabled: (state, action) => {
+      state.versionCompareEnabled = action.payload;
+    },
+    setVersionCompareId: (state, action) => {
+      state.versionCompareId = action.payload;
+    },
+    resetVersionCompare: (state) => {
+      state.versionCompareEnabled = false;
+      state.versionCompareId = null;
+    },
     // calibration
     setShowCalibration: (state, action) => {
       state.showCalibration = action.payload;
@@ -99,6 +113,9 @@ export const {
   setVersionTransformOverride,
   toggleVersionHidden,
   setHiddenVersionIds,
+  setVersionCompareEnabled,
+  setVersionCompareId,
+  resetVersionCompare,
   setShowCalibration,
   setCalibrationTargets,
 } = baseMapEditorSlice.actions;

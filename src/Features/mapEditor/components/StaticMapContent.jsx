@@ -37,6 +37,9 @@ function StaticMapContent({
     selectedVersionId,
     isBaseMapsViewer = false,
     isEditingVersion = false,
+    // version compare
+    versionCompareEnabled = false,
+    versionCompareId,
 }) {
 
     // data
@@ -152,36 +155,102 @@ function StaticMapContent({
 
                 {/* Multi-version rendering for BASE_MAPS viewer */}
                 {isBaseMapsViewer && versions?.length > 0 ? (
-                    versions
-                        .filter(v => !hiddenVersionIds?.includes(v.id))
-                        .sort((a, b) => (b.fractionalIndex || "").localeCompare(a.fractionalIndex || ""))
-                        .map(version => {
-                            if (isEditingVersion && selectedVersionId === version.id) return null;
-                            const vUrl = version.image?.imageUrlClient ?? version.image?.imageUrlRemote;
-                            const vSize = version.image?.imageSize;
-                            if (!vUrl || !vSize) return null;
-                            const t = version.transform || { x: 0, y: 0, rotation: 0, scale: 1 };
-                            const isSelected = selectedVersionId === version.id;
+                    <>
+                        {/* SVG clipPath definition for version compare */}
+                        {versionCompareEnabled && versionCompareId && (
+                            <defs>
+                                <clipPath id="version-compare-clip">
+                                    <rect id="version-compare-clip-rect" x={0} y={0} width={0} height={0} />
+                                </clipPath>
+                            </defs>
+                        )}
+
+                        {/* Compare mode: render compared version (bottom, full) then active (top, clipped) */}
+                        {versionCompareEnabled && versionCompareId && (() => {
+                            const comparedVersion = versions.find(v => v.id === versionCompareId);
+                            const activeVersion = versions.find(v => v.isActive) || versions[0];
+                            if (!comparedVersion || !activeVersion) return null;
+
+                            const cUrl = comparedVersion.image?.imageUrlClient ?? comparedVersion.image?.imageUrlRemote;
+                            const cSize = comparedVersion.image?.imageSize;
+                            const cT = comparedVersion.transform || { x: 0, y: 0, rotation: 0, scale: 1 };
+
+                            const aUrl = activeVersion.image?.imageUrlClient ?? activeVersion.image?.imageUrlRemote;
+                            const aSize = activeVersion.image?.imageSize;
+                            const aT = activeVersion.transform || { x: 0, y: 0, rotation: 0, scale: 1 };
+
                             return (
-                                <g
-                                    key={version.id}
-                                    transform={`translate(${t.x}, ${t.y}) scale(${t.scale}) rotate(${t.rotation || 0})`}
-                                >
-                                    <NodeSvgImage
-                                        src={vUrl}
-                                        dataNodeType="BASE_MAP_VERSION"
-                                        dataNodeId={version.id}
-                                        width={vSize.width}
-                                        height={vSize.height}
-                                        hovered={hoveredNode?.nodeId === version.id}
-                                        selected={isSelected}
-                                        opacity={version.isActive ? opacity : 0.5}
-                                        grayScale={grayScale}
-                                        grayLevelThreshold={grayLevelThreshold}
-                                    />
-                                </g>
+                                <>
+                                    {/* Compared version — bottom, full, no clip */}
+                                    {cUrl && cSize && (
+                                        <g transform={`translate(${cT.x}, ${cT.y}) scale(${cT.scale}) rotate(${cT.rotation || 0})`}>
+                                            <NodeSvgImage
+                                                src={cUrl}
+                                                dataNodeType="BASE_MAP_VERSION"
+                                                dataNodeId={comparedVersion.id}
+                                                width={cSize.width}
+                                                height={cSize.height}
+                                                opacity={opacity}
+                                                grayScale={grayScale}
+                                                grayLevelThreshold={grayLevelThreshold}
+                                            />
+                                        </g>
+                                    )}
+                                    {/* Active version — top, clipped via outer wrapper */}
+                                    {aUrl && aSize && (
+                                        <g clipPath="url(#version-compare-clip)">
+                                            {/* Opaque background to hide compared version underneath */}
+                                            <rect x={-99999} y={-99999} width={199998} height={199998} fill="white" />
+                                            <g transform={`translate(${aT.x}, ${aT.y}) scale(${aT.scale}) rotate(${aT.rotation || 0})`}>
+                                                <NodeSvgImage
+                                                    src={aUrl}
+                                                    dataNodeType="BASE_MAP_VERSION"
+                                                    dataNodeId={activeVersion.id}
+                                                    width={aSize.width}
+                                                    height={aSize.height}
+                                                    opacity={opacity}
+                                                    grayScale={grayScale}
+                                                    grayLevelThreshold={grayLevelThreshold}
+                                                />
+                                            </g>
+                                        </g>
+                                    )}
+                                </>
                             );
-                        })
+                        })()}
+
+                        {/* Normal multi-version rendering (when compare is off) */}
+                        {!versionCompareEnabled && versions
+                            .filter(v => !hiddenVersionIds?.includes(v.id))
+                            .sort((a, b) => (b.fractionalIndex || "").localeCompare(a.fractionalIndex || ""))
+                            .map(version => {
+                                if (isEditingVersion && selectedVersionId === version.id) return null;
+                                const vUrl = version.image?.imageUrlClient ?? version.image?.imageUrlRemote;
+                                const vSize = version.image?.imageSize;
+                                if (!vUrl || !vSize) return null;
+                                const t = version.transform || { x: 0, y: 0, rotation: 0, scale: 1 };
+                                const isSelected = selectedVersionId === version.id;
+                                return (
+                                    <g
+                                        key={version.id}
+                                        transform={`translate(${t.x}, ${t.y}) scale(${t.scale}) rotate(${t.rotation || 0})`}
+                                    >
+                                        <NodeSvgImage
+                                            src={vUrl}
+                                            dataNodeType="BASE_MAP_VERSION"
+                                            dataNodeId={version.id}
+                                            width={vSize.width}
+                                            height={vSize.height}
+                                            hovered={hoveredNode?.nodeId === version.id}
+                                            selected={isSelected}
+                                            opacity={version.isActive ? opacity : 0.5}
+                                            grayScale={grayScale}
+                                            grayLevelThreshold={grayLevelThreshold}
+                                        />
+                                    </g>
+                                );
+                            })}
+                    </>
                 ) : versions?.length > 0 ? (
                     // MAP viewer with versions: render active version at actual size with transform
                     (() => {

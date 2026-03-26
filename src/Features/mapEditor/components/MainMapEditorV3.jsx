@@ -11,6 +11,7 @@ import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
 import { setBgImageRawTextAnnotations } from "Features/bgImage/bgImageSlice";
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
+import { resetVersionCompare } from "Features/baseMapEditor/baseMapEditorSlice";
 
 import useMeasure from "react-use-measure";
 
@@ -45,6 +46,7 @@ import EditedVersionLayer from "./EditedVersionLayer";
 import EditedLegendLayer from "./EditedLegendLayer";
 import LayerCreateBaseMap from "./LayerCreateBaseMap";
 
+import CompareVersionSlider from "./CompareVersionSlider";
 import DialogAutoCreateEntity from "Features/entities/components/DialogAutoCreateEntity";
 import DialogDeleteSelectedAnnotation from "Features/annotations/components/DialogDeleteSelectedAnnotation";
 import PopperEditAnnotation from "./PopperEditAnnotation";
@@ -146,6 +148,16 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
     const selectedVersionId = useSelector((s) => s.baseMapEditor.selectedVersionId);
     const versionTransformOverride = useSelector((s) => s.baseMapEditor.versionTransformOverride);
+    const versionCompareEnabled = useSelector((s) => s.baseMapEditor.versionCompareEnabled);
+    const versionCompareId = useSelector((s) => s.baseMapEditor.versionCompareId);
+    const compareSliderRef = useRef(null);
+
+    // reset compare when leaving BASE_MAPS viewer
+    useEffect(() => {
+        if (viewerKey !== "BASE_MAPS" && versionCompareEnabled) {
+            dispatch(resetVersionCompare());
+        }
+    }, [viewerKey]);
 
     // viewport
 
@@ -1082,6 +1094,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     legendFormat={legendFormat}
                     onLegendFormatChange={handleLegendFormatChange}
                     transformersWorker={transformersWorker}
+                    onCameraChangeExternal={() => compareSliderRef.current?.updateClipRect?.()}
                 >
                     <g style={(selectedNode || selectedNodes?.length > 0) ? contextDimmedStyle : contextNormalStyle}>
                         <StaticMapContent
@@ -1108,6 +1121,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             selectedVersionId={selectedVersionId}
                             isBaseMapsViewer={viewerKey === "BASE_MAPS"}
                             isEditingVersion={viewerKey === "BASE_MAPS" && !!selectedVersionId && showBgImage}
+                            versionCompareEnabled={versionCompareEnabled}
+                            versionCompareId={versionCompareId}
                         />
                     </g>
                     {/* 2. LAYER ÉDITION BASEMAP (Exclusif) */}
@@ -1164,6 +1179,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             </InteractionProvider>
 
+            {/* Version compare slider overlay */}
+            {versionCompareEnabled && versionCompareId && (
+                <CompareVersionSlider
+                    ref={compareSliderRef}
+                    getCameraMatrix={() => interactionLayerRef.current?.getCameraMatrix?.()}
+                    basePose={basePose}
+                    containerBounds={{ width: bounds.width, height: bounds.height }}
+                    activeVersionLabel={baseMap?.getActiveVersion?.()?.label}
+                    comparedVersionLabel={baseMap?.versions?.find(v => v.id === versionCompareId)?.label}
+                />
+            )}
+
             <PrintableMap
                 ref={printableMapRef}
                 bgImageUrl={bgImage?.url}
@@ -1192,7 +1219,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             <LayerTools />
             <LayerCreateBaseMap />
 
-            <PopperMapListings />
+            {!versionCompareEnabled && <PopperMapListings />}
         </Box>
         </SmartZoomProvider>
     );

@@ -154,6 +154,7 @@ const InteractionLayer = forwardRef(({
   legendFormat,
   onLegendFormatChange,
   transformersWorker,
+  onCameraChangeExternal,
 }
   , ref) => {
   const dispatch = useDispatch();
@@ -266,6 +267,12 @@ const InteractionLayer = forwardRef(({
         viewportRef.current.setCameraMatrix(cameraMatrix);
       }
     },
+    getCameraMatrix: () => {
+      if (viewportRef.current) {
+        return viewportRef.current.getCameraMatrix();
+      }
+      return { x: 0, y: 0, k: 1 };
+    },
   }));
 
   // newAnnotation
@@ -335,6 +342,7 @@ const InteractionLayer = forwardRef(({
 
   function handleCameraChange(cameraMatrix) {
     helperScaleRef.current?.updateZoom(cameraMatrix.k);
+    onCameraChangeExternal?.(cameraMatrix);
 
     // pour MAJ de l'image affichée dans la smart detect
     if (enabledDrawingModeRef.current === "SMART_DETECT" || showSmartDetectRef.current) {
