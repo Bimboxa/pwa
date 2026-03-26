@@ -34,7 +34,7 @@ export default function FieldWrapperDimensions({ annotation }) {
   // data
 
   const baseMap = useMainBaseMap();
-  const allAnnotations = useAnnotationsV2();
+  const allAnnotations = useAnnotationsV2({ caller: "FieldWrapperDimensions" });
 
   const imageSize = baseMap?.image?.imageSize;
   const meterByPx = baseMap?.getMeterByPx?.() ?? null;

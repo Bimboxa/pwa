@@ -28,6 +28,7 @@ export default function MainListingMapsEditor({ listing, showAllListings }) {
   });
 
   const allAnnotations = useAnnotationsV2({
+    caller: "MainListingMapsEditor",
     filterByListingId,
     excludeIsForBaseMapsListings: true,
     excludeBgAnnotations: true,

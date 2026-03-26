@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react"; // Assurez-vous d'avoir useMemo
+import { memo, useEffect, useRef, useMemo } from "react";
 
 import { useSelector } from "react-redux";
 import { selectSelectedPointId, selectSelectedItems } from "Features/selection/selectionSlice";
@@ -52,7 +52,6 @@ function StaticMapContent({
     const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
 
     const spriteImage = useAnnotationSpriteImage();
-    const _showedFWC = useSelector(s => s.fwc.showedFWC);
     const anchorSourceAnnotationId = useSelector(s => s.mapEditor.anchorSourceAnnotationId);
 
     // Derive selectMode from the active drawing tool
@@ -63,17 +62,28 @@ function StaticMapContent({
         return null;
     }, [enabledDrawingMode]);
 
-    // helpers
-
-    const fwcCountMap = annotations.reduce((acc, { entity }) => {
-        if (entity?.fwc) {
-            acc[entity.fwc] = (acc[entity.fwc] || 0) + 1;
+    // perf measurement: time from marker commit to render
+    const prevAnnotationCountRef = useRef(annotations?.length ?? 0);
+    useEffect(() => {
+        const count = annotations?.length ?? 0;
+        if (count > prevAnnotationCountRef.current) {
+            if (performance.getEntriesByName("marker-commit-start").length > 0) {
+                performance.mark("marker-render-end");
+                const measure = performance.measure(
+                    "marker-commit-to-render",
+                    "marker-commit-start",
+                    "marker-render-end"
+                );
+                console.log(
+                    `[debug_perf] ⏱ marker commit → render: ${measure.duration.toFixed(0)}ms (${prevAnnotationCountRef.current} → ${count} annotations)`
+                );
+                performance.clearMarks("marker-commit-start");
+                performance.clearMarks("marker-render-end");
+                performance.clearMeasures("marker-commit-to-render");
+            }
         }
-        return acc;
-    }, {});
-    const activeFWC = Object.keys(fwcCountMap).filter(fwc => fwcCountMap[fwc] > 0);
-    const showedFWC = _showedFWC.filter(fwc => fwcCountMap[fwc] > 0);
-    const fwcEnabled = annotations.filter(({ entity }) => Boolean(entity?.fwc)).length > 0;
+        prevAnnotationCountRef.current = count;
+    }, [annotations?.length]);
 
     // helpers
 
@@ -87,10 +97,9 @@ function StaticMapContent({
     const bgImageAnnotations = showBgImage
         ? annotations.filter(({ nodeType }) => nodeType === "BG_IMAGE_TEXT")
         : [];
-    const baseMapAnnotations = annotations.filter(({ baseMapId, entity, hidden }) =>
+    const baseMapAnnotations = annotations.filter(({ baseMapId, hidden }) =>
         Boolean(baseMapId) &&
-        !hidden &&
-        (showedFWC.includes(entity?.fwc) || !fwcEnabled || (!entity?.fwc && showedFWC.length === activeFWC.length))
+        !hidden
     );
 
     // [MODIF 2] Calculer les annotations touchées par le point sélectionné (Topologie)

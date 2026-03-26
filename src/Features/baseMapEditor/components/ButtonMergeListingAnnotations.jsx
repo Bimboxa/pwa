@@ -12,6 +12,7 @@ export default function ButtonMergeListingAnnotations({
   // data
 
   const annotations = useAnnotationsV2({
+    caller: "ButtonMergeListingAnnotations",
     filterByListingId: listingId,
     filterByMainBaseMap: true,
     sortByOrderIndex: true,

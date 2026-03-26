@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import db from "App/db/db";
 
 import { useSelector } from "react-redux";
@@ -81,7 +83,10 @@ export default function useBaseMaps(options) {
     return _baseMaps;
   }, [projectId, baseMapsUpdatedAt, filterByListingId, filterByProjectId]);
 
-  // return
+  // return — memoize to keep stable reference
 
-  return { value: baseMaps, baseMapsUpdatedAt };
+  return useMemo(
+    () => ({ value: baseMaps, baseMapsUpdatedAt }),
+    [baseMaps, baseMapsUpdatedAt]
+  );
 }

@@ -43,7 +43,6 @@ import transformersReducer from "Features/transformers/transformersSlice";
 import reportsReducer from "Features/reports/reportsSlice";
 import blueprintsReducer from "Features/blueprints/blueprintsSlice";
 import selectionReducer from "Features/selection/selectionSlice";
-import fwcReducer from "Features/fwc/fwcSlice";
 import baseMapCreatorReducer from "Features/baseMapCreator/baseMapCreatorSlice";
 import baseMapEditorReducer from "Features/baseMapEditor/baseMapEditorSlice";
 import remoteScopeConfigurationsReducer, { syncedVersionPersistMiddleware } from "Features/remoteScopeConfigurations/remoteScopeConfigurationsSlice";
@@ -100,7 +99,6 @@ const store = configureStore({
     entities: entitiesReducer,
     entityProps: entityPropsReducer,
     zones: zonesReducer,
-    fwc: fwcReducer,
     relsZoneEntity: relsZoneEntityReducer,
     locatedEntities: locatedEntitiesReducer,
     viewers: viewersReducer,

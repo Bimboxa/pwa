@@ -5,7 +5,6 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
-import useNewEntity from "Features/entities/hooks/useNewEntity";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import db from "App/db/db";
@@ -71,11 +70,10 @@ async function resolvePointCoords(point, imageSize) {
   return null;
 }
 
-export default function useHandleTechnicalReturn({ annotations } = {}) {
+export default function useHandleTechnicalReturn({ annotations, newEntity } = {}) {
   const dispatch = useDispatch();
   const baseMap = useMainBaseMap();
   const createEntity = useCreateEntity();
-  const newEntity = useNewEntity();
   const createAnnotation = useCreateAnnotation();
   const updateAnnotation = useUpdateAnnotation();
 

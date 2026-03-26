@@ -9,6 +9,7 @@ export default function ToolMergeVisibleAnnotations({ baseMap, onResult }) {
     // data
 
     const annotations = useAnnotationsV2({
+        caller: "ToolMergeVisibleAnnotations",
         filterByMainBaseMap: true,
         sortByOrderIndex: true,
         excludeBgAnnotations: true,

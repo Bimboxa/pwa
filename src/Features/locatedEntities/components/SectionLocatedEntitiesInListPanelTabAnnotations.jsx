@@ -12,6 +12,7 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotations() {
   // data
 
   const annotations = useAnnotationsV2({
+    caller: "SectionLocatedEntitiesInListPanelTabAnnotations",
     withQties: true,
     filterBySelectedListing: true,
     excludeBgAnnotations: true,

@@ -14,7 +14,7 @@ export default function useSelectedAnnotation() {
 
   // data
 
-  const annotations = useAnnotationsV2()
+  const annotations = useAnnotationsV2({ caller: "useSelectedAnnotation" })
 
   // const selectedNode = useSelector((s) => s.mapEditor.selectedNode); // Removed
   const selectedItems = useSelector(selectSelectedItems);

@@ -1,7 +1,32 @@
 
+import { useMemo, useRef } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { useSelector } from "react-redux";
+
+// Module-level cache for listings (shared across all useAnnotationsV2 instances)
+const _listingsCache = { key: null, listings: null, listingsMap: null, forBaseMapsListingIds: null };
+// Invalidate cache when listings table changes
+db.listings.hook("creating", () => { _listingsCache.key = null; });
+db.listings.hook("updating", () => { _listingsCache.key = null; });
+db.listings.hook("deleting", () => { _listingsCache.key = null; });
+
+// Module-level incremental cache for entities (keyed by table)
+// Maps: table -> { idSet: Set<id>, cache: Map<id, entity> }
+const _entitiesCache = {};
+// Invalidate entity cache per table on updates/deletes
+const _hookEntityTable = (tableName) => {
+    if (!db[tableName]) return;
+    try {
+        db[tableName].hook("updating", (mods, primKey) => {
+            if (_entitiesCache[tableName]) _entitiesCache[tableName].cache.delete(primKey);
+        });
+        db[tableName].hook("deleting", (primKey) => {
+            if (_entitiesCache[tableName]) _entitiesCache[tableName].cache.delete(primKey);
+        });
+    } catch { /* hook already registered */ }
+};
+const _hookedEntityTables = new Set();
 
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -27,6 +52,8 @@ export default function useAnnotationsV2(options) {
     try {
         // options
 
+        const _caller = options?.caller || "unknown";
+        const enabled = options?.enabled ?? true;
 
         const filterByBaseMapId = options?.filterByBaseMapId;
         const filterByListingId = options?.filterByListingId;
@@ -62,7 +89,10 @@ export default function useAnnotationsV2(options) {
         const baseMap = useMainBaseMap();
 
         const annotationTemplates = useAnnotationTemplates();
-        const annotationTemplatesMap = getItemsByKey(annotationTemplates, "id");
+        const annotationTemplatesMap = useMemo(
+            () => getItemsByKey(annotationTemplates, "id"),
+            [annotationTemplates]
+        );
 
         const tempAnnotations = useSelector((s) => s.annotations.tempAnnotations);
 
@@ -81,7 +111,10 @@ export default function useAnnotationsV2(options) {
         const soloListingId = useSelector(s => s.popperMapListings.soloListingId);
 
         const { value: baseMaps, baseMapsUpdatedAt } = useBaseMaps();
-        const baseMapById = getItemsByKey(baseMaps, "id");
+        const baseMapById = useMemo(
+            () => getItemsByKey(baseMaps, "id"),
+            [baseMaps]
+        );
 
         // helper - selected items
 
@@ -92,8 +125,13 @@ export default function useAnnotationsV2(options) {
         // main
         let annotations = useLiveQuery(async () => {
 
+            // skip computation when disabled
+            if (!enabled) return [];
+
             // edge case
             if (!baseMaps || !projectId) return null;
+
+            const _t0 = performance.now();
             // annotations
 
             let _annotations;
@@ -124,6 +162,7 @@ export default function useAnnotationsV2(options) {
                 points = (await db.points.where("projectId").equals(projectId).toArray()).filter(r => !r.deletedAt);
             }
 
+            const _t1 = performance.now();
             // base map annotations
 
             if (baseMapAnnotationsOnly) {
@@ -143,7 +182,79 @@ export default function useAnnotationsV2(options) {
                 });
             }
 
+            const _t2 = performance.now();
+            // -- LISTINGS (with module-level cache) --
+
+            const listingsIds = [...new Set(_annotations.map(a => a.listingId).filter(Boolean))];
+            const _t2a = performance.now();
+            const listingsCacheKey = listingsIds.sort().join(",");
+            let listings, listingsMap, forBaseMapsListingIds;
+            if (_listingsCache.key === listingsCacheKey) {
+                // Cache hit — skip DB query
+                listings = _listingsCache.listings;
+                listingsMap = _listingsCache.listingsMap;
+                forBaseMapsListingIds = _listingsCache.forBaseMapsListingIds;
+            } else {
+                // Cache miss — fetch from DB and update cache
+                listings = await db.listings
+                    .where("id")
+                    .anyOf(listingsIds)
+                    .toArray();
+                listingsMap = getItemsByKey(listings, "id");
+                forBaseMapsListingIds = new Set(
+                    listings.filter((l) => l.isForBaseMaps).map((l) => l.id)
+                );
+                _listingsCache.key = listingsCacheKey;
+                _listingsCache.listings = listings;
+                _listingsCache.listingsMap = listingsMap;
+                _listingsCache.forBaseMapsListingIds = forBaseMapsListingIds;
+            }
+            const _t2b = performance.now();
+
+            if (excludeIsForBaseMapsListings) {
+                _annotations = _annotations.filter(
+                    (a) => !forBaseMapsListingIds.has(a.listingId)
+                );
+            }
+
+            if (onlyIsForBaseMapsListings) {
+                _annotations = _annotations.filter(
+                    (a) => forBaseMapsListingIds.has(a.listingId)
+                );
+            }
+
+            // -- SCOPE FILTER --
+
+            if (filterBySelectedScope && scope?.id) {
+                const scopeListingIds = new Set(
+                    listings
+                        .filter((l) => {
+                            const em = appConfig?.entityModelsObject?.[l.entityModelKey];
+                            return em?.type === "BASE_MAP" || l.scopeId === scope?.id;
+                        })
+                        .map((l) => l.id)
+                );
+                _annotations = _annotations.filter(
+                    (a) => a.isBaseMapAnnotation || scopeListingIds.has(a.listingId)
+                );
+            }
+
+            // -- LISTING EXCLUSIONS --
+
+            if (excludeListingsIds && !baseMapAnnotationsOnly) {
+                _annotations = _annotations.filter(
+                    (a) => !excludeListingsIds.includes(a.listingId)
+                );
+            }
+
+            if (baseMapAnnotationsOnly) {
+                _annotations = _annotations.filter(
+                    (a) => a.isBaseMapAnnotation
+                );
+            }
+
             // layer sort order — first layer's annotations drawn on top (last in array)
+            const _t2c = performance.now();
             if (baseMapId) {
                 const layers = (await db.layers.where("baseMapId").equals(baseMapId).toArray())
                     .filter(l => !l.deletedAt)
@@ -168,20 +279,35 @@ export default function useAnnotationsV2(options) {
                 }
             }
 
-            // add images (for annotation type = "IMAGE")
-
+            const _t3 = performance.now();
+            // add images (only for IMAGE and MARKER annotations) — batched
             if (_annotations) {
-                _annotations = await Promise.all(
-                    _annotations.map(async (annotation) => {
-                        const { entityWithImages } = await getEntityWithImagesAsync(annotation);
-                        return {
-                            ...entityWithImages,
-                            //imageUrlClient: annotation.image.imageUrlClient,
-                        };
-                    })
-                );
+                const imageAnnotations = _annotations.filter(a => a.type === "IMAGE" || a.type === "MARKER");
+                if (imageAnnotations.length > 0) {
+                    // Collect all fileNames needed
+                    const fileNames = new Set();
+                    for (const a of imageAnnotations) {
+                        if (Array.isArray(a.images)) a.images.forEach(img => { if (img?.fileName) fileNames.add(img.fileName); });
+                        for (const [key, val] of Object.entries(a)) {
+                            if (key !== "images" && val && typeof val === "object" && val.isImage && val.fileName) fileNames.add(val.fileName);
+                        }
+                    }
+                    // Batch fetch all files at once
+                    const filesArray = fileNames.size > 0 ? await db.files.where("fileName").anyOf([...fileNames]).toArray() : [];
+                    const filesMap = {};
+                    for (const f of filesArray) { filesMap[f.fileName] = f; }
+
+                    _annotations = await Promise.all(
+                        _annotations.map(async (annotation) => {
+                            if (annotation.type !== "IMAGE" && annotation.type !== "MARKER") return annotation;
+                            const { entityWithImages } = await getEntityWithImagesAsync(annotation, filesMap);
+                            return { ...entityWithImages };
+                        })
+                    );
+                }
             }
 
+            const _t4 = performance.now();
             // points
 
             const pointsIndex = getItemsByKey(points, "id");
@@ -273,80 +399,11 @@ export default function useAnnotationsV2(options) {
 
             })
 
-            // -- LISTINGS --
-
-            const listingsIds = _annotations.reduce(
-                (ac, cur) => [...new Set([...ac, cur.listingId])],
-                []
-            );
-            const listings = await db.listings
-                .where("id")
-                .anyOf(listingsIds.filter(Boolean))
-                .toArray();
-
-            // Create a map for quick lookup
-            const listingsMap = getItemsByKey(listings, "id");
-
-            // -- isForBaseMaps LISTINGS --
-
-            const forBaseMapsListingIds = new Set(
-                listings.filter((l) => l.isForBaseMaps).map((l) => l.id)
-            );
-
-            if (excludeIsForBaseMapsListings) {
-                _annotations = _annotations.filter(
-                    (a) => !forBaseMapsListingIds.has(a.listingId)
-                );
-            }
-
-            if (onlyIsForBaseMapsListings) {
-                _annotations = _annotations.filter(
-                    (a) => forBaseMapsListingIds.has(a.listingId)
-                );
-            }
-
-            // -- SCOPE FILTER --
-
-            if (filterBySelectedScope && scope?.id) {
-                const scopeListingIds = new Set(
-                    listings
-                        .filter((l) => {
-                            const em = appConfig?.entityModelsObject?.[l.entityModelKey];
-                            return em?.type === "BASE_MAP" || l.scopeId === scope?.id;
-                        })
-                        .map((l) => l.id)
-                );
-                _annotations = _annotations.filter(
-                    (a) => a.isBaseMapAnnotation || scopeListingIds.has(a.listingId)
-                );
-            }
-
-            // -- LISTING NAME --
-
-            if (withListingName) {
-                // Add listing name to annotations
-                _annotations = _annotations.map((annotation) => ({
-                    ...annotation,
-                    listingName: listingsMap[annotation?.listingId]?.name || "-?-",
-                }));
-            }
-
-            if (excludeListingsIds && !baseMapAnnotationsOnly) {
-                _annotations = _annotations?.filter(
-                    (a) => !excludeListingsIds.includes(a.listingId)
-                );
-            }
-
-            if (baseMapAnnotationsOnly) {
-                _annotations = _annotations?.filter(
-                    (a) => a.isBaseMapAnnotation
-                );
-            }
-
-            // -- TAG isForBaseMaps --
+            // -- LISTING NAME + TAG isForBaseMaps (single pass) --
 
             _annotations = _annotations.map((a) => ({
                 ...a,
+                ...(withListingName && { listingName: listingsMap[a?.listingId]?.name || "-?-" }),
                 isForBaseMaps: forBaseMapsListingIds.has(a.listingId),
             }));
 
@@ -371,17 +428,83 @@ export default function useAnnotationsV2(options) {
             // _annotations = sortedAnnotationIds.map((id) => annotationById[id]);
 
 
-            // -- ENTITY --
+            const _t5 = performance.now();
+            // -- ENTITY (batched) --
 
             if (withEntity) {
+                // Group annotations by table for batch fetching
+                const _te0 = performance.now();
+                const byTable = {};
+                for (const annotation of _annotations) {
+                    let table = annotation?.listingTable;
+                    if (!table) table = listingsMap?.[annotation?.listingId]?.table;
+                    if (table && annotation.entityId) {
+                        if (!byTable[table]) byTable[table] = new Set();
+                        byTable[table].add(annotation.entityId);
+                    }
+                }
+
+                // Incremental batch fetch: only fetch IDs not already in cache
+                const entityCache = {};
+                let _fetchedCount = 0;
+                for (const [table, ids] of Object.entries(byTable)) {
+                    // Ensure hooks are registered for this table
+                    if (!_hookedEntityTables.has(table)) {
+                        _hookEntityTable(table);
+                        _hookedEntityTables.add(table);
+                    }
+                    // Init table cache if needed
+                    if (!_entitiesCache[table]) {
+                        _entitiesCache[table] = { cache: new Map() };
+                    }
+                    const tableCache = _entitiesCache[table].cache;
+
+                    // Find IDs not in cache
+                    const missingIds = [];
+                    for (const id of ids) {
+                        if (tableCache.has(id)) {
+                            entityCache[id] = tableCache.get(id);
+                        } else {
+                            missingIds.push(id);
+                        }
+                    }
+
+                    // Fetch only missing IDs
+                    if (missingIds.length > 0) {
+                        const fetched = await db[table].where("id").anyOf(missingIds).toArray();
+                        _fetchedCount += fetched.length;
+                        for (const e of fetched) {
+                            tableCache.set(e.id, e);
+                            entityCache[e.id] = e;
+                        }
+                    }
+                }
+                const _te1 = performance.now();
+
+                // Batch fetch all files needed by entities
+                const entityFileNames = new Set();
+                for (const entity of Object.values(entityCache)) {
+                    if (Array.isArray(entity.images)) entity.images.forEach(img => { if (img?.fileName) entityFileNames.add(img.fileName); });
+                    for (const [key, val] of Object.entries(entity)) {
+                        if (key !== "images" && val && typeof val === "object" && val.isImage && val.fileName) entityFileNames.add(val.fileName);
+                    }
+                }
+                const entityFilesArray = entityFileNames.size > 0 ? await db.files.where("fileName").anyOf([...entityFileNames]).toArray() : [];
+                const entityFilesMap = {};
+                for (const f of entityFilesArray) { entityFilesMap[f.fileName] = f; }
+                const _te2 = performance.now();
+
+                console.log(`[debug_perf]   entities detail: db.entities=${(_te1-_te0).toFixed(1)}ms (${Object.keys(entityCache).length} entities, ${_fetchedCount} fetched) | db.files=${(_te2-_te1).toFixed(1)}ms (${entityFilesArray.length} files)`);
+
+                // Enrich annotations with entities
                 _annotations = await Promise.all(
                     _annotations.map(async (annotation) => {
                         let table = annotation?.listingTable;
                         if (!table) table = listingsMap?.[annotation?.listingId]?.table;
                         if (table && annotation.entityId) {
-                            const entity = await db[table].get(annotation.entityId);
+                            const entity = entityCache[annotation.entityId];
                             const { entityWithImages, hasImages } =
-                                await getEntityWithImagesAsync(entity);
+                                await getEntityWithImagesAsync(entity, entityFilesMap);
                             const listing = listingsMap[annotation?.listingId];
                             const em = appConfig?.entityModelsObject?.[listing.entityModelKey];
                             const labelKey = em?.labelKey || "label";
@@ -402,10 +525,23 @@ export default function useAnnotationsV2(options) {
                 );
             }
 
+            const _t6 = performance.now();
+            console.log(
+                `[debug_perf] useAnnotationsV2 [${_caller}] (${_annotations?.length ?? 0} annotations):\n` +
+                `  DB fetch:       ${(_t1 - _t0).toFixed(1)}ms (${listingsIds.length} listingIds)\n` +
+                `  filters:        ${(_t2 - _t1).toFixed(1)}ms\n` +
+                `  listings total: ${(_t3 - _t2).toFixed(1)}ms  [db.listings: ${(_t2b - _t2a).toFixed(1)}ms (${listings.length} found) | filters+scope: ${(_t2c - _t2b).toFixed(1)}ms | db.layers+sort: ${(_t3 - _t2c).toFixed(1)}ms]\n` +
+                `  images batch:   ${(_t4 - _t3).toFixed(1)}ms\n` +
+                `  points/qties:   ${(_t5 - _t4).toFixed(1)}ms\n` +
+                `  entities:       ${(_t6 - _t5).toFixed(1)}ms\n` +
+                `  TOTAL:          ${(_t6 - _t0).toFixed(1)}ms`
+            );
+
             return _annotations;
 
 
         }, [
+            enabled,
             scope?.id,
             baseMap?.id,
             projectId,
@@ -427,84 +563,89 @@ export default function useAnnotationsV2(options) {
 
 
 
-        // override with annotation templates
-        annotations = annotations?.map(annotation => {
-            if (annotation?.isBaseMapAnnotation) {
-                return annotation;
-            } else {
-                const baseMap = baseMapById[annotation?.baseMapId];
-                const templateProps = getAnnotationTemplateProps(annotationTemplatesMap[annotation?.annotationTemplateId])
-                const result = getAnnotationPropsFromAnnotationTemplateProps(annotation, templateProps, baseMap)
-                return result;
+        // memoize post-processing to avoid recomputing on unrelated re-renders
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        const processed = useMemo(() => {
+            // skip post-processing when disabled
+            if (!enabled || !annotations || annotations.length === 0) return [];
+
+            // override with annotation templates
+            let result = annotations.map(annotation => {
+                if (annotation?.isBaseMapAnnotation) {
+                    return annotation;
+                } else {
+                    const baseMap = baseMapById[annotation?.baseMapId];
+                    const templateProps = getAnnotationTemplateProps(annotationTemplatesMap[annotation?.annotationTemplateId])
+                    return getAnnotationPropsFromAnnotationTemplateProps(annotation, templateProps, baseMap)
+                }
+            });
+
+            // recompute qties after template overrides so overridden height is reflected
+            if (withQties) {
+                result = result.map(annotation => {
+                    if (annotation?.isBaseMapAnnotation) return annotation;
+                    const baseMap = baseMapById[annotation?.baseMapId];
+                    const meterByPx = baseMap?.getMeterByPx?.();
+                    if (meterByPx) {
+                        annotation.qties = getAnnotationQties({ annotation, meterByPx });
+                    }
+                    return annotation;
+                });
             }
 
-        })
+            // filter out annotations whose template is hidden
+            result = result.filter(a => !a.hidden);
 
-        // recompute qties after template overrides so overridden height is reflected
-        if (withQties) {
-            annotations = annotations?.map(annotation => {
-                if (annotation?.isBaseMapAnnotation) return annotation;
-                const baseMap = baseMapById[annotation?.baseMapId];
-                const meterByPx = baseMap?.getMeterByPx?.();
-                if (meterByPx) {
-                    annotation.qties = getAnnotationQties({ annotation, meterByPx });
-                }
-                return annotation;
-            });
-        }
+            // solo mode: keep only annotations whose template is in the visible set
+            if (soloMode && soloVisibleTemplateIds != null && soloListingId) {
+                const soloSet = new Set(soloVisibleTemplateIds);
+                result = result.filter(a =>
+                    a.listingId !== soloListingId || soloSet.has(a.annotationTemplateId)
+                );
+            }
 
-        // filter out annotations whose template is hidden
-        annotations = annotations?.filter(a => !a.hidden);
+            // override with temp annotations
+            result = [...result, ...(tempAnnotations ?? [])];
 
-        // solo mode: keep only annotations whose template is in the visible set
-        if (soloMode && soloVisibleTemplateIds != null && soloListingId) {
-            const soloSet = new Set(soloVisibleTemplateIds);
-            annotations = annotations?.filter(a =>
-                a.listingId !== soloListingId || soloSet.has(a.annotationTemplateId)
-            );
-        }
+            // bg image text annotations
+            if (!baseMapAnnotationsOnly && !excludeBgAnnotations) result = [...result, ...(bgImageTextAnnotations ?? [])];
 
-        // override with temp annotations
-        annotations = [...(annotations ?? []), ...(tempAnnotations ?? [])];
+            // sort by order index
+            if (sortByOrderIndex) {
+                result = result.sort((a, b) => {
+                    if ((a.orderIndex !== null && a.orderIndex !== undefined) && (b.orderIndex !== null && b.orderIndex !== undefined)) {
+                        return a.orderIndex < b.orderIndex ? -1 : a.orderIndex > b.orderIndex ? 1 : 0;
+                    }
+                    if (a.orderIndex !== null && a.orderIndex !== undefined) return 1;
+                    if (b.orderIndex !== null && b.orderIndex !== undefined) return -1;
+                });
+            }
 
-        // bg image text annotations
-        if (!baseMapAnnotationsOnly && !excludeBgAnnotations) annotations = [...(annotations ?? []), ...(bgImageTextAnnotations ?? [])];
+            // group by base map
+            if (groupByBaseMap) {
+                const baseMapIds = [...new Set(result.filter(a => Boolean(a.baseMapId)).map(a => a.baseMapId))];
+                const baseMaps = baseMapIds.map(id => baseMapById[id]);
+                result = result.map(a => ({ ...a, baseMap: baseMapById[a.baseMapId] }));
+                result = [...result, ...baseMaps.map(b => ({ id: b.id, baseMap: b, isBaseMap: true }))]
+                result.sort((a, b) => (a.isBaseMap ? 1 : 2) - (b.isBaseMap ? 1 : 2)).sort((a, b) => a.baseMap?.name.localeCompare(b.baseMap?.name));
+            }
 
+            return result;
+        }, [
+            enabled,
+            annotations,
+            annotationTemplatesMap,
+            baseMapById,
+            withQties,
+            soloMode, soloVisibleTemplateIds, soloListingId,
+            tempAnnotations,
+            bgImageTextAnnotations,
+            baseMapAnnotationsOnly, excludeBgAnnotations,
+            sortByOrderIndex,
+            groupByBaseMap,
+        ]);
 
-        // sort by order index
-        if (sortByOrderIndex && annotations) {
-            annotations = annotations.sort((a, b) => {
-                // Cas 1 : Les deux ont un index -> Tri lexicographique
-                if ((a.orderIndex !== null && a.orderIndex !== undefined) && (b.orderIndex !== null && b.orderIndex !== undefined)) {
-                    return a.orderIndex < b.orderIndex ? -1 : a.orderIndex > b.orderIndex ? 1 : 0;
-                }
-
-                // Cas 2 : Un seul a un index -> L'indexé est "plus grand" (au-dessus)
-                if (a.orderIndex !== null && a.orderIndex !== undefined) return 1;
-                if (b.orderIndex !== null && b.orderIndex !== undefined) return -1;
-
-                // Cas 3 : Les deux sont à null -> Tri par date de création (fallback)
-                //return new Date(a.createdAt) - new Date(b.createdAt);
-            });
-        }
-
-        // group by base map
-
-        if (groupByBaseMap && annotations) {
-
-            const baseMapIds = [...new Set(annotations.filter(a => Boolean(a.baseMapId)).map(a => a.baseMapId))];
-            const baseMaps = baseMapIds.map(id => baseMapById[id]);
-            console.log("debug_2201_baseMaps", baseMaps, baseMapIds)
-            annotations = annotations.map(a => ({ ...a, baseMap: baseMapById[a.baseMapId] }));
-            annotations = [...annotations, ...baseMaps.map(b => ({ id: b.id, baseMap: b, isBaseMap: true }))]
-            annotations.sort((a, b) => (a.isBaseMap ? 1 : 2) - (b.isBaseMap ? 1 : 2)).sort((a, b) => a.baseMap?.name.localeCompare(b.baseMap?.name));
-        }
-
-
-
-        // return 
-
-        return annotations;
+        return processed;
     } catch (e) {
         console.log(e);
         return [];

@@ -59,21 +59,21 @@ export default function SectionViewer() {
         <TableViewer />
       </PanelShowable>}
 
-      <PanelShowable show={showPortfolio} sx={{ position: "absolute", zIndex: 0 }}>
+      {showPortfolio && <PanelShowable show={showPortfolio} sx={{ position: "absolute", zIndex: 0 }}>
         <MainPortfolioEditor />
-      </PanelShowable>
+      </PanelShowable>}
 
-      <PanelShowable show={showBaseMaps} sx={{ position: "absolute", zIndex: 0 }}>
+      {showBaseMaps && <PanelShowable show={showBaseMaps} sx={{ position: "absolute", zIndex: 0 }}>
         <MainBaseMapViewer />
-      </PanelShowable>
+      </PanelShowable>}
 
-      <PanelShowable show={showListing} sx={{ position: "absolute", zIndex: 0 }}>
+      {showListing && <PanelShowable show={showListing} sx={{ position: "absolute", zIndex: 0 }}>
         <MainListingViewer />
-      </PanelShowable>
+      </PanelShowable>}
 
-      <PanelShowable show={showAdmin} sx={{ position: "absolute", zIndex: 0 }}>
+      {showAdmin && <PanelShowable show={showAdmin} sx={{ position: "absolute", zIndex: 0 }}>
         <ViewerAdmin />
-      </PanelShowable>
+      </PanelShowable>}
 
       <Box sx={{ position: "absolute", bottom: "8px", right: "8px" }}>
         <ButtonToggleThreedViewer />

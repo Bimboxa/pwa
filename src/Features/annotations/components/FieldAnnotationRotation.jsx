@@ -18,7 +18,7 @@ export default function FieldAnnotationRotation({ annotation }) {
   // data
 
   const baseMap = useMainBaseMap();
-  const allAnnotations = useAnnotationsV2();
+  const allAnnotations = useAnnotationsV2({ caller: "FieldAnnotationRotation" });
   const imageSize = baseMap?.image?.imageSize;
 
   // helpers

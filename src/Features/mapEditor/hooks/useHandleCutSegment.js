@@ -4,16 +4,14 @@ import { useSelector, useDispatch } from "react-redux";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
-import useNewEntity from "Features/entities/hooks/useNewEntity";
 import splitPolylineAtSegment from "Features/mapEditor/utils/splitPolylineAtSegment";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import db from "App/db/db";
 
-export default function useHandleCutSegment() {
+export default function useHandleCutSegment({ newEntity } = {}) {
   const dispatch = useDispatch();
   const createEntity = useCreateEntity();
-  const newEntity = useNewEntity();
   const createAnnotation = useCreateAnnotation();
   const updateAnnotation = useUpdateAnnotation();
 

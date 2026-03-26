@@ -58,6 +58,7 @@ export default function PanelBaseMapContainerProperties() {
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const layers = useLayers({ filterByBaseMapId: container?.baseMapId, filterByScopeId: selectedScopeId }) ?? [];
   const allAnnotations = useAnnotationsV2({
+    caller: "PanelBaseMapContainerProperties",
     filterByBaseMapId: container?.baseMapId,
     filterBySelectedScope: true,
     excludeIsForBaseMapsListings: true,

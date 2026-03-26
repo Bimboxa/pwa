@@ -18,6 +18,7 @@ export default function TableAnnotations() {
     const { value: listing } = useSelectedListing();
     const listingId = listing?.id;
     const annotations = useAnnotationsV2({
+        caller: "TableAnnotations",
         filterByListingId: listingId,
         excludeBgAnnotations: true,
         withQties: true,

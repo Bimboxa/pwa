@@ -2,7 +2,7 @@ import db from "App/db/db";
 import testIsImage from "Features/files/utils/testIsImage";
 import getImageSizeAsync from "Features/images/utils/getImageSizeAsync";
 
-export default async function getEntityWithImagesAsync(entity) {
+export default async function getEntityWithImagesAsync(entity, filesMap) {
   if (!entity) return {};
 
   let hasImages = false;
@@ -13,7 +13,8 @@ export default async function getEntityWithImagesAsync(entity) {
   const hydrateImage = async (item) => {
     if (!item || !item.fileName) return item;
 
-    const file = await db.files.get(item.fileName);
+    // Use pre-fetched filesMap when available, fallback to individual DB query
+    const file = filesMap ? filesMap[item.fileName] : await db.files.get(item.fileName);
 
     if (file && file.fileArrayBuffer) {
       const blob = new Blob([file.fileArrayBuffer], { type: file.fileMime });

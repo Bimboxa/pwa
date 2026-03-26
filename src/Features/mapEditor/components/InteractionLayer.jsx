@@ -996,7 +996,9 @@ const InteractionLayer = forwardRef(({
 
           // setSelectedPointId(null); // Removed
           resetNewAnnotation();
-          dispatch(setEnabledDrawingMode(null));
+          if (enabledDrawingMode !== "ONE_CLICK") {
+            dispatch(setEnabledDrawingMode(null));
+          }
           dispatch(clearSelection()); // Replaces setSelectedNode(null) etc.
           // dispatch(setSelectedNode(null)); 
           // dispatch(setSelectedNodes([])); 

@@ -5,7 +5,6 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
-import useNewEntity from "Features/entities/hooks/useNewEntity";
 
 import splitPolygonByPolyline from "Features/geometry/utils/splitPolygonByPolyline";
 import splitPolylineAtVertex from "Features/mapEditor/utils/splitPolylineAtVertex";
@@ -14,7 +13,7 @@ import { setToaster } from "Features/layout/layoutSlice";
 
 import db from "App/db/db";
 
-export default function useHandleSplitCommit() {
+export default function useHandleSplitCommit({ newEntity } = {}) {
 
     // data
 
@@ -26,7 +25,6 @@ export default function useHandleSplitCommit() {
 
     const baseMap = useMainBaseMap();
     const createEntity = useCreateEntity();
-    const newEntity = useNewEntity();
     const createAnnotation = useCreateAnnotation();
     const updateAnnotation = useUpdateAnnotation();
 
