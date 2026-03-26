@@ -1211,7 +1211,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             <DialogAutoCreateEntity />
             <PopperEditAnnotation viewerKey={forViewerKey} />
             <PopperEditAnnotations viewerKey={forViewerKey} allAnnotations={annotations} />
-            <PopperEditScale />
+            <PopperEditScale viewerKey={forViewerKey} />
             <PopperContextMenu />
 
             {/* <DialogAutoMigrateToMapEditorV3 /> */}

@@ -8,19 +8,23 @@ import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotat
 import PopperBox from "Features/layout/components/PopperBox";
 import SectionEditScale from "./SectionEditScale";
 
-export default function PopperEditScale() {
+export default function PopperEditScale({ viewerKey = null }) {
   const dispatch = useDispatch();
 
   // data
 
   const anchorPosition = useSelector((s) => s.mapEditor.anchorPositionScale);
   const scaleAnnotationId = useSelector((s) => s.mapEditor.scaleAnnotationId);
+  const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
   const resetNewAnnotation = useResetNewAnnotation();
 
   // helper
 
-  const open = Boolean(anchorPosition);
+  const shouldShow = viewerKey
+    ? activeViewerKey === viewerKey
+    : activeViewerKey === "MAP";
+  const open = shouldShow && Boolean(anchorPosition);
 
   // handlers
 
