@@ -1709,10 +1709,24 @@ const InteractionLayer = forwardRef(({
         };
       }
 
-      // Collect visible polygon annotations as filled barriers (in source image pixel coords).
-      // Only POLYGON (not POLYLINE) — surfaces are filled to avoid white gaps from stroke thickness.
+      // Check if a POLYLINE is closed (closeLine flag or first point = last point).
+      const isClosedPolyline = (a) => {
+        if (a.type !== "POLYLINE") return false;
+        if (a.points?.length < 3) return false;
+        if (a.closeLine) return true;
+        const first = a.points[0];
+        const last = a.points[a.points.length - 1];
+        return first.x === last.x && first.y === last.y;
+      };
+
+      // Collect visible POLYGON + closed POLYLINE annotations as filled barriers
+      // (in source image pixel coords). Closed polylines are treated as solid
+      // polygons so the flood fill cannot leak through them.
       const boundaries = (annotations || [])
-        .filter(a => a.type === "POLYGON" && a.points?.length >= 3)
+        .filter(a =>
+          (a.type === "POLYGON" && a.points?.length >= 3) ||
+          isClosedPolyline(a)
+        )
         .map(a => ({
           points: a.points.map(p => ({
             x: (p.x - baseMapImageOffset.x) / baseMapImageScale,

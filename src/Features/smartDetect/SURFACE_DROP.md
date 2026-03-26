@@ -57,18 +57,22 @@ User clicks on map (SURFACE_DROP tool)
 
 **File:** `InteractionLayer.jsx` (SURFACE_DROP block)
 
-Before running the flood fill, all visible POLYGON annotations are collected
-and passed to the worker as `boundaries`. Their points are converted from
-local image coords to source image pixel coords.
+Before running the flood fill, visible annotations are collected and passed
+to the worker as `boundaries`. Two types qualify:
+
+1. **POLYGON** annotations (≥ 3 points)
+2. **Closed POLYLINE** annotations — either `closeLine: true` or first
+   point = last point (≥ 3 points)
+
+Closed polylines are treated as solid filled polygons for barrier purposes.
+Their points are converted from local image coords to source image pixel coords.
 
 **File:** `drawBoundariesOnBinary.js`
 
 The worker draws these boundaries as filled black regions on the binary mask
 using `cv.fillPoly`. This prevents the flood fill from crossing existing
-annotations — they act as walls.
-
-Only POLYGON annotations are used (not POLYLINE), and surfaces are filled
-(not stroked) to avoid visible white gaps between the fill and the annotation.
+annotations — they act as walls. Surfaces are filled (not stroked) to avoid
+visible white gaps between the fill and the annotation.
 
 ## Detection: OpenCV flood fill
 
