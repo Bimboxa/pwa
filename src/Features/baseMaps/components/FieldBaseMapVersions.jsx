@@ -1,15 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { nanoid } from "nanoid";
 import { generateKeyBetween } from "fractional-indexing";
 
-import { setSelectedVersionId } from "Features/baseMapEditor/baseMapEditorSlice";
-import {
-  selectSelectedItems,
-  setSelectedItem,
-} from "Features/selection/selectionSlice";
+
 
 import {
   Box,
@@ -57,7 +53,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionCompareTwoImages from "Features/baseMapTransforms/components/SectionCompareTwoImages";
 import DialogCreateBaseMapVersion from "Features/baseMapEditor/components/DialogCreateBaseMapVersion";
 
-function SortableVersionRow({ version, isSelected, onClick, onDoubleClick }) {
+function SortableVersionRow({ version, isSelected, onClick }) {
   const {
     attributes,
     listeners,
@@ -80,7 +76,6 @@ function SortableVersionRow({ version, isSelected, onClick, onDoubleClick }) {
         component="div"
         selected={isSelected}
         onClick={onClick}
-        onDoubleClick={onDoubleClick}
         sx={{ py: 0.5, px: 2 }}
       >
         <ListItemIcon
@@ -134,12 +129,6 @@ export default function FieldBaseMapVersions({ baseMap }) {
   const [newFileObjectUrl, setNewFileObjectUrl] = useState(null);
   const [newFile, setNewFile] = useState(null);
   const [createNewVersion, setCreateNewVersion] = useState(true);
-  const selectedVersionId = useSelector(
-    (s) => s.baseMapEditor.selectedVersionId
-  );
-  const selectedItems = useSelector(selectSelectedItems);
-  const listingId = selectedItems[0]?.listingId;
-
   const sortedVersions = useMemo(() => {
     if (!baseMap?.versions?.length) return [];
     return [...baseMap.versions].sort((a, b) =>
@@ -154,19 +143,7 @@ export default function FieldBaseMapVersions({ baseMap }) {
 
   // handlers
 
-  function handleVersionClick(version) {
-    dispatch(setSelectedVersionId(version.id));
-    dispatch(
-      setSelectedItem({
-        id: version.id,
-        type: "BASE_MAP_VERSION",
-        listingId,
-        baseMapId: baseMap.id,
-      })
-    );
-  }
-
-  async function handleActivateVersion(version) {
+  async function handleVersionClick(version) {
     if (!baseMap?.id || version.isActive) return;
     await activateBaseMapVersion(baseMap.id, version.id, dispatch);
   }
@@ -320,7 +297,7 @@ export default function FieldBaseMapVersions({ baseMap }) {
         bgcolor: "white",
         borderRadius: 1,
         border: (theme) => `1px solid ${theme.palette.divider}`,
-        overflow: "hidden",
+        flexShrink: 0,
       }}
     >
       <Box
@@ -356,9 +333,8 @@ export default function FieldBaseMapVersions({ baseMap }) {
               <SortableVersionRow
                 key={version.id}
                 version={version}
-                isSelected={selectedVersionId === version.id}
+                isSelected={version.isActive}
                 onClick={() => handleVersionClick(version)}
-                onDoubleClick={() => handleActivateVersion(version)}
               />
             ))}
           </List>

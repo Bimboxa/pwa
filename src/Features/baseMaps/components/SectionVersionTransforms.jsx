@@ -263,7 +263,7 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
           bgcolor: "white",
           borderRadius: 1,
           border: (theme) => `1px solid ${theme.palette.divider}`,
-          overflow: "hidden",
+          flexShrink: 0,
         }}
       >
         <Box
@@ -358,7 +358,7 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
           bgcolor: "white",
           borderRadius: 1,
           border: (theme) => `1px solid ${theme.palette.divider}`,
-          overflow: "hidden",
+          flexShrink: 0,
         }}
       >
         <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>

@@ -59,7 +59,7 @@ export default function PanelSelectionProperties() {
   } else if (isMapViewer && selectedItem?.type === "BASE_MAP") {
     type = "BASE_MAP";
   } else if (isBaseMapsViewer && selectedItem?.type === "BASE_MAP_VERSION") {
-    type = "BASE_MAP_VERSION";
+    type = "BASE_MAP";
   } else if (isBaseMapsViewer && selectedItem?.type === "BASE_MAP") {
     type = "BASE_MAP";
   } else if (isPortfolioViewer) {
