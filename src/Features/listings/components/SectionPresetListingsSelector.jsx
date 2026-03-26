@@ -103,6 +103,8 @@ export default function SectionPresetListingsSelector({
       let items = favoriteItems;
       if (isForBaseMaps) {
         items = items.filter((l) => l.isForBaseMaps === true);
+      } else {
+        items = items.filter((l) => !l.isForBaseMaps);
       }
       if (searchText) {
         const search = searchText.toLowerCase();
@@ -116,6 +118,8 @@ export default function SectionPresetListingsSelector({
 
     if (isForBaseMaps) {
       items = items.filter((l) => l.isForBaseMaps === true);
+    } else {
+      items = items.filter((l) => !l.isForBaseMaps);
     }
 
     if (searchText) {
