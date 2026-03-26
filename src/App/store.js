@@ -39,7 +39,6 @@ import bgImageReducer from "Features/bgImage/bgImageSlice";
 import threedEditorReducer from "Features/threedEditor/threedEditorSlice";
 import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
 import smartDetectReducer from "Features/smartDetect/smartDetectSlice";
-import transformersReducer from "Features/transformers/transformersSlice";
 import reportsReducer from "Features/reports/reportsSlice";
 import blueprintsReducer from "Features/blueprints/blueprintsSlice";
 import selectionReducer from "Features/selection/selectionSlice";
@@ -109,7 +108,6 @@ const store = configureStore({
     bgImage: bgImageReducer,
     mapEditor: mapEditorReducer,
     smartDetect: smartDetectReducer,
-    transformers: transformersReducer,
     threedEditor: threedEditorReducer,
     reports: reportsReducer,
     blueprints: blueprintsReducer,

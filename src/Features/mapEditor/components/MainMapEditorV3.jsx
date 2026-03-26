@@ -30,7 +30,6 @@ import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationTyp
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
-//import useInitTransformersWorker from "Features/transformers/hooks/useInitTransformersWorker";
 
 import { Box } from "@mui/material";
 
@@ -138,11 +137,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             editor.printableMapSvgElement = printableMapRef.current;
         }
     }, [printableMapRef?.current]);
-
-    // init transformer service
-
-    //const transformersWorker = useInitTransformersWorker();
-    const transformersWorker = null;
 
     // data
 
@@ -1124,7 +1118,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     baseMapMeterByPx={baseMap?.getMeterByPx()}
                     legendFormat={legendFormat}
                     onLegendFormatChange={handleLegendFormatChange}
-                    transformersWorker={transformersWorker}
                     onCameraChangeExternal={() => compareSliderRef.current?.updateClipRect?.()}
                 >
                     <g style={(selectedNode || selectedNodes?.length > 0) ? contextDimmedStyle : contextNormalStyle}>

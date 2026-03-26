@@ -69,11 +69,9 @@ import TransientDetectedPolylinesLayer from 'Features/mapEditorGeneric/component
 import TransientDetectedPolygonLayer from 'Features/mapEditorGeneric/components/TransientDetectedPolygonLayer';
 import detectPolygonFromAnnotations from 'Features/smartDetect/utils/detectPolygonFromAnnotations';
 import throttle from 'Features/misc/utils/throttle';
-import SmartTransformerLayer from 'Features/transformers/components/SmartTransformerLayer';
 import CalibrationLayer from './CalibrationLayer';
 import useMainBaseMap from 'Features/mapEditor/hooks/useMainBaseMap';
 import LassoOverlay from 'Features/mapEditorGeneric/components/LassoOverlay';
-import DialogAutoLoadingModel from 'Features/transformers/components/DialogAutoLoadingModel';
 
 
 import mergeBboxes from 'Features/misc/utils/mergeBboxes';
@@ -153,7 +151,6 @@ const InteractionLayer = forwardRef(({
   showBgImage,
   legendFormat,
   onLegendFormatChange,
-  transformersWorker,
   onCameraChangeExternal,
 }
   , ref) => {
@@ -173,7 +170,6 @@ const InteractionLayer = forwardRef(({
   const helperScaleRef = useRef(null);
   // baseMapRafRef — now managed by useBaseMapDrag
   const smartDetectRef = useRef(null); // <--- REF VERS LA LOUPE
-  const smartTransformerRef = useRef(null);
   const transientOrthoPathsRef = useRef(null);
   const detectedOrthoPathsRef = useRef(null); // current ortho detection results (image coords)
   const committedOrthoSegmentsRef = useRef([]); // accumulated committed segments for exclusion
@@ -485,37 +481,6 @@ const InteractionLayer = forwardRef(({
     lastSmartROI.current = { ...sourceROI, zoomFactor: SMART_ZOOM, totalScale };
   }, [toLocalCoords, getTargetPose, baseMapImageScale]);
 
-
-  // Smart Transformer
-
-  const updateSmartTransformer = useCallback((positions) => {
-
-    if (!positions) return;
-
-    // On récupère les positions souris stockées (screenPos = clientX/Y, viewportPos = relatif conteneur)
-    const { screenPos, viewportPos } = positions;
-
-    // 1. Calculer la position souris dans le monde (World) puis dans l'image (Local)
-    const worldPos = viewportRef.current?.screenToWorld(screenPos.x, screenPos.y);
-    if (!worldPos) return;
-
-    const localPos = toLocalCoords(worldPos);
-
-    // 2. Calculer le Zoom Total (Échelle Image * Zoom Caméra)
-    const baseK = getTargetPose()?.k || 1;
-    const cameraZoom = viewportRef.current?.getZoom() || 1;
-    const totalScale = baseK * cameraZoom;
-
-    // 3. Mettre à jour le Transformer Layer
-    // Il affichera un carré de (512 * totalScale) pixels à l'écran
-    if (smartTransformerRef.current) {
-      smartTransformerRef.current.update(viewportPos, localPos, totalScale);
-    }
-
-    // (Optionnel) Si vous avez besoin de stocker le ROI pour d'autres calculs,
-    // notez que le ROI est maintenant implicitement :
-    // x: localPos.x - 256, y: localPos.y - 256, w: 512, h: 512
-  }, [toLocalCoords, getTargetPose]);
 
 
   // Lasso selection
@@ -996,9 +961,7 @@ const InteractionLayer = forwardRef(({
 
           // setSelectedPointId(null); // Removed
           resetNewAnnotation();
-          if (enabledDrawingMode !== "ONE_CLICK") {
-            dispatch(setEnabledDrawingMode(null));
-          }
+          dispatch(setEnabledDrawingMode(null));
           dispatch(clearSelection()); // Replaces setSelectedNode(null) etc.
           // dispatch(setSelectedNode(null)); 
           // dispatch(setSelectedNodes([])); 
@@ -1778,12 +1741,6 @@ const InteractionLayer = forwardRef(({
       commitPolyline(event);
     }
 
-    else if (enabledDrawingMode === "SMART_TRANSFORMER") {
-      if (smartTransformerRef.current) {
-        smartTransformerRef.current.trigger();
-      }
-    }
-
     else if (!enabledDrawingMode) {
       const nativeTarget = event.nativeEvent?.target || event.target;
 
@@ -1976,12 +1933,6 @@ const InteractionLayer = forwardRef(({
     const showSmartDetect = showSmartDetectRef.current;
     const dragState = dragStateRef.current;
     const dragAnnotationState = dragAnnotationStateRef.current;
-
-    if (enabledDrawingModeRef.current === "SMART_TRANSFORMER") {
-      if (smartTransformerRef.current) {
-        smartTransformerRef.current.clear();
-      }
-    }
 
     if (lassoRect) {
       updateLasso(event);
@@ -2302,11 +2253,6 @@ const InteractionLayer = forwardRef(({
     // --- LOGIQUE SMART DETECT (Optimisée) ---
     if (enabledDrawingMode === "SMART_DETECT" || showSmartDetect) {
       updateSmartDetect(lastMouseScreenPosRef.current);
-    }
-
-    // --- LOGIQUE SMART TRANSFORMER (Optimisée) ---
-    if (enabledDrawingMode === "SMART_TRANSFORMER") {
-      updateSmartTransformer(lastMouseScreenPosRef.current);
     }
 
     // --- 5. DÉTECTION DU HOVER (HIT TEST) ---
@@ -3194,15 +3140,6 @@ const InteractionLayer = forwardRef(({
           orthoSnapAngleOffset={orthoSnapAngleOffset}
         />, zoomContainer) : null}
       </>
-
-      {/* SmartTransformer */}
-      {enabledDrawingMode === "SMART_TRANSFORMER" && <SmartTransformerLayer
-        ref={smartTransformerRef}
-        sourceImage={sourceImageEl}
-        transformersWorker={transformersWorker}
-        debug={true}
-      />}
-      <DialogAutoLoadingModel />
 
       <LassoOverlay rect={lassoRect} />
 
