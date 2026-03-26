@@ -65,9 +65,11 @@ import SectionSmartDetect from "Features/smartDetect/components/SectionSmartDete
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import SectionLayers from "Features/layers/components/SectionLayers";
 import {
+  setShowLayers,
   setSoloVisibleTemplateIds,
   setSoloListingId,
 } from "Features/popperMapListings/popperMapListingsSlice";
+import useLayers from "Features/layers/hooks/useLayers";
 import { alpha } from "@mui/material/styles";
 import {
   setEnabledDrawingMode,
@@ -1272,10 +1274,18 @@ export default function PopperMapListings() {
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
 
   const baseMap = useMainBaseMap();
+  const layers = useLayers({ filterByBaseMapId: baseMap?.id });
   const showCalibration = useSelector(
     (s) => s.baseMapEditor.showCalibration
   );
   const versionsCount = baseMap?.versions?.length ?? 0;
+
+  // Auto-enable showLayers when baseMap has layers in MAP viewer
+  useEffect(() => {
+    if (viewerKey === "MAP") {
+      dispatch(setShowLayers(layers?.length > 0));
+    }
+  }, [layers?.length, viewerKey]);
 
   // single annotation source for all counts
   const allAnnotations = useAnnotationsV2({

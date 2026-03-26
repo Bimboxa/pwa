@@ -5,6 +5,8 @@ import { useSelector, useDispatch } from "react-redux";
 import {
   setAnchorPositionScale,
   setScaleAnnotationId,
+  setOrthoSnapAngleOffset,
+  setOrthoSnapEnabled,
 } from "../mapEditorSlice";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
@@ -15,6 +17,7 @@ import useDeleteAnnotation from "Features/annotations/hooks/useDeleteAnnotation"
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 
 import { Paper, Button, Typography, Box, TextField } from "@mui/material";
+import IconOrthoSnap from "Features/icons/IconOrthoSnap";
 
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
@@ -61,6 +64,10 @@ export default function SectionEditScale() {
   // helper - angle
 
   const angle = angleInRad * 180 / Math.PI;
+  let normalizedAngle = -angle;
+  while (normalizedAngle <= -90) normalizedAngle += 180;
+  while (normalizedAngle > 90) normalizedAngle -= 180;
+  normalizedAngle = Math.round(normalizedAngle * 100) / 100;
 
   // helper
 
@@ -98,6 +105,11 @@ export default function SectionEditScale() {
     });
   }
 
+  function handleSnapAngleClick() {
+    dispatch(setOrthoSnapAngleOffset(normalizedAngle));
+    dispatch(setOrthoSnapEnabled(true));
+  }
+
   return (
 
     <Box sx={{ width: 1 }}>
@@ -115,11 +127,17 @@ export default function SectionEditScale() {
         </BoxAlignToRight>
       </Box>
 
-      <Box sx={{ p: 0.5 }}>
+      <Box sx={{ p: 0.5, display: "flex", alignItems: "center", gap: 0.5 }}>
         <ButtonGeneric
           size="small"
-          label={angle.toFixed(2) + "°"}
+          label={normalizedAngle.toFixed(2) + "°"}
           onClick={handleAngleClick}
+        />
+        <ButtonGeneric
+          size="small"
+          label="Enregistrer comme angle principal"
+          startIcon={<IconOrthoSnap />}
+          onClick={handleSnapAngleClick}
         />
       </Box>
     </Box>
