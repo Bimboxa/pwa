@@ -1,21 +1,21 @@
 import { useSelector, useDispatch } from "react-redux";
 
 import { setOpenDialogDeleteSelectedAnnotation } from "../annotationsSlice";
-import { selectSelectedItem, clearSelection } from "Features/selection/selectionSlice";
+import { selectSelectedItems, clearSelection } from "Features/selection/selectionSlice";
 
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 
-import db from "App/db/db";
+import useDeleteAnnotations from "../hooks/useDeleteAnnotations";
 import { setAnnotationToolbarPosition } from "Features/mapEditor/mapEditorSlice";
 
 export default function DialogDeleteSelectedAnnotation() {
   const dispatch = useDispatch();
+  const deleteAnnotations = useDeleteAnnotations();
 
   // data
 
   const open = useSelector((s) => s.annotations.openDialogDeleteSelectedAnnotation);
-  const selectedItem = useSelector(selectSelectedItem);
-  const currentUserId = useSelector((s) => s.auth.userProfile?.userIdMaster);
+  const selectedItems = useSelector(selectSelectedItems);
 
   // handlers
 
@@ -25,20 +25,12 @@ export default function DialogDeleteSelectedAnnotation() {
   }
 
   async function handleDelete() {
-    const annotationId = selectedItem?.nodeId;
-    if (!annotationId) return;
+    const annotationIds = selectedItems
+      .filter((item) => item.nodeId)
+      .map((item) => item.nodeId);
+    if (annotationIds.length === 0) return;
 
-    // PERMISSION GUARD : vérifier propriété avant suppression
-    const annotation = await db.annotations.get(annotationId);
-    if (
-      annotation?.createdByUserIdMaster !== currentUserId &&
-      annotation?.createdByUserIdMaster !== "anonymous"
-    ) {
-      handleClose();
-      return;
-    }
-
-    await db.annotations.delete(annotationId);
+    await deleteAnnotations(annotationIds);
     dispatch(clearSelection());
     handleClose();
   }

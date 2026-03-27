@@ -80,7 +80,7 @@ export default function useConvertAnnotationsToPolyline() {
               projectId,
               baseMapId: annotation.baseMapId,
               points: [{ id: p1.id }, { id: p2.id }],
-              closeLine: false,
+              closeLine: true,
               ...(activeLayerId ? { layerId: activeLayerId } : {}),
             });
 
@@ -107,7 +107,7 @@ export default function useConvertAnnotationsToPolyline() {
           annotationTemplateId,
           annotationTemplateProps: { label: template.label },
           listingId,
-          closeLine: false,
+          closeLine: true,
           ...(activeLayerId ? { layerId: activeLayerId } : {}),
         };
 
@@ -164,7 +164,7 @@ export default function useConvertAnnotationsToPolyline() {
               projectId,
               baseMapId: annotation.baseMapId,
               points: cut.points,
-              closeLine: false,
+              closeLine: true,
               ...(activeLayerId ? { layerId: activeLayerId } : {}),
             });
 
