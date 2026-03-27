@@ -91,6 +91,8 @@ import getTopMiddlePoint from 'Features/geometry/utils/getTopMiddlePoint';
 import getAnnotationBBox from 'Features/annotations/utils/getAnnotationBbox';
 import orthogonalizePolyline from 'Features/geometry/utils/orthogonalizePolyline';
 import alignPolygonsToGrid from 'Features/geometry/utils/alignPolygonsToGrid';
+import filterSurfaceDropCuts from 'Features/smartDetect/utils/filterSurfaceDropCuts';
+import convexHull from 'Features/geometry/utils/convexHull';
 
 import { useSmartZoom } from "App/contexts/SmartZoomContext";
 import useUndo from "App/db/useUndo";
@@ -218,6 +220,9 @@ const InteractionLayer = forwardRef(({
   const orthoSnapEnabled = useSelector((s) => s.mapEditor.orthoSnapEnabled);
   const orthoSnapAngleOffset = useSelector((s) => s.mapEditor.orthoSnapAngleOffset);
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
+  const noCuts = useSelector((s) => s.smartDetect.noCuts);
+  const noSmallCuts = useSelector((s) => s.smartDetect.noSmallCuts);
+  const convexHullEnabled = useSelector((s) => s.smartDetect.convexHull);
   const { zoomContainer } = useSmartZoom();
 
   // permissions (ownership-based)
@@ -1727,13 +1732,36 @@ const InteractionLayer = forwardRef(({
         }
       );
 
-      const topMiddlePoint = getTopMiddlePoint(localPoints);
+      const filteredCuts = filterSurfaceDropCuts(localCuts, {
+        noCuts,
+        noSmallCuts,
+        baseMapImageScale,
+      });
+
+      // Apply convex hull to polygons with too many points (> 42)
+      const CONVEX_HULL_THRESHOLD = 42;
+      let finalPoints = localPoints;
+      let finalCuts = filteredCuts;
+      if (convexHullEnabled) {
+        if (localPoints.length > CONVEX_HULL_THRESHOLD) {
+          finalPoints = convexHull(localPoints);
+        }
+        if (finalCuts) {
+          finalCuts = finalCuts.map((cut) =>
+            cut.points?.length > CONVEX_HULL_THRESHOLD
+              ? { ...cut, points: convexHull(cut.points) }
+              : cut
+          );
+        }
+      }
+
+      const topMiddlePoint = getTopMiddlePoint(finalPoints);
       const pose = getTargetPose(); // getTargetPose retourne basePose par défaut
       const worldX = topMiddlePoint.x * pose.k + pose.x;
       const worldY = topMiddlePoint.y * pose.k + pose.y;
       const screenPos = viewportRef.current?.worldToScreen(worldX, worldY);
       if (onCommitPointsFromSurfaceDrop) {
-        onCommitPointsFromSurfaceDrop({ points: localPoints, cuts: localCuts, screenPos });
+        onCommitPointsFromSurfaceDrop({ points: finalPoints, cuts: finalCuts, screenPos });
       }
     }
 

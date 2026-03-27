@@ -11,6 +11,7 @@ import WhiteSectionGeneric from "./WhiteSectionGeneric";
 export default function FieldCheck({ value, onChange, label, options }) {
   const type = options?.type ?? "check";
   const showAsSection = options?.showAsSection ?? false;
+  const showAsInline = options?.showAsInline ?? false;
   const textColor = options?.textColor ?? "text.primary";
 
   function handleChange(e, checked) {
@@ -45,7 +46,7 @@ export default function FieldCheck({ value, onChange, label, options }) {
       sx={{
         display: "flex",
         alignItems: "center",
-        p: 1,
+        ...(showAsInline ? { px: 1, py: 0 } : { p: 1 }),
         ...(showAsSection && {
           borderTop: (theme) => `1px solid ${theme.palette.divider}`,
         }),
