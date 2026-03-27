@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -62,16 +62,19 @@ export default function PortfolioEditorViewport() {
 
   // handlers
 
-  const handleWheel = useCallback(
-    (e) => {
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    function onWheel(e) {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? -0.02 : 0.02;
-        setZoom((z) => Math.max(0.2, Math.min(3, z + delta)));
+        const factor = e.deltaY > 0 ? 1 / 1.03 : 1.03;
+        setZoom((z) => Math.max(0.2, Math.min(3, z * factor)));
       }
-    },
-    []
-  );
+    }
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
 
   function handleBackgroundClick(e) {
     if (e.target === e.currentTarget || e.target === containerRef.current) {
@@ -111,7 +114,6 @@ export default function PortfolioEditorViewport() {
     <Box sx={{ width: 1, height: 1, position: "relative" }}>
       <Box
         ref={containerRef}
-        onWheel={handleWheel}
         onClick={handleBackgroundClick}
         sx={{
           width: 1,
