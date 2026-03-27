@@ -22,13 +22,14 @@ export default function getListingsToCreateFromAppConfig(
 
   // step 1 - add ids to listings
 
-  let listings = presetScope.listings.map((listingKey) => {
+  let listings = presetScope.listings.map((listingKey, index) => {
     const listing = presetListingsObject[listingKey];
     const listingId = nanoid();
     //
     const newListing = {
       ...listing,
       id: listingId,
+      rank: index,
     };
     //
     listingByKey[listingKey] = newListing;

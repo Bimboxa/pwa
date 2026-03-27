@@ -26,13 +26,17 @@ export default function resolvePresetListingsAndScopesObjectFromAnnotationTempla
 
     if (presetScopeItems?.length > 0) {
         presetScopes = presetScopeItems.map((item) => {
-            const matchedListingKeys = item.keywords?.length > 0
-                ? libraries
-                    .filter((library) =>
-                        item.keywords.every((kw) => library.keywords?.includes(kw))
-                    )
-                    .map((library) => library.key)
-                : [];
+            const matchedListingKeys = item.annotationTemplateKeys?.length > 0
+                ? item.annotationTemplateKeys.filter((key) =>
+                    libraries.some((lib) => lib.key === key)
+                )
+                : item.keywords?.length > 0
+                    ? libraries
+                        .filter((library) =>
+                            item.keywords.every((kw) => library.keywords?.includes(kw))
+                        )
+                        .map((library) => library.key)
+                    : [];
 
             return {
                 key: item.key,

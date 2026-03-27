@@ -60,6 +60,7 @@ export default function SectionCreateScope() {
   // state
 
   const [tempScope, setTempScope] = useState({});
+  const [isCreating, setIsCreating] = useState(false);
 
   // effect
 
@@ -78,6 +79,8 @@ export default function SectionCreateScope() {
   // handlers
 
   async function handleCreateScope() {
+    if (isCreating) return;
+    setIsCreating(true);
 
     const newListings = await resolvePresetScopeListings({ presetScopeKey, appConfig, projectId });
     const newEntities = resolvePresetScopeEntities({ listings: newListings });
@@ -89,6 +92,7 @@ export default function SectionCreateScope() {
       projectId,
       newListings,
       newEntities,
+      presetScopeKey,
     });
     console.log("debug_25_09 [scope] created scope", scope, baseMapsListings);
     if (scope) {
@@ -150,6 +154,7 @@ export default function SectionCreateScope() {
         label={createS}
         onClick={handleCreateScope}
         variant="contained"
+        disabled={isCreating}
       />
     </BoxFlexVStretch>
   );

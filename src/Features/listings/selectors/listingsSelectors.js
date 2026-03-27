@@ -11,8 +11,10 @@ export const makeGetListingsByOptions = (options) =>
       (state) => state.listings.listingsUpdatedAt,
       (state) => state.listings.listingsById,
       (state) => state.appConfig.value?.entityModelsObject,
+      (state) => state.scopes.scopesById,
+      (state) => state.appConfig.value?.presetScopesObject,
     ],
-    (listingsUpdatedAt, listingsById, entityModelsObject) => {
+    (listingsUpdatedAt, listingsById, entityModelsObject, scopesById, presetScopesObject) => {
       // options
 
       const filterByProjectId = options?.filterByProjectId;
@@ -32,6 +34,23 @@ export const makeGetListingsByOptions = (options) =>
       // main
 
       let listings = Object.values(listingsById ?? {}) ?? [];
+
+      // sort: use rank if available, otherwise fallback to appConfig order
+      const hasRank = listings.some((l) => l.rank != null);
+      if (hasRank) {
+        listings.sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
+      } else if (filterByScopeId && scopesById && presetScopesObject) {
+        const scope = scopesById[filterByScopeId];
+        const presetScope = scope?.presetScopeKey ? presetScopesObject[scope.presetScopeKey] : null;
+        if (presetScope?.listings) {
+          const keyOrder = presetScope.listings;
+          listings.sort((a, b) => {
+            const aIdx = keyOrder.indexOf(a.key);
+            const bIdx = keyOrder.indexOf(b.key);
+            return (aIdx === -1 ? Infinity : aIdx) - (bIdx === -1 ? Infinity : bIdx);
+          });
+        }
+      }
 
       const test = testObjectHasProp(options, "filterByProjectId");
       if (test) {
