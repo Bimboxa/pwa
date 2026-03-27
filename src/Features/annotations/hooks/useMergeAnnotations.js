@@ -86,18 +86,38 @@ export default function useMergeAnnotations() {
     const resolvedShape =
       shape || resolveDrawingShapeFromType(annotations[0].type);
     const annotation0 = annotations[0];
-    const annotationsToDelete = annotations.filter((a, i) => i !== 0);
 
     if (resolvedShape === "POLYLINE") {
       // polyline merge
 
       const polylinesList = annotations.map((a) => a.points);
-      const mergedPoints = mergePolylines(polylinesList);
+      const groups = mergePolylines(polylinesList);
 
-      await db.annotations.update(annotation0.id, {
-        points: mergedPoints,
-        ...(activeLayerId ? { layerId: activeLayerId } : {}),
+      const otherAnnotations = annotations.slice(1);
+      const idsToDelete = otherAnnotations
+        .filter((_, i) => i >= groups.length - 1)
+        .map((a) => a.id);
+
+      await db.transaction("rw", db.annotations, async () => {
+        await db.annotations.update(annotation0.id, {
+          points: groups[0],
+          ...(activeLayerId ? { layerId: activeLayerId } : {}),
+        });
+        for (let i = 0; i < otherAnnotations.length; i++) {
+          if (i < groups.length - 1) {
+            await db.annotations.update(otherAnnotations[i].id, {
+              points: groups[i + 1],
+              ...(activeLayerId ? { layerId: activeLayerId } : {}),
+            });
+          }
+        }
+        if (idsToDelete.length > 0) {
+          await db.annotations.bulkDelete(idsToDelete);
+        }
       });
+
+      dispatch(triggerAnnotationsUpdate());
+      return;
     } else if (resolvedShape === "POLYGON") {
       // polygon merge
 
@@ -168,30 +188,30 @@ export default function useMergeAnnotations() {
         height: 1,
       };
 
-      if (result.newPoints?.length > 0) {
-        await db.points.bulkAdd(
-          result.newPoints.map((point) => ({
-            ...point,
-            x: point.x / width,
-            y: point.y / height,
-            projectId: annotation0.projectId,
-            baseMapId: annotation0.baseMapId,
-          }))
-        );
-      }
+      const annotationsToDelete = annotations.filter((a, i) => i !== 0);
 
-      await db.annotations.update(annotation0.id, {
-        points: result.mergedPolygon.points,
-        cuts: result.mergedPolygon.cuts,
-        ...(activeLayerId ? { layerId: activeLayerId } : {}),
+      await db.transaction("rw", db.annotations, db.points, async () => {
+        if (result.newPoints?.length > 0) {
+          await db.points.bulkAdd(
+            result.newPoints.map((point) => ({
+              ...point,
+              x: point.x / width,
+              y: point.y / height,
+              projectId: annotation0.projectId,
+              baseMapId: annotation0.baseMapId,
+            }))
+          );
+        }
+
+        await db.annotations.update(annotation0.id, {
+          points: result.mergedPolygon.points,
+          cuts: result.mergedPolygon.cuts,
+          ...(activeLayerId ? { layerId: activeLayerId } : {}),
+        });
+
+        await db.annotations.bulkDelete(annotationsToDelete.map((a) => a.id));
       });
     }
-
-    // delete merged annotations
-
-    await db.annotations.bulkDelete(annotationsToDelete.map((a) => a.id));
-
-    // updates
 
     dispatch(triggerAnnotationsUpdate());
   };

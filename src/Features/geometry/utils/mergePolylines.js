@@ -1,14 +1,18 @@
+const DEFAULT_MAX_DIST_SQ = 10 * 10; // 10 px squared
+
 /**
- * Merges multiple polylines into a single polyline by chaining them
- * via closest endpoints.
+ * Merges multiple polylines into groups by chaining them
+ * via closest endpoints, only when endpoints are within maxDistSq.
  *
  * @param {Array<Array<{id, x, y, type}>>} polylinesList
- * @returns {Array<{id, x, y, type}>} merged points
+ * @param {number} [maxDistSq] - Maximum squared distance to allow chaining (default 100 = 10px)
+ * @returns {Array<Array<{id, x, y, type}>>} array of merged polyline groups
  */
-export default function mergePolylines(polylinesList) {
-  if (!polylinesList || polylinesList.length === 0) return null;
-  if (polylinesList.length === 1) return [...polylinesList[0]];
+export default function mergePolylines(polylinesList, maxDistSq = DEFAULT_MAX_DIST_SQ) {
+  if (!polylinesList || polylinesList.length === 0) return [];
+  if (polylinesList.length === 1) return [[...polylinesList[0]]];
 
+  const groups = [];
   let chain = [...polylinesList[0]];
   const pool = polylinesList.slice(1).map((p) => [...p]);
 
@@ -45,6 +49,13 @@ export default function mergePolylines(polylinesList) {
       }
     }
 
+    // If the closest endpoint is too far, finalize the current chain and start a new group
+    if (bestDist > maxDistSq) {
+      groups.push(chain);
+      chain = pool.splice(0, 1)[0];
+      continue;
+    }
+
     const candidate = pool.splice(bestIdx, 1)[0];
     const EPSILON = 1e-6;
     const skipShared = bestDist < EPSILON;
@@ -63,7 +74,8 @@ export default function mergePolylines(polylinesList) {
     }
   }
 
-  return chain;
+  groups.push(chain);
+  return groups;
 }
 
 function dist2(a, b) {
