@@ -94,6 +94,7 @@ import editor from "App/editor";
 import getTopMiddlePoint from 'Features/geometry/utils/getTopMiddlePoint';
 
 import getAnnotationBBox from 'Features/annotations/utils/getAnnotationBbox';
+import getAnnotationColor from 'Features/annotations/utils/getAnnotationColor';
 import orthogonalizePolyline from 'Features/geometry/utils/orthogonalizePolyline';
 import alignPolygonsToGrid from 'Features/geometry/utils/alignPolygonsToGrid';
 import filterSurfaceDropCuts from 'Features/smartDetect/utils/filterSurfaceDropCuts';
@@ -443,7 +444,7 @@ const InteractionLayer = forwardRef(({
 
   // Drawing modes that only select existing geometry (no smart detect needed)
   const SEGMENT_SELECT_MODES = ["TECHNICAL_RETURN", "CUT_SEGMENT"];
-  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK"];
+  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION"];
 
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
@@ -769,6 +770,10 @@ const InteractionLayer = forwardRef(({
 
   const saveTempAnnotations = useSaveTempAnnotations();
 
+  // COMPLETE_ANNOTATION state
+  const completeAnnotationRef = useRef(null); // { id, type } of the annotation being extended
+  const completeStartPointRef = useRef(null); // starting vertex point ID
+
   const stateRef = useRef({
     selectedNode,
     selectedPointId,
@@ -1012,6 +1017,8 @@ const InteractionLayer = forwardRef(({
           setDrawingPoints([]);
           setBrushPath([]);
           setCutHostId(null);
+          completeAnnotationRef.current = null;
+          completeStartPointRef.current = null;
 
           setShowSmartDetect(false);
 
@@ -1215,8 +1222,18 @@ const InteractionLayer = forwardRef(({
             }
             break;
           }
-          if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP", "BRUSH"].includes(enabledDrawingModeRef.current)) {
-            commitPolyline();
+          if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP", "BRUSH", "COMPLETE_ANNOTATION"].includes(enabledDrawingModeRef.current)) {
+            if (enabledDrawingModeRef.current === "COMPLETE_ANNOTATION" && completeAnnotationRef.current) {
+              commitPolyline(null, {
+                completeAnnotationId: completeAnnotationRef.current.id,
+                startPointId: completeStartPointRef.current,
+                endPointId: null,
+              });
+              completeAnnotationRef.current = null;
+              completeStartPointRef.current = null;
+            } else {
+              commitPolyline();
+            }
           }
 
           if (enabledDrawingModeRef.current === "SMART_DETECT") {
@@ -1547,7 +1564,7 @@ const InteractionLayer = forwardRef(({
       return;
     }
 
-    if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP"].includes(enabledDrawingMode)) {
+    if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP", "COMPLETE_ANNOTATION"].includes(enabledDrawingMode)) {
       // --- ORTHO_PATHS intercept: run BFS tracing instead of adding a point ---
       // (not for POLYGON_CLICK — polygon detection uses annotation geometry, not ORTHO_PATHS)
       const currentDetectMode = smartDetectRef.current?.getSelectedDetectMode?.();
@@ -2260,7 +2277,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "COMPLETE_ANNOTATION"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -2462,6 +2479,75 @@ const InteractionLayer = forwardRef(({
 
       // On force un flash visuel
       screenCursorRef.current?.triggerFlash();
+
+      // --- COMPLETE_ANNOTATION: identify target annotation on first vertex click ---
+      if (enabledDrawingMode === "COMPLETE_ANNOTATION") {
+        // Determine which annotation this snap belongs to
+        const snapAnnotationId = snap.annotationId || snap.previewAnnotationId;
+
+        if (!completeAnnotationRef.current) {
+          // First click: identify the annotation via VERTEX, MIDPOINT, or PROJECTION
+          if (!snapAnnotationId) {
+            dispatch(setToaster({ message: "Cliquez sur un point existant", isError: true }));
+            setDrawingPoints([]);
+            drawingPointsRef.current = [];
+            return;
+          }
+
+          // For VERTEX: check that it belongs to exactly 1 annotation
+          if (snap.type === "VERTEX") {
+            const pointId = snap.id;
+            const matchingAnnotations = (annotations || []).filter(
+              (a) =>
+                (a.type === "POLYLINE" || a.type === "POLYGON") &&
+                a.points?.some((p) => p.id === pointId)
+            );
+
+            if (matchingAnnotations.length > 1) {
+              dispatch(setToaster({ message: "Plusieurs annotations appartiennent à ce point", isError: true }));
+              setDrawingPoints([]);
+              drawingPointsRef.current = [];
+              return;
+            }
+          }
+
+          const targetAnnotation = (annotations || []).find(
+            (a) => a.id === snapAnnotationId &&
+              (a.type === "POLYLINE" || a.type === "POLYGON")
+          );
+          if (!targetAnnotation) {
+            dispatch(setToaster({ message: "Cliquez sur un point existant", isError: true }));
+            setDrawingPoints([]);
+            drawingPointsRef.current = [];
+            return;
+          }
+
+          completeAnnotationRef.current = { id: targetAnnotation.id, type: targetAnnotation.type };
+          completeStartPointRef.current = snap.type === "VERTEX" ? snap.id : null;
+
+          const color = getAnnotationColor(targetAnnotation);
+          dispatch(setNewAnnotation({
+            ...newAnnotationRef.current,
+            strokeColor: color,
+            fillColor: color,
+          }));
+        } else if (snapAnnotationId === completeAnnotationRef.current.id) {
+          // Subsequent click on the same annotation (VERTEX, PROJECTION, or MIDPOINT) → commit
+          const endPointId = snap.type === "VERTEX" ? snap.id : null;
+          if (snap.type === "VERTEX" && snap.id === completeStartPointRef.current) {
+            // Clicking on the same start point — ignore
+          } else {
+            commitPolyline(e, {
+              completeAnnotationId: completeAnnotationRef.current.id,
+              startPointId: completeStartPointRef.current,
+              endPointId,
+            });
+            completeAnnotationRef.current = null;
+            completeStartPointRef.current = null;
+            return;
+          }
+        }
+      }
 
       // --- CORRECTION DU BUG "ONE_CLICK" ---
       if (enabledDrawingMode === 'ONE_CLICK') {

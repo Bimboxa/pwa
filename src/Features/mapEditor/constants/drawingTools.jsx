@@ -6,6 +6,7 @@ import {
   MyLocation as Target,
   Brush,
   Insights as Smart,
+  Create,
 } from "@mui/icons-material";
 
 import IconPolylineClick from "Features/icons/IconPolylineClick";
@@ -194,6 +195,14 @@ const DRAWING_TOOLS = [
     annotationType: "POLYLINE",
     behavior: "DETECT_SIMILAR_POLYLINES",
   },
+  // COMPLETE_ANNOTATION tool (Prolonger)
+  {
+    key: "COMPLETE_ANNOTATION",
+    label: "Prolonger",
+    Icon: Create,
+    annotationType: "COMPLETE_ANNOTATION",
+    behavior: "CLICK",
+  },
 ];
 
 export const DRAWING_TOOLS_BY_TYPE = {
@@ -201,6 +210,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
   SPLIT_LINE: ["SPLIT_POLYLINE_CLICK", "CUT_SEGMENT", "SPLIT_POLYLINE"],
   SPLIT_SURFACE: ["SPLIT_CLICK"],
   TECHNICAL_RETURN: ["TECHNICAL_RETURN"],
+  COMPLETE_ANNOTATION: ["COMPLETE_ANNOTATION"],
 };
 
 export function getDrawingToolsByShape(drawingShape) {

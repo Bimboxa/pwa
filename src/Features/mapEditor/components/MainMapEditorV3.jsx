@@ -25,6 +25,7 @@ import useAutoShowBgImage from "Features/bgImage/hooks/useAutoShowBgImage";
 import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgImageRawTextAnnotations";
 import useHandleCommitDrawing from "../hooks/useHandleCommitDrawing";
 import useHandleSplitCommit from "../hooks/useHandleSplitCommit";
+import useHandleCompleteAnnotation from "../hooks/useHandleCompleteAnnotation";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationType";
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
@@ -346,6 +347,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const handleTechnicalReturn = useHandleTechnicalReturn({ annotations, newEntity });
     const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline({ newEntity });
     const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick({ newEntity });
+    const { handleCompleteAnnotationCommit } = useHandleCompleteAnnotation({ newEntity });
     const saveTempAnnotations = useSaveTempAnnotations();
 
     const handleCommitDrawing = (rawPoints, options) => {
@@ -1071,6 +1073,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         // Bulk commit for DETECT_SIMILAR_POLYLINES
                         if (options?.bulkPolylines) {
                             return handleBulkCommit(options.bulkPolylines, options);
+                        }
+                        // COMPLETE_ANNOTATION: extend existing annotation
+                        if (options?.completeAnnotationId) {
+                            return handleCompleteAnnotationCommit(points, options);
                         }
                         if (type === "SPLIT") {
                             return handleSplitCommit(points);

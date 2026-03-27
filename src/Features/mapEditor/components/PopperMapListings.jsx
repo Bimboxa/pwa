@@ -54,7 +54,7 @@ import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
-import { StopCircle } from "@mui/icons-material";
+import { StopCircle, Create } from "@mui/icons-material";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import IconCutLine from "Features/icons/IconCutLine";
 import IconCutSurface from "Features/icons/IconCutSurface";
@@ -116,6 +116,7 @@ const TOOL_ITEMS = [
   { type: "SPLIT_LINE", label: "Couper une ligne", Icon: IconCutLine },
   { type: "SPLIT_SURFACE", label: "Couper des surfaces", Icon: IconCutSurface },
   { type: "TECHNICAL_RETURN", label: "Retour 1m", Icon: IconTechnicalReturn },
+  { type: "COMPLETE_ANNOTATION", label: "Prolonger", Icon: Create },
 ];
 
 // ---------------------------------------------------------------------------
