@@ -25,7 +25,7 @@ const pulseAnimation = keyframes`
 const COLORS = {
     POINT: "#00ff00",    // Lime Green
     LINE: "#00ccff",     // Cyan
-    RECTANGLE: "#FFD700", // Gold
+    RECTANGLE: "#00FF00", // Lime Green
     ORTHO_PATHS: "#00ff00", // Lime Green (same as POINT for ortho paths)
     SIMILAR_LINE: "#00ff00", // Lime Green for detected similar lines
 };
@@ -148,6 +148,8 @@ const SmartDetectLayer = forwardRef(({
         morphKernelSize: 3,
     });
     const cachedImageUrlRef = useRef(null); // cached full-image dataURL for ORTHO_PATHS
+    const orthoSnapAngleOffsetRef = useRef(orthoSnapAngleOffset);
+    orthoSnapAngleOffsetRef.current = orthoSnapAngleOffset;
 
     // --- SYNC INITIAL DETECT MODE ---
     useEffect(() => {
@@ -219,7 +221,7 @@ const SmartDetectLayer = forwardRef(({
                     clickY: centerY,
                     existingSegments: [],
                     colorTolerance: 80,
-                    offsetAngle: orthoSnapAngleOffset || 0,
+                    offsetAngle: orthoSnapAngleOffsetRef.current || 0,
                 });
                 const polylines = result?.polylines || [];
                 setSimilarLines(polylines);
@@ -238,6 +240,7 @@ const SmartDetectLayer = forwardRef(({
                 morphKernelSize: currentKernelSize,
                 rotation,
                 keepBest: false,
+                orthoSnapAngleOffset: orthoSnapAngleOffsetRef.current || 0,
             });
 
             // Line Logic

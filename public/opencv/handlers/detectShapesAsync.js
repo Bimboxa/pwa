@@ -27,7 +27,8 @@ async function detectShapesAsync({ msg, payload }) {
         const { imageUrl,
             morphKernelSize = 3,
             rotation,
-            keepBest = true
+            keepBest = true,
+            orthoSnapAngleOffset = 0
         } = payload ?? {};
 
         if (!imageUrl) throw new Error("imageUrl is required");
@@ -95,6 +96,7 @@ async function detectShapesAsync({ msg, payload }) {
             mainRectangle = await detectMainRectangleAsync({
                 imageData: imgData,
                 rotation: rotation,
+                orthoSnapAngleOffset: orthoSnapAngleOffset,
             });
 
             // -- PRE-PROCESSED IMAGE --

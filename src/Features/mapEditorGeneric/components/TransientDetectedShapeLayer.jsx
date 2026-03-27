@@ -14,7 +14,7 @@ const flashAnimation = keyframes`
 const COLORS = {
     POINT: "#00ff00",    // Lime Green
     LINE: "#00ccff",     // Cyan
-    RECTANGLE: "#FFD700" // Gold
+    RECTANGLE: "#00FF00" // Lime Green
 };
 
 // Groupe animé pour les points

@@ -147,6 +147,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const enabledDrawingMode = useSelector((state) => state.mapEditor.enabledDrawingMode);
     _track("enabledDrawingMode", enabledDrawingMode);
     const mapEditorMode = useSelector((state) => state.mapEditor.mapEditorMode);
+    const orthoSnapAngleOffset = useSelector((state) => state.mapEditor.orthoSnapAngleOffset);
 
     // Selection from new Redux slice
     const { nodes: selectedNodes, node: selectedNode } = useSelectedNodes();
@@ -407,7 +408,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     const handleCommitDrawingFromRectangle = (points, event) => {
         if (["POLYGON", "POLYLINE"].includes(type) && points.length === 2) {
-            points = getPolylinePointsFromRectangle(points)
+            points = getPolylinePointsFromRectangle(points, orthoSnapAngleOffset)
         }
         const options = {}
         if (type === "POLYLINE") options.closeLine = true;
@@ -1068,7 +1069,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             return handleSplitCommit(points);
                         }
                         else if (cutHostId) {
-                            if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode) && points.length === 2) points = getPolylinePointsFromRectangle(points)
+                            if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode) && points.length === 2) points = getPolylinePointsFromRectangle(points, orthoSnapAngleOffset)
                             else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) points = getPolylinePointsFromCircle(points)
                             return handleCommitDrawing(points, { cutHostId });
                         }

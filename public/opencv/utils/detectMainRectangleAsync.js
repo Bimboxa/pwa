@@ -1,4 +1,4 @@
-async function detectMainRectangleAsync({ imageData, rotation = 0, margin = 10 }) {
+async function detectMainRectangleAsync({ imageData, rotation = 0, orthoSnapAngleOffset = 0, margin = 10 }) {
     const matList = [];
     const track = (mat) => {
         if (mat) matList.push(mat);
@@ -35,7 +35,10 @@ async function detectMainRectangleAsync({ imageData, rotation = 0, margin = 10 }
                     if (diff > 45) diff = 90 - diff;
                     return diff;
                 };
-                return getDeviation(0) < ANGLE_TOLERANCE || getDeviation(rotation) < ANGLE_TOLERANCE;
+                // Negate orthoSnapAngleOffset: snap grid targets are at -offset in screen coords (Y down)
+                return getDeviation(0) < ANGLE_TOLERANCE
+                    || getDeviation(rotation) < ANGLE_TOLERANCE
+                    || (orthoSnapAngleOffset !== 0 && getDeviation(-orthoSnapAngleOffset) < ANGLE_TOLERANCE);
             };
 
             for (let i = 0; i < contours.size(); ++i) {
@@ -168,9 +171,15 @@ async function detectMainRectangleAsync({ imageData, rotation = 0, margin = 10 }
             let diffRot = Math.abs(angle - rotation) % 90;
             if (diffRot > 45) diffRot = 90 - diffRot;
 
+            // Negate orthoSnapAngleOffset: snap grid targets are at -offset in screen coords (Y down)
+            const negatedOrtho = -orthoSnapAngleOffset;
+            let diffOrtho = Math.abs(angle - negatedOrtho) % 90;
+            if (diffOrtho > 45) diffOrtho = 90 - diffOrtho;
+
             const ANGLE_TOLERANCE = 2.5;
             const isMatchRotation = diffRot < ANGLE_TOLERANCE;
-            const finalAngle = isMatchRotation ? rotation : 0;
+            const isMatchOrtho = orthoSnapAngleOffset !== 0 && diffOrtho < ANGLE_TOLERANCE;
+            const finalAngle = isMatchRotation ? rotation : isMatchOrtho ? negatedOrtho : 0;
 
             finalResult = {
                 found: true,

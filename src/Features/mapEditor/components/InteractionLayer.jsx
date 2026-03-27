@@ -3098,6 +3098,7 @@ const InteractionLayer = forwardRef(({
               enabledDrawingMode={enabledDrawingMode}
               containerK={targetPose.k}
               meterByPx={baseMapMeterByPx}
+              orthoSnapAngleOffset={orthoSnapAngleOffset}
             />
           </g>
 

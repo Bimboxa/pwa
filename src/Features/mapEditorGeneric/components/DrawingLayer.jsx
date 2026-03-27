@@ -64,6 +64,7 @@ const DrawingLayer = forwardRef(({
     enabledDrawingMode,
     containerK,
     meterByPx,
+    orthoSnapAngleOffset = 0,
 }, ref) => {
 
 
@@ -86,6 +87,9 @@ const DrawingLayer = forwardRef(({
 
     const meterByPxRef = useRef(meterByPx);
     meterByPxRef.current = meterByPx;
+
+    const orthoSnapAngleOffsetRef = useRef(orthoSnapAngleOffset);
+    orthoSnapAngleOffsetRef.current = orthoSnapAngleOffset;
 
     const { strokeColor, fillColor, type } = newAnnotation || {};
 
@@ -118,19 +122,41 @@ const DrawingLayer = forwardRef(({
                 if (previewLineRef.current) previewLineRef.current.style.display = 'none';
                 if (previewFillRef.current) previewFillRef.current.style.display = 'none';
 
-                // Calcul de la géométrie du rectangle
-                // SVG demande x, y (coin haut-gauche) + width, height (positifs)
-                const x = Math.min(lastPoint.x, cursorPos.x);
-                const y = Math.min(lastPoint.y, cursorPos.y);
-                const width = Math.abs(cursorPos.x - lastPoint.x);
-                const height = Math.abs(cursorPos.y - lastPoint.y);
+                const angle = orthoSnapAngleOffsetRef.current || 0;
 
-                previewRectRef.current.setAttribute('x', x);
-                previewRectRef.current.setAttribute('y', y);
-                previewRectRef.current.setAttribute('width', width);
-                previewRectRef.current.setAttribute('height', height);
+                if (angle === 0) {
+                    // Axis-aligned rectangle (original behavior)
+                    const x = Math.min(lastPoint.x, cursorPos.x);
+                    const y = Math.min(lastPoint.y, cursorPos.y);
+                    const width = Math.abs(cursorPos.x - lastPoint.x);
+                    const height = Math.abs(cursorPos.y - lastPoint.y);
+                    previewRectRef.current.setAttribute('points',
+                        `${x},${y} ${x + width},${y} ${x + width},${y + height} ${x},${y + height}`);
+                } else {
+                    // Rotated rectangle: project diagonal onto ortho snap grid axes
+                    // Snap grid primary axis is at -offset in screen coords (Y down)
+                    const theta = (-angle * Math.PI) / 180;
+                    const ax1 = { x: Math.cos(theta), y: Math.sin(theta) };
+                    const ax2 = { x: -Math.sin(theta), y: Math.cos(theta) };
+
+                    const dx = cursorPos.x - lastPoint.x;
+                    const dy = cursorPos.y - lastPoint.y;
+
+                    // Project diagonal onto the two grid axes
+                    const d1 = dx * ax1.x + dy * ax1.y;
+                    const d2 = dx * ax2.x + dy * ax2.y;
+
+                    // 4 corners: A, B, C (=cursor projected), D
+                    const A = lastPoint;
+                    const B = { x: A.x + d1 * ax1.x, y: A.y + d1 * ax1.y };
+                    const C = { x: B.x + d2 * ax2.x, y: B.y + d2 * ax2.y };
+                    const D = { x: A.x + d2 * ax2.x, y: A.y + d2 * ax2.y };
+
+                    previewRectRef.current.setAttribute('points',
+                        `${A.x},${A.y} ${B.x},${B.y} ${C.x},${C.y} ${D.x},${D.y}`);
+                }
+
                 previewRectRef.current.style.display = 'block';
-
                 return; // On arrête ici pour le rectangle
             }
 
@@ -257,17 +283,16 @@ const DrawingLayer = forwardRef(({
                 />
             )}
 
-            {/* B. Dynamic Rectangle (NEW) */}
+            {/* B. Dynamic Rectangle (polygon for rotation support) */}
             {drawRectangle && (
-                <rect
+                <polygon
                     ref={previewRectRef}
                     fill="none"
-                    //fill={fillColor || "rgba(33, 150, 243, 0.2)"} // Bleu semi-transparent par défaut
                     {...(isPolygon && { fill: fillColor || "rgba(92, 92, 236, 0.1)" })}
                     fillOpacity={newAnnotation?.fillOpacity ?? 0.8}
                     stroke={strokeColor || "#2196f3"}
                     strokeWidth={2}
-                    vectorEffect="non-scaling-stroke" // Garde l'épaisseur constante au zoom
+                    vectorEffect="non-scaling-stroke"
                     style={{ display: 'none', pointerEvents: 'none' }}
                 />
             )}
