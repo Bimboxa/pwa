@@ -13,6 +13,12 @@ export default function SectionShortcutHelpers() {
 
     const isDetectSimilar = enabledDrawingMode === "DETECT_SIMILAR_POLYLINES";
 
+    const SEGMENT_MODES = [
+        "CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK",
+        "STRIP", "MEASURE", "COMPLETE_ANNOTATION",
+    ];
+    const canConstrain = SEGMENT_MODES.includes(enabledDrawingMode);
+
     const shortcuts = isDetectSimilar
         ? [
             { key: "Clic", label: "Cliquer sur une ligne pour détecter les lignes similaires" },
@@ -30,6 +36,12 @@ export default function SectionShortcutHelpers() {
             },
             ...(newAnnotationType === "STRIP"
                 ? [{ key: "S", label: "Inverser le sens de la bande" }]
+                : []),
+            ...(canConstrain
+                ? [
+                    { key: "0-9", label: "Contraindre la longueur du segment" },
+                    { key: "⌫", label: "Effacer la contrainte de longueur" },
+                ]
                 : []),
         ];
 

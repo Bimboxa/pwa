@@ -63,6 +63,7 @@ import DialogCreateAnnotationTemplate from "Features/annotations/components/Dial
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import SectionSmartDetect from "Features/smartDetect/components/SectionSmartDetect";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
+import SectionSegmentLength from "Features/annotations/components/SectionSegmentLength";
 import SectionLayers from "Features/layers/components/SectionLayers";
 import {
   setShowLayers,
@@ -1176,6 +1177,12 @@ function ListingRow({
 // Modes that select existing geometry — no smart detect needed
 const SEGMENT_SELECT_MODES = ["TECHNICAL_RETURN", "CUT_SEGMENT", "SPLIT_POLYLINE"];
 
+// Modes that produce segments and support length display / constraint
+const SEGMENT_DRAWING_MODES = [
+  "CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK",
+  "STRIP", "MEASURE", "COMPLETE_ANNOTATION",
+];
+
 function PopperDrawingHelper() {
   // strings
 
@@ -1189,6 +1196,7 @@ function PopperDrawingHelper() {
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const isSegmentSelectMode = SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
   const isLoupeOnly = ["POLYLINE_CLICK", "STRIP"].includes(enabledDrawingMode) && !advancedLayout;
+  const showSegmentLength = SEGMENT_DRAWING_MODES.includes(enabledDrawingMode);
 
   // state
 
@@ -1242,6 +1250,7 @@ function PopperDrawingHelper() {
       {!isSegmentSelectMode && <SectionSmartDetect loupeOnly={isLoupeOnly} />}
 
       <Box sx={{ p: 1 }}>
+        {showSegmentLength && <SectionSegmentLength />}
         <SectionShortcutHelpers />
       </Box>
     </Paper>

@@ -60,6 +60,7 @@ import PopperMapListings from "./PopperMapListings";
 
 import { InteractionProvider } from "../context/InteractionContext";
 import { SmartZoomProvider } from "App/contexts/SmartZoomContext";
+import { DrawingMetricsProvider } from "App/contexts/DrawingMetricsContext";
 
 import db from "App/db/db";
 import editor from "App/editor";
@@ -1059,6 +1060,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     return (
         <SmartZoomProvider>
+        <DrawingMetricsProvider>
         <Box ref={containerRef} sx={{ width: '100%', height: '100%', position: "relative", bgcolor: "background.default" }}>
             <InteractionProvider>
                 <InteractionLayer
@@ -1262,6 +1264,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             {!versionCompareEnabled && <PopperMapListings />}
         </Box>
+        </DrawingMetricsProvider>
         </SmartZoomProvider>
     );
 }

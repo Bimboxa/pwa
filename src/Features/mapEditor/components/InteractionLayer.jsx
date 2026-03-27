@@ -11,7 +11,7 @@ import { setSelectedEntityId } from 'Features/entities/entitiesSlice';
 import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
-import { setAnchorSourceAnnotationId, setOrthoSnapEnabled } from 'Features/mapEditor/mapEditorSlice';
+import { setAnchorSourceAnnotationId, setOrthoSnapEnabled, setFixedLength } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
 import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnotation, triggerAnnotationsUpdate } from 'Features/annotations/annotationsSlice';
 import {
@@ -101,6 +101,8 @@ import filterSurfaceDropCuts from 'Features/smartDetect/utils/filterSurfaceDropC
 import convexHull from 'Features/geometry/utils/convexHull';
 
 import { useSmartZoom } from "App/contexts/SmartZoomContext";
+import { useDrawingMetrics } from "App/contexts/DrawingMetricsContext";
+import applyFixedLengthConstraint from "Features/mapEditorGeneric/utils/applyFixedLengthConstraint";
 import useUndo from "App/db/useUndo";
 
 // constants
@@ -232,6 +234,32 @@ const InteractionLayer = forwardRef(({
   const noSmallCuts = useSelector((s) => s.smartDetect.noSmallCuts);
   const convexHullEnabled = useSelector((s) => s.smartDetect.convexHull);
   const { zoomContainer } = useSmartZoom();
+  const { segmentLengthPxRef, constraintBuffer, appendToBuffer, deleteFromBuffer, clearBuffer } = useDrawingMetrics();
+
+  const fixedLength = useSelector((s) => s.mapEditor.fixedLength);
+  const fixedLengthRef = useRef(fixedLength);
+  useEffect(() => { fixedLengthRef.current = fixedLength; }, [fixedLength]);
+
+  const meterByPxRef = useRef(baseMapMeterByPx);
+  useEffect(() => { meterByPxRef.current = baseMapMeterByPx; }, [baseMapMeterByPx]);
+
+  // Sync constraint buffer → Redux fixedLength
+  useEffect(() => {
+    const num = parseFloat(constraintBuffer);
+    if (Number.isFinite(num) && num > 0) {
+      dispatch(setFixedLength(num));
+      fixedLengthRef.current = num;
+    } else {
+      dispatch(setFixedLength(null));
+      fixedLengthRef.current = null;
+    }
+  }, [constraintBuffer, dispatch]);
+
+  // Clear constraint buffer when drawing mode changes (start/stop drawing)
+  useEffect(() => {
+    clearBuffer();
+    dispatch(setFixedLength(null));
+  }, [enabledDrawingMode, clearBuffer, dispatch]);
 
   // permissions (ownership-based)
   const permissions = useAnnotationPermissions({ annotations });
@@ -1257,6 +1285,11 @@ const InteractionLayer = forwardRef(({
         case 'Backspace':
           // Don't intercept when user is typing in an input field
           if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) break;
+          // When drawing with a constraint buffer, Backspace erases from buffer
+          if (enabledDrawingMode && e.key === 'Backspace') {
+            deleteFromBuffer();
+            break;
+          }
           console.log("Action: Delete Selected");
           // 1a. Multi-point selection: bulk delete (no confirmation dialog)
           if (selectedPointIds?.length > 0 && selectedNode?.nodeId && onDeletePoints) {
@@ -1350,6 +1383,11 @@ const InteractionLayer = forwardRef(({
           break;
 
         default:
+          // Digit / dot / comma → append to constraint buffer while drawing
+          if (enabledDrawingMode && /^[0-9.,]$/.test(e.key)) {
+            const char = e.key === "," ? "." : e.key;
+            appendToBuffer(char);
+          }
           break;
       }
     };
@@ -1640,6 +1678,17 @@ const InteractionLayer = forwardRef(({
         const offset = orthoSnapAngleOffsetRef.current;
         finalPos = snapToAngle(finalPos, lastPoint, offset);
       }
+      // Apply fixed length constraint
+      if (fixedLengthRef.current && drawingPoints.length > 0) {
+        const mbp = meterByPxRef.current;
+        const hasScale = Number.isFinite(mbp) && mbp > 0;
+        finalPos = applyFixedLengthConstraint({
+          lastPointPx: drawingPoints[drawingPoints.length - 1],
+          candidatePointPx: finalPos,
+          fixedLengthMeters: fixedLengthRef.current,
+          meterPerPixel: hasScale ? mbp : 1,
+        });
+      }
 
       // 1. Ajouter le point (Déclenche un re-render de DrawingLayer pour la partie statique)
       setDrawingPoints(prev => [...prev, finalPos]);
@@ -1657,6 +1706,17 @@ const InteractionLayer = forwardRef(({
         const offset = orthoSnapAngleOffsetRef.current;
         finalPos = snapToAngle(finalPos, lastPoint, offset);
       }
+      // Apply fixed length constraint
+      if (fixedLengthRef.current && drawingPoints.length > 0) {
+        const mbp = meterByPxRef.current;
+        const hasScale = Number.isFinite(mbp) && mbp > 0;
+        finalPos = applyFixedLengthConstraint({
+          lastPointPx: drawingPoints[drawingPoints.length - 1],
+          candidatePointPx: finalPos,
+          fixedLengthMeters: fixedLengthRef.current,
+          meterPerPixel: hasScale ? mbp : 1,
+        });
+      }
 
       // 1. Ajouter le point (Déclenche un re-render de DrawingLayer pour la partie statique)
       setDrawingPoints(prev => [...prev, finalPos]);
@@ -1673,6 +1733,17 @@ const InteractionLayer = forwardRef(({
         const lastPoint = drawingPoints[drawingPoints.length - 1];
         const offset = orthoSnapAngleOffsetRef.current;
         finalPos = snapToAngle(finalPos, lastPoint, offset);
+      }
+      // Apply fixed length constraint
+      if (fixedLengthRef.current && drawingPoints.length > 0) {
+        const mbp = meterByPxRef.current;
+        const hasScale = Number.isFinite(mbp) && mbp > 0;
+        finalPos = applyFixedLengthConstraint({
+          lastPointPx: drawingPoints[drawingPoints.length - 1],
+          candidatePointPx: finalPos,
+          fixedLengthMeters: fixedLengthRef.current,
+          meterPerPixel: hasScale ? mbp : 1,
+        });
       }
 
       // Calculate the new list of points
@@ -1703,6 +1774,17 @@ const InteractionLayer = forwardRef(({
         const lastPoint = drawingPoints[drawingPoints.length - 1];
         const offset = orthoSnapAngleOffsetRef.current;
         finalPos = snapToAngle(finalPos, lastPoint, offset);
+      }
+      // Apply fixed length constraint
+      if (fixedLengthRef.current && drawingPoints.length > 0) {
+        const mbp = meterByPxRef.current;
+        const hasScale = Number.isFinite(mbp) && mbp > 0;
+        finalPos = applyFixedLengthConstraint({
+          lastPointPx: drawingPoints[drawingPoints.length - 1],
+          candidatePointPx: finalPos,
+          fixedLengthMeters: fixedLengthRef.current,
+          meterPerPixel: hasScale ? mbp : 1,
+        });
       }
 
       const nextPoints = [...drawingPoints, finalPos];
@@ -2317,6 +2399,26 @@ const InteractionLayer = forwardRef(({
             }
           }
         }
+      }
+
+      // G. FIXED LENGTH CONSTRAINT + SEGMENT LENGTH METRICS
+      const lastPt = currentDrawingPts[currentDrawingPts.length - 1];
+      if (lastPt && fixedLengthRef.current) {
+        const mbp = meterByPxRef.current;
+        const hasScale = Number.isFinite(mbp) && mbp > 0;
+        previewPos = applyFixedLengthConstraint({
+          lastPointPx: lastPt,
+          candidatePointPx: previewPos,
+          fixedLengthMeters: fixedLengthRef.current,
+          meterPerPixel: hasScale ? mbp : 1, // no scale => value is in px
+        });
+      }
+      if (lastPt && segmentLengthPxRef) {
+        const dx = previewPos.x - lastPt.x;
+        const dy = previewPos.y - lastPt.y;
+        segmentLengthPxRef.current = Math.hypot(dx, dy);
+      } else if (segmentLengthPxRef) {
+        segmentLengthPxRef.current = 0;
       }
 
       lastPreviewPosRef.current = previewPos;
