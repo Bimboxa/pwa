@@ -37,6 +37,7 @@ export default function NodeStripStatic({
     forceHideLabel,
     isTransient,
     selectedPointId,
+    selectedPointIds = [],
     selectedPartId,
 }) {
     // Gestion sélection temporaire
@@ -212,7 +213,7 @@ export default function NodeStripStatic({
     }, [containerK]);
 
     const renderVertex = (pt) => {
-        const isPointSelected = selectedPointId === pt.id;
+        const isPointSelected = selectedPointId === pt.id || selectedPointIds.includes(pt.id);
         return (
             <g
                 key={pt.id}

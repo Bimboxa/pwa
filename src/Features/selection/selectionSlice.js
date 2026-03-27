@@ -2,6 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const selectionInitialState = {
   selectedItems: [], // Array of { id, nodeId, type, nodeType, listingId, context, pointId, partId, partType }
+  selectedPointIds: [], // Array of point IDs for multi-point selection
   openDialogDeleteSelectedItem: false,
   //
   showAnnotationsProperties: false,
@@ -21,6 +22,7 @@ export const selectionSlice = createSlice({
       } else {
         state.selectedItems = [item];
       }
+      state.selectedPointIds = [];
     },
     setSelectedItems: (state, action) => {
       // Handles setting items directly
@@ -73,6 +75,7 @@ export const selectionSlice = createSlice({
     },
     clearSelection: (state) => {
       state.selectedItems = [];
+      state.selectedPointIds = [];
     },
     triggerSelectionBack: (state) => {
       const item = state.selectedItems[0];
@@ -121,7 +124,22 @@ export const selectionSlice = createSlice({
     },
     setAnnotationPropertiesTab: (state, action) => {
       state.annotationPropertiesTab = action.payload;
-    }
+    },
+    setSelectedPointIds: (state, action) => {
+      state.selectedPointIds = action.payload || [];
+    },
+    toggleSelectedPointId: (state, action) => {
+      const pointId = action.payload;
+      const index = state.selectedPointIds.indexOf(pointId);
+      if (index >= 0) {
+        state.selectedPointIds.splice(index, 1);
+      } else {
+        state.selectedPointIds.push(pointId);
+      }
+    },
+    clearSelectedPointIds: (state) => {
+      state.selectedPointIds = [];
+    },
   },
 });
 
@@ -137,7 +155,10 @@ export const {
   clearSelection,
   triggerSelectionBack,
   setShowAnnotationsProperties,
-  setAnnotationPropertiesTab
+  setAnnotationPropertiesTab,
+  setSelectedPointIds,
+  toggleSelectedPointId,
+  clearSelectedPointIds,
 } = selectionSlice.actions;
 
 // Selectors
@@ -157,5 +178,8 @@ export const selectSelectedPartId = (state) => {
   const item = state.selection.selectedItems.find(i => i.partId);
   return item ? item.partId : null;
 };
+
+// Multi-point selection
+export const selectSelectedPointIds = (state) => state.selection.selectedPointIds;
 
 export default selectionSlice.reducer;

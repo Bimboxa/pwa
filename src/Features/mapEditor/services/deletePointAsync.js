@@ -6,79 +6,65 @@ import db from "App/db/db";
  * * @param {Object} params
  * @param {string} params.pointId - L'ID du point à supprimer
  * @param {string|null} params.annotationId - L'ID de l'annotation cible (si null, cible toutes les annotations connectées)
- * @param {Array} params.annotations - La liste complète des annotations
+ * @param {Array} params.annotations - La liste complète des annotations (resolved, used only for ID lookups)
  */
 export default async function deletePointAsync({ pointId, annotationId, annotations }) {
     try {
         // 1. Identifier les annotations à modifier
-        let annotationsToModify = [];
+        let annotationIdsToModify = [];
 
         if (annotationId) {
-            // Cas A : On cible une annotation spécifique
-            const target = annotations.find(a => a.id === annotationId);
-            if (target) {
-                annotationsToModify.push(target);
-            } else {
-                console.warn(`Annotation ${annotationId} not found.`);
-                return;
-            }
+            annotationIdsToModify.push(annotationId);
         } else {
-            // Cas B : On cible TOUTES les annotations qui contiennent ce point
-            annotationsToModify = annotations.filter(ann => {
-                const inMain = ann.points?.some(pt => pt.id === pointId);
-                const inCuts = ann.cuts?.some(cut => cut.points?.some(pt => pt.id === pointId));
-                return inMain || inCuts;
-            });
+            // Cible TOUTES les annotations qui contiennent ce point
+            annotationIdsToModify = annotations
+                .filter(ann => {
+                    const inMain = ann.points?.some(pt => pt.id === pointId);
+                    const inCuts = ann.cuts?.some(cut => cut.points?.some(pt => pt.id === pointId));
+                    return inMain || inCuts;
+                })
+                .map(ann => ann.id);
         }
 
-        if (annotationsToModify.length === 0) {
+        if (annotationIdsToModify.length === 0) {
             console.warn(`No annotations found containing point ${pointId}.`);
-            // On peut quand même tenter de supprimer le point s'il existe en orphelin
-            // mais pour l'instant on arrête là.
             return;
         }
 
-        // 2. Appliquer les modifications sur toutes les annotations ciblées
-        // On prépare un tableau de promesses pour exécuter les updates en parallèle
-        const updatePromises = annotationsToModify.map(targetAnnotation => {
+        // 2. Read raw annotations from DB and apply modifications
+        const updatePromises = annotationIdsToModify.map(async (annId) => {
+            const dbAnnotation = await db.annotations.get(annId);
+            if (!dbAnnotation) return;
 
             // A. Retirer du contour principal (points)
-            const newPoints = (targetAnnotation.points || []).filter(pt => pt.id !== pointId);
+            const newPoints = (dbAnnotation.points || []).filter(pt => pt.id !== pointId);
 
             // B. Retirer des trous (cuts)
-            const newCuts = (targetAnnotation.cuts || []).map(cut => ({
+            const newCuts = (dbAnnotation.cuts || []).map(cut => ({
                 ...cut,
                 points: (cut.points || []).filter(pt => pt.id !== pointId)
             }));
 
             // C. Update DB
-            return db.annotations.update(targetAnnotation.id, {
+            return db.annotations.update(annId, {
                 points: newPoints,
                 cuts: newCuts
             });
         });
 
         await Promise.all(updatePromises);
-        console.log(`[deletePointAsync] Removed point ${pointId} from ${annotationsToModify.length} annotation(s).`);
+        console.log(`[deletePointAsync] Removed point ${pointId} from ${annotationIdsToModify.length} annotation(s).`);
 
         // 3. Vérifier si le point est orphelin (Suppression physique)
-
-        // On crée un Set des IDs qu'on vient de modifier pour les exclure de la recherche
-        const modifiedIds = new Set(annotationsToModify.map(a => a.id));
+        const modifiedIds = new Set(annotationIdsToModify);
 
         // Le point est encore utilisé s'il existe dans une annotation QUI N'A PAS ÉTÉ MODIFIÉE
         const isUsedElsewhere = annotations.some(ann => {
-            // Si c'est une annotation qu'on vient de nettoyer, on l'ignore (car le point n'y est plus)
             if (modifiedIds.has(ann.id)) return false;
-
-            // Vérification dans le reste
             const inMain = ann.points?.some(pt => pt.id === pointId);
             const inCuts = ann.cuts?.some(cut => cut.points?.some(pt => pt.id === pointId));
-
             return inMain || inCuts;
         });
-
-
 
         // 4. Suppression finale
         if (!isUsedElsewhere) {

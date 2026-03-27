@@ -28,11 +28,16 @@ import {
   selectSelectedItems,
   selectSelectedPointId,
   selectSelectedPartId,
+  selectSelectedPointIds,
+  setSelectedPointIds,
+  toggleSelectedPointId,
+  clearSelectedPointIds,
   setShowAnnotationsProperties
 } from "Features/selection/selectionSlice";
 
 import useResetNewAnnotation from 'Features/annotations/hooks/useResetNewAnnotation';
 import useLassoSelection from 'Features/mapEditorGeneric/hooks/useLassoSelection';
+import useLassoPointSelection from 'Features/annotations/hooks/useLassoPointSelection';
 import useSelectedNodes from 'Features/mapEditor/hooks/useSelectedNodes';
 import useAnnotationPermissions from 'Features/mapEditor/hooks/useAnnotationPermissions';
 import usePointDrag from 'Features/mapEditor/hooks/usePointDrag';
@@ -135,6 +140,7 @@ const InteractionLayer = forwardRef(({
   onToggleAnnotationPointType,
   onPointDuplicateAndMoveCommit,
   onDeletePoint,
+  onDeletePoints,
   onHideSegment,
   onRemoveCut,
   onAnnotationMoveCommit,
@@ -210,6 +216,7 @@ const InteractionLayer = forwardRef(({
   const selectedItems = useSelector(selectSelectedItems);
   const selectedPointId = useSelector(selectSelectedPointId);
   const selectedPartId = useSelector(selectSelectedPartId);
+  const selectedPointIds = useSelector(selectSelectedPointIds);
 
   // Computed selectedNode equivalent (first item)
   const { node: selectedNode } = useSelectedNodes();
@@ -516,6 +523,29 @@ const InteractionLayer = forwardRef(({
     onSelectionComplete: handleLassoSelection
   });
 
+  // Point-level lasso when an annotation is already selected
+  const getSelectedAnnotationPoints = useCallback(() => {
+    if (!selectedNode?.nodeId) return [];
+    const ann = annotations?.find((a) => a.id === selectedNode.nodeId);
+    return ann?.points || [];
+  }, [selectedNode?.nodeId, annotations]);
+
+  const handlePointLassoSelection = useCallback((pointIds) => {
+    dispatch(setSelectedPointIds(pointIds));
+  }, [dispatch]);
+
+  const {
+    lassoRect: pointLassoRect,
+    startLasso: startPointLasso,
+    updateLasso: updatePointLasso,
+    endLasso: endPointLasso,
+  } = useLassoPointSelection({
+    viewportRef,
+    toLocalCoords,
+    onSelectionComplete: handlePointLassoSelection,
+    getSelectedAnnotationPoints,
+  });
+
   const currentSnapRef = useRef(null); // Stocke le résultat du getBestSnap
 
   // drag state — point drag (extracted to usePointDrag)
@@ -743,8 +773,10 @@ const InteractionLayer = forwardRef(({
     selectedNode,
     selectedPointId,
     selectedPartId,
+    selectedPointIds,
     enabledDrawingMode: enabledDrawingMode, // Si besoin dans le listener
     onDeletePoint,
+    onDeletePoints,
     onHideSegment,
     onRemoveCut,
     permissions,
@@ -754,13 +786,15 @@ const InteractionLayer = forwardRef(({
       selectedNode,
       selectedPointId,
       selectedPartId,
+      selectedPointIds,
       onDeletePoint,
+      onDeletePoints,
       onHideSegment,
       onRemoveCut,
       enabledDrawingMode,
       permissions,
     };
-  }, [selectedNode?.nodeId, selectedPointId, selectedPartId, onDeletePoint, onHideSegment, onRemoveCut, enabledDrawingMode, permissions]);
+  }, [selectedNode?.nodeId, selectedPointId, selectedPartId, selectedPointIds, onDeletePoint, onDeletePoints, onHideSegment, onRemoveCut, enabledDrawingMode, permissions]);
 
 
   // 1. Calculer le style curseur du conteneur
@@ -931,7 +965,7 @@ const InteractionLayer = forwardRef(({
         console.log("Action: Key Pressed while typing");
         return;
       }
-      const { selectedNode, selectedPointId, selectedPartId, onDeletePoint, onHideSegment, onRemoveCut, permissions } = stateRef.current;
+      const { selectedNode, selectedPointId, selectedPartId, selectedPointIds, onDeletePoint, onDeletePoints, onHideSegment, onRemoveCut, permissions } = stateRef.current;
       const showSmartDetect = showSmartDetectRef.current;
       const enabledDrawingMode = enabledDrawingModeRef.current;
 
@@ -1207,13 +1241,23 @@ const InteractionLayer = forwardRef(({
           // Don't intercept when user is typing in an input field
           if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) break;
           console.log("Action: Delete Selected");
-          // 1. Si un point est sélectionné, on le supprime
+          // 1a. Multi-point selection: bulk delete (no confirmation dialog)
+          if (selectedPointIds?.length > 0 && selectedNode?.nodeId && onDeletePoints) {
+            if (!permissions.canEditAnnotation(selectedNode?.nodeId)) break;
+            console.log("Action: Delete Points (bulk)", selectedPointIds, selectedNode?.nodeId);
+            onDeletePoints({ pointIds: [...selectedPointIds], annotationId: selectedNode?.nodeId });
+            dispatch(clearSelectedPointIds());
+            dispatch(setSubSelection({ pointId: null }));
+            e.stopPropagation();
+            return;
+          }
+          // 1b. Single point selection (legacy)
           if (selectedPointId && onDeletePoint) {
             // PERMISSION GUARD : bloquer si pas propriétaire de l'annotation
             if (!permissions.canEditAnnotation(selectedNode?.nodeId)) break;
             console.log("Action: Delete Point", selectedPointId, selectedNode?.nodeId);
             onDeletePoint({ pointId: selectedPointId, annotationId: selectedNode?.nodeId });
-            setSelectedPointId(null); // Reset selection
+            dispatch(setSubSelection({ pointId: null }));
             e.stopPropagation();
             return;
           }
@@ -1778,19 +1822,21 @@ const InteractionLayer = forwardRef(({
 
       if (hitPoint) {
         const { pointId, annotationId } = hitPoint.dataset;
-        // Si l'annotation est déjà sélectionnée, on sélectionne le point
+        // Si l'annotation est déjà sélectionnée, on gère le shift+click
         if (selectedNode?.nodeId === annotationId) {
-          console.log("Select Point:", pointId);
-          dispatch(setSubSelection({ pointId, partType: "VERTEX" }));
-          onToggleAnnotationPointType({ annotationId, pointId });
-          // On arrête ici pour ne pas relancer la sélection de noeud
+          if (event.shiftKey) {
+            // Shift+click: toggle point in multi-selection
+            console.log("Toggle Point Selection:", pointId);
+            dispatch(toggleSelectedPointId(pointId));
+            dispatch(setSubSelection({ pointId, partType: "VERTEX" }));
+          }
+          // Normal click selection + toggle type is handled by usePointDrag mouseUp
           return;
         }
       } else {
-        // Si on clique ailleurs (sur le trait ou le vide), on déselectionne le point
-        // mais on garde peut-être partType si on sélectionne une part?
-        // setSubSelection update ce qu'on lui donne.
+        // Si on clique ailleurs (sur le trait ou le vide), on déselectionne les points
         if (selectedPointId) dispatch(setSubSelection({ pointId: null }));
+        if (selectedPointIds.length > 0) dispatch(clearSelectedPointIds());
       }
 
       // 2. Ensuite les Parts (Segments / Contours)
@@ -1964,6 +2010,11 @@ const InteractionLayer = forwardRef(({
 
     if (lassoRect) {
       updateLasso(event);
+      return;
+    }
+
+    if (pointLassoRect) {
+      updatePointLasso(event);
       return;
     }
 
@@ -2447,12 +2498,26 @@ const InteractionLayer = forwardRef(({
       return;
     }
 
+    if (pointLassoRect) {
+      endPointLasso();
+      return;
+    }
+
 
     const dragState = dragStateRef.current;
     const dragAnnotationState = dragAnnotationStateRef.current;
 
     console.log('handleMouseUp_dragAnnotationState', dragAnnotationState);
 
+
+    // Point drag takes priority over annotation click (avoid resetting selectedPointIds)
+    if (dragState?.pending) {
+      const handled = handlePointDragEnd(event);
+      if (handled) {
+        handleAnnotationDragEnd(); // cleanup annotation pending state
+        return;
+      }
+    }
 
     // click sur un vertex ou une annotation
     if (!dragAnnotationState?.active && dragAnnotationState?.pending) {
@@ -2545,8 +2610,9 @@ const InteractionLayer = forwardRef(({
     handleLegendDragEnd();
 
     // --- Point drag (VERTEX / PROJECTION) — délégué à usePointDrag ---
-    if (dragState) {
-      const handled = handlePointDragEnd();
+    // (pending clicks are handled earlier to avoid selectedPointIds reset)
+    if (dragState?.active) {
+      const handled = handlePointDragEnd(event);
       if (handled) return;
     }
 
@@ -2615,17 +2681,36 @@ const InteractionLayer = forwardRef(({
     const rotateHandle = target.closest('[data-interaction="rotate-annotation"]');
     const hit = target.closest('[data-node-type]');
 
-    // Si on ne clique sur rien ET que Shift est pressé -> Lasso
+    // Si Shift est pressé -> Lasso (annotation-level or point-level)
 
     console.log("hit", hit?.dataset, e.shiftKey)
 
-    if ((!hit || hit?.dataset?.nodeType === "BASE_MAP") && e.shiftKey && !enabledDrawingModeRef.current) {
-      const started = startLasso(e);
-      if (started) {
-        console.log("lasso started")
-        e.stopPropagation(); // On empêche le Pan de la caméra
-        // e.preventDefault(); // Optionnel selon le besoin
-        return;
+    if (e.shiftKey && !enabledDrawingModeRef.current) {
+      const hasSelectedAnnotation = !!selectedNode?.nodeId;
+
+      if (hasSelectedAnnotation) {
+        // Point-level lasso: when an annotation is already selected
+        // Skip lasso if clicking on a vertex or its snap helper (shift+click = multi-select point)
+        // The vertex case is handled later by handleVertexOrProjectionMouseDown + handlePointDragEnd
+        const hitVertex = target.closest?.('[data-node-type="VERTEX"]');
+        const hitSnapVertex = target.closest?.('[data-snap-type="VERTEX"]');
+        if (!hitVertex && !hitSnapVertex) {
+          const started = startPointLasso(e);
+          if (started) {
+            console.log("point lasso started");
+            e.stopPropagation();
+            return;
+          }
+        }
+      }
+      // Annotation-level lasso: when clicking on empty space or base map
+      else if (!hit || hit?.dataset?.nodeType === "BASE_MAP") {
+        const started = startLasso(e);
+        if (started) {
+          console.log("lasso started")
+          e.stopPropagation();
+          return;
+        }
       }
     }
 
@@ -3171,6 +3256,7 @@ const InteractionLayer = forwardRef(({
       </>
 
       <LassoOverlay rect={lassoRect} />
+      <LassoOverlay rect={pointLassoRect} />
 
       <DropZoneLayer
         viewportRef={viewportRef}

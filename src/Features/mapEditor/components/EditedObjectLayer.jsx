@@ -6,7 +6,7 @@ import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/ge
 import AnnotationEditingWrapper from "./AnnotationEditingWrapper";
 import computeWrapperBbox from "../utils/computeWrapperBbox";
 import theme from 'Styles/theme';
-import { selectSelectedItems, selectSelectedPointId, selectSelectedPartId } from "Features/selection/selectionSlice";
+import { selectSelectedItems, selectSelectedPointId, selectSelectedPointIds, selectSelectedPartId } from "Features/selection/selectionSlice";
 import useSelectedNodes from '../hooks/useSelectedNodes';
 
 const selectWrapperMode = (state) => state.mapEditor.wrapperMode;
@@ -27,6 +27,7 @@ export default function EditedObjectLayer({
     // Redux State
     const selectedItems = useSelector(selectSelectedItems);
     const selectedPointId = useSelector(selectSelectedPointId);
+    const selectedPointIds = useSelector(selectSelectedPointIds);
     const selectedPartId = useSelector(selectSelectedPartId);
     const wrapperMode = useSelector(selectWrapperMode);
 
@@ -188,6 +189,7 @@ export default function EditedObjectLayer({
                             // Le point rouge s'affichera sur toutes les annotations qui le contiennent
                             // (Elles vont se superposer au niveau du point rouge, ce qui est visuellement correct)
                             selectedPointId={selectedPointId}
+                            selectedPointIds={selectedPointIds}
                             selectedPartId={selectedPartId}
                             highlightConnectedSegments={isPointSelectionMode}
                         />

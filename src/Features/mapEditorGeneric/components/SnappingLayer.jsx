@@ -131,6 +131,7 @@ const SnappingLayer = forwardRef(({
             <circle
                 ref={circleRef}
                 className="vertex"
+                data-snap-type="VERTEX"
                 r={radius}
                 {...eventHandlers}
             />

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
+import { useSelector } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
-import { setSubSelection } from "Features/selection/selectionSlice";
+import { setSubSelection, setSelectedPointIds, toggleSelectedPointId, selectSelectedPointIds } from "Features/selection/selectionSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
 const DRAG_THRESHOLD_PX = 3;
@@ -40,6 +41,11 @@ export default function usePointDrag({
   const [virtualInsertion, setVirtualInsertion] = useState(null);
 
   const [pointInsertedAt, setPointInsertedAt] = useState(null);
+
+  // Multi-point selection (for toggle type check)
+  const selectedPointIds = useSelector(selectSelectedPointIds);
+  const selectedPointIdsRef = useRef(selectedPointIds);
+  selectedPointIdsRef.current = selectedPointIds;
 
   // --- Refs pour accès synchrone (éviter stale closures) ---
 
@@ -249,7 +255,7 @@ export default function usePointDrag({
    *
    * @returns {boolean} true si l'événement a été traité
    */
-  const handlePointDragEnd = useCallback(() => {
+  const handlePointDragEnd = useCallback((mouseEvent) => {
     const _dragState = dragStateRef.current;
     if (!_dragState) return false;
 
@@ -343,16 +349,28 @@ export default function usePointDrag({
 
     // CAS B : CLICK (pending → pas de drag)
     else if (_dragState.pending) {
-      // Toggle point type si clic sur point de l'annotation sélectionnée
-      if (selectedAnnotationRef.current?.id === _dragState.affectedIds[0]) {
-        _onToggleAnnotationPointType?.({
-          pointId: _dragState.pointId,
-          annotationId: _dragState.affectedIds[0],
+      const pointId = _dragState.pointId;
+      const annId = _dragState.affectedIds?.[0];
+      const _selectedPointIds = selectedPointIdsRef.current;
+      const isAlreadySelected = _selectedPointIds.includes(pointId);
+      const isShift = mouseEvent?.shiftKey;
+
+      if (isShift) {
+        // Shift+click: toggle point in multi-selection
+        dispatch(toggleSelectedPointId(pointId));
+      } else if (isAlreadySelected) {
+        // Click on already-selected point: toggle type (square <=> circle)
+        callbacksRef.current.onToggleAnnotationPointType?.({
+          pointId,
+          annotationId: annId,
         });
+      } else {
+        // Click on unselected point: select it only (no type toggle)
+        dispatch(setSelectedPointIds([pointId]));
       }
 
       // Sub-sélection du point
-      dispatch(setSubSelection({ pointId: _dragState.pointId }));
+      dispatch(setSubSelection({ pointId }));
 
       // Cleanup immédiat
       setDragState(null);

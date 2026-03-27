@@ -39,6 +39,7 @@ export default function NodePolylineStatic({
     forceHideLabel,
     isTransient,
     selectedPointId,
+    selectedPointIds = [],
     selectedPartId,
     highlightConnectedSegments = false,
     selectMode,
@@ -506,7 +507,7 @@ export default function NodePolylineStatic({
     }, [containerK, scalesWithZoom]);
 
     const renderVertex = (pt) => {
-        const isPointSelected = selectedPointId === pt.id;
+        const isPointSelected = selectedPointId === pt.id || selectedPointIds.includes(pt.id);
         const isCircle = pt.type === "circle";
 
         return (

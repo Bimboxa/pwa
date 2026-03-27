@@ -68,6 +68,7 @@ import getDefaultCameraMatrix from "../utils/getDefaultCameraMatrix";
 import getDefaultBaseMapPoseInBg from "../utils/getDefaultBaseMapPoseInBg";
 import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getAnnotationLabelDeltaFromDeltaPos";
 import deletePointAsync from "../services/deletePointAsync";
+import useDeletePoints from "Features/annotations/hooks/useDeletePoints";
 import duplicateAndMovePoint from "../services/duplicateAndMovePoint";
 import replacePointBySnap from "../services/replacePointBySnap";
 import toggleAnnotationPointType from "../services/toggleAnnotationPointType";
@@ -1001,6 +1002,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         await deletePointAsync({ pointId, annotationId, annotations });
     };
 
+    const deletePoints = useDeletePoints();
+    const handleDeletePoints = async ({ annotationId, pointIds }) => {
+        console.log("handleDeletePoints", annotationId, pointIds, annotations);
+        await deletePoints({ pointIds, annotationId, annotations });
+    };
+
     // handlers - hide segments
     const handleHideSegment = async ({ annotationId, segmentIndex }) => {
         const annotation = annotations.find(a => a.id === annotationId);
@@ -1104,6 +1111,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onToggleAnnotationPointType={handleToggleAnnotationPointType}
                     onPointDuplicateAndMoveCommit={handleDuplicateAndMovePoint}
                     onDeletePoint={handleDeletePoint}
+                    onDeletePoints={handleDeletePoints}
                     onHideSegment={handleHideSegment}
                     onRemoveCut={handleRemoveCut}
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}
