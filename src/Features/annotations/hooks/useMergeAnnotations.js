@@ -17,6 +17,48 @@ import db from "App/db/db";
 const DILATION = 2;
 
 /**
+ * Build a coordinate-keyed mapping from dilated points back to their original points.
+ * For each dilated point, finds the nearest original point (should be within dilation distance).
+ */
+function buildDilatedToOriginalMap(dilatedPolygons, originalPolygons) {
+  const allOriginalPoints = originalPolygons.flatMap((p) => p.points || []);
+  const map = {};
+
+  for (const polygon of dilatedPolygons) {
+    for (const dp of polygon.points) {
+      let closest = null;
+      let closestDist = Infinity;
+      for (const op of allOriginalPoints) {
+        const dx = dp.x - op.x;
+        const dy = dp.y - op.y;
+        const dist = dx * dx + dy * dy;
+        if (dist < closestDist) {
+          closestDist = dist;
+          closest = op;
+        }
+      }
+      if (closest) {
+        const key = `${dp.x.toFixed(3)}_${dp.y.toFixed(3)}`;
+        map[key] = closest;
+      }
+    }
+  }
+
+  return map;
+}
+
+/**
+ * Replace dilated points in a merged polygon with their original counterparts.
+ * Points that have no mapping (bridge/intersection points) are kept as-is.
+ */
+function recoverOriginalPoints(mergedPoints, dilatedToOriginalMap) {
+  return mergedPoints.map((p) => {
+    const key = `${p.x.toFixed(3)}_${p.y.toFixed(3)}`;
+    return dilatedToOriginalMap[key] || p;
+  });
+}
+
+/**
  * Punch original cuts back into a merged outer boundary using polygon-clipping.difference.
  */
 function reattachCuts(outerPoints, cuts) {
@@ -130,39 +172,58 @@ export default function useMergeAnnotations() {
 
       // dilation fallback for non-overlapping polygons
       if (result.remainingPool && result.remainingPool.length > 0) {
+        // Only dilate the partial merge result + remaining pool (not all polygons)
+        const failedSet = [result.mergedPolygon, ...result.remainingPool];
+
         // 1. Strip cuts and simplify points before dilation
-        const simplifiedList = polygonsList.map((p) => ({
-          points: cleanPolygonPoints(p.points),
-          cuts: [],
-        }));
+        const simplifiedList = failedSet.map((p) => {
+          const cleaned = cleanPolygonPoints(p.points);
+          return {
+            points: cleaned.length >= 3 ? cleaned : p.points,
+            cuts: [],
+          };
+        });
 
         let merged = false;
         for (const d of [DILATION, DILATION * 3, DILATION * 10]) {
-          const dilatedList = simplifiedList.map((p) => ({
-            points: offsetPolygon(p.points, d),
-            cuts: [],
-          }));
+          const dilatedList = simplifiedList.map((p) => {
+            const dilated = offsetPolygon(p.points, d);
+            return {
+              points: dilated.length >= 3 ? dilated : p.points,
+              cuts: [],
+            };
+          });
+
           const dilatedResult = mergeAllPolygons(dilatedList);
 
           if (
             !dilatedResult.remainingPool ||
             dilatedResult.remainingPool.length === 0
           ) {
-            const contractedPoints = offsetPolygon(
-              dilatedResult.mergedPolygon.points,
-              -d
+            // Build mapping from dilated coordinates to original points
+            const dilatedToOriginalMap = buildDilatedToOriginalMap(
+              dilatedList,
+              failedSet
             );
 
-            // 2. Reattach original cuts via polygon-clipping.difference
+            // Recover original points instead of contracting
+            const recoveredPoints = recoverOriginalPoints(
+              dilatedResult.mergedPolygon.points,
+              dilatedToOriginalMap
+            );
+
+            if (recoveredPoints.length < 3) continue;
+
+            // Reattach original cuts via polygon-clipping.difference
             const allOriginalCuts = polygonsList.flatMap((p) =>
               (p.cuts || []).filter((c) => c.points?.length >= 3)
             );
 
-            let finalPoints = contractedPoints;
+            let finalPoints = recoveredPoints;
             let finalCuts = [];
 
             if (allOriginalCuts.length > 0) {
-              const reattached = reattachCuts(contractedPoints, allOriginalCuts);
+              const reattached = reattachCuts(recoveredPoints, allOriginalCuts);
               finalPoints = reattached.points;
               finalCuts = reattached.cuts;
             }
