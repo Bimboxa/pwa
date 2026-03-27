@@ -45,7 +45,7 @@ export default function LayerRow({
 
   const [isHovered, setIsHovered] = useState(false);
 
-  // sortable (disabled for "Sans calque" row)
+  // sortable (disabled for "Calque 0" row)
 
   const {
     attributes,
@@ -58,11 +58,11 @@ export default function LayerRow({
 
   const sortableStyle = !isNoLayerRow
     ? {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        zIndex: isDragging ? 1200 : "auto",
-        opacity: isDragging ? 0.5 : 1,
-      }
+      transform: CSS.Transform.toString(transform),
+      transition,
+      zIndex: isDragging ? 1200 : "auto",
+      opacity: isDragging ? 0.5 : 1,
+    }
     : {};
 
   // helpers
@@ -125,7 +125,7 @@ export default function LayerRow({
         "&:hover": { bgcolor: isActive ? (theme) => theme.palette.secondary.main + "20" : "action.hover" },
       }}
     >
-      {/* Drag handle — layers: visible on hover; "Sans calque": invisible spacer */}
+      {/* Drag handle — layers: visible on hover; "Calque 0": invisible spacer */}
       <Box
         {...(!isNoLayerRow ? listeners : {})}
         sx={{
@@ -182,7 +182,7 @@ export default function LayerRow({
           minWidth: 0,
         }}
       >
-        {isNoLayerRow ? "Sans calque" : layer.name}
+        {isNoLayerRow ? "Calque 0" : layer.name}
       </Typography>
 
       {/* Right side: edit button (hover only) + count */}

@@ -31,7 +31,7 @@ export default function DialogCreateLayer({ open, onClose, onConfirm, baseMapId 
   const titleS = "Nouveau calque";
   const createS = "Créer";
   const duplicateTitleS = "Dupliquer des annotations";
-  const noLayerS = "Sans calque";
+  const noLayerS = "Calque 0";
 
   // data
 

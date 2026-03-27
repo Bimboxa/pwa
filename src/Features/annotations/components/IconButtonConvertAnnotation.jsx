@@ -70,7 +70,7 @@ export default function IconButtonConvertAnnotation({
   const activeLayer = activeLayerId
     ? layers?.find((l) => l.id === activeLayerId)
     : null;
-  const activeLayerLabel = activeLayer?.name ?? "Sans calque";
+  const activeLayerLabel = activeLayer?.name ?? "Calque 0";
 
   // handlers
 
@@ -250,7 +250,7 @@ export default function IconButtonConvertAnnotation({
               </ListItemIcon>
             )}
             <ListItemText inset={Boolean(activeLayerId)}>
-              Sans calque
+              Calque 0
             </ListItemText>
           </MenuItem>
           {layers?.map((layer) => {

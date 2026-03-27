@@ -101,8 +101,8 @@ export default function PanelMapSummary() {
       layerId === "__ALL__"
         ? annotations
         : annotations.filter((a) =>
-            layerId === "__NO_LAYER__" ? !a.layerId : a.layerId === layerId
-          );
+          layerId === "__NO_LAYER__" ? !a.layerId : a.layerId === layerId
+        );
 
     const items = filtered.map((a) => ({
       id: a.id,
@@ -317,7 +317,7 @@ export default function PanelMapSummary() {
                   noWrap
                   sx={{ maxWidth: 150, fontStyle: "italic" }}
                 >
-                  Sans calque
+                  Calque 0
                 </Typography>
                 <Chip
                   label={annotationsByLayer["__NO_LAYER__"].length}

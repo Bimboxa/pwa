@@ -81,7 +81,7 @@ export default function DialogDeleteLayer({
                 displayEmpty
                 sx={{ ml: 4, mt: 0.5 }}
               >
-                <MenuItem value="">Sans calque</MenuItem>
+                <MenuItem value="">Calque 0</MenuItem>
                 {otherLayers?.map((l) => (
                   <MenuItem key={l.id} value={l.id}>
                     {l.name}

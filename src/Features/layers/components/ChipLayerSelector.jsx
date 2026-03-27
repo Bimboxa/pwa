@@ -45,7 +45,7 @@ export default function ChipLayerSelector({
   if (isMixed) {
     chipLabel = `${uniqueLayerIds.length} calques`;
   } else {
-    chipLabel = currentLayer?.name ?? "Sans calque";
+    chipLabel = currentLayer?.name ?? "Calque 0";
   }
 
   // handlers
@@ -92,7 +92,7 @@ export default function ChipLayerSelector({
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         transformOrigin={{ vertical: "top", horizontal: "left" }}
       >
-        {/* "Sans calque" option */}
+        {/* "Calque 0" option */}
         <MenuItem
           onClick={() => handleSelect(null)}
           selected={!isMixed && currentLayerId === null}
@@ -104,7 +104,7 @@ export default function ChipLayerSelector({
             </ListItemIcon>
           )}
           <ListItemText inset={!uniqueLayerIds.includes(null)}>
-            Sans calque
+            Calque 0
           </ListItemText>
         </MenuItem>
 

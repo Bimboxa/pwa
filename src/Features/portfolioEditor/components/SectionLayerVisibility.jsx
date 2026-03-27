@@ -72,7 +72,7 @@ export default function SectionLayerVisibility({
       >
         {hasAnnotationsWithoutLayer && (
           <LayerRow
-            label="Sans calque"
+            label="Calque 0"
             count={annotationCountByLayerId[NO_LAYER_ID] ?? 0}
             isDisabled={disabledLayerIds.includes(NO_LAYER_ID)}
             onToggle={() => onToggleLayer(NO_LAYER_ID)}

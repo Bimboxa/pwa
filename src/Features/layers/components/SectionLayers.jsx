@@ -197,7 +197,7 @@ export default function SectionLayers({ baseMapId }) {
           </SortableContext>
         </DndContext>
 
-        {/* "Sans calque" row — below layers */}
+        {/* "Calque 0" row — below layers */}
         <LayerRow
           isNoLayerRow
           count={countByLayerId?.__no_layer__ ?? 0}
