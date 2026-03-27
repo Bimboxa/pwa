@@ -1513,7 +1513,7 @@ const InteractionLayer = forwardRef(({
         // Apply shift-snap (ortho/45°) before adding the point
         if ((event.shiftKey || event.evt?.shiftKey || orthoSnapEnabledRef.current) && drawingPointsRef.current.length > 0) {
           const lastPoint = drawingPointsRef.current[drawingPointsRef.current.length - 1];
-          const offset = orthoSnapEnabledRef.current ? orthoSnapAngleOffsetRef.current : 0;
+          const offset = orthoSnapAngleOffsetRef.current;
           localPos = snapToAngle(localPos, lastPoint, offset);
         }
 
@@ -1576,7 +1576,7 @@ const InteractionLayer = forwardRef(({
       let finalPos = toLocalCoords(worldPos);
       if ((event.shiftKey || event.evt?.shiftKey || orthoSnapEnabledRef.current) && drawingPoints.length > 0) {
         const lastPoint = drawingPoints[drawingPoints.length - 1];
-        const offset = orthoSnapEnabledRef.current ? orthoSnapAngleOffsetRef.current : 0;
+        const offset = orthoSnapAngleOffsetRef.current;
         finalPos = snapToAngle(finalPos, lastPoint, offset);
       }
 
@@ -1593,7 +1593,7 @@ const InteractionLayer = forwardRef(({
       let finalPos = toLocalCoords(worldPos);
       if ((event.shiftKey || event.evt?.shiftKey || orthoSnapEnabledRef.current) && drawingPoints.length > 0) {
         const lastPoint = drawingPoints[drawingPoints.length - 1];
-        const offset = orthoSnapEnabledRef.current ? orthoSnapAngleOffsetRef.current : 0;
+        const offset = orthoSnapAngleOffsetRef.current;
         finalPos = snapToAngle(finalPos, lastPoint, offset);
       }
 
@@ -1610,7 +1610,7 @@ const InteractionLayer = forwardRef(({
       // Apply Angle Snap (Ortho) if Shift is held or ortho snap is enabled
       if ((event.shiftKey || event.evt?.shiftKey || orthoSnapEnabledRef.current) && drawingPoints.length > 0) {
         const lastPoint = drawingPoints[drawingPoints.length - 1];
-        const offset = orthoSnapEnabledRef.current ? orthoSnapAngleOffsetRef.current : 0;
+        const offset = orthoSnapAngleOffsetRef.current;
         finalPos = snapToAngle(finalPos, lastPoint, offset);
       }
 
@@ -1640,7 +1640,7 @@ const InteractionLayer = forwardRef(({
 
       if ((event.shiftKey || event.evt?.shiftKey || orthoSnapEnabledRef.current) && drawingPoints.length > 0) {
         const lastPoint = drawingPoints[drawingPoints.length - 1];
-        const offset = orthoSnapEnabledRef.current ? orthoSnapAngleOffsetRef.current : 0;
+        const offset = orthoSnapAngleOffsetRef.current;
         finalPos = snapToAngle(finalPos, lastPoint, offset);
       }
 
@@ -2217,7 +2217,7 @@ const InteractionLayer = forwardRef(({
       const currentDrawingPts = drawingPointsRef.current;
       if ((event.shiftKey || event.evt?.shiftKey || orthoSnapEnabledRef.current) && currentDrawingPts.length > 0) {
         const lastPoint = currentDrawingPts[currentDrawingPts.length - 1];
-        const offset = orthoSnapEnabledRef.current ? orthoSnapAngleOffsetRef.current : 0;
+        const offset = orthoSnapAngleOffsetRef.current;
         previewPos = snapToAngle(localPos, lastPoint, offset);
       }
 
