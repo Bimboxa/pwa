@@ -2690,11 +2690,13 @@ const InteractionLayer = forwardRef(({
 
       if (hasSelectedAnnotation) {
         // Point-level lasso: when an annotation is already selected
-        // Skip lasso if clicking on a vertex or its snap helper (shift+click = multi-select point)
-        // The vertex case is handled later by handleVertexOrProjectionMouseDown + handlePointDragEnd
+        // Skip if clicking on a vertex/snap helper (shift+click = multi-select point)
+        // Skip if clicking on a DIFFERENT annotation (shift+click = multi-select annotation)
         const hitVertex = target.closest?.('[data-node-type="VERTEX"]');
         const hitSnapVertex = target.closest?.('[data-snap-type="VERTEX"]');
-        if (!hitVertex && !hitSnapVertex) {
+        const hitAnnotation = hit?.dataset?.nodeType === "ANNOTATION" ? hit?.dataset?.nodeId : null;
+        const isClickOnOtherAnnotation = hitAnnotation && hitAnnotation !== selectedNode?.nodeId;
+        if (!hitVertex && !hitSnapVertex && !isClickOnOtherAnnotation) {
           const started = startPointLasso(e);
           if (started) {
             console.log("point lasso started");
