@@ -17,6 +17,7 @@ import downloadBlob from "Features/files/utils/downloadBlob";
 import addBackgroundToImage from "Features/images/utils/addBackgroundToImage";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 import db from "App/db/db";
+import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 
 import { Box, Typography, IconButton, Menu, MenuItem, InputBase } from "@mui/material";
 import {
@@ -27,6 +28,7 @@ import {
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
+import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
 import FieldBaseMapVersions from "./FieldBaseMapVersions";
 import SectionVersionTransforms from "./SectionVersionTransforms";
@@ -51,6 +53,7 @@ export default function PanelBaseMapProperties() {
   const [anchorEl, setAnchorEl] = useState(null);
   const menuOpen = Boolean(anchorEl);
   const [openDelete, setOpenDelete] = useState(false);
+  const [openDeleteVersion, setOpenDeleteVersion] = useState(false);
   const [nameValue, setNameValue] = useState(null);
   const [versionLabelValue, setVersionLabelValue] = useState(null);
 
@@ -233,6 +236,15 @@ export default function PanelBaseMapProperties() {
             versionId={activeVersion.id}
           />
         )}
+
+        {activeVersion && baseMap.versions?.length > 1 && (
+          <ButtonInPanelV2
+            label="Supprimer la version"
+            variant="outlined"
+            color="error"
+            onClick={() => setOpenDeleteVersion(true)}
+          />
+        )}
       </BoxFlexVStretch>
 
       <Menu open={menuOpen} anchorEl={anchorEl} onClose={handleMenuClose}>
@@ -251,6 +263,22 @@ export default function PanelBaseMapProperties() {
           dispatch(setSelectedItem({}));
           dispatch(setSelectedMainBaseMapId(null));
           setOpenDelete(false);
+        }}
+      />
+
+      <DialogDeleteRessource
+        open={openDeleteVersion}
+        onClose={() => setOpenDeleteVersion(false)}
+        onConfirmAsync={async () => {
+          if (!baseMap?.id || !activeVersion?.id) return;
+          const otherVersion = baseMap.versions?.find(
+            (v) => v.id !== activeVersion.id
+          );
+          if (otherVersion) {
+            await activateBaseMapVersion(baseMap.id, otherVersion.id, dispatch);
+          }
+          await db.baseMapVersions.delete(activeVersion.id);
+          setOpenDeleteVersion(false);
         }}
       />
     </BoxFlexVStretch>

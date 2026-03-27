@@ -83,7 +83,7 @@ export default function LeftDrawerPanel({ children, width = 260, viewerKey }) {
         top: 0,
         bottom: 0,
         width,
-        zIndex: 10,
+        zIndex: 20,
         bgcolor: "background.default",
         boxShadow: visible ? 4 : 0,
         overflow: "auto",
