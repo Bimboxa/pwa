@@ -233,6 +233,7 @@ const InteractionLayer = forwardRef(({
   const noCuts = useSelector((s) => s.smartDetect.noCuts);
   const noSmallCuts = useSelector((s) => s.smartDetect.noSmallCuts);
   const convexHullEnabled = useSelector((s) => s.smartDetect.convexHull);
+  const visibleAreaOnly = useSelector((s) => s.smartDetect.visibleAreaOnly);
   const { zoomContainer } = useSmartZoom();
   const { segmentLengthPxRef, constraintBuffer, appendToBuffer, deleteFromBuffer, clearBuffer } = useDrawingMetrics();
 
@@ -1540,6 +1541,26 @@ const InteractionLayer = forwardRef(({
           }))
         );
 
+      // Compute viewport bounding box in image pixel coords (when visible-area-only is on)
+      let viewportBBox;
+      if (visibleAreaOnly) {
+        const viewportBounds = editor.viewportInBase?.bounds;
+        if (
+          viewportBounds &&
+          Number.isFinite(viewportBounds.x) &&
+          Number.isFinite(viewportBounds.y) &&
+          Number.isFinite(viewportBounds.width) &&
+          Number.isFinite(viewportBounds.height)
+        ) {
+          viewportBBox = {
+            x: (viewportBounds.x - baseMapImageOffset.x) / baseMapImageScale,
+            y: (viewportBounds.y - baseMapImageOffset.y) / baseMapImageScale,
+            width: Math.max(1, viewportBounds.width / baseMapImageScale),
+            height: Math.max(1, viewportBounds.height / baseMapImageScale),
+          };
+        }
+      }
+
       // Lazy-build image data URL
       if (!cachedDetectImageUrlRef.current && sourceImageEl) {
         const canvas = document.createElement("canvas");
@@ -1565,6 +1586,7 @@ const InteractionLayer = forwardRef(({
             clickY: pixelY,
             existingSegments,
             offsetAngle: orthoSnapAngleOffsetRef.current || 0,
+            viewportBBox,
           });
           console.log("[DETECT_SIMILAR_POLYLINES] Worker result:", result);
           const segments = result?.polylines || (Array.isArray(result) ? result : []);

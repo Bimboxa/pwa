@@ -24,6 +24,7 @@ async function detectSimilarPolylinesAsync({ msg, payload }) {
       existingSegments = [],
       colorTolerance = 80,
       offsetAngle = 0, // degrees, counter-clockwise (trigonometric)
+      viewportBBox, // optional: {x, y, width, height} in source image pixels
     } = payload;
 
     if (!imageUrl) throw new Error("imageUrl is required");
@@ -32,13 +33,47 @@ async function detectSimilarPolylinesAsync({ msg, payload }) {
     const imageData = await loadImageDataFromUrl(imageUrl);
     let { width, height, data } = imageData;
 
+    // 1a. Crop to viewport if viewportBBox is provided
+    let roiOffsetX = 0;
+    let roiOffsetY = 0;
+    if (viewportBBox && Number.isFinite(viewportBBox.x)) {
+      const roiX = Math.max(0, Math.min(width - 1, Math.floor(viewportBBox.x)));
+      const roiY = Math.max(0, Math.min(height - 1, Math.floor(viewportBBox.y)));
+      const roiW = Math.min(width - roiX, Math.max(1, Math.ceil(viewportBBox.width)));
+      const roiH = Math.min(height - roiY, Math.max(1, Math.ceil(viewportBBox.height)));
+
+      // Extract sub-image
+      const croppedData = new Uint8ClampedArray(roiW * roiH * 4);
+      for (let row = 0; row < roiH; row++) {
+        const srcOffset = ((roiY + row) * width + roiX) * 4;
+        const dstOffset = row * roiW * 4;
+        croppedData.set(data.subarray(srcOffset, srcOffset + roiW * 4), dstOffset);
+      }
+
+      roiOffsetX = roiX;
+      roiOffsetY = roiY;
+      data = croppedData;
+      width = roiW;
+      height = roiH;
+    }
+
+    // Adjust click and existing segments to cropped coordinates
+    let adjustedClickX = clickX - roiOffsetX;
+    let adjustedClickY = clickY - roiOffsetY;
+    let adjustedExistingSegments = existingSegments.map((seg) =>
+      seg.map((p) => ({
+        x: p.x - roiOffsetX,
+        y: p.y - roiOffsetY,
+      }))
+    );
+
     // 1b. If offsetAngle is set, rotate the image so building axes become H/V.
     //     We rotate the image by -offsetAngle, run the H/V pipeline, then
     //     rotate output coordinates back by +offsetAngle.
     const angleRad = (offsetAngle * Math.PI) / 180;
-    let rotatedClickX = clickX;
-    let rotatedClickY = clickY;
-    let rotatedExistingSegments = existingSegments;
+    let rotatedClickX = adjustedClickX;
+    let rotatedClickY = adjustedClickY;
+    let rotatedExistingSegments = adjustedExistingSegments;
     let origCenterX, origCenterY; // center of original image (rotation pivot)
 
     if (offsetAngle !== 0) {
@@ -76,13 +111,13 @@ async function detectSimilarPolylinesAsync({ msg, payload }) {
       height = newHeight;
 
       // Rotate click point: apply same transform (rotate around orig center, then offset to new center)
-      const dx = clickX - origCenterX;
-      const dy = clickY - origCenterY;
+      const dx = adjustedClickX - origCenterX;
+      const dy = adjustedClickY - origCenterY;
       rotatedClickX = dx * Math.cos(angleRad) - dy * Math.sin(angleRad) + newCenterX;
       rotatedClickY = dx * Math.sin(angleRad) + dy * Math.cos(angleRad) + newCenterY;
 
       // Rotate existing segments
-      rotatedExistingSegments = existingSegments.map((seg) =>
+      rotatedExistingSegments = adjustedExistingSegments.map((seg) =>
         seg.map((p) => {
           const pdx = p.x - origCenterX;
           const pdy = p.y - origCenterY;
@@ -280,6 +315,16 @@ async function detectSimilarPolylinesAsync({ msg, payload }) {
             y: dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad) + origCenterY,
           };
         })
+      );
+    }
+
+    // 15. If viewport was cropped, offset coordinates back to global image space
+    if (roiOffsetX !== 0 || roiOffsetY !== 0) {
+      finalPolylines = finalPolylines.map((pl) =>
+        pl.map((p) => ({
+          x: p.x + roiOffsetX,
+          y: p.y + roiOffsetY,
+        }))
       );
     }
 

@@ -2,7 +2,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { clearSelection } from "Features/selection/selectionSlice";
 import { setShowLayers, setSoloMode } from "../popperMapListingsSlice";
-import { setNoCuts, setNoSmallCuts, setConvexHull } from "Features/smartDetect/smartDetectSlice";
+import { setNoCuts, setNoSmallCuts, setConvexHull, setVisibleAreaOnly } from "Features/smartDetect/smartDetectSlice";
 
 import {
   Box,
@@ -32,6 +32,7 @@ export default function PanelPropertiesPopperMapListings() {
   const noCuts = useSelector((s) => s.smartDetect.noCuts);
   const noSmallCuts = useSelector((s) => s.smartDetect.noSmallCuts);
   const convexHull = useSelector((s) => s.smartDetect.convexHull);
+  const visibleAreaOnly = useSelector((s) => s.smartDetect.visibleAreaOnly);
 
   // helpers
 
@@ -177,6 +178,30 @@ export default function PanelPropertiesPopperMapListings() {
             value={convexHull}
             onChange={(v) => dispatch(setConvexHull(v))}
             label="Enveloppe convexe"
+            options={{ type: "check", showAsInline: true }}
+          />
+        </WhiteSectionGeneric>
+
+        {/* Card 5: Auto-detection options */}
+        <WhiteSectionGeneric>
+          <Typography
+            variant="caption"
+            sx={{
+              fontWeight: 700,
+              fontSize: "0.7rem",
+              textTransform: "uppercase",
+              color: "text.secondary",
+              letterSpacing: 0.5,
+              mb: 0.5,
+              display: "block",
+            }}
+          >
+            Détection auto
+          </Typography>
+          <FieldCheck
+            value={visibleAreaOnly}
+            onChange={(v) => dispatch(setVisibleAreaOnly(v))}
+            label="Détection sur partie visible de l'image"
             options={{ type: "check", showAsInline: true }}
           />
         </WhiteSectionGeneric>

@@ -8,6 +8,7 @@ const smartDetectInitialState = {
   noCuts: true,
   noSmallCuts: true,
   convexHull: false,
+  visibleAreaOnly: false,
 };
 
 export const smartDetectSlice = createSlice({
@@ -26,6 +27,9 @@ export const smartDetectSlice = createSlice({
     setConvexHull: (state, action) => {
       state.convexHull = action.payload;
     },
+    setVisibleAreaOnly: (state, action) => {
+      state.visibleAreaOnly = action.payload;
+    },
   },
 });
 
@@ -34,6 +38,7 @@ export const {
   setNoCuts,
   setNoSmallCuts,
   setConvexHull,
+  setVisibleAreaOnly,
 } = smartDetectSlice.actions;
 
 export default smartDetectSlice.reducer;
