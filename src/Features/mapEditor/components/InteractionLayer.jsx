@@ -2661,6 +2661,11 @@ const InteractionLayer = forwardRef(({
         commitPolyline(e); // add "e" to get clientX & clientY to set the measurePopper anchor position.
       }
 
+      else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode) && newPointsList?.length === 3) {
+        drawingPointsRef.current = newPointsList;
+        commitPolyline(e);
+      }
+
       // On s'arrête ici
       return;
     }
