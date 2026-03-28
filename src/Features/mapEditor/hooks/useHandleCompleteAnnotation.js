@@ -282,42 +282,74 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
       // Drawn inner points (excluding start & end which are shared with the polygon)
       const drawnInner = drawnPointRefs.slice(1, -1);
 
-      // Replace the shortest contour path with the drawn points
-      let newPoints;
+      // Build both polygon pieces
+      let polygon1Points, polygon2Points;
       if (pathALength <= pathBLength) {
-        // Keep path B (endIdx → ... → startIdx), replace path A with drawn
-        const kept = [];
+        // Path B (endIdx → ... → startIdx) + drawn inner → polygon 1
+        const pathB = [];
         for (let i = 0; i <= pathBLength; i++) {
-          kept.push(finalAnnotationPoints[(endIdx + i) % n]);
+          pathB.push(finalAnnotationPoints[(endIdx + i) % n]);
         }
-        // kept: endIdx → ... → startIdx
-        // New polygon: kept + drawn inner (startIdx → endIdx)
-        newPoints = [
-          ...kept.map((p) => ({ id: p.id })),
+        polygon1Points = [
+          ...pathB.map((p) => ({ id: p.id })),
           ...drawnInner,
         ];
-      } else {
-        // Keep path A (startIdx → ... → endIdx), replace path B with drawn
-        const kept = [];
+
+        // Path A (startIdx → ... → endIdx) + drawn inner reversed → polygon 2
+        const pathA = [];
         for (let i = 0; i <= pathALength; i++) {
-          kept.push(finalAnnotationPoints[(startIdx + i) % n]);
+          pathA.push(finalAnnotationPoints[(startIdx + i) % n]);
         }
-        // kept: startIdx → ... → endIdx
-        // New polygon: kept + drawn inner reversed (endIdx → startIdx)
-        newPoints = [
-          ...kept.map((p) => ({ id: p.id })),
+        polygon2Points = [
+          ...pathA.map((p) => ({ id: p.id })),
           ...[...drawnInner].reverse(),
+        ];
+      } else {
+        // Path A (startIdx → ... → endIdx) + drawn inner reversed → polygon 1
+        const pathA = [];
+        for (let i = 0; i <= pathALength; i++) {
+          pathA.push(finalAnnotationPoints[(startIdx + i) % n]);
+        }
+        polygon1Points = [
+          ...pathA.map((p) => ({ id: p.id })),
+          ...[...drawnInner].reverse(),
+        ];
+
+        // Path B (endIdx → ... → startIdx) + drawn inner → polygon 2
+        const pathB = [];
+        for (let i = 0; i <= pathBLength; i++) {
+          pathB.push(finalAnnotationPoints[(endIdx + i) % n]);
+        }
+        polygon2Points = [
+          ...pathB.map((p) => ({ id: p.id })),
+          ...drawnInner,
         ];
       }
 
+      // Update original annotation with polygon 1
       await updateAnnotation({
         ...annotation,
-        points: newPoints,
+        points: polygon1Points,
+      });
+
+      // Create new entity + annotation for polygon 2
+      const entity = await createEntity(newEntity);
+      const {
+        id: _id,
+        entityId: _eid,
+        cuts: _cuts,
+        ...hostProps
+      } = annotation;
+      await createAnnotation({
+        ...hostProps,
+        id: nanoid(),
+        entityId: entity.id,
+        points: polygon2Points,
       });
 
       dispatch(
         setToaster({
-          message: "Polygon modified",
+          message: "Polygon split",
           isError: false,
         })
       );
