@@ -51,6 +51,7 @@ export default function PanelMapSummary() {
     filterByBaseMapId: baseMapId,
     excludeBgAnnotations: true,
     withQties: true,
+    withEntity: true,
   });
   const layers = useLayers({ filterByBaseMapId: baseMapId, filterByScopeId: selectedScope?.id });
 
@@ -346,7 +347,7 @@ export default function PanelMapSummary() {
         vh="80"
       >
         <BoxFlexVStretch>
-          <DatagridAnnotations annotations={annotationsV2 ?? []} />
+          <DatagridAnnotations annotations={annotationsV2 ?? []} onClose={() => setOpenDatagrid(false)} />
         </BoxFlexVStretch>
       </DialogGeneric>
     </BoxFlexVStretch>

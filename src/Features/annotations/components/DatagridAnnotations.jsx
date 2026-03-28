@@ -1,9 +1,21 @@
 import { useMemo } from "react";
+import { useDispatch } from "react-redux";
 import { DataGridPro } from "@mui/x-data-grid-pro";
 import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import MapIcon from "@mui/icons-material/Map";
 
 import AnnotationIcon from "./AnnotationIcon";
+import AnnotationEntityInfoChip from "./AnnotationEntityInfoChip";
 
+import {
+    setSelectedMainBaseMapId,
+    setSelectedNode,
+    setZoomTo,
+} from "Features/mapEditor/mapEditorSlice";
+import { setSelectedItem, setShowAnnotationsProperties } from "Features/selection/selectionSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
@@ -21,10 +33,13 @@ export default function DatagridAnnotations({
     annotations,
     selectedIds = [],
     onSelectionChange,
+    onClose,
     showListingName = false,
     showLayerName = false,
 }) {
 
+
+    const dispatch = useDispatch();
 
     // --- DATA PREP ---
 
@@ -43,8 +58,12 @@ export default function DatagridAnnotations({
 
 
             return {
-                id: annotation.id, // Assurez-vous que ceci est UNIQUE et non null
+                id: annotation.id,
                 type: annotation.type,
+                baseMapId: annotation.baseMapId,
+                listingId: annotation.listingId,
+                entityId: annotation.entityId,
+                annotationTemplateId: annotation.annotationTemplateId,
                 baseMapName: annotation.baseMapName,
                 variant: annotation.variant,
                 fillColor: annotation.fillColor,
@@ -56,6 +75,10 @@ export default function DatagridAnnotations({
                 height: annotation.height,
                 length: annotation.qties?.enabled ? annotation.qties.length : 0,
                 surface: annotation.qties?.enabled ? annotation.qties.surface : 0,
+                points: annotation.points,
+                x: annotation.x,
+                y: annotation.y,
+                entity: annotation.entity,
             };
         });
     }, [annotations, baseMapById]);
@@ -75,6 +98,24 @@ export default function DatagridAnnotations({
                 renderCell: (params) => {
                     return <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 1 }}><AnnotationIcon annotation={params.row} /></Box>;
                 }
+            },
+            {
+                field: "entityInfo",
+                headerName: "",
+                width: 36,
+                align: "center",
+                headerAlign: "center",
+                sortable: false,
+                filterable: false,
+                disableColumnMenu: true,
+                renderCell: (params) => {
+                    if (!params.row.entity) return null;
+                    return (
+                        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 1 }}>
+                            <AnnotationEntityInfoChip entity={params.row.entity} />
+                        </Box>
+                    );
+                },
             },
             { field: "templateLabel", headerName: "Modèle", flex: 1, minWidth: 150 },
         ];
@@ -96,6 +137,28 @@ export default function DatagridAnnotations({
             { field: "length", headerName: "Longueur", width: 120, type: "number", valueFormatter: (value) => formatNumber(value, "m") },
             { field: "surface", headerName: "Surface", width: 120, type: "number", valueFormatter: (value) => formatNumber(value, "m²") },
         );
+        cols.push({
+            field: "actions",
+            headerName: "",
+            width: 50,
+            align: "center",
+            headerAlign: "center",
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
+            renderCell: (params) => (
+                <IconButton
+                    size="small"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewOnMap(params.row);
+                    }}
+                    sx={{ color: "action.active" }}
+                >
+                    <MapIcon fontSize="small" />
+                </IconButton>
+            ),
+        });
         return cols;
     }, [showListingName, showLayerName]);
 
@@ -104,7 +167,43 @@ export default function DatagridAnnotations({
     }, [selectedIds]);
 
 
-    // handler
+    // handlers
+
+    function handleViewOnMap(row) {
+        // Close the dialog if open
+        if (onClose) onClose();
+        // Navigate to the correct baseMap and viewer
+        dispatch(setSelectedMainBaseMapId(row.baseMapId));
+        dispatch(setSelectedViewerKey("MAP"));
+        // Select the annotation node in mapEditor
+        dispatch(setSelectedNode({
+            nodeId: row.id,
+            nodeType: "ANNOTATION",
+            nodeListingId: row.listingId,
+            annotationType: row.type,
+            origin: "LISTING",
+        }));
+        // Select the annotation in the selection slice
+        dispatch(setSelectedItem({
+            id: row.id,
+            type: "NODE",
+            nodeType: "ANNOTATION",
+            nodeId: row.id,
+            annotationType: row.type,
+            listingId: row.listingId,
+            entityId: row.entityId,
+            annotationTemplateId: row.annotationTemplateId,
+        }));
+        // Show the properties panel
+        dispatch(setShowAnnotationsProperties(true));
+        dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+        // Zoom to the annotation
+        if (row.points?.length > 0) {
+            dispatch(setZoomTo(row.points[0]));
+        } else if (row.x != null) {
+            dispatch(setZoomTo({ x: row.x, y: row.y }));
+        }
+    }
 
     const handleSelectionChange = (newSelectionModel) => {
         const annotations = rows.filter(row => newSelectionModel.ids.has(row.id));

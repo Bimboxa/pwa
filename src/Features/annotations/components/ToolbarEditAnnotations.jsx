@@ -483,7 +483,7 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
         vh="80"
       >
         <BoxFlexVStretch>
-          <DatagridAnnotations annotations={annotations} />
+          <DatagridAnnotations annotations={annotations} onClose={() => setOpenDatagrid(false)} />
         </BoxFlexVStretch>
       </DialogGeneric>
     </Box>

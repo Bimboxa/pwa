@@ -89,6 +89,7 @@ export default function PanelPrint() {
     filterByProjectId: projectId,
     withQties: true,
     withListingName: true,
+    withEntity: true,
     excludeIsForBaseMapsListings: true,
   });
 
@@ -255,6 +256,7 @@ export default function PanelPrint() {
             annotations={enrichedAnnotations}
             showListingName
             showLayerName
+            onClose={() => setOpenDatagridAll(false)}
           />
         </BoxFlexVStretch>
       </DialogGeneric>

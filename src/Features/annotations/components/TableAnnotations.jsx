@@ -22,6 +22,7 @@ export default function TableAnnotations() {
         filterByListingId: listingId,
         excludeBgAnnotations: true,
         withQties: true,
+        withEntity: true,
     });
 
 

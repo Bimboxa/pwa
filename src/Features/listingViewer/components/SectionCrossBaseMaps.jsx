@@ -305,6 +305,7 @@ export default function SectionCrossBaseMaps({
           <DatagridAnnotations
             annotations={annotations}
             showListingName={showAllListings}
+            onClose={handleCloseDialog}
           />
         </BoxFlexVStretch>
       </DialogGeneric>
