@@ -8,7 +8,7 @@ const smartDetectInitialState = {
   noCuts: true,
   noSmallCuts: true,
   convexHull: false,
-  visibleAreaOnly: false,
+  visibleAreaOnly: true,
 };
 
 export const smartDetectSlice = createSlice({
