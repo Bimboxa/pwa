@@ -15,7 +15,7 @@ import db from "App/db/db";
  *
  * Three commit cases:
  * 1. POLYLINE + Enter (open path)       → new POLYLINE from drawn points
- * 2. POLYLINE + reconnect to same       → new POLYGON (drawn path + original segment)
+ * 2. POLYLINE + reconnect to same       → new closed POLYLINE (drawn path + original segment)
  * 3. POLYGON  + reconnect to same       → modify polygon (replace shortest contour side)
  */
 export default function useHandleCompleteAnnotation({ newEntity } = {}) {
@@ -213,15 +213,47 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
         return;
       }
 
-      // Extract the segment of the original polyline between start and end
+      const lastIdx = finalAnnotationPoints.length - 1;
+      const isFullClosure =
+        (startIdx === 0 && endIdx === lastIdx) ||
+        (startIdx === lastIdx && endIdx === 0);
+
+      if (isFullClosure) {
+        // Closing the polyline end-to-end → update existing annotation
+        let newPoints;
+        if (startIdx === 0) {
+          // Started at beginning, ended at end → prepend drawn inner points (reversed)
+          newPoints = [
+            ...drawnPointRefs.slice(1, -1).reverse().map((p) => ({ id: p.id })),
+            ...finalAnnotationPoints.map((p) => ({ id: p.id })),
+          ];
+        } else {
+          // Started at end, ended at beginning → append drawn inner points
+          newPoints = [
+            ...finalAnnotationPoints.map((p) => ({ id: p.id })),
+            ...drawnPointRefs.slice(1, -1).map((p) => ({ id: p.id })),
+          ];
+        }
+
+        await updateAnnotation({
+          ...annotation,
+          points: newPoints,
+          closeLine: true,
+        });
+        dispatch(
+          setToaster({ message: "Polyline closed", isError: false })
+        );
+        return;
+      }
+
+      // Partial reconnection → create a new closed polyline from drawn path + original segment
       const lo = Math.min(startIdx, endIdx);
       const hi = Math.max(startIdx, endIdx);
       const originalSegment = finalAnnotationPoints.slice(lo, hi + 1);
 
-      // Build polygon: drawn path + original segment (reversed to close)
-      let polygonPoints;
+      let closedPoints;
       if (startIdx <= endIdx) {
-        polygonPoints = [
+        closedPoints = [
           ...drawnPointRefs,
           ...originalSegment
             .slice(0, -1)
@@ -229,7 +261,7 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
             .map((p) => ({ id: p.id })),
         ];
       } else {
-        polygonPoints = [
+        closedPoints = [
           ...drawnPointRefs,
           ...originalSegment
             .slice(1)
@@ -248,12 +280,12 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
         ...hostProps,
         id: nanoid(),
         entityId: entity.id,
-        type: "POLYGON",
-        points: polygonPoints,
-        closeLine: undefined,
+        type: "POLYLINE",
+        points: closedPoints,
+        closeLine: true,
       });
       dispatch(
-        setToaster({ message: "Polygon created", isError: false })
+        setToaster({ message: "Closed polyline created", isError: false })
       );
       return;
     }
