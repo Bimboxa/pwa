@@ -3,7 +3,9 @@ import { useDispatch } from "react-redux";
 import { DataGridPro } from "@mui/x-data-grid-pro";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import MapIcon from "@mui/icons-material/Map";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 import AnnotationIcon from "./AnnotationIcon";
 import AnnotationEntityInfoChip from "./AnnotationEntityInfoChip";
@@ -169,6 +171,27 @@ export default function DatagridAnnotations({
 
     // handlers
 
+    function handleCopyToClipboard() {
+        const dataColumns = columns.filter(
+            (col) => !["icon", "entityInfo", "actions"].includes(col.field)
+        );
+        const headers = dataColumns.map((col) => col.headerName || col.field);
+        const lines = rows.map((row) =>
+            dataColumns
+                .map((col) => {
+                    const value = row[col.field];
+                    if (value === null || value === undefined) return "";
+                    if (typeof value === "number") {
+                        return isNaN(value) ? "" : String(value).replace(".", ",");
+                    }
+                    return value;
+                })
+                .join("\t")
+        );
+        const tsv = [headers.join("\t"), ...lines].join("\n");
+        navigator.clipboard.writeText(tsv);
+    }
+
     function handleViewOnMap(row) {
         // Close the dialog if open
         if (onClose) onClose();
@@ -230,6 +253,13 @@ export default function DatagridAnnotations({
 
     return (
         <BoxFlexVStretch>
+            <Box sx={{ display: "flex", justifyContent: "flex-end", p: 0.5 }}>
+                <Tooltip title="Copier">
+                    <IconButton size="small" onClick={handleCopyToClipboard}>
+                        <ContentCopyIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+            </Box>
             <DataGridPro
                 density="compact"
                 rows={rows}

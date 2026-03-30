@@ -1,6 +1,12 @@
 import { useMemo } from "react";
 import { DataGridPro } from "@mui/x-data-grid-pro";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
+import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
+import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 const formatNumber = (value, unit) => {
@@ -11,6 +17,8 @@ const formatNumber = (value, unit) => {
 
 export default function DatagridAnnotationsAggregated({ annotations }) {
   // data
+
+  const spriteImage = useAnnotationSpriteImage();
 
   const rows = useMemo(() => {
     if (!annotations) return [];
@@ -32,6 +40,16 @@ export default function DatagridAnnotationsAggregated({ annotations }) {
           unit: 0,
           length: 0,
           surface: 0,
+          // Template visual props (from first annotation in group)
+          type: annotation.type,
+          fillColor: annotation.fillColor,
+          strokeColor: annotation.strokeColor,
+          fillOpacity: annotation.fillOpacity,
+          strokeOpacity: annotation.strokeOpacity,
+          fillType: annotation.fillType,
+          variant: annotation.variant,
+          iconKey: annotation.iconKey,
+          image: annotation.image,
         };
       }
 
@@ -61,6 +79,21 @@ export default function DatagridAnnotationsAggregated({ annotations }) {
 
   const columns = useMemo(
     () => [
+      {
+        field: "icon",
+        headerName: "",
+        width: 50,
+        align: "center",
+        headerAlign: "center",
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        renderCell: (params) => (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 1 }}>
+            <AnnotationTemplateIcon template={params.row} size={20} spriteImage={spriteImage} />
+          </Box>
+        ),
+      },
       {
         field: "listingName",
         headerName: "Liste",
@@ -108,13 +141,41 @@ export default function DatagridAnnotationsAggregated({ annotations }) {
         valueFormatter: (value) => formatNumber(value, "m²"),
       },
     ],
-    []
+    [spriteImage]
   );
+
+  // handlers
+
+  function handleCopyToClipboard() {
+    const dataColumns = columns.filter((col) => col.field !== "icon");
+    const headers = dataColumns.map((col) => col.headerName || col.field);
+    const lines = rows.map((row) =>
+      dataColumns
+        .map((col) => {
+          const value = row[col.field];
+          if (value === null || value === undefined) return "";
+          if (typeof value === "number") {
+            return isNaN(value) ? "" : String(value).replace(".", ",");
+          }
+          return value;
+        })
+        .join("\t")
+    );
+    const tsv = [headers.join("\t"), ...lines].join("\n");
+    navigator.clipboard.writeText(tsv);
+  }
 
   // render
 
   return (
     <BoxFlexVStretch>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", p: 0.5 }}>
+        <Tooltip title="Copier">
+          <IconButton size="small" onClick={handleCopyToClipboard}>
+            <ContentCopyIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Box>
       <DataGridPro
         density="compact"
         rows={rows}
