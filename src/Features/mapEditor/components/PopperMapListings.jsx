@@ -1068,6 +1068,13 @@ function ListingRow({
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   }
 
+  function handleOpenProperties(e) {
+    e.stopPropagation();
+    dispatch(setSelectedListingId(listing.id));
+    dispatch(setSelectedItem({ id: listing.id, type: "LISTING" }));
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+  }
+
   // render
 
   return (
@@ -1121,7 +1128,18 @@ function ListingRow({
 
         {extraAction}
 
-        {/* Right side: count (default) / visibility icon (hover) */}
+        {/* Right side: properties + visibility (hover) / count (default) */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}>
+          <IconButton
+            size="small"
+            onClick={handleOpenProperties}
+            sx={{
+              p: 0,
+              visibility: isHovered ? "visible" : "hidden",
+            }}
+          >
+            <Tune sx={{ fontSize: 18 }} />
+          </IconButton>
         <Box sx={{ position: "relative", minWidth: 24, height: 24, flexShrink: 0 }}>
           <Typography
             variant="caption"
@@ -1156,6 +1174,7 @@ function ListingRow({
               <Visibility sx={{ fontSize: 18 }} />
             )}
           </IconButton>
+        </Box>
         </Box>
       </Box>
 
