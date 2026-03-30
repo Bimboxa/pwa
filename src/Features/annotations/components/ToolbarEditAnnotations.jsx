@@ -198,6 +198,7 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
       ...getAnnotationTemplateProps(template),
       annotationTemplateId: template?.id,
       label: template?.label,
+      listingId: template?.listingId,
     };
     const resolvedShape = resolveDrawingShape(template);
     const resolvedType = getAnnotationType(resolvedShape);

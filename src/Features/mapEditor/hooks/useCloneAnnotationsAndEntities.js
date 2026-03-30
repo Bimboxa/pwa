@@ -98,7 +98,7 @@ export default function useCloneAnnotationsAndEntities() {
         allEntities.push({
           id: entityId,
           createdBy: userEmail,
-          listingId: annotation.listingId,
+          listingId: newAnnotation.listingId || annotation.listingId,
           projectId: annotation.projectId,
           ...(entityLabel ? { label: entityLabel } : {}),
         });
@@ -110,7 +110,7 @@ export default function useCloneAnnotationsAndEntities() {
           id: annotationId,
           entityId,
           projectId,
-          listingId: annotation.listingId,
+          listingId: newAnnotation.listingId || annotation.listingId,
           points: item.points,
           cuts: item.cuts,
           ...(activeLayerId ? { layerId: activeLayerId } : {}),

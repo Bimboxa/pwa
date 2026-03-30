@@ -96,7 +96,7 @@ export default function useCloneAnnotationAndEntity() {
             // A. Create a NEW unique entity for THIS specific geometry
             const entity = await createEntity({
                 label: entityLabel,
-                listingId: annotation.listingId,
+                listingId: newAnnotation.listingId || annotation.listingId,
                 projectId: annotation.projectId,
             });
 
