@@ -83,6 +83,13 @@ export default function SectionLayers({ baseMapId }) {
 
   const sensors = useDndSensors();
 
+  // data (visibility)
+
+  const hiddenLayerIds = useSelector((s) => s.layers.hiddenLayerIds);
+  const showAnnotationsWithoutLayer = useSelector(
+    (s) => s.layers.showAnnotationsWithoutLayer
+  );
+
   // effects - clear active layer when switching baseMap
 
   useEffect(() => {
@@ -90,6 +97,28 @@ export default function SectionLayers({ baseMapId }) {
       dispatch(setActiveLayerId(null));
     }
   }, [layers, activeLayerId]);
+
+  // effects - ensure active layer is always visible
+
+  useEffect(() => {
+    if (!layers) return;
+
+    const isActiveHidden = activeLayerId
+      ? hiddenLayerIds.includes(activeLayerId)
+      : !showAnnotationsWithoutLayer;
+
+    if (!isActiveHidden) return;
+
+    // pick the first visible layer, or fall back to "Calque 0" if visible
+    const firstVisibleLayer = layers.find(
+      (l) => !hiddenLayerIds.includes(l.id)
+    );
+    if (firstVisibleLayer) {
+      dispatch(setActiveLayerId(firstVisibleLayer.id));
+    } else if (showAnnotationsWithoutLayer) {
+      dispatch(setActiveLayerId(null));
+    }
+  }, [layers, activeLayerId, hiddenLayerIds, showAnnotationsWithoutLayer]);
 
   // helpers
 

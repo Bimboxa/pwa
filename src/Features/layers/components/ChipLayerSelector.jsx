@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { useSelector } from "react-redux";
-import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
+import useUpdateAnnotations from "Features/annotations/hooks/useUpdateAnnotations";
 import useLayers from "../hooks/useLayers";
 
 import {
@@ -19,7 +19,7 @@ export default function ChipLayerSelector({
   annotations,
   baseMapId,
 }) {
-  const updateAnnotation = useUpdateAnnotation();
+  const updateAnnotations = useUpdateAnnotations();
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   // data
@@ -60,9 +60,11 @@ export default function ChipLayerSelector({
   };
 
   const handleSelect = async (layerId) => {
-    for (const id of annotationIds) {
-      await updateAnnotation({ id, layerId: layerId ?? null });
-    }
+    const updates = annotationIds.map((id) => ({
+      id,
+      layerId: layerId ?? null,
+    }));
+    await updateAnnotations(updates);
     handleClose();
   };
 
