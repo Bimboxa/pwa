@@ -62,6 +62,7 @@ import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTe
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import SectionSmartDetect from "Features/smartDetect/components/SectionSmartDetect";
+import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import SectionSegmentLength from "Features/annotations/components/SectionSegmentLength";
 import SectionLayers from "Features/layers/components/SectionLayers";
@@ -1269,6 +1270,7 @@ function PopperDrawingHelper() {
       {!isSegmentSelectMode && <SectionSmartDetect loupeOnly={isLoupeOnly} />}
 
       <Box sx={{ p: 1 }}>
+        {enabledDrawingMode === "SURFACE_DROP" && <SectionSurfaceDropOptions />}
         {showSegmentLength && <SectionSegmentLength />}
         <SectionShortcutHelpers />
       </Box>

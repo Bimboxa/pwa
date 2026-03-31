@@ -2,7 +2,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { clearSelection } from "Features/selection/selectionSlice";
 import { setShowLayers, setSoloMode } from "../popperMapListingsSlice";
-import { setNoCuts, setNoSmallCuts, setConvexHull, setVisibleAreaOnly } from "Features/smartDetect/smartDetectSlice";
+import { setVisibleAreaOnly } from "Features/smartDetect/smartDetectSlice";
 
 import {
   Box,
@@ -29,9 +29,6 @@ export default function PanelPropertiesPopperMapListings() {
   const { value: scope } = useSelectedScope();
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
   const soloMode = useSelector((s) => s.popperMapListings.soloMode);
-  const noCuts = useSelector((s) => s.smartDetect.noCuts);
-  const noSmallCuts = useSelector((s) => s.smartDetect.noSmallCuts);
-  const convexHull = useSelector((s) => s.smartDetect.convexHull);
   const visibleAreaOnly = useSelector((s) => s.smartDetect.visibleAreaOnly);
 
   // helpers
@@ -146,43 +143,7 @@ export default function PanelPropertiesPopperMapListings() {
           />
         </WhiteSectionGeneric>
 
-        {/* Card 4: Surface drop fill tools */}
-        <WhiteSectionGeneric>
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: 700,
-              fontSize: "0.7rem",
-              textTransform: "uppercase",
-              color: "text.secondary",
-              letterSpacing: 0.5,
-              mb: 0.5,
-              display: "block",
-            }}
-          >
-            Outil remplissage
-          </Typography>
-          <FieldCheck
-            value={noCuts}
-            onChange={(v) => dispatch(setNoCuts(v))}
-            label="Aucune ouverture"
-            options={{ type: "check", showAsInline: true }}
-          />
-          <FieldCheck
-            value={noSmallCuts}
-            onChange={(v) => dispatch(setNoSmallCuts(v))}
-            label="Aucune petite ouverture"
-            options={{ type: "check", showAsInline: true }}
-          />
-          <FieldCheck
-            value={convexHull}
-            onChange={(v) => dispatch(setConvexHull(v))}
-            label="Enveloppe convexe"
-            options={{ type: "check", showAsInline: true }}
-          />
-        </WhiteSectionGeneric>
-
-        {/* Card 5: Auto-detection options */}
+        {/* Card 4: Auto-detection options */}
         <WhiteSectionGeneric>
           <Typography
             variant="caption"

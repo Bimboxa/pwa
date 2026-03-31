@@ -13,6 +13,7 @@ async function detectContoursAsync({ msg, payload }) {
       floodWindowSize = 256,
       viewportBBox,
       boundaries,
+      skipApproxPoly = false,
     } = payload ?? {};
 
     if (!imageUrl || x === undefined || y === undefined) {
@@ -123,14 +124,25 @@ async function detectContoursAsync({ msg, payload }) {
       const peri = cv.arcLength(cnt, true);
 
       if (peri > 5) {
-        const approx = track(new cv.Mat());
-        cv.approxPolyDP(cnt, approx, EPSILON_PX, true);
-        const pts = [];
-        for (let j = 0; j < approx.rows; j++) {
-          pts.push({
-            x: approx.data32S[j * 2] + roiX,
-            y: approx.data32S[j * 2 + 1] + roiY
-          });
+        let pts;
+        if (skipApproxPoly) {
+          pts = [];
+          for (let j = 0; j < cnt.rows; j++) {
+            pts.push({
+              x: cnt.data32S[j * 2] + roiX + 0.5,
+              y: cnt.data32S[j * 2 + 1] + roiY + 0.5,
+            });
+          }
+        } else {
+          const approx = track(new cv.Mat());
+          cv.approxPolyDP(cnt, approx, EPSILON_PX, true);
+          pts = [];
+          for (let j = 0; j < approx.rows; j++) {
+            pts.push({
+              x: approx.data32S[j * 2] + roiX + 0.5,
+              y: approx.data32S[j * 2 + 1] + roiY + 0.5,
+            });
+          }
         }
         contourPoints[i] = pts;
         contourAreas[i] = Math.abs(area);

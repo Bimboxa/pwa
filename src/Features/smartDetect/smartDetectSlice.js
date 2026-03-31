@@ -5,7 +5,8 @@ import { grey } from "@mui/material/colors";
 const smartDetectInitialState = {
   //
   centerColor: grey[500],
-  noCuts: true,
+  rawDetection: false,
+  noCuts: false,
   noSmallCuts: true,
   convexHull: false,
   visibleAreaOnly: true,
@@ -17,6 +18,9 @@ export const smartDetectSlice = createSlice({
   reducers: {
     setCenterColor: (state, action) => {
       state.centerColor = action.payload;
+    },
+    setRawDetection: (state, action) => {
+      state.rawDetection = action.payload;
     },
     setNoCuts: (state, action) => {
       state.noCuts = action.payload;
@@ -35,6 +39,7 @@ export const smartDetectSlice = createSlice({
 
 export const {
   setCenterColor,
+  setRawDetection,
   setNoCuts,
   setNoSmallCuts,
   setConvexHull,

@@ -230,6 +230,7 @@ const InteractionLayer = forwardRef(({
   const orthoSnapEnabled = useSelector((s) => s.mapEditor.orthoSnapEnabled);
   const orthoSnapAngleOffset = useSelector((s) => s.mapEditor.orthoSnapAngleOffset);
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
+  const rawDetection = useSelector((s) => s.smartDetect.rawDetection);
   const noCuts = useSelector((s) => s.smartDetect.noCuts);
   const noSmallCuts = useSelector((s) => s.smartDetect.noSmallCuts);
   const convexHullEnabled = useSelector((s) => s.smartDetect.convexHull);
@@ -1875,6 +1876,7 @@ const InteractionLayer = forwardRef(({
         y: pixelY,
         viewportBBox,
         boundaries,
+        skipApproxPoly: rawDetection,
       });
 
       // Convert returned points from source pixel coords back to local coords
@@ -1888,14 +1890,20 @@ const InteractionLayer = forwardRef(({
         points: cut.points.map(toLocal),
       }));
 
-      const { points: localPoints, cuts: localCuts } = alignPolygonsToGrid(
-        rawLocalPoints,
-        rawLocalCuts,
-        {
-          referenceAngle: orthoSnapAngleOffsetRef.current || null,
-          meterByPx: baseMapMeterByPx || 0,
-        }
-      );
+      let localPoints, localCuts;
+      if (rawDetection) {
+        localPoints = rawLocalPoints;
+        localCuts = rawLocalCuts;
+      } else {
+        ({ points: localPoints, cuts: localCuts } = alignPolygonsToGrid(
+          rawLocalPoints,
+          rawLocalCuts,
+          {
+            referenceAngle: orthoSnapAngleOffsetRef.current || null,
+            meterByPx: baseMapMeterByPx || 0,
+          }
+        ));
+      }
 
       const filteredCuts = filterSurfaceDropCuts(localCuts, {
         noCuts,

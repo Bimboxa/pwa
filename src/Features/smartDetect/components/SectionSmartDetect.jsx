@@ -15,8 +15,5 @@ export default function SectionSmartDetect({ loupeOnly = false }) {
         return <SmartDetectContainer />;
     }
 
-    return <Box sx={{ width: 1, p: 1, bgcolor: 'rgba(0,0,0)' }}>
-        <Typography variant="caption" sx={{ fontWeight: 600, color: "grey.500" }}>{title}</Typography>
-        <SmartDetectContainer />
-    </Box>
+    return <SmartDetectContainer />
 }
