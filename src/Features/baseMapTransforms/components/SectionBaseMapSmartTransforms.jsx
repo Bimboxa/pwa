@@ -22,10 +22,11 @@ import {
     Checkbox,
     FormControlLabel,
 } from "@mui/material";
-import { MoreVert, Edit, Delete, Stop, Compare } from "@mui/icons-material";
+import { MoreVert, Edit, Delete, Stop, Compare, ContentCopy } from "@mui/icons-material";
 
 import HeaderBaseMapTransforms from "./HeaderBaseMapTransforms";
 import DialogEditBaseMapTransform from "./DialogEditBaseMapTransform";
+import DialogCreateBaseMapTransform from "./DialogCreateBaseMapTransform";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import SectionCompareTwoImages from "./SectionCompareTwoImages";
@@ -72,6 +73,8 @@ export default function SectionBaseMapTransforms() {
     const [openDelete, setOpenDelete] = useState(false);
     const [openCompare, setOpenCompare] = useState(false);
     const [createNewVersion, setCreateNewVersion] = useState(false);
+    const [openCreateTransform, setOpenCreateTransform] = useState(false);
+    const [duplicateTransform, setDuplicateTransform] = useState(null);
 
     // State pour savoir quel ID de transform est en cours de traitement
     const enhancingTransformId = enhancingBaseMap?.transformId;
@@ -275,14 +278,29 @@ export default function SectionBaseMapTransforms() {
                     <Compare fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
                     <Typography>Dernier résultat</Typography>
                 </MenuItem>}
-                <MenuItem onClick={handleEdit}>
-                    <Edit fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                    <Typography>Modifier</Typography>
+                {!activeTransform?.isDefault && (
+                    <MenuItem onClick={handleEdit}>
+                        <Edit fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                        <Typography>Modifier</Typography>
+                    </MenuItem>
+                )}
+                <MenuItem onClick={() => {
+                    handleCloseMenu();
+                    setDuplicateTransform({
+                        name: activeTransform?.name,
+                        prompt: activeTransform?.prompt,
+                    });
+                    setOpenCreateTransform(true);
+                }}>
+                    <ContentCopy fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Typography>Dupliquer</Typography>
                 </MenuItem>
-                <MenuItem onClick={handleDelete}>
-                    <Delete fontSize="small" sx={{ mr: 1, color: 'error.main' }} />
-                    <Typography color="error">Supprimer</Typography>
-                </MenuItem>
+                {!activeTransform?.isDefault && (
+                    <MenuItem onClick={handleDelete}>
+                        <Delete fontSize="small" sx={{ mr: 1, color: 'error.main' }} />
+                        <Typography color="error">Supprimer</Typography>
+                    </MenuItem>
+                )}
             </Menu >
 
             {/* DIALOGUES */}
@@ -301,6 +319,15 @@ export default function SectionBaseMapTransforms() {
                 onClose={() => setOpenDelete(false)}
                 onConfirmAsync={handleDeleteConfirm}
 
+            />
+
+            <DialogCreateBaseMapTransform
+                open={openCreateTransform}
+                onClose={() => {
+                    setOpenCreateTransform(false);
+                    setDuplicateTransform(null);
+                }}
+                initialBaseMapTransform={duplicateTransform}
             />
 
             {

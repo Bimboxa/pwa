@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { nanoid } from "@reduxjs/toolkit"
 
 import { Box, Typography } from '@mui/material'
@@ -11,7 +11,7 @@ import db from "App/db/db"
 
 
 
-export default function DialogCreateBaseMapTransform({ open, onClose }) {
+export default function DialogCreateBaseMapTransform({ open, onClose, initialBaseMapTransform }) {
 
     // helpers
 
@@ -20,7 +20,13 @@ export default function DialogCreateBaseMapTransform({ open, onClose }) {
 
     // state
 
-    const [tempBaseMapTransform, setTempBaseMapTransform] = useState({})
+    const [tempBaseMapTransform, setTempBaseMapTransform] = useState(initialBaseMapTransform || {})
+
+    useEffect(() => {
+        if (open) {
+            setTempBaseMapTransform(initialBaseMapTransform || {})
+        }
+    }, [open, initialBaseMapTransform])
 
     // handlers
 

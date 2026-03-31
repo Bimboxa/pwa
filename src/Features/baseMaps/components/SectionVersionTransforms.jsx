@@ -31,6 +31,7 @@ import {
   Stop,
   Compare,
   Save as SaveIcon,
+  ContentCopy,
 } from "@mui/icons-material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
@@ -86,6 +87,7 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
   const [openEditTransform, setOpenEditTransform] = useState(false);
   const [openDeleteTransform, setOpenDeleteTransform] = useState(false);
   const [openCreateTransform, setOpenCreateTransform] = useState(false);
+  const [duplicateTransform, setDuplicateTransform] = useState(null);
   // gray level threshold
   const [grayLevelValue, setGrayLevelValue] = useState(255);
   const [grayLevelProcessing, setGrayLevelProcessing] = useState(false);
@@ -472,24 +474,41 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
         open={Boolean(menuAnchor)}
         onClose={handleCloseMenu}
       >
+        {!activeTransform?.isDefault && (
+          <MenuItem
+            onClick={() => {
+              handleCloseMenu();
+              setOpenEditTransform(true);
+            }}
+          >
+            <Edit fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />
+            <Typography>Modifier</Typography>
+          </MenuItem>
+        )}
         <MenuItem
           onClick={() => {
             handleCloseMenu();
-            setOpenEditTransform(true);
+            setDuplicateTransform({
+              name: activeTransform?.name,
+              prompt: activeTransform?.prompt,
+            });
+            setOpenCreateTransform(true);
           }}
         >
-          <Edit fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />
-          <Typography>Modifier</Typography>
+          <ContentCopy fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />
+          <Typography>Dupliquer</Typography>
         </MenuItem>
-        <MenuItem
-          onClick={() => {
-            handleCloseMenu();
-            setOpenDeleteTransform(true);
-          }}
-        >
-          <Delete fontSize="small" sx={{ mr: 1, color: "error.main" }} />
-          <Typography color="error">Supprimer</Typography>
-        </MenuItem>
+        {!activeTransform?.isDefault && (
+          <MenuItem
+            onClick={() => {
+              handleCloseMenu();
+              setOpenDeleteTransform(true);
+            }}
+          >
+            <Delete fontSize="small" sx={{ mr: 1, color: "error.main" }} />
+            <Typography color="error">Supprimer</Typography>
+          </MenuItem>
+        )}
       </Menu>
 
       {/* COMPARE DIALOG */}
@@ -547,7 +566,11 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
       {/* SMART TRANSFORM DIALOGS */}
       <DialogCreateBaseMapTransform
         open={openCreateTransform}
-        onClose={() => setOpenCreateTransform(false)}
+        onClose={() => {
+          setOpenCreateTransform(false);
+          setDuplicateTransform(null);
+        }}
+        initialBaseMapTransform={duplicateTransform}
       />
 
       {activeTransform && (

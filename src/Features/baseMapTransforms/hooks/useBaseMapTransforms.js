@@ -11,5 +11,8 @@ export default function useBaseMapTransforms() {
 
     if (!transforms) return null;
 
-    return [...initialTransforms, ...transforms]
+    return [
+        ...initialTransforms.map(t => ({ ...t, isDefault: true })),
+        ...transforms,
+    ].sort((a, b) => (a.name || "").localeCompare(b.name || ""))
 }
