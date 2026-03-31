@@ -39,6 +39,7 @@ import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
 import IconButtonRepairAnnotation from "./IconButtonRepairAnnotation";
 import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
 import IconButtonConvertAnnotation from "./IconButtonConvertAnnotation";
+import IconButtonSimplifyAnnotation from "./IconButtonSimplifyAnnotation";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
@@ -349,6 +350,12 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               {selectedAnnotation?.type === "POLYGON" && (
                 <IconButtonConvertAnnotation
                   annotations={[selectedAnnotation]}
+                  accentColor={accentColor}
+                />
+              )}
+              {["POLYLINE", "POLYGON"].includes(selectedAnnotation?.type) && (
+                <IconButtonSimplifyAnnotation
+                  annotation={selectedAnnotation}
                   accentColor={accentColor}
                 />
               )}

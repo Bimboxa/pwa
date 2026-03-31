@@ -10,6 +10,9 @@ const smartDetectInitialState = {
   noSmallCuts: true,
   convexHull: false,
   visibleAreaOnly: true,
+  //
+  simplifyPolynomial: true,
+  simplifyOuterContour: false,
 };
 
 export const smartDetectSlice = createSlice({
@@ -34,6 +37,12 @@ export const smartDetectSlice = createSlice({
     setVisibleAreaOnly: (state, action) => {
       state.visibleAreaOnly = action.payload;
     },
+    setSimplifyPolynomial: (state, action) => {
+      state.simplifyPolynomial = action.payload;
+    },
+    setSimplifyOuterContour: (state, action) => {
+      state.simplifyOuterContour = action.payload;
+    },
   },
 });
 
@@ -44,6 +53,8 @@ export const {
   setNoSmallCuts,
   setConvexHull,
   setVisibleAreaOnly,
+  setSimplifyPolynomial,
+  setSimplifyOuterContour,
 } = smartDetectSlice.actions;
 
 export default smartDetectSlice.reducer;
