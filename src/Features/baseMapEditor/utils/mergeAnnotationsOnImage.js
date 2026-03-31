@@ -421,6 +421,16 @@ export default async function mergeAnnotationsOnImage({
     drawEraserAnnotation(ctx, a);
   }
 
+  // 3b. Fill erased (transparent) areas with white background
+  if (eraserAnnotations.length > 0) {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // reset to canvas coordinates
+    ctx.globalCompositeOperation = "destination-over";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  }
+
   // 4. Export canvas to file
   const blob = await new Promise((resolve) =>
     canvas.toBlob(resolve, "image/png")

@@ -10,24 +10,26 @@ export default async function resolvePresetScopeListings({
   appConfig,
   projectId,
 }) {
-  // edge case
-
-  if (!appConfig?.presetScopesObject?.[presetScopeKey]) return [];
-
   // helpers
 
-  const presetScope = appConfig.presetScopesObject[presetScopeKey];
-  const presetListingsKeys = presetScope?.listings;
+  const presetScope = appConfig?.presetScopesObject?.[presetScopeKey];
+  const presetListingsKeys = presetScope?.listings ?? [];
 
   // add isForBaseMaps listings
 
-  const isForBaseMapsKeys = Object.values(appConfig.presetListingsObject)
+  const isForBaseMapsKeys = Object.values(
+    appConfig?.presetListingsObject ?? {}
+  )
     .filter((l) => l.isForBaseMaps)
     .map((l) => l.key);
 
   const allKeys = [
-    ...new Set([...(presetListingsKeys ?? []), ...isForBaseMapsKeys]),
+    ...new Set([...presetListingsKeys, ...isForBaseMapsKeys]),
   ];
+
+  // edge case — no listings to create
+
+  if (allKeys.length === 0) return [];
 
   // main
 

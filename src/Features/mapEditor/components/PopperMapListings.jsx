@@ -1320,6 +1320,8 @@ export default function PopperMapListings() {
     hideBaseMapAnnotations: true,
     excludeBgAnnotations: true,
     withQties: true,
+    excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
+    onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
   });
 
   const annotationTemplates = useAnnotationTemplates();
@@ -1645,11 +1647,26 @@ export default function PopperMapListings() {
 
             {isBaseMapsViewer
               ? displayedListings?.map((listing) => (
-                  <AnnotationTemplatesForListing
+                  <ListingRow
                     key={listing.id}
-                    listingId={listing.id}
+                    listing={listing}
+                    isExpanded={expandedListingIds.includes(listing.id)}
+                    onToggleExpand={handleToggleExpand}
+                    hiddenListingsIds={hiddenListingsIds}
+                    annotationCount={
+                      annotationsByListingId?.[listing.id]?.length || 0
+                    }
                     annotations={annotationsByListingId?.[listing.id]}
                     annotationTemplateById={annotationTemplateById}
+                    extraAction={
+                      <ButtonMergeListingAnnotations
+                        listingId={listing.id}
+                        baseMap={baseMap}
+                        onResult={(file) =>
+                          handleMergeResult(file, listing.name)
+                        }
+                      />
+                    }
                   />
                 ))
               : <>
