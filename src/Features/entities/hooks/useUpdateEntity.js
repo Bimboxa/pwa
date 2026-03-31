@@ -1,6 +1,7 @@
 import { useDispatch } from "react-redux";
 
 import { triggerEntitiesTableUpdate } from "../entitiesSlice";
+import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
@@ -8,6 +9,16 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import db from "App/db/db";
 import getEntityPureDataAndFilesDataByKey from "../utils/getEntityPureDataAndFilesDataByKey";
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
+
+// Debounce annotation refresh to avoid re-fetching on every keystroke
+let _annotationsUpdateTimer = null;
+const ANNOTATIONS_UPDATE_DELAY = 500;
+function debouncedAnnotationsUpdate(dispatch) {
+  clearTimeout(_annotationsUpdateTimer);
+  _annotationsUpdateTimer = setTimeout(() => {
+    dispatch(triggerAnnotationsUpdate());
+  }, ANNOTATIONS_UPDATE_DELAY);
+}
 
 export default function useUpdateEntity() {
   const dispatch = useDispatch();
@@ -137,6 +148,7 @@ export default function useUpdateEntity() {
 
     // update table
     dispatch(triggerEntitiesTableUpdate(table));
+    debouncedAnnotationsUpdate(dispatch);
   };
 
   return update;

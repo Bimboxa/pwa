@@ -79,24 +79,50 @@ export default function NodeLabelStatic({
         setLocalValue(label || "");
     }, [label]);
 
-    const handleBlur = async () => {
-        if (localValue !== label) {
-            console.log("💾 Update Label:", annotationId, localValue);
-            try {
-                if (id.startsWith("label::")) {
-                    const annotationId = id.replace("label::", "");
-                    const annotation = await db.annotations.get(annotationId);
-                    const listing = await db.listings.get(annotation.listingId);
-                    const em = appConfig?.entityModelsObject?.[listing.entityModelKey];
-                    const labelKey = em?.labelKey || "label";
-                    await updateEntity(annotation.entityId, { [labelKey]: localValue });
-                } else {
-                    await db.annotations.update(id, { label: localValue });
-                }
+    // refs to access latest values in effects/cleanups
+    const localValueRef = useRef(localValue);
+    localValueRef.current = localValue;
+    const labelRef = useRef(label);
+    labelRef.current = label;
 
-            } catch (err) { console.error(err); }
+    const saveLabel = async (value) => {
+        console.log("💾 Update Label:", annotationId, value);
+        try {
+            const _annotationId = id.startsWith("label::") ? id.replace("label::", "") : id;
+            const _annotation = await db.annotations.get(_annotationId);
+
+            if (_annotation?.entityId) {
+                // Entity-linked label: update the entity field and annotation label
+                const _listing = await db.listings.get(_annotation.listingId);
+                const em = appConfig?.entityModelsObject?.[_listing.entityModelKey];
+                const labelKey = em?.labelKey || "label";
+                await updateEntity(_annotation.entityId, { [labelKey]: value }, { listing: _listing });
+                if (!id.startsWith("label::")) {
+                    await db.annotations.update(_annotationId, { label: value });
+                }
+            } else {
+                // Standalone label without entity: update annotation directly
+                await db.annotations.update(_annotationId, { label: value });
+            }
+        } catch (err) { console.error(err); }
+    };
+
+    const handleBlur = () => {
+        if (localValue !== label) {
+            saveLabel(localValue);
         }
     };
+
+    // Save pending changes when deselected (textarea unmount skips onBlur)
+    useEffect(() => {
+        if (!selected) return;
+        return () => {
+            if (localValueRef.current !== labelRef.current) {
+                saveLabel(localValueRef.current);
+            }
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selected]);
 
     const handleFocus = (e) => {
         const val = e.target.value;

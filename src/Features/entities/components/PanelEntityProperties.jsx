@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useCallback } from "react";
 
 import { useDispatch } from "react-redux";
 
@@ -17,10 +17,12 @@ import SectionEntityAnnotations from "./SectionEntityAnnotations";
 
 import FormEntity from "./FormEntity";
 
+const ENTITY_UPDATE_DELAY = 500;
 
 export default function PanelEntityProperties() {
 
     const containerRef = useRef();
+    const updateTimerRef = useRef(null);
 
     const dispatch = useDispatch();
 
@@ -36,9 +38,13 @@ export default function PanelEntityProperties() {
 
     // handlers
 
-    async function handleEntityChange(entity) {
-        await updateEntity(entity?.id, entity);
-    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const handleEntityChange = useCallback((entity) => {
+        clearTimeout(updateTimerRef.current);
+        updateTimerRef.current = setTimeout(() => {
+            updateEntity(entity?.id, entity);
+        }, ENTITY_UPDATE_DELAY);
+    }, [updateEntity]);
 
     return (
         <BoxFlexVStretch ref={containerRef} sx={{ p: 1, position: "relative" }}>
