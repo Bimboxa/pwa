@@ -41,8 +41,9 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
     if (templateId) {
       const template = annotationTemplateById[templateId];
       const isTemplateHidden = template?.hidden && !includeHidden;
+      const isHiddenInLegend = template?.hiddenInLegend && !includeHidden;
       const isDisabledInContainer = !includeHidden && disabledAnnotationTemplates?.includes(templateId);
-      if (!idsMap[templateId] && !isTemplateHidden && !isDisabledInContainer) {
+      if (!idsMap[templateId] && !isTemplateHidden && !isHiddenInLegend && !isDisabledInContainer) {
         idsMap[templateId] = annotation;
         const { iconKey, fillColor, strokeColor, type, closeLine, listingName, variant, strokeType, fillType } =
           annotation;

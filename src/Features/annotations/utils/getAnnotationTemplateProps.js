@@ -36,6 +36,7 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     iconKey: annotationTemplate?.iconKey,
 
     hidden: annotationTemplate?.hidden,
+    hiddenInLegend: annotationTemplate?.hiddenInLegend,
 
     height: annotationTemplate?.height,
 
