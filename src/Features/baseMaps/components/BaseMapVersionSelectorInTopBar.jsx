@@ -6,6 +6,8 @@ import {
   setVersionCompareEnabled,
   setVersionCompareId,
   resetVersionCompare,
+  setIsCalibrating,
+  setShowCalibration,
 } from "Features/baseMapEditor/baseMapEditorSlice";
 
 import {
@@ -18,6 +20,7 @@ import {
   Avatar,
   IconButton,
   Tooltip,
+  Button,
 } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import CheckIcon from "@mui/icons-material/Check";
@@ -162,6 +165,15 @@ export default function BaseMapVersionSelectorInTopBar() {
 
   function handleSelectCompareVersion(version) {
     dispatch(setVersionCompareId(version.id));
+  }
+
+  function handleStartCalibration() {
+    if (!versionCompareEnabled && otherVersions.length > 0) {
+      dispatch(setVersionCompareEnabled(true));
+      dispatch(setVersionCompareId(otherVersions[0].id));
+    }
+    dispatch(setIsCalibrating(true));
+    dispatch(setShowCalibration(true));
     handleCloseCompareDropdown();
   }
 
@@ -369,6 +381,18 @@ export default function BaseMapVersionSelectorInTopBar() {
             );
           })}
         </List>
+
+        <Box sx={{ p: 1, borderTop: "1px solid", borderColor: "divider" }}>
+          <Button
+            fullWidth
+            size="small"
+            variant="outlined"
+            onClick={handleStartCalibration}
+            disabled={!versionCompareId}
+          >
+            Calibrer la version
+          </Button>
+        </Box>
       </Popover>
     </>
   );

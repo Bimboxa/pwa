@@ -4,6 +4,18 @@ import {
   setSelectedViewerKey,
   setViewerReturnContext,
 } from "Features/viewers/viewersSlice";
+import {
+  setIsCalibrating,
+  setShowCalibration,
+  setCalibrationTargets,
+  setHiddenVersionIds,
+} from "Features/baseMapEditor/baseMapEditorSlice";
+import db from "App/db/db";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import computeCalibrationTransform, {
+  DEFAULT_RED,
+  DEFAULT_GREEN,
+} from "Features/mapEditor/utils/computeCalibrationTransform";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
 import { setListingViewerSelectedListingId } from "Features/listingViewer/listingViewerSlice";
@@ -45,6 +57,14 @@ export default function TopBarDesktop() {
     (s) => s.viewers.viewerReturnContext
   );
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const isCalibrating = useSelector((s) => s.baseMapEditor.isCalibrating);
+  const versionCompareId = useSelector(
+    (s) => s.baseMapEditor.versionCompareId
+  );
+  const calibrationTargetsByVersionId = useSelector(
+    (s) => s.baseMapEditor.calibrationTargetsByVersionId
+  );
+  const baseMap = useMainBaseMap();
 
   // helper - em
 
@@ -70,7 +90,72 @@ export default function TopBarDesktop() {
     dispatch(setViewerReturnContext(null));
   }
 
+  function handleCancelCalibration() {
+    dispatch(setIsCalibrating(false));
+    dispatch(setShowCalibration(false));
+  }
+
+  async function handleConfirmCalibration() {
+    if (!baseMap || !versionCompareId) return;
+
+    const activeVersion = baseMap.getActiveVersion();
+    if (!activeVersion) return;
+
+    const activeTargets = calibrationTargetsByVersionId[activeVersion.id] || {
+      red: DEFAULT_RED,
+      green: DEFAULT_GREEN,
+    };
+    const refTargets = calibrationTargetsByVersionId[versionCompareId] || {
+      red: DEFAULT_RED,
+      green: DEFAULT_GREEN,
+    };
+
+    const refSize = baseMap.getImageSize();
+    if (!refSize) return;
+
+    const activeTransform = activeVersion.transform || {
+      x: 0,
+      y: 0,
+      scale: 1,
+      rotation: 0,
+    };
+
+    const newTransform = computeCalibrationTransform({
+      activeTargets,
+      refTargets,
+      refSize,
+      activeTransform,
+    });
+
+    if (!newTransform) return;
+
+    await db.baseMapVersions.update(activeVersion.id, {
+      transform: newTransform,
+    });
+
+    // Move active targets to reference positions after calibration
+    dispatch(
+      setCalibrationTargets({
+        versionId: activeVersion.id,
+        red: { x: refTargets.red.x, y: refTargets.red.y },
+        green: { x: refTargets.green.x, y: refTargets.green.y },
+      })
+    );
+
+    dispatch(setIsCalibrating(false));
+    dispatch(setShowCalibration(false));
+  }
+
   function handleGoToBaseMapsDetail() {
+    // Hide all non-active versions so only the active one is visible
+    const versions = baseMap?.versions || [];
+    const activeVersion = baseMap?.getActiveVersion?.();
+    if (activeVersion) {
+      const nonActiveIds = versions
+        .filter((v) => v.id !== activeVersion.id)
+        .map((v) => v.id);
+      dispatch(setHiddenVersionIds(nonActiveIds));
+    }
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
     dispatch(setSelectedViewerKey("BASE_MAPS"));
     dispatch(setViewerReturnContext({ fromViewer: "MAP" }));
@@ -155,7 +240,7 @@ export default function TopBarDesktop() {
           Revenir au module Dessin
         </Button>
       )}
-      {viewerKey === "BASE_MAPS" && returnViewer === "MAP" && (
+      {viewerKey === "BASE_MAPS" && returnViewer === "MAP" && !isCalibrating && (
         <Button
           size="small"
           variant="contained"
@@ -170,6 +255,29 @@ export default function TopBarDesktop() {
         >
           Revenir au Dessin
         </Button>
+      )}
+      {viewerKey === "BASE_MAPS" && isCalibrating && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: 2 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={handleCancelCalibration}
+          >
+            Annuler
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={handleConfirmCalibration}
+            sx={{
+              bgcolor: "warning.main",
+              color: "warning.contrastText",
+              "&:hover": { bgcolor: "warning.dark" },
+            }}
+          >
+            Calibrer
+          </Button>
+        </Box>
       )}
 
       {/* Right section - actions */}

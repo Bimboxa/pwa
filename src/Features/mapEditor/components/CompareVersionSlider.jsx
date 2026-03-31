@@ -3,6 +3,11 @@ import { useRef, useEffect, useImperativeHandle, forwardRef } from "react";
 import { Box, Typography } from "@mui/material";
 import { UnfoldMore } from "@mui/icons-material";
 
+import {
+  CALIBRATION_CLIP_ACTIVE_ID,
+  CALIBRATION_CLIP_REF_ID,
+} from "./CalibrationLayer";
+
 const CLIP_RECT_ID = "version-compare-clip-rect";
 
 const CompareVersionSlider = forwardRef(function CompareVersionSlider(
@@ -58,6 +63,25 @@ const CompareVersionSlider = forwardRef(function CompareVersionSlider(
     clipRect.setAttribute("y", ly0);
     clipRect.setAttribute("width", lxS - lx0);
     clipRect.setAttribute("height", ly1 - ly0);
+
+    // Also update calibration clip rects (if CalibrationLayer is active)
+    const lx1 = ((bounds.width - cam.x) / cam.k - bpX) / bpK;
+
+    const calActiveRect = document.getElementById(`${CALIBRATION_CLIP_ACTIVE_ID}-rect`);
+    if (calActiveRect) {
+      calActiveRect.setAttribute("x", lx0);
+      calActiveRect.setAttribute("y", ly0);
+      calActiveRect.setAttribute("width", lxS - lx0);
+      calActiveRect.setAttribute("height", ly1 - ly0);
+    }
+
+    const calRefRect = document.getElementById(`${CALIBRATION_CLIP_REF_ID}-rect`);
+    if (calRefRect) {
+      calRefRect.setAttribute("x", lxS);
+      calRefRect.setAttribute("y", ly0);
+      calRefRect.setAttribute("width", lx1 - lxS);
+      calRefRect.setAttribute("height", ly1 - ly0);
+    }
   }
 
   // expose to parent for camera change callbacks

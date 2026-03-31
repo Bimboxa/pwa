@@ -77,9 +77,6 @@ import {
   setEnabledDrawingMode,
   setSelectedToolKeyForTemplate,
 } from "Features/mapEditor/mapEditorSlice";
-import { setShowCalibration } from "Features/baseMapEditor/baseMapEditorSlice";
-import DialogCalibration2D from "./DialogCalibration2D";
-import GpsFixed from "@mui/icons-material/GpsFixed";
 import WarningAmber from "@mui/icons-material/WarningAmber";
 
 import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
@@ -1306,9 +1303,6 @@ export default function PopperMapListings() {
 
   const baseMap = useMainBaseMap();
   const layers = useLayers({ filterByBaseMapId: baseMap?.id });
-  const showCalibration = useSelector(
-    (s) => s.baseMapEditor.showCalibration
-  );
   const versionsCount = baseMap?.versions?.length ?? 0;
 
   // Auto-enable showLayers when baseMap has layers in MAP viewer
@@ -1376,7 +1370,7 @@ export default function PopperMapListings() {
   const [expandedListingIds, setExpandedListingIds] = useState([]);
   const [openCreateListing, setOpenCreateListing] = useState(false);
   const [headerHovered, setHeaderHovered] = useState(false);
-  const [openCalibrationDialog, setOpenCalibrationDialog] = useState(false);
+
   const [mergeResult, setMergeResult] = useState(null);
   const [openMergeCompare, setOpenMergeCompare] = useState(false);
   const [mergeCreateNewVersion, setMergeCreateNewVersion] = useState(true);
@@ -1709,70 +1703,6 @@ export default function PopperMapListings() {
               ))}
             </List>
 
-            {/* Positionner la vue section */}
-            {isBaseMapsViewer && versionsCount >= 2 && (
-              <>
-                <Box
-                  sx={{
-                    px: 1,
-                    py: 0.5,
-                    bgcolor: "panel.sectionBg",
-                    borderTop: "1px solid",
-                    borderColor: "panel.border",
-                  }}
-                >
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "panel.textMuted",
-                      fontWeight: 700,
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                      fontSize: "11px",
-                    }}
-                  >
-                    Positionner la vue
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    px: 1.5,
-                    py: 0.25,
-                  }}
-                >
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        size="small"
-                        checked={showCalibration}
-                        onChange={(e) =>
-                          dispatch(setShowCalibration(e.target.checked))
-                        }
-                      />
-                    }
-                    label={
-                      <Typography variant="body2" sx={{ fontSize: "0.8125rem" }}>
-                        Afficher les cibles
-                      </Typography>
-                    }
-                    sx={{ m: 0 }}
-                  />
-                  <Tooltip title="Recalculer la position de la vue" arrow>
-                    <IconButton
-                      size="small"
-                      onClick={() => setOpenCalibrationDialog(true)}
-                      disabled={!showCalibration}
-                      sx={{ color: "primary.main" }}
-                    >
-                      <GpsFixed sx={{ fontSize: 18 }} />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              </>
-            )}
           </Box>
         </>
       )}
@@ -1786,13 +1716,6 @@ export default function PopperMapListings() {
         />
       )}
 
-      {/* Calibration dialog */}
-      {openCalibrationDialog && (
-        <DialogCalibration2D
-          open={openCalibrationDialog}
-          onClose={() => setOpenCalibrationDialog(false)}
-        />
-      )}
 
       {/* Merge compare dialog */}
       {openMergeCompare && mergeResult && (

@@ -1,9 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setCalibrationTargets } from "Features/baseMapEditor/baseMapEditorSlice";
-
-const DEFAULT_RED = { x: 0.1, y: 0.1 };
-const DEFAULT_GREEN = { x: 0.9, y: 0.9 };
+import { DEFAULT_RED, DEFAULT_GREEN } from "Features/mapEditor/utils/computeCalibrationTransform";
 
 /**
  * Hook that manages drag of calibration targets (red/green).
@@ -57,7 +55,7 @@ export default function useCalibrationDrag({ basePose, viewportRef, baseMap }) {
   // init
 
   const initCalibrationDrag = useCallback(
-    (targetColor, e) => {
+    (targetColor, e, explicitVersionId) => {
       const startMouseWorld = viewportRef.current?.screenToWorld(
         e.clientX,
         e.clientY
@@ -68,7 +66,7 @@ export default function useCalibrationDrag({ basePose, viewportRef, baseMap }) {
       const activeVersion = baseMap.getActiveVersion();
       if (!activeVersion) return;
 
-      const versionId = activeVersion.id;
+      const versionId = explicitVersionId || activeVersion.id;
       const currentTargets = targetsRef.current[versionId] || {
         red: DEFAULT_RED,
         green: DEFAULT_GREEN,

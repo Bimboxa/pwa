@@ -3053,8 +3053,8 @@ const InteractionLayer = forwardRef(({
     if (calibrationHandle) {
       e.stopPropagation();
       e.preventDefault();
-      const { targetColor } = calibrationHandle.dataset;
-      initCalibrationDrag(targetColor, e);
+      const { targetColor, versionId: dragVersionId } = calibrationHandle.dataset;
+      initCalibrationDrag(targetColor, e, dragVersionId);
     }
 
 

@@ -20,6 +20,7 @@ const baseMapEditorInitialState = {
   versionCompareEnabled: false,
   versionCompareId: null, // ID of version to compare against active
   // calibration
+  isCalibrating: false,
   showCalibration: false,
   // Per-version calibration target positions (relative to image, 0..1)
   // { [versionId]: { red: {x, y}, green: {x, y} } }
@@ -90,8 +91,13 @@ export const baseMapEditorSlice = createSlice({
     resetVersionCompare: (state) => {
       state.versionCompareEnabled = false;
       state.versionCompareId = null;
+      state.isCalibrating = false;
+      state.showCalibration = false;
     },
     // calibration
+    setIsCalibrating: (state, action) => {
+      state.isCalibrating = action.payload;
+    },
     setShowCalibration: (state, action) => {
       state.showCalibration = action.payload;
     },
@@ -116,6 +122,7 @@ export const {
   setVersionCompareEnabled,
   setVersionCompareId,
   resetVersionCompare,
+  setIsCalibrating,
   setShowCalibration,
   setCalibrationTargets,
 } = baseMapEditorSlice.actions;
