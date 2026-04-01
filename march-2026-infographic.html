@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>March 2026 — Development Activity Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 40px;
+  }
+
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%);
+    border-radius: 24px;
+    padding: 48px;
+    border: 1px solid #334155;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .page::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899, #f59e0b);
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .header .label {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #8b5cf6;
+    margin-bottom: 8px;
+  }
+
+  .header h1 {
+    font-size: 42px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1.1;
+  }
+
+  .header .subtitle {
+    font-size: 16px;
+    color: #94a3b8;
+    margin-top: 8px;
+  }
+
+  .header .date-range {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 6px 20px;
+    background: rgba(59,130,246,0.1);
+    border: 1px solid rgba(59,130,246,0.3);
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #60a5fa;
+  }
+
+  /* KPI Row */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .kpi {
+    background: rgba(30,41,59,0.8);
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 24px 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kpi::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 20%; right: 20%;
+    height: 2px;
+    border-radius: 2px;
+  }
+
+  .kpi:nth-child(1)::after { background: #3b82f6; }
+  .kpi:nth-child(2)::after { background: #8b5cf6; }
+  .kpi:nth-child(3)::after { background: #ec4899; }
+  .kpi:nth-child(4)::after { background: #f59e0b; }
+
+  .kpi .number {
+    font-size: 40px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .kpi:nth-child(1) .number { color: #60a5fa; }
+  .kpi:nth-child(2) .number { color: #a78bfa; }
+  .kpi:nth-child(3) .number { color: #f472b6; }
+  .kpi:nth-child(4) .number { color: #fbbf24; }
+
+  .kpi .label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #94a3b8;
+    margin-top: 8px;
+  }
+
+  /* Two-column layout */
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  .card {
+    background: rgba(30,41,59,0.6);
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 24px;
+  }
+
+  .card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #94a3b8;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card h3 .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* Module bars */
+  .module-bar {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 12px;
+  }
+
+  .module-bar .name {
+    width: 130px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #cbd5e1;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .module-bar .bar-bg {
+    flex: 1;
+    height: 24px;
+    background: rgba(51,65,85,0.5);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .module-bar .bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    min-width: 32px;
+  }
+
+  /* Commit types */
+  .type-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+    gap: 16px;
+  }
+
+  .type-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .type-info {
+    flex: 1;
+  }
+
+  .type-info .type-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #e2e8f0;
+  }
+
+  .type-info .type-count {
+    font-size: 24px;
+    font-weight: 800;
+  }
+
+  .type-bar-bg {
+    height: 6px;
+    background: rgba(51,65,85,0.5);
+    border-radius: 3px;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+
+  .type-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+
+  /* Timeline */
+  .timeline {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    height: 100px;
+    padding-top: 20px;
+  }
+
+  .day-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .day-bar {
+    width: 100%;
+    min-width: 28px;
+    border-radius: 6px 6px 4px 4px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+  }
+
+  .day-label {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 500;
+  }
+
+  /* Estimation box */
+  .estimation {
+    background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(236,72,153,0.15));
+    border: 1px solid rgba(139,92,246,0.3);
+    border-radius: 16px;
+    padding: 32px;
+    text-align: center;
+    position: relative;
+  }
+
+  .estimation h3 {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #c084fc;
+    margin-bottom: 20px;
+  }
+
+  .estimate-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-bottom: 20px;
+  }
+
+  .estimate-item .est-number {
+    font-size: 36px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .estimate-item .est-unit {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+
+  .estimate-item .est-label {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+    font-weight: 500;
+  }
+
+  .estimation .note {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.6;
+    max-width: 800px;
+    margin: 0 auto;
+    border-top: 1px solid rgba(139,92,246,0.2);
+    padding-top: 16px;
+  }
+
+  /* Issues badge */
+  .issues-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.3);
+    border-radius: 999px;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4ade80;
+    margin-bottom: 16px;
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    margin-top: 32px;
+    font-size: 12px;
+    color: #475569;
+  }
+
+  .highlight-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .highlight-card {
+    background: rgba(30,41,59,0.6);
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .highlight-card .hl-number {
+    font-size: 28px;
+    font-weight: 800;
+    color: #60a5fa;
+  }
+
+  .highlight-card .hl-label {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="label">Development Activity Report</div>
+    <h1>March 2026</h1>
+    <div class="subtitle">bimboxa/pwa — React PWA for map annotations & smart detection</div>
+    <div class="date-range">25 Mar — 31 Mar 2026 &nbsp;·&nbsp; 6 active days</div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="number">48</div>
+      <div class="label">Commits</div>
+    </div>
+    <div class="kpi">
+      <div class="number">~10K</div>
+      <div class="label">Lines added</div>
+    </div>
+    <div class="kpi">
+      <div class="number">189</div>
+      <div class="label">Files modified</div>
+    </div>
+    <div class="kpi">
+      <div class="number">31</div>
+      <div class="label">Issues closed</div>
+    </div>
+  </div>
+
+  <!-- Highlights -->
+  <div class="highlight-row">
+    <div class="highlight-card">
+      <div class="hl-number">30</div>
+      <div class="hl-label">New files created</div>
+    </div>
+    <div class="highlight-card">
+      <div class="hl-number">22</div>
+      <div class="hl-label">Files deleted / cleaned</div>
+    </div>
+    <div class="highlight-card">
+      <div class="hl-number">+5,786</div>
+      <div class="hl-label">Net lines of code</div>
+    </div>
+  </div>
+
+  <!-- Two columns -->
+  <div class="columns">
+
+    <!-- Modules -->
+    <div class="card">
+      <h3><span class="dot" style="background:#3b82f6"></span> Commits by module</h3>
+
+      <div class="module-bar">
+        <div class="name">annotations</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,#3b82f6,#60a5fa)">21</div></div>
+      </div>
+      <div class="module-bar">
+        <div class="name">mapEditor</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:38%;background:linear-gradient(90deg,#8b5cf6,#a78bfa)">8</div></div>
+      </div>
+      <div class="module-bar">
+        <div class="name">smartDetect</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:33%;background:linear-gradient(90deg,#ec4899,#f472b6)">7</div></div>
+      </div>
+      <div class="module-bar">
+        <div class="name">baseMaps</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:14%;background:linear-gradient(90deg,#f59e0b,#fbbf24)">3</div></div>
+      </div>
+      <div class="module-bar">
+        <div class="name">layers</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:10%;background:linear-gradient(90deg,#10b981,#34d399)">2</div></div>
+      </div>
+      <div class="module-bar">
+        <div class="name">print / export</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:5%;background:linear-gradient(90deg,#06b6d4,#22d3ee)">1</div></div>
+      </div>
+      <div class="module-bar">
+        <div class="name">other (6)</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:28%;background:linear-gradient(90deg,#64748b,#94a3b8)">6</div></div>
+      </div>
+    </div>
+
+    <!-- Commit types -->
+    <div class="card">
+      <h3><span class="dot" style="background:#8b5cf6"></span> Type of work</h3>
+
+      <div class="type-row">
+        <div class="type-icon" style="background:rgba(34,197,94,0.15);color:#4ade80">+</div>
+        <div class="type-info">
+          <div class="type-name">New features</div>
+          <div class="type-count" style="color:#4ade80">26</div>
+          <div class="type-bar-bg"><div class="type-bar-fill" style="width:100%;background:#4ade80"></div></div>
+        </div>
+      </div>
+
+      <div class="type-row">
+        <div class="type-icon" style="background:rgba(251,146,60,0.15);color:#fb923c">&#x2692;</div>
+        <div class="type-info">
+          <div class="type-name">Bug fixes</div>
+          <div class="type-count" style="color:#fb923c">15</div>
+          <div class="type-bar-bg"><div class="type-bar-fill" style="width:58%;background:#fb923c"></div></div>
+        </div>
+      </div>
+
+      <div class="type-row">
+        <div class="type-icon" style="background:rgba(139,92,246,0.15);color:#a78bfa">&#x21BB;</div>
+        <div class="type-info">
+          <div class="type-name">Refactoring / cleanup</div>
+          <div class="type-count" style="color:#a78bfa">7</div>
+          <div class="type-bar-bg"><div class="type-bar-fill" style="width:27%;background:#a78bfa"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="card" style="margin-bottom:32px">
+    <h3><span class="dot" style="background:#ec4899"></span> Daily commit activity</h3>
+    <div class="timeline">
+      <div class="day-col">
+        <div class="day-bar" style="height:25px;background:linear-gradient(180deg,#3b82f6,#1d4ed8)">4</div>
+        <div class="day-label">25</div>
+      </div>
+      <div class="day-col">
+        <div class="day-bar" style="height:70px;background:linear-gradient(180deg,#8b5cf6,#6d28d9)">14</div>
+        <div class="day-label">26</div>
+      </div>
+      <div class="day-col">
+        <div class="day-bar" style="height:80px;background:linear-gradient(180deg,#ec4899,#be185d)">16</div>
+        <div class="day-label">27</div>
+      </div>
+      <div class="day-col">
+        <div class="day-bar" style="height:31px;background:linear-gradient(180deg,#f59e0b,#d97706)">5</div>
+        <div class="day-label">28</div>
+      </div>
+      <div class="day-col">
+        <div class="day-bar" style="height:5px;background:rgba(51,65,85,0.3)"></div>
+        <div class="day-label" style="color:#334155">29</div>
+      </div>
+      <div class="day-col">
+        <div class="day-bar" style="height:25px;background:linear-gradient(180deg,#10b981,#059669)">4</div>
+        <div class="day-label">30</div>
+      </div>
+      <div class="day-col">
+        <div class="day-bar" style="height:44px;background:linear-gradient(180deg,#06b6d4,#0891b2)">7</div>
+        <div class="day-label">31</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estimation -->
+  <div class="estimation">
+    <h3>Estimation — Senior developer solo, without AI</h3>
+
+    <div class="estimate-grid">
+      <div class="estimate-item">
+        <div class="est-number" style="color:#f472b6">~12</div>
+        <div class="est-unit">working weeks</div>
+        <div class="est-label">(3 months)</div>
+      </div>
+      <div class="estimate-item">
+        <div class="est-number" style="color:#fbbf24">~60</div>
+        <div class="est-unit">working days</div>
+        <div class="est-label">(full-time)</div>
+      </div>
+      <div class="estimate-item">
+        <div class="est-number" style="color:#60a5fa">~480h</div>
+        <div class="est-unit">of development</div>
+        <div class="est-label">(8h / day)</div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Breakdown:</strong> 26 features × ~2.5 days avg. (geometry algorithms, complex UI, Leaflet/Konva/Three.js integration)
+      + 15 bug fixes × ~0.5 day avg. (diagnosis, reproduction, patch, regression testing)
+      + 7 refactors × ~1 day avg. (perf optimization of 54 files, library removal, architecture changes)
+      + ~5 days for code review, testing, and deployment coordination.
+      <br><br>
+      <strong>Key complexity drivers:</strong> computational geometry (polygon split, merge, boundary extraction, lasso selection),
+      real-time map rendering pipeline optimization (54 files), OpenCV smart detection integration,
+      multi-layer version comparison slider, and bulk operation state management across IndexedDB + Redux.
+      <br><br>
+      <em>This work was completed in 6 days with AI assistance — a <strong style="color:#c084fc">~10× acceleration factor</strong>.</em>
+    </div>
+  </div>
+
+  <div class="footer">
+    Generated on April 1, 2026 &nbsp;·&nbsp; bimboxa/pwa &nbsp;·&nbsp; Data from git log
+  </div>
+
+</div>
+
+</body>
+</html>
