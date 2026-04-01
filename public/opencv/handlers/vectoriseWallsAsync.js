@@ -210,8 +210,19 @@ async function vectoriseWallsAsync({ msg, payload }) {
     }
 
     // ── 8. Post-process ────────────────────────────────────────────────
+    // Collect cut polygons in ROI coordinates for envelope tracing
+    const cutPolygons = [];
+    for (const boundary of workBoundaries) {
+      const cuts = boundary.cuts;
+      if (!cuts || cuts.length === 0) continue;
+      for (const cut of cuts) {
+        if (!cut.points || cut.points.length < 3) continue;
+        cutPolygons.push(cut.points.map(p => ({ x: p.x - roiX0, y: p.y - roiY0 })));
+      }
+    }
+
     const postResult = _postProcessSegments(rawSegments, {
-      wWallMask, wRoomMask, wWidth, wHeight, distMat, meterByPx, maxLineGap,
+      wWallMask, wRoomMask, wWidth, wHeight, distMat, meterByPx, maxLineGap, cutPolygons,
     });
     let polylines = postResult.polylines;
     let thicknesses = postResult.thicknesses;
@@ -252,6 +263,8 @@ const _ptKey = (x, y) => `${Math.round(x)},${Math.round(y)}`;
 
 function _postProcessSegments(rawSegments, ctx) {
   const { wWallMask, wRoomMask, wWidth, wHeight, distMat, meterByPx, maxLineGap } = ctx;
+
+  const ENABLE_CLOSE_ENVELOPE = true; // set to false to skip Phase 1.1b
 
   // ── Phase 1: Classify H/V/diagonal, merge collinear ──────────────────
   const ANGLE_TOL = Math.PI / 12;
@@ -301,10 +314,10 @@ function _postProcessSegments(rawSegments, ctx) {
   // ── Phase 1.0: Classify peripheral vs interior segments ─────────────
   // Peripheral walls have "outside" (non-mask) on one side.
   // Interior walls have mask (rooms/walls) on both sides.
-  const { peripheral: periH, interior: intH } = _classifyPeripheral(mergedH, wRoomMask, wWidth, wHeight, "H", distMat);
-  const { peripheral: periV, interior: intV } = _classifyPeripheral(mergedV, wRoomMask, wWidth, wHeight, "V", distMat);
+  const { peripheral: periH, interior: intH } = _classifyPeripheral(mergedH, wRoomMask, wWidth, wHeight, "H", distMat, meterByPx);
+  const { peripheral: periV, interior: intV } = _classifyPeripheral(mergedV, wRoomMask, wWidth, wHeight, "V", distMat, meterByPx);
 
-  // ── Phase 1.1: Process peripheral walls ───────────────────────────
+  // ── Phase 1.1: Process peripheral ortho walls ──────────────────────
   const periResult = _processWallGroup(periH, periV, [], ctx);
 
   // ── Phase 1.2: Process interior walls with peripheral context ─────
@@ -315,12 +328,35 @@ function _postProcessSegments(rawSegments, ctx) {
   const allPolylines = periResult.polylines;
   const allThicknesses = periResult.thicknesses;
 
-  // ── Phase 7: Junction resolution (L/T/X) — FINAL STEP ──────────────
+  // ── Phase 7: Junction resolution (L/T/X) ──────────────────────────
   const maxThicknessAll = allThicknesses.length > 0 ? Math.max(...allThicknesses) : 20;
   const junctionSnapTol = Math.max(5, Math.round(maxThicknessAll * 0.75));
   const finalResult = _insertJunctionPoints(allPolylines, allThicknesses, junctionSnapTol);
 
-  return finalResult;
+  // ── Phase 7b: Remove stubs created by junction insertion ──────────
+  const minStubLen = meterByPx > 0 ? Math.round(0.08 / meterByPx) : 12;
+  const filteredPolylines = [], filteredThicknesses = [];
+  for (let i = 0; i < finalResult.polylines.length; i++) {
+    const pl = finalResult.polylines[i];
+    if (pl.length < 2) continue;
+    let totalLen = 0;
+    for (let k = 1; k < pl.length; k++) {
+      totalLen += Math.sqrt((pl[k].x - pl[k - 1].x) ** 2 + (pl[k].y - pl[k - 1].y) ** 2);
+    }
+    const thickness = finalResult.thicknesses[i] || 20;
+    if (totalLen <= Math.max(thickness * 1.5, minStubLen)) continue;
+    filteredPolylines.push(pl);
+    filteredThicknesses.push(finalResult.thicknesses[i]);
+  }
+
+  // ── Phase 8: Close peripheral envelope — connect free endpoints ───
+  if (ENABLE_CLOSE_ENVELOPE) {
+    const envelopeResult = _closePeripheralEnvelope(filteredPolylines, filteredThicknesses, ctx);
+    filteredPolylines.push(...envelopeResult.polylines);
+    filteredThicknesses.push(...envelopeResult.thicknesses);
+  }
+
+  return { polylines: filteredPolylines, thicknesses: filteredThicknesses };
 }
 
 /**
@@ -334,11 +370,15 @@ function _postProcessSegments(rawSegments, ctx) {
  * Peripheral wall: one side faces outside (roomMask = 0 beyond the wall)
  * Interior wall: both sides face rooms (roomMask = 1 beyond the wall on both sides)
  */
-function _classifyPeripheral(segments, roomMask, w, h, axis, distMat) {
+function _classifyPeripheral(segments, roomMask, w, h, axis, distMat, meterByPx) {
   const peripheral = [], interior = [];
   const sampleCount = 10;
+  const minPeripheralLen = meterByPx > 0 ? Math.round(0.20 / meterByPx) : 30;
 
   for (const seg of segments) {
+    // Short segments default to interior — probe sampling is unreliable
+    const segLen = seg.end - seg.start;
+    if (segLen < minPeripheralLen) { interior.push(seg); continue; }
     // Estimate wall half-width from distance transform
     const midT = Math.round((seg.start + seg.end) / 2);
     let halfWidth;
@@ -392,6 +432,590 @@ function _classifyPeripheral(segments, roomMask, w, h, axis, distMat) {
   }
 
   return { peripheral, interior };
+}
+
+/**
+ * Phase 1.1b: Close the peripheral envelope by connecting free endpoints
+ * of peripheral walls through non-ortho paths (curves, obliques).
+ *
+ * 1. Find "free" endpoints — connected to only 1 polyline
+ * 2. Pair them by greedy nearest neighbor
+ * 3. Connect each pair with a straight line
+ */
+function _closePeripheralEnvelope(polylines, thicknesses, ctx) {
+  const { wWidth, wHeight, distMat, meterByPx, cutPolygons } = ctx;
+  const resultPolylines = [];
+  const resultThicknesses = [];
+
+  if (polylines.length < 2) return { polylines: resultPolylines, thicknesses: resultThicknesses };
+
+  // 1. Collect all endpoints, identify free ones (not shared with another polyline)
+  const snapTol = meterByPx > 0 ? Math.max(5, Math.round(0.15 / meterByPx)) : 15;
+  const allEndpoints = [];
+
+  for (let i = 0; i < polylines.length; i++) {
+    const pl = polylines[i];
+    if (pl.length < 2) continue;
+    allEndpoints.push({ x: pl[0].x, y: pl[0].y, polyIdx: i, side: "start" });
+    allEndpoints.push({ x: pl[pl.length - 1].x, y: pl[pl.length - 1].y, polyIdx: i, side: "end" });
+  }
+
+  const freeEndpoints = [];
+  for (const ep of allEndpoints) {
+    let connected = false;
+    for (const other of allEndpoints) {
+      if (other.polyIdx === ep.polyIdx) continue;
+      const dist = Math.sqrt((ep.x - other.x) ** 2 + (ep.y - other.y) ** 2);
+      if (dist < snapTol) { connected = true; break; }
+    }
+    if (!connected) freeEndpoints.push(ep);
+  }
+
+  console.log(`[envelope] ${freeEndpoints.length} free endpoints (snapTol=${snapTol}), ${(cutPolygons || []).length} cut polygons`);
+  for (const ep of freeEndpoints) {
+    console.log(`  free: (${Math.round(ep.x)}, ${Math.round(ep.y)}) poly=${ep.polyIdx} ${ep.side}`);
+  }
+
+  if (freeEndpoints.length < 2) return { polylines: resultPolylines, thicknesses: resultThicknesses };
+
+  // 2. Greedy nearest-neighbor pairing
+  const used = new Set();
+  const defaultThickness = thicknesses.length > 0
+    ? thicknesses.reduce((a, b) => a + b, 0) / thicknesses.length : 20;
+  const rdpTol = meterByPx > 0 ? Math.max(3, Math.round(0.03 / meterByPx)) : 5;
+
+  for (let i = 0; i < freeEndpoints.length; i++) {
+    if (used.has(i)) continue;
+    const epA = freeEndpoints[i];
+
+    let bestJ = -1, bestDist = Infinity;
+    for (let j = 0; j < freeEndpoints.length; j++) {
+      if (i === j || used.has(j)) continue;
+      if (freeEndpoints[j].polyIdx === epA.polyIdx) continue;
+      const d = Math.sqrt((epA.x - freeEndpoints[j].x) ** 2 + (epA.y - freeEndpoints[j].y) ** 2);
+      if (d < bestDist) { bestDist = d; bestJ = j; }
+    }
+    if (bestJ < 0) continue;
+
+    const epB = freeEndpoints[bestJ];
+    used.add(i);
+    used.add(bestJ);
+
+    // 3. Build refined path: resample along cut boundary, snap to medial axis,
+    //    then fit as straight line or circular arc.
+    const searchR = Math.round(defaultThickness * 0.75);
+
+    // Determine H/V axis constraint for each endpoint
+    const axisA = _getEndpointAxis(epA, polylines);
+    const axisB = _getEndpointAxis(epB, polylines);
+
+    // Get raw boundary path from cut polygon
+    let rawPath = _traceAlongCutBoundary(epA, epB, cutPolygons || [], snapTol);
+    if (!rawPath || rawPath.length < 2) {
+      rawPath = [{ x: epA.x, y: epA.y }, { x: epB.x, y: epB.y }];
+    }
+
+    // Resample densely (~10px intervals) and snap each to medial axis
+    const dense = _resamplePath(rawPath, 10);
+    for (let k = 0; k < dense.length; k++) {
+      dense[k] = _snapToMedialAxis(dense[k], distMat, wWidth, wHeight, searchR);
+    }
+
+    // Fit as line or arc, adjust endpoints on H/V axes
+    const path = _fitLineOrArc(dense, epA, epB, axisA, axisB, defaultThickness);
+    console.log(`[envelope] ${path._type}: (${Math.round(path[0].x)},${Math.round(path[0].y)}) → (${Math.round(path[path.length-1].x)},${Math.round(path[path.length-1].y)}) ${path.length} pts`);
+
+    // Connect: slide the ortho wall endpoint along its axis to match the path endpoint
+    const pathStart = path[0];
+    const pathEnd = path[path.length - 1];
+
+    const plA = polylines[epA.polyIdx];
+    if (epA.side === "start") {
+      plA[0] = { x: pathStart.x, y: pathStart.y };
+    } else {
+      plA[plA.length - 1] = { x: pathStart.x, y: pathStart.y };
+    }
+
+    const plB = polylines[epB.polyIdx];
+    if (epB.side === "start") {
+      plB[0] = { x: pathEnd.x, y: pathEnd.y };
+    } else {
+      plB[plB.length - 1] = { x: pathEnd.x, y: pathEnd.y };
+    }
+
+    // Thickness: use average of adjacent ortho wall thicknesses
+    const thickA = thicknesses[epA.polyIdx] || defaultThickness;
+    const thickB = thicknesses[epB.polyIdx] || defaultThickness;
+    const thickness = (thickA + thickB) / 2;
+
+    resultPolylines.push(path);
+    resultThicknesses.push(thickness);
+  }
+
+  return { polylines: resultPolylines, thicknesses: resultThicknesses };
+}
+
+/**
+ * Trace along a cut polygon boundary between two endpoints.
+ * Finds the nearest cut polygon, projects both endpoints onto it,
+ * and returns the shortest arc between the two projections.
+ */
+function _traceAlongCutBoundary(epA, epB, cutPolygons, snapTol) {
+  if (!cutPolygons || cutPolygons.length === 0) return null;
+
+  const mid = { x: (epA.x + epB.x) / 2, y: (epA.y + epB.y) / 2 };
+
+  // Find the cut polygon closest to the midpoint of the two endpoints
+  let bestPoly = null, bestPolyDist = Infinity;
+  for (const poly of cutPolygons) {
+    // Average distance from midpoint to polygon edges
+    let minEdgeDist = Infinity;
+    for (let k = 0; k < poly.length; k++) {
+      const p1 = poly[k], p2 = poly[(k + 1) % poly.length];
+      const d = _pointToSegmentDist(mid.x, mid.y, p1.x, p1.y, p2.x, p2.y);
+      if (d < minEdgeDist) minEdgeDist = d;
+    }
+    if (minEdgeDist < bestPolyDist) {
+      bestPolyDist = minEdgeDist;
+      bestPoly = poly;
+    }
+  }
+
+  if (!bestPoly) return null;
+
+  // Project epA and epB onto the polygon edges — find closest edge + parameter
+  const projA = _projectOntoPolygon(epA, bestPoly);
+  const projB = _projectOntoPolygon(epB, bestPoly);
+  if (!projA || !projB) return null;
+  if (projA.edgeIdx === projB.edgeIdx && Math.abs(projA.t - projB.t) < 0.01) return null;
+
+  // Extract the two possible arcs and pick the shorter one
+  const n = bestPoly.length;
+  const arc1 = _extractArc(bestPoly, projA, projB, 1);
+  const arc2 = _extractArc(bestPoly, projA, projB, -1);
+
+  const arcLen = (arc) => {
+    let len = 0;
+    for (let k = 1; k < arc.length; k++) {
+      len += Math.sqrt((arc[k].x - arc[k - 1].x) ** 2 + (arc[k].y - arc[k - 1].y) ** 2);
+    }
+    return len;
+  };
+
+  const path = arcLen(arc1) <= arcLen(arc2) ? arc1 : arc2;
+
+  return path;
+}
+
+/** Project a point onto the nearest edge of a polygon. Returns { edgeIdx, t, x, y }. */
+function _projectOntoPolygon(pt, poly) {
+  let bestDist = Infinity, bestResult = null;
+  for (let k = 0; k < poly.length; k++) {
+    const p1 = poly[k], p2 = poly[(k + 1) % poly.length];
+    const dx = p2.x - p1.x, dy = p2.y - p1.y;
+    const len2 = dx * dx + dy * dy;
+    if (len2 < 1) continue;
+    let t = ((pt.x - p1.x) * dx + (pt.y - p1.y) * dy) / len2;
+    t = Math.max(0, Math.min(1, t));
+    const px = p1.x + t * dx, py = p1.y + t * dy;
+    const dist = Math.sqrt((pt.x - px) ** 2 + (pt.y - py) ** 2);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestResult = { edgeIdx: k, t, x: px, y: py };
+    }
+  }
+  return bestResult;
+}
+
+/** Extract an arc along polygon edges from projA to projB in given direction (1=forward, -1=backward). */
+function _extractArc(poly, projA, projB, direction) {
+  const n = poly.length;
+  const arc = [];
+
+  // Start from projA's projected point
+  arc.push({ x: projA.x, y: projA.y });
+
+  if (projA.edgeIdx === projB.edgeIdx) {
+    // Same edge — just go from projA to projB directly
+    if ((direction === 1 && projA.t <= projB.t) || (direction === -1 && projA.t >= projB.t)) {
+      arc.push({ x: projB.x, y: projB.y });
+      return arc;
+    }
+  }
+
+  // Walk polygon vertices from projA's edge to projB's edge
+  let edgeIdx = projA.edgeIdx;
+  if (direction === 1) {
+    // Forward: go to end of current edge, then walk vertices forward
+    edgeIdx = (edgeIdx + 1) % n;
+    for (let steps = 0; steps < n; steps++) {
+      arc.push({ x: poly[edgeIdx].x, y: poly[edgeIdx].y });
+      if (edgeIdx === projB.edgeIdx) break;
+      if (edgeIdx === (projB.edgeIdx + 1) % n) break;
+      edgeIdx = (edgeIdx + 1) % n;
+    }
+  } else {
+    // Backward: go to start of current edge, then walk vertices backward
+    for (let steps = 0; steps < n; steps++) {
+      arc.push({ x: poly[edgeIdx].x, y: poly[edgeIdx].y });
+      if (edgeIdx === projB.edgeIdx) break;
+      if (edgeIdx === (projB.edgeIdx + 1) % n) break;
+      edgeIdx = (edgeIdx - 1 + n) % n;
+    }
+  }
+
+  arc.push({ x: projB.x, y: projB.y });
+  return arc;
+}
+
+/** Distance from point (px,py) to segment (ax,ay)-(bx,by). */
+function _pointToSegmentDist(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  if (len2 < 1) return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2);
+  let t = ((px - ax) * dx + (py - ay) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const cx = ax + t * dx, cy = ay + t * dy;
+  return Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
+}
+
+/** Determine if an endpoint's connected wall is H or V. Returns "H", "V", or null. */
+function _getEndpointAxis(ep, polylines) {
+  const pl = polylines[ep.polyIdx];
+  if (!pl || pl.length < 2) return null;
+  const p0 = ep.side === "start" ? pl[0] : pl[pl.length - 1];
+  const p1 = ep.side === "start" ? pl[1] : pl[pl.length - 2];
+  const dx = Math.abs(p1.x - p0.x), dy = Math.abs(p1.y - p0.y);
+  if (dx > dy * 3) return "H";
+  if (dy > dx * 3) return "V";
+  return null;
+}
+
+/** Resample a path at regular intervals (approx stepPx pixels). */
+function _resamplePath(path, stepPx) {
+  if (path.length < 2) return [...path];
+  // Compute cumulative distances
+  const cumDist = [0];
+  for (let i = 1; i < path.length; i++) {
+    cumDist.push(cumDist[i - 1] + Math.sqrt(
+      (path[i].x - path[i - 1].x) ** 2 + (path[i].y - path[i - 1].y) ** 2
+    ));
+  }
+  const totalLen = cumDist[cumDist.length - 1];
+  if (totalLen < stepPx) return [path[0], path[path.length - 1]];
+  const nSamples = Math.max(2, Math.round(totalLen / stepPx));
+  const result = [];
+  for (let s = 0; s <= nSamples; s++) {
+    const targetDist = (s / nSamples) * totalLen;
+    // Find segment containing targetDist
+    let seg = 0;
+    while (seg < cumDist.length - 2 && cumDist[seg + 1] < targetDist) seg++;
+    const segLen = cumDist[seg + 1] - cumDist[seg];
+    const t = segLen > 0 ? (targetDist - cumDist[seg]) / segLen : 0;
+    result.push({
+      x: path[seg].x + t * (path[seg + 1].x - path[seg].x),
+      y: path[seg].y + t * (path[seg + 1].y - path[seg].y),
+    });
+  }
+  return result;
+}
+
+/**
+ * Fit recentered points as either a straight line or a circular arc.
+ * Adjusts endpoints to stay on H/V axes of connected ortho walls.
+ */
+function _fitLineOrArc(points, epA, epB, axisA, axisB, thickness) {
+  if (points.length < 2) {
+    const r = [{ x: epA.x, y: epA.y }, { x: epB.x, y: epB.y }];
+    r._type = "line";
+    return r;
+  }
+
+  // Adjust endpoints: snap to medial axis but keep on H/V axis
+  const first = points[0], last = points[points.length - 1];
+  const adjA = { x: first.x, y: first.y };
+  const adjB = { x: last.x, y: last.y };
+  if (axisA === "H") adjA.y = epA.y; // keep y, allow x to shift
+  if (axisA === "V") adjA.x = epA.x; // keep x, allow y to shift
+  if (axisB === "H") adjB.y = epB.y;
+  if (axisB === "V") adjB.x = epB.x;
+
+  // Check if points are roughly collinear → straight line
+  const maxDeviation = _maxDeviationFromLine(points, adjA, adjB);
+  if (maxDeviation < thickness * 0.5) {
+    const result = [adjA, adjB];
+    result._type = "line";
+    return result;
+  }
+
+  // Fit a circle through 3 points (start, mid, end of recentered samples)
+  const midIdx = Math.floor(points.length / 2);
+  const circle = _fitCircle3Points(adjA, points[midIdx], adjB);
+
+  if (circle) {
+    // Validate: check all recentered points are close to the circle
+    let maxErr = 0;
+    for (const p of points) {
+      const dr = Math.abs(Math.sqrt((p.x - circle.cx) ** 2 + (p.y - circle.cy) ** 2) - circle.r);
+      if (dr > maxErr) maxErr = dr;
+    }
+
+    if (maxErr < thickness) {
+      // Good circle fit — generate arc points
+      const arcPts = _generateArcPoints(circle, adjA, adjB, points[midIdx], thickness);
+      arcPts._type = "arc";
+      return arcPts;
+    }
+  }
+
+  // Fallback: use the recentered points with cleanup
+  const cleaned = [adjA];
+  const minDist = thickness * 1.5;
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = cleaned[cleaned.length - 1];
+    const d = Math.sqrt((points[i].x - prev.x) ** 2 + (points[i].y - prev.y) ** 2);
+    if (d >= minDist) cleaned.push(points[i]);
+  }
+  cleaned.push(adjB);
+  cleaned._type = "polyline";
+  return cleaned;
+}
+
+/** Maximum perpendicular distance of any point from the line A→B. */
+function _maxDeviationFromLine(points, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 1) return 0;
+  let maxDev = 0;
+  for (const p of points) {
+    const dev = Math.abs((p.x - a.x) * dy - (p.y - a.y) * dx) / len;
+    if (dev > maxDev) maxDev = dev;
+  }
+  return maxDev;
+}
+
+/** Fit a circle through 3 points. Returns { cx, cy, r } or null. */
+function _fitCircle3Points(p1, p2, p3) {
+  const ax = p1.x, ay = p1.y, bx = p2.x, by = p2.y, cx = p3.x, cy = p3.y;
+  const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+  if (Math.abs(d) < 1e-6) return null; // collinear
+  const ux = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d;
+  const uy = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d;
+  const r = Math.sqrt((ax - ux) ** 2 + (ay - uy) ** 2);
+  if (r > 50000) return null; // too large radius = nearly straight
+  return { cx: ux, cy: uy, r };
+}
+
+/** Generate evenly-spaced points along a circular arc from pStart to pEnd passing through pMid. */
+function _generateArcPoints(circle, pStart, pEnd, pMid, thickness) {
+  const { cx, cy, r } = circle;
+  let angStart = Math.atan2(pStart.y - cy, pStart.x - cx);
+  let angEnd = Math.atan2(pEnd.y - cy, pEnd.x - cx);
+  const angMid = Math.atan2(pMid.y - cy, pMid.x - cx);
+
+  // Determine arc direction: ensure we go through pMid
+  let sweep = angEnd - angStart;
+  // Normalize to [-PI, PI]
+  while (sweep > Math.PI) sweep -= 2 * Math.PI;
+  while (sweep < -Math.PI) sweep += 2 * Math.PI;
+
+  // Check if midpoint is on this arc
+  let testMid = angMid - angStart;
+  while (testMid > Math.PI) testMid -= 2 * Math.PI;
+  while (testMid < -Math.PI) testMid += 2 * Math.PI;
+
+  if ((sweep > 0 && (testMid < 0 || testMid > sweep)) ||
+      (sweep < 0 && (testMid > 0 || testMid < sweep))) {
+    // Midpoint is on the other arc — flip direction
+    if (sweep > 0) sweep -= 2 * Math.PI;
+    else sweep += 2 * Math.PI;
+  }
+
+  // Generate points at ~thickness spacing along the arc
+  const arcLen = Math.abs(sweep) * r;
+  const nPts = Math.max(2, Math.round(arcLen / (thickness * 2)));
+  const result = [];
+  for (let i = 0; i <= nPts; i++) {
+    const ang = angStart + (i / nPts) * sweep;
+    result.push({ x: cx + r * Math.cos(ang), y: cy + r * Math.sin(ang) });
+  }
+  // Force exact endpoints
+  result[0] = { x: pStart.x, y: pStart.y };
+  result[result.length - 1] = { x: pEnd.x, y: pEnd.y };
+  return result;
+}
+
+/** Remove consecutive points that are too close, keeping first and last. */
+function _removeClosePoints(path, minDist) {
+  if (path.length <= 2) return path;
+  const result = [path[0]];
+  for (let i = 1; i < path.length - 1; i++) {
+    const prev = result[result.length - 1];
+    const d = Math.sqrt((path[i].x - prev.x) ** 2 + (path[i].y - prev.y) ** 2);
+    if (d >= minDist) result.push(path[i]);
+  }
+  result.push(path[path.length - 1]);
+  return result;
+}
+
+/** Snap a point to the local maximum of the distance transform (wall medial axis). */
+function _snapToMedialAxis(point, distMat, w, h, searchRadius) {
+  const px = Math.round(point.x), py = Math.round(point.y);
+  let bestX = px, bestY = py, bestVal = 0;
+  const r = Math.max(3, searchRadius);
+  for (let dx = -r; dx <= r; dx++) {
+    for (let dy = -r; dy <= r; dy++) {
+      const nx = px + dx, ny = py + dy;
+      if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+      const val = distMat.floatAt(ny, nx);
+      if (val > bestVal) { bestVal = val; bestX = nx; bestY = ny; }
+    }
+  }
+  return { x: bestX, y: bestY };
+}
+
+/**
+ * Trace a path through the wall mask from point A to point B,
+ * following the medial axis (highest distance transform values).
+ * Uses A* with cost inversely weighted by distance transform.
+ */
+function _traceWallPath(epA, epB, mask, distMat, w, h, maxDist) {
+  const sx = Math.max(0, Math.min(w - 1, Math.round(epA.x)));
+  const sy = Math.max(0, Math.min(h - 1, Math.round(epA.y)));
+  const ex = Math.max(0, Math.min(w - 1, Math.round(epB.x)));
+  const ey = Math.max(0, Math.min(h - 1, Math.round(epB.y)));
+
+  // Snap start/end to nearest mask pixel (spiral search)
+  const snapRadius = Math.min(20, Math.round(maxDist * 0.05));
+  const _snapToMask = (px, py) => {
+    if (px >= 0 && px < w && py >= 0 && py < h && mask[py * w + px]) return { x: px, y: py };
+    for (let r = 1; r <= snapRadius; r++) {
+      for (let dx = -r; dx <= r; dx++) {
+        for (let dy = -r; dy <= r; dy++) {
+          if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+          const nx = px + dx, ny = py + dy;
+          if (nx >= 0 && nx < w && ny >= 0 && ny < h && mask[ny * w + nx]) return { x: nx, y: ny };
+        }
+      }
+    }
+    return null;
+  };
+
+  const snappedStart = _snapToMask(sx, sy);
+  const snappedEnd = _snapToMask(ex, ey);
+  if (!snappedStart || !snappedEnd) return null;
+
+  const step = 1;
+  const goalTol = 3;
+  const visited = new Uint8Array(w * h);
+  const cameFrom = new Int32Array(w * h).fill(-1);
+  const gScore = new Float32Array(w * h).fill(Infinity);
+
+  const idx = (x, y) => y * w + x;
+  const heuristic = (x, y) => Math.sqrt((x - snappedEnd.x) ** 2 + (y - snappedEnd.y) ** 2);
+
+  const startIdx = idx(snappedStart.x, snappedStart.y);
+  gScore[startIdx] = 0;
+
+  // Binary min-heap priority queue
+  const heap = [];
+  const _heapPush = (node) => {
+    heap.push(node);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (heap[parent].f <= heap[i].f) break;
+      [heap[parent], heap[i]] = [heap[i], heap[parent]];
+      i = parent;
+    }
+  };
+  const _heapPop = () => {
+    const top = heap[0];
+    const last = heap.pop();
+    if (heap.length > 0) {
+      heap[0] = last;
+      let i = 0;
+      while (true) {
+        let smallest = i;
+        const l = 2 * i + 1, r = 2 * i + 2;
+        if (l < heap.length && heap[l].f < heap[smallest].f) smallest = l;
+        if (r < heap.length && heap[r].f < heap[smallest].f) smallest = r;
+        if (smallest === i) break;
+        [heap[smallest], heap[i]] = [heap[i], heap[smallest]];
+        i = smallest;
+      }
+    }
+    return top;
+  };
+
+  _heapPush({ x: snappedStart.x, y: snappedStart.y, f: heuristic(snappedStart.x, snappedStart.y) });
+
+  const neighbors = [
+    [-step, 0], [step, 0], [0, -step], [0, step],
+    [-step, -step], [step, -step], [-step, step], [step, step]
+  ];
+
+  let iterations = 0;
+  const maxIterations = Math.min((maxDist / step) * (maxDist / step), 2000000);
+
+  while (heap.length > 0 && iterations < maxIterations) {
+    iterations++;
+    const current = _heapPop();
+
+    const cx = current.x, cy = current.y;
+    const ci = idx(cx, cy);
+
+    if (visited[ci]) continue;
+    visited[ci] = 1;
+
+    // Goal reached (widened tolerance)
+    if (Math.abs(cx - snappedEnd.x) <= goalTol && Math.abs(cy - snappedEnd.y) <= goalTol) {
+      const path = [{ x: epB.x, y: epB.y }];
+      let pi = ci;
+      while (pi >= 0 && pi !== startIdx) {
+        path.push({ x: pi % w, y: Math.floor(pi / w) });
+        pi = cameFrom[pi];
+      }
+      path.push({ x: epA.x, y: epA.y });
+      path.reverse();
+      return path;
+    }
+
+    for (const [ndx, ndy] of neighbors) {
+      const nx = cx + ndx, ny = cy + ndy;
+      if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+      const ni = idx(nx, ny);
+      if (visited[ni]) continue;
+
+      const moveCost = (ndx !== 0 && ndy !== 0) ? step * 1.414 : step;
+
+      if (!mask[ni]) {
+        // Off-mask grace zone near start/end — heavy penalty
+        const distToStart = Math.abs(nx - snappedStart.x) + Math.abs(ny - snappedStart.y);
+        const distToEnd = Math.abs(nx - snappedEnd.x) + Math.abs(ny - snappedEnd.y);
+        if (distToStart > snapRadius && distToEnd > snapRadius) continue;
+        const tentativeG = gScore[ci] + moveCost * 10;
+        if (tentativeG < gScore[ni]) {
+          gScore[ni] = tentativeG;
+          cameFrom[ni] = ci;
+          _heapPush({ x: nx, y: ny, f: tentativeG + heuristic(nx, ny) * 0.5 });
+        }
+        continue;
+      }
+
+      const distVal = distMat.floatAt(ny, nx);
+      const wallWeight = distVal > 1 ? 1 / distVal : 5;
+      const tentativeG = gScore[ci] + moveCost * wallWeight;
+
+      if (tentativeG < gScore[ni]) {
+        gScore[ni] = tentativeG;
+        cameFrom[ni] = ci;
+        _heapPush({ x: nx, y: ny, f: tentativeG + heuristic(nx, ny) * 0.5 });
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
