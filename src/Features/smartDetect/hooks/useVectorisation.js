@@ -42,6 +42,12 @@ export default function useVectorisation() {
       const imageUrl = baseMap?.getUrl?.();
       if (!imageUrl) throw new Error("No baseMap image URL available");
 
+      // Version transform: the active image may be scaled/offset from the reference
+      const versionTransform = baseMap?.getActiveVersionTransform?.() || { x: 0, y: 0, scale: 1 };
+      const vScale = versionTransform.scale || 1;
+      const vOffX = versionTransform.x || 0;
+      const vOffY = versionTransform.y || 0;
+
       // ── 1. Resolve points (main + cuts) from DB ──────────────────────
       const allPointIds = [];
       for (const ann of annotations) {
@@ -82,16 +88,32 @@ export default function useVectorisation() {
 
       if (boundaries.length === 0) throw new Error("No valid polygon boundaries found");
 
-      // ── 2. Call worker ────────────────────────────────────────────────
+      // ── 2. Transform boundaries from reference space to version image space ─
+      const refToVersion = (pt) => ({
+        x: (pt.x - vOffX) / vScale,
+        y: (pt.y - vOffY) / vScale,
+      });
+      const versionBoundaries = boundaries.map((b) => ({
+        points: b.points.map(refToVersion),
+        cuts: b.cuts.map((c) => ({ points: c.points.map(refToVersion) })),
+      }));
+
+      // meterByPx is in reference space — adjust for version scale
+      const versionMeterByPx = meterByPx / vScale;
+
       await cv.load();
       const result = await cv.vectoriseWallsAsync({
         imageUrl,
-        boundaries,
+        boundaries: versionBoundaries,
         offsetAngle: orthoSnapAngleOffset || 0,
-        meterByPx,
+        meterByPx: versionMeterByPx,
       });
 
-      const { polylines, thicknesses } = result;
+      // Transform results back from version image space to reference space
+      const { thicknesses } = result;
+      const polylines = result.polylines.map((pl) =>
+        pl.map((p) => ({ x: p.x * vScale + vOffX, y: p.y * vScale + vOffY }))
+      );
       if (!polylines?.length) {
         console.warn("[useVectorisation] No walls detected");
         return { count: 0 };
@@ -120,7 +142,7 @@ export default function useVectorisation() {
         if (!polyline || polyline.length < 2) continue;
 
         const thicknessPx = thicknesses[i] ?? 2;
-        const thicknessCm = Math.round(thicknessPx * meterByPx * 100 * 10) / 10;
+        const thicknessCm = Math.round(thicknessPx * versionMeterByPx * 100 * 10) / 10;
 
         let entityId;
         if (entityTable) {

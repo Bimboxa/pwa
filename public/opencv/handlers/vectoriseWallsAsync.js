@@ -221,14 +221,25 @@ async function vectoriseWallsAsync({ msg, payload }) {
       }
     }
 
+    // Build brightness array (ROI) for weighted centroid recentering
+    const wBrightness = new Uint8Array(wWidth * wHeight);
+    for (let i = 0; i < wWidth * wHeight; i++) {
+      const imgX = (i % wWidth) + roiX0;
+      const imgY = Math.floor(i / wWidth) + roiY0;
+      const imgIdx = (imgY * width + imgX) * 4;
+      wBrightness[i] = Math.round(data[imgIdx] * 0.299 + data[imgIdx + 1] * 0.587 + data[imgIdx + 2] * 0.114);
+    }
+
     const postResult = _postProcessSegments(rawSegments, {
-      wWallMask, wRoomMask, wWidth, wHeight, distMat, meterByPx, maxLineGap, cutPolygons,
+      wWallMask, wRoomMask, wWidth, wHeight, distMat, meterByPx, maxLineGap, cutPolygons, wBrightness,
     });
     let polylines = postResult.polylines;
     let thicknesses = postResult.thicknesses;
 
     // ── 9. Convert ROI coords back + rotate back ───────────────────────
-    polylines = polylines.map((pl) => pl.map((p) => ({ x: p.x + roiX0, y: p.y + roiY0 })));
+    // +0.5: OpenCV integer coords = pixel top-left corner; shift to pixel center
+    // +0.5: OpenCV integer coords = pixel top-left corner; shift to pixel center
+    polylines = polylines.map((pl) => pl.map((p) => ({ x: p.x + roiX0 + 0.5, y: p.y + roiY0 + 0.5 })));
 
     if (offsetAngle !== 0) {
       const rotCenterX = width / 2;
@@ -264,7 +275,9 @@ const _ptKey = (x, y) => `${Math.round(x)},${Math.round(y)}`;
 function _postProcessSegments(rawSegments, ctx) {
   const { wWallMask, wRoomMask, wWidth, wHeight, distMat, meterByPx, maxLineGap } = ctx;
 
-  const ENABLE_CLOSE_ENVELOPE = true; // set to false to skip Phase 1.1b
+  const ENABLE_PERIPHERAL = false;     // Phase 1.1: peripheral ortho walls
+  const ENABLE_INTERIOR = true;        // Phase 1.2: interior ortho walls
+  const ENABLE_CLOSE_ENVELOPE = false; // Phase 2: peripheral curves/obliques
 
   // ── Phase 1: Classify H/V/diagonal, merge collinear ──────────────────
   const ANGLE_TOL = Math.PI / 12;
@@ -283,8 +296,6 @@ function _postProcessSegments(rawSegments, ctx) {
   }
 
   // Filter short segments — skeleton noise at junctions.
-  // Real walls are > 10cm. Short H/V fragments at junctions are noise.
-  // Diagonals use a higher threshold (30cm) since real diagonals are rare on plans.
   const minWallLen = meterByPx > 0 ? Math.round(0.10 / meterByPx) : 15;
   const minDiagonalLen = meterByPx > 0 ? Math.round(0.50 / meterByPx) : 70;
 
@@ -317,21 +328,63 @@ function _postProcessSegments(rawSegments, ctx) {
   const { peripheral: periH, interior: intH } = _classifyPeripheral(mergedH, wRoomMask, wWidth, wHeight, "H", distMat, meterByPx);
   const { peripheral: periV, interior: intV } = _classifyPeripheral(mergedV, wRoomMask, wWidth, wHeight, "V", distMat, meterByPx);
 
-  // ── Phase 1.1: Process peripheral ortho walls ──────────────────────
-  const periResult = _processWallGroup(periH, periV, [], ctx);
+  console.log(`[classify] H: ${mergedH.length} total → ${periH.length} peripheral + ${intH.length} interior`);
+  console.log(`[classify] V: ${mergedV.length} total → ${periV.length} peripheral + ${intV.length} interior`);
+  for (const seg of periH) console.log(`  periH: y=${seg.position} x=${seg.start}→${seg.end} len=${seg.end-seg.start}`);
+  for (const seg of intH) console.log(`  intH: y=${seg.position} x=${seg.start}→${seg.end} len=${seg.end-seg.start}`);
 
-  // ── Phase 1.2: Process interior walls with peripheral context ─────
-  // TODO: uncomment when Phase 1.1 is validated
-  // const intResult = _processWallGroup(intH, intV, periResult.polylines, ctx);
-  // const allPolylines = [...periResult.polylines, ...intResult.polylines];
-  // const allThicknesses = [...periResult.thicknesses, ...intResult.thicknesses];
-  const allPolylines = periResult.polylines;
-  const allThicknesses = periResult.thicknesses;
+  // ── Phase 1.1: Process peripheral ortho walls ──────────────────────
+  const periResult = ENABLE_PERIPHERAL
+    ? _processWallGroup(periH, periV, [], ctx)
+    : { polylines: [], thicknesses: [] };
+
+  // ── Phase 1.2: Identify interior ortho walls ────────────────────────
+  // Simple detection only: filter, validate on wall mask, measure thickness,
+  // convert to polylines. No extension/step-junction processing.
+  let intPolylines = [], intThicknesses = [];
+  if (ENABLE_INTERIOR) {
+    // Pre-filter: remove segments overlapping peripheral walls
+    const filtIntH = _removeOverlappingSegments(intH, periH, posTolerance);
+    const filtIntV = _removeOverlappingSegments(intV, periV, posTolerance);
+    console.log(`[interior] after overlap filter: H ${intH.length}→${filtIntH.length}, V ${intV.length}→${filtIntV.length}`);
+    // Pre-validate: keep only segments on wall mask
+    const validIntH = filtIntH.filter(seg => {
+      const pA = { x: seg.start, y: seg.position };
+      const pB = { x: seg.end, y: seg.position };
+      return _isSegmentOnWall(pA, pB, wWallMask, wWidth, wHeight);
+    });
+    const validIntV = filtIntV.filter(seg => {
+      const pA = { x: seg.position, y: seg.start };
+      const pB = { x: seg.position, y: seg.end };
+      return _isSegmentOnWall(pA, pB, wWallMask, wWidth, wHeight);
+    });
+    console.log(`[interior] after wall mask filter: H ${filtIntH.length}→${validIntH.length}, V ${filtIntV.length}→${validIntV.length}`);
+
+    // Full pipeline: grid snap, merge, extend, topology, junctions
+    const intResult = _processWallGroup(validIntH, validIntV, periResult.polylines, ctx);
+    // Post-validate: reject polylines crossing non-wall zones
+    for (let i = 0; i < intResult.polylines.length; i++) {
+      const pl = intResult.polylines[i];
+      let valid = true;
+      for (let k = 1; k < pl.length; k++) {
+        if (!_isSegmentOnWall(pl[k - 1], pl[k], wWallMask, wWidth, wHeight)) {
+          valid = false; break;
+        }
+      }
+      if (valid) {
+        intPolylines.push(pl);
+        intThicknesses.push(intResult.thicknesses[i]);
+      }
+    }
+  }
+
+  const allPolylines = [...periResult.polylines, ...intPolylines];
+  const allThicknesses = [...periResult.thicknesses, ...intThicknesses];
 
   // ── Phase 7: Junction resolution (L/T/X) ──────────────────────────
   const maxThicknessAll = allThicknesses.length > 0 ? Math.max(...allThicknesses) : 20;
   const junctionSnapTol = Math.max(5, Math.round(maxThicknessAll * 0.75));
-  const finalResult = _insertJunctionPoints(allPolylines, allThicknesses, junctionSnapTol);
+  const finalResult = _insertJunctionPoints(allPolylines, allThicknesses, junctionSnapTol, meterByPx);
 
   // ── Phase 7b: Remove stubs created by junction insertion ──────────
   const minStubLen = meterByPx > 0 ? Math.round(0.08 / meterByPx) : 12;
@@ -344,10 +397,14 @@ function _postProcessSegments(rawSegments, ctx) {
       totalLen += Math.sqrt((pl[k].x - pl[k - 1].x) ** 2 + (pl[k].y - pl[k - 1].y) ** 2);
     }
     const thickness = finalResult.thicknesses[i] || 20;
-    if (totalLen <= Math.max(thickness * 1.5, minStubLen)) continue;
+    if (totalLen <= Math.max(thickness * 1.0, minStubLen)) continue;
     filteredPolylines.push(pl);
     filteredThicknesses.push(finalResult.thicknesses[i]);
   }
+
+  // ── Phase 7c: Step junction detection — find parallel segments with
+  //    close endpoints and verify a dark orthogonal connector exists ───
+  _detectAndConnectSteps(filteredPolylines, filteredThicknesses, wWallMask, wWidth, wHeight, distMat, meterByPx);
 
   // ── Phase 8: Close peripheral envelope — connect free endpoints ───
   if (ENABLE_CLOSE_ENVELOPE) {
@@ -370,6 +427,216 @@ function _postProcessSegments(rawSegments, ctx) {
  * Peripheral wall: one side faces outside (roomMask = 0 beyond the wall)
  * Interior wall: both sides face rooms (roomMask = 1 beyond the wall on both sides)
  */
+
+/**
+ * Detect step junctions: pairs of parallel segments with close endpoints,
+ * verify a dark orthogonal wall connects them, and create the connector.
+ * Modifies polylines/thicknesses arrays in place.
+ */
+function _detectAndConnectSteps(polylines, thicknesses, mask, w, h, distMat, meterByPx) {
+  const maxStepDist = meterByPx > 0 ? Math.round(1.5 / meterByPx) : 150;
+  const snapTol = meterByPx > 0 ? Math.max(5, Math.round(0.15 / meterByPx)) : 15;
+
+  // Classify each polyline as H or V
+  const plInfo = polylines.map((pl) => {
+    if (pl.length < 2) return null;
+    const first = pl[0], last = pl[pl.length - 1];
+    const dx = Math.abs(last.x - first.x), dy = Math.abs(last.y - first.y);
+    if (dx > dy * 3) return { dir: "H", pos: (first.y + last.y) / 2 };
+    if (dy > dx * 3) return { dir: "V", pos: (first.x + last.x) / 2 };
+    return null;
+  });
+
+  // Collect all endpoints with their polyline index and side
+  const endpoints = [];
+  for (let i = 0; i < polylines.length; i++) {
+    const pl = polylines[i];
+    if (pl.length < 2 || !plInfo[i]) continue;
+    endpoints.push({ x: pl[0].x, y: pl[0].y, idx: i, side: 0 });
+    endpoints.push({ x: pl[pl.length - 1].x, y: pl[pl.length - 1].y, idx: i, side: 1 });
+  }
+
+  // Check if an endpoint is already connected to another polyline
+  const isConnected = (ep) => {
+    for (const other of endpoints) {
+      if (other.idx === ep.idx) continue;
+      const d = Math.sqrt((ep.x - other.x) ** 2 + (ep.y - other.y) ** 2);
+      if (d < snapTol) return true;
+    }
+    return false;
+  };
+
+  const used = new Set();
+  const newPolylines = [];
+  const newThicknesses = [];
+
+  for (let i = 0; i < polylines.length; i++) {
+    if (!plInfo[i]) continue;
+    const plA = polylines[i];
+
+    for (let ei = 0; ei < 2; ei++) {
+      const epA = ei === 0 ? plA[0] : plA[plA.length - 1];
+      const keyA = `${i}_${ei}`;
+      if (used.has(keyA)) continue;
+      if (isConnected({ x: epA.x, y: epA.y, idx: i })) continue;
+
+      // Find a parallel segment with a close free endpoint
+      for (let j = i + 1; j < polylines.length; j++) {
+        if (!plInfo[j] || plInfo[j].dir !== plInfo[i].dir) continue;
+        const plB = polylines[j];
+
+        for (let ej = 0; ej < 2; ej++) {
+          const epB = ej === 0 ? plB[0] : plB[plB.length - 1];
+          const keyB = `${j}_${ej}`;
+          if (used.has(keyB)) continue;
+          if (isConnected({ x: epB.x, y: epB.y, idx: j })) continue;
+
+          // Check distance and perpendicular offset
+          const dist = Math.sqrt((epA.x - epB.x) ** 2 + (epA.y - epB.y) ** 2);
+          if (dist > maxStepDist || dist < 3) continue;
+
+          // Must have perpendicular offset (parallel but shifted)
+          let perpOffset, alongOffset;
+          if (plInfo[i].dir === "H") {
+            perpOffset = Math.abs(epA.y - epB.y); // different Y = offset
+            alongOffset = Math.abs(epA.x - epB.x);
+          } else {
+            perpOffset = Math.abs(epA.x - epB.x); // different X = offset
+            alongOffset = Math.abs(epA.y - epB.y);
+          }
+          // Must be mostly perpendicular (step), not mostly along (gap)
+          if (perpOffset < 3 || alongOffset > perpOffset * 2) continue;
+
+          // Verify dark pixels along the orthogonal connector
+          const pA = { x: epA.x, y: epA.y };
+          const pB = { x: epB.x, y: epB.y };
+          if (!_isSegmentOnWall(pA, pB, mask, w, h)) continue;
+
+          // Scan the full extent of the dark band beyond both endpoints.
+          // The band is orthogonal to the parallel segments' axis.
+          const midY = (epA.y + epB.y) / 2;
+          const midX = (epA.x + epB.x) / 2;
+          let extStart, extEnd;
+
+          if (plInfo[i].dir === "V") {
+            // Parallel V segments → connecting band is horizontal (scan X)
+            const scanY = Math.round(midY);
+            const minX = Math.min(epA.x, epB.x);
+            const maxX = Math.max(epA.x, epB.x);
+            // Scan left from min endpoint
+            extStart = Math.round(minX);
+            for (let sx = extStart - 1; sx >= Math.max(0, extStart - maxStepDist); sx--) {
+              if (sx >= 0 && sx < w && scanY >= 0 && scanY < h && mask[scanY * w + sx]) {
+                extStart = sx;
+              } else break;
+            }
+            // Scan right from max endpoint
+            extEnd = Math.round(maxX);
+            for (let sx = extEnd + 1; sx < Math.min(w, extEnd + maxStepDist); sx++) {
+              if (sx >= 0 && sx < w && scanY >= 0 && scanY < h && mask[scanY * w + sx]) {
+                extEnd = sx;
+              } else break;
+            }
+          } else {
+            // Parallel H segments → connecting band is vertical (scan Y)
+            const scanX = Math.round(midX);
+            const minY = Math.min(epA.y, epB.y);
+            const maxY = Math.max(epA.y, epB.y);
+            extStart = Math.round(minY);
+            for (let sy = extStart - 1; sy >= Math.max(0, extStart - maxStepDist); sy--) {
+              if (scanX >= 0 && scanX < w && sy >= 0 && sy < h && mask[sy * w + scanX]) {
+                extStart = sy;
+              } else break;
+            }
+            extEnd = Math.round(maxY);
+            for (let sy = extEnd + 1; sy < Math.min(h, extEnd + maxStepDist); sy++) {
+              if (scanX >= 0 && scanX < w && sy >= 0 && sy < h && mask[sy * w + scanX]) {
+                extEnd = sy;
+              } else break;
+            }
+          }
+
+          // Build polyline: [extension start] → epA → epB → [extension end]
+          // Only add extension if it extends beyond the parallel segment's half-width
+          const halfWidthA = (thicknesses[i] || 20) / 2;
+          const halfWidthB = (thicknesses[j] || 20) / 2;
+          const points = [];
+          if (plInfo[i].dir === "V") {
+            const scanY = Math.round(midY);
+            const minEp = Math.min(epA.x, epB.x), maxEp = Math.max(epA.x, epB.x);
+            const startMargin = epA.x < epB.x ? halfWidthA : halfWidthB;
+            const endMargin = epA.x < epB.x ? halfWidthB : halfWidthA;
+            if (minEp - extStart > startMargin + 2) {
+              points.push({ x: extStart, y: scanY });
+            }
+            if (epA.x <= epB.x) { points.push(pA, pB); } else { points.push(pB, pA); }
+            if (extEnd - maxEp > endMargin + 2) {
+              points.push({ x: extEnd, y: scanY });
+            }
+          } else {
+            const scanX = Math.round(midX);
+            const minEp = Math.min(epA.y, epB.y), maxEp = Math.max(epA.y, epB.y);
+            const startMargin = epA.y < epB.y ? halfWidthA : halfWidthB;
+            const endMargin = epA.y < epB.y ? halfWidthB : halfWidthA;
+            if (minEp - extStart > startMargin + 2) {
+              points.push({ x: scanX, y: extStart });
+            }
+            if (epA.y <= epB.y) { points.push(pA, pB); } else { points.push(pB, pA); }
+            if (extEnd - maxEp > endMargin + 2) {
+              points.push({ x: scanX, y: extEnd });
+            }
+          }
+
+          if (points.length < 2) continue;
+
+          // Measure thickness at midpoint
+          const mx = Math.round((epA.x + epB.x) / 2);
+          const my = Math.round((epA.y + epB.y) / 2);
+          let thickness = 20;
+          if (mx >= 0 && mx < w && my >= 0 && my < h) {
+            const dt = distMat.floatAt(my, mx) * 2;
+            if (dt > 1) thickness = dt;
+          }
+
+          console.log(`[step] detected: ${points.length} pts, (${points.map(p => `${Math.round(p.x)},${Math.round(p.y)}`).join(' → ')})`);
+
+          newPolylines.push(points);
+          newThicknesses.push(thickness);
+          used.add(keyA);
+          used.add(keyB);
+          break;
+        }
+        if (used.has(keyA)) break;
+      }
+    }
+  }
+
+  // Append new connectors
+  polylines.push(...newPolylines);
+  thicknesses.push(...newThicknesses);
+}
+
+/** Remove segments from `segs` that overlap with any segment in `refSegs` (same axis, close position). */
+function _removeOverlappingSegments(segs, refSegs, posTol) {
+  if (refSegs.length === 0) return segs;
+  return segs.filter(seg => {
+    for (const ref of refSegs) {
+      // Same position (within tolerance) and overlapping range
+      if (Math.abs(seg.position - ref.position) <= posTol) {
+        const overlapStart = Math.max(seg.start, ref.start);
+        const overlapEnd = Math.min(seg.end, ref.end);
+        if (overlapEnd > overlapStart) {
+          // Overlap ratio — reject if most of the segment overlaps
+          const overlapLen = overlapEnd - overlapStart;
+          const segLen = seg.end - seg.start;
+          if (segLen > 0 && overlapLen / segLen > 0.5) return false;
+        }
+      }
+    }
+    return true;
+  });
+}
+
 function _classifyPeripheral(segments, roomMask, w, h, axis, distMat, meterByPx) {
   const peripheral = [], interior = [];
   const sampleCount = 10;
@@ -1041,6 +1308,15 @@ function _processWallGroup(hSegs, vSegs, contextPolylines, ctx) {
   const vGridLines = _buildGridLines(vSegs.map((s) => s.position), gridTolerance);
   for (const seg of hSegs) seg.position = _snapToGrid(seg.position, hGridLines);
   for (const seg of vSegs) seg.position = _snapToGrid(seg.position, vGridLines);
+
+  // Recenter grid lines using brightness-weighted centroid (original image).
+  // Fixes binarization asymmetry (anti-aliasing shifting H lines upward).
+  const { wBrightness } = ctx;
+  if (wBrightness) {
+    _recenterGridOnDarkCentroid(hGridLines, "H", wBrightness, wWidth, wHeight, hSegs);
+    _recenterGridOnDarkCentroid(vGridLines, "V", wBrightness, wWidth, wHeight, vSegs);
+  }
+
   let mergedH = _mergeColinear(hSegs, 1, gapTolerance);
   let mergedV = _mergeColinear(vSegs, 1, gapTolerance);
 
@@ -1112,14 +1388,38 @@ function _processWallGroup(hSegs, vSegs, contextPolylines, ctx) {
   const junctionSnapDist = meterByPx > 0 ? Math.max(15, Math.round(0.25 / meterByPx)) : 40;
   const cleanResult = _removeJunctionNoise(gapResult.polylines, gapResult.thicknesses, junctionNoiseMaxLen, junctionSnapDist);
 
-  // Remove stubs
+  // Remove stubs (but keep connectors linking two different walls)
   let resultPolylines = [], resultThicknesses = [];
   for (let i = 0; i < cleanResult.polylines.length; i++) {
     const pl = cleanResult.polylines[i];
     if (pl.length >= 2) {
       let totalLen = 0;
       for (let k = 1; k < pl.length; k++) totalLen += Math.sqrt((pl[k].x - pl[k - 1].x) ** 2 + (pl[k].y - pl[k - 1].y) ** 2);
-      if (totalLen <= (cleanResult.thicknesses[i] || 0) * 1.5) continue;
+      if (totalLen <= (cleanResult.thicknesses[i] || 0) * 1.0) {
+        // Check if it connects two different walls → keep it (step connector)
+        const pS = pl[0], pE = pl[pl.length - 1];
+        let isConnector = false;
+        const stubSnapDist = junctionSnapDist;
+        for (let j = 0; j < cleanResult.polylines.length && !isConnector; j++) {
+          if (j === i) continue;
+          const other = cleanResult.polylines[j];
+          let startNear = false, endNear = false;
+          for (let k = 0; k < other.length - 1; k++) {
+            const ax = other[k].x, ay = other[k].y, bx = other[k+1].x, by = other[k+1].y;
+            const dx = bx-ax, dy = by-ay, lenSq = dx*dx+dy*dy;
+            if (lenSq === 0) continue;
+            const tS = Math.max(0, Math.min(1, ((pS.x-ax)*dx+(pS.y-ay)*dy)/lenSq));
+            const dS = Math.sqrt((pS.x-ax-tS*dx)**2+(pS.y-ay-tS*dy)**2);
+            if (dS <= stubSnapDist) startNear = true;
+            const tE = Math.max(0, Math.min(1, ((pE.x-ax)*dx+(pE.y-ay)*dy)/lenSq));
+            const dE = Math.sqrt((pE.x-ax-tE*dx)**2+(pE.y-ay-tE*dy)**2);
+            if (dE <= stubSnapDist) endNear = true;
+          }
+          // Only one end touches this wall — check if other end touches a different wall
+          if (startNear !== endNear) isConnector = true;
+        }
+        if (!isConnector) continue;
+      }
     }
     resultPolylines.push(pl);
     resultThicknesses.push(cleanResult.thicknesses[i]);
@@ -1132,29 +1432,15 @@ function _processWallGroup(hSegs, vSegs, contextPolylines, ctx) {
   const rdpTolerance = meterByPx > 0 ? Math.max(3, Math.round(0.03 / meterByPx)) : 5;
   const rdpResult = _simplifyColinearPoints(noZigzag.polylines, noZigzag.thicknesses, rdpTolerance);
 
-  // Step junctions
+  // Step junctions (within grid context)
   const stepMaxGap = meterByPx > 0 ? Math.max(20, Math.round(1.5 / meterByPx)) : 150;
   const stepResult = _createStepJunctions(rdpResult.polylines, rdpResult.thicknesses, stepMaxGap, wWallMask, wWidth, wHeight, distMat, meterByPx);
 
-  // Post-step cleanup (stubs + zigzags)
-  let postPolylines = [], postThicknesses = [];
-  for (let i = 0; i < stepResult.polylines.length; i++) {
-    const pl = stepResult.polylines[i];
-    if (pl.length >= 2) {
-      let totalLen = 0;
-      for (let k = 1; k < pl.length; k++) totalLen += Math.sqrt((pl[k].x - pl[k - 1].x) ** 2 + (pl[k].y - pl[k - 1].y) ** 2);
-      if (totalLen <= (stepResult.thicknesses[i] || 0) * 1.5) continue;
-    }
-    postPolylines.push(pl);
-    postThicknesses.push(stepResult.thicknesses[i]);
-  }
-  const postZigzag = _removeZigzags(postPolylines, postThicknesses);
-
   // Grid simplification
   const allGridLines = { h: hGridLines, v: vGridLines };
-  const simplified = _simplifyPolylinesOnGrid(postZigzag.polylines, allGridLines, gridTolerance, wWallMask, wWidth, wHeight);
+  const simplified = _simplifyPolylinesOnGrid(stepResult.polylines, allGridLines, gridTolerance, wWallMask, wWidth, wHeight);
 
-  return { polylines: simplified, thicknesses: postZigzag.thicknesses };
+  return { polylines: simplified, thicknesses: stepResult.thicknesses };
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1169,7 +1455,7 @@ function _processWallGroup(hSegs, vSegs, contextPolylines, ctx) {
  *
  * Also snaps L-junction endpoints to the exact same coordinates.
  */
-function _insertJunctionPoints(polylines, thicknesses, snapTol) {
+function _insertJunctionPoints(polylines, thicknesses, snapTol, meterByPx) {
   // For each polyline, compute its direction (H or V) and bounding info
   const plData = polylines.map((pl) => {
     if (pl.length < 2) return null;
@@ -1292,9 +1578,22 @@ function _insertJunctionPoints(polylines, thicknesses, snapTol) {
           const distBtoI = Math.sqrt((epB.x - ix) ** 2 + (epB.y - iy) ** 2);
           if (distAtoI > snapTol * 3 || distBtoI > snapTol * 3) continue;
 
-          // Replace both endpoints with the intersection point
-          epA.x = ix; epA.y = iy;
-          epB.x = ix; epB.y = iy;
+          // Small overshoot (< 25cm) = corner noise → truncate (replace endpoint).
+          // Larger overshoot = real T-junction → insert intersection, keep extension.
+          const maxTruncate = meterByPx > 0 ? Math.round(0.25 / meterByPx) : 30;
+
+          if (distAtoI <= maxTruncate) {
+            epA.x = ix; epA.y = iy;
+          } else {
+            if (ei === 0) plA.unshift({ x: ix, y: iy });
+            else plA.push({ x: ix, y: iy });
+          }
+          if (distBtoI <= maxTruncate) {
+            epB.x = ix; epB.y = iy;
+          } else {
+            if (ej === 0) plB.unshift({ x: ix, y: iy });
+            else plB.push({ x: ix, y: iy });
+          }
 
           connected.add(keyA);
           connected.add(keyB);
@@ -1796,9 +2095,20 @@ function _removeJunctionNoise(polylines, thicknesses, maxLen, snapDist) {
         keep[i] = false;
       }
     } else {
-      // H/V: need BOTH endpoints near long walls (conservative)
+      // H/V: need BOTH endpoints near the SAME long wall (not a connector).
+      // If each endpoint touches a DIFFERENT long wall, it's a real connector (step junction).
       if (startNearLong && endNearLong) {
-        keep[i] = false;
+        // Check if both endpoints are near the same polyline
+        let sameWall = false;
+        for (let j = 0; j < polylines.length; j++) {
+          if (j === i || lengths[j] < minLongLen) continue;
+          const other = polylines[j];
+          const dStart = ptPolyDist(pStart.x, pStart.y, other);
+          const dEnd = ptPolyDist(pEnd.x, pEnd.y, other);
+          if (dStart <= snapDist && dEnd <= snapDist) { sameWall = true; break; }
+        }
+        if (sameWall) keep[i] = false;
+        // If each end touches a different wall → keep (connector between walls)
       }
     }
   }
@@ -2279,6 +2589,60 @@ function _measureThicknessDiagonal(seg, distMat, w, h) {
   if (samples.length === 0) return 2;
   samples.sort((a, b) => a - b);
   return Math.max(2, samples[Math.floor(samples.length / 2)] * 2);
+}
+
+/**
+ * Recenter each grid line using brightness-weighted centroid from the original image.
+ * Darker pixels weigh more → finds the true center of the wall line,
+ * accounting for anti-aliasing gradients that bias the binary threshold.
+ */
+function _recenterGridOnDarkCentroid(gridLines, axis, brightness, w, h, segs) {
+  const searchRadius = 20;
+  const darkThreshold = 200; // include anti-aliased pixels in the centroid
+  for (let g = 0; g < gridLines.length; g++) {
+    const pos = gridLines[g];
+    const matchingSegs = segs.filter(s => s.position === pos);
+    if (matchingSegs.length === 0) continue;
+
+    // Sample along the segments on this grid line
+    const sampleTs = [];
+    for (const seg of matchingSegs) {
+      const len = seg.end - seg.start;
+      for (let s = 0; s < 10; s++) {
+        sampleTs.push(Math.round(seg.start + (s + 0.5) * len / 10));
+      }
+    }
+
+    // Compute brightness-weighted centroid perpendicular to the grid line
+    let centroidSum = 0, weightSum = 0;
+    for (const t of sampleTs) {
+      for (let offset = -searchRadius; offset <= searchRadius; offset++) {
+        const testPos = pos + offset;
+        let px, py;
+        if (axis === "H") {
+          px = Math.min(w - 1, Math.max(0, t)); py = testPos;
+          if (py < 0 || py >= h) continue;
+        } else {
+          px = testPos; py = Math.min(h - 1, Math.max(0, t));
+          if (px < 0 || px >= w) continue;
+        }
+        const b = brightness[py * w + px];
+        if (b < darkThreshold) {
+          const weight = darkThreshold - b; // darker = higher weight
+          centroidSum += testPos * weight;
+          weightSum += weight;
+        }
+      }
+    }
+
+    if (weightSum > 0) {
+      const centroid = Math.round(centroidSum / weightSum);
+      if (centroid !== pos) {
+        gridLines[g] = centroid;
+        for (const seg of matchingSegs) seg.position = centroid;
+      }
+    }
+  }
 }
 
 function _buildGridLines(positions, tolerance) {
