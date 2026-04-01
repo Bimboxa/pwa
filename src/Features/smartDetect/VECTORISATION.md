@@ -125,14 +125,65 @@ The vectorisation pipeline detects walls on architectural floor plans (raster im
 
 > **Goal**: detect walls inside the building (room dividers). Uses the same `_processWallGroup` pipeline as Phase 1.1, with peripheral walls as barriers.
 
-**Status**: disabled (TODO), to be enabled after Phase 1 + 2 are validated.
+### Phase 3.0 — Pre-filtering
+
+| Step | Function | Description |
+|------|----------|-------------|
+| 3.0a | `_classifyPeripheral` | Interior segments = both sides face rooms (roomMask asymmetry < 40%). Note: segments < 20cm default to interior. |
+| 3.0b | `_removeOverlappingSegments` | Remove interior segments that overlap with peripheral wall positions (same axis, >50% overlap) |
+| 3.0c | `_isSegmentOnWall` | Validate each segment has sufficient dark pixel coverage (≥30% per 20px chunk) |
+
+### Phase 3.1 — Processing (`_processWallGroup`)
+
+Same pipeline as Phase 1.1 (grid snap, merge, extend, topology, chain, gap fill, noise removal, RDP, step junctions, grid simplification). Peripheral walls are passed as `contextPolylines` to act as extension barriers.
+
+### Phase 3.2 — Post-validation
 
 | Step | Description |
 |------|-------------|
-| 3.0 | Use interior H/V segments from Phase 1.0e classification |
-| 3.1 | Run `_processWallGroup(intH, intV, periPolylines, ctx)` — peripheral walls are passed as `contextPolylines` to act as extension barriers |
-| 3.2 | Merge with peripheral results |
-| 3.3 | Run junction resolution on the combined set |
+| 3.2a | Reject polylines that cross non-wall zones (`_isSegmentOnWall` on each segment of the polyline) |
+
+### Phase 3.3 — Junction resolution (combined)
+
+All walls (peripheral + interior) go through `_insertJunctionPoints` together:
+
+| Step | Description |
+|------|-------------|
+| 3.3a | T-junctions: insert projected points on polyline bodies |
+| 3.3b | L-junctions: extend to intersection (truncate if < 25cm overshoot, keep extension if > 25cm) |
+| 3.3c | Stub filter: remove polylines shorter than max(1× thickness, 8cm), except connectors between two different walls |
+
+### Phase 3.4 — Step junction detection (`_detectAndConnectSteps`)
+
+Runs after all junctions on the final polyline set:
+
+| Step | Description |
+|------|-------------|
+| 3.4a | Find pairs of parallel segments (same axis) with free endpoints close to each other (< 1.5m) |
+| 3.4b | Verify dark pixels exist along the orthogonal path between the two endpoints (`_isSegmentOnWall`) |
+| 3.4c | Scan the wall mask to find the full extent of the connecting band beyond both parallel segments |
+| 3.4d | Only add extension points if the band extends beyond the parallel segment's half-width (avoid points "inside" the wall) |
+| 3.4e | Create polyline: `[extension start] → epA → epB → [extension end]` (2-4 points) |
+
+---
+
+## Coordinate handling
+
+### Version transform
+
+The active basemap version may have a transform `{x, y, scale}` relative to the reference dimensions. The hook (`useVectorisation.js`) handles this:
+
+- **Input**: boundary coordinates are transformed from reference space to version image space before sending to the worker: `versionPx = (refPx - offset) / scale`
+- **Output**: polyline coordinates are transformed back: `refPx = versionPx * scale + offset`
+- **meterByPx**: adjusted for version scale: `versionMeterByPx = meterByPx / scale`
+
+### Pixel offset correction
+
+Worker output coordinates have `+0.5` on both X and Y to shift from OpenCV integer coordinates (pixel top-left corner) to pixel center.
+
+### Grid recentering (`_recenterGridOnDarkCentroid`)
+
+After grid snap, each grid line is recentered using a brightness-weighted centroid of dark pixels from the original image. This corrects binarization asymmetry (e.g., anti-aliasing making one edge of a wall line darker than the other).
 
 ---
 
@@ -140,4 +191,6 @@ The vectorisation pipeline detects walls on architectural floor plans (raster im
 
 | Flag | Location | Description |
 |------|----------|-------------|
-| `ENABLE_CLOSE_ENVELOPE` | `_postProcessSegments` line 267 | Set to `false` to skip Phase 2 entirely (compare with/without envelope closure) |
+| `ENABLE_PERIPHERAL` | `_postProcessSegments` | Set to `false` to skip Phase 1 (peripheral ortho walls) |
+| `ENABLE_INTERIOR` | `_postProcessSegments` | Set to `false` to skip Phase 3 (interior ortho walls) |
+| `ENABLE_CLOSE_ENVELOPE` | `_postProcessSegments` | Set to `false` to skip Phase 2 (peripheral curves/obliques) |
