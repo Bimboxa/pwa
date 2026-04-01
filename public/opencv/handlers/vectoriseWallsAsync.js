@@ -302,13 +302,24 @@ function _postProcessSegments(rawSegments, ctx) {
   mergedH = _fillGapsOnGridLines(mergedH, wWallMask, wWidth, wHeight, "H", gapFillMaxDistance, distMat);
   mergedV = _fillGapsOnGridLines(mergedV, wWallMask, wWidth, wHeight, "V", gapFillMaxDistance, distMat);
 
+  // ── Phase 3b: Extend segments to full wall extent ───────────────────
+  // Scan outward from each segment endpoint along its axis until the dark
+  // pixels end. This captures wall segments that HoughLinesP cut short.
+  _extendToWallExtent(mergedH, wWallMask, wWidth, wHeight, "H", distMat, mergedV);
+  _extendToWallExtent(mergedV, wWallMask, wWidth, wHeight, "V", distMat, mergedH);
+
   // ── Phase 4: Thickness, snap, extend, topology ───────────────────────
   const hThicknesses = mergedH.map((seg) => _measureThickness(seg, distMat, wWidth, wHeight));
   const vThicknesses = mergedV.map((seg) => _measureThickness(seg, distMat, wWidth, wHeight));
 
   const snapTolerance = meterByPx > 0 ? Math.max(5, Math.round(0.05 / meterByPx)) : 8;
   _snapEndpoints(mergedH, mergedV, snapTolerance);
-  const extendTolerance = meterByPx > 0 ? Math.max(8, Math.round(0.15 / meterByPx)) : 15;
+
+  // Extend tolerance = max wall thickness + margin, so a segment can traverse
+  // the perpendicular wall's thickness to connect properly (L/T junctions)
+  const maxThicknessH = hThicknesses.length > 0 ? Math.max(...hThicknesses) : 20;
+  const maxThicknessV = vThicknesses.length > 0 ? Math.max(...vThicknesses) : 20;
+  const extendTolerance = Math.max(15, Math.round(Math.max(maxThicknessH, maxThicknessV) * 1.5));
   _extendEndpoints(mergedH, mergedV, extendTolerance, wWallMask, wWidth, wHeight);
 
   const resolved = _resolveTopology(mergedH, mergedV, snapTolerance);
@@ -1420,6 +1431,111 @@ function _snapToGrid(position, gridLines) {
     if (dist < bestDist) { bestDist = dist; bestLine = line; }
   }
   return bestLine;
+}
+
+/**
+ * Extend each segment's endpoints outward along its axis until the dark
+ * pixels in the wall mask end. This captures wall material that HoughLinesP
+ * detected partially.
+ *
+ * Scans pixel-by-pixel in the mask along the segment's position line.
+ * Stops when hitting a run of consecutive white pixels (gap).
+ */
+function _extendToWallExtent(segments, mask, w, h, axis, distMat, perpSegments) {
+  const maxWhiteRun = 2; // stop after 2 consecutive mostly-white slices
+  const maxExtend = 200; // safety limit
+  const darkThreshold = 0.8; // at least 80% of the band must be dark
+
+  for (const seg of segments) {
+    const pos = seg.position;
+    const limit = axis === "H" ? w : h;
+
+    // Estimate half-width of the wall from distMap at segment center
+    const midT = Math.round((seg.start + seg.end) / 2);
+    let halfWidth;
+    if (axis === "H") {
+      const mx = Math.min(w - 1, Math.max(0, midT));
+      const my = Math.min(h - 1, Math.max(0, pos));
+      halfWidth = Math.max(3, Math.round(distMat.floatAt(my, mx)));
+    } else {
+      const mx = Math.min(w - 1, Math.max(0, pos));
+      const my = Math.min(h - 1, Math.max(0, midT));
+      halfWidth = Math.max(3, Math.round(distMat.floatAt(my, mx)));
+    }
+
+    // Find perpendicular walls that this segment crosses — stop extending
+    // past them. A perpendicular wall's "position" is the coordinate along
+    // our axis where the crossing happens.
+    const perpBarriers = [];
+    for (const perp of perpSegments) {
+      // perp.position is on our scanning axis (e.g. for V segments, perp H has position = Y)
+      // Check if our segment's position falls within the perp's range
+      if (pos >= perp.start - halfWidth && pos <= perp.end + halfWidth) {
+        perpBarriers.push(perp.position);
+      }
+    }
+
+    // Check if a perpendicular band at position t is mostly dark
+    const isBandDark = (t) => {
+      let dark = 0, total = 0;
+      for (let d = -halfWidth; d <= halfWidth; d++) {
+        let px, py;
+        if (axis === "H") { px = t; py = pos + d; }
+        else { px = pos + d; py = t; }
+        if (px < 0 || px >= w || py < 0 || py >= h) continue;
+        total++;
+        if (mask[py * w + px]) dark++;
+      }
+      return total > 0 && (dark / total) >= darkThreshold;
+    };
+
+    // Extend START (scan backward) — stop at perpendicular walls
+    let newStart = seg.start;
+    let whiteCount = 0;
+    const startBarrier = perpBarriers
+      .filter(b => b < seg.start)
+      .reduce((max, b) => Math.max(max, b), -Infinity);
+    const startLimit = Math.max(0, seg.start - maxExtend,
+      startBarrier !== -Infinity ? startBarrier - halfWidth : 0);
+    for (let t = seg.start - 1; t >= startLimit; t--) {
+      if (isBandDark(t)) {
+        whiteCount = 0;
+        newStart = t;
+      } else {
+        whiteCount++;
+        if (whiteCount >= maxWhiteRun) break;
+      }
+    }
+    // Snap to perpendicular wall position if we reached the barrier
+    if (startBarrier !== -Infinity && newStart <= startBarrier + halfWidth) {
+      newStart = startBarrier;
+    }
+
+    // Extend END (scan forward) — stop at perpendicular walls
+    let newEnd = seg.end;
+    whiteCount = 0;
+    const endBarrier = perpBarriers
+      .filter(b => b > seg.end)
+      .reduce((min, b) => Math.min(min, b), Infinity);
+    const endLimit = Math.min(limit, seg.end + maxExtend,
+      endBarrier !== Infinity ? endBarrier + halfWidth : limit);
+    for (let t = seg.end + 1; t < endLimit; t++) {
+      if (isBandDark(t)) {
+        whiteCount = 0;
+        newEnd = t;
+      } else {
+        whiteCount++;
+        if (whiteCount >= maxWhiteRun) break;
+      }
+    }
+    // Snap to perpendicular wall position if we reached the barrier
+    if (endBarrier !== Infinity && newEnd >= endBarrier - halfWidth) {
+      newEnd = endBarrier;
+    }
+
+    seg.start = newStart;
+    seg.end = newEnd;
+  }
 }
 
 function _fillGapsOnGridLines(segments, mask, w, h, axis, maxGap, distMat) {
