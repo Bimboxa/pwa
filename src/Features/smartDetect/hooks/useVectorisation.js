@@ -15,8 +15,6 @@ import cv from "Features/opencv/services/opencvService";
 export default function useVectorisation() {
   const dispatch = useDispatch();
 
-  // data
-
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const listingId = useSelector((s) => s.listings.selectedListingId);
@@ -28,8 +26,6 @@ export default function useVectorisation() {
   const baseMap = useMainBaseMap();
   const { value: selectedListing } = useSelectedListing();
 
-  // main
-
   const vectorise = useCallback(
     async ({ annotations, annotationTemplate }) => {
       if (!annotations?.length || !annotationTemplate) {
@@ -38,68 +34,40 @@ export default function useVectorisation() {
 
       const imageSize = baseMap?.getImageSize?.();
       const { width, height } = imageSize ?? {};
-      if (!width || !height) {
-        throw new Error("No image size available from baseMap");
-      }
+      if (!width || !height) throw new Error("No image size available");
 
       const meterByPx = baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx;
-      if (!meterByPx || meterByPx <= 0) {
-        throw new Error("meterByPx is required for vectorisation");
-      }
+      if (!meterByPx || meterByPx <= 0) throw new Error("meterByPx is required");
 
       const imageUrl = baseMap?.getUrl?.();
-      if (!imageUrl) {
-        throw new Error("No baseMap image URL available");
-      }
+      if (!imageUrl) throw new Error("No baseMap image URL available");
 
-      // ── 1. Resolve annotation points from DB → pixel coords ──────────
+      // ── 1. Resolve points (main + cuts) from DB ──────────────────────
       const allPointIds = [];
       for (const ann of annotations) {
-        if (ann.points) {
-          for (const p of ann.points) {
-            if (p.id) allPointIds.push(p.id);
-          }
-        }
-        // Also collect cut point IDs
-        if (ann.cuts) {
-          for (const cut of ann.cuts) {
-            if (cut.points) {
-              for (const p of cut.points) {
-                if (p.id) allPointIds.push(p.id);
-              }
-            }
-          }
-        }
+        if (ann.points) for (const p of ann.points) if (p.id) allPointIds.push(p.id);
+        if (ann.cuts) for (const cut of ann.cuts) if (cut.points) for (const p of cut.points) if (p.id) allPointIds.push(p.id);
       }
 
       const pointRecords = await db.points.bulkGet(allPointIds);
       const pointsById = {};
-      for (const pt of pointRecords) {
-        if (pt) pointsById[pt.id] = pt;
-      }
+      for (const pt of pointRecords) if (pt) pointsById[pt.id] = pt;
 
       const resolvePointList = (pointRefs) => {
         const pts = [];
         for (const p of pointRefs) {
           const record = pointsById[p.id];
-          if (record) {
-            pts.push({ x: record.x * width, y: record.y * height });
-          } else if (p.x !== undefined && p.y !== undefined) {
-            // Points already resolved (pixel coords from useLiveQuery)
-            pts.push({ x: p.x, y: p.y });
-          }
+          if (record) pts.push({ x: record.x * width, y: record.y * height });
+          else if (p.x !== undefined && p.y !== undefined) pts.push({ x: p.x, y: p.y });
         }
         return pts;
       };
 
-      // Build boundaries (polygon contours + cuts in pixel coords)
       const boundaries = [];
       for (const ann of annotations) {
         if (!ann.points || ann.points.length < 3) continue;
         const pts = resolvePointList(ann.points);
         if (pts.length < 3) continue;
-
-        // Resolve cuts (holes in the polygon = areas that ARE walls/pillars)
         const cuts = [];
         if (ann.cuts) {
           for (const cut of ann.cuts) {
@@ -109,13 +77,10 @@ export default function useVectorisation() {
             }
           }
         }
-
         boundaries.push({ points: pts, cuts });
       }
 
-      if (boundaries.length === 0) {
-        throw new Error("No valid polygon boundaries found");
-      }
+      if (boundaries.length === 0) throw new Error("No valid polygon boundaries found");
 
       // ── 2. Call worker ────────────────────────────────────────────────
       await cv.load();
@@ -134,26 +99,16 @@ export default function useVectorisation() {
 
       // ── 3. Build annotations with shared point topology ───────────────
       const templateProps = getAnnotationTemplateProps(annotationTemplate);
-      const entityTable =
-        selectedListing?.table ??
-        selectedListing?.entityModel?.defaultTable;
+      const entityTable = selectedListing?.table ?? selectedListing?.entityModel?.defaultTable;
 
-      const SNAP_TOLERANCE = 1.5; // pixels
+      const SNAP_TOLERANCE = 1.5;
       const pointIndex = new Map();
-
-      const coordKey = (x, y) =>
-        `${Math.round(x / SNAP_TOLERANCE)},${Math.round(y / SNAP_TOLERANCE)}`;
-
+      const coordKey = (x, y) => `${Math.round(x / SNAP_TOLERANCE)},${Math.round(y / SNAP_TOLERANCE)}`;
       const getOrCreatePoint = (pxX, pxY) => {
         const key = coordKey(pxX, pxY);
         if (pointIndex.has(key)) return pointIndex.get(key).id;
-
         const pointId = nanoid();
-        pointIndex.set(key, {
-          id: pointId,
-          nx: pxX / width,
-          ny: pxY / height,
-        });
+        pointIndex.set(key, { id: pointId, nx: pxX / width, ny: pxY / height });
         return pointId;
       };
 
@@ -167,25 +122,18 @@ export default function useVectorisation() {
         const thicknessPx = thicknesses[i] ?? 2;
         const thicknessCm = Math.round(thicknessPx * meterByPx * 100 * 10) / 10;
 
-        // Entity
         let entityId;
         if (entityTable) {
           entityId = nanoid();
-          allEntities.push({
-            id: entityId,
-            listingId,
-            projectId,
-          });
+          allEntities.push({ id: entityId, listingId, projectId });
         }
 
-        // Points — resolve shared IDs via the index
         const pointRefs = polyline.map((pt) => ({
           id: getOrCreatePoint(pt.x, pt.y),
           type: "square",
         }));
 
-        // Annotation
-        const annotation = {
+        allAnnotations.push({
           id: nanoid(),
           type: "POLYLINE",
           annotationTemplateId: annotationTemplate.id,
@@ -201,56 +149,34 @@ export default function useVectorisation() {
           listingId,
           ...(activeLayerId ? { layerId: activeLayerId } : {}),
           points: pointRefs,
-        };
-        allAnnotations.push(annotation);
-      }
-
-      // ── 4. Build unique points array ──────────────────────────────────
-      const allPoints = [];
-      for (const entry of pointIndex.values()) {
-        allPoints.push({
-          id: entry.id,
-          x: entry.nx,
-          y: entry.ny,
-          baseMapId,
-          projectId,
-          listingId,
-          forMarker: false,
         });
       }
 
-      // ── 5. Bulk write ────────────────────────────────────────────────
+      // ── 4. Bulk write ────────────────────────────────────────────────
+      const allPoints = [];
+      for (const entry of pointIndex.values()) {
+        allPoints.push({
+          id: entry.id, x: entry.nx, y: entry.ny,
+          baseMapId, projectId, listingId, forMarker: false,
+        });
+      }
+
       const tables = [db.points, db.annotations];
       if (entityTable && allEntities.length > 0) tables.push(db[entityTable]);
 
       await db.transaction("rw", tables, async () => {
         if (allPoints.length > 0) await db.points.bulkAdd(allPoints);
-        if (entityTable && allEntities.length > 0)
-          await db[entityTable].bulkAdd(allEntities);
-        if (allAnnotations.length > 0)
-          await db.annotations.bulkAdd(allAnnotations);
+        if (entityTable && allEntities.length > 0) await db[entityTable].bulkAdd(allEntities);
+        if (allAnnotations.length > 0) await db.annotations.bulkAdd(allAnnotations);
       });
 
-      // Redux updates
       dispatch(triggerAnnotationsUpdate());
       if (entityTable) dispatch(triggerEntitiesTableUpdate(entityTable));
 
-      console.log(
-        `[useVectorisation] Created ${allAnnotations.length} annotations, ${allPoints.length} points`
-      );
-
+      console.log(`[useVectorisation] Created ${allAnnotations.length} annotations, ${allPoints.length} points`);
       return { count: allAnnotations.length };
     },
-    [
-      baseMap,
-      baseMapId,
-      projectId,
-      listingId,
-      activeLayerId,
-      orthoSnapAngleOffset,
-      selectedListing,
-      dispatch,
-    ]
+    [baseMap, baseMapId, projectId, listingId, activeLayerId, orthoSnapAngleOffset, selectedListing, dispatch]
   );
 
   return vectorise;

@@ -56,6 +56,7 @@ class CV {
           clearInterval(interval);
         } else {
           checkCount++;
+          const maxChecks = Math.ceil((timeout || 10000) / 50);
           if (checkCount > maxChecks) {
             delete this._status[requestId];
             clearInterval(interval);
@@ -280,7 +281,7 @@ class CV {
     return this._dispatch({
       msg: "vectoriseWallsAsync",
       payload,
-      timeout: 120000, // 2 minutes — heavy image processing
+      timeout: 120000,
     });
   }
 }
