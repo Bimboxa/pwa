@@ -101,7 +101,7 @@ export default function useVectorisation() {
       const templateProps = getAnnotationTemplateProps(annotationTemplate);
       const entityTable = selectedListing?.table ?? selectedListing?.entityModel?.defaultTable;
 
-      const SNAP_TOLERANCE = 1.5;
+      const SNAP_TOLERANCE = 3;
       const pointIndex = new Map();
       const coordKey = (x, y) => `${Math.round(x / SNAP_TOLERANCE)},${Math.round(y / SNAP_TOLERANCE)}`;
       const getOrCreatePoint = (pxX, pxY) => {

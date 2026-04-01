@@ -240,6 +240,9 @@ async function vectoriseWallsAsync({ msg, payload }) {
 // Post-processing pipeline
 // ═══════════════════════════════════════════════════════════════════════
 
+// Utility: coordinate key for point matching (rounded to 1px)
+const _ptKey = (x, y) => `${Math.round(x)},${Math.round(y)}`;
+
 function _postProcessSegments(rawSegments, ctx) {
   const { wWallMask, wWidth, wHeight, distMat, meterByPx, maxLineGap } = ctx;
 
@@ -314,9 +317,6 @@ function _postProcessSegments(rawSegments, ctx) {
 
   const snapTolerance = meterByPx > 0 ? Math.max(5, Math.round(0.05 / meterByPx)) : 8;
   _snapEndpoints(mergedH, mergedV, snapTolerance);
-
-  // Extend tolerance = max wall thickness + margin, so a segment can traverse
-  // the perpendicular wall's thickness to connect properly (L/T junctions)
   const maxThicknessH = hThicknesses.length > 0 ? Math.max(...hThicknesses) : 20;
   const maxThicknessV = vThicknesses.length > 0 ? Math.max(...vThicknesses) : 20;
   const extendTolerance = Math.max(15, Math.round(Math.max(maxThicknessH, maxThicknessV) * 1.5));
@@ -394,9 +394,6 @@ function _postProcessSegments(rawSegments, ctx) {
   const noZigzagResult = _removeZigzags(noStubResult.polylines, noStubResult.thicknesses);
 
   // ── Phase 5d½: Simplify colinear points (Douglas-Peucker) ─────────
-  // Chaîned segments on the same wall create many colinear intermediate
-  // points. Simplify each polyline by removing points that are within
-  // tolerance of the line between their neighbours.
   const rdpTolerance = meterByPx > 0 ? Math.max(3, Math.round(0.03 / meterByPx)) : 5;
   const rdpResult = _simplifyColinearPoints(noZigzagResult.polylines, noZigzagResult.thicknesses, rdpTolerance);
 
@@ -438,8 +435,176 @@ function _postProcessSegments(rawSegments, ctx) {
     postZigzagResult.polylines, allGridLines, gridTolerance, wWallMask, wWidth, wHeight
   );
 
-  return { polylines: simplified, thicknesses: postZigzagResult.thicknesses };
+  // ── Phase 7: Junction resolution (L/T/X) — FINAL STEP ──────────────
+  // After all simplification is done, insert shared junction points into
+  // polylines where orthogonal walls meet. This is the last step so
+  // junction points are never removed by simplification phases.
+  const junctionSnapTol = Math.max(5, Math.round(Math.max(maxThicknessH, maxThicknessV) * 0.75));
+  const finalResult = _insertJunctionPoints(simplified, postZigzagResult.thicknesses, junctionSnapTol);
+
+  return finalResult;
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Phase 7: Junction point insertion (L/T/X)
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Final pass: for each polyline endpoint that is near the BODY of another
+ * polyline (T junction), insert the endpoint's coordinates into the other
+ * polyline's point array. This creates shared point coordinates that the
+ * hook will match via getOrCreatePoint().
+ *
+ * Also snaps L-junction endpoints to the exact same coordinates.
+ */
+function _insertJunctionPoints(polylines, thicknesses, snapTol) {
+  // For each polyline, compute its direction (H or V) and bounding info
+  const plData = polylines.map((pl) => {
+    if (pl.length < 2) return null;
+    const first = pl[0], last = pl[pl.length - 1];
+    const dx = Math.abs(last.x - first.x), dy = Math.abs(last.y - first.y);
+    const dir = dy > dx * 2 ? "V" : dx > dy * 2 ? "H" : null;
+    return { dir, first, last };
+  });
+
+  // Point-to-segment perpendicular projection
+  const projectOntoSegment = (px, py, ax, ay, bx, by) => {
+    const dx = bx - ax, dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return { x: ax, y: ay, t: 0, dist: Math.sqrt((px - ax) ** 2 + (py - ay) ** 2) };
+    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+    const projX = ax + t * dx, projY = ay + t * dy;
+    const dist = Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
+    return { x: projX, y: projY, t, dist };
+  };
+
+  // For each polyline's endpoints, check if they're near the body of another polyline
+  for (let i = 0; i < polylines.length; i++) {
+    const plA = polylines[i];
+    if (plA.length < 2) continue;
+    const dataA = plData[i];
+    if (!dataA) continue;
+
+    const endpoints = [plA[0], plA[plA.length - 1]];
+
+    for (const ep of endpoints) {
+      for (let j = 0; j < polylines.length; j++) {
+        if (j === i) continue;
+        const plB = polylines[j];
+        if (plB.length < 2) continue;
+
+        // Check each segment of polyline B
+        for (let k = 0; k < plB.length - 1; k++) {
+          const segStart = plB[k], segEnd = plB[k + 1];
+          const proj = projectOntoSegment(ep.x, ep.y, segStart.x, segStart.y, segEnd.x, segEnd.y);
+
+          if (proj.dist > snapTol) continue;
+          if (proj.t < 0.05 || proj.t > 0.95) continue; // near endpoint, not body — skip (L junction handled by snap)
+
+          // T junction: endpoint of A is near the body of B
+          // Insert the projected point into B's point array
+          const insertPt = { x: Math.round(proj.x * 10) / 10, y: Math.round(proj.y * 10) / 10 };
+
+          // Check if point already exists nearby in B
+          let alreadyExists = false;
+          for (const pt of plB) {
+            if (Math.abs(pt.x - insertPt.x) < 2 && Math.abs(pt.y - insertPt.y) < 2) {
+              // Snap endpoint to existing point
+              ep.x = pt.x;
+              ep.y = pt.y;
+              alreadyExists = true;
+              break;
+            }
+          }
+
+          if (!alreadyExists) {
+            // Insert the point into B at the right position
+            plB.splice(k + 1, 0, insertPt);
+            // Snap endpoint of A to the inserted point
+            ep.x = insertPt.x;
+            ep.y = insertPt.y;
+          }
+          break; // one junction per endpoint
+        }
+      }
+    }
+  }
+
+  // ── L junctions: two orthogonal endpoints near each other ──────────
+  // Extend both lines to their intersection and replace both endpoints
+  // with the shared intersection point.
+  const connected = new Set();
+  for (let i = 0; i < polylines.length; i++) {
+    const plA = polylines[i];
+    if (plA.length < 2 || !plData[i] || !plData[i].dir) continue;
+
+    for (let ei = 0; ei < 2; ei++) {
+      const epA = ei === 0 ? plA[0] : plA[plA.length - 1];
+      const keyA = `${i}_${ei}`;
+      if (connected.has(keyA)) continue;
+
+      // Direction vector of A's last segment near this endpoint
+      const segA = ei === 0
+        ? { dx: plA[1].x - plA[0].x, dy: plA[1].y - plA[0].y }
+        : { dx: plA[plA.length - 1].x - plA[plA.length - 2].x, dy: plA[plA.length - 1].y - plA[plA.length - 2].y };
+
+      for (let j = i + 1; j < polylines.length; j++) {
+        const plB = polylines[j];
+        if (plB.length < 2 || !plData[j] || !plData[j].dir) continue;
+        if (plData[i].dir === plData[j].dir) continue; // must be orthogonal
+
+        for (let ej = 0; ej < 2; ej++) {
+          const epB = ej === 0 ? plB[0] : plB[plB.length - 1];
+          const keyB = `${j}_${ej}`;
+          if (connected.has(keyB)) continue;
+
+          const dist = Math.sqrt((epA.x - epB.x) ** 2 + (epA.y - epB.y) ** 2);
+          if (dist > snapTol * 2) continue;
+
+          // Direction vector of B's last segment near this endpoint
+          const segB = ej === 0
+            ? { dx: plB[1].x - plB[0].x, dy: plB[1].y - plB[0].y }
+            : { dx: plB[plB.length - 1].x - plB[plB.length - 2].x, dy: plB[plB.length - 1].y - plB[plB.length - 2].y };
+
+          // Compute intersection of the two lines
+          // Line A: epA + t * segA, Line B: epB + s * segB
+          const denom = segA.dx * segB.dy - segA.dy * segB.dx;
+          if (Math.abs(denom) < 0.01) continue; // parallel
+
+          const t = ((epB.x - epA.x) * segB.dy - (epB.y - epA.y) * segB.dx) / denom;
+          const ix = Math.round((epA.x + t * segA.dx) * 10) / 10;
+          const iy = Math.round((epA.y + t * segA.dy) * 10) / 10;
+
+          // Check intersection is reasonable (not too far from endpoints)
+          const distAtoI = Math.sqrt((epA.x - ix) ** 2 + (epA.y - iy) ** 2);
+          const distBtoI = Math.sqrt((epB.x - ix) ** 2 + (epB.y - iy) ** 2);
+          if (distAtoI > snapTol * 3 || distBtoI > snapTol * 3) continue;
+
+          // Replace both endpoints with the intersection point
+          epA.x = ix; epA.y = iy;
+          epB.x = ix; epB.y = iy;
+
+          connected.add(keyA);
+          connected.add(keyB);
+          break;
+        }
+        if (connected.has(keyA)) break;
+      }
+    }
+  }
+
+  // ── Clean: remove consecutive duplicate points ──────────────────────
+  for (const pl of polylines) {
+    for (let k = pl.length - 1; k > 0; k--) {
+      if (Math.abs(pl[k].x - pl[k - 1].x) < 1 && Math.abs(pl[k].y - pl[k - 1].y) < 1) {
+        pl.splice(k, 1);
+      }
+    }
+  }
+
+  return { polylines, thicknesses };
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // Grid simplification
@@ -955,8 +1120,8 @@ function _removeZigzags(polylines, thicknesses) {
       const kept = [points[0]];
 
       for (let i = 1; i < points.length - 1; i++) {
-        const prev = kept[kept.length - 1];
         const curr = points[i];
+        const prev = kept[kept.length - 1];
         const next = points[i + 1];
 
         // Direction vectors
@@ -1011,7 +1176,6 @@ function _simplifyColinearPoints(polylines, thicknesses, tolerance) {
 function _rdp(points, epsilon) {
   if (points.length <= 2) return points;
 
-  // Find the point with the maximum distance from the line (first → last)
   const first = points[0];
   const last = points[points.length - 1];
   let maxDist = 0;
@@ -1024,10 +1188,8 @@ function _rdp(points, epsilon) {
   for (let i = 1; i < points.length - 1; i++) {
     let dist;
     if (lenSq === 0) {
-      // first and last are the same point
       dist = Math.sqrt((points[i].x - first.x) ** 2 + (points[i].y - first.y) ** 2);
     } else {
-      // Perpendicular distance from point to line
       const t = Math.max(0, Math.min(1, ((points[i].x - first.x) * dx + (points[i].y - first.y) * dy) / lenSq));
       const projX = first.x + t * dx;
       const projY = first.y + t * dy;
@@ -1575,6 +1737,118 @@ function _measureDarkRatio(position, start, end, mask, w, h, axis) {
   return totalCount > 0 ? darkCount / totalCount : 0;
 }
 
+/**
+ * Unified junction resolver: detects L/T/X intersections between H and V
+ * segments, creates shared intersection points, and outputs endpoint pairs
+ * with proper topology.
+ *
+ * For each H-V pair:
+ *   - Intersection point = (V.position, H.position)
+ *   - Classify each segment's relationship to the intersection:
+ *     ENDPOINT: segment start/end is within tolerance of intersection → snap to it
+ *     BODY: intersection falls inside the segment's range → split at intersection
+ *     NONE: intersection is outside the segment → no junction
+ *   - L junction: both segments have ENDPOINT at intersection
+ *   - T junction: one ENDPOINT, one BODY
+ *   - X junction: both BODY → split both
+ */
+function _resolveJunctions(hSegments, vSegments, hThicknesses, vThicknesses) {
+  // Build thickness lookup: half-width tolerance for endpoint proximity
+  const getHalfWidth = (thicknesses, idx) => Math.max(5, Math.round((thicknesses[idx] || 10) * 0.75));
+
+  // Collect split points for each segment
+  const hSplits = hSegments.map(() => new Set());
+  const vSplits = vSegments.map(() => new Set());
+  // Track endpoint snaps: which endpoints should be moved to intersection
+  const hSnaps = hSegments.map(() => ({})); // { start: x, end: x }
+  const vSnaps = vSegments.map(() => ({})); // { start: y, end: y }
+
+  for (let hi = 0; hi < hSegments.length; hi++) {
+    const h = hSegments[hi];
+    const hHalf = getHalfWidth(hThicknesses, hi);
+
+    for (let vi = 0; vi < vSegments.length; vi++) {
+      const v = vSegments[vi];
+      const vHalf = getHalfWidth(vThicknesses, vi);
+      const tol = Math.max(hHalf, vHalf);
+
+      // Intersection point
+      const ix = v.position; // X of intersection = V segment's X position
+      const iy = h.position; // Y of intersection = H segment's Y position
+
+      // Check H segment's relationship to ix
+      let hRel = "NONE";
+      if (Math.abs(h.start - ix) <= tol) hRel = "START";
+      else if (Math.abs(h.end - ix) <= tol) hRel = "END";
+      else if (ix > h.start + tol && ix < h.end - tol) hRel = "BODY";
+
+      // Check V segment's relationship to iy
+      let vRel = "NONE";
+      if (Math.abs(v.start - iy) <= tol) vRel = "START";
+      else if (Math.abs(v.end - iy) <= tol) vRel = "END";
+      else if (iy > v.start + tol && iy < v.end - tol) vRel = "BODY";
+
+      if (hRel === "NONE" || vRel === "NONE") continue;
+
+      // ── Snap endpoints to intersection ──
+      if (hRel === "START") hSnaps[hi].start = ix;
+      if (hRel === "END") hSnaps[hi].end = ix;
+      if (vRel === "START") vSnaps[vi].start = iy;
+      if (vRel === "END") vSnaps[vi].end = iy;
+
+      // ── Split body segments at intersection ──
+      if (hRel === "BODY") hSplits[hi].add(ix);
+      if (vRel === "BODY") vSplits[vi].add(iy);
+    }
+  }
+
+  // Apply snaps
+  for (let i = 0; i < hSegments.length; i++) {
+    if (hSnaps[i].start !== undefined) hSegments[i].start = hSnaps[i].start;
+    if (hSnaps[i].end !== undefined) hSegments[i].end = hSnaps[i].end;
+  }
+  for (let i = 0; i < vSegments.length; i++) {
+    if (vSnaps[i].start !== undefined) vSegments[i].start = vSnaps[i].start;
+    if (vSnaps[i].end !== undefined) vSegments[i].end = vSnaps[i].end;
+  }
+
+  // Build output: each segment becomes ONE polyline with junction points
+  // inserted as intermediate points (comb pattern for T junctions).
+  const pairs = [];
+  const thicknesses = [];
+
+  const emitPolyline = (seg, junctionPoints, thickness, axis) => {
+    const sorted = [...junctionPoints].sort((a, b) => a - b);
+    // Build point array: start, junction points, end
+    const coords = [seg.start, ...sorted.filter(jp => jp > seg.start + 1 && jp < seg.end - 1), seg.end];
+    // Remove duplicates
+    const unique = [coords[0]];
+    for (let k = 1; k < coords.length; k++) {
+      if (Math.abs(coords[k] - unique[unique.length - 1]) > 1) unique.push(coords[k]);
+    }
+
+    if (unique.length < 2) return;
+
+    // Emit as polyline points
+    const polyPoints = unique.map(t => {
+      if (axis === "H") return { x: t, y: seg.position };
+      else return { x: seg.position, y: t };
+    });
+    pairs.push(polyPoints);
+    thicknesses.push(thickness);
+  };
+
+  for (let i = 0; i < hSegments.length; i++) {
+    emitPolyline(hSegments[i], hSplits[i], hThicknesses[i], "H");
+  }
+  for (let i = 0; i < vSegments.length; i++) {
+    emitPolyline(vSegments[i], vSplits[i], vThicknesses[i], "V");
+  }
+
+  return { pairs, thicknesses };
+}
+
+// Legacy functions kept for reference but no longer called in the main pipeline
 function _snapEndpoints(hSegments, vSegments, snapTolerance) {
   for (const h of hSegments) {
     for (const v of vSegments) {
