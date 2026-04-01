@@ -153,9 +153,16 @@ async function vectoriseWallsAsync({ msg, payload }) {
 
     const maskImageData = maskCtx.getImageData(0, 0, roiW, roiH);
 
-    // 3d. wallMask = NOT room AND dark on image
+    // 3d. Room mask (1 = inside a room polygon, 0 = outside/wall)
+    // Used to distinguish peripheral walls (outside on one side) from interior walls.
     const wWidth = roiW;
     const wHeight = roiH;
+    const wRoomMask = new Uint8Array(wWidth * wHeight);
+    for (let i = 0; i < wWidth * wHeight; i++) {
+      wRoomMask[i] = maskImageData.data[i * 4] > 128 ? 1 : 0;
+    }
+
+    // 3e. wallMask = NOT room AND dark on image
     const wWallMask = new Uint8Array(wWidth * wHeight);
     for (let i = 0; i < wWidth * wHeight; i++) {
       const isRoom = maskImageData.data[i * 4] > 128;
@@ -204,7 +211,7 @@ async function vectoriseWallsAsync({ msg, payload }) {
 
     // ── 8. Post-process ────────────────────────────────────────────────
     const postResult = _postProcessSegments(rawSegments, {
-      wWallMask, wWidth, wHeight, distMat, meterByPx, maxLineGap,
+      wWallMask, wRoomMask, wWidth, wHeight, distMat, meterByPx, maxLineGap,
     });
     let polylines = postResult.polylines;
     let thicknesses = postResult.thicknesses;
@@ -244,7 +251,7 @@ async function vectoriseWallsAsync({ msg, payload }) {
 const _ptKey = (x, y) => `${Math.round(x)},${Math.round(y)}`;
 
 function _postProcessSegments(rawSegments, ctx) {
-  const { wWallMask, wWidth, wHeight, distMat, meterByPx, maxLineGap } = ctx;
+  const { wWallMask, wRoomMask, wWidth, wHeight, distMat, meterByPx, maxLineGap } = ctx;
 
   // ── Phase 1: Classify H/V/diagonal, merge collinear ──────────────────
   const ANGLE_TOL = Math.PI / 12;
@@ -291,27 +298,154 @@ function _postProcessSegments(rawSegments, ctx) {
   mergedH = _filterThickZones(mergedH, wWallMask, wWidth, wHeight, "H", maxThickness);
   mergedV = _filterThickZones(mergedV, wWallMask, wWidth, wHeight, "V", maxThickness);
 
-  // ── Phase 2: Grid snap ───────────────────────────────────────────────
-  const gridTolerance = meterByPx > 0 ? Math.max(3, Math.round(0.02 / meterByPx)) : 4;
-  const hGridLines = _buildGridLines(mergedH.map((s) => s.position), gridTolerance);
-  const vGridLines = _buildGridLines(mergedV.map((s) => s.position), gridTolerance);
-  for (const seg of mergedH) seg.position = _snapToGrid(seg.position, hGridLines);
-  for (const seg of mergedV) seg.position = _snapToGrid(seg.position, vGridLines);
-  mergedH = _mergeColinear(mergedH, 1, gapTolerance);
-  mergedV = _mergeColinear(mergedV, 1, gapTolerance);
+  // ── Phase 1.0: Classify peripheral vs interior segments ─────────────
+  // Peripheral walls have "outside" (non-mask) on one side.
+  // Interior walls have mask (rooms/walls) on both sides.
+  const { peripheral: periH, interior: intH } = _classifyPeripheral(mergedH, wRoomMask, wWidth, wHeight, "H", distMat);
+  const { peripheral: periV, interior: intV } = _classifyPeripheral(mergedV, wRoomMask, wWidth, wHeight, "V", distMat);
 
-  // ── Phase 3: Gap fill (dark pixel check) ─────────────────────────────
+  // ── Phase 1.1: Process peripheral walls ───────────────────────────
+  const periResult = _processWallGroup(periH, periV, [], ctx);
+
+  // ── Phase 1.2: Process interior walls with peripheral context ─────
+  // TODO: uncomment when Phase 1.1 is validated
+  // const intResult = _processWallGroup(intH, intV, periResult.polylines, ctx);
+  // const allPolylines = [...periResult.polylines, ...intResult.polylines];
+  // const allThicknesses = [...periResult.thicknesses, ...intResult.thicknesses];
+  const allPolylines = periResult.polylines;
+  const allThicknesses = periResult.thicknesses;
+
+  // ── Phase 7: Junction resolution (L/T/X) — FINAL STEP ──────────────
+  const maxThicknessAll = allThicknesses.length > 0 ? Math.max(...allThicknesses) : 20;
+  const junctionSnapTol = Math.max(5, Math.round(maxThicknessAll * 0.75));
+  const finalResult = _insertJunctionPoints(allPolylines, allThicknesses, junctionSnapTol);
+
+  return finalResult;
+}
+
+/**
+ * Classify segments as peripheral (one side faces outside) or interior (rooms on both sides).
+ * Checks pixels perpendicular to the segment on both sides beyond the wall thickness.
+ */
+/**
+ * Classify segments as peripheral or interior using the room mask.
+ * Room mask: 1 = inside a flood fill polygon (room), 0 = outside building or wall material.
+ *
+ * Peripheral wall: one side faces outside (roomMask = 0 beyond the wall)
+ * Interior wall: both sides face rooms (roomMask = 1 beyond the wall on both sides)
+ */
+function _classifyPeripheral(segments, roomMask, w, h, axis, distMat) {
+  const peripheral = [], interior = [];
+  const sampleCount = 10;
+
+  for (const seg of segments) {
+    // Estimate wall half-width from distance transform
+    const midT = Math.round((seg.start + seg.end) / 2);
+    let halfWidth;
+    if (axis === "H") {
+      halfWidth = Math.max(5, Math.round(distMat.floatAt(
+        Math.min(h - 1, Math.max(0, seg.position)),
+        Math.min(w - 1, Math.max(0, midT))
+      )));
+    } else {
+      halfWidth = Math.max(5, Math.round(distMat.floatAt(
+        Math.min(h - 1, Math.max(0, midT)),
+        Math.min(w - 1, Math.max(0, seg.position))
+      )));
+    }
+
+    // Probe beyond the wall on both sides — check room mask
+    const probeOffset = halfWidth + 15;
+    let sideARoom = 0, sideBRoom = 0;
+
+    for (let s = 0; s < sampleCount; s++) {
+      const t = Math.round(seg.start + (s + 0.5) * (seg.end - seg.start) / sampleCount);
+      let pxA, pyA, pxB, pyB;
+      if (axis === "H") {
+        pxA = t; pyA = seg.position - probeOffset; // above
+        pxB = t; pyB = seg.position + probeOffset; // below
+      } else {
+        pxA = seg.position - probeOffset; pyA = t; // left
+        pxB = seg.position + probeOffset; pyB = t; // right
+      }
+
+      // Side A: is it inside a room?
+      if (pxA >= 0 && pxA < w && pyA >= 0 && pyA < h && roomMask[pyA * w + pxA]) {
+        sideARoom++;
+      }
+      // Side B: is it inside a room?
+      if (pxB >= 0 && pxB < w && pyB >= 0 && pyB < h && roomMask[pyB * w + pxB]) {
+        sideBRoom++;
+      }
+    }
+
+    // Peripheral = significant asymmetry between the two sides.
+    // One side faces the flood fill polygon (exterior), the other doesn't.
+    // Interior = both sides similar (both inside the building, no polygon).
+    const asymmetry = Math.abs(sideARoom - sideBRoom);
+    const asymThreshold = sampleCount * 0.4;
+    if (asymmetry >= asymThreshold) {
+      peripheral.push(seg);
+    } else {
+      interior.push(seg);
+    }
+  }
+
+  return { peripheral, interior };
+}
+
+/**
+ * Process a group of H/V wall segments through the full pipeline
+ * (grid snap → gap fill → extend → topology → chain → simplify).
+ *
+ * @param {Array} contextPolylines - Polylines from previous phases (e.g. peripheral walls)
+ *   used as barriers for extension and as context for step junctions.
+ */
+function _processWallGroup(hSegs, vSegs, contextPolylines, ctx) {
+  const { wWallMask, wWidth, wHeight, distMat, meterByPx, maxLineGap } = ctx;
+
+  if (hSegs.length === 0 && vSegs.length === 0) {
+    return { polylines: [], thicknesses: [] };
+  }
+
+  const posTolerance = meterByPx > 0 ? Math.max(3, Math.round(0.03 / meterByPx)) : 5;
+  const gapTolerance = meterByPx > 0 ? Math.max(maxLineGap * 2, Math.round(0.10 / meterByPx)) : maxLineGap * 3;
+
+  // ── Grid snap ──────────────────────────────────────────────────────
+  const gridTolerance = meterByPx > 0 ? Math.max(3, Math.round(0.02 / meterByPx)) : 4;
+  const hGridLines = _buildGridLines(hSegs.map((s) => s.position), gridTolerance);
+  const vGridLines = _buildGridLines(vSegs.map((s) => s.position), gridTolerance);
+  for (const seg of hSegs) seg.position = _snapToGrid(seg.position, hGridLines);
+  for (const seg of vSegs) seg.position = _snapToGrid(seg.position, vGridLines);
+  let mergedH = _mergeColinear(hSegs, 1, gapTolerance);
+  let mergedV = _mergeColinear(vSegs, 1, gapTolerance);
+
+  // ── Gap fill ───────────────────────────────────────────────────────
   const gapFillMaxDistance = meterByPx > 0 ? Math.round(0.30 / meterByPx) : 40;
   mergedH = _fillGapsOnGridLines(mergedH, wWallMask, wWidth, wHeight, "H", gapFillMaxDistance, distMat);
   mergedV = _fillGapsOnGridLines(mergedV, wWallMask, wWidth, wHeight, "V", gapFillMaxDistance, distMat);
 
-  // ── Phase 3b: Extend segments to full wall extent ───────────────────
-  // Scan outward from each segment endpoint along its axis until the dark
-  // pixels end. This captures wall segments that HoughLinesP cut short.
-  _extendToWallExtent(mergedH, wWallMask, wWidth, wHeight, "H", distMat, mergedV);
-  _extendToWallExtent(mergedV, wWallMask, wWidth, wHeight, "V", distMat, mergedH);
+  // ── Extend to wall extent (with perpendicular barriers) ────────────
+  // Include context polylines as additional barriers
+  const allBarriersV = [...mergedV];
+  const allBarriersH = [...mergedH];
+  // Convert context polylines to pseudo-segments for barrier detection
+  for (const pl of contextPolylines) {
+    if (pl.length < 2) continue;
+    const first = pl[0], last = pl[pl.length - 1];
+    const dx = Math.abs(last.x - first.x), dy = Math.abs(last.y - first.y);
+    if (dy > dx * 2) {
+      // V-ish context wall → barrier for H segments
+      allBarriersV.push({ position: Math.round((first.x + last.x) / 2), start: Math.min(first.y, last.y), end: Math.max(first.y, last.y) });
+    } else if (dx > dy * 2) {
+      // H-ish context wall → barrier for V segments
+      allBarriersH.push({ position: Math.round((first.y + last.y) / 2), start: Math.min(first.x, last.x), end: Math.max(first.x, last.x) });
+    }
+  }
+  _extendToWallExtent(mergedH, wWallMask, wWidth, wHeight, "H", distMat, allBarriersV);
+  _extendToWallExtent(mergedV, wWallMask, wWidth, wHeight, "V", distMat, allBarriersH);
 
-  // ── Phase 4: Thickness, snap, extend, topology ───────────────────────
+  // ── Thickness, snap, extend, topology ──────────────────────────────
   const hThicknesses = mergedH.map((seg) => _measureThickness(seg, distMat, wWidth, wHeight));
   const vThicknesses = mergedV.map((seg) => _measureThickness(seg, distMat, wWidth, wHeight));
 
@@ -325,124 +459,78 @@ function _postProcessSegments(rawSegments, ctx) {
   const resolved = _resolveTopology(mergedH, mergedV, snapTolerance);
   const resolvedThicknesses = _mapThicknessesAfterSplit(resolved, mergedH, mergedV, hThicknesses, vThicknesses);
 
-  // Convert to endpoint pairs
-  const allEndpointPairs = [];
-  const allPairThicknesses = [];
+  // ── Convert to endpoint pairs ──────────────────────────────────────
+  const pairs = [];
+  const pairThicknesses = [];
   for (let i = 0; i < resolved.length; i++) {
     const seg = resolved[i];
     if (seg.axis === "H") {
-      allEndpointPairs.push({ p1: { x: seg.start, y: seg.position }, p2: { x: seg.end, y: seg.position } });
+      pairs.push({ p1: { x: seg.start, y: seg.position }, p2: { x: seg.end, y: seg.position } });
     } else {
-      allEndpointPairs.push({ p1: { x: seg.position, y: seg.start }, p2: { x: seg.position, y: seg.end } });
+      pairs.push({ p1: { x: seg.position, y: seg.start }, p2: { x: seg.position, y: seg.end } });
     }
-    allPairThicknesses.push(resolvedThicknesses[i]);
+    pairThicknesses.push(resolvedThicknesses[i]);
   }
-  // Phase A: only grid-aligned walls (H/V). Diagonal segments are excluded
-  // for now — they'll be processed in a future Phase B (curves, non-aligned walls).
-  // for (const seg of diagonalSegments) {
-  //   allEndpointPairs.push({ p1: { x: seg.x1, y: seg.y1 }, p2: { x: seg.x2, y: seg.y2 } });
-  //   allPairThicknesses.push(_measureThicknessDiagonal(seg, distMat, wWidth, wHeight));
-  // }
 
-  // ── Phase 5: Chain colinear segments (dark pixel continuity) ─────────
+  // ── Chain colinear segments ────────────────────────────────────────
   const colinearDistTol = meterByPx > 0 ? Math.max(5, Math.round(0.05 / meterByPx)) : 8;
-  const darkThreshold = 0.4;
-  const chainResult = _chainColinearSegments(allEndpointPairs, allPairThicknesses, colinearDistTol, darkThreshold, wWallMask, wWidth, wHeight);
+  const chainResult = _chainColinearSegments(pairs, pairThicknesses, colinearDistTol, 0.4, wWallMask, wWidth, wHeight);
 
-  // ── Phase 5b: Fill endpoint gaps (junction connectors) ──────────────
+  // ── Gap fill (endpoint connectors) ─────────────────────────────────
   const gapMaxDist = meterByPx > 0 ? Math.max(10, Math.round(0.30 / meterByPx)) : 30;
   const gapResult = _fillEndpointGaps(
     chainResult.polylines, chainResult.thicknesses,
     gapMaxDist, wWallMask, wWidth, wHeight, distMat, 0
   );
 
-  // ── Phase 5c: Remove junction noise ─────────────────────────────────
-  // Short segments (< 40cm) whose BOTH endpoints are near the body of
-  // longer segments are skeleton artifacts at L/T/X junctions.
-  // Also catches diagonal segments created by gap fill (Phase 5b).
+  // ── Remove noise, stubs, zigzags, simplify ─────────────────────────
   const junctionNoiseMaxLen = meterByPx > 0 ? Math.round(0.40 / meterByPx) : 60;
-  // Snap distance ~ wall thickness (typically 20-30cm on plans)
   const junctionSnapDist = meterByPx > 0 ? Math.max(15, Math.round(0.25 / meterByPx)) : 40;
-  const cleanResult = _removeJunctionNoise(
-    gapResult.polylines, gapResult.thicknesses, junctionNoiseMaxLen, junctionSnapDist
-  );
+  const cleanResult = _removeJunctionNoise(gapResult.polylines, gapResult.thicknesses, junctionNoiseMaxLen, junctionSnapDist);
 
-  // ── Phase 5c½: Remove stub segments (length ≤ 1.5× thickness) ──────
-  // A segment shorter than its own width is a junction artifact, not a wall.
-  // Remove these early so they don't pollute junction detection.
-  const stubPolylines = [];
-  const stubThicknesses = [];
+  // Remove stubs
+  let resultPolylines = [], resultThicknesses = [];
   for (let i = 0; i < cleanResult.polylines.length; i++) {
     const pl = cleanResult.polylines[i];
     if (pl.length >= 2) {
       let totalLen = 0;
-      for (let k = 1; k < pl.length; k++) {
-        totalLen += Math.sqrt((pl[k].x - pl[k - 1].x) ** 2 + (pl[k].y - pl[k - 1].y) ** 2);
-      }
-      const thickness = cleanResult.thicknesses[i] || 0;
-      if (totalLen <= thickness * 1.5) continue; // discard stub
+      for (let k = 1; k < pl.length; k++) totalLen += Math.sqrt((pl[k].x - pl[k - 1].x) ** 2 + (pl[k].y - pl[k - 1].y) ** 2);
+      if (totalLen <= (cleanResult.thicknesses[i] || 0) * 1.5) continue;
     }
-    stubPolylines.push(pl);
-    stubThicknesses.push(cleanResult.thicknesses[i]);
+    resultPolylines.push(pl);
+    resultThicknesses.push(cleanResult.thicknesses[i]);
   }
-  const noStubResult = { polylines: stubPolylines, thicknesses: stubThicknesses };
 
-  // ── Phase 5d: Remove zigzag points ─────────────────────────────────
-  // Chaîning can create polylines where direction reverses at intermediate
-  // points (zigzag). Detect via negative dot product of consecutive segment
-  // directions and remove the offending point. Iterate until stable.
-  const noZigzagResult = _removeZigzags(noStubResult.polylines, noStubResult.thicknesses);
+  // Zigzag removal
+  const noZigzag = _removeZigzags(resultPolylines, resultThicknesses);
 
-  // ── Phase 5d½: Simplify colinear points (Douglas-Peucker) ─────────
+  // RDP simplification
   const rdpTolerance = meterByPx > 0 ? Math.max(3, Math.round(0.03 / meterByPx)) : 5;
-  const rdpResult = _simplifyColinearPoints(noZigzagResult.polylines, noZigzagResult.thicknesses, rdpTolerance);
+  const rdpResult = _simplifyColinearPoints(noZigzag.polylines, noZigzag.thicknesses, rdpTolerance);
 
-  // ── Phase 5e: Step junctions ────────────────────────────────────────
-  // Two near-parallel walls (V-V or H-H) slightly offset, connected by an
-  // orthogonal segment visible on the image. Creates L-shaped connectors
-  // with shared intersection points.
+  // Step junctions
   const stepMaxGap = meterByPx > 0 ? Math.max(20, Math.round(1.5 / meterByPx)) : 150;
-  const stepResult = _createStepJunctions(
-    rdpResult.polylines, rdpResult.thicknesses,
-    stepMaxGap, wWallMask, wWidth, wHeight, distMat, meterByPx
-  );
+  const stepResult = _createStepJunctions(rdpResult.polylines, rdpResult.thicknesses, stepMaxGap, wWallMask, wWidth, wHeight, distMat, meterByPx);
 
-  // ── Remove stubs created by step junctions ──────────────────────────
-  const postStepPolylines = [];
-  const postStepThicknesses = [];
+  // Post-step cleanup (stubs + zigzags)
+  let postPolylines = [], postThicknesses = [];
   for (let i = 0; i < stepResult.polylines.length; i++) {
     const pl = stepResult.polylines[i];
     if (pl.length >= 2) {
       let totalLen = 0;
-      for (let k = 1; k < pl.length; k++) {
-        totalLen += Math.sqrt((pl[k].x - pl[k - 1].x) ** 2 + (pl[k].y - pl[k - 1].y) ** 2);
-      }
-      const thickness = stepResult.thicknesses[i] || 0;
-      if (totalLen <= thickness * 1.5) continue;
+      for (let k = 1; k < pl.length; k++) totalLen += Math.sqrt((pl[k].x - pl[k - 1].x) ** 2 + (pl[k].y - pl[k - 1].y) ** 2);
+      if (totalLen <= (stepResult.thicknesses[i] || 0) * 1.5) continue;
     }
-    postStepPolylines.push(pl);
-    postStepThicknesses.push(stepResult.thicknesses[i]);
+    postPolylines.push(pl);
+    postThicknesses.push(stepResult.thicknesses[i]);
   }
+  const postZigzag = _removeZigzags(postPolylines, postThicknesses);
 
-  // ── Remove zigzags created by step junctions ────────────────────────
-  const postZigzagResult = _removeZigzags(postStepPolylines, postStepThicknesses);
-
-  // ── Phase 6: Simplify polylines on grid lines ────────────────────────
-  // Remove intermediate points that lie on the same grid line,
-  // keeping only extremities and junction points (shared with other polylines).
+  // Grid simplification
   const allGridLines = { h: hGridLines, v: vGridLines };
-  const simplified = _simplifyPolylinesOnGrid(
-    postZigzagResult.polylines, allGridLines, gridTolerance, wWallMask, wWidth, wHeight
-  );
+  const simplified = _simplifyPolylinesOnGrid(postZigzag.polylines, allGridLines, gridTolerance, wWallMask, wWidth, wHeight);
 
-  // ── Phase 7: Junction resolution (L/T/X) — FINAL STEP ──────────────
-  // After all simplification is done, insert shared junction points into
-  // polylines where orthogonal walls meet. This is the last step so
-  // junction points are never removed by simplification phases.
-  const junctionSnapTol = Math.max(5, Math.round(Math.max(maxThicknessH, maxThicknessV) * 0.75));
-  const finalResult = _insertJunctionPoints(simplified, postZigzagResult.thicknesses, junctionSnapTol);
-
-  return finalResult;
+  return { polylines: simplified, thicknesses: postZigzag.thicknesses };
 }
 
 // ═══════════════════════════════════════════════════════════════════════
