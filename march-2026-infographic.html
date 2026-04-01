@@ -167,7 +167,7 @@
   .module-bar {
     display: flex;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     gap: 12px;
   }
 
@@ -182,7 +182,7 @@
 
   .module-bar .bar-bg {
     flex: 1;
-    height: 24px;
+    height: 22px;
     background: rgba(51,65,85,0.5);
     border-radius: 6px;
     overflow: hidden;
@@ -205,7 +205,7 @@
   .type-row {
     display: flex;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
     gap: 16px;
   }
 
@@ -248,40 +248,105 @@
     border-radius: 3px;
   }
 
-  /* Timeline */
-  .timeline {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-    height: 100px;
-    padding-top: 20px;
+  /* Weekly timeline */
+  .week-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-top: 8px;
   }
 
-  .day-col {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
+  .week-card {
+    background: rgba(15,23,42,0.6);
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
   }
 
-  .day-bar {
-    width: 100%;
-    min-width: 28px;
-    border-radius: 6px 6px 4px 4px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding-top: 4px;
-    font-size: 12px;
-    font-weight: 700;
-    color: white;
-  }
-
-  .day-label {
+  .week-card .week-label {
     font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
     color: #64748b;
+    margin-bottom: 4px;
+  }
+
+  .week-card .week-dates {
+    font-size: 11px;
+    color: #475569;
+    margin-bottom: 10px;
+  }
+
+  .week-card .week-number {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .week-card .week-unit {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
     font-weight: 500;
+  }
+
+  .week-card .week-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0; right: 0;
+    height: 3px;
+  }
+
+  /* Daily heatmap */
+  .heatmap {
+    display: grid;
+    grid-template-columns: repeat(31, 1fr);
+    gap: 3px;
+    margin-top: 12px;
+  }
+
+  .heat-cell {
+    aspect-ratio: 1;
+    border-radius: 3px;
+    position: relative;
+  }
+
+  .heat-cell .heat-tip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 10px;
+    white-space: nowrap;
+    color: #e2e8f0;
+    z-index: 10;
+  }
+
+  .heat-cell:hover .heat-tip { display: block; }
+
+  .heatmap-legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-top: 8px;
+    font-size: 10px;
+    color: #64748b;
+  }
+
+  .legend-cell {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
   }
 
   /* Estimation box */
@@ -338,21 +403,7 @@
     margin: 0 auto;
     border-top: 1px solid rgba(139,92,246,0.2);
     padding-top: 16px;
-  }
-
-  /* Issues badge */
-  .issues-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(34,197,94,0.1);
-    border: 1px solid rgba(34,197,94,0.3);
-    border-radius: 999px;
-    padding: 6px 16px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #4ade80;
-    margin-bottom: 16px;
+    text-align: left;
   }
 
   /* Footer */
@@ -363,32 +414,61 @@
     color: #475569;
   }
 
+  /* Highlights */
   .highlight-row {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 16px;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
     margin-bottom: 32px;
   }
 
   .highlight-card {
     background: rgba(30,41,59,0.6);
     border: 1px solid #334155;
-    border-radius: 16px;
-    padding: 20px;
+    border-radius: 12px;
+    padding: 16px 12px;
     text-align: center;
   }
 
   .highlight-card .hl-number {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 800;
     color: #60a5fa;
   }
 
   .highlight-card .hl-label {
-    font-size: 12px;
+    font-size: 11px;
     color: #94a3b8;
     margin-top: 4px;
     font-weight: 500;
+    line-height: 1.3;
+  }
+
+  /* Key features list */
+  .features-list {
+    list-style: none;
+    columns: 2;
+    column-gap: 20px;
+    margin-top: 8px;
+  }
+
+  .features-list li {
+    font-size: 12px;
+    color: #cbd5e1;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(51,65,85,0.3);
+    break-inside: avoid;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .features-list li .feat-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
   }
 </style>
 </head>
@@ -401,83 +481,177 @@
     <div class="label">Development Activity Report</div>
     <h1>March 2026</h1>
     <div class="subtitle">bimboxa/pwa — React PWA for map annotations & smart detection</div>
-    <div class="date-range">25 Mar — 31 Mar 2026 &nbsp;·&nbsp; 6 active days</div>
+    <div class="date-range">1 Mar — 31 Mar 2026 &nbsp;·&nbsp; 21 active days &nbsp;·&nbsp; Full month</div>
   </div>
 
   <!-- KPIs -->
   <div class="kpi-row">
     <div class="kpi">
-      <div class="number">48</div>
-      <div class="label">Commits</div>
+      <div class="number">96</div>
+      <div class="label">Issues closed</div>
     </div>
     <div class="kpi">
       <div class="number">~10K</div>
-      <div class="label">Lines added</div>
+      <div class="label">Lines of code</div>
     </div>
     <div class="kpi">
       <div class="number">189</div>
       <div class="label">Files modified</div>
     </div>
     <div class="kpi">
-      <div class="number">31</div>
-      <div class="label">Issues closed</div>
+      <div class="number">20</div>
+      <div class="label">Modules touched</div>
     </div>
   </div>
 
-  <!-- Highlights -->
+  <!-- Secondary highlights -->
   <div class="highlight-row">
     <div class="highlight-card">
+      <div class="hl-number">48</div>
+      <div class="hl-label">Git commits</div>
+    </div>
+    <div class="highlight-card">
       <div class="hl-number">30</div>
-      <div class="hl-label">New files created</div>
+      <div class="hl-label">New files</div>
     </div>
     <div class="highlight-card">
       <div class="hl-number">22</div>
-      <div class="hl-label">Files deleted / cleaned</div>
+      <div class="hl-label">Files cleaned</div>
     </div>
     <div class="highlight-card">
-      <div class="hl-number">+5,786</div>
-      <div class="hl-label">Net lines of code</div>
+      <div class="hl-number" style="color:#a78bfa">#40</div>
+      <div class="hl-label">First issue</div>
+    </div>
+    <div class="highlight-card">
+      <div class="hl-number" style="color:#f472b6">#151</div>
+      <div class="hl-label">Last issue</div>
     </div>
   </div>
 
-  <!-- Two columns -->
+  <!-- Weekly breakdown -->
+  <div class="card" style="margin-bottom:24px">
+    <h3><span class="dot" style="background:#ec4899"></span> Weekly cadence (issues closed)</h3>
+    <div class="week-grid">
+      <div class="week-card">
+        <div class="week-label">Week 1</div>
+        <div class="week-dates">Mar 1 – 7</div>
+        <div class="week-number" style="color:#3b82f6">9</div>
+        <div class="week-unit">issues</div>
+        <div class="week-bar" style="background:#3b82f6"></div>
+      </div>
+      <div class="week-card">
+        <div class="week-label">Week 2</div>
+        <div class="week-dates">Mar 8 – 14</div>
+        <div class="week-number" style="color:#8b5cf6">18</div>
+        <div class="week-unit">issues</div>
+        <div class="week-bar" style="background:#8b5cf6"></div>
+      </div>
+      <div class="week-card">
+        <div class="week-label">Week 3</div>
+        <div class="week-dates">Mar 15 – 21</div>
+        <div class="week-number" style="color:#ec4899">30</div>
+        <div class="week-unit">issues</div>
+        <div class="week-bar" style="background:#ec4899"></div>
+      </div>
+      <div class="week-card">
+        <div class="week-label">Week 4+</div>
+        <div class="week-dates">Mar 22 – 31</div>
+        <div class="week-number" style="color:#f59e0b">39</div>
+        <div class="week-unit">issues</div>
+        <div class="week-bar" style="background:#f59e0b"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Heatmap -->
+  <div class="card" style="margin-bottom:24px">
+    <h3><span class="dot" style="background:#10b981"></span> Daily activity heatmap (issues per day)</h3>
+    <div class="heatmap">
+      <!-- Day 1 --> <div class="heat-cell" style="background:#1e293b"><span class="heat-tip">Mar 1: 0</span></div>
+      <!-- Day 2 --> <div class="heat-cell" style="background:#1e3a5f"><span class="heat-tip">Mar 2: 2</span></div>
+      <!-- Day 3 --> <div class="heat-cell" style="background:#1e4d7a"><span class="heat-tip">Mar 3: 4</span></div>
+      <!-- Day 4 --> <div class="heat-cell" style="background:#1e293b"><span class="heat-tip">Mar 4: 0</span></div>
+      <!-- Day 5 --> <div class="heat-cell" style="background:#1a3350"><span class="heat-tip">Mar 5: 1</span></div>
+      <!-- Day 6 --> <div class="heat-cell" style="background:#1e3a5f"><span class="heat-tip">Mar 6: 2</span></div>
+      <!-- Day 7 --> <div class="heat-cell" style="background:#1e293b"><span class="heat-tip">Mar 7: 0</span></div>
+      <!-- Day 8 --> <div class="heat-cell" style="background:#1e293b"><span class="heat-tip">Mar 8: 0</span></div>
+      <!-- Day 9 --> <div class="heat-cell" style="background:#1e4d7a"><span class="heat-tip">Mar 9: 4</span></div>
+      <!-- Day 10 --><div class="heat-cell" style="background:#2563eb"><span class="heat-tip">Mar 10: 7</span></div>
+      <!-- Day 11 --><div class="heat-cell" style="background:#1e4070"><span class="heat-tip">Mar 11: 3</span></div>
+      <!-- Day 12 --><div class="heat-cell" style="background:#1e4d7a"><span class="heat-tip">Mar 12: 4</span></div>
+      <!-- Day 13 --><div class="heat-cell" style="background:#1e293b"><span class="heat-tip">Mar 13: 0</span></div>
+      <!-- Day 14 --><div class="heat-cell" style="background:#1e293b"><span class="heat-tip">Mar 14: 0</span></div>
+      <!-- Day 15 --><div class="heat-cell" style="background:#1e293b"><span class="heat-tip">Mar 15: 0</span></div>
+      <!-- Day 16 --><div class="heat-cell" style="background:#1e4070"><span class="heat-tip">Mar 16: 3</span></div>
+      <!-- Day 17 --><div class="heat-cell" style="background:#1e4070"><span class="heat-tip">Mar 17: 3</span></div>
+      <!-- Day 18 --><div class="heat-cell" style="background:#1e4d7a"><span class="heat-tip">Mar 18: 4</span></div>
+      <!-- Day 19 --><div class="heat-cell" style="background:#1d5fc4"><span class="heat-tip">Mar 19: 6</span></div>
+      <!-- Day 20 --><div class="heat-cell" style="background:#7c3aed"><span class="heat-tip">Mar 20: 14</span></div>
+      <!-- Day 21 --><div class="heat-cell" style="background:#1e293b"><span class="heat-tip">Mar 21: 0</span></div>
+      <!-- Day 22 --><div class="heat-cell" style="background:#1a3350"><span class="heat-tip">Mar 22: 1</span></div>
+      <!-- Day 23 --><div class="heat-cell" style="background:#1e3a5f"><span class="heat-tip">Mar 23: 2</span></div>
+      <!-- Day 24 --><div class="heat-cell" style="background:#1d56a8"><span class="heat-tip">Mar 24: 5</span></div>
+      <!-- Day 25 --><div class="heat-cell" style="background:#1d5fc4"><span class="heat-tip">Mar 25: 6</span></div>
+      <!-- Day 26 --><div class="heat-cell" style="background:#3b82f6"><span class="heat-tip">Mar 26: 8</span></div>
+      <!-- Day 27 --><div class="heat-cell" style="background:#6d28d9"><span class="heat-tip">Mar 27: 10</span></div>
+      <!-- Day 28 --><div class="heat-cell" style="background:#1e4070"><span class="heat-tip">Mar 28: 3</span></div>
+      <!-- Day 29 --><div class="heat-cell" style="background:#1e293b"><span class="heat-tip">Mar 29: 0</span></div>
+      <!-- Day 30 --><div class="heat-cell" style="background:#1e293b"><span class="heat-tip">Mar 30: 0</span></div>
+      <!-- Day 31 --><div class="heat-cell" style="background:#1e4d7a"><span class="heat-tip">Mar 31: 4</span></div>
+    </div>
+    <div class="heatmap-legend">
+      <span>Less</span>
+      <div class="legend-cell" style="background:#1e293b"></div>
+      <div class="legend-cell" style="background:#1a3350"></div>
+      <div class="legend-cell" style="background:#1e4d7a"></div>
+      <div class="legend-cell" style="background:#2563eb"></div>
+      <div class="legend-cell" style="background:#7c3aed"></div>
+      <span>More</span>
+    </div>
+  </div>
+
+  <!-- Two columns: modules + types -->
   <div class="columns">
 
     <!-- Modules -->
     <div class="card">
-      <h3><span class="dot" style="background:#3b82f6"></span> Commits by module</h3>
+      <h3><span class="dot" style="background:#3b82f6"></span> Issues by module</h3>
 
       <div class="module-bar">
         <div class="name">annotations</div>
-        <div class="bar-bg"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,#3b82f6,#60a5fa)">21</div></div>
+        <div class="bar-bg"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,#3b82f6,#60a5fa)">31</div></div>
       </div>
       <div class="module-bar">
         <div class="name">mapEditor</div>
-        <div class="bar-bg"><div class="bar-fill" style="width:38%;background:linear-gradient(90deg,#8b5cf6,#a78bfa)">8</div></div>
-      </div>
-      <div class="module-bar">
-        <div class="name">smartDetect</div>
-        <div class="bar-bg"><div class="bar-fill" style="width:33%;background:linear-gradient(90deg,#ec4899,#f472b6)">7</div></div>
+        <div class="bar-bg"><div class="bar-fill" style="width:65%;background:linear-gradient(90deg,#8b5cf6,#a78bfa)">20</div></div>
       </div>
       <div class="module-bar">
         <div class="name">baseMaps</div>
-        <div class="bar-bg"><div class="bar-fill" style="width:14%;background:linear-gradient(90deg,#f59e0b,#fbbf24)">3</div></div>
+        <div class="bar-bg"><div class="bar-fill" style="width:16%;background:linear-gradient(90deg,#f59e0b,#fbbf24)">5</div></div>
       </div>
       <div class="module-bar">
-        <div class="name">layers</div>
-        <div class="bar-bg"><div class="bar-fill" style="width:10%;background:linear-gradient(90deg,#10b981,#34d399)">2</div></div>
+        <div class="name">smartDetect</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:16%;background:linear-gradient(90deg,#ec4899,#f472b6)">5</div></div>
       </div>
       <div class="module-bar">
-        <div class="name">print / export</div>
-        <div class="bar-bg"><div class="bar-fill" style="width:5%;background:linear-gradient(90deg,#06b6d4,#22d3ee)">1</div></div>
+        <div class="name">portfolioEditor</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:16%;background:linear-gradient(90deg,#10b981,#34d399)">5</div></div>
       </div>
       <div class="module-bar">
-        <div class="name">other (6)</div>
-        <div class="bar-bg"><div class="bar-fill" style="width:28%;background:linear-gradient(90deg,#64748b,#94a3b8)">6</div></div>
+        <div class="name">baseMapEditor</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:13%;background:linear-gradient(90deg,#06b6d4,#22d3ee)">4</div></div>
+      </div>
+      <div class="module-bar">
+        <div class="name">viewers</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:10%;background:linear-gradient(90deg,#f97316,#fb923c)">3</div></div>
+      </div>
+      <div class="module-bar">
+        <div class="name">other (13)</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:74%;background:linear-gradient(90deg,#64748b,#94a3b8)">23</div></div>
       </div>
     </div>
 
-    <!-- Commit types -->
+    <!-- Type of work -->
     <div class="card">
       <h3><span class="dot" style="background:#8b5cf6"></span> Type of work</h3>
 
@@ -485,7 +659,7 @@
         <div class="type-icon" style="background:rgba(34,197,94,0.15);color:#4ade80">+</div>
         <div class="type-info">
           <div class="type-name">New features</div>
-          <div class="type-count" style="color:#4ade80">26</div>
+          <div class="type-count" style="color:#4ade80">62</div>
           <div class="type-bar-bg"><div class="type-bar-fill" style="width:100%;background:#4ade80"></div></div>
         </div>
       </div>
@@ -494,8 +668,8 @@
         <div class="type-icon" style="background:rgba(251,146,60,0.15);color:#fb923c">&#x2692;</div>
         <div class="type-info">
           <div class="type-name">Bug fixes</div>
-          <div class="type-count" style="color:#fb923c">15</div>
-          <div class="type-bar-bg"><div class="type-bar-fill" style="width:58%;background:#fb923c"></div></div>
+          <div class="type-count" style="color:#fb923c">19</div>
+          <div class="type-bar-bg"><div class="type-bar-fill" style="width:31%;background:#fb923c"></div></div>
         </div>
       </div>
 
@@ -503,46 +677,34 @@
         <div class="type-icon" style="background:rgba(139,92,246,0.15);color:#a78bfa">&#x21BB;</div>
         <div class="type-info">
           <div class="type-name">Refactoring / cleanup</div>
-          <div class="type-count" style="color:#a78bfa">7</div>
-          <div class="type-bar-bg"><div class="type-bar-fill" style="width:27%;background:#a78bfa"></div></div>
+          <div class="type-count" style="color:#a78bfa">15</div>
+          <div class="type-bar-bg"><div class="type-bar-fill" style="width:24%;background:#a78bfa"></div></div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Timeline -->
+  <!-- Key features delivered -->
   <div class="card" style="margin-bottom:32px">
-    <h3><span class="dot" style="background:#ec4899"></span> Daily commit activity</h3>
-    <div class="timeline">
-      <div class="day-col">
-        <div class="day-bar" style="height:25px;background:linear-gradient(180deg,#3b82f6,#1d4ed8)">4</div>
-        <div class="day-label">25</div>
-      </div>
-      <div class="day-col">
-        <div class="day-bar" style="height:70px;background:linear-gradient(180deg,#8b5cf6,#6d28d9)">14</div>
-        <div class="day-label">26</div>
-      </div>
-      <div class="day-col">
-        <div class="day-bar" style="height:80px;background:linear-gradient(180deg,#ec4899,#be185d)">16</div>
-        <div class="day-label">27</div>
-      </div>
-      <div class="day-col">
-        <div class="day-bar" style="height:31px;background:linear-gradient(180deg,#f59e0b,#d97706)">5</div>
-        <div class="day-label">28</div>
-      </div>
-      <div class="day-col">
-        <div class="day-bar" style="height:5px;background:rgba(51,65,85,0.3)"></div>
-        <div class="day-label" style="color:#334155">29</div>
-      </div>
-      <div class="day-col">
-        <div class="day-bar" style="height:25px;background:linear-gradient(180deg,#10b981,#059669)">4</div>
-        <div class="day-label">30</div>
-      </div>
-      <div class="day-col">
-        <div class="day-bar" style="height:44px;background:linear-gradient(180deg,#06b6d4,#0891b2)">7</div>
-        <div class="day-label">31</div>
-      </div>
-    </div>
+    <h3><span class="dot" style="background:#f59e0b"></span> Key features delivered</h3>
+    <ul class="features-list">
+      <li><span class="feat-tag" style="background:rgba(59,130,246,0.2);color:#60a5fa">annotations</span> Polygon split, merge, boundary extraction</li>
+      <li><span class="feat-tag" style="background:rgba(59,130,246,0.2);color:#60a5fa">annotations</span> Multi-select, lasso, bulk operations</li>
+      <li><span class="feat-tag" style="background:rgba(59,130,246,0.2);color:#60a5fa">annotations</span> COMPLETE_ANNOTATION extend mode</li>
+      <li><span class="feat-tag" style="background:rgba(59,130,246,0.2);color:#60a5fa">annotations</span> Live segment length + constraint lock</li>
+      <li><span class="feat-tag" style="background:rgba(59,130,246,0.2);color:#60a5fa">annotations</span> Type conversion POLYGON / POLYLINE</li>
+      <li><span class="feat-tag" style="background:rgba(139,92,246,0.2);color:#a78bfa">mapEditor</span> Version compare slider for baseMaps</li>
+      <li><span class="feat-tag" style="background:rgba(139,92,246,0.2);color:#a78bfa">mapEditor</span> Snap-to-vertex, projection, ortho angle</li>
+      <li><span class="feat-tag" style="background:rgba(139,92,246,0.2);color:#a78bfa">mapEditor</span> Polyline split tool with snap</li>
+      <li><span class="feat-tag" style="background:rgba(236,72,153,0.2);color:#f472b6">smartDetect</span> SURFACE_DROP with barriers + options</li>
+      <li><span class="feat-tag" style="background:rgba(236,72,153,0.2);color:#f472b6">smartDetect</span> DETECT_SIMILAR_POLYLINES auto-vectorize</li>
+      <li><span class="feat-tag" style="background:rgba(245,158,11,0.2);color:#fbbf24">baseMaps</span> Multi-version support + calibration UX</li>
+      <li><span class="feat-tag" style="background:rgba(16,185,129,0.2);color:#34d399">viewers</span> BASE_MAPS + LISTING viewers</li>
+      <li><span class="feat-tag" style="background:rgba(6,182,212,0.2);color:#22d3ee">portfolio</span> A3 layout, HD export, entity summaries</li>
+      <li><span class="feat-tag" style="background:rgba(249,115,22,0.2);color:#fb923c">layers</span> Layer system for annotation organization</li>
+      <li><span class="feat-tag" style="background:rgba(100,116,139,0.2);color:#94a3b8">print</span> PRINT to EXPORT panel transformation</li>
+      <li><span class="feat-tag" style="background:rgba(100,116,139,0.2);color:#94a3b8">perf</span> Rendering pipeline optimization (54 files)</li>
+    </ul>
   </div>
 
   <!-- Estimation -->
@@ -551,38 +713,40 @@
 
     <div class="estimate-grid">
       <div class="estimate-item">
-        <div class="est-number" style="color:#f472b6">~12</div>
+        <div class="est-number" style="color:#f472b6">~30</div>
         <div class="est-unit">working weeks</div>
-        <div class="est-label">(3 months)</div>
+        <div class="est-label">(7–8 months)</div>
       </div>
       <div class="estimate-item">
-        <div class="est-number" style="color:#fbbf24">~60</div>
+        <div class="est-number" style="color:#fbbf24">~150</div>
         <div class="est-unit">working days</div>
         <div class="est-label">(full-time)</div>
       </div>
       <div class="estimate-item">
-        <div class="est-number" style="color:#60a5fa">~480h</div>
+        <div class="est-number" style="color:#60a5fa">~1,200h</div>
         <div class="est-unit">of development</div>
         <div class="est-label">(8h / day)</div>
       </div>
     </div>
 
     <div class="note">
-      <strong>Breakdown:</strong> 26 features × ~2.5 days avg. (geometry algorithms, complex UI, Leaflet/Konva/Three.js integration)
-      + 15 bug fixes × ~0.5 day avg. (diagnosis, reproduction, patch, regression testing)
-      + 7 refactors × ~1 day avg. (perf optimization of 54 files, library removal, architecture changes)
-      + ~5 days for code review, testing, and deployment coordination.
+      <strong>Breakdown:</strong><br>
+      &bull; 62 features &times; ~2 days avg. = ~124 days (new viewers, drawing tools, geometry algorithms, smart detection, portfolio layouts, layer system, bulk operations)<br>
+      &bull; 19 bug fixes &times; ~0.5 day avg. = ~10 days (diagnosis, reproduction, patch, regression tests)<br>
+      &bull; 15 refactors &times; ~1 day avg. = ~15 days (perf optimization across 54 files, library removal, snap system rewrite, architecture changes)<br>
+      &bull; ~5 days for code review, integration testing, deployment coordination<br>
+      <br>
+      <strong>Key complexity drivers:</strong> computational geometry (polygon split, merge, boundary extraction, lasso selection, convex hull),
+      real-time map rendering pipeline optimization (54 files), OpenCV smart detection integration (SURFACE_DROP, DETECT_SIMILAR_POLYLINES),
+      multi-viewer architecture (MAP, BASE_MAPS, LISTING), version comparison slider, A3 portfolio export with Konva/Three.js,
+      and bulk state management across IndexedDB + Redux with undo/redo.
       <br><br>
-      <strong>Key complexity drivers:</strong> computational geometry (polygon split, merge, boundary extraction, lasso selection),
-      real-time map rendering pipeline optimization (54 files), OpenCV smart detection integration,
-      multi-layer version comparison slider, and bulk operation state management across IndexedDB + Redux.
-      <br><br>
-      <em>This work was completed in 6 days with AI assistance — a <strong style="color:#c084fc">~10× acceleration factor</strong>.</em>
+      <em>This work was completed in ~1 month with AI assistance — an estimated <strong style="color:#c084fc">~7× acceleration factor</strong>.</em>
     </div>
   </div>
 
   <div class="footer">
-    Generated on April 1, 2026 &nbsp;·&nbsp; bimboxa/pwa &nbsp;·&nbsp; Data from git log
+    Generated on April 1, 2026 &nbsp;·&nbsp; bimboxa/pwa &nbsp;·&nbsp; Data from GitHub issues + git log
   </div>
 
 </div>
