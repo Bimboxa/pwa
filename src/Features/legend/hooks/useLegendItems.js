@@ -43,7 +43,7 @@ export default function useLegendItems() {
       const templateId = annotation.annotationTemplateId;
       if (templateId) {
         const template = annotationTemplateById[templateId];
-        if (!idsMap[templateId] && !template?.hidden) {
+        if (!idsMap[templateId] && !template?.hidden && !template?.hiddenInLegend) {
           idsMap[templateId] = annotation;
           const { iconKey, fillColor, strokeColor, type, closeLine, listingName, variant, strokeType, fillType } =
             annotation;

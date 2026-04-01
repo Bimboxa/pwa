@@ -60,6 +60,7 @@ export default function FormAnnotationTemplateVariantBlock({
     iconKey,
     label,
     labelLegend,
+    hiddenInLegend,
     groupLabel,
     height,
     image,
@@ -143,6 +144,10 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handleLabelLegendChange(labelLegend) {
     onChange({ ...annotationTemplate, labelLegend });
+  }
+
+  function handleHiddenInLegendChange(hiddenInLegend) {
+    onChange({ ...annotationTemplate, hiddenInLegend });
   }
 
   function handleGroupLabelChange(groupLabel) {
@@ -235,16 +240,25 @@ export default function FormAnnotationTemplateVariantBlock({
         }}
       />
 
-      <FieldTextV2
-        label="Libellé légende"
-        value={labelLegend}
-        onChange={handleLabelLegendChange}
-        options={{
-          fullWidth: true,
-          placeholder: "Libellé légende",
-          showAsSection: true,
-        }}
-      />
+      <WhiteSectionGeneric>
+        <Typography variant="body2" sx={{ fontWeight: "bold", mb: 2 }} noWrap>
+          Libellé légende
+        </Typography>
+        <FieldTextV2
+          value={labelLegend}
+          onChange={handleLabelLegendChange}
+          options={{
+            fullWidth: true,
+            placeholder: "Libellé légende",
+          }}
+        />
+        <FieldCheck
+          value={hiddenInLegend}
+          onChange={handleHiddenInLegendChange}
+          label="Masquer le titre dans le bloc légende"
+          options={{ type: "check" }}
+        />
+      </WhiteSectionGeneric>
 
       <FieldTextV2
         label="Groupe"
