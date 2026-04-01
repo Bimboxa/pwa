@@ -354,25 +354,69 @@ function _postProcessSegments(rawSegments, ctx) {
     gapResult.polylines, gapResult.thicknesses, junctionNoiseMaxLen, junctionSnapDist
   );
 
-  // ── Phase 5d: Step junctions ────────────────────────────────────────
+  // ── Phase 5c½: Remove stub segments (length ≤ 1.5× thickness) ──────
+  // A segment shorter than its own width is a junction artifact, not a wall.
+  // Remove these early so they don't pollute junction detection.
+  const stubPolylines = [];
+  const stubThicknesses = [];
+  for (let i = 0; i < cleanResult.polylines.length; i++) {
+    const pl = cleanResult.polylines[i];
+    if (pl.length >= 2) {
+      let totalLen = 0;
+      for (let k = 1; k < pl.length; k++) {
+        totalLen += Math.sqrt((pl[k].x - pl[k - 1].x) ** 2 + (pl[k].y - pl[k - 1].y) ** 2);
+      }
+      const thickness = cleanResult.thicknesses[i] || 0;
+      if (totalLen <= thickness * 1.5) continue; // discard stub
+    }
+    stubPolylines.push(pl);
+    stubThicknesses.push(cleanResult.thicknesses[i]);
+  }
+  const noStubResult = { polylines: stubPolylines, thicknesses: stubThicknesses };
+
+  // ── Phase 5d: Simplify colinear points (Douglas-Peucker) ───────────
+  // Chaîned segments on the same wall create many colinear intermediate
+  // points. Simplify each polyline by removing points that are within
+  // tolerance of the line between their neighbours.
+  const rdpTolerance = meterByPx > 0 ? Math.max(3, Math.round(0.03 / meterByPx)) : 5;
+  const rdpResult = _simplifyColinearPoints(noStubResult.polylines, noStubResult.thicknesses, rdpTolerance);
+
+  // ── Phase 5e: Step junctions ────────────────────────────────────────
   // Two near-parallel walls (V-V or H-H) slightly offset, connected by an
   // orthogonal segment visible on the image. Creates L-shaped connectors
   // with shared intersection points.
   const stepMaxGap = meterByPx > 0 ? Math.max(20, Math.round(1.5 / meterByPx)) : 150;
   const stepResult = _createStepJunctions(
-    cleanResult.polylines, cleanResult.thicknesses,
+    rdpResult.polylines, rdpResult.thicknesses,
     stepMaxGap, wWallMask, wWidth, wHeight, distMat, meterByPx
   );
+
+  // ── Remove stubs created by step junctions ──────────────────────────
+  const postStepPolylines = [];
+  const postStepThicknesses = [];
+  for (let i = 0; i < stepResult.polylines.length; i++) {
+    const pl = stepResult.polylines[i];
+    if (pl.length >= 2) {
+      let totalLen = 0;
+      for (let k = 1; k < pl.length; k++) {
+        totalLen += Math.sqrt((pl[k].x - pl[k - 1].x) ** 2 + (pl[k].y - pl[k - 1].y) ** 2);
+      }
+      const thickness = stepResult.thicknesses[i] || 0;
+      if (totalLen <= thickness * 1.5) continue;
+    }
+    postStepPolylines.push(pl);
+    postStepThicknesses.push(stepResult.thicknesses[i]);
+  }
 
   // ── Phase 6: Simplify polylines on grid lines ────────────────────────
   // Remove intermediate points that lie on the same grid line,
   // keeping only extremities and junction points (shared with other polylines).
   const allGridLines = { h: hGridLines, v: vGridLines };
   const simplified = _simplifyPolylinesOnGrid(
-    stepResult.polylines, allGridLines, gridTolerance, wWallMask, wWidth, wHeight
+    postStepPolylines, allGridLines, gridTolerance, wWallMask, wWidth, wHeight
   );
 
-  return { polylines: simplified, thicknesses: stepResult.thicknesses };
+  return { polylines: simplified, thicknesses: postStepThicknesses };
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -868,7 +912,72 @@ function _removeJunctionNoise(polylines, thicknesses, maxLen, snapDist) {
 
 
 // ═══════════════════════════════════════════════════════════════════════
-// Phase 5d: Step junctions
+// Phase 5d: Colinear point simplification (Ramer-Douglas-Peucker)
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Simplify polylines by removing intermediate points that lie within
+ * `tolerance` pixels of the line between their kept neighbours.
+ * Uses the Ramer-Douglas-Peucker algorithm.
+ */
+function _simplifyColinearPoints(polylines, thicknesses, tolerance) {
+  const simplified = polylines.map((pl) => {
+    if (pl.length <= 2) return pl;
+    return _rdp(pl, tolerance);
+  });
+  return { polylines: simplified, thicknesses: [...thicknesses] };
+}
+
+/**
+ * Ramer-Douglas-Peucker recursive simplification.
+ * Returns a subset of points from the input array.
+ */
+function _rdp(points, epsilon) {
+  if (points.length <= 2) return points;
+
+  // Find the point with the maximum distance from the line (first → last)
+  const first = points[0];
+  const last = points[points.length - 1];
+  let maxDist = 0;
+  let maxIdx = 0;
+
+  const dx = last.x - first.x;
+  const dy = last.y - first.y;
+  const lenSq = dx * dx + dy * dy;
+
+  for (let i = 1; i < points.length - 1; i++) {
+    let dist;
+    if (lenSq === 0) {
+      // first and last are the same point
+      dist = Math.sqrt((points[i].x - first.x) ** 2 + (points[i].y - first.y) ** 2);
+    } else {
+      // Perpendicular distance from point to line
+      const t = Math.max(0, Math.min(1, ((points[i].x - first.x) * dx + (points[i].y - first.y) * dy) / lenSq));
+      const projX = first.x + t * dx;
+      const projY = first.y + t * dy;
+      dist = Math.sqrt((points[i].x - projX) ** 2 + (points[i].y - projY) ** 2);
+    }
+    if (dist > maxDist) {
+      maxDist = dist;
+      maxIdx = i;
+    }
+  }
+
+  if (maxDist > epsilon) {
+    // Recurse on both halves
+    const left = _rdp(points.slice(0, maxIdx + 1), epsilon);
+    const right = _rdp(points.slice(maxIdx), epsilon);
+    // Combine, removing duplicate at junction
+    return [...left.slice(0, -1), ...right];
+  } else {
+    // All intermediate points are within tolerance — keep only endpoints
+    return [first, last];
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// Phase 5e: Step junctions
 // ═══════════════════════════════════════════════════════════════════════
 
 /**
@@ -928,12 +1037,21 @@ function _createStepJunctions(polylines, thicknesses, maxGap, mask, w, h, distMa
         { pA: epsA.end, pB: epsB.end, idxA: plA.length - 1, idxB: plB.length - 1, sideA: "end", sideB: "end" },
       ];
 
-      for (const { pA, pB, sideA, sideB } of pairs) {
+      // Sort pairs by distance (shortest first) so bridged short gaps
+      // prevent longer redundant connections between the same walls
+      const scoredPairs = pairs.map(p => ({
+        ...p,
+        dist: Math.sqrt((p.pA.x - p.pB.x) ** 2 + (p.pA.y - p.pB.y) ** 2),
+      })).sort((a, b) => a.dist - b.dist);
+
+      let wallPairBridged = false;
+
+      for (const { pA, pB, sideA, sideB, dist } of scoredPairs) {
+        if (wallPairBridged) break; // if any pair is bridged, skip ALL pairs for i-j
         const keyA = `${i}_${sideA}`;
         const keyB = `${j}_${sideB}`;
         if (connected.has(keyA) || connected.has(keyB)) continue;
 
-        const dist = Math.sqrt((pA.x - pB.x) ** 2 + (pA.y - pB.y) ** 2);
         if (dist < minConnLen || dist > maxGap) continue;
 
         // For V-V: the orthogonal offset is in X, the along-axis offset is in Y
@@ -951,6 +1069,32 @@ function _createStepJunctions(polylines, thicknesses, maxGap, mask, w, h, distMa
         if (orthoOffset < minConnLen) continue;
         // Along-axis offset should be reasonable (not too far apart along the wall direction)
         if (alongOffset > maxGap) continue;
+
+        // Check if another polyline has an endpoint inside the bounding box
+        // between pA and pB (with margin). If so, the junction area is already
+        // populated — no step connector needed.
+        const margin = Math.max(10, orthoOffset * 0.3);
+        const boxMinX = Math.min(pA.x, pB.x) - margin;
+        const boxMaxX = Math.max(pA.x, pB.x) + margin;
+        const boxMinY = Math.min(pA.y, pB.y) - margin;
+        const boxMaxY = Math.max(pA.y, pB.y) + margin;
+        let alreadyBridged = false;
+        for (let k = 0; k < result.polylines.length; k++) {
+          if (k === i || k === j) continue;
+          const plK = result.polylines[k];
+          for (const pt of [plK[0], plK[plK.length - 1]]) {
+            if (pt.x >= boxMinX && pt.x <= boxMaxX &&
+                pt.y >= boxMinY && pt.y <= boxMaxY) {
+              alreadyBridged = true;
+              break;
+            }
+          }
+          if (alreadyBridged) break;
+        }
+        if (alreadyBridged) {
+          wallPairBridged = true;
+          continue;
+        }
 
         // Determine the connector: an L-shape going from pA orthogonally to pB's axis,
         // then along to pB. The corner point is at the intersection.
