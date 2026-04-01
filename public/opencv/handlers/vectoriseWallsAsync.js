@@ -259,6 +259,25 @@ function _postProcessSegments(rawSegments, ctx) {
     }
   }
 
+  // Filter short segments — skeleton noise at junctions.
+  // Real walls are > 10cm. Short H/V fragments at junctions are noise.
+  // Diagonals use a higher threshold (30cm) since real diagonals are rare on plans.
+  const minWallLen = meterByPx > 0 ? Math.round(0.10 / meterByPx) : 15;
+  const minDiagonalLen = meterByPx > 0 ? Math.round(0.50 / meterByPx) : 70;
+
+  const filterByLen = (segs, minLen) => {
+    const filtered = [];
+    for (const seg of segs) {
+      const len = seg.end !== undefined ? (seg.end - seg.start) : Math.sqrt((seg.x2 - seg.x1) ** 2 + (seg.y2 - seg.y1) ** 2);
+      if (len >= minLen) filtered.push(seg);
+    }
+    return filtered;
+  };
+
+  hSegments.splice(0, hSegments.length, ...filterByLen(hSegments, minWallLen));
+  vSegments.splice(0, vSegments.length, ...filterByLen(vSegments, minWallLen));
+  diagonalSegments.splice(0, diagonalSegments.length, ...filterByLen(diagonalSegments, minDiagonalLen));
+
   const posTolerance = meterByPx > 0 ? Math.max(3, Math.round(0.03 / meterByPx)) : 5;
   const gapTolerance = meterByPx > 0 ? Math.max(maxLineGap * 2, Math.round(0.10 / meterByPx)) : maxLineGap * 3;
 
@@ -325,11 +344,14 @@ function _postProcessSegments(rawSegments, ctx) {
   );
 
   // ── Phase 5c: Remove junction noise ─────────────────────────────────
-  // Remove very short segments (< 10cm) whose both endpoints are near
-  // endpoints of longer segments (≥ 3× length). These are skeleton artifacts.
-  const noiseMinLen = meterByPx > 0 ? Math.round(0.10 / meterByPx) : 15;
+  // Short segments (< 40cm) whose BOTH endpoints are near the body of
+  // longer segments are skeleton artifacts at L/T/X junctions.
+  // Also catches diagonal segments created by gap fill (Phase 5b).
+  const junctionNoiseMaxLen = meterByPx > 0 ? Math.round(0.40 / meterByPx) : 60;
+  // Snap distance ~ wall thickness (typically 20-30cm on plans)
+  const junctionSnapDist = meterByPx > 0 ? Math.max(15, Math.round(0.25 / meterByPx)) : 40;
   const cleanResult = _removeJunctionNoise(
-    gapResult.polylines, gapResult.thicknesses, noiseMinLen, snapTolerance
+    gapResult.polylines, gapResult.thicknesses, junctionNoiseMaxLen, junctionSnapDist
   );
 
   // ── Phase 6: Simplify polylines on grid lines ────────────────────────
@@ -623,7 +645,7 @@ function _analyzeGapWall(pA, pB, mask, w, h, distMat, orthoAngle) {
   const candidates = [orthoRad, orthoRad + Math.PI / 2];
   const SNAP_TOL = Math.PI / 12; // 15°
 
-  let snappedAngle = rawAngle;
+  let snappedAngle = null;
   for (const ca of candidates) {
     // Normalize angle difference to [-PI/2, PI/2]
     let diff = rawAngle - ca;
@@ -634,6 +656,10 @@ function _analyzeGapWall(pA, pB, mask, w, h, distMat, orthoAngle) {
       break;
     }
   }
+
+  // Reject gap if orientation doesn't snap to H or V — diagonal gaps are
+  // always skeleton noise at corners, never real walls on architectural plans.
+  if (snappedAngle === null) return null;
 
   // 4. Project endpoints onto the principal axis to get segment extent
   const cosA = Math.cos(snappedAngle), sinA = Math.sin(snappedAngle);
@@ -724,20 +750,41 @@ function _fillEndpointGaps(polylines, thicknesses, maxDist, mask, w, h, distMat,
   };
 }
 
+
 // ═══════════════════════════════════════════════════════════════════════
 // Phase 5c: Junction noise removal
 // ═══════════════════════════════════════════════════════════════════════
 
 /**
- * Remove very short polylines that are skeleton noise at junctions.
+ * Remove short polylines that are skeleton noise at junctions.
  * A polyline is noise if ALL of these are true:
  * 1. It has exactly 2 points (single segment)
- * 2. Its length < noiseMinLen (typically 10cm in px)
- * 3. BOTH endpoints are within snapTol of endpoints of OTHER, longer polylines
+ * 2. Its length < maxLen (30cm — covers all junction artifacts)
+ * 3. BOTH endpoints are within snapDist of OTHER, longer polylines
+ *    (checked against the full body of the polyline, not just endpoints)
  *    (the other polyline must be at least 3× longer)
  */
-function _removeJunctionNoise(polylines, thicknesses, noiseMinLen, snapTol) {
-  // Precompute polyline lengths
+function _removeJunctionNoise(polylines, thicknesses, maxLen, snapDist) {
+  // Point-to-segment distance
+  const ptSegDist = (px, py, ax, ay, bx, by) => {
+    const dx = bx - ax, dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2);
+    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+    const projX = ax + t * dx, projY = ay + t * dy;
+    return Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
+  };
+
+  // Distance from point to nearest segment of a polyline
+  const ptPolyDist = (px, py, pl) => {
+    let minD = Infinity;
+    for (let k = 0; k < pl.length - 1; k++) {
+      const d = ptSegDist(px, py, pl[k].x, pl[k].y, pl[k + 1].x, pl[k + 1].y);
+      if (d < minD) minD = d;
+    }
+    return minD;
+  };
+
   const lengths = polylines.map((pl) => {
     if (pl.length < 2) return 0;
     let len = 0;
@@ -748,16 +795,25 @@ function _removeJunctionNoise(polylines, thicknesses, noiseMinLen, snapTol) {
     return len;
   });
 
-  // For each short polyline, check if both endpoints are near longer polylines
   const keep = new Array(polylines.length).fill(true);
 
   for (let i = 0; i < polylines.length; i++) {
     const pl = polylines[i];
     if (pl.length !== 2) continue;
-    if (lengths[i] >= noiseMinLen) continue;
 
     const pStart = pl[0];
-    const pEnd = pl[pl.length - 1];
+    const pEnd = pl[1];
+
+    // Determine if segment is diagonal (neither H nor V)
+    const segDx = Math.abs(pEnd.x - pStart.x);
+    const segDy = Math.abs(pEnd.y - pStart.y);
+    const isDiagonal = segDx > 0.2 * segDy && segDy > 0.2 * segDx;
+
+    // Diagonals get a larger maxLen (0.70m) since they're almost never real walls
+    // H/V keep the stricter maxLen (0.40m) to protect real short wall segments
+    const effectiveMaxLen = isDiagonal ? Math.round(maxLen * 1.75) : maxLen;
+    if (lengths[i] >= effectiveMaxLen) continue;
+
     const minLongLen = lengths[i] * 3;
 
     let startNearLong = false;
@@ -768,28 +824,29 @@ function _removeJunctionNoise(polylines, thicknesses, noiseMinLen, snapTol) {
       if (lengths[j] < minLongLen) continue;
 
       const other = polylines[j];
-      const oStart = other[0];
-      const oEnd = other[other.length - 1];
 
-      // Check if pStart is near any endpoint of polyline j
       if (!startNearLong) {
-        const ds1 = Math.sqrt((pStart.x - oStart.x) ** 2 + (pStart.y - oStart.y) ** 2);
-        const ds2 = Math.sqrt((pStart.x - oEnd.x) ** 2 + (pStart.y - oEnd.y) ** 2);
-        if (ds1 <= snapTol || ds2 <= snapTol) startNearLong = true;
+        if (ptPolyDist(pStart.x, pStart.y, other) <= snapDist) startNearLong = true;
       }
 
-      // Check if pEnd is near any endpoint of polyline j
       if (!endNearLong) {
-        const de1 = Math.sqrt((pEnd.x - oStart.x) ** 2 + (pEnd.y - oStart.y) ** 2);
-        const de2 = Math.sqrt((pEnd.x - oEnd.x) ** 2 + (pEnd.y - oEnd.y) ** 2);
-        if (de1 <= snapTol || de2 <= snapTol) endNearLong = true;
+        if (ptPolyDist(pEnd.x, pEnd.y, other) <= snapDist) endNearLong = true;
       }
 
       if (startNearLong && endNearLong) break;
     }
 
-    if (startNearLong && endNearLong) {
-      keep[i] = false;
+    if (isDiagonal) {
+      // Diagonal: only need ONE endpoint near a long wall — a diagonal
+      // with one end near a wall is always junction skeleton noise
+      if (startNearLong || endNearLong) {
+        keep[i] = false;
+      }
+    } else {
+      // H/V: need BOTH endpoints near long walls (conservative)
+      if (startNearLong && endNearLong) {
+        keep[i] = false;
+      }
     }
   }
 
