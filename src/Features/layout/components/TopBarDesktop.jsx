@@ -16,11 +16,13 @@ import computeCalibrationTransform, {
   DEFAULT_RED,
   DEFAULT_GREEN,
 } from "Features/mapEditor/utils/computeCalibrationTransform";
+import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
 import { setListingViewerSelectedListingId } from "Features/listingViewer/listingViewerSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
 
 import { Box, Button, Divider } from "@mui/material";
 import { ArrowBack, ChevronRight } from "@mui/icons-material";
@@ -65,6 +67,7 @@ export default function TopBarDesktop() {
     (s) => s.baseMapEditor.calibrationTargetsByVersionId
   );
   const baseMap = useMainBaseMap();
+  const mainBaseMapListing = useMainBaseMapListing();
 
   // helper - em
 
@@ -156,6 +159,13 @@ export default function TopBarDesktop() {
         .map((v) => v.id);
       dispatch(setHiddenVersionIds(nonActiveIds));
     }
+    dispatch(
+      setSelectedItem({
+        id: baseMap.id,
+        type: "BASE_MAP",
+        listingId: mainBaseMapListing?.id,
+      })
+    );
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
     dispatch(setSelectedViewerKey("BASE_MAPS"));
     dispatch(setViewerReturnContext({ fromViewer: "MAP" }));

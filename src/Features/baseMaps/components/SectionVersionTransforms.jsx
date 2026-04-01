@@ -80,7 +80,7 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
 
   const [tempResult, setTempResult] = useState(null); // { file, label, objectUrl }
   const [openCompare, setOpenCompare] = useState(false);
-  const [createNewVersion, setCreateNewVersion] = useState(false);
+  const [createNewVersion, setCreateNewVersion] = useState(true);
   // smart transform menu/dialogs
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [activeTransform, setActiveTransform] = useState(null);
@@ -107,7 +107,7 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
     const objectUrl = URL.createObjectURL(file);
     setTempResult({ file, label, objectUrl });
     setOpenCompare(true);
-    setCreateNewVersion(false);
+    setCreateNewVersion(true);
   }
 
   function handleCloseCompare() {

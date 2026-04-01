@@ -72,7 +72,7 @@ export default function SectionBaseMapTransforms() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [openDelete, setOpenDelete] = useState(false);
     const [openCompare, setOpenCompare] = useState(false);
-    const [createNewVersion, setCreateNewVersion] = useState(false);
+    const [createNewVersion, setCreateNewVersion] = useState(true);
     const [openCreateTransform, setOpenCreateTransform] = useState(false);
     const [duplicateTransform, setDuplicateTransform] = useState(null);
 
