@@ -326,10 +326,12 @@ function _postProcessSegments(rawSegments, ctx) {
     }
     allPairThicknesses.push(resolvedThicknesses[i]);
   }
-  for (const seg of diagonalSegments) {
-    allEndpointPairs.push({ p1: { x: seg.x1, y: seg.y1 }, p2: { x: seg.x2, y: seg.y2 } });
-    allPairThicknesses.push(_measureThicknessDiagonal(seg, distMat, wWidth, wHeight));
-  }
+  // Phase A: only grid-aligned walls (H/V). Diagonal segments are excluded
+  // for now — they'll be processed in a future Phase B (curves, non-aligned walls).
+  // for (const seg of diagonalSegments) {
+  //   allEndpointPairs.push({ p1: { x: seg.x1, y: seg.y1 }, p2: { x: seg.x2, y: seg.y2 } });
+  //   allPairThicknesses.push(_measureThicknessDiagonal(seg, distMat, wWidth, wHeight));
+  // }
 
   // ── Phase 5: Chain colinear segments (dark pixel continuity) ─────────
   const colinearDistTol = meterByPx > 0 ? Math.max(5, Math.round(0.05 / meterByPx)) : 8;
@@ -374,12 +376,18 @@ function _postProcessSegments(rawSegments, ctx) {
   }
   const noStubResult = { polylines: stubPolylines, thicknesses: stubThicknesses };
 
-  // ── Phase 5d: Simplify colinear points (Douglas-Peucker) ───────────
+  // ── Phase 5d: Remove zigzag points ─────────────────────────────────
+  // Chaîning can create polylines where direction reverses at intermediate
+  // points (zigzag). Detect via negative dot product of consecutive segment
+  // directions and remove the offending point. Iterate until stable.
+  const noZigzagResult = _removeZigzags(noStubResult.polylines, noStubResult.thicknesses);
+
+  // ── Phase 5d½: Simplify colinear points (Douglas-Peucker) ─────────
   // Chaîned segments on the same wall create many colinear intermediate
   // points. Simplify each polyline by removing points that are within
   // tolerance of the line between their neighbours.
   const rdpTolerance = meterByPx > 0 ? Math.max(3, Math.round(0.03 / meterByPx)) : 5;
-  const rdpResult = _simplifyColinearPoints(noStubResult.polylines, noStubResult.thicknesses, rdpTolerance);
+  const rdpResult = _simplifyColinearPoints(noZigzagResult.polylines, noZigzagResult.thicknesses, rdpTolerance);
 
   // ── Phase 5e: Step junctions ────────────────────────────────────────
   // Two near-parallel walls (V-V or H-H) slightly offset, connected by an
@@ -408,15 +416,18 @@ function _postProcessSegments(rawSegments, ctx) {
     postStepThicknesses.push(stepResult.thicknesses[i]);
   }
 
+  // ── Remove zigzags created by step junctions ────────────────────────
+  const postZigzagResult = _removeZigzags(postStepPolylines, postStepThicknesses);
+
   // ── Phase 6: Simplify polylines on grid lines ────────────────────────
   // Remove intermediate points that lie on the same grid line,
   // keeping only extremities and junction points (shared with other polylines).
   const allGridLines = { h: hGridLines, v: vGridLines };
   const simplified = _simplifyPolylinesOnGrid(
-    postStepPolylines, allGridLines, gridTolerance, wWallMask, wWidth, wHeight
+    postZigzagResult.polylines, allGridLines, gridTolerance, wWallMask, wWidth, wHeight
   );
 
-  return { polylines: simplified, thicknesses: postStepThicknesses };
+  return { polylines: simplified, thicknesses: postZigzagResult.thicknesses };
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -912,7 +923,61 @@ function _removeJunctionNoise(polylines, thicknesses, maxLen, snapDist) {
 
 
 // ═══════════════════════════════════════════════════════════════════════
-// Phase 5d: Colinear point simplification (Ramer-Douglas-Peucker)
+// Phase 5d: Zigzag removal
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Remove intermediate points that cause direction reversals (zigzags).
+ * A zigzag at point B in A→B→C is detected when the dot product of
+ * direction vectors AB and BC is negative (angle > 90°).
+ * Iterates until no more zigzags are found.
+ */
+function _removeZigzags(polylines, thicknesses) {
+  const cleaned = polylines.map((pl) => {
+    if (pl.length <= 2) return pl;
+
+    let points = [...pl];
+    let changed = true;
+
+    while (changed) {
+      changed = false;
+      const kept = [points[0]];
+
+      for (let i = 1; i < points.length - 1; i++) {
+        const prev = kept[kept.length - 1];
+        const curr = points[i];
+        const next = points[i + 1];
+
+        // Direction vectors
+        const dx1 = curr.x - prev.x, dy1 = curr.y - prev.y;
+        const dx2 = next.x - curr.x, dy2 = next.y - curr.y;
+
+        // Dot product — negative means direction reversal (> 90°)
+        const dot = dx1 * dx2 + dy1 * dy2;
+
+        if (dot < 0) {
+          // Zigzag detected — skip this point
+          changed = true;
+          continue;
+        }
+        kept.push(curr);
+      }
+
+      kept.push(points[points.length - 1]);
+      points = kept;
+
+      if (points.length <= 2) break;
+    }
+
+    return points;
+  });
+
+  return { polylines: cleaned, thicknesses: [...thicknesses] };
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// Phase 5d½: Colinear point simplification (Ramer-Douglas-Peucker)
 // ═══════════════════════════════════════════════════════════════════════
 
 /**
