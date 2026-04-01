@@ -354,15 +354,25 @@ function _postProcessSegments(rawSegments, ctx) {
     gapResult.polylines, gapResult.thicknesses, junctionNoiseMaxLen, junctionSnapDist
   );
 
+  // ── Phase 5d: Step junctions ────────────────────────────────────────
+  // Two near-parallel walls (V-V or H-H) slightly offset, connected by an
+  // orthogonal segment visible on the image. Creates L-shaped connectors
+  // with shared intersection points.
+  const stepMaxGap = meterByPx > 0 ? Math.max(20, Math.round(1.5 / meterByPx)) : 150;
+  const stepResult = _createStepJunctions(
+    cleanResult.polylines, cleanResult.thicknesses,
+    stepMaxGap, wWallMask, wWidth, wHeight, distMat, meterByPx
+  );
+
   // ── Phase 6: Simplify polylines on grid lines ────────────────────────
   // Remove intermediate points that lie on the same grid line,
   // keeping only extremities and junction points (shared with other polylines).
   const allGridLines = { h: hGridLines, v: vGridLines };
   const simplified = _simplifyPolylinesOnGrid(
-    cleanResult.polylines, allGridLines, gridTolerance, wWallMask, wWidth, wHeight
+    stepResult.polylines, allGridLines, gridTolerance, wWallMask, wWidth, wHeight
   );
 
-  return { polylines: simplified, thicknesses: cleanResult.thicknesses };
+  return { polylines: simplified, thicknesses: stepResult.thicknesses };
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -854,6 +864,217 @@ function _removeJunctionNoise(polylines, thicknesses, maxLen, snapDist) {
     polylines: polylines.filter((_, i) => keep[i]),
     thicknesses: thicknesses.filter((_, i) => keep[i]),
   };
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// Phase 5d: Step junctions
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Detect pairs of near-parallel walls (V-V or H-H) that are slightly offset
+ * and connected by a visible orthogonal dark band.
+ *
+ * Pattern: two verticals offset in X, connected by a short horizontal, or
+ *          two horizontals offset in Y, connected by a short vertical.
+ *
+ * For each valid pair, creates an L-shaped connector:
+ * - Extends wall A to the intersection line
+ * - Creates the orthogonal connector segment
+ * - Extends wall B to the intersection line
+ * - Shares intersection points for clean topology
+ */
+function _createStepJunctions(polylines, thicknesses, maxGap, mask, w, h, distMat, meterByPx) {
+  const result = { polylines: [...polylines], thicknesses: [...thicknesses] };
+
+  // Classify each polyline as predominantly H or V
+  const getDirection = (pl) => {
+    if (pl.length < 2) return null;
+    const first = pl[0], last = pl[pl.length - 1];
+    const dx = Math.abs(last.x - first.x);
+    const dy = Math.abs(last.y - first.y);
+    if (dy > dx * 2) return "V";
+    if (dx > dy * 2) return "H";
+    return null; // diagonal — skip
+  };
+
+  // Get the endpoint and the "other end" direction for extending
+  const getEndpoints = (pl) => ({
+    start: pl[0],
+    end: pl[pl.length - 1],
+  });
+
+  const minConnLen = meterByPx > 0 ? Math.round(0.05 / meterByPx) : 5;
+  const connected = new Set(); // track which endpoints are already connected
+
+  for (let i = 0; i < result.polylines.length; i++) {
+    const plA = result.polylines[i];
+    const dirA = getDirection(plA);
+    if (!dirA) continue;
+
+    for (let j = i + 1; j < result.polylines.length; j++) {
+      const plB = result.polylines[j];
+      const dirB = getDirection(plB);
+      if (dirB !== dirA) continue; // must be same direction (V-V or H-H)
+
+      const epsA = getEndpoints(plA);
+      const epsB = getEndpoints(plB);
+
+      // Try all 4 endpoint combinations: A.start-B.start, A.start-B.end, A.end-B.start, A.end-B.end
+      const pairs = [
+        { pA: epsA.start, pB: epsB.start, idxA: 0, idxB: 0, sideA: "start", sideB: "start" },
+        { pA: epsA.start, pB: epsB.end, idxA: 0, idxB: plB.length - 1, sideA: "start", sideB: "end" },
+        { pA: epsA.end, pB: epsB.start, idxA: plA.length - 1, idxB: 0, sideA: "end", sideB: "start" },
+        { pA: epsA.end, pB: epsB.end, idxA: plA.length - 1, idxB: plB.length - 1, sideA: "end", sideB: "end" },
+      ];
+
+      for (const { pA, pB, sideA, sideB } of pairs) {
+        const keyA = `${i}_${sideA}`;
+        const keyB = `${j}_${sideB}`;
+        if (connected.has(keyA) || connected.has(keyB)) continue;
+
+        const dist = Math.sqrt((pA.x - pB.x) ** 2 + (pA.y - pB.y) ** 2);
+        if (dist < minConnLen || dist > maxGap) continue;
+
+        // For V-V: the orthogonal offset is in X, the along-axis offset is in Y
+        // For H-H: the orthogonal offset is in Y, the along-axis offset is in X
+        let orthoOffset, alongOffset;
+        if (dirA === "V") {
+          orthoOffset = Math.abs(pA.x - pB.x);
+          alongOffset = Math.abs(pA.y - pB.y);
+        } else {
+          orthoOffset = Math.abs(pA.y - pB.y);
+          alongOffset = Math.abs(pA.x - pB.x);
+        }
+
+        // Must have significant orthogonal offset (otherwise they're colinear, not stepped)
+        if (orthoOffset < minConnLen) continue;
+        // Along-axis offset should be reasonable (not too far apart along the wall direction)
+        if (alongOffset > maxGap) continue;
+
+        // Determine the connector: an L-shape going from pA orthogonally to pB's axis,
+        // then along to pB. The corner point is at the intersection.
+        let corner;
+        if (dirA === "V") {
+          // V walls: connector is horizontal. Corner shares Y with one and X with the other.
+          // Use the Y that's "between" the two endpoints (midpoint, snapped to darker region)
+          const midY = Math.round((pA.y + pB.y) / 2);
+          corner = { x: pA.x, y: midY }; // extend pA straight, then go H to pB
+          // Alternative corner: { x: pB.x, y: midY } — extend pB straight
+          // Choose the one that best matches dark pixels
+          const corner1 = { x: pA.x, y: midY };
+          const corner2 = { x: pB.x, y: midY };
+          // Connector via corner1: pA → corner1 (V extension) → pB (H connector)
+          // Connector via corner2: pA → corner2 (H connector) → pB (V extension)
+
+          // Test both L-shapes, pick the one with better dark pixel coverage
+          const path1H = _isSegmentOnWall(corner1, { x: pB.x, y: midY }, mask, w, h);
+          const path1V = _isSegmentOnWall(pA, corner1, mask, w, h);
+          const path2H = _isSegmentOnWall({ x: pA.x, y: midY }, corner2, mask, w, h);
+          const path2V = _isSegmentOnWall(corner2, pB, mask, w, h);
+
+          const score1 = (path1H ? 1 : 0) + (path1V ? 1 : 0);
+          const score2 = (path2H ? 1 : 0) + (path2V ? 1 : 0);
+
+          if (score1 === 0 && score2 === 0) continue; // no dark pixels at all
+
+          if (score1 >= score2) {
+            corner = corner1;
+            // Connector: horizontal from corner1 to {pB.x, midY}
+            const connEnd = { x: pB.x, y: midY };
+            if (!path1H) continue;
+            // Measure thickness along the horizontal connector
+            const thickness = _measureThicknessAlongLine(corner, connEnd, distMat, w, h);
+            // Add the connector polyline
+            result.polylines.push([{ ...corner }, { ...connEnd }]);
+            result.thicknesses.push(thickness);
+            // Extend wall A: add corner point to the appropriate end
+            if (sideA === "end") plA.push({ ...corner });
+            else plA.unshift({ ...corner });
+            // Extend wall B: add connEnd point to the appropriate end
+            if (sideB === "end") plB.push({ ...connEnd });
+            else plB.unshift({ ...connEnd });
+          } else {
+            const connStart = { x: pA.x, y: midY };
+            corner = corner2;
+            if (!path2H) continue;
+            const thickness = _measureThicknessAlongLine(connStart, corner, distMat, w, h);
+            result.polylines.push([{ ...connStart }, { ...corner }]);
+            result.thicknesses.push(thickness);
+            if (sideA === "end") plA.push({ ...connStart });
+            else plA.unshift({ ...connStart });
+            if (sideB === "end") plB.push({ ...corner });
+            else plB.unshift({ ...corner });
+          }
+        } else {
+          // H walls: connector is vertical
+          const midX = Math.round((pA.x + pB.x) / 2);
+          const corner1 = { x: midX, y: pA.y };
+          const corner2 = { x: midX, y: pB.y };
+
+          const path1V = _isSegmentOnWall(corner1, { x: midX, y: pB.y }, mask, w, h);
+          const path1H = _isSegmentOnWall(pA, corner1, mask, w, h);
+          const path2V = _isSegmentOnWall({ x: midX, y: pA.y }, corner2, mask, w, h);
+          const path2H = _isSegmentOnWall(corner2, pB, mask, w, h);
+
+          const score1 = (path1V ? 1 : 0) + (path1H ? 1 : 0);
+          const score2 = (path2V ? 1 : 0) + (path2H ? 1 : 0);
+
+          if (score1 === 0 && score2 === 0) continue;
+
+          if (score1 >= score2) {
+            corner = corner1;
+            const connEnd = { x: midX, y: pB.y };
+            if (!path1V) continue;
+            const thickness = _measureThicknessAlongLine(corner, connEnd, distMat, w, h);
+            result.polylines.push([{ ...corner }, { ...connEnd }]);
+            result.thicknesses.push(thickness);
+            if (sideA === "end") plA.push({ ...corner });
+            else plA.unshift({ ...corner });
+            if (sideB === "end") plB.push({ ...connEnd });
+            else plB.unshift({ ...connEnd });
+          } else {
+            const connStart = { x: midX, y: pA.y };
+            corner = corner2;
+            if (!path2V) continue;
+            const thickness = _measureThicknessAlongLine(connStart, corner, distMat, w, h);
+            result.polylines.push([{ ...connStart }, { ...corner }]);
+            result.thicknesses.push(thickness);
+            if (sideA === "end") plA.push({ ...connStart });
+            else plA.unshift({ ...connStart });
+            if (sideB === "end") plB.push({ ...corner });
+            else plB.unshift({ ...corner });
+          }
+        }
+
+        connected.add(keyA);
+        connected.add(keyB);
+        break; // one connection per endpoint pair
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Measure wall thickness along a line segment using the distance transform.
+ */
+function _measureThicknessAlongLine(pA, pB, distMat, w, h) {
+  const dx = pB.x - pA.x, dy = pB.y - pA.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  const numSamples = Math.min(20, Math.max(5, Math.floor(len / 5)));
+  const samples = [];
+  for (let s = 0; s < numSamples; s++) {
+    const t = (s + 0.5) / numSamples;
+    const px = Math.min(w - 1, Math.max(0, Math.round(pA.x + dx * t)));
+    const py = Math.min(h - 1, Math.max(0, Math.round(pA.y + dy * t)));
+    const dist = distMat.floatAt(py, px);
+    if (dist > 0) samples.push(dist);
+  }
+  if (samples.length === 0) return 2;
+  samples.sort((a, b) => a - b);
+  return Math.max(2, samples[Math.floor(samples.length / 2)] * 2);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
