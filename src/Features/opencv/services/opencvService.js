@@ -17,7 +17,7 @@ class CV {
       throw new Error("OpenCV worker not loaded");
     }
 
-    const { msg } = event;
+    const { msg, timeout } = event;
     if (!msg) {
       throw new Error("Missing message key");
     }
@@ -53,8 +53,8 @@ class CV {
           clearInterval(interval);
         } else {
           checkCount++;
-          // Safety timeout: 10 seconds
-          if (checkCount > 200) {
+          const maxChecks = Math.ceil((timeout || 10000) / 50);
+          if (checkCount > maxChecks) {
             delete this._status[requestId];
             clearInterval(interval);
             rej(new Error(`OpenCV Request Timeout for ${requestId}`));
@@ -272,6 +272,13 @@ class CV {
     return this._dispatch({
       msg: "detectSimilarPolylinesAsync",
       payload,
+    });
+  }
+  vectoriseWallsAsync(payload) {
+    return this._dispatch({
+      msg: "vectoriseWallsAsync",
+      payload,
+      timeout: 120000,
     });
   }
 }
