@@ -27,7 +27,7 @@ export default function useVectorisation() {
   const { value: selectedListing } = useSelectedListing();
 
   const vectorise = useCallback(
-    async ({ annotations, annotationTemplate }) => {
+    async ({ annotations, annotationTemplate, enableExteriorOrtho = true, enableExteriorClose = true, enableInterior = true }) => {
       if (!annotations?.length || !annotationTemplate) {
         throw new Error("annotations and annotationTemplate are required");
       }
@@ -107,6 +107,9 @@ export default function useVectorisation() {
         boundaries: versionBoundaries,
         offsetAngle: orthoSnapAngleOffset || 0,
         meterByPx: versionMeterByPx,
+        enableExteriorOrtho,
+        enableExteriorClose,
+        enableInterior,
       });
 
       // Transform results back from version image space to reference space
