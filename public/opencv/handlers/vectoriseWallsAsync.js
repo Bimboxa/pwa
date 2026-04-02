@@ -21,6 +21,9 @@ async function vectoriseWallsAsync({ msg, payload }) {
       boundaries = [],
       offsetAngle = 0,
       meterByPx = 0,
+      enableExteriorOrtho = true,
+      enableExteriorClose = true,
+      enableInterior = true,
     } = payload;
 
     if (!imageUrl) throw new Error("imageUrl is required");
@@ -124,10 +127,13 @@ async function vectoriseWallsAsync({ msg, payload }) {
     maskCtx.fillStyle = "#000000";
     maskCtx.fillRect(0, 0, roiW, roiH);
 
-    maskCtx.fillStyle = "#ffffff";
-    for (const boundary of workBoundaries) {
-      const pts = boundary.points;
+    // Draw each boundary polygon with a unique index (1-based) in the red channel.
+    // This allows _classifyPeripheral to distinguish which polygon each side belongs to.
+    for (let bIdx = 0; bIdx < workBoundaries.length; bIdx++) {
+      const pts = workBoundaries[bIdx].points;
       if (!pts || pts.length < 3) continue;
+      const colorVal = bIdx + 1; // 1-based polygon index
+      maskCtx.fillStyle = `rgb(${colorVal},${colorVal},${colorVal})`;
       maskCtx.beginPath();
       maskCtx.moveTo(pts[0].x - roiX0, pts[0].y - roiY0);
       for (let i = 1; i < pts.length; i++) maskCtx.lineTo(pts[i].x - roiX0, pts[i].y - roiY0);
@@ -135,7 +141,7 @@ async function vectoriseWallsAsync({ msg, payload }) {
       maskCtx.fill();
     }
 
-    // Cuts = holes in rooms = wall/pillar areas
+    // Cuts = holes in rooms = wall/pillar areas (reset to 0)
     maskCtx.fillStyle = "#000000";
     for (const boundary of workBoundaries) {
       const cuts = boundary.cuts;
@@ -153,19 +159,20 @@ async function vectoriseWallsAsync({ msg, payload }) {
 
     const maskImageData = maskCtx.getImageData(0, 0, roiW, roiH);
 
-    // 3d. Room mask (1 = inside a room polygon, 0 = outside/wall)
-    // Used to distinguish peripheral walls (outside on one side) from interior walls.
+    // 3d. Room mask (0 = outside, 1..N = polygon index)
+    // Used to distinguish peripheral walls (different polygon or outside on one side)
+    // from interior walls (same polygon on both sides).
     const wWidth = roiW;
     const wHeight = roiH;
     const wRoomMask = new Uint8Array(wWidth * wHeight);
     for (let i = 0; i < wWidth * wHeight; i++) {
-      wRoomMask[i] = maskImageData.data[i * 4] > 128 ? 1 : 0;
+      wRoomMask[i] = maskImageData.data[i * 4]; // polygon index (0 = outside)
     }
 
     // 3e. wallMask = NOT room AND dark on image
     const wWallMask = new Uint8Array(wWidth * wHeight);
     for (let i = 0; i < wWidth * wHeight; i++) {
-      const isRoom = maskImageData.data[i * 4] > 128;
+      const isRoom = maskImageData.data[i * 4] > 0;
       if (isRoom) { wWallMask[i] = 0; continue; }
       const imgX = (i % wWidth) + roiX0;
       const imgY = Math.floor(i / wWidth) + roiY0;
@@ -232,6 +239,7 @@ async function vectoriseWallsAsync({ msg, payload }) {
 
     const postResult = _postProcessSegments(rawSegments, {
       wWallMask, wRoomMask, wWidth, wHeight, distMat, meterByPx, maxLineGap, cutPolygons, wBrightness,
+      enableExteriorOrtho, enableExteriorClose, enableInterior,
     });
     let polylines = postResult.polylines;
     let thicknesses = postResult.thicknesses;
@@ -275,9 +283,9 @@ const _ptKey = (x, y) => `${Math.round(x)},${Math.round(y)}`;
 function _postProcessSegments(rawSegments, ctx) {
   const { wWallMask, wRoomMask, wWidth, wHeight, distMat, meterByPx, maxLineGap } = ctx;
 
-  const ENABLE_PERIPHERAL = true;      // Phase 1.1: peripheral ortho walls
-  const ENABLE_INTERIOR = true;        // Phase 1.2: interior ortho walls
-  const ENABLE_CLOSE_ENVELOPE = true;  // Phase 2: peripheral curves/obliques
+  const ENABLE_PERIPHERAL = ctx.enableExteriorOrtho !== false;
+  const ENABLE_INTERIOR = ctx.enableInterior !== false;
+  const ENABLE_CLOSE_ENVELOPE = ctx.enableExteriorClose !== false;
 
   // ── Phase 1: Classify H/V/diagonal, merge collinear ──────────────────
   const ANGLE_TOL = Math.PI / 12;
@@ -372,7 +380,7 @@ function _postProcessSegments(rawSegments, ctx) {
       const pB = { x: seg.position, y: seg.end };
       return _isSegmentOnWall(pA, pB, wWallMask, wWidth, wHeight);
     });
-    const intResult = _processWallGroup(validIntH, validIntV, periPolylines, ctx);
+    const intResult = _processWallGroup(validIntH, validIntV, [], ctx);
 
     // Junction resolution on interior walls
     const intMaxThick = intResult.thicknesses.length > 0 ? Math.max(...intResult.thicknesses) : 20;
@@ -868,9 +876,11 @@ function _classifyPeripheral(segments, roomMask, w, h, axis, distMat, meterByPx)
       )));
     }
 
-    // Probe beyond the wall on both sides — check room mask
+    // Probe beyond the wall on both sides — check room mask (polygon index)
+    // Peripheral = different polygon indices (or 0 = outside) on the two sides.
+    // Interior = same polygon index on both sides.
     const probeOffset = halfWidth + 15;
-    let sideARoom = 0, sideBRoom = 0;
+    let samePolygon = 0, diffPolygon = 0;
 
     for (let s = 0; s < sampleCount; s++) {
       const t = Math.round(seg.start + (s + 0.5) * (seg.end - seg.start) / sampleCount);
@@ -883,22 +893,20 @@ function _classifyPeripheral(segments, roomMask, w, h, axis, distMat, meterByPx)
         pxB = seg.position + probeOffset; pyB = t; // right
       }
 
-      // Side A: is it inside a room?
-      if (pxA >= 0 && pxA < w && pyA >= 0 && pyA < h && roomMask[pyA * w + pxA]) {
-        sideARoom++;
-      }
-      // Side B: is it inside a room?
-      if (pxB >= 0 && pxB < w && pyB >= 0 && pyB < h && roomMask[pyB * w + pxB]) {
-        sideBRoom++;
+      // Get polygon index on each side (0 = outside any polygon)
+      const idxA = (pxA >= 0 && pxA < w && pyA >= 0 && pyA < h) ? roomMask[pyA * w + pxA] : 0;
+      const idxB = (pxB >= 0 && pxB < w && pyB >= 0 && pyB < h) ? roomMask[pyB * w + pxB] : 0;
+
+      if (idxA !== idxB) {
+        diffPolygon++;
+      } else {
+        samePolygon++;
       }
     }
 
-    // Peripheral = significant asymmetry between the two sides.
-    // One side faces the flood fill polygon (exterior), the other doesn't.
-    // Interior = both sides similar (both inside the building, no polygon).
-    const asymmetry = Math.abs(sideARoom - sideBRoom);
+    // Peripheral if enough samples show different polygon indices on each side
     const asymThreshold = sampleCount * 0.4;
-    if (asymmetry >= asymThreshold) {
+    if (diffPolygon >= asymThreshold) {
       peripheral.push(seg);
     } else {
       interior.push(seg);

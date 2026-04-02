@@ -9,7 +9,9 @@ import { resolveDrawingShape } from "../constants/drawingShapeConfig";
 
 import {
   Box,
+  Checkbox,
   CircularProgress,
+  FormControlLabel,
   IconButton,
   Menu,
   Tooltip,
@@ -32,6 +34,9 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [enableExteriorOrtho, setEnableExteriorOrtho] = useState(true);
+  const [enableExteriorClose, setEnableExteriorClose] = useState(true);
+  const [enableInterior, setEnableInterior] = useState(true);
   const open = Boolean(anchorEl);
 
   const meterByPx = baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx;
@@ -53,7 +58,7 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
     if (!template) return;
     setLoading(true);
     try {
-      const result = await vectorise({ annotations, annotationTemplate: template });
+      const result = await vectorise({ annotations, annotationTemplate: template, enableExteriorOrtho, enableExteriorClose, enableInterior });
       console.log(`[Vectorisation] ${result.count} wall annotations created`);
     } catch (e) {
       console.error("[Vectorisation]", e);
@@ -89,8 +94,25 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
         transformOrigin={{ vertical: "top", horizontal: "right" }}
         slotProps={{ paper: { sx: { minWidth: 240 } } }}
       >
-        <Box sx={{ px: 2, pt: 1, pb: 0.5 }}>
+        <Box sx={{ px: 2, pt: 1, pb: 0 }}>
           <Typography variant="body2" sx={{ fontWeight: 700 }}>Vectorisation</Typography>
+        </Box>
+        <Box sx={{ px: 1, pb: 0.5, display: "flex", flexDirection: "column" }}>
+          <FormControlLabel
+            control={<Checkbox size="small" checked={enableExteriorOrtho} onChange={(e) => setEnableExteriorOrtho(e.target.checked)} />}
+            label={<Typography variant="caption">Murs ext (ortho)</Typography>}
+            sx={{ m: 0 }}
+          />
+          <FormControlLabel
+            control={<Checkbox size="small" checked={enableExteriorClose} onChange={(e) => setEnableExteriorClose(e.target.checked)} />}
+            label={<Typography variant="caption">Murs ext (fermeture)</Typography>}
+            sx={{ m: 0 }}
+          />
+          <FormControlLabel
+            control={<Checkbox size="small" checked={enableInterior} onChange={(e) => setEnableInterior(e.target.checked)} />}
+            label={<Typography variant="caption">Murs intérieurs ortho</Typography>}
+            sx={{ m: 0 }}
+          />
         </Box>
         {vectorisationTemplates?.length > 0 ? (
           <SelectorAnnotationTemplateVariantDense
