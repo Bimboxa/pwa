@@ -402,7 +402,10 @@ function _postProcessSegments(rawSegments, ctx) {
     filteredThicknesses.push(finalResult.thicknesses[i]);
   }
 
-  // ── Phase 7c: Step junction detection — find parallel segments with
+  // ── Phase 7c: Resolve colinear overlaps — trim thinner wall at thicker wall boundary
+  _resolveColinearOverlaps(filteredPolylines, filteredThicknesses, meterByPx);
+
+  // ── Phase 7d: Step junction detection — find parallel segments with
   //    close endpoints and verify a dark orthogonal connector exists ───
   _detectAndConnectSteps(filteredPolylines, filteredThicknesses, wWallMask, wWidth, wHeight, distMat, meterByPx);
 
@@ -427,6 +430,202 @@ function _postProcessSegments(rawSegments, ctx) {
  * Peripheral wall: one side faces outside (roomMask = 0 beyond the wall)
  * Interior wall: both sides face rooms (roomMask = 1 beyond the wall on both sides)
  */
+
+/**
+ * Resolve colinear overlaps: when two walls on close grid lines overlap
+ * and have different thicknesses, trim the thinner wall so it stops
+ * at the edge of the thicker wall (no visual overlap).
+ * Modifies polylines/thicknesses in place (may remove entries).
+ */
+function _resolveColinearOverlaps(polylines, thicknesses, meterByPx) {
+  // Classify each polyline direction and extent
+  const info = polylines.map((pl, i) => {
+    if (pl.length < 2) return null;
+    const first = pl[0], last = pl[pl.length - 1];
+    const dx = Math.abs(last.x - first.x), dy = Math.abs(last.y - first.y);
+    if (dx > dy * 3) {
+      return { dir: "H", pos: (first.y + last.y) / 2, start: Math.min(first.x, last.x), end: Math.max(first.x, last.x), thick: thicknesses[i] || 20 };
+    }
+    if (dy > dx * 3) {
+      return { dir: "V", pos: (first.x + last.x) / 2, start: Math.min(first.y, last.y), end: Math.max(first.y, last.y), thick: thicknesses[i] || 20 };
+    }
+    return null;
+  });
+
+  const toRemove = new Set();
+  const newPolylines = [];
+  const newThicknesses = [];
+  const snapTol = meterByPx > 0 ? Math.max(5, Math.round(0.15 / meterByPx)) : 15;
+
+  for (let i = 0; i < polylines.length; i++) {
+    if (!info[i] || toRemove.has(i)) continue;
+    for (let j = i + 1; j < polylines.length; j++) {
+      if (!info[j] || toRemove.has(j)) continue;
+      if (info[i].dir !== info[j].dir) continue;
+
+      // Check if on close grid lines (positions within sum of half-widths)
+      const halfI = info[i].thick / 2, halfJ = info[j].thick / 2;
+      const posDist = Math.abs(info[i].pos - info[j].pos);
+      if (posDist > halfI + halfJ) continue;
+
+      // Check overlap OR adjacency in extent
+      const overlapStart = Math.max(info[i].start, info[j].start);
+      const overlapEnd = Math.min(info[i].end, info[j].end);
+      if (overlapEnd < overlapStart - snapTol) continue; // too far apart
+
+      // Determine which is thicker
+      const thickIdx = info[i].thick >= info[j].thick ? i : j;
+      const thinIdx = thickIdx === i ? j : i;
+      const thickInfo = info[thickIdx];
+      const thinInfo = info[thinIdx];
+      const thinPl = polylines[thinIdx];
+      const thickPl = polylines[thickIdx];
+
+      console.log(`[overlap] ${thinInfo.dir} thin(${Math.round(thinInfo.thick)}) pos=${Math.round(thinInfo.pos)} [${Math.round(thinInfo.start)}→${Math.round(thinInfo.end)}] vs thick(${Math.round(thickInfo.thick)}) pos=${Math.round(thickInfo.pos)} [${Math.round(thickInfo.start)}→${Math.round(thickInfo.end)}]`);
+
+      if (thinInfo.start >= thickInfo.start - snapTol && thinInfo.end <= thickInfo.end + snapTol) {
+        // Thin is fully inside thick → remove it
+        toRemove.add(thinIdx);
+        console.log(`[overlap]   → thin fully inside thick, removing`);
+        continue;
+      }
+
+      // Trim thin wall: remove points inside the thick wall's extent
+      const thickStart = thickInfo.start;
+      const thickEnd = thickInfo.end;
+
+      // Find the trim point: where does the thin wall enter the thick wall's zone?
+      let trimX, trimSide; // "start" or "end" of thin being trimmed
+      if (thinInfo.dir === "H") {
+        if (thinInfo.start < thickStart && thinInfo.end > thickStart - snapTol) {
+          trimX = thickStart;
+          trimSide = "end";
+        } else if (thinInfo.end > thickEnd && thinInfo.start < thickEnd + snapTol) {
+          trimX = thickEnd;
+          trimSide = "start";
+        }
+      } else {
+        if (thinInfo.start < thickStart && thinInfo.end > thickStart - snapTol) {
+          trimX = thickStart;
+          trimSide = "end";
+        } else if (thinInfo.end > thickEnd && thinInfo.start < thickEnd + snapTol) {
+          trimX = thickEnd;
+          trimSide = "start";
+        }
+      }
+
+      if (trimX === undefined) continue;
+
+      // Trim the thin polyline: keep only points before the trim point
+      if (thinInfo.dir === "H") {
+        const kept = thinPl.filter(p => trimSide === "end" ? p.x <= trimX + snapTol : p.x >= trimX - snapTol);
+        if (kept.length < 1) { toRemove.add(thinIdx); continue; }
+        // Set the last point exactly at the trim boundary
+        const trimPt = trimSide === "end" ? kept[kept.length - 1] : kept[0];
+        const trimPoint = { x: trimX, y: trimPt.y };
+        if (trimSide === "end") {
+          kept[kept.length - 1] = trimPoint;
+        } else {
+          kept[0] = trimPoint;
+        }
+        thinPl.splice(0, thinPl.length, ...kept);
+      } else {
+        const kept = thinPl.filter(p => trimSide === "end" ? p.y <= trimX + snapTol : p.y >= trimX - snapTol);
+        if (kept.length < 1) { toRemove.add(thinIdx); continue; }
+        const trimPt = trimSide === "end" ? kept[kept.length - 1] : kept[0];
+        const trimPoint = { x: trimPt.x, y: trimX };
+        if (trimSide === "end") {
+          kept[kept.length - 1] = trimPoint;
+        } else {
+          kept[0] = trimPoint;
+        }
+        thinPl.splice(0, thinPl.length, ...kept);
+      }
+
+      // Create perpendicular STEP connector between thin and thick walls.
+      // Both connection points share the same coordinate on the colinear axis.
+      const thinEnd = trimSide === "end" ? thinPl[thinPl.length - 1] : thinPl[0];
+
+      if (thinInfo.dir === "H") {
+        // H walls: step is vertical, both points at same X = trimX
+        const thickY = thickInfo.pos; // thick wall's Y position
+        const stepDist = Math.abs(thinEnd.y - thickY);
+        if (stepDist > 1 && stepDist < halfI + halfJ + snapTol) {
+          const stepPl = [{ x: trimX, y: thinEnd.y }, { x: trimX, y: thickY }];
+          newPolylines.push(stepPl);
+          newThicknesses.push(Math.min(thinInfo.thick, thickInfo.thick));
+          // Ensure thick wall has a point at the connection X
+          _insertPointOnPolylineAtCoord(thickPl, "x", trimX, thickInfo.pos, snapTol);
+          console.log(`[overlap]   → step V: x=${Math.round(trimX)} y=${Math.round(thinEnd.y)}→${Math.round(thickY)}`);
+        }
+      } else {
+        // V walls: step is horizontal, both points at same Y = trimX (trimX is Y for V walls)
+        const thickX = thickInfo.pos;
+        const stepDist = Math.abs(thinEnd.x - thickX);
+        if (stepDist > 1 && stepDist < halfI + halfJ + snapTol) {
+          const stepPl = [{ x: thinEnd.x, y: trimX }, { x: thickX, y: trimX }];
+          newPolylines.push(stepPl);
+          newThicknesses.push(Math.min(thinInfo.thick, thickInfo.thick));
+          _insertPointOnPolylineAtCoord(thickPl, "y", trimX, thickInfo.pos, snapTol);
+          console.log(`[overlap]   → step H: y=${Math.round(trimX)} x=${Math.round(thinEnd.x)}→${Math.round(thickX)}`);
+        }
+      }
+
+      // Clean up thick wall: remove extension points inside perpendicular walls
+      // A point is parasitic if it's within halfWidth of the thick wall's endpoint
+      // and within halfWidth of a perpendicular wall
+      for (let pIdx = thickPl.length - 1; pIdx >= 0; pIdx--) {
+        if (pIdx === 0 && thickPl.length <= 2) continue;
+        if (pIdx === thickPl.length - 1 && thickPl.length <= 2) continue;
+        // Only check actual endpoints (first/last)
+        if (pIdx !== 0 && pIdx !== thickPl.length - 1) continue;
+        const pt = thickPl[pIdx];
+        const prevPt = pIdx === 0 ? thickPl[1] : thickPl[pIdx - 1];
+        const segLen = Math.sqrt((pt.x - prevPt.x) ** 2 + (pt.y - prevPt.y) ** 2);
+        if (segLen > thickInfo.thick) continue; // not a tiny extension
+        // Check if this tiny extension is near a perpendicular wall
+        for (let k = 0; k < polylines.length; k++) {
+          if (k === thickIdx || !info[k] || toRemove.has(k)) continue;
+          if (info[k].dir === thickInfo.dir) continue; // must be perpendicular
+          const perpHalf = (info[k].thick || 20) / 2;
+          // Check if the point is within the perpendicular wall's extent
+          let withinPerp = false;
+          if (info[k].dir === "V" && thickInfo.dir === "H") {
+            withinPerp = Math.abs(pt.x - info[k].pos) < perpHalf + 5;
+          } else if (info[k].dir === "H" && thickInfo.dir === "V") {
+            withinPerp = Math.abs(pt.y - info[k].pos) < perpHalf + 5;
+          }
+          if (withinPerp) {
+            console.log(`[overlap]   → removing parasitic point (${Math.round(pt.x)},${Math.round(pt.y)}) inside perp wall ${k}`);
+            thickPl.splice(pIdx, 1);
+            break;
+          }
+        }
+      }
+
+      // Update info
+      const f = thinPl[0], l = thinPl[thinPl.length - 1];
+      if (thinInfo.dir === "H") {
+        thinInfo.start = Math.min(f.x, l.x);
+        thinInfo.end = Math.max(f.x, l.x);
+      } else {
+        thinInfo.start = Math.min(f.y, l.y);
+        thinInfo.end = Math.max(f.y, l.y);
+      }
+    }
+  }
+
+  // Remove fully overlapped polylines (reverse order)
+  const removeList = [...toRemove].sort((a, b) => b - a);
+  for (const idx of removeList) {
+    polylines.splice(idx, 1);
+    thicknesses.splice(idx, 1);
+  }
+
+  // Add step connectors
+  polylines.push(...newPolylines);
+  thicknesses.push(...newThicknesses);
+}
 
 /**
  * Detect step junctions: pairs of parallel segments with close endpoints,
@@ -614,6 +813,26 @@ function _detectAndConnectSteps(polylines, thicknesses, mask, w, h, distMat, met
   // Append new connectors
   polylines.push(...newPolylines);
   thicknesses.push(...newThicknesses);
+}
+
+/** Insert a shared point on a polyline at a given coordinate along its main axis. */
+function _insertPointOnPolylineAtCoord(pl, axis, coordVal, perpPos, tol) {
+  // Check if a point already exists near this coordinate
+  for (const p of pl) {
+    if (Math.abs(p[axis] - coordVal) < tol) return; // already has a point there
+  }
+  // Find the segment that spans this coordinate and insert
+  for (let k = 0; k < pl.length - 1; k++) {
+    const a = pl[k][axis], b = pl[k + 1][axis];
+    const min = Math.min(a, b), max = Math.max(a, b);
+    if (coordVal >= min - tol && coordVal <= max + tol) {
+      const newPt = axis === "x"
+        ? { x: coordVal, y: perpPos }
+        : { x: perpPos, y: coordVal };
+      pl.splice(k + 1, 0, newPt);
+      return;
+    }
+  }
 }
 
 /** Remove segments from `segs` that overlap with any segment in `refSegs` (same axis, close position). */
