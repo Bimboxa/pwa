@@ -408,7 +408,13 @@ function _postProcessSegments(rawSegments, ctx) {
     _detectAndConnectSteps(intPolylines, intThicknesses, wWallMask, wWidth, wHeight, distMat, meterByPx);
   }
 
-  // ═══ STEP 4: Combine (no int↔ext junctions for now) ═══════════════
+  // ═══ STEP 4: Connect interior endpoints to exterior wall bodies ════
+  if (intPolylines.length > 0 && periPolylines.length > 0) {
+    const maxThick = Math.max(...periThicknesses, ...intThicknesses, 20);
+    const intExtSnapTol = Math.max(5, Math.round(maxThick * 0.75));
+    _connectInteriorToExterior(intPolylines, periPolylines, intExtSnapTol);
+  }
+
   const allPolylines = [...periPolylines, ...intPolylines];
   const allThicknesses = [...periThicknesses, ...intThicknesses];
 
@@ -1656,6 +1662,168 @@ function _processWallGroup(hSegs, vSegs, contextPolylines, ctx) {
   const simplified = _simplifyPolylinesOnGrid(stepResult.polylines, allGridLines, gridTolerance, wWallMask, wWidth, wHeight);
 
   return { polylines: simplified, thicknesses: stepResult.thicknesses };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Interior → Exterior connection
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Connect interior wall endpoints to exterior wall bodies.
+ * Only creates int→ext junctions — no int↔int or ext↔ext modifications.
+ *
+ * For each interior endpoint, find the nearest exterior polyline segment body
+ * and project the endpoint onto it. Insert the projected point into the
+ * exterior polyline and snap the interior endpoint to match.
+ */
+function _connectInteriorToExterior(intPolylines, periPolylines, snapTol) {
+  const projectOntoSegment = (px, py, ax, ay, bx, by) => {
+    const dx = bx - ax, dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return { x: ax, y: ay, t: 0, dist: Math.sqrt((px - ax) ** 2 + (py - ay) ** 2) };
+    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+    const projX = ax + t * dx, projY = ay + t * dy;
+    const dist = Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
+    return { x: projX, y: projY, t, dist };
+  };
+
+  // Determine interior polyline direction (H or V)
+  const getDir = (pl) => {
+    if (pl.length < 2) return null;
+    const first = pl[0], last = pl[pl.length - 1];
+    const dx = Math.abs(last.x - first.x), dy = Math.abs(last.y - first.y);
+    return dy > dx * 2 ? "V" : dx > dy * 2 ? "H" : null;
+  };
+
+  // Check if an exterior segment is parallel to the interior wall direction
+  const isParallel = (intDir, ax, ay, bx, by) => {
+    const sdx = Math.abs(bx - ax), sdy = Math.abs(by - ay);
+    const segDir = sdy > sdx * 2 ? "V" : sdx > sdy * 2 ? "H" : null;
+    return intDir && segDir && intDir === segDir;
+  };
+
+  for (let i = 0; i < intPolylines.length; i++) {
+    const intPl = intPolylines[i];
+    if (intPl.length < 2) continue;
+    const intDir = getDir(intPl);
+
+    const endpoints = [
+      { pt: intPl[0], idx: 0 },
+      { pt: intPl[intPl.length - 1], idx: intPl.length - 1 },
+    ];
+
+    for (const { pt: ep } of endpoints) {
+      let bestDist = snapTol;
+      let bestMatch = null;
+      let matchType = null; // "T" or "colinear"
+
+      // ── Pass 1: T-junction on perpendicular exterior segments ──────
+      for (let j = 0; j < periPolylines.length; j++) {
+        const periPl = periPolylines[j];
+        if (periPl.length < 2) continue;
+
+        for (let k = 0; k < periPl.length - 1; k++) {
+          const a = periPl[k], b = periPl[k + 1];
+
+          // Skip segments parallel to the interior wall
+          if (isParallel(intDir, a.x, a.y, b.x, b.y)) continue;
+
+          const proj = projectOntoSegment(ep.x, ep.y, a.x, a.y, b.x, b.y);
+
+          // Only match segment body (not near endpoints)
+          if (proj.t < 0.01 || proj.t > 0.99) continue;
+          if (proj.dist < bestDist) {
+            bestDist = proj.dist;
+            bestMatch = { j, k, x: proj.x, y: proj.y };
+            matchType = "T";
+          }
+        }
+      }
+
+      // ── Pass 2: Colinear — slide endpoint along its axis to nearest
+      //    exterior endpoint, if the endpoint falls within the exterior
+      //    wall's axial range (i.e. the two walls overlap) ────────────
+      if (!bestMatch && intDir) {
+        let colinearBestDist = Infinity;
+        for (let j = 0; j < periPolylines.length; j++) {
+          const periPl = periPolylines[j];
+          if (periPl.length < 2) continue;
+          const periDir = getDir(periPl);
+          if (periDir !== intDir) continue; // must be same axis
+
+          // Check lateral distance between the two wall axes
+          const periFirst = periPl[0], periLast = periPl[periPl.length - 1];
+          const periAxisPos = intDir === "V"
+            ? (periFirst.x + periLast.x) / 2
+            : (periFirst.y + periLast.y) / 2;
+          const intAxisPos = intDir === "V" ? ep.x : ep.y;
+          if (Math.abs(intAxisPos - periAxisPos) > snapTol) continue;
+
+          // Check if the interior endpoint falls within the exterior wall's axial range
+          const periAxialMin = intDir === "V"
+            ? Math.min(periFirst.y, periLast.y)
+            : Math.min(periFirst.x, periLast.x);
+          const periAxialMax = intDir === "V"
+            ? Math.max(periFirst.y, periLast.y)
+            : Math.max(periFirst.x, periLast.x);
+          const epAxial = intDir === "V" ? ep.y : ep.x;
+
+          // Endpoint must be within the exterior wall range (+ small tolerance)
+          if (epAxial < periAxialMin - snapTol || epAxial > periAxialMax + snapTol) continue;
+
+          // Find the nearest exterior endpoint on this polyline
+          for (let k = 0; k < periPl.length; k++) {
+            const periPt = periPl[k];
+            const axialDist = intDir === "V"
+              ? Math.abs(ep.y - periPt.y)
+              : Math.abs(ep.x - periPt.x);
+            if (axialDist < colinearBestDist) {
+              colinearBestDist = axialDist;
+              if (intDir === "V") {
+                bestMatch = { j, k, x: ep.x, y: periPt.y };
+              } else {
+                bestMatch = { j, k, x: periPt.x, y: ep.y };
+              }
+              matchType = "colinear";
+            }
+          }
+        }
+      }
+
+      if (!bestMatch) continue;
+
+      if (matchType === "T") {
+        const insertPt = {
+          x: Math.round(bestMatch.x * 10) / 10,
+          y: Math.round(bestMatch.y * 10) / 10,
+        };
+
+        // Check if a point already exists nearby in the exterior polyline
+        const periPl = periPolylines[bestMatch.j];
+        let alreadyExists = false;
+        for (const pt of periPl) {
+          if (Math.abs(pt.x - insertPt.x) < 2 && Math.abs(pt.y - insertPt.y) < 2) {
+            ep.x = pt.x;
+            ep.y = pt.y;
+            alreadyExists = true;
+            break;
+          }
+        }
+
+        if (!alreadyExists) {
+          // Insert projected point into exterior polyline
+          periPl.splice(bestMatch.k + 1, 0, insertPt);
+          // Snap interior endpoint to the inserted point
+          ep.x = insertPt.x;
+          ep.y = insertPt.y;
+        }
+      } else {
+        // Colinear: slide interior endpoint along its own axis (keep its lateral position)
+        ep.x = Math.round(bestMatch.x * 10) / 10;
+        ep.y = Math.round(bestMatch.y * 10) / 10;
+      }
+    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
