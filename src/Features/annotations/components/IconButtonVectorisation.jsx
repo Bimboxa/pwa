@@ -32,12 +32,16 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
     excludeIsForBaseMaps: true,
   });
 
+  // state
+
   const [anchorEl, setAnchorEl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [enableExteriorOrtho, setEnableExteriorOrtho] = useState(true);
   const [enableExteriorClose, setEnableExteriorClose] = useState(true);
   const [enableInterior, setEnableInterior] = useState(true);
   const open = Boolean(anchorEl);
+
+  // data
 
   const meterByPx = baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx;
   const disabled = !meterByPx || meterByPx <= 0;
@@ -49,6 +53,8 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
     if (t.strokeWidthUnit !== "CM") return false;
     return true;
   });
+
+  // handlers
 
   function handleOpen(event) { setAnchorEl(event.currentTarget); }
   function handleClose() { setAnchorEl(null); }
@@ -67,6 +73,8 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
       handleClose();
     }
   }
+
+  // render
 
   return (
     <>

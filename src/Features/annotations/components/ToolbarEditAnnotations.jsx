@@ -49,6 +49,7 @@ import IconButtonReentrantAngles from "./IconButtonReentrantAngles";
 import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
 import IconButtonConvertAnnotation from "./IconButtonConvertAnnotation";
 import IconButtonVectorisation from "./IconButtonVectorisation";
+import IconButtonContours from "./IconButtonContours";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "./DatagridAnnotations";
@@ -424,6 +425,14 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
                 <IconButtonVectorisation
                   annotations={annotations.filter(
                     (a) => a.type === "POLYGON"
+                  )}
+                  accentColor="#6366F1"
+                />
+              )}
+              {hasPolylinesOrPolygons && (
+                <IconButtonContours
+                  annotations={annotations.filter(
+                    (a) => a.type === "POLYLINE"
                   )}
                   accentColor="#6366F1"
                 />

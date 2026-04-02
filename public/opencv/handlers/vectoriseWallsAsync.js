@@ -267,7 +267,7 @@ async function vectoriseWallsAsync({ msg, payload }) {
     // Cleanup
     wallMat.delete(); distMat.delete(); skeleton.delete(); lines.delete();
 
-    postMessage({ msg, payload: { polylines, thicknesses } });
+    postMessage({ msg, payload: { polylines, thicknesses, periCount: postResult.periCount } });
   } catch (err) {
     postMessage({ msg, error: err.message || String(err) });
   }
@@ -418,7 +418,7 @@ function _postProcessSegments(rawSegments, ctx) {
   const allPolylines = [...periPolylines, ...intPolylines];
   const allThicknesses = [...periThicknesses, ...intThicknesses];
 
-  return { polylines: allPolylines, thicknesses: allThicknesses };
+  return { polylines: allPolylines, thicknesses: allThicknesses, periCount: periPolylines.length };
 }
 
 /**

@@ -113,7 +113,7 @@ export default function useVectorisation() {
       });
 
       // Transform results back from version image space to reference space
-      const { thicknesses } = result;
+      const { thicknesses, periCount = 0 } = result;
       const polylines = result.polylines.map((pl) =>
         pl.map((p) => ({ x: p.x * vScale + vOffX, y: p.y * vScale + vOffY }))
       );
@@ -173,6 +173,7 @@ export default function useVectorisation() {
           projectId,
           listingId,
           ...(activeLayerId ? { layerId: activeLayerId } : {}),
+          topologySide: i < periCount ? "EXT" : "INT",
           points: pointRefs,
         });
       }
@@ -199,7 +200,20 @@ export default function useVectorisation() {
       if (entityTable) dispatch(triggerEntitiesTableUpdate(entityTable));
 
       console.log(`[useVectorisation] Created ${allAnnotations.length} annotations, ${allPoints.length} points`);
-      return { count: allAnnotations.length };
+
+      // Build wall annotations with resolved pixel coordinates for boundary computation
+      const pointById = new Map();
+      for (const [, v] of pointIndex) pointById.set(v.id, v);
+      const wallAnnotations = allAnnotations.map((ann) => ({
+        ...ann,
+        points: ann.points.map((pRef) => {
+          const entry = pointById.get(pRef.id);
+          if (entry) return { ...pRef, x: entry.nx * width, y: entry.ny * height };
+          return pRef;
+        }),
+      }));
+
+      return { count: allAnnotations.length, wallAnnotations };
     },
     [baseMap, baseMapId, projectId, listingId, activeLayerId, orthoSnapAngleOffset, selectedListing, dispatch]
   );

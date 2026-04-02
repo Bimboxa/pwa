@@ -41,6 +41,7 @@ import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
 import IconButtonConvertAnnotation from "./IconButtonConvertAnnotation";
 import IconButtonVectorisation from "./IconButtonVectorisation";
 import IconButtonSimplifyAnnotation from "./IconButtonSimplifyAnnotation";
+import IconButtonContours from "./IconButtonContours";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
@@ -363,6 +364,12 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               {["POLYLINE", "POLYGON"].includes(selectedAnnotation?.type) && (
                 <IconButtonSimplifyAnnotation
                   annotation={selectedAnnotation}
+                  accentColor={accentColor}
+                />
+              )}
+              {selectedAnnotation?.type === "POLYLINE" && (
+                <IconButtonContours
+                  annotations={[selectedAnnotation]}
                   accentColor={accentColor}
                 />
               )}
