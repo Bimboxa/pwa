@@ -275,9 +275,9 @@ const _ptKey = (x, y) => `${Math.round(x)},${Math.round(y)}`;
 function _postProcessSegments(rawSegments, ctx) {
   const { wWallMask, wRoomMask, wWidth, wHeight, distMat, meterByPx, maxLineGap } = ctx;
 
-  const ENABLE_PERIPHERAL = false;     // Phase 1.1: peripheral ortho walls
+  const ENABLE_PERIPHERAL = true;      // Phase 1.1: peripheral ortho walls
   const ENABLE_INTERIOR = true;        // Phase 1.2: interior ortho walls
-  const ENABLE_CLOSE_ENVELOPE = false; // Phase 2: peripheral curves/obliques
+  const ENABLE_CLOSE_ENVELOPE = true;  // Phase 2: peripheral curves/obliques
 
   // ── Phase 1: Classify H/V/diagonal, merge collinear ──────────────────
   const ANGLE_TOL = Math.PI / 12;
@@ -333,21 +333,35 @@ function _postProcessSegments(rawSegments, ctx) {
   for (const seg of periH) console.log(`  periH: y=${seg.position} x=${seg.start}→${seg.end} len=${seg.end-seg.start}`);
   for (const seg of intH) console.log(`  intH: y=${seg.position} x=${seg.start}→${seg.end} len=${seg.end-seg.start}`);
 
-  // ── Phase 1.1: Process peripheral ortho walls ──────────────────────
+  // ═══ STEP 1: Peripheral ortho walls ═══════════════════════════════
   const periResult = ENABLE_PERIPHERAL
     ? _processWallGroup(periH, periV, [], ctx)
     : { polylines: [], thicknesses: [] };
 
-  // ── Phase 1.2: Identify interior ortho walls ────────────────────────
-  // Simple detection only: filter, validate on wall mask, measure thickness,
-  // convert to polylines. No extension/step-junction processing.
+  // ═══ STEP 2: Close peripheral envelope (curves, obliques) ════════
+  let periPolylines = [...periResult.polylines];
+  let periThicknesses = [...periResult.thicknesses];
+
+  if (ENABLE_PERIPHERAL && periPolylines.length > 0) {
+    // Junctions on peripheral walls only
+    const periMaxThick = periThicknesses.length > 0 ? Math.max(...periThicknesses) : 20;
+    const periSnapTol = Math.max(5, Math.round(periMaxThick * 0.75));
+    const periJunc = _insertJunctionPoints(periPolylines, periThicknesses, periSnapTol, meterByPx);
+    periPolylines = periJunc.polylines;
+    periThicknesses = periJunc.thicknesses;
+  }
+
+  if (ENABLE_CLOSE_ENVELOPE && periPolylines.length > 0) {
+    const envelopeResult = _closePeripheralEnvelope(periPolylines, periThicknesses, ctx);
+    periPolylines.push(...envelopeResult.polylines);
+    periThicknesses.push(...envelopeResult.thicknesses);
+  }
+
+  // ═══ STEP 3: Interior ortho walls ════════════════════════════════
   let intPolylines = [], intThicknesses = [];
   if (ENABLE_INTERIOR) {
-    // Pre-filter: remove segments overlapping peripheral walls
     const filtIntH = _removeOverlappingSegments(intH, periH, posTolerance);
     const filtIntV = _removeOverlappingSegments(intV, periV, posTolerance);
-    console.log(`[interior] after overlap filter: H ${intH.length}→${filtIntH.length}, V ${intV.length}→${filtIntV.length}`);
-    // Pre-validate: keep only segments on wall mask
     const validIntH = filtIntH.filter(seg => {
       const pA = { x: seg.start, y: seg.position };
       const pB = { x: seg.end, y: seg.position };
@@ -358,13 +372,17 @@ function _postProcessSegments(rawSegments, ctx) {
       const pB = { x: seg.position, y: seg.end };
       return _isSegmentOnWall(pA, pB, wWallMask, wWidth, wHeight);
     });
-    console.log(`[interior] after wall mask filter: H ${filtIntH.length}→${validIntH.length}, V ${filtIntV.length}→${validIntV.length}`);
+    const intResult = _processWallGroup(validIntH, validIntV, periPolylines, ctx);
 
-    // Full pipeline: grid snap, merge, extend, topology, junctions
-    const intResult = _processWallGroup(validIntH, validIntV, periResult.polylines, ctx);
+    // Junction resolution on interior walls
+    const intMaxThick = intResult.thicknesses.length > 0 ? Math.max(...intResult.thicknesses) : 20;
+    const intSnapTol = Math.max(5, Math.round(intMaxThick * 0.75));
+    const intJunc = _insertJunctionPoints(intResult.polylines, intResult.thicknesses, intSnapTol, meterByPx);
+
     // Post-validate: reject polylines crossing non-wall zones
-    for (let i = 0; i < intResult.polylines.length; i++) {
-      const pl = intResult.polylines[i];
+    for (let i = 0; i < intJunc.polylines.length; i++) {
+      const pl = intJunc.polylines[i];
+      if (pl.length < 2) continue;
       let valid = true;
       for (let k = 1; k < pl.length; k++) {
         if (!_isSegmentOnWall(pl[k - 1], pl[k], wWallMask, wWidth, wHeight)) {
@@ -373,50 +391,20 @@ function _postProcessSegments(rawSegments, ctx) {
       }
       if (valid) {
         intPolylines.push(pl);
-        intThicknesses.push(intResult.thicknesses[i]);
+        intThicknesses.push(intJunc.thicknesses[i]);
       }
     }
+
+    // Step detection + colinear overlap on interior
+    _resolveColinearOverlaps(intPolylines, intThicknesses, meterByPx);
+    _detectAndConnectSteps(intPolylines, intThicknesses, wWallMask, wWidth, wHeight, distMat, meterByPx);
   }
 
-  const allPolylines = [...periResult.polylines, ...intPolylines];
-  const allThicknesses = [...periResult.thicknesses, ...intThicknesses];
+  // ═══ STEP 4: Combine (no int↔ext junctions for now) ═══════════════
+  const allPolylines = [...periPolylines, ...intPolylines];
+  const allThicknesses = [...periThicknesses, ...intThicknesses];
 
-  // ── Phase 7: Junction resolution (L/T/X) ──────────────────────────
-  const maxThicknessAll = allThicknesses.length > 0 ? Math.max(...allThicknesses) : 20;
-  const junctionSnapTol = Math.max(5, Math.round(maxThicknessAll * 0.75));
-  const finalResult = _insertJunctionPoints(allPolylines, allThicknesses, junctionSnapTol, meterByPx);
-
-  // ── Phase 7b: Remove stubs created by junction insertion ──────────
-  const minStubLen = meterByPx > 0 ? Math.round(0.08 / meterByPx) : 12;
-  const filteredPolylines = [], filteredThicknesses = [];
-  for (let i = 0; i < finalResult.polylines.length; i++) {
-    const pl = finalResult.polylines[i];
-    if (pl.length < 2) continue;
-    let totalLen = 0;
-    for (let k = 1; k < pl.length; k++) {
-      totalLen += Math.sqrt((pl[k].x - pl[k - 1].x) ** 2 + (pl[k].y - pl[k - 1].y) ** 2);
-    }
-    const thickness = finalResult.thicknesses[i] || 20;
-    if (totalLen <= Math.max(thickness * 1.0, minStubLen)) continue;
-    filteredPolylines.push(pl);
-    filteredThicknesses.push(finalResult.thicknesses[i]);
-  }
-
-  // ── Phase 7c: Resolve colinear overlaps — trim thinner wall at thicker wall boundary
-  _resolveColinearOverlaps(filteredPolylines, filteredThicknesses, meterByPx);
-
-  // ── Phase 7d: Step junction detection — find parallel segments with
-  //    close endpoints and verify a dark orthogonal connector exists ───
-  _detectAndConnectSteps(filteredPolylines, filteredThicknesses, wWallMask, wWidth, wHeight, distMat, meterByPx);
-
-  // ── Phase 8: Close peripheral envelope — connect free endpoints ───
-  if (ENABLE_CLOSE_ENVELOPE) {
-    const envelopeResult = _closePeripheralEnvelope(filteredPolylines, filteredThicknesses, ctx);
-    filteredPolylines.push(...envelopeResult.polylines);
-    filteredThicknesses.push(...envelopeResult.thicknesses);
-  }
-
-  return { polylines: filteredPolylines, thicknesses: filteredThicknesses };
+  return { polylines: allPolylines, thicknesses: allThicknesses };
 }
 
 /**
@@ -1799,7 +1787,9 @@ function _insertJunctionPoints(polylines, thicknesses, snapTol, meterByPx) {
 
           // Small overshoot (< 25cm) = corner noise → truncate (replace endpoint).
           // Larger overshoot = real T-junction → insert intersection, keep extension.
-          const maxTruncate = meterByPx > 0 ? Math.round(0.25 / meterByPx) : 30;
+          // Truncate threshold = max of the two wall thicknesses (not a fixed 25cm)
+          const thickA = thicknesses[i] || 20, thickB = thicknesses[j] || 20;
+          const maxTruncate = Math.max(thickA, thickB, meterByPx > 0 ? Math.round(0.25 / meterByPx) : 30);
 
           if (distAtoI <= maxTruncate) {
             epA.x = ix; epA.y = iy;
