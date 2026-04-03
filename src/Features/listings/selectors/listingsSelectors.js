@@ -38,7 +38,11 @@ export const makeGetListingsByOptions = (options) =>
       // sort: use rank if available, otherwise fallback to appConfig order
       const hasRank = listings.some((l) => l.rank != null);
       if (hasRank) {
-        listings.sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
+        listings.sort((a, b) => {
+          const aRank = a.rank ?? "";
+          const bRank = b.rank ?? "";
+          return String(aRank).localeCompare(String(bRank));
+        });
       } else if (filterByScopeId && scopesById && presetScopesObject) {
         const scope = scopesById[filterByScopeId];
         const presetScope = scope?.presetScopeKey ? presetScopesObject[scope.presetScopeKey] : null;

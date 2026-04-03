@@ -1,4 +1,5 @@
 import {nanoid} from "@reduxjs/toolkit";
+import { generateKeyBetween } from "fractional-indexing";
 import updateListingRelatedEntitiesWithListingsIds from "./updateListingRelatedEntitiesWithListingsIds";
 
 export default function getListingsToCreateFromAppConfig(
@@ -22,14 +23,17 @@ export default function getListingsToCreateFromAppConfig(
 
   // step 1 - add ids to listings
 
-  let listings = presetScope.listings.map((listingKey, index) => {
+  let prevRank = null;
+  let listings = presetScope.listings.map((listingKey) => {
     const listing = presetListingsObject[listingKey];
     const listingId = nanoid();
+    const rank = generateKeyBetween(prevRank, null);
+    prevRank = rank;
     //
     const newListing = {
       ...listing,
       id: listingId,
-      rank: index,
+      rank,
     };
     //
     listingByKey[listingKey] = newListing;

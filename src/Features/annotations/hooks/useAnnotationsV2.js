@@ -106,6 +106,8 @@ export default function useAnnotationsV2(options) {
         const showAnnotationsWithoutLayer = useSelector(s => s.layers?.showAnnotationsWithoutLayer ?? true);
         const layersUpdatedAt = useSelector(s => s.layers?.layersUpdatedAt);
 
+        const listingsUpdatedAt = useSelector(s => s.listings.listingsUpdatedAt);
+
         const soloMode = useSelector(s => s.popperMapListings.soloMode);
         const soloVisibleTemplateIds = useSelector(s => s.popperMapListings.soloVisibleTemplateIds);
         const soloListingId = useSelector(s => s.popperMapListings.soloListingId);
@@ -273,8 +275,8 @@ export default function useAnnotationsV2(options) {
                         }
                         const orderA = a.layerId ? (layerOrder[a.layerId] ?? maxOrder) : maxOrder + 1;
                         const orderB = b.layerId ? (layerOrder[b.layerId] ?? maxOrder) : maxOrder + 1;
-                        // reverse: first layer (index 0) should be on top = last in array
-                        return orderB - orderA;
+                        // first layer (index 0) = bottom = first in array
+                        return orderA - orderB;
                     });
                 }
             }
@@ -610,14 +612,77 @@ export default function useAnnotationsV2(options) {
             // bg image text annotations
             if (!baseMapAnnotationsOnly && !excludeBgAnnotations) result = [...result, ...(bgImageTextAnnotations ?? [])];
 
-            // sort by order index
+            // sort by listing rank, then template order, with manual orderIndex as top priority
             if (sortByOrderIndex) {
+                // listing order map (by rank)
+                const listingOrderMap = new Map();
+                if (_listingsCache.listings?.length) {
+                    [..._listingsCache.listings]
+                        .sort((a, b) => String(a.rank ?? "").localeCompare(String(b.rank ?? "")))
+                        .forEach((l, i) => listingOrderMap.set(l.id, i));
+                }
+
+                // template order map (by orderIndex + groupLabel consolidation)
+                const templateOrderMap = new Map();
+                if (annotationTemplatesMap) {
+                    const templates = Object.values(annotationTemplatesMap);
+                    const sorted = [...templates].sort((a, b) => {
+                        const aIdx = a.orderIndex ?? null;
+                        const bIdx = b.orderIndex ?? null;
+                        if (aIdx && bIdx) return aIdx < bIdx ? -1 : aIdx > bIdx ? 1 : 0;
+                        if (aIdx && !bIdx) return -1;
+                        if (!aIdx && bIdx) return 1;
+                        return (a.createdAt ?? "").localeCompare(b.createdAt ?? "");
+                    });
+                    // consolidate groups by groupLabel
+                    const consolidated = [];
+                    const consumed = new Set();
+                    const normalizeGroup = (g) => (g ?? "").trim().toUpperCase().replace(/\s+/g, "");
+                    for (const t of sorted) {
+                        if (consumed.has(t.id)) continue;
+                        consumed.add(t.id);
+                        consolidated.push(t);
+                        const ng = normalizeGroup(t.groupLabel);
+                        if (ng) {
+                            for (const t2 of sorted) {
+                                if (!consumed.has(t2.id) && normalizeGroup(t2.groupLabel) === ng) {
+                                    consumed.add(t2.id);
+                                    consolidated.push(t2);
+                                }
+                            }
+                        }
+                    }
+                    consolidated.forEach((t, i) => templateOrderMap.set(t.id, i));
+                }
+
+                const maxListingOrder = listingOrderMap.size;
+                const maxTemplateOrder = templateOrderMap.size;
+
                 result = result.sort((a, b) => {
-                    if ((a.orderIndex !== null && a.orderIndex !== undefined) && (b.orderIndex !== null && b.orderIndex !== undefined)) {
+                    // base map annotations always below
+                    if (a.isBaseMapAnnotation !== b.isBaseMapAnnotation) {
+                        return a.isBaseMapAnnotation ? -1 : 1;
+                    }
+
+                    const aHasManual = a.orderIndex != null;
+                    const bHasManual = b.orderIndex != null;
+
+                    // manual orderIndex (useMoveAnnotation) = highest priority
+                    if (aHasManual && bHasManual) {
                         return a.orderIndex < b.orderIndex ? -1 : a.orderIndex > b.orderIndex ? 1 : 0;
                     }
-                    if (a.orderIndex !== null && a.orderIndex !== undefined) return 1;
-                    if (b.orderIndex !== null && b.orderIndex !== undefined) return -1;
+                    if (aHasManual) return 1;
+                    if (bHasManual) return -1;
+
+                    // listing rank order
+                    const aListing = listingOrderMap.get(a.listingId) ?? maxListingOrder;
+                    const bListing = listingOrderMap.get(b.listingId) ?? maxListingOrder;
+                    if (aListing !== bListing) return aListing - bListing;
+
+                    // template order within listing
+                    const aTemplate = templateOrderMap.get(a.annotationTemplateId) ?? maxTemplateOrder;
+                    const bTemplate = templateOrderMap.get(b.annotationTemplateId) ?? maxTemplateOrder;
+                    return aTemplate - bTemplate;
                 });
             }
 
@@ -643,6 +708,7 @@ export default function useAnnotationsV2(options) {
             baseMapAnnotationsOnly, excludeBgAnnotations,
             sortByOrderIndex,
             groupByBaseMap,
+            listingsUpdatedAt,
         ]);
 
         return processed;

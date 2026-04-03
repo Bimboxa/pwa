@@ -6,6 +6,7 @@
  * - exists: if the listing already exists in the DB.
  */
 import { nanoid } from "@reduxjs/toolkit";
+import { generateKeyBetween } from "fractional-indexing";
 import updateListingRelatedEntitiesWithListingsIds from "../utils/updateListingRelatedEntitiesWithListingsIds";
 
 import db from "App/db/db";
@@ -37,6 +38,7 @@ export default async function resolvePresetListings({
   // main
 
   let listings = [];
+  let prevRank = null;
 
   for (let presetListing of presetListings) {
     let shouldAdd = true;
@@ -81,6 +83,11 @@ export default async function resolvePresetListings({
     // add id & projectId
     presetListing.id = existingListing?.id ?? nanoid();
     presetListing.projectId = projectId;
+
+    // rank (fractional indexing for display order)
+    const rank = generateKeyBetween(prevRank, null);
+    prevRank = rank;
+    presetListing.rank = existingListing?.rank ?? rank;
 
     // scope id
 

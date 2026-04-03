@@ -19,6 +19,7 @@ import FieldCheck from "Features/form/components/FieldCheck";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useUpdateScope from "Features/scopes/hooks/useUpdateScope";
+import FieldSortableListings from "./FieldSortableListings";
 
 export default function PanelPropertiesPopperMapListings() {
   const dispatch = useDispatch();
@@ -81,7 +82,10 @@ export default function PanelPropertiesPopperMapListings() {
           options={{ showAsSection: true, fullWidth: true, changeOnBlur: true }}
         />
 
-        {/* Card 2: Layers toggle */}
+        {/* Card 2: Sortable listings */}
+        <FieldSortableListings />
+
+        {/* Card 3: Layers toggle */}
         <WhiteSectionGeneric>
           <Typography
             variant="caption"
