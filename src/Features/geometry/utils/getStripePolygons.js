@@ -1,59 +1,13 @@
 import { nanoid } from "@reduxjs/toolkit";
 import polygonClipping from "polygon-clipping";
 import offsetPolylineAsPolygon from "Features/geometry/utils/offsetPolylineAsPolygon";
+import offsetPolygon from "Features/geometry/utils/offsetPolygon";
 import cutPolygonPoints from "Features/geometry/utils/cutPolygonPoints";
-
-// Compute miter-joint intersection between two offset lines.
-function computeIntersection(p1, v1, p2, v2) {
-    const cross = v1.x * v2.y - v1.y * v2.x;
-    if (Math.abs(cross) < 1e-5) return null;
-    const dp = { x: p2.x - p1.x, y: p2.y - p1.y };
-    const t = (dp.x * v2.y - dp.y * v2.x) / cross;
-    return { x: p1.x + t * v1.x, y: p1.y + t * v1.y };
-}
-
-// Compute the offset of a CLOSED polyline as a closed ring.
-// Unlike offsetPolylineAsPolygon (which handles open polylines),
-// this wraps around and computes miter joints at every vertex including wrap-around.
-function getClosedOffsetRing(points, distance) {
-    const len = points.length;
-    if (len < 3) return [];
-
-    const lines = [];
-    for (let i = 0; i < len; i++) {
-        const p1 = points[i];
-        const p2 = points[(i + 1) % len];
-        const dx = p2.x - p1.x;
-        const dy = p2.y - p1.y;
-        const length = Math.sqrt(dx * dx + dy * dy);
-        if (length === 0) continue;
-        const ux = dx / length;
-        const uy = dy / length;
-        const nx = -uy;
-        const ny = ux;
-        lines.push({
-            p: { x: p1.x + nx * distance, y: p1.y + ny * distance },
-            v: { x: ux, y: uy },
-        });
-    }
-
-    if (lines.length < 2) return [];
-
-    const offsetPoints = [];
-    for (let i = 0; i < lines.length; i++) {
-        const prevLine = lines[(i - 1 + lines.length) % lines.length];
-        const currLine = lines[i];
-        const intersection = computeIntersection(prevLine.p, prevLine.v, currLine.p, currLine.v);
-        offsetPoints.push(intersection || currLine.p);
-    }
-
-    return offsetPoints;
-}
 
 // Build annular polygon (donut) from a closed strip.
 // Returns array of {points, cuts} like the open-strip path.
 function getClosedStripPolygon(points, distance, cuts, applyCutsMath) {
-    const offsetRing = getClosedOffsetRing(points, distance);
+    const offsetRing = offsetPolygon(points, distance);
     if (!offsetRing || offsetRing.length < 3) return null;
 
     // Convert to GeoJSON rings (closed)
@@ -143,22 +97,34 @@ export default function getStripePolygons(annotation, baseMapMeterByPx, applyCut
         distance = strokeWidth * stripOrientation;
     }
 
-    // 3. Closed strip: compute annular band directly
-    if (closeLine && points.length >= 3) {
-        const result = getClosedStripPolygon(points, distance, cuts, applyCutsMath);
+    // 3. Detect implicit closure (last point equals first point)
+    let effectiveCloseLine = closeLine;
+    let effectivePoints = points;
+    if (!effectiveCloseLine && points.length >= 4) {
+        const first = points[0];
+        const last = points[points.length - 1];
+        if (first.x === last.x && first.y === last.y) {
+            effectiveCloseLine = true;
+            effectivePoints = points.slice(0, -1);
+        }
+    }
+
+    // 4. Closed strip: compute annular band directly
+    if (effectiveCloseLine && effectivePoints.length >= 3) {
+        const result = getClosedStripPolygon(effectivePoints, distance, cuts, applyCutsMath);
         return result ? [result] : [];
     }
 
-    // 4. Découpage en tronçons (Chunks) selon les segments cachés
+    // 5. Découpage en tronçons (Chunks) selon les segments cachés
     const chunks = [];
-    let currentChunk = [points[0]];
+    let currentChunk = [effectivePoints[0]];
 
-    for (let i = 0; i < points.length - 1; i++) {
+    for (let i = 0; i < effectivePoints.length - 1; i++) {
         if (hiddenSegmentsIdx.includes(i)) {
             if (currentChunk.length > 1) chunks.push(currentChunk);
-            currentChunk = [points[i + 1]];
+            currentChunk = [effectivePoints[i + 1]];
         } else {
-            currentChunk.push(points[i + 1]);
+            currentChunk.push(effectivePoints[i + 1]);
         }
     }
     if (currentChunk.length > 1) chunks.push(currentChunk);

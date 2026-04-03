@@ -53,7 +53,7 @@ export default function VerticalMenuRightPanel() {
     ANNOTATIONS_AUTO: {
       label: "Dessin auto",
       icon: <AutoFixHigh />,
-      disabled: !advancedLayout,
+      //disabled: !advancedLayout,
     },
     ENTITY: {
       label: "Édition",
