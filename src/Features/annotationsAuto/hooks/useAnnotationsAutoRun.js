@@ -11,6 +11,7 @@ import resolveCuts from "Features/annotations/utils/resolveCuts";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 export default function useAnnotationsAutoRun() {
   const dispatch = useDispatch();
@@ -21,7 +22,28 @@ export default function useAnnotationsAutoRun() {
   const procedures = appConfig?.automatedAnnotationsProcedures ?? [];
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const height = useSelector((s) => s.annotationsAuto.height);
+  const checkedTemplateIds = useSelector(
+    (s) => s.annotationsAuto.checkedTemplateIds
+  );
+  const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
+  const returnTechnique = useSelector(
+    (s) => s.annotationsAuto.returnTechnique
+  );
+  const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
   const baseMap = useMainBaseMap();
+
+  // visible annotations for source-less procedures (same as MAP viewer)
+  const visibleAnnotations = useAnnotationsV2({
+    caller: "useAnnotationsAutoRun",
+    enabled: true,
+    excludeListingsIds: hiddenListingsIds,
+    hideBaseMapAnnotations: true,
+    filterByMainBaseMap: true,
+    filterBySelectedScope: true,
+    sortByOrderIndex: true,
+    excludeIsForBaseMapsListings: true,
+  });
 
   return async ({ sourceListingId, targetListingId, procedureKey }) => {
     // data
@@ -35,54 +57,67 @@ export default function useAnnotationsAutoRun() {
       return null;
     }
 
-    // fetch source annotations from Dexie
+    // resolve source annotations
 
-    const rawAnnotations = (
-      await db.annotations.where("baseMapId").equals(baseMapId).toArray()
-    )
-      .filter((r) => !r.deletedAt)
-      .filter((a) => a.listingId === sourceListingId);
+    let sourceAnnotations;
 
-    // fetch points for this baseMap
+    if (sourceListingId) {
+      // standard flow: fetch from Dexie by listing
 
-    const rawPoints = (
-      await db.points.where("baseMapId").equals(baseMapId).toArray()
-    ).filter((r) => !r.deletedAt);
+      const rawAnnotations = (
+        await db.annotations.where("baseMapId").equals(baseMapId).toArray()
+      )
+        .filter((r) => !r.deletedAt)
+        .filter((a) => a.listingId === sourceListingId);
 
-    const pointsIndex = getItemsByKey(rawPoints, "id");
+      const rawPoints = (
+        await db.points.where("baseMapId").equals(baseMapId).toArray()
+      ).filter((r) => !r.deletedAt);
 
-    // resolve annotations to pixel coordinates
+      const pointsIndex = getItemsByKey(rawPoints, "id");
 
-    const sourceAnnotations = rawAnnotations
-      .filter((a) => a.type === "POLYLINE" || a.type === "POLYGON")
-      .map((annotation) => ({
-        ...annotation,
-        points: resolvePoints({
-          points: annotation.points,
-          pointsIndex,
-          imageSize,
-        }),
-        cuts: annotation.cuts
-          ? resolveCuts({ cuts: annotation.cuts, pointsIndex, imageSize })
-          : null,
-      }));
+      sourceAnnotations = rawAnnotations
+        .filter((a) => a.type === "POLYLINE" || a.type === "POLYGON")
+        .map((annotation) => ({
+          ...annotation,
+          points: resolvePoints({
+            points: annotation.points,
+            pointsIndex,
+            imageSize,
+          }),
+          cuts: annotation.cuts
+            ? resolveCuts({ cuts: annotation.cuts, pointsIndex, imageSize })
+            : null,
+        }));
+    } else {
+      // source-less flow: use visible annotations (already resolved by useAnnotationsV2)
+      sourceAnnotations = (visibleAnnotations ?? []).filter(
+        (a) => a.type === "POLYLINE" || a.type === "POLYGON"
+      );
+    }
 
     // fetch relAnnotationMappingCategory for source annotations
 
     const annotationIds = sourceAnnotations.map((a) => a.id);
-    const sourceRels = await db.relAnnotationMappingCategory
-      .where("annotationId")
-      .anyOf(annotationIds)
-      .toArray();
+    const sourceRels = annotationIds.length
+      ? await db.relAnnotationMappingCategory
+          .where("annotationId")
+          .anyOf(annotationIds)
+          .toArray()
+      : [];
 
     // fetch target annotation templates
 
-    const targetAnnotationTemplates = (
+    const allTargetTemplates = (
       await db.annotationTemplates
         .where("listingId")
         .equals(targetListingId)
         .toArray()
     ).filter((r) => !r.deletedAt);
+
+    const targetAnnotationTemplates = checkedTemplateIds
+      ? allTargetTemplates.filter((t) => checkedTemplateIds.includes(t.id))
+      : allTargetTemplates;
 
     // load and run procedure
 
@@ -101,7 +136,14 @@ export default function useAnnotationsAutoRun() {
       targetAnnotationTemplates,
       imageSize,
       meterByPx,
-      context: { projectId, baseMapId, targetListingId },
+      context: {
+        projectId,
+        baseMapId,
+        targetListingId,
+        height,
+        activeLayerId,
+        returnTechnique,
+      },
     });
 
     // dispatch result for confirmation

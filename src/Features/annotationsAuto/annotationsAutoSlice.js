@@ -6,6 +6,9 @@ const initialState = {
   selectedProcedureKey: null,
   pendingResult: null,
   showConfirmDialog: false,
+  height: null,
+  checkedTemplateIds: null,
+  returnTechnique: true,
 };
 
 export const annotationsAutoSlice = createSlice({
@@ -27,6 +30,15 @@ export const annotationsAutoSlice = createSlice({
     setShowConfirmDialog: (state, action) => {
       state.showConfirmDialog = action.payload;
     },
+    setHeight: (state, action) => {
+      state.height = action.payload;
+    },
+    setCheckedTemplateIds: (state, action) => {
+      state.checkedTemplateIds = action.payload;
+    },
+    setReturnTechnique: (state, action) => {
+      state.returnTechnique = action.payload;
+    },
     reset: () => initialState,
   },
 });
@@ -37,6 +49,9 @@ export const {
   setSelectedProcedureKey,
   setPendingResult,
   setShowConfirmDialog,
+  setHeight,
+  setCheckedTemplateIds,
+  setReturnTechnique,
   reset,
 } = annotationsAutoSlice.actions;
 

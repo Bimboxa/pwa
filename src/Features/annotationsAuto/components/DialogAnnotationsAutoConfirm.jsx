@@ -65,21 +65,21 @@ export default function DialogAnnotationsAutoConfirm() {
 
   return (
     <Dialog open={open} onClose={handleCancel} maxWidth="xs" fullWidth>
-      <DialogTitle>Confirm automatic generation</DialogTitle>
+      <DialogTitle>Confirmer la création automatique</DialogTitle>
       <DialogContent>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1, pt: 1 }}>
           <Typography variant="body2">
             <strong>{annotationsCount}</strong> annotation
-            {annotationsCount !== 1 ? "s" : ""} to create
+            {annotationsCount !== 1 ? "s" : ""} à créer
           </Typography>
           <Typography variant="body2">
             <strong>{pointsCount}</strong> point
-            {pointsCount !== 1 ? "s" : ""} to create
+            {pointsCount !== 1 ? "s" : ""} à créer
           </Typography>
           {categories.length > 0 && (
             <Box>
               <Typography variant="body2" sx={{ mb: 0.5 }}>
-                Mapping categories:
+                Catégories :
               </Typography>
               {categories.map((cat) => (
                 <Typography
@@ -95,13 +95,13 @@ export default function DialogAnnotationsAutoConfirm() {
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleCancel}>Cancel</Button>
+        <Button onClick={handleCancel}>Annuler</Button>
         <Button
           onClick={handleConfirm}
           variant="contained"
           disabled={annotationsCount === 0}
         >
-          Confirm
+          Confirmer
         </Button>
       </DialogActions>
     </Dialog>
