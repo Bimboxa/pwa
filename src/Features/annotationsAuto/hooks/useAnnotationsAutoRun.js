@@ -1,6 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { setPendingResult, setShowConfirmDialog } from "../annotationsAutoSlice";
+import { setRunning } from "../annotationsAutoSlice";
+import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
 import db from "App/db/db";
 
@@ -146,10 +147,19 @@ export default function useAnnotationsAutoRun() {
       },
     });
 
-    // dispatch result for confirmation
+    // save directly to database
 
-    dispatch(setPendingResult(result));
-    dispatch(setShowConfirmDialog(true));
+    const { annotations, points, rels } = result;
+
+    await db.points.bulkAdd(points.map((p) => ({ ...p })));
+    await db.annotations.bulkAdd(annotations.map((a) => ({ ...a })));
+    if (rels.length > 0) {
+      await db.relAnnotationMappingCategory.bulkAdd(
+        rels.map((r) => ({ ...r }))
+      );
+    }
+
+    dispatch(triggerAnnotationsUpdate());
 
     return result;
   };

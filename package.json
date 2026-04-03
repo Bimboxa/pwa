@@ -27,6 +27,7 @@
     "@mui/x-tree-view-pro": "^8.2.0",
     "@reduxjs/toolkit": "^2.5.1",
     "@turf/turf": "^7.3.4",
+    "canvas-confetti": "^1.9.4",
     "dexie": "^4.2.1",
     "dexie-export-import": "^4.1.4",
     "dexie-react-hooks": "^1.1.7",

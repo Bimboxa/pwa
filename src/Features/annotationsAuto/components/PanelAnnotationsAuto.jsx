@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -7,6 +8,7 @@ import {
   setHeight,
   setCheckedTemplateIds,
   setReturnTechnique,
+  setRunning,
 } from "../annotationsAutoSlice";
 
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
@@ -25,6 +27,7 @@ import {
   FormGroup,
   FormControlLabel,
   Checkbox,
+  CircularProgress,
 } from "@mui/material";
 import { PlayArrow } from "@mui/icons-material";
 
@@ -33,6 +36,7 @@ import DialogAnnotationsAutoConfirm from "./DialogAnnotationsAutoConfirm";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import confetti from "canvas-confetti";
 
 export default function PanelAnnotationsAuto() {
   const dispatch = useDispatch();
@@ -58,6 +62,7 @@ export default function PanelAnnotationsAuto() {
   const returnTechnique = useSelector(
     (s) => s.annotationsAuto.returnTechnique
   );
+  const running = useSelector((s) => s.annotationsAuto.running);
 
   const { value: listings } = useListingsByScope();
   const { value: locatedListings } = useListingsByScope({
@@ -77,8 +82,7 @@ export default function PanelAnnotationsAuto() {
   const showTemplateCheckboxes =
     selectedProcedure?.showTemplateCheckboxes === true;
 
-  const filterLocatedOnly = selectedProcedure?.filterLocatedEntityOnly === true;
-  const baseTargetListings = filterLocatedOnly ? locatedListings : listings;
+  const baseTargetListings = locatedListings;
   const targetListings = selectedProcedure?.targetListingKeys
     ? baseTargetListings?.filter((l) =>
         selectedProcedure.targetListingKeys.includes(l.key)
@@ -96,6 +100,7 @@ export default function PanelAnnotationsAuto() {
       showTemplateCheckboxes && selectedTargetListingId
         ? selectedTargetListingId
         : undefined,
+    sortByOrder: true,
   });
 
   const canRun =
@@ -159,13 +164,41 @@ export default function PanelAnnotationsAuto() {
     }
   }
 
+  const fireConfetti = useCallback(() => {
+    const end = Date.now() + 1500;
+    const colors = ["#f59e0b", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6"];
+    (function frame() {
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.6 },
+        colors,
+      });
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.6 },
+        colors,
+      });
+      if (Date.now() < end) requestAnimationFrame(frame);
+    })();
+  }, []);
+
   async function handleRun() {
-    if (!canRun) return;
-    await run({
-      sourceListingId: hideSourceListing ? null : selectedSourceListingId,
-      targetListingId: selectedTargetListingId,
-      procedureKey: selectedProcedureKey,
-    });
+    if (!canRun || running) return;
+    dispatch(setRunning(true));
+    try {
+      await run({
+        sourceListingId: hideSourceListing ? null : selectedSourceListingId,
+        targetListingId: selectedTargetListingId,
+        procedureKey: selectedProcedureKey,
+      });
+      fireConfetti();
+    } finally {
+      dispatch(setRunning(false));
+    }
   }
 
   // render
@@ -287,9 +320,15 @@ export default function PanelAnnotationsAuto() {
           <Button
             variant="contained"
             color="inherit"
-            startIcon={<PlayArrow />}
+            startIcon={
+              running ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                <PlayArrow />
+              )
+            }
             onClick={handleRun}
-            disabled={!canRun}
+            disabled={!canRun || running}
             sx={{
               bgcolor: "common.black",
               color: "common.white",
@@ -297,7 +336,7 @@ export default function PanelAnnotationsAuto() {
               borderRadius: 6,
             }}
           >
-            Lancer la procédure
+            {running ? "En cours..." : "Lancer la procédure"}
           </Button>
         </Paper>
       </Box>

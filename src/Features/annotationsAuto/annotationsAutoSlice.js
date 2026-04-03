@@ -9,6 +9,7 @@ const initialState = {
   height: null,
   checkedTemplateIds: null,
   returnTechnique: true,
+  running: false,
 };
 
 export const annotationsAutoSlice = createSlice({
@@ -39,6 +40,9 @@ export const annotationsAutoSlice = createSlice({
     setReturnTechnique: (state, action) => {
       state.returnTechnique = action.payload;
     },
+    setRunning: (state, action) => {
+      state.running = action.payload;
+    },
     reset: () => initialState,
   },
 });
@@ -52,6 +56,7 @@ export const {
   setHeight,
   setCheckedTemplateIds,
   setReturnTechnique,
+  setRunning,
   reset,
 } = annotationsAutoSlice.actions;
 

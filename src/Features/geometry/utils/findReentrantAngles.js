@@ -121,7 +121,7 @@ export default function findReentrantAngles({
           y: vertex.y + bisector.dy * epsilon * 2,
         };
 
-        if (isPointInPolygon(testPoint, touchedPolygon.points)) {
+        if (isPointInsidePolygonWithCuts(testPoint, touchedPolygon)) {
           isReentrant = true;
           polylineIds.add(segs[i].polylineId);
           polylineIds.add(segs[j].polylineId);
@@ -216,6 +216,22 @@ function getBisector(v1, v2) {
 
   if (bLen === 0) return { dx: -n1y, dy: n1x };
   return { dx: bx / bLen, dy: by / bLen };
+}
+
+/**
+ * Check if a point is inside a polygon, accounting for cuts (holes).
+ * A point must be inside the outer ring AND outside all cuts.
+ */
+function isPointInsidePolygonWithCuts(point, polygon) {
+  if (!isPointInPolygon(point, polygon.points)) return false;
+  if (polygon.cuts) {
+    for (const cut of polygon.cuts) {
+      if (cut.points?.length >= 3 && isPointInPolygon(point, cut.points)) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 /**
