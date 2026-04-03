@@ -17,6 +17,7 @@ import DRAWING_SHAPES from "Features/annotations/constants/drawingShapes.jsx";
 import FieldOptionKeyFromIconsVariantToolbar from "Features/form/components/FieldOptionKeyFromIconsVariantToolbar";
 import FieldQty from "Features/form/components/FieldQty";
 import FieldCheck from "Features/form/components/FieldCheck";
+import FieldMappingCategories from "./FieldMappingCategories";
 import OverrideToggle from "./OverrideToggle";
 
 import { Circle, Square } from "@mui/icons-material";
@@ -446,6 +447,13 @@ export default function FormAnnotationTemplateVariantBlock({
         options={{ showAsSection: true }}
         drawingShape={drawingShape}
       />
+
+      {!isCreating && (
+        <FieldMappingCategories
+          annotationTemplate={annotationTemplate}
+          onChange={onChange}
+        />
+      )}
 
       {!isCreating && (
         <FieldCheck
