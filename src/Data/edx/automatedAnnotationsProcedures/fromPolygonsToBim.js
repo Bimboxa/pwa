@@ -7,6 +7,7 @@ import mergePolylines from "Features/geometry/utils/mergePolylines";
 const WALL_DETECTION_M = 0.6; // characteristic distance to detect wall branches
 const MIN_INDEX_DISTANCE = 2; // minimum index gap to consider two points non-adjacent
 const STRIP_TEST_OFFSET = 5; // px offset to test strip orientation
+const INTERIOR_CUT_MAX_M = 0.5; // max dimension (meters) to classify a cut as interior (wall/pillar)
 
 // ---------------------------------------------------------------------------
 // Geometry helpers
@@ -92,6 +93,67 @@ function projectOntoSegment(px, py, ax, ay, bx, by) {
     t,
     projPt: { x: projX, y: projY },
   };
+}
+
+/**
+ * Determine if a cut represents an interior element (wall or pillar opening)
+ * rather than a room-sized hole. Interior cuts produce VI contours, while
+ * room cuts produce VCT contours.
+ *
+ * A cut is "interior" if:
+ * - Its bounding box smallest dimension is ≤ INTERIOR_CUT_MAX_M, OR
+ * - It has exactly 4 points forming 3 near-orthogonal consecutive segments
+ *   where the middle segment is ≤ INTERIOR_CUT_MAX_M (narrow passage shape).
+ *
+ * @param {Array<{x,y}>} cutPoints - the cut ring vertices
+ * @param {number} meterByPx - scale factor
+ * @returns {boolean}
+ */
+export function isInteriorCut(cutPoints, meterByPx) {
+  if (!cutPoints || cutPoints.length < 3 || meterByPx <= 0) return false;
+
+  const thresholdPx = INTERIOR_CUT_MAX_M / meterByPx;
+
+  // Check 1: bounding box smallest dimension ≤ threshold
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of cutPoints) {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
+  const bboxMin = Math.min(maxX - minX, maxY - minY);
+  if (bboxMin <= thresholdPx) return true;
+
+  // Check 2: 4-point shape with a narrow middle segment (wall/passage shape)
+  const N = cutPoints.length;
+  if (N >= 3) {
+    for (let i = 0; i < N; i++) {
+      const a = cutPoints[i];
+      const b = cutPoints[(i + 1) % N];
+      const c = cutPoints[(i + 2) % N];
+      const d = cutPoints[(i + 3) % N];
+
+      const seg1 = { x: b.x - a.x, y: b.y - a.y };
+      const seg2 = { x: c.x - b.x, y: c.y - b.y };
+      const seg3 = { x: d.x - c.x, y: d.y - c.y };
+
+      const len2 = Math.hypot(seg2.x, seg2.y);
+      if (len2 > thresholdPx) continue;
+
+      // Check near-orthogonality: |dot| / (len1 * len2) < 0.2
+      const len1 = Math.hypot(seg1.x, seg1.y);
+      const len3 = Math.hypot(seg3.x, seg3.y);
+      if (len1 < 1e-6 || len2 < 1e-6 || len3 < 1e-6) continue;
+
+      const dot12 = Math.abs(seg1.x * seg2.x + seg1.y * seg2.y) / (len1 * len2);
+      const dot23 = Math.abs(seg2.x * seg3.x + seg2.y * seg3.y) / (len2 * len3);
+
+      if (dot12 < 0.2 && dot23 < 0.2) return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -938,6 +1000,13 @@ function buildPolylineAnnotation(
   // Remove colinear subdivision points that don't serve as transitions
   const cleanChain = removeColinearPoints(chain);
 
+  // Skip degenerate chains (zero-length polylines from ext/int split artifacts)
+  let totalLen = 0;
+  for (let i = 0; i < cleanChain.length - 1; i++) {
+    totalLen += Math.hypot(cleanChain[i + 1].x - cleanChain[i].x, cleanChain[i + 1].y - cleanChain[i].y);
+  }
+  if (totalLen < 0.5) return null;
+
   const pointRefs = cleanChain.map((pt) => {
     // Intra-polygon sharing: transition points between ext/int chains
     // are the same JS object (from array slice). Reuse the ID assigned
@@ -1100,7 +1169,7 @@ export default function fromPolygonsToBim({
     if (vctTemplate) {
       for (const chain of exteriorChains) {
         if (chain.length < 2) continue;
-        const { annotation, rels } = buildPolylineAnnotation(
+        const result = buildPolylineAnnotation(
           chain,
           vctTemplate,
           height,
@@ -1108,8 +1177,10 @@ export default function fromPolygonsToBim({
           context,
           outputPoints
         );
-        outputAnnotations.push(annotation);
-        outputRels.push(...rels);
+        if (result) {
+          outputAnnotations.push(result.annotation);
+          outputRels.push(...result.rels);
+        }
       }
     }
 
@@ -1117,7 +1188,7 @@ export default function fromPolygonsToBim({
     if (viTemplate) {
       for (const chain of wallChains) {
         if (chain.length < 2) continue;
-        const { annotation, rels } = buildPolylineAnnotation(
+        const result = buildPolylineAnnotation(
           chain,
           viTemplate,
           null,
@@ -1125,53 +1196,71 @@ export default function fromPolygonsToBim({
           context,
           outputPoints
         );
-        outputAnnotations.push(annotation);
-        outputRels.push(...rels);
+        if (result) {
+          outputAnnotations.push(result.annotation);
+          outputRels.push(...result.rels);
+        }
       }
     }
 
-    // --- 2b. Cuts: reclassify against foreign edges (ext→VCT, int→VI) ---
+    // --- 2b. Cuts: classify as VCT (room hole) or VI (wall/pillar) ---
     if (polygon.cuts?.length) {
       const detectionPx = meterByPx > 0 ? WALL_DETECTION_M / meterByPx : 0;
 
       for (const cut of polygon.cuts) {
         if (!cut.points?.length || cut.points.length < 3) continue;
 
+        // Interior cuts (walls, pillars) → always VI regardless of neighbors
+        if (isInteriorCut(cut.points, meterByPx) && viTemplate) {
+          const r = buildPolylineAnnotation(
+            cut.points, viTemplate, null, imageSize, context, outputPoints
+          );
+          if (r) {
+            r.annotation.closeLine = true;
+            outputAnnotations.push(r.annotation);
+            outputRels.push(...r.rels);
+          }
+          continue;
+        }
+
+        // Room-sized cuts: reclassify against foreign edges if present
         if (foreignEdges.length > 0 && detectionPx > 0 && vctTemplate && viTemplate) {
           const { extChains, intChains } = reclassifyCutAgainstNeighbors(
             cut.points, foreignEdges, foreignPolygons, detectionPx
           );
 
-          // ext portions of cut → VCT with height
           for (const chain of extChains) {
             if (chain.length < 2) continue;
-            const { annotation, rels } = buildPolylineAnnotation(
-              chain, vctTemplate, height, imageSize, context, outputPoints            );
-            if (extChains.length === 1 && intChains.length === 0) {
-              annotation.closeLine = true;
+            const r = buildPolylineAnnotation(
+              chain, vctTemplate, height, imageSize, context, outputPoints
+            );
+            if (r) {
+              if (extChains.length === 1 && intChains.length === 0) r.annotation.closeLine = true;
+              outputAnnotations.push(r.annotation);
+              outputRels.push(...r.rels);
             }
-            outputAnnotations.push(annotation);
-            outputRels.push(...rels);
           }
 
-          // int portions of cut → VI
           for (const chain of intChains) {
             if (chain.length < 2) continue;
-            const { annotation, rels } = buildPolylineAnnotation(
-              chain, viTemplate, null, imageSize, context, outputPoints            );
-            if (intChains.length === 1 && extChains.length === 0) {
-              annotation.closeLine = true;
+            const r = buildPolylineAnnotation(
+              chain, viTemplate, null, imageSize, context, outputPoints
+            );
+            if (r) {
+              if (intChains.length === 1 && extChains.length === 0) r.annotation.closeLine = true;
+              outputAnnotations.push(r.annotation);
+              outputRels.push(...r.rels);
             }
-            outputAnnotations.push(annotation);
-            outputRels.push(...rels);
           }
-        } else if (viTemplate) {
-          // no foreign edges: entire cut is VI (original behavior)
-          const { annotation, rels } = buildPolylineAnnotation(
-            cut.points, viTemplate, null, imageSize, context, outputPoints          );
-          annotation.closeLine = true;
-          outputAnnotations.push(annotation);
-          outputRels.push(...rels);
+        } else if (vctTemplate) {
+          const r = buildPolylineAnnotation(
+            cut.points, vctTemplate, height, imageSize, context, outputPoints
+          );
+          if (r) {
+            r.annotation.closeLine = true;
+            outputAnnotations.push(r.annotation);
+            outputRels.push(...r.rels);
+          }
         }
       }
     }
@@ -1206,16 +1295,22 @@ export default function fromPolygonsToBim({
     for (const p of outputPoints) pointById[p.id] = p;
 
     const vctPxChains = vctAnns
-      .map((ann) =>
-        ann.points
+      .map((ann) => {
+        const pts = ann.points
           .map((ref) => {
             const p = pointById[ref.id];
             return p
               ? { x: p.x * imageSize.width, y: p.y * imageSize.height, id: ref.id }
               : null;
           })
-          .filter(Boolean)
-      )
+          .filter(Boolean);
+        // For closed VCT polylines, append the first point to close the loop
+        // so mergePolylines can detect it as a closed chain.
+        if (ann.closeLine && pts.length >= 3) {
+          pts.push({ ...pts[0] });
+        }
+        return pts;
+      })
       .filter((c) => c.length >= 2);
 
     if (vctPxChains.length > 0) {
@@ -1230,10 +1325,9 @@ export default function fromPolygonsToBim({
           return { id: rec.id };
         });
 
-        // strip orientation: find which source polygon this VCT chain belongs to,
-        // then orient the strip so the band extends inside that polygon.
-        // Test both perpendicular offsets of the first segment midpoint;
-        // the one inside a source polygon determines the "inside" direction.
+        // strip orientation: find which source polygon's material this VCT
+        // chain borders, then orient the strip so the band extends into
+        // the material (outer ring minus cuts).
         let stripOrientation = 1;
         if (chain.length >= 2) {
           const mid = {
@@ -1244,18 +1338,46 @@ export default function fromPolygonsToBim({
           const dy = chain[1].y - chain[0].y;
           const len = Math.hypot(dx, dy);
           if (len > 1e-6) {
-            // perpendicular offsets (left = orientation 1, right = orientation -1)
             const offset = STRIP_TEST_OFFSET;
             const leftPt = { x: mid.x + (-dy / len) * offset, y: mid.y + (dx / len) * offset };
             const rightPt = { x: mid.x + (dy / len) * offset, y: mid.y + (-dx / len) * offset };
 
             for (const pg of polygons) {
+              // Test against material = outer ring MINUS cuts
               const leftInside = isPointInsidePolygonWithCuts(leftPt, pg);
               const rightInside = isPointInsidePolygonWithCuts(rightPt, pg);
               if (leftInside && !rightInside) { stripOrientation = 1; break; }
               if (rightInside && !leftInside) { stripOrientation = -1; break; }
             }
           }
+        }
+
+        // Detect if the merged chain forms a closed loop
+        const first = chain[0];
+        const last = chain[chain.length - 1];
+        const isClosed = Math.hypot(first.x - last.x, first.y - last.y) < 1;
+
+        // For closed strips, offsetPolygon interprets the sign as expand/shrink
+        // (not left/right like open strips). Room-sized cut rings need expand
+        // (+1) because material is OUTSIDE the hole. Interior cuts (walls/pillars)
+        // do NOT need the flip — they behave like outer rings.
+        if (isClosed) {
+          let isRoomHoleRing = false;
+          for (const pg of polygons) {
+            if (!pg.cuts || isRoomHoleRing) continue;
+            for (const cut of pg.cuts) {
+              if (!cut.points) continue;
+              // Check if chain matches this cut AND the cut is room-sized (not interior)
+              const matchesCut = cut.points.some((cp) =>
+                Math.hypot(cp.x - first.x, cp.y - first.y) < 2
+              );
+              if (matchesCut && !isInteriorCut(cut.points, meterByPx)) {
+                isRoomHoleRing = true;
+                break;
+              }
+            }
+          }
+          if (isRoomHoleRing) stripOrientation = -stripOrientation;
         }
 
         const annotationId = nanoid();
@@ -1271,6 +1393,7 @@ export default function fromPolygonsToBim({
           stripOrientation,
           strokeWidth: rtpTemplate.strokeWidth ?? 20,
           strokeWidthUnit: rtpTemplate.strokeWidthUnit ?? "CM",
+          ...(isClosed && { closeLine: true }),
           ...(context.activeLayerId ? { layerId: context.activeLayerId } : {}),
         });
         outputRels.push(...buildRels(annotationId, rtpTemplate, context));
