@@ -7,7 +7,7 @@ import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotat
 export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabledAnnotationTemplates, disabledLayerIds, includeHidden } = {}) {
   // data
 
-  const annotationTemplates = useAnnotationTemplates();
+  const annotationTemplates = useAnnotationTemplates({ sortByOrder: true });
 
   const allAnnotations = useAnnotationsV2({
     caller: "useLegendItemsByBaseMapId",
@@ -72,19 +72,16 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
   });
 
   // legendItemsByListingName => legendItems
+  const orderMap = {};
+  annotationTemplates?.forEach((t, i) => { orderMap[t.id] = i; });
+  const normalize = (g) => (g ?? "").trim().toUpperCase().replace(/\s+/g, "");
   Object.entries(legendItemsByListingName).forEach(([listingName, items]) => {
     legendItems.push({ type: "listingName", name: listingName });
-    // Sort by groupLabel first (blanks last), then by label
-    const normalize = (g) => (g ?? "").trim().toUpperCase().replace(/\s+/g, "");
+    // Sort by annotationTemplate orderIndex (same order as PopperMapListings)
     const sortedItems = items.sort((a, b) => {
-      const gA = normalize(a.groupLabel);
-      const gB = normalize(b.groupLabel);
-      if (gA !== gB) {
-        if (!gA) return 1;
-        if (!gB) return -1;
-        return gA.localeCompare(gB);
-      }
-      return a.label.localeCompare(b.label);
+      const oA = orderMap[a.id] ?? Infinity;
+      const oB = orderMap[b.id] ?? Infinity;
+      return oA - oB;
     });
     // Insert groupLabel separators and dividers
     let currentGroup = null;
