@@ -1,6 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { setRunning } from "../annotationsAutoSlice";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
 import db from "App/db/db";
@@ -24,9 +23,6 @@ export default function useAnnotationsAutoRun() {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const height = useSelector((s) => s.annotationsAuto.height);
-  const checkedTemplateIds = useSelector(
-    (s) => s.annotationsAuto.checkedTemplateIds
-  );
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
   const returnTechnique = useSelector(
     (s) => s.annotationsAuto.returnTechnique
@@ -46,7 +42,7 @@ export default function useAnnotationsAutoRun() {
     excludeIsForBaseMapsListings: true,
   });
 
-  return async ({ sourceListingId, targetListingId, procedureKey }) => {
+  return async ({ sourceListingId, procedureKey }) => {
     // data
 
     const baseMapId = baseMap?.id;
@@ -107,18 +103,24 @@ export default function useAnnotationsAutoRun() {
           .toArray()
       : [];
 
-    // fetch target annotation templates
+    // fetch annotation templates per source listing
 
-    const allTargetTemplates = (
-      await db.annotationTemplates
-        .where("listingId")
-        .equals(targetListingId)
-        .toArray()
-    ).filter((r) => !r.deletedAt);
+    const listingIds = [
+      ...new Set(sourceAnnotations.map((a) => a.listingId).filter(Boolean)),
+    ];
 
-    const targetAnnotationTemplates = checkedTemplateIds
-      ? allTargetTemplates.filter((t) => checkedTemplateIds.includes(t.id))
-      : allTargetTemplates;
+    const templateEntries = await Promise.all(
+      listingIds.map(async (lid) => {
+        const templates = (
+          await db.annotationTemplates
+            .where("listingId")
+            .equals(lid)
+            .toArray()
+        ).filter((r) => !r.deletedAt);
+        return [lid, templates];
+      })
+    );
+    const templatesByListingId = new Map(templateEntries);
 
     // load and run procedure
 
@@ -134,13 +136,12 @@ export default function useAnnotationsAutoRun() {
     const result = procedureFn({
       sourceAnnotations,
       sourceRels,
-      targetAnnotationTemplates,
+      templatesByListingId,
       imageSize,
       meterByPx,
       context: {
         projectId,
         baseMapId,
-        targetListingId,
         height,
         activeLayerId,
         returnTechnique,

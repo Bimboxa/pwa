@@ -3,17 +3,14 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   setSelectedSourceListingId,
-  setSelectedTargetListingId,
   setSelectedProcedureKey,
   setHeight,
-  setCheckedTemplateIds,
   setReturnTechnique,
   setRunning,
 } from "../annotationsAutoSlice";
 
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import useAnnotationsAutoRun from "../hooks/useAnnotationsAutoRun";
-import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 
 import {
   Box,
@@ -24,7 +21,6 @@ import {
   MenuItem,
   Button,
   Paper,
-  FormGroup,
   FormControlLabel,
   Checkbox,
   CircularProgress,
@@ -49,25 +45,16 @@ export default function PanelAnnotationsAuto() {
   const selectedSourceListingId = useSelector(
     (s) => s.annotationsAuto.selectedSourceListingId
   );
-  const selectedTargetListingId = useSelector(
-    (s) => s.annotationsAuto.selectedTargetListingId
-  );
   const selectedProcedureKey = useSelector(
     (s) => s.annotationsAuto.selectedProcedureKey
   );
   const height = useSelector((s) => s.annotationsAuto.height);
-  const checkedTemplateIds = useSelector(
-    (s) => s.annotationsAuto.checkedTemplateIds
-  );
   const returnTechnique = useSelector(
     (s) => s.annotationsAuto.returnTechnique
   );
   const running = useSelector((s) => s.annotationsAuto.running);
 
   const { value: listings } = useListingsByScope();
-  const { value: locatedListings } = useListingsByScope({
-    filterByEntityModelType: "LOCATED_ENTITY",
-  });
 
   const run = useAnnotationsAutoRun();
 
@@ -79,15 +66,7 @@ export default function PanelAnnotationsAuto() {
 
   const hideSourceListing = selectedProcedure?.hideSourceListing === true;
   const showHeightInput = selectedProcedure?.showHeightInput === true;
-  const showTemplateCheckboxes =
-    selectedProcedure?.showTemplateCheckboxes === true;
-
-  const baseTargetListings = locatedListings;
-  const targetListings = selectedProcedure?.targetListingKeys
-    ? baseTargetListings?.filter((l) =>
-        selectedProcedure.targetListingKeys.includes(l.key)
-      )
-    : baseTargetListings;
+  const showReturnTechnique = selectedProcedure?.showReturnTechnique === true;
 
   const sourceListings = selectedProcedure?.sourceListingKeys
     ? listings?.filter((l) =>
@@ -95,18 +74,8 @@ export default function PanelAnnotationsAuto() {
       )
     : listings;
 
-  const targetTemplates = useAnnotationTemplates({
-    filterByListingId:
-      showTemplateCheckboxes && selectedTargetListingId
-        ? selectedTargetListingId
-        : undefined,
-    sortByOrder: true,
-  });
-
   const canRun =
-    selectedProcedureKey &&
-    selectedTargetListingId &&
-    (hideSourceListing || selectedSourceListingId);
+    selectedProcedureKey && (hideSourceListing || selectedSourceListingId);
 
   // handlers
 
@@ -114,18 +83,9 @@ export default function PanelAnnotationsAuto() {
     const key = e.target.value;
     dispatch(setSelectedProcedureKey(key));
     dispatch(setHeight(null));
-    dispatch(setCheckedTemplateIds(null));
 
     const proc = procedures.find((p) => p.key === key);
     if (!proc) return;
-
-    // Auto-select first matching target if empty
-    if (!selectedTargetListingId && proc.targetListingKeys) {
-      const match = listings?.find((l) =>
-        proc.targetListingKeys.includes(l.key)
-      );
-      if (match) dispatch(setSelectedTargetListingId(match.id));
-    }
 
     // Auto-select first matching source if empty
     if (!selectedSourceListingId && proc.sourceListingKeys) {
@@ -136,32 +96,12 @@ export default function PanelAnnotationsAuto() {
     }
   }
 
-  function handleTargetChange(e) {
-    dispatch(setSelectedTargetListingId(e.target.value));
-    dispatch(setCheckedTemplateIds(null));
-  }
-
   function handleSourceChange(e) {
     dispatch(setSelectedSourceListingId(e.target.value));
   }
 
   function handleHeightChange(value) {
     dispatch(setHeight(value));
-  }
-
-  function handleTemplateToggle(templateId) {
-    const allIds = targetTemplates?.map((t) => t.id) ?? [];
-    const currentIds = checkedTemplateIds ?? allIds;
-    const isChecked = currentIds.includes(templateId);
-    const newIds = isChecked
-      ? currentIds.filter((id) => id !== templateId)
-      : [...currentIds, templateId];
-    // if all are checked again, reset to null
-    if (newIds.length === allIds.length && allIds.every((id) => newIds.includes(id))) {
-      dispatch(setCheckedTemplateIds(null));
-    } else {
-      dispatch(setCheckedTemplateIds(newIds));
-    }
   }
 
   const fireConfetti = useCallback(() => {
@@ -192,7 +132,6 @@ export default function PanelAnnotationsAuto() {
     try {
       await run({
         sourceListingId: hideSourceListing ? null : selectedSourceListingId,
-        targetListingId: selectedTargetListingId,
         procedureKey: selectedProcedureKey,
       });
       fireConfetti();
@@ -239,51 +178,7 @@ export default function PanelAnnotationsAuto() {
             />
           )}
 
-          <FormControl fullWidth size="small">
-            <InputLabel>Liste cible</InputLabel>
-            <Select
-              value={selectedTargetListingId ?? ""}
-              label="Liste cible"
-              onChange={handleTargetChange}
-            >
-              {targetListings?.map((listing) => (
-                <MenuItem key={listing.id} value={listing.id}>
-                  {listing.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {showTemplateCheckboxes &&
-            selectedTargetListingId &&
-            targetTemplates?.length > 0 && (
-              <FormGroup>
-                {targetTemplates.map((template) => {
-                  const isChecked = checkedTemplateIds
-                    ? checkedTemplateIds.includes(template.id)
-                    : true;
-                  return (
-                    <FormControlLabel
-                      key={template.id}
-                      control={
-                        <Checkbox
-                          checked={isChecked}
-                          onChange={() => handleTemplateToggle(template.id)}
-                          size="small"
-                        />
-                      }
-                      label={
-                        <Typography variant="body2">
-                          {template.label}
-                        </Typography>
-                      }
-                    />
-                  );
-                })}
-              </FormGroup>
-            )}
-
-          {showTemplateCheckboxes && (
+          {showReturnTechnique && (
             <FormControlLabel
               control={
                 <Checkbox
