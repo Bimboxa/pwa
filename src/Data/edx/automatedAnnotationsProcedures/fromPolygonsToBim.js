@@ -1037,54 +1037,6 @@ function buildPolylineAnnotation(
   return { annotation, rels };
 }
 
-/**
- * Duplicate a polygon annotation.
- */
-function buildPolygonAnnotation(
-  sourceAnn,
-  template,
-  imageSize,
-  context,
-  outputPoints
-) {
-  // duplicate outer ring points
-  const pointRefs = sourceAnn.points.map((pt) => {
-    const rec = createPointRecord(pt, imageSize, context);
-    outputPoints.push(rec);
-    return { id: rec.id };
-  });
-
-  // duplicate cuts
-  let cuts = null;
-  if (sourceAnn.cuts?.length) {
-    cuts = sourceAnn.cuts.map((cut) => {
-      const cutPointRefs = cut.points.map((pt) => {
-        const rec = createPointRecord(pt, imageSize, context);
-        outputPoints.push(rec);
-        return { id: rec.id };
-      });
-      return { id: nanoid(), points: cutPointRefs };
-    });
-  }
-
-  const annotationId = nanoid();
-  const annotation = {
-    id: annotationId,
-    projectId: context.projectId,
-    baseMapId: context.baseMapId,
-    listingId: context.targetListingId,
-    annotationTemplateId: template.id,
-    type: "POLYGON",
-    points: pointRefs,
-    cuts,
-    height: null,
-    ...(context.activeLayerId ? { layerId: context.activeLayerId } : {}),
-  };
-
-  const rels = buildRels(annotationId, template, context);
-  return { annotation, rels };
-}
-
 // ---------------------------------------------------------------------------
 // Main procedure
 // ---------------------------------------------------------------------------
@@ -1092,38 +1044,22 @@ function buildPolygonAnnotation(
 /**
  * FROM POLYGON TO BIM procedure.
  *
- * For each visible polygon annotation, identifies 3 contour types
+ * For each source polygon annotation, identifies contour types
  * (exterior, int/ext wall branches, interior cuts) and generates
- * BIM annotations based on checked annotation template categories:
+ * BIM annotations. Templates are resolved per-polygon from the
+ * polygon's own listing:
  *
- * - OUVRAGE:SOL  → duplicate polygon
  * - OUVRAGE:VCT  → polylines from exterior contour (with height)
  * - OUVRAGE:VI   → polylines from int/ext + interior contours
  */
 export default function fromPolygonsToBim({
   sourceAnnotations,
-  targetAnnotationTemplates,
+  templatesByListingId,
   imageSize,
   meterByPx,
   context,
 }) {
   const height = context.height ? parseFloat(context.height) : null;
-
-  const solTemplate = matchAnnotationTemplate(targetAnnotationTemplates, [
-    "OUVRAGE:SOL",
-  ]);
-  const vctTemplate = matchAnnotationTemplate(targetAnnotationTemplates, [
-    "OUVRAGE:VCT",
-  ]);
-  const viTemplate = matchAnnotationTemplate(targetAnnotationTemplates, [
-    "OUVRAGE:VI",
-  ]);
-  const rtpTemplate = matchAnnotationTemplate(targetAnnotationTemplates, [
-    "OUVRAGE:RTP",
-  ]);
-  const arTemplate = matchAnnotationTemplate(targetAnnotationTemplates, [
-    "OUVRAGE:AR",
-  ]);
 
   const outputAnnotations = [];
   const outputPoints = [];
@@ -1135,10 +1071,30 @@ export default function fromPolygonsToBim({
 
   const polygons = sourceAnnotations.filter((a) => a.type === "POLYGON");
 
+  // Build a set of FOSSE template IDs so we can identify FOSSE polygons.
+  // FOSSE polygons participate in foreign edge detection (ext→int transitions)
+  // but do not generate VCT/VI/cuts annotations themselves.
+  const fosseTemplateIds = new Set();
+  for (const [, templates] of templatesByListingId) {
+    const fosseT = matchAnnotationTemplate(templates, ["OUVRAGE:FOSSE"]);
+    if (fosseT) fosseTemplateIds.add(fosseT.id);
+  }
+
   for (let pi = 0; pi < polygons.length; pi++) {
     const polygon = polygons[pi];
     const outerPoints = polygon.points;
     if (!outerPoints?.length || outerPoints.length < 3) continue;
+
+    // FOSSE polygons only serve as foreign zones for neighbor detection
+    const isFosse = fosseTemplateIds.has(polygon.annotationTemplateId);
+    if (isFosse) continue;
+
+    // resolve templates from the polygon's own listing
+    const polygonListingId = polygon.listingId;
+    const polygonTemplates = templatesByListingId.get(polygonListingId) ?? [];
+    const vctTemplate = matchAnnotationTemplate(polygonTemplates, ["OUVRAGE:VCT"]);
+    const viTemplate = matchAnnotationTemplate(polygonTemplates, ["OUVRAGE:VI"]);
+    const polyCtx = { ...context, targetListingId: polygonListingId };
 
     // build foreign edges and polygons from all other polygons for neighbor detection
     const foreignEdges = buildForeignEdges(polygons, pi);
@@ -1152,19 +1108,6 @@ export default function fromPolygonsToBim({
       foreignPolygons
     );
 
-    // --- SOL: duplicate polygon ---
-    if (solTemplate) {
-      const { annotation, rels } = buildPolygonAnnotation(
-        polygon,
-        solTemplate,
-        imageSize,
-        context,
-        outputPoints
-      );
-      outputAnnotations.push(annotation);
-      outputRels.push(...rels);
-    }
-
     // --- 1. VCT: exterior contour polylines with height ---
     if (vctTemplate) {
       for (const chain of exteriorChains) {
@@ -1174,7 +1117,7 @@ export default function fromPolygonsToBim({
           vctTemplate,
           height,
           imageSize,
-          context,
+          polyCtx,
           outputPoints
         );
         if (result) {
@@ -1193,7 +1136,7 @@ export default function fromPolygonsToBim({
           viTemplate,
           null,
           imageSize,
-          context,
+          polyCtx,
           outputPoints
         );
         if (result) {
@@ -1213,7 +1156,7 @@ export default function fromPolygonsToBim({
         // Interior cuts (walls, pillars) → always VI regardless of neighbors
         if (isInteriorCut(cut.points, meterByPx) && viTemplate) {
           const r = buildPolylineAnnotation(
-            cut.points, viTemplate, null, imageSize, context, outputPoints
+            cut.points, viTemplate, null, imageSize, polyCtx, outputPoints
           );
           if (r) {
             r.annotation.closeLine = true;
@@ -1232,7 +1175,7 @@ export default function fromPolygonsToBim({
           for (const chain of extChains) {
             if (chain.length < 2) continue;
             const r = buildPolylineAnnotation(
-              chain, vctTemplate, height, imageSize, context, outputPoints
+              chain, vctTemplate, height, imageSize, polyCtx, outputPoints
             );
             if (r) {
               if (extChains.length === 1 && intChains.length === 0) r.annotation.closeLine = true;
@@ -1244,7 +1187,7 @@ export default function fromPolygonsToBim({
           for (const chain of intChains) {
             if (chain.length < 2) continue;
             const r = buildPolylineAnnotation(
-              chain, viTemplate, null, imageSize, context, outputPoints
+              chain, viTemplate, null, imageSize, polyCtx, outputPoints
             );
             if (r) {
               if (intChains.length === 1 && extChains.length === 0) r.annotation.closeLine = true;
@@ -1254,7 +1197,7 @@ export default function fromPolygonsToBim({
           }
         } else if (vctTemplate) {
           const r = buildPolylineAnnotation(
-            cut.points, vctTemplate, height, imageSize, context, outputPoints
+            cut.points, vctTemplate, height, imageSize, polyCtx, outputPoints
           );
           if (r) {
             r.annotation.closeLine = true;
@@ -1267,28 +1210,47 @@ export default function fromPolygonsToBim({
 
   }
 
+  // --- Build per-listing resolved templates for post-loop steps ---
+  const resolvedByListing = new Map();
+  for (const [lid, templates] of templatesByListingId) {
+    resolvedByListing.set(lid, {
+      vctTemplate: matchAnnotationTemplate(templates, ["OUVRAGE:VCT"]),
+      viTemplate: matchAnnotationTemplate(templates, ["OUVRAGE:VI"]),
+      rtpTemplate: matchAnnotationTemplate(templates, ["OUVRAGE:RTP"]),
+      arTemplate: matchAnnotationTemplate(templates, ["OUVRAGE:AR"]),
+    });
+  }
+
   // --- 4. Retour technique 1m (split VI ends connected to VCT) ---
-  // Runs once after ALL polygons are processed so that cross-polygon
-  // VI→VCT connections are detected. Detection is based on shared point
-  // IDs (not proximity), so no iterative effects.
-  if (context.returnTechnique && vctTemplate && viTemplate) {
-    applyRetourTechnique(
-      outputAnnotations,
-      outputPoints,
-      outputRels,
-      vctTemplate,
-      viTemplate,
-      meterByPx,
-      imageSize,
-      context
-    );
+  // Runs per listing group so that template IDs match correctly.
+  if (context.returnTechnique) {
+    for (const [lid, resolved] of resolvedByListing) {
+      if (!resolved.vctTemplate || !resolved.viTemplate) continue;
+      const listingCtx = { ...context, targetListingId: lid };
+      applyRetourTechnique(
+        outputAnnotations,
+        outputPoints,
+        outputRels,
+        resolved.vctTemplate,
+        resolved.viTemplate,
+        meterByPx,
+        imageSize,
+        listingCtx
+      );
+    }
   }
 
   // --- 5. Merge VCT polylines into longest possible chains + RTP strips ---
-  if (rtpTemplate && vctTemplate) {
-    // collect all VCT annotations (including retour technique ones)
+  // Group by listingId to avoid cross-listing merging.
+  for (const [lid, resolved] of resolvedByListing) {
+    const { vctTemplate: listingVct, rtpTemplate: listingRtp } = resolved;
+    if (!listingRtp || !listingVct) continue;
+
+    const listingCtx = { ...context, targetListingId: lid };
+
+    // collect all VCT annotations for this listing (including retour technique ones)
     const vctAnns = outputAnnotations.filter(
-      (a) => a.annotationTemplateId === vctTemplate.id
+      (a) => a.annotationTemplateId === listingVct.id && a.listingId === lid
     );
 
     const pointById = {};
@@ -1320,7 +1282,7 @@ export default function fromPolygonsToBim({
         if (chain.length < 2) continue;
 
         const pointRefs = chain.map((pt) => {
-          const rec = createPointRecord(pt, imageSize, context);
+          const rec = createPointRecord(pt, imageSize, listingCtx);
           outputPoints.push(rec);
           return { id: rec.id };
         });
@@ -1385,39 +1347,50 @@ export default function fromPolygonsToBim({
           id: annotationId,
           projectId: context.projectId,
           baseMapId: context.baseMapId,
-          listingId: context.targetListingId,
-          annotationTemplateId: rtpTemplate.id,
+          listingId: lid,
+          annotationTemplateId: listingRtp.id,
           type: "STRIP",
           points: pointRefs,
           height: height ?? null,
           stripOrientation,
-          strokeWidth: rtpTemplate.strokeWidth ?? 20,
-          strokeWidthUnit: rtpTemplate.strokeWidthUnit ?? "CM",
+          strokeWidth: listingRtp.strokeWidth ?? 20,
+          strokeWidthUnit: listingRtp.strokeWidthUnit ?? "CM",
           ...(isClosed && { closeLine: true }),
           ...(context.activeLayerId ? { layerId: context.activeLayerId } : {}),
         });
-        outputRels.push(...buildRels(annotationId, rtpTemplate, context));
+        outputRels.push(...buildRels(annotationId, listingRtp, listingCtx));
       }
     }
   }
 
   // --- 6. AR: detect reentrant angles on new polylines vs source polygons ---
-  if (arTemplate) {
+  // Collect all VCT/VI template IDs across all listings
+  const allVctViTemplateIds = new Set();
+  const templateIdToListingId = new Map();
+  for (const [lid, resolved] of resolvedByListing) {
+    if (resolved.vctTemplate) {
+      allVctViTemplateIds.add(resolved.vctTemplate.id);
+      templateIdToListingId.set(resolved.vctTemplate.id, lid);
+    }
+    if (resolved.viTemplate) {
+      allVctViTemplateIds.add(resolved.viTemplate.id);
+      templateIdToListingId.set(resolved.viTemplate.id, lid);
+    }
+  }
+
+  if (allVctViTemplateIds.size > 0) {
     const pointById = { ...context._existingPointsPx };
     for (const p of outputPoints) pointById[p.id] = p;
-
-    // Only VCT and VI polylines (retour technique ones are VCT, so included)
-    const targetTemplateIds = new Set(
-      [vctTemplate, viTemplate].filter(Boolean).map((t) => t.id)
-    );
 
     const newPolylines = outputAnnotations
       .filter(
         (a) =>
-          a.type === "POLYLINE" && targetTemplateIds.has(a.annotationTemplateId)
+          a.type === "POLYLINE" && allVctViTemplateIds.has(a.annotationTemplateId)
       )
       .map((ann) => ({
         id: ann.id,
+        listingId: ann.listingId,
+        annotationTemplateId: ann.annotationTemplateId,
         points: ann.points
           .map((ref) => {
             const p = pointById[ref.id];
@@ -1447,12 +1420,24 @@ export default function fromPolygonsToBim({
     });
 
     for (const angle of reentrantAngles) {
+      // find the source polyline to determine listingId
+      const sourcePl = newPolylines.find(
+        (pl) => angle.polylineIds?.includes(pl.id)
+      );
+      const angleLid = sourcePl?.listingId ?? polygons[0]?.listingId;
+      if (!angleLid) continue;
+
+      const resolved = resolvedByListing.get(angleLid);
+      const arTemplate = resolved?.arTemplate;
+      if (!arTemplate) continue;
+
+      const listingCtx = { ...context, targetListingId: angleLid };
       const annotationId = nanoid();
       outputAnnotations.push({
         id: annotationId,
         projectId: context.projectId,
         baseMapId: context.baseMapId,
-        listingId: context.targetListingId,
+        listingId: angleLid,
         annotationTemplateId: arTemplate.id,
         type: "POINT",
         point: { id: angle.pointId },
@@ -1463,12 +1448,12 @@ export default function fromPolygonsToBim({
         sizeUnit: arTemplate.sizeUnit,
         ...(context.activeLayerId ? { layerId: context.activeLayerId } : {}),
       });
-      outputRels.push(...buildRels(annotationId, arTemplate, context));
+      outputRels.push(...buildRels(annotationId, arTemplate, listingCtx));
     }
   }
 
   // Deduplicate points by id (the same source point may be referenced
-  // by multiple output annotations: VCT, VI, SOL, retour technique…)
+  // by multiple output annotations: VCT, VI, retour technique…)
   const seenPointIds = new Set();
   const uniquePoints = [];
   for (const p of outputPoints) {
