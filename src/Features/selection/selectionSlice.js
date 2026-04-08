@@ -23,6 +23,9 @@ export const selectionSlice = createSlice({
         state.selectedItems = [item];
       }
       state.selectedPointIds = [];
+      if (!item || item.type !== "NODE") {
+        state.showAnnotationsProperties = false;
+      }
     },
     setSelectedItems: (state, action) => {
       // Handles setting items directly

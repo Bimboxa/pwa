@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import useUpdateListing from "../hooks/useUpdateListing";
+import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
+import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
+import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
@@ -22,6 +25,7 @@ import FavoriteBorder from "@mui/icons-material/FavoriteBorder";
 import db from "App/db/db";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import IconButtonMoreActionsListing from "./IconButtonMoreActionsListing";
 import useFavoriteListings from "../hooks/useFavoriteListings";
 
@@ -33,6 +37,12 @@ export default function PanelPropertiesListingV2({ listing }) {
   const updateListing = useUpdateListing();
   const { isFavorite, toggleFavorite } = useFavoriteListings();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const annotationTemplates = useAnnotationTemplates({
+    filterByListingId: listing?.id,
+    sortByOrder: true,
+  });
+  const updateAnnotationTemplate = useUpdateAnnotationTemplate();
+  const spriteImage = useAnnotationSpriteImage();
   const selectedBaseMapId = useSelector(
     (s) => s.mapEditor.selectedBaseMapId
   );
@@ -43,10 +53,23 @@ export default function PanelPropertiesListingV2({ listing }) {
   // state
 
   const [name, setName] = useState(listing?.name ?? "");
+  const [heights, setHeights] = useState({});
+  const heightTimers = useRef({});
 
   useEffect(() => {
     setName(listing?.name ?? "");
   }, [listing?.id, listing?.name]);
+
+  useEffect(() => {
+    if (!annotationTemplates) return;
+    setHeights((prev) => {
+      const next = {};
+      annotationTemplates.forEach((t) => {
+        next[t.id] = prev[t.id] ?? t.height ?? "";
+      });
+      return next;
+    });
+  }, [annotationTemplates]);
 
   // data - base maps with annotation counts for this listing
 
@@ -102,6 +125,29 @@ export default function PanelPropertiesListingV2({ listing }) {
 
   const handleSelectBaseMap = (baseMapId) => {
     dispatch(setSelectedMainBaseMapId(baseMapId));
+  };
+
+  const handleHeightChange = (template, value) => {
+    setHeights((prev) => ({ ...prev, [template.id]: value }));
+    if (heightTimers.current[template.id]) {
+      clearTimeout(heightTimers.current[template.id]);
+    }
+    heightTimers.current[template.id] = setTimeout(() => {
+      let valStr = String(value).replace(",", ".");
+      let finalValue;
+      if (valStr.endsWith(".")) {
+        finalValue = valStr;
+      } else {
+        const numberVal = parseFloat(valStr);
+        finalValue = !isNaN(numberVal) ? numberVal : valStr;
+      }
+      updateAnnotationTemplate({
+        id: template.id,
+        height: finalValue,
+        listingId: listing.id,
+        projectId,
+      });
+    }, 400);
   };
 
   const handleToggleFavorite = async () => {
@@ -202,6 +248,83 @@ export default function PanelPropertiesListingV2({ listing }) {
             </IconButton>
           </Box>
         </WhiteSectionGeneric>
+
+        {/* Annotation template heights */}
+        {annotationTemplates?.length > 0 && (
+          <WhiteSectionGeneric>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ fontWeight: 600, mb: 0.5, display: "block" }}
+            >
+              Hauteurs
+            </Typography>
+            <List dense disablePadding>
+              {annotationTemplates.map((template) => (
+                <Box
+                  key={template.id}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    py: 0.25,
+                    px: 1,
+                  }}
+                >
+                  <AnnotationTemplateIcon
+                    template={template}
+                    spriteImage={spriteImage}
+                    size={20}
+                  />
+                  <Typography
+                    variant="body2"
+                    noWrap
+                    sx={{ flex: 1, minWidth: 0 }}
+                  >
+                    {template.label}
+                  </Typography>
+                  <InputBase
+                    value={heights[template.id] ?? ""}
+                    onChange={(e) =>
+                      handleHeightChange(template, e.target.value)
+                    }
+                    onKeyDown={(e) => {
+                      if (
+                        e.key === "Backspace" ||
+                        e.key === "Delete"
+                      )
+                        e.stopPropagation();
+                    }}
+                    sx={{
+                      width: 42,
+                      fontSize: "0.875rem",
+                      px: 0.5,
+                      py: 0,
+                      borderRadius: 0.5,
+                      border: (theme) =>
+                        `1px solid ${theme.palette.divider}`,
+                      "&:focus-within": {
+                        borderColor: "primary.main",
+                      },
+                      "& .MuiInputBase-input": {
+                        textAlign: "right",
+                        py: 0.25,
+                        px: 0.5,
+                      },
+                    }}
+                  />
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ flexShrink: 0 }}
+                  >
+                    m
+                  </Typography>
+                </Box>
+              ))}
+            </List>
+          </WhiteSectionGeneric>
+        )}
 
         {/* Annotations per base map */}
         <WhiteSectionGeneric>
