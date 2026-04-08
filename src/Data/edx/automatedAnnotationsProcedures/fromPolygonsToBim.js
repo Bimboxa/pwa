@@ -1029,7 +1029,7 @@ function buildPolylineAnnotation(
     annotationTemplateId: template.id,
     type: "POLYLINE",
     points: pointRefs,
-    height: height ?? null,
+    height: height ?? template?.height ?? null,
     ...(context.activeLayerId ? { layerId: context.activeLayerId } : {}),
   };
 
@@ -1351,7 +1351,7 @@ export default function fromPolygonsToBim({
           annotationTemplateId: listingRtp.id,
           type: "STRIP",
           points: pointRefs,
-          height: height ?? null,
+          height: null,
           stripOrientation,
           strokeWidth: listingRtp.strokeWidth ?? 20,
           strokeWidthUnit: listingRtp.strokeWidthUnit ?? "CM",
@@ -1441,7 +1441,7 @@ export default function fromPolygonsToBim({
         annotationTemplateId: arTemplate.id,
         type: "POINT",
         point: { id: angle.pointId },
-        height: angle.height,
+        height: angle.height ?? null,
         fillColor: arTemplate.fillColor,
         variant: arTemplate.variant,
         size: arTemplate.size,
@@ -1643,7 +1643,7 @@ function applyRetourTechnique(
         annotationTemplateId: vctTemplate.id,
         type: "POLYLINE",
         points: refs,
-        height: vi.height ?? null,
+        height: vi.height ?? vctTemplate?.height ?? null,
         ...(context.activeLayerId ? { layerId: context.activeLayerId } : {}),
       });
       newRels.push(...buildRels(retId, vctTemplate, context));
@@ -1665,7 +1665,7 @@ function applyRetourTechnique(
         annotationTemplateId: vctTemplate.id,
         type: "POLYLINE",
         points: refs,
-        height: vi.height ?? null,
+        height: vi.height ?? vctTemplate?.height ?? null,
         ...(context.activeLayerId ? { layerId: context.activeLayerId } : {}),
       });
       newRels.push(...buildRels(retId, vctTemplate, context));

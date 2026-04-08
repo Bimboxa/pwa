@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -67,6 +67,20 @@ export default function PanelAnnotationsAuto() {
   const hideSourceListing = selectedProcedure?.hideSourceListing === true;
   const showHeightInput = selectedProcedure?.showHeightInput === true;
   const showReturnTechnique = selectedProcedure?.showReturnTechnique === true;
+
+  // Auto-select first procedure on mount
+  useEffect(() => {
+    if (!selectedProcedureKey && procedures.length > 0) {
+      const firstProc = procedures[0];
+      dispatch(setSelectedProcedureKey(firstProc.key));
+      if (firstProc.sourceListingKeys) {
+        const match = listings?.find((l) =>
+          firstProc.sourceListingKeys.includes(l.key)
+        );
+        if (match) dispatch(setSelectedSourceListingId(match.id));
+      }
+    }
+  }, [selectedProcedureKey, procedures, listings, dispatch]);
 
   const sourceListings = selectedProcedure?.sourceListingKeys
     ? listings?.filter((l) =>
@@ -195,7 +209,7 @@ export default function PanelAnnotationsAuto() {
             />
           )}
 
-          {!hideSourceListing && (
+          {!hideSourceListing && selectedProcedureKey && (
             <FormControl fullWidth size="small">
               <InputLabel>Liste source</InputLabel>
               <Select
