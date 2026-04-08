@@ -60,6 +60,9 @@ export default function PanelPropertiesListingV2({ listing }) {
     setName(listing?.name ?? "");
   }, [listing?.id, listing?.name]);
 
+  const templatesKey = annotationTemplates
+    ?.map((t) => t.id + ":" + (t.height ?? ""))
+    .join(",");
   useEffect(() => {
     if (!annotationTemplates) return;
     setHeights((prev) => {
@@ -69,7 +72,7 @@ export default function PanelPropertiesListingV2({ listing }) {
       });
       return next;
     });
-  }, [annotationTemplates]);
+  }, [templatesKey]);
 
   // data - base maps with annotation counts for this listing
 

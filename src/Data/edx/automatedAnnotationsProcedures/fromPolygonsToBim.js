@@ -429,6 +429,56 @@ function isSegmentInterior(p1x, p1y, p2x, p2y, outwardSign, foreignEdges, foreig
 }
 
 /**
+ * Post-classification pass: reclassify short EXT runs that are sandwiched
+ * between two INT runs as INT. This handles concave corners where the
+ * diagonal distance to foreign edges exceeds detectionPx even though the
+ * corner connects two shared-boundary regions.
+ *
+ * Mutates the close[] array in place.
+ *
+ * @param {boolean[]} close - per-segment classification (true=INT, false=EXT)
+ * @param {Array<{x,y}>} points - subdivided chain/ring points
+ * @param {number} maxMergeLenPx - max total pixel length of an EXT run to merge
+ * @param {boolean} isRing - if true, treat close[] as circular (last wraps to first)
+ */
+function mergeShortExtRuns(close, points, maxMergeLenPx, isRing = false) {
+  const N = close.length;
+  if (N < 3) return;
+
+  let i = 0;
+  while (i < N) {
+    if (close[i]) { i++; continue; }
+
+    // Found start of an EXT run
+    const runStart = i;
+    while (i < N && !close[i]) i++;
+    const runEnd = i; // exclusive
+
+    // Check neighbors: is there an INT segment before and after this run?
+    const prevIdx = isRing ? (runStart - 1 + N) % N : runStart - 1;
+    const nextIdx = isRing ? runEnd % N : runEnd;
+    const hasPrevInt = prevIdx >= 0 && prevIdx < N && close[prevIdx];
+    const hasNextInt = nextIdx >= 0 && nextIdx < N && close[nextIdx];
+
+    if (!hasPrevInt || !hasNextInt) continue;
+
+    // Compute total length of the EXT run
+    let totalLen = 0;
+    for (let j = runStart; j < runEnd; j++) {
+      const idx1 = isRing ? j % points.length : j;
+      const idx2 = isRing ? (j + 1) % points.length : j + 1;
+      totalLen += Math.hypot(points[idx2].x - points[idx1].x, points[idx2].y - points[idx1].y);
+    }
+
+    if (totalLen <= maxMergeLenPx) {
+      for (let j = runStart; j < runEnd; j++) {
+        close[j] = true;
+      }
+    }
+  }
+}
+
+/**
  * Split a chain of points into ext/int sub-chains based on proximity
  * to foreign polygon edges. Before classifying, foreign polygon vertices
  * are projected onto the chain segments to insert split points, ensuring
@@ -456,6 +506,9 @@ function splitChainByProximity(chain, foreignEdges, foreignPolygons, outwardSign
     const p2 = subdivided[i + 1];
     close.push(isSegmentInterior(p1.x, p1.y, p2.x, p2.y, outwardSign, foreignEdges, foreignPolygons, detectionPx));
   }
+
+  // Reclassify short EXT runs sandwiched between INT runs (corner merging)
+  mergeShortExtRuns(close, subdivided, detectionPx * 3, false);
 
   // check if all same classification → no split needed
   const allClose = close.every(Boolean);
@@ -544,6 +597,9 @@ function reclassifyCutAgainstNeighbors(cutPoints, foreignEdges, foreignPolygons,
     const p2 = ring[(i + 1) % N];
     close.push(isSegmentInterior(p1.x, p1.y, p2.x, p2.y, outwardSign, foreignEdges, foreignPolygons, detectionPx));
   }
+
+  // Reclassify short EXT runs sandwiched between INT runs (corner merging)
+  mergeShortExtRuns(close, ring, detectionPx * 3, true);
 
   const allClose = close.every(Boolean);
   const allFar = close.every((c) => !c);
