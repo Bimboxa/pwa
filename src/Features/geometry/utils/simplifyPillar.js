@@ -4,6 +4,19 @@
 /** Max bounding-box diagonal (meters) for a polygon to be considered a pillar. */
 const PILLAR_MAX_DIAGONAL_M = 5.0;
 
+/**
+ * Diamond detection threshold: area ratio below AREA_RATIO_CIRCULAR but above
+ * this value, combined with few vertices (≤ 6), indicates a diamond artifact
+ * from OpenCV's approxPolyDP (vertices land at edge midpoints instead of
+ * corners). The AABB of such a diamond IS the correct pillar rectangle.
+ *
+ * Reference: a perfect diamond inscribed in its AABB has ratio = 0.50.
+ */
+const AREA_RATIO_DIAMOND = 0.40;
+
+/** Max vertex count to qualify for diamond detection. */
+const DIAMOND_MAX_VERTICES = 6;
+
 /** Min wall thickness (meters). Used as minimum resolution reference. */
 const MIN_WALL_THICKNESS_M = 0.15;
 
@@ -40,6 +53,7 @@ const AREA_RATIO_CIRCULAR = 0.65;
  * @param {number} [options.fallbackMaxDiagonal=Infinity] - Fallback pixel threshold when no scale is available
  * @param {number} [options.circularityThreshold=AREA_RATIO_RECTANGULAR] - Area ratio above this = rectangular
  * @param {number} [options.circularityMin=AREA_RATIO_CIRCULAR] - Area ratio below this = irregular shape
+ * @param {number} [options.diamondThreshold=AREA_RATIO_DIAMOND] - Area ratio above this with few vertices = diamond artifact → rectangular
  * @returns {{ points: Array<{x: number, y: number, type?: string}>, simplified: boolean }}
  */
 export default function simplifyPillar(points, options = {}) {
@@ -49,6 +63,7 @@ export default function simplifyPillar(points, options = {}) {
     fallbackMaxDiagonal = Infinity,
     circularityThreshold = AREA_RATIO_RECTANGULAR,
     circularityMin = AREA_RATIO_CIRCULAR,
+    diamondThreshold = AREA_RATIO_DIAMOND,
   } = options;
 
   const result = { points, simplified: false };
@@ -82,8 +97,26 @@ export default function simplifyPillar(points, options = {}) {
   const areaRatio = polyArea / bboxArea;
 
   // -- Step 3: classify and simplify
+
+  // Few-vertex polygons (≤ 6): circular classification is unreliable because
+  // OpenCV's approxPolyDP produces diamonds/pentagons for rectangular pillars.
+  // Grid snapping can further distort the shape, pushing the area ratio into
+  // the circular range (0.65–0.85) even though the pillar is rectangular.
+  // With so few vertices, replacing with AABB is always the right call.
+  if (points.length <= DIAMOND_MAX_VERTICES && areaRatio >= diamondThreshold) {
+    return {
+      points: [
+        { x: minX, y: minY, type: "square" },
+        { x: maxX, y: minY, type: "square" },
+        { x: maxX, y: maxY, type: "square" },
+        { x: minX, y: maxY, type: "square" },
+      ],
+      simplified: true,
+    };
+  }
+
   if (areaRatio >= circularityThreshold) {
-    // Rectangular pillar → return AABB corners
+    // Rectangular pillar (ratio >= 0.85) → return AABB corners
     return {
       points: [
         { x: minX, y: minY, type: "square" },
@@ -96,7 +129,7 @@ export default function simplifyPillar(points, options = {}) {
   }
 
   if (areaRatio >= circularityMin) {
-    // Circular pillar → return 4 points S-C-S-C at 0°/90°/180°/270°
+    // Circular pillar (0.65–0.85, 7+ vertices) → return 4 points S-C-S-C at 0°/90°/180°/270°
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
     const rx = bboxW / 2;

@@ -157,17 +157,27 @@ polygons that represent pillars/columns and replaces them with clean shapes.
 |----------|---------|-------------|
 | `PILLAR_MAX_DIAGONAL_M` | 5.0 m | Max bbox diagonal to qualify as a pillar |
 | `AREA_RATIO_RECTANGULAR` | 0.85 | Area ratio above this → rectangular |
-| `AREA_RATIO_CIRCULAR` | 0.65 | Area ratio below this → irregular (skip) |
+| `AREA_RATIO_CIRCULAR` | 0.65 | Area ratio below this → check for diamond |
+| `AREA_RATIO_DIAMOND` | 0.40 | Diamond detection threshold (with ≤ 6 vertices) |
+| `DIAMOND_MAX_VERTICES` | 6 | Max vertices for diamond artifact detection |
 
 ### Classification logic
 
 Uses the ratio `polygon area / bounding box area`:
 
-| Ratio | Shape | Reference |
-|-------|-------|-----------|
-| ≥ 0.85 | Rectangular | Perfect square = 1.0 |
-| 0.65 – 0.85 | Circular | Perfect circle ≈ 0.785 (π/4) |
-| < 0.65 | Irregular | Not simplified |
+| Ratio | Vertices | Shape | Reference |
+|-------|----------|-------|-----------|
+| ≥ 0.85 | any | Rectangular | Perfect square = 1.0 |
+| 0.65 – 0.85 | any | Circular | Perfect circle ≈ 0.785 (π/4) |
+| 0.40 – 0.65 | ≤ 6 | Diamond → Rectangular | Diamond artifact = 0.50 |
+| < 0.40 | any | Irregular | Not simplified |
+
+**Diamond detection:** OpenCV's `approxPolyDP` often produces diamond shapes
+for rectangular pillars (vertices land at edge midpoints instead of corners).
+A diamond inscribed in its AABB has area ratio ~0.5 and 3–6 vertices. Since
+the AABB of such a diamond matches the actual pillar rectangle, the function
+replaces it with 4 AABB corners. The vertex count guard (≤ 6) prevents
+misclassifying complex polygons with many vertices.
 
 ### Output
 

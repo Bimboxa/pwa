@@ -180,7 +180,7 @@ export default function alignPolygonsToGrid(mainPoints, cuts, options = {}) {
   for (let polyIdx = 1; polyIdx < rotated.length; polyIdx++) {
     const { points: simplified, simplified: wasSimplified } = simplifyPillar(
       rotated[polyIdx],
-      { meterByPx }
+      { meterByPx, fallbackMaxDiagonal: bboxDiag }
     );
     if (wasSimplified) {
       rotated[polyIdx] = simplified;
