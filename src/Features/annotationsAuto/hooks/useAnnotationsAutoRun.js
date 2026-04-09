@@ -46,7 +46,10 @@ export default function useAnnotationsAutoRun() {
     // data
 
     const baseMapId = baseMap?.id;
-    const imageSize = baseMap?.image?.imageSize;
+    // Use reference coordinate space (consistent with useAnnotationsV2),
+    // not the active version's actual pixel dimensions which may differ
+    // when the version has a scale/translation transform.
+    const imageSize = baseMap?.getImageSize?.() || baseMap?.image?.imageSize;
     const meterByPx = baseMap?.getMeterByPx?.();
 
     if (!baseMapId || !imageSize || !meterByPx || !projectId) {
