@@ -1470,11 +1470,11 @@ export default function PopperMapListings() {
       elevation={4}
       sx={{
         position: "absolute",
-        top: 16,
-        left: 16,
+        top: 50,
+        left: 50,
         zIndex: 10,
         width: 290,
-        maxHeight: "calc(100% - 32px)",
+        maxHeight: "calc(100% - 50px - 80px)",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
