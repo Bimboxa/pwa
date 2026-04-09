@@ -4,7 +4,7 @@ import {
   LockOpen as LockOpenIcon,
 } from "@mui/icons-material";
 
-export default function OverrideToggle({ field, overrideFields, onToggle }) {
+export default function OverrideToggle({ field, overrideFields, onToggle, size = 16 }) {
   const isOverridden =
     Array.isArray(overrideFields) && overrideFields.includes(field);
 
@@ -14,14 +14,14 @@ export default function OverrideToggle({ field, overrideFields, onToggle }) {
       onClick={() => onToggle(field)}
       sx={{
         mr: 0.5,
-        color: isOverridden ? "primary.main" : "text.disabled",
+        color: isOverridden ? "action.active" : "text.disabled",
         p: 0.25,
       }}
     >
       {isOverridden ? (
-        <LockIcon sx={{ fontSize: 16 }} />
+        <LockIcon sx={{ fontSize: size }} />
       ) : (
-        <LockOpenIcon sx={{ fontSize: 16 }} />
+        <LockOpenIcon sx={{ fontSize: size }} />
       )}
     </IconButton>
   );

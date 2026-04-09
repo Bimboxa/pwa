@@ -6,6 +6,7 @@ import useUpdateListing from "../hooks/useUpdateListing";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationTemplateQtiesById from "Features/annotations/hooks/useAnnotationTemplateQtiesById";
 
@@ -23,10 +24,13 @@ import {
   ListItemText,
   Chip,
 } from "@mui/material";
-import ChevronRight from "@mui/icons-material/ChevronRight";
-import Favorite from "@mui/icons-material/Favorite";
-import FavoriteBorder from "@mui/icons-material/FavoriteBorder";
-import DragIndicator from "@mui/icons-material/DragIndicator";
+import {
+  ChevronRight,
+  Favorite,
+  FavoriteBorder,
+  DragIndicator,
+  TableChart,
+} from "@mui/icons-material";
 
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import {
@@ -42,7 +46,10 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
+import OverrideToggle from "Features/annotations/components/OverrideToggle";
 import DialogAddMappingCategories from "Features/annotations/components/DialogAddMappingCategories";
+import DialogGeneric from "Features/layout/components/DialogGeneric";
+import DatagridAnnotations from "Features/annotations/components/DatagridAnnotations";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 import IconButtonMoreActionsListing from "./IconButtonMoreActionsListing";
@@ -104,6 +111,7 @@ function SortableTemplateRow({
   allMappingCategories,
   qtyLabel,
   onHeightChange,
+  onToggleOverride,
   onDeleteCategory,
   onOpenAddCategories,
   onSelect,
@@ -180,6 +188,12 @@ function SortableTemplateRow({
             mt: 0.25,
           }}
         >
+          <OverrideToggle
+            field="height"
+            overrideFields={template.overrideFields}
+            onToggle={(field) => onToggleOverride(template, field)}
+            size={14}
+          />
           <FieldAnnotationHeight
             annotation={{ id: template.id, height: template.height }}
             onChange={(updated) => onHeightChange(template, updated.height)}
@@ -266,6 +280,13 @@ export default function PanelPropertiesListingV2({ listing }) {
   const allMappingCategories = appConfig?.mappingCategories;
   const sensors = useDndSensors();
   const annotationTemplateQtiesById = useAnnotationTemplateQtiesById();
+  const listingAnnotations = useAnnotationsV2({
+    filterByListingId: listing?.id,
+    excludeBgAnnotations: true,
+    withQties: true,
+    withEntity: true,
+    caller: "PanelPropertiesListingV2",
+  });
   const selectedBaseMapId = useSelector(
     (s) => s.mapEditor.selectedBaseMapId
   );
@@ -281,6 +302,7 @@ export default function PanelPropertiesListingV2({ listing }) {
 
   const [name, setName] = useState(listing?.name ?? "");
   const [addCategoriesTemplate, setAddCategoriesTemplate] = useState(null);
+  const [openTableDialog, setOpenTableDialog] = useState(false);
 
   useEffect(() => {
     setName(listing?.name ?? "");
@@ -346,6 +368,24 @@ export default function PanelPropertiesListingV2({ listing }) {
     updateAnnotationTemplate({
       id: template.id,
       height,
+      listingId: listing.id,
+      projectId,
+    });
+  };
+
+  const handleToggleOverride = (template, field) => {
+    const current = Array.isArray(template.overrideFields)
+      ? [...template.overrideFields]
+      : [];
+    const index = current.indexOf(field);
+    if (index >= 0) {
+      current.splice(index, 1);
+    } else {
+      current.push(field);
+    }
+    updateAnnotationTemplate({
+      id: template.id,
+      overrideFields: current,
       listingId: listing.id,
       projectId,
     });
@@ -513,13 +553,28 @@ export default function PanelPropertiesListingV2({ listing }) {
         {/* Annotation templates */}
         {annotationTemplates?.length > 0 && (
           <WhiteSectionGeneric>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ fontWeight: 600, mb: 0.5, display: "block" }}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                mb: 0.5,
+              }}
             >
-              Modèles
-            </Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontWeight: 600 }}
+              >
+                Modèles
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={() => setOpenTableDialog(true)}
+              >
+                <TableChart sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Box>
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -538,6 +593,7 @@ export default function PanelPropertiesListingV2({ listing }) {
                     allMappingCategories={allMappingCategories}
                     qtyLabel={annotationTemplateQtiesById?.[template.id]?.mainQtyLabel}
                     onHeightChange={handleHeightChange}
+                    onToggleOverride={handleToggleOverride}
                     onDeleteCategory={handleDeleteCategory}
                     onOpenAddCategories={setAddCategoriesTemplate}
                     onSelect={handleSelectTemplate}
@@ -558,6 +614,21 @@ export default function PanelPropertiesListingV2({ listing }) {
             onAdd={handleAddCategories}
           />
         )}
+
+        <DialogGeneric
+          title={listing?.name ?? "Annotations"}
+          open={openTableDialog}
+          onClose={() => setOpenTableDialog(false)}
+          vw="90"
+          vh="80"
+        >
+          <BoxFlexVStretch>
+            <DatagridAnnotations
+              annotations={listingAnnotations ?? []}
+              onClose={() => setOpenTableDialog(false)}
+            />
+          </BoxFlexVStretch>
+        </DialogGeneric>
 
         {/* Annotations per base map */}
         <WhiteSectionGeneric>
