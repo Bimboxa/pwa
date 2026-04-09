@@ -40,9 +40,9 @@ export default function PanelLegendBlockProperties() {
   // helpers
 
   const legendFormat = container.legendFormat ?? {
-    x: container.x + container.width - 140 - 16,
+    x: container.x + container.width - 280 - 16,
     y: container.y + 16,
-    width: 140,
+    width: 280,
     fontSize: 12,
     showQty: true,
   };

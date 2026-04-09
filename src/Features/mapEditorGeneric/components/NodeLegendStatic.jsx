@@ -314,7 +314,9 @@ export default memo(function NodeLegendStatic({
                                             style={{
                                                 alignSelf: "center",
                                                 whiteSpace: "nowrap",
-                                                fontSize,
+                                                fontSize: fontSize * 0.85,
+                                                fontFamily: "monospace",
+                                                fontWeight: 500,
                                                 color: "#666",
                                                 textAlign: "right",
                                             }}

@@ -56,7 +56,12 @@ export default function useLegendItems() {
             strokeType,
             fillColor,
             fillType,
-            label: template?.labelLegend || (template?.label ?? "A définir"),
+            label: (() => {
+              const base = template?.labelLegend || (template?.label ?? "A définir");
+              return template?.height > 0
+                ? `${base} [ht. ${template.height.toFixed(2)} m]`
+                : base;
+            })(),
             groupLabel: template?.groupLabel,
             closeLine,
             variant,

@@ -15,7 +15,7 @@ import LegendTransformOverlay from "./LegendTransformOverlay";
 
 import db from "App/db/db";
 
-const DEFAULT_WIDTH = 140;
+const DEFAULT_WIDTH = 280;
 const DEFAULT_FONT_SIZE = 12;
 const PADDING = 16;
 
