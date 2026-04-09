@@ -7,7 +7,9 @@ import {Snackbar, Alert} from "@mui/material";
 export default function Toaster() {
   // data
 
-  const {message, triggeredAt, isError} = useSelector((s) => s.layout.toaster);
+  const {message, triggeredAt, isError, severity} = useSelector(
+    (s) => s.layout.toaster
+  );
 
   // state
 
@@ -40,7 +42,7 @@ export default function Toaster() {
     >
       <Alert
         onClose={handleClose}
-        severity={isError ? "error" : "success"}
+        severity={severity || (isError ? "error" : "success")}
         variant="filled"
         sx={{width: "100%"}}
       >

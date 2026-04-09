@@ -48,6 +48,7 @@ export const layoutSlice = createSlice({
       state.toaster = {
         message: toaster.message,
         isError: toaster.isError,
+        severity: toaster.severity,
         triggeredAt: Date.now(),
       };
     },

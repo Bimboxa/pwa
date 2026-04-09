@@ -9,6 +9,8 @@ import {
   setRunning,
 } from "../annotationsAutoSlice";
 
+import { setToaster } from "Features/layout/layoutSlice";
+
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import useAnnotationsAutoRun from "../hooks/useAnnotationsAutoRun";
 
@@ -32,7 +34,6 @@ import DialogAnnotationsAutoConfirm from "./DialogAnnotationsAutoConfirm";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import confetti from "canvas-confetti";
 
 export default function PanelAnnotationsAuto() {
   const dispatch = useDispatch();
@@ -118,37 +119,47 @@ export default function PanelAnnotationsAuto() {
     dispatch(setHeight(value));
   }
 
-  const fireConfetti = useCallback(() => {
-    const end = Date.now() + 1500;
-    const colors = ["#f59e0b", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6"];
-    (function frame() {
-      confetti({
-        particleCount: 3,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0, y: 0.6 },
-        colors,
-      });
-      confetti({
-        particleCount: 3,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1, y: 0.6 },
-        colors,
-      });
-      if (Date.now() < end) requestAnimationFrame(frame);
-    })();
+  const fireFlash = useCallback(() => {
+    const overlay = document.createElement("div");
+    Object.assign(overlay.style, {
+      position: "fixed",
+      inset: "0",
+      background: "white",
+      opacity: "0.6",
+      zIndex: "9999",
+      pointerEvents: "none",
+      transition: "opacity 0.4s ease-out",
+    });
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => {
+      overlay.style.opacity = "0";
+    });
+    overlay.addEventListener("transitionend", () => overlay.remove());
   }, []);
 
   async function handleRun() {
     if (!canRun || running) return;
     dispatch(setRunning(true));
     try {
-      await run({
+      const result = await run({
         sourceListingId: hideSourceListing ? null : selectedSourceListingId,
         procedureKey: selectedProcedureKey,
       });
-      fireConfetti();
+      const count = result?.annotations?.length ?? 0;
+      if (count > 0) {
+        fireFlash();
+        dispatch(
+          setToaster({ message: `${count} annotation(s) créée(s)` })
+        );
+      } else {
+        dispatch(
+          setToaster({
+            message:
+              "Aucune annotation créée. Vérifiez les catégories des modèles.",
+            severity: "warning",
+          })
+        );
+      }
     } finally {
       dispatch(setRunning(false));
     }
