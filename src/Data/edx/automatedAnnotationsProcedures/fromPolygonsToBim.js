@@ -8,6 +8,8 @@ const WALL_DETECTION_M = 0.6; // characteristic distance to detect wall branches
 const MIN_INDEX_DISTANCE = 2; // minimum index gap to consider two points non-adjacent
 const STRIP_TEST_OFFSET = 5; // px offset to test strip orientation
 const INTERIOR_CUT_MAX_M = 0.5; // max dimension (meters) to classify a cut as interior (wall/pillar)
+const OUTWARD_BRANCH_MAX_M = 2; // max perimeter (meters) for a branch to be reclassified as outward protrusion
+const START_POINT_MIN_SEG_M = 1; // min adjacent segment length (meters) for a valid scan start point
 
 // ---------------------------------------------------------------------------
 // Geometry helpers
@@ -225,6 +227,44 @@ function signedArea2(points) {
     s += points[i].x * points[j].y - points[j].x * points[i].y;
   }
   return s;
+}
+
+/**
+ * Find a good start index for ring scanning.
+ * Prefer a convex-hull point (leftmost) whose two adjacent segments are both
+ * longer than minSegPx. This avoids starting in the middle of a curve or a
+ * narrow wall passage, which can confuse branch detection.
+ * Falls back to the plain leftmost point if no candidate qualifies.
+ */
+function findScanStartIdx(points, N, minSegPx) {
+  // Build candidate list: all points where both adjacent segments > minSegPx
+  let bestIdx = -1;
+  let bestX = Infinity;
+  for (let i = 0; i < N; i++) {
+    const prev = (i - 1 + N) % N;
+    const next = (i + 1) % N;
+    const lenPrev = Math.hypot(points[i].x - points[prev].x, points[i].y - points[prev].y);
+    const lenNext = Math.hypot(points[next].x - points[i].x, points[next].y - points[i].y);
+    if (lenPrev >= minSegPx && lenNext >= minSegPx) {
+      // Among qualifying points, pick leftmost (convex hull preference)
+      if (points[i].x < bestX || (points[i].x === bestX && points[i].y < (bestIdx >= 0 ? points[bestIdx].y : Infinity))) {
+        bestX = points[i].x;
+        bestIdx = i;
+      }
+    }
+  }
+
+  if (bestIdx >= 0) return bestIdx;
+
+  // Fallback: plain leftmost point
+  let startIdx = 0;
+  for (let i = 1; i < N; i++) {
+    if (points[i].x < points[startIdx].x ||
+      (points[i].x === points[startIdx].x && points[i].y < points[startIdx].y)) {
+      startIdx = i;
+    }
+  }
+  return startIdx;
 }
 
 /**
@@ -663,17 +703,8 @@ function reclassifyCutAgainstNeighbors(cutPoints, foreignEdges, foreignPolygons,
  *   intIndices: Set<number>
  * }>}
  */
-function scanForBranches(points, N, detectionPx) {
-  // start from leftmost point (on convex hull = guaranteed exterior)
-  let startIdx = 0;
-  for (let i = 1; i < N; i++) {
-    if (
-      points[i].x < points[startIdx].x ||
-      (points[i].x === points[startIdx].x && points[i].y < points[startIdx].y)
-    ) {
-      startIdx = i;
-    }
-  }
+function scanForBranches(points, N, detectionPx, minSegPx = 0) {
+  const startIdx = findScanStartIdx(points, N, minSegPx);
 
   const branches = [];
   let visited = 0;
@@ -883,20 +914,12 @@ export function classifyRingContours(points, meterByPx) {
   if (N < 3) return { ext: [points.map((p) => p.id)], int: [] };
 
   const detectionPx = WALL_DETECTION_M / meterByPx;
+  const minSegPx = START_POINT_MIN_SEG_M / meterByPx;
 
-  // Start from leftmost point (on convex hull = guaranteed exterior)
-  let startIdx = 0;
-  for (let i = 1; i < N; i++) {
-    if (
-      points[i].x < points[startIdx].x ||
-      (points[i].x === points[startIdx].x && points[i].y < points[startIdx].y)
-    ) {
-      startIdx = i;
-    }
-  }
+  const startIdx = findScanStartIdx(points, N, minSegPx);
 
   // Pass 1: forward scan
-  const fwdBranches = scanForBranches(points, N, detectionPx);
+  const fwdBranches = scanForBranches(points, N, detectionPx, minSegPx);
   // Normalize: forward branches already have correct entry/exit
   for (const b of fwdBranches) {
     b.entryProjPt = null;
@@ -905,19 +928,46 @@ export function classifyRingContours(points, meterByPx) {
 
   // Pass 2: backward scan (reverse the ring, run same scan, convert back)
   const revPoints = [...points].reverse();
-  const bwdBranchesRev = scanForBranches(revPoints, N, detectionPx);
+  const bwdBranchesRev = scanForBranches(revPoints, N, detectionPx, minSegPx);
   const bwdBranches = bwdBranchesRev.map((b) => convertReversedBranch(b, N));
 
-  // Merge: keep all forward branches, add backward branches that don't overlap
+  // Merge: keep all forward branches, add backward branches that don't overlap.
+  // When a backward branch is a superset of one or more forward branches,
+  // replace them with the larger backward branch (it captures a wider wall
+  // region that the forward scan missed due to scan-order constraints).
   const merged = [...fwdBranches];
   for (const bwd of bwdBranches) {
-    const overlaps = merged.some((m) => {
+    const overlappingIndices = [];
+    for (let mi = 0; mi < merged.length; mi++) {
       for (const idx of bwd.intIndices) {
-        if (m.intIndices.has(idx)) return true;
+        if (merged[mi].intIndices.has(idx)) {
+          overlappingIndices.push(mi);
+          break;
+        }
       }
-      return false;
-    });
-    if (!overlaps) merged.push(bwd);
+    }
+
+    if (overlappingIndices.length === 0) {
+      // No overlap: add backward branch directly
+      merged.push(bwd);
+    } else {
+      // Check if the backward branch is a superset of ALL overlapping branches
+      const isSuperset = overlappingIndices.every((mi) => {
+        for (const idx of merged[mi].intIndices) {
+          if (!bwd.intIndices.has(idx)) return false;
+        }
+        return true;
+      });
+
+      if (isSuperset) {
+        // Remove the smaller forward branches and add the larger backward one
+        for (let k = overlappingIndices.length - 1; k >= 0; k--) {
+          merged.splice(overlappingIndices[k], 1);
+        }
+        merged.push(bwd);
+      }
+      // else: partial overlap, keep forward branches (original behavior)
+    }
   }
 
   if (merged.length === 0) {
@@ -957,6 +1007,73 @@ function extractContours(points, meterByPx, foreignEdges = [], foreignPolygons =
 
   let exteriorChains = ext.map(resolveChain);
   let wallChains = int.map(resolveChain);
+
+  // Post-check: reclassify small outward-pointing wall branches as exterior.
+  // Build a "main contour" by connecting all ext chains end-to-end (closing
+  // the gaps left by removed wall branches). Then for each small wall chain
+  // (perimeter < OUTWARD_BRANCH_MAX_M), test if its centroid is inside the
+  // main contour. If outside → it's a protrusion (vent duct) → reclassify EXT.
+  if (wallChains.length > 0 && exteriorChains.length > 0) {
+    // Build main contour: concatenate all ext chains (they share boundary
+    // points with wall chains, so connecting them forms a closed polygon).
+    const mainContour = [];
+    for (const ec of exteriorChains) {
+      for (const pt of ec) {
+        // Avoid duplicating shared boundary points
+        if (mainContour.length > 0) {
+          const last = mainContour[mainContour.length - 1];
+          if (Math.abs(last.x - pt.x) < 0.01 && Math.abs(last.y - pt.y) < 0.01) continue;
+        }
+        mainContour.push(pt);
+      }
+    }
+
+    if (mainContour.length >= 3) {
+      const outwardMaxPx = OUTWARD_BRANCH_MAX_M / meterByPx;
+      const verifiedWall = [];
+      for (const chain of wallChains) {
+        // Compute chain perimeter length
+        let perimeterPx = 0;
+        for (let i = 0; i < chain.length - 1; i++) {
+          perimeterPx += Math.hypot(chain[i + 1].x - chain[i].x, chain[i + 1].y - chain[i].y);
+        }
+
+        // Only consider reclassification for small branches
+        if (perimeterPx > outwardMaxPx) { verifiedWall.push(chain); continue; }
+
+        // Centroid of the wall chain
+        const cx = chain.reduce((s, p) => s + p.x, 0) / chain.length;
+        const cy = chain.reduce((s, p) => s + p.y, 0) / chain.length;
+
+        if (isPointInPolygon({ x: cx, y: cy }, mainContour)) {
+          verifiedWall.push(chain);
+        } else {
+          exteriorChains.push(chain);
+        }
+      }
+      wallChains = verifiedWall;
+    }
+  }
+
+  // Reclassify short wall chains (< 1m) as exterior.
+  // Small interior branches are typically exterior protrusions (vent ducts,
+  // small notches) rather than real interior walls.
+  if (wallChains.length > 0) {
+    const shortWallMaxPx = START_POINT_MIN_SEG_M / meterByPx;
+    const verifiedWall = [];
+    for (const chain of wallChains) {
+      let perimeterPx = 0;
+      for (let i = 0; i < chain.length - 1; i++) {
+        perimeterPx += Math.hypot(chain[i + 1].x - chain[i].x, chain[i + 1].y - chain[i].y);
+      }
+      if (perimeterPx < shortWallMaxPx) {
+        exteriorChains.push(chain);
+      } else {
+        verifiedWall.push(chain);
+      }
+    }
+    wallChains = verifiedWall;
+  }
 
   if (foreignEdges.length > 0) {
     const detectionPx = WALL_DETECTION_M / meterByPx;
