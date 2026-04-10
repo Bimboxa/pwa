@@ -1868,6 +1868,13 @@ const InteractionLayer = forwardRef(({
             x: (p.x - baseMapImageOffset.x) / baseMapImageScale,
             y: (p.y - baseMapImageOffset.y) / baseMapImageScale,
           })),
+          cuts: a.cuts?.map(cut => ({
+            ...cut,
+            points: cut.points.map(p => ({
+              x: (p.x - baseMapImageOffset.x) / baseMapImageScale,
+              y: (p.y - baseMapImageOffset.y) / baseMapImageScale,
+            })),
+          })),
         }));
 
       const { points, cuts } = await cv.detectContoursAsync({

@@ -31,6 +31,37 @@ function drawBoundariesOnBinary(binaryMat, boundaries, track) {
     const vec = track(new cv.MatVector());
     vec.push_back(mat);
 
-    cv.fillPoly(binaryMat, vec, black);
+    if (boundary.cuts?.length) {
+      // Build a barrier mask: polygon area = white, cut areas = black.
+      // Then use bitwise_and to zero out only the polygon region (excluding cuts)
+      // without erasing the original binary content inside the holes.
+      const barrierMask = track(
+        new cv.Mat.zeros(binaryMat.rows, binaryMat.cols, cv.CV_8UC1)
+      );
+      const white = new cv.Scalar(255);
+      cv.fillPoly(barrierMask, vec, white);
+
+      for (const cut of boundary.cuts) {
+        if (!cut.points || cut.points.length < 3) continue;
+        const cutFlat = new Int32Array(cut.points.length * 2);
+        for (let i = 0; i < cut.points.length; i++) {
+          cutFlat[i * 2] = Math.round(cut.points[i].x);
+          cutFlat[i * 2 + 1] = Math.round(cut.points[i].y);
+        }
+        const cutMat = track(
+          cv.matFromArray(cut.points.length, 1, cv.CV_32SC2, cutFlat)
+        );
+        const cutVec = track(new cv.MatVector());
+        cutVec.push_back(cutMat);
+        cv.fillPoly(barrierMask, cutVec, black);
+      }
+
+      // Apply: binaryMat &= ~barrierMask  (zero out polygon area, preserve cuts)
+      const invertedBarrier = track(new cv.Mat());
+      cv.bitwise_not(barrierMask, invertedBarrier);
+      cv.bitwise_and(binaryMat, invertedBarrier, binaryMat);
+    } else {
+      cv.fillPoly(binaryMat, vec, black);
+    }
   }
 }
