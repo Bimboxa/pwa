@@ -627,6 +627,18 @@ function AnnotationTemplateRow({
               }}
             >
               {annotationTemplate.label}
+              {annotationTemplate.height != null && (
+                <Typography
+                  component="span"
+                  sx={{
+                    fontSize: "10px",
+                    color: "text.secondary",
+                    ml: 0.5,
+                  }}
+                >
+                  [ht. {annotationTemplate.height}m]
+                </Typography>
+              )}
             </Typography>
           )}
         </Box>
