@@ -32,7 +32,7 @@ export default function PointAnnotationIcon({
                     // color: 'primary.main', 
                 }}
             >
-                {variant === "CIRCLE" && <Circle sx={{ color: fillColor, fontSize: iconSize, }} />}
+                {(variant || "CIRCLE") === "CIRCLE" && <Circle sx={{ color: fillColor, fontSize: iconSize, }} />}
                 {variant === "SQUARE" && <Square sx={{ color: fillColor, fontSize: iconSize, }} />}
 
             </Box>

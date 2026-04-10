@@ -9,7 +9,7 @@ import {
 } from "react";
 import { Rnd } from "react-rnd";
 
-import { Polyline, Pentagon as Polygon, Rectangle } from "@mui/icons-material";
+import { Polyline, Pentagon as Polygon, Rectangle, Circle, Square } from "@mui/icons-material";
 
 export default memo(function NodeLegend({
   id = "legend",
@@ -195,6 +195,7 @@ export default memo(function NodeLegend({
     }
 
     if (type === "POINT") {
+      const resolvedVariant = variant || "CIRCLE";
       return (
         <div
           style={{
@@ -209,9 +210,9 @@ export default memo(function NodeLegend({
             boxSizing: "border-box",
           }}
         >
-          {variant === "CIRCLE" ?
+          {resolvedVariant === "CIRCLE" ?
             <Circle style={{ fill: fillColor, scale: 0.7 }} /> :
-            <Rectangle style={{ fill: fillColor, scale: 0.7 }} />}
+            <Square style={{ fill: fillColor, scale: 0.7 }} />}
         </div>
       );
     }

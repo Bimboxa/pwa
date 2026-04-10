@@ -182,7 +182,11 @@ export default function AnnotationTemplateIcon({ template, size = 20, spriteImag
           </defs>
         )}
 
-        {shapeType === "circle" && (
+        {shapeType === "circle" && shape === "POINT" && template.variant === "SQUARE" && (
+          <rect x="3" y="3" width="14" height="14" rx="1" fill={color} opacity={opacity}
+            stroke={isLightColor ? "#bbb" : "none"} strokeWidth={isLightColor ? 1 : 0} />
+        )}
+        {shapeType === "circle" && !(shape === "POINT" && template.variant === "SQUARE") && (
           <circle cx="10" cy="10" r="7" fill={color} opacity={opacity}
             stroke={isLightColor ? "#bbb" : "none"} strokeWidth={isLightColor ? 1 : 0} />
         )}

@@ -148,12 +148,13 @@ export default memo(function NodeLegendStatic({
         }
 
         if (type === "POINT") {
+            const resolvedVariant = variant || "CIRCLE";
             return (
                 <div style={{
                     ...commonStyle, background: "white"
                 }}>
-                    {variant === "CIRCLE" && <Circle style={{ ...muiIconStyle }} />}
-                    {variant === "SQUARE" && <Square style={{ ...muiIconStyle }} />}
+                    {resolvedVariant === "CIRCLE" && <Circle style={{ ...muiIconStyle }} />}
+                    {resolvedVariant === "SQUARE" && <Square style={{ ...muiIconStyle }} />}
                 </div>
             );
         }

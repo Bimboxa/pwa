@@ -190,6 +190,16 @@ export default function PanelAnnotationsAuto() {
             </Select>
           </FormControl>
 
+          {selectedProcedure?.description && (
+            <Box
+              sx={{ bgcolor: "background.default", borderRadius: 1, p: 1.5 }}
+            >
+              <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
+                {selectedProcedure.description}
+              </Typography>
+            </Box>
+          )}
+
           {showHeightInput && (
             <FieldTextV2
               value={height ?? ""}
