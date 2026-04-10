@@ -32,6 +32,11 @@ const AUTOMATED_PROCEDURES_LOADERS = import.meta.glob("../../../Data/*/automated
   eager: false,
 });
 
+// Dynamic loaders for image transformation prompts
+const IMAGE_TRANSFORMATION_PROMPTS_LOADERS = import.meta.glob("../../../Data/*/imageTransformationPrompts.js", {
+  eager: false,
+});
+
 // Dynamic loader for Data files
 const DATA_LOADERS = import.meta.glob("../../../Data/**/*", {
   eager: false,
@@ -155,6 +160,21 @@ export default async function resolveAppConfig(appConfig) {
         newAppConfig.automatedAnnotationsProcedures = module.default;
       } catch (error) {
         console.error(`[resolveAppConfig] Error loading automatedAnnotationsProcedures for "${orgaCode}":`, error);
+      }
+    }
+  }
+
+  // image transformation prompts
+  if (orgaCode) {
+    const promptsKey = `../../../Data/${orgaCode}/imageTransformationPrompts.js`;
+    const loader = IMAGE_TRANSFORMATION_PROMPTS_LOADERS[promptsKey];
+
+    if (loader) {
+      try {
+        const module = await loader();
+        newAppConfig.imageTransformationPrompts = module.default;
+      } catch (error) {
+        console.error(`[resolveAppConfig] Error loading imageTransformationPrompts for "${orgaCode}":`, error);
       }
     }
   }
