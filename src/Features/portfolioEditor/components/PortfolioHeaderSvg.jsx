@@ -175,7 +175,7 @@ export default function PortfolioHeaderSvg({
   if (!portfolio) return null;
 
   return (
-    <g onClick={handleClick} style={{ cursor: "pointer" }}>
+    <g data-portfolio-header onClick={handleClick} style={{ cursor: "pointer" }}>
       {/* Background */}
       <rect
         x={rect.x}

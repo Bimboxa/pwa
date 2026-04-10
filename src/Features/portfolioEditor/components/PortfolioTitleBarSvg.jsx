@@ -10,7 +10,7 @@ export default function PortfolioTitleBarSvg({
   const text = [portfolioName, pageName].filter(Boolean).join(" \u00B7 ");
 
   return (
-    <g style={{ pointerEvents: "none" }}>
+    <g data-portfolio-title-bar style={{ pointerEvents: "none" }}>
       <foreignObject
         x={titleBar.x}
         y={titleBar.y}
