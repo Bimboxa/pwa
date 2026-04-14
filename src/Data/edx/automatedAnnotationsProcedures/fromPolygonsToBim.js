@@ -4,10 +4,14 @@ import matchAnnotationTemplate from "Features/annotationsAuto/utils/matchAnnotat
 import findReentrantAngles from "Features/geometry/utils/findReentrantAngles";
 import mergePolylines from "Features/geometry/utils/mergePolylines";
 
+import isCutMajorityDark from "./isCutMajorityDark";
+
 const WALL_DETECTION_M = 0.6; // characteristic distance to detect wall branches
 const MIN_INDEX_DISTANCE = 2; // minimum index gap to consider two points non-adjacent
 const STRIP_TEST_OFFSET = 5; // px offset to test strip orientation
 const INTERIOR_CUT_MAX_M = 0.5; // max dimension (meters) to classify a cut as interior (wall/pillar)
+const INTERIOR_BBOX_MAX_M = 1.2; // max bbox size (meters) — cuts smaller than this square are always interior
+const INTERIOR_U_MIDDLE_MAX_M = 0.8; // max middle-segment length (meters) for a 3-segment U-shape to be interior
 const OUTWARD_BRANCH_MAX_M = 2; // max perimeter (meters) for a branch to be reclassified as outward protrusion
 const START_POINT_MIN_SEG_M = 1; // min adjacent segment length (meters) for a valid scan start point
 
@@ -104,14 +108,23 @@ function projectOntoSegment(px, py, ax, ay, bx, by) {
  *
  * A cut is "interior" if:
  * - Its bounding box smallest dimension is ≤ INTERIOR_CUT_MAX_M, OR
- * - It has exactly 4 points forming 3 near-orthogonal consecutive segments
- *   where the middle segment is ≤ INTERIOR_CUT_MAX_M (narrow passage shape).
+ * - Both of its bounding box dimensions are ≤ INTERIOR_BBOX_MAX_M
+ *   (small element like a pillar), OR
+ * - It has 3 consecutive near-orthogonal segments where the middle segment
+ *   is ≤ INTERIOR_CUT_MAX_M (narrow passage shape), OR
+ * - It has 3 consecutive near-orthogonal segments forming a U shape (legs
+ *   pointing the same way) where the middle segment is ≤ INTERIOR_U_MIDDLE_MAX_M
+ *   (wider pillar notch), OR
+ * - An `imageData` is provided AND the majority of pixels inside the cut
+ *   are dark (wall/pillar fill on the architectural plan).
  *
  * @param {Array<{x,y}>} cutPoints - the cut ring vertices
  * @param {number} meterByPx - scale factor
+ * @param {ImageData|null} [imageData] - optional base-map pixel buffer for
+ *   pixel-darkness check. When omitted, the pixel check is skipped.
  * @returns {boolean}
  */
-export function isInteriorCut(cutPoints, meterByPx) {
+export function isInteriorCut(cutPoints, meterByPx, imageData = null) {
   if (!cutPoints || cutPoints.length < 3 || meterByPx <= 0) return false;
 
   const thresholdPx = INTERIOR_CUT_MAX_M / meterByPx;
@@ -124,10 +137,17 @@ export function isInteriorCut(cutPoints, meterByPx) {
     if (p.y < minY) minY = p.y;
     if (p.y > maxY) maxY = p.y;
   }
-  const bboxMin = Math.min(maxX - minX, maxY - minY);
+  const bboxW = maxX - minX;
+  const bboxH = maxY - minY;
+  const bboxMin = Math.min(bboxW, bboxH);
   if (bboxMin <= thresholdPx) return true;
 
-  // Check 2: 4-point shape with a narrow middle segment (wall/passage shape)
+  // Check 1b: both bbox dimensions ≤ INTERIOR_BBOX_MAX_M (small element like a pillar)
+  const bboxMaxThresholdPx = INTERIOR_BBOX_MAX_M / meterByPx;
+  if (bboxW <= bboxMaxThresholdPx && bboxH <= bboxMaxThresholdPx) return true;
+
+  // Check 2 / 3: 3 consecutive near-orthogonal segments with a narrow middle
+  const uMiddleThresholdPx = INTERIOR_U_MIDDLE_MAX_M / meterByPx;
   const N = cutPoints.length;
   if (N >= 3) {
     for (let i = 0; i < N; i++) {
@@ -140,20 +160,34 @@ export function isInteriorCut(cutPoints, meterByPx) {
       const seg2 = { x: c.x - b.x, y: c.y - b.y };
       const seg3 = { x: d.x - c.x, y: d.y - c.y };
 
-      const len2 = Math.hypot(seg2.x, seg2.y);
-      if (len2 > thresholdPx) continue;
-
-      // Check near-orthogonality: |dot| / (len1 * len2) < 0.2
       const len1 = Math.hypot(seg1.x, seg1.y);
+      const len2 = Math.hypot(seg2.x, seg2.y);
       const len3 = Math.hypot(seg3.x, seg3.y);
       if (len1 < 1e-6 || len2 < 1e-6 || len3 < 1e-6) continue;
 
+      // Check near-orthogonality: |dot| / (len1 * len2) < 0.2
       const dot12 = Math.abs(seg1.x * seg2.x + seg1.y * seg2.y) / (len1 * len2);
       const dot23 = Math.abs(seg2.x * seg3.x + seg2.y * seg3.y) / (len2 * len3);
+      if (dot12 >= 0.2 || dot23 >= 0.2) continue;
 
-      if (dot12 < 0.2 && dot23 < 0.2) return true;
+      // Check 2 (original): narrow middle segment ≤ INTERIOR_CUT_MAX_M
+      // Matches both U and Z/S shapes (no orientation constraint).
+      if (len2 <= thresholdPx) return true;
+
+      // Check 3 (additional): wider U-shape — middle ≤ INTERIOR_U_MIDDLE_MAX_M
+      // AND seg1/seg3 must point the same way (positive dot13) so it's a true U,
+      // not a Z/S.
+      if (len2 <= uMiddleThresholdPx) {
+        const dot13 = (seg1.x * seg3.x + seg1.y * seg3.y) / (len1 * len3);
+        if (dot13 > 0.8) return true;
+      }
     }
   }
+
+  // Check 4 (additional): pixel-based — majority of pixels inside the cut are
+  // dark (wall/pillar fill on the base-map plan). Skipped when imageData is
+  // not provided.
+  if (imageData && isCutMajorityDark(cutPoints, imageData)) return true;
 
   return false;
 }
@@ -1233,6 +1267,7 @@ export default function fromPolygonsToBim({
   templatesByListingId,
   imageSize,
   meterByPx,
+  imageData = null,
   context,
 }) {
   const height = context.height ? parseFloat(context.height) : null;
@@ -1330,7 +1365,7 @@ export default function fromPolygonsToBim({
         if (!cut.points?.length || cut.points.length < 3) continue;
 
         // Interior cuts (walls, pillars) → always VI regardless of neighbors
-        if (isInteriorCut(cut.points, meterByPx) && viTemplate) {
+        if (isInteriorCut(cut.points, meterByPx, imageData) && viTemplate) {
           const r = buildPolylineAnnotation(
             cut.points, viTemplate, null, imageSize, polyCtx, outputPoints
           );
@@ -1509,7 +1544,7 @@ export default function fromPolygonsToBim({
               const matchesCut = cut.points.some((cp) =>
                 Math.hypot(cp.x - first.x, cp.y - first.y) < 2
               );
-              if (matchesCut && !isInteriorCut(cut.points, meterByPx)) {
+              if (matchesCut && !isInteriorCut(cut.points, meterByPx, imageData)) {
                 isRoomHoleRing = true;
                 break;
               }

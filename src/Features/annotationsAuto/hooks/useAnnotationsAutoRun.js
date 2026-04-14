@@ -13,6 +13,31 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
+async function loadBaseMapImageData(imageUrl, imageSize) {
+  if (!imageUrl || !imageSize?.width || !imageSize?.height) return null;
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.crossOrigin = "anonymous";
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = imageUrl;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = imageSize.width;
+    canvas.height = imageSize.height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, imageSize.width, imageSize.height);
+    return ctx.getImageData(0, 0, imageSize.width, imageSize.height);
+  } catch (err) {
+    console.warn(
+      "[useAnnotationsAutoRun] Could not load base map ImageData:",
+      err
+    );
+    return null;
+  }
+}
+
 export default function useAnnotationsAutoRun() {
   const dispatch = useDispatch();
 
@@ -136,12 +161,18 @@ export default function useAnnotationsAutoRun() {
     const procedureModule = await procedureEntry.procedure();
     const procedureFn = procedureModule.default;
 
+    // Pre-load base map pixels once so the procedure (synchronous) can use
+    // them for pixel-based classification (e.g. isInteriorCut dark check).
+    const imageUrl = baseMap?.getUrl?.();
+    const imageData = await loadBaseMapImageData(imageUrl, imageSize);
+
     const result = procedureFn({
       sourceAnnotations,
       sourceRels,
       templatesByListingId,
       imageSize,
       meterByPx,
+      imageData,
       context: {
         projectId,
         baseMapId,
