@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useDispatch } from "react-redux";
 
-import { setOpenSelectorScope, setSelectedScopeId } from "../scopesSlice";
+import { setOpenSelectorScope } from "../scopesSlice";
 
 import useSelectedScope from "../hooks/useSelectedScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -31,7 +31,6 @@ export default function ButtonSelectorScope() {
   // title
   const selectS = appConfig?.strings?.scope.select ?? "Sélectionner un dossier";
   const newS = appConfig?.strings?.scope.new ?? "Nouveau dossier";
-  const allS = "Tout"
 
   // data
   const { value: scope } = useSelectedScope();
@@ -71,11 +70,6 @@ export default function ButtonSelectorScope() {
 
   function handleOpenCreator() {
     dispatch(setOpenScopeCreator(true))
-  }
-
-  function handleClickAll() {
-    dispatch(setSelectedScopeId(null))
-    handleCloseImmediate()
   }
 
   return (
@@ -120,12 +114,6 @@ export default function ButtonSelectorScope() {
         transformOrigin={{ horizontal: 'left', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'left', vertical: 'bottom' }}
       >
-        <MenuItem onClick={handleClickAll} sx={{ gap: 1, color: "primary.main" }}>
-          <Typography variant="body2" fontStyle="italic" color="text.secondary">
-            {allS}
-          </Typography>
-        </MenuItem>
-
         <SectionScopeSelectorVariantList onSelect={handleCloseImmediate} />
 
         {/* Bouton Nouveau Scope */}

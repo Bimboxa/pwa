@@ -11,6 +11,7 @@ import useAutoSelectListing from "Features/listings/hooks/useAutoSelectListing";
 import useAutoLayoutOnboarding from "Features/onboarding/hooks/useAutoLayoutOnboarding";
 import useAutoLayout from "Features/layout/hooks/useAutoLayout";
 import useAutoSelectEntityId from "Features/entities/hooks/useAutoSelectEntityId";
+import useAutoSelectScopeId from "Features/scopes/hooks/useAutoSelectScopeId";
 
 import { Box } from "@mui/material";
 
@@ -44,6 +45,7 @@ export default function MainAppLayout() {
   //useAutoLayoutOnboarding();
   useAutoLayout();
   useAutoSelectEntityId();
+  useAutoSelectScopeId();
 
   // data
 
