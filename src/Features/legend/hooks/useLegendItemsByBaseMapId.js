@@ -15,6 +15,7 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
     filterBySelectedScope: true,
     withListingName: true,
     excludeIsForBaseMapsListings: true,
+    sortByOrderIndex: true,
   });
 
   let annotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
