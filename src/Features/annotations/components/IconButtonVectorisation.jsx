@@ -11,6 +11,7 @@ import {
   Box,
   Checkbox,
   CircularProgress,
+  Divider,
   FormControlLabel,
   IconButton,
   Menu,
@@ -39,6 +40,7 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
   const [enableExteriorOrtho, setEnableExteriorOrtho] = useState(true);
   const [enableExteriorClose, setEnableExteriorClose] = useState(true);
   const [enableInterior, setEnableInterior] = useState(true);
+  const [polygonAsFillMode, setPolygonAsFillMode] = useState(false);
   const open = Boolean(anchorEl);
 
   // data
@@ -64,7 +66,7 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
     if (!template) return;
     setLoading(true);
     try {
-      const result = await vectorise({ annotations, annotationTemplate: template, enableExteriorOrtho, enableExteriorClose, enableInterior });
+      const result = await vectorise({ annotations, annotationTemplate: template, enableExteriorOrtho, enableExteriorClose, enableInterior, polygonAsFillMode });
       console.log(`[Vectorisation] ${result.count} wall annotations created`);
     } catch (e) {
       console.error("[Vectorisation]", e);
@@ -103,21 +105,32 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
         slotProps={{ paper: { sx: { minWidth: 240 } } }}
       >
         <Box sx={{ px: 2, pt: 1, pb: 0 }}>
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>Variante</Typography>
+        </Box>
+        <Box sx={{ px: 1, pb: 0.5, display: "flex", flexDirection: "column" }}>
+          <FormControlLabel
+            control={<Checkbox size="small" checked={polygonAsFillMode} onChange={(e) => setPolygonAsFillMode(e.target.checked)} />}
+            label={<Typography variant="caption">Vectoriser le polygone en mur</Typography>}
+            sx={{ m: 0 }}
+          />
+        </Box>
+        <Divider />
+        <Box sx={{ px: 2, pt: 1, pb: 0 }}>
           <Typography variant="body2" sx={{ fontWeight: 700 }}>Vectorisation</Typography>
         </Box>
         <Box sx={{ px: 1, pb: 0.5, display: "flex", flexDirection: "column" }}>
           <FormControlLabel
-            control={<Checkbox size="small" checked={enableExteriorOrtho} onChange={(e) => setEnableExteriorOrtho(e.target.checked)} />}
+            control={<Checkbox size="small" checked={enableExteriorOrtho} disabled={polygonAsFillMode} onChange={(e) => setEnableExteriorOrtho(e.target.checked)} />}
             label={<Typography variant="caption">Murs ext (ortho)</Typography>}
             sx={{ m: 0 }}
           />
           <FormControlLabel
-            control={<Checkbox size="small" checked={enableExteriorClose} onChange={(e) => setEnableExteriorClose(e.target.checked)} />}
+            control={<Checkbox size="small" checked={enableExteriorClose} disabled={polygonAsFillMode} onChange={(e) => setEnableExteriorClose(e.target.checked)} />}
             label={<Typography variant="caption">Murs ext (fermeture)</Typography>}
             sx={{ m: 0 }}
           />
           <FormControlLabel
-            control={<Checkbox size="small" checked={enableInterior} onChange={(e) => setEnableInterior(e.target.checked)} />}
+            control={<Checkbox size="small" checked={enableInterior} disabled={polygonAsFillMode} onChange={(e) => setEnableInterior(e.target.checked)} />}
             label={<Typography variant="caption">Murs intérieurs ortho</Typography>}
             sx={{ m: 0 }}
           />

@@ -24,6 +24,7 @@ async function vectoriseWallsAsync({ msg, payload }) {
       enableExteriorOrtho = true,
       enableExteriorClose = true,
       enableInterior = true,
+      mode = "ROOM_OUTLINE",
     } = payload;
 
     if (!imageUrl) throw new Error("imageUrl is required");
@@ -169,16 +170,24 @@ async function vectoriseWallsAsync({ msg, payload }) {
       wRoomMask[i] = maskImageData.data[i * 4]; // polygon index (0 = outside)
     }
 
-    // 3e. wallMask = NOT room AND dark on image
+    // 3e. wallMask
+    // - ROOM_OUTLINE: NOT room AND dark on image
+    // - POLYGON_FILL: the polygon itself IS the wall fill (mask = polygon)
     const wWallMask = new Uint8Array(wWidth * wHeight);
-    for (let i = 0; i < wWidth * wHeight; i++) {
-      const isRoom = maskImageData.data[i * 4] > 0;
-      if (isRoom) { wWallMask[i] = 0; continue; }
-      const imgX = (i % wWidth) + roiX0;
-      const imgY = Math.floor(i / wWidth) + roiY0;
-      const imgIdx = (imgY * width + imgX) * 4;
-      const brightness = data[imgIdx] * 0.299 + data[imgIdx + 1] * 0.587 + data[imgIdx + 2] * 0.114;
-      wWallMask[i] = brightness < BINARY_THRESHOLD ? 1 : 0;
+    if (mode === "POLYGON_FILL") {
+      for (let i = 0; i < wWidth * wHeight; i++) {
+        wWallMask[i] = maskImageData.data[i * 4] > 0 ? 1 : 0;
+      }
+    } else {
+      for (let i = 0; i < wWidth * wHeight; i++) {
+        const isRoom = maskImageData.data[i * 4] > 0;
+        if (isRoom) { wWallMask[i] = 0; continue; }
+        const imgX = (i % wWidth) + roiX0;
+        const imgY = Math.floor(i / wWidth) + roiY0;
+        const imgIdx = (imgY * width + imgX) * 4;
+        const brightness = data[imgIdx] * 0.299 + data[imgIdx + 1] * 0.587 + data[imgIdx + 2] * 0.114;
+        wWallMask[i] = brightness < BINARY_THRESHOLD ? 1 : 0;
+      }
     }
 
     // ── 4. Build OpenCV Mat + morphological cleanup ─────────────────────
@@ -237,10 +246,13 @@ async function vectoriseWallsAsync({ msg, payload }) {
       wBrightness[i] = Math.round(data[imgIdx] * 0.299 + data[imgIdx + 1] * 0.587 + data[imgIdx + 2] * 0.114);
     }
 
-    const postResult = _postProcessSegments(rawSegments, {
+    const postCtx = {
       wWallMask, wRoomMask, wWidth, wHeight, distMat, meterByPx, maxLineGap, cutPolygons, wBrightness,
       enableExteriorOrtho, enableExteriorClose, enableInterior,
-    });
+    };
+    const postResult = mode === "POLYGON_FILL"
+      ? _postProcessSegmentsPolygonFill(rawSegments, postCtx)
+      : _postProcessSegments(rawSegments, postCtx);
     let polylines = postResult.polylines;
     let thicknesses = postResult.thicknesses;
 
@@ -419,6 +431,82 @@ function _postProcessSegments(rawSegments, ctx) {
   const allThicknesses = [...periThicknesses, ...intThicknesses];
 
   return { polylines: allPolylines, thicknesses: allThicknesses, periCount: periPolylines.length };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// POLYGON_FILL post-processing
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Simplified post-process for POLYGON_FILL mode.
+ * The input polygon IS the wall fill; we skip peripheral/interior classification,
+ * envelope closing, and overlap removal. All extracted skeleton segments are
+ * treated as a single wall group.
+ */
+function _postProcessSegmentsPolygonFill(rawSegments, ctx) {
+  const { wWallMask, wWidth, wHeight, meterByPx } = ctx;
+
+  // ── Classify H / V / diagonal ──────────────────────────────────────
+  const ANGLE_TOL = Math.PI / 12;
+  const hSegments = [], vSegments = [];
+
+  for (const seg of rawSegments) {
+    const dx = seg.x2 - seg.x1, dy = seg.y2 - seg.y1;
+    const angle = Math.atan2(Math.abs(dy), Math.abs(dx));
+    if (angle < ANGLE_TOL) {
+      hSegments.push({
+        axis: "H",
+        position: Math.round((seg.y1 + seg.y2) / 2),
+        start: Math.min(seg.x1, seg.x2),
+        end: Math.max(seg.x1, seg.x2),
+      });
+    } else if (angle > Math.PI / 2 - ANGLE_TOL) {
+      vSegments.push({
+        axis: "V",
+        position: Math.round((seg.x1 + seg.x2) / 2),
+        start: Math.min(seg.y1, seg.y2),
+        end: Math.max(seg.y1, seg.y2),
+      });
+    }
+    // diagonals ignored in POLYGON_FILL for now
+  }
+
+  // ── Filter short segments ──────────────────────────────────────────
+  const minWallLen = meterByPx > 0 ? Math.round(0.10 / meterByPx) : 15;
+  const filterByLen = (segs, minLen) => {
+    const filtered = [];
+    for (const seg of segs) {
+      const len = seg.end - seg.start;
+      if (len >= minLen) filtered.push(seg);
+    }
+    return filtered;
+  };
+  const hFiltered = filterByLen(hSegments, minWallLen);
+  const vFiltered = filterByLen(vSegments, minWallLen);
+
+  // ── Merge colinear + filter thick zones ────────────────────────────
+  const posTolerance = meterByPx > 0 ? Math.max(3, Math.round(0.03 / meterByPx)) : 5;
+  const gapTolerance = meterByPx > 0
+    ? Math.max((ctx.maxLineGap || 5) * 2, Math.round(0.10 / meterByPx))
+    : (ctx.maxLineGap || 5) * 3;
+
+  let mergedH = _mergeColinear(hFiltered, posTolerance, gapTolerance);
+  let mergedV = _mergeColinear(vFiltered, posTolerance, gapTolerance);
+
+  const maxThickness = meterByPx > 0 ? Math.round(0.80 / meterByPx) : 120;
+  mergedH = _filterThickZones(mergedH, wWallMask, wWidth, wHeight, "H", maxThickness);
+  mergedV = _filterThickZones(mergedV, wWallMask, wWidth, wHeight, "V", maxThickness);
+
+  console.log(`[polygonFill] raw=${rawSegments.length} H=${mergedH.length} V=${mergedV.length}`);
+
+  // ── Run standard wall group pipeline (grid snap, gap fill, chain...)
+  const groupResult = _processWallGroup(mergedH, mergedV, [], ctx);
+
+  return {
+    polylines: groupResult.polylines,
+    thicknesses: groupResult.thicknesses,
+    periCount: 0,
+  };
 }
 
 /**
