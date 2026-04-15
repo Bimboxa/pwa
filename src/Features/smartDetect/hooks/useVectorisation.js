@@ -27,7 +27,7 @@ export default function useVectorisation() {
   const { value: selectedListing } = useSelectedListing();
 
   const vectorise = useCallback(
-    async ({ annotations, annotationTemplate, enableExteriorOrtho = true, enableExteriorClose = true, enableInterior = true }) => {
+    async ({ annotations, annotationTemplate, enableExteriorOrtho = true, enableExteriorClose = true, enableInterior = true, polygonAsFillMode = false }) => {
       if (!annotations?.length || !annotationTemplate) {
         throw new Error("annotations and annotationTemplate are required");
       }
@@ -102,21 +102,47 @@ export default function useVectorisation() {
       const versionMeterByPx = meterByPx / vScale;
 
       await cv.load();
-      const result = await cv.vectoriseWallsAsync({
-        imageUrl,
-        boundaries: versionBoundaries,
-        offsetAngle: orthoSnapAngleOffset || 0,
-        meterByPx: versionMeterByPx,
-        enableExteriorOrtho,
-        enableExteriorClose,
-        enableInterior,
-      });
 
-      // Transform results back from version image space to reference space
-      const { thicknesses, periCount = 0 } = result;
-      const polylines = result.polylines.map((pl) =>
-        pl.map((p) => ({ x: p.x * vScale + vOffX, y: p.y * vScale + vOffY }))
-      );
+      // POLYGON_FILL mode: process each polygon independently so that skeletons
+      // from separate wall regions don't get merged.
+      let polylines = [];
+      let thicknesses = [];
+      let periCount = 0;
+
+      if (polygonAsFillMode) {
+        for (const boundary of versionBoundaries) {
+          const result = await cv.vectoriseWallsAsync({
+            imageUrl,
+            boundaries: [boundary],
+            offsetAngle: orthoSnapAngleOffset || 0,
+            meterByPx: versionMeterByPx,
+            mode: "POLYGON_FILL",
+          });
+          const plsRef = result.polylines.map((pl) =>
+            pl.map((p) => ({ x: p.x * vScale + vOffX, y: p.y * vScale + vOffY }))
+          );
+          polylines.push(...plsRef);
+          thicknesses.push(...(result.thicknesses || []));
+        }
+      } else {
+        const result = await cv.vectoriseWallsAsync({
+          imageUrl,
+          boundaries: versionBoundaries,
+          offsetAngle: orthoSnapAngleOffset || 0,
+          meterByPx: versionMeterByPx,
+          enableExteriorOrtho,
+          enableExteriorClose,
+          enableInterior,
+          mode: "ROOM_OUTLINE",
+        });
+        // Transform results back from version image space to reference space
+        thicknesses = result.thicknesses;
+        periCount = result.periCount ?? 0;
+        polylines = result.polylines.map((pl) =>
+          pl.map((p) => ({ x: p.x * vScale + vOffX, y: p.y * vScale + vOffY }))
+        );
+      }
+
       if (!polylines?.length) {
         console.warn("[useVectorisation] No walls detected");
         return { count: 0 };
