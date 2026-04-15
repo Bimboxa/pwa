@@ -58,8 +58,9 @@ export default function useLegendItems() {
             fillType,
             label: (() => {
               const base = template?.labelLegend || (template?.label ?? "A définir");
-              return template?.height > 0
-                ? `${base} [ht. ${template.height.toFixed(2)} m]`
+              const h = Number(template?.height);
+              return Number.isFinite(h) && h > 0
+                ? `${base} [ht. ${h.toFixed(2)} m]`
                 : base;
             })(),
             groupLabel: template?.groupLabel,
