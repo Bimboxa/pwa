@@ -331,6 +331,14 @@ export default function NodePolylineStatic({
         }));
     }, [cuts, annotationId]);
 
+    // Strip the leading "M x y" from a segment's `d` string so it can be
+    // appended to an already-started path (for building continuous runs).
+    // Segments in `segmentMap` always start with "M x y <cmd>".
+    const stripLeadingMove = (d) => {
+        const m = d.match(/^M\s+\S+\s+\S+\s+(.*)$/);
+        return m ? m[1] : d;
+    };
+
     const fullFillD = useMemo(() => {
         let d = pathD;
         if (holesData.length > 0) d += " " + holesData.map(h => h.d).join(" ");
@@ -402,20 +410,9 @@ export default function NodePolylineStatic({
                 );
             }
 
-            let displayedStrokeWidth = computedStrokeWidth;
-
-            // if (selected) {
-            //     if (isCmUnit) {
-            //         // En mode métrique, on épaissit par un facteur multiplicatif pour garder l'échelle
-            //         displayedStrokeWidth = computedStrokeWidth * 1;
-            //     } else {
-            //         // En mode pixel écran, on ajoute des pixels fixes
-            //         displayedStrokeWidth = computedStrokeWidth + 0;
-            //     }
-            // }
-
-
-            // 4. Rendu Normal
+            // 4. Rendu Normal — only the transparent hit-area is emitted here.
+            // The visible stroke is drawn by `renderContinuousStrokes` so that
+            // cap/join style reflects the point type (circle/square).
             return (
                 <g
                     key={`seg-${idx}-${seg.startPointIdx}`}
@@ -432,24 +429,117 @@ export default function NodePolylineStatic({
                         strokeWidth={Math.max(14, scalesWithZoom ? computedStrokeWidth * 3 : 14)}
                         vectorEffect={scalesWithZoom ? undefined : "non-scaling-stroke"}
                     />
-                    <path
-                        d={seg.d}
-                        fill="none"
-                        stroke={displayColor}
-                        strokeWidth={displayedStrokeWidth}
-                        strokeOpacity={finalStrokeOpacity}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        vectorEffect={scalesWithZoom ? undefined : "non-scaling-stroke"}
-                        style={{ pointerEvents: "none", transition: "stroke 0.2s" }}
-
-                        {...(strokeType === "DASHED" && {
-                            strokeDasharray: "1 1",
-                            strokeLinejoin: "bevel",
-                            strokeLinecap: "bevel"
-                        })}
-                    />
                 </g>
+            );
+        });
+    };
+
+    // --- RENDU CONTINUOUS STROKES (Visual) ---
+    //
+    // Groups consecutive non-hidden segments sharing the same style into
+    // continuous SVG sub-paths so that:
+    //   - polyline extremities get flat `butt` caps (net/sharp ends)
+    //   - interior junctions are smooth via `strokeLinejoin="round"`
+    //     (S-C-S arc patterns are already continuous by construction)
+    // A run is only broken when a segment is hidden, or when per-segment
+    // styling differs (e.g. hover/selection/CUT highlight).
+    const renderContinuousStrokes = (segmentsList, isClosed, basePartType, contextIndex = 0) => {
+        if (!segmentsList || segmentsList.length === 0) return null;
+        if (strokeType === "NONE") return null;
+
+        // Per-segment metadata (partId, style, hidden flag)
+        const segMeta = segmentsList.map((seg, idx) => {
+            let partId;
+            if (type === "POLYLINE") {
+                partId = getPartId("SEG", idx);
+            } else {
+                partId = getPartId(basePartType, contextIndex);
+            }
+            const style = getPartStyle(partId);
+            const finalStrokeOpacity = style.strokeOpacity ?? strokeOpacity;
+            const isSelected = selectedPartId === partId;
+            let displayColor = style.stroke;
+            if (basePartType === "CUT" && isSelected) {
+                displayColor = STYLE_CONSTANTS.COLORS.CUT_SELECTED;
+            }
+            const isMainPath = segmentsList === segmentMap;
+            const isHidden = isMainPath && hiddenSegmentsIdx?.includes(idx);
+            return { seg, displayColor, strokeOpacity: finalStrokeOpacity, isHidden };
+        });
+
+        const total = segmentsList.length;
+        const runs = [];
+        let current = null;
+        const flush = () => {
+            if (current) {
+                runs.push(current);
+                current = null;
+            }
+        };
+
+        for (let idx = 0; idx < total; idx++) {
+            const m = segMeta[idx];
+
+            if (m.isHidden) {
+                flush();
+                continue;
+            }
+
+            if (!current) {
+                current = {
+                    dParts: [m.seg.d],
+                    displayColor: m.displayColor,
+                    strokeOpacity: m.strokeOpacity,
+                    firstSegIdx: idx,
+                    count: 1,
+                };
+                continue;
+            }
+
+            const styleMatches =
+                m.displayColor === current.displayColor &&
+                m.strokeOpacity === current.strokeOpacity;
+
+            if (styleMatches) {
+                current.dParts.push(stripLeadingMove(m.seg.d));
+                current.count += 1;
+            } else {
+                flush();
+                current = {
+                    dParts: [m.seg.d],
+                    displayColor: m.displayColor,
+                    strokeOpacity: m.strokeOpacity,
+                    firstSegIdx: idx,
+                    count: 1,
+                };
+            }
+        }
+        flush();
+
+        // Closed polygon whose single run covers every segment: append `Z` so
+        // the wrap-around join is also smooth via strokeLinejoin.
+        if (isClosed && runs.length === 1 && runs[0].count === total) {
+            runs[0].dParts.push("Z");
+        }
+
+        const isDashed = strokeType === "DASHED";
+
+        return runs.map((run, rIdx) => {
+            const d = run.dParts.join(" ");
+            return (
+                <path
+                    key={`run-${basePartType}-${contextIndex}-${rIdx}-${run.firstSegIdx}`}
+                    d={d}
+                    fill="none"
+                    stroke={run.displayColor}
+                    strokeWidth={computedStrokeWidth}
+                    strokeOpacity={run.strokeOpacity}
+                    strokeLinecap={isDashed ? "bevel" : "butt"}
+                    strokeLinejoin={isDashed ? "bevel" : "round"}
+                    vectorEffect={scalesWithZoom ? undefined : "non-scaling-stroke"}
+                    style={{ pointerEvents: "none", transition: "stroke 0.2s" }}
+                    {...(isDashed && { strokeDasharray: "1 1" })}
+                />
             );
         });
     };
@@ -679,12 +769,14 @@ export default function NodePolylineStatic({
                 );
             })}
 
-            {/* STROKES (Main) */}
+            {/* STROKES (Main) — continuous visual runs, then per-segment hit areas */}
+            {strokeType !== "NONE" && renderContinuousStrokes(segmentMap, closeLine, 'MAIN', 0)}
             {strokeType !== "NONE" && renderSegments(segmentMap, 'MAIN', 0)}
 
             {/* STROKES (Cuts) */}
             {strokeType !== "NONE" && holesData.map((hole, i) => (
                 <g key={`hole-strokes-${i}`}>
+                    {renderContinuousStrokes(hole.segmentMap, true, 'CUT', i)}
                     {renderSegments(hole.segmentMap, 'CUT', i)}
                 </g>
             ))}
