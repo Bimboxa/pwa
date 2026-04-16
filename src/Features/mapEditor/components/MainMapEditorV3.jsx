@@ -55,7 +55,7 @@ import PopperEditScale from "./PopperEditScale";
 import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
 import useSaveTempAnnotations from "Features/mapEditor/hooks/useSaveTempAnnotations";
-import useCreateAnnotations from "Features/annotations/hooks/useCreateAnnotations";
+import useCreateAnnotationsFromDetectedStrips from "Features/smartDetect/hooks/useCreateAnnotationsFromDetectedStrips";
 import PopperMapListings from "./PopperMapListings";
 
 
@@ -351,7 +351,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick({ newEntity });
     const { handleCompleteAnnotationCommit } = useHandleCompleteAnnotation({ newEntity });
     const saveTempAnnotations = useSaveTempAnnotations();
-    const createAnnotations = useCreateAnnotations();
+    const createAnnotationsFromDetectedStrips = useCreateAnnotationsFromDetectedStrips();
 
     const handleCommitDrawing = (rawPoints, options) => {
 
@@ -401,28 +401,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     const handleCommitSimilarStrips = async ({ strips, sourceAnnotation }) => {
         if (!strips?.length) return;
-        // Pick only the properties needed for new STRIP annotations
-        const {
-            type, strokeWidth, strokeWidthUnit, stripOrientation, closeLine,
-            strokeColor, fillColor, strokeOpacity, fillOpacity, strokeType,
-            annotationTemplateId, templateLabel, listingId, height,
-        } = sourceAnnotation || {};
-        const templateProps = {
-            type, strokeWidth, strokeWidthUnit, stripOrientation, closeLine,
-            strokeColor, fillColor, strokeOpacity, fillOpacity, strokeType,
-            annotationTemplateId, templateLabel, listingId, height,
-        };
-        const annotations = strips.map((strip) => ({
-            ...templateProps,
-            baseMapId: baseMap.id,
-            points: strip.centerline,
-            // stripOrientation comes from the detection (per-strip), not the
-            // template — see detectStripFromLoupe.js. Falls back to template.
-            ...(strip.stripOrientation !== undefined
-                ? { stripOrientation: strip.stripOrientation }
-                : {}),
-        }));
-        await createAnnotations(annotations);
+        await createAnnotationsFromDetectedStrips({ strips, sourceAnnotation });
     };
 
     // handlers - image drop
