@@ -379,10 +379,21 @@ const InteractionLayer = forwardRef(({
         if (!result.segments?.length) continue;
         for (const seg of result.segments) {
           const localCenterline = [toLocal(seg.start), toLocal(seg.end)];
-          const fakeAnnotation = { ...na, points: localCenterline };
+          // stripOrientation is computed by the algorithm (per segment) so
+          // the body lands over the dark wall pixels — overrides the template.
+          const segStripOrientation = seg.stripOrientation ?? na.stripOrientation;
+          const fakeAnnotation = {
+            ...na,
+            stripOrientation: segStripOrientation,
+            points: localCenterline,
+          };
           const polys = getStripePolygons(fakeAnnotation, meterByPx);
           const polygon = polys?.[0]?.points || [];
-          strips.push({ centerline: localCenterline, polygon });
+          strips.push({
+            centerline: localCenterline,
+            polygon,
+            stripOrientation: segStripOrientation,
+          });
         }
       }
       if (strips.length === 0) {

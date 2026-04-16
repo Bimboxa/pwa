@@ -55,6 +55,7 @@ import PopperEditScale from "./PopperEditScale";
 import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
 import useSaveTempAnnotations from "Features/mapEditor/hooks/useSaveTempAnnotations";
+import useCreateAnnotations from "Features/annotations/hooks/useCreateAnnotations";
 import PopperMapListings from "./PopperMapListings";
 
 
@@ -350,6 +351,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick({ newEntity });
     const { handleCompleteAnnotationCommit } = useHandleCompleteAnnotation({ newEntity });
     const saveTempAnnotations = useSaveTempAnnotations();
+    const createAnnotations = useCreateAnnotations();
 
     const handleCommitDrawing = (rawPoints, options) => {
 
@@ -414,8 +416,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             ...templateProps,
             baseMapId: baseMap.id,
             points: strip.centerline,
+            // stripOrientation comes from the detection (per-strip), not the
+            // template — see detectStripFromLoupe.js. Falls back to template.
+            ...(strip.stripOrientation !== undefined
+                ? { stripOrientation: strip.stripOrientation }
+                : {}),
         }));
-        await saveTempAnnotations(annotations);
+        await createAnnotations(annotations);
     };
 
     // handlers - image drop
