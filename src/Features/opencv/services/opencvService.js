@@ -265,6 +265,13 @@ class CV {
       payload
     });
   }
+  filterConnectedComponentsAsync(payload) {
+    return this._dispatch({
+      msg: "filterConnectedComponentsAsync",
+      payload,
+      timeout: 30000,
+    });
+  }
   traceOrthoPathsAsync(payload) {
     return this._dispatch({
       msg: "traceOrthoPathsAsync",

@@ -17,70 +17,43 @@ async function applyGrayLevelThresholdAsync({ msg, payload }) {
 
         if (!imageUrl) throw new Error("imageUrl is required");
 
-        // 1. Chargement (via helper ou cv.imread si dispo, ici via helper canvas)
+        // 1. Load image (JS side only, no WASM allocation)
         const imageData = await loadImageDataFromUrl(imageUrl);
+        const width = imageData.width;
+        const height = imageData.height;
+        const data = imageData.data;
+        const pixelCount = width * height;
 
-        // On crée la Matrice
-        const src = track(cv.matFromImageData(imageData));
-
-        // 2. PIXEL MANIPULATION (Threshold avec Pente SVG)
-        const data = src.data;
-        const width = src.cols;
-        const height = src.rows;
-
+        // 2. Threshold on alpha channel (pure JS — no WASM mat needed)
         const slope = 50;
         const threshold = grayLevelThreshold;
 
-        for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            const a = data[i + 3];
+        const alphaData = new Uint8Array(pixelCount);
+        for (let i = 0; i < pixelCount; i++) {
+            const off = i * 4;
+            const a = data[off + 3];
+            if (a === 0) { alphaData[i] = 0; continue; }
 
-            if (a === 0) continue;
-
-            // Luminosité REC 709
-            const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-
-            // Formule SVG : Alpha = AlphaOrigine + Slope * (Threshold - Luminance)
+            const luminance = 0.2126 * data[off] + 0.7152 * data[off + 1] + 0.0722 * data[off + 2];
             let newAlpha = a + slope * (threshold - luminance);
-
-            // Clamp 0-255
             if (newAlpha < 0) newAlpha = 0;
             if (newAlpha > 255) newAlpha = 255;
-
-            data[i + 3] = newAlpha;
+            alphaData[i] = newAlpha;
         }
 
-        // 2b. MORPHOLOGICAL CLOSE on alpha channel (dilate then erode)
-        // Closes small holes left by the threshold
-        const channels = new cv.MatVector();
-        track(channels);
-        cv.split(src, channels);
-        const alpha = channels.get(3); // alpha channel
-        track(alpha);
-
-        const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(2, 2));
-        track(kernel);
+        // 2b. Morphological close on alpha (single-channel mat — minimal WASM memory)
+        const alphaMat = track(cv.matFromArray(height, width, cv.CV_8UC1, alphaData));
+        const kernel = track(cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(2, 2)));
         const closedAlpha = track(new cv.Mat());
-        cv.morphologyEx(alpha, closedAlpha, cv.MORPH_CLOSE, kernel);
+        cv.morphologyEx(alphaMat, closedAlpha, cv.MORPH_CLOSE, kernel);
 
-        // Put the closed alpha back
-        const mergedChannels = new cv.MatVector();
-        track(mergedChannels);
-        mergedChannels.push_back(channels.get(0));
-        mergedChannels.push_back(channels.get(1));
-        mergedChannels.push_back(channels.get(2));
-        mergedChannels.push_back(closedAlpha);
-        cv.merge(mergedChannels, src);
+        // 3. Write closed alpha back into RGBA pixel data (JS side)
+        const closedData = closedAlpha.data;
+        for (let i = 0; i < pixelCount; i++) {
+            data[i * 4 + 3] = closedData[i];
+        }
 
-        // 3. EXPORT VERS FILE
-        // On crée un ImageData avec les pixels modifiés
-        const finalImgData = new ImageData(
-            new Uint8ClampedArray(src.data),
-            width,
-            height
-        );
+        const finalImgData = imageData;
 
         // On dessine sur un OffscreenCanvas pour obtenir un Blob
         const canvas = new OffscreenCanvas(width, height);

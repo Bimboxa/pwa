@@ -27,6 +27,7 @@ self.importScripts("./handlers/eraseFromAnnotations.js");
 self.importScripts("./handlers/addBackground.js");
 self.importScripts("./handlers/applyGrayLevelThresholdAsync.js");
 self.importScripts("./handlers/applyMorphologyAsync.js");
+self.importScripts("./handlers/filterConnectedComponentsAsync.js");
 self.importScripts("./handlers/traceOrthoPathsAsync.js");
 self.importScripts("./handlers/detectSimilarPolylinesAsync.js");
 self.importScripts("./handlers/vectoriseWallsAsync.js");
@@ -125,6 +126,9 @@ onmessage = function (e) {
 
     case "applyMorphologyAsync":
       return applyMorphologyAsync(e.data);
+
+    case "filterConnectedComponentsAsync":
+      return filterConnectedComponentsAsync(e.data);
 
     case "traceOrthoPathsAsync":
       return traceOrthoPathsAsync(e.data);

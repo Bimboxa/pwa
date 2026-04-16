@@ -471,8 +471,8 @@ function _postProcessSegmentsPolygonFill(rawSegments, ctx) {
     // diagonals ignored in POLYGON_FILL for now
   }
 
-  // ── Filter short segments ──────────────────────────────────────────
-  const minWallLen = meterByPx > 0 ? Math.round(0.10 / meterByPx) : 15;
+  // ── Filter short segments (more permissive than ROOM_OUTLINE) ──────
+  const minWallLen = meterByPx > 0 ? Math.round(0.05 / meterByPx) : 10;
   const filterByLen = (segs, minLen) => {
     const filtered = [];
     for (const seg of segs) {
@@ -497,10 +497,20 @@ function _postProcessSegmentsPolygonFill(rawSegments, ctx) {
   mergedH = _filterThickZones(mergedH, wWallMask, wWidth, wHeight, "H", maxThickness);
   mergedV = _filterThickZones(mergedV, wWallMask, wWidth, wHeight, "V", maxThickness);
 
-  console.log(`[polygonFill] raw=${rawSegments.length} H=${mergedH.length} V=${mergedV.length}`);
+  console.log(
+    `[polygonFill] raw=${rawSegments.length} classifiedH=${hSegments.length} classifiedV=${vSegments.length} ` +
+    `filteredH=${hFiltered.length} filteredV=${vFiltered.length} mergedH=${mergedH.length} mergedV=${mergedV.length}`
+  );
 
   // ── Run standard wall group pipeline (grid snap, gap fill, chain...)
-  const groupResult = _processWallGroup(mergedH, mergedV, [], ctx);
+  // Override wBrightness to null: in POLYGON_FILL mode the wall mask comes
+  // from the polygon itself, not from image dark pixels. Leaving wBrightness
+  // enabled would recenter grid lines onto arbitrary dark marks of the base
+  // map (text, stains, furniture icons) instead of the fill centerline.
+  const pfCtx = { ...ctx, wBrightness: null };
+  const groupResult = _processWallGroup(mergedH, mergedV, [], pfCtx);
+
+  console.log(`[polygonFill] output polylines=${groupResult.polylines.length}`);
 
   return {
     polylines: groupResult.polylines,

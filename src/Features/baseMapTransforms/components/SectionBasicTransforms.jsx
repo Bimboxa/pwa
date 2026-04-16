@@ -25,6 +25,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 import ToolMorphology from "Features/baseMapEditor/components/ToolMorphology";
+import ToolConnectedComponentsFilter from "Features/baseMapEditor/components/ToolConnectedComponentsFilter";
 import convertToBlackAndWhite from "Features/images/utils/convertToBlackAndWhite";
 import convertToBinary from "Features/images/utils/convertToBinary";
 import addBackgroundToImage from "Features/images/utils/addBackgroundToImage";
@@ -162,7 +163,10 @@ export default function SectionBasicTransforms({ baseMap }) {
         grayLevelThreshold: grayLevelValue,
       });
       if (processedImageFile) {
-        handleTransformResult(processedImageFile, "Seuil de gris");
+        const url = URL.createObjectURL(processedImageFile);
+        const withBg = await addBackgroundToImage(url, "#FFFFFF");
+        URL.revokeObjectURL(url);
+        handleTransformResult(withBg || processedImageFile, "Seuil de gris");
       }
     } finally {
       setGrayLevelProcessing(false);
@@ -216,6 +220,11 @@ export default function SectionBasicTransforms({ baseMap }) {
           </ListItemButton>
 
           <ToolMorphology baseMap={baseMap} onResult={handleTransformResult} />
+
+          <ToolConnectedComponentsFilter
+            baseMap={baseMap}
+            onResult={handleTransformResult}
+          />
 
           <Box
             sx={{

@@ -44,6 +44,7 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 import ToolMergeVisibleAnnotations from "Features/baseMapEditor/components/ToolMergeVisibleAnnotations";
 import ToolMorphology from "Features/baseMapEditor/components/ToolMorphology";
+import ToolConnectedComponentsFilter from "Features/baseMapEditor/components/ToolConnectedComponentsFilter";
 import convertToBlackAndWhite from "Features/images/utils/convertToBlackAndWhite";
 import convertToBinary from "Features/images/utils/convertToBinary";
 import addBackgroundToImage from "Features/images/utils/addBackgroundToImage";
@@ -199,7 +200,10 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
         grayLevelThreshold: grayLevelValue,
       });
       if (processedImageFile) {
-        handleTransformResult(processedImageFile, "Seuil de gris");
+        const url = URL.createObjectURL(processedImageFile);
+        const withBg = await addBackgroundToImage(url, "#FFFFFF");
+        URL.revokeObjectURL(url);
+        handleTransformResult(withBg || processedImageFile, "Seuil de gris");
       }
     } finally {
       setGrayLevelProcessing(false);
@@ -395,6 +399,11 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
           </ListItemButton>
 
           <ToolMorphology baseMap={baseMap} onResult={handleTransformResult} />
+
+          <ToolConnectedComponentsFilter
+            baseMap={baseMap}
+            onResult={handleTransformResult}
+          />
 
           <Box
             sx={{

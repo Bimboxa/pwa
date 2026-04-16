@@ -36,6 +36,7 @@ async function detectContoursAsync({ msg, payload }) {
     // --- 1. PASSAGE EN GRIS ---
     const gray = track(new cv.Mat());
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    src.delete(); // free RGBA mat early — no longer needed
 
     // --- 2. RÉCUPÉRATION DE LA VALEUR CIBLE ---
     const targetGray = gray.ucharPtr(pixelY, pixelX)[0];
@@ -51,10 +52,14 @@ async function detectContoursAsync({ msg, payload }) {
     const highMat = track(new cv.Mat(gray.rows, gray.cols, gray.type(), new cv.Scalar(highVal)));
 
     cv.inRange(gray, lowMat, highMat, binary);
+    gray.delete();    // free early — no longer needed
+    lowMat.delete();  // free early
+    highMat.delete(); // free early
 
     // --- 4. TRAITEMENT MORPHOLOGIQUE ---
     const inverted = track(new cv.Mat());
     cv.bitwise_not(binary, inverted);
+    binary.delete(); // free early — no longer needed
 
     const kernelSize = Math.max(3, morphKernelSize | 0);
     const kernel = track(cv.Mat.ones(kernelSize, kernelSize, cv.CV_8U));
@@ -67,9 +72,11 @@ async function detectContoursAsync({ msg, payload }) {
       new cv.Point(-1, -1),
       Math.max(1, morphIterations | 0)
     );
+    inverted.delete(); // free early — no longer needed
 
     const processedBinary = track(new cv.Mat());
     cv.bitwise_not(closedInverted, processedBinary);
+    closedInverted.delete(); // free early — no longer needed
 
     // --- 4b. DRAW EXISTING ANNOTATION BOUNDARIES AS BARRIERS ---
     if (boundaries?.length) {
