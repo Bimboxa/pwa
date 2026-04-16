@@ -34,6 +34,7 @@ import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplate
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
+import IconButtonDetectSimilarStrips from "./IconButtonDetectSimilarStrips";
 import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
 import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
 import IconButtonRepairAnnotation from "./IconButtonRepairAnnotation";
@@ -336,6 +337,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               )}
               {selectedAnnotation?.type === "STRIP" && (
                 <IconButtonFlipStripAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
+              )}
+              {selectedAnnotation?.type === "STRIP" && (
+                <IconButtonDetectSimilarStrips annotation={selectedAnnotation} accentColor={accentColor} />
               )}
               {isClosedShape && (
                 <IconButtonDilateAnnotation annotation={selectedAnnotation} accentColor={accentColor} />

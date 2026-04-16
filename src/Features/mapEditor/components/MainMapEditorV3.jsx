@@ -395,6 +395,29 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         await saveTempAnnotations([annotation]);
     }
 
+    // handler - commit detected similar strips
+
+    const handleCommitSimilarStrips = async ({ strips, sourceAnnotation }) => {
+        if (!strips?.length) return;
+        // Pick only the properties needed for new STRIP annotations
+        const {
+            type, strokeWidth, strokeWidthUnit, stripOrientation, closeLine,
+            strokeColor, fillColor, strokeOpacity, fillOpacity, strokeType,
+            annotationTemplateId, templateLabel, listingId, height,
+        } = sourceAnnotation || {};
+        const templateProps = {
+            type, strokeWidth, strokeWidthUnit, stripOrientation, closeLine,
+            strokeColor, fillColor, strokeOpacity, fillOpacity, strokeType,
+            annotationTemplateId, templateLabel, listingId, height,
+        };
+        const annotations = strips.map((strip) => ({
+            ...templateProps,
+            baseMapId: baseMap.id,
+            points: strip.centerline,
+        }));
+        await saveTempAnnotations(annotations);
+    };
+
     // handlers - image drop
 
     const handleCommitImageDrop = async (droppedImage) => {
@@ -1105,6 +1128,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onCommitSplitAtVertex={handlePolylineSplitAtVertex}
                     onCommitImageDrop={handleCommitImageDrop}
                     onCommitPointsFromSurfaceDrop={handleCommitPointsFromSurfaceDrop}
+                    onCommitSimilarStrips={handleCommitSimilarStrips}
                     baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
                     baseMapImageScale={baseMap?.getImageScale()}
                     baseMapImageOffset={baseMap?.getImageOffset()}

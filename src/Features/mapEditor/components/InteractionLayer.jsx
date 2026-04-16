@@ -72,6 +72,7 @@ import MapTooltip from 'Features/mapEditorGeneric/components/MapTooltip';
 import SmartDetectLayer from 'Features/mapEditorGeneric/components/SmartDetectLayer';
 import TransientOrthoPathsLayer from 'Features/mapEditorGeneric/components/TransientOrthoPathsLayer';
 import TransientDetectedPolylinesLayer from 'Features/mapEditorGeneric/components/TransientDetectedPolylinesLayer';
+import TransientDetectedStripsLayer from 'Features/mapEditorGeneric/components/TransientDetectedStripsLayer';
 import TransientDetectedPolygonLayer from 'Features/mapEditorGeneric/components/TransientDetectedPolygonLayer';
 import detectPolygonFromAnnotations from 'Features/smartDetect/utils/detectPolygonFromAnnotations';
 import throttle from 'Features/misc/utils/throttle';
@@ -127,6 +128,7 @@ const InteractionLayer = forwardRef(({
   onCommitDrawing,
   onCommitSplitAtVertex,
   onCommitPointsFromSurfaceDrop,
+  onCommitSimilarStrips,
   onCommitImageDrop,
   basePose,
   onBaseMapPoseChange,
@@ -189,6 +191,8 @@ const InteractionLayer = forwardRef(({
   const detectedPolygonRef = useRef(null); // current polygon detection result { outerRing, cuts }
   const transientDetectedPolylinesRef = useRef(null);
   const detectedSimilarPolylinesRef = useRef(null); // {imageCoords, localCoords}
+  const transientDetectedStripsRef = useRef(null);
+  const detectedSimilarStripsRef = useRef(null); // { strips, sourceAnnotation }
   const cachedDetectImageUrlRef = useRef(null);
   const lastSmartROI = useRef(null); // pour la reconversion inverse Loupe => World.
   const lastMouseScreenPosRef = useRef({
@@ -263,6 +267,17 @@ const InteractionLayer = forwardRef(({
     clearBuffer();
     dispatch(setFixedLength(null));
   }, [enabledDrawingMode, clearBuffer, dispatch]);
+
+  // Listen for similar-strip detection results from toolbar button
+  useEffect(() => {
+    const handler = (e) => {
+      const { strips, sourceAnnotation } = e.detail;
+      detectedSimilarStripsRef.current = { strips, sourceAnnotation };
+      transientDetectedStripsRef.current?.updateStrips(strips);
+    };
+    window.addEventListener('detectedSimilarStrips', handler);
+    return () => window.removeEventListener('detectedSimilarStrips', handler);
+  }, []);
 
   // permissions (ownership-based)
   const permissions = useAnnotationPermissions({ annotations });
@@ -759,6 +774,11 @@ const InteractionLayer = forwardRef(({
     onCommitDrawingRef.current = onCommitDrawing;
   }, [onCommitDrawing]);
 
+  const onCommitSimilarStripsRef = useRef(onCommitSimilarStrips);
+  useEffect(() => {
+    onCommitSimilarStripsRef.current = onCommitSimilarStrips;
+  }, [onCommitSimilarStrips]);
+
   const onCommitSplitAtVertexRef = useRef(onCommitSplitAtVertex);
   useEffect(() => {
     onCommitSplitAtVertexRef.current = onCommitSplitAtVertex;
@@ -1065,6 +1085,9 @@ const InteractionLayer = forwardRef(({
           // Clear detected similar polylines
           detectedSimilarPolylinesRef.current = null;
           transientDetectedPolylinesRef.current?.clear();
+          // Clear detected similar strips
+          detectedSimilarStripsRef.current = null;
+          transientDetectedStripsRef.current?.clear();
           cachedDetectImageUrlRef.current = null;
           transientDetectedPolygonRef.current?.clear();
           break;
@@ -1077,6 +1100,19 @@ const InteractionLayer = forwardRef(({
           break;
 
         case ' ':
+          // --- DETECT_SIMILAR_STRIPS: commit all detected strips ---
+          if (detectedSimilarStripsRef.current) {
+            e.preventDefault();
+            const { strips, sourceAnnotation } = detectedSimilarStripsRef.current;
+            if (strips?.length > 0 && onCommitSimilarStripsRef.current) {
+              console.log("[DETECT_SIMILAR_STRIPS] Committing", strips.length, "strips");
+              onCommitSimilarStripsRef.current({ strips, sourceAnnotation });
+            }
+            detectedSimilarStripsRef.current = null;
+            transientDetectedStripsRef.current?.clear();
+            return;
+          }
+
           // --- DETECT_SIMILAR_POLYLINES: bulk commit all detected polylines ---
           // Uses onCommitDrawingRef (same path as rectangle/polygon detection)
           // with bulkPolylines option for batch creation.
@@ -3280,6 +3316,7 @@ const InteractionLayer = forwardRef(({
           />
           <TransientOrthoPathsLayer ref={transientOrthoPathsRef} />
           <TransientDetectedPolylinesLayer ref={transientDetectedPolylinesRef} />
+          <TransientDetectedStripsLayer ref={transientDetectedStripsRef} />
           <TransientDetectedPolygonLayer ref={transientDetectedPolygonRef} />
         </g>
 
