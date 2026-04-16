@@ -8,7 +8,7 @@ const SPINNER_STYLE = `
 }
 `;
 
-const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0 }, ref) => {
+const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, crosshairAxis = "BOTH" }, ref) => {
     const vLineRef = useRef(null);
     const hLineRef = useRef(null);
     const groupRef = useRef(null);
@@ -35,11 +35,14 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0 }
     useImperativeHandle(ref, () => ({
         move: (x, y) => {
             lastPosRef.current = { x, y };
-            if (!vLineRef.current || !hLineRef.current) return;
-            vLineRef.current.setAttribute('x1', x);
-            vLineRef.current.setAttribute('x2', x);
-            hLineRef.current.setAttribute('y1', y);
-            hLineRef.current.setAttribute('y2', y);
+            if (vLineRef.current) {
+                vLineRef.current.setAttribute('x1', x);
+                vLineRef.current.setAttribute('x2', x);
+            }
+            if (hLineRef.current) {
+                hLineRef.current.setAttribute('y1', y);
+                hLineRef.current.setAttribute('y2', y);
+            }
             // Rotate lines around cursor position
             if (linesGroupRef.current) {
                 linesGroupRef.current.setAttribute('transform', `rotate(${-rotationAngleRef.current}, ${x}, ${y})`);
@@ -101,17 +104,37 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0 }
         >
             <style>{SPINNER_STYLE}</style>
             <g ref={linesGroupRef}>
-                <line
-                    ref={vLineRef}
-                    y1="0"
-                    y2="100%"
+                {(crosshairAxis === "BOTH" || crosshairAxis === "V") && (
+                    <line
+                        ref={vLineRef}
+                        y1="0"
+                        y2="100%"
+                        vectorEffect="non-scaling-stroke"
+                    />
+                )}
+                {(crosshairAxis === "BOTH" || crosshairAxis === "H") && (
+                    <line
+                        ref={hLineRef}
+                        x1="0"
+                        x2="100%"
+                        vectorEffect="non-scaling-stroke"
+                    />
+                )}
+                {/* Zoom square — sits inside the rotated group so its sides
+                    stay aligned with the ortho axes. */}
+                <rect
+                    ref={zoomRectRef}
+                    x={0}
+                    y={0}
+                    width={0}
+                    height={0}
+                    fill="none"
+                    stroke="#00ff00"
+                    strokeWidth="1.5"
+                    strokeDasharray="6,3"
+                    strokeOpacity={0.8}
                     vectorEffect="non-scaling-stroke"
-                />
-                <line
-                    ref={hLineRef}
-                    x1="0"
-                    x2="100%"
-                    vectorEffect="non-scaling-stroke"
+                    style={{ display: 'none' }}
                 />
             </g>
             <circle
@@ -132,20 +155,6 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0 }
                     transformOrigin: 'center',
                     transformBox: 'fill-box',
                 }}
-            />
-            <rect
-                ref={zoomRectRef}
-                x={0}
-                y={0}
-                width={0}
-                height={0}
-                fill="none"
-                stroke="#00ff00"
-                strokeWidth="1.5"
-                strokeDasharray="6,3"
-                strokeOpacity={0.8}
-                vectorEffect="non-scaling-stroke"
-                style={{ display: 'none' }}
             />
         </g>
     );

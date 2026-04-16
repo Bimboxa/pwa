@@ -90,6 +90,10 @@ const mapEditorInitialState = {
   orthoSnapEnabled: false,
   orthoSnapAngleOffset: 0, // degrees
 
+  // strip detection orientation (for STRIP_DETECTION tool)
+  stripDetectionOrientation: "H", // "H" | "V"
+  stripDetectionMultiple: false, // false → only the band closest to the loupe center; true → all parallel bands
+
   // printable map (lazy mount for export/pdf only)
   showPrintableMap: false,
 };
@@ -345,6 +349,12 @@ export const mapEditorSlice = createSlice({
     setOrthoSnapAngleOffset: (state, action) => {
       state.orthoSnapAngleOffset = action.payload;
     },
+    setStripDetectionOrientation: (state, action) => {
+      state.stripDetectionOrientation = action.payload;
+    },
+    setStripDetectionMultiple: (state, action) => {
+      state.stripDetectionMultiple = action.payload;
+    },
     setShowPrintableMap: (state, action) => {
       state.showPrintableMap = action.payload;
     },
@@ -443,6 +453,10 @@ export const {
   // ortho snap
   setOrthoSnapEnabled,
   setOrthoSnapAngleOffset,
+
+  // strip detection
+  setStripDetectionOrientation,
+  setStripDetectionMultiple,
 
   // printable map
   setShowPrintableMap,

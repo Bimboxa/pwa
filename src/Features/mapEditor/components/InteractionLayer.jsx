@@ -11,7 +11,7 @@ import { setSelectedEntityId } from 'Features/entities/entitiesSlice';
 import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
-import { setAnchorSourceAnnotationId, setOrthoSnapEnabled, setFixedLength } from 'Features/mapEditor/mapEditorSlice';
+import { setAnchorSourceAnnotationId, setOrthoSnapEnabled, setFixedLength, setStripDetectionOrientation } from 'Features/mapEditor/mapEditorSlice';
 import { setColorToReplace } from 'Features/opencv/opencvSlice';
 import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
 import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnotation, triggerAnnotationsUpdate } from 'Features/annotations/annotationsSlice';
@@ -75,6 +75,9 @@ import TransientDetectedPolylinesLayer from 'Features/mapEditorGeneric/component
 import TransientDetectedStripsLayer from 'Features/mapEditorGeneric/components/TransientDetectedStripsLayer';
 import TransientDetectedPolygonLayer from 'Features/mapEditorGeneric/components/TransientDetectedPolygonLayer';
 import detectPolygonFromAnnotations from 'Features/smartDetect/utils/detectPolygonFromAnnotations';
+import detectStripFromLoupe from 'Features/smartDetect/utils/detectStripFromLoupe';
+import buildExclusionMask from 'Features/smartDetect/utils/buildExclusionMask';
+import getStripePolygons from 'Features/geometry/utils/getStripePolygons';
 import throttle from 'Features/misc/utils/throttle';
 import CalibrationLayer from './CalibrationLayer';
 import useMainBaseMap from 'Features/mapEditor/hooks/useMainBaseMap';
@@ -196,6 +199,12 @@ const InteractionLayer = forwardRef(({
   const transientDetectedStripsRef = useRef(null);
   const detectedSimilarStripsRef = useRef(null); // { strips, sourceAnnotation }
   const cachedDetectImageUrlRef = useRef(null);
+  // STRIP_DETECTION caches: imageData of the source image + exclusion mask of visible annotations.
+  // Built lazily when the tool activates so mouseMove only runs the detection algorithm.
+  const stripDetectionImageDataRef = useRef(null);
+  const stripDetectionExclusionMaskRef = useRef(null);
+  // Last cursor (image-px) we ran detection at — used to skip redundant calls.
+  const lastStripDetectCursorRef = useRef(null);
   const lastSmartROI = useRef(null); // pour la reconversion inverse Loupe => World.
   const lastMouseScreenPosRef = useRef({
     screenPos: { x: 0, y: 0 },
@@ -236,6 +245,8 @@ const InteractionLayer = forwardRef(({
   const mapEditorMode = useSelector((s) => s.mapEditor.mapEditorMode);
   const orthoSnapEnabled = useSelector((s) => s.mapEditor.orthoSnapEnabled);
   const orthoSnapAngleOffset = useSelector((s) => s.mapEditor.orthoSnapAngleOffset);
+  const stripDetectionOrientation = useSelector((s) => s.mapEditor.stripDetectionOrientation);
+  const stripDetectionMultiple = useSelector((s) => s.mapEditor.stripDetectionMultiple);
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const rawDetection = useSelector((s) => s.smartDetect.rawDetection);
   const noCuts = useSelector((s) => s.smartDetect.noCuts);
@@ -303,9 +314,151 @@ const InteractionLayer = forwardRef(({
     }
   }, 120), []);
 
+  // Stable refs for image transform values, so the throttled detection function below
+  // doesn't get re-created on every parent render (which would reset the throttle timer).
+  const baseMapImageScaleRef = useRef(baseMapImageScale);
+  useEffect(() => { baseMapImageScaleRef.current = baseMapImageScale; }, [baseMapImageScale]);
+  const baseMapImageOffsetRef = useRef(baseMapImageOffset);
+  useEffect(() => { baseMapImageOffsetRef.current = baseMapImageOffset; }, [baseMapImageOffset]);
+
+  // throttled strip detection from loupe (STRIP_DETECTION tool) — created ONCE.
+  const runStripDetectionFromLoupe = useMemo(
+    () => throttle((cursorImgPx, loupeBBox) => {
+      const imageData = stripDetectionImageDataRef.current;
+      if (!imageData) return;
+      const na = newAnnotationRef.current;
+      if (!na) return;
+
+      // Reference strip width comes from the active annotation template (newAnnotation).
+      const strokeWidth = na.strokeWidth ?? 20;
+      const strokeWidthUnit = na.strokeWidthUnit ?? "PX";
+      const meterByPx = meterByPxRef.current ?? 0;
+      const imageScale = baseMapImageScaleRef.current || 1;
+      const imageOffset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+      const stripWidthPx =
+        strokeWidthUnit === "CM" && meterByPx > 0
+          ? Math.abs((strokeWidth * 0.01) / meterByPx / imageScale)
+          : Math.abs(strokeWidth / imageScale);
+      if (!Number.isFinite(stripWidthPx) || stripWidthPx < 1) return;
+
+      const stripOrientation = na.stripOrientation ?? 1;
+      const orientation = stripDetectionOrientationRef.current || "H";
+      const orthoAngleRad = ((orthoSnapAngleOffsetRef.current || 0) * Math.PI) / 180;
+      const detectMultiple = !!stripDetectionMultipleRef.current;
+
+      let results;
+      try {
+        results = detectStripFromLoupe({
+          imageData,
+          cursor: cursorImgPx,
+          loupeBBox,
+          stripWidthPx,
+          orientation,
+          orthoAngleRad,
+          stripOrientation,
+          detectMultiple,
+          exclusionMask: stripDetectionExclusionMaskRef.current,
+        });
+      } catch (err) {
+        console.error("[STRIP_DETECTION] detection error:", err);
+        return;
+      }
+
+      if (!results || results.length === 0) {
+        detectedSimilarStripsRef.current = null;
+        transientDetectedStripsRef.current?.clear();
+        return;
+      }
+
+      const toLocal = (p) => ({
+        x: p.x * imageScale + imageOffset.x,
+        y: p.y * imageScale + imageOffset.y,
+      });
+      const strips = [];
+      for (const result of results) {
+        if (!result.segments?.length) continue;
+        for (const seg of result.segments) {
+          const localCenterline = [toLocal(seg.start), toLocal(seg.end)];
+          const fakeAnnotation = { ...na, points: localCenterline };
+          const polys = getStripePolygons(fakeAnnotation, meterByPx);
+          const polygon = polys?.[0]?.points || [];
+          strips.push({ centerline: localCenterline, polygon });
+        }
+      }
+      if (strips.length === 0) {
+        detectedSimilarStripsRef.current = null;
+        transientDetectedStripsRef.current?.clear();
+        return;
+      }
+      detectedSimilarStripsRef.current = { strips, sourceAnnotation: na };
+      transientDetectedStripsRef.current?.updateStrips(strips);
+    }, 80),
+    []
+  );
+
   // sourceImage for smart detect
 
   const [sourceImageEl, setSourceImageEl] = useState(null);
+
+  // Latest annotations snapshot for STRIP_DETECTION (read at build time only).
+  const annotationsRef = useRef(annotations);
+  useEffect(() => { annotationsRef.current = annotations; }, [annotations]);
+
+  // Use annotationsUpdatedAt as a stable trigger — only rebuild the exclusion mask
+  // when annotations are actually created/updated, not on every reference change.
+  const annotationsUpdatedAt = useSelector((s) => s.annotations.annotationsUpdatedAt);
+
+  // Build / clear STRIP_DETECTION caches when the tool activates / deactivates,
+  // or when annotations are mutated (annotationsUpdatedAt changes).
+  // Heavy work (full-image getImageData + exclusion mask rasterize) is deferred via
+  // setTimeout so the click activating the tool isn't blocked.
+  useEffect(() => {
+    if (enabledDrawingMode !== "STRIP_DETECTION") {
+      stripDetectionImageDataRef.current = null;
+      stripDetectionExclusionMaskRef.current = null;
+      lastStripDetectCursorRef.current = null;
+      return;
+    }
+    if (!sourceImageEl) return;
+
+    let cancelled = false;
+    const buildCaches = () => {
+      if (cancelled) return;
+      try {
+        const w = sourceImageEl.naturalWidth || sourceImageEl.width;
+        const h = sourceImageEl.naturalHeight || sourceImageEl.height;
+        if (!w || !h) return;
+        // Build ImageData only if missing (it doesn't change unless source image changes).
+        if (!stripDetectionImageDataRef.current) {
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          ctx.drawImage(sourceImageEl, 0, 0);
+          if (cancelled) return;
+          stripDetectionImageDataRef.current = ctx.getImageData(0, 0, w, h);
+        }
+
+        if (cancelled) return;
+        const meterByPx = meterByPxRef.current ?? 0;
+        stripDetectionExclusionMaskRef.current = buildExclusionMask(
+          annotationsRef.current || [],
+          { width: w, height: h },
+          baseMapImageScaleRef.current,
+          baseMapImageOffsetRef.current,
+          meterByPx,
+          null,
+        );
+      } catch (err) {
+        console.error("[STRIP_DETECTION] failed to build caches:", err);
+      }
+    };
+    const id = setTimeout(buildCaches, 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
+  }, [enabledDrawingMode, sourceImageEl, annotationsUpdatedAt]);
 
   // baseMap - rotation
 
@@ -404,6 +557,26 @@ const InteractionLayer = forwardRef(({
     // pour MAJ de l'image affichée dans la smart detect
     if (enabledDrawingModeRef.current === "SMART_DETECT" || showSmartDetectRef.current) {
       updateSmartDetect(lastMouseScreenPosRef.current);
+    }
+
+    // STRIP_DETECTION: re-run strip detection after a camera change
+    // (arrow-key pan, drag pan, zoom). updateSmartDetect above has refreshed
+    // lastSmartROI synchronously; we defer to the next frame so the loupe
+    // preview has visually updated before the detection runs (the user wants
+    // to "see" the new map content before the strips are recomputed).
+    if (enabledDrawingModeRef.current === "STRIP_DETECTION") {
+      requestAnimationFrame(() => {
+        const roi = lastSmartROI.current;
+        if (!roi) return;
+        const cursorImgPx = {
+          x: roi.x + roi.width / 2,
+          y: roi.y + roi.height / 2,
+        };
+        lastStripDetectCursorRef.current = cursorImgPx;
+        runStripDetectionFromLoupe(cursorImgPx, {
+          x: roi.x, y: roi.y, width: roi.width, height: roi.height,
+        });
+      });
     }
 
     // 2. Update Viewport Bounds in BaseMap Reference
@@ -809,6 +982,15 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     orthoSnapAngleOffsetRef.current = orthoSnapAngleOffset;
   }, [orthoSnapAngleOffset]);
+
+  const stripDetectionOrientationRef = useRef(stripDetectionOrientation);
+  useEffect(() => {
+    stripDetectionOrientationRef.current = stripDetectionOrientation;
+  }, [stripDetectionOrientation]);
+  const stripDetectionMultipleRef = useRef(stripDetectionMultiple);
+  useEffect(() => {
+    stripDetectionMultipleRef.current = stripDetectionMultiple;
+  }, [stripDetectionMultiple]);
 
   const onCommitDrawingRef = useRef(onCommitDrawing);
   useEffect(() => {
@@ -1279,6 +1461,15 @@ const InteractionLayer = forwardRef(({
             }
 
             return;
+          }
+          break;
+
+        case "o":
+          // STRIP_DETECTION: toggle crosshair / detection orientation H ↔ V
+          if (enabledDrawingMode === "STRIP_DETECTION") {
+            const cur = stripDetectionOrientationRef.current;
+            const next = cur === "H" ? "V" : "H";
+            dispatch(setStripDetectionOrientation(next));
           }
           break;
 
@@ -2588,8 +2779,39 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- LOGIQUE SMART DETECT (Optimisée) ---
-    if (enabledDrawingMode === "SMART_DETECT" || showSmartDetect) {
+    // Also drives the loupe ROI for STRIP_DETECTION (we read lastSmartROI below).
+    if (
+      enabledDrawingMode === "SMART_DETECT" ||
+      enabledDrawingMode === "STRIP_DETECTION" ||
+      showSmartDetect
+    ) {
       updateSmartDetect(lastMouseScreenPosRef.current);
+    }
+
+    // --- STRIP_DETECTION: throttled detection from the loupe area ---
+    if (enabledDrawingMode === "STRIP_DETECTION") {
+      const localPos = toLocalCoords(worldPos);
+      const cursorImgPx = {
+        x: (localPos.x - baseMapImageOffset.x) / baseMapImageScale,
+        y: (localPos.y - baseMapImageOffset.y) / baseMapImageScale,
+      };
+      // Skip if cursor hasn't moved enough (in image pixels) since last detect.
+      const last = lastStripDetectCursorRef.current;
+      const moved = !last
+        || Math.abs(cursorImgPx.x - last.x) > 1
+        || Math.abs(cursorImgPx.y - last.y) > 1;
+      const loupeBBox = lastSmartROI.current
+        ? {
+            x: lastSmartROI.current.x,
+            y: lastSmartROI.current.y,
+            width: lastSmartROI.current.width,
+            height: lastSmartROI.current.height,
+          }
+        : null;
+      if (moved && loupeBBox) {
+        lastStripDetectCursorRef.current = cursorImgPx;
+        runStripDetectionFromLoupe(cursorImgPx, loupeBBox);
+      }
     }
 
     // --- 5. DÉTECTION DU HOVER (HIT TEST) ---
@@ -3259,6 +3481,7 @@ const InteractionLayer = forwardRef(({
             visible={(!!enabledDrawingMode && !SEGMENT_SELECT_MODES.includes(enabledDrawingMode)) || dragState?.active}
             newAnnotation={newAnnotation}
             rotationAngle={orthoSnapAngleOffset || 0}
+            crosshairAxis={enabledDrawingMode === "STRIP_DETECTION" ? stripDetectionOrientation : "BOTH"}
           />
             <SnappingLayer
               ref={snappingLayerRef}
@@ -3585,8 +3808,9 @@ const InteractionLayer = forwardRef(({
             : (enabledDrawingMode === "POLYLINE_CLICK" && advancedLayout) ? "ORTHO_PATHS"
             : undefined
           }
-          loupeOnly={!["POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE", "SMART_DETECT", "DETECT_SIMILAR_POLYLINES"].includes(enabledDrawingMode)}
+          loupeOnly={!["POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE", "SMART_DETECT", "DETECT_SIMILAR_POLYLINES", "STRIP_DETECTION"].includes(enabledDrawingMode)}
           orthoSnapAngleOffset={orthoSnapAngleOffset}
+          disableShortcuts={enabledDrawingMode === "STRIP_DETECTION" ? ["O"] : []}
         />, zoomContainer) : null}
       </>
 

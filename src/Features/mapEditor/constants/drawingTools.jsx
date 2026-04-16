@@ -7,6 +7,7 @@ import {
   Brush,
   Insights as Smart,
   Create,
+  AutoFixHigh,
 } from "@mui/icons-material";
 
 import IconPolylineClick from "Features/icons/IconPolylineClick";
@@ -194,6 +195,14 @@ const DRAWING_TOOLS = [
     Icon: IconDetectSimilarPolylines,
     annotationType: "POLYLINE",
     behavior: "DETECT_SIMILAR_POLYLINES",
+  },
+  // STRIP_DETECTION tool (Detect a wall strip from the loupe area)
+  {
+    key: "STRIP_DETECTION",
+    label: "Détection bande",
+    Icon: AutoFixHigh,
+    annotationType: "STRIP",
+    behavior: "STRIP_DETECTION",
   },
   // COMPLETE_ANNOTATION tool (Prolonger)
   {

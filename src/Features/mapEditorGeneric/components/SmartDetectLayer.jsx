@@ -111,6 +111,7 @@ const SmartDetectLayer = forwardRef(({
     initialDetectMode,
     loupeOnly = false,
     orthoSnapAngleOffset = 0,
+    disableShortcuts = [],
 }, ref) => {
     const dispatch = useDispatch();
     const canvasRef = useRef(null);
@@ -176,11 +177,14 @@ const SmartDetectLayer = forwardRef(({
     }, [selectedDetectMode, enabled, sourceImage]);
 
     // --- KEYBOARD LISTENER ---
+    const disabledShortcutsRef = useRef(disableShortcuts);
+    useEffect(() => { disabledShortcutsRef.current = disableShortcuts; }, [disableShortcuts]);
     useEffect(() => {
         if (!enabled) return;
         const handleKeyDown = (e) => {
             if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
             const key = e.key.toUpperCase();
+            if (disabledShortcutsRef.current?.includes(key)) return;
             if (key === 'V') setSelectedDetectMode('POINT');
             if (key === 'L') setSelectedDetectMode('LINE');
             if (key === 'R') setSelectedDetectMode('RECTANGLE');

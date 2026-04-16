@@ -77,6 +77,7 @@ const DRAWING_SHAPE_CONFIG = {
       "POLYLINE_RECTANGLE",
       "POLYLINE_CIRCLE",
       "STRIP",
+      "STRIP_DETECTION",
       "DETECT_SIMILAR_POLYLINES",
     ],
     configurableProps: [
@@ -105,6 +106,7 @@ const DRAWING_SHAPE_CONFIG = {
       "POLYGON_CIRCLE",
       "SURFACE_DROP",
       "STRIP",
+      "STRIP_DETECTION",
     ],
     configurableProps: ["fillColor", "fillOpacity", "fillType"],
     defaults: {
