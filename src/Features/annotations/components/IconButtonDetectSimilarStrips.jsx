@@ -4,13 +4,22 @@ import { useDispatch } from "react-redux";
 
 import { setToaster } from "Features/layout/layoutSlice";
 
-import { CircularProgress, IconButton, Tooltip } from "@mui/material";
+import {
+  Box,
+  Button,
+  Checkbox,
+  CircularProgress,
+  FormControlLabel,
+  IconButton,
+  Popover,
+  Tooltip,
+} from "@mui/material";
 import { AutoFixHigh as MagicIcon } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import getStripePolygons from "Features/geometry/utils/getStripePolygons";
-import detectSimilarStrips, { computeNormal } from "Features/smartDetect/utils/detectSimilarStrips";
+import detectSimilarStrips from "Features/smartDetect/utils/detectSimilarStrips";
 import editor from "App/editor";
 
 // ---------------------------------------------------------------------------
@@ -37,17 +46,11 @@ async function loadImageData(imageUrl, imageSize) {
 function computeStripWidthInImagePx(annotation, baseMapMeterByPx, imageScale) {
   const { strokeWidth = 20, strokeWidthUnit = "PX" } = annotation;
   if (strokeWidthUnit === "CM" && baseMapMeterByPx > 0) {
-    // CM → meters → local px → image px
     return Math.abs((strokeWidth * 0.01) / baseMapMeterByPx / imageScale);
   }
-  // strokeWidth is in local-coord px, convert to image px
   return Math.abs(strokeWidth / imageScale);
 }
 
-/**
- * Rasterize visible annotations into a Uint8Array exclusion mask
- * (1 = pixel covered by an existing annotation).
- */
 function buildExclusionMask(annotations, imageSize, imageScale, imageOffset, meterByPx, sourceAnnotationId) {
   const { width, height } = imageSize;
   const canvas = document.createElement("canvas");
@@ -58,9 +61,8 @@ function buildExclusionMask(annotations, imageSize, imageScale, imageOffset, met
 
   for (const ann of annotations) {
     if (!ann.points || ann.points.length < 2) continue;
-    if (ann.id === sourceAnnotationId) continue; // skip the source strip itself
+    if (ann.id === sourceAnnotationId) continue;
 
-    // Convert annotation points (local coords) to image-pixel coords
     const toImgPx = (p) => ({
       x: (p.x - imageOffset.x) / imageScale,
       y: (p.y - imageOffset.y) / imageScale,
@@ -86,7 +88,6 @@ function buildExclusionMask(annotations, imageSize, imageScale, imageOffset, met
       ctx.closePath();
       ctx.fill();
     } else if (ann.type === "POLYLINE") {
-      // Open polyline: draw with strokeWidth
       const pts = ann.points.map(toImgPx);
       if (pts.length < 2) continue;
       const sw = ann.strokeWidth ?? 1;
@@ -102,11 +103,9 @@ function buildExclusionMask(annotations, imageSize, imageScale, imageOffset, met
     }
   }
 
-  // Read back as exclusion mask
   const data = ctx.getImageData(0, 0, width, height).data;
   const mask = new Uint8Array(width * height);
   for (let i = 0; i < mask.length; i++) {
-    // Any non-black pixel = excluded (we drew white on black canvas)
     if (data[i * 4] > 0) mask[i] = 1;
   }
   return mask;
@@ -127,10 +126,27 @@ export default function IconButtonDetectSimilarStrips({
   // state
 
   const [loading, setLoading] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [optColinear, setOptColinear] = useState(true);
+  const [optTransverse, setOptTransverse] = useState(true);
+  const [optSquares, setOptSquares] = useState(true);
+
+  // helpers
+
+  const open = Boolean(anchorEl);
 
   // handlers
 
-  const handleClick = async () => {
+  function handleIconClick(event) {
+    setAnchorEl(anchorEl ? null : event.currentTarget);
+  }
+
+  function handleClose() {
+    setAnchorEl(null);
+  }
+
+  async function handleDetect() {
+    handleClose();
     if (loading) return;
 
     const imageUrl = baseMap?.getUrl();
@@ -144,42 +160,22 @@ export default function IconButtonDetectSimilarStrips({
       return;
     }
 
-    // Viewport bounds in local coords → image pixel coords
     const viewportBounds = editor.viewportInBase?.bounds;
     if (!viewportBounds) {
-      dispatch(
-        setToaster({ message: "Viewport not available", isError: true })
-      );
+      dispatch(setToaster({ message: "Viewport not available", isError: true }));
       return;
     }
 
     const viewportBBox = {
       x: Math.max(0, Math.round((viewportBounds.x - imageOffset.x) / imageScale)),
       y: Math.max(0, Math.round((viewportBounds.y - imageOffset.y) / imageScale)),
-      width: Math.min(
-        imageSize.width,
-        Math.max(1, Math.round(viewportBounds.width / imageScale))
-      ),
-      height: Math.min(
-        imageSize.height,
-        Math.max(1, Math.round(viewportBounds.height / imageScale))
-      ),
+      width: Math.min(imageSize.width, Math.max(1, Math.round(viewportBounds.width / imageScale))),
+      height: Math.min(imageSize.height, Math.max(1, Math.round(viewportBounds.height / imageScale))),
     };
-
-    // Strip polygon and width in image px
-    const polygons = getStripePolygons(annotation, meterByPx);
-    if (!polygons?.length || !polygons[0].points?.length) {
-      dispatch(
-        setToaster({ message: "Cannot compute strip geometry", isError: true })
-      );
-      return;
-    }
 
     const stripWidthPx = computeStripWidthInImagePx(annotation, meterByPx, imageScale);
     if (stripWidthPx < 1) {
-      dispatch(
-        setToaster({ message: "Strip width too small", isError: true })
-      );
+      dispatch(setToaster({ message: "Strip width too small", isError: true }));
       return;
     }
 
@@ -188,27 +184,17 @@ export default function IconButtonDetectSimilarStrips({
     try {
       const imageData = await loadImageData(imageUrl, imageSize);
       if (!imageData) {
-        dispatch(
-          setToaster({ message: "Cannot load base map image", isError: true })
-        );
+        dispatch(setToaster({ message: "Cannot load base map image", isError: true }));
         return;
       }
 
-      // annotation.points are in local coords (resolved).
-      // Convert to image-pixel coords for the detection algorithm.
       const centerlineImgPx = annotation.points.map((p) => ({
         x: (p.x - imageOffset.x) / imageScale,
         y: (p.y - imageOffset.y) / imageScale,
       }));
 
-      // Build exclusion mask from visible annotations
       const exclusionMask = buildExclusionMask(
-        annotations || [],
-        imageSize,
-        imageScale,
-        imageOffset,
-        meterByPx,
-        annotation.id
+        annotations || [], imageSize, imageScale, imageOffset, meterByPx, annotation.id
       );
 
       const results = detectSimilarStrips({
@@ -218,44 +204,38 @@ export default function IconButtonDetectSimilarStrips({
         viewportBBox,
         stripOrientation: annotation.stripOrientation ?? 1,
         exclusionMask,
+        detectColinear: optColinear,
+        detectTransverse: optTransverse,
+        detectSquares: optSquares,
       });
 
       if (results.length === 0) {
-        dispatch(
-          setToaster({ message: "No similar strips detected", isError: true })
-        );
+        dispatch(setToaster({ message: "No similar strips detected", isError: true }));
         return;
       }
 
-      // Normal in image-pixel space
-      const normal = computeNormal(centerlineImgPx);
-
-      // Build detected strips with translated centerlines + polygons
-      const strips = results.map(({ offset }) => {
-        // Translate centerline in image-pixel coords
-        const translatedImgPx = centerlineImgPx.map((p) => ({
-          x: p.x + offset * normal.dx,
-          y: p.y + offset * normal.dy,
-        }));
-
-        // Convert back to local coords (for saving & display)
-        const localCenterline = translatedImgPx.map((p) => ({
-          x: p.x * imageScale + imageOffset.x,
-          y: p.y * imageScale + imageOffset.y,
-        }));
-
-        // Compute polygon for display (getStripePolygons works in local coords)
-        const fakeAnnotation = {
-          ...annotation,
-          points: localCenterline,
-        };
-        const polys = getStripePolygons(fakeAnnotation, meterByPx);
-        const polygon = polys?.[0]?.points || [];
-
-        return { centerline: localCenterline, polygon };
+      const toLocal = (p) => ({
+        x: p.x * imageScale + imageOffset.x,
+        y: p.y * imageScale + imageOffset.y,
       });
 
-      // Dispatch to InteractionLayer via custom event
+      const strips = [];
+      for (const result of results) {
+        if (!result.segments?.length) continue;
+        for (const seg of result.segments) {
+          const localCenterline = [toLocal(seg.start), toLocal(seg.end)];
+          const fakeAnnotation = { ...annotation, points: localCenterline };
+          const polys = getStripePolygons(fakeAnnotation, meterByPx);
+          const polygon = polys?.[0]?.points || [];
+          strips.push({ centerline: localCenterline, polygon });
+        }
+      }
+
+      if (strips.length === 0) {
+        dispatch(setToaster({ message: "No similar strips detected", isError: true }));
+        return;
+      }
+
       window.dispatchEvent(
         new CustomEvent("detectedSimilarStrips", {
           detail: { strips, sourceAnnotation: annotation },
@@ -264,44 +244,79 @@ export default function IconButtonDetectSimilarStrips({
 
       dispatch(
         setToaster({
-          message: `${strips.length} similar strip${strips.length > 1 ? "s" : ""} detected — press [Space] to validate`,
+          message: `${strips.length} strip${strips.length > 1 ? "s" : ""} detected — press [Space] to validate`,
         })
       );
     } catch (err) {
       console.error("[detectSimilarStrips] error:", err);
-      dispatch(
-        setToaster({ message: "Detection error", isError: true })
-      );
+      dispatch(setToaster({ message: "Detection error", isError: true }));
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   // render
 
   return (
-    <Tooltip title="Détection similaire">
-      <IconButton
-        size="small"
-        onClick={handleClick}
-        disabled={loading}
-        sx={{
-          color: "text.disabled",
-          ...(accentColor && {
-            "&:hover": {
-              color: accentColor,
-              bgcolor: accentColor + "18",
-            },
-          }),
-        }}
+    <>
+      <Tooltip title="Détection similaire">
+        <IconButton
+          size="small"
+          onClick={handleIconClick}
+          disabled={loading}
+          sx={{
+            color: open ? accentColor : "text.disabled",
+            bgcolor: open ? accentColor + "18" : "transparent",
+            ...(accentColor && {
+              "&:hover": {
+                color: accentColor,
+                bgcolor: accentColor + "18",
+              },
+            }),
+          }}
+        >
+          {loading ? (
+            <CircularProgress size={18} thickness={5} />
+          ) : (
+            <MagicIcon fontSize="small" />
+          )}
+        </IconButton>
+      </Tooltip>
+
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        transformOrigin={{ vertical: "top", horizontal: "center" }}
+        slotProps={{ paper: { sx: { borderRadius: 2, mt: 0.5 } } }}
       >
-        {loading ? (
-          <CircularProgress size={18} thickness={5} />
-        ) : (
-          <MagicIcon fontSize="small" />
-        )}
-      </IconButton>
-    </Tooltip>
+        <Box sx={{ display: "flex", flexDirection: "column", px: 1.5, py: 1, minWidth: 180 }}>
+          <FormControlLabel
+            control={<Checkbox size="small" checked={optColinear} onChange={(e) => setOptColinear(e.target.checked)} />}
+            label="Colinéaire"
+            slotProps={{ typography: { variant: "body2" } }}
+          />
+          <FormControlLabel
+            control={<Checkbox size="small" checked={optTransverse} onChange={(e) => setOptTransverse(e.target.checked)} />}
+            label="Transverse"
+            slotProps={{ typography: { variant: "body2" } }}
+          />
+          <FormControlLabel
+            control={<Checkbox size="small" checked={optSquares} onChange={(e) => setOptSquares(e.target.checked)} />}
+            label="Extension carrés"
+            slotProps={{ typography: { variant: "body2" } }}
+          />
+          <Button
+            size="small"
+            variant="contained"
+            onClick={handleDetect}
+            sx={{ mt: 0.5, textTransform: "none" }}
+          >
+            Détecter
+          </Button>
+        </Box>
+      </Popover>
+    </>
   );
 }
-

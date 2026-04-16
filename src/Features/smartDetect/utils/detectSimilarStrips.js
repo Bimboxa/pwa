@@ -1,8 +1,8 @@
 /**
- * Detect similar strips by scanning 1D brightness profiles along the strip's
- * normal direction.  For each profile ray we find dark bands whose width
- * matches the reference strip, then cross-validate across multiple rays to
- * reject noise.
+ * Detect similar strips in 3 independent steps:
+ *   1. Colinear   — extend along the source strip's main axis
+ *   2. Transverse — find parallel walls in the normal direction
+ *   3. Squares    — extend "square" segments in the perpendicular direction
  *
  * All coordinates are in **source-image pixel** space.
  */
@@ -20,7 +20,7 @@ function getBrightness(imageData, x, y) {
   );
 }
 
-/** Compute a normalised normal vector for the strip's centerline. */
+/** Normalised normal vector (perpendicular to centerline, rotated 90° CCW). */
 export function computeNormal(centerlinePoints) {
   let dx = 0;
   let dy = 0;
@@ -33,137 +33,129 @@ export function computeNormal(centerlinePoints) {
 }
 
 /**
- * Pick N evenly-spaced anchor points **along** the centerline polyline,
- * interpolating between vertices. Avoids the endpoints (uses the 15%-85%
- * range) to dodge noise at wall junctions.
+ * Cast a ray from `origin` in ±dir and detect dark bands.
+ * Returns { center, width } where center = signed offset from origin.
  */
-function sampleAnchors(centerlinePoints, count) {
-  // Compute cumulative arc-length
-  const cumLen = [0];
-  for (let i = 1; i < centerlinePoints.length; i++) {
-    const dx = centerlinePoints[i].x - centerlinePoints[i - 1].x;
-    const dy = centerlinePoints[i].y - centerlinePoints[i - 1].y;
-    cumLen.push(cumLen[i - 1] + Math.sqrt(dx * dx + dy * dy));
-  }
-  const totalLen = cumLen[cumLen.length - 1];
-  if (totalLen === 0) return [centerlinePoints[0]];
-
-  // Sample between 15% and 85% of the total length
-  const MARGIN = 0.15;
-  const startT = MARGIN;
-  const endT = 1 - MARGIN;
-  const step = count > 1 ? (endT - startT) / (count - 1) : 0;
-
-  const anchors = [];
-  for (let i = 0; i < count; i++) {
-    const t = startT + i * step;
-    const targetLen = t * totalLen;
-
-    // Find the segment containing this length
-    let segIdx = 0;
-    for (let j = 1; j < cumLen.length; j++) {
-      if (cumLen[j] >= targetLen) { segIdx = j - 1; break; }
-    }
-
-    const segLen = cumLen[segIdx + 1] - cumLen[segIdx];
-    const localT = segLen > 0 ? (targetLen - cumLen[segIdx]) / segLen : 0;
-    const p0 = centerlinePoints[segIdx];
-    const p1 = centerlinePoints[segIdx + 1];
-    anchors.push({
-      x: p0.x + (p1.x - p0.x) * localT,
-      y: p0.y + (p1.y - p0.y) * localT,
-    });
-  }
-
-  return anchors;
-}
-
-/**
- * Cast a ray from `origin` in direction `dir` and detect dark bands.
- * Returns an array of { center, width } where center is the signed offset
- * from origin along dir.
- */
-function scanRay(
-  imageData,
-  origin,
-  dir,
-  maxDist,
-  darknessThreshold,
-  viewportBBox,
-  exclusionMask
-) {
+function scanRay(imageData, origin, dir, maxDist, darknessThreshold, viewportBBox, exclusionMask) {
   const bands = [];
-
   for (const sign of [1, -1]) {
     let inBand = false;
     let bandStart = 0;
-
     for (let d = 0; d <= maxDist; d++) {
       const px = Math.round(origin.x + sign * d * dir.dx);
       const py = Math.round(origin.y + sign * d * dir.dy);
-
-      // Out of image bounds?
-      if (
-        px < 0 || py < 0 ||
-        px >= imageData.width || py >= imageData.height
-      ) {
-        if (inBand) {
-          bands.push({
-            center: sign * ((bandStart + d - 1) / 2),
-            width: d - bandStart,
-          });
-          inBand = false;
-        }
+      if (px < 0 || py < 0 || px >= imageData.width || py >= imageData.height) {
+        if (inBand) { bands.push({ center: sign * ((bandStart + d - 1) / 2), width: d - bandStart }); inBand = false; }
         break;
       }
-
-      // Out of viewport? (stop scanning this direction)
-      if (
-        px < viewportBBox.x ||
-        py < viewportBBox.y ||
-        px >= viewportBBox.x + viewportBBox.width ||
-        py >= viewportBBox.y + viewportBBox.height
-      ) {
-        if (inBand) {
-          bands.push({
-            center: sign * ((bandStart + d - 1) / 2),
-            width: d - bandStart,
-          });
-          inBand = false;
-        }
+      if (px < viewportBBox.x || py < viewportBBox.y || px >= viewportBBox.x + viewportBBox.width || py >= viewportBBox.y + viewportBBox.height) {
+        if (inBand) { bands.push({ center: sign * ((bandStart + d - 1) / 2), width: d - bandStart }); inBand = false; }
         break;
       }
-
-      // Excluded pixel (existing annotation) → treat as white
       const isExcluded = exclusionMask && exclusionMask[py * imageData.width + px];
-
       const bright = isExcluded ? 255 : getBrightness(imageData, px, py);
-
       if (bright < darknessThreshold) {
-        if (!inBand) {
-          bandStart = d;
-          inBand = true;
-        }
+        if (!inBand) { bandStart = d; inBand = true; }
       } else {
-        if (inBand) {
-          bands.push({
-            center: sign * ((bandStart + d - 1) / 2),
-            width: d - bandStart,
-          });
-          inBand = false;
-        }
+        if (inBand) { bands.push({ center: sign * ((bandStart + d - 1) / 2), width: d - bandStart }); inBand = false; }
       }
     }
+    if (inBand) { bands.push({ center: sign * ((bandStart + maxDist) / 2), width: maxDist - bandStart + 1 }); }
+  }
+  return bands;
+}
 
-    if (inBand) {
-      bands.push({
-        center: sign * ((bandStart + maxDist) / 2),
-        width: maxDist - bandStart + 1,
-      });
+/**
+ * Check if a dark band of matching width exists at a given point,
+ * by counting dark-pixel density across the expected strip width.
+ *
+ * `symmetric`: probe both sides [-halfW, +halfW] instead of one side.
+ */
+function probeWidthAt(
+  imageData, point, probeDir, stripWidthPx, stripOrientation,
+  minWidth, maxWidth, darknessThreshold, exclusionMask,
+  densityThreshold = 0.55, symmetric = false
+) {
+  const halfW = Math.round(stripWidthPx / 2);
+  const sampleStart = symmetric ? -halfW : Math.round(stripOrientation > 0 ? 0 : -stripWidthPx);
+  const sampleEnd = symmetric ? halfW : Math.round(stripOrientation > 0 ? stripWidthPx : 0);
+  let darkCount = 0;
+  let totalCount = 0;
+
+  for (let d = sampleStart; d <= sampleEnd; d++) {
+    const px = Math.round(point.x + d * probeDir.dx);
+    const py = Math.round(point.y + d * probeDir.dy);
+    if (px < 0 || py < 0 || px >= imageData.width || py >= imageData.height) continue;
+    const isExcluded = exclusionMask && exclusionMask[py * imageData.width + px];
+    if (isExcluded) continue;
+    totalCount++;
+    if (getBrightness(imageData, px, py) < darknessThreshold) darkCount++;
+  }
+
+  if (totalCount === 0) return false;
+  return darkCount / totalCount >= densityThreshold;
+}
+
+/**
+ * Scan along `scanDir` from `refPoint`, probing for wall presence with
+ * `probeDir`. Returns an array of segments { start, end }.
+ * Gap bridging: < 5px = noise (bridge), ≥ 5px = real separation.
+ */
+function extractSegments({
+  imageData, exclusionMask, viewportBBox,
+  probeDir, scanDir, refPoint,
+  stripWidthPx, stripOrientation,
+  darknessThreshold, minWidth, maxWidth,
+  stepPx = 2, minSegmentLengthPx = 10, maxGapPx = 5,
+  symmetric = false, densityThreshold = 0.55,
+}) {
+  const maxDist = Math.ceil(
+    Math.sqrt(viewportBBox.width ** 2 + viewportBBox.height ** 2)
+  );
+
+  const hits = [];
+  for (const sign of [1, -1]) {
+    for (let d = 0; d <= maxDist; d += stepPx) {
+      const px = refPoint.x + sign * d * scanDir.dx;
+      const py = refPoint.y + sign * d * scanDir.dy;
+      const rx = Math.round(px);
+      const ry = Math.round(py);
+      if (rx < viewportBBox.x || ry < viewportBBox.y ||
+          rx >= viewportBBox.x + viewportBBox.width ||
+          ry >= viewportBBox.y + viewportBBox.height) break;
+
+      if (probeWidthAt(imageData, { x: px, y: py }, probeDir,
+          stripWidthPx, stripOrientation, minWidth, maxWidth,
+          darknessThreshold, exclusionMask, densityThreshold, symmetric)) {
+        hits.push({ d: sign * d, x: px, y: py });
+      }
     }
   }
 
-  return bands;
+  if (hits.length === 0) return [];
+  hits.sort((a, b) => a.d - b.d);
+
+  const segments = [];
+  let segStart = hits[0];
+  let segEnd = hits[0];
+  for (let i = 1; i < hits.length; i++) {
+    if (hits[i].d - segEnd.d <= maxGapPx + stepPx) {
+      segEnd = hits[i];
+    } else {
+      if (segEnd.d - segStart.d >= minSegmentLengthPx)
+        segments.push({ start: { x: segStart.x, y: segStart.y }, end: { x: segEnd.x, y: segEnd.y } });
+      segStart = hits[i];
+      segEnd = hits[i];
+    }
+  }
+  if (segEnd.d - segStart.d >= minSegmentLengthPx)
+    segments.push({ start: { x: segStart.x, y: segStart.y }, end: { x: segEnd.x, y: segEnd.y } });
+
+  return segments;
+}
+
+function segLength(seg) {
+  return Math.sqrt((seg.end.x - seg.start.x) ** 2 + (seg.end.y - seg.start.y) ** 2);
 }
 
 // ---------------------------------------------------------------------------
@@ -171,18 +163,19 @@ function scanRay(
 // ---------------------------------------------------------------------------
 
 /**
- * @param {Object} params
- * @param {ImageData} params.imageData          Full base-map ImageData
- * @param {Array<{x:number,y:number}>} params.centerlinePoints  Source strip centerline (image px)
- * @param {number} params.stripWidthPx          Reference strip width in image px
- * @param {{x:number,y:number,width:number,height:number}} params.viewportBBox  Viewport in image px
- * @param {number} [params.stripOrientation=1]    Strip orientation (1 or -1)
- * @param {number} [params.darknessThreshold=128]
- * @param {number} [params.widthTolerance=0.30]   ±30 % of reference width
- * @param {number} [params.sampleCount=5]
- * @param {Uint8Array} [params.exclusionMask]      Pixel mask (1 = excluded annotation)
- * @param {number} [params.minConfirmations]      Auto-computed if omitted
- * @returns {Array<{offset:number, bandWidth:number}>}
+ * @param {Object} p
+ * @param {ImageData} p.imageData
+ * @param {Array<{x,y}>} p.centerlinePoints   Source strip centerline (image px)
+ * @param {number} p.stripWidthPx
+ * @param {{x,y,width,height}} p.viewportBBox
+ * @param {number} [p.stripOrientation=1]
+ * @param {number} [p.darknessThreshold=128]
+ * @param {number} [p.widthTolerance=0.30]
+ * @param {Uint8Array} [p.exclusionMask]
+ * @param {boolean} [p.detectColinear=true]
+ * @param {boolean} [p.detectTransverse=true]
+ * @param {boolean} [p.detectSquares=true]
+ * @returns {Array<{segments: Array<{start:{x,y}, end:{x,y}}>}>}
  */
 export default function detectSimilarStrips({
   imageData,
@@ -192,103 +185,161 @@ export default function detectSimilarStrips({
   stripOrientation = 1,
   darknessThreshold = 128,
   widthTolerance = 0.30,
-  sampleCount = 10,
   exclusionMask,
-  minConfirmations,
+  detectColinear = true,
+  detectTransverse = true,
+  detectSquares = true,
 }) {
   if (!imageData || !centerlinePoints || centerlinePoints.length < 2) return [];
 
   const normal = computeNormal(centerlinePoints);
-  const anchors = sampleAnchors(centerlinePoints, sampleCount);
-  const effectiveSampleCount = anchors.length;
-
-  // Auto-compute minConfirmations: 70% of rays
-  const minConf = minConfirmations ?? Math.max(1, Math.ceil(effectiveSampleCount * 0.7));
-
-  const maxDist = Math.ceil(
-    Math.sqrt(
-      viewportBBox.width * viewportBBox.width +
-        viewportBBox.height * viewportBBox.height
-    )
-  );
-
+  const tangent = { dx: normal.dy, dy: -normal.dx };
+  const mid = {
+    x: (centerlinePoints[0].x + centerlinePoints[centerlinePoints.length - 1].x) / 2,
+    y: (centerlinePoints[0].y + centerlinePoints[centerlinePoints.length - 1].y) / 2,
+  };
   const minWidth = stripWidthPx * (1 - widthTolerance);
   const maxWidth = stripWidthPx * (1 + widthTolerance);
+  const maxDist = Math.ceil(Math.sqrt(viewportBBox.width ** 2 + viewportBBox.height ** 2));
 
-  // Collect valid band data from each ray
-  const allBands = []; // Array<Array<{offset, bandWidth}>>
+  // Source strip extent along tangent (for overlap exclusion)
+  const srcD0 = (centerlinePoints[0].x - mid.x) * tangent.dx + (centerlinePoints[0].y - mid.y) * tangent.dy;
+  const srcD1 = (centerlinePoints[centerlinePoints.length - 1].x - mid.x) * tangent.dx + (centerlinePoints[centerlinePoints.length - 1].y - mid.y) * tangent.dy;
+  const srcDMin = Math.min(srcD0, srcD1);
+  const srcDMax = Math.max(srcD0, srcD1);
 
-  for (const anchor of anchors) {
-    const bands = scanRay(
-      imageData,
-      anchor,
-      normal,
-      maxDist,
-      darknessThreshold,
-      viewportBBox,
-      exclusionMask
-    );
+  const baseParams = {
+    imageData, exclusionMask, viewportBBox,
+    stripWidthPx, stripOrientation, darknessThreshold,
+    minWidth, maxWidth,
+  };
 
-    // Filter bands matching reference width, skip the source strip.
-    // The source wall occupies roughly [0, stripWidthPx] along the ray
-    // (or [0, -stripWidthPx] depending on orientation), so skip bands
-    // whose center is within 1× stripWidth of origin.
-    const validBands = bands
-      .filter((b) => b.width >= minWidth && b.width <= maxWidth)
-      .filter((b) => Math.abs(b.center) > stripWidthPx * 1.0)
-      .map((b) => ({
-        // Correct offset: band center → centerline edge.
-        // The centerline is at the edge from which the strip extends
-        // in the normal direction. For stripOrientation=1 this is
-        // center − width/2; for −1 it's center + width/2.
-        offset: b.center - stripOrientation * b.width / 2,
-        bandWidth: b.width,
-      }));
+  const allSegments = []; // collect all detected segments
 
-    allBands.push(validBands);
-  }
+  // =========================================================================
+  // Step 1 — Colinear: extend along the main axis of the source strip
+  // =========================================================================
+  if (detectColinear) {
+    const segs = extractSegments({
+      ...baseParams,
+      probeDir: normal,
+      scanDir: tangent,
+      refPoint: mid,
+    });
 
-  // Cross-validate: cluster offsets across rays
-  const flat = [];
-  allBands.forEach((bands, rayIdx) => {
-    bands.forEach((b) => flat.push({ ...b, rayIdx }));
-  });
-
-  flat.sort((a, b) => a.offset - b.offset);
-
-  // Cluster by proximity
-  const clusterTolerance = stripWidthPx * 0.5;
-  const clusters = [];
-  let currentCluster = null;
-
-  for (const item of flat) {
-    if (
-      !currentCluster ||
-      Math.abs(item.offset - currentCluster.sum / currentCluster.items.length) > clusterTolerance
-    ) {
-      if (currentCluster) clusters.push(currentCluster);
-      currentCluster = {
-        items: [item],
-        sum: item.offset,
-        widthSum: item.bandWidth,
-        rays: new Set([item.rayIdx]),
-      };
-    } else {
-      currentCluster.items.push(item);
-      currentCluster.sum += item.offset;
-      currentCluster.widthSum += item.bandWidth;
-      currentCluster.rays.add(item.rayIdx);
+    // Exclude segments that overlap with the source strip
+    for (const seg of segs) {
+      const d0 = (seg.start.x - mid.x) * tangent.dx + (seg.start.y - mid.y) * tangent.dy;
+      const d1 = (seg.end.x - mid.x) * tangent.dx + (seg.end.y - mid.y) * tangent.dy;
+      const segMin = Math.min(d0, d1);
+      const segMax = Math.max(d0, d1);
+      const overlap = Math.max(0, Math.min(srcDMax, segMax) - Math.max(srcDMin, segMin));
+      const len = segMax - segMin;
+      if (len > 0 && overlap / len < 0.5) {
+        allSegments.push(seg);
+      }
     }
   }
-  if (currentCluster) clusters.push(currentCluster);
 
-  // Keep clusters confirmed by enough rays
-  const confirmed = clusters
-    .filter((c) => c.rays.size >= minConf)
-    .map((c) => ({
-      offset: c.sum / c.items.length,
-      bandWidth: c.widthSum / c.items.length,
-    }));
+  // =========================================================================
+  // Step 2 — Transverse: find parallel walls in the normal direction
+  // =========================================================================
+  if (detectTransverse) {
+    // Single ray from midpoint in normal direction → find all matching bands
+    const bands = scanRay(imageData, mid, normal, maxDist, darknessThreshold, viewportBBox, exclusionMask);
+    const offsets = bands
+      .filter((b) => b.width >= minWidth && b.width <= maxWidth)
+      .filter((b) => Math.abs(b.center) > stripWidthPx * 0.5) // skip source
+      .map((b) => b.center - stripOrientation * b.width / 2);
 
-  return confirmed;
+    for (const offset of offsets) {
+      const refPoint = {
+        x: mid.x + offset * normal.dx,
+        y: mid.y + offset * normal.dy,
+      };
+      const segs = extractSegments({
+        ...baseParams,
+        probeDir: normal,
+        scanDir: tangent,
+        refPoint,
+      });
+      allSegments.push(...segs);
+    }
+  }
+
+  // =========================================================================
+  // Step 3 — Squares: extend square-ish segments in the perpendicular dir
+  // =========================================================================
+  if (detectSquares) {
+    const finalSegments = [];
+    for (const seg of allSegments) {
+      const len = segLength(seg);
+      if (Math.abs(len - stripWidthPx) <= 2) {
+        // Square segment — try extending in the normal direction
+        // Shift to wall center (the centerline is on the edge, shift by
+        // half-width in the tangent direction to reach the wall center)
+        const segMid = {
+          x: (seg.start.x + seg.end.x) / 2 + stripOrientation * (stripWidthPx / 2) * tangent.dx,
+          y: (seg.start.y + seg.end.y) / 2 + stripOrientation * (stripWidthPx / 2) * tangent.dy,
+        };
+        const extSegs = extractSegments({
+          ...baseParams,
+          probeDir: tangent,   // probe in tangent direction (perpendicular to extension)
+          scanDir: normal,     // extend in normal direction
+          refPoint: segMid,
+          symmetric: true,
+          densityThreshold: 0.70,
+        });
+        const best = extSegs.length > 0
+          ? extSegs.reduce((a, b) => segLength(a) > segLength(b) ? a : b)
+          : null;
+        if (best && segLength(best) > len) {
+          // Shift back from wall center to wall edge
+          const shiftX = -stripOrientation * (stripWidthPx / 2) * tangent.dx;
+          const shiftY = -stripOrientation * (stripWidthPx / 2) * tangent.dy;
+          finalSegments.push({
+            start: { x: best.start.x + shiftX, y: best.start.y + shiftY },
+            end: { x: best.end.x + shiftX, y: best.end.y + shiftY },
+          });
+        } else {
+          finalSegments.push(seg);
+        }
+      } else {
+        finalSegments.push(seg);
+      }
+    }
+    // Replace allSegments with processed ones
+    allSegments.length = 0;
+    allSegments.push(...finalSegments);
+  }
+
+  // =========================================================================
+  // Deduplicate: merge segments whose midpoints are within 2px
+  // =========================================================================
+  const deduped = [];
+  const used = new Array(allSegments.length).fill(false);
+  for (let i = 0; i < allSegments.length; i++) {
+    if (used[i]) continue;
+    used[i] = true;
+    const a = allSegments[i];
+    const aMid = { x: (a.start.x + a.end.x) / 2, y: (a.start.y + a.end.y) / 2 };
+    let best = a;
+    let bestLen = segLength(a);
+    for (let j = i + 1; j < allSegments.length; j++) {
+      if (used[j]) continue;
+      const b = allSegments[j];
+      const bMid = { x: (b.start.x + b.end.x) / 2, y: (b.start.y + b.end.y) / 2 };
+      const dist = Math.sqrt((aMid.x - bMid.x) ** 2 + (aMid.y - bMid.y) ** 2);
+      if (dist < 2) {
+        used[j] = true;
+        const bLen = segLength(b);
+        if (bLen > bestLen) { best = b; bestLen = bLen; }
+      }
+    }
+    deduped.push(best);
+  }
+
+  // Return in the expected format
+  if (deduped.length === 0) return [];
+  return [{ segments: deduped }];
 }
