@@ -14,11 +14,23 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0 }
     const groupRef = useRef(null);
     const linesGroupRef = useRef(null);
     const spinnerRef = useRef(null);
+    const zoomRectRef = useRef(null);
     const lastPosRef = useRef({ x: 0, y: 0 });
+    const zoomSquareSizeRef = useRef(0);
     const rotationAngleRef = useRef(rotationAngle);
     useEffect(() => { rotationAngleRef.current = rotationAngle; }, [rotationAngle]);
 
     const color = newAnnotation?.strokeColor ?? newAnnotation?.fillColor ?? "red";
+
+    const updateZoomRect = (x, y) => {
+        const rect = zoomRectRef.current;
+        if (!rect) return;
+        const size = zoomSquareSizeRef.current;
+        rect.setAttribute('x', x - size / 2);
+        rect.setAttribute('y', y - size / 2);
+        rect.setAttribute('width', size);
+        rect.setAttribute('height', size);
+    };
 
     useImperativeHandle(ref, () => ({
         move: (x, y) => {
@@ -36,6 +48,7 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0 }
                 spinnerRef.current.setAttribute('cx', x);
                 spinnerRef.current.setAttribute('cy', y);
             }
+            updateZoomRect(x, y);
         },
 
         triggerFlash: () => {
@@ -59,6 +72,19 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0 }
             if (spinnerRef.current) {
                 spinnerRef.current.style.display = 'none';
             }
+        },
+
+        setZoomSquareSize: (size) => {
+            zoomSquareSizeRef.current = size;
+            updateZoomRect(lastPosRef.current.x, lastPosRef.current.y);
+        },
+
+        showZoomSquare: () => {
+            if (zoomRectRef.current) zoomRectRef.current.style.display = '';
+        },
+
+        hideZoomSquare: () => {
+            if (zoomRectRef.current) zoomRectRef.current.style.display = 'none';
         },
     }));
 
@@ -106,6 +132,20 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0 }
                     transformOrigin: 'center',
                     transformBox: 'fill-box',
                 }}
+            />
+            <rect
+                ref={zoomRectRef}
+                x={0}
+                y={0}
+                width={0}
+                height={0}
+                fill="none"
+                stroke="#00ff00"
+                strokeWidth="1.5"
+                strokeDasharray="6,3"
+                strokeOpacity={0.8}
+                vectorEffect="non-scaling-stroke"
+                style={{ display: 'none' }}
             />
         </g>
     );

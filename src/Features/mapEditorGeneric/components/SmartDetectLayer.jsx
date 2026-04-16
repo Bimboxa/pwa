@@ -119,7 +119,7 @@ const SmartDetectLayer = forwardRef(({
 
     // Configuration des Modes
     const detectModes = [
-        { key: "POINT", label: "Point", color: COLORS.POINT, shortcut: "P" },
+        { key: "POINT", label: "Point", color: COLORS.POINT, shortcut: "V" },
         { key: "LINE", label: "Ligne", color: COLORS.LINE, shortcut: "L" },
         { key: "RECTANGLE", label: "Rect.", color: COLORS.RECTANGLE, shortcut: "R" },
         { key: "ORTHO_PATHS", label: "Ortho", color: COLORS.ORTHO_PATHS, shortcut: "O" },
@@ -181,7 +181,7 @@ const SmartDetectLayer = forwardRef(({
         const handleKeyDown = (e) => {
             if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
             const key = e.key.toUpperCase();
-            if (key === 'P') setSelectedDetectMode('POINT');
+            if (key === 'V') setSelectedDetectMode('POINT');
             if (key === 'L') setSelectedDetectMode('LINE');
             if (key === 'R') setSelectedDetectMode('RECTANGLE');
             if (key === 'O') setSelectedDetectMode('ORTHO_PATHS');
@@ -318,7 +318,7 @@ const SmartDetectLayer = forwardRef(({
             const canvas = canvasRef.current;
             if (canvas) analyzeImageThrottled(canvas.toDataURL('image/jpeg', 0.9), stateRef.current.sourceROI);
         },
-        update: (screenPos, sourceROI, { skipAnalysis = false } = {}) => {
+        update: (screenPos, sourceROI, { skipAnalysis = false, forceAnalysis = false } = {}) => {
             if (containerRef.current && !FIXED_IN_CONTAINER) {
                 containerRef.current.style.transform = `translate(${screenPos.x}px, ${screenPos.y}px) translate(-50%, -50%)`;
             }
@@ -326,7 +326,13 @@ const SmartDetectLayer = forwardRef(({
             const canvas = canvasRef.current;
             if (canvas) {
                 const ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: false });
-                if (drawToCanvas(ctx, sourceROI) && !skipAnalysis) analyzeImageThrottled(canvas.toDataURL('image/jpeg', 0.9), sourceROI);
+                if (drawToCanvas(ctx, sourceROI) && !skipAnalysis) {
+                    if (forceAnalysis) {
+                        setProcessedImageUrl(null);
+                        analyzeImageThrottled.flush?.();
+                    }
+                    analyzeImageThrottled(canvas.toDataURL('image/jpeg', 0.9), sourceROI);
+                }
             }
         },
         getDetectedPolylines: () => stateRef.current.detectedPolylines,

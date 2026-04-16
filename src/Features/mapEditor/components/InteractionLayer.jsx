@@ -113,7 +113,9 @@ const SNAP_THRESHOLD_ABSOLUTE = 12;
 const DRAG_THRESHOLD_PX = 3; // Seuil de déplacement pour activer le drag
 const SCREEN_BRUSH_RADIUS_PX = 12; // Rayon fixe à l'écran
 const LOUPE_SIZE = 200; // Taille écran de la loupe
-const SMART_ZOOM = 3.0; // Facteur de grossissement
+const SMART_ZOOM_DEFAULT = 3.0; // Facteur de grossissement par défaut
+const SMART_ZOOM_MIN = 1.0;
+const SMART_ZOOM_MAX = 20.0;
 const MAX_FAILURES = 0; // On autorise 1 frames d'échec avant de stopper le autopan
 import mergeDetectedPolyIntoDrawing from 'Features/smartDetect/utils/mergeDetectedPolyIntoDrawing';
 
@@ -494,10 +496,16 @@ const InteractionLayer = forwardRef(({
 
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
+  const smartZoomRef = useRef(SMART_ZOOM_DEFAULT);
   useEffect(() => {
     const show = Boolean(enabledDrawingMode) && !NO_SMART_DETECT_MODES.includes(enabledDrawingMode);
     //showSmartDetectRef.current = showSmartDetect;
     showSmartDetectRef.current = show;
+    if (show) {
+      screenCursorRef.current?.showZoomSquare();
+    } else {
+      screenCursorRef.current?.hideZoomSquare();
+    }
   }, [showSmartDetect, enabledDrawingMode])
 
 
@@ -515,8 +523,12 @@ const InteractionLayer = forwardRef(({
     const currentCameraZoom = viewportRef.current?.getZoom() || 1;
     const totalScale = (targetPose.k || 1) * currentCameraZoom;
 
-    const sourceWidthInImage = (LOUPE_SIZE / SMART_ZOOM) / totalScale;
-    const sourceHeightInImage = (LOUPE_SIZE / SMART_ZOOM) / totalScale;
+    const smartZoom = smartZoomRef.current;
+    const sourceWidthInImage = (LOUPE_SIZE / smartZoom) / totalScale;
+    const sourceHeightInImage = (LOUPE_SIZE / smartZoom) / totalScale;
+
+    // Zoom square is in screen/viewport pixels (staticOverlay is outside camera group)
+    screenCursorRef.current?.setZoomSquareSize(LOUPE_SIZE / smartZoom);
 
     const localPos = toLocalCoords(worldPos);
 
@@ -537,8 +549,37 @@ const InteractionLayer = forwardRef(({
       smartDetectRef.current.update(viewportPos, sourceROI, { skipAnalysis });
     }
 
-    lastSmartROI.current = { ...sourceROI, zoomFactor: SMART_ZOOM, totalScale };
+    lastSmartROI.current = { ...sourceROI, zoomFactor: smartZoom, totalScale };
   }, [toLocalCoords, getTargetPose, baseMapImageScale]);
+
+  const refreshSmartDetectZoom = () => {
+    const prev = lastSmartROI.current;
+    if (!prev || !smartDetectRef.current) return;
+
+    const newZoom = smartZoomRef.current;
+    const ratio = prev.zoomFactor / newZoom;
+
+    const centerX = prev.x + prev.width / 2;
+    const centerY = prev.y + prev.height / 2;
+    const newWidth = prev.width * ratio;
+    const newHeight = prev.height * ratio;
+
+    const sourceROI = {
+      x: centerX - newWidth / 2,
+      y: centerY - newHeight / 2,
+      width: newWidth,
+      height: newHeight,
+    };
+
+    screenCursorRef.current?.setZoomSquareSize(LOUPE_SIZE / newZoom);
+
+    const viewportPos = lastMouseScreenPosRef.current?.viewportPos;
+    if (viewportPos) {
+      smartDetectRef.current.update(viewportPos, sourceROI, { skipAnalysis: false, forceAnalysis: true });
+    }
+
+    lastSmartROI.current = { ...sourceROI, zoomFactor: newZoom, totalScale: prev.totalScale };
+  };
 
 
 
@@ -1072,6 +1113,7 @@ const InteractionLayer = forwardRef(({
           completeStartPointRef.current = null;
 
           setShowSmartDetect(false);
+          screenCursorRef.current?.hideZoomSquare();
 
           if (transientDetectedShapeLayerRef.current) {
             transientDetectedShapeLayerRef.current.updateShape(null);
@@ -1096,6 +1138,7 @@ const InteractionLayer = forwardRef(({
 
           const mousePos = lastMouseScreenPosRef.current;
           setShowSmartDetect(true);
+          screenCursorRef.current?.showZoomSquare();
           updateSmartDetect(mousePos);
           break;
 
@@ -1240,8 +1283,10 @@ const InteractionLayer = forwardRef(({
           break;
 
         case "p":
-          console.log("press p")
-          if (showSmartDetect) smartDetectRef.current?.changeMorphKernelSize(1);
+          if (showSmartDetect) {
+            smartZoomRef.current = Math.min(smartZoomRef.current * 1.1, SMART_ZOOM_MAX);
+            refreshSmartDetectZoom();
+          }
           break;
 
         case "M": { // Shift+M → toggle quick point editing mode
@@ -1258,7 +1303,10 @@ const InteractionLayer = forwardRef(({
         }
 
         case "m":
-          if (showSmartDetect) smartDetectRef.current?.changeMorphKernelSize(-1);
+          if (showSmartDetect) {
+            smartZoomRef.current = Math.max(smartZoomRef.current * 0.9, SMART_ZOOM_MIN);
+            refreshSmartDetectZoom();
+          }
           break;
 
         case "s": {

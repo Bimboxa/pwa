@@ -19,11 +19,25 @@ export default function SectionShortcutHelpers() {
     ];
     const canConstrain = SEGMENT_MODES.includes(enabledDrawingMode);
 
+    const NO_SMART_DETECT_MODES = [
+        "TECHNICAL_RETURN", "CUT_SEGMENT", "SPLIT_POLYLINE",
+        "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION",
+    ];
+    const hasSmartDetect = Boolean(enabledDrawingMode) && !NO_SMART_DETECT_MODES.includes(enabledDrawingMode);
+
+    const smartDetectShortcuts = hasSmartDetect
+        ? [
+            { key: "P", label: "Augmenter le zoom (smart detect)" },
+            { key: "M", label: "Diminuer le zoom (smart detect)" },
+        ]
+        : [];
+
     const shortcuts = isDetectSimilar
         ? [
             { key: "Clic", label: "Cliquer sur une ligne pour détecter les lignes similaires" },
             { key: "␣", label: "Valider les lignes détectées" },
             { key: "Esc", label: "Quitter le mode dessin" },
+            ...smartDetectShortcuts,
         ]
         : [
             {
@@ -43,6 +57,7 @@ export default function SectionShortcutHelpers() {
                     { key: "⌫", label: "Effacer la contrainte de longueur" },
                 ]
                 : []),
+            ...smartDetectShortcuts,
         ];
 
     return (
