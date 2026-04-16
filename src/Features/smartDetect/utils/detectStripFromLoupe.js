@@ -193,6 +193,12 @@ function clusterByParallelLine(candidates, clusterTol) {
  * @param {number} [p.darknessThreshold=128]
  * @param {number} [p.widthTolerance=0.30]
  * @param {Uint8Array} [p.exclusionMask]
+ * @param {boolean} [p.detectMultiple=true]   When false, keep only the
+ *                                            parallel line whose centre v is
+ *                                            closest to the loupe centre
+ *                                            (still emits multiple strips
+ *                                            along that line if separated by
+ *                                            openings).
  * @returns {Array<{ segments: Array<{start, end, stripOrientation}> }>}
  */
 export default function detectStripFromLoupe({
@@ -204,6 +210,7 @@ export default function detectStripFromLoupe({
   darknessThreshold = 128,
   widthTolerance = 0.30,
   exclusionMask,
+  detectMultiple = true,
 }) {
   if (!imageData || !loupeBBox || !stripWidthPx) return [];
   if (orientation !== "H" && orientation !== "V") return [];
@@ -255,9 +262,17 @@ export default function detectStripFromLoupe({
   if (candidates.length === 0) return [];
 
   // -------------------------------------------------------------------------
-  // 3. Cluster by parallel line — one seed per wall axis.
+  // 3. Cluster by parallel line — one seed per wall axis. When detectMultiple
+  //    is false, keep only the line whose centre v is closest to the loupe
+  //    centre (v = 0 in the rotated frame).
   // -------------------------------------------------------------------------
-  const seeds = clusterByParallelLine(candidates, stripWidthPx * CLUSTER_TOL_RATIO);
+  let seeds = clusterByParallelLine(candidates, stripWidthPx * CLUSTER_TOL_RATIO);
+  if (!detectMultiple && seeds.length > 1) {
+    const closest = seeds.reduce(
+      (best, s) => (Math.abs(s.center) < Math.abs(best.center) ? s : best)
+    );
+    seeds = [closest];
+  }
 
   // -------------------------------------------------------------------------
   // 4+5. Extend each seed along the wall axis with extractSegments, drop

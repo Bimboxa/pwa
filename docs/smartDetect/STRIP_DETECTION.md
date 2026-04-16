@@ -101,6 +101,7 @@ orthoAngleRad, darknessThreshold, widthTolerance, exclusionMask })`
 | `darknessThreshold` | Brightness < this = dark pixel (default 128)                              |
 | `widthTolerance`    | Half-width of acceptable run length around stripWidthPx (default 0.30)    |
 | `exclusionMask`     | `Uint8Array(width × height)`, 1 = pixel covered by an existing annotation |
+| `detectMultiple`    | When false, keep only the parallel line whose centre v is closest to the loupe centre (default `true`) — bound to the "Détections multiples" checkbox |
 
 ## Output
 
@@ -139,7 +140,7 @@ along the **normal** axis (perpendicular to the wall direction):
 Each kept entry is a candidate cross-section with `(u, vStart, vEnd)`
 coordinates in the rotated frame.
 
-### Step 3 — Cluster by parallel line
+### Step 3 — Cluster by parallel line + single-line filter
 
 Sample lines hit the same wall at slightly different `v` ranges (1-2 px
 jitter from rounding + tiny thickness variation). Bucketing by exact
@@ -152,6 +153,10 @@ buckets. Instead:
 4. Within a cluster, keep only the candidate with the smallest `u` (leftmost in tangent direction).
 
 Result: one seed per parallel wall axis crossed by the sample lines.
+
+5. **Single-line filter (`detectMultiple = false`)** — keep only the seed whose `|center|` is smallest, i.e., the wall axis closest to the loupe centre on the normal axis. The "Détections multiples" checkbox in the drawing helper card toggles this:
+   - **checked** → all parallel walls are kept
+   - **unchecked** → only the wall under (or nearest to) the cursor is kept (still possibly multiple strips along that line if separated by openings).
 
 ### Step 4 — Wall-axis extension
 
