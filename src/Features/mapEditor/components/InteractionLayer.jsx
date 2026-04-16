@@ -12,6 +12,7 @@ import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode } from 'Featu
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setAnchorSourceAnnotationId, setOrthoSnapEnabled, setFixedLength } from 'Features/mapEditor/mapEditorSlice';
+import { setColorToReplace } from 'Features/opencv/opencvSlice';
 import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
 import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnotation, triggerAnnotationsUpdate } from 'Features/annotations/annotationsSlice';
 import {
@@ -1943,6 +1944,23 @@ const InteractionLayer = forwardRef(({
       if (onCommitPointsFromSurfaceDrop) {
         onCommitPointsFromSurfaceDrop({ points: finalPoints, cuts: finalCuts, screenPos });
       }
+    }
+
+    // -- CASE 5: COLOR_PICKER (pick a pixel color from the base map)
+    else if (enabledDrawingMode === "COLOR_PICKER") {
+      const localPos = toLocalCoords(worldPos);
+      const pixelX = (localPos.x - baseMapImageOffset.x) / baseMapImageScale;
+      const pixelY = (localPos.y - baseMapImageOffset.y) / baseMapImageScale;
+      await cv.load();
+      const { colorHex } = await cv.getPixelColorAsync({
+        imageUrl: baseMapImageUrl,
+        x: pixelX,
+        y: pixelY,
+      });
+      if (colorHex) {
+        dispatch(setColorToReplace(colorHex));
+      }
+      dispatch(setEnabledDrawingMode(null));
     }
 
     else if (enabledDrawingMode === "SMART_DETECT") {

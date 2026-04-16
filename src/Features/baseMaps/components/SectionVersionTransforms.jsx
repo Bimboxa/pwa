@@ -42,6 +42,7 @@ import SectionCompareTwoImages from "Features/baseMapTransforms/components/Secti
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
+import ToolReplaceColor from "Features/baseMapEditor/components/ToolReplaceColor";
 import ToolMergeVisibleAnnotations from "Features/baseMapEditor/components/ToolMergeVisibleAnnotations";
 import ToolMorphology from "Features/baseMapEditor/components/ToolMorphology";
 import ToolConnectedComponentsFilter from "Features/baseMapEditor/components/ToolConnectedComponentsFilter";
@@ -357,6 +358,9 @@ export default function SectionVersionTransforms({ baseMap, versionId }) {
           })}
         </List>
       </Box>
+
+      {/* COLOR REPLACEMENT */}
+      <ToolReplaceColor baseMap={baseMap} onResult={handleTransformResult} />
 
       {/* BASIC TRANSFORMS */}
       <Box

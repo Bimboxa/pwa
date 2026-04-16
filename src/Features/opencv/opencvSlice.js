@@ -10,6 +10,7 @@ const opencvInitialState = {
   showOpencvPreview: true,
   //
   selectedColors: [],
+  colorToReplace: null,
 };
 
 export const opencvSlice = createSlice({
@@ -55,6 +56,12 @@ export const opencvSlice = createSlice({
         (color) => color !== action.payload
       );
     },
+    setColorToReplace: (state, action) => {
+      state.colorToReplace = action.payload;
+    },
+    clearColorToReplace: (state) => {
+      state.colorToReplace = null;
+    },
     setBboxDims: (state, action) => {
       state.bboxDims = action.payload;
     },
@@ -81,6 +88,8 @@ export const {
   setSelectedColors,
   addSelectedColor,
   removeSelectedColor,
+  setColorToReplace,
+  clearColorToReplace,
   setBboxDims,
   setKeepColorsPreviewUrl,
   clearKeepColorsPreviewUrl,
