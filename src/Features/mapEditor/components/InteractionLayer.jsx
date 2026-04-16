@@ -1475,7 +1475,7 @@ const InteractionLayer = forwardRef(({
 
         case "p":
           if (showSmartDetect) {
-            smartZoomRef.current = Math.min(smartZoomRef.current * 1.1, SMART_ZOOM_MAX);
+            smartZoomRef.current = smartZoomRef.current * 1.1;
             refreshSmartDetectZoom();
           }
           break;
@@ -1495,7 +1495,7 @@ const InteractionLayer = forwardRef(({
 
         case "m":
           if (showSmartDetect) {
-            smartZoomRef.current = Math.max(smartZoomRef.current * 0.9, SMART_ZOOM_MIN);
+            smartZoomRef.current = smartZoomRef.current * 0.9;
             refreshSmartDetectZoom();
           }
           break;
