@@ -6,6 +6,7 @@ import LockOpenOutlined from "@mui/icons-material/LockOpenOutlined";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { useDrawingMetrics } from "App/contexts/DrawingMetricsContext";
+import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 
 export default function SectionSegmentLength() {
   // data
@@ -64,10 +65,6 @@ export default function SectionSegmentLength() {
   return (
     <Box
       sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 2,
         backgroundColor: (theme) => alpha(theme.palette.background.paper, 0.8),
         backdropFilter: "blur(8px)",
         borderRadius: 2,
@@ -77,30 +74,68 @@ export default function SectionSegmentLength() {
         mb: 1,
       }}
     >
-      <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.85rem" }}>
-        Segment en cours
-      </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-        <Typography
-          variant="body2"
-          sx={{
-            fontWeight: 600,
-            fontVariantNumeric: "tabular-nums",
-            fontSize: "0.85rem",
-            minWidth: 56,
-            textAlign: "right",
-          }}
-        >
-          {displayValue}
-        </Typography>
+      {/* Current segment length row */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+        }}
+      >
         <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.85rem" }}>
-          {unit}
+          Segment en cours
         </Typography>
-        {locked ? (
-          <LockOutlined sx={{ fontSize: 16, color: "primary.main" }} />
-        ) : (
-          <LockOpenOutlined sx={{ fontSize: 16, color: "text.disabled" }} />
-        )}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: 600,
+              fontVariantNumeric: "tabular-nums",
+              fontSize: "0.85rem",
+              minWidth: 56,
+              textAlign: "right",
+            }}
+          >
+            {displayValue}
+          </Typography>
+          <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.85rem" }}>
+            {unit}
+          </Typography>
+          {locked ? (
+            <LockOutlined sx={{ fontSize: 16, color: "primary.main" }} />
+          ) : (
+            <LockOpenOutlined sx={{ fontSize: 16, color: "text.disabled" }} />
+          )}
+        </Box>
+      </Box>
+
+      {/* Length-constraint shortcut rows */}
+      <Box
+        sx={{
+          mt: 1,
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+        }}
+      >
+        <Typography variant="body2" sx={{ flex: 1, fontSize: "0.85rem" }}>
+          Contraindre la longueur du segment
+        </Typography>
+        <ShortcutBadge>0-9</ShortcutBadge>
+      </Box>
+      <Box
+        sx={{
+          mt: 0.5,
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+        }}
+      >
+        <Typography variant="body2" sx={{ flex: 1, fontSize: "0.85rem" }}>
+          Effacer la contrainte de longueur
+        </Typography>
+        <ShortcutBadge>⌫</ShortcutBadge>
       </Box>
     </Box>
   );

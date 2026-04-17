@@ -89,17 +89,17 @@ const TransientDetectedShapeLayer = forwardRef(({ containerK = 1, size = 24 }, r
         return (
             <ShapeComponent
                 points={shape.points.map(p => `${p.x},${p.y}`).join(' ')}
-                fill={isRect ? `${color}33` : "none"}
+                fill={isRect ? `${color}CC` : "none"}
                 stroke={color}
 
-                // Note : On laisse vectorEffect, mais attention, il peut parfois 
-                // entrer en conflit visuel avec l'animation de stroke-width 
+                // Note : On laisse vectorEffect, mais attention, il peut parfois
+                // entrer en conflit visuel avec l'animation de stroke-width
                 // si le zoom est très fort.
                 vectorEffect="non-scaling-stroke"
 
                 pointerEvents="none"
 
-                // On passe la couleur ici pour le drop-shadow si besoin, 
+                // On passe la couleur ici pour le drop-shadow si besoin,
                 // mais l'animation est maintenant gérée par le styled component ci-dessus
                 style={{ color: color }}
             />

@@ -7,59 +7,22 @@ export default function SectionShortcutHelpers() {
     // data
 
     const newAnnotationType = useSelector((s) => s.annotations.newAnnotation?.type);
-    const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
 
-    // helpers
-
-    const isDetectSimilar = enabledDrawingMode === "DETECT_SIMILAR_POLYLINES";
-
-    const SEGMENT_MODES = [
-        "CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK",
-        "STRIP", "MEASURE", "COMPLETE_ANNOTATION",
+    // Note: loupe size / constraint-length shortcuts are shown inline inside
+    // CardLoupe and SectionSegmentLength respectively — no longer here.
+    const shortcuts = [
+        {
+            key: <KeyboardReturnIcon sx={{ fontSize: '1rem' }} />,
+            label: "Terminer le dessin",
+        },
+        {
+            key: "Esc",
+            label: "Quitter le mode dessin",
+        },
+        ...(newAnnotationType === "STRIP"
+            ? [{ key: "S", label: "Inverser le sens de la bande" }]
+            : []),
     ];
-    const canConstrain = SEGMENT_MODES.includes(enabledDrawingMode);
-
-    const NO_SMART_DETECT_MODES = [
-        "TECHNICAL_RETURN", "CUT_SEGMENT", "SPLIT_POLYLINE",
-        "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION",
-    ];
-    const hasSmartDetect = Boolean(enabledDrawingMode) && !NO_SMART_DETECT_MODES.includes(enabledDrawingMode);
-
-    const smartDetectShortcuts = hasSmartDetect
-        ? [
-            { key: "F", label: "Modifier le format de la loupe (smart detect)" },
-            { key: "P", label: "Augmenter le zoom (smart detect)" },
-            { key: "M", label: "Diminuer le zoom (smart detect)" },
-        ]
-        : [];
-
-    const shortcuts = isDetectSimilar
-        ? [
-            { key: "Clic", label: "Cliquer sur une ligne pour détecter les lignes similaires" },
-            { key: "␣", label: "Valider les lignes détectées" },
-            { key: "Esc", label: "Quitter le mode dessin" },
-            ...smartDetectShortcuts,
-        ]
-        : [
-            {
-                key: <KeyboardReturnIcon sx={{ fontSize: '1rem' }} />,
-                label: "Terminer le dessin",
-            },
-            {
-                key: "Esc",
-                label: "Quitter le mode dessin",
-            },
-            ...(newAnnotationType === "STRIP"
-                ? [{ key: "S", label: "Inverser le sens de la bande" }]
-                : []),
-            ...(canConstrain
-                ? [
-                    { key: "0-9", label: "Contraindre la longueur du segment" },
-                    { key: "⌫", label: "Effacer la contrainte de longueur" },
-                ]
-                : []),
-            ...smartDetectShortcuts,
-        ];
 
     return (
         <Box

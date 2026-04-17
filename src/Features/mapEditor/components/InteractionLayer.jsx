@@ -11,7 +11,17 @@ import { setSelectedEntityId } from 'Features/entities/entitiesSlice';
 import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
-import { setAnchorSourceAnnotationId, setOrthoSnapEnabled, setFixedLength, setStripDetectionOrientation } from 'Features/mapEditor/mapEditorSlice';
+import {
+  setAnchorSourceAnnotationId,
+  setOrthoSnapEnabled,
+  setFixedLength,
+  setStripDetectionOrientation,
+  toggleStripDetectionOrientation,
+  toggleSmartDetectEnabled,
+  cycleLoupeAspect,
+  setLoupeAspect,
+  setSmartDetectionPresent,
+} from 'Features/mapEditor/mapEditorSlice';
 import { setColorToReplace } from 'Features/opencv/opencvSlice';
 import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
 import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnotation, triggerAnnotationsUpdate } from 'Features/annotations/annotationsSlice';
@@ -71,7 +81,6 @@ import HelperScale from 'Features/mapEditorGeneric/components/HelperScale';
 import MapTooltip from 'Features/mapEditorGeneric/components/MapTooltip';
 import SmartDetectLayer from 'Features/mapEditorGeneric/components/SmartDetectLayer';
 import TransientOrthoPathsLayer from 'Features/mapEditorGeneric/components/TransientOrthoPathsLayer';
-import TransientDetectedPolylinesLayer from 'Features/mapEditorGeneric/components/TransientDetectedPolylinesLayer';
 import TransientDetectedStripsLayer from 'Features/mapEditorGeneric/components/TransientDetectedStripsLayer';
 import TransientDetectedPolygonLayer from 'Features/mapEditorGeneric/components/TransientDetectedPolygonLayer';
 import detectPolygonFromAnnotations from 'Features/smartDetect/utils/detectPolygonFromAnnotations';
@@ -88,6 +97,7 @@ import mergeBboxes from 'Features/misc/utils/mergeBboxes';
 import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
 import getBestSnap from 'Features/mapEditor/utils/getBestSnap';
 import getSnapModes from 'Features/mapEditor/utils/getSnapModes';
+import getEffectiveDetectionMode from 'Features/mapEditor/utils/getEffectiveDetectionMode';
 import getAnnotationEditionPanelAnchor from 'Features/annotations/utils/getAnnotationEditionPanelAnchor';
 import getAnnotationLabelPropsFromAnnotation from 'Features/annotations/utils/getAnnotationLabelPropsFromAnnotation';
 import toggleSelectedNodeFunction from '../utils/toggleSelectedNode';
@@ -196,10 +206,12 @@ const InteractionLayer = forwardRef(({
   const committedOrthoSegmentsRef = useRef([]); // accumulated committed segments for exclusion
   const transientDetectedPolygonRef = useRef(null);
   const detectedPolygonRef = useRef(null); // current polygon detection result { outerRing, cuts }
-  const transientDetectedPolylinesRef = useRef(null);
-  const detectedSimilarPolylinesRef = useRef(null); // {imageCoords, localCoords}
   const transientDetectedStripsRef = useRef(null);
   const detectedSimilarStripsRef = useRef(null); // { strips, sourceAnnotation }
+  const detectedShapeRef = useRef(null); // current rectangle detection { type, points }
+  // Aggregates the three detection refs into a single boolean used by
+  // CardSmartDetect to flash the "Espace — Valider la détection" badge.
+  const lastSmartDetectionPresentRef = useRef(false);
   const cachedDetectImageUrlRef = useRef(null);
   // STRIP_DETECTION caches: imageData of the source image + exclusion mask of visible annotations.
   // Built lazily when the tool activates so mouseMove only runs the detection algorithm.
@@ -249,6 +261,8 @@ const InteractionLayer = forwardRef(({
   const orthoSnapAngleOffset = useSelector((s) => s.mapEditor.orthoSnapAngleOffset);
   const stripDetectionOrientation = useSelector((s) => s.mapEditor.stripDetectionOrientation);
   const stripDetectionMultiple = useSelector((s) => s.mapEditor.stripDetectionMultiple);
+  const smartDetectEnabled = useSelector((s) => s.mapEditor.smartDetectEnabled);
+  const loupeAspectRedux = useSelector((s) => s.mapEditor.loupeAspect);
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const rawDetection = useSelector((s) => s.smartDetect.rawDetection);
   const noCuts = useSelector((s) => s.smartDetect.noCuts);
@@ -283,15 +297,31 @@ const InteractionLayer = forwardRef(({
     dispatch(setFixedLength(null));
   }, [enabledDrawingMode, clearBuffer, dispatch]);
 
+  // Re-computes smartDetectionPresent from the three detection refs and
+  // dispatches only when the aggregate boolean changes (dedup).
+  const syncSmartDetectionPresent = () => {
+    const present = !!(
+      detectedShapeRef.current ||
+      detectedPolygonRef.current ||
+      detectedSimilarStripsRef.current
+    );
+    if (present !== lastSmartDetectionPresentRef.current) {
+      lastSmartDetectionPresentRef.current = present;
+      dispatch(setSmartDetectionPresent(present));
+    }
+  };
+
   // Listen for similar-strip detection results from toolbar button
   useEffect(() => {
     const handler = (e) => {
       const { strips, sourceAnnotation } = e.detail;
       detectedSimilarStripsRef.current = { strips, sourceAnnotation };
+      syncSmartDetectionPresent();
       transientDetectedStripsRef.current?.updateStrips(strips);
     };
     window.addEventListener('detectedSimilarStrips', handler);
     return () => window.removeEventListener('detectedSimilarStrips', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // permissions (ownership-based)
@@ -309,6 +339,7 @@ const InteractionLayer = forwardRef(({
       tolerance: 5,
     });
     detectedPolygonRef.current = result;
+    syncSmartDetectionPresent();
     if (result) {
       transientDetectedPolygonRef.current?.updatePolygon(result);
     } else {
@@ -323,13 +354,13 @@ const InteractionLayer = forwardRef(({
   const baseMapImageOffsetRef = useRef(baseMapImageOffset);
   useEffect(() => { baseMapImageOffsetRef.current = baseMapImageOffset; }, [baseMapImageOffset]);
 
-  // throttled strip/segment detection from loupe (STRIP_DETECTION and
-  // SEGMENT_DETECTION tools) — created ONCE. Behaviour is identical except:
-  //   - STRIP_DETECTION   → points on the wall edge, STRIP annotations,
-  //                         preview polygon via getStripePolygons.
-  //   - SEGMENT_DETECTION → points on the wall median axis, POLYLINE
-  //                         annotations, preview polygon as a symmetric
-  //                         stroke quad around the centerline.
+  // throttled strip/segment detection from loupe — created ONCE. Driven by
+  // the unified smart-detect switch:
+  //   - STRIP          + smart → points on the wall edge, STRIP annotations,
+  //                              preview polygon via getStripePolygons.
+  //   - POLYLINE_CLICK + smart → points on the wall median axis, POLYLINE
+  //                              annotations, preview polygon as a symmetric
+  //                              stroke quad around the centerline.
   const runStripDetectionFromLoupe = useMemo(
     () => throttle((cursorImgPx, loupeBBox) => {
       const imageData = stripDetectionImageDataRef.current;
@@ -338,7 +369,9 @@ const InteractionLayer = forwardRef(({
       if (!na) return;
 
       const mode = enabledDrawingModeRef.current;
-      const isSegmentMode = mode === "SEGMENT_DETECTION";
+      // POLYLINE_CLICK + smart → centerline points (SEGMENT detection target);
+      // STRIP + smart → edge points (STRIP detection target).
+      const isSegmentMode = mode === "POLYLINE_CLICK";
 
       // Reference strip width comes from the active annotation template (newAnnotation).
       const strokeWidth = na.strokeWidth ?? 20;
@@ -378,6 +411,7 @@ const InteractionLayer = forwardRef(({
 
       if (!results || results.length === 0) {
         detectedSimilarStripsRef.current = null;
+        syncSmartDetectionPresent();
         transientDetectedStripsRef.current?.clear();
         return;
       }
@@ -440,10 +474,12 @@ const InteractionLayer = forwardRef(({
       }
       if (strips.length === 0) {
         detectedSimilarStripsRef.current = null;
+        syncSmartDetectionPresent();
         transientDetectedStripsRef.current?.clear();
         return;
       }
       detectedSimilarStripsRef.current = { strips, sourceAnnotation: na };
+      syncSmartDetectionPresent();
       transientDetectedStripsRef.current?.updateStrips(strips);
     }, 80),
     []
@@ -467,10 +503,13 @@ const InteractionLayer = forwardRef(({
   // exclusion mask rasterize) is deferred via setTimeout so the click
   // activating the tool isn't blocked.
   useEffect(() => {
-    const isDetectionMode =
-      enabledDrawingMode === "STRIP_DETECTION" ||
-      enabledDrawingMode === "SEGMENT_DETECTION";
-    if (!isDetectionMode) {
+    const detectionTarget = getEffectiveDetectionMode({
+      enabledDrawingMode,
+      smartDetectEnabled,
+    });
+    const needsLoupeStripCaches =
+      detectionTarget === "STRIP" || detectionTarget === "SEGMENT";
+    if (!needsLoupeStripCaches) {
       stripDetectionImageDataRef.current = null;
       stripDetectionExclusionMaskRef.current = null;
       lastStripDetectCursorRef.current = null;
@@ -515,7 +554,7 @@ const InteractionLayer = forwardRef(({
       cancelled = true;
       clearTimeout(id);
     };
-  }, [enabledDrawingMode, sourceImageEl, annotationsUpdatedAt]);
+  }, [enabledDrawingMode, smartDetectEnabled, sourceImageEl, annotationsUpdatedAt]);
 
   // baseMap - rotation
 
@@ -579,15 +618,12 @@ const InteractionLayer = forwardRef(({
   const transientDetectedCornerLayerRef = useRef(null);
   const transientDetectedShapeLayerRef = useRef(null);
   const smartCornerRef = useRef(null);
-  const detectedShapeRef = useRef(null);
 
 
   const handleSmartShapeDetected = (shape) => {
     // shape: { type: 'POINT'|'LINE'|'RECTANGLE', points: [] } ou null
-    // In DETECT_SIMILAR_POLYLINES mode, don't show preview on the map
-    if (enabledDrawingModeRef.current === "DETECT_SIMILAR_POLYLINES") return;
-
     detectedShapeRef.current = shape;
+    syncSmartDetectionPresent();
 
     if (transientDetectedShapeLayerRef.current) {
       transientDetectedShapeLayerRef.current.updateShape(shape);
@@ -616,15 +652,16 @@ const InteractionLayer = forwardRef(({
       updateSmartDetect(lastMouseScreenPosRef.current);
     }
 
-    // STRIP_DETECTION / SEGMENT_DETECTION: re-run detection after a camera
+    // STRIP / SEGMENT auto-detection: re-run detection after a camera
     // change (arrow-key pan, drag pan, zoom). updateSmartDetect above has
     // refreshed lastSmartROI synchronously; we defer to the next frame so the
     // loupe preview has visually updated before the detection runs (the user
     // wants to "see" the new map content before the strips are recomputed).
-    if (
-      enabledDrawingModeRef.current === "STRIP_DETECTION" ||
-      enabledDrawingModeRef.current === "SEGMENT_DETECTION"
-    ) {
+    const _detTargetCam = getEffectiveDetectionMode({
+      enabledDrawingMode: enabledDrawingModeRef.current,
+      smartDetectEnabled: smartDetectEnabledRef.current,
+    });
+    if (_detTargetCam === "STRIP" || _detTargetCam === "SEGMENT") {
       requestAnimationFrame(() => {
         const roi = lastSmartROI.current;
         if (!roi) return;
@@ -730,8 +767,11 @@ const InteractionLayer = forwardRef(({
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
   const smartZoomRef = useRef(SMART_ZOOM_DEFAULT);
-  const loupeAspectRef = useRef("SQUARE"); // "SQUARE" | "LANDSCAPE" | "PORTRAIT"
-  const [loupeAspect, setLoupeAspect] = useState("SQUARE");
+  // Loupe aspect is now driven by Redux (s.mapEditor.loupeAspect). The ref
+  // mirrors it for use inside hot paths (updateSmartDetect, getLoupeScreenSize).
+  // The sync effect is declared further down — right after refreshSmartDetectZoom
+  // is defined — so it can trigger a ROI rebuild on aspect change.
+  const loupeAspectRef = useRef(loupeAspectRedux); // "SQUARE" | "LANDSCAPE" | "PORTRAIT"
   useEffect(() => {
     const show = Boolean(enabledDrawingMode) && !NO_SMART_DETECT_MODES.includes(enabledDrawingMode);
     //showSmartDetectRef.current = showSmartDetect;
@@ -765,8 +805,14 @@ const InteractionLayer = forwardRef(({
     const sourceWidthInImage = (loupeW / smartZoom) / totalScale;
     const sourceHeightInImage = (loupeH / smartZoom) / totalScale;
 
-    // Zoom square is in screen/viewport pixels (staticOverlay is outside camera group)
-    screenCursorRef.current?.setZoomSquareSize({ width: loupeW / smartZoom, height: loupeH / smartZoom });
+    // Zoom square is in screen/viewport pixels (staticOverlay is outside camera group).
+    // Hide the helper rectangle when smart detect is off — we set size to 0 so
+    // the SVG rect collapses and nothing is drawn on the map.
+    if (smartDetectEnabledRef.current) {
+      screenCursorRef.current?.setZoomSquareSize({ width: loupeW / smartZoom, height: loupeH / smartZoom });
+    } else {
+      screenCursorRef.current?.setZoomSquareSize({ width: 0, height: 0 });
+    }
 
     const localPos = toLocalCoords(worldPos);
 
@@ -780,17 +826,27 @@ const InteractionLayer = forwardRef(({
     // B. VISUEL : Positionner la loupe avec les coordonnées LOCALES (viewportPos)
     // car le composant SmartDetectLayer est rendu en 'absolute' dans cette Box
     if (smartDetectRef.current) {
-      // In POLYGON_CLICK mode, only update the loupe visual (no OpenCV analysis)
-      // In POLYLINE_CLICK/STRIP mode without advancedLayout, also skip analysis (loupe only)
-      const smartModes = ["POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE", "SMART_DETECT", "DETECT_SIMILAR_POLYLINES"];
-      const skipAnalysis = !smartModes.includes(enabledDrawingModeRef.current);
+      // Only run OpenCV analysis when the effective detection target is
+      // RECTANGLE (STRIP / SEGMENT / SURFACE have their own pipelines).
+      const detTarget = getEffectiveDetectionMode({
+        enabledDrawingMode: enabledDrawingModeRef.current,
+        smartDetectEnabled: smartDetectEnabledRef.current,
+      });
+      const runsOpenCV =
+        detTarget === "RECTANGLE" ||
+        enabledDrawingModeRef.current === "SMART_DETECT";
+      const skipAnalysis = !runsOpenCV;
       smartDetectRef.current.update(viewportPos, sourceROI, { skipAnalysis });
     }
 
     lastSmartROI.current = { ...sourceROI, zoomFactor: smartZoom, totalScale };
   }, [toLocalCoords, getTargetPose, baseMapImageScale]);
 
-  const refreshSmartDetectZoom = () => {
+  // Ref wrapper so the keyDown handler (registered once with [] deps) always
+  // calls the latest closure — otherwise stale `baseMapImageScale` from the
+  // first render would produce an incorrect ROI when P / M / F is pressed.
+  const refreshSmartDetectZoomRef = useRef(() => {});
+  refreshSmartDetectZoomRef.current = () => {
     const prev = lastSmartROI.current;
     if (!prev || !smartDetectRef.current) return;
 
@@ -799,10 +855,11 @@ const InteractionLayer = forwardRef(({
 
     // Rebuild the ROI fresh from the current loupe size + zoom so both
     // zoom changes (P/M) and aspect-ratio changes (F) are handled.
+    const imageScale = baseMapImageScaleRef.current || 1;
     const centerX = prev.x + prev.width / 2;
     const centerY = prev.y + prev.height / 2;
-    const newWidth = (loupeWR / newZoom) / prev.totalScale / baseMapImageScale;
-    const newHeight = (loupeHR / newZoom) / prev.totalScale / baseMapImageScale;
+    const newWidth = (loupeWR / newZoom) / prev.totalScale / imageScale;
+    const newHeight = (loupeHR / newZoom) / prev.totalScale / imageScale;
 
     const sourceROI = {
       x: centerX - newWidth / 2,
@@ -811,7 +868,11 @@ const InteractionLayer = forwardRef(({
       height: newHeight,
     };
 
-    screenCursorRef.current?.setZoomSquareSize({ width: loupeWR / newZoom, height: loupeHR / newZoom });
+    if (smartDetectEnabledRef.current) {
+      screenCursorRef.current?.setZoomSquareSize({ width: loupeWR / newZoom, height: loupeHR / newZoom });
+    } else {
+      screenCursorRef.current?.setZoomSquareSize({ width: 0, height: 0 });
+    }
 
     const viewportPos = lastMouseScreenPosRef.current?.viewportPos;
     if (viewportPos) {
@@ -820,6 +881,50 @@ const InteractionLayer = forwardRef(({
 
     lastSmartROI.current = { ...sourceROI, zoomFactor: newZoom, totalScale: prev.totalScale };
   };
+  const refreshSmartDetectZoom = (...args) => refreshSmartDetectZoomRef.current(...args);
+
+  // Sync Redux loupe aspect → ref, and rebuild the ROI so the visual
+  // updates immediately (card button click, F shortcut).
+  useEffect(() => {
+    loupeAspectRef.current = loupeAspectRedux;
+    refreshSmartDetectZoom();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loupeAspectRedux]);
+
+  // When smart detect is toggled, refresh the loupe ROI helper rectangle —
+  // it must appear/disappear on the map without waiting for mouse movement.
+  useEffect(() => {
+    if (smartDetectEnabled) {
+      refreshSmartDetectZoom();
+    } else {
+      screenCursorRef.current?.setZoomSquareSize({ width: 0, height: 0 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [smartDetectEnabled]);
+
+  // Keep loupe aspect consistent with strip-detection orientation: when the
+  // user toggles orientation, a LANDSCAPE loupe for a V detection (or
+  // PORTRAIT for H) is counter-productive, so auto-flip to the matching
+  // aspect. SQUARE stays untouched — it's compatible with both orientations.
+  useEffect(() => {
+    if (stripDetectionOrientation === "H" && loupeAspectRedux === "PORTRAIT") {
+      dispatch(setLoupeAspect("LANDSCAPE"));
+    } else if (stripDetectionOrientation === "V" && loupeAspectRedux === "LANDSCAPE") {
+      dispatch(setLoupeAspect("PORTRAIT"));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stripDetectionOrientation]);
+
+  // Reverse coupling: when the user cycles the loupe format (F or ToggleButton),
+  // keep the orientation in sync — LANDSCAPE → H, PORTRAIT → V, SQUARE leaves it.
+  useEffect(() => {
+    if (loupeAspectRedux === "LANDSCAPE" && stripDetectionOrientation !== "H") {
+      dispatch(setStripDetectionOrientation("H"));
+    } else if (loupeAspectRedux === "PORTRAIT" && stripDetectionOrientation !== "V") {
+      dispatch(setStripDetectionOrientation("V"));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loupeAspectRedux]);
 
 
 
@@ -1058,6 +1163,11 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     stripDetectionMultipleRef.current = stripDetectionMultiple;
   }, [stripDetectionMultiple]);
+
+  const smartDetectEnabledRef = useRef(smartDetectEnabled);
+  useEffect(() => {
+    smartDetectEnabledRef.current = smartDetectEnabled;
+  }, [smartDetectEnabled]);
 
   const onCommitDrawingRef = useRef(onCommitDrawing);
   useEffect(() => {
@@ -1372,14 +1482,13 @@ const InteractionLayer = forwardRef(({
           transientOrthoPathsRef.current?.clear();
           // Clear polygon detection
           detectedPolygonRef.current = null;
-          // Clear detected similar polylines
-          detectedSimilarPolylinesRef.current = null;
-          transientDetectedPolylinesRef.current?.clear();
           // Clear detected similar strips
           detectedSimilarStripsRef.current = null;
           transientDetectedStripsRef.current?.clear();
           cachedDetectImageUrlRef.current = null;
           transientDetectedPolygonRef.current?.clear();
+          detectedShapeRef.current = null;
+          syncSmartDetectionPresent();
           break;
 
         case 'd':
@@ -1399,36 +1508,8 @@ const InteractionLayer = forwardRef(({
               onCommitSimilarStripsRef.current({ strips, sourceAnnotation });
             }
             detectedSimilarStripsRef.current = null;
+            syncSmartDetectionPresent();
             transientDetectedStripsRef.current?.clear();
-            return;
-          }
-
-          // --- DETECT_SIMILAR_POLYLINES: bulk commit all detected polylines ---
-          // Uses onCommitDrawingRef (same path as rectangle/polygon detection)
-          // with bulkPolylines option for batch creation.
-          if (detectedSimilarPolylinesRef.current) {
-            e.preventDefault();
-            const { localCoords, strokeWidth: detectedStrokeWidth } = detectedSimilarPolylinesRef.current;
-            if (localCoords && localCoords.length > 0) {
-              console.log("[DETECT_SIMILAR_POLYLINES] Bulk committing", localCoords.length, "polylines");
-              const na = newAnnotationRef.current || {};
-
-              // Override strokeWidth with detected thickness
-              const overrideAnnotation = detectedStrokeWidth
-                ? { ...na, strokeWidth: detectedStrokeWidth, strokeWidthUnit: "PX" }
-                : na;
-
-              const validPolylines = localCoords.filter((pl) => pl.length >= 2);
-              onCommitDrawingRef.current({
-                points: validPolylines[0] || [], // dummy, not used for bulk
-                options: {
-                  bulkPolylines: validPolylines,
-                  newAnnotation: overrideAnnotation,
-                },
-              });
-            }
-            detectedSimilarPolylinesRef.current = null;
-            transientDetectedPolylinesRef.current?.clear();
             return;
           }
 
@@ -1448,8 +1529,29 @@ const InteractionLayer = forwardRef(({
               drawingLayerRef.current?.setPoints?.([]);
               // Clear detection
               detectedPolygonRef.current = null;
+              syncSmartDetectionPresent();
               transientDetectedPolygonRef.current?.clear();
             }
+            return;
+          }
+
+          // --- RECTANGLE (and other loupe shape detection): commit current shape ---
+          if (detectedShapeRef.current) {
+            e.preventDefault();
+            const shape = detectedShapeRef.current;
+            if (shape?.points?.length >= 2 && onCommitDrawingRef.current) {
+              const closeLine = shape.type === "RECTANGLE";
+              onCommitDrawingRef.current({
+                points: shape.points,
+                options: closeLine ? { closeLine: true } : undefined,
+              });
+              setDrawingPoints([]);
+              drawingPointsRef.current = [];
+              drawingLayerRef.current?.setPoints?.([]);
+            }
+            detectedShapeRef.current = null;
+            syncSmartDetectionPresent();
+            transientDetectedShapeLayerRef.current?.updateShape(null);
             return;
           }
 
@@ -1530,31 +1632,33 @@ const InteractionLayer = forwardRef(({
           break;
 
         case "o":
-          // STRIP_DETECTION / SEGMENT_DETECTION: toggle crosshair / detection
-          // orientation H ↔ V
+          // Toggle H/V orientation for STRIP + smart and POLYLINE_CLICK + smart.
           if (
-            enabledDrawingMode === "STRIP_DETECTION" ||
-            enabledDrawingMode === "SEGMENT_DETECTION"
+            enabledDrawingMode === "STRIP" ||
+            enabledDrawingMode === "POLYLINE_CLICK"
           ) {
-            const cur = stripDetectionOrientationRef.current;
-            const next = cur === "H" ? "V" : "H";
-            dispatch(setStripDetectionOrientation(next));
+            dispatch(toggleStripDetectionOrientation());
+          }
+          break;
+
+        case "a":
+          // Toggle the unified smart-detect switch.
+          if (showSmartDetectRef.current) {
+            dispatch(toggleSmartDetectEnabled());
           }
           break;
 
         case "f":
           if (showSmartDetect) {
-            const i = LOUPE_ASPECTS.indexOf(loupeAspectRef.current);
-            const next = LOUPE_ASPECTS[(i + 1) % LOUPE_ASPECTS.length];
-            loupeAspectRef.current = next;
-            setLoupeAspect(next);
-            refreshSmartDetectZoom();
+            dispatch(cycleLoupeAspect());
+            // Ref/visual refresh is handled by the loupeAspectRedux sync effect.
           }
           break;
 
         case "p":
+          // "Augmenter la taille" — larger sampled ROI → lower magnification.
           if (showSmartDetect) {
-            smartZoomRef.current = smartZoomRef.current * 1.1;
+            smartZoomRef.current = smartZoomRef.current * 0.9;
             refreshSmartDetectZoom();
           }
           break;
@@ -1573,8 +1677,9 @@ const InteractionLayer = forwardRef(({
         }
 
         case "m":
+          // "Diminuer la taille" — smaller sampled ROI → higher magnification.
           if (showSmartDetect) {
-            smartZoomRef.current = smartZoomRef.current * 0.9;
+            smartZoomRef.current = smartZoomRef.current * 1.1;
             refreshSmartDetectZoom();
           }
           break;
@@ -1873,112 +1978,6 @@ const InteractionLayer = forwardRef(({
         drawingPointsRef.current = [];
       }
       // On error, keep current state
-      return;
-    }
-
-    // --- DETECT_SIMILAR_POLYLINES: full-image detection from click calibration ---
-    if (enabledDrawingMode === "DETECT_SIMILAR_POLYLINES") {
-      // Clear previous detection on re-click
-      detectedSimilarPolylinesRef.current = null;
-      transientDetectedPolylinesRef.current?.clear();
-
-      const localPos = toLocalCoords(worldPos);
-      const pixelX = (localPos.x - baseMapImageOffset.x) / baseMapImageScale;
-      const pixelY = (localPos.y - baseMapImageOffset.y) / baseMapImageScale;
-
-      // Gather visible annotation segments for exclusion mask.
-      // The `annotations` prop is already filtered by useAnnotationsV2 (layers, scopes,
-      // visibility, etc.) so only currently visible annotations are excluded.
-      // Convert from local coords to image pixel coords for the worker.
-      const existingSegments = (annotations || [])
-        .filter((a) => a.points && a.points.length >= 2 && ["POLYLINE", "POLYGON"].includes(a.type))
-        .map((a) =>
-          a.points.map((p) => ({
-            x: (p.x - baseMapImageOffset.x) / baseMapImageScale,
-            y: (p.y - baseMapImageOffset.y) / baseMapImageScale,
-          }))
-        );
-
-      // Compute viewport bounding box in image pixel coords (when visible-area-only is on)
-      let viewportBBox;
-      if (visibleAreaOnly) {
-        const viewportBounds = editor.viewportInBase?.bounds;
-        if (
-          viewportBounds &&
-          Number.isFinite(viewportBounds.x) &&
-          Number.isFinite(viewportBounds.y) &&
-          Number.isFinite(viewportBounds.width) &&
-          Number.isFinite(viewportBounds.height)
-        ) {
-          viewportBBox = {
-            x: (viewportBounds.x - baseMapImageOffset.x) / baseMapImageScale,
-            y: (viewportBounds.y - baseMapImageOffset.y) / baseMapImageScale,
-            width: Math.max(1, viewportBounds.width / baseMapImageScale),
-            height: Math.max(1, viewportBounds.height / baseMapImageScale),
-          };
-        }
-      }
-
-      // Lazy-build image data URL
-      if (!cachedDetectImageUrlRef.current && sourceImageEl) {
-        const canvas = document.createElement("canvas");
-        canvas.width = sourceImageEl.naturalWidth || sourceImageEl.width;
-        canvas.height = sourceImageEl.naturalHeight || sourceImageEl.height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(sourceImageEl, 0, 0);
-        cachedDetectImageUrlRef.current = canvas.toDataURL("image/jpeg", 0.9);
-      }
-
-      const imageUrl = cachedDetectImageUrlRef.current;
-      if (!imageUrl) return;
-
-      // Show spinner on cursor
-      screenCursorRef.current?.showSpinner?.();
-
-      (async () => {
-        try {
-          await cv.load();
-          const result = await cv.detectSimilarPolylinesAsync({
-            imageUrl,
-            clickX: pixelX,
-            clickY: pixelY,
-            existingSegments,
-            offsetAngle: orthoSnapAngleOffsetRef.current || 0,
-            viewportBBox,
-          });
-          console.log("[DETECT_SIMILAR_POLYLINES] Worker result:", result);
-          const segments = result?.polylines || (Array.isArray(result) ? result : []);
-          const detectedThickness = result?.thickness || 2;
-          // Convert thickness from image pixels to local coords
-          const localThickness = detectedThickness * baseMapImageScale;
-
-          if (segments && segments.length > 0) {
-            const localPolylines = segments.map(seg =>
-              seg.map(p => ({
-                x: p.x * baseMapImageScale + baseMapImageOffset.x,
-                y: p.y * baseMapImageScale + baseMapImageOffset.y,
-              }))
-            );
-            detectedSimilarPolylinesRef.current = {
-              imageCoords: segments,
-              localCoords: localPolylines,
-              strokeWidth: localThickness,
-            };
-            transientDetectedPolylinesRef.current?.updatePolylines(localPolylines);
-            dispatch(setToaster({
-              message: `${segments.length} segments detected — press [Space] to validate`,
-            }));
-          } else {
-            detectedSimilarPolylinesRef.current = null;
-            transientDetectedPolylinesRef.current?.clear();
-            dispatch(setToaster({ message: "No similar lines detected", isError: true }));
-          }
-        } catch (err) {
-          console.error("[DETECT_SIMILAR_POLYLINES] detection error:", err);
-        } finally {
-          screenCursorRef.current?.hideSpinner?.();
-        }
-      })();
       return;
     }
 
@@ -2836,8 +2835,12 @@ const InteractionLayer = forwardRef(({
       drawingLayerRef.current?.updatePreview(previewPos);
     }
 
-    // --- POLYGON DETECTION FROM ANNOTATIONS ---
-    if (enabledDrawingModeRef.current === "POLYGON_CLICK") {
+    // --- POLYGON (SURFACE) DETECTION FROM ANNOTATIONS ---
+    // Only runs when smart detect is enabled on POLYGON_CLICK.
+    if (
+      enabledDrawingModeRef.current === "POLYGON_CLICK" &&
+      smartDetectEnabledRef.current
+    ) {
       const localPos = toLocalCoords(worldPos);
       runPolygonDetection(localPos, annotations, drawingPointsRef.current);
     }
@@ -2860,22 +2863,23 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- LOGIQUE SMART DETECT (Optimisée) ---
-    // Also drives the loupe ROI for STRIP_DETECTION / SEGMENT_DETECTION
-    // (we read lastSmartROI below).
+    // Drives the loupe visual + ROI. The heavy OpenCV analysis is gated
+    // downstream in updateSmartDetect via detectionTarget.
+    const _detTargetMove = getEffectiveDetectionMode({
+      enabledDrawingMode,
+      smartDetectEnabled,
+    });
     if (
       enabledDrawingMode === "SMART_DETECT" ||
-      enabledDrawingMode === "STRIP_DETECTION" ||
-      enabledDrawingMode === "SEGMENT_DETECTION" ||
+      _detTargetMove === "STRIP" ||
+      _detTargetMove === "SEGMENT" ||
       showSmartDetect
     ) {
       updateSmartDetect(lastMouseScreenPosRef.current);
     }
 
-    // --- STRIP_DETECTION / SEGMENT_DETECTION: throttled detection from loupe ---
-    if (
-      enabledDrawingMode === "STRIP_DETECTION" ||
-      enabledDrawingMode === "SEGMENT_DETECTION"
-    ) {
+    // --- STRIP / SEGMENT auto-detection: throttled detection from loupe ---
+    if (_detTargetMove === "STRIP" || _detTargetMove === "SEGMENT") {
       const localPos = toLocalCoords(worldPos);
       const cursorImgPx = {
         x: (localPos.x - baseMapImageOffset.x) / baseMapImageScale,
@@ -3567,7 +3571,12 @@ const InteractionLayer = forwardRef(({
             visible={(!!enabledDrawingMode && !SEGMENT_SELECT_MODES.includes(enabledDrawingMode)) || dragState?.active}
             newAnnotation={newAnnotation}
             rotationAngle={orthoSnapAngleOffset || 0}
-            crosshairAxis={(enabledDrawingMode === "STRIP_DETECTION" || enabledDrawingMode === "SEGMENT_DETECTION") ? stripDetectionOrientation : "BOTH"}
+            crosshairAxis={
+              smartDetectEnabled &&
+              (enabledDrawingMode === "STRIP" || enabledDrawingMode === "POLYLINE_CLICK")
+                ? stripDetectionOrientation
+                : "BOTH"
+            }
             showZoomRect={Boolean(enabledDrawingMode) && !NO_SMART_DETECT_MODES.includes(enabledDrawingMode)}
           />
             <SnappingLayer
@@ -3673,7 +3682,6 @@ const InteractionLayer = forwardRef(({
             containerK={targetPose.k}
           />
           <TransientOrthoPathsLayer ref={transientOrthoPathsRef} />
-          <TransientDetectedPolylinesLayer ref={transientDetectedPolylinesRef} />
           <TransientDetectedStripsLayer ref={transientDetectedStripsRef} />
           <TransientDetectedPolygonLayer ref={transientDetectedPolygonRef} />
         </g>
@@ -3886,19 +3894,34 @@ const InteractionLayer = forwardRef(({
           baseMapImageScale={baseMapImageScale}
           baseMapImageOffset={baseMapImageOffset}
           rotation={rotation}
-          loupeWidth={loupeAspect === "PORTRAIT" ? LOUPE_SIZE / LOUPE_ASPECT_RATIO : LOUPE_SIZE}
-          loupeHeight={loupeAspect === "LANDSCAPE" ? LOUPE_SIZE / LOUPE_ASPECT_RATIO : LOUPE_SIZE}
+          loupeWidth={loupeAspectRedux === "PORTRAIT" ? LOUPE_SIZE / LOUPE_ASPECT_RATIO : LOUPE_SIZE}
+          loupeHeight={loupeAspectRedux === "LANDSCAPE" ? LOUPE_SIZE / LOUPE_ASPECT_RATIO : LOUPE_SIZE}
           onSmartShapeDetected={handleSmartShapeDetected}
           enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetectRef.current}
           initialDetectMode={
-            ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode) ? "RECTANGLE"
-            : enabledDrawingMode === "DETECT_SIMILAR_POLYLINES" ? "SIMILAR_LINE"
+            getEffectiveDetectionMode({ enabledDrawingMode, smartDetectEnabled }) === "RECTANGLE" ? "RECTANGLE"
             : (enabledDrawingMode === "POLYLINE_CLICK" && advancedLayout) ? "ORTHO_PATHS"
             : undefined
           }
-          loupeOnly={!["POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE", "SMART_DETECT", "DETECT_SIMILAR_POLYLINES", "STRIP_DETECTION", "SEGMENT_DETECTION"].includes(enabledDrawingMode)}
+          loupeOnly={
+            // Only RECTANGLE / SMART_DETECT exercise the OpenCV path inside
+            // SmartDetectLayer. Everything else is visual-only — STRIP /
+            // SEGMENT run JS detection outside the layer, SURFACE runs on
+            // annotations, no-detect modes run nothing.
+            !(
+              getEffectiveDetectionMode({ enabledDrawingMode, smartDetectEnabled }) === "RECTANGLE" ||
+              enabledDrawingMode === "SMART_DETECT"
+            )
+          }
           orthoSnapAngleOffset={orthoSnapAngleOffset}
-          disableShortcuts={(enabledDrawingMode === "STRIP_DETECTION" || enabledDrawingMode === "SEGMENT_DETECTION") ? ["O"] : []}
+          disableShortcuts={
+            // Our CardSmartDetect uses "O" for H/V orientation on STRIP and
+            // POLYLINE_CLICK — silence the SmartDetectLayer internal "O"
+            // (ORTHO_PATHS toggle) for those modes.
+            enabledDrawingMode === "STRIP" || enabledDrawingMode === "POLYLINE_CLICK"
+              ? ["O"]
+              : []
+          }
         />, zoomContainer) : null}
       </>
 

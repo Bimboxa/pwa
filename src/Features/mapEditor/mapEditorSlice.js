@@ -90,7 +90,12 @@ const mapEditorInitialState = {
   orthoSnapEnabled: false,
   orthoSnapAngleOffset: 0, // degrees
 
-  // strip detection orientation (for STRIP_DETECTION tool)
+  // smart detect (unified activation across drawing tools)
+  smartDetectEnabled: false, // switch "Actif" — when true, active drawing tool triggers its auto-detection algorithm
+  smartDetectionPresent: false, // true when a detection is currently available (flashes the Space shortcut badge)
+  loupeAspect: "SQUARE", // "SQUARE" | "LANDSCAPE" | "PORTRAIT"
+
+  // strip detection orientation (used by STRIP + smart, POLYLINE_CLICK + smart)
   stripDetectionOrientation: "H", // "H" | "V"
   stripDetectionMultiple: false, // false → only the band closest to the loupe center; true → all parallel bands
 
@@ -352,8 +357,33 @@ export const mapEditorSlice = createSlice({
     setStripDetectionOrientation: (state, action) => {
       state.stripDetectionOrientation = action.payload;
     },
+    toggleStripDetectionOrientation: (state) => {
+      state.stripDetectionOrientation =
+        state.stripDetectionOrientation === "H" ? "V" : "H";
+    },
     setStripDetectionMultiple: (state, action) => {
       state.stripDetectionMultiple = action.payload;
+    },
+
+    // smart detect
+    setSmartDetectEnabled: (state, action) => {
+      state.smartDetectEnabled = action.payload;
+    },
+    toggleSmartDetectEnabled: (state) => {
+      state.smartDetectEnabled = !state.smartDetectEnabled;
+    },
+    setSmartDetectionPresent: (state, action) => {
+      state.smartDetectionPresent = action.payload;
+    },
+
+    // loupe aspect
+    setLoupeAspect: (state, action) => {
+      state.loupeAspect = action.payload;
+    },
+    cycleLoupeAspect: (state) => {
+      const order = ["SQUARE", "LANDSCAPE", "PORTRAIT"];
+      const idx = order.indexOf(state.loupeAspect);
+      state.loupeAspect = order[(idx + 1) % order.length];
     },
     setShowPrintableMap: (state, action) => {
       state.showPrintableMap = action.payload;
@@ -456,7 +486,17 @@ export const {
 
   // strip detection
   setStripDetectionOrientation,
+  toggleStripDetectionOrientation,
   setStripDetectionMultiple,
+
+  // smart detect
+  setSmartDetectEnabled,
+  toggleSmartDetectEnabled,
+  setSmartDetectionPresent,
+
+  // loupe aspect
+  setLoupeAspect,
+  cycleLoupeAspect,
 
   // printable map
   setShowPrintableMap,
