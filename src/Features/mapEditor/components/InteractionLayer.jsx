@@ -321,13 +321,22 @@ const InteractionLayer = forwardRef(({
   const baseMapImageOffsetRef = useRef(baseMapImageOffset);
   useEffect(() => { baseMapImageOffsetRef.current = baseMapImageOffset; }, [baseMapImageOffset]);
 
-  // throttled strip detection from loupe (STRIP_DETECTION tool) — created ONCE.
+  // throttled strip/segment detection from loupe (STRIP_DETECTION and
+  // SEGMENT_DETECTION tools) — created ONCE. Behaviour is identical except:
+  //   - STRIP_DETECTION   → points on the wall edge, STRIP annotations,
+  //                         preview polygon via getStripePolygons.
+  //   - SEGMENT_DETECTION → points on the wall median axis, POLYLINE
+  //                         annotations, preview polygon as a symmetric
+  //                         stroke quad around the centerline.
   const runStripDetectionFromLoupe = useMemo(
     () => throttle((cursorImgPx, loupeBBox) => {
       const imageData = stripDetectionImageDataRef.current;
       if (!imageData) return;
       const na = newAnnotationRef.current;
       if (!na) return;
+
+      const mode = enabledDrawingModeRef.current;
+      const isSegmentMode = mode === "SEGMENT_DETECTION";
 
       // Reference strip width comes from the active annotation template (newAnnotation).
       const strokeWidth = na.strokeWidth ?? 20;
@@ -358,9 +367,10 @@ const InteractionLayer = forwardRef(({
           stripOrientation,
           detectMultiple,
           exclusionMask: stripDetectionExclusionMaskRef.current,
+          pointsOnMedianAxis: isSegmentMode,
         });
       } catch (err) {
-        console.error("[STRIP_DETECTION] detection error:", err);
+        console.error(`[${mode}] detection error:`, err);
         return;
       }
 
@@ -374,26 +384,56 @@ const InteractionLayer = forwardRef(({
         x: p.x * imageScale + imageOffset.x,
         y: p.y * imageScale + imageOffset.y,
       });
+
+      // Stroke-width in local map coords — used by SEGMENT_DETECTION preview
+      // to build a symmetric quad around the centerline (mirrors the POLYLINE
+      // contour used by buildExclusionMask).
+      const strokeWidthLocal =
+        strokeWidthUnit === "CM" && meterByPx > 0
+          ? (strokeWidth * 0.01) / meterByPx
+          : strokeWidth;
+
       const strips = [];
       for (const result of results) {
         if (!result.segments?.length) continue;
         for (const seg of result.segments) {
           const localCenterline = [toLocal(seg.start), toLocal(seg.end)];
-          // stripOrientation is computed by the algorithm (per segment) so
-          // the body lands over the dark wall pixels — overrides the template.
-          const segStripOrientation = seg.stripOrientation ?? na.stripOrientation;
-          const fakeAnnotation = {
-            ...na,
-            stripOrientation: segStripOrientation,
-            points: localCenterline,
-          };
-          const polys = getStripePolygons(fakeAnnotation, meterByPx);
-          const polygon = polys?.[0]?.points || [];
-          strips.push({
-            centerline: localCenterline,
-            polygon,
-            stripOrientation: segStripOrientation,
-          });
+
+          let polygon;
+          let segStripOrientation;
+
+          if (isSegmentMode) {
+            // Symmetric stroke around the 2-point centerline → quad preview.
+            const [a, b] = localCenterline;
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const len = Math.hypot(dx, dy);
+            if (len === 0) continue;
+            const nx = -dy / len;
+            const ny = dx / len;
+            const halfW = Math.abs(strokeWidthLocal) / 2;
+            polygon = [
+              { x: a.x + nx * halfW, y: a.y + ny * halfW },
+              { x: b.x + nx * halfW, y: b.y + ny * halfW },
+              { x: b.x - nx * halfW, y: b.y - ny * halfW },
+              { x: a.x - nx * halfW, y: a.y - ny * halfW },
+            ];
+          } else {
+            // stripOrientation is computed by the algorithm (per segment) so
+            // the body lands over the dark wall pixels — overrides the template.
+            segStripOrientation = seg.stripOrientation ?? na.stripOrientation;
+            const fakeAnnotation = {
+              ...na,
+              stripOrientation: segStripOrientation,
+              points: localCenterline,
+            };
+            const polys = getStripePolygons(fakeAnnotation, meterByPx);
+            polygon = polys?.[0]?.points || [];
+          }
+
+          const strip = { centerline: localCenterline, polygon };
+          if (!isSegmentMode) strip.stripOrientation = segStripOrientation;
+          strips.push(strip);
         }
       }
       if (strips.length === 0) {
@@ -419,12 +459,16 @@ const InteractionLayer = forwardRef(({
   // when annotations are actually created/updated, not on every reference change.
   const annotationsUpdatedAt = useSelector((s) => s.annotations.annotationsUpdatedAt);
 
-  // Build / clear STRIP_DETECTION caches when the tool activates / deactivates,
-  // or when annotations are mutated (annotationsUpdatedAt changes).
-  // Heavy work (full-image getImageData + exclusion mask rasterize) is deferred via
-  // setTimeout so the click activating the tool isn't blocked.
+  // Build / clear STRIP_DETECTION / SEGMENT_DETECTION caches when the tool
+  // activates / deactivates, or when annotations are mutated
+  // (annotationsUpdatedAt changes). Heavy work (full-image getImageData +
+  // exclusion mask rasterize) is deferred via setTimeout so the click
+  // activating the tool isn't blocked.
   useEffect(() => {
-    if (enabledDrawingMode !== "STRIP_DETECTION") {
+    const isDetectionMode =
+      enabledDrawingMode === "STRIP_DETECTION" ||
+      enabledDrawingMode === "SEGMENT_DETECTION";
+    if (!isDetectionMode) {
       stripDetectionImageDataRef.current = null;
       stripDetectionExclusionMaskRef.current = null;
       lastStripDetectCursorRef.current = null;
@@ -570,12 +614,15 @@ const InteractionLayer = forwardRef(({
       updateSmartDetect(lastMouseScreenPosRef.current);
     }
 
-    // STRIP_DETECTION: re-run strip detection after a camera change
-    // (arrow-key pan, drag pan, zoom). updateSmartDetect above has refreshed
-    // lastSmartROI synchronously; we defer to the next frame so the loupe
-    // preview has visually updated before the detection runs (the user wants
-    // to "see" the new map content before the strips are recomputed).
-    if (enabledDrawingModeRef.current === "STRIP_DETECTION") {
+    // STRIP_DETECTION / SEGMENT_DETECTION: re-run detection after a camera
+    // change (arrow-key pan, drag pan, zoom). updateSmartDetect above has
+    // refreshed lastSmartROI synchronously; we defer to the next frame so the
+    // loupe preview has visually updated before the detection runs (the user
+    // wants to "see" the new map content before the strips are recomputed).
+    if (
+      enabledDrawingModeRef.current === "STRIP_DETECTION" ||
+      enabledDrawingModeRef.current === "SEGMENT_DETECTION"
+    ) {
       requestAnimationFrame(() => {
         const roi = lastSmartROI.current;
         if (!roi) return;
@@ -1476,8 +1523,12 @@ const InteractionLayer = forwardRef(({
           break;
 
         case "o":
-          // STRIP_DETECTION: toggle crosshair / detection orientation H ↔ V
-          if (enabledDrawingMode === "STRIP_DETECTION") {
+          // STRIP_DETECTION / SEGMENT_DETECTION: toggle crosshair / detection
+          // orientation H ↔ V
+          if (
+            enabledDrawingMode === "STRIP_DETECTION" ||
+            enabledDrawingMode === "SEGMENT_DETECTION"
+          ) {
             const cur = stripDetectionOrientationRef.current;
             const next = cur === "H" ? "V" : "H";
             dispatch(setStripDetectionOrientation(next));
@@ -2790,17 +2841,22 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- LOGIQUE SMART DETECT (Optimisée) ---
-    // Also drives the loupe ROI for STRIP_DETECTION (we read lastSmartROI below).
+    // Also drives the loupe ROI for STRIP_DETECTION / SEGMENT_DETECTION
+    // (we read lastSmartROI below).
     if (
       enabledDrawingMode === "SMART_DETECT" ||
       enabledDrawingMode === "STRIP_DETECTION" ||
+      enabledDrawingMode === "SEGMENT_DETECTION" ||
       showSmartDetect
     ) {
       updateSmartDetect(lastMouseScreenPosRef.current);
     }
 
-    // --- STRIP_DETECTION: throttled detection from the loupe area ---
-    if (enabledDrawingMode === "STRIP_DETECTION") {
+    // --- STRIP_DETECTION / SEGMENT_DETECTION: throttled detection from loupe ---
+    if (
+      enabledDrawingMode === "STRIP_DETECTION" ||
+      enabledDrawingMode === "SEGMENT_DETECTION"
+    ) {
       const localPos = toLocalCoords(worldPos);
       const cursorImgPx = {
         x: (localPos.x - baseMapImageOffset.x) / baseMapImageScale,
@@ -3492,7 +3548,7 @@ const InteractionLayer = forwardRef(({
             visible={(!!enabledDrawingMode && !SEGMENT_SELECT_MODES.includes(enabledDrawingMode)) || dragState?.active}
             newAnnotation={newAnnotation}
             rotationAngle={orthoSnapAngleOffset || 0}
-            crosshairAxis={enabledDrawingMode === "STRIP_DETECTION" ? stripDetectionOrientation : "BOTH"}
+            crosshairAxis={(enabledDrawingMode === "STRIP_DETECTION" || enabledDrawingMode === "SEGMENT_DETECTION") ? stripDetectionOrientation : "BOTH"}
           />
             <SnappingLayer
               ref={snappingLayerRef}
@@ -3819,9 +3875,9 @@ const InteractionLayer = forwardRef(({
             : (enabledDrawingMode === "POLYLINE_CLICK" && advancedLayout) ? "ORTHO_PATHS"
             : undefined
           }
-          loupeOnly={!["POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE", "SMART_DETECT", "DETECT_SIMILAR_POLYLINES", "STRIP_DETECTION"].includes(enabledDrawingMode)}
+          loupeOnly={!["POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE", "SMART_DETECT", "DETECT_SIMILAR_POLYLINES", "STRIP_DETECTION", "SEGMENT_DETECTION"].includes(enabledDrawingMode)}
           orthoSnapAngleOffset={orthoSnapAngleOffset}
-          disableShortcuts={enabledDrawingMode === "STRIP_DETECTION" ? ["O"] : []}
+          disableShortcuts={(enabledDrawingMode === "STRIP_DETECTION" || enabledDrawingMode === "SEGMENT_DETECTION") ? ["O"] : []}
         />, zoomContainer) : null}
       </>
 

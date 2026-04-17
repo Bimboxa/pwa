@@ -30,6 +30,12 @@
  *     emitted with stripOrientation = +1 — the strip body then extends in
  *     +normal direction and covers the dark pixels.
  *
+ *     When `pointsOnMedianAxis` is true, step 5 is skipped: no shift is applied
+ *     and `stripOrientation` is omitted. The output line then lies on the
+ *     **median axis** of the detected dark band — this is used by the
+ *     SEGMENT_DETECTION tool to commit plain POLYLINE annotations (symmetric
+ *     stroke around the centerline) instead of STRIP annotations.
+ *
  * `stripOrientation` is computed by the algorithm and returned per segment;
  * the caller MUST use that value (not the template default) when creating the
  * STRIP annotation, otherwise the body would render off the wall.
@@ -38,7 +44,7 @@
  *   Array<{ segments: Array<{
  *     start: {x, y},
  *     end:   {x, y},
- *     stripOrientation: 1 | -1
+ *     stripOrientation?: 1 | -1   // omitted when pointsOnMedianAxis = true
  *   }>}>
  */
 
@@ -199,7 +205,12 @@ function clusterByParallelLine(candidates, clusterTol) {
  *                                            (still emits multiple strips
  *                                            along that line if separated by
  *                                            openings).
- * @returns {Array<{ segments: Array<{start, end, stripOrientation}> }>}
+ * @param {boolean} [p.pointsOnMedianAxis=false] When true, skip the edge-shift
+ *                                            step and omit stripOrientation
+ *                                            from the output: segments lie on
+ *                                            the median axis of the detected
+ *                                            band. Used by SEGMENT_DETECTION.
+ * @returns {Array<{ segments: Array<{start, end, stripOrientation?}> }>}
  */
 export default function detectStripFromLoupe({
   imageData,
@@ -211,6 +222,7 @@ export default function detectStripFromLoupe({
   widthTolerance = 0.30,
   exclusionMask,
   detectMultiple = true,
+  pointsOnMedianAxis = false,
 }) {
   if (!imageData || !loupeBBox || !stripWidthPx) return [];
   if (orientation !== "H" && orientation !== "V") return [];
@@ -276,11 +288,14 @@ export default function detectStripFromLoupe({
 
   // -------------------------------------------------------------------------
   // 4+5. Extend each seed along the wall axis with extractSegments, drop
-  //      square dots, shift to the wall edge, emit with stripOrientation.
+  //      square dots, (optionally) shift to the wall edge, emit with
+  //      stripOrientation. When pointsOnMedianAxis is true, skip the shift
+  //      and omit stripOrientation so the caller can build a POLYLINE
+  //      annotation centered on the detected band.
   // -------------------------------------------------------------------------
   const minWallLength = stripWidthPx + MIN_WALL_EXTRA_PX;
   const stripOrientation = 1;
-  const shift = -stripOrientation * (stripWidthPx / 2);
+  const shift = pointsOnMedianAxis ? 0 : -stripOrientation * (stripWidthPx / 2);
   const sx = shift * normal.dx;
   const sy = shift * normal.dy;
 
@@ -310,11 +325,12 @@ export default function detectStripFromLoupe({
     });
     for (const w of wallSegs) {
       if (segLength(w) <= minWallLength) continue;
-      segments.push({
+      const seg = {
         start: { x: w.start.x + sx, y: w.start.y + sy },
         end:   { x: w.end.x   + sx, y: w.end.y   + sy },
-        stripOrientation,
-      });
+      };
+      if (!pointsOnMedianAxis) seg.stripOrientation = stripOrientation;
+      segments.push(seg);
     }
   }
 
