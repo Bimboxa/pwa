@@ -102,7 +102,8 @@ const ControlItem = styled(Box)({
 const SmartDetectLayer = forwardRef(({
     sourceImage,
     rotation = 0,
-    loupeSize = 100,
+    loupeWidth = 100,
+    loupeHeight = 100,
     debug = false,
     enabled = false,
     onSmartShapeDetected, // <--- Unified Callback
@@ -200,9 +201,9 @@ const SmartDetectLayer = forwardRef(({
     const drawToCanvas = (ctx, roi) => {
         if (!sourceImage || !roi) return false;
         ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, loupeSize, loupeSize);
+        ctx.fillRect(0, 0, loupeWidth, loupeHeight);
         try {
-            ctx.drawImage(sourceImage, roi.x, roi.y, roi.width, roi.height, 0, 0, loupeSize, loupeSize);
+            ctx.drawImage(sourceImage, roi.x, roi.y, roi.width, roi.height, 0, 0, loupeWidth, loupeHeight);
             return true;
         } catch (e) { return false; }
     };
@@ -217,8 +218,8 @@ const SmartDetectLayer = forwardRef(({
         if (selectedDetectMode === "SIMILAR_LINE") {
             try {
                 await cv.load();
-                const centerX = loupeSize / 2;
-                const centerY = loupeSize / 2;
+                const centerX = loupeWidth / 2;
+                const centerY = loupeHeight / 2;
                 const result = await cv.detectSimilarPolylinesAsync({
                     imageUrl,
                     clickX: centerX,
@@ -266,8 +267,8 @@ const SmartDetectLayer = forwardRef(({
             if (selectedDetectMode === "POINT") {
                 if (result.bestCorner) {
                     const { x, y } = result.bestCorner.point;
-                    const scaleX = currentRoi.width / loupeSize;
-                    const scaleY = currentRoi.height / loupeSize;
+                    const scaleX = currentRoi.width / loupeWidth;
+                    const scaleY = currentRoi.height / loupeHeight;
                     const point = {
                         x: (currentRoi.x + (x * scaleX)) * baseMapImageScale + baseMapImageOffset.x,
                         y: (currentRoi.y + (y * scaleY)) * baseMapImageScale + baseMapImageOffset.y,
@@ -278,8 +279,8 @@ const SmartDetectLayer = forwardRef(({
             else if (selectedDetectMode === "LINE") {
                 const bestL = polylines.find(l => l.isBest) || polylines.find(l => l.type.includes('horizontal') || l.type.includes('vertical'));
                 if (bestL) {
-                    const scaleX = currentRoi.width / loupeSize;
-                    const scaleY = currentRoi.height / loupeSize;
+                    const scaleX = currentRoi.width / loupeWidth;
+                    const scaleY = currentRoi.height / loupeHeight;
                     const points = bestL.points.map(p => (
                         {
                             x: (currentRoi.x + (p.x * scaleX)) * baseMapImageScale + baseMapImageOffset.x,
@@ -290,8 +291,8 @@ const SmartDetectLayer = forwardRef(({
             }
             else if (selectedDetectMode === "RECTANGLE") {
                 if (result.mainRectangle && result.mainRectangle.found) {
-                    const scaleX = currentRoi.width / loupeSize;
-                    const scaleY = currentRoi.height / loupeSize;
+                    const scaleX = currentRoi.width / loupeWidth;
+                    const scaleY = currentRoi.height / loupeHeight;
                     const points = result.mainRectangle.points.map(p => ({
                         x: (currentRoi.x + (p.x * scaleX)) * baseMapImageScale + baseMapImageOffset.x,
                         y: (currentRoi.y + (p.y * scaleY)) * baseMapImageScale + baseMapImageOffset.y,
@@ -310,7 +311,7 @@ const SmartDetectLayer = forwardRef(({
                 dispatch(setGlobalCenterColor(result.centerColor.hex));
             }
         } catch (e) { }
-    }, 60), [enabled, loupeSize, selectedDetectMode, onSmartShapeDetected, baseMapImageScale]);
+    }, 60), [enabled, loupeWidth, loupeHeight, selectedDetectMode, onSmartShapeDetected, baseMapImageScale]);
 
 
     // --- API IMPÉRATIVE ---
@@ -370,7 +371,8 @@ const SmartDetectLayer = forwardRef(({
     }));
 
     // --- RENDER ---
-    const centerCoord = loupeSize / 2;
+    const centerX = loupeWidth / 2;
+    const centerY = loupeHeight / 2;
     const crossHairSize = 8;
 
     const hasDetected = {
@@ -392,8 +394,8 @@ const SmartDetectLayer = forwardRef(({
             <div
                 style={{
                     ...(!FIXED_IN_CONTAINER ? { position: 'absolute', top: 0, left: 0 } : { position: "relative" }),
-                    width: loupeSize,
-                    height: loupeSize,
+                    width: loupeWidth,
+                    height: loupeHeight,
                     boxSizing: 'border-box',
                     overflow: 'hidden',
                     backgroundColor: "white",
@@ -406,7 +408,7 @@ const SmartDetectLayer = forwardRef(({
                     transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
                 }}
             >
-                <canvas ref={canvasRef} width={loupeSize} height={loupeSize} />
+                <canvas ref={canvasRef} width={loupeWidth} height={loupeHeight} />
 
                 {processedImageUrl && (
                     <img
@@ -456,9 +458,9 @@ const SmartDetectLayer = forwardRef(({
                         </g>
                     )}
                     <g style={{ opacity: 0.8 }}>
-                        <line x1={centerCoord - crossHairSize} y1={centerCoord} x2={centerCoord + crossHairSize} y2={centerCoord} stroke={contrastedColor} strokeWidth="1" />
-                        <line x1={centerCoord} y1={centerCoord - crossHairSize} x2={centerCoord} y2={centerCoord + crossHairSize} stroke={contrastedColor} strokeWidth="1" />
-                        <circle cx={centerCoord} cy={centerCoord} r={1} fill={contrastedColor} />
+                        <line x1={centerX - crossHairSize} y1={centerY} x2={centerX + crossHairSize} y2={centerY} stroke={contrastedColor} strokeWidth="1" />
+                        <line x1={centerX} y1={centerY - crossHairSize} x2={centerX} y2={centerY + crossHairSize} stroke={contrastedColor} strokeWidth="1" />
+                        <circle cx={centerX} cy={centerY} r={1} fill={contrastedColor} />
                     </g>
                 </svg>
             </div>

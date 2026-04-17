@@ -116,6 +116,8 @@ const SNAP_THRESHOLD_ABSOLUTE = 12;
 const DRAG_THRESHOLD_PX = 3; // Seuil de déplacement pour activer le drag
 const SCREEN_BRUSH_RADIUS_PX = 12; // Rayon fixe à l'écran
 const LOUPE_SIZE = 200; // Taille écran de la loupe
+const LOUPE_ASPECT_RATIO = 5; // Rapport largeur/hauteur pour LANDSCAPE / PORTRAIT
+const LOUPE_ASPECTS = ["SQUARE", "LANDSCAPE", "PORTRAIT"];
 const SMART_ZOOM_DEFAULT = 3.0; // Facteur de grossissement par défaut
 const SMART_ZOOM_MIN = 1.0;
 const SMART_ZOOM_MAX = 20.0;
@@ -728,16 +730,20 @@ const InteractionLayer = forwardRef(({
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
   const smartZoomRef = useRef(SMART_ZOOM_DEFAULT);
+  const loupeAspectRef = useRef("SQUARE"); // "SQUARE" | "LANDSCAPE" | "PORTRAIT"
+  const [loupeAspect, setLoupeAspect] = useState("SQUARE");
   useEffect(() => {
     const show = Boolean(enabledDrawingMode) && !NO_SMART_DETECT_MODES.includes(enabledDrawingMode);
     //showSmartDetectRef.current = showSmartDetect;
     showSmartDetectRef.current = show;
-    if (show) {
-      screenCursorRef.current?.showZoomSquare();
-    } else {
-      screenCursorRef.current?.hideZoomSquare();
-    }
   }, [showSmartDetect, enabledDrawingMode])
+
+  const getLoupeScreenSize = () => {
+    const a = loupeAspectRef.current;
+    if (a === "LANDSCAPE") return { width: LOUPE_SIZE, height: LOUPE_SIZE / LOUPE_ASPECT_RATIO };
+    if (a === "PORTRAIT") return { width: LOUPE_SIZE / LOUPE_ASPECT_RATIO, height: LOUPE_SIZE };
+    return { width: LOUPE_SIZE, height: LOUPE_SIZE };
+  };
 
 
 
@@ -755,11 +761,12 @@ const InteractionLayer = forwardRef(({
     const totalScale = (targetPose.k || 1) * currentCameraZoom;
 
     const smartZoom = smartZoomRef.current;
-    const sourceWidthInImage = (LOUPE_SIZE / smartZoom) / totalScale;
-    const sourceHeightInImage = (LOUPE_SIZE / smartZoom) / totalScale;
+    const { width: loupeW, height: loupeH } = getLoupeScreenSize();
+    const sourceWidthInImage = (loupeW / smartZoom) / totalScale;
+    const sourceHeightInImage = (loupeH / smartZoom) / totalScale;
 
     // Zoom square is in screen/viewport pixels (staticOverlay is outside camera group)
-    screenCursorRef.current?.setZoomSquareSize(LOUPE_SIZE / smartZoom);
+    screenCursorRef.current?.setZoomSquareSize({ width: loupeW / smartZoom, height: loupeH / smartZoom });
 
     const localPos = toLocalCoords(worldPos);
 
@@ -788,12 +795,14 @@ const InteractionLayer = forwardRef(({
     if (!prev || !smartDetectRef.current) return;
 
     const newZoom = smartZoomRef.current;
-    const ratio = prev.zoomFactor / newZoom;
+    const { width: loupeWR, height: loupeHR } = getLoupeScreenSize();
 
+    // Rebuild the ROI fresh from the current loupe size + zoom so both
+    // zoom changes (P/M) and aspect-ratio changes (F) are handled.
     const centerX = prev.x + prev.width / 2;
     const centerY = prev.y + prev.height / 2;
-    const newWidth = prev.width * ratio;
-    const newHeight = prev.height * ratio;
+    const newWidth = (loupeWR / newZoom) / prev.totalScale / baseMapImageScale;
+    const newHeight = (loupeHR / newZoom) / prev.totalScale / baseMapImageScale;
 
     const sourceROI = {
       x: centerX - newWidth / 2,
@@ -802,7 +811,7 @@ const InteractionLayer = forwardRef(({
       height: newHeight,
     };
 
-    screenCursorRef.current?.setZoomSquareSize(LOUPE_SIZE / newZoom);
+    screenCursorRef.current?.setZoomSquareSize({ width: loupeWR / newZoom, height: loupeHR / newZoom });
 
     const viewportPos = lastMouseScreenPosRef.current?.viewportPos;
     if (viewportPos) {
@@ -1353,7 +1362,6 @@ const InteractionLayer = forwardRef(({
           completeStartPointRef.current = null;
 
           setShowSmartDetect(false);
-          screenCursorRef.current?.hideZoomSquare();
 
           if (transientDetectedShapeLayerRef.current) {
             transientDetectedShapeLayerRef.current.updateShape(null);
@@ -1378,7 +1386,6 @@ const InteractionLayer = forwardRef(({
 
           const mousePos = lastMouseScreenPosRef.current;
           setShowSmartDetect(true);
-          screenCursorRef.current?.showZoomSquare();
           updateSmartDetect(mousePos);
           break;
 
@@ -1535,6 +1542,16 @@ const InteractionLayer = forwardRef(({
           }
           break;
 
+        case "f":
+          if (showSmartDetect) {
+            const i = LOUPE_ASPECTS.indexOf(loupeAspectRef.current);
+            const next = LOUPE_ASPECTS[(i + 1) % LOUPE_ASPECTS.length];
+            loupeAspectRef.current = next;
+            setLoupeAspect(next);
+            refreshSmartDetectZoom();
+          }
+          break;
+
         case "p":
           if (showSmartDetect) {
             smartZoomRef.current = smartZoomRef.current * 1.1;
@@ -1609,10 +1626,12 @@ const InteractionLayer = forwardRef(({
             const roiData = lastSmartROI.current; // On récupère ce qu'on a stocké
 
             if (localPoints && roiData) {
-              const ratio = roiData.width / LOUPE_SIZE;
+              const { width: lw, height: lh } = getLoupeScreenSize();
+              const ratioX = roiData.width / lw;
+              const ratioY = roiData.height / lh;
               const finalPoints = localPoints.map(p => ({
-                x: roiData.x + (p.x * ratio),
-                y: roiData.y + (p.y * ratio)
+                x: roiData.x + (p.x * ratioX),
+                y: roiData.y + (p.y * ratioY)
               }));
 
               // Commit...
@@ -3549,6 +3568,7 @@ const InteractionLayer = forwardRef(({
             newAnnotation={newAnnotation}
             rotationAngle={orthoSnapAngleOffset || 0}
             crosshairAxis={(enabledDrawingMode === "STRIP_DETECTION" || enabledDrawingMode === "SEGMENT_DETECTION") ? stripDetectionOrientation : "BOTH"}
+            showZoomRect={Boolean(enabledDrawingMode) && !NO_SMART_DETECT_MODES.includes(enabledDrawingMode)}
           />
             <SnappingLayer
               ref={snappingLayerRef}
@@ -3866,7 +3886,8 @@ const InteractionLayer = forwardRef(({
           baseMapImageScale={baseMapImageScale}
           baseMapImageOffset={baseMapImageOffset}
           rotation={rotation}
-          loupeSize={LOUPE_SIZE}
+          loupeWidth={loupeAspect === "PORTRAIT" ? LOUPE_SIZE / LOUPE_ASPECT_RATIO : LOUPE_SIZE}
+          loupeHeight={loupeAspect === "LANDSCAPE" ? LOUPE_SIZE / LOUPE_ASPECT_RATIO : LOUPE_SIZE}
           onSmartShapeDetected={handleSmartShapeDetected}
           enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetectRef.current}
           initialDetectMode={

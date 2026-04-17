@@ -8,7 +8,7 @@ const SPINNER_STYLE = `
 }
 `;
 
-const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, crosshairAxis = "BOTH" }, ref) => {
+const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, crosshairAxis = "BOTH", showZoomRect = false }, ref) => {
     const vLineRef = useRef(null);
     const hLineRef = useRef(null);
     const groupRef = useRef(null);
@@ -16,7 +16,7 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
     const spinnerRef = useRef(null);
     const zoomRectRef = useRef(null);
     const lastPosRef = useRef({ x: 0, y: 0 });
-    const zoomSquareSizeRef = useRef(0);
+    const zoomRectSizeRef = useRef({ width: 0, height: 0 });
     const rotationAngleRef = useRef(rotationAngle);
     useEffect(() => { rotationAngleRef.current = rotationAngle; }, [rotationAngle]);
 
@@ -25,11 +25,11 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
     const updateZoomRect = (x, y) => {
         const rect = zoomRectRef.current;
         if (!rect) return;
-        const size = zoomSquareSizeRef.current;
-        rect.setAttribute('x', x - size / 2);
-        rect.setAttribute('y', y - size / 2);
-        rect.setAttribute('width', size);
-        rect.setAttribute('height', size);
+        const { width, height } = zoomRectSizeRef.current;
+        rect.setAttribute('x', x - width / 2);
+        rect.setAttribute('y', y - height / 2);
+        rect.setAttribute('width', width);
+        rect.setAttribute('height', height);
     };
 
     useImperativeHandle(ref, () => ({
@@ -78,17 +78,14 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
         },
 
         setZoomSquareSize: (size) => {
-            zoomSquareSizeRef.current = size;
+            // Accept both legacy scalar and new {width, height}
+            const s = typeof size === "number" ? { width: size, height: size } : size;
+            zoomRectSizeRef.current = s;
             updateZoomRect(lastPosRef.current.x, lastPosRef.current.y);
         },
 
-        showZoomSquare: () => {
-            if (zoomRectRef.current) zoomRectRef.current.style.display = '';
-        },
-
-        hideZoomSquare: () => {
-            if (zoomRectRef.current) zoomRectRef.current.style.display = 'none';
-        },
+        showZoomSquare: () => {},
+        hideZoomSquare: () => {},
     }));
 
     if (!visible) return null;
@@ -122,20 +119,21 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
                 )}
                 {/* Zoom square — sits inside the rotated group so its sides
                     stay aligned with the ortho axes. */}
-                <rect
-                    ref={zoomRectRef}
-                    x={0}
-                    y={0}
-                    width={0}
-                    height={0}
-                    fill="none"
-                    stroke="#00ff00"
-                    strokeWidth="1.5"
-                    strokeDasharray="6,3"
-                    strokeOpacity={0.8}
-                    vectorEffect="non-scaling-stroke"
-                    style={{ display: 'none' }}
-                />
+                {showZoomRect && (
+                    <rect
+                        ref={zoomRectRef}
+                        x={0}
+                        y={0}
+                        width={0}
+                        height={0}
+                        fill="none"
+                        stroke="#00ff00"
+                        strokeWidth="1.5"
+                        strokeDasharray="6,3"
+                        strokeOpacity={0.8}
+                        vectorEffect="non-scaling-stroke"
+                    />
+                )}
             </g>
             <circle
                 ref={spinnerRef}

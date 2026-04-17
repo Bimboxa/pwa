@@ -27,6 +27,7 @@ export default function SectionShortcutHelpers() {
 
     const smartDetectShortcuts = hasSmartDetect
         ? [
+            { key: "F", label: "Modifier le format de la loupe (smart detect)" },
             { key: "P", label: "Augmenter le zoom (smart detect)" },
             { key: "M", label: "Diminuer le zoom (smart detect)" },
         ]
