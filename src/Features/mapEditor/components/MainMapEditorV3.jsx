@@ -343,7 +343,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     _track("legendItems.length", legendItems?.length);
     const newEntity = useNewEntity();
     _track("newEntity", newEntity);
-    const { handleDrawingCommit: _handleCommitDrawing, handleBulkCommit } = useHandleCommitDrawing({ newEntity });
+    const { handleDrawingCommit: _handleCommitDrawing } = useHandleCommitDrawing({ newEntity });
     const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit({ newEntity });
     const handleCutSegment = useHandleCutSegment({ newEntity });
     const handleTechnicalReturn = useHandleTechnicalReturn({ annotations, newEntity });
@@ -1081,10 +1081,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     ref={interactionLayerRef}
                     showBgImage={showBgImage}
                     onCommitDrawing={({ points, event, cutHostId, options }) => {
-                        // Bulk commit for DETECT_SIMILAR_POLYLINES
-                        if (options?.bulkPolylines) {
-                            return handleBulkCommit(options.bulkPolylines, options);
-                        }
                         // COMPLETE_ANNOTATION: extend existing annotation
                         if (options?.completeAnnotationId) {
                             return handleCompleteAnnotationCommit(points, options);

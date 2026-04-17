@@ -61,10 +61,11 @@ import IconCutSurface from "Features/icons/IconCutSurface";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
-import SectionSmartDetect from "Features/smartDetect/components/SectionSmartDetect";
+import CardLoupe from "Features/smartDetect/components/CardLoupe";
+import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
 import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
-import SectionStripDetectionOptions from "Features/smartDetect/components/SectionStripDetectionOptions";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
+import getEffectiveDetectionMode from "Features/mapEditor/utils/getEffectiveDetectionMode";
 import SectionSegmentLength from "Features/annotations/components/SectionSegmentLength";
 import SectionLayers from "Features/layers/components/SectionLayers";
 import {
@@ -1213,6 +1214,17 @@ const SEGMENT_DRAWING_MODES = [
   "STRIP", "MEASURE", "COMPLETE_ANNOTATION",
 ];
 
+// Modes where the "Détection auto" card makes sense — the base drawing
+// tool has a backing detection algorithm (see getEffectiveDetectionMode).
+const SMART_DETECT_CAPABLE_MODES = [
+  "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE",
+  "STRIP", "POLYLINE_CLICK", "POLYGON_CLICK",
+];
+
+// Among the smart-capable modes, the ones that expose an H/V orientation
+// (the rectangle/surface variants don't — orientation is irrelevant there).
+const ORIENTATION_CAPABLE_MODES = ["STRIP", "POLYLINE_CLICK"];
+
 function PopperDrawingHelper() {
   // strings
 
@@ -1223,10 +1235,21 @@ function PopperDrawingHelper() {
   const enabledDrawingMode = useSelector(
     (s) => s.mapEditor.enabledDrawingMode
   );
-  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
+  const smartDetectEnabled = useSelector(
+    (s) => s.mapEditor.smartDetectEnabled
+  );
   const isSegmentSelectMode = SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
-  const isLoupeOnly = ["POLYLINE_CLICK", "STRIP"].includes(enabledDrawingMode) && !advancedLayout;
   const showSegmentLength = SEGMENT_DRAWING_MODES.includes(enabledDrawingMode);
+  const showSmartDetectCard = SMART_DETECT_CAPABLE_MODES.includes(enabledDrawingMode);
+  const showOrientation = ORIENTATION_CAPABLE_MODES.includes(enabledDrawingMode);
+
+  // Kept for future use (e.g. to conditionally show helper UI per target).
+  // Referenced here so the helper stays imported by the component.
+  const effectiveDetection = getEffectiveDetectionMode({
+    enabledDrawingMode,
+    smartDetectEnabled,
+  });
+  void effectiveDetection;
 
   // state
 
@@ -1277,12 +1300,13 @@ function PopperDrawingHelper() {
         </Typography>
       </Box>
 
-      {!isSegmentSelectMode && <SectionSmartDetect loupeOnly={isLoupeOnly} />}
-
-      <Box sx={{ p: 1 }}>
+      <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
+        {!isSegmentSelectMode && <CardLoupe />}
+        {showSmartDetectCard && (
+          <CardSmartDetect showOrientation={showOrientation} />
+        )}
         {enabledDrawingMode === "SURFACE_DROP" && <SectionSurfaceDropOptions />}
         {showSegmentLength && <SectionSegmentLength />}
-        {enabledDrawingMode === "STRIP_DETECTION" && <SectionStripDetectionOptions />}
         <SectionShortcutHelpers />
       </Box>
     </Paper>

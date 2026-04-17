@@ -1,5 +1,5 @@
 // components/layers/ScreenCursor.jsx
-import React, { forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef, useEffect, useId } from 'react';
 
 const SPINNER_STYLE = `
 @keyframes cursor-spin {
@@ -15,21 +15,43 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
     const linesGroupRef = useRef(null);
     const spinnerRef = useRef(null);
     const zoomRectRef = useRef(null);
+    // Dim overlay pieces — dim the map outside the zoom rect to spotlight the ROI.
+    const dimGroupRef = useRef(null);
+    const maskHoleRef = useRef(null);
     const lastPosRef = useRef({ x: 0, y: 0 });
     const zoomRectSizeRef = useRef({ width: 0, height: 0 });
     const rotationAngleRef = useRef(rotationAngle);
     useEffect(() => { rotationAngleRef.current = rotationAngle; }, [rotationAngle]);
 
+    // Unique mask id per instance — lets multiple ScreenCursors coexist on
+    // the same page without stomping on each other's masks.
+    const uid = useId().replace(/:/g, "-");
+    const maskId = `screen-cursor-zoom-mask-${uid}`;
+
     const color = newAnnotation?.strokeColor ?? newAnnotation?.fillColor ?? "red";
 
     const updateZoomRect = (x, y) => {
-        const rect = zoomRectRef.current;
-        if (!rect) return;
         const { width, height } = zoomRectSizeRef.current;
-        rect.setAttribute('x', x - width / 2);
-        rect.setAttribute('y', y - height / 2);
-        rect.setAttribute('width', width);
-        rect.setAttribute('height', height);
+        const rect = zoomRectRef.current;
+        if (rect) {
+            rect.setAttribute('x', x - width / 2);
+            rect.setAttribute('y', y - height / 2);
+            rect.setAttribute('width', width);
+            rect.setAttribute('height', height);
+        }
+        // Keep the dim-mask hole in sync with the visible zoom rect.
+        const hole = maskHoleRef.current;
+        if (hole) {
+            hole.setAttribute('x', x - width / 2);
+            hole.setAttribute('y', y - height / 2);
+            hole.setAttribute('width', width);
+            hole.setAttribute('height', height);
+        }
+        // Hide the dim group entirely when no zoom rect is active (size 0).
+        const dim = dimGroupRef.current;
+        if (dim) {
+            dim.style.display = width > 0 && height > 0 ? '' : 'none';
+        }
     };
 
     useImperativeHandle(ref, () => ({
@@ -100,6 +122,31 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
             strokeOpacity={0.8}
         >
             <style>{SPINNER_STYLE}</style>
+
+            {/* Dim overlay — paints a translucent gray over the whole viewport
+                except for the zoom square, visually spotlighting the ROI
+                where smart detection will run. Kept outside the rotated
+                crosshair group so screen-axis coverage stays intact. */}
+            {showZoomRect && (
+                <g ref={dimGroupRef} style={{ display: 'none' }}>
+                    <defs>
+                        <mask id={maskId}>
+                            <rect x="0" y="0" width="100%" height="100%" fill="white" />
+                            <rect ref={maskHoleRef} x={0} y={0} width={0} height={0} fill="black" />
+                        </mask>
+                    </defs>
+                    <rect
+                        x="0"
+                        y="0"
+                        width="100%"
+                        height="100%"
+                        fill="rgba(0,0,0,0.35)"
+                        mask={`url(#${maskId})`}
+                        stroke="none"
+                    />
+                </g>
+            )}
+
             <g ref={linesGroupRef}>
                 {(crosshairAxis === "BOTH" || crosshairAxis === "V") && (
                     <line

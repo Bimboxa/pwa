@@ -47,7 +47,7 @@ const TransientDetectedStripsLayer = forwardRef((_, ref) => {
             <AnimatedPath
               d={d}
               fill={COLOR}
-              fillOpacity={0.25}
+              fillOpacity={0.8}
               fillRule="evenodd"
               stroke="none"
               pointerEvents="none"
@@ -63,25 +63,6 @@ const TransientDetectedStripsLayer = forwardRef((_, ref) => {
           </g>
         );
       })}
-      {/* Count badge */}
-      {strips.length > 0 && strips[0].polygon?.length > 0 && (
-        <text
-          x={strips[0].polygon[0].x}
-          y={strips[0].polygon[0].y - 10}
-          fill={COLOR}
-          fontSize="14"
-          fontWeight="bold"
-          pointerEvents="none"
-          style={{
-            paintOrder: "stroke",
-            stroke: "rgba(0,0,0,0.7)",
-            strokeWidth: 3,
-            vectorEffect: "non-scaling-stroke",
-          }}
-        >
-          {strips.length} strips
-        </text>
-      )}
     </g>
   );
 });

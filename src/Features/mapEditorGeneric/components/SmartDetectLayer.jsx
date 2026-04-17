@@ -27,7 +27,6 @@ const COLORS = {
     LINE: "#00ccff",     // Cyan
     RECTANGLE: "#00FF00", // Lime Green
     ORTHO_PATHS: "#00ff00", // Lime Green (same as POINT for ortho paths)
-    SIMILAR_LINE: "#00ff00", // Lime Green for detected similar lines
 };
 
 const ModeListItem = styled(ListItemButton, {
@@ -125,7 +124,6 @@ const SmartDetectLayer = forwardRef(({
         { key: "LINE", label: "Ligne", color: COLORS.LINE, shortcut: "L" },
         { key: "RECTANGLE", label: "Rect.", color: COLORS.RECTANGLE, shortcut: "R" },
         { key: "ORTHO_PATHS", label: "Ortho", color: COLORS.ORTHO_PATHS, shortcut: "O" },
-        { key: "SIMILAR_LINE", label: "Sim.", color: COLORS.SIMILAR_LINE, shortcut: "S" },
     ];
 
     // --- STATES ---
@@ -137,7 +135,6 @@ const SmartDetectLayer = forwardRef(({
     const [bestCorner, setBestCorner] = useState(null);
     const [bestLine, setBestLine] = useState(null);
     const [mainRectangle, setMainRectangle] = useState(null);
-    const [similarLines, setSimilarLines] = useState([]); // polylines from SIMILAR_LINE mode
 
     const [centerColor, setCenterColor] = useState(theme.palette.primary.main);
     //const contrastedColor = theme.palette.getContrastText(theme.palette.getContrastText(centerColor));
@@ -190,7 +187,6 @@ const SmartDetectLayer = forwardRef(({
             if (key === 'L') setSelectedDetectMode('LINE');
             if (key === 'R') setSelectedDetectMode('RECTANGLE');
             if (key === 'O') setSelectedDetectMode('ORTHO_PATHS');
-            if (key === 'S') setSelectedDetectMode('SIMILAR_LINE');
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
@@ -214,28 +210,6 @@ const SmartDetectLayer = forwardRef(({
         // ORTHO_PATHS mode does not use continuous analysis — it runs on click
         if (selectedDetectMode === "ORTHO_PATHS") return;
 
-        // --- SIMILAR_LINE mode: use detectSimilarPolylinesAsync on the loupe image ---
-        if (selectedDetectMode === "SIMILAR_LINE") {
-            try {
-                await cv.load();
-                const centerX = loupeWidth / 2;
-                const centerY = loupeHeight / 2;
-                const result = await cv.detectSimilarPolylinesAsync({
-                    imageUrl,
-                    clickX: centerX,
-                    clickY: centerY,
-                    existingSegments: [],
-                    colorTolerance: 80,
-                    offsetAngle: orthoSnapAngleOffsetRef.current || 0,
-                });
-                const polylines = result?.polylines || [];
-                setSimilarLines(polylines);
-            } catch (e) {
-                setSimilarLines([]);
-            }
-            return;
-        }
-
         const currentKernelSize = stateRef.current.morphKernelSize;
 
         try {
@@ -248,18 +222,27 @@ const SmartDetectLayer = forwardRef(({
                 orthoSnapAngleOffset: orthoSnapAngleOffsetRef.current || 0,
             });
 
-            // Line Logic
+            // Only populate state for the currently-active detection mode —
+            // the worker returns all three shapes at once, but we don't want
+            // unused ones to flash in the UI.
             const polylines = result?.separationLines || [];
-            if (polylines) {
+            if (selectedDetectMode === "LINE") {
                 stateRef.current.detectedPolylines = polylines;
                 setDetectedPolylines(polylines);
                 const bestL = polylines.find(l => l.isBest) || polylines.find(l => l.type.includes('horizontal') || l.type.includes('vertical'));
                 setBestLine(bestL || null);
+            } else {
+                stateRef.current.detectedPolylines = [];
+                if (bestLine) setBestLine(null);
             }
             if (result?.processedImageUrl) setProcessedImageUrl(result.processedImageUrl);
 
-            setBestCorner(result.bestCorner);
-            setMainRectangle(result.mainRectangle && result.mainRectangle.found ? result.mainRectangle : null);
+            setBestCorner(selectedDetectMode === "POINT" ? result.bestCorner : null);
+            setMainRectangle(
+                selectedDetectMode === "RECTANGLE" && result.mainRectangle && result.mainRectangle.found
+                    ? result.mainRectangle
+                    : null
+            );
 
             // --- UNIFIED CALLBACK LOGIC ---
             let detectedShape = null;
@@ -380,7 +363,6 @@ const SmartDetectLayer = forwardRef(({
         LINE: !!bestLine,
         RECTANGLE: !!mainRectangle,
         ORTHO_PATHS: false, // ORTHO_PATHS detection happens on click, not continuously
-        SIMILAR_LINE: similarLines.length > 0,
     };
 
     // Est-ce que le mode ACTUEL a trouvé quelque chose ?
@@ -388,7 +370,7 @@ const SmartDetectLayer = forwardRef(({
     const currentColor = COLORS[selectedDetectMode];
 
     return (
-        <Box sx={{ width: 1, display: "flex", gap: 1, justifyContent: loupeOnly ? "center" : "flex-start" }} ref={containerRef}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }} ref={containerRef}>
 
             {/* 1. LOUPE / HUD */}
             <div
@@ -431,16 +413,6 @@ const SmartDetectLayer = forwardRef(({
                             style={{ animation: `${flashAnimation} 1.5s infinite ease-in-out` }}
                         />
                     )}
-                    {selectedDetectMode === "SIMILAR_LINE" && similarLines.length > 0 && (
-                        similarLines.map((pl, i) => (
-                            <polyline
-                                key={i}
-                                points={pl.map(p => `${p.x},${p.y}`).join(' ')}
-                                fill="none" stroke={COLORS.SIMILAR_LINE} strokeWidth="3"
-                                style={{ animation: `${flashAnimation} 1.5s infinite ease-in-out` }}
-                            />
-                        ))
-                    )}
                     {selectedDetectMode === "RECTANGLE" && mainRectangle && (
                         <polygon
                             points={mainRectangle.points.map(p => `${p.x},${p.y}`).join(' ')}
@@ -465,75 +437,8 @@ const SmartDetectLayer = forwardRef(({
                 </svg>
             </div>
 
-            {/* 2. UI PANEL */}
-            <Box sx={{
-                display: (enabled && !loupeOnly) ? 'flex' : 'none',
-                flexDirection: 'column',
-                //backgroundColor: 'rgba(0,0,0,0.8)',
-                backdropFilter: 'blur(4px)',
-                borderRadius: '4px',
-                padding: '4px', // Reduced padding
-                //minWidth: '110px', // Reduced Width
-                border: '1px solid rgba(255,255,255,0.1)',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
-            }}>
-                {/* <Typography variant="caption" sx={{ color: '#888', px: 1, mb: 0.5, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 1 }}>
-                    SCAN MODE
-                </Typography> */}
-
-                <List dense sx={{ py: 0 }}>
-                    {detectModes.map(mode => {
-                        const isSelected = mode.key === selectedDetectMode;
-                        const isDetected = Boolean(hasDetected[mode.key]);
-                        return (
-                            <ModeListItem
-                                key={mode.key}
-                                selected={isSelected}
-                                isactive={isDetected}
-                                onClick={() => setSelectedDetectMode(mode.key)}
-                            >
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <DetectionIndicator color={mode.color} isactive={isDetected} />
-                                    <ListItemText
-                                        primary={mode.label}
-                                        primaryTypographyProps={{
-                                            variant: 'body2',
-                                            style: {
-                                                fontSize: '0.75rem', // Smaller text
-                                                color: isSelected ? mode.color : (isDetected ? '#eee' : '#666'),
-                                                fontWeight: isSelected ? 'bold' : 'normal',
-                                                textShadow: isSelected ? `0 0 5px ${mode.color}` : 'none'
-                                            }
-                                        }}
-                                    />
-                                </Box>
-                                <KeyboardHint selected={isSelected} color={mode.color}>
-                                    {mode.shortcut}
-                                </KeyboardHint>
-                            </ModeListItem>
-                        );
-                    })}
-                </List>
-
-                {/* --- FOOTER DE VALIDATION CONDITIONNEL --- */}
-                {isCurrentModeDetected && (
-                    <ControlsFooter color={currentColor}>
-                        <ControlItem>
-                            <KeyboardHint
-                                selected={true} // Force le style actif
-                                color={currentColor}
-                                style={{ minWidth: 'auto', padding: '2px 6px' }}
-                            >
-                                ESPACE
-                            </KeyboardHint>
-                            {/* <Typography variant="caption" sx={{ color: currentColor, fontSize: '0.65rem', fontWeight: 'bold' }}>
-                                +
-                            </Typography> */}
-                        </ControlItem>
-                    </ControlsFooter>
-                )}
-
-            </Box>
+            {/* UI panel removed — mode selection & validation feedback live
+                in CardSmartDetect / CardLoupe (unified smart-detect UI). */}
         </Box>
     );
 });

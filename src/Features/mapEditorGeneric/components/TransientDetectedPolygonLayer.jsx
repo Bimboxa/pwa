@@ -51,7 +51,7 @@ const TransientDetectedPolygonLayer = forwardRef((_, ref) => {
       <AnimatedPath
         d={d}
         fill={COLOR}
-        fillOpacity={0.25}
+        fillOpacity={0.8}
         fillRule="evenodd"
         stroke="none"
         pointerEvents="none"

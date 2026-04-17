@@ -278,12 +278,6 @@ class CV {
       payload
     });
   }
-  detectSimilarPolylinesAsync(payload) {
-    return this._dispatch({
-      msg: "detectSimilarPolylinesAsync",
-      payload,
-    });
-  }
   vectoriseWallsAsync(payload) {
     return this._dispatch({
       msg: "vectoriseWallsAsync",

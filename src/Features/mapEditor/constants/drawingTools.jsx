@@ -7,7 +7,6 @@ import {
   Brush,
   Insights as Smart,
   Create,
-  AutoFixHigh,
 } from "@mui/icons-material";
 
 import IconPolylineClick from "Features/icons/IconPolylineClick";
@@ -22,8 +21,6 @@ import IconSplitPolyline from "Features/icons/IconSplitPolyline";
 import IconSplitPolylineClick from "Features/icons/IconSplitPolylineClick";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import IconStrip from "Features/icons/IconStrip";
-import IconDetectSimilarPolylines from "Features/icons/IconDetectSimilarPolylines";
-import IconSegmentDetection from "Features/icons/IconSegmentDetection";
 
 import { getToolsForShape } from "Features/annotations/constants/drawingShapeConfig";
 
@@ -189,30 +186,10 @@ const DRAWING_TOOLS = [
     annotationType: "STRIP",
     behavior: "STRIP",
   },
-  // DETECT_SIMILAR_POLYLINES tool (Auto-detect lines)
-  {
-    key: "DETECT_SIMILAR_POLYLINES",
-    label: "Détection auto.",
-    Icon: IconDetectSimilarPolylines,
-    annotationType: "POLYLINE",
-    behavior: "DETECT_SIMILAR_POLYLINES",
-  },
-  // SEGMENT_DETECTION tool (Detect a wall and commit a POLYLINE on its median axis)
-  {
-    key: "SEGMENT_DETECTION",
-    label: "Détection segment",
-    Icon: IconSegmentDetection,
-    annotationType: "POLYLINE",
-    behavior: "SEGMENT_DETECTION",
-  },
-  // STRIP_DETECTION tool (Detect a wall strip from the loupe area)
-  {
-    key: "STRIP_DETECTION",
-    label: "Détection bande",
-    Icon: AutoFixHigh,
-    annotationType: "STRIP",
-    behavior: "STRIP_DETECTION",
-  },
+  // Note: the former STRIP_DETECTION, SEGMENT_DETECTION and
+  // DETECT_SIMILAR_POLYLINES tools have been
+  // merged into STRIP and POLYLINE_CLICK respectively — activation is now
+  // driven by the unified smart-detect switch (CardSmartDetect).
   // COMPLETE_ANNOTATION tool (Prolonger)
   {
     key: "COMPLETE_ANNOTATION",
