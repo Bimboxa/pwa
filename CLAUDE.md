@@ -89,6 +89,14 @@ export default function MyComponent({ prop1 }) {
 - Undo/redo hooks on a subset of tables (UNDO_TABLES)
 - Use `withHardDelete(fn)` to bypass soft deletes when needed
 
+### Annotation point coordinates — READ THIS BEFORE EDITING `annotation.points`
+
+Point coordinates are stored in a **separate `db.points` table**, **normalized to `[0..1]`** vs `baseMap.image.imageSize`. The `annotation.points` field is just an array of `{id}` references. In React, `useAnnotationsV2` resolves points to **pixel space** via `resolvePoints`.
+
+If you write inline `x/y` to `annotation.points` without going through `db.points`, the change will be silently ignored at read time (`pointsIndex` wins over inline values). If you write pixel values where normalized values are expected, the geometry will jump off-screen at the next read.
+
+Full storage model, write patterns, and common bug signatures: [`docs/annotations/POINTS_STORAGE.md`](docs/annotations/POINTS_STORAGE.md).
+
 ## Commit message format
 
 ```
