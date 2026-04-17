@@ -17,7 +17,11 @@ import useCloneAnnotationsAndEntities from "Features/mapEditor/hooks/useCloneAnn
 import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
-import { resolveDrawingShape, resolveDrawingShapeFromType, getAnnotationType } from "../constants/drawingShapeConfig";
+import {
+  resolveDrawingShape,
+  resolveDrawingShapeFromType,
+  getAnnotationType,
+} from "../constants/drawingShapeConfig";
 import getAnnotationQties from "../utils/getAnnotationQties";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
 import getCloneTypeOptions from "../utils/getCloneTypeOptions";
@@ -47,6 +51,7 @@ import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingle
 import IconButtonExtractStripBoundaries from "./IconButtonExtractStripBoundaries";
 import IconButtonReentrantAngles from "./IconButtonReentrantAngles";
 import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
+import IconButtonCleanSegments from "./IconButtonCleanSegments";
 import IconButtonConvertAnnotation from "./IconButtonConvertAnnotation";
 import IconButtonVectorisation from "./IconButtonVectorisation";
 import IconButtonContours from "./IconButtonContours";
@@ -55,7 +60,10 @@ import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "./DatagridAnnotations";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
-export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) {
+export default function ToolbarEditAnnotations({
+  allAnnotations,
+  onDragStart,
+}) {
   const dispatch = useDispatch();
 
   // data
@@ -74,7 +82,8 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
   const { candidates: cloneCandidates, listings: cloneListings } =
     useAnnotationTemplateCandidates(firstAnnotation) ?? {};
   const { candidates: sameTypeCandidates, listings: sameTypeListings } =
-    useAnnotationTemplateCandidates(firstAnnotation, { variant: "sameType" }) ?? {};
+    useAnnotationTemplateCandidates(firstAnnotation, { variant: "sameType" }) ??
+    {};
   const updateAnnotations = useUpdateAnnotations();
 
   // state
@@ -105,6 +114,14 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
   );
 
   const hasPolygons = annotations.some((a) => a.type === "POLYGON");
+
+  // The "Clean segments" action accepts any POLYLINE selection (>=2 pts):
+  // multi-point polylines are split into 2-pt segments by the hook before
+  // cleaning. We only require at least 2 annotations (otherwise nothing to
+  // clean) AND that they are all POLYLINEs.
+  const allArePolylines =
+    annotations.length >= 2 &&
+    annotations.every((a) => a.type === "POLYLINE" && a.points?.length >= 2);
 
   // helpers - can merge
 
@@ -148,9 +165,11 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
           annotation,
           annotationIds: [annotation.id],
           count: 1,
-          totalSurface: qties?.enabled ? (qties.surface || 0) : 0,
-          totalLength: qties?.enabled ? (qties.length || 0) : 0,
-          hasSurface: ["RECTANGLE", "POLYGON", "STRIP"].includes(annotation.type),
+          totalSurface: qties?.enabled ? qties.surface || 0 : 0,
+          totalLength: qties?.enabled ? qties.length || 0 : 0,
+          hasSurface: ["RECTANGLE", "POLYGON", "STRIP"].includes(
+            annotation.type
+          ),
         });
       }
     }
@@ -258,7 +277,9 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+    <Box
+      sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+    >
       <Paper
         elevation={6}
         sx={{
@@ -285,7 +306,10 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <GripIcon fontSize="small" sx={{ color: "text.disabled", flexShrink: 0 }} />
+            <GripIcon
+              fontSize="small"
+              sx={{ color: "text.disabled", flexShrink: 0 }}
+            />
             <Typography
               variant="body2"
               sx={{ fontWeight: 600, fontSize: "0.8rem" }}
@@ -413,27 +437,27 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
                   accentColor="#6366F1"
                 />
               )}
+              {allArePolylines && (
+                <IconButtonCleanSegments
+                  annotations={annotations}
+                  accentColor="#6366F1"
+                />
+              )}
               {hasPolygons && (
                 <IconButtonConvertAnnotation
-                  annotations={annotations.filter(
-                    (a) => a.type === "POLYGON"
-                  )}
+                  annotations={annotations.filter((a) => a.type === "POLYGON")}
                   accentColor="#6366F1"
                 />
               )}
               {hasPolygons && (
                 <IconButtonVectorisation
-                  annotations={annotations.filter(
-                    (a) => a.type === "POLYGON"
-                  )}
+                  annotations={annotations.filter((a) => a.type === "POLYGON")}
                   accentColor="#6366F1"
                 />
               )}
               {hasPolylinesOrPolygons && (
                 <IconButtonContours
-                  annotations={annotations.filter(
-                    (a) => a.type === "POLYLINE"
-                  )}
+                  annotations={annotations.filter((a) => a.type === "POLYLINE")}
                   accentColor="#6366F1"
                 />
               )}
@@ -465,7 +489,9 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
               <ToggleSingleSelectorGeneric
                 selectedKey={selectedCloneType}
                 options={cloneTypeOptions}
-                onChange={(v) => setSelectedCloneType(v ?? firstAnnotation?.type)}
+                onChange={(v) =>
+                  setSelectedCloneType(v ?? firstAnnotation?.type)
+                }
               />
             </Box>
           )}
@@ -502,7 +528,10 @@ export default function ToolbarEditAnnotations({ allAnnotations, onDragStart }) 
         vh="80"
       >
         <BoxFlexVStretch>
-          <DatagridAnnotations annotations={annotations} onClose={() => setOpenDatagrid(false)} />
+          <DatagridAnnotations
+            annotations={annotations}
+            onClose={() => setOpenDatagrid(false)}
+          />
         </BoxFlexVStretch>
       </DialogGeneric>
     </Box>
@@ -515,7 +544,8 @@ function TemplateGroupRow({ group, onRemove }) {
   // helpers
 
   const { annotation, count, totalSurface, totalLength, hasSurface } = group;
-  const label = annotation?.annotationTemplateProps?.label || annotation?.label || "-";
+  const label =
+    annotation?.annotationTemplateProps?.label || annotation?.label || "-";
   const countSuffix = count > 1 ? ` (×${count})` : "";
 
   return (
@@ -548,7 +578,11 @@ function TemplateGroupRow({ group, onRemove }) {
             <Typography
               component="span"
               variant="body2"
-              sx={{ fontSize: "0.8rem", fontWeight: 400, color: "text.secondary" }}
+              sx={{
+                fontSize: "0.8rem",
+                fontWeight: 400,
+                color: "text.secondary",
+              }}
             >
               {countSuffix}
             </Typography>
