@@ -2,16 +2,6 @@ import db from "App/db/db";
 import { nanoid } from "@reduxjs/toolkit";
 import JSZip from "jszip";
 
-function base64ToArrayBuffer(base64) {
-    const binaryString = atob(base64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes.buffer;
-}
-
 export default async function loadKrtoZip(file, options) {
     if (!file) throw new Error("Fichier invalide");
 
@@ -32,21 +22,18 @@ export default async function loadKrtoZip(file, options) {
         const jsonContent = await jsonFile.async("text");
         const jsonData = JSON.parse(jsonContent);
 
-        // 3. Réhydrater les images dans le JSON (en Base64 temporaire)
-        const filesTableData = jsonData.data.data.find((t) => t.tableName === "files");
-
-        if (filesTableData && filesTableData.rows) {
-            const promises = filesTableData.rows.map(async (row) => {
-                if (row.fileName && !row.fileArrayBuffer) {
-                    const zipImage = zip.file(`images/${row.fileName}`);
-                    if (zipImage) {
-                        const base64Content = await zipImage.async("base64");
-                        row.fileArrayBuffer = base64Content;
-                    }
-                }
-            });
-            await Promise.all(promises);
-        }
+        // Keep binaries out of the JSON: dexie-export-import's SAX parser caps textNode at 10 MB.
+        const imageEntries = Object.values(zip.files).filter(
+            (f) => !f.dir && f.name.startsWith("images/")
+        );
+        const imageBuffers = new Map();
+        await Promise.all(
+            imageEntries.map(async (entry) => {
+                const fileName = entry.name.slice("images/".length);
+                const arrayBuffer = await entry.async("arraybuffer");
+                imageBuffers.set(fileName, arrayBuffer);
+            })
+        );
 
         // Récupérer l'ID du scope original depuis le JSON pour le remapping
         const scopesTableData = jsonData.data.data.find((t) => t.tableName === "scopes");
@@ -55,7 +42,7 @@ export default async function loadKrtoZip(file, options) {
         // 4. Créer le Blob JSON pour Dexie
         const jsonBlob = new Blob([JSON.stringify(jsonData)], { type: "application/json" });
 
-        // 5. Import avec conversion forcée en ArrayBuffer
+        // 5. Import avec injection des ArrayBuffer via transform
         await db.import(jsonBlob, {
             overwriteValues: true,
             acceptVersionDiff: true,
@@ -64,9 +51,12 @@ export default async function loadKrtoZip(file, options) {
             noTransaction: false,
 
             transform: (table, value) => {
-                // 1. Conversion Base64 -> ArrayBuffer pour les files
-                if (table === "files" && value.fileArrayBuffer && typeof value.fileArrayBuffer === "string") {
-                    value.fileArrayBuffer = base64ToArrayBuffer(value.fileArrayBuffer);
+                // 1. Injection des ArrayBuffer pour les files (depuis le ZIP)
+                if (table === "files" && value.fileName) {
+                    const arrayBuffer = imageBuffers.get(value.fileName);
+                    if (arrayBuffer) {
+                        value.fileArrayBuffer = arrayBuffer;
+                    }
                 }
 
                 // 2. Remapping projectId
