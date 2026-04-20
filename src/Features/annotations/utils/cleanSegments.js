@@ -11,13 +11,14 @@
 //          outside b within 3 px of nearest border, AND e anywhere INSIDE
 //          b's stroke).
 //        - Snap target side:
-//            * borderDist < BORDER_PROXIMITY_PX (e is close to one of b's
-//              borders, either side) → snap to e's CURRENT side. Pulls e
-//              to the border it's already near.
-//            * borderDist ≥ BORDER_PROXIMITY_PX (e is DEEP inside b, far
-//              from any border) → snap to the ANCHOR's side. The endpoint
-//              is brought back to the border on the side a's body comes
-//              from — "touch the segment but don't traverse it".
+//            * e OUTSIDE b (perpDist ≥ halfStroke) → snap to e's CURRENT
+//              side. e is approaching b from one side; reach the nearest
+//              border from outside.
+//            * e INSIDE b (perpDist < halfStroke) → snap to the ANCHOR's
+//              side. e has entered b (possibly past its centerline);
+//              terminate cleanly at the side a's body comes from
+//              ("touch but don't traverse"). This naturally handles deep
+//              insides AND V junction losers.
 //        - The endpoint is moved to the line at perpendicular offset
 //          (halfStroke − SNAP_DEPTH_PX) on the chosen side, constrained to
 //          the segment's ORIGINAL direction line (anchored at the other
@@ -27,14 +28,14 @@
 //        - Special "V junction" case: when BOTH segments have an endpoint
 //          near a border of the other (within BORDER_PROXIMITY_PX, inside
 //          OR just outside — the latter makes the cleanup idempotent), the
-//          regular rule leaves both endpoints overlapping ambiguously. We
-//          pick one (deterministically: smaller annotation id wins):
-//            * WINNER: snap target = (halfStroke + SNAP_DEPTH_PX) on e's
-//              CURRENT side — its tip sticks 1 px PAST the other's border.
-//            * LOSER : snap target = (halfStroke − SNAP_DEPTH_PX) on the
-//              ANCHOR's side — tucked 1 px INSIDE the other from the side
-//              the loser's body comes from (terminates cleanly at the
-//              corner instead of passing through).
+//          regular rule alone leaves both endpoints overlapping ambiguously.
+//          We pick one (deterministically: smaller annotation id wins) as
+//          the WINNER: its snap target switches to (halfStroke +
+//          SNAP_DEPTH_PX) on e's CURRENT side — its tip sticks 1 px PAST
+//          the other's border. The loser falls through to the regular
+//          INSIDE rule (snap to anchor's side, halfStroke − SNAP_DEPTH_PX
+//          target) — tucked 1 px INSIDE the other from the side it came
+//          from. Together: clean L corner.
 //   3. Unifies the ids of endpoints that end up at the same location.
 //
 // Returns: { updates: [{ id, points }], deleteIds: string[] }
@@ -272,7 +273,6 @@ export default function cleanSegments({ segments, meterByPx }) {
   // a clean L. The "winner" (= the segment whose endpoint sticks out) is
   // chosen deterministically: the segment whose id sorts smaller.
   const stickOutEndpoints = new Set(); // V junction winners — sign=sideE, target=halfStroke+1
-  const tuckInsideEndpoints = new Set(); // V junction losers — sign=sideAnchor, target=halfStroke-1
 
   // V junction detection: an endpoint qualifies if it's within
   // BORDER_PROXIMITY_PX of one of `dst`'s borders, EITHER from the inside
@@ -319,21 +319,16 @@ export default function cleanSegments({ segments, meterByPx }) {
       if (bEndpointIdx < 0) continue;
 
       // Both segments have an endpoint near the corner → V junction.
-      // Pick the winner deterministically (smaller id wins). The winner's
-      // tip sticks 1 px PAST its near border (on its current side). The
-      // loser's tip is tucked 1 px INSIDE the other from the side its body
-      // comes from (anchor's side) — this terminates the loser cleanly at
-      // the corner instead of letting it sit anywhere along the other.
-      let winnerKey, loserKey;
+      // Pick the winner deterministically (smaller id wins) — its tip
+      // sticks 1 px PAST its near border (on its current side). The loser
+      // is left to the regular rule below: an INSIDE endpoint snaps to
+      // anchor's side, which naturally tucks it 1 px inside the other
+      // from the side its body comes from (clean L corner).
       if (a.id < b.id) {
-        winnerKey = `${aIdx}:${aEndpointIdx}`;
-        loserKey = `${bIdx}:${bEndpointIdx}`;
+        stickOutEndpoints.add(`${aIdx}:${aEndpointIdx}`);
       } else {
-        winnerKey = `${bIdx}:${bEndpointIdx}`;
-        loserKey = `${aIdx}:${aEndpointIdx}`;
+        stickOutEndpoints.add(`${bIdx}:${bEndpointIdx}`);
       }
-      stickOutEndpoints.add(winnerKey);
-      tuckInsideEndpoints.add(loserKey);
     }
   }
 
@@ -375,25 +370,33 @@ export default function cleanSegments({ segments, meterByPx }) {
         const borderDist = Math.abs(proj.perpDist - halfStroke);
 
         // Sign of the snap target line:
-        //   - V junction LOSER → ANCHOR's side (terminate cleanly at the
-        //     side from which a's body approaches the corner);
-        //   - close to a border → e's CURRENT side (pull to nearest border);
-        //   - deep inside b → ANCHOR's side ("touch but don't traverse").
-        // Edge case at the median (perpDist ≈ 0): use anchor's side either
-        // way (e's side is undefined).
+        //   - V junction WINNER → e's CURRENT side (will use halfStroke+1
+        //     target below to stick OUT past the border).
+        //   - e INSIDE the other → ANCHOR's side (where a's body comes
+        //     from). Pulls e back to the entry side, terminates A cleanly
+        //     at B without traversing it. This subsumes the V junction
+        //     loser case: a loser is an INSIDE endpoint and anchor is on
+        //     the opposite side, so the snap goes to anchor's side.
+        //   - e OUTSIDE the other (within BORDER_PROXIMITY_PX) → e's
+        //     CURRENT side (e is approaching the other; reach the nearest
+        //     border from outside).
+        // Edge case at the median (perpDist ≈ 0): use anchor's side
+        // (e's side is undefined).
         const sideAnchor = signedSideOfLine(anchor, bSnap.p0, bSnap.dir);
         const isStickOut = stickOutEndpoints.has(`${aIdx}:${i}`);
-        const isTuckInside = tuckInsideEndpoints.has(`${aIdx}:${i}`);
+        const sideE =
+          proj.perpDist < 1e-6
+            ? sideAnchor
+            : signedSideOfLine(e, bSnap.p0, bSnap.dir);
         let sign;
-        if (isTuckInside) {
+        if (isStickOut) {
+          sign = sideE;
+        } else if (proj.perpDist < halfStroke) {
+          // e is INSIDE the other's stroke
           sign = sideAnchor;
-        } else if (borderDist < BORDER_PROXIMITY_PX) {
-          sign =
-            proj.perpDist < 1e-6
-              ? sideAnchor
-              : signedSideOfLine(e, bSnap.p0, bSnap.dir);
         } else {
-          sign = sideAnchor;
+          // e is OUTSIDE the other's stroke (close to border)
+          sign = sideE;
         }
 
         // V junction WINNER → snap 1 px OUTSIDE the nearest border on e's
