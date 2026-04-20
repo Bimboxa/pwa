@@ -36,6 +36,14 @@
 //          INSIDE rule (snap to anchor's side, halfStroke − SNAP_DEPTH_PX
 //          target) — tucked 1 px INSIDE the other from the side it came
 //          from. Together: clean L corner.
+//   2.5. Past-extent snap (second pass on top of step 2). Picks up cases
+//      step 2 skips because e's perpendicular projection lies OUTSIDE b's
+//      segment extent — typically when a falls in the gap between two
+//      collinear neighbors b and c, or just past the end of an isolated b.
+//      If such an endpoint sits within PAST_EXTENT_MARGIN_PX of b's nearest
+//      border (inside or outside), snap it to be EXACTLY on the border
+//      (depth 0, not 1 px inside as in step 2). Handles the L/T junctions
+//      where the tip of a should sit cleanly at b's border line.
 //   3. Unifies the ids of endpoints that end up at the same location.
 //
 // Returns: { updates: [{ id, points }], deleteIds: string[] }
@@ -51,9 +59,15 @@ const SIN_PERPENDICULAR = Math.sin(ANGLE_TOL_RAD);
 const COLINEAR_PERP_TOL_PX = 1; // segments must be within 1 px perpendicular
 const COLINEAR_OVERLAP_TOL_PX = 1; // intervals merged if gap <= 1 px
 
-// Step 3 — L/T junction snap.
+// Step 3 — L/T junction snap (in-extent).
 const BORDER_PROXIMITY_PX = 3; // trigger: endpoint within 3 px of other's border
 const SNAP_DEPTH_PX = 1; // penetration depth past the border (toward median)
+
+// Step 3.5 — past-extent snap (endpoint past b's segment extent).
+// 3 px to match BORDER_PROXIMITY_PX of step 3 (consistent tolerance across
+// both snap passes — small drawing slop should be captured the same way
+// regardless of whether the endpoint lands in or out of b's extent).
+const PAST_EXTENT_MARGIN_PX = 3;
 
 // Step 4 — id unification.
 const COINCIDENT_TOL_PX = 1;
@@ -427,6 +441,82 @@ export default function cleanSegments({ segments, meterByPx }) {
 
   // Refresh dir/length after snap (length may change; dir stays since the
   // endpoint moved along the original direction line — recompute defensively).
+  for (const idx of aliveIndices) {
+    const s = state[idx];
+    const refreshed = makeDir(s.points[0], s.points[1]);
+    s.dir = refreshed.dir;
+    s.length = refreshed.length;
+  }
+
+  // 3.5. PAST-EXTENT snap. Picks up cases the in-extent snap (step 3)
+  // skips: a's endpoint is BEYOND b's segment extent (proj.t outside
+  // [0, b.length]) — typically because a falls in the gap between two
+  // collinear neighbors b and c, or just past the end of an isolated b.
+  // If such an endpoint is within PAST_EXTENT_MARGIN_PX of b's nearest
+  // border (inside or outside), snap it to be EXACTLY on the border
+  // (depth 0, not 1 px inside). This handles the L/T junctions where
+  // the "tip" of a should sit cleanly at the border line of b/c.
+  for (const aIdx of aliveIndices) {
+    const a = state[aIdx];
+    const aPostSnap = {
+      p0: { x: a.points[0].x, y: a.points[0].y },
+      p1: { x: a.points[1].x, y: a.points[1].y },
+      dir: { x: a.dir.x, y: a.dir.y },
+      length: a.length,
+    };
+    for (let i = 0; i < 2; i++) {
+      const e = i === 0 ? aPostSnap.p0 : aPostSnap.p1;
+      const anchor = i === 0 ? aPostSnap.p1 : aPostSnap.p0;
+
+      let snapTarget = null;
+      for (const bIdx of aliveIndices) {
+        if (aIdx === bIdx) continue;
+        const b = state[bIdx];
+        if (!arePerpendicular(aPostSnap, b)) continue;
+        if (b.length === 0) continue;
+        if (
+          a.originAnnotationId &&
+          b.originAnnotationId &&
+          a.originAnnotationId === b.originAnnotationId
+        )
+          continue;
+
+        const halfStroke = b.strokeWidthPx / 2;
+        const proj = projectOnInfiniteLine(e, b.points[0], b.dir);
+
+        // Skip if e's projection is INSIDE b's extent — handled by step 3.
+        if (proj.t >= 0 && proj.t <= b.length) continue;
+
+        // Skip if e is too far from b's border.
+        const borderDist = Math.abs(proj.perpDist - halfStroke);
+        if (borderDist > PAST_EXTENT_MARGIN_PX) continue;
+
+        // Snap to EXACTLY on b's border on e's CURRENT side.
+        const sideE = signedSideOfLine(e, b.points[0], b.dir);
+        const perpDirB = { x: -b.dir.y, y: b.dir.x };
+        const denom =
+          aPostSnap.dir.x * perpDirB.x + aPostSnap.dir.y * perpDirB.y;
+        if (Math.abs(denom) < 1e-9) continue;
+        const targetSignedOffset = sideE * halfStroke; // depth 0
+        const numer =
+          targetSignedOffset -
+          ((anchor.x - b.points[0].x) * perpDirB.x +
+            (anchor.y - b.points[0].y) * perpDirB.y);
+        const sParam = numer / denom;
+        snapTarget = {
+          x: anchor.x + sParam * aPostSnap.dir.x,
+          y: anchor.y + sParam * aPostSnap.dir.y,
+        };
+        break;
+      }
+
+      if (snapTarget) {
+        a.points[i] = { ...a.points[i], x: snapTarget.x, y: snapTarget.y };
+      }
+    }
+  }
+
+  // Refresh after past-extent snap.
   for (const idx of aliveIndices) {
     const s = state[idx];
     const refreshed = makeDir(s.points[0], s.points[1]);
