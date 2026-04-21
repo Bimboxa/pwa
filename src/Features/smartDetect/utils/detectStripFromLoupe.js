@@ -451,17 +451,9 @@ export default function detectStripFromLoupe({
 
   const segments = [];
   for (const seed of seeds) {
-    // The cluster's best seed is the LEFTMOST candidate (smallest u), which
-    // places refPoint.x exactly at the viewportBBox left edge when that seed
-    // sits on the u = -halfTangent sample line. When cx is fractional (any
-    // baseMapImageScale != 1), Math.round(refPoint.x) inside extractSegments
-    // can round DOWN to rx < viewportBBox.x → break at d=0 → empty segment.
-    // Nudge refPoint 0.5 px inward along tangent so the rounding always lands
-    // inside the viewport. The nudge is parallel to the wall (along tangent)
-    // so probeWidthAt samples the same y-pixels — detection quality unchanged.
     const refPoint = {
-      x: (seed.start.x + seed.end.x) / 2 + tangent.dx * 0.5,
-      y: (seed.start.y + seed.end.y) / 2 + tangent.dy * 0.5,
+      x: (seed.start.x + seed.end.x) / 2,
+      y: (seed.start.y + seed.end.y) / 2,
     };
     const wallSegs = extractSegments({
       imageData,
