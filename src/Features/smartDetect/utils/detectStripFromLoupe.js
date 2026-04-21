@@ -349,10 +349,42 @@ export default function detectStripFromLoupe({
       densityThreshold: EXTRACT_DENSITY,
     });
     for (const w of wallSegs) {
-      if (segLength(w) <= minWallLength) continue;
+      // Project the segment onto the loupe's rotated (u, v) frame and clip
+      // its tangent extent to the rotated loupe. extractSegments uses the
+      // enclosing AABB as its scan clamp, which is wider than the rotated
+      // loupe along tangent — without this clip the detected strip can
+      // overrun the visible loupe boundary at its ends.
+      const uStart =
+        (w.start.x - cx) * tangent.dx + (w.start.y - cy) * tangent.dy;
+      const uEnd =
+        (w.end.x - cx) * tangent.dx + (w.end.y - cy) * tangent.dy;
+      // Whole segment outside the loupe on one side → drop.
+      if (
+        (uStart > halfTangent && uEnd > halfTangent) ||
+        (uStart < -halfTangent && uEnd < -halfTangent)
+      ) continue;
+      const uStartC = Math.max(-halfTangent, Math.min(halfTangent, uStart));
+      const uEndC = Math.max(-halfTangent, Math.min(halfTangent, uEnd));
+      // extractSegments scans strictly along tangent so v is constant per
+      // endpoint in principle, but preserve per-endpoint v for robustness.
+      const vStart =
+        (w.start.x - cx) * normal.dx + (w.start.y - cy) * normal.dy;
+      const vEnd =
+        (w.end.x - cx) * normal.dx + (w.end.y - cy) * normal.dy;
+      const clipped = {
+        start: {
+          x: cx + uStartC * tangent.dx + vStart * normal.dx,
+          y: cy + uStartC * tangent.dy + vStart * normal.dy,
+        },
+        end: {
+          x: cx + uEndC * tangent.dx + vEnd * normal.dx,
+          y: cy + uEndC * tangent.dy + vEnd * normal.dy,
+        },
+      };
+      if (segLength(clipped) <= minWallLength) continue;
       const seg = {
-        start: { x: w.start.x + sx, y: w.start.y + sy },
-        end:   { x: w.end.x   + sx, y: w.end.y   + sy },
+        start: { x: clipped.start.x + sx, y: clipped.start.y + sy },
+        end:   { x: clipped.end.x   + sx, y: clipped.end.y   + sy },
       };
       if (!pointsOnMedianAxis) seg.stripOrientation = stripOrientation;
       segments.push(seg);
