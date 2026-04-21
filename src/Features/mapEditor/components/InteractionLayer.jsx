@@ -387,7 +387,12 @@ const InteractionLayer = forwardRef(({
 
       const stripOrientation = na.stripOrientation ?? 1;
       const orientation = stripDetectionOrientationRef.current || "H";
-      const orthoAngleRad = ((orthoSnapAngleOffsetRef.current || 0) * Math.PI) / 180;
+      // Negate so a positive ortho snap offset rotates the scan frame the
+      // same way as snapToAngle (Features/mapEditor/utils/snapToAngle.js) and
+      // the rectangle / rotated-rect snap utilities (getPolylinePointsFromRectangle.js,
+      // mapEditorGeneric/DrawingLayer.jsx) — screen coords with Y pointing down.
+      const orthoAngleRad =
+        (-(orthoSnapAngleOffsetRef.current || 0) * Math.PI) / 180;
       const detectMultiple = !!stripDetectionMultipleRef.current;
 
       let results;
