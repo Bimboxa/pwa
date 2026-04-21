@@ -113,11 +113,13 @@ export function extractSegments({
     for (let d = 0; d <= maxDist; d += stepPx) {
       const px = refPoint.x + sign * d * scanDir.dx;
       const py = refPoint.y + sign * d * scanDir.dy;
-      const rx = Math.round(px);
-      const ry = Math.round(py);
-      if (rx < viewportBBox.x || ry < viewportBBox.y ||
-          rx >= viewportBBox.x + viewportBBox.width ||
-          ry >= viewportBBox.y + viewportBBox.height) break;
+      // Compare floats against the (potentially fractional) viewportBBox —
+      // rounding only belongs in the pixel-index lookup below, not in the
+      // geometric bounds check. A float-vs-float test is what the bbox
+      // semantics require.
+      if (px < viewportBBox.x || py < viewportBBox.y ||
+          px >= viewportBBox.x + viewportBBox.width ||
+          py >= viewportBBox.y + viewportBBox.height) break;
 
       if (probeWidthAt(imageData, { x: px, y: py }, probeDir,
           stripWidthPx, stripOrientation, minWidth, maxWidth,
