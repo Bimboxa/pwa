@@ -1,5 +1,11 @@
 /**
- * Detect axis-aligned wall strips inside the loupe ROI on mouseMove.
+ * Detect wall strips inside the loupe ROI on mouseMove.
+ *
+ * The loupe is a rectangle of size `loupeBBox.width × loupeBBox.height`
+ * centered on the cursor and visually rotated by `orthoAngleRad` (the
+ * rotation pivot is the cursor = the AABB centre). The algorithm operates
+ * in the loupe's own rotated frame (u along tangent, v along normal), so
+ * the scan grid matches the visible rotated rectangle exactly.
  *
  * Pipeline
  * --------
@@ -95,11 +101,16 @@ function scanSampleLine({
   normal,
   imageData, exclusionMask,
   iw, ih,
-  xMin, yMin, xMax, yMax,
   darknessThreshold,
   minWidth, maxWidth,
 }) {
   // Pass 1 — collect raw dark sub-runs along this line.
+  //
+  // The scan grid (u, v) operates in the loupe's own rotated frame: u is
+  // bounded by halfTangent and v by halfNormalInt, which are the loupe's
+  // half-width and half-height (along tangent/normal). Therefore every
+  // (ax + v*normal, ay + v*normal) pixel is inside the rotated loupe by
+  // construction — only image bounds need to be re-checked here.
   const runs = [];
   let runStart = -1;
   let lastDarkV = -1;
@@ -114,9 +125,7 @@ function scanSampleLine({
     if (!outOfBounds) {
       const px = Math.round(ax + v * normal.dx);
       const py = Math.round(ay + v * normal.dy);
-      const inside =
-        px >= xMin && px < xMax && py >= yMin && py < yMax &&
-        px >= 0 && px < iw && py >= 0 && py < ih;
+      const inside = px >= 0 && px < iw && py >= 0 && py < ih;
       if (inside) {
         const masked = exclusionMask && exclusionMask[py * iw + px];
         if (!masked) isDark = getBrightness(imageData, px, py) < darknessThreshold;
@@ -232,22 +241,39 @@ export default function detectStripFromLoupe({
   const maxWidth = stripWidthPx * (1 + widthTolerance);
 
   // Loupe center in image px → origin of the rotated (u, v) frame.
+  // The AABB `loupeBBox` is centered on the cursor, and the visible loupe
+  // (ScreenCursorV2.jsx) rotates around that same center by the same ortho
+  // angle used to build `tangent`/`normal` here — so (cx, cy) is also the
+  // centre of the rotated loupe rectangle.
   const cx = loupeBBox.x + loupeBBox.width / 2;
   const cy = loupeBBox.y + loupeBBox.height / 2;
 
-  // Project the loupe rectangle onto the rotated axes — exact useful range.
+  // Half-extents of the rotated loupe along its OWN axes (tangent, normal).
+  // In H orientation tangent is the loupe's width axis and normal its height
+  // axis; in V orientation they swap. This is the correct scan-grid size —
+  // the previous formula projected the un-rotated AABB onto (tangent, normal)
+  // which under-sized the grid at non-zero angles and clipped detection.
   const halfTangent =
-    (loupeBBox.width / 2) * Math.abs(tangent.dx) +
-    (loupeBBox.height / 2) * Math.abs(tangent.dy);
+    (orientation === "V" ? loupeBBox.height : loupeBBox.width) / 2;
   const halfNormal =
-    (loupeBBox.width / 2) * Math.abs(normal.dx) +
-    (loupeBBox.height / 2) * Math.abs(normal.dy);
+    (orientation === "V" ? loupeBBox.width : loupeBBox.height) / 2;
   const halfNormalInt = Math.ceil(halfNormal);
 
-  const xMin = loupeBBox.x;
-  const yMin = loupeBBox.y;
-  const xMax = loupeBBox.x + loupeBBox.width;
-  const yMax = loupeBBox.y + loupeBBox.height;
+  // Enlarged AABB that fully encloses the rotated loupe. Used only as
+  // `viewportBBox` for extractSegments below so its tangent scan can reach
+  // the ends of the rotated loupe (the seed sweep above doesn't need any
+  // AABB clamp because its (u, v) loop is already bounded by the rotated
+  // loupe's own half-extents).
+  const enclHalfW =
+    halfTangent * Math.abs(tangent.dx) + halfNormal * Math.abs(normal.dx);
+  const enclHalfH =
+    halfTangent * Math.abs(tangent.dy) + halfNormal * Math.abs(normal.dy);
+  const enclosingBBox = {
+    x: cx - enclHalfW,
+    y: cy - enclHalfH,
+    width: 2 * enclHalfW,
+    height: 2 * enclHalfH,
+  };
   const iw = imageData.width;
   const ih = imageData.height;
 
@@ -266,7 +292,6 @@ export default function detectStripFromLoupe({
       normal,
       imageData, exclusionMask,
       iw, ih,
-      xMin, yMin, xMax, yMax,
       darknessThreshold,
       minWidth, maxWidth,
     }));
@@ -308,7 +333,7 @@ export default function detectStripFromLoupe({
     const wallSegs = extractSegments({
       imageData,
       exclusionMask,
-      viewportBBox: loupeBBox,
+      viewportBBox: enclosingBBox,
       probeDir: normal,
       scanDir: tangent,
       refPoint,
