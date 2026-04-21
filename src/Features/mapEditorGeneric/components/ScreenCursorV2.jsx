@@ -40,12 +40,21 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
             rect.setAttribute('height', height);
         }
         // Keep the dim-mask hole in sync with the visible zoom rect.
+        // The hole must also rotate by the same ortho angle as linesGroupRef
+        // (which wraps the visible zoom rect) so the dimmed silhouette
+        // matches the detection ROI when orthoSnapAngleOffset != 0.
         const hole = maskHoleRef.current;
         if (hole) {
             hole.setAttribute('x', x - width / 2);
             hole.setAttribute('y', y - height / 2);
             hole.setAttribute('width', width);
             hole.setAttribute('height', height);
+            const angle = rotationAngleRef.current || 0;
+            if (angle) {
+                hole.setAttribute('transform', `rotate(${-angle}, ${x}, ${y})`);
+            } else {
+                hole.removeAttribute('transform');
+            }
         }
         // Hide the dim group entirely when no zoom rect is active (size 0).
         const dim = dimGroupRef.current;
