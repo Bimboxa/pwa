@@ -100,6 +100,7 @@ function getOrthoVectors(orientation, orthoAngleRad) {
 function scanSampleLine({
   ax, ay, u,
   halfNormalInt,
+  halfNormalScanInt,
   normal,
   imageData, exclusionMask,
   iw, ih,
@@ -108,11 +109,12 @@ function scanSampleLine({
 }) {
   // Pass 1 — collect raw dark sub-runs along this line.
   //
-  // The scan grid (u, v) operates in the loupe's own rotated frame: u is
-  // bounded by halfTangent and v by halfNormalInt, which are the loupe's
-  // half-width and half-height (along tangent/normal). Therefore every
-  // (ax + v*normal, ay + v*normal) pixel is inside the rotated loupe by
-  // construction — only image bounds need to be re-checked here.
+  // Scan extends beyond the loupe's normal extent (halfNormalInt) by a
+  // margin — up to halfNormalScanInt — so a wall whose centre sits near
+  // the loupe edge is always seen in its full width, not truncated to
+  // the portion that happens to fit inside the loupe. Pass 2 below still
+  // rejects candidates whose centre lies outside the loupe's normal
+  // extent, keeping the loupe semantically the ROI.
   const runs = [];
   let runStart = -1;
   let lastDarkV = -1;
@@ -121,9 +123,9 @@ function scanSampleLine({
     runs.push({ start: runStart, end: lastDarkV });
     runStart = -1;
   };
-  for (let v = -halfNormalInt; v <= halfNormalInt + 1; v++) {
+  for (let v = -halfNormalScanInt; v <= halfNormalScanInt + 1; v++) {
     let isDark = false;
-    let outOfBounds = v > halfNormalInt;
+    let outOfBounds = v > halfNormalScanInt;
     if (!outOfBounds) {
       const px = Math.round(ax + v * normal.dx);
       const py = Math.round(ay + v * normal.dy);
@@ -145,9 +147,14 @@ function scanSampleLine({
   }
   closeRun();
 
-  // Pass 2 — single run ≈ stripWidthPx OR mergeable pair.
+  // Pass 2 — single run ≈ stripWidthPx OR mergeable pair. Only emit
+  // candidates whose centre lies inside the loupe's normal extent so
+  // the margin scan above doesn't leak detections for walls outside
+  // the visible loupe.
   const out = [];
   const emit = (vStart, vEnd) => {
+    const center = (vStart + vEnd) / 2;
+    if (Math.abs(center) > halfNormalInt) return;
     out.push({
       u, vStart, vEnd,
       start: { x: ax + vStart * normal.dx, y: ay + vStart * normal.dy },
@@ -368,6 +375,14 @@ export default function detectStripFromLoupe({
     (orientation === "V" ? loupeBBox.width : loupeBBox.height) / 2;
   const halfNormalInt = Math.ceil(halfNormal);
 
+  // Extend the Pass-1 scan along normal by half the max allowed wall width
+  // so a wall whose centre sits anywhere inside the loupe is always seen
+  // in its full width (and therefore passes the [minWidth, maxWidth] gate).
+  // Pass 2 below still rejects candidates whose centre is outside the loupe,
+  // so this margin only helps edge-adjacent walls — it does not leak
+  // detections for walls whose axis sits outside the visible loupe.
+  const halfNormalScanInt = halfNormalInt + Math.ceil(maxWidth / 2);
+
   // Enlarged AABB that fully encloses the rotated loupe. Used only as
   // `viewportBBox` for extractSegments below so its tangent scan can reach
   // the ends of the rotated loupe (the seed sweep above doesn't need any
@@ -398,6 +413,7 @@ export default function detectStripFromLoupe({
     candidates.push(...scanSampleLine({
       ax, ay, u,
       halfNormalInt,
+      halfNormalScanInt,
       normal,
       imageData, exclusionMask,
       iw, ih,
