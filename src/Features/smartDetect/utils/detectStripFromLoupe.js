@@ -68,6 +68,8 @@ const SAMPLE_COUNT = 21;          // odd → one line crosses the loupe center
 const MAX_GAP_RATIO = 0.30;       // merged pair must be ≥ 70% black
 const CLUSTER_TOL_RATIO = 0.5;    // line clustering tolerance = stripWidthPx * this
 const MIN_WALL_EXTRA_PX = 2;      // wall is "real" if length > stripWidthPx + this
+const REFINE_RANGE_RATIO = 0.3;   // search ±ceil(stripWidthPx * this) along normal
+const REFINE_RANGE_MAX_PX = 8;    // absolute cap on the refinement search range
 const EXTRACT_STEP_PX = 2;
 const EXTRACT_MAX_GAP_PX = 5;
 const EXTRACT_DENSITY = 0.55;
@@ -192,6 +194,82 @@ function clusterByParallelLine(candidates, clusterTol) {
     }
   }
   return clusters.map(({ best }) => best);
+}
+
+// ---------------------------------------------------------------------------
+// Step 5b: transverse-offset refinement
+//
+// The detected median-axis segment can sit 1-2 px off the actual wall
+// (anti-aliased edges, leftmost-seed bias, stripWidthPx mismatch with the
+// true wall width). This helper runs a small ±K-pixel search along the
+// normal and keeps the offset that maximises dark-pixel coverage inside a
+// stripWidthPx-wide band along the segment.
+//
+// Pure post-processing: does not touch the seed sweep, clustering, or
+// extractSegments. Runs on the median axis, so both STRIP (shift to edge
+// afterwards) and SEGMENT (no shift) modes benefit from a single hook.
+// ---------------------------------------------------------------------------
+
+function refineTransverseOffset(
+  seg,
+  { normal, stripWidthPx, darknessThreshold, exclusionMask, imageData }
+) {
+  const iw = imageData.width;
+  const ih = imageData.height;
+  const halfW = Math.round(stripWidthPx / 2);
+  const range = Math.min(
+    Math.ceil(stripWidthPx * REFINE_RANGE_RATIO),
+    REFINE_RANGE_MAX_PX
+  );
+  if (range <= 0) return seg;
+
+  const dx = seg.end.x - seg.start.x;
+  const dy = seg.end.y - seg.start.y;
+  const segLen = Math.sqrt(dx * dx + dy * dy);
+  if (segLen <= 0) return seg;
+  const steps = Math.max(1, Math.round(segLen));
+
+  const scoreAt = (delta) => {
+    const dnx = delta * normal.dx;
+    const dny = delta * normal.dy;
+    let dark = 0;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const bx = seg.start.x + t * dx + dnx;
+      const by = seg.start.y + t * dy + dny;
+      for (let w = -halfW; w <= halfW; w++) {
+        const px = Math.round(bx + w * normal.dx);
+        const py = Math.round(by + w * normal.dy);
+        if (px < 0 || py < 0 || px >= iw || py >= ih) continue;
+        if (exclusionMask && exclusionMask[py * iw + px]) continue;
+        if (getBrightness(imageData, px, py) < darknessThreshold) dark++;
+      }
+    }
+    return dark;
+  };
+
+  // Iterate offsets by increasing |delta| so ties prefer the original
+  // detection (delta = 0) and then the smallest shift.
+  let bestDelta = 0;
+  let bestScore = scoreAt(0);
+  for (let k = 1; k <= range; k++) {
+    for (const sign of [1, -1]) {
+      const delta = sign * k;
+      const s = scoreAt(delta);
+      if (s > bestScore) {
+        bestScore = s;
+        bestDelta = delta;
+      }
+    }
+  }
+  if (bestDelta === 0) return seg;
+
+  const ox = bestDelta * normal.dx;
+  const oy = bestDelta * normal.dy;
+  return {
+    start: { x: seg.start.x + ox, y: seg.start.y + oy },
+    end:   { x: seg.end.x   + ox, y: seg.end.y   + oy },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -382,9 +460,19 @@ export default function detectStripFromLoupe({
         },
       };
       if (segLength(clipped) <= minWallLength) continue;
+
+      // Refine the median axis transversely to snap onto the darkest band.
+      // Absorbs 1-2 px offsets from anti-aliased edges, seed bias, and
+      // stripWidthPx vs true wall-width mismatches. No-op when the initial
+      // detection is already best.
+      const refined = refineTransverseOffset(clipped, {
+        normal, stripWidthPx,
+        darknessThreshold, exclusionMask, imageData,
+      });
+
       const seg = {
-        start: { x: clipped.start.x + sx, y: clipped.start.y + sy },
-        end:   { x: clipped.end.x   + sx, y: clipped.end.y   + sy },
+        start: { x: refined.start.x + sx, y: refined.start.y + sy },
+        end:   { x: refined.end.x   + sx, y: refined.end.y   + sy },
       };
       if (!pointsOnMedianAxis) seg.stripOrientation = stripOrientation;
       segments.push(seg);
