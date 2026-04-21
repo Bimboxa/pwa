@@ -1,4 +1,5 @@
 import getStripePolygons from "Features/geometry/utils/getStripePolygons";
+import getPolylineContourPoints from "Features/geometry/utils/getPolylineContourPoints";
 
 /**
  * Rasterize visible annotations into a Uint8Array exclusion mask
@@ -60,19 +61,33 @@ export default function buildExclusionMask(
         ann.strokeWidthUnit === "CM" && meterByPx > 0
           ? Math.abs((sw * 0.01) / meterByPx / imageScale)
           : Math.abs(sw / imageScale);
-      ctx.lineWidth = swPx;
-      ctx.strokeStyle = "white";
+      // Fill the exact symmetric contour polygon (same algorithm as the
+      // "Contours" tool — see getPolylineContourPoints / useWallBoundaries)
+      // instead of ctx.stroke(). Avoids the anti-aliased fringe and
+      // line-cap artifacts of stroke() — the mask now matches the
+      // rendered polyline's geometry pixel-for-pixel.
+      const contour = getPolylineContourPoints(pts, swPx);
+      if (contour.length < 3) continue;
       ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-      ctx.stroke();
+      ctx.moveTo(contour[0].x, contour[0].y);
+      for (let i = 1; i < contour.length; i++) {
+        ctx.lineTo(contour[i].x, contour[i].y);
+      }
+      ctx.closePath();
+      ctx.fill();
     }
   }
 
+  // Use a mostly-painted threshold (>= 128) instead of "any non-zero red
+  // channel" so anti-aliased fringe pixels at the stroke / fill edges are
+  // NOT masked. Polyline / strip interiors are painted fully opaque white
+  // (red = 255), so fully-covered pixels remain masked; only the 0.5-1 px
+  // antialiasing fringe on each side drops out. Avoids falsely masking
+  // legitimate base-map dark pixels adjacent to existing annotations.
   const data = ctx.getImageData(0, 0, width, height).data;
   const mask = new Uint8Array(width * height);
   for (let i = 0; i < mask.length; i++) {
-    if (data[i * 4] > 0) mask[i] = 1;
+    if (data[i * 4] >= 128) mask[i] = 1;
   }
   return mask;
 }

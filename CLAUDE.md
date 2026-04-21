@@ -40,6 +40,15 @@ src/
 | Services    | camelCase                 | `createMarkerService.js`                      |
 | Directories | camelCase                 | `features/annotations`, `features/entities`   |
 
+## Canonical vs. deprecated components
+
+When a component exists in both a `Xxx` and `XxxStatic` variant, the **`Static` variant is the canonical, active one** — always read, reason about, and modify the `Static` version. The non-`Static` sibling is deprecated and kept only for historical reference.
+
+Examples:
+- `NodePolylineStatic.jsx` ← canonical (current renderer for POLYLINE / POLYGON annotations)
+- `NodePolyline.jsx` ← deprecated, do not use
+- Same rule for any other `NodeXxx` / `NodeXxxStatic` pair in `src/Features/mapEditorGeneric/components/`
+
 ## React component structure
 
 ### Import order
