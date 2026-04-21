@@ -653,19 +653,28 @@ const InteractionLayer = forwardRef(({
 
   const [sourceImageEl, setSourceImageEl] = useState(null);
 
-  // Latest annotations snapshot for STRIP_DETECTION (read at build time only).
-  const annotationsRef = useRef(annotations);
-  useEffect(() => { annotationsRef.current = annotations; }, [annotations]);
 
-  // Use annotationsUpdatedAt as a stable trigger — only rebuild the exclusion mask
-  // when annotations are actually created/updated, not on every reference change.
+  // Latest annotations snapshot for STRIP_DETECTION (read at build time only).
+  // Assigned in the render body (not via useEffect) so it's updated
+  // synchronously as soon as the parent re-renders with the post-commit
+  // annotations from useAnnotationsV2 — the previous useEffect-based sync
+  // could lag one render behind when annotationsUpdatedAt fired before
+  // useLiveQuery had re-emitted, causing buildExclusionMask to miss freshly
+  // committed annotations.
+  const annotationsRef = useRef(annotations);
+  annotationsRef.current = annotations;
+
+  // Use annotationsUpdatedAt (Redux) as the rebuild trigger. The effect
+  // schedules buildCaches via setTimeout(0), which runs AFTER the current
+  // tick's microtasks — by then useAnnotationsV2's useLiveQuery has
+  // re-emitted and `annotationsRef.current` (updated synchronously in the
+  // render body below) carries the fresh post-commit list.
   const annotationsUpdatedAt = useSelector((s) => s.annotations.annotationsUpdatedAt);
 
   // Build / clear STRIP_DETECTION / SEGMENT_DETECTION caches when the tool
-  // activates / deactivates, or when annotations are mutated
-  // (annotationsUpdatedAt changes). Heavy work (full-image getImageData +
-  // exclusion mask rasterize) is deferred via setTimeout so the click
-  // activating the tool isn't blocked.
+  // activates / deactivates, or when the annotations list changes. Heavy
+  // work (full-image getImageData + exclusion mask rasterize) is deferred
+  // via setTimeout so the click activating the tool isn't blocked.
   useEffect(() => {
     const detectionTarget = getEffectiveDetectionMode({
       enabledDrawingMode,

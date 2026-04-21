@@ -132,6 +132,107 @@ export function extractSegments({
   if (hits.length === 0) return [];
   hits.sort((a, b) => a.d - b.d);
 
+  // Bisect in d ∈ [anchor.d, anchor.d + directionSign * stepPx] to find the
+  // last passing probe at 1 px resolution. The coarse scan only knows the
+  // endpoint at stepPx granularity; this recovers the last 0-(stepPx-1) px
+  // without a full second scan — one probe call per endpoint when stepPx=2.
+  // directionSign = +1 extends toward +scanDir; -1 extends toward -scanDir.
+  // Segment can only grow: if the extra probe fails or exits the viewport,
+  // anchor.d is returned unchanged.
+  const refineAnchor = (anchor, directionSign) => {
+    let lowD = anchor.d;                             // known to pass
+    let highD = anchor.d + directionSign * stepPx;   // assumed to fail
+    while (Math.abs(highD - lowD) > 1) {
+      const midD = Math.trunc((lowD + highD) / 2);
+      if (midD === lowD || midD === highD) break;
+      const px = refPoint.x + midD * scanDir.dx;
+      const py = refPoint.y + midD * scanDir.dy;
+      if (px < viewportBBox.x || py < viewportBBox.y ||
+          px >= viewportBBox.x + viewportBBox.width ||
+          py >= viewportBBox.y + viewportBBox.height) {
+        highD = midD;
+        continue;
+      }
+      if (probeWidthAt(imageData, { x: px, y: py }, probeDir,
+          stripWidthPx, stripOrientation, minWidth, maxWidth,
+          darknessThreshold, exclusionMask, densityThreshold, symmetric)) {
+        lowD = midD;
+      } else {
+        highD = midD;
+      }
+    }
+    return {
+      d: lowD,
+      x: refPoint.x + lowD * scanDir.dx,
+      y: refPoint.y + lowD * scanDir.dy,
+    };
+  };
+
+  // After bisection brings the endpoint to 1 px precision, greedily extend
+  // 1 px at a time as long as the wall is still "somewhat dark" at the
+  // current scan position. This captures the anti-aliased 1-2 px edge of
+  // the wall that looks black to the eye but fails the strict
+  // `darknessThreshold` density check used by probeWidthAt.
+  //
+  // Checks a 3-pixel-wide band along the normal (center ± 1 px) with a
+  // relaxed brightness threshold. If **any** of the 3 pixels is dark,
+  // we extend — robust to the central pixel sitting on an off-centre
+  // artefact (corner of a junction, fractional wall axis, etc.). Stops
+  // at the exclusion mask, viewport, or after GREEDY_MAX_PX.
+  const GREEDY_MAX_PX = 5;
+  const GREEDY_BAND_HALF = 1;
+  const RELAXED_THRESHOLD = 200;
+  const iw = imageData.width;
+  const ih = imageData.height;
+  const greedyExtendAnchor = (anchor, directionSign) => {
+    let currentD = anchor.d;
+    for (let step = 1; step <= GREEDY_MAX_PX; step++) {
+      const nextD = anchor.d + directionSign * step;
+      const px = refPoint.x + nextD * scanDir.dx;
+      const py = refPoint.y + nextD * scanDir.dy;
+      if (px < viewportBBox.x || py < viewportBBox.y ||
+          px >= viewportBBox.x + viewportBBox.width ||
+          py >= viewportBBox.y + viewportBBox.height) break;
+      let anyDark = false;
+      let anyMasked = false;
+      for (let w = -GREEDY_BAND_HALF; w <= GREEDY_BAND_HALF; w++) {
+        const rx = Math.round(px + w * probeDir.dx);
+        const ry = Math.round(py + w * probeDir.dy);
+        if (rx < 0 || ry < 0 || rx >= iw || ry >= ih) continue;
+        if (exclusionMask && exclusionMask[ry * iw + rx]) {
+          anyMasked = true;
+          continue;
+        }
+        if (getBrightness(imageData, rx, ry) < RELAXED_THRESHOLD) {
+          anyDark = true;
+          break;
+        }
+      }
+      if (anyMasked) break;
+      if (!anyDark) break;
+      currentD = nextD;
+    }
+    return {
+      d: currentD,
+      x: refPoint.x + currentD * scanDir.dx,
+      y: refPoint.y + currentD * scanDir.dy,
+    };
+  };
+
+  const pushSegment = (a, b) => {
+    // `a` has the smallest d of the segment, `b` the largest. Refine each
+    // endpoint outward along its tangent direction via bisection (1 px
+    // precision), then greedy-extend for antialiased edges.
+    const aRefined = refineAnchor(a, -1);
+    const bRefined = refineAnchor(b, +1);
+    const aExtended = greedyExtendAnchor(aRefined, -1);
+    const bExtended = greedyExtendAnchor(bRefined, +1);
+    segments.push({
+      start: { x: aExtended.x, y: aExtended.y },
+      end: { x: bExtended.x, y: bExtended.y },
+    });
+  };
+
   const segments = [];
   let segStart = hits[0];
   let segEnd = hits[0];
@@ -140,13 +241,13 @@ export function extractSegments({
       segEnd = hits[i];
     } else {
       if (segEnd.d - segStart.d >= minSegmentLengthPx)
-        segments.push({ start: { x: segStart.x, y: segStart.y }, end: { x: segEnd.x, y: segEnd.y } });
+        pushSegment(segStart, segEnd);
       segStart = hits[i];
       segEnd = hits[i];
     }
   }
   if (segEnd.d - segStart.d >= minSegmentLengthPx)
-    segments.push({ start: { x: segStart.x, y: segStart.y }, end: { x: segEnd.x, y: segEnd.y } });
+    pushSegment(segStart, segEnd);
 
   return segments;
 }
