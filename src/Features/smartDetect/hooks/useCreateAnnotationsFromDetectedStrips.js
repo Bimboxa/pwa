@@ -149,6 +149,12 @@ export default function useCreateAnnotationsFromDetectedStrips() {
         projectId,
         listingId,
         ...(activeLayerId ? { layerId: activeLayerId } : {}),
+        // Per-strip strokeWidth override (set by auto-detect in the caller)
+        // — when absent, inherits templateProps.strokeWidth above.
+        ...(strip.strokeWidth != null && {
+          strokeWidth: strip.strokeWidth,
+          strokeWidthUnit: strip.strokeWidthUnit ?? strokeWidthUnit,
+        }),
         points: pointIds.map((id) => ({ id })),
       };
       // stripOrientation is only meaningful for STRIP annotations. For

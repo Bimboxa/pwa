@@ -86,6 +86,11 @@ import TransientDetectedPolygonLayer from 'Features/mapEditorGeneric/components/
 import detectPolygonFromAnnotations from 'Features/smartDetect/utils/detectPolygonFromAnnotations';
 import detectStripFromLoupe from 'Features/smartDetect/utils/detectStripFromLoupe';
 import buildExclusionMask from 'Features/smartDetect/utils/buildExclusionMask';
+import {
+  DEFAULT_WALL_CANDIDATES_CM,
+  scoreSegmentAtWidth,
+  dedupeSegmentsKeepBestScore,
+} from 'Features/smartDetect/utils/autoDetectStripWidth';
 import getStripePolygons from 'Features/geometry/utils/getStripePolygons';
 import throttle from 'Features/misc/utils/throttle';
 import CalibrationLayer from './CalibrationLayer';
@@ -374,16 +379,15 @@ const InteractionLayer = forwardRef(({
       const isSegmentMode = mode === "POLYLINE_CLICK";
 
       // Reference strip width comes from the active annotation template (newAnnotation).
-      const strokeWidth = na.strokeWidth ?? 20;
-      const strokeWidthUnit = na.strokeWidthUnit ?? "PX";
+      const templateStrokeWidth = na.strokeWidth ?? 20;
+      const templateStrokeWidthUnit = na.strokeWidthUnit ?? "PX";
       const meterByPx = meterByPxRef.current ?? 0;
       const imageScale = baseMapImageScaleRef.current || 1;
       const imageOffset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
-      const stripWidthPx =
-        strokeWidthUnit === "CM" && meterByPx > 0
-          ? Math.abs((strokeWidth * 0.01) / meterByPx / imageScale)
-          : Math.abs(strokeWidth / imageScale);
-      if (!Number.isFinite(stripWidthPx) || stripWidthPx < 1) return;
+      const templateStripWidthPx =
+        templateStrokeWidthUnit === "CM" && meterByPx > 0
+          ? Math.abs((templateStrokeWidth * 0.01) / meterByPx / imageScale)
+          : Math.abs(templateStrokeWidth / imageScale);
 
       const stripOrientation = na.stripOrientation ?? 1;
       const orientation = stripDetectionOrientationRef.current || "H";
@@ -395,88 +399,243 @@ const InteractionLayer = forwardRef(({
         (-(orthoSnapAngleOffsetRef.current || 0) * Math.PI) / 180;
       const detectMultiple = !!stripDetectionMultipleRef.current;
 
-      let results;
-      try {
-        results = detectStripFromLoupe({
-          imageData,
-          cursor: cursorImgPx,
-          loupeBBox,
-          stripWidthPx,
-          orientation,
-          orthoAngleRad,
-          stripOrientation,
-          detectMultiple,
-          exclusionMask: stripDetectionExclusionMaskRef.current,
-          pointsOnMedianAxis: isSegmentMode,
+      // Auto-detect wall width PER SEGMENT when the template does NOT override
+      // strokeWidth (unit must be CM and scale must be set). We run
+      // detectStripFromLoupe once for each candidate width
+      // (DEFAULT_WALL_CANDIDATES_CM = [10, 15, 20, 25, 30]) in median-axis
+      // mode, score each returned segment at its candidate width via
+      // scoreSegmentAtWidth (dark − light pixels in a band of that width),
+      // dedupe spatially, and keep the best-scoring version per wall. Each
+      // kept segment carries its own strokeWidth into both the preview
+      // polygon and the commit.
+      //
+      // When the template overrides strokeWidth (or unit is PX / no scale),
+      // behaviour is unchanged: one detection run at the template's width.
+      //
+      // `normalForMeasure` formula MUST match getOrthoVectors in
+      // detectStripFromLoupe.js (H: n=(-sin,cos), V: n=(-cos,-sin)).
+      const _cosA = Math.cos(orthoAngleRad);
+      const _sinA = Math.sin(orthoAngleRad);
+      const normalForMeasure =
+        orientation === "V"
+          ? { dx: -_cosA, dy: -_sinA }
+          : { dx: -_sinA, dy: _cosA };
+
+      const overrideFields = Array.isArray(na.overrideFields)
+        ? na.overrideFields
+        : [];
+      const isWidthAuto =
+        !overrideFields.includes("strokeWidth") &&
+        templateStrokeWidthUnit === "CM" &&
+        meterByPx > 0;
+
+      // Build the list of detection runs: one per candidate width in auto
+      // mode, a single template-driven run otherwise.
+      const runs = [];
+      if (isWidthAuto) {
+        const cmToPx = (cm) => Math.abs((cm * 0.01) / meterByPx / imageScale);
+        for (const cm of DEFAULT_WALL_CANDIDATES_CM) {
+          const px = cmToPx(cm);
+          if (Number.isFinite(px) && px >= 1) {
+            runs.push({ widthCm: cm, widthPx: px, onMedian: true });
+          }
+        }
+      } else if (
+        Number.isFinite(templateStripWidthPx) &&
+        templateStripWidthPx >= 1
+      ) {
+        runs.push({
+          widthCm: null,
+          widthPx: templateStripWidthPx,
+          onMedian: isSegmentMode,
         });
-      } catch (err) {
-        console.error(`[${mode}] detection error:`, err);
-        return;
+      }
+      if (runs.length === 0) return;
+
+      // Run detection for each candidate width. Collect segments with their
+      // scores (score = 0 when not auto-detecting, since no comparison).
+      //
+      // In auto mode we pass `detectMultiple: true` to every run so each run
+      // emits all parallel lines it sees — otherwise each run independently
+      // picks its own "closest axis" and the final merge ends up with one
+      // segment per width on DIFFERENT axes. The user-facing "detect
+      // multiple" flag is re-applied globally after the dedup below.
+      const perRunDetectMultiple = isWidthAuto ? true : detectMultiple;
+      const allDetections = [];
+      for (const { widthCm, widthPx, onMedian } of runs) {
+        let results;
+        try {
+          results = detectStripFromLoupe({
+            imageData,
+            cursor: cursorImgPx,
+            loupeBBox,
+            stripWidthPx: widthPx,
+            orientation,
+            orthoAngleRad,
+            stripOrientation,
+            detectMultiple: perRunDetectMultiple,
+            exclusionMask: stripDetectionExclusionMaskRef.current,
+            pointsOnMedianAxis: onMedian,
+          });
+        } catch (err) {
+          console.error(
+            `[${mode}] detection error (width=${widthCm ?? "template"}):`,
+            err
+          );
+          continue;
+        }
+        if (!results) continue;
+        for (const r of results) {
+          for (const seg of r.segments) {
+            const score = isWidthAuto
+              ? scoreSegmentAtWidth({
+                  segment: seg,
+                  widthPx,
+                  imageData,
+                  normal: normalForMeasure,
+                  exclusionMask: stripDetectionExclusionMaskRef.current,
+                })
+              : 0;
+            allDetections.push({ seg, widthCm, widthPx, score, onMedian });
+          }
+        }
       }
 
-      if (!results || results.length === 0) {
+      if (allDetections.length === 0) {
         detectedSimilarStripsRef.current = null;
         syncSmartDetectionPresent();
         transientDetectedStripsRef.current?.clear();
         return;
       }
 
+      // Auto mode: dedupe overlapping segments across candidate runs, keep
+      // the best-scoring version per spatial group.
+      let kept = isWidthAuto
+        ? dedupeSegmentsKeepBestScore(allDetections)
+        : allDetections;
+
+      // Re-apply the user-facing "detect multiple" flag globally in auto mode.
+      // We overrode it to `true` per-run above so each run could emit every
+      // parallel axis; now we filter down to the single axis closest to the
+      // cursor. Segments on that axis (multiple parts of the same wall
+      // separated by openings) are all kept.
+      if (isWidthAuto && !detectMultiple && kept.length > 1) {
+        const vOf = (det) => {
+          const mx = (det.seg.start.x + det.seg.end.x) / 2;
+          const my = (det.seg.start.y + det.seg.end.y) / 2;
+          return (
+            (mx - cursorImgPx.x) * normalForMeasure.dx +
+            (my - cursorImgPx.y) * normalForMeasure.dy
+          );
+        };
+        const withV = kept.map((d) => ({ det: d, v: vOf(d) }));
+        const minAbsV = withV.reduce(
+          (m, x) => Math.min(m, Math.abs(x.v)),
+          Infinity
+        );
+        // Same-axis tolerance: refinement noise + a small margin. 5 px is
+        // enough in practice (refinement shifts are ≤ 1-2 px sub-pixel).
+        const AXIS_TOL_PX = 5;
+        kept = withV
+          .filter((x) => Math.abs(Math.abs(x.v) - minAbsV) <= AXIS_TOL_PX)
+          .map((x) => x.det);
+      }
+
+      // Auto mode produces median-axis segments (onMedian=true). For STRIP
+      // mode we re-apply the edge-shift per segment using the selected
+      // widthPx, so the committed centerline lands on the wall edge (STRIP
+      // convention). detectStripFromLoupe uses stripOrientation=1 in median
+      // mode — match that here.
+      const finalDetections = kept.map((det) => {
+        if (!det.onMedian || isSegmentMode) return det;
+        const so = 1;
+        const shift = -so * (det.widthPx / 2);
+        return {
+          ...det,
+          seg: {
+            start: {
+              x: det.seg.start.x + shift * normalForMeasure.dx,
+              y: det.seg.start.y + shift * normalForMeasure.dy,
+            },
+            end: {
+              x: det.seg.end.x + shift * normalForMeasure.dx,
+              y: det.seg.end.y + shift * normalForMeasure.dy,
+            },
+          },
+          stripOrientation: so,
+        };
+      });
+
       const toLocal = (p) => ({
         x: p.x * imageScale + imageOffset.x,
         y: p.y * imageScale + imageOffset.y,
       });
 
-      // Stroke-width in local map coords — used by SEGMENT_DETECTION preview
-      // to build a symmetric quad around the centerline (mirrors the POLYLINE
-      // contour used by buildExclusionMask).
-      const strokeWidthLocal =
-        strokeWidthUnit === "CM" && meterByPx > 0
-          ? (strokeWidth * 0.01) / meterByPx
-          : strokeWidth;
-
       const strips = [];
-      for (const result of results) {
-        if (!result.segments?.length) continue;
-        for (const seg of result.segments) {
-          const localCenterline = [toLocal(seg.start), toLocal(seg.end)];
+      for (const det of finalDetections) {
+        const localCenterline = [toLocal(det.seg.start), toLocal(det.seg.end)];
 
-          let polygon;
-          let segStripOrientation;
+        // Per-strip stroke width — used for the preview polygon AND stored
+        // on the strip so useCreateAnnotationsFromDetectedStrips picks it up
+        // at commit. In non-auto mode, widthCm is null → strip inherits
+        // template strokeWidth unchanged.
+        const detStrokeWidth =
+          det.widthCm != null ? det.widthCm : templateStrokeWidth;
+        const detStrokeWidthUnit =
+          det.widthCm != null ? "CM" : templateStrokeWidthUnit;
+        const strokeWidthLocal =
+          detStrokeWidthUnit === "CM" && meterByPx > 0
+            ? (detStrokeWidth * 0.01) / meterByPx
+            : detStrokeWidth;
 
-          if (isSegmentMode) {
-            // Symmetric stroke around the 2-point centerline → quad preview.
-            const [a, b] = localCenterline;
-            const dx = b.x - a.x;
-            const dy = b.y - a.y;
-            const len = Math.hypot(dx, dy);
-            if (len === 0) continue;
-            const nx = -dy / len;
-            const ny = dx / len;
-            const halfW = Math.abs(strokeWidthLocal) / 2;
-            polygon = [
-              { x: a.x + nx * halfW, y: a.y + ny * halfW },
-              { x: b.x + nx * halfW, y: b.y + ny * halfW },
-              { x: b.x - nx * halfW, y: b.y - ny * halfW },
-              { x: a.x - nx * halfW, y: a.y - ny * halfW },
-            ];
-          } else {
-            // stripOrientation is computed by the algorithm (per segment) so
-            // the body lands over the dark wall pixels — overrides the template.
-            segStripOrientation = seg.stripOrientation ?? na.stripOrientation;
-            const fakeAnnotation = {
-              ...na,
-              stripOrientation: segStripOrientation,
-              points: localCenterline,
-            };
-            const polys = getStripePolygons(fakeAnnotation, meterByPx);
-            polygon = polys?.[0]?.points || [];
-          }
+        let polygon;
+        let segStripOrientation;
 
-          const strip = { centerline: localCenterline, polygon };
-          if (!isSegmentMode) strip.stripOrientation = segStripOrientation;
-          strips.push(strip);
+        if (isSegmentMode) {
+          // Symmetric quad around the 2-point centerline.
+          const [a, b] = localCenterline;
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const len = Math.hypot(dx, dy);
+          if (len === 0) continue;
+          const nx = -dy / len;
+          const ny = dx / len;
+          const halfW = Math.abs(strokeWidthLocal) / 2;
+          polygon = [
+            { x: a.x + nx * halfW, y: a.y + ny * halfW },
+            { x: b.x + nx * halfW, y: b.y + ny * halfW },
+            { x: b.x - nx * halfW, y: b.y - ny * halfW },
+            { x: a.x - nx * halfW, y: a.y - ny * halfW },
+          ];
+        } else {
+          // STRIP: fakeAnnotation carries this strip's own stroke width so
+          // getStripePolygons renders the preview at the detected thickness.
+          segStripOrientation =
+            det.stripOrientation ??
+            det.seg.stripOrientation ??
+            na.stripOrientation;
+          const fakeAnnotation = {
+            ...na,
+            strokeWidth: detStrokeWidth,
+            strokeWidthUnit: detStrokeWidthUnit,
+            stripOrientation: segStripOrientation,
+            points: localCenterline,
+          };
+          const polys = getStripePolygons(fakeAnnotation, meterByPx);
+          polygon = polys?.[0]?.points || [];
         }
+
+        const strip = { centerline: localCenterline, polygon };
+        if (!isSegmentMode) strip.stripOrientation = segStripOrientation;
+        // Per-strip strokeWidth override — consumed by
+        // useCreateAnnotationsFromDetectedStrips.
+        if (det.widthCm != null) {
+          strip.strokeWidth = det.widthCm;
+          strip.strokeWidthUnit = "CM";
+        }
+        strips.push(strip);
       }
+
       if (strips.length === 0) {
         detectedSimilarStripsRef.current = null;
         syncSmartDetectionPresent();
