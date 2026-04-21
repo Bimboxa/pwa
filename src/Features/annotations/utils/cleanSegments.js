@@ -44,9 +44,16 @@
 //      border (inside or outside), snap it to be EXACTLY on the border
 //      (depth 0, not 1 px inside as in step 2). Handles the L/T junctions
 //      where the tip of a should sit cleanly at b's border line.
+//   2.7. Split-through-wider. When a thin segment A passes across a wider
+//      parallel segment B (A's full stroke fits inside B's stroke AND B's
+//      projected extent is fully inside A's extent with margin), split A
+//      into A_truncated (ends 1 px past B's near end) + a new segment C
+//      (from 1 px before B's far end to A's original far endpoint). Iterates
+//      to stability — chains of B's split A in a single pass.
 //   3. Unifies the ids of endpoints that end up at the same location.
 //
-// Returns: { updates: [{ id, points }], deleteIds: string[] }
+// Returns: { updates: [{ id, points }], deleteIds: string[],
+//           creates: [{ sourceAnnotationId, points }] }
 //
 // Pure function: no React, no Redux, no Dexie.
 
@@ -68,6 +75,9 @@ const SNAP_DEPTH_PX = 1; // penetration depth past the border (toward median)
 // both snap passes — small drawing slop should be captured the same way
 // regardless of whether the endpoint lands in or out of b's extent).
 const PAST_EXTENT_MARGIN_PX = 3;
+
+// Step 2.7 — split-through-wider. Cap iteration count to prevent runaway.
+const SPLIT_THROUGH_MAX_ITERATIONS = 20;
 
 // Step 4 — id unification.
 const COINCIDENT_TOL_PX = 1;
@@ -238,6 +248,99 @@ export default function cleanSegments({ segments, meterByPx }) {
         state[group.members[k]].alive = false;
       }
     }
+  }
+
+  // 2.7. Split A through wider parallel B.
+  //
+  // When a segment A passes across a wider parallel segment B (= A's full
+  // stroke fits inside B's stroke AND B's projected extent is fully inside
+  // A's extent with margin), split A into:
+  //   - A_truncated: A's far endpoint moves to 1 px past B's near end (along
+  //     A's direction), so A ends just inside B from its near side.
+  //   - C (new segment): from 1 px before B's far end (still inside B) to A's
+  //     ORIGINAL far endpoint. C is added to `state` with `sourceAnnotationId`
+  //     pointing to A — the hook layer will mint a fresh annotation that
+  //     inherits A's visual / template props (NOT entity-specific fields).
+  //
+  // Iterates to stability (capped at SPLIT_THROUGH_MAX_ITERATIONS): a chain
+  // of B's split A into A_truncated + C1 + C2 + … in a single pass, because
+  // newly created C entries are re-scanned in the next iteration.
+  for (let iter = 0; iter < SPLIT_THROUGH_MAX_ITERATIONS; iter++) {
+    let didSplit = false;
+    for (let aIdx = 0; aIdx < state.length; aIdx++) {
+      const a = state[aIdx];
+      if (!a.alive) continue;
+      for (let bIdx = 0; bIdx < state.length; bIdx++) {
+        if (aIdx === bIdx) continue;
+        const b = state[bIdx];
+        if (!b.alive) continue;
+        if (!areParallel(a, b)) continue;
+        // A's full stroke must fit inside B's stroke.
+        const perpD = perpDistanceToLine(a.points[0], b.points[0], b.dir);
+        if (perpD + a.strokeWidthPx / 2 >= b.strokeWidthPx / 2) continue;
+        // B's projected extent on A's centerline must lie strictly inside
+        // [0, A.length] with > SNAP_DEPTH_PX margin on each side (so A
+        // genuinely extends past B and the split makes sense).
+        const t0 = projectOnInfiniteLine(b.points[0], a.points[0], a.dir).t;
+        const t1 = projectOnInfiniteLine(b.points[1], a.points[0], a.dir).t;
+        const tMin = Math.min(t0, t1);
+        const tMax = Math.max(t0, t1);
+        if (tMin <= SNAP_DEPTH_PX) continue;
+        if (tMax >= a.length - SNAP_DEPTH_PX) continue;
+
+        // Snapshot A's pre-split geometry so C is computed against the
+        // ORIGINAL centerline and direction (after we mutate a.points[1],
+        // a.dir/length get refreshed and would be wrong for C).
+        const aOriginalP0 = { x: a.points[0].x, y: a.points[0].y };
+        const aOriginalDir = { x: a.dir.x, y: a.dir.y };
+        const aOriginalFar = { ...a.points[1] };
+
+        // Truncate A.
+        a.points[1] = {
+          ...a.points[1],
+          x: aOriginalP0.x + (tMin + SNAP_DEPTH_PX) * aOriginalDir.x,
+          y: aOriginalP0.y + (tMin + SNAP_DEPTH_PX) * aOriginalDir.y,
+        };
+        const r = makeDir(a.points[0], a.points[1]);
+        a.dir = r.dir;
+        a.length = r.length;
+
+        // Build C and append it to `state` (so future iterations re-scan it).
+        const cIdx = state.length;
+        const cNear = {
+          id: `__splitC_${cIdx}_near`,
+          x: aOriginalP0.x + (tMax - SNAP_DEPTH_PX) * aOriginalDir.x,
+          y: aOriginalP0.y + (tMax - SNAP_DEPTH_PX) * aOriginalDir.y,
+          ...(aOriginalFar.type ? { type: aOriginalFar.type } : {}),
+        };
+        const cFar = {
+          id: `__splitC_${cIdx}_far`,
+          x: aOriginalFar.x,
+          y: aOriginalFar.y,
+          ...(aOriginalFar.type ? { type: aOriginalFar.type } : {}),
+        };
+        const cDir = makeDir(cNear, cFar);
+        state.push({
+          id: `__splitC_${cIdx}`,
+          points: [cNear, cFar],
+          dir: cDir.dir,
+          length: cDir.length,
+          strokeWidthPx: a.strokeWidthPx,
+          alive: true,
+          originalPoints: null,
+          originAnnotationId: null,
+          // Marks this entry as a "create from parent" — picked up in step 5
+          // and routed via `creates` in the algo's output. The hook builds
+          // a fresh annotation inheriting from the parent (sourceAnnotationId).
+          sourceAnnotationId: a.sourceAnnotationId ?? a.id,
+        });
+
+        didSplit = true;
+        break;
+      }
+      if (didSplit) break;
+    }
+    if (!didSplit) break;
   }
 
   // 3. L/T-junction snap.
@@ -565,11 +668,32 @@ export default function cleanSegments({ segments, meterByPx }) {
     }
   }
 
-  // 5. Build updates / deleteIds.
+  // 5. Build updates / deleteIds / creates.
+  //
+  // `creates` carries segments born from step 2.7 (split-through-wider).
+  // Each entry references its parent A via `sourceAnnotationId` so the hook
+  // layer can mint a fresh annotation that inherits A's visual / template
+  // props (NOT entity-specific fields). Synthetic state entries have no
+  // matching `segments[i]` (they were appended after normalize), so we
+  // detect them by `sourceAnnotationId`.
   const updates = [];
   const deleteIds = [];
+  const creates = [];
   for (let i = 0; i < state.length; i++) {
     const s = state[i];
+    if (s.sourceAnnotationId && i >= segments.length) {
+      // Synthetic split entry → create a new annotation from parent.
+      if (!s.alive) continue;
+      creates.push({
+        sourceAnnotationId: s.sourceAnnotationId,
+        points: s.points.map((p) => {
+          const out = { id: p.id, x: p.x, y: p.y };
+          if (p.type !== undefined) out.type = p.type;
+          return out;
+        }),
+      });
+      continue;
+    }
     if (!s.alive) {
       deleteIds.push(s.id);
       continue;
@@ -595,5 +719,5 @@ export default function cleanSegments({ segments, meterByPx }) {
     }
   }
 
-  return { updates, deleteIds };
+  return { updates, deleteIds, creates };
 }
