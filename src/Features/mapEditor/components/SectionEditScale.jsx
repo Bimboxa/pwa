@@ -6,7 +6,6 @@ import {
   setAnchorPositionScale,
   setScaleAnnotationId,
   setOrthoSnapAngleOffset,
-  setOrthoSnapEnabled,
 } from "../mapEditorSlice";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
@@ -107,7 +106,9 @@ export default function SectionEditScale() {
 
   function handleSnapAngleClick() {
     dispatch(setOrthoSnapAngleOffset(normalizedAngle));
-    dispatch(setOrthoSnapEnabled(true));
+    dispatch(setAnchorPositionScale(null));
+    resetNewAnnotation();
+    dispatch(setTempAnnotations([]));
   }
 
   return (
