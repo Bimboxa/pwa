@@ -126,7 +126,7 @@ export default function useCleanSegments() {
 
     // Phase 2 — clean.
     const meterByPx = baseMap?.meterByPx;
-    const { updates, deleteIds, creates } = cleanSegments({
+    const { updates, deleteIds } = cleanSegments({
       segments: segmentsForAlgo,
       meterByPx,
     });
@@ -226,30 +226,6 @@ export default function useCleanSegments() {
           parentPoly.projectId ?? projectId
         ),
       });
-    }
-
-    // Algo `creates` (segments born from step 2.7 split-through-wider).
-    // Each carries a `sourceAnnotationId` pointing to the parent A whose
-    // visual / template props C should inherit. If A is itself a virtual
-    // segment from a multi-point split, fall back to its parent polyline.
-    if (creates && creates.length > 0) {
-      for (const c of creates) {
-        let parentForSkeleton = polylines.find(
-          (p) => p.id === c.sourceAnnotationId
-        );
-        if (!parentForSkeleton) {
-          parentForSkeleton = virtualSegmentParents.get(c.sourceAnnotationId);
-        }
-        if (!parentForSkeleton) continue; // safety
-        annotationsToBulkAdd.push({
-          ...buildSplitSegmentSkeleton(parentForSkeleton),
-          points: makeRefs(
-            c.points,
-            parentForSkeleton.baseMapId,
-            parentForSkeleton.projectId ?? projectId
-          ),
-        });
-      }
     }
 
     // Annotations to delete: cleanSegments-flagged real annotations + every
