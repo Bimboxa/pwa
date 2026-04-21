@@ -203,7 +203,8 @@ function clusterByParallelLine(candidates, clusterTol) {
 // (anti-aliased edges, leftmost-seed bias, stripWidthPx mismatch with the
 // true wall width). This helper runs a small ±K-pixel search along the
 // normal and keeps the offset that maximises dark-pixel coverage inside a
-// stripWidthPx-wide band along the segment.
+// stripWidthPx-wide band along the segment, then refines the integer best
+// to sub-pixel precision via a parabolic fit over three adjacent scores.
 //
 // Pure post-processing: does not touch the seed sweep, clustering, or
 // extractSegments. Runs on the median axis, so both STRIP (shift to edge
@@ -248,24 +249,54 @@ function refineTransverseOffset(
     return dark;
   };
 
-  // Iterate offsets by increasing |delta| so ties prefer the original
-  // detection (delta = 0) and then the smallest shift.
-  let bestDelta = 0;
-  let bestScore = scoreAt(0);
+  // Score every integer delta in [-range, +range]. Store in an array so the
+  // sub-pixel step below can read the neighbours of the best without
+  // re-computing.
+  const scores = new Array(2 * range + 1);
+  for (let k = -range; k <= range; k++) {
+    scores[k + range] = scoreAt(k);
+  }
+
+  // Pick the integer best, iterating by increasing |delta| so ties prefer
+  // the original detection (delta = 0) and then the smallest shift.
+  let bestIdx = range; // delta = 0
+  let bestScore = scores[bestIdx];
   for (let k = 1; k <= range; k++) {
     for (const sign of [1, -1]) {
-      const delta = sign * k;
-      const s = scoreAt(delta);
-      if (s > bestScore) {
-        bestScore = s;
-        bestDelta = delta;
+      const idx = range + sign * k;
+      if (scores[idx] > bestScore) {
+        bestScore = scores[idx];
+        bestIdx = idx;
       }
     }
   }
-  if (bestDelta === 0) return seg;
 
-  const ox = bestDelta * normal.dx;
-  const oy = bestDelta * normal.dy;
+  let finalDelta = bestIdx - range;
+
+  // Parabolic sub-pixel refinement — fit y = a*d² + b*d + c through the
+  // three scores at (bestIdx-1, bestIdx, bestIdx+1) and take the vertex.
+  // Vertex:  d* = (sPrev - sNext) / (2 * (sPrev - 2*sPeak + sNext)).
+  // Since bestIdx is a local max, denom = sPrev - 2*sPeak + sNext ≤ 0, so
+  // denom < 0 indicates a true peak we can interpolate. Skip when bestIdx
+  // is at the search boundary (no neighbour to sample) or the parabola is
+  // flat (denom == 0 → plateau, tiebreaker already chose smallest |delta|).
+  if (bestIdx > 0 && bestIdx < scores.length - 1) {
+    const sPrev = scores[bestIdx - 1];
+    const sPeak = scores[bestIdx];
+    const sNext = scores[bestIdx + 1];
+    const denom = sPrev - 2 * sPeak + sNext;
+    if (denom < 0) {
+      const subPx = (0.5 * (sPrev - sNext)) / denom;
+      // For a well-formed parabolic peak, subPx ∈ ]-0.5, +0.5[. Clamp to
+      // ±1 just as a numerical safety net.
+      if (subPx > -1 && subPx < 1) finalDelta += subPx;
+    }
+  }
+
+  if (finalDelta === 0) return seg;
+
+  const ox = finalDelta * normal.dx;
+  const oy = finalDelta * normal.dy;
   return {
     start: { x: seg.start.x + ox, y: seg.start.y + oy },
     end:   { x: seg.end.x   + ox, y: seg.end.y   + oy },
