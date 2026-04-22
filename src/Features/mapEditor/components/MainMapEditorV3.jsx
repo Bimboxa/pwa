@@ -64,6 +64,8 @@ import { SmartZoomProvider } from "App/contexts/SmartZoomContext";
 import { DrawingMetricsProvider } from "App/contexts/DrawingMetricsContext";
 
 import db from "App/db/db";
+
+import cleanSegments from "Features/annotations/utils/cleanSegments";
 import editor from "App/editor";
 import getPolylinePointsFromRectangle from "Features/geometry/utils/getPolylinePointsFromRectangle";
 import getPolylinePointsFromCircle from "Features/geometry/utils/getPolylinePointsFromCircle";
@@ -221,6 +223,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const baseMapOpacity = useSelector((s) => s.mapEditor.baseMapOpacity);
     const baseMapGrayScale = useSelector((s) => s.mapEditor.baseMapGrayScale);
     const showPrintableMap = useSelector((s) => s.mapEditor.showPrintableMap);
+
+    // Whether to run the CLEAN-SEGMENTS PASS on strip-detection commit.
+    // Default true. Toggleable via setCleanOnCommit (smartDetectSlice).
+    const cleanOnCommit = useSelector((s) => s.smartDetect.cleanOnCommit);
 
     useEffect(() => {
         if (baseMap && bgImage) {
@@ -401,7 +407,146 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     const handleCommitSimilarStrips = async ({ strips, sourceAnnotation }) => {
         if (!strips?.length) return;
-        await createAnnotationsFromDetectedStrips({ strips, sourceAnnotation });
+
+        // ── CLEAN-SEGMENTS PASS ──────────────────────────────────────────
+        // Opt-in (default on — gated by `cleanOnCommit` in smartDetectSlice).
+        // Runs cleanSegments on (detected strips + visible 2-point POLYLINE
+        // annotations — same source that feeds the exclusion mask) BEFORE
+        // persistence so junctions align (border-proximity snap from #182)
+        // and duplicate / overlapping colinear neighbours get merged in.
+        // Detected strips are tagged with a `tmp_` id prefix; the router
+        // below splits the cleanSegments output into (a) centerline
+        // rewrites for detected strips, (b) point-coord updates / deletes
+        // for existing annotations (Dexie, atomic transaction). When the
+        // flag is off, `strips` flows through unchanged. See #183 and
+        // docs/smartDetect/CLEAN_ON_COMMIT.md.
+        // ─────────────────────────────────────────────────────────────────
+        let cleanedStrips = strips;
+        if (cleanOnCommit) {
+            const TMP_PREFIX = "tmp_";
+            const meterByPx = baseMap?.getMeterByPx?.() ?? 0;
+            const imageSize =
+                baseMap?.getImageSize?.() || baseMap?.image?.imageSize;
+            const width = imageSize?.width || 1;
+            const height = imageSize?.height || 1;
+
+            const existingSegments = (annotations || [])
+                .filter(
+                    (a) =>
+                        a?.type === "POLYLINE" &&
+                        !a.closeLine &&
+                        Array.isArray(a.points) &&
+                        a.points.length === 2
+                )
+                .map((a) => ({
+                    id: a.id,
+                    points: a.points.map((p) => ({
+                        id: p.id,
+                        x: p.x,
+                        y: p.y,
+                        type: p.type,
+                    })),
+                    strokeWidth: a.strokeWidth,
+                    strokeWidthUnit: a.strokeWidthUnit,
+                }));
+
+            const detectedSegments = strips.map((strip) => ({
+                id: `${TMP_PREFIX}${nanoid()}`,
+                points: [
+                    {
+                        id: nanoid(),
+                        x: strip.centerline[0].x,
+                        y: strip.centerline[0].y,
+                        type: "square",
+                    },
+                    {
+                        id: nanoid(),
+                        x: strip.centerline[1].x,
+                        y: strip.centerline[1].y,
+                        type: "square",
+                    },
+                ],
+                strokeWidth:
+                    strip.strokeWidth ?? sourceAnnotation?.strokeWidth,
+                strokeWidthUnit:
+                    strip.strokeWidthUnit ?? sourceAnnotation?.strokeWidthUnit,
+                _strip: strip,
+            }));
+
+            const { updates, deleteIds } = cleanSegments({
+                segments: [...existingSegments, ...detectedSegments],
+                meterByPx,
+            });
+
+            const updateMap = new Map(updates.map((u) => [u.id, u.points]));
+            const deleteSet = new Set(deleteIds);
+
+            // 4a. Detected strips: drop if deleted, rewrite centerline if updated.
+            cleanedStrips = detectedSegments
+                .filter((s) => !deleteSet.has(s.id))
+                .map((s) => {
+                    const pts = updateMap.get(s.id) ?? s.points;
+                    return {
+                        ...s._strip,
+                        centerline: [
+                            { x: pts[0].x, y: pts[0].y },
+                            { x: pts[1].x, y: pts[1].y },
+                        ],
+                    };
+                });
+
+            // 4b. Existing annotations: update changed point coords (by id,
+            // normalized), delete annotations in deleteSet. Single atomic tx.
+            const pointCoordsToUpdate = [];
+            for (const u of updates) {
+                if (u.id.startsWith(TMP_PREFIX)) continue;
+                for (const p of u.points) {
+                    pointCoordsToUpdate.push({
+                        id: p.id,
+                        x: p.x / width,
+                        y: p.y / height,
+                    });
+                }
+            }
+            const existingIdsToDelete = [...deleteSet].filter(
+                (id) => !id.startsWith(TMP_PREFIX)
+            );
+
+            if (
+                pointCoordsToUpdate.length > 0 ||
+                existingIdsToDelete.length > 0
+            ) {
+                try {
+                    await db.transaction(
+                        "rw",
+                        [db.points, db.annotations],
+                        async () => {
+                            for (const { id, x, y } of pointCoordsToUpdate) {
+                                await db.points.update(id, { x, y });
+                            }
+                            if (existingIdsToDelete.length > 0) {
+                                await db.annotations.bulkDelete(
+                                    existingIdsToDelete
+                                );
+                            }
+                        }
+                    );
+                    dispatch(triggerAnnotationsUpdate());
+                } catch (err) {
+                    console.error(
+                        "[handleCommitSimilarStrips] clean-segments DB update failed:",
+                        err
+                    );
+                    return; // bail out — do not create new annotations on half-applied state
+                }
+            }
+        }
+        // ── end CLEAN-SEGMENTS PASS ──────────────────────────────────────
+
+        await createAnnotationsFromDetectedStrips({
+            strips: cleanedStrips,
+            sourceAnnotation,
+        });
     };
 
     // handlers - image drop
