@@ -1,3 +1,5 @@
+import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
+
 import findPolygonCandidates from "./findPolygonCandidates";
 
 /**
@@ -39,9 +41,16 @@ export default function detectPolygonFromAnnotations({
   // Step 3b: Skip if envelope matches an existing POLYGON annotation
   const matchingExisting = findMatchingExistingPolygon(annotations, envelope);
   if (matchingExisting) {
-    const cutContainingMouse = findCutContainingMouse(matchingExisting, mousePos);
+    const cutContainingMouse = findCutContainingMouse(
+      matchingExisting,
+      mousePos
+    );
     if (cutContainingMouse) {
-      const innerEnvelope = selectEnvelopeInsideRegion(candidates, mousePos, cutContainingMouse);
+      const innerEnvelope = selectEnvelopeInsideRegion(
+        candidates,
+        mousePos,
+        cutContainingMouse
+      );
       if (innerEnvelope) {
         const innerCuts = findCutsFromCycles(candidates, innerEnvelope);
         return { outerRing: innerEnvelope, cuts: innerCuts };
@@ -68,9 +77,15 @@ function extractPaths(annotations, drawingPoints, tolerance) {
     if (!ann.points || ann.points.length < 2) continue;
 
     if (ann.type === "POLYLINE") {
-      const pts = ann.points.map((p) => ({ x: p.x, y: p.y, _id: p.id }));
+      const pts = ann.points.map((p) => ({
+        x: p.x,
+        y: p.y,
+        _id: p.id,
+        type: p.type,
+      }));
       if (pts.length >= 3) {
-        const first = pts[0], last = pts[pts.length - 1];
+        const first = pts[0],
+          last = pts[pts.length - 1];
         const dSq = (first.x - last.x) ** 2 + (first.y - last.y) ** 2;
         if (dSq <= tolSq || (first._id && first._id === last._id)) {
           // First ≈ last (or same ID): snap last to exact first position
@@ -80,12 +95,19 @@ function extractPaths(annotations, drawingPoints, tolerance) {
           pts.push({ ...first });
         }
       }
-      paths.push(pts);
+      // Expand S-C-S arcs into sampled straight segments so the DFS cycle
+      // detection walks along the curve instead of cutting across the chord.
+      paths.push(expandArcsInPath(pts, 6));
     } else if (ann.type === "POLYGON") {
-      const ring = ann.points.map((p) => ({ x: p.x, y: p.y, _id: p.id }));
+      const ring = ann.points.map((p) => ({
+        x: p.x,
+        y: p.y,
+        _id: p.id,
+        type: p.type,
+      }));
       if (ring.length >= 3) {
         ring.push({ ...ring[0] });
-        paths.push(ring);
+        paths.push(expandArcsInPath(ring, 6));
       }
     }
   }
@@ -93,7 +115,8 @@ function extractPaths(annotations, drawingPoints, tolerance) {
   if (drawingPoints && drawingPoints.length >= 2) {
     const pts = drawingPoints.map((p) => ({ x: p.x, y: p.y }));
     if (pts.length >= 3) {
-      const first = pts[0], last = pts[pts.length - 1];
+      const first = pts[0],
+        last = pts[pts.length - 1];
       const dSq = (first.x - last.x) ** 2 + (first.y - last.y) ** 2;
       if (dSq <= tolSq) {
         pts[pts.length - 1] = { x: first.x, y: first.y };
@@ -141,7 +164,8 @@ function findCutsFromCycles(allCycles, envelope) {
   for (const ring of allCycles) {
     const area = Math.abs(polygonArea(ring));
     // Skip the envelope itself (same area)
-    if (envelopeArea > 0 && Math.abs(area - envelopeArea) / envelopeArea < 0.01) continue;
+    if (envelopeArea > 0 && Math.abs(area - envelopeArea) / envelopeArea < 0.01)
+      continue;
     // Must be smaller
     if (area >= envelopeArea) continue;
     // All points must be inside the envelope
@@ -162,7 +186,8 @@ function findMatchingExistingPolygon(annotations, envelope) {
   if (envArea === 0) return null;
 
   for (const ann of annotations) {
-    if (ann.type !== "POLYGON" || !ann.points || ann.points.length < 3) continue;
+    if (ann.type !== "POLYGON" || !ann.points || ann.points.length < 3)
+      continue;
 
     const annArea = Math.abs(polygonArea(ann.points));
     if (Math.abs(annArea - envArea) / envArea > 0.05) continue;
@@ -217,12 +242,18 @@ function selectEnvelopeInsideRegion(candidates, mousePos, regionRing) {
 function isPointNearRing(point, ring, threshold) {
   const thSq = threshold * threshold;
   for (let i = 0; i < ring.length - 1; i++) {
-    const a = ring[i], b = ring[i + 1];
-    const dx = b.x - a.x, dy = b.y - a.y;
+    const a = ring[i],
+      b = ring[i + 1];
+    const dx = b.x - a.x,
+      dy = b.y - a.y;
     const lenSq = dx * dx + dy * dy;
     if (lenSq === 0) continue;
-    const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lenSq));
-    const px = a.x + t * dx, py = a.y + t * dy;
+    const t = Math.max(
+      0,
+      Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lenSq)
+    );
+    const px = a.x + t * dx,
+      py = a.y + t * dy;
     if ((point.x - px) ** 2 + (point.y - py) ** 2 <= thSq) return true;
   }
   return false;
@@ -233,8 +264,10 @@ export function pointInPolygon(point, ring) {
   const n = ring.length;
 
   for (let i = 0, j = n - 1; i < n; j = i++) {
-    const xi = ring[i].x, yi = ring[i].y;
-    const xj = ring[j].x, yj = ring[j].y;
+    const xi = ring[i].x,
+      yi = ring[i].y;
+    const xj = ring[j].x,
+      yj = ring[j].y;
 
     if (
       yi > point.y !== yj > point.y &&
