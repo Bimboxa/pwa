@@ -3750,7 +3750,11 @@ const InteractionLayer = forwardRef(({
                 ? stripDetectionOrientation
                 : "BOTH"
             }
-            showZoomRect={Boolean(enabledDrawingMode) && !NO_SMART_DETECT_MODES.includes(enabledDrawingMode)}
+            showZoomRect={
+              Boolean(enabledDrawingMode) &&
+              !NO_SMART_DETECT_MODES.includes(enabledDrawingMode) &&
+              (!smartDetectEnabled || newAnnotation?.drawingShape === "POLYLINE")
+            }
           />
             <SnappingLayer
               ref={snappingLayerRef}
