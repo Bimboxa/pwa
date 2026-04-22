@@ -76,6 +76,7 @@ const DRAWING_SHAPE_CONFIG = {
       "POLYLINE_CLICK",
       "POLYLINE_RECTANGLE",
       "POLYLINE_CIRCLE",
+      "POLYLINE_ARC",
       "STRIP",
     ],
     configurableProps: [

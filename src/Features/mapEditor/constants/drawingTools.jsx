@@ -15,6 +15,7 @@ import IconPolylineRectangle from "Features/icons/IconPolylineRectangle";
 import IconPolygonRectangle from "Features/icons/IconPolygonRectangle";
 import IconPolylineCircle from "Features/icons/IconPolylineCircle";
 import IconPolygonCircle from "Features/icons/IconPolygonCircle";
+import IconPolylineArc from "Features/icons/IconPolylineArc";
 import IconCutSegment from "Features/icons/IconCutSegment";
 import IconSplitPolygon from "Features/icons/IconSplitPolygon";
 import IconSplitPolyline from "Features/icons/IconSplitPolyline";
@@ -80,6 +81,13 @@ const DRAWING_TOOLS = [
     Icon: IconPolylineCircle,
     annotationType: "POLYLINE",
     behavior: "CIRCLE",
+  },
+  {
+    key: "POLYLINE_ARC",
+    label: "Arc de cercle (ligne)",
+    Icon: IconPolylineArc,
+    annotationType: "POLYLINE",
+    behavior: "ARC",
   },
   {
     key: "POLYGON_CIRCLE",
