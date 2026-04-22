@@ -3,11 +3,17 @@
 // Cleans a multi-selection of 2-point POLYLINE annotations (segments):
 //   1. Merges collinear segments whose perpendicular distance is < 1 px AND
 //      whose projected intervals overlap or touch.
+//   1.5. Early border-proximity snap. For each pair (A, B), if A's endpoint
+//      sits OUTSIDE B's stroke with a gap < 5 cm (physical-world threshold,
+//      via meterByPx — pass is SKIPPED if meterByPx is unknown) AND its
+//      perpendicular projection lies inside B's extent, snap the endpoint
+//      1 px INSIDE B's nearest border on its CURRENT side. Direction-
+//      preserving (anchored at A's other endpoint).
 //   2. Snaps endpoints that form an L or T junction with another, near-
 //      perpendicular segment. Trigger and snap-target rules:
 //        - Trigger: the endpoint's perpendicular projection lies within
 //          the other segment's extent AND
-//          perpDist < halfStroke + BORDER_PROXIMITY_PX (covers e just
+//          perpDist < halfStroke + borderProximityThreshold (5 cm) (covers e just
 //          outside b within 3 px of nearest border, AND e anywhere INSIDE
 //          b's stroke).
 //        - Snap target side:
@@ -26,7 +32,7 @@
 //          length changes. Free endpoints (neither inside b nor close to
 //          its border) are NEVER moved.
 //        - Special "V junction" case: when BOTH segments have an endpoint
-//          near a border of the other (within BORDER_PROXIMITY_PX, inside
+//          near a border of the other (within borderProximityThreshold (5 cm), inside
 //          OR just outside — the latter makes the cleanup idempotent), the
 //          regular rule alone leaves both endpoints overlapping ambiguously.
 //          We pick one (deterministically: smaller annotation id wins) as
@@ -40,10 +46,13 @@
 //      step 2 skips because e's perpendicular projection lies OUTSIDE b's
 //      segment extent — typically when a falls in the gap between two
 //      collinear neighbors b and c, or just past the end of an isolated b.
-//      If such an endpoint sits within PAST_EXTENT_MARGIN_PX of b's nearest
-//      border (inside or outside), snap it to be EXACTLY on the border
-//      (depth 0, not 1 px inside as in step 2). Handles the L/T junctions
-//      where the tip of a should sit cleanly at b's border line.
+//      If such an endpoint sits within borderProximityThreshold (5 cm) of
+//      b's nearest border (inside or outside), snap it EXACTLY on that
+//      border on e's CURRENT side (depth 0). The 1 px overlap that lets
+//      a wall be merged later comes from step 2 (in-extent) pulling the
+//      perpendicular pieces INTO the parallel wall by depth 1; step 2.5
+//      just aligns the parallel wall's tip cleanly on the perpendicular
+//      wall's edge.
 //   3. Unifies the ids of endpoints that end up at the same location.
 //
 // Returns: { updates: [{ id, points }], deleteIds: string[] }
@@ -59,15 +68,15 @@ const SIN_PERPENDICULAR = Math.sin(ANGLE_TOL_RAD);
 const COLINEAR_PERP_TOL_PX = 1; // segments must be within 1 px perpendicular
 const COLINEAR_OVERLAP_TOL_PX = 1; // intervals merged if gap <= 1 px
 
-// Step 3 — L/T junction snap (in-extent).
-const BORDER_PROXIMITY_PX = 3; // trigger: endpoint within 3 px of other's border
-const SNAP_DEPTH_PX = 1; // penetration depth past the border (toward median)
+// Snap depth — 1 px penetration past the border (toward the median),
+// applied uniformly by all snap passes (1.5, 3, 3.5).
+const SNAP_DEPTH_PX = 1;
 
-// Step 3.5 — past-extent snap (endpoint past b's segment extent).
-// 3 px to match BORDER_PROXIMITY_PX of step 3 (consistent tolerance across
-// both snap passes — small drawing slop should be captured the same way
-// regardless of whether the endpoint lands in or out of b's extent).
-const PAST_EXTENT_MARGIN_PX = 3;
+// Border-proximity threshold for ALL L/T snap passes (1.5, 3, 3.5).
+// Strictly physical: 5 cm in real-world units, converted to px via
+// meterByPx. When meterByPx is unknown the threshold collapses to 0 and
+// the snap passes effectively skip — there is intentionally no px fallback.
+const BORDER_PROXIMITY_CM = 5;
 
 // Step 4 — id unification.
 const COINCIDENT_TOL_PX = 1;
@@ -128,10 +137,80 @@ function projectOnInfiniteLine(point, segStart, segDir) {
   return { x: projX, y: projY, t, perpDist };
 }
 
+// Cap on internal iteration. After MAX_PASSES passes without convergence,
+// give up — in practice 2-3 passes are enough for any realistic input.
+const MAX_PASSES = 10;
+
+// Public entry point. Iterates the single-pass algorithm until the geometry
+// is stable, then returns the delta vs the ORIGINAL input.
+//
+// Why iterate? After a snap/merge in pass N, the geometry shifts and new
+// junctions may become eligible in pass N+1 (e.g. a freshly-snapped tip
+// now lands within proximity of yet another segment). Without iteration
+// the user has to re-click "clean" several times to fully resolve a chain
+// of junctions.
 export default function cleanSegments({ segments, meterByPx }) {
   if (!Array.isArray(segments) || segments.length === 0) {
     return { updates: [], deleteIds: [] };
   }
+
+  // Working list, evolves at each pass. Deep-copy points so passes don't
+  // mutate the caller's input.
+  let working = segments.map((s) => ({
+    ...s,
+    points: s.points.map((p) => ({ ...p })),
+  }));
+  const cumulativeDeleteIds = new Set();
+
+  for (let pass = 0; pass < MAX_PASSES; pass++) {
+    const result = runCleanPass({ segments: working, meterByPx });
+    if (result.updates.length === 0 && result.deleteIds.length === 0) break;
+    const updateMap = new Map(result.updates.map((u) => [u.id, u.points]));
+    const deleteSet = new Set(result.deleteIds);
+    deleteSet.forEach((id) => cumulativeDeleteIds.add(id));
+    working = working
+      .filter((s) => !deleteSet.has(s.id))
+      .map((s) =>
+        updateMap.has(s.id) ? { ...s, points: updateMap.get(s.id) } : s
+      );
+  }
+
+  // Build final delta vs the ORIGINAL input.
+  const originalById = new Map(segments.map((s) => [s.id, s]));
+  const updates = [];
+  for (const s of working) {
+    if (cumulativeDeleteIds.has(s.id)) continue;
+    const orig = originalById.get(s.id);
+    if (!orig) continue;
+    const changed =
+      orig.points.length !== s.points.length ||
+      orig.points.some(
+        (op, k) =>
+          op.id !== s.points[k].id ||
+          op.x !== s.points[k].x ||
+          op.y !== s.points[k].y
+      );
+    if (changed) updates.push({ id: s.id, points: s.points });
+  }
+
+  return { updates, deleteIds: [...cumulativeDeleteIds] };
+}
+
+// Single-pass body of the algorithm — runs steps 1, 1.5, 2.5, 3, 3.5, 4, 5
+// once and returns its delta. Called repeatedly by `cleanSegments` until
+// the geometry stabilises.
+function runCleanPass({ segments, meterByPx }) {
+  if (!Array.isArray(segments) || segments.length === 0) {
+    return { updates: [], deleteIds: [] };
+  }
+
+  // Border-proximity threshold shared by all snap passes (1.5, 3, 3.5).
+  // Strictly physical (5 cm in real-world units). When meterByPx is missing
+  // the threshold collapses to 0 and the snap passes effectively skip — no
+  // px fallback per project spec.
+  const borderProximityThreshold = meterByPx
+    ? BORDER_PROXIMITY_CM / 100 / meterByPx
+    : 0;
 
   // 1. Normalize working state (deep-copy points).
   const state = segments.map((s) => {
@@ -240,6 +319,108 @@ export default function cleanSegments({ segments, meterByPx }) {
     }
   }
 
+  // 1.5. Early border-proximity snap.
+  //
+  // For each pair (A, B), if A's endpoint sits OUTSIDE B's stroke with a
+  // gap < 5 cm (physical-world threshold via meterByPx — pass is SKIPPED
+  // entirely when meterByPx is unknown), AND its perpendicular projection
+  // lies inside B's segment extent, snap the endpoint 1 px INSIDE B's
+  // nearest border on its CURRENT side. Direction is preserved (snap
+  // target is the intersection of A's original direction line — anchored
+  // at A's other endpoint — with the target border line).
+  //
+  // This pass runs early so "almost touching" cases are normalised up-front.
+  // Cases where the projection is outside B's extent are handled by step 3.5
+  // (past-extent), and cases where the endpoint is INSIDE B's stroke are
+  // handled by step 3 (L/T snap).
+  if (meterByPx) {
+    // Reuses the function-level `borderProximityThreshold` (5 cm in px).
+    const aliveIdsForStep15 = [];
+    for (let i = 0; i < state.length; i++) {
+      if (state[i].alive) aliveIdsForStep15.push(i);
+    }
+
+    // Snapshot current geometry so the pass is order-independent.
+    const snapshot15 = new Map();
+    for (const idx of aliveIdsForStep15) {
+      const s = state[idx];
+      snapshot15.set(idx, {
+        p0: { x: s.points[0].x, y: s.points[0].y },
+        p1: { x: s.points[1].x, y: s.points[1].y },
+        dir: { x: s.dir.x, y: s.dir.y },
+        length: s.length,
+        strokeWidthPx: s.strokeWidthPx,
+      });
+    }
+
+    for (const aIdx of aliveIdsForStep15) {
+      const a = state[aIdx];
+      const aSnap = snapshot15.get(aIdx);
+      for (let i = 0; i < 2; i++) {
+        const e = i === 0 ? aSnap.p0 : aSnap.p1;
+        const anchor = i === 0 ? aSnap.p1 : aSnap.p0;
+
+        // Find the first matching B.
+        let snapTarget = null;
+        for (const bIdx of aliveIdsForStep15) {
+          if (aIdx === bIdx) continue;
+          const b = state[bIdx];
+          const bSnap = snapshot15.get(bIdx);
+          if (bSnap.length === 0) continue;
+          if (
+            a.originAnnotationId &&
+            b.originAnnotationId &&
+            a.originAnnotationId === b.originAnnotationId
+          )
+            continue;
+
+          const halfStroke = bSnap.strokeWidthPx / 2;
+          const proj = projectOnInfiniteLine(e, bSnap.p0, bSnap.dir);
+
+          // Skip if projection outside b's extent (handled by step 3.5).
+          if (proj.t < 0 || proj.t > bSnap.length) continue;
+
+          // Skip if endpoint is INSIDE b's stroke (handled by step 3).
+          if (proj.perpDist <= halfStroke) continue;
+
+          // Gap = perpDist − halfStroke. Trigger if gap < 5 cm threshold.
+          const gap = proj.perpDist - halfStroke;
+          if (gap >= borderProximityThreshold) continue;
+
+          // Snap target = 1 px INSIDE b's nearest border on e's CURRENT side.
+          const sideE = signedSideOfLine(e, bSnap.p0, bSnap.dir);
+          const perpDirB = { x: -bSnap.dir.y, y: bSnap.dir.x };
+          const denom = aSnap.dir.x * perpDirB.x + aSnap.dir.y * perpDirB.y;
+          if (Math.abs(denom) < 1e-9) continue; // a parallel to b — skip
+          const targetSignedOffset = sideE * (halfStroke - SNAP_DEPTH_PX);
+          const numer =
+            targetSignedOffset -
+            ((anchor.x - bSnap.p0.x) * perpDirB.x +
+              (anchor.y - bSnap.p0.y) * perpDirB.y);
+          const sParam = numer / denom;
+          snapTarget = {
+            x: anchor.x + sParam * aSnap.dir.x,
+            y: anchor.y + sParam * aSnap.dir.y,
+          };
+          break;
+        }
+
+        if (snapTarget) {
+          a.points[i] = { ...a.points[i], x: snapTarget.x, y: snapTarget.y };
+        }
+      }
+    }
+
+    // Refresh dir/length after step 1.5 (length may change; dir stays since
+    // the endpoint moved along the original direction line).
+    for (const idx of aliveIdsForStep15) {
+      const s = state[idx];
+      const refreshed = makeDir(s.points[0], s.points[1]);
+      s.dir = refreshed.dir;
+      s.length = refreshed.length;
+    }
+  }
+
   // 3. L/T-junction snap.
   //
   // Use a snapshot of post-step-2 geometry so the result is order-independent.
@@ -247,11 +428,11 @@ export default function cleanSegments({ segments, meterByPx }) {
   // endpoint e of a:
   //   - skip unless e's perpendicular projection onto b's centerline lies
   //     within b's extent (no junction otherwise);
-  //   - skip unless e is within (halfStroke + BORDER_PROXIMITY_PX) of b's
+  //   - skip unless e is within (halfStroke + borderProximityThreshold (5 cm)) of b's
   //     centerline (covers two real cases: e just outside b within 3 px of
   //     the nearest border, OR e anywhere INSIDE b's stroke);
   //   - choose the snap target side:
-  //       * if e is close to a border (borderDist < BORDER_PROXIMITY_PX)
+  //       * if e is close to a border (borderDist < borderProximityThreshold (5 cm))
   //         → e's CURRENT side (snap to nearest border);
   //       * else (e is deep inside b) → the ANCHOR's side, so e is brought
   //         back to the border on the side a's body comes from.
@@ -278,7 +459,7 @@ export default function cleanSegments({ segments, meterByPx }) {
   }
 
   // Pre-pass — detect "V" junctions, where BOTH segments have an endpoint
-  // INSIDE the other within BORDER_PROXIMITY_PX of one of its borders. With
+  // INSIDE the other within borderProximityThreshold (5 cm) of one of its borders. With
   // the regular snap rule both endpoints stay 1 px inside their respective
   // near borders, producing an ambiguous overlap at the corner. To resolve
   // this we mark ONE endpoint per V junction as "stickOut": its snap target
@@ -289,9 +470,9 @@ export default function cleanSegments({ segments, meterByPx }) {
   const stickOutEndpoints = new Set(); // V junction winners — sign=sideE, target=halfStroke+1
 
   // V junction detection: an endpoint qualifies if it's within
-  // BORDER_PROXIMITY_PX of one of `dst`'s borders, EITHER from the inside
+  // borderProximityThreshold (5 cm) of one of `dst`'s borders, EITHER from the inside
   // (e is in dst's stroke, close to a border) OR from just outside (e is
-  // past a border by < BORDER_PROXIMITY_PX). Including the "just outside"
+  // past a border by < borderProximityThreshold (5 cm)). Including the "just outside"
   // case is what makes the cleanup idempotent: after the winner has been
   // pushed 1 px past the border in a previous run, re-running the cleanup
   // still detects the V junction and keeps the winner at +1 px outside
@@ -304,7 +485,7 @@ export default function cleanSegments({ segments, meterByPx }) {
       const proj = projectOnInfiniteLine(e, dstSnap.p0, dstSnap.dir);
       if (proj.t < 0 || proj.t > dstSnap.length) continue;
       const borderDist = Math.abs(proj.perpDist - halfDst);
-      if (borderDist >= BORDER_PROXIMITY_PX) continue;
+      if (borderDist >= borderProximityThreshold) continue;
       return i;
     }
     return -1;
@@ -375,13 +556,10 @@ export default function cleanSegments({ segments, meterByPx }) {
         // Strict containment in b's extent — no junction outside b.
         if (proj.t < 0 || proj.t > bSnap.length) continue;
 
-        // Trigger: e is within (halfStroke + BORDER_PROXIMITY_PX) of b's
-        // median. This covers e OUTSIDE b but within BORDER_PROXIMITY_PX
+        // Trigger: e is within (halfStroke + borderProximityThreshold (5 cm)) of b's
+        // median. This covers e OUTSIDE b but within borderProximityThreshold (5 cm)
         // of the nearest border, AND e INSIDE b's stroke at any depth.
-        if (proj.perpDist >= halfStroke + BORDER_PROXIMITY_PX) continue;
-
-        // Distance from e to b's nearest border.
-        const borderDist = Math.abs(proj.perpDist - halfStroke);
+        if (proj.perpDist >= halfStroke + borderProximityThreshold) continue;
 
         // Sign of the snap target line:
         //   - V junction WINNER → e's CURRENT side (will use halfStroke+1
@@ -391,7 +569,7 @@ export default function cleanSegments({ segments, meterByPx }) {
         //     at B without traversing it. This subsumes the V junction
         //     loser case: a loser is an INSIDE endpoint and anchor is on
         //     the opposite side, so the snap goes to anchor's side.
-        //   - e OUTSIDE the other (within BORDER_PROXIMITY_PX) → e's
+        //   - e OUTSIDE the other (within borderProximityThreshold (5 cm)) → e's
         //     CURRENT side (e is approaching the other; reach the nearest
         //     border from outside).
         // Edge case at the median (perpDist ≈ 0): use anchor's side
@@ -452,10 +630,22 @@ export default function cleanSegments({ segments, meterByPx }) {
   // skips: a's endpoint is BEYOND b's segment extent (proj.t outside
   // [0, b.length]) — typically because a falls in the gap between two
   // collinear neighbors b and c, or just past the end of an isolated b.
-  // If such an endpoint is within PAST_EXTENT_MARGIN_PX of b's nearest
-  // border (inside or outside), snap it to be EXACTLY on the border
-  // (depth 0, not 1 px inside). This handles the L/T junctions where
-  // the "tip" of a should sit cleanly at the border line of b/c.
+  // If such an endpoint is within borderProximityThreshold (5 cm) of b's
+  // nearest border (inside or outside), snap it EXACTLY on that border
+  // (depth 0) on e's CURRENT side.
+  //
+  // Why depth 0 unconditionally:
+  //   - The 1 px "merge overlap" the user wants on these junctions is
+  //     created by step 3 pulling the perpendicular pieces INTO the
+  //     parallel wall (depth 1 in step 3 in-extent). Step 3.5 just gives
+  //     the parallel wall's tip a clean alignment on the perpendicular
+  //     wall's edge — no further inward push needed.
+  //   - Trying to add a depth-1 inward push here is non-idempotent: a tip
+  //     just outside the border (perpDist ≈ halfStroke + ε) snaps to depth
+  //     1 inside, which on the next pass reads as INSIDE and would need a
+  //     different rule to stay put. Depth 0 on e's current side is stable
+  //     under iteration regardless of whether the tip starts just inside
+  //     or just outside the wall stroke.
   for (const aIdx of aliveIndices) {
     const a = state[aIdx];
     const aPostSnap = {
@@ -489,15 +679,47 @@ export default function cleanSegments({ segments, meterByPx }) {
 
         // Skip if e is too far from b's border.
         const borderDist = Math.abs(proj.perpDist - halfStroke);
-        if (borderDist > PAST_EXTENT_MARGIN_PX) continue;
+        if (borderDist > borderProximityThreshold) continue;
 
-        // Snap to EXACTLY on b's border on e's CURRENT side.
-        const sideE = signedSideOfLine(e, b.points[0], b.dir);
+        // Skip if e is too far PAST b's extent. Without this guard, an
+        // unrelated wall hundreds of px away in b's parallel direction
+        // (e.g. a small horizontal segment far to the left of a vertical
+        // tip) could spuriously trigger because its perpendicular distance
+        // happens to be small.
+        //
+        // Threshold = a.halfStroke + 5 cm. The a.halfStroke component is
+        // necessary to keep COMPOUND WALL T junctions firing: when A
+        // passes through a wall split into B + gap + C, A's tip projects
+        // into the GAP, and after step 3 has pulled B and C 1 px into A's
+        // stroke, the past-extent distance from A's tip to B's nearest
+        // end is exactly a.halfStroke − 1 (because B's end now sits 1 px
+        // inside A's far border). Tightening to just borderProximity
+        // (5 cm) would block these legitimate snaps. The +5 cm slack
+        // also covers the L-corner case where pastDist is small.
+        const halfStrokeA = a.strokeWidthPx / 2;
+        const pastDistThreshold = halfStrokeA + borderProximityThreshold;
+        const pastDist = proj.t < 0 ? -proj.t : proj.t - b.length;
+        if (pastDist > pastDistThreshold) continue;
+
+        // Side: ALWAYS e's CURRENT side (snap to the wall border on the
+        // side e sits on — the FAR border from anchor in pass-through
+        // geometry). Edge case at the median (perpDist ≈ 0, undefined
+        // side): fall back to anchor's side.
+        const sideAnchor = signedSideOfLine(anchor, b.points[0], b.dir);
+        const sideE =
+          proj.perpDist < 1e-6
+            ? sideAnchor
+            : signedSideOfLine(e, b.points[0], b.dir);
         const perpDirB = { x: -b.dir.y, y: b.dir.x };
         const denom =
           aPostSnap.dir.x * perpDirB.x + aPostSnap.dir.y * perpDirB.y;
         if (Math.abs(denom) < 1e-9) continue;
-        const targetSignedOffset = sideE * halfStroke; // depth 0
+        // Depth 0: snap exactly on b's border on e's current side. The
+        // 1 px overlap for future merging comes from step 3 pulling the
+        // perpendicular pieces INTO this parallel wall (not from this
+        // tip pushing further inward). Depth 0 here is also idempotent
+        // under iteration regardless of starting inside/outside.
+        const targetSignedOffset = sideE * halfStroke;
         const numer =
           targetSignedOffset -
           ((anchor.x - b.points[0].x) * perpDirB.x +
