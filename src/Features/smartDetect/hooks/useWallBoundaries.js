@@ -9,11 +9,7 @@ import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
-import {
-  typeOf,
-  circleFromThreePoints,
-  sampleArcPoints,
-} from "Features/geometry/utils/arcSampling";
+import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 
 import db from "App/db/db";
 
@@ -34,77 +30,6 @@ function lineLineIntersection(p1, v1, p2, v2) {
   if (Math.abs(cross) < 1e-8) return null;
   const t = ((p2.x - p1.x) * v2.y - (p2.y - p1.y) * v2.x) / cross;
   return { x: p1.x + t * v1.x, y: p1.y + t * v1.y };
-}
-
-/**
- * Expand each square → circle → square (S-C-S) arc in `path` into `samples`
- * straight segments along the underlying circle. Non-arc points pass through
- * unchanged. Degenerate (collinear) arcs fall back to straight segments.
- * Consecutive circle-type points (C-C chains) are treated as straight segments,
- * matching the convention in getPointsSurface.
- */
-function expandArcsInPath(path, samples = 6) {
-  const n = path.length;
-  if (n < 3) return path.map((p) => ({ x: p.x, y: p.y }));
-
-  const out = [];
-  let i = 0;
-  while (i < n) {
-    const p0 = path[i];
-    const p1 = path[i + 1];
-    const p2 = path[i + 2];
-
-    const isArc =
-      p1 &&
-      p2 &&
-      typeOf(p0) !== "circle" &&
-      typeOf(p1) === "circle" &&
-      typeOf(p2) !== "circle";
-
-    if (isArc) {
-      const circ = circleFromThreePoints(p0, p1, p2);
-      if (circ && Number.isFinite(circ.r) && circ.r > 0) {
-        const cross =
-          (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
-        const isCW = cross > 0;
-
-        // Push p0 and sampled points up to (but excluding) p2.
-        // p2 will be picked up as p0 of the next iteration.
-        out.push({ x: p0.x, y: p0.y });
-        const arc01 = sampleArcPoints(
-          p0,
-          p1,
-          circ.center,
-          circ.r,
-          isCW,
-          samples
-        );
-        for (const s of arc01) out.push({ x: s.x, y: s.y });
-        const arc12 = sampleArcPoints(
-          p1,
-          p2,
-          circ.center,
-          circ.r,
-          isCW,
-          samples
-        );
-        for (let k = 0; k < arc12.length - 1; k++) {
-          out.push({ x: arc12[k].x, y: arc12[k].y });
-        }
-        i += 2;
-        continue;
-      }
-      // Degenerate: straight segments
-      out.push({ x: p0.x, y: p0.y });
-      i += 1;
-      continue;
-    }
-
-    out.push({ x: p0.x, y: p0.y });
-    i += 1;
-  }
-
-  return out;
 }
 
 /**

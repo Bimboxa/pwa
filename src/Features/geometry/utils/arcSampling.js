@@ -89,3 +89,83 @@ export function sampleArcPoints(
 
   return arcPoints;
 }
+
+/**
+ * Expand each square → circle → square (S-C-S) arc in `path` into `samples`
+ * straight segments along the underlying circle. Non-arc points pass through
+ * unchanged.
+ *
+ * Anchor points (the original non-circle vertices at the arc boundaries, and
+ * any point not part of an S-C-S triplet) are preserved with all their
+ * properties (e.g. `_id`, `type`) so downstream algorithms that rely on those
+ * fields (e.g. topology-anchor matching in smartDetect) keep working. Sampled
+ * intermediate points are plain `{x, y}` objects — no synthetic `_id`.
+ *
+ * Degenerate (collinear) arcs fall back to straight segments. Consecutive
+ * circle-type points (C-C chains) are treated as straight segments, matching
+ * the convention used in getPointsSurface.
+ */
+export function expandArcsInPath(path, samples = 6) {
+  const n = path.length;
+  if (n < 3) return path.map((p) => ({ ...p }));
+
+  const out = [];
+  let i = 0;
+  while (i < n) {
+    const p0 = path[i];
+    const p1 = path[i + 1];
+    const p2 = path[i + 2];
+
+    const isArc =
+      p1 &&
+      p2 &&
+      typeOf(p0) !== "circle" &&
+      typeOf(p1) === "circle" &&
+      typeOf(p2) !== "circle";
+
+    if (isArc) {
+      const circ = circleFromThreePoints(p0, p1, p2);
+      if (circ && Number.isFinite(circ.r) && circ.r > 0) {
+        const cross =
+          (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
+        const isCW = cross > 0;
+
+        // Push p0 with all its properties, then sampled points up to (but
+        // excluding) p2. p2 will be picked up as p0 of the next iteration,
+        // preserving its properties too.
+        out.push({ ...p0 });
+        const arc01 = sampleArcPoints(
+          p0,
+          p1,
+          circ.center,
+          circ.r,
+          isCW,
+          samples
+        );
+        for (const s of arc01) out.push({ x: s.x, y: s.y });
+        const arc12 = sampleArcPoints(
+          p1,
+          p2,
+          circ.center,
+          circ.r,
+          isCW,
+          samples
+        );
+        for (let k = 0; k < arc12.length - 1; k++) {
+          out.push({ x: arc12[k].x, y: arc12[k].y });
+        }
+        i += 2;
+        continue;
+      }
+      // Degenerate: straight segments
+      out.push({ ...p0 });
+      i += 1;
+      continue;
+    }
+
+    out.push({ ...p0 });
+    i += 1;
+  }
+
+  return out;
+}
