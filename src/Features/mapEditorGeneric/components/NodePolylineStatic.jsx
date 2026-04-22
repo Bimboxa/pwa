@@ -5,6 +5,10 @@ import theme from "Styles/theme";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import NodeLabelStatic from "./NodeLabelStatic";
 
+// Extra padding on each side of the visible stroke for hit detection, in
+// screen pixels (20 = ~10 px tolerance each side of the visible edge).
+const HIT_STROKE_PADDING_SCREEN_PX = 20;
+
 // --- CONSTANTES DE STYLE ---
 const STYLE_CONSTANTS = {
     COLORS: {
@@ -116,6 +120,19 @@ export default function NodePolylineStatic({
         // PX mode: raw value, vectorEffect="non-scaling-stroke" keeps it fixed on screen
         return strokeWidth;
     }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit, isForBaseMaps, baseMapImageScale, type]);
+
+    // Hit-area stroke width for pointer detection: visible stroke + fixed
+    // screen-space padding, so the trigger distance stays constant in screen
+    // pixels regardless of zoom. When the visible stroke scales with zoom
+    // (CM / isForBaseMaps), convert it to screen pixels via the `--map-zoom`
+    // CSS var; otherwise the visible width is already in screen pixels.
+    const hitStrokeWidthCss = useMemo(() => {
+        const k = containerK || 1;
+        if (scalesWithZoom) {
+            return `calc((${computedStrokeWidth} * var(--map-zoom, 1) * ${k} + ${HIT_STROKE_PADDING_SCREEN_PX}) * 1px)`;
+        }
+        return `${computedStrokeWidth + HIT_STROKE_PADDING_SCREEN_PX}px`;
+    }, [computedStrokeWidth, scalesWithZoom, containerK]);
 
 
 
@@ -392,8 +409,8 @@ export default function NodePolylineStatic({
                         data-node-id={annotationId}
                         style={{ cursor: isTransient ? "crosshair" : "pointer" }}
                     >
-                        {/* Hit Area Large */}
-                        <path d={seg.d} fill="none" stroke="transparent" strokeWidth={Math.max(14, scalesWithZoom ? computedStrokeWidth * 3 : 14)} vectorEffect={scalesWithZoom ? undefined : "non-scaling-stroke"} />
+                        {/* Hit Area Large — visible stroke + fixed screen-space padding, zoom-independent */}
+                        <path d={seg.d} fill="none" stroke="transparent" style={{ strokeWidth: hitStrokeWidthCss }} vectorEffect="non-scaling-stroke" />
                         {/* Visuel Ghost */}
                         <path
                             d={seg.d}
@@ -426,8 +443,8 @@ export default function NodePolylineStatic({
                         d={seg.d}
                         fill="none"
                         stroke="transparent"
-                        strokeWidth={Math.max(14, scalesWithZoom ? computedStrokeWidth * 3 : 14)}
-                        vectorEffect={scalesWithZoom ? undefined : "non-scaling-stroke"}
+                        style={{ strokeWidth: hitStrokeWidthCss }}
+                        vectorEffect="non-scaling-stroke"
                     />
                 </g>
             );
