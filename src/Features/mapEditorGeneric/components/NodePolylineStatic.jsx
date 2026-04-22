@@ -121,17 +121,21 @@ export default function NodePolylineStatic({
         return strokeWidth;
     }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit, isForBaseMaps, baseMapImageScale, type]);
 
-    // Hit-area stroke width for pointer detection: visible stroke + fixed
-    // screen-space padding, so the trigger distance stays constant in screen
-    // pixels regardless of zoom. When the visible stroke scales with zoom
-    // (CM / isForBaseMaps), convert it to screen pixels via the `--map-zoom`
-    // CSS var; otherwise the visible width is already in screen pixels.
+    // Hit-area stroke width for pointer detection — always computed in screen
+    // pixels so the trigger distance is zoom-independent.
+    // - `scalesWithZoom` (CM / isForBaseMaps): visible stroke grows with zoom,
+    //   so hit = visibleScreenPx + padding. The visible width in screen px is
+    //   `computedStrokeWidth * --map-zoom * containerK`, hence the CSS calc.
+    // - `!scalesWithZoom` (PX): visible stroke is already fixed on screen via
+    //   `vectorEffect="non-scaling-stroke"`, so a fixed padding is enough.
+    //   Adding `computedStrokeWidth` here would make thick PX strokes trigger
+    //   hover way too far from the visible line.
     const hitStrokeWidthCss = useMemo(() => {
-        const k = containerK || 1;
         if (scalesWithZoom) {
+            const k = containerK || 1;
             return `calc((${computedStrokeWidth} * var(--map-zoom, 1) * ${k} + ${HIT_STROKE_PADDING_SCREEN_PX}) * 1px)`;
         }
-        return `${computedStrokeWidth + HIT_STROKE_PADDING_SCREEN_PX}px`;
+        return `${HIT_STROKE_PADDING_SCREEN_PX}px`;
     }, [computedStrokeWidth, scalesWithZoom, containerK]);
 
 
