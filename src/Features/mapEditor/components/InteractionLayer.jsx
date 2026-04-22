@@ -2318,8 +2318,8 @@ const InteractionLayer = forwardRef(({
 
     }
 
-    // --- CASE 3b: CIRCLE (Auto-commit after 3 points) ---
-    else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
+    // --- CASE 3b: CIRCLE / ARC (Auto-commit after 3 points) ---
+    else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "ARC", "POLYLINE_ARC"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
       if ((event.shiftKey || event.evt?.shiftKey || orthoSnapEnabledRef.current) && drawingPoints.length > 0) {
@@ -2942,7 +2942,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "COMPLETE_ANNOTATION"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -3285,7 +3285,7 @@ const InteractionLayer = forwardRef(({
         commitPolyline(e); // add "e" to get clientX & clientY to set the measurePopper anchor position.
       }
 
-      else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode) && newPointsList?.length === 3) {
+      else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "ARC", "POLYLINE_ARC"].includes(enabledDrawingMode) && newPointsList?.length === 3) {
         drawingPointsRef.current = newPointsList;
         commitPolyline(e);
       }

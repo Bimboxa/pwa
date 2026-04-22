@@ -69,6 +69,7 @@ import cleanSegments from "Features/annotations/utils/cleanSegments";
 import editor from "App/editor";
 import getPolylinePointsFromRectangle from "Features/geometry/utils/getPolylinePointsFromRectangle";
 import getPolylinePointsFromCircle from "Features/geometry/utils/getPolylinePointsFromCircle";
+import getPolylinePointsFromArc from "Features/geometry/utils/getPolylinePointsFromArc";
 import getDefaultCameraMatrix from "../utils/getDefaultCameraMatrix";
 import getDefaultBaseMapPoseInBg from "../utils/getDefaultBaseMapPoseInBg";
 import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getAnnotationLabelDeltaFromDeltaPos";
@@ -582,6 +583,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         const options = {};
         if (type === "POLYLINE") options.closeLine = true;
         handleCommitDrawing(circlePoints, options);
+    }
+
+    // handlers - arc
+
+    const handleCommitDrawingFromArc = (points) => {
+        const arcPoints = getPolylinePointsFromArc(points);
+        handleCommitDrawing(arcPoints, { closeLine: false });
     }
 
     // handlers - measure
@@ -1246,6 +1254,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         }
                         else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
                             return handleCommitDrawingFromCircle(points);
+                        }
+                        else if (["ARC", "POLYLINE_ARC"].includes(enabledDrawingMode)) {
+                            return handleCommitDrawingFromArc(points);
                         }
                         else {
                             console.log("handleCommitDrawing - points", points);
