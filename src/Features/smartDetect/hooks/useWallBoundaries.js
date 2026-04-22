@@ -9,6 +9,12 @@ import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
+import {
+  typeOf,
+  circleFromThreePoints,
+  sampleArcPoints,
+} from "Features/geometry/utils/arcSampling";
+
 import db from "App/db/db";
 
 // ── Constants ────────────────────────────────────────────────────────────
@@ -31,6 +37,77 @@ function lineLineIntersection(p1, v1, p2, v2) {
 }
 
 /**
+ * Expand each square → circle → square (S-C-S) arc in `path` into `samples`
+ * straight segments along the underlying circle. Non-arc points pass through
+ * unchanged. Degenerate (collinear) arcs fall back to straight segments.
+ * Consecutive circle-type points (C-C chains) are treated as straight segments,
+ * matching the convention in getPointsSurface.
+ */
+function expandArcsInPath(path, samples = 6) {
+  const n = path.length;
+  if (n < 3) return path.map((p) => ({ x: p.x, y: p.y }));
+
+  const out = [];
+  let i = 0;
+  while (i < n) {
+    const p0 = path[i];
+    const p1 = path[i + 1];
+    const p2 = path[i + 2];
+
+    const isArc =
+      p1 &&
+      p2 &&
+      typeOf(p0) !== "circle" &&
+      typeOf(p1) === "circle" &&
+      typeOf(p2) !== "circle";
+
+    if (isArc) {
+      const circ = circleFromThreePoints(p0, p1, p2);
+      if (circ && Number.isFinite(circ.r) && circ.r > 0) {
+        const cross =
+          (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
+        const isCW = cross > 0;
+
+        // Push p0 and sampled points up to (but excluding) p2.
+        // p2 will be picked up as p0 of the next iteration.
+        out.push({ x: p0.x, y: p0.y });
+        const arc01 = sampleArcPoints(
+          p0,
+          p1,
+          circ.center,
+          circ.r,
+          isCW,
+          samples
+        );
+        for (const s of arc01) out.push({ x: s.x, y: s.y });
+        const arc12 = sampleArcPoints(
+          p1,
+          p2,
+          circ.center,
+          circ.r,
+          isCW,
+          samples
+        );
+        for (let k = 0; k < arc12.length - 1; k++) {
+          out.push({ x: arc12[k].x, y: arc12[k].y });
+        }
+        i += 2;
+        continue;
+      }
+      // Degenerate: straight segments
+      out.push({ x: p0.x, y: p0.y });
+      i += 1;
+      continue;
+    }
+
+    out.push({ x: p0.x, y: p0.y });
+    i += 1;
+  }
+
+  return out;
+}
+
+/**
  * Compute offset polyline at distance d (positive = left of direction).
  */
 function computeOffsetPolyline(path, d) {
@@ -39,23 +116,39 @@ function computeOffsetPolyline(path, d) {
 
   const lines = [];
   for (let i = 0; i < n - 1; i++) {
-    const a = path[i], b = path[i + 1];
-    const dx = b.x - a.x, dy = b.y - a.y;
+    const a = path[i],
+      b = path[i + 1];
+    const dx = b.x - a.x,
+      dy = b.y - a.y;
     const len = Math.sqrt(dx * dx + dy * dy);
     if (len === 0) continue;
-    const ux = dx / len, uy = dy / len;
-    const nx = -uy, ny = ux;
-    lines.push({ p: { x: a.x + nx * d, y: a.y + ny * d }, v: { x: ux, y: uy }, len });
+    const ux = dx / len,
+      uy = dy / len;
+    const nx = -uy,
+      ny = ux;
+    lines.push({
+      p: { x: a.x + nx * d, y: a.y + ny * d },
+      v: { x: ux, y: uy },
+      len,
+    });
   }
   if (lines.length === 0) return [];
 
   const result = [{ ...lines[0].p }];
   for (let i = 1; i < lines.length; i++) {
-    const inter = lineLineIntersection(lines[i - 1].p, lines[i - 1].v, lines[i].p, lines[i].v);
+    const inter = lineLineIntersection(
+      lines[i - 1].p,
+      lines[i - 1].v,
+      lines[i].p,
+      lines[i].v
+    );
     result.push(inter ? { ...inter } : { ...lines[i].p });
   }
   const last = lines[lines.length - 1];
-  result.push({ x: last.p.x + last.v.x * last.len, y: last.p.y + last.v.y * last.len });
+  result.push({
+    x: last.p.x + last.v.x * last.len,
+    y: last.p.y + last.v.y * last.len,
+  });
 
   return result;
 }
@@ -71,7 +164,8 @@ function wallToRectRing(points, halfWidth) {
   // Closed ring: left forward → right backward → close
   const ring = [];
   for (const p of left) ring.push([p.x, p.y]);
-  for (let i = right.length - 1; i >= 0; i--) ring.push([right[i].x, right[i].y]);
+  for (let i = right.length - 1; i >= 0; i--)
+    ring.push([right[i].x, right[i].y]);
   ring.push([left[0].x, left[0].y]); // close
   return ring;
 }
@@ -85,12 +179,19 @@ function nearestWallThickness(px, py, walls) {
   for (const wall of walls) {
     const pts = wall.points;
     for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i], b = pts[i + 1];
-      const dx = b.x - a.x, dy = b.y - a.y;
+      const a = pts[i],
+        b = pts[i + 1];
+      const dx = b.x - a.x,
+        dy = b.y - a.y;
       const lenSq = dx * dx + dy * dy;
       if (lenSq === 0) continue;
-      const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / lenSq));
-      const dist = Math.sqrt((px - (a.x + t * dx)) ** 2 + (py - (a.y + t * dy)) ** 2);
+      const t = Math.max(
+        0,
+        Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / lenSq)
+      );
+      const dist = Math.sqrt(
+        (px - (a.x + t * dx)) ** 2 + (py - (a.y + t * dy)) ** 2
+      );
       if (dist < bestDist) {
         bestDist = dist;
         bestThick = wall.halfWidth * 2;
@@ -116,10 +217,15 @@ function removeSteps(ring, walls) {
   // 1. Classify each segment as step or real
   const isStep = new Array(realN).fill(false);
   for (let i = 0; i < realN; i++) {
-    const a = ring[i], b = ring[(i + 1) % realN];
+    const a = ring[i],
+      b = ring[(i + 1) % realN];
     const len = Math.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2);
-    if (len === 0) { isStep[i] = true; continue; }
-    const midX = (a[0] + b[0]) / 2, midY = (a[1] + b[1]) / 2;
+    if (len === 0) {
+      isStep[i] = true;
+      continue;
+    }
+    const midX = (a[0] + b[0]) / 2,
+      midY = (a[1] + b[1]) / 2;
     const localThick = nearestWallThickness(midX, midY, walls);
     if (len < localThick * 1.2) isStep[i] = true;
   }
@@ -136,7 +242,10 @@ function removeSteps(ring, walls) {
 
   let i = 0;
   while (i < realN) {
-    if (!isStep[i]) { i++; continue; }
+    if (!isStep[i]) {
+      i++;
+      continue;
+    }
 
     // Find the chain: consecutive step segments starting at i
     let chainEnd = i;
@@ -145,7 +254,7 @@ function removeSteps(ring, walls) {
     // Points involved: i, i+1, ..., chainEnd
 
     // Real segment BEFORE chain: segment (i-1), from point (i-1) to point i
-    const prevIdx = ((i - 1) + realN) % realN;
+    const prevIdx = (i - 1 + realN) % realN;
     const prevStart = ring[prevIdx];
     const prevEnd = ring[i % realN];
     const v1 = { x: prevEnd[0] - prevStart[0], y: prevEnd[1] - prevStart[1] };
@@ -153,7 +262,10 @@ function removeSteps(ring, walls) {
     // Real segment AFTER chain: segment chainEnd, from point chainEnd to point chainEnd+1
     const afterStart = ring[chainEnd % realN];
     const afterEnd = ring[(chainEnd + 1) % realN];
-    const v2 = { x: afterEnd[0] - afterStart[0], y: afterEnd[1] - afterStart[1] };
+    const v2 = {
+      x: afterEnd[0] - afterStart[0],
+      y: afterEnd[1] - afterStart[1],
+    };
 
     // Skip if either direction is zero
     if ((v1.x === 0 && v1.y === 0) || (v2.x === 0 && v2.y === 0)) {
@@ -163,15 +275,19 @@ function removeSteps(ring, walls) {
 
     // Intersect line(prevStart, v1) with line(afterStart, v2)
     const inter = lineLineIntersection(
-      { x: prevStart[0], y: prevStart[1] }, v1,
-      { x: afterStart[0], y: afterStart[1] }, v2
+      { x: prevStart[0], y: prevStart[1] },
+      v1,
+      { x: afterStart[0], y: afterStart[1] },
+      v2
     );
 
     if (inter) {
       // Sanity: intersection should be near the chain
       const chainMidX = (prevEnd[0] + afterStart[0]) / 2;
       const chainMidY = (prevEnd[1] + afterStart[1]) / 2;
-      const dInter = Math.sqrt((inter.x - chainMidX) ** 2 + (inter.y - chainMidY) ** 2);
+      const dInter = Math.sqrt(
+        (inter.x - chainMidX) ** 2 + (inter.y - chainMidY) ** 2
+      );
       const localThick = nearestWallThickness(chainMidX, chainMidY, walls);
 
       if (dInter < localThick * 3) {
@@ -220,12 +336,18 @@ function classifyEdge(p1, p2, walls, centroid) {
   for (const wall of walls) {
     const pts = wall.points;
     for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i], b = pts[i + 1];
-      const dx = b.x - a.x, dy = b.y - a.y;
+      const a = pts[i],
+        b = pts[i + 1];
+      const dx = b.x - a.x,
+        dy = b.y - a.y;
       const lenSq = dx * dx + dy * dy;
       if (lenSq === 0) continue;
-      const t = Math.max(0, Math.min(1, ((mx - a.x) * dx + (my - a.y) * dy) / lenSq));
-      const px = a.x + t * dx, py = a.y + t * dy;
+      const t = Math.max(
+        0,
+        Math.min(1, ((mx - a.x) * dx + (my - a.y) * dy) / lenSq)
+      );
+      const px = a.x + t * dx,
+        py = a.y + t * dy;
       const dist = Math.sqrt((mx - px) ** 2 + (my - py) ** 2);
       if (dist < bestDist) {
         bestDist = dist;
@@ -243,9 +365,15 @@ function classifyEdge(p1, p2, walls, centroid) {
   const mA = bestWall.points[midIdx];
   const mB = bestWall.points[Math.min(midIdx + 1, bestWall.points.length - 1)];
   const norm = segNormal(mA, mB);
-  const leftPt = { x: mA.x + norm.x * bestWall.halfWidth, y: mA.y + norm.y * bestWall.halfWidth };
+  const leftPt = {
+    x: mA.x + norm.x * bestWall.halfWidth,
+    y: mA.y + norm.y * bestWall.halfWidth,
+  };
   const dLeft = (leftPt.x - centroid.x) ** 2 + (leftPt.y - centroid.y) ** 2;
-  const rightPt = { x: mA.x - norm.x * bestWall.halfWidth, y: mA.y - norm.y * bestWall.halfWidth };
+  const rightPt = {
+    x: mA.x - norm.x * bestWall.halfWidth,
+    y: mA.y - norm.y * bestWall.halfWidth,
+  };
   const dRight = (rightPt.x - centroid.x) ** 2 + (rightPt.y - centroid.y) ** 2;
   const leftIsExterior = dLeft > dRight;
 
@@ -263,7 +391,11 @@ function groupEdgesByType(ring, walls, centroid) {
 
   const edges = [];
   for (let i = 0; i < ring.length - 1; i++) {
-    edges.push({ p1: ring[i], p2: ring[i + 1], type: classifyEdge(ring[i], ring[i + 1], walls, centroid) });
+    edges.push({
+      p1: ring[i],
+      p2: ring[i + 1],
+      type: classifyEdge(ring[i], ring[i + 1], walls, centroid),
+    });
   }
   if (edges.length === 0) return [];
 
@@ -305,7 +437,9 @@ export default function useWallBoundaries() {
   const computeBoundaries = useCallback(
     async ({ wallAnnotations, boundaryAnnotationTemplate }) => {
       if (!wallAnnotations?.length || !boundaryAnnotationTemplate) {
-        throw new Error("wallAnnotations and boundaryAnnotationTemplate are required");
+        throw new Error(
+          "wallAnnotations and boundaryAnnotationTemplate are required"
+        );
       }
 
       const imageSize = baseMap?.getImageSize?.();
@@ -313,12 +447,14 @@ export default function useWallBoundaries() {
       if (!width || !height) throw new Error("No image size available");
 
       const meterByPx = baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx;
-      if (!meterByPx || meterByPx <= 0) throw new Error("meterByPx is required");
+      if (!meterByPx || meterByPx <= 0)
+        throw new Error("meterByPx is required");
 
       // ── 1. Resolve wall annotation points ─────────────────────────────
       const allPointIds = [];
       for (const ann of wallAnnotations) {
-        if (ann.points) for (const p of ann.points) if (p.id) allPointIds.push(p.id);
+        if (ann.points)
+          for (const p of ann.points) if (p.id) allPointIds.push(p.id);
       }
       const pointRecords = await db.points.bulkGet(allPointIds);
       const pointsById = {};
@@ -330,18 +466,26 @@ export default function useWallBoundaries() {
         const pts = [];
         for (const p of ann.points) {
           if (p.x !== undefined && p.y !== undefined) {
-            pts.push({ x: p.x, y: p.y });
+            pts.push({ x: p.x, y: p.y, type: p.type });
           } else {
             const rec = pointsById[p.id];
-            if (rec) pts.push({ x: rec.x * width, y: rec.y * height });
+            if (rec)
+              pts.push({ x: rec.x * width, y: rec.y * height, type: p.type });
           }
         }
+        // Expand S-C-S arcs into straight sample segments before the offset
+        // step, so the rest of the pipeline (polygon-clipping union, step
+        // removal) continues to see only straight edges.
+        const expanded = expandArcsInPath(pts, 6);
         // Filter degenerate zero-length segments
-        const filtered = [pts[0]];
-        for (let i = 1; i < pts.length; i++) {
+        const filtered = [expanded[0]];
+        for (let i = 1; i < expanded.length; i++) {
           const prev = filtered[filtered.length - 1];
-          if (Math.abs(pts[i].x - prev.x) > 0.1 || Math.abs(pts[i].y - prev.y) > 0.1) {
-            filtered.push(pts[i]);
+          if (
+            Math.abs(expanded[i].x - prev.x) > 0.1 ||
+            Math.abs(expanded[i].y - prev.y) > 0.1
+          ) {
+            filtered.push(expanded[i]);
           }
         }
         if (filtered.length < 2) continue;
@@ -354,7 +498,8 @@ export default function useWallBoundaries() {
         });
       }
 
-      if (walls.length === 0) throw new Error("No valid wall annotations found");
+      if (walls.length === 0)
+        throw new Error("No valid wall annotations found");
 
       // ── 2. Convert each wall to a rectangle polygon ───────────────────
       const rectRings = [];
@@ -383,10 +528,14 @@ export default function useWallBoundaries() {
       }
 
       // ── 4. Compute centroid for EXT side classification ───────────────
-      let cx = 0, cy = 0, totalPts = 0;
+      let cx = 0,
+        cy = 0,
+        totalPts = 0;
       for (const w of walls) {
         for (const p of w.points) {
-          cx += p.x; cy += p.y; totalPts++;
+          cx += p.x;
+          cy += p.y;
+          totalPts++;
         }
       }
       const centroid = { x: cx / totalPts, y: cy / totalPts };
@@ -402,11 +551,13 @@ export default function useWallBoundaries() {
       }
 
       // ── 6. Create boundary annotations ────────────────────────────────
-      const entityTable = selectedListing?.table ?? selectedListing?.entityModel?.defaultTable;
+      const entityTable =
+        selectedListing?.table ?? selectedListing?.entityModel?.defaultTable;
 
       const SNAP_TOLERANCE = 3;
       const pointIndex = new Map();
-      const coordKey = (x, y) => `${Math.round(x / SNAP_TOLERANCE)},${Math.round(y / SNAP_TOLERANCE)}`;
+      const coordKey = (x, y) =>
+        `${Math.round(x / SNAP_TOLERANCE)},${Math.round(y / SNAP_TOLERANCE)}`;
       const getOrCreatePoint = (pxX, pxY) => {
         const key = coordKey(pxX, pxY);
         if (pointIndex.has(key)) return pointIndex.get(key).id;
@@ -457,8 +608,13 @@ export default function useWallBoundaries() {
       const allPoints = [];
       for (const entry of pointIndex.values()) {
         allPoints.push({
-          id: entry.id, x: entry.nx, y: entry.ny,
-          baseMapId, projectId, listingId, forMarker: false,
+          id: entry.id,
+          x: entry.nx,
+          y: entry.ny,
+          baseMapId,
+          projectId,
+          listingId,
+          forMarker: false,
         });
       }
 
@@ -467,17 +623,29 @@ export default function useWallBoundaries() {
 
       await db.transaction("rw", tables, async () => {
         if (allPoints.length > 0) await db.points.bulkAdd(allPoints);
-        if (entityTable && allEntities.length > 0) await db[entityTable].bulkAdd(allEntities);
-        if (allAnnotations.length > 0) await db.annotations.bulkAdd(allAnnotations);
+        if (entityTable && allEntities.length > 0)
+          await db[entityTable].bulkAdd(allEntities);
+        if (allAnnotations.length > 0)
+          await db.annotations.bulkAdd(allAnnotations);
       });
 
       dispatch(triggerAnnotationsUpdate());
       if (entityTable) dispatch(triggerEntitiesTableUpdate(entityTable));
 
-      console.log(`[useWallBoundaries] Created ${allAnnotations.length} boundary annotations`);
+      console.log(
+        `[useWallBoundaries] Created ${allAnnotations.length} boundary annotations`
+      );
       return { count: allAnnotations.length };
     },
-    [baseMap, baseMapId, projectId, listingId, activeLayerId, selectedListing, dispatch]
+    [
+      baseMap,
+      baseMapId,
+      projectId,
+      listingId,
+      activeLayerId,
+      selectedListing,
+      dispatch,
+    ]
   );
 
   return computeBoundaries;
