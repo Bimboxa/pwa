@@ -137,7 +137,7 @@ const SCREEN_BRUSH_RADIUS_PX = 12; // Rayon fixe à l'écran
 const LOUPE_SIZE = 200; // Taille écran de la loupe
 const LOUPE_ASPECT_RATIO = 5; // Rapport largeur/hauteur pour LANDSCAPE / PORTRAIT
 const LOUPE_ASPECTS = ["SQUARE", "LANDSCAPE", "PORTRAIT"];
-const SMART_ZOOM_DEFAULT = 3.0; // Facteur de grossissement par défaut
+const SMART_ZOOM_DEFAULT = 1.0; // Facteur de grossissement par défaut
 const SMART_ZOOM_MIN = 1.0;
 const SMART_ZOOM_MAX = 20.0;
 const MAX_FAILURES = 0; // On autorise 1 frames d'échec avant de stopper le autopan
@@ -1984,7 +1984,7 @@ const InteractionLayer = forwardRef(({
           break;
 
         case "f":
-          if (showSmartDetect) {
+          if (showSmartDetect && smartDetectEnabledRef.current) {
             dispatch(cycleLoupeAspect());
             // Ref/visual refresh is handled by the loupeAspectRedux sync effect.
           }
@@ -4027,7 +4027,9 @@ const InteractionLayer = forwardRef(({
             rotationAngle={orthoSnapAngleOffset || 0}
             crosshairAxis={
               smartDetectEnabled &&
-              (enabledDrawingMode === "STRIP" || enabledDrawingMode === "POLYLINE_CLICK")
+              (enabledDrawingMode === "STRIP" ||
+                enabledDrawingMode === "POLYLINE_CLICK" ||
+                enabledDrawingMode === "SURFACE_DROP")
                 ? stripDetectionOrientation
                 : "BOTH"
             }
