@@ -78,6 +78,7 @@ import { alpha } from "@mui/material/styles";
 import {
   setEnabledDrawingMode,
   setSelectedToolKeyForTemplate,
+  setAutoMergeOnCommit,
 } from "Features/mapEditor/mapEditorSlice";
 import WarningAmber from "@mui/icons-material/WarningAmber";
 
@@ -1227,6 +1228,8 @@ const SMART_DETECT_CAPABLE_MODES = [
 const ORIENTATION_CAPABLE_MODES = ["STRIP", "POLYLINE_CLICK"];
 
 function PopperDrawingHelper() {
+  const dispatch = useDispatch();
+
   // strings
 
   const titleS = "Mode dessin";
@@ -1239,10 +1242,14 @@ function PopperDrawingHelper() {
   const smartDetectEnabled = useSelector(
     (s) => s.mapEditor.smartDetectEnabled
   );
+  const autoMergeOnCommit = useSelector(
+    (s) => s.mapEditor.autoMergeOnCommit
+  );
   const isSegmentSelectMode = SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
   const showSegmentLength = SEGMENT_DRAWING_MODES.includes(enabledDrawingMode);
   const showSmartDetectCard = SMART_DETECT_CAPABLE_MODES.includes(enabledDrawingMode);
   const showOrientation = ORIENTATION_CAPABLE_MODES.includes(enabledDrawingMode);
+  const showAutoMerge = enabledDrawingMode === "POLYGON_RECTANGLE";
 
   // Kept for future use (e.g. to conditionally show helper UI per target).
   // Referenced here so the helper stays imported by the component.
@@ -1308,6 +1315,29 @@ function PopperDrawingHelper() {
         )}
         {enabledDrawingMode === "SURFACE_DROP" && <SectionSurfaceDropOptions />}
         {showSegmentLength && <SectionSegmentLength />}
+        {showAutoMerge && (
+          <Paper
+            elevation={0}
+            sx={{
+              px: 1,
+              py: 0.5,
+              bgcolor: "background.default",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+            }}
+          >
+            <Typography variant="caption" color="text.secondary">
+              Fusion automatique
+            </Typography>
+            <Switch
+              size="small"
+              checked={Boolean(autoMergeOnCommit)}
+              onChange={(e) => dispatch(setAutoMergeOnCommit(e.target.checked))}
+            />
+          </Paper>
+        )}
         <SectionShortcutHelpers />
       </Box>
     </Paper>
