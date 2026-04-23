@@ -16,6 +16,11 @@ import getAnnotationTemplateFromNewAnnotation from "Features/annotations/utils/g
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
+import resolvePoints from "Features/annotations/utils/resolvePoints";
+import resolveCuts from "Features/annotations/utils/resolveCuts";
+import getAnnotationBBox from "Features/annotations/utils/getAnnotationBbox";
+import mergePolygonAnnotationsService from "Features/annotations/services/mergePolygonAnnotationsService";
+
 
 export default function useHandleCommitDrawing({ newEntity } = {}) {
 
@@ -30,6 +35,8 @@ export default function useHandleCommitDrawing({ newEntity } = {}) {
     const listingId = useSelector(s => s.listings.selectedListingId);
     const newAnnotationInState = useSelector(s => s.annotations.newAnnotation);
     const openedPanel = useSelector(s => s.listings.openedPanel);
+    const autoMergeOnCommit = useSelector(s => s.mapEditor.autoMergeOnCommit);
+    const enabledDrawingMode = useSelector(s => s.mapEditor.enabledDrawingMode);
 
     const createEntity = useCreateEntity();
 
@@ -351,6 +358,87 @@ export default function useHandleCommitDrawing({ newEntity } = {}) {
             await updateAnnotation(_updatedAnnotation);
         } else {
             await createAnnotation(_newAnnotation);
+        }
+
+
+        // Auto-merge : on commit of a POLYGON drawn via the RECTANGLE tool, try to
+        // absorb overlapping same-template polygons on the same baseMap / listing.
+        // The newly-committed polygon stays as the winner.
+        const shouldAutoMerge = (
+            autoMergeOnCommit &&
+            enabledDrawingMode === "POLYGON_RECTANGLE" &&
+            newAnnotation?.type === "POLYGON" &&
+            _newAnnotation?.annotationTemplateId &&
+            !isBaseMapAnnotation
+        );
+
+        if (shouldAutoMerge) {
+            const candidateRaws = await db.annotations
+                .where("annotationTemplateId")
+                .equals(_newAnnotation.annotationTemplateId)
+                .filter((a) =>
+                    !a.deletedAt &&
+                    a.type === "POLYGON" &&
+                    a.id !== _newAnnotation.id &&
+                    a.baseMapId === _newAnnotation.baseMapId &&
+                    a.listingId === _newAnnotation.listingId
+                )
+                .toArray();
+
+            if (candidateRaws.length > 0 && width && height) {
+                const pointIds = new Set();
+                for (const a of [_newAnnotation, ...candidateRaws]) {
+                    (a.points ?? []).forEach((p) => p?.id && pointIds.add(p.id));
+                    (a.cuts ?? []).forEach((c) =>
+                        c.points?.forEach((p) => p?.id && pointIds.add(p.id))
+                    );
+                }
+
+                const pointsArr = await db.points.bulkGet([...pointIds]);
+                const pointsIndex = {};
+                for (const p of pointsArr) if (p) pointsIndex[p.id] = p;
+
+                const imageSize = { width, height };
+                const resolveAnnotation = (a) => ({
+                    ...a,
+                    points: resolvePoints({ points: a.points, pointsIndex, imageSize }),
+                    cuts: resolveCuts({ cuts: a.cuts, pointsIndex, imageSize }) ?? a.cuts,
+                });
+
+                const newResolved = resolveAnnotation(_newAnnotation);
+                const newBbox = getAnnotationBBox(newResolved);
+
+                if (newBbox) {
+                    const TOL = 2;
+                    const candidatesResolved = candidateRaws
+                        .map(resolveAnnotation)
+                        .filter((a) => {
+                            const bb = getAnnotationBBox(a);
+                            if (!bb) return false;
+                            return (
+                                bb.x + bb.width >= newBbox.x - TOL &&
+                                bb.x <= newBbox.x + newBbox.width + TOL &&
+                                bb.y + bb.height >= newBbox.y - TOL &&
+                                bb.y <= newBbox.y + newBbox.height + TOL
+                            );
+                        });
+
+                    if (candidatesResolved.length > 0) {
+                        const result = await mergePolygonAnnotationsService(
+                            [newResolved, ...candidatesResolved],
+                            {
+                                baseMap,
+                                activeLayerId,
+                                winnerIndex: 0,
+                                dilationSchedule: [2],
+                            }
+                        );
+                        if (result.merged) {
+                            dispatch(triggerAnnotationsUpdate());
+                        }
+                    }
+                }
+            }
         }
 
 

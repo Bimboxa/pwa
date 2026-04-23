@@ -16,6 +16,7 @@ const mapEditorInitialState = {
   //
   mapEditorMode: "SELECT", // "SELECT", "DRAW"
   enabledDrawingMode: null, // "CLICK", "RECTANGLE", "SURFACE_DROP",
+  autoMergeOnCommit: true, // when true, a POLYGON drawn via RECTANGLE tool is auto-merged with overlapping same-template polygons on commit
   //
   showLayerScreenCursor: false,
   printModeEnabled: false,
@@ -135,6 +136,9 @@ export const mapEditorSlice = createSlice({
       const drawingMode = action.payload;
       state.enabledDrawingMode = drawingMode;
       state.showLayerScreenCursor = Boolean(drawingMode);
+    },
+    setAutoMergeOnCommit: (state, action) => {
+      state.autoMergeOnCommit = action.payload;
     },
     setMapEditorMode: (state, action) => {
       state.mapEditorMode = action.payload;
@@ -412,6 +416,7 @@ export const {
   setShowShapes,
   toggleShowMapListingsPanel,
   setEnabledDrawingMode,
+  setAutoMergeOnCommit,
   setMapEditorMode,
   //
   setAnchorPositionScale,
