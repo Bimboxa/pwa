@@ -368,9 +368,19 @@ export const mapEditorSlice = createSlice({
     // smart detect
     setSmartDetectEnabled: (state, action) => {
       state.smartDetectEnabled = action.payload;
+      if (action.payload) {
+        if (state.loupeAspect === "SQUARE") state.loupeAspect = "LANDSCAPE";
+      } else {
+        state.loupeAspect = "SQUARE";
+      }
     },
     toggleSmartDetectEnabled: (state) => {
       state.smartDetectEnabled = !state.smartDetectEnabled;
+      if (state.smartDetectEnabled) {
+        if (state.loupeAspect === "SQUARE") state.loupeAspect = "LANDSCAPE";
+      } else {
+        state.loupeAspect = "SQUARE";
+      }
     },
     setSmartDetectionPresent: (state, action) => {
       state.smartDetectionPresent = action.payload;
@@ -381,9 +391,8 @@ export const mapEditorSlice = createSlice({
       state.loupeAspect = action.payload;
     },
     cycleLoupeAspect: (state) => {
-      const order = ["SQUARE", "LANDSCAPE", "PORTRAIT"];
-      const idx = order.indexOf(state.loupeAspect);
-      state.loupeAspect = order[(idx + 1) % order.length];
+      // Skip SQUARE: in smartDetect mode, only landscape ↔ portrait makes sense.
+      state.loupeAspect = state.loupeAspect === "LANDSCAPE" ? "PORTRAIT" : "LANDSCAPE";
     },
     setShowPrintableMap: (state, action) => {
       state.showPrintableMap = action.payload;

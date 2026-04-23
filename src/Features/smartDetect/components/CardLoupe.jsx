@@ -42,6 +42,7 @@ export default function CardLoupe() {
 
   const dispatch = useDispatch();
   const loupeAspect = useSelector((s) => s.mapEditor.loupeAspect);
+  const smartDetectEnabled = useSelector((s) => s.mapEditor.smartDetectEnabled);
 
   // handlers
 
@@ -91,17 +92,17 @@ export default function CardLoupe() {
           aria-label="Loupe format"
         >
           <Tooltip title="Carré">
-            <ToggleButton value="SQUARE" sx={TOGGLE_CELL}>
+            <ToggleButton value="SQUARE" sx={TOGGLE_CELL} disabled={smartDetectEnabled}>
               <AspectIcon aspect="SQUARE" />
             </ToggleButton>
           </Tooltip>
           <Tooltip title="Paysage">
-            <ToggleButton value="LANDSCAPE" sx={TOGGLE_CELL}>
+            <ToggleButton value="LANDSCAPE" sx={TOGGLE_CELL} disabled={!smartDetectEnabled}>
               <AspectIcon aspect="LANDSCAPE" />
             </ToggleButton>
           </Tooltip>
           <Tooltip title="Portrait">
-            <ToggleButton value="PORTRAIT" sx={TOGGLE_CELL}>
+            <ToggleButton value="PORTRAIT" sx={TOGGLE_CELL} disabled={!smartDetectEnabled}>
               <AspectIcon aspect="PORTRAIT" />
             </ToggleButton>
           </Tooltip>
