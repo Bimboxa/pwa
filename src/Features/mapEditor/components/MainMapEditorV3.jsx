@@ -56,6 +56,9 @@ import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu"
 import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
 import useSaveTempAnnotations from "Features/mapEditor/hooks/useSaveTempAnnotations";
 import useCreateAnnotationsFromDetectedStrips from "Features/smartDetect/hooks/useCreateAnnotationsFromDetectedStrips";
+import useSurfaceDropBarrierMask from "Features/smartDetect/hooks/useSurfaceDropBarrierMask";
+import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCreateAnnotationFromSurfaceDrop";
+import LayerSurfaceDropPreview from "./LayerSurfaceDropPreview";
 import PopperMapListings from "./PopperMapListings";
 
 
@@ -155,6 +158,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     _track("enabledDrawingMode", enabledDrawingMode);
     const mapEditorMode = useSelector((state) => state.mapEditor.mapEditorMode);
     const orthoSnapAngleOffset = useSelector((state) => state.mapEditor.orthoSnapAngleOffset);
+    const smartDetectEnabled = useSelector((state) => state.mapEditor.smartDetectEnabled);
+    const surfaceDropDarknessThreshold = useSelector((s) => s.smartDetect.surfaceDropDarknessThreshold);
 
     // Selection from new Redux slice
     const { nodes: selectedNodes, node: selectedNode } = useSelectedNodes();
@@ -285,6 +290,20 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     _track("annotations.length", annotations?.length);
 
+    // SURFACE_DROP smartDetect — barrier mask (precomputed luminance of the
+    // basemap + rasterized annotations). Only built when the user is
+    // actively using the tool.
+    const surfaceDropBarrierMask = useSurfaceDropBarrierMask({
+        enabled: smartDetectEnabled && enabledDrawingMode === "SURFACE_DROP",
+        baseMapImageUrl: baseMap?.getUrl?.(),
+        imageSize: baseMap?.getImageSize?.(),
+        imageScale: baseMap?.getImageScale?.() ?? 1,
+        imageOffset: baseMap?.getImageOffset?.() ?? { x: 0, y: 0 },
+        meterByPx: baseMap?.getMeterByPx?.() ?? 0,
+        annotations,
+        darknessThreshold: surfaceDropDarknessThreshold,
+    });
+
     // legend
 
     const legendItems = useLegendItems();
@@ -359,6 +378,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const { handleCompleteAnnotationCommit } = useHandleCompleteAnnotation({ newEntity });
     const saveTempAnnotations = useSaveTempAnnotations();
     const createAnnotationsFromDetectedStrips = useCreateAnnotationsFromDetectedStrips();
+    const createAnnotationFromSurfaceDrop = useCreateAnnotationFromSurfaceDrop();
 
     const handleCommitDrawing = (rawPoints, options) => {
 
@@ -395,13 +415,17 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // handler - commit points from drop_fill
 
     const handleCommitPointsFromSurfaceDrop = async ({ points, cuts }) => {
-        const annotation = {
-            ...newAnnotation,
-            baseMapId: baseMap.id,
+        // Batched DB path (single transaction, one bulkAdd per table) —
+        // same pattern as useCreateAnnotationsFromDetectedStrips. Keeps the
+        // Space-commit feedback instant once the flood-fill preview is ready.
+        await createAnnotationFromSurfaceDrop({
             points,
             cuts,
-        };
-        await saveTempAnnotations([annotation]);
+            newAnnotation: {
+                ...newAnnotation,
+                baseMapId: baseMap.id,
+            },
+        });
     }
 
     // handler - commit detected similar strips
@@ -1267,6 +1291,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onCommitImageDrop={handleCommitImageDrop}
                     onCommitPointsFromSurfaceDrop={handleCommitPointsFromSurfaceDrop}
                     onCommitSimilarStrips={handleCommitSimilarStrips}
+                    surfaceDropBarrierMask={surfaceDropBarrierMask}
                     baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
                     baseMapImageScale={baseMap?.getImageScale()}
                     baseMapImageOffset={baseMap?.getImageOffset()}
@@ -1375,6 +1400,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         onTextValueChange={handleTextValueChange}
                     />}
 
+                    <LayerSurfaceDropPreview basePose={basePose} />
 
                 </InteractionLayer>
 

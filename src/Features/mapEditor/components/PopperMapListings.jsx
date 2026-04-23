@@ -1219,6 +1219,7 @@ const SEGMENT_DRAWING_MODES = [
 const SMART_DETECT_CAPABLE_MODES = [
   "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE",
   "STRIP", "POLYLINE_CLICK", "POLYGON_CLICK",
+  "SURFACE_DROP",
 ];
 
 // Among the smart-capable modes, the ones that expose an H/V orientation

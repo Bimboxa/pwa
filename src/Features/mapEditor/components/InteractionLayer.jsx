@@ -86,6 +86,9 @@ import TransientDetectedPolygonLayer from 'Features/mapEditorGeneric/components/
 import detectPolygonFromAnnotations from 'Features/smartDetect/utils/detectPolygonFromAnnotations';
 import detectStripFromLoupe from 'Features/smartDetect/utils/detectStripFromLoupe';
 import buildExclusionMask from 'Features/smartDetect/utils/buildExclusionMask';
+import floodFillFromLoupe from 'Features/smartDetect/utils/floodFillFromLoupe';
+import traceMaskContour from 'Features/smartDetect/utils/traceMaskContour';
+import orthogonalizeIfRectangle from 'Features/smartDetect/utils/orthogonalizeIfRectangle';
 import {
   DEFAULT_WALL_CANDIDATES_CM,
   scoreSegmentAtWidth,
@@ -119,6 +122,7 @@ import orthogonalizePolyline from 'Features/geometry/utils/orthogonalizePolyline
 import alignPolygonsToGrid from 'Features/geometry/utils/alignPolygonsToGrid';
 import filterSurfaceDropCuts from 'Features/smartDetect/utils/filterSurfaceDropCuts';
 import convexHull from 'Features/geometry/utils/convexHull';
+import { setSurfaceDropPreview } from 'Features/smartDetect/smartDetectSlice';
 
 import { useSmartZoom } from "App/contexts/SmartZoomContext";
 import { useDrawingMetrics } from "App/contexts/DrawingMetricsContext";
@@ -188,6 +192,7 @@ const InteractionLayer = forwardRef(({
   legendFormat,
   onLegendFormatChange,
   onCameraChangeExternal,
+  surfaceDropBarrierMask,
 }
   , ref) => {
   const dispatch = useDispatch();
@@ -648,6 +653,73 @@ const InteractionLayer = forwardRef(({
     }, 80),
     []
   );
+
+  // SURFACE_DROP flood-fill runner — rAF-throttled, runs on the main
+  // thread using the precomputed full-image barrier mask (luminance +
+  // annotations) and bounded to the rotated loupe rectangle.
+  const runSurfaceDropFloodFill = (cursorImgPx, loupeBBox) => {
+    if (surfaceDropRafRef.current) return; // already scheduled
+    surfaceDropRafRef.current = requestAnimationFrame(() => {
+      surfaceDropRafRef.current = 0;
+      const barrier = surfaceDropBarrierMaskRef.current;
+      if (!barrier) return;
+
+      const orthoAngleRad =
+        (-(orthoSnapAngleOffsetRef.current || 0) * Math.PI) / 180;
+
+      const fill = floodFillFromLoupe({
+        luminanceMask: barrier.luminanceMask,
+        annotationsMask: barrier.annotationsMask,
+        imgWidth: barrier.width,
+        imgHeight: barrier.height,
+        seed: cursorImgPx,
+        loupeBBox,
+        orthoAngleRad,
+      });
+      if (!fill) {
+        if (surfaceDropPreviewImgPxRef.current) {
+          surfaceDropPreviewImgPxRef.current = null;
+          dispatch(setSurfaceDropPreview(null));
+        }
+        return;
+      }
+
+      const rawContourImgPx = traceMaskContour({
+        mask: fill.mask,
+        width: fill.width,
+        height: fill.height,
+        offsetX: fill.offsetX,
+        offsetY: fill.offsetY,
+      });
+      if (rawContourImgPx.length < 3) {
+        if (surfaceDropPreviewImgPxRef.current) {
+          surfaceDropPreviewImgPxRef.current = null;
+          dispatch(setSurfaceDropPreview(null));
+        }
+        return;
+      }
+
+      // POST-PROCESSING: if the contour is close to a rectangle in the
+      // ortho frame, snap to that rectangle's 4 corners. The ortho angle
+      // is the same one driving the loupe rotation (orthoSnapAngleOffset),
+      // negated here to match screen-Y-down convention (see strip
+      // detection at line ~402).
+      const contourImgPx = orthogonalizeIfRectangle(
+        rawContourImgPx,
+        orthoAngleRad
+      );
+
+      surfaceDropPreviewImgPxRef.current = contourImgPx;
+      // Convert image-pixel contour → local map coords for the SVG layer.
+      const scale = baseMapImageScaleRef.current || 1;
+      const offset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+      const localPoints = contourImgPx.map((p) => ({
+        x: p.x * scale + offset.x,
+        y: p.y * scale + offset.y,
+      }));
+      dispatch(setSurfaceDropPreview({ points: localPoints }));
+    });
+  };
 
   // sourceImage for smart detect
 
@@ -1342,6 +1414,34 @@ const InteractionLayer = forwardRef(({
     smartDetectEnabledRef.current = smartDetectEnabled;
   }, [smartDetectEnabled]);
 
+  const surfaceDropBarrierMaskRef = useRef(surfaceDropBarrierMask);
+  useEffect(() => {
+    surfaceDropBarrierMaskRef.current = surfaceDropBarrierMask;
+  }, [surfaceDropBarrierMask]);
+
+  // Tracks the last SURFACE_DROP flood-fill result (image-pixel coords) so
+  // the click handler can commit it without re-running the detection.
+  const surfaceDropPreviewImgPxRef = useRef(null);
+  // rAF throttle for the mousemove flood-fill to cap at ~60 fps even on
+  // very fast cursor moves.
+  const surfaceDropRafRef = useRef(0);
+  const surfaceDropLastCursorRef = useRef(null);
+
+  // Drop any pending flood-fill preview when the user switches tool or
+  // turns smartDetect off — avoids stale polygons flashing on the map.
+  useEffect(() => {
+    const active = smartDetectEnabled && enabledDrawingMode === "SURFACE_DROP";
+    if (!active) {
+      if (surfaceDropRafRef.current) {
+        cancelAnimationFrame(surfaceDropRafRef.current);
+        surfaceDropRafRef.current = 0;
+      }
+      surfaceDropPreviewImgPxRef.current = null;
+      surfaceDropLastCursorRef.current = null;
+      dispatch(setSurfaceDropPreview(null));
+    }
+  }, [smartDetectEnabled, enabledDrawingMode, dispatch]);
+
   const onCommitDrawingRef = useRef(onCommitDrawing);
   useEffect(() => {
     onCommitDrawingRef.current = onCommitDrawing;
@@ -1351,6 +1451,16 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     onCommitSimilarStripsRef.current = onCommitSimilarStrips;
   }, [onCommitSimilarStrips]);
+
+  const onCommitPointsFromSurfaceDropRef = useRef(onCommitPointsFromSurfaceDrop);
+  useEffect(() => {
+    onCommitPointsFromSurfaceDropRef.current = onCommitPointsFromSurfaceDrop;
+  }, [onCommitPointsFromSurfaceDrop]);
+
+  const rawDetectionRef = useRef(rawDetection);
+  useEffect(() => { rawDetectionRef.current = rawDetection; }, [rawDetection]);
+  const convexHullEnabledRef = useRef(convexHullEnabled);
+  useEffect(() => { convexHullEnabledRef.current = convexHullEnabled; }, [convexHullEnabled]);
 
   const onCommitSplitAtVertexRef = useRef(onCommitSplitAtVertex);
   useEffect(() => {
@@ -1672,6 +1782,58 @@ const InteractionLayer = forwardRef(({
           break;
 
         case ' ':
+          // --- SURFACE_DROP smartDetect: commit the current flood-fill preview ---
+          if (
+            smartDetectEnabledRef.current &&
+            enabledDrawingModeRef.current === "SURFACE_DROP" &&
+            surfaceDropPreviewImgPxRef.current &&
+            surfaceDropPreviewImgPxRef.current.length >= 3
+          ) {
+            e.preventDefault();
+            const imgPxPoints = surfaceDropPreviewImgPxRef.current;
+            const scale = baseMapImageScaleRef.current || 1;
+            const offset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+            const rawLocalPoints = imgPxPoints.map((p) => ({
+              x: p.x * scale + offset.x,
+              y: p.y * scale + offset.y,
+            }));
+
+            let localPoints;
+            if (rawDetectionRef.current) {
+              localPoints = rawLocalPoints;
+            } else {
+              ({ points: localPoints } = alignPolygonsToGrid(
+                rawLocalPoints,
+                undefined,
+                {
+                  referenceAngle: orthoSnapAngleOffsetRef.current || null,
+                  meterByPx: meterByPxRef.current || 0,
+                }
+              ));
+            }
+
+            const CONVEX_HULL_THRESHOLD = 42;
+            let finalPoints = localPoints;
+            if (convexHullEnabledRef.current && localPoints.length > CONVEX_HULL_THRESHOLD) {
+              finalPoints = convexHull(localPoints);
+            }
+
+            const topMiddlePoint = getTopMiddlePoint(finalPoints);
+            const pose = getTargetPose();
+            const worldX = topMiddlePoint.x * pose.k + pose.x;
+            const worldY = topMiddlePoint.y * pose.k + pose.y;
+            const screenPos = viewportRef.current?.worldToScreen(worldX, worldY);
+            onCommitPointsFromSurfaceDropRef.current?.({
+              points: finalPoints,
+              cuts: undefined,
+              screenPos,
+            });
+
+            surfaceDropPreviewImgPxRef.current = null;
+            dispatch(setSurfaceDropPreview(null));
+            return;
+          }
+
           // --- DETECT_SIMILAR_STRIPS: commit all detected strips ---
           if (detectedSimilarStripsRef.current) {
             e.preventDefault();
@@ -2348,7 +2510,101 @@ const InteractionLayer = forwardRef(({
       }
     }
 
-    // -- CASE 4: SURFACE_DROP (opencv contour detection)
+    // -- CASE 4: SURFACE_DROP
+    //    • smartDetect ON → commit the current loupe-flood-fill preview
+    //      (pure-JS, built on mousemove from surfaceDropBarrierMaskRef).
+    //    • smartDetect OFF → legacy OpenCV contour detection over the
+    //      whole viewport.
+    else if (enabledDrawingMode === "SURFACE_DROP" && smartDetectEnabled) {
+      let rawImgPxPoints = surfaceDropPreviewImgPxRef.current;
+
+      // Preview might be absent (cursor hadn't moved since tool activation
+      // or mask not ready) — run one synchronous flood-fill at the click.
+      if (!rawImgPxPoints || rawImgPxPoints.length < 3) {
+        const barrier = surfaceDropBarrierMaskRef.current;
+        const loupeBBox = lastSmartROI.current;
+        if (barrier && loupeBBox) {
+          const localPosSeed = toLocalCoords(worldPos);
+          const seed = {
+            x: (localPosSeed.x - baseMapImageOffset.x) / baseMapImageScale,
+            y: (localPosSeed.y - baseMapImageOffset.y) / baseMapImageScale,
+          };
+          const orthoAngleRad =
+            (-(orthoSnapAngleOffsetRef.current || 0) * Math.PI) / 180;
+          const fill = floodFillFromLoupe({
+            luminanceMask: barrier.luminanceMask,
+            annotationsMask: barrier.annotationsMask,
+            imgWidth: barrier.width,
+            imgHeight: barrier.height,
+            seed,
+            loupeBBox: {
+              x: loupeBBox.x, y: loupeBBox.y,
+              width: loupeBBox.width, height: loupeBBox.height,
+            },
+            orthoAngleRad,
+          });
+          if (fill) {
+            const raw = traceMaskContour({
+              mask: fill.mask,
+              width: fill.width,
+              height: fill.height,
+              offsetX: fill.offsetX,
+              offsetY: fill.offsetY,
+            });
+            // Same post-processing as the live runner so the committed
+            // polygon matches what the user would have previewed.
+            rawImgPxPoints = orthogonalizeIfRectangle(raw, orthoAngleRad);
+          }
+        }
+      }
+
+      if (!rawImgPxPoints || rawImgPxPoints.length < 3) {
+        return; // nothing to commit
+      }
+
+      const toLocal = (p) => ({
+        x: p.x * baseMapImageScale + baseMapImageOffset.x,
+        y: p.y * baseMapImageScale + baseMapImageOffset.y,
+      });
+      const rawLocalPoints = rawImgPxPoints.map(toLocal);
+
+      let localPoints;
+      if (rawDetection) {
+        localPoints = rawLocalPoints;
+      } else {
+        ({ points: localPoints } = alignPolygonsToGrid(
+          rawLocalPoints,
+          undefined,
+          {
+            referenceAngle: orthoSnapAngleOffsetRef.current || null,
+            meterByPx: baseMapMeterByPx || 0,
+          }
+        ));
+      }
+
+      const CONVEX_HULL_THRESHOLD = 42;
+      let finalPoints = localPoints;
+      if (convexHullEnabled && localPoints.length > CONVEX_HULL_THRESHOLD) {
+        finalPoints = convexHull(localPoints);
+      }
+
+      const topMiddlePoint = getTopMiddlePoint(finalPoints);
+      const pose = getTargetPose();
+      const worldX = topMiddlePoint.x * pose.k + pose.x;
+      const worldY = topMiddlePoint.y * pose.k + pose.y;
+      const screenPos = viewportRef.current?.worldToScreen(worldX, worldY);
+      if (onCommitPointsFromSurfaceDrop) {
+        onCommitPointsFromSurfaceDrop({ points: finalPoints, cuts: undefined, screenPos });
+      }
+
+      // Clear preview — the freshly committed annotation will be ORed
+      // into the barrier mask on the next render, so the next mouse move
+      // starts from a clean state.
+      surfaceDropPreviewImgPxRef.current = null;
+      dispatch(setSurfaceDropPreview(null));
+    }
+
+    // -- CASE 4b: SURFACE_DROP legacy (smartDetect OFF → opencv contour detection)
     else if (enabledDrawingMode === "SURFACE_DROP") {
       await cv.load();
       const localPos = toLocalCoords(worldPos);
@@ -3077,6 +3333,31 @@ const InteractionLayer = forwardRef(({
       }
     }
 
+    // --- SURFACE_DROP smartDetect: loupe-bounded JS flood-fill preview ---
+    if (smartDetectEnabled && enabledDrawingMode === "SURFACE_DROP") {
+      const localPos = toLocalCoords(worldPos);
+      const cursorImgPx = {
+        x: (localPos.x - baseMapImageOffset.x) / baseMapImageScale,
+        y: (localPos.y - baseMapImageOffset.y) / baseMapImageScale,
+      };
+      const last = surfaceDropLastCursorRef.current;
+      const moved = !last
+        || Math.abs(cursorImgPx.x - last.x) > 1
+        || Math.abs(cursorImgPx.y - last.y) > 1;
+      const loupeBBox = lastSmartROI.current
+        ? {
+            x: lastSmartROI.current.x,
+            y: lastSmartROI.current.y,
+            width: lastSmartROI.current.width,
+            height: lastSmartROI.current.height,
+          }
+        : null;
+      if (moved && loupeBBox && surfaceDropBarrierMaskRef.current) {
+        surfaceDropLastCursorRef.current = cursorImgPx;
+        runSurfaceDropFloodFill(cursorImgPx, loupeBBox);
+      }
+    }
+
     // --- 5. DÉTECTION DU HOVER (HIT TEST) ---
     // Le Correctif est ici : On ne cherche ce qu'il y a sous la souris 
     // QUE si on est "au repos" (!isInteracting).
@@ -3753,7 +4034,11 @@ const InteractionLayer = forwardRef(({
             showZoomRect={
               Boolean(enabledDrawingMode) &&
               !NO_SMART_DETECT_MODES.includes(enabledDrawingMode) &&
-              (!smartDetectEnabled || newAnnotation?.drawingShape === "POLYLINE")
+              (
+                !smartDetectEnabled ||
+                newAnnotation?.drawingShape === "POLYLINE" ||
+                enabledDrawingMode === "SURFACE_DROP"
+              )
             }
           />
             <SnappingLayer
