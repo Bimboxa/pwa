@@ -9,6 +9,45 @@ import db from "App/db/db";
 
 const DEFAULT_DILATION_SCHEDULE = [2, 6, 20];
 
+function toClosedRing(points) {
+  const ring = points.map((p) => [p.x, p.y]);
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+  if (first[0] !== last[0] || first[1] !== last[1]) {
+    ring.push([first[0], first[1]]);
+  }
+  return ring;
+}
+
+/**
+ * True if `inner`'s outer ring is entirely contained within one of `outer`'s
+ * cuts (holes). Used to skip merge attempts between polygons that are
+ * topologically disjoint via a hole — dilation fallback would otherwise drop
+ * the cuts and incorrectly bridge them.
+ */
+function isPolygonInsideAnyCut(inner, outer) {
+  if (!outer?.cuts?.length) return false;
+  if (!inner?.points || inner.points.length < 3) return false;
+
+  const innerGeoJson = [[toClosedRing(inner.points)]];
+
+  for (const cut of outer.cuts) {
+    if (!cut?.points || cut.points.length < 3) continue;
+    const cutGeoJson = [[toClosedRing(cut.points)]];
+    try {
+      const diff = polygonClipping.difference(innerGeoJson, cutGeoJson);
+      if (diff.length === 0) return true;
+    } catch {
+      // Ignore clipping errors for this cut.
+    }
+  }
+  return false;
+}
+
+function arePolygonsDisjointByCut(a, b) {
+  return isPolygonInsideAnyCut(a, b) || isPolygonInsideAnyCut(b, a);
+}
+
 function buildDilatedToOriginalMap(dilatedPolygons, originalPolygons) {
   const allOriginalPoints = originalPolygons.flatMap((p) => p.points || []);
   const map = {};
@@ -164,11 +203,19 @@ export default async function mergePolygonAnnotationsService(
     return { merged: false, winnerAnnotationId: null, deletedIds: [] };
   }
 
+  // Drop candidates that are topologically disjoint from the winner via a cut
+  // (hole containment). Without this, the dilation fallback below would strip
+  // cuts and incorrectly absorb them.
+  const nonWinners = annotations
+    .filter((_, i) => i !== winnerIndex)
+    .filter((ann) => !arePolygonsDisjointByCut(winner, ann));
+
+  if (nonWinners.length === 0) {
+    return { merged: false, winnerAnnotationId: null, deletedIds: [] };
+  }
+
   // Put the winner first so the snowball starts from it.
-  const orderedAnnotations = [
-    winner,
-    ...annotations.filter((_, i) => i !== winnerIndex),
-  ];
+  const orderedAnnotations = [winner, ...nonWinners];
 
   const items = orderedAnnotations.map((ann) => ({
     ann,
