@@ -260,7 +260,8 @@ export default async function mergePolygonAnnotationsService(
   }
 
   // 4. Persist: update winner with merged geometry, delete absorbed-others.
-  const { width, height } = baseMap?.image?.imageSize || { width: 1, height: 1 };
+  const { width, height } = baseMap?.getImageSize?.() ||
+    baseMap?.image?.imageSize || { width: 1, height: 1 };
   const deletedIds = absorbed.slice(1).map((it) => it.ann.id);
 
   await db.transaction("rw", db.annotations, db.points, async () => {
