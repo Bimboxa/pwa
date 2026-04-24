@@ -1198,22 +1198,31 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     };
 
     // handlers - hide segments
-    const handleHideSegment = async ({ annotationId, segmentIndex }) => {
+    // Toggles a segment's hidden state. When `cutIndex` is provided, the
+    // toggle applies to `annotation.cuts[cutIndex].hiddenSegmentsIdx`; otherwise
+    // it applies to the main contour's `annotation.hiddenSegmentsIdx`.
+    const toggleIdx = (list, idx) =>
+        list.includes(idx) ? list.filter(i => i !== idx) : [...list, idx];
+
+    const handleHideSegment = async ({ annotationId, segmentIndex, cutIndex }) => {
         const annotation = annotations.find(a => a.id === annotationId);
         if (!annotation) return;
 
-        // On récupère la liste actuelle ou on initialise
-        const currentHidden = annotation.hiddenSegmentsIdx || [];
-
-        // On évite les doublons
-        let newHidden = [...currentHidden];
-        if (!currentHidden.includes(segmentIndex)) {
-            newHidden = [...currentHidden, segmentIndex]
-        } else {
-            newHidden = currentHidden.filter(idx => idx !== segmentIndex)
+        if (cutIndex == null) {
+            const currentHidden = annotation.hiddenSegmentsIdx || [];
+            const newHidden = toggleIdx(currentHidden, segmentIndex);
+            await db.annotations.update(annotationId, { hiddenSegmentsIdx: newHidden });
+            return;
         }
-        // Update DB
-        await db.annotations.update(annotationId, { hiddenSegmentsIdx: newHidden });
+
+        const cuts = annotation.cuts || [];
+        if (!cuts[cutIndex]) return;
+        const newCuts = cuts.map((cut, i) => {
+            if (i !== cutIndex) return cut;
+            const currentHidden = cut.hiddenSegmentsIdx || [];
+            return { ...cut, hiddenSegmentsIdx: toggleIdx(currentHidden, segmentIndex) };
+        });
+        await db.annotations.update(annotationId, { cuts: newCuts });
     };
 
     const handleRemoveCut = async ({ annotationId, cutIndex }) => {

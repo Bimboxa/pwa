@@ -113,9 +113,8 @@ export default function getAnnotationQties({ annotation, meterByPx }) {
     if (points.length < 2) return null;
 
     const closeLine = annotation.type === "POLYGON" || annotation.closeLine || false;
-    const hiddenSegments = annotation.hiddenSegmentsIdx || [];
 
-    const calculatePathMetrics = (pts, isClosed) => {
+    const calculatePathMetrics = (pts, isClosed, hiddenSegments = []) => {
       try {
         let lengthPx = 0;
         let areaPx = 0;
@@ -180,15 +179,17 @@ export default function getAnnotationQties({ annotation, meterByPx }) {
       }
     };
 
-    const mainMetrics = calculatePathMetrics(points, closeLine);
+    const mainMetrics = calculatePathMetrics(points, closeLine, annotation.hiddenSegmentsIdx || []);
     let totalSurfacePx = mainMetrics.areaPx;
+    let totalLengthPx = mainMetrics.lengthPx;
 
     if (closeLine && Array.isArray(annotation.cuts)) {
       annotation.cuts.forEach(cut => {
         const cutPoints = (cut.points || []).filter(p => p && typeof p.x === "number");
         if (cutPoints.length >= 3) {
-          const cutMetrics = calculatePathMetrics(cutPoints, true);
+          const cutMetrics = calculatePathMetrics(cutPoints, true, cut.hiddenSegmentsIdx || []);
           totalSurfacePx -= cutMetrics.areaPx;
+          totalLengthPx += cutMetrics.lengthPx;
         }
       });
     }
@@ -199,7 +200,7 @@ export default function getAnnotationQties({ annotation, meterByPx }) {
 
     return {
       enabled: true,
-      length: mainMetrics.lengthPx * meterByPx,
+      length: totalLengthPx * meterByPx,
       surface: Math.max(0, totalSurfacePx) * (meterByPx * meterByPx)
     };
 

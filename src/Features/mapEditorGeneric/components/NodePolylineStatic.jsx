@@ -4,10 +4,16 @@ import theme from "Styles/theme";
 
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import NodeLabelStatic from "./NodeLabelStatic";
+import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerOffsetSegmentPath";
 
 // Extra padding on each side of the visible stroke for hit detection, in
 // screen pixels (20 = ~10 px tolerance each side of the visible edge).
 const HIT_STROKE_PADDING_SCREEN_PX = 20;
+
+// For POLYGON segment hit areas we skip the zoom-aware calc and use a fixed
+// screen-space width — polygons have no visible stroke to "grow", so a zoom-
+// independent band is what the user can rely on to click a specific edge.
+const POLYGON_HIT_STROKE_WIDTH_PX = 10;
 
 // --- CONSTANTES DE STYLE ---
 const STYLE_CONSTANTS = {
@@ -47,6 +53,7 @@ export default function NodePolylineStatic({
     selectedPartId,
     highlightConnectedSegments = false,
     selectMode,
+    printMode,
 }) {
 
     // select temp annotation
@@ -348,9 +355,13 @@ export default function NodePolylineStatic({
         return cuts.map((cut, index) => ({
             ...buildPathAndMap(cut.points, true),
             id: cut.id,
-            partId: getPartId("CUT", index)
+            partId: getPartId("CUT", index),
+            hiddenSegmentsIdx: cut.hiddenSegmentsIdx ?? [],
         }));
     }, [cuts, annotationId]);
+
+    const getCutSegPartId = (cutIdx, segIdx) =>
+        `${annotationId}::CUT_SEG::${cutIdx}::${segIdx}`;
 
     // Strip the leading "M x y" from a segment's `d` string so it can be
     // appended to an already-started path (for building continuous runs).
@@ -369,87 +380,121 @@ export default function NodePolylineStatic({
 
     // --- RENDU SEGMENTS (Strokes) ---
 
+    // Build the partId for a given segment inside the current render call.
+    // - POLYLINE: per-segment (existing)
+    // - POLYGON main: per-segment (`SEG::idx`)
+    // - POLYGON cut: per-segment (`CUT_SEG::cutIdx::segIdx`)
+    // - Fallback (legacy): whole-part id `basePartType::contextIndex`.
+    const getSegmentPartId = (basePartType, contextIndex, idx) => {
+        if (type === "POLYLINE") return getPartId("SEG", idx);
+        if (type === "POLYGON" && basePartType === "MAIN") return getPartId("SEG", idx);
+        if (type === "POLYGON" && basePartType === "CUT") return getCutSegPartId(contextIndex, idx);
+        return getPartId(basePartType, contextIndex);
+    };
+
     const renderSegments = (segmentsList, basePartType, contextIndex = 0) => {
+        // For POLYGON, per-segment hit-areas only render when the annotation
+        // itself is selected — outside selection, clicks pass through to the
+        // fill (which selects the whole polygon / whole cut).
+        if (type === "POLYGON" && !selected) return null;
+
+        const isMainPath = segmentsList === segmentMap;
+        const hiddenList = isMainPath
+            ? (hiddenSegmentsIdx ?? [])
+            : (cuts[contextIndex]?.hiddenSegmentsIdx ?? []);
+
+        const useFixedPolygonHit = type === "POLYGON";
+
         return segmentsList.map((seg, idx) => {
-
-            // 1. Identification
-            let partId;
-            if (type === "POLYLINE") {
-                partId = getPartId("SEG", idx);
-            } else {
-                partId = getPartId(basePartType, contextIndex);
-            }
-
+            const partId = getSegmentPartId(basePartType, contextIndex, idx);
             const style = getPartStyle(partId);
-            const finalStrokeOpacity = style.strokeOpacity ?? strokeOpacity;
-            const isSelected = selectedPartId === partId;
+            const isSelectedSeg = selectedPartId === partId;
+            const isHoveredSeg = hoveredPartId === partId;
 
-            // 2. Gestion Couleur Spéciale (Bleu pour Cut sélectionné)
-            let displayColor = style.stroke;
-            if (basePartType === 'CUT' && isSelected) {
-                displayColor = STYLE_CONSTANTS.COLORS.CUT_SELECTED;
-            }
+            // Hit area — transparent stroke that captures pointer events.
+            const hitAreaPath = useFixedPolygonHit ? (
+                <path
+                    d={seg.d}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={POLYGON_HIT_STROKE_WIDTH_PX}
+                    vectorEffect="non-scaling-stroke"
+                />
+            ) : (
+                <path
+                    d={seg.d}
+                    fill="none"
+                    stroke="transparent"
+                    style={{ strokeWidth: hitStrokeWidthCss }}
+                    vectorEffect="non-scaling-stroke"
+                />
+            );
 
-            // 3. Gestion Segments Cachés (Ghost)
-            const isMainPath = segmentsList === segmentMap;
-            const isHidden = isMainPath && hiddenSegmentsIdx?.includes(idx);
+            // --- Ghost (hidden) segment ---
+            const isHidden = hiddenList.includes(idx);
 
             if (isHidden) {
-                if (!selected) return null; // Invisible si non sélectionné
+                if (!selected) return null;
 
-                // Mode Ghost
-                const isGhostSelected = selectedPartId === partId;
-                const isGhostHovered = hoveredPartId === partId;
-                const ghostColor = (isGhostSelected || isGhostHovered)
+                const ghostColor = (isSelectedSeg || isHoveredSeg)
                     ? style.stroke
                     : STYLE_CONSTANTS.COLORS.GHOST;
 
+                const ghostStrokeWidth = type === "POLYGON" ? 2 : computedStrokeWidth;
+
                 return (
                     <g
-                        key={`seg-hidden-${idx}`}
+                        key={`seg-hidden-${basePartType}-${contextIndex}-${idx}`}
                         onMouseEnter={(e) => { e.stopPropagation(); setHoveredPartId(partId); }}
                         onMouseLeave={() => setHoveredPartId(null)}
                         data-part-id={partId}
                         data-node-id={annotationId}
                         style={{ cursor: isTransient ? "crosshair" : "pointer" }}
                     >
-                        {/* Hit Area Large — visible stroke + fixed screen-space padding, zoom-independent */}
-                        <path d={seg.d} fill="none" stroke="transparent" style={{ strokeWidth: hitStrokeWidthCss }} vectorEffect="non-scaling-stroke" />
-                        {/* Visuel Ghost */}
+                        {hitAreaPath}
                         <path
                             d={seg.d}
                             fill="none"
                             stroke={ghostColor}
-                            strokeWidth={computedStrokeWidth}
+                            strokeWidth={ghostStrokeWidth}
                             strokeDasharray="4 12"
                             strokeOpacity={STYLE_CONSTANTS.OPACITIES.GHOST_STROKE}
                             strokeLinecap="round"
-                            vectorEffect={scalesWithZoom ? undefined : "non-scaling-stroke"}
+                            vectorEffect={(type === "POLYGON" || !scalesWithZoom) ? "non-scaling-stroke" : undefined}
                             style={{ pointerEvents: "none" }}
                         />
                     </g>
                 );
             }
 
-            // 4. Rendu Normal — only the transparent hit-area is emitted here.
-            // The visible stroke is drawn by `renderContinuousStrokes` so that
-            // cap/join style reflects the point type (circle/square).
+            // --- Normal segment ---
+            // For POLYLINE, visible strokes come from renderContinuousStrokes.
+            // For POLYGON we add a thin visible overlay on hover / selected so
+            // the user gets feedback even when strokeType is NONE or the
+            // visible stroke is the default 0.5 px.
+            const showPolygonOverlay = type === "POLYGON" && (isSelectedSeg || isHoveredSeg);
+
             return (
                 <g
-                    key={`seg-${idx}-${seg.startPointIdx}`}
+                    key={`seg-${basePartType}-${contextIndex}-${idx}-${seg.startPointIdx}`}
                     onMouseEnter={(e) => { e.stopPropagation(); setHoveredPartId(partId); }}
                     onMouseLeave={() => setHoveredPartId(null)}
                     data-part-id={partId}
                     data-node-id={annotationId}
                     style={{ cursor: isTransient ? "crosshair" : "pointer" }}
                 >
-                    <path
-                        d={seg.d}
-                        fill="none"
-                        stroke="transparent"
-                        style={{ strokeWidth: hitStrokeWidthCss }}
-                        vectorEffect="non-scaling-stroke"
-                    />
+                    {hitAreaPath}
+                    {showPolygonOverlay && (
+                        <path
+                            d={seg.d}
+                            fill="none"
+                            stroke={isSelectedSeg ? STYLE_CONSTANTS.COLORS.SELECTED_PART : (style.stroke || hoverStrokeColor)}
+                            strokeWidth={3}
+                            vectorEffect="non-scaling-stroke"
+                            strokeLinecap="round"
+                            style={{ pointerEvents: "none" }}
+                        />
+                    )}
                 </g>
             );
         });
@@ -468,23 +513,26 @@ export default function NodePolylineStatic({
         if (!segmentsList || segmentsList.length === 0) return null;
         if (strokeType === "NONE") return null;
 
+        const isMainPath = segmentsList === segmentMap;
+        const hiddenList = isMainPath
+            ? (hiddenSegmentsIdx ?? [])
+            : (cuts[contextIndex]?.hiddenSegmentsIdx ?? []);
+
+        // If the whole cut (not a single segment) is selected, every segment
+        // in that cut gets the blue highlight — mirrors legacy behavior.
+        const wholeCutSelected =
+            basePartType === "CUT" &&
+            selectedPartId === getPartId("CUT", contextIndex);
+
         // Per-segment metadata (partId, style, hidden flag)
         const segMeta = segmentsList.map((seg, idx) => {
-            let partId;
-            if (type === "POLYLINE") {
-                partId = getPartId("SEG", idx);
-            } else {
-                partId = getPartId(basePartType, contextIndex);
-            }
+            const partId = getSegmentPartId(basePartType, contextIndex, idx);
             const style = getPartStyle(partId);
             const finalStrokeOpacity = style.strokeOpacity ?? strokeOpacity;
-            const isSelected = selectedPartId === partId;
-            let displayColor = style.stroke;
-            if (basePartType === "CUT" && isSelected) {
-                displayColor = STYLE_CONSTANTS.COLORS.CUT_SELECTED;
-            }
-            const isMainPath = segmentsList === segmentMap;
-            const isHidden = isMainPath && hiddenSegmentsIdx?.includes(idx);
+            let displayColor = wholeCutSelected
+                ? STYLE_CONSTANTS.COLORS.CUT_SELECTED
+                : style.stroke;
+            const isHidden = hiddenList.includes(idx);
             return { seg, displayColor, strokeOpacity: finalStrokeOpacity, isHidden };
         });
 
@@ -563,6 +611,84 @@ export default function NodePolylineStatic({
                 />
             );
         });
+    };
+
+    // --- RENDU INDICATEURS GHOST (Image D) ---
+    //
+    // When a polygon is NOT in nested selection mode but has at least one
+    // hidden segment on the main contour or a cut, render a thin white dashed
+    // line offset slightly toward the polygon fill for each hidden straight
+    // segment. Arcs are skipped in v1 — the helper returns null for them.
+    const renderGhostOffsetIndicators = () => {
+        if (type !== "POLYGON") return null;
+        if (selected) return null;
+        // Editor helper only — suppress in deliverables (portfolio viewer + PDF/print exports).
+        if (printMode) return null;
+
+        const hasMainGhost = (hiddenSegmentsIdx ?? []).length > 0;
+        const hasCutGhost = (cuts || []).some(c => (c.hiddenSegmentsIdx ?? []).length > 0);
+        if (!hasMainGhost && !hasCutGhost) return null;
+
+        const k = containerK || 1;
+        // Screen-space offset = stroke thickness, so the white indicator sits
+        // just next to the edge. Adapted to zoom via --map-zoom so it stays
+        // constant on screen without React re-renders.
+        const STROKE_PX = 2;
+        const OFFSET_PX = STROKE_PX;
+
+        const makeIndicator = (key, offset) => {
+            const tx = `calc(${offset.nx} * ${OFFSET_PX}px / (var(--map-zoom, 1) * ${k}))`;
+            const ty = `calc(${offset.ny} * ${OFFSET_PX}px / (var(--map-zoom, 1) * ${k}))`;
+            return (
+                <g key={key} style={{ transform: `translate(${tx}, ${ty})`, pointerEvents: "none" }}>
+                    <path
+                        d={offset.d}
+                        fill="none"
+                        stroke="#FFFFFF"
+                        strokeWidth={STROKE_PX}
+                        strokeDasharray="2 2"
+                        strokeLinecap="butt"
+                        vectorEffect="non-scaling-stroke"
+                    />
+                </g>
+            );
+        };
+
+        const indicators = [];
+
+        if (hasMainGhost) {
+            (hiddenSegmentsIdx ?? []).forEach(idx => {
+                const seg = segmentMap[idx];
+                if (!seg) return;
+                const offset = getInnerOffsetSegmentPath({
+                    seg,
+                    contourPoints: points,
+                    isCut: false,
+                });
+                if (!offset) return;
+                indicators.push(makeIndicator(`ghost-ind-main-${idx}`, offset));
+            });
+        }
+
+        (cuts || []).forEach((cut, cutIdx) => {
+            const hiddenIdxs = cut.hiddenSegmentsIdx ?? [];
+            if (hiddenIdxs.length === 0) return;
+            const hole = holesData[cutIdx];
+            if (!hole?.segmentMap) return;
+            hiddenIdxs.forEach(idx => {
+                const seg = hole.segmentMap[idx];
+                if (!seg) return;
+                const offset = getInnerOffsetSegmentPath({
+                    seg,
+                    contourPoints: cut.points,
+                    isCut: true,
+                });
+                if (!offset) return;
+                indicators.push(makeIndicator(`ghost-ind-cut-${cutIdx}-${idx}`, offset));
+            });
+        });
+
+        return indicators;
     };
 
     // --- RENDU CONNECTED SEGMENTS (Highlight temporaire) ---
@@ -665,6 +791,8 @@ export default function NodePolylineStatic({
         const partIndex = parseInt(parts[2], 10);
 
         if (partType === 'CUT') {
+            pointsToRender = mergedAnnotation.cuts?.[partIndex]?.points || [];
+        } else if (partType === 'CUT_SEG') {
             pointsToRender = mergedAnnotation.cuts?.[partIndex]?.points || [];
         } else if (partType === 'MAIN' || partType === 'SEG') {
             pointsToRender = mergedAnnotation.points || [];
@@ -801,6 +929,9 @@ export default function NodePolylineStatic({
                     {renderSegments(hole.segmentMap, 'CUT', i)}
                 </g>
             ))}
+
+            {/* GHOST OFFSET INDICATORS (Image D — polygon only, when unselected) */}
+            {renderGhostOffsetIndicators()}
 
             {/* CONNECTED SEGMENTS HIGHLIGHT */}
             {renderConnectedSegments()}

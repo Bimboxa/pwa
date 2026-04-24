@@ -2113,28 +2113,42 @@ const InteractionLayer = forwardRef(({
           else if (selectedPartId && selectedNode?.nodeId) {
             // PERMISSION GUARD : bloquer si pas propriétaire de l'annotation
             if (!permissions.canEditAnnotation(selectedNode?.nodeId)) break;
-            const parts = selectedPartId.split('::'); // annotationId::TYPE::index
+            const parts = selectedPartId.split('::'); // annotationId::TYPE::index[::subIndex]
             const type = parts[1];
             const index = parseInt(parts[2], 10);
 
-            // A. Suppression de SEGMENT (Cacher)
+            // A. Suppression de SEGMENT du contour principal (Cacher)
             if (type === 'SEG' && onHideSegment) {
               onHideSegment({
                 annotationId: selectedNode.nodeId,
                 segmentIndex: index
               });
-              setSelectedPartId(null);
+              dispatch(setSubSelection({ partId: null }));
               e.stopPropagation();
               return;
             }
 
-            // B. Suppression de CUT (Trou)
+            // B. Suppression de SEGMENT d'un cut (Cacher)
+            if (type === 'CUT_SEG' && onHideSegment) {
+              const cutIndex = index;
+              const segmentIndex = parseInt(parts[3], 10);
+              onHideSegment({
+                annotationId: selectedNode.nodeId,
+                cutIndex,
+                segmentIndex
+              });
+              dispatch(setSubSelection({ partId: null }));
+              e.stopPropagation();
+              return;
+            }
+
+            // C. Suppression de CUT (Trou)
             if (type === 'CUT' && onRemoveCut) {
               onRemoveCut({
                 annotationId: selectedNode.nodeId,
                 cutIndex: index
               });
-              setSelectedPartId(null);
+              dispatch(setSubSelection({ partId: null }));
               e.stopPropagation();
               return;
             }
