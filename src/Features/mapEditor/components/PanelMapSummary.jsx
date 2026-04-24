@@ -48,6 +48,7 @@ import useLayers from "Features/layers/hooks/useLayers";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "Features/annotations/components/DatagridAnnotations";
+import CardBaseMapShare from "Features/baseMapShare/components/CardBaseMapShare";
 
 export default function PanelMapSummary() {
   // data
@@ -434,6 +435,9 @@ export default function PanelMapSummary() {
             sx={{ ml: 0 }}
           />
         </WhiteSectionGeneric>
+
+        {/* Card 6: Partage */}
+        <CardBaseMapShare />
 
       </BoxFlexVStretch>
 
