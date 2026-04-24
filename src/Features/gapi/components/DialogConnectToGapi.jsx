@@ -10,7 +10,6 @@ import {
 } from "@mui/material";
 
 import {getTokenClientAsync, signIn} from "../gapiServicesAuth";
-import {get} from "firebase/database";
 
 export default function DialogConnectToGapi({open, onClose}) {
   //

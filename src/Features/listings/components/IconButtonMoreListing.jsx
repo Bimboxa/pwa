@@ -17,7 +17,6 @@ import DialogListingSyncDetail from "./DialogListingSyncDetail";
 import {triggerEntitiesUpdate} from "Features/entities/entitiesSlice";
 import DialogGenericRename from "Features/layout/components/DialogGenericRename";
 import useSelectedListing from "../hooks/useSelectedListing";
-import {update} from "firebase/database";
 import useSyncListingData from "Features/sync/hooks/useSyncListingData";
 import {setOpenPanelSync} from "Features/sync/syncSlice";
 import deleteListingDataInDb from "../services/deleteListingDataInDb";

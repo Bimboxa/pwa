@@ -5,7 +5,6 @@ const settingsInitialState = {
   servicesConfig: {
     fromInitialState: true,
     autoSegmentation: {ngrokId: "xxx-xxxx-xxx"},
-    firebaseConfig: null,
     gapiConfig: null,
   },
   servicesConfigQrCode: null,

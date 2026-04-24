@@ -12,7 +12,6 @@ import {
 import { ArrowDropDown, ArrowForwardIos as Forward } from "@mui/icons-material";
 
 import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
-import { get } from "firebase/database";
 import getNodeById from "Features/tree/utils/getNodeById";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";

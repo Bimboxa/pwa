@@ -5,7 +5,6 @@ import authReducer from "Features/auth/authSlice";
 import initReducer from "Features/init/initSlice";
 import servicesCredentialsReducer from "Features/servicesCredentials/servicesCredentialsSlice";
 import settingsReducer from "Features/settings/settingsSlice";
-import webrtcReducer from "Features/webrtc/webrtcSlice";
 import syncReducer from "Features/sync/syncSlice";
 import dashboardReducer from "Features/dashboard/dashboardSlice";
 import layoutReducer from "Features/layout/layoutSlice";
@@ -66,7 +65,6 @@ import layersReducer from "Features/layers/layersSlice";
 import popperMapListingsReducer from "Features/popperMapListings/popperMapListingsSlice";
 
 //import syncTabsMiddleware from "./syncTabsMiddleware";
-//import webrtcMiddleware from "Features/webrtc/webrtcMiddleware";
 
 const store = configureStore({
   reducer: {
@@ -75,7 +73,6 @@ const store = configureStore({
     init: initReducer,
     servicesCredentials: servicesCredentialsReducer,
     settings: settingsReducer,
-    webrtc: webrtcReducer,
     sync: syncReducer,
     dashboard: dashboardReducer,
     layout: layoutReducer,
