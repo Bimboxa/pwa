@@ -10,7 +10,6 @@ import {
 import { ArrowForwardIos as Forward } from "@mui/icons-material";
 
 import SelectorVariantTree from "Features/tree/components/SelectorVariantTree";
-import { get } from "firebase/database";
 import getNodeById from "Features/tree/utils/getNodeById";
 
 export default function FieldCategoryVariantGrid({
