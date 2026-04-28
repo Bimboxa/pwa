@@ -1,4 +1,6 @@
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+
+import { setToaster } from "Features/layout/layoutSlice";
 
 import { Download } from "@mui/icons-material";
 import { Tooltip } from "@mui/material";
@@ -10,6 +12,8 @@ import downloadBlob from "Features/files/utils/downloadBlob";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 export default function ButtonSaveKrtoFile() {
+  const dispatch = useDispatch();
+
   // data
 
   const appConfig = useAppConfig();
@@ -25,8 +29,18 @@ export default function ButtonSaveKrtoFile() {
   // handlers
 
   async function handleSave() {
-    const file = await createKrtoZip(scopeId);
-    downloadBlob(file, file.name);
+    try {
+      const file = await createKrtoZip(scopeId);
+      downloadBlob(file, file.name);
+    } catch (error) {
+      console.error("[ButtonSaveKrtoFile] save error", error);
+      dispatch(
+        setToaster({
+          message: `Échec de la sauvegarde : ${error.message || "erreur inconnue"}`,
+          severity: "error",
+        })
+      );
+    }
   }
   return (
     <Tooltip title={saveS}>

@@ -106,5 +106,53 @@ export default async function loadKrtoZip(file, options) {
         ? await db.scopes.where("projectId").equals(project.id).first()
         : null;
 
+    // --- DEBUG: vérifier ce qui a été importé pour le scope ---
+    if (scope) {
+        const allListings = await db.listings.where("scopeId").equals(scope.id).toArray();
+        const liveListings = allListings.filter((l) => !l.deletedAt);
+        const portfolioListings = liveListings.filter(
+            (l) => l?.entityModel?.type === "PORTFOLIO_PAGE"
+        );
+        const allPages = await db.portfolioPages.where("scopeId").equals(scope.id).toArray();
+        const livePages = allPages.filter((p) => !p.deletedAt);
+        const allContainers = await db.portfolioBaseMapContainers
+            .where("scopeId").equals(scope.id).toArray();
+        const liveContainers = allContainers.filter((c) => !c.deletedAt);
+
+        console.log("[loadKrtoZip][DEBUG] import done", {
+            projectId: project?.id,
+            scopeId: scope.id,
+            scopeName: scope.name,
+            listings: {
+                total: allListings.length,
+                live: liveListings.length,
+                portfolioPageType: portfolioListings.length,
+                portfolioListings: portfolioListings.map((l) => ({
+                    id: l.id,
+                    name: l.name,
+                    entityModelKey: l.entityModelKey,
+                    entityModelType: l?.entityModel?.type,
+                    deletedAt: l.deletedAt,
+                })),
+            },
+            portfolioPages: {
+                total: allPages.length,
+                live: livePages.length,
+                byListingId: livePages.reduce((acc, p) => {
+                    acc[p.listingId] = (acc[p.listingId] || 0) + 1;
+                    return acc;
+                }, {}),
+            },
+            portfolioBaseMapContainers: {
+                total: allContainers.length,
+                live: liveContainers.length,
+                byPortfolioPageId: liveContainers.reduce((acc, c) => {
+                    acc[c.portfolioPageId] = (acc[c.portfolioPageId] || 0) + 1;
+                    return acc;
+                }, {}),
+            },
+        });
+    }
+
     return { project, scope };
 }

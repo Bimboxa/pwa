@@ -33,7 +33,7 @@ export default async function createKrtoZip(scopeId, options) {
     // Tables avec scopeId direct
     const tablesWithScopeId = new Set([
         "baseMapViews", "syncFiles", "layers",
-        "portfolioPages", "portfolioBaseMapContainers",
+        "portfolioBaseMapContainers",
     ]);
 
     // Tables avec listingId (sans projectId)
@@ -45,9 +45,12 @@ export default async function createKrtoZip(scopeId, options) {
     const tablesWithListingKey = new Set(["entitiesProps"]);
 
     // Tables avec projectId + listingId
+    // portfolioPages: créées via useCreateEntity, qui pose projectId+listingId
+    // mais pas scopeId — donc on filtre par projectId+listingId comme entities/maps.
     const tablesWithProjectIdAndListingId = new Set([
         "baseMaps", "baseMapVersions", "entities", "maps", "materials", "relsZoneEntity",
         "points", "annotations", "annotationTemplates", "files",
+        "portfolioPages",
     ]);
 
     // 3. Export via Dexie

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+
+import { setToaster } from "Features/layout/layoutSlice";
 
 import usePushRemoteScopeConfiguration from "../hooks/usePushRemoteScopeConfiguration";
 
@@ -22,6 +24,8 @@ import downloadBlob from "Features/files/utils/downloadBlob";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
 export default function DialogSync({ open, onClose, isPullRequired }) {
+  const dispatch = useDispatch();
+
   // data
 
   const push = usePushRemoteScopeConfiguration();
@@ -62,7 +66,14 @@ export default function DialogSync({ open, onClose, isPullRequired }) {
       setZipFile(file);
     } catch (error) {
       console.error("[DialogSync] zip generation error", error);
-      setZipError(error.message || "Erreur lors de la génération du fichier");
+      const message = error.message || "Erreur lors de la génération du fichier";
+      setZipError(message);
+      dispatch(
+        setToaster({
+          message: `Échec de la sauvegarde : ${message}`,
+          severity: "error",
+        })
+      );
     } finally {
       setZipping(false);
     }
