@@ -41,6 +41,8 @@ import {
   Switch,
   FormControlLabel,
   Checkbox,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import Add from "@mui/icons-material/Add";
@@ -72,7 +74,12 @@ import {
   setShowLayers,
   setSoloVisibleTemplateIds,
   setSoloListingId,
+  setSoloMode,
+  setInteractionMode,
 } from "Features/popperMapListings/popperMapListingsSlice";
+import DrawIcon from "@mui/icons-material/Draw";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import useLayers from "Features/layers/hooks/useLayers";
 import { alpha } from "@mui/material/styles";
 import {
@@ -438,6 +445,14 @@ function AnnotationTemplateRow({
     (s) => s.popperMapListings.soloVisibleTemplateIds
   );
   const soloListingId = useSelector((s) => s.popperMapListings.soloListingId);
+  const interactionMode = useSelector(
+    (s) => s.popperMapListings.interactionMode
+  );
+  const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
+  const isEditTarget =
+    interactionMode === "EDIT" &&
+    selectedItem?.type === "ANNOTATION_TEMPLATE" &&
+    selectedItem.id === annotationTemplate?.id;
 
   // helpers
 
@@ -472,9 +487,31 @@ function AnnotationTemplateRow({
     dispatch(setEnabledDrawingMode(activeTool.key));
   };
 
+  const handleSelectAsEditTarget = () => {
+    dispatch(setSelectedListingId(listingId));
+    dispatch(
+      setSelectedItem({
+        id: annotationTemplate?.id,
+        type: "ANNOTATION_TEMPLATE",
+        listingId,
+      })
+    );
+  };
+
   const handleRowClick = () => {
     if (isEditing) return;
-    handleStartDraw();
+    switch (interactionMode) {
+      case "EDIT":
+        handleSelectAsEditTarget();
+        return;
+      case "SELECT":
+        onSoloToggle?.(annotationTemplate?.id, listingId);
+        return;
+      case "DRAW":
+      default:
+        handleStartDraw();
+        return;
+    }
   };
 
   const handleToolBtnClick = (e) => {
@@ -546,14 +583,18 @@ function AnnotationTemplateRow({
         onMouseLeave={() => { if (!toolMenuAnchor) setIsHovered(false); }}
         sx={{
           position: "relative",
-          bgcolor: "white",
+          bgcolor: isEditTarget
+            ? alpha(annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "#1976d2", 0.18)
+            : "white",
           alignItems: "center",
           justifyContent: "space-between",
           pl: 1,
           pr: 1,
           py: 0.5,
           borderLeft: "3px solid",
-          borderColor: isHovered
+          borderColor: isEditTarget
+            ? annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "primary.main"
+            : isHovered
             ? annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "transparent"
             : "transparent",
           "&:hover": {
@@ -1369,6 +1410,10 @@ export default function PopperMapListings() {
   );
   const isBaseMapsViewer = viewerKey === "BASE_MAPS";
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
+  const interactionMode = useSelector(
+    (s) => s.popperMapListings.interactionMode
+  );
+  const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
 
   const baseMap = useMainBaseMap();
   const layers = useLayers({ filterByBaseMapId: baseMap?.id });
@@ -1465,6 +1510,37 @@ export default function PopperMapListings() {
       setExpandedListingIds([listings[0].id]);
     }
   }, [selectedListingId, listings]);
+
+  // handlers - interaction mode
+
+  function handleInteractionModeChange(_event, next) {
+    if (!next || next === interactionMode) return;
+    if (next === "SELECT") {
+      dispatch(setSoloMode(true));
+    } else if (interactionMode === "SELECT") {
+      dispatch(setSoloMode(false));
+    }
+    if (interactionMode === "EDIT" && next !== "EDIT") {
+      if (selectedItem?.type === "ANNOTATION_TEMPLATE") {
+        dispatch(setSelectedItem(null));
+      }
+    }
+    dispatch(setInteractionMode(next));
+  }
+
+  // effect - ESC clears the EDIT target template
+
+  useEffect(() => {
+    if (interactionMode !== "EDIT") return;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      if (selectedItem?.type === "ANNOTATION_TEMPLATE") {
+        dispatch(setSelectedItem(null));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [interactionMode, selectedItem?.type, dispatch]);
 
   // handlers
 
@@ -1644,6 +1720,42 @@ export default function PopperMapListings() {
           </Box>
         )}
       </Box>
+
+      {/* Interaction mode toggle (DRAW / EDIT / SELECT) */}
+      {!isBaseMapsViewer && (
+        <Box
+          sx={{
+            px: 1,
+            py: 0.75,
+            borderBottom: "1px solid",
+            borderColor: "panel.border",
+          }}
+        >
+          <ToggleButtonGroup
+            value={interactionMode}
+            exclusive
+            size="small"
+            fullWidth
+            onChange={handleInteractionModeChange}
+          >
+            <Tooltip title="Dessin">
+              <ToggleButton value="DRAW" sx={{ flex: 1, py: 0.5 }}>
+                <DrawIcon sx={{ fontSize: 18 }} />
+              </ToggleButton>
+            </Tooltip>
+            <Tooltip title="Modifier le repère">
+              <ToggleButton value="EDIT" sx={{ flex: 1, py: 0.5 }}>
+                <SwapHorizIcon sx={{ fontSize: 18 }} />
+              </ToggleButton>
+            </Tooltip>
+            <Tooltip title="Isoler">
+              <ToggleButton value="SELECT" sx={{ flex: 1, py: 0.5 }}>
+                <FilterAltIcon sx={{ fontSize: 18 }} />
+              </ToggleButton>
+            </Tooltip>
+          </ToggleButtonGroup>
+        </Box>
+      )}
 
       {/* Warning: base map has no scale */}
       {baseMap && !baseMap.meterByPx && (

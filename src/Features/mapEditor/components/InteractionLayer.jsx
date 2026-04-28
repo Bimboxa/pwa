@@ -73,6 +73,7 @@ import DropZoneLayer from 'Features/mapEditorGeneric/components/DropZoneLayer';
 import TransientDetectedShapeLayer from 'Features/mapEditorGeneric/components/TransientDetectedShapeLayer';
 import computeWrapperBbox from '../utils/computeWrapperBbox';
 import anchorAnnotationToTarget from 'Features/annotations/services/anchorAnnotationToTarget';
+import updateAnnotationService from 'Features/annotations/services/updateAnnotationService';
 import AnnotationEditingWrapper from './AnnotationEditingWrapper';
 import applyDeltaPosToAnnotation from 'Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation';
 
@@ -260,6 +261,11 @@ const InteractionLayer = forwardRef(({
   const selectedPointId = useSelector(selectSelectedPointId);
   const selectedPartId = useSelector(selectSelectedPartId);
   const selectedPointIds = useSelector(selectSelectedPointIds);
+
+  // PopperMapListings interaction mode (DRAW | EDIT | SELECT)
+  const interactionMode = useSelector(
+    (s) => s.popperMapListings.interactionMode
+  );
 
   // Computed selectedNode equivalent (first item)
   const { node: selectedNode } = useSelectedNodes();
@@ -2850,6 +2856,26 @@ const InteractionLayer = forwardRef(({
 
           console.log("debug_2701_clicked_annotation", annotation, panelAnchor)
 
+          // EDIT mode shortcut: replace annotation's template with the
+          // currently selected ANNOTATION_TEMPLATE (sticky cursor) and exit
+          // without overwriting the selection.
+          {
+            const editTarget = selectedItems[0];
+            if (
+              interactionMode === "EDIT" &&
+              editTarget?.type === "ANNOTATION_TEMPLATE" &&
+              editTarget.id &&
+              annotation &&
+              annotation.annotationTemplateId !== editTarget.id
+            ) {
+              await updateAnnotationService({
+                id: annotation.id,
+                annotationTemplateId: editTarget.id,
+              });
+              return;
+            }
+          }
+
           // --- 2.1. GESTION DES ANNOTATIONS ---
 
           let _selectedItems = [...selectedItems];
@@ -3181,7 +3207,9 @@ const InteractionLayer = forwardRef(({
 
       const snapModes = getSnapModes({
         isDrawing: Boolean(enabledDrawingMode),
-        isQuickEdit: mapEditorMode === "QUICK_POINTS_CHANGE",
+        isQuickEdit:
+          mapEditorMode === "QUICK_POINTS_CHANGE" ||
+          interactionMode === "DRAW",
         hasSelection: Boolean(selectedAnnotation?.id),
       });
       snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, snapModes);
@@ -3641,6 +3669,27 @@ const InteractionLayer = forwardRef(({
       if (annotation) panelAnchor = getAnnotationEditionPanelAnchor(annotation);
 
       console.log("debug_2701_click_on_annotation", annotation, panelAnchor);
+
+      // EDIT mode shortcut: replace annotation's template with the
+      // currently selected ANNOTATION_TEMPLATE (sticky cursor) and exit
+      // without overwriting the selection.
+      {
+        const editTarget = selectedItems[0];
+        if (
+          interactionMode === "EDIT" &&
+          editTarget?.type === "ANNOTATION_TEMPLATE" &&
+          editTarget.id &&
+          annotation &&
+          annotation.annotationTemplateId !== editTarget.id
+        ) {
+          updateAnnotationService({
+            id: annotation.id,
+            annotationTemplateId: editTarget.id,
+          });
+          handleAnnotationDragEnd();
+          return;
+        }
+      }
 
       const newItem = {
         id: annotationId,
