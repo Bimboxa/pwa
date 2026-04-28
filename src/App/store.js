@@ -32,10 +32,8 @@ import relsZoneEntityReducer from "Features/relsZoneEntity/relsZoneEntitySlice";
 import locatedEntitiesReducer from "Features/locatedEntities/locatedEntitiesSlice";
 import pointsReducer from "Features/points/pointsSlice";
 import annotationsReducer from "Features/annotations/annotationsSlice";
-import shapesReducer from "Features/shapes/shapesSlice";
 import markersReducer from "Features/markers/markersSlice";
 import bgImageReducer from "Features/bgImage/bgImageSlice";
-import threedEditorReducer from "Features/threedEditor/threedEditorSlice";
 import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
 import smartDetectReducer from "Features/smartDetect/smartDetectSlice";
 import reportsReducer from "Features/reports/reportsSlice";
@@ -100,12 +98,10 @@ const store = configureStore({
     viewers: viewersReducer,
     points: pointsReducer,
     annotations: annotationsReducer,
-    shapes: shapesReducer,
     markers: markersReducer,
     bgImage: bgImageReducer,
     mapEditor: mapEditorReducer,
     smartDetect: smartDetectReducer,
-    threedEditor: threedEditorReducer,
     reports: reportsReducer,
     blueprints: blueprintsReducer,
     selection: selectionReducer,

@@ -38,17 +38,6 @@ export default class ThreedEditor {
     }
   };
 
-  // shapes
-
-  loadShapes = (shapes) => {
-    try {
-      this.sceneManager.shapesManager.createShapesObjects(shapes);
-      this.renderScene();
-    } catch (e) {
-      console.log("Error", e);
-    }
-  };
-
   // annotations
 
   loadAnnotations = (annotations) => {

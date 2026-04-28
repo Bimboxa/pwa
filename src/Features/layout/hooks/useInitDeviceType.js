@@ -10,9 +10,10 @@ import theme from "Styles/theme";
 export default function useInitDeviceType() {
   const dispatch = useDispatch();
 
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  // Kept so the hook count stays stable across HMR; result intentionally ignored.
+  useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
-    dispatch(setDeviceType(isMobile ? "MOBILE" : "DESKTOP"));
-  }, [dispatch, isMobile]);
+    dispatch(setDeviceType("DESKTOP"));
+  }, [dispatch]);
 }

@@ -7,7 +7,6 @@ import useIsMobile from "Features/layout/hooks/useIsMobile";
 import { Box, Button, Typography } from "@mui/material";
 import { Add } from "@mui/icons-material";
 
-import SectionShapesInListPanel from "Features/shapes/components/SectionShapesInListPanel";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ListPanelHeader from "./ListPanelHeader";
 import ListPanelBottom from "./ListPanelBottom";
@@ -87,7 +86,6 @@ export default function ListPanel() {
     >
       <ListPanelHeader open={open} />
       <BoxFlexVStretch>
-        {/* <SectionShapesInListPanel /> */}
         <ListPanelListItems />
       </BoxFlexVStretch>
       {open && <ListPanelBottom />}

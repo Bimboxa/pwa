@@ -2,7 +2,6 @@ import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Raycaster, Vector2 } from "three";
 
-import useAutoLoadShapesInThreedEditor from "Features/threedEditor/hooks/useAutoLoadShapesInThreedEditor";
 import useAutoLoadMapsInThreedEditor from "../hooks/useAutoLoadMapsInThreedEditor";
 import useAutoLoadAnnotationsInThreedEditor from "../hooks/useAutoLoadAnnotationsInThreedEditor";
 import {
@@ -14,6 +13,7 @@ import { Box } from "@mui/material";
 
 import ThreedEditor from "Features/threedEditor/js/ThreedEditor";
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
+import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
 
 export default function MainThreedEditor() {
   // ref
@@ -64,13 +64,6 @@ export default function MainThreedEditor() {
       //animate();
     }
   }, [containerElExists]);
-
-  // effect - load shapes
-
-  useAutoLoadShapesInThreedEditor({
-    threedEditor: threedEditorRef.current,
-    rendererIsReady,
-  });
 
   useAutoLoadMapsInThreedEditor({
     threedEditor: threedEditorRef.current,
@@ -319,6 +312,7 @@ export default function MainThreedEditor() {
     >
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
+      {isThreedViewer && <PopperMapListings />}
     </Box>
   );
 }

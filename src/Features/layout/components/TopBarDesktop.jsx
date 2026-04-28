@@ -34,6 +34,7 @@ import ButtonSelectorScope from "Features/scopes/components/ButtonSelectorScope"
 
 import IconButtonDialogSync from "Features/remoteScopeConfigurations/components/IconButtonDialogSync";
 import IconButtonShareScope from "Features/scopes/components/IconButtonShareScope";
+import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 //import ButtonSelectorScopeInTopBar from "Features/scopes/components/ButtonSelectorScopeInTopBar";
 import AuthButtons from "Features/auth/components/AuthButtons";
 import TopBarProjectAndScope from "./TopBarProjectAndScope";
@@ -292,6 +293,7 @@ export default function TopBarDesktop() {
 
       {/* Right section - actions */}
       <Box sx={{ display: "flex", alignItems: "center", flex: 1, justifyContent: "flex-end", gap: 1 }}>
+        <ButtonToggleThreedViewer />
         <IconButtonDialogSync />
         <IconButtonShareScope />
       </Box>

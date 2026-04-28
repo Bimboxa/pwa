@@ -8,11 +8,8 @@ import {
 } from "three";
 
 import ControlsManager from "./ControlsManager";
-import ShapesManager from "./ShapesManager";
 import ImagesManager from "./ImagesManager";
 import AnnotationsManager from "./AnnotationsManager";
-
-import createRandomObjects from "./utilsShapesManager/createRandomObjects";
 
 export default class SceneManager {
   constructor({ containerEl, onRendererIsReady }) {
@@ -33,7 +30,6 @@ export default class SceneManager {
     this.addGrid = null;
 
     this.imagesManager = new ImagesManager({ sceneManager: this });
-    this.shapesManager = new ShapesManager({ sceneManager: this });
     this.annotationsManager = new AnnotationsManager({ sceneManager: this });
     this.controlsManager = new ControlsManager({ sceneManager: this });
 
@@ -49,8 +45,6 @@ export default class SceneManager {
 
     this._initRenderer();
     this.controlsManager.initControls();
-
-    //this.addRandomObjects();
   };
 
   resizeScene = () => {
@@ -65,15 +59,6 @@ export default class SceneManager {
     if (this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
     }
-  };
-
-  ///////////   ACTIONS   ///////////
-
-  addRandomObjects = () => {
-    const objects = createRandomObjects();
-    objects.forEach((object) => {
-      this.scene.add(object);
-    });
   };
 
   ///////////   INIT  ///////////
