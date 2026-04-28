@@ -206,6 +206,14 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     });
   }
 
+  async function handleOffsetZChange(updatedAnnotation) {
+    if (!updatedAnnotation?.id) return;
+    await updateAnnotation({
+      id: updatedAnnotation.id,
+      offsetZ: updatedAnnotation.offsetZ,
+    });
+  }
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
       <Paper
@@ -303,7 +311,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           </Tooltip>
         </Box>
 
-        {/* Row 2 - Height field + measurements */}
+        {/* Row 2 - 3D geometry props (height + offsetZ) */}
         <Box
           sx={{
             display: "flex",
@@ -319,11 +327,30 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
             annotation={selectedAnnotation}
             onChange={handleHeightChange}
           />
-          <Box sx={{ flex: 1 }} />
+          <FieldAnnotationHeight
+            annotation={selectedAnnotation}
+            onChange={handleOffsetZChange}
+            field="offsetZ"
+            label="Offset"
+          />
+        </Box>
+
+        {/* Row 3 - Measurements (right-aligned) */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            px: 1.25,
+            py: 0.25,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
           <AnnotationMeasurements annotation={selectedAnnotation} />
         </Box>
 
-        {/* Row 3 - Actions row */}
+        {/* Row 4 - Actions row */}
         <ToolbarAnnotationActions
           accentColor={accentColor}
           onClone={handleCloneClick}

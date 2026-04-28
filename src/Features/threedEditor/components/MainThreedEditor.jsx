@@ -13,7 +13,6 @@ import { Box } from "@mui/material";
 
 import ThreedEditor from "Features/threedEditor/js/ThreedEditor";
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
-import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
 
 export default function MainThreedEditor() {
   // ref
@@ -312,7 +311,6 @@ export default function MainThreedEditor() {
     >
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
-      {isThreedViewer && <PopperMapListings />}
     </Box>
   );
 }

@@ -9,6 +9,7 @@ import {
   LineSegments,
   LineBasicMaterial,
   DoubleSide,
+  FrontSide,
 } from "three";
 
 function getCircleInfo(p0, p1, p2) {
@@ -73,9 +74,9 @@ function tracePath(path, points) {
 }
 
 // Lift closed surfaces slightly above the basemap plane to avoid z-fighting.
-const Z_OFFSET = 0.001;
+const Z_FIGHT_OFFSET = 0.001;
 
-export default function extrudeClosedShape(points, height, material, holes) {
+export default function extrudeClosedShape(points, height, material, holes, verticalLift = 0) {
   if (!points || points.length < 3) return null;
 
   const shape = new Shape();
@@ -93,13 +94,18 @@ export default function extrudeClosedShape(points, height, material, holes) {
 
   const group = new Group();
 
-  const geometry =
-    height && height > 0
-      ? new ExtrudeGeometry(shape, { depth: height, bevelEnabled: false })
-      : new ShapeGeometry(shape);
-  geometry.translate(0, 0, Z_OFFSET);
+  const isExtruded = height && height > 0;
+  const geometry = isExtruded
+    ? new ExtrudeGeometry(shape, { depth: height, bevelEnabled: false })
+    : new ShapeGeometry(shape);
+  geometry.translate(0, 0, verticalLift + Z_FIGHT_OFFSET);
 
-  material.side = DoubleSide;
+  // Flat shapes need DoubleSide because pixelToWorld inverts Y and flips the
+  // winding, making it ambiguous which face the camera looks at. Extruded
+  // volumes only ever show their outer faces, so FrontSide is enough — and
+  // it cuts the count of transparent surfaces in half, which helps depth
+  // stability when rotating.
+  material.side = isExtruded ? FrontSide : DoubleSide;
   group.add(new Mesh(geometry, material));
 
   const edges = new LineSegments(

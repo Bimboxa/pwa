@@ -8,10 +8,14 @@ const popperMapListingsSlice = createSlice({
     soloVisibleTemplateIds: null,
     soloListingId: null,
     interactionMode: "DRAW", // "DRAW" | "EDIT" | "SELECT"
+    collapsed: false,
   },
   reducers: {
     setShowLayers(state, action) {
       state.showLayers = action.payload;
+    },
+    setCollapsed(state, action) {
+      state.collapsed = action.payload;
     },
     setSoloMode(state, action) {
       state.soloMode = action.payload;
@@ -38,6 +42,7 @@ export const {
   setSoloVisibleTemplateIds,
   setSoloListingId,
   setInteractionMode,
+  setCollapsed,
 } = popperMapListingsSlice.actions;
 
 export default popperMapListingsSlice.reducer;
