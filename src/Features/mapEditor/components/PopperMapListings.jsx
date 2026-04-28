@@ -79,7 +79,7 @@ import {
 } from "Features/popperMapListings/popperMapListingsSlice";
 import DrawIcon from "@mui/icons-material/Draw";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
-import FilterAltIcon from "@mui/icons-material/FilterAlt";
+import IconPointer from "Features/icons/IconPointer";
 import useLayers from "Features/layers/hooks/useLayers";
 import { alpha } from "@mui/material/styles";
 import {
@@ -1465,7 +1465,7 @@ export default function PopperMapListings() {
 
   const titleS = isBaseMapsViewer
     ? "Dessins sur fond de plan"
-    : "Repérages";
+    : "Annotations";
 
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
@@ -1630,10 +1630,11 @@ export default function PopperMapListings() {
         transition: isDragging.current ? "none" : "transform 0.1s ease-out",
       }}
     >
-      {/* Drag handle header */}
+      {/* Draggable header (whole bar except action buttons on the right) */}
       <Box
         onMouseEnter={() => setHeaderHovered(true)}
         onMouseLeave={() => setHeaderHovered(false)}
+        onMouseDown={handleMouseDown}
         sx={{
           display: "flex",
           alignItems: "center",
@@ -1644,18 +1645,12 @@ export default function PopperMapListings() {
           bgcolor: "panel.headerBg",
           borderBottom: "1px solid",
           borderColor: "panel.border",
+          cursor: "grab",
+          "&:active": { cursor: "grabbing" },
+          userSelect: "none",
         }}
       >
-        <Box
-          onMouseDown={handleMouseDown}
-          sx={{
-            cursor: "grab",
-            "&:active": { cursor: "grabbing" },
-            userSelect: "none",
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
+        <Box sx={{ display: "flex", alignItems: "center" }}>
           <DragIndicatorIcon
             fontSize="small"
             sx={{ color: "panel.textLight" }}
@@ -1674,6 +1669,7 @@ export default function PopperMapListings() {
           <Tooltip title="Propriétés">
             <IconButton
               size="small"
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 dispatch(
@@ -1684,7 +1680,7 @@ export default function PopperMapListings() {
                 );
                 dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
               }}
-              sx={{ color: "panel.textLight", p: 0.25 }}
+              sx={{ color: "panel.textLight", p: 0.25, cursor: "pointer" }}
             >
               <Tune sx={{ fontSize: 16 }} />
             </IconButton>
@@ -1695,6 +1691,7 @@ export default function PopperMapListings() {
         {!comesFromListing && !isBaseMapsViewer && (
           <Box
             component="button"
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               setOpenCreateListing(true);
@@ -1743,14 +1740,14 @@ export default function PopperMapListings() {
                 <DrawIcon sx={{ fontSize: 18 }} />
               </ToggleButton>
             </Tooltip>
-            <Tooltip title="Modifier le repère">
+            <Tooltip title="Modifier l'annotation">
               <ToggleButton value="EDIT" sx={{ flex: 1, py: 0.5 }}>
                 <SwapHorizIcon sx={{ fontSize: 18 }} />
               </ToggleButton>
             </Tooltip>
-            <Tooltip title="Isoler">
+            <Tooltip title="Sélectionner">
               <ToggleButton value="SELECT" sx={{ flex: 1, py: 0.5 }}>
-                <FilterAltIcon sx={{ fontSize: 18 }} />
+                <IconPointer sx={{ fontSize: 18 }} />
               </ToggleButton>
             </Tooltip>
           </ToggleButtonGroup>
