@@ -114,7 +114,11 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                 gap: 1,
             }}>
                 <SelectorOrthoSnap />
-                <SelectorMapEditorMode />
+                {/* "Modification rapide des points" (QUICK_POINTS_CHANGE) is now
+                    automatically active when PopperMapListings is in DRAW mode,
+                    so this manual toggle is no longer needed. Kept commented for
+                    historical reference. */}
+                {/* <SelectorMapEditorMode /> */}
             </Box>
 
         </>
