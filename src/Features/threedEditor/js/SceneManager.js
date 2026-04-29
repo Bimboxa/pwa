@@ -2,7 +2,6 @@ import {
   Scene,
   WebGLRenderer,
   PerspectiveCamera,
-  DirectionalLight,
   AmbientLight,
   GridHelper,
 } from "three";
@@ -23,8 +22,6 @@ export default class SceneManager {
     });
 
     this.ambiantLight = null;
-    this.dirLight1 = null;
-    this.dirLight2 = null;
 
     this.camera = null;
     this.addGrid = null;
@@ -38,8 +35,6 @@ export default class SceneManager {
 
   initScene = () => {
     this.ambiantLight = this._addAmbiantLight();
-    this.dirLight1 = this._addDirLight1();
-    this.dirLight2 = this._addDirLight2();
     this.camera = this._addCamera();
     this.grid = this._addGrid();
 
@@ -79,20 +74,6 @@ export default class SceneManager {
     camera.position.set(10, 10, 10);
     this.scene.add(camera);
     return camera;
-  };
-
-  _addDirLight1 = () => {
-    const dirLight1 = new DirectionalLight(0xffffff, 3);
-    dirLight1.position.set(1, 1, 1);
-    this.scene.add(dirLight1);
-    return dirLight1;
-  };
-
-  _addDirLight2 = () => {
-    const dirLight1 = new DirectionalLight(0xffffff, 10);
-    dirLight1.position.set(1, 1, -1);
-    this.scene.add(dirLight1);
-    return dirLight1;
   };
 
   _addAmbiantLight = () => {

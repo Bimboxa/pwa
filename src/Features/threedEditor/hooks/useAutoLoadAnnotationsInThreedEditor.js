@@ -9,6 +9,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
 }) {
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const isActiveViewer = selectedViewerKey === "THREED";
+  const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
 
   const annotations = useAnnotationsV2({
     caller: "MainThreedEditor",
@@ -21,6 +22,6 @@ export default function useAutoLoadAnnotationsInThreedEditor({
 
   useEffect(() => {
     if (!threedEditor?.loadAnnotations || !rendererIsReady) return;
-    threedEditor.loadAnnotations(annotations || []);
-  }, [rendererIsReady, annotations, threedEditor]);
+    threedEditor.loadAnnotations(annotations || [], { disableOpacity });
+  }, [rendererIsReady, annotations, threedEditor, disableOpacity]);
 }

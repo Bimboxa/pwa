@@ -40,11 +40,12 @@ export default class ThreedEditor {
 
   // annotations
 
-  loadAnnotations = (annotations) => {
+  loadAnnotations = (annotations, options) => {
     try {
       this.sceneManager.annotationsManager.deleteAllAnnotationsObjects();
       this.sceneManager.annotationsManager.createAnnotationsObjects(
-        annotations
+        annotations,
+        options
       );
       this.renderScene();
     } catch (e) {

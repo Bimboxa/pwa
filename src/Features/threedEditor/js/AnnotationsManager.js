@@ -7,7 +7,7 @@ export default class AnnotationsManager {
     this.annotationsObjectsMap = {};
   }
 
-  createAnnotationsObjects(annotations) {
+  createAnnotationsObjects(annotations, options) {
     if (!annotations) return;
 
     annotations.forEach((annotation) => {
@@ -23,7 +23,11 @@ export default class AnnotationsManager {
         rotation: baseMap.rotation || { x: -Math.PI / 2, y: 0, z: 0 },
       };
 
-      const object = createAnnotationObject3D(annotation, baseMapForRender);
+      const object = createAnnotationObject3D(
+        annotation,
+        baseMapForRender,
+        options
+      );
       if (!object) return;
 
       this.annotationsObjectsMap[annotation.id] = object;

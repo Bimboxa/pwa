@@ -12,7 +12,12 @@ import {
 import { Box } from "@mui/material";
 
 import ThreedEditor from "Features/threedEditor/js/ThreedEditor";
+import {
+  setActiveThreedEditor,
+  clearActiveThreedEditor,
+} from "Features/threedEditor/services/threedEditorRegistry";
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
+import IconButtonThreedProperties from "./IconButtonThreedProperties";
 
 export default function MainThreedEditor() {
   // ref
@@ -32,6 +37,17 @@ export default function MainThreedEditor() {
   const dispatch = useDispatch();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const isThreedViewer = selectedViewerKey === "THREED";
+  const showGrid = useSelector((s) => s.threedEditor.showGrid);
+
+  // Sync showGrid → sceneManager.grid.visible (and re-render)
+  useEffect(() => {
+    const editor = threedEditorRef.current;
+    if (!editor || !rendererIsReady) return;
+    const grid = editor.sceneManager?.grid;
+    if (!grid) return;
+    grid.visible = showGrid;
+    editor.renderScene();
+  }, [showGrid, rendererIsReady]);
 
   // helpers
 
@@ -58,9 +74,14 @@ export default function MainThreedEditor() {
       });
       threedEditor.init();
       threedEditorRef.current = threedEditor;
+      setActiveThreedEditor(threedEditor);
 
       threedEditor.renderScene();
       //animate();
+
+      return () => {
+        clearActiveThreedEditor();
+      };
     }
   }, [containerElExists]);
 
@@ -311,6 +332,11 @@ export default function MainThreedEditor() {
     >
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
+      {isThreedViewer && (
+        <Box sx={{ position: "absolute", top: 8, left: 8, zIndex: 1 }}>
+          <IconButtonThreedProperties />
+        </Box>
+      )}
     </Box>
   );
 }
