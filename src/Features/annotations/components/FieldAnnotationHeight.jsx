@@ -1,19 +1,25 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Typography, InputBase, Box } from "@mui/material";
 
-export default function FieldAnnotationHeight({ annotation, onChange, label: labelProp }) {
+export default function FieldAnnotationHeight({
+  annotation,
+  onChange,
+  label: labelProp,
+  field: fieldProp,
+}) {
+  const field = fieldProp ?? "height";
   const label = labelProp ?? "ht.";
 
   // 1. We need local state to manage the input value immediately while typing
-  const [localValue, setLocalValue] = useState(annotation?.height ?? "");
+  const [localValue, setLocalValue] = useState(annotation?.[field] ?? "");
 
   // 2. We use a ref to store the timer ID so it persists across renders
   const debounceTimer = useRef(null);
 
   // 3. Sync local state if the prop changes externally (e.g. selecting a different node)
   useEffect(() => {
-    setLocalValue(annotation?.height ?? "");
-  }, [annotation?.height, annotation?.id]);
+    setLocalValue(annotation?.[field] ?? "");
+  }, [annotation?.[field], annotation?.id]);
 
   const commonFontStyles = {
     fontSize: (theme) => theme.typography.body2?.fontSize,
@@ -63,7 +69,7 @@ export default function FieldAnnotationHeight({ annotation, onChange, label: lab
       const finalValue = processValue(newValue);
 
       // Commit change to parent
-      onChange({ ...annotation, height: finalValue });
+      onChange({ ...annotation, [field]: finalValue });
     }, 400);
   }
 

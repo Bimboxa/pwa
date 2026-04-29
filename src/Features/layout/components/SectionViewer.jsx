@@ -1,10 +1,7 @@
 import { useSelector } from "react-redux";
 
-import { Box } from "@mui/material";
-
 import BoxCenter from "./BoxCenter";
 import PanelShowable from "./PanelShowable";
-//import MainMapEditor from "Features/mapEditor/components/MainMapEditor";
 import MainMapEditorV2 from "Features/mapEditor/components/MainMapEditorV2";
 import MainMapEditorV3 from "Features/mapEditor/components/MainMapEditorV3";
 import MainThreedEditor from "Features/threedEditor/components/MainThreedEditor";
@@ -15,11 +12,9 @@ import MainPortfolioEditor from "Features/portfolioEditor/components/MainPortfol
 import MainBaseMapViewer from "Features/baseMapEditor/components/MainBaseMapViewer";
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
-import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 
 export default function SectionViewer() {
   // data
-  const enabled = useSelector((s) => s.threedEditor.enabled);
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
 
@@ -39,14 +34,12 @@ export default function SectionViewer() {
       <PanelShowable show={showMap} sx={{ position: "absolute", zIndex: 0 }}>
         {legacy ? <MainMapEditorV2 /> : <MainMapEditorV3 />}
       </PanelShowable>
-      {enabled && (
-        <PanelShowable
-          show={showThreed}
-          sx={{ position: "absolute", zIndex: 0 }}
-        >
-          <MainThreedEditor />
-        </PanelShowable>
-      )}
+      <PanelShowable
+        show={showThreed}
+        sx={{ position: "absolute", zIndex: 0 }}
+      >
+        <MainThreedEditor />
+      </PanelShowable>
       <PanelShowable
         show={showLeaflet}
         sx={{ position: "absolute", zIndex: 0 }}
@@ -74,10 +67,6 @@ export default function SectionViewer() {
       {showAdmin && <PanelShowable show={showAdmin} sx={{ position: "absolute", zIndex: 0 }}>
         <ViewerAdmin />
       </PanelShowable>}
-
-      <Box sx={{ position: "absolute", bottom: "8px", right: "8px" }}>
-        <ButtonToggleThreedViewer />
-      </Box>
     </BoxCenter>
   );
 }

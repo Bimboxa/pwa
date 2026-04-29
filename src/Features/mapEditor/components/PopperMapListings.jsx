@@ -52,6 +52,8 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import Tune from "@mui/icons-material/Tune";
+import UnfoldLess from "@mui/icons-material/UnfoldLess";
+import UnfoldMore from "@mui/icons-material/UnfoldMore";
 import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -76,6 +78,7 @@ import {
   setSoloListingId,
   setSoloMode,
   setInteractionMode,
+  setCollapsed,
 } from "Features/popperMapListings/popperMapListingsSlice";
 import DrawIcon from "@mui/icons-material/Draw";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
@@ -1413,6 +1416,7 @@ export default function PopperMapListings() {
   const interactionMode = useSelector(
     (s) => s.popperMapListings.interactionMode
   );
+  const collapsed = useSelector((s) => s.popperMapListings.collapsed);
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
 
   const baseMap = useMainBaseMap();
@@ -1643,7 +1647,7 @@ export default function PopperMapListings() {
           pr: 1,
           py: 0.75,
           bgcolor: "panel.headerBg",
-          borderBottom: "1px solid",
+          borderBottom: collapsed ? "none" : "1px solid",
           borderColor: "panel.border",
           cursor: "grab",
           "&:active": { cursor: "grabbing" },
@@ -1716,8 +1720,28 @@ export default function PopperMapListings() {
             {addListS}
           </Box>
         )}
+
+        {/* Collapse / expand body */}
+        <Tooltip title={collapsed ? "Déplier" : "Replier"}>
+          <IconButton
+            size="small"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              dispatch(setCollapsed(!collapsed));
+            }}
+            sx={{ color: "panel.textLight", p: 0.25, cursor: "pointer" }}
+          >
+            {collapsed ? (
+              <UnfoldMore sx={{ fontSize: 16 }} />
+            ) : (
+              <UnfoldLess sx={{ fontSize: 16 }} />
+            )}
+          </IconButton>
+        </Tooltip>
       </Box>
 
+      {!collapsed && (<>
       {/* Interaction mode toggle (DRAW / EDIT / SELECT) */}
       {!isBaseMapsViewer && (
         <Box
@@ -1901,6 +1925,7 @@ export default function PopperMapListings() {
           </Box>
         </>
       )}
+      </>)}
 
       {/* Create listing dialog */}
       {openCreateListing && (

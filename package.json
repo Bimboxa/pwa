@@ -58,6 +58,8 @@
     "react-use-measure": "^2.1.7",
     "reselect": "^5.1.1",
     "three": "^0.173.0",
+    "three-gpu-pathtracer": "^0.0.23",
+    "three-mesh-bvh": "^0.9.9",
     "vite-plugin-pwa": "^1.0.3",
     "workbox-window": "^7.3.0"
   },

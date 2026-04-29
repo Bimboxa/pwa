@@ -2,17 +2,13 @@ import {
   Scene,
   WebGLRenderer,
   PerspectiveCamera,
-  DirectionalLight,
   AmbientLight,
   GridHelper,
 } from "three";
 
 import ControlsManager from "./ControlsManager";
-import ShapesManager from "./ShapesManager";
 import ImagesManager from "./ImagesManager";
 import AnnotationsManager from "./AnnotationsManager";
-
-import createRandomObjects from "./utilsShapesManager/createRandomObjects";
 
 export default class SceneManager {
   constructor({ containerEl, onRendererIsReady }) {
@@ -26,14 +22,11 @@ export default class SceneManager {
     });
 
     this.ambiantLight = null;
-    this.dirLight1 = null;
-    this.dirLight2 = null;
 
     this.camera = null;
     this.addGrid = null;
 
     this.imagesManager = new ImagesManager({ sceneManager: this });
-    this.shapesManager = new ShapesManager({ sceneManager: this });
     this.annotationsManager = new AnnotationsManager({ sceneManager: this });
     this.controlsManager = new ControlsManager({ sceneManager: this });
 
@@ -42,15 +35,11 @@ export default class SceneManager {
 
   initScene = () => {
     this.ambiantLight = this._addAmbiantLight();
-    this.dirLight1 = this._addDirLight1();
-    this.dirLight2 = this._addDirLight2();
     this.camera = this._addCamera();
     this.grid = this._addGrid();
 
     this._initRenderer();
     this.controlsManager.initControls();
-
-    //this.addRandomObjects();
   };
 
   resizeScene = () => {
@@ -65,15 +54,6 @@ export default class SceneManager {
     if (this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
     }
-  };
-
-  ///////////   ACTIONS   ///////////
-
-  addRandomObjects = () => {
-    const objects = createRandomObjects();
-    objects.forEach((object) => {
-      this.scene.add(object);
-    });
   };
 
   ///////////   INIT  ///////////
@@ -94,20 +74,6 @@ export default class SceneManager {
     camera.position.set(10, 10, 10);
     this.scene.add(camera);
     return camera;
-  };
-
-  _addDirLight1 = () => {
-    const dirLight1 = new DirectionalLight(0xffffff, 3);
-    dirLight1.position.set(1, 1, 1);
-    this.scene.add(dirLight1);
-    return dirLight1;
-  };
-
-  _addDirLight2 = () => {
-    const dirLight1 = new DirectionalLight(0xffffff, 10);
-    dirLight1.position.set(1, 1, -1);
-    this.scene.add(dirLight1);
-    return dirLight1;
   };
 
   _addAmbiantLight = () => {

@@ -1,48 +1,27 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
-import useAnnotations from "Features/annotations/hooks/useAnnotations";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 export default function useAutoLoadAnnotationsInThreedEditor({
   threedEditor,
   rendererIsReady,
 }) {
-  const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+  const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const isActiveViewer = selectedViewerKey === "THREED";
+  const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
 
-  const annotations = useAnnotations({
-    filterByBaseMapId: selectedBaseMapId,
-    withEntity: false,
-    withLabel: false,
+  const annotations = useAnnotationsV2({
+    caller: "MainThreedEditor",
+    enabled: isActiveViewer,
+    filterByMainBaseMap: true,
+    filterBySelectedScope: true,
+    sortByOrderIndex: true,
+    excludeIsForBaseMapsListings: true,
   });
 
-  const annotationsUpdatedAt = useSelector(
-    (s) => s.annotations.annotationsUpdatedAt
-  );
-
   useEffect(() => {
-    if (
-      threedEditor?.loadAnnotations &&
-      rendererIsReady &&
-      annotations?.length > 0
-    ) {
-      // Filter annotations to only include those with the required properties
-      const validAnnotations = annotations.filter(
-        (annotation) =>
-          annotation &&
-          annotation.type &&
-          (annotation.x !== undefined || annotation.points) &&
-          annotation.baseMapId
-      );
-
-      if (validAnnotations.length > 0) {
-        threedEditor.loadAnnotations(validAnnotations);
-      }
-    }
-  }, [
-    rendererIsReady,
-    annotationsUpdatedAt,
-    annotations,
-    selectedBaseMapId,
-    threedEditor,
-  ]);
+    if (!threedEditor?.loadAnnotations || !rendererIsReady) return;
+    threedEditor.loadAnnotations(annotations || [], { disableOpacity });
+  }, [rendererIsReady, annotations, threedEditor, disableOpacity]);
 }

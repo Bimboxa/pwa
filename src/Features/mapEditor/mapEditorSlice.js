@@ -11,7 +11,6 @@ const mapEditorInitialState = {
   selectedBaseMapId: null,
   loadedMainBaseMapId: null,
   //
-  showShapes: true,
   showMapListingsPanel: false,
   //
   mapEditorMode: "SELECT", // "SELECT", "DRAW"
@@ -125,9 +124,6 @@ export const mapEditorSlice = createSlice({
     },
     setLoadedMainBaseMapId: (state, action) => {
       state.loadedMainBaseMapId = action.payload;
-    },
-    setShowShapes: (state, action) => {
-      state.showShapes = action.payload;
     },
     toggleShowMapListingsPanel: (state) => {
       state.showMapListingsPanel = !state.showMapListingsPanel;
@@ -413,7 +409,6 @@ export const {
   setSelectedMainBaseMapId,
   setLoadedMainBaseMapId,
   //
-  setShowShapes,
   toggleShowMapListingsPanel,
   setEnabledDrawingMode,
   setAutoMergeOnCommit,
