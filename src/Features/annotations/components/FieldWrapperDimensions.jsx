@@ -48,7 +48,9 @@ export default function FieldWrapperDimensions({ annotation }) {
   const hasRotation = rotation !== 0 && rotCenter != null;
 
   const isBboxAnnotation =
-    annotation?.type === "IMAGE" || annotation?.type === "RECTANGLE";
+    annotation?.type === "IMAGE" ||
+    annotation?.type === "RECTANGLE" ||
+    annotation?.type === "OBJECT_3D";
 
   const bbox = isBboxAnnotation
     ? annotation?.bbox ?? null

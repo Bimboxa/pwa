@@ -117,6 +117,14 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "rectangle",
   },
+  OBJECT_3D: {
+    label: "Objet 3D",
+    annotationType: "OBJECT_3D",
+    tools: ["ONE_CLICK"],
+    configurableProps: ["object3D"],
+    defaults: {},
+    shapeCategory: "rectangle",
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -158,6 +166,7 @@ const TYPE_TO_SHAPE = {
   STRIP: "POLYLINE",
   POLYGON: "POLYGON",
   RECTANGLE: "POLYGON",
+  OBJECT_3D: "OBJECT_3D",
 };
 
 export function resolveDrawingShapeFromType(annotationType) {

@@ -85,8 +85,16 @@ export default function DialogExportPhotoreal({ presetKey, onClose }) {
 
     const { scene, camera, renderer } = editor.sceneManager;
     const liveCanvas = renderer.domElement;
-    const width = liveCanvas.clientWidth * 2;
-    const height = liveCanvas.clientHeight * 2;
+    // Cap render dimensions: the path-tracer allocates several float textures
+    // (accumulation, BVH, materials) at this size — exceeding the GPU's
+    // MAX_TEXTURE_SIZE causes the render to fail silently and only the
+    // basemap raster layer survives. 4096 leaves headroom on most GPUs.
+    const MAX_RENDER_DIM = 4096;
+    const targetW = liveCanvas.clientWidth * 2;
+    const targetH = liveCanvas.clientHeight * 2;
+    const fit = Math.min(1, MAX_RENDER_DIM / Math.max(targetW, targetH));
+    const width = Math.floor(targetW * fit);
+    const height = Math.floor(targetH * fit);
 
     let cancelled = false;
 

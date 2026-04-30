@@ -4,6 +4,7 @@ import NodeStripStatic from "./NodeStripStatic";
 import NodeTextStatic from "./NodeTextStatic";
 import NodeLabelStatic from "./NodeLabelStatic";
 import NodeImageStatic from "./NodeImageStatic";
+import NodeObject3DStatic from "./NodeObject3DStatic";
 import NodePointStatic from "./NodePointStatic";
 import NodeRectangleStatic from "./NodeRectangleStatic";
 
@@ -95,6 +96,9 @@ export default function NodeAnnotationStatic({
 
     case "IMAGE":
       return <NodeImageStatic {...props} imageAnnotation={annotation} />;
+
+    case "OBJECT_3D":
+      return <NodeObject3DStatic {...props} annotation={annotation} />;
 
     default:
       return null;

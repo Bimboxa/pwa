@@ -27,7 +27,8 @@ export default function FieldAnnotationRotation({ annotation }) {
   const displayRotation = Math.round(currentRotation * 10) / 10;
   const isBboxAnnotation =
     annotation?.type === "IMAGE" ||
-    annotation?.type === "RECTANGLE";
+    annotation?.type === "RECTANGLE" ||
+    annotation?.type === "OBJECT_3D";
 
   // handlers
 

@@ -31,6 +31,7 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations }, ref) => {
     if (!hoveredNode) return null;
     if (!annotation) return null;
     if (annotation.type === "IMAGE") return null;
+    if (annotation.type === "OBJECT_3D") return null;
 
 
 

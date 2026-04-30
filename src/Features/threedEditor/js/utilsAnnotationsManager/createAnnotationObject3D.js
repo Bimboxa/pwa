@@ -7,6 +7,7 @@ import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 import pixelToWorld from "./pixelToWorld";
 import extrudeClosedShape from "./extrudeClosedShape";
 import extrudePolylineWall from "./extrudePolylineWall";
+import createObject3DAnnotation from "./createObject3DAnnotation";
 
 // Reduce the rendered wall thickness slightly so its mesh doesn't z-fight
 // with overlay annotations laid on top of it later (e.g. wall coverings).
@@ -198,6 +199,24 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         material,
         verticalLift
       );
+      break;
+    }
+    case "OBJECT_3D": {
+      // GLB loading is async — return a placeholder Group synchronously and
+      // attach the parsed scene when ready. The basemap transform is applied
+      // to the placeholder, so the GLB inherits it once added.
+      const placeholder = new Group();
+      createObject3DAnnotation(annotation, baseMap)
+        .then((sub) => {
+          if (sub) {
+            placeholder.add(sub);
+            options?.onAsyncLoaded?.();
+          }
+        })
+        .catch((err) => {
+          console.error("[OBJECT_3D] failed to load GLB", err);
+        });
+      object = placeholder;
       break;
     }
     default:
