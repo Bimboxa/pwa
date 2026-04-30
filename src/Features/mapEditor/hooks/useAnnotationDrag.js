@@ -82,7 +82,7 @@ export default function useAnnotationDrag({
     const snap = commitSnapshotRef.current;
     let hasChanged = false;
 
-    if (ann.type === "IMAGE" || ann.type === "RECTANGLE") {
+    if (ann.type === "IMAGE" || ann.type === "RECTANGLE" || ann.type === "OBJECT_3D") {
       hasChanged =
         ann.bbox?.x !== snap.bboxX ||
         ann.bbox?.y !== snap.bboxY ||

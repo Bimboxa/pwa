@@ -83,6 +83,28 @@ const DRAWING_SHAPES = [
       </SvgIcon>
     ),
   },
+  {
+    key: "OBJECT_3D",
+    label: "Objet 3D",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        <path
+          d="M10 2 L17 6 L17 14 L10 18 L3 14 L3 6 Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M3 6 L10 10 L17 6 M10 10 L10 18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+      </SvgIcon>
+    ),
+  },
 ];
 
 export function resolveShapeCategory(shape) {

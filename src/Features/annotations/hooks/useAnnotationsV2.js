@@ -365,7 +365,7 @@ export default function useAnnotationsV2(options) {
                 }
 
                 // --- IMAGE
-                else if (annotation.type === "IMAGE" || annotation.type === "RECTANGLE") {
+                else if (annotation.type === "IMAGE" || annotation.type === "RECTANGLE" || annotation.type === "OBJECT_3D") {
                     _annotation.bbox = {
                         x: (annotation.bbox?.x ?? 0.25) * width,
                         y: (annotation.bbox?.y ?? 0.25) * height,

@@ -8,6 +8,7 @@ import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldColorV2 from "Features/form/components/FieldColorV2";
 import FieldImageV2 from "Features/form/components/FieldImageV2";
+import FieldObject3D from "Features/object3D/components/FieldObject3D";
 import FieldIcon from "Features/form/components/FieldIcon";
 import FieldPointSize from "Features/form/components/FieldPointSize";
 import FieldAnnotationTemplateFill from "./FieldAnnotationTemplateFill";
@@ -65,6 +66,7 @@ export default function FormAnnotationTemplateVariantBlock({
     groupLabel,
     height,
     image,
+    object3D,
     meterByPx,
     variant,
     size,
@@ -113,6 +115,7 @@ export default function FormAnnotationTemplateVariantBlock({
   const hasVariant = configurableProps.includes("variant");
   const hasSize = configurableProps.includes("size");
   const hasImage = configurableProps.includes("image");
+  const hasObject3D = configurableProps.includes("object3D");
   const hasMeterByPx = configurableProps.includes("meterByPx");
 
   // For simple shapes (MARKER, LABEL, TEXT, POINT), show a simple color field
@@ -169,6 +172,10 @@ export default function FormAnnotationTemplateVariantBlock({
     if (!newAnnotationTemplate.meterByPx && meterByPx)
       newAnnotationTemplate.meterByPx = meterByPx;
     onChange(newAnnotationTemplate);
+  }
+
+  function handleObject3DChange(object3D) {
+    onChange({ ...annotationTemplate, object3D });
   }
 
   function handleMeterByPxChange(meterByPx) {
@@ -428,6 +435,11 @@ export default function FormAnnotationTemplateVariantBlock({
           </Box>
           <FieldImageV2 value={image} onChange={handleImageChange} />
         </Box>
+      )}
+
+      {/* Object 3D field (OBJECT_3D) */}
+      {hasObject3D && (
+        <FieldObject3D value={object3D} onChange={handleObject3DChange} />
       )}
 
       {hasTools && (

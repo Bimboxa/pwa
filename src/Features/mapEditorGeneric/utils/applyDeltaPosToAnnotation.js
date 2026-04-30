@@ -144,6 +144,22 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         }
     }
 
+    // OBJECT_3D — move + rotate only (no resize per spec)
+    if (_annotation.type === "OBJECT_3D") {
+        const currentBBox = _annotation.bbox || { x: 0, y: 0, width: 100, height: 100 };
+        const currentRotation = _annotation.rotation || 0;
+
+        if (partType === "ROTATE") {
+            _annotation.rotation = (currentRotation + deltaPos.x) % 360;
+        } else {
+            _annotation.bbox = {
+                ...currentBBox,
+                x: currentBBox.x + deltaPos.x,
+                y: currentBBox.y + deltaPos.y,
+            };
+        }
+    }
+
     // MARKER / POINT
     if (_annotation.type === "MARKER" || _annotation.type === "POINT") {
         _annotation.point = {

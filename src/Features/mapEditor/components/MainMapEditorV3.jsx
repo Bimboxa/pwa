@@ -97,6 +97,7 @@ import getAnnotationBounds from "../utils/getAnnotationBounds";
 import getAnnotationTemplateSizeInPx from "Features/annotations/utils/getAnnotationTemplateSizeInPx";
 import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRectangleRawPointsFromOnePoint";
 import getImageAnnotationRectanglePointsFromOnePoint from "Features/imageAnnotations/utils/getImageAnnotationRectanglePointsFromOnePoint";
+import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/utils/getObject3DAnnotationRectanglePointsFromOnePoint";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useSelectedNodes from "../hooks/useSelectedNodes";
 
@@ -402,6 +403,16 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
         if (rawPoints.length === 1 && type === "IMAGE") {
             const points = getImageAnnotationRectanglePointsFromOnePoint({
+                annotation: newAnnotation,
+                baseMapMeterByPx: baseMap?.getMeterByPx(),
+                point: rawPoints[0],
+            })
+            rawPoints = points;
+            options = { ...options ?? {}, drawRectangle: true }
+        }
+
+        if (rawPoints.length === 1 && type === "OBJECT_3D") {
+            const points = getObject3DAnnotationRectanglePointsFromOnePoint({
                 annotation: newAnnotation,
                 baseMapMeterByPx: baseMap?.getMeterByPx(),
                 point: rawPoints[0],
@@ -1166,6 +1177,35 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 }
 
                 console.log("save_rectangle (bbox)", annotation.id, updates);
+                await db.annotations.update(annotation.id, updates);
+            }
+
+            // --- OBJECT_3D : move + rotate only (no resize) ---
+            else if (annotation.type === "OBJECT_3D") {
+                const bgW = imageSize.width;
+                const bgH = imageSize.height;
+
+                const currentBBox = annotation.bbox;
+                const currentRotation = annotation.rotation ?? 0;
+
+                const updates = {};
+
+                if (partType === "ROTATE") {
+                    let newRotation = (currentRotation + deltaPos.x) % 360;
+                    if (newRotation < 0) newRotation += 360;
+                    updates.rotation = newRotation;
+                } else {
+                    const nx = currentBBox.x + deltaPos.x;
+                    const ny = currentBBox.y + deltaPos.y;
+                    updates.bbox = {
+                        x: nx / bgW,
+                        y: ny / bgH,
+                        width: currentBBox.width / bgW,
+                        height: currentBBox.height / bgH,
+                    };
+                }
+
+                console.log("save_object3d (bbox)", annotation.id, updates);
                 await db.annotations.update(annotation.id, updates);
             }
         }
