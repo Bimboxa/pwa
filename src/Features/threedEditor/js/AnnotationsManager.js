@@ -5,6 +5,27 @@ export default class AnnotationsManager {
     this.sceneManager = sceneManager;
     this.scene = sceneManager.scene;
     this.annotationsObjectsMap = {};
+    this._annotationReadyCallbacks = new Set();
+  }
+
+  // Subscribe to "annotation ready" notifications. Fires once after the sync
+  // creation of the 3D object, and again after the async GLB load completes
+  // for OBJECT_3D annotations. Returns an unsubscribe function. Used by
+  // ThreedSelectionDimmer to re-apply the selection-dim state to GLBs that
+  // finish loading after a selection change.
+  subscribeAnnotationReady(callback) {
+    this._annotationReadyCallbacks.add(callback);
+    return () => this._annotationReadyCallbacks.delete(callback);
+  }
+
+  _notifyAnnotationReady(id) {
+    this._annotationReadyCallbacks.forEach((cb) => {
+      try {
+        cb(id);
+      } catch (e) {
+        console.error("[AnnotationsManager] annotation-ready listener threw", e);
+      }
+    });
   }
 
   createAnnotationsObjects(annotations, options) {
@@ -25,12 +46,16 @@ export default class AnnotationsManager {
 
       const object = createAnnotationObject3D(annotation, baseMapForRender, {
         ...options,
-        onAsyncLoaded: () => this.sceneManager.renderScene(),
+        onAsyncLoaded: () => {
+          this.sceneManager.renderScene();
+          this._notifyAnnotationReady(annotation.id);
+        },
       });
       if (!object) return;
 
       this.annotationsObjectsMap[annotation.id] = object;
       this.scene.add(object);
+      this._notifyAnnotationReady(annotation.id);
     });
   }
 
