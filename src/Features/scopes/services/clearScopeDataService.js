@@ -8,6 +8,7 @@ export default async function clearScopeDataService(scopeId) {
     // 1. Collecter les ids dépendants (listings du scope)
     const listings = await db.listings.where("scopeId").equals(scopeId).toArray();
     const listingIds = listings.map((l) => l.id);
+    const listingKeys = listings.map((l) => l.key).filter(Boolean);
 
     // 2. Hard delete en cascade
     await withHardDelete(async () => {
@@ -26,7 +27,9 @@ export default async function clearScopeDataService(scopeId) {
             await db.files.where("listingId").anyOf(listingIds).delete();
             await db.zonings.where("listingId").anyOf(listingIds).delete();
             await db.relsZoneEntity.where("listingId").anyOf(listingIds).delete();
-            await db.entitiesProps.where("listingId").anyOf(listingIds).delete();
+            if (listingKeys.length > 0) {
+                await db.entitiesProps.where("listingKey").anyOf(listingKeys).delete();
+            }
             await db.legends.where("listingId").anyOf(listingIds).delete();
             await db.relationsEntities.where("listingId").anyOf(listingIds).delete();
             await db.reports.where("listingId").anyOf(listingIds).delete();

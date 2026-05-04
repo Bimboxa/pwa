@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   Card,
+  CircularProgress,
   Divider,
   FormControlLabel,
   IconButton,
@@ -15,15 +16,18 @@ import {
   Typography,
 } from "@mui/material";
 import Tune from "@mui/icons-material/Tune";
+import ViewInAr from "@mui/icons-material/ViewInAr";
 
 import { setShowGrid } from "Features/threedEditor/threedEditorSlice";
 import DialogExportPhotoreal from "Features/photorealRender/components/DialogExportPhotoreal";
+import exportSceneAsUsdzService from "Features/threedEditor/services/exportSceneAsUsdzService";
 
 export default function IconButtonThreedProperties() {
   const dispatch = useDispatch();
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [exportPreset, setExportPreset] = useState(null);
+  const [usdzExporting, setUsdzExporting] = useState(false);
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
 
@@ -41,6 +45,20 @@ export default function IconButtonThreedProperties() {
   }
   function handleCloseExport() {
     setExportPreset(null);
+  }
+  async function handleDownloadUsdz() {
+    if (usdzExporting) return;
+    setUsdzExporting(true);
+    // Yield to the browser so the spinner gets painted before the heavy
+    // synchronous portion of the USDZ encode (texture bitmap reads + zip).
+    await new Promise((r) => requestAnimationFrame(r));
+    try {
+      await exportSceneAsUsdzService("scene.usdz");
+    } catch (e) {
+      console.error("[IconButtonThreedProperties] USDZ export failed", e);
+    } finally {
+      setUsdzExporting(false);
+    }
   }
 
   return (
@@ -90,6 +108,31 @@ export default function IconButtonThreedProperties() {
           </Box>
 
           <Divider sx={{ my: 1.5 }} />
+
+          <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Télécharger la 3D
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.25 }}>
+              Export USDZ de la scène (fond de plan + objets 3D avec textures).
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              fullWidth
+              startIcon={
+                usdzExporting ? (
+                  <CircularProgress size={14} thickness={5} />
+                ) : (
+                  <ViewInAr sx={{ fontSize: 16 }} />
+                )
+              }
+              disabled={usdzExporting}
+              onClick={handleDownloadUsdz}
+            >
+              {usdzExporting ? "Export en cours…" : "Télécharger (.usdz)"}
+            </Button>
+          </Card>
 
           <Card variant="outlined" sx={{ p: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
