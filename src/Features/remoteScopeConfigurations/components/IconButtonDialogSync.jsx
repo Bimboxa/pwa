@@ -1,74 +1,96 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { restoreSyncedVersionFromStorage } from "../remoteScopeConfigurationsSlice";
+import store from "App/store";
 
-import { Badge, Button, Box } from "@mui/material";
+import {
+  restoreSyncedVersionFromStorage,
+  restoreScopeSyncStateFromStorage,
+  setRemoteNewerDialogOpen,
+  setDialogSyncOpen,
+  selectIsLocallyDirty,
+} from "../remoteScopeConfigurationsSlice";
+
+import { Badge, Button, Box, Tooltip } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 
 import usePullLastRemoteScopeConfiguration from "../hooks/usePullLastRemoteScopeConfiguration";
-import DialogSync from "./DialogSync";
-
 
 export default function IconButtonDialogSync() {
-    const dispatch = useDispatch();
+  const dispatch = useDispatch();
 
-    // data
+  // data
 
-    const scopeId = useSelector((s) => s.scopes.selectedScopeId);
-    const lastRemoteConfiguration = useSelector((s) => s.remoteScopeConfigurations.lastRemoteConfiguration);
-    const lastSyncedRemoteConfigurationVersion = useSelector((s) => s.remoteScopeConfigurations.lastSyncedRemoteConfigurationVersion);
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const lastRemoteConfiguration = useSelector(
+    (s) => s.remoteScopeConfigurations.lastRemoteConfiguration
+  );
+  const lastSyncedRemoteConfigurationVersion = useSelector(
+    (s) => s.remoteScopeConfigurations.lastSyncedRemoteConfigurationVersion
+  );
+  const isLocallyDirty = useSelector(selectIsLocallyDirty);
 
-    // effects
+  // effects
 
-    useEffect(() => {
-        if (scopeId) {
-            dispatch(restoreSyncedVersionFromStorage(scopeId));
-        }
-    }, [scopeId, dispatch]);
-
-    const pullLastConfig = usePullLastRemoteScopeConfiguration();
-
-    // state
-
-    const [open, setOpen] = useState(false);
-
-    // helpers
-
-    const isPullRequired =
-        lastRemoteConfiguration
-        && lastRemoteConfiguration.version > (lastSyncedRemoteConfigurationVersion ?? 0);
-
-
-    // handlers
-
-    async function handleOpen() {
-        setOpen(true);
-        try {
-            await pullLastConfig();
-        } catch (error) {
-            console.error("[IconButtonDialogSync] pull error", error);
-        }
+  useEffect(() => {
+    if (scopeId) {
+      dispatch(restoreSyncedVersionFromStorage(scopeId));
+      dispatch(restoreScopeSyncStateFromStorage(scopeId));
     }
-    function handleClose() {
-        setOpen(false);
+  }, [scopeId, dispatch]);
+
+  const pullLastConfig = usePullLastRemoteScopeConfiguration();
+
+  // helpers
+
+  const isPullRequired =
+    lastRemoteConfiguration &&
+    lastRemoteConfiguration.version >
+      (lastSyncedRemoteConfigurationVersion ?? 0);
+
+  const variant = isLocallyDirty ? "contained" : "outlined";
+  const color = isLocallyDirty ? "warning" : "primary";
+
+  let tooltipS = "Tout est synchronisé";
+  if (isPullRequired)
+    tooltipS = "Une version plus récente existe sur le serveur";
+  else if (isLocallyDirty)
+    tooltipS = "Vous avez des modifications locales non sauvegardées";
+
+  // handlers
+
+  async function handleOpen() {
+    try {
+      await pullLastConfig();
+    } catch (error) {
+      console.error("[IconButtonDialogSync] pull error", error);
     }
+    const state = store.getState().remoteScopeConfigurations;
+    const remoteV = state.lastRemoteConfiguration?.version;
+    const syncedV = state.lastSyncedRemoteConfigurationVersion;
+    if (remoteV != null && syncedV != null && remoteV > syncedV) {
+      dispatch(setRemoteNewerDialogOpen(true));
+    } else {
+      dispatch(setDialogSyncOpen(true));
+    }
+  }
 
-
-    return (
-        <Box>
-            <Badge color="error" variant="dot" invisible={!isPullRequired}>
-                <Button
-                    onClick={handleOpen}
-                    size="small"
-                    variant="outlined"
-                    startIcon={<CloudUploadIcon />}
-                >
-                    Sauvegarder
-                </Button>
-            </Badge>
-            <DialogSync open={open} onClose={handleClose} isPullRequired={isPullRequired} />
-        </Box>
-    );
+  return (
+    <Box>
+      <Tooltip title={tooltipS}>
+        <Badge color="error" variant="dot" invisible={!isPullRequired}>
+          <Button
+            onClick={handleOpen}
+            size="small"
+            variant={variant}
+            color={color}
+            startIcon={<CloudUploadIcon />}
+          >
+            Sauvegarder
+          </Button>
+        </Badge>
+      </Tooltip>
+    </Box>
+  );
 }

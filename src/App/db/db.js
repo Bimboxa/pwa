@@ -4,10 +4,11 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import store from "App/store";
 import { UNDO_TABLES, _skipUndo, pushUndo } from "./undoManager";
+import { notifyLocalChange } from "Features/remoteScopeConfigurations/services/localChangeTracker";
 
 function getCurrentUserIdMaster() {
   const state = store.getState();
-  return state.auth.userProfile?.userIdMaster || 'anonymous';
+  return state.auth.userProfile?.userIdMaster || "anonymous";
 }
 
 const db = new Dexie("appDB");
@@ -68,7 +69,8 @@ db.version(15).stores({
 
 db.version(16).stores({
   // {id, annotationId, nomenclatureKey, categoryKey, projectId}
-  relAnnotationMappingCategory: "id, annotationId, projectId, [nomenclatureKey+categoryKey]",
+  relAnnotationMappingCategory:
+    "id, annotationId, projectId, [nomenclatureKey+categoryKey]",
 });
 
 db.version(17).stores({});
@@ -122,9 +124,11 @@ AUDIT_TABLES.forEach((tableName) => {
     obj.createdByUserIdMaster =
       obj.createdByUserIdMaster || getCurrentUserIdMaster();
     obj.updatedAt = obj.updatedAt || new Date().toISOString();
+    notifyLocalChange();
   });
 
   db[tableName].hook("updating", function (modifications) {
+    notifyLocalChange();
     if (!modifications.updatedAt) {
       return { ...modifications, updatedAt: new Date().toISOString() };
     }
