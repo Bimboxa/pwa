@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 import { Raycaster, Vector2 } from "three";
 
 import useAutoLoadMapsInThreedEditor from "../hooks/useAutoLoadMapsInThreedEditor";
@@ -10,8 +10,14 @@ import {
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 
-import applyHoverHighlight from "Features/threedEditor/js/utilsAnnotationsManager/applyHoverHighlight";
+import applyAnnotationMaterialState, {
+  // states
+  STATE_DIM,
+  STATE_HOVER,
+  STATE_NONE,
+} from "Features/threedEditor/js/utilsAnnotationsManager/applyAnnotationMaterialState";
 import ThreedHoverTooltip from "./ThreedHoverTooltip";
+import ThreedSelectionDimmer from "./ThreedSelectionDimmer";
 
 import { Box } from "@mui/material";
 
@@ -44,9 +50,33 @@ export default function MainThreedEditor() {
   const [rendererIsReady, setRendererIsReady] = useState(false); // to trigger the effect load shapes with an existing loadShapes func.
 
   const dispatch = useDispatch();
+  // Read the store directly (no re-render on state changes) so we can resolve
+  // the current selection inside event handlers without making MainThreedEditor
+  // re-render on every selection change — re-renders here would re-fire
+  // useAutoLoadAnnotationsInThreedEditor and destroy + recreate every
+  // annotation 3D object.
+  const store = useStore();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const isThreedViewer = selectedViewerKey === "THREED";
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
+
+  // Helper: derive the right material state for a given annotation id, based
+  // on the current selection in the store and whether the cursor is currently
+  // over it. Selection wins over hover — a selected annotation always shows
+  // its original material, even while hovered.
+  const getStateForId = useCallback(
+    (id, isHovered) => {
+      const items = store.getState().selection.selectedItems || [];
+      const ids = items
+        .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
+        .map((i) => i.nodeId || i.id);
+      if (ids.includes(id)) return STATE_NONE;
+      if (isHovered) return STATE_HOVER;
+      if (ids.length > 0) return STATE_DIM;
+      return STATE_NONE;
+    },
+    [store]
+  );
 
   // Sync showGrid → sceneManager.grid.visible (and re-render)
   useEffect(() => {
@@ -333,14 +363,20 @@ export default function MainThreedEditor() {
     const containerRect = containerRef.current?.getBoundingClientRect();
 
     if (hitId !== lastHoveredIdRef.current) {
-      // Restore previous, then apply new — using fresh references from THIS
-      // raycast pass (no scene.traverse needed, no useEffect lag).
+      // Restore previous (no longer hovered). Selected → original; otherwise
+      // dim if a selection exists, else original.
       if (prevHoveredObjectRef.current) {
-        applyHoverHighlight(prevHoveredObjectRef.current, false);
+        const prevId = prevHoveredObjectRef.current.userData?.nodeId;
+        applyAnnotationMaterialState(
+          prevHoveredObjectRef.current,
+          getStateForId(prevId, false)
+        );
         prevHoveredObjectRef.current = null;
       }
       if (hit) {
-        applyHoverHighlight(hit, true);
+        // Selection wins over hover — selected annotations stay in their
+        // original material even while hovered.
+        applyAnnotationMaterialState(hit, getStateForId(hitId, true));
         prevHoveredObjectRef.current = hit;
       }
       threedEditor.renderScene?.();
@@ -360,7 +396,7 @@ export default function MainThreedEditor() {
         tooltipApiRef.current?.clear();
       }
     }
-  }, [rendererIsReady, isThreedViewer]);
+  }, [rendererIsReady, isThreedViewer, getStateForId]);
 
   // Handle pointer move (drag tracking + schedule hover raycast)
   const handleHoverPointerMove = useCallback(
@@ -381,13 +417,17 @@ export default function MainThreedEditor() {
       hoverRafRef.current = null;
     }
     if (prevHoveredObjectRef.current) {
-      applyHoverHighlight(prevHoveredObjectRef.current, false);
+      const prevId = prevHoveredObjectRef.current.userData?.nodeId;
+      applyAnnotationMaterialState(
+        prevHoveredObjectRef.current,
+        getStateForId(prevId, false)
+      );
       prevHoveredObjectRef.current = null;
       threedEditorRef.current?.renderScene?.();
     }
     lastHoveredIdRef.current = null;
     tooltipApiRef.current?.clear();
-  }, []);
+  }, [getStateForId]);
 
   // Handle pointer up - if not dragging, treat as click
   const handlePointerUp = useCallback(
@@ -471,13 +511,17 @@ export default function MainThreedEditor() {
   // Reset hover when leaving the 3D viewer.
   useEffect(() => {
     if (!isThreedViewer && prevHoveredObjectRef.current) {
-      applyHoverHighlight(prevHoveredObjectRef.current, false);
+      const prevId = prevHoveredObjectRef.current.userData?.nodeId;
+      applyAnnotationMaterialState(
+        prevHoveredObjectRef.current,
+        getStateForId(prevId, false)
+      );
       prevHoveredObjectRef.current = null;
       lastHoveredIdRef.current = null;
       tooltipApiRef.current?.clear();
       threedEditorRef.current?.renderScene?.();
     }
-  }, [isThreedViewer]);
+  }, [isThreedViewer, getStateForId]);
 
   return (
     <Box
@@ -494,6 +538,12 @@ export default function MainThreedEditor() {
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {isThreedViewer && <ThreedHoverTooltip ref={tooltipApiRef} />}
+      {isThreedViewer && (
+        <ThreedSelectionDimmer
+          threedEditorRef={threedEditorRef}
+          hoveredIdRef={lastHoveredIdRef}
+        />
+      )}
       {isThreedViewer && (
         <Box sx={{ position: "absolute", top: 8, left: 8, zIndex: 1 }}>
           <IconButtonThreedProperties />
