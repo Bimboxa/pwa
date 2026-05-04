@@ -7,8 +7,12 @@ import useAutoLoadAnnotationsInThreedEditor from "../hooks/useAutoLoadAnnotation
 import {
   setSelectedNode,
   setAnnotationToolbarPosition,
+  setAnnotationsToolbarPosition,
 } from "Features/mapEditor/mapEditorSlice";
-import { setSelectedItem } from "Features/selection/selectionSlice";
+import {
+  setSelectedItem,
+  toggleItemSelection,
+} from "Features/selection/selectionSlice";
 
 import applyAnnotationMaterialState, {
   // states
@@ -193,38 +197,39 @@ export default function MainThreedEditor() {
           if (object.userData?.nodeId) {
             const { nodeId, nodeType, annotationType, listingId } =
               object.userData;
+            const item = {
+              id: nodeId,
+              nodeId,
+              type: "NODE",
+              nodeType,
+              annotationType,
+              listingId,
+            };
+            const position = { x: event.clientX, y: event.clientY };
 
-            // Dispatch setSelectedNode
-            dispatch(
-              setSelectedNode({
-                id: nodeId,
-                nodeType,
-                annotationType,
-                listingId,
-              })
-            );
+            if (event.shiftKey) {
+              // Shift+click: toggle this annotation in the selection. Don't
+              // touch setSelectedNode (single-slot legacy state) so existing
+              // single-selection consumers stay sane.
+              dispatch(toggleItemSelection(item));
+            } else {
+              dispatch(
+                setSelectedNode({
+                  id: nodeId,
+                  nodeType,
+                  annotationType,
+                  listingId,
+                })
+              );
+              // Replace the selection — PopperEditAnnotation (singular) reads
+              // `selection.selectedItems` via useSelectedNodes.
+              dispatch(setSelectedItem(item));
+            }
 
-            // Dispatch into selection slice so PopperEditAnnotation
-            // (which reads `selection.selectedItems` via useSelectedNodes)
-            // sees the selection and renders the toolbar.
-            dispatch(
-              setSelectedItem({
-                id: nodeId,
-                nodeId,
-                type: "NODE",
-                nodeType,
-                annotationType,
-                listingId,
-              })
-            );
-
-            // Dispatch setAnnotationToolbarPosition at click location
-            dispatch(
-              setAnnotationToolbarPosition({
-                x: event.clientX,
-                y: event.clientY,
-              })
-            );
+            // Anchor both toolbars at the click — the singular renders when
+            // exactly one item is selected, the plural when 2+ are selected.
+            dispatch(setAnnotationToolbarPosition(position));
+            dispatch(setAnnotationsToolbarPosition(position));
 
             return; // Stop after finding the first annotation
           }
@@ -232,10 +237,14 @@ export default function MainThreedEditor() {
         }
       }
 
-      // If no annotation was clicked, deselect
-      dispatch(setSelectedNode(null));
-      dispatch(setSelectedItem(null));
-      dispatch(setAnnotationToolbarPosition(null));
+      // No annotation hit. Shift+click on empty preserves the selection
+      // (mirrors the 2D editor behavior); plain click deselects.
+      if (!event.shiftKey) {
+        dispatch(setSelectedNode(null));
+        dispatch(setSelectedItem(null));
+        dispatch(setAnnotationToolbarPosition(null));
+        dispatch(setAnnotationsToolbarPosition(null));
+      }
     },
     [dispatch, rendererIsReady, isThreedViewer]
   );
