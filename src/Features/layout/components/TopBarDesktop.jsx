@@ -33,6 +33,7 @@ import ButtonSelectorProject from "Features/projects/components/ButtonSelectorPr
 import ButtonSelectorScope from "Features/scopes/components/ButtonSelectorScope";
 
 import IconButtonDialogSync from "Features/remoteScopeConfigurations/components/IconButtonDialogSync";
+import ButtonHistoryScope from "Features/remoteScopeConfigurations/components/ButtonHistoryScope";
 import IconButtonShareScope from "Features/scopes/components/IconButtonShareScope";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 //import ButtonSelectorScopeInTopBar from "Features/scopes/components/ButtonSelectorScopeInTopBar";
@@ -295,6 +296,7 @@ export default function TopBarDesktop() {
       <Box sx={{ display: "flex", alignItems: "center", flex: 1, justifyContent: "flex-end", gap: 1 }}>
         <ButtonToggleThreedViewer />
         <IconButtonDialogSync />
+        <ButtonHistoryScope />
         <IconButtonShareScope />
       </Box>
     </Box>
