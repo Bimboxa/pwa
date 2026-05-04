@@ -2,15 +2,11 @@
 import { forwardRef } from 'react';
 import { Paper, Typography, Box } from "@mui/material";
 
-const MapTooltip = forwardRef(({ hoveredNode, annotations }, ref) => {
-
-    // strings
-
-    const helperS = "[clic droit] actions"
+const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y }, ref) => {
 
     // helper - annotations
 
-    const annotation = annotations.find(a => a.id === hoveredNode.nodeId);
+    const annotation = annotations.find(a => a.id === hoveredNode?.nodeId);
 
     // helper - template label
     const templateLabel = annotation?.annotationTemplateProps?.label || annotation?.templateLabel;
@@ -26,14 +22,14 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations }, ref) => {
     const imageUrl = imageUrl_entity || imageUrl_0;
     const hasImage = Boolean(imageUrl);
 
+    // helper - position (controlled mode when x/y are passed)
+    const isControlled = typeof x === "number" && typeof y === "number";
+
     // render
 
     if (!hoveredNode) return null;
     if (!annotation) return null;
     if (annotation.type === "IMAGE") return null;
-    if (annotation.type === "OBJECT_3D") return null;
-
-
 
     return (
         <Paper
@@ -43,8 +39,9 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations }, ref) => {
                 position: "absolute",
                 top: 0,
                 left: 0,
-                // Start hidden or off-screen to avoid (0,0) flash before first move update
-                // or just rely on the update loop.
+                // In controlled mode the parent passes x/y as props; otherwise
+                // the parent updates `transform` imperatively via the ref.
+                ...(isControlled && { transform: `translate(${x}px, ${y}px)` }),
                 // Important: pointerEvents: none lets the mouse click "through" the tooltip
                 pointerEvents: "none",
                 zIndex: 9999,
@@ -53,7 +50,6 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations }, ref) => {
                 backgroundColor: "rgba(0, 0, 0, 0.8)",
                 color: "white",
                 borderRadius: 1,
-                // Will be moved via transform in JS
                 willChange: "transform"
             }}
         >
@@ -70,9 +66,14 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations }, ref) => {
                     }}
                 />
             )}
-            <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', color: '#90caf9' }}>
-                {templateLabel}
+            <Typography variant="caption" sx={{ display: 'block', color: 'grey.500', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                {annotation.type}
             </Typography>
+            {templateLabel && (
+                <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', color: '#90caf9' }}>
+                    {templateLabel}
+                </Typography>
+            )}
             {entityLabel && (
                 <Typography variant="caption" sx={{ display: 'block' }}>
                     {entityLabel}
@@ -83,9 +84,6 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations }, ref) => {
                     {entityDescription}
                 </Typography>
             )}
-            {/* <Typography variant="caption" sx={{ color: 'grey.500', fontSize: '0.7rem' }}>
-                {helperS}
-            </Typography> */}
         </Paper>
     );
 });

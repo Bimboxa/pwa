@@ -8,6 +8,10 @@ import {
   setSelectedNode,
   setAnnotationToolbarPosition,
 } from "Features/mapEditor/mapEditorSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
+
+import applyHoverHighlight from "Features/threedEditor/js/utilsAnnotationsManager/applyHoverHighlight";
+import ThreedHoverTooltip from "./ThreedHoverTooltip";
 
 import { Box } from "@mui/material";
 
@@ -28,6 +32,11 @@ export default function MainThreedEditor() {
   const mouseRef = useRef(new Vector2());
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
+  const hoverRafRef = useRef(null);
+  const lastPointerEventRef = useRef(null);
+  const prevHoveredObjectRef = useRef(null);
+  const lastHoveredIdRef = useRef(null);
+  const tooltipApiRef = useRef(null);
 
   // state
 
@@ -134,11 +143,15 @@ export default function MainThreedEditor() {
       // Update raycaster with camera and mouse position
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
 
-      // Get all objects in the scene that intersect with the ray
-      const intersects = raycasterRef.current.intersectObjects(
-        scene.children,
-        true
-      );
+      // Get all objects in the scene that intersect with the ray.
+      // Filter out non-mesh hits (Line / LineSegments). Three.js raycaster
+      // detects lines within `params.Line.threshold` (1 unit by default),
+      // so the black edge outlines added by extrudeClosedShape /
+      // extrudePolylineWall would otherwise trigger selection well before
+      // the cursor reaches the actual surface.
+      const intersects = raycasterRef.current
+        .intersectObjects(scene.children, true)
+        .filter((i) => i.object?.isMesh);
 
       // Find the first annotation object (check userData)
       for (const intersect of intersects) {
@@ -161,6 +174,20 @@ export default function MainThreedEditor() {
               })
             );
 
+            // Dispatch into selection slice so PopperEditAnnotation
+            // (which reads `selection.selectedItems` via useSelectedNodes)
+            // sees the selection and renders the toolbar.
+            dispatch(
+              setSelectedItem({
+                id: nodeId,
+                nodeId,
+                type: "NODE",
+                nodeType,
+                annotationType,
+                listingId,
+              })
+            );
+
             // Dispatch setAnnotationToolbarPosition at click location
             dispatch(
               setAnnotationToolbarPosition({
@@ -177,6 +204,7 @@ export default function MainThreedEditor() {
 
       // If no annotation was clicked, deselect
       dispatch(setSelectedNode(null));
+      dispatch(setSelectedItem(null));
       dispatch(setAnnotationToolbarPosition(null));
     },
     [dispatch, rendererIsReady, isThreedViewer]
@@ -255,6 +283,112 @@ export default function MainThreedEditor() {
     }
   }, [isWithinPopper]);
 
+  // Hover raycast — runs inside requestAnimationFrame to coalesce moves.
+  // Important: we MUST NOT trigger a React state change on MainThreedEditor
+  // here. Doing so re-runs `useAutoLoadAnnotationsInThreedEditor`, which
+  // calls `loadAnnotations` and destroys + recreates every annotation 3D
+  // object. The GLB then re-loads asynchronously, leaving the placeholder
+  // empty at the moment we try to apply the highlight. Tooltip state lives
+  // inside ThreedHoverTooltip (imperative API via tooltipApiRef).
+  const runHoverRaycast = useCallback(() => {
+    hoverRafRef.current = null;
+    const event = lastPointerEventRef.current;
+    if (!event) return;
+
+    const threedEditor = threedEditorRef.current;
+    if (!threedEditor || !rendererIsReady || !isThreedViewer) return;
+    const sceneManager = threedEditor.sceneManager;
+    const renderer = sceneManager?.renderer;
+    const camera = sceneManager?.camera;
+    const scene = sceneManager?.scene;
+    if (!renderer || !camera || !scene) return;
+
+    const domElement = renderer.domElement;
+    const rect = domElement.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycasterRef.current.setFromCamera(mouseRef.current, camera);
+
+    // Filter out non-mesh hits (edge LineSegments) — see handleClick.
+    const intersects = raycasterRef.current
+      .intersectObjects(scene.children, true)
+      .filter((i) => i.object?.isMesh);
+
+    let hit = null;
+    for (const intersect of intersects) {
+      let object = intersect.object;
+      while (object) {
+        if (object.userData?.nodeId) {
+          hit = object;
+          break;
+        }
+        object = object.parent;
+      }
+      if (hit) break;
+    }
+
+    const hitId = hit?.userData?.nodeId ?? null;
+    const containerRect = containerRef.current?.getBoundingClientRect();
+
+    if (hitId !== lastHoveredIdRef.current) {
+      // Restore previous, then apply new — using fresh references from THIS
+      // raycast pass (no scene.traverse needed, no useEffect lag).
+      if (prevHoveredObjectRef.current) {
+        applyHoverHighlight(prevHoveredObjectRef.current, false);
+        prevHoveredObjectRef.current = null;
+      }
+      if (hit) {
+        applyHoverHighlight(hit, true);
+        prevHoveredObjectRef.current = hit;
+      }
+      threedEditor.renderScene?.();
+
+      lastHoveredIdRef.current = hitId;
+
+      // Update tooltip via the child component's imperative API — no parent
+      // re-render. ThreedHoverTooltip owns its own annotations subscription.
+      if (hit && containerRect) {
+        const { nodeId, nodeType, annotationType, listingId } = hit.userData;
+        tooltipApiRef.current?.set(
+          { nodeId, nodeType, annotationType, listingId },
+          event.clientX - containerRect.left + 15,
+          event.clientY - containerRect.top + 15
+        );
+      } else {
+        tooltipApiRef.current?.clear();
+      }
+    }
+  }, [rendererIsReady, isThreedViewer]);
+
+  // Handle pointer move (drag tracking + schedule hover raycast)
+  const handleHoverPointerMove = useCallback(
+    (event) => {
+      lastPointerEventRef.current = event;
+      if (hoverRafRef.current == null) {
+        hoverRafRef.current = requestAnimationFrame(runHoverRaycast);
+      }
+    },
+    [runHoverRaycast]
+  );
+
+  // Reset hover when the pointer leaves the canvas.
+  const handlePointerLeave = useCallback(() => {
+    lastPointerEventRef.current = null;
+    if (hoverRafRef.current != null) {
+      cancelAnimationFrame(hoverRafRef.current);
+      hoverRafRef.current = null;
+    }
+    if (prevHoveredObjectRef.current) {
+      applyHoverHighlight(prevHoveredObjectRef.current, false);
+      prevHoveredObjectRef.current = null;
+      threedEditorRef.current?.renderScene?.();
+    }
+    lastHoveredIdRef.current = null;
+    tooltipApiRef.current?.clear();
+  }, []);
+
   // Handle pointer up - if not dragging, treat as click
   const handlePointerUp = useCallback(
     (event) => {
@@ -309,14 +443,41 @@ export default function MainThreedEditor() {
     const domElement = renderer.domElement;
     domElement.addEventListener("pointerdown", handlePointerDown);
     domElement.addEventListener("pointermove", handlePointerMove);
+    domElement.addEventListener("pointermove", handleHoverPointerMove);
+    domElement.addEventListener("pointerleave", handlePointerLeave);
     domElement.addEventListener("pointerup", handlePointerUp);
 
     return () => {
       domElement.removeEventListener("pointerdown", handlePointerDown);
       domElement.removeEventListener("pointermove", handlePointerMove);
+      domElement.removeEventListener("pointermove", handleHoverPointerMove);
+      domElement.removeEventListener("pointerleave", handlePointerLeave);
       domElement.removeEventListener("pointerup", handlePointerUp);
+      if (hoverRafRef.current != null) {
+        cancelAnimationFrame(hoverRafRef.current);
+        hoverRafRef.current = null;
+      }
     };
-  }, [rendererIsReady, handlePointerDown, handlePointerMove, handlePointerUp, isThreedViewer]);
+  }, [
+    rendererIsReady,
+    handlePointerDown,
+    handlePointerMove,
+    handleHoverPointerMove,
+    handlePointerLeave,
+    handlePointerUp,
+    isThreedViewer,
+  ]);
+
+  // Reset hover when leaving the 3D viewer.
+  useEffect(() => {
+    if (!isThreedViewer && prevHoveredObjectRef.current) {
+      applyHoverHighlight(prevHoveredObjectRef.current, false);
+      prevHoveredObjectRef.current = null;
+      lastHoveredIdRef.current = null;
+      tooltipApiRef.current?.clear();
+      threedEditorRef.current?.renderScene?.();
+    }
+  }, [isThreedViewer]);
 
   return (
     <Box
@@ -332,6 +493,7 @@ export default function MainThreedEditor() {
     >
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
+      {isThreedViewer && <ThreedHoverTooltip ref={tooltipApiRef} />}
       {isThreedViewer && (
         <Box sx={{ position: "absolute", top: 8, left: 8, zIndex: 1 }}>
           <IconButtonThreedProperties />

@@ -39,7 +39,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   const open =
     shouldShow &&
     isSingleSelection &&
-    ["MARKER", "POINT", "POLYLINE", "POLYGON", "IMAGE", "RECTANGLE", "STRIP"].includes(type) &&
+    ["MARKER", "POINT", "POLYLINE", "POLYGON", "IMAGE", "RECTANGLE", "STRIP", "OBJECT_3D"].includes(type) &&
     selectedNode?.nodeType === "ANNOTATION";
 
   // drag
