@@ -1013,6 +1013,9 @@ const InteractionLayer = forwardRef(({
 
   // Drawing modes that only select existing geometry (no smart detect needed)
   const SEGMENT_SELECT_MODES = ["TECHNICAL_RETURN", "CUT_SEGMENT"];
+  // Drawing modes whose action is a single click on existing geometry — show a
+  // pointer cursor and hide the ScreenCursor crosshair.
+  const POINTER_CLICK_MODES = [...SEGMENT_SELECT_MODES, "REASSIGN_TEMPLATE"];
   const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION"];
 
   const [showSmartDetect, setShowSmartDetect] = useState(false);
@@ -1545,7 +1548,7 @@ const InteractionLayer = forwardRef(({
   // 1. Calculer le style curseur du conteneur
   const getCursorStyle = () => {
     if (dragState?.active) return 'crosshair';
-    if (SEGMENT_SELECT_MODES.includes(enabledDrawingMode)) return 'pointer';
+    if (POINTER_CLICK_MODES.includes(enabledDrawingMode)) return 'pointer';
     if (enabledDrawingMode) return 'crosshair'; // Priorité 1           // Priorité 2
     return 'default';                           // Défaut
   };
@@ -2285,6 +2288,29 @@ const InteractionLayer = forwardRef(({
       return;
     }
 
+    // --- REASSIGN_TEMPLATE: click on an annotation to replace its template
+    // with the currently selected ANNOTATION_TEMPLATE (sticky cursor).
+    if (enabledDrawingMode === "REASSIGN_TEMPLATE") {
+      const nativeTarget = event.nativeEvent?.target || event.target;
+      const hit = nativeTarget.closest?.('[data-node-type="ANNOTATION"]');
+      if (hit) {
+        const annotation = annotations?.find((a) => a.id === hit.dataset?.nodeId);
+        const editTarget = selectedItems[0];
+        if (
+          editTarget?.type === "ANNOTATION_TEMPLATE" &&
+          editTarget.id &&
+          annotation &&
+          annotation.annotationTemplateId !== editTarget.id
+        ) {
+          await updateAnnotationService({
+            id: annotation.id,
+            annotationTemplateId: editTarget.id,
+          });
+        }
+      }
+      return;
+    }
+
     // --- TECHNICAL_RETURN: click on a segment to create 1m return ---
     if (enabledDrawingMode === "TECHNICAL_RETURN") {
       const nativeTarget = event.nativeEvent?.target || event.target;
@@ -2856,26 +2882,6 @@ const InteractionLayer = forwardRef(({
 
           console.log("debug_2701_clicked_annotation", annotation, panelAnchor)
 
-          // EDIT mode shortcut: replace annotation's template with the
-          // currently selected ANNOTATION_TEMPLATE (sticky cursor) and exit
-          // without overwriting the selection.
-          {
-            const editTarget = selectedItems[0];
-            if (
-              interactionMode === "EDIT" &&
-              editTarget?.type === "ANNOTATION_TEMPLATE" &&
-              editTarget.id &&
-              annotation &&
-              annotation.annotationTemplateId !== editTarget.id
-            ) {
-              await updateAnnotationService({
-                id: annotation.id,
-                annotationTemplateId: editTarget.id,
-              });
-              return;
-            }
-          }
-
           // --- 2.1. GESTION DES ANNOTATIONS ---
 
           let _selectedItems = [...selectedItems];
@@ -3194,7 +3200,7 @@ const InteractionLayer = forwardRef(({
     // D. SNAPPING
     // Correction : On autorise le snapping pendant le dessin (enabledDrawingMode)
     // On l'interdit seulement pour le Pan ou le Drag d'objets lourds
-    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
+    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || POINTER_CLICK_MODES.includes(enabledDrawingMode) || interactionMode === "SELECT";
 
     let snapResult;
     if (snappingEnabled && !preventSnapping) {
@@ -3620,12 +3626,15 @@ const InteractionLayer = forwardRef(({
 
     // --- CAS 1 & 2 : VERTEX ou PROJECTION — délégué à usePointDrag ---
     // Inclut la logique de permission + fork automatique pour les points partagés
-    handleVertexOrProjectionMouseDown(snap, e);
+    // En mode SELECT, les vertices restent visibles mais ne sont pas interactifs.
+    if (interactionMode !== "SELECT") {
+      handleVertexOrProjectionMouseDown(snap, e);
 
-    //snappingLayerRef.current?.update(null); // hide snapping circle // on hide au move
+      //snappingLayerRef.current?.update(null); // hide snapping circle // on hide au move
 
-    // FORCE CURSOR ON BODY
-    document.body.style.cursor = 'crosshair';
+      // FORCE CURSOR ON BODY
+      document.body.style.cursor = 'crosshair';
+    }
   };
 
 
@@ -4065,12 +4074,12 @@ const InteractionLayer = forwardRef(({
         // B. L'Override "Nucléaire" pour le mode dessin
         // Si on dessine, on force TOUS les enfants (& *) à avoir crosshair
         // Sauf pour les modes de sélection de segment (pointer)
-        ...(enabledDrawingMode && !SEGMENT_SELECT_MODES.includes(enabledDrawingMode) && {
+        ...(enabledDrawingMode && !POINTER_CLICK_MODES.includes(enabledDrawingMode) && {
           '& *': {
             cursor: 'crosshair !important',
           },
         }),
-        ...(SEGMENT_SELECT_MODES.includes(enabledDrawingMode) && {
+        ...(POINTER_CLICK_MODES.includes(enabledDrawingMode) && {
           '& *': {
             cursor: 'pointer !important',
           },
@@ -4085,7 +4094,7 @@ const InteractionLayer = forwardRef(({
         staticOverlay={
           <><ScreenCursorV2
             ref={screenCursorRef}
-            visible={(!!enabledDrawingMode && !SEGMENT_SELECT_MODES.includes(enabledDrawingMode)) || dragState?.active}
+            visible={(!!enabledDrawingMode && !POINTER_CLICK_MODES.includes(enabledDrawingMode)) || dragState?.active}
             newAnnotation={newAnnotation}
             rotationAngle={orthoSnapAngleOffset || 0}
             crosshairAxis={

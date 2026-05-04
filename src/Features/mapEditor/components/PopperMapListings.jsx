@@ -52,6 +52,8 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import Tune from "@mui/icons-material/Tune";
+import FilterAlt from "@mui/icons-material/FilterAlt";
+import FormatColorFill from "@mui/icons-material/FormatColorFill";
 import UnfoldLess from "@mui/icons-material/UnfoldLess";
 import UnfoldMore from "@mui/icons-material/UnfoldMore";
 import { Check, Close } from "@mui/icons-material";
@@ -453,7 +455,7 @@ function AnnotationTemplateRow({
   );
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
   const isEditTarget =
-    interactionMode === "EDIT" &&
+    (interactionMode === "EDIT" || interactionMode === "SELECT") &&
     selectedItem?.type === "ANNOTATION_TEMPLATE" &&
     selectedItem.id === annotationTemplate?.id;
 
@@ -505,16 +507,27 @@ function AnnotationTemplateRow({
     if (isEditing) return;
     switch (interactionMode) {
       case "EDIT":
-        handleSelectAsEditTarget();
-        return;
       case "SELECT":
-        onSoloToggle?.(annotationTemplate?.id, listingId);
+        handleEditTemplate();
         return;
       case "DRAW":
       default:
         handleStartDraw();
         return;
     }
+  };
+
+  const handleStartReassign = (e) => {
+    e.stopPropagation();
+    dispatch(setSelectedListingId(listingId));
+    dispatch(
+      setSelectedItem({
+        id: annotationTemplate?.id,
+        type: "ANNOTATION_TEMPLATE",
+        listingId,
+      })
+    );
+    dispatch(setEnabledDrawingMode("REASSIGN_TEMPLATE"));
   };
 
   const handleToolBtnClick = (e) => {
@@ -548,15 +561,22 @@ function AnnotationTemplateRow({
 
   const handleToggleHidden = async (e) => {
     e.stopPropagation();
-    if (soloMode && onSoloToggle) {
-      onSoloToggle(annotationTemplate.id, listingId);
-    } else {
-      await updateAnnotationTemplate({
-        ...annotationTemplate,
-        hidden: !annotationTemplate?.hidden,
-      });
-    }
+    await updateAnnotationTemplate({
+      ...annotationTemplate,
+      hidden: !annotationTemplate?.hidden,
+    });
   };
+
+  const handleSoloClick = (e) => {
+    e.stopPropagation();
+    onSoloToggle?.(annotationTemplate?.id, listingId);
+  };
+
+  const isSoloActive =
+    soloMode &&
+    soloListingId === listingId &&
+    soloVisibleTemplateIds?.length === 1 &&
+    soloVisibleTemplateIds[0] === annotationTemplate?.id;
 
   const handleStartEdit = (e) => {
     e.stopPropagation();
@@ -726,64 +746,118 @@ function AnnotationTemplateRow({
               </IconButton>
             </>
           ) : isHovered ? (
-            <>
-              {/* Properties button */}
-              <Tooltip title="Propriétés" arrow placement="bottom">
-                <IconButton
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditTemplate();
-                  }}
-                  sx={{
-                    p: 0.25,
-                    color:
-                      annotationTemplate?.fillColor ??
-                      annotationTemplate?.strokeColor ??
-                      "panel.textMuted",
-                  }}
-                >
-                  <Tune sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              {/* Active tool button */}
-              {ActiveToolIcon && (
-                <Tooltip title="Changer d'outil" arrow>
+            interactionMode === "EDIT" ? (
+              /* EDIT mode — reassign-template (paint bucket) + visibility */
+              <>
+                <Tooltip title="Modifier le modèle d'une annotation" arrow placement="bottom">
                   <IconButton
                     size="small"
-                    onClick={handleToolBtnClick}
+                    onClick={handleStartReassign}
                     sx={{
                       p: 0.5,
-                      bgcolor: Boolean(toolMenuAnchor)
-                        ? annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "grey.500"
-                        : alpha(annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "#999", 0.15),
-                      color: Boolean(toolMenuAnchor) ? "white" : annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "grey.500",
-                      borderRadius: 1,
-                      "&:hover": {
-                        bgcolor: annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "grey.500",
-                        color: "white",
-                      },
+                      color:
+                        annotationTemplate?.fillColor ??
+                        annotationTemplate?.strokeColor ??
+                        "panel.textMuted",
                     }}
                   >
-                    <ActiveToolIcon sx={{ fontSize: 16 }} />
+                    <FormatColorFill fontSize="inherit" sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Tooltip>
-              )}
-              {/* Visibility button */}
-              <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow placement="right">
-                <IconButton
-                  size="small"
-                  onClick={handleToggleHidden}
-                  sx={{ p: 0.5, color: isHidden ? "secondary.main" : "panel.iconMuted" }}
-                >
-                  {isHidden ? (
-                    <VisibilityOff fontSize="inherit" sx={{ fontSize: 16 }} />
-                  ) : (
-                    <Visibility fontSize="inherit" sx={{ fontSize: 16 }} />
-                  )}
-                </IconButton>
-              </Tooltip>
-            </>
+                <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow placement="right">
+                  <IconButton
+                    size="small"
+                    onClick={handleToggleHidden}
+                    sx={{ p: 0.5, color: isHidden ? "secondary.main" : "panel.iconMuted" }}
+                  >
+                    {isHidden ? (
+                      <VisibilityOff fontSize="inherit" sx={{ fontSize: 16 }} />
+                    ) : (
+                      <Visibility fontSize="inherit" sx={{ fontSize: 16 }} />
+                    )}
+                  </IconButton>
+                </Tooltip>
+              </>
+            ) : (
+              <>
+                {/* Properties + tool buttons hidden in SELECT mode (read-only) */}
+                {interactionMode !== "SELECT" && (
+                  <>
+                    {/* Properties button */}
+                    <Tooltip title="Propriétés" arrow placement="bottom">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditTemplate();
+                        }}
+                        sx={{
+                          p: 0.25,
+                          color:
+                            annotationTemplate?.fillColor ??
+                            annotationTemplate?.strokeColor ??
+                            "panel.textMuted",
+                        }}
+                      >
+                        <Tune sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                    {/* Active tool button */}
+                    {ActiveToolIcon && (
+                      <Tooltip title="Changer d'outil" arrow>
+                        <IconButton
+                          size="small"
+                          onClick={handleToolBtnClick}
+                          sx={{
+                            p: 0.5,
+                            bgcolor: Boolean(toolMenuAnchor)
+                              ? annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "grey.500"
+                              : alpha(annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "#999", 0.15),
+                            color: Boolean(toolMenuAnchor) ? "white" : annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "grey.500",
+                            borderRadius: 1,
+                            "&:hover": {
+                              bgcolor: annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "grey.500",
+                              color: "white",
+                            },
+                          }}
+                        >
+                          <ActiveToolIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </>
+                )}
+                {/* Visibility button */}
+                <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow placement="right">
+                  <IconButton
+                    size="small"
+                    onClick={handleToggleHidden}
+                    sx={{ p: 0.5, color: isHidden ? "secondary.main" : "panel.iconMuted" }}
+                  >
+                    {isHidden ? (
+                      <VisibilityOff fontSize="inherit" sx={{ fontSize: 16 }} />
+                    ) : (
+                      <Visibility fontSize="inherit" sx={{ fontSize: 16 }} />
+                    )}
+                  </IconButton>
+                </Tooltip>
+                {/* Solo button — only in SELECT mode */}
+                {interactionMode === "SELECT" && (
+                  <Tooltip title="Solo" arrow placement="right">
+                    <IconButton
+                      size="small"
+                      onClick={handleSoloClick}
+                      sx={{
+                        p: 0.5,
+                        color: isSoloActive ? "primary.main" : "panel.iconMuted",
+                      }}
+                    >
+                      <FilterAlt fontSize="inherit" sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </>
+            )
           ) : (
             <Typography
               align="right"
@@ -1353,7 +1427,23 @@ function PopperDrawingHelper() {
       </Box>
 
       <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
-        {!isSegmentSelectMode && <CardLoupe />}
+        {!isSegmentSelectMode && enabledDrawingMode !== "REASSIGN_TEMPLATE" && <CardLoupe />}
+        {enabledDrawingMode === "REASSIGN_TEMPLATE" && (
+          <Box
+            sx={{
+              px: 1.5,
+              py: 1.5,
+              borderRadius: 1,
+              bgcolor: "primary.main",
+              color: "primary.contrastText",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              textAlign: "center",
+            }}
+          >
+            Cliquez sur une annotation pour modifier son modèle
+          </Box>
+        )}
         {showSmartDetectCard && (
           <CardSmartDetect showOrientation={showOrientation} />
         )}
@@ -1759,21 +1849,33 @@ export default function PopperMapListings() {
             fullWidth
             onChange={handleInteractionModeChange}
           >
-            <Tooltip title="Dessin">
-              <ToggleButton value="DRAW" sx={{ flex: 1, py: 0.5 }}>
-                <DrawIcon sx={{ fontSize: 18 }} />
-              </ToggleButton>
-            </Tooltip>
-            <Tooltip title="Modifier l'annotation">
-              <ToggleButton value="EDIT" sx={{ flex: 1, py: 0.5 }}>
-                <SwapHorizIcon sx={{ fontSize: 18 }} />
-              </ToggleButton>
-            </Tooltip>
-            <Tooltip title="Sélectionner">
-              <ToggleButton value="SELECT" sx={{ flex: 1, py: 0.5 }}>
-                <IconPointer sx={{ fontSize: 18 }} />
-              </ToggleButton>
-            </Tooltip>
+            <ToggleButton
+              value="DRAW"
+              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25 }}
+            >
+              <DrawIcon sx={{ fontSize: 18 }} />
+              <Typography variant="caption" sx={{ fontSize: "10px", lineHeight: 1, textTransform: "none" }}>
+                Dessin
+              </Typography>
+            </ToggleButton>
+            <ToggleButton
+              value="SELECT"
+              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25 }}
+            >
+              <IconPointer sx={{ fontSize: 18 }} />
+              <Typography variant="caption" sx={{ fontSize: "10px", lineHeight: 1, textTransform: "none" }}>
+                Sélection
+              </Typography>
+            </ToggleButton>
+            <ToggleButton
+              value="EDIT"
+              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25 }}
+            >
+              <SwapHorizIcon sx={{ fontSize: 18 }} />
+              <Typography variant="caption" sx={{ fontSize: "10px", lineHeight: 1, textTransform: "none" }}>
+                Modification
+              </Typography>
+            </ToggleButton>
           </ToggleButtonGroup>
         </Box>
       )}
@@ -1888,39 +1990,43 @@ export default function PopperMapListings() {
                   ))}
                 </>}
 
-            {/* Outils section */}
-            <Box
-              sx={{
-                px: 1,
-                py: 0.5,
-                bgcolor: "panel.sectionBg",
-                borderTop: "1px solid",
-                borderColor: "panel.border",
-              }}
-            >
-              <Typography
-                variant="caption"
-                sx={{
-                  color: "panel.textMuted",
-                  fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  fontSize: "11px",
-                }}
-              >
-                Outils de découpe
-              </Typography>
-            </Box>
-            <List dense disablePadding>
-              {TOOL_ITEMS.map((tool) => (
-                <ToolRow
-                  key={tool.type}
-                  type={tool.type}
-                  label={tool.label}
-                  Icon={tool.Icon}
-                />
-              ))}
-            </List>
+            {/* Outils section — only in DRAW mode */}
+            {interactionMode === "DRAW" && (
+              <>
+                <Box
+                  sx={{
+                    px: 1,
+                    py: 0.5,
+                    bgcolor: "panel.sectionBg",
+                    borderTop: "1px solid",
+                    borderColor: "panel.border",
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "panel.textMuted",
+                      fontWeight: 700,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      fontSize: "11px",
+                    }}
+                  >
+                    Outils de découpe
+                  </Typography>
+                </Box>
+                <List dense disablePadding>
+                  {TOOL_ITEMS.map((tool) => (
+                    <ToolRow
+                      key={tool.type}
+                      type={tool.type}
+                      label={tool.label}
+                      Icon={tool.Icon}
+                    />
+                  ))}
+                </List>
+              </>
+            )}
 
           </Box>
         </>

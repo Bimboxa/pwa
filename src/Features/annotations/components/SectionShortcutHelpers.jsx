@@ -7,14 +7,18 @@ export default function SectionShortcutHelpers() {
     // data
 
     const newAnnotationType = useSelector((s) => s.annotations.newAnnotation?.type);
+    const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+    const isReassignMode = enabledDrawingMode === "REASSIGN_TEMPLATE";
 
     // Note: loupe size / constraint-length shortcuts are shown inline inside
     // CardLoupe and SectionSegmentLength respectively — no longer here.
     const shortcuts = [
-        {
-            key: <KeyboardReturnIcon sx={{ fontSize: '1rem' }} />,
-            label: "Terminer le dessin",
-        },
+        ...(isReassignMode
+            ? []
+            : [{
+                key: <KeyboardReturnIcon sx={{ fontSize: '1rem' }} />,
+                label: "Terminer le dessin",
+            }]),
         {
             key: "Esc",
             label: "Quitter le mode dessin",
