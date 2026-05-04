@@ -2,7 +2,8 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedViewerKey } from "../viewersSlice";
 
-import { IconButton, Typography, Paper } from "@mui/material";
+import { Button, Typography } from "@mui/material";
+import { ArrowRightAlt } from "@mui/icons-material";
 
 export default function ButtonToggleThreedViewer() {
   const dispatch = useDispatch();
@@ -11,27 +12,25 @@ export default function ButtonToggleThreedViewer() {
 
   const isThreed = selectedViewerKey === "THREED";
 
+  const buttonLabel = isThreed ? "2D" : "3D";
+
   function handleClick() {
     dispatch(setSelectedViewerKey(isThreed ? "MAP" : "THREED"));
   }
 
   return (
-    <Paper
-      sx={{
-        borderRadius: "8px",
-        bgcolor: "secondary.main",
-        width: "30px",
-        height: "30px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
+    <Button
+      startIcon={<ArrowRightAlt />}
+      variant="outlined"
+      color="secondary"
+      size="small"
+      onClick={handleClick}
+      sx={{ borderRadius: "8px", border: theme => `1px solid ${theme.palette.secondary.main}` }}
     >
-      <IconButton onClick={handleClick} sx={{ borderRadius: "8px" }}>
-        <Typography variant="body2" color="white">
-          {isThreed ? "2D" : "3D"}
-        </Typography>
-      </IconButton>
-    </Paper>
+      <Typography variant="body2">
+        {buttonLabel}
+      </Typography>
+    </Button>
+
   );
 }
