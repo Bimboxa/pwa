@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   Card,
+  CircularProgress,
   Divider,
   FormControlLabel,
   IconButton,
@@ -48,6 +49,9 @@ export default function IconButtonThreedProperties() {
   async function handleDownloadUsdz() {
     if (usdzExporting) return;
     setUsdzExporting(true);
+    // Yield to the browser so the spinner gets painted before the heavy
+    // synchronous portion of the USDZ encode (texture bitmap reads + zip).
+    await new Promise((r) => requestAnimationFrame(r));
     try {
       await exportSceneAsUsdzService("scene.usdz");
     } catch (e) {
@@ -118,7 +122,13 @@ export default function IconButtonThreedProperties() {
               size="small"
               variant="outlined"
               fullWidth
-              startIcon={<ViewInAr sx={{ fontSize: 16 }} />}
+              startIcon={
+                usdzExporting ? (
+                  <CircularProgress size={14} thickness={5} />
+                ) : (
+                  <ViewInAr sx={{ fontSize: 16 }} />
+                )
+              }
               disabled={usdzExporting}
               onClick={handleDownloadUsdz}
             >
