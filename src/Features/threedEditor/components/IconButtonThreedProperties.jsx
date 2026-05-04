@@ -115,8 +115,6 @@ export default function IconButtonThreedProperties() {
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.25 }}>
               Export USDZ de la scène (fond de plan + objets 3D avec textures).
-              Format AR Quick Look natif iPhone : ouvrez le fichier dans
-              Fichiers ou Safari pour le visualiser.
             </Typography>
             <Button
               size="small"

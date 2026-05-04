@@ -35,6 +35,13 @@ function buildExportScene(sourceScene) {
     cloned.matrixAutoUpdate = true;
     exportScene.add(cloned);
   });
+
+  // USDZExporter reads object.matrixWorld, not object.matrix. Without this
+  // call each cloned mesh's matrixWorld is still its constructor default
+  // (identity), so the source's world rotation — including the basemap's
+  // -π/2 X rotation that lays it flat on the XZ plane — is silently lost
+  // and the basemap exports as a vertical wall.
+  exportScene.updateMatrixWorld(true);
   return exportScene;
 }
 

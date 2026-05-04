@@ -8,6 +8,7 @@ export default function useDeleteProject() {
       .equals(projectId)
       .toArray();
     const listingIds = listings.map((l) => l.id);
+    const listingKeys = listings.map((l) => l.key).filter(Boolean);
 
     let mapIds = [];
     if (listingIds.length > 0) {
@@ -50,7 +51,12 @@ export default function useDeleteProject() {
         await db.files.where("listingId").anyOf(listingIds).delete();
         await db.zonings.where("listingId").anyOf(listingIds).delete();
         await db.relsZoneEntity.where("listingId").anyOf(listingIds).delete();
-        await db.entitiesProps.where("listingId").anyOf(listingIds).delete();
+        if (listingKeys.length > 0) {
+          await db.entitiesProps
+            .where("listingKey")
+            .anyOf(listingKeys)
+            .delete();
+        }
         await db.legends.where("listingId").anyOf(listingIds).delete();
         await db.relationsEntities
           .where("listingId")
