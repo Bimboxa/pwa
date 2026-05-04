@@ -21,6 +21,7 @@ import applyAnnotationMaterialState, {
   STATE_NONE,
 } from "Features/threedEditor/js/utilsAnnotationsManager/applyAnnotationMaterialState";
 import ThreedHoverTooltip from "./ThreedHoverTooltip";
+import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
 import ThreedSelectionDimmer from "./ThreedSelectionDimmer";
 
 import { Box } from "@mui/material";
@@ -546,6 +547,7 @@ export default function MainThreedEditor() {
     >
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
+      {isThreedViewer && <ThreedPopperEditAnnotations />}
       {isThreedViewer && <ThreedHoverTooltip ref={tooltipApiRef} />}
       {isThreedViewer && (
         <ThreedSelectionDimmer
