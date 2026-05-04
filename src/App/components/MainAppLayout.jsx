@@ -31,8 +31,7 @@ import DialogAutoDownloadListingsData from "Features/listingsConfig/components/D
 import DialogAutoAddListing from "Features/listings/components/DialogAutoAddListing";
 import DialogAutoScopeCreator from "Features/scopeCreator/components/DialogAutoScopeCreator";
 import DialogBaseMapCreator from "Features/baseMapCreator/components/DialogBaseMapCreator";
-
-
+import SyncDialogsContainer from "Features/remoteScopeConfigurations/components/SyncDialogsContainer";
 
 export default function MainAppLayout() {
   const dispatch = useDispatch();
@@ -74,19 +73,19 @@ export default function MainAppLayout() {
 
   return (
     <DndContext sensors={sensors}>
-        <Box
-          sx={{
-            position: "fixed",
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0,
-            display: "flex",
-          }}
-        >
-          {deviceType === "DESKTOP" && <LayoutDesktop />}
-          {deviceType === "MOBILE" && <LayoutMobile />}
-        </Box>
+      <Box
+        sx={{
+          position: "fixed",
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          display: "flex",
+        }}
+      >
+        {deviceType === "DESKTOP" && <LayoutDesktop />}
+        {deviceType === "MOBILE" && <LayoutMobile />}
+      </Box>
       <Toaster />
       <PageLanding />
       {/* {!openLandingPage && (warningWasShowed || !remoteContainer) && (
@@ -99,6 +98,7 @@ export default function MainAppLayout() {
       <DialogAutoAddListing />
       <DialogAutoScopeCreator />
       <DialogBaseMapCreator />
+      <SyncDialogsContainer />
     </DndContext>
   );
 }
