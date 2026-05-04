@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
-import { Raycaster, Vector2 } from "three";
+import { Box3, Raycaster, Vector2, Vector3 } from "three";
 
 import useAutoLoadMapsInThreedEditor from "../hooks/useAutoLoadMapsInThreedEditor";
 import useAutoLoadAnnotationsInThreedEditor from "../hooks/useAutoLoadAnnotationsInThreedEditor";
@@ -11,6 +11,7 @@ import {
 } from "Features/mapEditor/mapEditorSlice";
 import {
   setSelectedItem,
+  setSelectedItems,
   toggleItemSelection,
 } from "Features/selection/selectionSlice";
 
@@ -21,6 +22,7 @@ import applyAnnotationMaterialState, {
   STATE_NONE,
 } from "Features/threedEditor/js/utilsAnnotationsManager/applyAnnotationMaterialState";
 import ThreedHoverTooltip from "./ThreedHoverTooltip";
+import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
 import ThreedSelectionDimmer from "./ThreedSelectionDimmer";
 
@@ -48,6 +50,13 @@ export default function MainThreedEditor() {
   const prevHoveredObjectRef = useRef(null);
   const lastHoveredIdRef = useRef(null);
   const tooltipApiRef = useRef(null);
+  // Lasso (shift+drag) state
+  const lassoStartRef = useRef(null); // { x, y } in client coords, or null
+  const lassoRectRef = useRef(null); // current rect (client coords)
+  const lassoOverlayRef = useRef(null); // imperative API of <ThreedLassoOverlay />
+  const orbitWasEnabledRef = useRef(true); // remember orbit state to restore
+  const lassoLiveIdsRef = useRef(new Set()); // ids currently shown as green during the drag
+  const lassoPreviewRafRef = useRef(null); // rAF handle for the preview pass
 
   // state
 
@@ -298,6 +307,162 @@ export default function MainThreedEditor() {
     return false;
   }, []);
 
+  // Lasso helpers ---------------------------------------------------------
+
+  // Compute the screen-space (client) center of an annotation 3D object.
+  // Returns null if the object has no renderable geometry (e.g. an OBJECT_3D
+  // placeholder whose GLB hasn't loaded yet).
+  const projectAnnotationToClient = useCallback((object3D, camera, canvasRect) => {
+    const box = new Box3();
+    box.makeEmpty();
+    box.setFromObject(object3D);
+    if (box.isEmpty() || !isFinite(box.min.x)) return null;
+    const center = new Vector3();
+    box.getCenter(center);
+    center.project(camera); // → NDC space [-1, 1]
+    const sx = canvasRect.left + (center.x * 0.5 + 0.5) * canvasRect.width;
+    const sy = canvasRect.top + (-center.y * 0.5 + 0.5) * canvasRect.height;
+    return { x: sx, y: sy };
+  }, []);
+
+  // Imperatively diff the set of annotations whose center is inside the
+  // current lasso rect against the previously-shown set, and toggle their
+  // material between HOVER (inside) and their normal non-hover state
+  // (outside). No React state is touched — re-rendering MainThreedEditor on
+  // every pointermove during the drag would re-fire
+  // useAutoLoadAnnotationsInThreedEditor and destroy + recreate every 3D
+  // object.
+  const runLassoLivePreview = useCallback(() => {
+    lassoPreviewRafRef.current = null;
+    const rect = lassoRectRef.current;
+    if (!rect) return;
+
+    const editor = threedEditorRef.current;
+    const camera = editor?.sceneManager?.camera;
+    const renderer = editor?.sceneManager?.renderer;
+    const map = editor?.sceneManager?.annotationsManager?.annotationsObjectsMap;
+    if (!camera || !renderer || !map) return;
+
+    const canvasRect = renderer.domElement.getBoundingClientRect();
+    const newSet = new Set();
+    for (const id in map) {
+      const object = map[id];
+      if (!object) continue;
+      const point = projectAnnotationToClient(object, camera, canvasRect);
+      if (!point) continue;
+      if (
+        point.x >= rect.x &&
+        point.x <= rect.x + rect.width &&
+        point.y >= rect.y &&
+        point.y <= rect.y + rect.height
+      ) {
+        newSet.add(id);
+      }
+    }
+
+    let changed = false;
+    const prev = lassoLiveIdsRef.current;
+    // Newly entered → green
+    for (const id of newSet) {
+      if (!prev.has(id)) {
+        applyAnnotationMaterialState(map[id], STATE_HOVER);
+        changed = true;
+      }
+    }
+    // Newly left → restore non-hover state (DIM if a selection exists and id
+    // not in it, else NONE). Note the "current" selection is the one BEFORE
+    // the lasso commits; that's exactly the state we want during preview.
+    for (const id of prev) {
+      if (!newSet.has(id)) {
+        applyAnnotationMaterialState(map[id], getStateForId(id, false));
+        changed = true;
+      }
+    }
+    lassoLiveIdsRef.current = newSet;
+    if (changed) editor.renderScene?.();
+  }, [getStateForId, projectAnnotationToClient]);
+
+  const finalizeLasso = useCallback(() => {
+    const startCoords = lassoStartRef.current;
+    const rect = lassoRectRef.current;
+
+    // Always re-enable orbit controls and clear visual state.
+    const controls = threedEditorRef.current?.sceneManager?.controlsManager?.orbitControls;
+    if (controls) controls.enabled = orbitWasEnabledRef.current;
+    lassoStartRef.current = null;
+    lassoRectRef.current = null;
+    lassoOverlayRef.current?.clear();
+
+    // Cancel any pending preview tick and restore items currently shown as
+    // green. The dimmer effect will re-apply correct state right after the
+    // selection dispatch below; this restoration just avoids a 1-frame flash
+    // for items that were green during the drag.
+    if (lassoPreviewRafRef.current != null) {
+      cancelAnimationFrame(lassoPreviewRafRef.current);
+      lassoPreviewRafRef.current = null;
+    }
+    if (lassoLiveIdsRef.current.size > 0) {
+      const map =
+        threedEditorRef.current?.sceneManager?.annotationsManager
+          ?.annotationsObjectsMap || {};
+      for (const id of lassoLiveIdsRef.current) {
+        const obj = map[id];
+        if (obj) applyAnnotationMaterialState(obj, getStateForId(id, false));
+      }
+      lassoLiveIdsRef.current = new Set();
+      threedEditorRef.current?.renderScene?.();
+    }
+
+    if (!startCoords || !rect) return;
+    // Treat tiny rectangles as a click (not a lasso) — handlePointerUp will
+    // forward to handleClick which already handles shift+click.
+    if (rect.width < 5 && rect.height < 5) return;
+
+    const editor = threedEditorRef.current;
+    const camera = editor?.sceneManager?.camera;
+    const renderer = editor?.sceneManager?.renderer;
+    const manager = editor?.sceneManager?.annotationsManager;
+    if (!camera || !renderer || !manager) return;
+
+    const canvasRect = renderer.domElement.getBoundingClientRect();
+    const map = manager.annotationsObjectsMap || {};
+
+    const newItems = [];
+    Object.entries(map).forEach(([id, object]) => {
+      if (!object) return;
+      const point = projectAnnotationToClient(object, camera, canvasRect);
+      if (!point) return;
+      const inside =
+        point.x >= rect.x &&
+        point.x <= rect.x + rect.width &&
+        point.y >= rect.y &&
+        point.y <= rect.y + rect.height;
+      if (!inside) return;
+      const { nodeId, nodeType, annotationType, listingId } = object.userData || {};
+      if (!nodeId) return;
+      newItems.push({
+        id: nodeId,
+        nodeId,
+        type: "NODE",
+        nodeType,
+        annotationType,
+        listingId,
+      });
+    });
+
+    // Lasso replaces the selection (matches the 2D editor).
+    dispatch(setSelectedItems(newItems));
+    dispatch(setSelectedNode(null));
+    if (newItems.length > 0) {
+      const anchor = { x: startCoords.x, y: startCoords.y };
+      dispatch(setAnnotationToolbarPosition(anchor));
+      dispatch(setAnnotationsToolbarPosition(anchor));
+    } else {
+      dispatch(setAnnotationToolbarPosition(null));
+      dispatch(setAnnotationsToolbarPosition(null));
+    }
+  }, [dispatch, projectAnnotationToClient, getStateForId]);
+
   // Handle pointer down to detect drags
   const handlePointerDown = useCallback((event) => {
     // Don't start drag tracking if clicking on popper
@@ -306,7 +471,33 @@ export default function MainThreedEditor() {
     }
     isDraggingRef.current = false;
     dragStartRef.current = { x: event.clientX, y: event.clientY };
-  }, [isWithinPopper]);
+
+    // Shift+left button starts a lasso. Disable OrbitControls during the drag
+    // so the camera doesn't rotate, and remember its previous state so we can
+    // restore it on release.
+    if (event.shiftKey && event.button === 0) {
+      lassoStartRef.current = { x: event.clientX, y: event.clientY };
+      lassoRectRef.current = { x: event.clientX, y: event.clientY, width: 0, height: 0 };
+      lassoOverlayRef.current?.setRect(lassoRectRef.current);
+      const controls = threedEditorRef.current?.sceneManager?.controlsManager?.orbitControls;
+      if (controls) {
+        orbitWasEnabledRef.current = controls.enabled;
+        controls.enabled = false;
+      }
+      // Drop any pre-existing hover state so it doesn't stay stuck green
+      // while the lasso preview is in charge.
+      if (prevHoveredObjectRef.current) {
+        const prevId = prevHoveredObjectRef.current.userData?.nodeId;
+        applyAnnotationMaterialState(
+          prevHoveredObjectRef.current,
+          getStateForId(prevId, false)
+        );
+        prevHoveredObjectRef.current = null;
+      }
+      lastHoveredIdRef.current = null;
+      tooltipApiRef.current?.clear();
+    }
+  }, [isWithinPopper, getStateForId]);
 
   // Handle pointer move to detect if user is dragging
   const handlePointerMove = useCallback((event) => {
@@ -321,7 +512,23 @@ export default function MainThreedEditor() {
         isDraggingRef.current = true;
       }
     }
-  }, [isWithinPopper]);
+    // Update lasso rectangle during shift+drag.
+    if (lassoStartRef.current) {
+      const startX = lassoStartRef.current.x;
+      const startY = lassoStartRef.current.y;
+      const x = Math.min(startX, event.clientX);
+      const y = Math.min(startY, event.clientY);
+      const width = Math.abs(event.clientX - startX);
+      const height = Math.abs(event.clientY - startY);
+      lassoRectRef.current = { x, y, width, height };
+      lassoOverlayRef.current?.setRect(lassoRectRef.current);
+      // Coalesce live-preview passes into a single rAF tick so we don't
+      // re-project every annotation on every pixel of pointermove.
+      if (lassoPreviewRafRef.current == null) {
+        lassoPreviewRafRef.current = requestAnimationFrame(runLassoLivePreview);
+      }
+    }
+  }, [isWithinPopper, runLassoLivePreview]);
 
   // Hover raycast — runs inside requestAnimationFrame to coalesce moves.
   // Important: we MUST NOT trigger a React state change on MainThreedEditor
@@ -334,6 +541,12 @@ export default function MainThreedEditor() {
     hoverRafRef.current = null;
     const event = lastPointerEventRef.current;
     if (!event) return;
+
+    // While a lasso drag is in progress the live preview owns the green
+    // state — let it manage which objects are highlighted. Running the hover
+    // un-hover path here would overwrite the lasso preview when the cursor
+    // moves off an object that's still inside the rect.
+    if (lassoStartRef.current) return;
 
     const threedEditor = threedEditorRef.current;
     if (!threedEditor || !rendererIsReady || !isThreedViewer) return;
@@ -437,6 +650,32 @@ export default function MainThreedEditor() {
     }
     lastHoveredIdRef.current = null;
     tooltipApiRef.current?.clear();
+
+    // Cancel any in-flight lasso so the rectangle doesn't stay stuck on
+    // screen and OrbitControls is restored.
+    if (lassoStartRef.current) {
+      const controls = threedEditorRef.current?.sceneManager?.controlsManager?.orbitControls;
+      if (controls) controls.enabled = orbitWasEnabledRef.current;
+      lassoStartRef.current = null;
+      lassoRectRef.current = null;
+      lassoOverlayRef.current?.clear();
+
+      if (lassoPreviewRafRef.current != null) {
+        cancelAnimationFrame(lassoPreviewRafRef.current);
+        lassoPreviewRafRef.current = null;
+      }
+      if (lassoLiveIdsRef.current.size > 0) {
+        const map =
+          threedEditorRef.current?.sceneManager?.annotationsManager
+            ?.annotationsObjectsMap || {};
+        for (const id of lassoLiveIdsRef.current) {
+          const obj = map[id];
+          if (obj) applyAnnotationMaterialState(obj, getStateForId(id, false));
+        }
+        lassoLiveIdsRef.current = new Set();
+        threedEditorRef.current?.renderScene?.();
+      }
+    }
   }, [getStateForId]);
 
   // Handle pointer up - if not dragging, treat as click
@@ -448,6 +687,21 @@ export default function MainThreedEditor() {
         isDraggingRef.current = false;
         dragStartRef.current = { x: 0, y: 0 };
         return;
+      }
+
+      // If a lasso was started on shift+down: finalize it (runs hit-test if
+      // the drag was significant) and skip the click path.
+      if (lassoStartRef.current) {
+        const rect = lassoRectRef.current;
+        const wasRealDrag = rect && (rect.width >= 5 || rect.height >= 5);
+        finalizeLasso();
+        if (wasRealDrag) {
+          isDraggingRef.current = false;
+          dragStartRef.current = { x: 0, y: 0 };
+          return;
+        }
+        // Tiny shift+drag — fall through so handleClick handles it as a
+        // shift+click toggle.
       }
 
       if (!isDraggingRef.current) {
@@ -480,7 +734,7 @@ export default function MainThreedEditor() {
       isDraggingRef.current = false;
       dragStartRef.current = { x: 0, y: 0 };
     },
-    [handleClick]
+    [handleClick, finalizeLasso]
   );
 
   // Add event listeners to renderer DOM element (only when THREED viewer is active)
@@ -549,6 +803,7 @@ export default function MainThreedEditor() {
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
       {isThreedViewer && <ThreedHoverTooltip ref={tooltipApiRef} />}
+      {isThreedViewer && <ThreedLassoOverlay ref={lassoOverlayRef} />}
       {isThreedViewer && (
         <ThreedSelectionDimmer
           threedEditorRef={threedEditorRef}
