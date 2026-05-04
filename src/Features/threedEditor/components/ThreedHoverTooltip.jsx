@@ -25,6 +25,7 @@ const ThreedHoverTooltip = forwardRef((_, ref) => {
   const annotations = useAnnotationsV2({
     caller: "ThreedHoverTooltip",
     enabled: true,
+    withEntity: true,
     filterByMainBaseMap: true,
     filterBySelectedScope: true,
     sortByOrderIndex: true,

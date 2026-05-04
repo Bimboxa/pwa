@@ -13,7 +13,7 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y }, ref) => {
 
     // helper - entity
     const entity = annotation?.entity;
-    const entityLabel = annotation?.label;
+    const entityLabel = entity ? annotation?.label : null;
     const entityDescription = entity?.description;
 
     // helper - image
