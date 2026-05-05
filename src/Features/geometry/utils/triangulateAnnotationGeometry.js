@@ -25,6 +25,7 @@ import { Vector2, ShapeUtils } from "three";
 export default function triangulateAnnotationGeometry({
   contour,
   holes = [],
+  innerPoints = [],
   height = 0,
   verticalLift = 0,
   unitScale = 1,
@@ -43,9 +44,22 @@ export default function triangulateAnnotationGeometry({
 
   // triangulateShape returns triangle index triplets [i, j, k] over the
   // concatenated [contour, ...holes] flat array.
-  const tris = ShapeUtils.triangulateShape(contourV2, holesV2) || [];
+  let tris = ShapeUtils.triangulateShape(contourV2, holesV2) || [];
 
-  const flatPts = [contour, ...validHoles].flat();
+  let flatPts = [contour, ...validHoles].flat();
+
+  // Steiner points (POLYGON innerPoints) — each interior point becomes a new
+  // vertex in the mesh, splitting the triangle that contains it into three
+  // sub-triangles. This makes interior offsetBottom / offsetTop deform the
+  // top face like a tent pole.
+  const validInner = dedupeByCoord(
+    (innerPoints || []).filter((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y))
+  );
+  if (validInner.length > 0) {
+    const result = insertSteinerPoints(tris, flatPts, validInner);
+    tris = result.tris;
+    flatPts = result.flatPts;
+  }
   const isExtruded = height > 0;
 
   const positions = [];
@@ -184,6 +198,85 @@ function ringPlanarArea(ring) {
 
 function triPlanarArea(a, b, c) {
   return ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) / 2;
+}
+
+// Drop interior points whose (x, y) duplicate one another within ε, keeping
+// the first occurrence. Avoids degenerate sub-triangles when the same logical
+// point ends up listed twice.
+function dedupeByCoord(pts, eps = 1e-6) {
+  const seen = new Set();
+  const out = [];
+  for (const p of pts) {
+    const key = `${Math.round(p.x / eps)}:${Math.round(p.y / eps)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(p);
+  }
+  return out;
+}
+
+// Insert each Steiner point into the triangle that contains it, splitting that
+// triangle into three sub-triangles meeting at the new vertex. Each subsequent
+// inner point is inserted into the (possibly already split) current triangle
+// list, so multiple inner points compose correctly.
+//
+// O(n × t) with n = innerPoints count and t = current triangle count. For
+// hand-drawn polygons (n ≤ ~5, t ≤ ~30) this is essentially free.
+function insertSteinerPoints(initialTris, initialFlatPts, innerPoints) {
+  let tris = initialTris.slice();
+  const flatPts = initialFlatPts.slice();
+
+  for (const p of innerPoints) {
+    const newIdx = flatPts.length;
+    flatPts.push(p);
+
+    const hostIdx = findContainingTriangle(tris, flatPts, p);
+    if (hostIdx < 0) {
+      // p is not strictly inside any triangle (could be exactly on an edge
+      // or numerically just outside). Drop it from the mesh — it remains in
+      // flatPts but does not affect the top face. The user-visible 2D handle
+      // still renders at the original position.
+      continue;
+    }
+
+    const [a, b, c] = tris[hostIdx];
+    const subTris = [
+      [newIdx, a, b],
+      [newIdx, b, c],
+      [newIdx, c, a],
+    ];
+    tris = [...tris.slice(0, hostIdx), ...subTris, ...tris.slice(hostIdx + 1)];
+  }
+
+  return { tris, flatPts };
+}
+
+// Find the index of the triangle in `tris` that contains point `p`. Returns
+// -1 if no triangle contains it. Uses a strict (open) inclusion test so points
+// exactly on an edge are not assigned to either side.
+function findContainingTriangle(tris, flatPts, p) {
+  for (let i = 0; i < tris.length; i++) {
+    const [ia, ib, ic] = tris[i];
+    if (pointInTriangle(p, flatPts[ia], flatPts[ib], flatPts[ic])) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+// Strict point-in-triangle test using sign of cross products. Returns true
+// only if all three signs match (point is strictly inside, not on an edge).
+function pointInTriangle(p, a, b, c) {
+  const d1 = sign(p, a, b);
+  const d2 = sign(p, b, c);
+  const d3 = sign(p, c, a);
+  const hasNeg = d1 < 0 || d2 < 0 || d3 < 0;
+  const hasPos = d1 > 0 || d2 > 0 || d3 > 0;
+  return !(hasNeg && hasPos);
+}
+
+function sign(p, q, r) {
+  return (p.x - r.x) * (q.y - r.y) - (q.x - r.x) * (p.y - r.y);
 }
 
 // Sum 3D triangle areas in the [start, count] index slice using the actual

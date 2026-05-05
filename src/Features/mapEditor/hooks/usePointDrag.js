@@ -106,14 +106,19 @@ export default function usePointDrag({
         // Fork automatique si des annotations étrangères partagent ce point
         const isPotentialDuplicate = mustFork || !!selectedAnnotationHasPoint;
 
-        // Calcul des IDs affectés (toutes les annotations contenant ce point)
+        // Calcul des IDs affectés (toutes les annotations contenant ce point,
+        // que ce soit dans le contour, un cut, ou les inner Steiner points).
+        // Ces IDs sont passés à setHiddenAnnotationIds pour cacher le rendu
+        // statique pendant le drag, laissant le TransientTopologyLayer afficher
+        // la prévisualisation à la position courante.
         const affectedIds = _annotations
           .filter((ann) => {
             const inMain = ann.points?.some((pt) => pt.id === pointId);
             const inCuts = ann.cuts?.some((cut) =>
               cut.points?.some((pt) => pt.id === pointId)
             );
-            return inMain || inCuts;
+            const inInner = ann.innerPoints?.some((pt) => pt.id === pointId);
+            return inMain || inCuts || inInner;
           })
           .map((ann) => ann.id);
 

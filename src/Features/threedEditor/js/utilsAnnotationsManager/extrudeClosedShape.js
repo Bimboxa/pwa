@@ -80,13 +80,13 @@ function tracePath(path, points) {
 // Lift closed surfaces slightly above the basemap plane to avoid z-fighting.
 const Z_FIGHT_OFFSET = 0.001;
 
-function hasPerVertexZ(points, holes) {
+function hasPerVertexZ(points, holes, innerPoints) {
   const ringHas = (ring) =>
     (ring || []).some((p) => (p?.offsetBottom ?? 0) !== 0 || (p?.offsetTop ?? 0) !== 0);
-  return ringHas(points) || (holes || []).some(ringHas);
+  return ringHas(points) || (holes || []).some(ringHas) || ringHas(innerPoints);
 }
 
-export default function extrudeClosedShape(points, height, material, holes, verticalLift = 0) {
+export default function extrudeClosedShape(points, height, material, holes, verticalLift = 0, innerPoints = []) {
   if (!points || points.length < 3) return null;
 
   const isExtruded = height && height > 0;
@@ -96,8 +96,13 @@ export default function extrudeClosedShape(points, height, material, holes, vert
   // ExtrudeGeometry construction (zero behavior change for existing data).
   // Per-vertex-Z path uses the shared triangulation utility — same util used by
   // getAnnotationQties, so visuals and quantities stay consistent.
+  // The presence of innerPoints (Steiner points) forces the per-vertex-Z path
+  // even if no offsets are set yet — otherwise the fast Shape/ExtrudeGeometry
+  // path would silently drop them, which is confusing during authoring.
+  const hasInnerPoints = Array.isArray(innerPoints) && innerPoints.length > 0;
+
   let geometry;
-  if (!hasPerVertexZ(points, holes)) {
+  if (!hasPerVertexZ(points, holes, innerPoints) && !hasInnerPoints) {
     const shape = new Shape();
     tracePath(shape, points);
     if (holes && holes.length) {
@@ -116,6 +121,7 @@ export default function extrudeClosedShape(points, height, material, holes, vert
     const tri = triangulateAnnotationGeometry({
       contour: points,
       holes,
+      innerPoints,
       height: isExtruded ? height : 0,
       verticalLift,
       zFightOffset: Z_FIGHT_OFFSET,

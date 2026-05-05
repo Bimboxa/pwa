@@ -743,20 +743,23 @@ export default function NodePolylineStatic({
         return { transform: `scale(calc(1 / (var(--map-zoom, 1) * ${k})))` };
     }, [containerK, scalesWithZoom]);
 
-    const renderVertex = (pt, cutIndex) => {
+    const renderVertex = (pt, cutIndex, source) => {
         const isPointSelected = selectedPointId === pt.id || selectedPointIds.includes(pt.id);
         const isCircle = pt.type === "circle";
         const isCut = cutIndex !== undefined && cutIndex !== null;
+        const isInner = source === "INNER";
+        const keyPrefix = isInner ? "inner" : isCut ? `cut-${cutIndex}` : "main";
 
         return (
             <g
-                key={isCut ? `cut-${cutIndex}-${pt.id}` : pt.id}
+                key={`${keyPrefix}-${pt.id}`}
                 transform={`translate(${pt.x}, ${pt.y})`}
                 style={{ cursor: isTransient ? 'crosshair' : 'pointer', pointerEvents: 'all' }}
                 data-node-type="VERTEX"
                 data-point-id={pt.id}
                 data-annotation-id={annotationId}
                 {...(isCut ? { "data-cut-index": cutIndex } : {})}
+                {...(isInner ? { "data-inner": "1" } : {})}
             >
                 <g style={{ transform: vertexScaleTransform }}>
                     {isCircle ? (
@@ -780,15 +783,21 @@ export default function NodePolylineStatic({
     };
 
     // --- FILTRAGE DES POINTS À AFFICHER ---
-    // Each entry is { point, cutIndex } where cutIndex is undefined for the outer contour
-    // and an index into mergedAnnotation.cuts for hole points. The cutIndex flows into
-    // renderVertex so the SVG vertex carries data-cut-index, allowing InteractionLayer
-    // and PanelPropertiesPoints to address points inside a cut.
+    // Each entry is { point, cutIndex, source } where:
+    //   - cutIndex is undefined for the outer contour and inner points,
+    //     and an index into mergedAnnotation.cuts for hole points.
+    //   - source is "INNER" for points coming from mergedAnnotation.innerPoints
+    //     (Steiner points dropped via the ADD_INNER_POINT tool), undefined
+    //     otherwise.
+    // The cutIndex/source flow into renderVertex so the SVG vertex carries
+    // data-cut-index / data-inner, allowing InteractionLayer and
+    // PanelPropertiesPoints to address points across all rings.
     const allPointEntries = [
-        ...(mergedAnnotation.points || []).map((p) => ({ point: p, cutIndex: undefined })),
+        ...(mergedAnnotation.points || []).map((p) => ({ point: p, cutIndex: undefined, source: undefined })),
         ...(mergedAnnotation.cuts || []).flatMap((c, ci) =>
-            (c?.points || []).map((p) => ({ point: p, cutIndex: ci }))
+            (c?.points || []).map((p) => ({ point: p, cutIndex: ci, source: undefined }))
         ),
+        ...(mergedAnnotation.innerPoints || []).map((p) => ({ point: p, cutIndex: undefined, source: "INNER" })),
     ];
 
     let pointEntriesToRender = [];
@@ -799,11 +808,17 @@ export default function NodePolylineStatic({
 
         if (partType === 'CUT' || partType === 'CUT_SEG') {
             pointEntriesToRender = (mergedAnnotation.cuts?.[partIndex]?.points || [])
-                .map((p) => ({ point: p, cutIndex: partIndex }));
+                .map((p) => ({ point: p, cutIndex: partIndex, source: undefined }));
         } else if (partType === 'MAIN' || partType === 'SEG') {
             pointEntriesToRender = (mergedAnnotation.points || [])
-                .map((p) => ({ point: p, cutIndex: undefined }));
+                .map((p) => ({ point: p, cutIndex: undefined, source: undefined }));
         }
+        // Inner points are always rendered alongside the part-restricted set so
+        // the user can still see/select them while a contour part is focused.
+        pointEntriesToRender = [
+            ...pointEntriesToRender,
+            ...(mergedAnnotation.innerPoints || []).map((p) => ({ point: p, cutIndex: undefined, source: "INNER" })),
+        ];
     } else {
         pointEntriesToRender = allPointEntries;
     }
@@ -943,8 +958,26 @@ export default function NodePolylineStatic({
             {/* CONNECTED SEGMENTS HIGHLIGHT */}
             {renderConnectedSegments()}
 
-            {/* POINTS */}
-            {selected && pointEntriesToRender.map(({ point, cutIndex }) => renderVertex(point, cutIndex))}
+            {/* POINTS — full handles when the annotation is selected */}
+            {selected && pointEntriesToRender.map(({ point, cutIndex, source }) => renderVertex(point, cutIndex, source))}
+
+            {/* INNER POINT CURSORS — visible even when the annotation is not selected.
+                Small fixed-size cross (zoom-invariant via vertexScaleTransform),
+                non-interactive (pointerEvents:none). To interact (select / drag /
+                edit offsets) the user must first select the parent polygon, which
+                switches over to the full square/circle handles above. */}
+            {!selected && (mergedAnnotation.innerPoints || []).map((pt) => (
+                <g
+                    key={`inner-cursor-${pt.id}`}
+                    transform={`translate(${pt.x}, ${pt.y})`}
+                    style={{ pointerEvents: 'none' }}
+                >
+                    <g style={{ transform: vertexScaleTransform }}>
+                        <line x1={-4} y1={0} x2={4} y2={0} stroke="#2196f3" strokeWidth={2} />
+                        <line x1={0} y1={-4} x2={0} y2={4} stroke="#2196f3" strokeWidth={2} />
+                    </g>
+                </g>
+            ))}
 
             {/* LABEL */}
             {showLabel && <NodeLabelStatic annotation={labelAnnotation} containerK={containerK} hidden={!mergedAnnotation.showLabel} />}

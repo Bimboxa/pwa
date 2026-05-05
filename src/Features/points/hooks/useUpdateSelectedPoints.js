@@ -31,6 +31,9 @@ export default function useUpdateSelectedPoints() {
     if (annotation.cuts) {
       updates.cuts = annotation.cuts.map((c) => ({ ...c, points: remap(c.points) }));
     }
+    if (annotation.innerPoints) {
+      updates.innerPoints = remap(annotation.innerPoints);
+    }
 
     await db.annotations.update(annotationId, updates);
   };

@@ -19,6 +19,7 @@ export default function useSelectedPointsData() {
   const allPoints = [
     ...(annotation.points || []),
     ...((annotation.cuts || []).flatMap((c) => c?.points || [])),
+    ...(annotation.innerPoints || []),
   ];
   const selectedPoints = allPoints.filter((p) => idSet.has(p.id));
 

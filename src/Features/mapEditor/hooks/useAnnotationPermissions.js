@@ -68,7 +68,8 @@ export default function useAnnotationPermissions({ annotations }) {
         const inCuts = ann.cuts?.some((cut) =>
           cut.points?.some((pt) => pt.id === pointId)
         );
-        if (inMain || inCuts) {
+        const inInner = ann.innerPoints?.some((pt) => pt.id === pointId);
+        if (inMain || inCuts || inInner) {
           if (
             ann.createdByUserIdMaster === currentUserId ||
             ann.createdByUserIdMaster === "anonymous"

@@ -7,6 +7,7 @@ import {
   Brush,
   Insights as Smart,
   Create,
+  AddLocationAlt as AddInnerPoint,
 } from "@mui/icons-material";
 
 import IconPolylineClick from "Features/icons/IconPolylineClick";
@@ -206,6 +207,15 @@ const DRAWING_TOOLS = [
     annotationType: "COMPLETE_ANNOTATION",
     behavior: "CLICK",
   },
+  // ADD_INNER_POINT tool — drop a Steiner point inside a polygon (used to
+  // deform the slanted top face in 3D via offsetBottom / offsetTop).
+  {
+    key: "ADD_INNER_POINT",
+    label: "Ajouter un point",
+    Icon: AddInnerPoint,
+    annotationType: "ADD_INNER_POINT",
+    behavior: "CLICK",
+  },
 ];
 
 export const DRAWING_TOOLS_BY_TYPE = {
@@ -214,6 +224,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
   SPLIT_SURFACE: ["SPLIT_CLICK"],
   TECHNICAL_RETURN: ["TECHNICAL_RETURN"],
   COMPLETE_ANNOTATION: ["COMPLETE_ANNOTATION"],
+  ADD_INNER_POINT: ["ADD_INNER_POINT"],
 };
 
 export function getDrawingToolsByShape(drawingShape) {

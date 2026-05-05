@@ -378,6 +378,12 @@ export default function useAnnotationsV2(options) {
                 else {
                     _annotation.points = resolvePoints({ points: annotationPoints, pointsIndex, imageSize });
                     if (_annotation.cuts) _annotation.cuts = resolveCuts({ cuts: annotation.cuts, pointsIndex, imageSize });
+                    // Inner Steiner points (POLYGON only) — resolve to pixel space so
+                    // the rendering and 3D pipelines see them in the same units as the
+                    // contour and cuts.
+                    if (annotation.innerPoints) {
+                        _annotation.innerPoints = resolvePoints({ points: annotation.innerPoints, pointsIndex, imageSize });
+                    }
 
                 }
 
