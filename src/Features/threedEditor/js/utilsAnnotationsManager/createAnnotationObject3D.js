@@ -179,7 +179,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       const cuts = (annotation.cuts || [])
         .map((cut) => pointsToLocal(cut.points || [], baseMap))
         .filter((c) => c.length >= 3);
-      object = extrudeClosedShape(pts, height, material, cuts, verticalLift);
+      const innerPts = pointsToLocal(annotation.innerPoints || [], baseMap);
+      object = extrudeClosedShape(pts, height, material, cuts, verticalLift, innerPts);
       break;
     }
     case "RECTANGLE": {

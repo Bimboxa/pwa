@@ -60,6 +60,9 @@ import useVersionDrag from 'Features/mapEditor/hooks/useVersionDrag';
 import useCalibrationDrag from 'Features/mapEditor/hooks/useCalibrationDrag';
 import useLegendDrag from 'Features/mapEditor/hooks/useLegendDrag';
 
+import findPolygonContaining from 'Features/geometry/utils/findPolygonContaining';
+import createInnerPointService from 'Features/points/services/createInnerPointService';
+
 import Box from '@mui/material/Box';
 import MapEditorViewport from 'Features/mapEditorGeneric/components/MapEditorViewport';
 import DrawingLayer from 'Features/mapEditorGeneric/components/DrawingLayer';
@@ -2325,6 +2328,22 @@ const InteractionLayer = forwardRef(({
             onTechnicalReturn(nodeId, segmentIndex);
           }
         }
+      }
+      return;
+    }
+
+    // --- ADD_INNER_POINT: drop a Steiner point inside a polygon ---
+    // Silent reject if the click is outside any polygon's filled area or
+    // inside one of its cuts.
+    if (enabledDrawingMode === "ADD_INNER_POINT") {
+      const local = toLocalCoords(worldPos);
+      const polygon = findPolygonContaining(local, annotations);
+      if (polygon) {
+        await createInnerPointService({
+          annotation: polygon,
+          localPos: local,
+          baseMap: calibrationBaseMap,
+        });
       }
       return;
     }

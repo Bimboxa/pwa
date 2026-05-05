@@ -1,8 +1,10 @@
 import getStripePolygons from "Features/geometry/utils/getStripePolygons";
 import triangulateAnnotationGeometry from "Features/geometry/utils/triangulateAnnotationGeometry";
 
-// True iff any point on the contour or any cut carries a non-zero
-// offsetBottom / offsetTop. Used to gate the per-vertex-Z surface computation.
+// True iff any point on the contour, any cut, or any innerPoint carries a
+// non-zero offsetBottom / offsetTop. Used to gate the per-vertex-Z surface
+// computation. Inner points alone (no offsets) don't trigger this — a flat
+// inner point doesn't deform the surface so the planar shoelace stays exact.
 function hasPerVertexZOffsets(annotation) {
   const ringHas = (ring) =>
     (ring || []).some(
@@ -14,6 +16,7 @@ function hasPerVertexZOffsets(annotation) {
       if (ringHas(c?.points)) return true;
     }
   }
+  if (ringHas(annotation?.innerPoints)) return true;
   return false;
 }
 
@@ -230,9 +233,13 @@ export default function getAnnotationQties({ annotation, meterByPx }) {
       const cutsRings = (annotation.cuts || [])
         .map((c) => (c?.points || []).filter((p) => p && typeof p.x === "number"))
         .filter((r) => r.length >= 3);
+      const innerPts = (annotation.innerPoints || []).filter(
+        (p) => p && typeof p.x === "number"
+      );
       const tri = triangulateAnnotationGeometry({
         contour: points,
         holes: cutsRings,
+        innerPoints: innerPts,
         height: 0,
         verticalLift: 0,
         unitScale: meterByPx,

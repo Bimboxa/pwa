@@ -153,19 +153,25 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
 
             // A. Main points (cutIndex undefined)
             if (ann.points) {
-                pointArraysToCheck.push({ list: ann.points, cutIndex: undefined });
+                pointArraysToCheck.push({ list: ann.points, cutIndex: undefined, source: undefined });
             }
 
             // B. Cut points (with cutIndex)
             if (ann.cuts && Array.isArray(ann.cuts)) {
                 ann.cuts.forEach((cut, index) => {
                     if (cut.points) {
-                        pointArraysToCheck.push({ list: cut.points, cutIndex: index });
+                        pointArraysToCheck.push({ list: cut.points, cutIndex: index, source: undefined });
                     }
                 });
             }
 
-            for (const { list, cutIndex } of pointArraysToCheck) {
+            // C. Inner Steiner points (POLYGON only; treated like vertices for
+            // snap-to-self drag, hover-highlight and pickup).
+            if (ann.innerPoints) {
+                pointArraysToCheck.push({ list: ann.innerPoints, cutIndex: undefined, source: "INNER" });
+            }
+
+            for (const { list, cutIndex, source } of pointArraysToCheck) {
                 for (const pt of list) {
                     const d2 = dist2(pt, mousePos);
                     if (d2 < minDistSq) {
@@ -176,6 +182,7 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
                             id: pt.id,
                             type: 'VERTEX',
                             cutIndex: cutIndex,
+                            source,
                             annotationId: ann.id,
                             annotationType: ann.type,
                         };

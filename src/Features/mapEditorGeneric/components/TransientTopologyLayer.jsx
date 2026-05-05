@@ -106,12 +106,12 @@ export default function TransientTopologyLayer({
         if (!movingPointId) return [];
 
         // On cherche TOUTES les annotations qui contiennent ce point
+        // (contour, trous, ou points intérieurs Steiner)
         const affected = annotations.filter(ann => {
             const inMain = ann.points?.some(pt => pt.id === movingPointId);
             if (inMain) return true;
-            if (ann.cuts) {
-                return ann.cuts.some(cut => cut.points?.some(pt => pt.id === movingPointId));
-            }
+            if (ann.cuts?.some(cut => cut.points?.some(pt => pt.id === movingPointId))) return true;
+            if (ann.innerPoints?.some(pt => pt.id === movingPointId)) return true;
             return false;
         });
 
@@ -142,6 +142,15 @@ export default function TransientTopologyLayer({
                     }
                     return cut;
                 });
+            }
+
+            // C. Inner Steiner Points
+            if (_ann.innerPoints?.some(pt => pt.id === movingPointId)) {
+                _ann.innerPoints = _ann.innerPoints.map(pt =>
+                    pt.id === movingPointId
+                        ? { ...pt, x: currentPos.x, y: currentPos.y }
+                        : pt
+                );
             }
 
             return _ann;

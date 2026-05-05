@@ -21,7 +21,8 @@ export default async function deletePointAsync({ pointId, annotationId, annotati
                 .filter(ann => {
                     const inMain = ann.points?.some(pt => pt.id === pointId);
                     const inCuts = ann.cuts?.some(cut => cut.points?.some(pt => pt.id === pointId));
-                    return inMain || inCuts;
+                    const inInner = ann.innerPoints?.some(pt => pt.id === pointId);
+                    return inMain || inCuts || inInner;
                 })
                 .map(ann => ann.id);
         }
@@ -45,11 +46,18 @@ export default async function deletePointAsync({ pointId, annotationId, annotati
                 points: (cut.points || []).filter(pt => pt.id !== pointId)
             }));
 
-            // C. Update DB
-            return db.annotations.update(annId, {
+            // C. Retirer des inner points (Steiner)
+            const newInnerPoints = (dbAnnotation.innerPoints || []).filter(pt => pt.id !== pointId);
+
+            // D. Update DB
+            const updates = {
                 points: newPoints,
-                cuts: newCuts
-            });
+                cuts: newCuts,
+            };
+            if (dbAnnotation.innerPoints) {
+                updates.innerPoints = newInnerPoints;
+            }
+            return db.annotations.update(annId, updates);
         });
 
         await Promise.all(updatePromises);
@@ -63,7 +71,8 @@ export default async function deletePointAsync({ pointId, annotationId, annotati
             if (modifiedIds.has(ann.id)) return false;
             const inMain = ann.points?.some(pt => pt.id === pointId);
             const inCuts = ann.cuts?.some(cut => cut.points?.some(pt => pt.id === pointId));
-            return inMain || inCuts;
+            const inInner = ann.innerPoints?.some(pt => pt.id === pointId);
+            return inMain || inCuts || inInner;
         });
 
         // 4. Suppression finale
