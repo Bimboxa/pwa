@@ -2806,6 +2806,43 @@ const InteractionLayer = forwardRef(({
 
       if (hitPoint) {
         const { pointId, annotationId } = hitPoint.dataset;
+
+        // SELECT mode: usePointDrag is gated (no drag), so handle vertex
+        // click selection here. Mirrors the usePointDrag CAS B behavior so
+        // clicks on points behave identically across modes:
+        //   shift+click → toggle in multi-selection
+        //   click on already-selected point → toggle its type (square ↔ circle)
+        //   click on unselected point → select it
+        // We also auto-select the parent annotation when starting from a
+        // fresh state, since SELECT mode users can click a vertex directly.
+        if (interactionMode === "SELECT") {
+          const isAlreadySelected = selectedPointIds.includes(pointId);
+          if (selectedNode?.nodeId !== annotationId) {
+            const annotation = annotations?.find((a) => a.id === annotationId);
+            dispatch(setSelectedItem({
+              id: annotationId,
+              nodeId: annotationId,
+              type: "NODE",
+              nodeType: "ANNOTATION",
+              annotationType: annotation?.type,
+              entityId: annotation?.entityId,
+              listingId: annotation?.listingId,
+              annotationTemplateId: annotation?.annotationTemplateId,
+              partId: null,
+              partType: null,
+            }));
+          }
+          if (event.shiftKey) {
+            dispatch(toggleSelectedPointId(pointId));
+          } else if (isAlreadySelected) {
+            onToggleAnnotationPointType?.({ pointId, annotationId });
+          } else {
+            dispatch(setSelectedPointIds([pointId]));
+          }
+          dispatch(setSubSelection({ pointId, partType: "VERTEX" }));
+          return;
+        }
+
         // Si l'annotation est déjà sélectionnée, on gère le shift+click
         if (selectedNode?.nodeId === annotationId) {
           if (event.shiftKey) {

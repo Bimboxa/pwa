@@ -51,7 +51,12 @@ function makeMaterial(annotation, options) {
 }
 
 function pointsToLocal(points, baseMap) {
-  return points.map((p) => ({ ...pixelToWorld(p, baseMap), type: p.type }));
+  return points.map((p) => ({
+    ...pixelToWorld(p, baseMap),
+    type: p.type,
+    offsetBottom: p.offsetBottom ?? 0,
+    offsetTop: p.offsetTop ?? 0,
+  }));
 }
 
 function bboxToCorners(bbox) {
@@ -93,6 +98,8 @@ function extrudeWallPolygon(annotation, baseMap, height, material, verticalLift)
     x: p.x,
     y: p.y,
     type: p.type,
+    offsetBottom: p.offsetBottom ?? 0,
+    offsetTop: p.offsetTop ?? 0,
   }));
   if (pts.length < 2) return null;
 
@@ -118,9 +125,23 @@ function extrudeWallPolygon(annotation, baseMap, height, material, verticalLift)
   const ring = wallToRectRing(filtered, halfWidth);
   if (!ring || ring.length < 4) return null;
 
-  // ring is GeoJSON-style [[x, y], …, first-repeated]; drop the duplicated
-  // closing vertex and convert to {x, y} for pointsToLocal.
-  const ringPoints = ring.slice(0, -1).map(([x, y]) => ({ x, y }));
+  // ring layout (closing duplicate removed): [left[0..n-1], right[n-1..0]].
+  // Each ring corner maps back to one source point in `filtered`, so the
+  // per-source offsetBottom / offsetTop carry over to the rectangular
+  // footprint without introducing interpolation. Synthetic arc samples that
+  // expandArcsInPath produces have no offsets — they fall back to 0.
+  const n = filtered.length;
+  const open = ring.slice(0, -1);
+  const ringPoints = open.map(([x, y], i) => {
+    const srcIdx = i < n ? i : (2 * n - 1 - i);
+    const src = filtered[srcIdx] || {};
+    return {
+      x,
+      y,
+      offsetBottom: src.offsetBottom ?? 0,
+      offsetTop: src.offsetTop ?? 0,
+    };
+  });
   const local = pointsToLocal(ringPoints, baseMap);
   return extrudeClosedShape(local, height, material, undefined, verticalLift);
 }

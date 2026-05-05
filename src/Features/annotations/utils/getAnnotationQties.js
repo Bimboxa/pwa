@@ -1,4 +1,21 @@
 import getStripePolygons from "Features/geometry/utils/getStripePolygons";
+import triangulateAnnotationGeometry from "Features/geometry/utils/triangulateAnnotationGeometry";
+
+// True iff any point on the contour or any cut carries a non-zero
+// offsetBottom / offsetTop. Used to gate the per-vertex-Z surface computation.
+function hasPerVertexZOffsets(annotation) {
+  const ringHas = (ring) =>
+    (ring || []).some(
+      (p) => (p?.offsetBottom ?? 0) !== 0 || (p?.offsetTop ?? 0) !== 0
+    );
+  if (ringHas(annotation?.points)) return true;
+  if (Array.isArray(annotation?.cuts)) {
+    for (const c of annotation.cuts) {
+      if (ringHas(c?.points)) return true;
+    }
+  }
+  return false;
+}
 
 /**
  * --- HELPERS GÉOMÉTRIQUES ---
@@ -198,11 +215,32 @@ export default function getAnnotationQties({ annotation, meterByPx }) {
       totalSurfacePx = mainMetrics.lengthPx * (parseFloat(annotation.height) / meterByPx);
     }
 
-    return {
+    const result = {
       enabled: true,
       length: totalLengthPx * meterByPx,
-      surface: Math.max(0, totalSurfacePx) * (meterByPx * meterByPx)
+      surface: Math.max(0, totalSurfacePx) * (meterByPx * meterByPx),
     };
+
+    // When per-vertex offsets are present (sloped top face), expose the
+    // developed top-face surface as a separate field. The planar `surface`
+    // above is left untouched so existing readers see no behavior change for
+    // offset-free annotations and the planar footprint metric remains
+    // available for offset-bearing annotations too.
+    if (closeLine && hasPerVertexZOffsets(annotation)) {
+      const cutsRings = (annotation.cuts || [])
+        .map((c) => (c?.points || []).filter((p) => p && typeof p.x === "number"))
+        .filter((r) => r.length >= 3);
+      const tri = triangulateAnnotationGeometry({
+        contour: points,
+        holes: cutsRings,
+        height: 0,
+        verticalLift: 0,
+        unitScale: meterByPx,
+      });
+      result.surfaceDeveloped = tri.areaTop;
+    }
+
+    return result;
 
   } catch (globalError) {
     console.error("Critical error in getAnnotationQties:", globalError);

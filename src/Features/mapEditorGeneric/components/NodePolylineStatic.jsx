@@ -743,18 +743,20 @@ export default function NodePolylineStatic({
         return { transform: `scale(calc(1 / (var(--map-zoom, 1) * ${k})))` };
     }, [containerK, scalesWithZoom]);
 
-    const renderVertex = (pt) => {
+    const renderVertex = (pt, cutIndex) => {
         const isPointSelected = selectedPointId === pt.id || selectedPointIds.includes(pt.id);
         const isCircle = pt.type === "circle";
+        const isCut = cutIndex !== undefined && cutIndex !== null;
 
         return (
             <g
-                key={pt.id}
+                key={isCut ? `cut-${cutIndex}-${pt.id}` : pt.id}
                 transform={`translate(${pt.x}, ${pt.y})`}
                 style={{ cursor: isTransient ? 'crosshair' : 'pointer', pointerEvents: 'all' }}
                 data-node-type="VERTEX"
                 data-point-id={pt.id}
                 data-annotation-id={annotationId}
+                {...(isCut ? { "data-cut-index": cutIndex } : {})}
             >
                 <g style={{ transform: vertexScaleTransform }}>
                     {isCircle ? (
@@ -778,34 +780,39 @@ export default function NodePolylineStatic({
     };
 
     // --- FILTRAGE DES POINTS À AFFICHER ---
-    // Logique : Afficher uniquement les points du contour sélectionné (Main ou Cut)
-    const allPoints = [
-        ...(mergedAnnotation.points || []),
-        ...(mergedAnnotation.cuts || []).flatMap(c => c.points || [])
+    // Each entry is { point, cutIndex } where cutIndex is undefined for the outer contour
+    // and an index into mergedAnnotation.cuts for hole points. The cutIndex flows into
+    // renderVertex so the SVG vertex carries data-cut-index, allowing InteractionLayer
+    // and PanelPropertiesPoints to address points inside a cut.
+    const allPointEntries = [
+        ...(mergedAnnotation.points || []).map((p) => ({ point: p, cutIndex: undefined })),
+        ...(mergedAnnotation.cuts || []).flatMap((c, ci) =>
+            (c?.points || []).map((p) => ({ point: p, cutIndex: ci }))
+        ),
     ];
 
-    let pointsToRender = [];
+    let pointEntriesToRender = [];
     if (selectedPartId) {
         const parts = selectedPartId.split('::');
         const partType = parts[1];
         const partIndex = parseInt(parts[2], 10);
 
-        if (partType === 'CUT') {
-            pointsToRender = mergedAnnotation.cuts?.[partIndex]?.points || [];
-        } else if (partType === 'CUT_SEG') {
-            pointsToRender = mergedAnnotation.cuts?.[partIndex]?.points || [];
+        if (partType === 'CUT' || partType === 'CUT_SEG') {
+            pointEntriesToRender = (mergedAnnotation.cuts?.[partIndex]?.points || [])
+                .map((p) => ({ point: p, cutIndex: partIndex }));
         } else if (partType === 'MAIN' || partType === 'SEG') {
-            pointsToRender = mergedAnnotation.points || [];
+            pointEntriesToRender = (mergedAnnotation.points || [])
+                .map((p) => ({ point: p, cutIndex: undefined }));
         }
     } else {
-        pointsToRender = allPoints;
+        pointEntriesToRender = allPointEntries;
     }
 
-    // Sécurité : inclure le point sélectionné
+    // Sécurité : inclure le point sélectionné (legacy single selection only)
     if (selectedPointId) {
-        const specificPoint = allPoints.find(p => p.id === selectedPointId);
-        if (specificPoint && !pointsToRender.find(p => p.id === selectedPointId)) {
-            pointsToRender = [...pointsToRender, specificPoint];
+        const specificEntry = allPointEntries.find((e) => e.point.id === selectedPointId);
+        if (specificEntry && !pointEntriesToRender.find((e) => e.point.id === selectedPointId)) {
+            pointEntriesToRender = [...pointEntriesToRender, specificEntry];
         }
     }
 
@@ -937,7 +944,7 @@ export default function NodePolylineStatic({
             {renderConnectedSegments()}
 
             {/* POINTS */}
-            {selected && pointsToRender.map(pt => renderVertex(pt))}
+            {selected && pointEntriesToRender.map(({ point, cutIndex }) => renderVertex(point, cutIndex))}
 
             {/* LABEL */}
             {showLabel && <NodeLabelStatic annotation={labelAnnotation} containerK={containerK} hidden={!mergedAnnotation.showLabel} />}
