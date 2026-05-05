@@ -3,6 +3,8 @@ import {
   Path,
   ShapeGeometry,
   ExtrudeGeometry,
+  BufferGeometry,
+  Float32BufferAttribute,
   Mesh,
   Group,
   EdgesGeometry,
@@ -11,6 +13,8 @@ import {
   DoubleSide,
   FrontSide,
 } from "three";
+
+import triangulateAnnotationGeometry from "Features/geometry/utils/triangulateAnnotationGeometry";
 
 function getCircleInfo(p0, p1, p2) {
   const x1 = p0.x;
@@ -76,36 +80,58 @@ function tracePath(path, points) {
 // Lift closed surfaces slightly above the basemap plane to avoid z-fighting.
 const Z_FIGHT_OFFSET = 0.001;
 
+function hasPerVertexZ(points, holes) {
+  const ringHas = (ring) =>
+    (ring || []).some((p) => (p?.offsetBottom ?? 0) !== 0 || (p?.offsetTop ?? 0) !== 0);
+  return ringHas(points) || (holes || []).some(ringHas);
+}
+
 export default function extrudeClosedShape(points, height, material, holes, verticalLift = 0) {
   if (!points || points.length < 3) return null;
 
-  const shape = new Shape();
-  tracePath(shape, points);
-
-  if (holes && holes.length) {
-    holes.forEach((holePoints) => {
-      if (!holePoints || holePoints.length < 3) return;
-      // Reverse winding so earcut treats it as a hole, not a fill.
-      const hole = new Path();
-      tracePath(hole, [...holePoints].reverse());
-      shape.holes.push(hole);
-    });
-  }
-
+  const isExtruded = height && height > 0;
   const group = new Group();
 
-  const isExtruded = height && height > 0;
-  const geometry = isExtruded
-    ? new ExtrudeGeometry(shape, { depth: height, bevelEnabled: false })
-    : new ShapeGeometry(shape);
-  geometry.translate(0, 0, verticalLift + Z_FIGHT_OFFSET);
+  // Fast path: no per-vertex offsets. Use the original Shape + ShapeGeometry /
+  // ExtrudeGeometry construction (zero behavior change for existing data).
+  // Per-vertex-Z path uses the shared triangulation utility — same util used by
+  // getAnnotationQties, so visuals and quantities stay consistent.
+  let geometry;
+  if (!hasPerVertexZ(points, holes)) {
+    const shape = new Shape();
+    tracePath(shape, points);
+    if (holes && holes.length) {
+      holes.forEach((holePoints) => {
+        if (!holePoints || holePoints.length < 3) return;
+        const hole = new Path();
+        tracePath(hole, [...holePoints].reverse());
+        shape.holes.push(hole);
+      });
+    }
+    geometry = isExtruded
+      ? new ExtrudeGeometry(shape, { depth: height, bevelEnabled: false })
+      : new ShapeGeometry(shape);
+    geometry.translate(0, 0, verticalLift + Z_FIGHT_OFFSET);
+  } else {
+    const tri = triangulateAnnotationGeometry({
+      contour: points,
+      holes,
+      height: isExtruded ? height : 0,
+      verticalLift,
+      zFightOffset: Z_FIGHT_OFFSET,
+    });
+    geometry = new BufferGeometry();
+    geometry.setAttribute("position", new Float32BufferAttribute(tri.positions, 3));
+    geometry.setIndex(Array.from(tri.indices));
+    geometry.computeVertexNormals();
+  }
 
-  // Flat shapes need DoubleSide because pixelToWorld inverts Y and flips the
-  // winding, making it ambiguous which face the camera looks at. Extruded
-  // volumes only ever show their outer faces, so FrontSide is enough — and
-  // it cuts the count of transparent surfaces in half, which helps depth
-  // stability when rotating.
-  material.side = isExtruded ? FrontSide : DoubleSide;
+  // DoubleSide for both flat and extruded paths: pixelToWorld inverts Y which
+  // flips winding, and polygons-with-holes can produce inconsistent normals
+  // (especially in the per-vertex-Z path), leaving some faces invisible from
+  // the user's viewpoint. DoubleSide trades a bit of depth stability during
+  // rotation for predictable visibility from any angle.
+  material.side = DoubleSide;
   group.add(new Mesh(geometry, material));
 
   const edges = new LineSegments(

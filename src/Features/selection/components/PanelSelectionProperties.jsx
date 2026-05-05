@@ -1,5 +1,5 @@
 import { useSelector } from "react-redux";
-import { selectSelectedItems } from "../selectionSlice";
+import { selectSelectedItems, selectSelectedPointIds } from "../selectionSlice";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useListingById from "Features/listings/hooks/useListingById";
@@ -20,12 +20,14 @@ import PanelLayerProperties from "Features/layers/components/PanelLayerPropertie
 import PanelMapSummary from "Features/mapEditor/components/PanelMapSummary";
 import PanelMultiAnnotationProperties from "./PanelMultiAnnotationProperties";
 import PanelPropertiesPopperMapListings from "Features/popperMapListings/components/PanelPropertiesPopperMapListings";
+import PanelPropertiesPoints from "Features/points/components/PanelPropertiesPoints";
 
 export default function PanelSelectionProperties() {
   // data
 
   const selectedItems = useSelector(selectSelectedItems);
   const selectedItem = selectedItems[0];
+  const selectedPointIds = useSelector(selectSelectedPointIds);
   const { value: defaultListing } = useSelectedListing();
   const selectedViewerKey = useSelector(
     (s) => s.viewers.selectedViewerKey
@@ -48,7 +50,16 @@ export default function PanelSelectionProperties() {
   const isMapViewer = selectedViewerKey === "MAP";
 
   let type = "LISTING";
-  if (isMapViewer && !selectedItem) {
+  if (
+    isMapViewer &&
+    selectedPointIds.length > 0 &&
+    selectedItem?.type === "NODE"
+  ) {
+    // Per-point selection wins over annotation panels: when one or more
+    // vertices of the selected annotation are in selectedPointIds, show the
+    // point-level properties instead of the annotation/multi-annotation panel.
+    type = "POINTS";
+  } else if (isMapViewer && !selectedItem) {
     type = "MAP_SUMMARY";
   } else if (
     isMapViewer &&
@@ -125,6 +136,8 @@ export default function PanelSelectionProperties() {
       {type === "SCOPE" && <PanelPropertiesPopperMapListings />}
 
       {type === "MULTI_ANNOTATION" && <PanelMultiAnnotationProperties />}
+
+      {type === "POINTS" && <PanelPropertiesPoints />}
     </BoxFlexVStretch>
   );
 }

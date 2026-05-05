@@ -11,14 +11,18 @@ export default function resolvePoints({ points, pointsIndex, imageSize }) {
                 ...point,
                 x: pointFromIndex.x * imageSize.width,
                 y: pointFromIndex.y * imageSize.height,
-                type: point?.type ?? "square"
+                type: point?.type ?? "square",
+                offsetBottom: point?.offsetBottom ?? 0,
+                offsetTop: point?.offsetTop ?? 0,
             }
         } else if (hasXorY) {
             return {
                 ...point,
                 x: point.x * imageSize.width,
                 y: point.y * imageSize.height,
-                type: point?.type ?? "square"
+                type: point?.type ?? "square",
+                offsetBottom: point?.offsetBottom ?? 0,
+                offsetTop: point?.offsetTop ?? 0,
             }
         } else {
             return point;
