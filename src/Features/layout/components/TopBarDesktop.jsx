@@ -295,9 +295,13 @@ export default function TopBarDesktop() {
       {/* Right section - actions */}
       <Box sx={{ display: "flex", alignItems: "center", flex: 1, justifyContent: "flex-end", gap: 1 }}>
         <ButtonToggleThreedViewer />
-        <IconButtonDialogSync />
-        <ButtonHistoryScope />
-        <IconButtonShareScope />
+        {viewerKey !== "THREED" && (
+          <>
+            <IconButtonDialogSync />
+            <ButtonHistoryScope />
+            <IconButtonShareScope />
+          </>
+        )}
       </Box>
     </Box>
   );

@@ -15,6 +15,7 @@ export default function BottomBarDesktop() {
 
   const height = useSelector((s) => s.layout.bottomBarHeightDesktop);
   const helperMessage = useHelperMessageInBottomBar();
+  const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
   return (
     <Box
@@ -47,7 +48,7 @@ export default function BottomBarDesktop() {
       <Box sx={{ display: "flex", alignItems: "center" }}>
         <HelperClickInBgPosition />
         <SwitchCoupledNavigation />
-        <ButtonsKrto />
+        {viewerKey !== "THREED" && <ButtonsKrto />}
       </Box>
     </Box>
   );
