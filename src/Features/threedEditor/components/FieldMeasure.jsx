@@ -3,8 +3,12 @@ import { useEffect, useRef, useState } from "react";
 import { Box, InputBase, Typography } from "@mui/material";
 
 // Compact "label · grey input · unit" field, mirroring the style of
-// FieldAnnotationHeight in the annotation toolbar. The input width auto-fits
-// the value via a hidden phantom span.
+// FieldAnnotationHeight in the annotation toolbar.
+//
+// By default the input width auto-fits the value via a hidden phantom span.
+// Pass `width` to lock it to a fixed pixel width — useful in dense rows
+// where auto-grow would shift the layout (and downstream gizmo buttons)
+// every time the value gains or loses a digit.
 //
 // Props:
 // - label    : leading label (e.g. "X", "ht.", "Offset")
@@ -13,6 +17,7 @@ import { Box, InputBase, Typography } from "@mui/material";
 // - onCommit : called on blur or Enter
 // - unit     : optional trailing unit label (e.g. "m", "°")
 // - minWidth : minimum width of the input box in px (default 30)
+// - width    : fixed input width in px (overrides auto-fit when set)
 export default function FieldMeasure({
   label,
   value,
@@ -20,6 +25,7 @@ export default function FieldMeasure({
   onCommit,
   unit = "m",
   minWidth = 30,
+  width,
 }) {
   const [local, setLocal] = useState(String(value ?? ""));
   const debounceRef = useRef(null);
@@ -65,7 +71,14 @@ export default function FieldMeasure({
         </Typography>
       )}
 
-      <Box sx={{ display: "grid", alignItems: "center", position: "relative" }}>
+      <Box
+        sx={{
+          display: "grid",
+          alignItems: "center",
+          position: "relative",
+          ...(width != null && { width, overflow: "hidden" }),
+        }}
+      >
         <Box
           component="span"
           sx={{

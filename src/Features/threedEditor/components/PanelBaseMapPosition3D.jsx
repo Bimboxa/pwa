@@ -152,7 +152,7 @@ export default function PanelBaseMapPosition3D() {
       if (!baseMap) return;
       const t = getBaseMapTransform(baseMap);
       setOrientation(t.orientation);
-      setAngleDegStr(roundFmt(t.angleDeg));
+      setAngleDegStr(roundFmt(t.angleDeg, 1));
       const userPos = toUserCoords(t.position);
       setPosUser({
         x: roundFmt(userPos.x),
@@ -256,7 +256,7 @@ export default function PanelBaseMapPosition3D() {
       if (!group) return;
       const update = () => {
         const ang = group.rotation.y * (180 / Math.PI);
-        setAngleDegStr(roundFmt(ang));
+        setAngleDegStr(roundFmt(ang, 1));
         const userPos = toUserCoords({
           x: group.position.x,
           y: group.position.y,
@@ -327,7 +327,7 @@ export default function PanelBaseMapPosition3D() {
   function commitAngle(raw) {
     editingRef.current = false;
     const a = parseFloatSafe(raw ?? angleDeg);
-    setAngleDegStr(roundFmt(a));
+    setAngleDegStr(roundFmt(a, 1));
     applyTransformToGroup({ angleDegOverride: a });
     db.baseMaps.update(baseMapId, { angleDeg: a });
   }
@@ -481,6 +481,7 @@ export default function PanelBaseMapPosition3D() {
               }}
               onCommit={commitAngle}
               unit="°"
+              width={56}
             />
             <GizmoToggle
               tooltip="Gizmo rotation"
@@ -501,18 +502,21 @@ export default function PanelBaseMapPosition3D() {
               value={posUser.x}
               onChange={(v) => setPosField("x", v)}
               onCommit={commitPosition}
+              width={56}
             />
             <FieldMeasure
               label="Y"
               value={posUser.y}
               onChange={(v) => setPosField("y", v)}
               onCommit={commitPosition}
+              width={56}
             />
             <FieldMeasure
               label="Z"
               value={posUser.z}
               onChange={(v) => setPosField("z", v)}
               onCommit={commitPosition}
+              width={56}
             />
             <GizmoToggle
               tooltip="Gizmo translation"
@@ -536,6 +540,7 @@ export default function PanelBaseMapPosition3D() {
               onChange={setOffsetMaxStr}
               onCommit={() => {}}
               unit="m"
+              width={42}
             />
             <Slider
               size="small"
@@ -545,13 +550,14 @@ export default function PanelBaseMapPosition3D() {
               step={0.01}
               marks={[{ value: 0 }]}
               onChange={handleOffsetSliderChange}
-              sx={{ flexGrow: 1, mx: 1, minWidth: 100 }}
+              sx={{ flexGrow: 1, mx: 1, minWidth: 60 }}
             />
             <FieldMeasure
-              value={String(drawingOffset)}
+              value={roundFmt(drawingOffset, 2)}
               onChange={() => {}}
               onCommit={handleOffsetFieldCommit}
               unit="m"
+              width={56}
             />
             <GizmoToggle
               tooltip="Gizmo offset (axe normal)"
@@ -572,7 +578,8 @@ function parseFloatSafe(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function roundFmt(n) {
+function roundFmt(n, decimals = 3) {
   if (!Number.isFinite(n)) return "0";
-  return String(Math.round(n * 1000) / 1000);
+  const factor = Math.pow(10, decimals);
+  return String(Math.round(n * factor) / factor);
 }
