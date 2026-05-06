@@ -8,7 +8,7 @@ import {
   getPeersVersion,
   subscribePeers,
 } from "App/tabsRegistry";
-import { isEffectivelyCoupled } from "Features/layout/utils/isEffectivelyCoupled";
+import { isInSyncGroup } from "Features/layout/utils/isEffectivelyCoupled";
 
 const PEER_FRESH_MS = 5000;
 
@@ -23,8 +23,8 @@ function getServerSnapshot() {
 
 export default function useIsWidestCoupledTab() {
   const location = useLocation();
-  const coupledEnabled = useSelector((s) =>
-    isEffectivelyCoupled(s, location.pathname)
+  const localInSyncGroup = useSelector((s) =>
+    isInSyncGroup(s, location.pathname)
   );
 
   // Peers map (mutated in place by tabsRegistry, but listener fires on change).
@@ -49,15 +49,16 @@ export default function useIsWidestCoupledTab() {
     };
   }, []);
 
-  // Uncoupled tabs are independent: always render their own toolbar.
-  if (!coupledEnabled) return true;
+  // If the local tab is not in the sync group (on /dashboard or no
+  // project/scope), it has no peer to coordinate with — render the toolbar.
+  if (!localInSyncGroup) return true;
 
   const now = Date.now();
   const candidates = [
     { tabId: LOCAL_TAB_ID, innerWidth: localWidth },
   ];
   for (const peer of getPeers().values()) {
-    if (!peer.coupledEnabled) continue;
+    if (!peer.inSyncGroup) continue;
     if (now - peer.lastSeen > PEER_FRESH_MS) continue;
     candidates.push({ tabId: peer.tabId, innerWidth: peer.innerWidth });
   }

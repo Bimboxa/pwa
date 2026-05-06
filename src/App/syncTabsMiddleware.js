@@ -1,5 +1,6 @@
 import {
-  isEffectivelyCoupled,
+  shouldEmit,
+  shouldReceive,
   getCurrentPathname,
 } from "Features/layout/utils/isEffectivelyCoupled";
 
@@ -15,10 +16,23 @@ const SYNCED_PREFIXES = ["selection/"];
 
 const BASEMAP_SELECT_ACTION = "mapEditors/setSelectedMainBaseMapId";
 
+// Project/scope clears (e.g. when the leader navigates back to /dashboard)
+// must NOT cross the BroadcastChannel — that would yank the follower out of
+// its current context. Selecting a real project/scope still propagates.
+const PROJECT_SCOPE_CLEAR_ACTIONS = new Set([
+  "projects/setSelectedProjectId",
+  "scopes/setSelectedScopeId",
+]);
+
 function isSynced(type) {
   if (!type) return false;
   if (SYNCED_ACTION_TYPES.has(type)) return true;
   return SYNCED_PREFIXES.some((p) => type.startsWith(p));
+}
+
+function isProjectScopeClear(action) {
+  if (!PROJECT_SCOPE_CLEAR_ACTIONS.has(action.type)) return false;
+  return action.payload == null;
 }
 
 function buildContextBundle(state) {
@@ -39,7 +53,8 @@ export const syncTabsMiddleware = (storeApi) => (next) => (action) => {
   if (
     isSynced(action.type) &&
     !action.meta?.fromBroadcast &&
-    isEffectivelyCoupled(storeApi.getState(), getCurrentPathname())
+    !isProjectScopeClear(action) &&
+    shouldEmit(storeApi.getState())
   ) {
     let payload = action;
     if (action.type === BASEMAP_SELECT_ACTION) {
@@ -61,11 +76,7 @@ export function initSyncTabsListener(store) {
   channel.onmessage = (event) => {
     const action = event.data;
     if (!action || !isSynced(action.type)) return;
-    // Receive gate: only the /dashboard exclusion. The receiver applies
-    // broadcasts even if its own switch is off — mutual exclusion ensures
-    // only one tab is broadcasting, and "passive" tabs follow it. The
-    // user can opt out by going to /dashboard.
-    if (getCurrentPathname().startsWith("/dashboard")) return;
+    if (!shouldReceive(store.getState(), getCurrentPathname())) return;
 
     const meta = { fromBroadcast: true };
 

@@ -1,5 +1,6 @@
 import {
-  isEffectivelyCoupled,
+  isInSyncGroup,
+  shouldReceive,
   getCurrentPathname,
 } from "Features/layout/utils/isEffectivelyCoupled";
 
@@ -63,10 +64,13 @@ function debounce(fn, delay) {
   };
 }
 
-function getLocalCoupledEnabled() {
+// "In sync group" — broadcast in HELLO and used by the widest-tab decision.
+// Either a leader or follower with project/scope counts; tabs on /dashboard
+// or without project/scope do not.
+function getLocalInSyncGroup() {
   if (!getStoreRef) return false;
   try {
-    return isEffectivelyCoupled(getStoreRef().getState(), getCurrentPathname());
+    return isInSyncGroup(getStoreRef().getState(), getCurrentPathname());
   } catch {
     return false;
   }
@@ -82,7 +86,7 @@ function broadcastHello() {
     tabId: LOCAL_TAB_ID,
     timestamp: Date.now(),
     innerWidth: getLocalInnerWidth(),
-    coupledEnabled: getLocalCoupledEnabled(),
+    inSyncGroup: getLocalInSyncGroup(),
   });
 }
 
@@ -175,7 +179,7 @@ channel.onmessage = (event) => {
       peers.set(msg.tabId, {
         tabId: msg.tabId,
         innerWidth: Number(msg.innerWidth) || 0,
-        coupledEnabled: Boolean(msg.coupledEnabled),
+        inSyncGroup: Boolean(msg.inSyncGroup),
         lastSeen: Date.now(),
       });
       notifyPeerListeners();
@@ -186,8 +190,10 @@ channel.onmessage = (event) => {
       break;
     }
     case KIND.SNAPSHOT_REQUEST: {
-      // Only coupled tabs respond.
-      if (!getLocalCoupledEnabled()) break;
+      // A tab in the sync group answers with its current state so a fresh
+      // tab can adopt project/scope/baseMap/selection without the user
+      // having to act.
+      if (!getLocalInSyncGroup()) break;
       const snapshot = buildSnapshotFromStore();
       if (!snapshot) break;
       channel.postMessage({
@@ -249,10 +255,10 @@ export function startTabsRegistry(getStore) {
     window.addEventListener("beforeunload", broadcastLeave);
   }
 
-  // Subscribe to store: re-broadcast HELLO when effective coupling flips,
-  // and broadcast TAKE_OVER when the raw switch flips from off to on so
-  // any other tab with its switch on yields exclusivity.
-  let lastEffective = getLocalCoupledEnabled();
+  // Subscribe to store: re-broadcast HELLO when sync-group membership
+  // flips, and broadcast TAKE_OVER when the switch flips on (the local tab
+  // becomes the follower) so any other follower yields the role.
+  let lastInSyncGroup = getLocalInSyncGroup();
   let lastRaw = Boolean(
     getStoreRef?.().getState().layout?.coupledNavigationEnabled
   );
@@ -270,9 +276,9 @@ export function startTabsRegistry(getStore) {
         }
         lastRaw = nextRaw;
 
-        const nextEffective = getLocalCoupledEnabled();
-        if (nextEffective !== lastEffective) {
-          lastEffective = nextEffective;
+        const nextInSyncGroup = getLocalInSyncGroup();
+        if (nextInSyncGroup !== lastInSyncGroup) {
+          lastInSyncGroup = nextInSyncGroup;
           broadcastHello();
         }
       });

@@ -5,6 +5,7 @@ import ButtonLoadKrtoFile from "Features/krtoFile/components/ButtonLoadKrtoFile"
 import ButtonAppVersion from "App/components/ButtonAppVersion";
 import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
 import IconButtonDebugAuth from "Features/auth/components/IconButtonDebugAuth";
+import SwitchCoupledNavigation from "Features/layout/components/SwitchCoupledNavigation";
 
 
 export default function PageDashboardFooter() {
@@ -26,9 +27,10 @@ export default function PageDashboardFooter() {
         <IconButtonDebugAuth />
       </Box>
 
-      <div>
+      <Box sx={{ display: "flex", alignItems: "center" }}>
+        <SwitchCoupledNavigation />
         <ButtonLoadKrtoFile />
-      </div>
+      </Box>
 
     </Box>
   );

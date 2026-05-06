@@ -9,7 +9,8 @@ import LinkOffIcon from "@mui/icons-material/LinkOff";
 export default function SwitchCoupledNavigation() {
   // strings
 
-  const tooltipS = "Couplage de la navigation avec l'autre onglet";
+  const tooltipS =
+    "Navigation couplée : cet onglet suit l'autre. Navigation indépendante : cet onglet pilote l'autre.";
   const labelOnS = "Navigation couplée";
   const labelOffS = "Navigation indépendante";
 
