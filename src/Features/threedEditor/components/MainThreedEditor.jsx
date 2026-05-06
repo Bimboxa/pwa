@@ -37,6 +37,7 @@ import {
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
 import IconButtonThreedProperties from "./IconButtonThreedProperties";
 import ToggleEditorModeThreed from "./ToggleEditorModeThreed";
+import PanelBaseMapPosition3D from "./PanelBaseMapPosition3D";
 
 export default function MainThreedEditor() {
   // ref
@@ -164,6 +165,9 @@ export default function MainThreedEditor() {
   const handleClick = useCallback(
     (event) => {
       if (!threedEditorRef.current || !rendererIsReady || !isThreedViewer) return;
+      // In BASEMAP_POSITION mode the pointer is reserved for the transform
+      // gizmo and the camera — annotation selection is intentionally disabled.
+      if (editorModeRef.current === "BASEMAP_POSITION") return;
 
       const threedEditor = threedEditorRef.current;
       const sceneManager = threedEditor.sceneManager;
@@ -565,6 +569,22 @@ export default function MainThreedEditor() {
     // un-hover path here would overwrite the lasso preview when the cursor
     // moves off an object that's still inside the rect.
     if (lassoStartRef.current) return;
+    // In BASEMAP_POSITION mode hover highlighting is disabled along with
+    // selection — the user is moving the basemap, not picking annotations.
+    if (editorModeRef.current === "BASEMAP_POSITION") {
+      if (prevHoveredObjectRef.current) {
+        const prevId = prevHoveredObjectRef.current.userData?.nodeId;
+        applyAnnotationMaterialState(
+          prevHoveredObjectRef.current,
+          getStateForId(prevId, false)
+        );
+        prevHoveredObjectRef.current = null;
+        threedEditorRef.current?.renderScene?.();
+      }
+      lastHoveredIdRef.current = null;
+      tooltipApiRef.current?.clear();
+      return;
+    }
 
     const threedEditor = threedEditorRef.current;
     if (!threedEditor || !rendererIsReady || !isThreedViewer) return;
@@ -842,6 +862,9 @@ export default function MainThreedEditor() {
           <IconButtonThreedProperties />
           <ToggleEditorModeThreed />
         </Box>
+      )}
+      {isThreedViewer && editorMode === "BASEMAP_POSITION" && (
+        <PanelBaseMapPosition3D />
       )}
     </Box>
   );

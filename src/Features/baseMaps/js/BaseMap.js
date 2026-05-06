@@ -33,6 +33,9 @@ export default class BaseMap {
     grayScale,
     mainAngleInDeg,
     rotation2D, // in deg
+    // 3D placement (used by the threedEditor; see getBaseMapTransform).
+    position,
+    rotation,
     // version system
     versions,
     refWidth,
@@ -53,6 +56,9 @@ export default class BaseMap {
     this.grayScale = grayScale;
     this.mainAngleInDeg = mainAngleInDeg;
     this.rotation2D = rotation2D;
+    // 3D placement
+    this.position = position;
+    this.rotation = rotation;
     // version system
     this.versions = versions || [];
     this.refWidth = refWidth || null;

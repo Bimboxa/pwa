@@ -9,6 +9,7 @@ import {
 import ControlsManager from "./ControlsManager";
 import ImagesManager from "./ImagesManager";
 import AnnotationsManager from "./AnnotationsManager";
+import TransformControlsManager from "./TransformControlsManager";
 
 export default class SceneManager {
   constructor({ containerEl, onRendererIsReady }) {
@@ -29,6 +30,9 @@ export default class SceneManager {
     this.imagesManager = new ImagesManager({ sceneManager: this });
     this.annotationsManager = new AnnotationsManager({ sceneManager: this });
     this.controlsManager = new ControlsManager({ sceneManager: this });
+    this.transformControlsManager = new TransformControlsManager({
+      sceneManager: this,
+    });
 
     window.addEventListener("resize", this.resizeScene);
   }
@@ -40,6 +44,9 @@ export default class SceneManager {
 
     this._initRenderer();
     this.controlsManager.initControls();
+    // Init the transform controls eagerly so the editor mode panel can attach
+    // them on first toggle without waiting for a lazy init.
+    this.transformControlsManager.init();
   };
 
   resizeScene = () => {

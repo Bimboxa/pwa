@@ -8,8 +8,11 @@ const threedEditorInitialState = {
   // still read by the render pipeline (createAnnotationObject3D) so it can
   // be flipped programmatically if needed.
   disableOpacity: true,
-  // "NAVIGATION" | "SELECTION" — disambiguates shift+drag between
-  // camera control (NAVIGATION) and lasso selection (SELECTION).
+  // "NAVIGATION" | "SELECTION" | "BASEMAP_POSITION".
+  // - NAVIGATION: shift+drag = camera (OrbitControls).
+  // - SELECTION: shift+drag = lasso selection.
+  // - BASEMAP_POSITION: shows the position/rotation panel + transform gizmo
+  //   for the selected basemap. Annotation creation and lasso are blocked.
   editorMode: "NAVIGATION",
 };
 
