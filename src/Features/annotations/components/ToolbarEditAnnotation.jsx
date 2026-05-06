@@ -33,6 +33,7 @@ import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
+import Shape3DSelector from "./Shape3DSelector";
 import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
 import IconButtonDetectSimilarStrips from "./IconButtonDetectSimilarStrips";
 import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
@@ -323,16 +324,20 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
             borderColor: "divider",
           }}
         >
-          <FieldAnnotationHeight
-            annotation={selectedAnnotation}
-            onChange={handleHeightChange}
-          />
+          {selectedAnnotation?.shape3D !== "REVOLUTION" && (
+            <FieldAnnotationHeight
+              annotation={selectedAnnotation}
+              onChange={handleHeightChange}
+            />
+          )}
           <FieldAnnotationHeight
             annotation={selectedAnnotation}
             onChange={handleOffsetZChange}
             field="offsetZ"
             label="Offset"
           />
+          <Box sx={{ flex: 1 }} />
+          <Shape3DSelector annotation={selectedAnnotation} />
         </Box>
 
         {/* Row 3 - Measurements (right-aligned) */}
