@@ -47,7 +47,10 @@ const GIZMO_BTN_SIZE = 36;
 function SectionHeader({ title, onReset }) {
   return (
     <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.75 }}>
-      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+      <Typography
+        variant="body2"
+        sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}
+      >
         {title}
       </Typography>
       {onReset && (
