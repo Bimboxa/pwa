@@ -41,6 +41,14 @@ export default function createImageObject(image) {
     // - depthTest=false + renderOrder=-1 forces the basemap to be drawn first,
     //   then grid + annotations layer on top through normal depth ordering.
     // - depthWrite=false ensures the basemap doesn't occlude anything else.
+    // - transparent must follow opacity (not always true): Three.js renders
+    //   opaque objects before transparent ones in two separate passes, and
+    //   renderOrder cannot bridge those passes. If the basemap is forced into
+    //   the transparent queue while an opaque annotation is in the opaque
+    //   queue, the basemap renders LAST — and with depthTest=false it draws
+    //   over the annotation. Keeping transparent=false when opacity=1 puts
+    //   the basemap back in the opaque queue, where renderOrder=-1 correctly
+    //   places it before the annotations.
     // - Path-tracer rendering ignores these flags (it traces rays from BVH),
     //   so the photoreal export still composes the basemap correctly.
     const opacity = typeof image.opacity === "number" ? image.opacity : 1;
@@ -49,7 +57,7 @@ export default function createImageObject(image) {
       side: DoubleSide,
       depthWrite: false,
       depthTest: false,
-      transparent: true,
+      transparent: opacity < 1,
       opacity,
     });
 
