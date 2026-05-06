@@ -36,6 +36,7 @@ export default function useHandleCommitDrawing({ newEntity } = {}) {
     const newAnnotationInState = useSelector(s => s.annotations.newAnnotation);
     const openedPanel = useSelector(s => s.listings.openedPanel);
     const autoMergeOnCommit = useSelector(s => s.mapEditor.autoMergeOnCommit);
+    const autoOffsetsOnCommit = useSelector(s => s.mapEditor.autoOffsetsOnCommit);
     const enabledDrawingMode = useSelector(s => s.mapEditor.enabledDrawingMode);
 
     const createEntity = useCreateEntity();
@@ -155,6 +156,140 @@ export default function useHandleCommitDrawing({ newEntity } = {}) {
 
                     newPointsToSave.push(newPointEntity);
                     finalPointIds.push(newId);
+                }
+            }
+
+            // ÉTAPE 1bis : Auto-offsets — compute annotation offsetZ/height + per-point
+            // offsetBottom/offsetTop so a POLYGON_CLICK drawn over existing 3D
+            // annotations stays continuous in 3D (ramp). Per-vertex offsets are
+            // stored inline on _newAnnotation.points (per-annotation, not on db.points),
+            // matching the resolvePoints contract.
+            //
+            // Strategy: align orange's bottom/top with the lowest neighbor, then lift
+            // higher-neighbor vertices via positive offsetBottom / offsetTop. This keeps
+            // orange.height equal to the lowest neighbor's height and produces a ramp
+            // toward higher neighbors.
+            let _autoOffsets = null;
+            const _autoPointOffsets = {}; // rawPointIdx → { offsetBottom?, offsetTop? }
+            const shouldApplyAutoOffsets = (
+                autoOffsetsOnCommit &&
+                enabledDrawingMode === "POLYGON_CLICK" &&
+                newAnnotation?.type === "POLYGON"
+            );
+            if (shouldApplyAutoOffsets) {
+                // Build a per-rawPoint link descriptor (parent annotation + optional parent point id).
+                const linkByIdx = new Array(rawPoints.length).fill(null);
+                const annIds = new Set();
+                const parentPointIds = new Set();
+                for (let i = 0; i < rawPoints.length; i++) {
+                    const pt = rawPoints[i];
+                    if (pt.existingPointId) {
+                        linkByIdx[i] = { parentPointId: pt.existingPointId, parentAnnotationId: null };
+                        parentPointIds.add(pt.existingPointId);
+                    } else if (pt.snapSegment?.annotationId) {
+                        linkByIdx[i] = {
+                            parentAnnotationId: pt.snapSegment.annotationId,
+                            parentPointId: null,
+                        };
+                        annIds.add(pt.snapSegment.annotationId);
+                    }
+                }
+
+                // Resolve parent annotations for existingPointId snaps by scanning candidate
+                // annotations on the same baseMap that reference these point ids. We also
+                // capture the inline offsetBottom/offsetTop for each (parentAnnotationId,
+                // parentPointId) pair, since offsets are stored inline on annotation.points.
+                const inlineOffsetByLinkIdx = {}; // i → { offsetBottom, offsetTop } from parent annotation's inline entry
+                const remainingByPointId = {};
+                for (let i = 0; i < linkByIdx.length; i++) {
+                    const link = linkByIdx[i];
+                    if (link?.parentPointId && !link.parentAnnotationId) {
+                        if (!remainingByPointId[link.parentPointId]) remainingByPointId[link.parentPointId] = [];
+                        remainingByPointId[link.parentPointId].push(i);
+                    }
+                }
+                if (Object.keys(remainingByPointId).length > 0) {
+                    const baseMapAnnotations = await db.annotations
+                        .where("baseMapId")
+                        .equals(baseMapId)
+                        .filter((a) => !a.deletedAt)
+                        .toArray();
+                    for (const a of baseMapAnnotations) {
+                        const inlineRefs = [
+                            ...(a.points ?? []),
+                            ...((a.cuts ?? []).flatMap((c) => c.points ?? [])),
+                        ];
+                        for (const r of inlineRefs) {
+                            const idxs = remainingByPointId[r?.id];
+                            if (!idxs) continue;
+                            for (const idx of idxs) {
+                                if (linkByIdx[idx].parentAnnotationId) continue;
+                                linkByIdx[idx].parentAnnotationId = a.id;
+                                annIds.add(a.id);
+                                inlineOffsetByLinkIdx[idx] = {
+                                    offsetBottom: Number(r?.offsetBottom) || 0,
+                                    offsetTop: Number(r?.offsetTop) || 0,
+                                };
+                            }
+                        }
+                    }
+                }
+
+                const annsArr = annIds.size > 0
+                    ? await db.annotations.bulkGet([...annIds])
+                    : [];
+                const annIndex = {};
+                for (const a of annsArr) if (a) annIndex[a.id] = a;
+
+                // Compute effective bottom/top Z per linked drawing point.
+                const linkedZ = []; // [{ idx, bottomZ, topZ }]
+                for (let i = 0; i < linkByIdx.length; i++) {
+                    const link = linkByIdx[i];
+                    if (!link?.parentAnnotationId) continue;
+                    const parentAnn = annIndex[link.parentAnnotationId];
+                    if (!parentAnn) continue;
+                    const parentOffsetZ = Number(parentAnn.offsetZ) || 0;
+                    const parentHeight = Number(parentAnn.height) || 0;
+                    const inlineOff = inlineOffsetByLinkIdx[i] ?? { offsetBottom: 0, offsetTop: 0 };
+                    linkedZ.push({
+                        idx: i,
+                        bottomZ: parentOffsetZ + inlineOff.offsetBottom,
+                        topZ: parentOffsetZ + parentHeight + inlineOff.offsetTop,
+                    });
+                }
+
+                if (linkedZ.length > 0) {
+                    // The renderer (triangulateAnnotationGeometry.js) computes
+                    //   bottom_z = verticalLift + offsetBottom
+                    //   top_z    = verticalLift + height + offsetBottom + offsetTop
+                    // so a vertex's "thickness" = height + offsetTop (offsetBottom
+                    // shifts both faces). To make orange match every neighbor at
+                    // both faces, we pick:
+                    //   newOffsetZ = min(bottomZ)
+                    //   newHeight  = min(thickness)   ← thinnest neighbor sets the base height
+                    //   offB_i     = bottomZ_i  − newOffsetZ        (≥ 0)
+                    //   offT_i     = thickness_i − newHeight        (≥ 0)
+                    let minBottom = Infinity;
+                    let minThickness = Infinity;
+                    for (const z of linkedZ) {
+                        if (z.bottomZ < minBottom) minBottom = z.bottomZ;
+                        const t = z.topZ - z.bottomZ;
+                        if (t < minThickness) minThickness = t;
+                    }
+                    const newOffsetZ = minBottom;
+                    const newHeight = Math.max(0, minThickness);
+                    _autoOffsets = { offsetZ: newOffsetZ, height: newHeight };
+
+                    for (const z of linkedZ) {
+                        const offB = z.bottomZ - newOffsetZ;
+                        const offT = (z.topZ - z.bottomZ) - newHeight;
+                        const entry = {};
+                        if (offB !== 0) entry.offsetBottom = offB;
+                        if (offT !== 0) entry.offsetTop = offT;
+                        if (Object.keys(entry).length > 0) {
+                            _autoPointOffsets[z.idx] = entry;
+                        }
+                    }
                 }
             }
 
@@ -299,6 +434,9 @@ export default function useHandleCommitDrawing({ newEntity } = {}) {
                 _newAnnotation.points = finalPointIds.map((id, i) => {
                     const entry = { id };
                     if (rawPoints[i]?.type) entry.type = rawPoints[i].type;
+                    const auto = _autoPointOffsets[i];
+                    if (auto?.offsetBottom != null) entry.offsetBottom = auto.offsetBottom;
+                    if (auto?.offsetTop != null) entry.offsetTop = auto.offsetTop;
                     return entry;
                 });
             }
@@ -346,6 +484,11 @@ export default function useHandleCommitDrawing({ newEntity } = {}) {
 
             if (newAnnotation?.type === "MARKER" || newAnnotation?.type === "POINT") {
                 _newAnnotation.point = { id: finalPointIds[0] };
+            }
+
+            if (_autoOffsets) {
+                _newAnnotation.offsetZ = _autoOffsets.offsetZ;
+                _newAnnotation.height = _autoOffsets.height;
             }
         }
 

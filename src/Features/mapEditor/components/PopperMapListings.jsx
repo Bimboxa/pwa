@@ -91,6 +91,7 @@ import {
   setEnabledDrawingMode,
   setSelectedToolKeyForTemplate,
   setAutoMergeOnCommit,
+  setAutoOffsetsOnCommit,
 } from "Features/mapEditor/mapEditorSlice";
 import WarningAmber from "@mui/icons-material/WarningAmber";
 
@@ -1364,11 +1365,15 @@ function PopperDrawingHelper() {
   const autoMergeOnCommit = useSelector(
     (s) => s.mapEditor.autoMergeOnCommit
   );
+  const autoOffsetsOnCommit = useSelector(
+    (s) => s.mapEditor.autoOffsetsOnCommit
+  );
   const isSegmentSelectMode = SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
   const showSegmentLength = SEGMENT_DRAWING_MODES.includes(enabledDrawingMode);
   const showSmartDetectCard = SMART_DETECT_CAPABLE_MODES.includes(enabledDrawingMode);
   const showOrientation = ORIENTATION_CAPABLE_MODES.includes(enabledDrawingMode);
   const showAutoMerge = enabledDrawingMode === "POLYGON_RECTANGLE";
+  const showAutoOffsets = enabledDrawingMode === "POLYGON_CLICK";
 
   // Kept for future use (e.g. to conditionally show helper UI per target).
   // Referenced here so the helper stays imported by the component.
@@ -1470,6 +1475,47 @@ function PopperDrawingHelper() {
               size="small"
               checked={Boolean(autoMergeOnCommit)}
               onChange={(e) => dispatch(setAutoMergeOnCommit(e.target.checked))}
+            />
+          </Paper>
+        )}
+        {showAutoOffsets && (
+          <Paper
+            elevation={0}
+            sx={{
+              px: 1,
+              py: 0.5,
+              bgcolor: "background.default",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+              <Typography variant="caption" color="text.secondary">
+                Offsets automatiques
+              </Typography>
+              <Box
+                sx={{
+                  px: 0.5,
+                  py: 0,
+                  borderRadius: 0.5,
+                  bgcolor: "action.hover",
+                  color: "text.secondary",
+                  fontSize: "0.65rem",
+                  fontWeight: 600,
+                  lineHeight: 1.4,
+                }}
+              >
+                O
+              </Box>
+            </Box>
+            <Switch
+              size="small"
+              checked={Boolean(autoOffsetsOnCommit)}
+              onChange={(e) =>
+                dispatch(setAutoOffsetsOnCommit(e.target.checked))
+              }
             />
           </Paper>
         )}

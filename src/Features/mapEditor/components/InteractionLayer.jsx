@@ -21,6 +21,7 @@ import {
   cycleLoupeAspect,
   setLoupeAspect,
   setSmartDetectionPresent,
+  setAutoOffsetsOnCommit,
 } from 'Features/mapEditor/mapEditorSlice';
 import { setColorToReplace } from 'Features/opencv/opencvSlice';
 import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
@@ -281,6 +282,7 @@ const InteractionLayer = forwardRef(({
   const stripDetectionOrientation = useSelector((s) => s.mapEditor.stripDetectionOrientation);
   const stripDetectionMultiple = useSelector((s) => s.mapEditor.stripDetectionMultiple);
   const smartDetectEnabled = useSelector((s) => s.mapEditor.smartDetectEnabled);
+  const autoOffsetsOnCommit = useSelector((s) => s.mapEditor.autoOffsetsOnCommit);
   const loupeAspectRedux = useSelector((s) => s.mapEditor.loupeAspect);
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const rawDetection = useSelector((s) => s.smartDetect.rawDetection);
@@ -1426,6 +1428,11 @@ const InteractionLayer = forwardRef(({
     smartDetectEnabledRef.current = smartDetectEnabled;
   }, [smartDetectEnabled]);
 
+  const autoOffsetsOnCommitRef = useRef(autoOffsetsOnCommit);
+  useEffect(() => {
+    autoOffsetsOnCommitRef.current = autoOffsetsOnCommit;
+  }, [autoOffsetsOnCommit]);
+
   const surfaceDropBarrierMaskRef = useRef(surfaceDropBarrierMask);
   useEffect(() => {
     surfaceDropBarrierMaskRef.current = surfaceDropBarrierMask;
@@ -1791,6 +1798,14 @@ const InteractionLayer = forwardRef(({
           const mousePos = lastMouseScreenPosRef.current;
           setShowSmartDetect(true);
           updateSmartDetect(mousePos);
+          break;
+
+        case 'o':
+        case 'O':
+          if (enabledDrawingModeRef.current === "POLYGON_CLICK") {
+            e.preventDefault();
+            dispatch(setAutoOffsetsOnCommit(!autoOffsetsOnCommitRef.current));
+          }
           break;
 
         case ' ':
