@@ -49,7 +49,12 @@ function SectionHeader({ title, onReset }) {
     <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.75 }}>
       <Typography
         variant="body2"
-        sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}
+        sx={{
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+          color: "text.secondary",
+        }}
       >
         {title}
       </Typography>
