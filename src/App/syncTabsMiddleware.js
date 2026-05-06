@@ -10,6 +10,17 @@ const SYNCED_ACTION_TYPES = new Set([
   "mapEditors/setSelectedMainBaseMapId",
   "baseMapViews/setSelectedBaseMapViewId",
   "baseMapViews/setSelectedBaseMapViewIdInEditor",
+  // Visibility options consumed by useAnnotationsV2 — keep 2D and 3D
+  // views consistent between tabs.
+  "listings/setHiddenListingsIds",
+  "listings/hideListingId",
+  "listings/showListingId",
+  "layers/toggleLayerVisibility",
+  "layers/toggleShowAnnotationsWithoutLayer",
+  "layers/triggerLayersUpdate",
+  "popperMapListings/setSoloMode",
+  "popperMapListings/setSoloVisibleTemplateIds",
+  "popperMapListings/setSoloListingId",
 ]);
 
 const SYNCED_PREFIXES = ["selection/"];
