@@ -83,6 +83,15 @@ export default class TransformControlsManager {
     this.controls.setMode(mode);
   }
 
+  // "world" | "local". World aligns the gizmo handles with the scene axes
+  // (used by the basemap-position gizmos); local aligns them with the
+  // attached object's own frame (used by the offset gizmo so the Z arrow
+  // points along the basemap plane normal).
+  setSpace(space) {
+    if (!this.controls) return;
+    this.controls.setSpace(space);
+  }
+
   // Restrict which gizmo handles are visible (and active). Useful for the
   // basemap-position panel: rotation is constrained to world Y, so we hide
   // the X and Z rings.

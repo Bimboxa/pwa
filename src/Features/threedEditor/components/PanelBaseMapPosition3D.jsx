@@ -41,6 +41,9 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 const ROW_LABEL_WIDTH = 80;
+// Reserve a fixed column on the right for the gizmo + reset so the
+// rotation/translation rows align vertically regardless of input width.
+const RIGHT_GIZMO_WIDTH = 36;
 
 function Row({ label, children }) {
   return (
@@ -73,6 +76,27 @@ function ResetText({ onClick }) {
   );
 }
 
+function GizmoToggle({ active, onClick, tooltip, children }) {
+  return (
+    <Tooltip title={tooltip}>
+      <ToggleButton
+        value="on"
+        size="small"
+        selected={active}
+        onChange={onClick}
+        sx={{
+          width: RIGHT_GIZMO_WIDTH,
+          height: RIGHT_GIZMO_WIDTH,
+          p: 0,
+          ml: "auto", // push to the right end so rows align vertically
+        }}
+      >
+        {children}
+      </ToggleButton>
+    </Tooltip>
+  );
+}
+
 export default function PanelBaseMapPosition3D() {
   const dispatch = useDispatch();
 
@@ -85,7 +109,9 @@ export default function PanelBaseMapPosition3D() {
 
   const drag = usePanelDrag();
 
-  const [gizmoMode, setGizmoMode] = useState("off"); // "off" | "translate" | "rotate"
+  // "off" | "translate" | "rotate" | "offset". Mutually exclusive — only one
+  // gizmo is active at a time, since TransformControls is a singleton.
+  const [gizmoMode, setGizmoMode] = useState("off");
 
   const [orientation, setOrientation] = useState(DEFAULT_ORIENTATION);
   const [angleDeg, setAngleDegStr] = useState("0");
@@ -147,10 +173,9 @@ export default function PanelBaseMapPosition3D() {
     editor.renderScene();
   }, [baseMapId, localOpacity]);
 
-  // Mirror drawingOffset to the inner meshWrap's local-Z translation (the
-  // plane normal after the basemap rotation). Affects only the basemap mesh,
-  // not the annotations — so the user sees where the next drawn annotation
-  // will land relative to the existing geometry.
+  // Mirror drawingOffset to the inner meshWrap's local-Z translation. Affects
+  // only the basemap mesh (not the annotations) so the user sees where the
+  // next drawn annotation will land relative to the existing geometry.
   useEffect(() => {
     const editor = getActiveThreedEditor();
     const meshWrap = editor?.sceneManager?.imagesManager?.getMeshWrap(baseMapId);
@@ -159,71 +184,99 @@ export default function PanelBaseMapPosition3D() {
     editor.renderScene();
   }, [baseMapId, drawingOffset]);
 
-  // Attach the gizmo to the basemap group when a mode is picked. Rotation is
-  // constrained to the world Y ring (the scene's vertical axis); translation
-  // shows all three axes.
+  // Attach + configure the gizmo per mode. Rotation/translation operate on
+  // the basemap group (world axes); offset operates on the meshWrap (local
+  // axis along the plane normal).
   useEffect(() => {
     if (!baseMapId) return;
     const editor = getActiveThreedEditor();
     if (!editor) return;
     const tcm = editor.sceneManager?.transformControlsManager;
-    const group = editor.sceneManager?.imagesManager?.getGroup(baseMapId);
-    if (!tcm || !group) return;
+    if (!tcm) return;
 
     if (gizmoMode === "off") {
       tcm.detach();
       return;
     }
-    tcm.attach(group);
-    tcm.setMode(gizmoMode);
-    if (gizmoMode === "rotate") {
+
+    const group = editor.sceneManager?.imagesManager?.getGroup(baseMapId);
+    const meshWrap = editor.sceneManager?.imagesManager?.getMeshWrap(baseMapId);
+
+    if (gizmoMode === "rotate" && group) {
+      tcm.attach(group);
+      tcm.setMode("rotate");
+      tcm.setSpace("world");
       tcm.setShowAxes({ x: false, y: true, z: false });
-    } else {
+    } else if (gizmoMode === "translate" && group) {
+      tcm.attach(group);
+      tcm.setMode("translate");
+      tcm.setSpace("world");
       tcm.setShowAxes({ x: true, y: true, z: true });
+    } else if (gizmoMode === "offset" && meshWrap) {
+      tcm.attach(meshWrap);
+      tcm.setMode("translate");
+      tcm.setSpace("local");
+      tcm.setShowAxes({ x: false, y: false, z: true });
     }
 
     return () => tcm.detach();
   }, [baseMapId, gizmoMode]);
 
-  // Mirror live group transform into form fields during drag, persist on end.
+  // Live updates from the gizmo: mirror to form fields (and Redux for offset),
+  // and persist on drag end.
   useEffect(() => {
     if (!baseMapId) return;
     const editor = getActiveThreedEditor();
     const tcm = editor?.sceneManager?.transformControlsManager;
-    const group = editor?.sceneManager?.imagesManager?.getGroup(baseMapId);
-    if (!tcm || !group) return;
+    if (!tcm) return;
 
-    const updateFromGroup = () => {
-      const ang = group.rotation.y * (180 / Math.PI);
-      setAngleDegStr(roundFmt(ang));
-      const userPos = toUserCoords({
-        x: group.position.x,
-        y: group.position.y,
-        z: group.position.z,
-      });
-      setPosUser({
-        x: roundFmt(userPos.x),
-        y: roundFmt(userPos.y),
-        z: roundFmt(userPos.z),
-      });
-    };
+    let unsub = () => {};
 
-    const unsub = tcm.subscribe(updateFromGroup);
-    tcm.setDragEndCallback(() => {
-      const ang = group.rotation.y * (180 / Math.PI);
-      const position = {
-        x: group.position.x,
-        y: group.position.y,
-        z: group.position.z,
+    if (gizmoMode === "rotate" || gizmoMode === "translate") {
+      const group = editor.sceneManager?.imagesManager?.getGroup(baseMapId);
+      if (!group) return;
+      const update = () => {
+        const ang = group.rotation.y * (180 / Math.PI);
+        setAngleDegStr(roundFmt(ang));
+        const userPos = toUserCoords({
+          x: group.position.x,
+          y: group.position.y,
+          z: group.position.z,
+        });
+        setPosUser({
+          x: roundFmt(userPos.x),
+          y: roundFmt(userPos.y),
+          z: roundFmt(userPos.z),
+        });
       };
-      db.baseMaps.update(baseMapId, { angleDeg: ang, position });
-    });
+      unsub = tcm.subscribe(update);
+      tcm.setDragEndCallback(() => {
+        const ang = group.rotation.y * (180 / Math.PI);
+        const position = {
+          x: group.position.x,
+          y: group.position.y,
+          z: group.position.z,
+        };
+        db.baseMaps.update(baseMapId, { angleDeg: ang, position });
+      });
+    } else if (gizmoMode === "offset") {
+      const meshWrap = editor.sceneManager?.imagesManager?.getMeshWrap(baseMapId);
+      if (!meshWrap) return;
+      const update = () => {
+        // Push the live local-Z back into Redux so the slider/field follow.
+        // The drawingOffset effect re-applies it to meshWrap.position — same
+        // value, no-op.
+        dispatch(setDrawingOffset(meshWrap.position.z));
+      };
+      unsub = tcm.subscribe(update);
+      tcm.setDragEndCallback(null);
+    }
 
     return () => {
       unsub();
       tcm.setDragEndCallback(null);
     };
-  }, [baseMapId]);
+  }, [baseMapId, gizmoMode, dispatch]);
 
   // ─── handlers ──────────────────────────────────────────────────────────
 
@@ -344,9 +397,10 @@ export default function PanelBaseMapPosition3D() {
         zIndex: 2,
         transform: `translate(${drag.position.x}px, ${drag.position.y}px)`,
         p: 1.5,
-        minWidth: 480,
+        minWidth: 500,
       }}
     >
+      {/* Header: drag handle, title, opacity slider + visibility toggle. */}
       <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 1.5 }}>
         <Box
           onMouseDown={drag.handleMouseDown}
@@ -357,32 +411,28 @@ export default function PanelBaseMapPosition3D() {
         <Typography variant="body2" sx={{ flexGrow: 1, fontWeight: 600 }}>
           Fond de plan
         </Typography>
+        <Slider
+          size="small"
+          value={localOpacity}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={handleOpacityChange}
+          onChangeCommitted={commitOpacity}
+          sx={{ width: 120, mr: 1 }}
+        />
+        <Tooltip title={localOpacity > 0 ? "Masquer" : "Afficher"}>
+          <IconButton size="small" onClick={toggleVisibility}>
+            {localOpacity > 0 ? (
+              <Visibility fontSize="small" />
+            ) : (
+              <VisibilityOff fontSize="small" color="error" />
+            )}
+          </IconButton>
+        </Tooltip>
       </Stack>
 
       <Stack spacing={1.25}>
-        {/* Opacité */}
-        <Row label="Opacité">
-          <Slider
-            size="small"
-            value={localOpacity}
-            min={0}
-            max={1}
-            step={0.01}
-            onChange={handleOpacityChange}
-            onChangeCommitted={commitOpacity}
-            sx={{ flexGrow: 1, mx: 1 }}
-          />
-          <Tooltip title={localOpacity > 0 ? "Masquer" : "Afficher"}>
-            <IconButton size="small" onClick={toggleVisibility}>
-              {localOpacity > 0 ? (
-                <Visibility fontSize="small" />
-              ) : (
-                <VisibilityOff fontSize="small" color="error" />
-              )}
-            </IconButton>
-          </Tooltip>
-        </Row>
-
         {/* Rotation */}
         <Row label="Rotation">
           <ToggleButtonGroup
@@ -407,16 +457,13 @@ export default function PanelBaseMapPosition3D() {
             onCommit={commitAngle}
             unit="°"
           />
-          <Tooltip title="Gizmo rotation">
-            <IconButton
-              size="small"
-              color={gizmoMode === "rotate" ? "primary" : "default"}
-              onClick={() => setGizmoMode((m) => (m === "rotate" ? "off" : "rotate"))}
-            >
-              <IconGizmoRotate />
-            </IconButton>
-          </Tooltip>
-          <Box sx={{ flexGrow: 1 }} />
+          <GizmoToggle
+            tooltip="Gizmo rotation"
+            active={gizmoMode === "rotate"}
+            onClick={() => setGizmoMode((m) => (m === "rotate" ? "off" : "rotate"))}
+          >
+            <IconGizmoRotate />
+          </GizmoToggle>
           <ResetText onClick={resetRotation} />
         </Row>
 
@@ -440,38 +487,37 @@ export default function PanelBaseMapPosition3D() {
             onChange={(v) => setPosField("z", v)}
             onCommit={commitPosition}
           />
-          <Tooltip title="Gizmo translation">
-            <IconButton
-              size="small"
-              color={gizmoMode === "translate" ? "primary" : "default"}
-              onClick={() => setGizmoMode((m) => (m === "translate" ? "off" : "translate"))}
-            >
-              <IconGizmoTranslate />
-            </IconButton>
-          </Tooltip>
-          <Box sx={{ flexGrow: 1 }} />
+          <GizmoToggle
+            tooltip="Gizmo translation"
+            active={gizmoMode === "translate"}
+            onClick={() => setGizmoMode((m) => (m === "translate" ? "off" : "translate"))}
+          >
+            <IconGizmoTranslate />
+          </GizmoToggle>
           <ResetText onClick={resetTranslation} />
         </Row>
 
         {/* Offset (drawing offset; lifts the basemap mesh visually so the user
-            can see where the next annotation will land) */}
-        <Row label="Offset">
+            sees where the next annotation will land). Two sub-rows: slider on
+            top, max + value + reset + manual gizmo on the bottom. */}
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Typography variant="caption" sx={{ width: ROW_LABEL_WIDTH, color: "text.secondary" }}>
+            Offset
+          </Typography>
           <Slider
             size="small"
-            value={Math.min(Math.max(drawingOffset, 0), offsetMax)}
-            min={0}
+            value={Math.min(Math.max(drawingOffset, -offsetMax), offsetMax)}
+            min={-offsetMax}
             max={offsetMax}
             step={0.01}
+            marks={[{ value: 0, label: "0" }]}
             onChange={handleOffsetSliderChange}
-            sx={{ flexGrow: 1, mx: 1, maxWidth: 180 }}
+            sx={{ flexGrow: 1, mx: 1 }}
           />
-          <FieldMeasure
-            value={String(drawingOffset)}
-            onChange={() => {}}
-            onCommit={handleOffsetFieldCommit}
-            unit="m"
-          />
-          <Typography variant="caption" sx={{ color: "text.secondary", ml: 0.5 }}>
+        </Stack>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Box sx={{ width: ROW_LABEL_WIDTH }} />
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
             Max
           </Typography>
           <FieldMeasure
@@ -480,8 +526,21 @@ export default function PanelBaseMapPosition3D() {
             onCommit={() => {}}
             unit="m"
           />
+          <FieldMeasure
+            value={String(drawingOffset)}
+            onChange={() => {}}
+            onCommit={handleOffsetFieldCommit}
+            unit="m"
+          />
+          <GizmoToggle
+            tooltip="Gizmo offset (axe normal)"
+            active={gizmoMode === "offset"}
+            onClick={() => setGizmoMode((m) => (m === "offset" ? "off" : "offset"))}
+          >
+            <IconGizmoTranslate />
+          </GizmoToggle>
           <ResetText onClick={resetOffset} />
-        </Row>
+        </Stack>
       </Stack>
     </Paper>
   );
