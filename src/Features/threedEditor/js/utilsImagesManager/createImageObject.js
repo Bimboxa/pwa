@@ -21,6 +21,16 @@ export default function createImageObject(image) {
   group.userData.kind = "baseMap";
   group.userData.baseMapId = image.id;
 
+  // Inner mesh wrapper used for the live "drawingOffset" visualisation: the
+  // mesh slides along the basemap's local +Z (which becomes the plane normal
+  // after the group's rotation). Annotations stay children of the outer
+  // group, so the offset is purely a visual cue showing where the next
+  // annotation will land — it doesn't move existing ones.
+  const meshWrap = new Group();
+  meshWrap.userData.kind = "baseMapMeshWrap";
+  group.add(meshWrap);
+  group.userData.meshWrap = meshWrap;
+
   const ready = (async () => {
     const texture = await getTextureAsync(url);
     const plane = new PlaneGeometry(widthInM, heightInM);
@@ -49,7 +59,7 @@ export default function createImageObject(image) {
     // into emissive PBR surfaces instead of standard ones — otherwise the
     // env-map ambient shading turns a white floorplan into a dim gray.
     mesh.userData.isBasemap = true;
-    group.add(mesh);
+    meshWrap.add(mesh);
   })();
 
   return { group, ready };

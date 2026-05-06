@@ -36,15 +36,22 @@ export default class ImagesManager {
     return this.imagesMap[baseMapId] ?? null;
   }
 
+  // The inner mesh wrapper carrying the live `drawingOffset` translation
+  // along the plane's local normal. Annotations stay outside of it.
+  getMeshWrap(baseMapId) {
+    return this.imagesMap[baseMapId]?.userData?.meshWrap ?? null;
+  }
+
   deleteAllImagesObjects() {
     try {
       console.log("[ImagesManager] deleteAllImagesObjects");
       Object.values(this.imagesMap).forEach((group) => {
-        // The group can carry annotations as siblings of the mesh; dispose only
-        // the basemap's own mesh resources, not the annotations'
-        // (AnnotationsManager owns those).
+        // The group can carry annotations as siblings of the mesh wrapper;
+        // dispose only the basemap's own mesh resources, not the
+        // annotations' (AnnotationsManager owns those). Walk into the
+        // meshWrap to find the basemap mesh.
         this.scene.remove(group);
-        group.children.forEach((child) => {
+        group.traverse?.((child) => {
           if (child.userData?.isBasemap) {
             child.geometry?.dispose?.();
             child.material?.dispose?.();

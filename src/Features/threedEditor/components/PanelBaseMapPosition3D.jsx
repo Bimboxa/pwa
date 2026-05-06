@@ -22,44 +22,25 @@ import {
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { setDrawingOffset } from "Features/threedEditor/threedEditorSlice";
 
+import FieldMeasure from "./FieldMeasure";
+import { IconGizmoTranslate, IconGizmoRotate } from "./iconsGizmo";
+
 import {
   Box,
   IconButton,
   Paper,
   Slider,
   Stack,
-  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
 import DragIndicator from "@mui/icons-material/DragIndicator";
-import OpenWith from "@mui/icons-material/OpenWith";
-import RotateLeft from "@mui/icons-material/RotateLeft";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 const ROW_LABEL_WIDTH = 80;
-const FIELD_WIDTH = 70;
-
-function NumberField({ label, value, onChange, onCommit, step = 0.1, width = FIELD_WIDTH }) {
-  return (
-    <TextField
-      label={label}
-      size="small"
-      type="number"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onBlur={onCommit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") e.currentTarget.blur();
-      }}
-      inputProps={{ step }}
-      sx={{ width }}
-    />
-  );
-}
 
 function Row({ label, children }) {
   return (
@@ -72,11 +53,29 @@ function Row({ label, children }) {
   );
 }
 
+function ResetText({ onClick }) {
+  return (
+    <Box
+      role="button"
+      onClick={onClick}
+      sx={{
+        cursor: "pointer",
+        color: "text.secondary",
+        fontSize: 12,
+        textDecoration: "underline",
+        ml: 0.5,
+        userSelect: "none",
+        "&:hover": { color: "text.primary" },
+      }}
+    >
+      Reset
+    </Box>
+  );
+}
+
 export default function PanelBaseMapPosition3D() {
   const dispatch = useDispatch();
 
-  // baseMap to edit — prefer the slice's selectedBaseMapId, fall back to the
-  // main basemap (the one actually loaded in the 3D editor today).
   const selected = useSelectedBaseMap();
   const main = useMainBaseMap();
   const baseMap = selected ?? main;
@@ -86,23 +85,19 @@ export default function PanelBaseMapPosition3D() {
 
   const drag = usePanelDrag();
 
-  // Independent gizmo modes — the user can have one of {none, translate, rotate}
-  // active at a time. Rotation is constrained to the scene's vertical axis.
   const [gizmoMode, setGizmoMode] = useState("off"); // "off" | "translate" | "rotate"
 
-  // Form state holds USER-FACING values.
   const [orientation, setOrientation] = useState(DEFAULT_ORIENTATION);
   const [angleDeg, setAngleDegStr] = useState("0");
   const [posUser, setPosUser] = useState({ x: "0", y: "0", z: "0" });
 
-  // Local panel-only config: the slider's max value (meters). Default 5m.
-  const [offsetMax, setOffsetMax] = useState(5);
+  // Local panel-only config: the slider's max value (m). Default 5m.
+  const [offsetMaxStr, setOffsetMaxStr] = useState("5");
+  const offsetMax = Math.max(parseFloatSafe(offsetMaxStr) || 1, 0.01);
 
-  // Opacity local state for snappy slider feedback + visibility toggle.
   const [localOpacity, setLocalOpacity] = useState(baseMap?.opacity ?? 1);
   const lastVisibleOpacityRef = useRef(localOpacity > 0 ? localOpacity : 1);
 
-  // Track in-progress edits so async sync from Dexie / gizmo doesn't stomp.
   const editingRef = useRef(false);
 
   const refreshFromBaseMap = useMemo(
@@ -139,13 +134,12 @@ export default function PanelBaseMapPosition3D() {
     refreshFromBaseMap,
   ]);
 
-  // Sync mesh material opacity in real time so the slider feels live without
-  // waiting for a Dexie roundtrip + livequery rerender.
+  // Mirror opacity to the basemap mesh material (live, no Dexie roundtrip).
   useEffect(() => {
     const editor = getActiveThreedEditor();
     const group = editor?.sceneManager?.imagesManager?.getGroup(baseMapId);
     if (!group) return;
-    group.children.forEach((child) => {
+    group.traverse((child) => {
       if (child.userData?.isBasemap && child.material) {
         child.material.opacity = localOpacity;
       }
@@ -153,9 +147,21 @@ export default function PanelBaseMapPosition3D() {
     editor.renderScene();
   }, [baseMapId, localOpacity]);
 
-  // Attach the gizmo to the basemap group when a mode is picked. Configure
-  // axis visibility per mode: rotation is Y-only (world up), translation is
-  // all three axes.
+  // Mirror drawingOffset to the inner meshWrap's local-Z translation (the
+  // plane normal after the basemap rotation). Affects only the basemap mesh,
+  // not the annotations — so the user sees where the next drawn annotation
+  // will land relative to the existing geometry.
+  useEffect(() => {
+    const editor = getActiveThreedEditor();
+    const meshWrap = editor?.sceneManager?.imagesManager?.getMeshWrap(baseMapId);
+    if (!meshWrap) return;
+    meshWrap.position.set(0, 0, drawingOffset);
+    editor.renderScene();
+  }, [baseMapId, drawingOffset]);
+
+  // Attach the gizmo to the basemap group when a mode is picked. Rotation is
+  // constrained to the world Y ring (the scene's vertical axis); translation
+  // shows all three axes.
   useEffect(() => {
     if (!baseMapId) return;
     const editor = getActiveThreedEditor();
@@ -179,8 +185,7 @@ export default function PanelBaseMapPosition3D() {
     return () => tcm.detach();
   }, [baseMapId, gizmoMode]);
 
-  // Mirror the live group transform into form fields during drag, and persist
-  // once on drag end.
+  // Mirror live group transform into form fields during drag, persist on end.
   useEffect(() => {
     if (!baseMapId) return;
     const editor = getActiveThreedEditor();
@@ -189,9 +194,6 @@ export default function PanelBaseMapPosition3D() {
     if (!tcm || !group) return;
 
     const updateFromGroup = () => {
-      // angle around world Y (group rotation order is "YXZ", so rotation.y is
-      // exactly the angle around world Y when the X angle stays at the
-      // orientation default).
       const ang = group.rotation.y * (180 / Math.PI);
       setAngleDegStr(roundFmt(ang));
       const userPos = toUserCoords({
@@ -253,9 +255,10 @@ export default function PanelBaseMapPosition3D() {
     db.baseMaps.update(baseMapId, { orientation: value });
   }
 
-  function commitAngle() {
+  function commitAngle(raw) {
     editingRef.current = false;
-    const a = parseFloatSafe(angleDeg);
+    const a = parseFloatSafe(raw ?? angleDeg);
+    setAngleDegStr(roundFmt(a));
     applyTransformToGroup({ angleDegOverride: a });
     db.baseMaps.update(baseMapId, { angleDeg: a });
   }
@@ -324,8 +327,8 @@ export default function PanelBaseMapPosition3D() {
     dispatch(setDrawingOffset(value));
   }
 
-  function handleOffsetFieldChange(value) {
-    const n = parseFloatSafe(value);
+  function handleOffsetFieldCommit(raw) {
+    const n = parseFloatSafe(raw);
     dispatch(setDrawingOffset(n));
   }
 
@@ -341,7 +344,7 @@ export default function PanelBaseMapPosition3D() {
         zIndex: 2,
         transform: `translate(${drag.position.x}px, ${drag.position.y}px)`,
         p: 1.5,
-        minWidth: 460,
+        minWidth: 480,
       }}
     >
       <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 1.5 }}>
@@ -356,7 +359,7 @@ export default function PanelBaseMapPosition3D() {
         </Typography>
       </Stack>
 
-      <Stack spacing={1.5}>
+      <Stack spacing={1.25}>
         {/* Opacité */}
         <Row label="Opacité">
           <Slider
@@ -395,16 +398,14 @@ export default function PanelBaseMapPosition3D() {
               Vertical
             </ToggleButton>
           </ToggleButtonGroup>
-          <NumberField
-            label="°"
+          <FieldMeasure
             value={angleDeg}
             onChange={(v) => {
               editingRef.current = true;
               setAngleDegStr(v);
             }}
             onCommit={commitAngle}
-            step={1}
-            width={70}
+            unit="°"
           />
           <Tooltip title="Gizmo rotation">
             <IconButton
@@ -412,28 +413,28 @@ export default function PanelBaseMapPosition3D() {
               color={gizmoMode === "rotate" ? "primary" : "default"}
               onClick={() => setGizmoMode((m) => (m === "rotate" ? "off" : "rotate"))}
             >
-              <RotateLeft fontSize="small" />
+              <IconGizmoRotate />
             </IconButton>
           </Tooltip>
           <Box sx={{ flexGrow: 1 }} />
-          <ResetButton onClick={resetRotation} />
+          <ResetText onClick={resetRotation} />
         </Row>
 
         {/* Translation */}
         <Row label="Translation">
-          <NumberField
+          <FieldMeasure
             label="X"
             value={posUser.x}
             onChange={(v) => setPosField("x", v)}
             onCommit={commitPosition}
           />
-          <NumberField
+          <FieldMeasure
             label="Y"
             value={posUser.y}
             onChange={(v) => setPosField("y", v)}
             onCommit={commitPosition}
           />
-          <NumberField
+          <FieldMeasure
             label="Z"
             value={posUser.z}
             onChange={(v) => setPosField("z", v)}
@@ -445,14 +446,15 @@ export default function PanelBaseMapPosition3D() {
               color={gizmoMode === "translate" ? "primary" : "default"}
               onClick={() => setGizmoMode((m) => (m === "translate" ? "off" : "translate"))}
             >
-              <OpenWith fontSize="small" />
+              <IconGizmoTranslate />
             </IconButton>
           </Tooltip>
           <Box sx={{ flexGrow: 1 }} />
-          <ResetButton onClick={resetTranslation} />
+          <ResetText onClick={resetTranslation} />
         </Row>
 
-        {/* Offset (drawing offset, distinct from baseMap fields) */}
+        {/* Offset (drawing offset; lifts the basemap mesh visually so the user
+            can see where the next annotation will land) */}
         <Row label="Offset">
           <Slider
             size="small"
@@ -461,49 +463,27 @@ export default function PanelBaseMapPosition3D() {
             max={offsetMax}
             step={0.01}
             onChange={handleOffsetSliderChange}
-            sx={{ flexGrow: 1, mx: 1, maxWidth: 160 }}
+            sx={{ flexGrow: 1, mx: 1, maxWidth: 180 }}
           />
-          <NumberField
-            label="m"
+          <FieldMeasure
             value={String(drawingOffset)}
-            onChange={handleOffsetFieldChange}
-            onCommit={() => {}}
-            step={0.1}
+            onChange={() => {}}
+            onCommit={handleOffsetFieldCommit}
+            unit="m"
           />
-          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+          <Typography variant="caption" sx={{ color: "text.secondary", ml: 0.5 }}>
             Max
           </Typography>
-          <NumberField
-            label="m"
-            value={String(offsetMax)}
-            onChange={(v) => setOffsetMax(parseFloatSafe(v) || 1)}
+          <FieldMeasure
+            value={offsetMaxStr}
+            onChange={setOffsetMaxStr}
             onCommit={() => {}}
-            step={1}
+            unit="m"
           />
-          <ResetButton onClick={resetOffset} />
+          <ResetText onClick={resetOffset} />
         </Row>
       </Stack>
     </Paper>
-  );
-}
-
-function ResetButton({ onClick }) {
-  return (
-    <Box
-      role="button"
-      onClick={onClick}
-      sx={{
-        cursor: "pointer",
-        color: "text.secondary",
-        fontSize: 12,
-        textDecoration: "underline",
-        ml: 0.5,
-        userSelect: "none",
-        "&:hover": { color: "text.primary" },
-      }}
-    >
-      Reset
-    </Box>
   );
 }
 
