@@ -100,8 +100,14 @@ function GizmoToggle({ active, onClick, tooltip, children }) {
         selected={active}
         onChange={onClick}
         sx={{
+          // Lock the size on every axis so the offset row's flex-grow slider
+          // can't compress this button and break vertical alignment with the
+          // rotation/translation gizmos above.
           width: GIZMO_BTN_SIZE,
           height: GIZMO_BTN_SIZE,
+          minWidth: GIZMO_BTN_SIZE,
+          minHeight: GIZMO_BTN_SIZE,
+          flexShrink: 0,
           p: 0,
           ml: "auto", // pin to the right end so gizmos align across rows
         }}
