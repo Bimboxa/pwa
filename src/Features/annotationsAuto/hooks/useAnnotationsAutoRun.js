@@ -200,7 +200,7 @@ export default function useAnnotationsAutoRun() {
 
     // save directly to database
 
-    const { annotations, points, rels } = result;
+    const { annotations, points, rels, updatedAnnotations } = result;
 
     await db.points.bulkAdd(points.map((p) => ({ ...p })));
     await db.annotations.bulkAdd(annotations.map((a) => ({ ...a })));
@@ -208,6 +208,11 @@ export default function useAnnotationsAutoRun() {
       await db.relAnnotationMappingCategory.bulkAdd(
         rels.map((r) => ({ ...r }))
       );
+    }
+    if (updatedAnnotations?.length > 0) {
+      // Persist preprocessing (e.g. shared-point normalization) by overwriting
+      // the touched annotations with their normalized rings/cuts.
+      await db.annotations.bulkPut(updatedAnnotations.map((a) => ({ ...a })));
     }
 
     dispatch(triggerAnnotationsUpdate());
