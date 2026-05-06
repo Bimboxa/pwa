@@ -1,3 +1,8 @@
+import {
+  isEffectivelyCoupled,
+  getCurrentPathname,
+} from "Features/layout/utils/isEffectivelyCoupled";
+
 const CHANNEL_NAME = "tabs-registry";
 const HEARTBEAT_INTERVAL_MS = 2000;
 const PEER_EXPIRY_MS = 5000;
@@ -58,11 +63,11 @@ function debounce(fn, delay) {
 }
 
 function getLocalCoupledEnabled() {
-  if (!getStoreRef) return true;
+  if (!getStoreRef) return false;
   try {
-    return Boolean(getStoreRef().getState().layout?.coupledNavigationEnabled);
+    return isEffectivelyCoupled(getStoreRef().getState(), getCurrentPathname());
   } catch {
-    return true;
+    return false;
   }
 }
 

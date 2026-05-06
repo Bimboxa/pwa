@@ -1,5 +1,6 @@
 import { useSyncExternalStore, useRef, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
+import { useLocation } from "react-router-dom";
 
 import {
   LOCAL_TAB_ID,
@@ -7,6 +8,7 @@ import {
   getPeersVersion,
   subscribePeers,
 } from "App/tabsRegistry";
+import { isEffectivelyCoupled } from "Features/layout/utils/isEffectivelyCoupled";
 
 const PEER_FRESH_MS = 5000;
 
@@ -20,8 +22,9 @@ function getServerSnapshot() {
 }
 
 export default function useIsWidestCoupledTab() {
-  const coupledEnabled = useSelector(
-    (s) => s.layout?.coupledNavigationEnabled ?? true
+  const location = useLocation();
+  const coupledEnabled = useSelector((s) =>
+    isEffectivelyCoupled(s, location.pathname)
   );
 
   // Peers map (mutated in place by tabsRegistry, but listener fires on change).
