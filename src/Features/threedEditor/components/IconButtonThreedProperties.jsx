@@ -18,7 +18,7 @@ import {
 import Tune from "@mui/icons-material/Tune";
 import ViewInAr from "@mui/icons-material/ViewInAr";
 
-import { setShowGrid } from "Features/threedEditor/threedEditorSlice";
+import { setShowGrid, setDisableOpacity } from "Features/threedEditor/threedEditorSlice";
 import DialogExportPhotoreal from "Features/photorealRender/components/DialogExportPhotoreal";
 import exportSceneAsUsdzService from "Features/threedEditor/services/exportSceneAsUsdzService";
 
@@ -30,6 +30,7 @@ export default function IconButtonThreedProperties() {
   const [usdzExporting, setUsdzExporting] = useState(false);
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
+  const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
 
   const open = Boolean(anchorEl);
 
@@ -104,6 +105,16 @@ export default function IconButtonThreedProperties() {
                 />
               }
               label={<Typography variant="body2">Afficher la grille</Typography>}
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={!disableOpacity}
+                  onChange={(e) => dispatch(setDisableOpacity(!e.target.checked))}
+                />
+              }
+              label={<Typography variant="body2">Transparence des annotations</Typography>}
             />
           </Box>
 

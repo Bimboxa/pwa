@@ -569,9 +569,9 @@ export default function MainThreedEditor() {
     // un-hover path here would overwrite the lasso preview when the cursor
     // moves off an object that's still inside the rect.
     if (lassoStartRef.current) return;
-    // In BASEMAP_POSITION mode hover highlighting is disabled along with
-    // selection — the user is moving the basemap, not picking annotations.
-    if (editorModeRef.current === "BASEMAP_POSITION") {
+    // Hover highlight only fires in SELECTION mode — in NAVIGATION the user
+    // is orbiting the camera, in BASEMAP_POSITION they're moving the basemap.
+    if (editorModeRef.current !== "SELECTION") {
       if (prevHoveredObjectRef.current) {
         const prevId = prevHoveredObjectRef.current.userData?.nodeId;
         applyAnnotationMaterialState(

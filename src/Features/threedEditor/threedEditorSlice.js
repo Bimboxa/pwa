@@ -2,11 +2,8 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const threedEditorInitialState = {
   showGrid: true,
-  // Forced ON for now: transparent annotations cause flicker / banding
-  // artefacts in the photoreal path-tracer, and stochastic alpha doesn't
-  // converge cleanly. The toggle is hidden from the UI but the flag is
-  // still read by the render pipeline (createAnnotationObject3D) so it can
-  // be flipped programmatically if needed.
+  // When true, annotation materials ignore `annotation.opacity` and render
+  // fully opaque. Exposed as the "Transparence des annotations" switch.
   disableOpacity: true,
   // "NAVIGATION" | "SELECTION" | "BASEMAP_POSITION".
   // - NAVIGATION: shift+drag = camera (OrbitControls).
