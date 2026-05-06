@@ -35,20 +35,24 @@ export default function createImageObject(image) {
     const texture = await getTextureAsync(url);
     const plane = new PlaneGeometry(widthInM, heightInM);
 
-    // Render the basemap as a background plate: drawn first, ignores depth.
-    // - The GridHelper sits at world y=0, same plane as the basemap → without
-    //   this, they z-fight and a white basemap stays invisible.
-    // - depthTest=false + renderOrder=-1 forces the basemap to be drawn first,
-    //   then grid + annotations layer on top through normal depth ordering.
-    // - depthWrite=false ensures the basemap doesn't occlude anything else.
-    // - transparent must follow opacity (not always true): Three.js renders
-    //   opaque objects before transparent ones in two separate passes, and
-    //   renderOrder cannot bridge those passes. If the basemap is forced into
-    //   the transparent queue while an opaque annotation is in the opaque
-    //   queue, the basemap renders LAST — and with depthTest=false it draws
-    //   over the annotation. Keeping transparent=false when opacity=1 puts
-    //   the basemap back in the opaque queue, where renderOrder=-1 correctly
-    //   places it before the annotations.
+    // Render the basemap as a background plate that loses every depth contest
+    // it enters, so any annotation in front of it occludes it correctly.
+    //
+    // - renderOrder=-1: drawn first within its render queue.
+    // - transparent: opacity < 1: keeps the basemap in the opaque queue when
+    //   fully opaque, so renderOrder=-1 actually places it before opaque
+    //   annotations. Three.js's opaque and transparent passes are strictly
+    //   sequential and renderOrder cannot bridge them — a basemap forced into
+    //   the transparent queue would render AFTER opaque annotations.
+    // - depthTest=true + polygonOffset: when the basemap is semi-transparent
+    //   it ends up in the transparent pass, drawn AFTER opaque annotations.
+    //   Without depthTest it would paint over them (the original bug). With
+    //   depthTest alone the basemap z-fights with the GridHelper at y=0 and
+    //   a white floorplan turns invisible. polygonOffset pushes the basemap's
+    //   depth slightly back so the grid lines and any coplanar annotation win
+    //   the depth contest cleanly.
+    // - depthWrite=false: even when the basemap renders first, it must not
+    //   occlude geometry placed at the same y (grid, flush annotations).
     // - Path-tracer rendering ignores these flags (it traces rays from BVH),
     //   so the photoreal export still composes the basemap correctly.
     const opacity = typeof image.opacity === "number" ? image.opacity : 1;
@@ -56,9 +60,12 @@ export default function createImageObject(image) {
       map: texture,
       side: DoubleSide,
       depthWrite: false,
-      depthTest: false,
+      depthTest: true,
       transparent: opacity < 1,
       opacity,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 4,
     });
 
     const mesh = new Mesh(plane, material);
