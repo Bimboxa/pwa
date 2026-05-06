@@ -3,6 +3,7 @@ import { createSlice } from "@reduxjs/toolkit";
 const initialState = {
   selectedSourceListingId: null,
   selectedProcedureKey: null,
+  selectedAnnotationTemplateId: null,
   pendingResult: null,
   showConfirmDialog: false,
   height: null,
@@ -19,6 +20,9 @@ export const annotationsAutoSlice = createSlice({
     },
     setSelectedProcedureKey: (state, action) => {
       state.selectedProcedureKey = action.payload;
+    },
+    setSelectedAnnotationTemplateId: (state, action) => {
+      state.selectedAnnotationTemplateId = action.payload;
     },
     setPendingResult: (state, action) => {
       state.pendingResult = action.payload;
@@ -42,6 +46,7 @@ export const annotationsAutoSlice = createSlice({
 export const {
   setSelectedSourceListingId,
   setSelectedProcedureKey,
+  setSelectedAnnotationTemplateId,
   setPendingResult,
   setShowConfirmDialog,
   setHeight,

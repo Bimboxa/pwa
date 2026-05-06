@@ -10,10 +10,14 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const isActiveViewer = selectedViewerKey === "THREED";
   const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
+  const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
 
   const annotations = useAnnotationsV2({
     caller: "MainThreedEditor",
     enabled: isActiveViewer,
+    withEntity: true,
+    excludeListingsIds: hiddenListingsIds,
+    hideBaseMapAnnotations: true,
     filterByMainBaseMap: true,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
@@ -24,4 +28,6 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     if (!threedEditor?.loadAnnotations || !rendererIsReady) return;
     threedEditor.loadAnnotations(annotations || [], { disableOpacity });
   }, [rendererIsReady, annotations, threedEditor, disableOpacity]);
+
+  return annotations;
 }

@@ -52,6 +52,9 @@ export default function useAnnotationsAutoRun() {
   const returnTechnique = useSelector(
     (s) => s.annotationsAuto.returnTechnique
   );
+  const selectedAnnotationTemplateId = useSelector(
+    (s) => s.annotationsAuto.selectedAnnotationTemplateId
+  );
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
   const baseMap = useMainBaseMap();
 
@@ -166,6 +169,17 @@ export default function useAnnotationsAutoRun() {
     const imageUrl = baseMap?.getUrl?.();
     const imageData = await loadBaseMapImageData(imageUrl, imageSize);
 
+    // Resolve the user-picked annotationTemplate (used by procedures that
+    // expose a template selector via showAnnotationTemplateSelect).
+    let targetAnnotationTemplate = null;
+    let targetListingId = null;
+    if (selectedAnnotationTemplateId) {
+      targetAnnotationTemplate = await db.annotationTemplates.get(
+        selectedAnnotationTemplateId
+      );
+      targetListingId = targetAnnotationTemplate?.listingId ?? null;
+    }
+
     const result = procedureFn({
       sourceAnnotations,
       sourceRels,
@@ -179,6 +193,8 @@ export default function useAnnotationsAutoRun() {
         height,
         activeLayerId,
         returnTechnique,
+        targetAnnotationTemplate,
+        targetListingId,
       },
     });
 
