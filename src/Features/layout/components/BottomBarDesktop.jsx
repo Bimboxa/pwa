@@ -8,6 +8,7 @@ import HelperClickInBgPosition from "Features/mapEditor/components/HelperClickIn
 import useHelperMessageInBottomBar from "Features/mapEditor/hooks/useHelperMessageInBottomBar";
 import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
 import ButtonsKrto from "Features/krtoFile/components/ButtonsKrto";
+import SwitchCoupledNavigation from "Features/layout/components/SwitchCoupledNavigation";
 
 export default function BottomBarDesktop() {
   // data
@@ -43,8 +44,9 @@ export default function BottomBarDesktop() {
         </Box>
       )}
 
-      <Box sx={{ display: "flex" }}>
+      <Box sx={{ display: "flex", alignItems: "center" }}>
         <HelperClickInBgPosition />
+        <SwitchCoupledNavigation />
         <ButtonsKrto />
       </Box>
     </Box>

@@ -1,6 +1,11 @@
 import { bottomNavigationActionClasses } from "@mui/material";
 import { createSlice } from "@reduxjs/toolkit";
 
+import {
+  loadCoupledNavigationEnabled,
+  storeCoupledNavigationEnabled,
+} from "./services/coupledNavigationLocalStorage";
+
 const layoutInitialState = {
   //
   deviceType: null, // "MOBILE" | "DESKTOP"
@@ -19,6 +24,8 @@ const layoutInitialState = {
   toaster: {}, // {triggeredAt,isError,message}
   //
   isFullScreen: false,
+  //
+  coupledNavigationEnabled: loadCoupledNavigationEnabled(),
 };
 
 export const layoutSlice = createSlice({
@@ -55,6 +62,10 @@ export const layoutSlice = createSlice({
     setIsFullScreen: (state, action) => {
       state.isFullScreen = action.payload;
     },
+    setCoupledNavigationEnabled: (state, action) => {
+      state.coupledNavigationEnabled = Boolean(action.payload);
+      storeCoupledNavigationEnabled(state.coupledNavigationEnabled);
+    },
   },
 });
 
@@ -72,6 +83,8 @@ export const {
   setToaster,
   //
   setIsFullScreen,
+  //
+  setCoupledNavigationEnabled,
 } = layoutSlice.actions;
 
 export default layoutSlice.reducer;

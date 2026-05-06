@@ -1,29 +1,42 @@
-import store from "./store";
+const SYNCED_ACTION_TYPES = new Set([
+  "projects/setSelectedProjectId",
+  "scopes/setSelectedScopeId",
+  "mapEditors/setSelectedMainBaseMapId",
+  "baseMapViews/setSelectedBaseMapViewId",
+  "baseMapViews/setSelectedBaseMapViewIdInEditor",
+]);
 
-const broadcastChannel = new BroadcastChannel("redux-sync");
+const SYNCED_PREFIXES = ["selection/"];
 
-const syncTabsMiddleware = (store) => (next) => (action) => {
+function isSynced(type) {
+  if (!type) return false;
+  if (SYNCED_ACTION_TYPES.has(type)) return true;
+  return SYNCED_PREFIXES.some((p) => type.startsWith(p));
+}
+
+const channel = new BroadcastChannel("redux-sync");
+
+export const syncTabsMiddleware = (storeApi) => (next) => (action) => {
   const result = next(action);
 
-  if (!action.meta?.fromBroadcast) {
-    broadcastChannel.postMessage(action);
+  if (
+    isSynced(action.type) &&
+    !action.meta?.fromBroadcast &&
+    storeApi.getState().layout?.coupledNavigationEnabled
+  ) {
+    channel.postMessage(action);
   }
 
   return result;
 };
 
-// listen for messages from other tabs
+export function initSyncTabsListener(store) {
+  channel.onmessage = (event) => {
+    const action = event.data;
+    if (!action || !isSynced(action.type)) return;
+    if (!store.getState().layout?.coupledNavigationEnabled) return;
+    store.dispatch({ ...action, meta: { ...action.meta, fromBroadcast: true } });
+  };
+}
 
-broadcastChannel.onmessage = (event) => {
-  const action = event.data;
-  //console.log("[broadcastChannel]", action);
-  if (
-    action.type.startsWith("markers/") ||
-    action.type.startsWith("shapes/") ||
-    action.type.startsWith("maps/") ||
-    action.type.startsWith("annotations/")
-  ) {
-    store.dispatch({ ...action, meta: { fromBroadcast: true } }); // Prevent rebroadcast
-  }
-};
 export default syncTabsMiddleware;

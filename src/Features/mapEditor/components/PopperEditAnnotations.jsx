@@ -1,6 +1,7 @@
 import { useSelector } from "react-redux";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 
+import useIsWidestCoupledTab from "Features/layout/hooks/useIsWidestCoupledTab";
 import useToolbarDrag from "../hooks/useToolbarDrag";
 
 import { Box } from "@mui/material";
@@ -17,13 +18,14 @@ export default function PopperEditAnnotations({ viewerKey = null, allAnnotations
   const selectedNodes = selectedItems.map((i) => ({ nodeId: i.nodeId, nodeType: i.type }));
 
   const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const isWidest = useIsWidestCoupledTab();
 
   // Only show if viewerKey matches active viewer (or if viewerKey is not specified, show for MAP)
   const shouldShow = viewerKey
     ? activeViewerKey === viewerKey
     : activeViewerKey === "MAP";
 
-  const open = shouldShow && selectedNodes?.length > 1;
+  const open = shouldShow && isWidest && selectedNodes?.length > 1;
 
   // drag
 

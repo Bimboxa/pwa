@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
+import useIsWidestCoupledTab from "Features/layout/hooks/useIsWidestCoupledTab";
 import useSelectedNodes from "../hooks/useSelectedNodes";
 import useToolbarDrag from "../hooks/useToolbarDrag";
 
@@ -22,6 +23,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const selectedAnnotation = useSelectedAnnotation();
   const selectedItems = useSelector(selectSelectedItems);
+  const isWidest = useIsWidestCoupledTab();
 
   // Note: used annotationType if available in item (it wasn't in InteractionLayer), falling back to selectedAnnotation logic
   const type = selectedNode?.annotationType || selectedAnnotation?.type;
@@ -39,6 +41,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   const open =
     shouldShow &&
     isSingleSelection &&
+    isWidest &&
     ["MARKER", "POINT", "POLYLINE", "POLYGON", "IMAGE", "RECTANGLE", "STRIP", "OBJECT_3D"].includes(type) &&
     selectedNode?.nodeType === "ANNOTATION";
 
