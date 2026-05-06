@@ -37,42 +37,44 @@ import {
   Typography,
 } from "@mui/material";
 import DragIndicator from "@mui/icons-material/DragIndicator";
+import RestartAlt from "@mui/icons-material/RestartAlt";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
-const ROW_LABEL_WIDTH = 80;
-// Reserve a fixed column on the right for the gizmo + reset so the
-// rotation/translation rows align vertically regardless of input width.
-const RIGHT_GIZMO_WIDTH = 36;
+const SECTION_INDENT = 0;
+const GIZMO_BTN_SIZE = 36;
 
-function Row({ label, children }) {
+function SectionHeader({ title, onReset }) {
   return (
-    <Stack direction="row" alignItems="center" spacing={1}>
-      <Typography variant="caption" sx={{ width: ROW_LABEL_WIDTH, color: "text.secondary" }}>
-        {label}
+    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.75 }}>
+      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+        {title}
       </Typography>
-      {children}
+      {onReset && (
+        <Tooltip title="Reset">
+          <IconButton
+            size="small"
+            onClick={onReset}
+            sx={{ p: 0.25, color: "text.secondary" }}
+          >
+            <RestartAlt sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Tooltip>
+      )}
     </Stack>
   );
 }
 
-function ResetText({ onClick }) {
+function SectionRow({ children }) {
   return (
-    <Box
-      role="button"
-      onClick={onClick}
-      sx={{
-        cursor: "pointer",
-        color: "text.secondary",
-        fontSize: 12,
-        textDecoration: "underline",
-        ml: 0.5,
-        userSelect: "none",
-        "&:hover": { color: "text.primary" },
-      }}
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={1}
+      sx={{ pl: SECTION_INDENT }}
     >
-      Reset
-    </Box>
+      {children}
+    </Stack>
   );
 }
 
@@ -85,10 +87,10 @@ function GizmoToggle({ active, onClick, tooltip, children }) {
         selected={active}
         onChange={onClick}
         sx={{
-          width: RIGHT_GIZMO_WIDTH,
-          height: RIGHT_GIZMO_WIDTH,
+          width: GIZMO_BTN_SIZE,
+          height: GIZMO_BTN_SIZE,
           p: 0,
-          ml: "auto", // push to the right end so rows align vertically
+          ml: "auto", // pin to the right end so gizmos align across rows
         }}
       >
         {children}
@@ -184,9 +186,7 @@ export default function PanelBaseMapPosition3D() {
     editor.renderScene();
   }, [baseMapId, drawingOffset]);
 
-  // Attach + configure the gizmo per mode. Rotation/translation operate on
-  // the basemap group (world axes); offset operates on the meshWrap (local
-  // axis along the plane normal).
+  // Attach + configure the gizmo per mode.
   useEffect(() => {
     if (!baseMapId) return;
     const editor = getActiveThreedEditor();
@@ -263,9 +263,6 @@ export default function PanelBaseMapPosition3D() {
       const meshWrap = editor.sceneManager?.imagesManager?.getMeshWrap(baseMapId);
       if (!meshWrap) return;
       const update = () => {
-        // Push the live local-Z back into Redux so the slider/field follow.
-        // The drawingOffset effect re-applies it to meshWrap.position — same
-        // value, no-op.
         dispatch(setDrawingOffset(meshWrap.position.z));
       };
       unsub = tcm.subscribe(update);
@@ -397,10 +394,11 @@ export default function PanelBaseMapPosition3D() {
         zIndex: 2,
         transform: `translate(${drag.position.x}px, ${drag.position.y}px)`,
         p: 1.5,
-        minWidth: 500,
+        minWidth: 520,
       }}
     >
-      {/* Header: drag handle, title, opacity slider + visibility toggle. */}
+      {/* Header: drag handle + title (left) and opacity slider + visibility
+          toggle (right, same line as the title). */}
       <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 1.5 }}>
         <Box
           onMouseDown={drag.handleMouseDown}
@@ -408,7 +406,7 @@ export default function PanelBaseMapPosition3D() {
         >
           <DragIndicator fontSize="small" />
         </Box>
-        <Typography variant="body2" sx={{ flexGrow: 1, fontWeight: 600 }}>
+        <Typography variant="body2" sx={{ flexGrow: 1, fontWeight: 700 }}>
           Fond de plan
         </Typography>
         <Slider
@@ -419,7 +417,7 @@ export default function PanelBaseMapPosition3D() {
           step={0.01}
           onChange={handleOpacityChange}
           onChangeCommitted={commitOpacity}
-          sx={{ width: 120, mr: 1 }}
+          sx={{ width: 130, mr: 1 }}
         />
         <Tooltip title={localOpacity > 0 ? "Masquer" : "Afficher"}>
           <IconButton size="small" onClick={toggleVisibility}>
@@ -432,115 +430,113 @@ export default function PanelBaseMapPosition3D() {
         </Tooltip>
       </Stack>
 
-      <Stack spacing={1.25}>
+      <Stack spacing={1.75}>
         {/* Rotation */}
-        <Row label="Rotation">
-          <ToggleButtonGroup
-            exclusive
-            size="small"
-            value={orientation}
-            onChange={(_e, v) => commitOrientation(v)}
-          >
-            <ToggleButton value="HORIZONTAL" sx={{ textTransform: "none", py: 0.25 }}>
-              Horizontal
-            </ToggleButton>
-            <ToggleButton value="VERTICAL" sx={{ textTransform: "none", py: 0.25 }}>
-              Vertical
-            </ToggleButton>
-          </ToggleButtonGroup>
-          <FieldMeasure
-            value={angleDeg}
-            onChange={(v) => {
-              editingRef.current = true;
-              setAngleDegStr(v);
-            }}
-            onCommit={commitAngle}
-            unit="°"
-          />
-          <GizmoToggle
-            tooltip="Gizmo rotation"
-            active={gizmoMode === "rotate"}
-            onClick={() => setGizmoMode((m) => (m === "rotate" ? "off" : "rotate"))}
-          >
-            <IconGizmoRotate />
-          </GizmoToggle>
-          <ResetText onClick={resetRotation} />
-        </Row>
+        <Box>
+          <SectionHeader title="Rotation" onReset={resetRotation} />
+          <SectionRow>
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={orientation}
+              onChange={(_e, v) => commitOrientation(v)}
+            >
+              <ToggleButton value="HORIZONTAL" sx={{ textTransform: "none", py: 0.25 }}>
+                Horizontal
+              </ToggleButton>
+              <ToggleButton value="VERTICAL" sx={{ textTransform: "none", py: 0.25 }}>
+                Vertical
+              </ToggleButton>
+            </ToggleButtonGroup>
+            <FieldMeasure
+              value={angleDeg}
+              onChange={(v) => {
+                editingRef.current = true;
+                setAngleDegStr(v);
+              }}
+              onCommit={commitAngle}
+              unit="°"
+            />
+            <GizmoToggle
+              tooltip="Gizmo rotation"
+              active={gizmoMode === "rotate"}
+              onClick={() => setGizmoMode((m) => (m === "rotate" ? "off" : "rotate"))}
+            >
+              <IconGizmoRotate />
+            </GizmoToggle>
+          </SectionRow>
+        </Box>
 
         {/* Translation */}
-        <Row label="Translation">
-          <FieldMeasure
-            label="X"
-            value={posUser.x}
-            onChange={(v) => setPosField("x", v)}
-            onCommit={commitPosition}
-          />
-          <FieldMeasure
-            label="Y"
-            value={posUser.y}
-            onChange={(v) => setPosField("y", v)}
-            onCommit={commitPosition}
-          />
-          <FieldMeasure
-            label="Z"
-            value={posUser.z}
-            onChange={(v) => setPosField("z", v)}
-            onCommit={commitPosition}
-          />
-          <GizmoToggle
-            tooltip="Gizmo translation"
-            active={gizmoMode === "translate"}
-            onClick={() => setGizmoMode((m) => (m === "translate" ? "off" : "translate"))}
-          >
-            <IconGizmoTranslate />
-          </GizmoToggle>
-          <ResetText onClick={resetTranslation} />
-        </Row>
+        <Box>
+          <SectionHeader title="Translation" onReset={resetTranslation} />
+          <SectionRow>
+            <FieldMeasure
+              label="X"
+              value={posUser.x}
+              onChange={(v) => setPosField("x", v)}
+              onCommit={commitPosition}
+            />
+            <FieldMeasure
+              label="Y"
+              value={posUser.y}
+              onChange={(v) => setPosField("y", v)}
+              onCommit={commitPosition}
+            />
+            <FieldMeasure
+              label="Z"
+              value={posUser.z}
+              onChange={(v) => setPosField("z", v)}
+              onCommit={commitPosition}
+            />
+            <GizmoToggle
+              tooltip="Gizmo translation"
+              active={gizmoMode === "translate"}
+              onClick={() => setGizmoMode((m) => (m === "translate" ? "off" : "translate"))}
+            >
+              <IconGizmoTranslate />
+            </GizmoToggle>
+          </SectionRow>
+        </Box>
 
-        {/* Offset (drawing offset; lifts the basemap mesh visually so the user
-            sees where the next annotation will land). Two sub-rows: slider on
-            top, max + value + reset + manual gizmo on the bottom. */}
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Typography variant="caption" sx={{ width: ROW_LABEL_WIDTH, color: "text.secondary" }}>
-            Offset
-          </Typography>
-          <Slider
-            size="small"
-            value={Math.min(Math.max(drawingOffset, -offsetMax), offsetMax)}
-            min={-offsetMax}
-            max={offsetMax}
-            step={0.01}
-            marks={[{ value: 0, label: "0" }]}
-            onChange={handleOffsetSliderChange}
-            sx={{ flexGrow: 1, mx: 1 }}
-          />
-        </Stack>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Box sx={{ width: ROW_LABEL_WIDTH }} />
-          <Typography variant="caption" sx={{ color: "text.secondary" }}>
-            Max
-          </Typography>
-          <FieldMeasure
-            value={offsetMaxStr}
-            onChange={setOffsetMaxStr}
-            onCommit={() => {}}
-            unit="m"
-          />
-          <FieldMeasure
-            value={String(drawingOffset)}
-            onChange={() => {}}
-            onCommit={handleOffsetFieldCommit}
-            unit="m"
-          />
-          <GizmoToggle
-            tooltip="Gizmo offset (axe normal)"
-            active={gizmoMode === "offset"}
-            onClick={() => setGizmoMode((m) => (m === "offset" ? "off" : "offset"))}
-          >
-            <IconGizmoTranslate />
-          </GizmoToggle>
-          <ResetText onClick={resetOffset} />
-        </Stack>
+        {/* Offset */}
+        <Box>
+          <SectionHeader title="Offset" onReset={resetOffset} />
+          <SectionRow>
+            <Typography variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
+              Max
+            </Typography>
+            <FieldMeasure
+              value={offsetMaxStr}
+              onChange={setOffsetMaxStr}
+              onCommit={() => {}}
+              unit="m"
+            />
+            <Slider
+              size="small"
+              value={Math.min(Math.max(drawingOffset, -offsetMax), offsetMax)}
+              min={-offsetMax}
+              max={offsetMax}
+              step={0.01}
+              marks={[{ value: 0 }]}
+              onChange={handleOffsetSliderChange}
+              sx={{ flexGrow: 1, mx: 1, minWidth: 100 }}
+            />
+            <FieldMeasure
+              value={String(drawingOffset)}
+              onChange={() => {}}
+              onCommit={handleOffsetFieldCommit}
+              unit="m"
+            />
+            <GizmoToggle
+              tooltip="Gizmo offset (axe normal)"
+              active={gizmoMode === "offset"}
+              onClick={() => setGizmoMode((m) => (m === "offset" ? "off" : "offset"))}
+            >
+              <IconGizmoTranslate />
+            </GizmoToggle>
+          </SectionRow>
+        </Box>
       </Stack>
     </Paper>
   );
