@@ -8,6 +8,9 @@ const threedEditorInitialState = {
   // still read by the render pipeline (createAnnotationObject3D) so it can
   // be flipped programmatically if needed.
   disableOpacity: true,
+  // "NAVIGATION" | "SELECTION" — disambiguates shift+drag between
+  // camera control (NAVIGATION) and lasso selection (SELECTION).
+  editorMode: "NAVIGATION",
 };
 
 export const threedEditorSlice = createSlice({
@@ -20,9 +23,13 @@ export const threedEditorSlice = createSlice({
     setDisableOpacity: (state, action) => {
       state.disableOpacity = action.payload;
     },
+    setEditorMode: (state, action) => {
+      state.editorMode = action.payload;
+    },
   },
 });
 
-export const { setShowGrid, setDisableOpacity } = threedEditorSlice.actions;
+export const { setShowGrid, setDisableOpacity, setEditorMode } =
+  threedEditorSlice.actions;
 
 export default threedEditorSlice.reducer;
