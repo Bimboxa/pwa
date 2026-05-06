@@ -6,9 +6,12 @@ import wallToRectRing, {
 } from "Features/geometry/utils/wallToRectRing";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 
+import { getShape3DOptionsForType } from "Features/annotations/constants/shape3DConfig";
+
 import pixelToWorld from "./pixelToWorld";
 import extrudeClosedShape from "./extrudeClosedShape";
 import extrudePolylineWall from "./extrudePolylineWall";
+import buildRevolutionMesh from "./buildRevolutionMesh";
 import createObject3DAnnotation from "./createObject3DAnnotation";
 
 // Reduce the rendered wall thickness slightly so its mesh doesn't z-fight
@@ -169,11 +172,16 @@ function extrudeWallPolygon(annotation, baseMap, height, material, verticalLift)
 export default function createAnnotationObject3D(annotation, baseMap, options) {
   if (!annotation || !baseMap) return null;
 
-  const drawingShape3D = annotation.drawingShape3D ?? null;
-  if (drawingShape3D !== null) {
-    console.warn(
-      `[createAnnotationObject3D] Unknown drawingShape3D="${drawingShape3D}", falling back to default`
+  const shape3D = annotation.shape3D ?? null;
+  if (shape3D !== null) {
+    const known = getShape3DOptionsForType(annotation.type).some(
+      (o) => o.key === shape3D
     );
+    if (!known) {
+      console.warn(
+        `[createAnnotationObject3D] Unknown shape3D="${shape3D}" for type="${annotation.type}", falling back to default`
+      );
+    }
   }
 
   const height = Number(annotation.height) || 0;
@@ -203,6 +211,16 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       break;
     }
     case "POLYLINE": {
+      if (shape3D === "REVOLUTION") {
+        const pts = pointsToLocal(annotation.points || [], baseMap);
+        object = buildRevolutionMesh(
+          pts,
+          material,
+          verticalLift,
+          annotation.hiddenSegmentsIdx || []
+        );
+        break;
+      }
       // CM-width polylines have a real-world stroke width — render them as
       // an extruded polygon (using the same offset algorithm as the 2D
       // "Contour" action), instead of a thin wall.
