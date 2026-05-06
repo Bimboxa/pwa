@@ -11,8 +11,6 @@ import getBaseMapTransform, {
   DEFAULT_ORIENTATION,
   DEFAULT_POSITION,
 } from "Features/baseMaps/js/getBaseMapTransform";
-import { setBaseMapOpacity as setBaseMapOpacityRedux } from "Features/mapEditor/mapEditorSlice";
-
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 
 import {
@@ -20,7 +18,10 @@ import {
   fromUserCoords,
 } from "Features/threedEditor/utils/userCoords";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
-import { setDrawingOffset } from "Features/threedEditor/threedEditorSlice";
+import {
+  setDrawingOffset,
+  setBaseMapOpacityIn3d,
+} from "Features/threedEditor/threedEditorSlice";
 
 import FieldMeasure from "./FieldMeasure";
 import { IconGizmoTranslate, IconGizmoRotate } from "./iconsGizmo";
@@ -127,6 +128,9 @@ export default function PanelBaseMapPosition3D() {
   const baseMapId = baseMap?.id ?? null;
 
   const drawingOffset = useSelector((s) => s.threedEditor.drawingOffset ?? 0);
+  const opacity = useSelector(
+    (s) => s.threedEditor.baseMapOpacityIn3d ?? 1
+  );
 
   const drag = usePanelDrag();
 
@@ -142,8 +146,10 @@ export default function PanelBaseMapPosition3D() {
   const [offsetMaxStr, setOffsetMaxStr] = useState("5");
   const offsetMax = Math.max(parseFloatSafe(offsetMaxStr) || 1, 0.01);
 
-  const [localOpacity, setLocalOpacity] = useState(baseMap?.opacity ?? 1);
-  const lastVisibleOpacityRef = useRef(localOpacity > 0 ? localOpacity : 1);
+  const lastVisibleOpacityRef = useRef(opacity > 0 ? opacity : 1);
+  useEffect(() => {
+    if (opacity > 0) lastVisibleOpacityRef.current = opacity;
+  }, [opacity]);
 
   const editingRef = useRef(false);
 
@@ -159,10 +165,6 @@ export default function PanelBaseMapPosition3D() {
         y: roundFmt(userPos.y),
         z: roundFmt(userPos.z),
       });
-      setLocalOpacity(typeof baseMap.opacity === "number" ? baseMap.opacity : 1);
-      if ((baseMap.opacity ?? 1) > 0) {
-        lastVisibleOpacityRef.current = baseMap.opacity ?? 1;
-      }
     },
     [baseMap]
   );
@@ -177,22 +179,8 @@ export default function PanelBaseMapPosition3D() {
     baseMap?.position?.x,
     baseMap?.position?.y,
     baseMap?.position?.z,
-    baseMap?.opacity,
     refreshFromBaseMap,
   ]);
-
-  // Mirror opacity to the basemap mesh material (live, no Dexie roundtrip).
-  useEffect(() => {
-    const editor = getActiveThreedEditor();
-    const group = editor?.sceneManager?.imagesManager?.getGroup(baseMapId);
-    if (!group) return;
-    group.traverse((child) => {
-      if (child.userData?.isBasemap && child.material) {
-        child.material.opacity = localOpacity;
-      }
-    });
-    editor.renderScene();
-  }, [baseMapId, localOpacity]);
 
   // Mirror drawingOffset to the inner meshWrap's local-Z translation. Affects
   // only the basemap mesh (not the annotations) so the user sees where the
@@ -374,22 +362,13 @@ export default function PanelBaseMapPosition3D() {
   }
 
   function handleOpacityChange(_e, value) {
-    editingRef.current = true;
-    setLocalOpacity(value);
     if (value > 0) lastVisibleOpacityRef.current = value;
-    dispatch(setBaseMapOpacityRedux(value));
-  }
-
-  function commitOpacity() {
-    editingRef.current = false;
-    db.baseMaps.update(baseMapId, { opacity: localOpacity });
+    dispatch(setBaseMapOpacityIn3d(value));
   }
 
   function toggleVisibility() {
-    const next = localOpacity > 0 ? 0 : lastVisibleOpacityRef.current || 1;
-    setLocalOpacity(next);
-    dispatch(setBaseMapOpacityRedux(next));
-    db.baseMaps.update(baseMapId, { opacity: next });
+    const next = opacity > 0 ? 0 : lastVisibleOpacityRef.current || 1;
+    dispatch(setBaseMapOpacityIn3d(next));
   }
 
   function handleOffsetSliderChange(_e, value) {
@@ -436,17 +415,16 @@ export default function PanelBaseMapPosition3D() {
         </Typography>
         <Slider
           size="small"
-          value={localOpacity}
+          value={opacity}
           min={0}
           max={1}
           step={0.01}
           onChange={handleOpacityChange}
-          onChangeCommitted={commitOpacity}
           sx={{ width: 100, mr: 1 }}
         />
-        <Tooltip title={localOpacity > 0 ? "Masquer" : "Afficher"}>
+        <Tooltip title={opacity > 0 ? "Masquer" : "Afficher"}>
           <IconButton size="small" onClick={toggleVisibility}>
-            {localOpacity > 0 ? (
+            {opacity > 0 ? (
               <Visibility fontSize="small" />
             ) : (
               <VisibilityOff fontSize="small" color="error" />

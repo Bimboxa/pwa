@@ -14,6 +14,5 @@ export default function getEditorImageFromBaseMap(map) {
     position: t.position,
     rotation,
     rotationOrder: BASE_MAP_ROTATION_ORDER,
-    opacity: typeof map.opacity === "number" ? map.opacity : 1,
   };
 }

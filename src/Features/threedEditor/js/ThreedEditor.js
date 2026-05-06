@@ -27,9 +27,14 @@ export default class ThreedEditor {
 
   // images
 
-  loadMaps = (maps) => {
+  loadMaps = (maps, options = {}) => {
     try {
       const images = maps.map(getEditorImageFromBaseMap);
+      if (typeof options.opacity === "number") {
+        images.forEach((img) => {
+          img.opacity = options.opacity;
+        });
+      }
       this.sceneManager.imagesManager.deleteAllImagesObjects();
       this.sceneManager.imagesManager.createImagesObjects(images, maps);
       this.renderScene();

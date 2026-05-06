@@ -5,6 +5,7 @@ import { Box3, Raycaster, Vector2, Vector3 } from "three";
 import useAutoLoadMapsInThreedEditor from "../hooks/useAutoLoadMapsInThreedEditor";
 import useAutoLoadAnnotationsInThreedEditor from "../hooks/useAutoLoadAnnotationsInThreedEditor";
 import useDeleteAnnotationOnKeyboardInThreedEditor from "../hooks/useDeleteAnnotationOnKeyboardInThreedEditor";
+import useApplyBaseMapOpacityIn3d from "../hooks/useApplyBaseMapOpacityIn3d";
 import {
   setSelectedNode,
   setAnnotationToolbarPosition,
@@ -153,6 +154,8 @@ export default function MainThreedEditor() {
     threedEditor: threedEditorRef.current,
     rendererIsReady,
   });
+
+  useApplyBaseMapOpacityIn3d();
 
   const annotations = useAutoLoadAnnotationsInThreedEditor({
     threedEditor: threedEditorRef.current,
