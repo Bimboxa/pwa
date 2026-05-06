@@ -4,6 +4,7 @@ import { Box3, Raycaster, Vector2, Vector3 } from "three";
 
 import useAutoLoadMapsInThreedEditor from "../hooks/useAutoLoadMapsInThreedEditor";
 import useAutoLoadAnnotationsInThreedEditor from "../hooks/useAutoLoadAnnotationsInThreedEditor";
+import useDeleteAnnotationOnKeyboardInThreedEditor from "../hooks/useDeleteAnnotationOnKeyboardInThreedEditor";
 import {
   setSelectedNode,
   setAnnotationToolbarPosition,
@@ -143,10 +144,12 @@ export default function MainThreedEditor() {
     rendererIsReady,
   });
 
-  useAutoLoadAnnotationsInThreedEditor({
+  const annotations = useAutoLoadAnnotationsInThreedEditor({
     threedEditor: threedEditorRef.current,
     rendererIsReady,
   });
+
+  useDeleteAnnotationOnKeyboardInThreedEditor({ annotations });
 
   // Click handler for raycasting
   const handleClick = useCallback(

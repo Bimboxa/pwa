@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setSelectedSourceListingId,
   setSelectedProcedureKey,
+  setSelectedAnnotationTemplateId,
   setHeight,
   setReturnTechnique,
   setRunning,
@@ -12,7 +13,11 @@ import {
 import { setToaster } from "Features/layout/layoutSlice";
 
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
+import useListings from "Features/listings/hooks/useListings";
+import useAnnotationTemplatesByProject from "Features/annotations/hooks/useAnnotationTemplatesByProject";
 import useAnnotationsAutoRun from "../hooks/useAnnotationsAutoRun";
+
+import ButtonSelectorAnnotationTemplateVariantDense from "Features/annotations/components/ButtonSelectorAnnotationTemplateVariantDense";
 
 import {
   Box,
@@ -49,6 +54,9 @@ export default function PanelAnnotationsAuto() {
   const selectedProcedureKey = useSelector(
     (s) => s.annotationsAuto.selectedProcedureKey
   );
+  const selectedAnnotationTemplateId = useSelector(
+    (s) => s.annotationsAuto.selectedAnnotationTemplateId
+  );
   const height = useSelector((s) => s.annotationsAuto.height);
   const returnTechnique = useSelector(
     (s) => s.annotationsAuto.returnTechnique
@@ -56,6 +64,14 @@ export default function PanelAnnotationsAuto() {
   const running = useSelector((s) => s.annotationsAuto.running);
 
   const { value: listings } = useListingsByScope();
+  const allAnnotationTemplates = useAnnotationTemplatesByProject();
+
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const { value: candidatesListings } = useListings({
+    filterByScopeId: selectedScopeId,
+    filterByEntityModelType: "LOCATED_ENTITY",
+    excludeIsForBaseMaps: true,
+  });
 
   const run = useAnnotationsAutoRun();
 
@@ -68,6 +84,16 @@ export default function PanelAnnotationsAuto() {
   const hideSourceListing = selectedProcedure?.hideSourceListing === true;
   const showHeightInput = selectedProcedure?.showHeightInput === true;
   const showReturnTechnique = selectedProcedure?.showReturnTechnique === true;
+  const showAnnotationTemplateSelect =
+    selectedProcedure?.showAnnotationTemplateSelect === true;
+  const annotationTemplateDrawingShape =
+    selectedProcedure?.annotationTemplateDrawingShape ?? null;
+
+  const filteredAnnotationTemplates = (allAnnotationTemplates ?? []).filter(
+    (t) =>
+      !annotationTemplateDrawingShape ||
+      t.drawingShape === annotationTemplateDrawingShape
+  );
 
   // Auto-select first procedure on mount
   useEffect(() => {
@@ -90,7 +116,9 @@ export default function PanelAnnotationsAuto() {
     : listings;
 
   const canRun =
-    selectedProcedureKey && (hideSourceListing || selectedSourceListingId);
+    selectedProcedureKey &&
+    (hideSourceListing || selectedSourceListingId) &&
+    (!showAnnotationTemplateSelect || selectedAnnotationTemplateId);
 
   // handlers
 
@@ -98,6 +126,7 @@ export default function PanelAnnotationsAuto() {
     const key = e.target.value;
     dispatch(setSelectedProcedureKey(key));
     dispatch(setHeight(null));
+    dispatch(setSelectedAnnotationTemplateId(null));
 
     const proc = procedures.find((p) => p.key === key);
     if (!proc) return;
@@ -198,6 +227,18 @@ export default function PanelAnnotationsAuto() {
                 {selectedProcedure.description}
               </Typography>
             </Box>
+          )}
+
+          {showAnnotationTemplateSelect && (
+            <ButtonSelectorAnnotationTemplateVariantDense
+              selectedTemplateId={selectedAnnotationTemplateId}
+              onChange={(id) => dispatch(setSelectedAnnotationTemplateId(id))}
+              annotationTemplates={filteredAnnotationTemplates}
+              listings={candidatesListings}
+              placeholder="Sélectionner un modèle"
+              fullWidth
+              bgcolor="background.default"
+            />
           )}
 
           {showHeightInput && (

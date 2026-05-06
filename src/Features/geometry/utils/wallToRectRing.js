@@ -21,15 +21,21 @@ export function lineLineIntersection(p1, v1, p2, v2) {
  * Compute the offset of a polyline at distance d (positive = left of the
  * direction of travel). Joins between segments are computed by intersecting
  * the offset lines (miter join), preserving sharp corners cleanly.
+ *
+ * When `closeLine` is true, the centerline is treated as a closed ring: the
+ * last segment wraps from points[n-1] → points[0], every output vertex is
+ * computed as the intersection of two adjacent offset lines (no end caps),
+ * and exactly n points are returned (no duplicate closing vertex).
  */
-export function computeOffsetPolyline(path, d) {
+export function computeOffsetPolyline(path, d, closeLine = false) {
   const n = path.length;
   if (n < 2) return [];
 
+  const segCount = closeLine ? n : n - 1;
   const lines = [];
-  for (let i = 0; i < n - 1; i++) {
+  for (let i = 0; i < segCount; i++) {
     const a = path[i];
-    const b = path[i + 1];
+    const b = path[(i + 1) % n];
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const len = Math.sqrt(dx * dx + dy * dy);
@@ -45,6 +51,18 @@ export function computeOffsetPolyline(path, d) {
     });
   }
   if (lines.length === 0) return [];
+
+  if (closeLine) {
+    const m = lines.length;
+    const result = [];
+    for (let i = 0; i < m; i++) {
+      const prev = lines[(i - 1 + m) % m];
+      const curr = lines[i];
+      const inter = lineLineIntersection(prev.p, prev.v, curr.p, curr.v);
+      result.push(inter ? { ...inter } : { ...curr.p });
+    }
+    return result;
+  }
 
   const result = [{ ...lines[0].p }];
   for (let i = 1; i < lines.length; i++) {
@@ -82,4 +100,37 @@ export default function wallToRectRing(points, halfWidth) {
   }
   ring.push([left[0].x, left[0].y]); // close
   return ring;
+}
+
+function signedArea(ring) {
+  let sum = 0;
+  const n = ring.length;
+  for (let i = 0; i < n; i++) {
+    const a = ring[i];
+    const b = ring[(i + 1) % n];
+    sum += a.x * b.y - b.x * a.y;
+  }
+  return sum / 2;
+}
+
+/**
+ * Convert a CLOSED centerline polyline + half-width into a hollow ring
+ * (outer contour + inner contour, suitable for extrudeClosedShape with the
+ * inner ring as a hole). Both rings are arrays of {x, y} with no duplicate
+ * closing vertex.
+ *
+ * The outer ring is whichever of the two side offsets has the larger
+ * absolute signed area, so it works regardless of the source winding.
+ */
+export function wallToHollowRings(points, halfWidth) {
+  if (!points || points.length < 3) return null;
+  const a = computeOffsetPolyline(points, halfWidth, true);
+  const b = computeOffsetPolyline(points, -halfWidth, true);
+  if (a.length < 3 || b.length < 3) return null;
+
+  const areaA = Math.abs(signedArea(a));
+  const areaB = Math.abs(signedArea(b));
+  const outer = areaA >= areaB ? a : b;
+  const inner = areaA >= areaB ? b : a;
+  return { outer, inner };
 }

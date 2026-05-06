@@ -1,7 +1,9 @@
 import { MeshBasicMaterial, Color, Group } from "three";
 
 import getStripePolygons from "Features/geometry/utils/getStripePolygons";
-import wallToRectRing from "Features/geometry/utils/wallToRectRing";
+import wallToRectRing, {
+  wallToHollowRings,
+} from "Features/geometry/utils/wallToRectRing";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 
 import pixelToWorld from "./pixelToWorld";
@@ -121,6 +123,24 @@ function extrudeWallPolygon(annotation, baseMap, height, material, verticalLift)
   if (!meterByPx || meterByPx <= 0) return null;
   const thicknessPx = strokeWidthCm / (meterByPx * 100);
   const halfWidth = thicknessPx / 2;
+
+  // Closed centerline → hollow ring (outer contour + inner contour as a hole),
+  // so the wall renders as a closed loop instead of a U. Per-vertex offsets are
+  // not propagated here: the inset/outset rings have a different vertex count
+  // than the centerline, so there is no straightforward 1:1 mapping yet.
+  if (annotation.closeLine && filtered.length >= 3) {
+    const rings = wallToHollowRings(filtered, halfWidth);
+    if (!rings) return null;
+    const outerLocal = pointsToLocal(rings.outer, baseMap);
+    const innerLocal = pointsToLocal(rings.inner, baseMap);
+    return extrudeClosedShape(
+      outerLocal,
+      height,
+      material,
+      [innerLocal],
+      verticalLift
+    );
+  }
 
   const ring = wallToRectRing(filtered, halfWidth);
   if (!ring || ring.length < 4) return null;

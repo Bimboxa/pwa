@@ -2111,6 +2111,10 @@ const InteractionLayer = forwardRef(({
         case 'Backspace':
           // Don't intercept when user is typing in an input field
           if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) break;
+          // Only the active viewer should react — this listener is window-scoped
+          // and InteractionLayer stays mounted while other viewers (e.g. THREED)
+          // are visible (PanelShowable just translates panels off-screen).
+          if (!isActiveViewerRef.current) break;
           // When drawing with a constraint buffer, Backspace erases from buffer
           if (enabledDrawingMode && e.key === 'Backspace') {
             deleteFromBuffer();
