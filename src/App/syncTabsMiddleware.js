@@ -1,3 +1,8 @@
+import {
+  isEffectivelyCoupled,
+  getCurrentPathname,
+} from "Features/layout/utils/isEffectivelyCoupled";
+
 const SYNCED_ACTION_TYPES = new Set([
   "projects/setSelectedProjectId",
   "scopes/setSelectedScopeId",
@@ -22,7 +27,7 @@ export const syncTabsMiddleware = (storeApi) => (next) => (action) => {
   if (
     isSynced(action.type) &&
     !action.meta?.fromBroadcast &&
-    storeApi.getState().layout?.coupledNavigationEnabled
+    isEffectivelyCoupled(storeApi.getState(), getCurrentPathname())
   ) {
     channel.postMessage(action);
   }
@@ -34,7 +39,7 @@ export function initSyncTabsListener(store) {
   channel.onmessage = (event) => {
     const action = event.data;
     if (!action || !isSynced(action.type)) return;
-    if (!store.getState().layout?.coupledNavigationEnabled) return;
+    if (!isEffectivelyCoupled(store.getState(), getCurrentPathname())) return;
     store.dispatch({ ...action, meta: { ...action.meta, fromBroadcast: true } });
   };
 }
