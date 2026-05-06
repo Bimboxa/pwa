@@ -66,11 +66,16 @@ function SectionHeader({ title, onReset }) {
 }
 
 function SectionRow({ children }) {
+  // useFlexGap so `ml: auto` on the trailing gizmo actually pushes it to the
+  // right end. Default Stack spacing uses margins, which take precedence over
+  // an item's own `marginLeft: auto` and break the vertical alignment of the
+  // gizmos across rows.
   return (
     <Stack
       direction="row"
       alignItems="center"
       spacing={1}
+      useFlexGap
       sx={{ pl: SECTION_INDENT }}
     >
       {children}
@@ -394,12 +399,18 @@ export default function PanelBaseMapPosition3D() {
         zIndex: 2,
         transform: `translate(${drag.position.x}px, ${drag.position.y}px)`,
         p: 1.5,
-        minWidth: 520,
+        width: 380,
       }}
     >
       {/* Header: drag handle + title (left) and opacity slider + visibility
           toggle (right, same line as the title). */}
-      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 1.5 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={0.5}
+        useFlexGap
+        sx={{ mb: 1.5 }}
+      >
         <Box
           onMouseDown={drag.handleMouseDown}
           sx={{ cursor: "grab", display: "flex", alignItems: "center", color: "text.secondary" }}
@@ -417,7 +428,7 @@ export default function PanelBaseMapPosition3D() {
           step={0.01}
           onChange={handleOpacityChange}
           onChangeCommitted={commitOpacity}
-          sx={{ width: 130, mr: 1 }}
+          sx={{ width: 100, mr: 1 }}
         />
         <Tooltip title={localOpacity > 0 ? "Masquer" : "Afficher"}>
           <IconButton size="small" onClick={toggleVisibility}>
