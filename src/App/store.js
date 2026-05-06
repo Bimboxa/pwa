@@ -63,7 +63,8 @@ import listingViewerReducer from "Features/listingViewer/listingViewerSlice";
 import layersReducer from "Features/layers/layersSlice";
 import popperMapListingsReducer from "Features/popperMapListings/popperMapListingsSlice";
 
-//import syncTabsMiddleware from "./syncTabsMiddleware";
+import { syncTabsMiddleware, initSyncTabsListener } from "./syncTabsMiddleware";
+import { startTabsRegistry } from "./tabsRegistry";
 
 const store = configureStore({
   reducer: {
@@ -130,18 +131,13 @@ const store = configureStore({
     layers: layersReducer,
     popperMapListings: popperMapListingsReducer,
   },
-  // middleware: (getDefaultMiddleware) =>
-  //   getDefaultMiddleware({
-  //     serializableCheck: false,
-  //   }),
-  // middleware: (getDefaultMiddleware) =>
-  //   getDefaultMiddleware({
-  //     serializableCheck: false,
-  //   }).concat(syncTabsMiddleware),
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,
-    }).concat(syncedVersionPersistMiddleware),
+    }).concat(syncedVersionPersistMiddleware, syncTabsMiddleware),
 });
+
+initSyncTabsListener(store);
+startTabsRegistry(() => store);
 
 export default store;
