@@ -14,6 +14,11 @@ const threedEditorInitialState = {
   // - BASEMAP_POSITION: shows the position/rotation panel + transform gizmo
   //   for the selected basemap. Annotation creation and lasso are blocked.
   editorMode: "NAVIGATION",
+  // Vertical offset (in meters along the basemap's local normal) applied to
+  // newly drawn annotations. Set from the basemap-position panel; consumed
+  // by the annotation creation flow so a user can stack new annotations
+  // above the floor without a per-annotation offsetZ tweak.
+  drawingOffset: 0,
 };
 
 export const threedEditorSlice = createSlice({
@@ -29,10 +34,17 @@ export const threedEditorSlice = createSlice({
     setEditorMode: (state, action) => {
       state.editorMode = action.payload;
     },
+    setDrawingOffset: (state, action) => {
+      state.drawingOffset = action.payload;
+    },
   },
 });
 
-export const { setShowGrid, setDisableOpacity, setEditorMode } =
-  threedEditorSlice.actions;
+export const {
+  setShowGrid,
+  setDisableOpacity,
+  setEditorMode,
+  setDrawingOffset,
+} = threedEditorSlice.actions;
 
 export default threedEditorSlice.reducer;

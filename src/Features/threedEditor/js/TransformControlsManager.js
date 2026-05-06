@@ -11,7 +11,6 @@ export default class TransformControlsManager {
     this.helper = null; // The helper object3D added to the scene (gizmo visuals).
     this._listeners = new Set();
     this._dragEndCallback = null;
-    this._enabled = false;
   }
 
   init() {
@@ -20,7 +19,10 @@ export default class TransformControlsManager {
     const camera = this.sceneManager.camera;
     const domElement = this.sceneManager.renderer.domElement;
     this.controls = new TransformControls(camera, domElement);
-    this.controls.setSpace("local");
+    // World space so the gizmo's X/Y/Z axes match the scene axes — important
+    // for the basemap-position panel where rotation is constrained to world Y
+    // (the scene's vertical axis).
+    this.controls.setSpace("world");
     this.controls.setSize(0.8);
     this.controls.visible = false;
     this.controls.enabled = false;
@@ -62,7 +64,6 @@ export default class TransformControlsManager {
   attach(object3D) {
     if (!this.controls) this.init();
     this.controls.attach(object3D);
-    this._enabled = true;
     this.controls.enabled = true;
     this.controls.visible = true;
     this.sceneManager.renderScene();
@@ -71,7 +72,6 @@ export default class TransformControlsManager {
   detach() {
     if (!this.controls) return;
     this.controls.detach();
-    this._enabled = false;
     this.controls.enabled = false;
     this.controls.visible = false;
     this.sceneManager.renderScene();
@@ -83,17 +83,26 @@ export default class TransformControlsManager {
     this.controls.setMode(mode);
   }
 
+  // Restrict which gizmo handles are visible (and active). Useful for the
+  // basemap-position panel: rotation is constrained to world Y, so we hide
+  // the X and Z rings.
+  setShowAxes({ x = true, y = true, z = true }) {
+    if (!this.controls) return;
+    this.controls.showX = x;
+    this.controls.showY = y;
+    this.controls.showZ = z;
+    this.sceneManager.renderScene();
+  }
+
   // Register a listener for live transform updates (drag ticks). Returns an
-  // unsubscribe function. The current transform is read from the attached
-  // object3D — listeners do not receive an argument.
+  // unsubscribe function.
   subscribe(callback) {
     this._listeners.add(callback);
     return () => this._listeners.delete(callback);
   }
 
   // Set the callback fired exactly once when the user releases the gizmo
-  // (transitions from dragging → not dragging). Use this to persist the new
-  // transform without needing to debounce per-frame writes.
+  // (transitions from dragging → not dragging).
   setDragEndCallback(callback) {
     this._dragEndCallback = callback;
   }

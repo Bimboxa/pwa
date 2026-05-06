@@ -34,8 +34,12 @@ export default class BaseMap {
     mainAngleInDeg,
     rotation2D, // in deg
     // 3D placement (used by the threedEditor; see getBaseMapTransform).
+    // - orientation: "HORIZONTAL" | "VERTICAL" (default HORIZONTAL = floor).
+    // - angleDeg:    rotation around the scene's vertical axis (Three.js +Y).
+    // - position:    {x, y, z} translation in Three.js coords.
+    orientation,
+    angleDeg,
     position,
-    rotation,
     // version system
     versions,
     refWidth,
@@ -57,8 +61,9 @@ export default class BaseMap {
     this.mainAngleInDeg = mainAngleInDeg;
     this.rotation2D = rotation2D;
     // 3D placement
+    this.orientation = orientation;
+    this.angleDeg = angleDeg;
     this.position = position;
-    this.rotation = rotation;
     // version system
     this.versions = versions || [];
     this.refWidth = refWidth || null;

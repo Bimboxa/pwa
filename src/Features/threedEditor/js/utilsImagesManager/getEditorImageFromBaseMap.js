@@ -1,13 +1,19 @@
-import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
+import getBaseMapTransform, {
+  getBaseMapEuler,
+  BASE_MAP_ROTATION_ORDER,
+} from "Features/baseMaps/js/getBaseMapTransform";
 
 export default function getEditorImageFromBaseMap(map) {
-  const { position, rotation } = getBaseMapTransform(map);
+  const t = getBaseMapTransform(map);
+  const rotation = getBaseMapEuler(t);
   return {
     id: map.id,
     url: map.image?.imageUrlClient,
     widthInM: map.image?.imageSize.width * map.meterByPx,
     heightInM: map.image?.imageSize.height * map.meterByPx,
-    position,
+    position: t.position,
     rotation,
+    rotationOrder: BASE_MAP_ROTATION_ORDER,
+    opacity: typeof map.opacity === "number" ? map.opacity : 1,
   };
 }

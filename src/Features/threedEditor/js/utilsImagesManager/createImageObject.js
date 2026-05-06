@@ -12,6 +12,10 @@ export default function createImageObject(image) {
   const url = image.url;
 
   const group = new Group();
+  // The rotation order MUST be set BEFORE the rotation values, otherwise the
+  // resulting matrix is built with the previous (default) order and the
+  // gizmo-driven Y angle no longer decomposes cleanly.
+  if (image.rotationOrder) group.rotation.order = image.rotationOrder;
   group.position.set(image.position.x, image.position.y, image.position.z);
   group.rotation.set(image.rotation.x, image.rotation.y, image.rotation.z);
   group.userData.kind = "baseMap";
@@ -29,11 +33,14 @@ export default function createImageObject(image) {
     // - depthWrite=false ensures the basemap doesn't occlude anything else.
     // - Path-tracer rendering ignores these flags (it traces rays from BVH),
     //   so the photoreal export still composes the basemap correctly.
+    const opacity = typeof image.opacity === "number" ? image.opacity : 1;
     const material = new MeshBasicMaterial({
       map: texture,
       side: DoubleSide,
       depthWrite: false,
       depthTest: false,
+      transparent: true,
+      opacity,
     });
 
     const mesh = new Mesh(plane, material);
