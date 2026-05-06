@@ -35,6 +35,7 @@ import {
 } from "Features/threedEditor/services/threedEditorRegistry";
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
 import IconButtonThreedProperties from "./IconButtonThreedProperties";
+import ToggleEditorModeThreed from "./ToggleEditorModeThreed";
 
 export default function MainThreedEditor() {
   // ref
@@ -73,6 +74,14 @@ export default function MainThreedEditor() {
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const isThreedViewer = selectedViewerKey === "THREED";
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
+  // Mirror editorMode into a ref so pointer handlers can read the current
+  // value without depending on state — re-creating the handlers would
+  // invalidate the registered listeners and break drag tracking mid-stream.
+  const editorMode = useSelector((s) => s.threedEditor.editorMode);
+  const editorModeRef = useRef(editorMode);
+  useEffect(() => {
+    editorModeRef.current = editorMode;
+  }, [editorMode]);
 
   // Helper: derive the right material state for a given annotation id, based
   // on the current selection in the store and whether the cursor is currently
@@ -475,7 +484,13 @@ export default function MainThreedEditor() {
     // Shift+left button starts a lasso. Disable OrbitControls during the drag
     // so the camera doesn't rotate, and remember its previous state so we can
     // restore it on release.
-    if (event.shiftKey && event.button === 0) {
+    // Only in SELECTION mode — in NAVIGATION mode shift+drag falls through
+    // to OrbitControls (camera pan/orbit).
+    if (
+      event.shiftKey &&
+      event.button === 0 &&
+      editorModeRef.current === "SELECTION"
+    ) {
       lassoStartRef.current = { x: event.clientX, y: event.clientY };
       lassoRectRef.current = { x: event.clientX, y: event.clientY, width: 0, height: 0 };
       lassoOverlayRef.current?.setRect(lassoRectRef.current);
@@ -811,8 +826,18 @@ export default function MainThreedEditor() {
         />
       )}
       {isThreedViewer && (
-        <Box sx={{ position: "absolute", top: 8, left: 8, zIndex: 1 }}>
+        <Box
+          sx={{
+            position: "absolute",
+            top: 8,
+            left: 8,
+            zIndex: 1,
+            display: "flex",
+            gap: 1,
+          }}
+        >
           <IconButtonThreedProperties />
+          <ToggleEditorModeThreed />
         </Box>
       )}
     </Box>
