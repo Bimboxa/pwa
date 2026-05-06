@@ -166,13 +166,6 @@ function extrudeWallPolygon(annotation, baseMap, height, material, verticalLift)
   return extrudeClosedShape(local, height, material, undefined, verticalLift);
 }
 
-function applyBaseMapTransform(object, baseMap) {
-  const pos = baseMap.position ?? { x: 0, y: 0, z: 0 };
-  const rot = baseMap.rotation ?? { x: -Math.PI / 2, y: 0, z: 0 };
-  object.position.set(pos.x, pos.y, pos.z);
-  object.rotation.set(rot.x, rot.y, rot.z);
-}
-
 export default function createAnnotationObject3D(annotation, baseMap, options) {
   if (!annotation || !baseMap) return null;
 
@@ -185,11 +178,11 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
 
   const height = Number(annotation.height) || 0;
   // Vertical lift in basemap-local Z (perpendicular to the basemap plane).
-  // After the basemap rotation, this becomes world Y so the annotation rises
-  // above the floor. baseMap.position.z is the floor's own height, offsetZ
-  // is a per-annotation override on top of it.
-  const verticalLift =
-    (baseMap.position?.z ?? 0) + (Number(annotation.offsetZ) || 0);
+  // The basemap's lay-flat rotation now sits on the parent group, so local Z
+  // becomes world Y once the group transform applies. The floor's own world
+  // height is owned by the group's position, so verticalLift is purely the
+  // per-annotation offsetZ.
+  const verticalLift = Number(annotation.offsetZ) || 0;
   const material = makeMaterial(annotation, options);
 
   let object = null;
@@ -267,7 +260,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
 
   if (!object) return null;
 
-  applyBaseMapTransform(object, baseMap);
+  // No applyBaseMapTransform here: the annotation is attached as a child of
+  // the basemap group, which already owns the basemap's position + rotation.
   object.userData = {
     nodeId: annotation.id,
     nodeType: "ANNOTATION",

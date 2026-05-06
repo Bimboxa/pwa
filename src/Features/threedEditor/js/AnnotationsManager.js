@@ -36,12 +36,13 @@ export default class AnnotationsManager {
         this.sceneManager.imagesManager.baseMapsMap[annotation.baseMapId];
       if (!baseMap) return;
 
+      // Position/rotation are now carried by the parent basemap Group, so we
+      // only need the metrics required to project pixel coords into the
+      // basemap-local meter frame.
       const baseMapForRender = {
         imageWidth: baseMap.image?.imageSize?.width || 1,
         imageHeight: baseMap.image?.imageSize?.height || 1,
         meterByPx: baseMap.meterByPx || 0.01,
-        position: baseMap.position || { x: 0, y: 0, z: 0 },
-        rotation: baseMap.rotation || { x: -Math.PI / 2, y: 0, z: 0 },
       };
 
       const object = createAnnotationObject3D(annotation, baseMapForRender, {
@@ -54,7 +55,11 @@ export default class AnnotationsManager {
       if (!object) return;
 
       this.annotationsObjectsMap[annotation.id] = object;
-      this.scene.add(object);
+      // Attach to the basemap's group so transforms applied to the basemap
+      // (translate/rotate from the BASEMAP_POSITION editor mode) propagate to
+      // the annotations for free.
+      const group = this.sceneManager.imagesManager.getGroup(annotation.baseMapId);
+      (group ?? this.scene).add(object);
       this._notifyAnnotationReady(annotation.id);
     });
   }
@@ -62,7 +67,8 @@ export default class AnnotationsManager {
   deleteAllAnnotationsObjects() {
     Object.values(this.annotationsObjectsMap).forEach((object) => {
       if (!object) return;
-      this.scene.remove(object);
+      // The parent is the basemap group when it exists, the scene otherwise.
+      object.parent?.remove(object);
       object.traverse?.((child) => {
         if (child.geometry) child.geometry.dispose();
         if (child.material) child.material.dispose();
