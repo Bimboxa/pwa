@@ -14,6 +14,7 @@ const KIND = {
   LEAVE: "LEAVE",
   SNAPSHOT_REQUEST: "SNAPSHOT_REQUEST",
   SNAPSHOT_RESPONSE: "SNAPSHOT_RESPONSE",
+  TAKE_OVER: "TAKE_OVER",
 };
 
 export const LOCAL_TAB_ID =
@@ -209,6 +210,22 @@ channel.onmessage = (event) => {
       applySnapshot(msg.snapshot);
       break;
     }
+    case KIND.TAKE_OVER: {
+      // Another tab just turned its switch ON. We yield: if our raw flag is
+      // currently true, dispatch it to false. The dispatch is local-only
+      // (the layout/setCoupledNavigationEnabled action is not in the
+      // synced whitelist), so it won't bounce back.
+      const store = getStoreRef?.();
+      if (!store) break;
+      const localRaw = store.getState().layout?.coupledNavigationEnabled;
+      if (localRaw) {
+        store.dispatch({
+          type: "layout/setCoupledNavigationEnabled",
+          payload: false,
+        });
+      }
+      break;
+    }
     default:
       break;
   }
@@ -232,14 +249,30 @@ export function startTabsRegistry(getStore) {
     window.addEventListener("beforeunload", broadcastLeave);
   }
 
-  // Subscribe to store: re-broadcast when local coupling flips.
-  let lastCoupled = getLocalCoupledEnabled();
+  // Subscribe to store: re-broadcast HELLO when effective coupling flips,
+  // and broadcast TAKE_OVER when the raw switch flips from off to on so
+  // any other tab with its switch on yields exclusivity.
+  let lastEffective = getLocalCoupledEnabled();
+  let lastRaw = Boolean(
+    getStoreRef?.().getState().layout?.coupledNavigationEnabled
+  );
   if (getStoreRef) {
     try {
       getStoreRef().subscribe(() => {
-        const next = getLocalCoupledEnabled();
-        if (next !== lastCoupled) {
-          lastCoupled = next;
+        const state = getStoreRef().getState();
+        const nextRaw = Boolean(state.layout?.coupledNavigationEnabled);
+        if (nextRaw && !lastRaw) {
+          channel.postMessage({
+            kind: KIND.TAKE_OVER,
+            tabId: LOCAL_TAB_ID,
+            timestamp: Date.now(),
+          });
+        }
+        lastRaw = nextRaw;
+
+        const nextEffective = getLocalCoupledEnabled();
+        if (nextEffective !== lastEffective) {
+          lastEffective = nextEffective;
           broadcastHello();
         }
       });
