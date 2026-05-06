@@ -38,6 +38,11 @@ export default function useHandleCommitDrawing({ newEntity } = {}) {
     const autoMergeOnCommit = useSelector(s => s.mapEditor.autoMergeOnCommit);
     const autoOffsetsOnCommit = useSelector(s => s.mapEditor.autoOffsetsOnCommit);
     const enabledDrawingMode = useSelector(s => s.mapEditor.enabledDrawingMode);
+    // Vertical offset set from the 3D editor's basemap-position panel and
+    // synced across tabs by syncTabsMiddleware. Applied to the new annotation
+    // unless the auto-offsets pass already computed a value (which wins so
+    // POLYGON_CLICK ramps over existing 3D geometry stay continuous).
+    const drawingOffset = useSelector(s => s.threedEditor?.drawingOffset ?? 0);
 
     const createEntity = useCreateEntity();
 
@@ -489,6 +494,8 @@ export default function useHandleCommitDrawing({ newEntity } = {}) {
             if (_autoOffsets) {
                 _newAnnotation.offsetZ = _autoOffsets.offsetZ;
                 _newAnnotation.height = _autoOffsets.height;
+            } else if (drawingOffset !== 0) {
+                _newAnnotation.offsetZ = drawingOffset;
             }
         }
 
