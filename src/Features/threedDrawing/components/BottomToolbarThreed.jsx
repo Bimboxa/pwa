@@ -1,10 +1,10 @@
 import { Paper, Stack } from "@mui/material";
 
 import ButtonDrawThreed from "./ButtonDrawThreed";
+import ButtonMoveThreed from "./ButtonMoveThreed";
 
-// Floating bottom toolbar for the main 3D viewer. Currently hosts the
-// "Dessiner" button; future tools (axis-lock toggles, clear traits, …) go
-// here.
+// Floating bottom toolbar for the main 3D viewer. Hosts the drawing /
+// editing tools.
 export default function BottomToolbarThreed() {
   return (
     <Paper
@@ -22,6 +22,7 @@ export default function BottomToolbarThreed() {
     >
       <Stack direction="row" spacing={1} alignItems="center">
         <ButtonDrawThreed />
+        <ButtonMoveThreed />
       </Stack>
     </Paper>
   );

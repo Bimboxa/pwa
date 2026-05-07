@@ -42,7 +42,9 @@ import ToggleEditorModeThreed from "./ToggleEditorModeThreed";
 import PanelBaseMapPosition3D from "./PanelBaseMapPosition3D";
 import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
+import MoveGizmoThreed from "Features/threedDrawing/components/MoveGizmoThreed";
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
+import { setMoveSelectedAnnotationId } from "Features/threedEditor/threedEditorSlice";
 
 export default function MainThreedEditor() {
   // ref
@@ -100,6 +102,13 @@ export default function MainThreedEditor() {
   useEffect(() => {
     drawingActiveRef.current = drawingActive;
   }, [drawingActive]);
+
+  // Same pattern for move mode.
+  const moveActive = useSelector((s) => s.threedEditor.moveMode.active);
+  const moveActiveRef = useRef(moveActive);
+  useEffect(() => {
+    moveActiveRef.current = moveActive;
+  }, [moveActive]);
 
   useDrawingPointerHandlers();
 
@@ -250,6 +259,12 @@ export default function MainThreedEditor() {
           if (object.userData?.nodeId) {
             const { nodeId, nodeType, annotationType, listingId } =
               object.userData;
+            // Move mode: hijack the click — set the moved annotation and
+            // return without opening the standard edit popper.
+            if (moveActiveRef.current && nodeType === "ANNOTATION") {
+              dispatch(setMoveSelectedAnnotationId(nodeId));
+              return;
+            }
             const item = {
               id: nodeId,
               nodeId,
@@ -909,6 +924,7 @@ export default function MainThreedEditor() {
       )}
       {isThreedViewer && <BottomToolbarThreed />}
       {isThreedViewer && <DrawingOverlayThreed />}
+      {isThreedViewer && <MoveGizmoThreed />}
     </Box>
   );
 }

@@ -43,6 +43,17 @@ const threedEditorInitialState = {
     // mesh to the scene.
     snapIndexEpoch: 0,
   },
+  // Move mode: select an annotation and translate it along the baseMap
+  // normal via a gizmo + numeric field. Mutually exclusive with
+  // `drawingMode.active`.
+  moveMode: {
+    active: false,
+    // Annotation currently being moved (id from db.annotations).
+    selectedAnnotationId: null,
+    // Live delta in meters along the baseMap-local Z axis, mirrored from
+    // the gizmo and from the numeric field.
+    deltaZ: 0,
+  },
 };
 
 export const threedEditorSlice = createSlice({
@@ -74,10 +85,35 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
         state.drawingMode.snapIndexEpoch = 0;
+      } else {
+        // Mutually exclusive with move mode.
+        state.moveMode.active = false;
+        state.moveMode.selectedAnnotationId = null;
+        state.moveMode.deltaZ = 0;
       }
     },
     bumpSnapIndexEpoch: (state) => {
       state.drawingMode.snapIndexEpoch += 1;
+    },
+    setMoveModeActive: (state, action) => {
+      state.moveMode.active = action.payload;
+      if (!action.payload) {
+        state.moveMode.selectedAnnotationId = null;
+        state.moveMode.deltaZ = 0;
+      } else {
+        // Mutually exclusive with drawing mode.
+        state.drawingMode.active = false;
+        state.drawingMode.inProgressPolyline = [];
+        state.drawingMode.trait3DSegments = [];
+        state.drawingMode.axisLock = null;
+      }
+    },
+    setMoveSelectedAnnotationId: (state, action) => {
+      state.moveMode.selectedAnnotationId = action.payload;
+      state.moveMode.deltaZ = 0;
+    },
+    setMoveDeltaZ: (state, action) => {
+      state.moveMode.deltaZ = action.payload;
     },
     pushDrawingVertex: (state, action) => {
       state.drawingMode.inProgressPolyline.push(action.payload);
@@ -135,6 +171,9 @@ export const {
   consumeFaceSegments,
   setDrawingAxisLock,
   bumpSnapIndexEpoch,
+  setMoveModeActive,
+  setMoveSelectedAnnotationId,
+  setMoveDeltaZ,
 } = threedEditorSlice.actions;
 
 export default threedEditorSlice.reducer;
