@@ -125,7 +125,11 @@ function computeRevolutionSurface(points, meterByPx, hiddenSegmentsIdx = []) {
  * --- FONCTION PRINCIPALE ---
  */
 
-export default function getAnnotationQties({ annotation, meterByPx }) {
+export default function getAnnotationQties({
+  annotation,
+  meterByPx,
+  profileLengthMeters,
+}) {
   try {
     if (!annotation) return null;
     if (!meterByPx || !Number.isFinite(meterByPx) || meterByPx <= 0) return { enabled: false };
@@ -140,22 +144,37 @@ export default function getAnnotationQties({ annotation, meterByPx }) {
     }
 
     if (annotation.type === "STRIP") {
-      // Surface: from the offset polygons (the ribbon)
+      // Length: from the neutral/director line (original points as a POLYLINE)
+      const neutralLineQty = getAnnotationQties({
+        annotation: { ...annotation, type: "POLYLINE" },
+        meterByPx,
+      });
+      const length = neutralLineQty?.length || 0;
+
+      // EXTRUSION_PROFILE override: surface = profile_length × guide_length.
+      // Hidden guide segments are already excluded by the neutral-line POLYLINE
+      // path above.
+      if (
+        annotation.shape3D?.key === "EXTRUSION_PROFILE" &&
+        profileLengthMeters != null
+      ) {
+        return {
+          enabled: true,
+          length,
+          surface: profileLengthMeters * length,
+        };
+      }
+
+      // Default surface: from the offset polygons (the ribbon)
       const polygons = getStripePolygons(annotation, meterByPx);
       const surface = polygons.reduce((acc, polygon) => {
         const qty = getAnnotationQties({ annotation: { ...polygon, type: "POLYGON" }, meterByPx });
         return acc + (qty?.surface || 0);
       }, 0);
 
-      // Length: from the neutral/director line (original points as a POLYLINE)
-      const neutralLineQty = getAnnotationQties({
-        annotation: { ...annotation, type: "POLYLINE" },
-        meterByPx,
-      });
-
       return {
         enabled: true,
-        length: neutralLineQty?.length || 0,
+        length,
         surface,
       };
     }
@@ -246,7 +265,7 @@ export default function getAnnotationQties({ annotation, meterByPx }) {
     }
 
     if (annotation.type === "POLYLINE") {
-      if (annotation.shape3D === "REVOLUTION") {
+      if (annotation.shape3D?.key === "REVOLUTION") {
         const revSurfaceM2 = computeRevolutionSurface(
           points,
           meterByPx,
@@ -260,6 +279,18 @@ export default function getAnnotationQties({ annotation, meterByPx }) {
           };
         }
         // Degenerate axis (P0 = Pn) — fall through to default behavior.
+      }
+      if (
+        annotation.shape3D?.key === "EXTRUSION_PROFILE" &&
+        profileLengthMeters != null
+      ) {
+        // Hidden guide segments are already excluded from totalLengthPx.
+        const guideLengthM = totalLengthPx * meterByPx;
+        return {
+          enabled: true,
+          length: guideLengthM,
+          surface: profileLengthMeters * guideLengthM,
+        };
       }
       if (annotation.height) {
         totalSurfacePx = mainMetrics.lengthPx * (parseFloat(annotation.height) / meterByPx);

@@ -324,12 +324,13 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
             borderColor: "divider",
           }}
         >
-          {selectedAnnotation?.shape3D !== "REVOLUTION" && (
-            <FieldAnnotationHeight
-              annotation={selectedAnnotation}
-              onChange={handleHeightChange}
-            />
-          )}
+          {selectedAnnotation?.shape3D?.key !== "REVOLUTION" &&
+            selectedAnnotation?.shape3D?.key !== "EXTRUSION_PROFILE" && (
+              <FieldAnnotationHeight
+                annotation={selectedAnnotation}
+                onChange={handleHeightChange}
+              />
+            )}
           <FieldAnnotationHeight
             annotation={selectedAnnotation}
             onChange={handleOffsetZChange}
