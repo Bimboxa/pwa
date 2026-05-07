@@ -8,6 +8,7 @@ import {
   LineSegments,
   Mesh,
 } from "three";
+import { liveQuery } from "dexie";
 
 import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResolution";
 
@@ -21,8 +22,10 @@ import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResol
 //
 // Caller passes `guidePointsLocal` already converted to basemap-local meters
 // (z=0 in the basemap plane). `verticalLift` is added along Z. Returns a
-// placeholder Group synchronously and fills it in once the Dexie resolution
-// completes (mirrors the OBJECT_3D loader pattern).
+// placeholder Group synchronously and subscribes to the profile's Dexie data
+// via `liveQuery` so the swept mesh rebuilds whenever the profile annotations
+// change (added / soft-deleted / repositioned). The unsubscribe hook is
+// stored in `userData.dispose` for the AnnotationsManager to call on cleanup.
 
 const EDGE_MATERIAL = new LineBasicMaterial({
   color: 0x000000,
@@ -42,22 +45,51 @@ export default function buildExtrudedProfileMesh(
 
   const placeholder = new Group();
 
-  resolveProfileFromDb(profileTemplateId)
-    .then((res) => {
-      if (!res || !res.anchorPx || res.profiles.length === 0) return;
-      const swept = sweepProfileAlongGuide({
-        guidePointsLocal,
-        hiddenSegmentsIdx,
-        profiles: res.profiles,
-        anchorPx: res.anchorPx,
-        verticalLift,
-        material,
+  function clearChildren() {
+    while (placeholder.children.length > 0) {
+      const child = placeholder.children[0];
+      placeholder.remove(child);
+      child.traverse?.((c) => {
+        if (c.geometry) c.geometry.dispose();
+        if (c.material) c.material.dispose();
       });
-      if (swept) placeholder.add(swept);
-    })
-    .catch((err) => {
-      console.error("[EXTRUSION_PROFILE] failed to resolve profile", err);
+    }
+  }
+
+  function applyResolution(res) {
+    clearChildren();
+    if (!res || !res.anchorPx || res.profiles.length === 0) return;
+    const swept = sweepProfileAlongGuide({
+      guidePointsLocal,
+      hiddenSegmentsIdx,
+      profiles: res.profiles,
+      anchorPx: res.anchorPx,
+      verticalLift,
+      material,
     });
+    if (swept) placeholder.add(swept);
+  }
+
+  // Use Dexie's liveQuery so the mesh re-resolves whenever profile annotations
+  // change — including when the user soft-deletes one and draws a new one,
+  // even though those edits live on a different basemap from the guide and
+  // therefore do NOT trigger the parent 3D-scene rebuild path
+  // (`useAutoLoadAnnotationsInThreedEditor` filters by main basemap).
+  const subscription = liveQuery(() =>
+    resolveProfileFromDb(profileTemplateId)
+  ).subscribe({
+    next: (res) => applyResolution(res),
+    error: (err) => {
+      console.error("[EXTRUSION_PROFILE] live profile resolution failed", err);
+    },
+  });
+
+  // AnnotationsManager.deleteAllAnnotationsObjects reads this hook to clean
+  // up the subscription when the placeholder is removed from the scene.
+  placeholder.userData = {
+    ...(placeholder.userData ?? {}),
+    dispose: () => subscription.unsubscribe(),
+  };
 
   return placeholder;
 }

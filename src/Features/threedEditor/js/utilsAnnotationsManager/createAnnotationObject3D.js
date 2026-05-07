@@ -314,7 +314,10 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
 
   // No applyBaseMapTransform here: the annotation is attached as a child of
   // the basemap group, which already owns the basemap's position + rotation.
+  // Merge into existing userData so that loader-set hooks (e.g. the
+  // EXTRUSION_PROFILE liveQuery `dispose` callback) survive.
   object.userData = {
+    ...(object.userData ?? {}),
     nodeId: annotation.id,
     nodeType: "ANNOTATION",
     annotationType: annotation.type,

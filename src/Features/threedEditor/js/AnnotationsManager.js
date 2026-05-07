@@ -67,6 +67,16 @@ export default class AnnotationsManager {
   deleteAllAnnotationsObjects() {
     Object.values(this.annotationsObjectsMap).forEach((object) => {
       if (!object) return;
+      // Custom cleanup hook (e.g. EXTRUSION_PROFILE Dexie liveQuery
+      // subscriptions). Run BEFORE GPU-resource disposal so the callback can
+      // still touch the object if needed.
+      object.traverse?.((child) => {
+        try {
+          child.userData?.dispose?.();
+        } catch (e) {
+          console.error("[AnnotationsManager] dispose hook threw", e);
+        }
+      });
       // The parent is the basemap group when it exists, the scene otherwise.
       object.parent?.remove(object);
       object.traverse?.((child) => {
