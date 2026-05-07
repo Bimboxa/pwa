@@ -105,26 +105,14 @@ function sweepProfileAlongGuide({
   const hidden = new Set(hiddenSegmentsIdx ?? []);
   const group = new Group();
 
-  // Pre-compute per-segment frames (tangent + right-normal in the basemap XY
-  // plane). One frame per guide segment. v1: no corner mitering — the swept
-  // surface reorients abruptly at each guide vertex.
-  const frames = [];
-  for (let i = 0; i < guidePointsLocal.length - 1; i++) {
-    const a = guidePointsLocal[i];
-    const b = guidePointsLocal[i + 1];
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len = Math.hypot(dx, dy);
-    if (len < 1e-9) {
-      frames.push(null);
-      continue;
-    }
-    const tx = dx / len;
-    const ty = dy / len;
-    // Right-of-tangent normal (right-hand rule with up = (0,0,1)):
-    //   T × Z_up = (ty, -tx, 0)
-    frames.push({ a, b, tx, ty, nx: ty, ny: -tx });
-  }
+  // Per-vertex mitered frames so adjacent segments share rings — produces a
+  // continuous surface across the guide vertices. At interior vertices the
+  // normal is the bisector of the two adjacent segment normals, scaled so
+  // every profile point stays at its correct perpendicular distance from
+  // each adjacent segment (standard miter: M = (N_in + N_out) / (1 + N_in · N_out)).
+  // At end vertices and at edges of hidden gaps, we fall back to the single
+  // adjacent segment's plain right-normal (clean termination).
+  const vertexFrames = computeVertexFrames(guidePointsLocal, hidden);
 
   for (const profile of profiles) {
     const mbp = profile.baseMap?.meterByPx;
@@ -138,7 +126,8 @@ function sweepProfileAlongGuide({
     }));
 
     const subGeom = buildSweepGeometryForProfile(
-      frames,
+      guidePointsLocal,
+      vertexFrames,
       hidden,
       profileLocal,
       verticalLift
@@ -154,10 +143,73 @@ function sweepProfileAlongGuide({
   return group.children.length > 0 ? group : null;
 }
 
-// Build a quad strip mesh: at each guide endpoint of a visible segment, place
-// the profile in the local (N, Z, T) frame; connect the rings with quads.
+// For each guide vertex, compute the in/out segment normals (right-hand rule
+// with up = +Z) and combine them into:
+//   - "in"  : entering normal/tangent only (boundary of an upstream gap)
+//   - "out" : leaving normal/tangent only  (boundary of a downstream gap)
+//   - "bis" : mitered bisector at an interior vertex with both segments
+//             visible. Two ring entries are emitted: one anchored on the
+//             outgoing segment (for the segment leaving this vertex) and one
+//             on the incoming segment (for the arriving segment); both reuse
+//             the same mitered normal so the rings coincide → continuous
+//             surface across the vertex.
+//
+// Rather than tracking which "side" each ring entry covers, we collapse to a
+// single ring per vertex and let `buildSweepGeometryForProfile` use it for
+// both adjacent segments — that's the whole point of mitering.
+function computeVertexFrames(points, hidden) {
+  const n = points.length;
+  const frames = new Array(n).fill(null);
+
+  // Per-segment plain normals (cached).
+  const segN = new Array(n - 1).fill(null);
+  for (let i = 0; i < n - 1; i++) {
+    if (hidden.has(i)) continue;
+    const a = points[i];
+    const b = points[i + 1];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-9) continue;
+    const tx = dx / len;
+    const ty = dy / len;
+    // Right-of-tangent normal (T × Z_up): (ty, -tx, 0)
+    segN[i] = { nx: ty, ny: -tx };
+  }
+
+  for (let v = 0; v < n; v++) {
+    const inN = v > 0 ? segN[v - 1] : null;
+    const outN = v < n - 1 ? segN[v] : null;
+
+    if (inN && outN) {
+      // Mitered: M = (Ni + No) / (1 + Ni · No). Falls back to plain "out"
+      // normal when the two segments fold back on themselves (denom ~ 0).
+      const dot = inN.nx * outN.nx + inN.ny * outN.ny;
+      const denom = 1 + dot;
+      if (denom > 1e-6) {
+        frames[v] = {
+          nx: (inN.nx + outN.nx) / denom,
+          ny: (inN.ny + outN.ny) / denom,
+        };
+      } else {
+        frames[v] = { nx: outN.nx, ny: outN.ny };
+      }
+    } else if (inN) {
+      frames[v] = { nx: inN.nx, ny: inN.ny };
+    } else if (outN) {
+      frames[v] = { nx: outN.nx, ny: outN.ny };
+    }
+    // else: vertex unreachable (both adjacent segments hidden / degenerate).
+  }
+  return frames;
+}
+
+// Build a quad strip mesh: each visible guide segment connects the rings
+// computed at its two endpoint vertices. Adjacent visible segments share
+// their mid-vertex ring → continuous surface.
 function buildSweepGeometryForProfile(
-  frames,
+  guidePoints,
+  vertexFrames,
   hidden,
   profileLocal,
   verticalLift
@@ -166,39 +218,68 @@ function buildSweepGeometryForProfile(
   const indices = [];
   let v = 0;
 
-  for (let i = 0; i < frames.length; i++) {
-    if (hidden.has(i)) continue;
-    const f = frames[i];
-    if (!f) continue;
+  // Cache the start ring across iterations so adjacent visible segments
+  // genuinely SHARE their mid-vertex ring (single set of vertices in the
+  // buffer, not duplicated rings at the same coords).
+  let prevSegmentEndIdx = -1;
+  let prevEndVertexIndex = -1;
 
-    // Two rings: at frame.a (start) and at frame.b (end). Each ring places
-    // every profile point at: P + xLocal * N + (yLocal + verticalLift) * Z_up
-    const ringA = profileLocal.map((p) => ({
-      x: f.a.x + p.x * f.nx,
-      y: f.a.y + p.x * f.ny,
-      z: p.y + verticalLift,
-    }));
-    const ringB = profileLocal.map((p) => ({
-      x: f.b.x + p.x * f.nx,
-      y: f.b.y + p.x * f.ny,
-      z: p.y + verticalLift,
-    }));
-
-    const baseIdx = v;
-    for (let j = 0; j < profileLocal.length; j++) {
-      positions.push(ringA[j].x, ringA[j].y, ringA[j].z);
-      positions.push(ringB[j].x, ringB[j].y, ringB[j].z);
+  for (let i = 0; i < guidePoints.length - 1; i++) {
+    if (hidden.has(i)) {
+      prevSegmentEndIdx = -1;
+      prevEndVertexIndex = -1;
+      continue;
     }
-    v += profileLocal.length * 2;
+    const fA = vertexFrames[i];
+    const fB = vertexFrames[i + 1];
+    if (!fA || !fB) {
+      prevSegmentEndIdx = -1;
+      prevEndVertexIndex = -1;
+      continue;
+    }
+    const a = guidePoints[i];
+    const b = guidePoints[i + 1];
+
+    // Reuse previous segment's end ring as this segment's start ring iff the
+    // previous visible segment ended at this same vertex.
+    let startBaseIdx;
+    if (prevSegmentEndIdx >= 0 && prevEndVertexIndex === i) {
+      startBaseIdx = prevSegmentEndIdx;
+    } else {
+      startBaseIdx = v;
+      for (let j = 0; j < profileLocal.length; j++) {
+        const p = profileLocal[j];
+        positions.push(
+          a.x + p.x * fA.nx,
+          a.y + p.x * fA.ny,
+          p.y + verticalLift
+        );
+      }
+      v += profileLocal.length;
+    }
+
+    const endBaseIdx = v;
+    for (let j = 0; j < profileLocal.length; j++) {
+      const p = profileLocal[j];
+      positions.push(
+        b.x + p.x * fB.nx,
+        b.y + p.x * fB.ny,
+        p.y + verticalLift
+      );
+    }
+    v += profileLocal.length;
 
     // Two triangles per quad between profile vertices j and j+1.
     for (let j = 0; j < profileLocal.length - 1; j++) {
-      const a0 = baseIdx + j * 2;
-      const b0 = a0 + 1;
-      const a1 = baseIdx + (j + 1) * 2;
-      const b1 = a1 + 1;
+      const a0 = startBaseIdx + j;
+      const a1 = startBaseIdx + (j + 1);
+      const b0 = endBaseIdx + j;
+      const b1 = endBaseIdx + (j + 1);
       indices.push(a0, b0, b1, a0, b1, a1);
     }
+
+    prevSegmentEndIdx = endBaseIdx;
+    prevEndVertexIndex = i + 1;
   }
 
   if (positions.length === 0) return null;
