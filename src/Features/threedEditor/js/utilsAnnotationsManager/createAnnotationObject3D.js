@@ -4,7 +4,13 @@ import getStripePolygons from "Features/geometry/utils/getStripePolygons";
 import wallToRectRing, {
   wallToHollowRings,
 } from "Features/geometry/utils/wallToRectRing";
-import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
+import {
+  expandArcsInPath,
+  expandArcsInPathWithHiddenMap,
+} from "Features/geometry/utils/arcSampling";
+
+// Match the codebase convention used by other arc-aware paths.
+const GUIDE_ARC_SAMPLES = 6;
 
 import {
   getShape3DKey,
@@ -229,13 +235,21 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         shape3DKey === "EXTRUSION_PROFILE" &&
         annotation.shape3D?.profileTemplateId
       ) {
-        const pts = pointsToLocal(annotation.points || [], baseMap);
+        // Sample S-C-S arcs in the guide so the swept surface follows the
+        // curve (otherwise the 3 anchor points produce a 2-segment polyline).
+        const { points: expandedPts, hiddenSegmentsIdx: expandedHidden } =
+          expandArcsInPathWithHiddenMap(
+            annotation.points || [],
+            GUIDE_ARC_SAMPLES,
+            annotation.hiddenSegmentsIdx || []
+          );
+        const pts = pointsToLocal(expandedPts, baseMap);
         object = buildExtrudedProfileMesh(
           pts,
           annotation.shape3D.profileTemplateId,
           material,
           verticalLift,
-          annotation.hiddenSegmentsIdx || []
+          expandedHidden
         );
         break;
       }
@@ -268,14 +282,20 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         annotation.shape3D?.profileTemplateId
       ) {
         // Use the strip's neutral/director line (annotation.points) as the
-        // sweep guide.
-        const pts = pointsToLocal(annotation.points || [], baseMap);
+        // sweep guide. Sample S-C-S arcs the same way as the POLYLINE branch.
+        const { points: expandedPts, hiddenSegmentsIdx: expandedHidden } =
+          expandArcsInPathWithHiddenMap(
+            annotation.points || [],
+            GUIDE_ARC_SAMPLES,
+            annotation.hiddenSegmentsIdx || []
+          );
+        const pts = pointsToLocal(expandedPts, baseMap);
         object = buildExtrudedProfileMesh(
           pts,
           annotation.shape3D.profileTemplateId,
           material,
           verticalLift,
-          annotation.hiddenSegmentsIdx || []
+          expandedHidden
         );
         break;
       }

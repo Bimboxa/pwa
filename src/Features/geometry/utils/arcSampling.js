@@ -91,6 +91,67 @@ export function sampleArcPoints(
 }
 
 /**
+ * Same as `expandArcsInPath`, but also translates an `hiddenSegmentsIdx`
+ * list from the original-segment indexing to the expanded-segment indexing.
+ * For an S-C-S triplet, the original segment from `P0→P1` (the first half
+ * of the arc) maps to the first `samples` expanded segments, and `P1→P2`
+ * (the second half) maps to the next `samples`. Non-arc segments pass
+ * through 1:1.
+ *
+ * Returns `{ points, hiddenSegmentsIdx }` ready to feed to a downstream
+ * sweep / extrusion routine that knows how to skip hidden expanded segments.
+ */
+export function expandArcsInPathWithHiddenMap(path, samples = 6, hiddenSegmentsIdx = []) {
+  const expanded = expandArcsInPath(path, samples);
+  const hidden = new Set(hiddenSegmentsIdx ?? []);
+  if (hidden.size === 0) {
+    return { points: expanded, hiddenSegmentsIdx: [] };
+  }
+
+  // Walk the ORIGINAL path the same way expandArcsInPath does, building a
+  // map from original-segment index → expanded-segment range (inclusive).
+  const n = path.length;
+  const range = new Array(Math.max(0, n - 1)).fill(null);
+  let outSegIdx = 0;
+  let i = 0;
+  while (i < n) {
+    const p0 = path[i];
+    const p1 = path[i + 1];
+    const p2 = path[i + 2];
+    const isArc =
+      p1 &&
+      p2 &&
+      typeOf(p0) !== "circle" &&
+      typeOf(p1) === "circle" &&
+      typeOf(p2) !== "circle";
+
+    if (isArc) {
+      const circ = circleFromThreePoints(p0, p1, p2);
+      if (circ && Number.isFinite(circ.r) && circ.r > 0) {
+        range[i] = [outSegIdx, outSegIdx + samples - 1];
+        range[i + 1] = [outSegIdx + samples, outSegIdx + 2 * samples - 1];
+        outSegIdx += 2 * samples;
+        i += 2;
+        continue;
+      }
+    }
+    if (i < n - 1) {
+      range[i] = [outSegIdx, outSegIdx];
+      outSegIdx += 1;
+    }
+    i += 1;
+  }
+
+  const newHidden = [];
+  for (const origSeg of hidden) {
+    const r = range[origSeg];
+    if (!r) continue;
+    for (let s = r[0]; s <= r[1]; s++) newHidden.push(s);
+  }
+  return { points: expanded, hiddenSegmentsIdx: newHidden };
+}
+
+/**
  * Expand each square → circle → square (S-C-S) arc in `path` into `samples`
  * straight segments along the underlying circle. Non-arc points pass through
  * unchanged.
