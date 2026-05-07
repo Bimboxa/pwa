@@ -210,6 +210,10 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, hidden });
   }
 
+  function handleIsProfileChange(isProfile) {
+    onChange({ ...annotationTemplate, isProfile });
+  }
+
   function handleOverrideFieldsChange(newOverrideFields) {
     onChange({ ...annotationTemplate, overrideFields: newOverrideFields });
   }
@@ -473,6 +477,15 @@ export default function FormAnnotationTemplateVariantBlock({
           value={annotationTemplate?.hidden}
           onChange={handleHiddenChange}
           options={{ showAsSection: true }}
+        />
+      )}
+
+      {!isCreating && (
+        <FieldCheck
+          label="Profil"
+          value={Boolean(annotationTemplate?.isProfile)}
+          onChange={handleIsProfileChange}
+          options={{ type: "switch", showAsSection: true }}
         />
       )}
     </Box>

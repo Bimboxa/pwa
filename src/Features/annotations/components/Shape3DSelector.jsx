@@ -4,6 +4,7 @@ import {
   Chip,
   ListItemIcon,
   ListItemText,
+  ListSubheader,
   Menu,
   MenuItem,
 } from "@mui/material";
@@ -11,15 +12,25 @@ import Check from "@mui/icons-material/Check";
 import ViewInArIcon from "@mui/icons-material/ViewInAr";
 
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
-import { getShape3DOptionsForType } from "../constants/shape3DConfig";
+import useProfileAnnotationTemplates from "../hooks/useProfileAnnotationTemplates";
+import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
+import {
+  getShape3DKey,
+  getShape3DOptionsForType,
+  TYPES_SUPPORTING_PROFILES,
+} from "../constants/shape3DConfig";
+import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 
 const DEFAULT_LABEL = "Forme par défaut";
+const PROFILE_FALLBACK_LABEL = "Profil";
 
 export default function Shape3DSelector({ annotation }) {
   // data
 
   const updateAnnotation = useUpdateAnnotation();
-  const options = getShape3DOptionsForType(annotation?.type);
+  const profileTemplates = useProfileAnnotationTemplates();
+  const spriteImage = useAnnotationSpriteImage();
+  const staticOptions = getShape3DOptionsForType(annotation?.type);
 
   // state
 
@@ -27,11 +38,27 @@ export default function Shape3DSelector({ annotation }) {
 
   // helpers
 
-  if (!annotation || options.length === 0) return null;
+  if (!annotation) return null;
 
-  const current = annotation.shape3D ?? null;
-  const currentEntry = options.find((o) => o.key === current);
-  const chipLabel = currentEntry?.label ?? DEFAULT_LABEL;
+  const typeSupportsProfiles = TYPES_SUPPORTING_PROFILES.includes(annotation.type);
+  const showProfileSection =
+    typeSupportsProfiles && profileTemplates.length > 0;
+
+  // Hide the chip entirely when there is nothing to pick.
+  if (staticOptions.length === 0 && !showProfileSection) return null;
+
+  const currentKey = getShape3DKey(annotation.shape3D);
+  const currentProfileTemplateId =
+    annotation.shape3D?.profileTemplateId ?? null;
+
+  let chipLabel = DEFAULT_LABEL;
+  if (currentKey === "EXTRUSION_PROFILE") {
+    const t = profileTemplates.find((x) => x.id === currentProfileTemplateId);
+    chipLabel = t?.label ?? PROFILE_FALLBACK_LABEL;
+  } else if (currentKey != null) {
+    const entry = staticOptions.find((o) => o.key === currentKey);
+    chipLabel = entry?.label ?? DEFAULT_LABEL;
+  }
 
   // handlers
 
@@ -44,12 +71,18 @@ export default function Shape3DSelector({ annotation }) {
     setAnchorEl(null);
   }
 
-  async function handleSelect(key) {
-    await updateAnnotation({ id: annotation.id, shape3D: key ?? null });
+  async function handleSelect(value) {
+    await updateAnnotation({ id: annotation.id, shape3D: value });
     handleClose();
   }
 
   // render
+
+  const isStaticSelected = (key) =>
+    currentKey === key && currentKey !== "EXTRUSION_PROFILE";
+  const isProfileSelected = (templateId) =>
+    currentKey === "EXTRUSION_PROFILE" &&
+    currentProfileTemplateId === templateId;
 
   return (
     <>
@@ -64,7 +97,12 @@ export default function Shape3DSelector({ annotation }) {
           height: 24,
           fontSize: "0.75rem",
           cursor: "pointer",
-          "& .MuiChip-label": { px: 0.75 },
+          maxWidth: 200,
+          "& .MuiChip-label": {
+            px: 0.75,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          },
           "& .MuiChip-icon": { ml: 0.5 },
         }}
       />
@@ -76,23 +114,68 @@ export default function Shape3DSelector({ annotation }) {
         transformOrigin={{ vertical: "top", horizontal: "right" }}
       >
         <MenuItem onClick={() => handleSelect(null)} dense>
-          {current === null && (
+          {currentKey === null && (
             <ListItemIcon>
               <Check fontSize="small" />
             </ListItemIcon>
           )}
-          <ListItemText inset={current !== null}>{DEFAULT_LABEL}</ListItemText>
+          <ListItemText inset={currentKey !== null}>
+            {DEFAULT_LABEL}
+          </ListItemText>
         </MenuItem>
-        {options.map((opt) => (
-          <MenuItem key={opt.key} onClick={() => handleSelect(opt.key)} dense>
-            {current === opt.key && (
+
+        {staticOptions.map((opt) => (
+          <MenuItem
+            key={opt.key}
+            onClick={() => handleSelect({ key: opt.key })}
+            dense
+          >
+            {isStaticSelected(opt.key) && (
               <ListItemIcon>
                 <Check fontSize="small" />
               </ListItemIcon>
             )}
-            <ListItemText inset={current !== opt.key}>{opt.label}</ListItemText>
+            <ListItemText inset={!isStaticSelected(opt.key)}>
+              {opt.label}
+            </ListItemText>
           </MenuItem>
         ))}
+
+        {showProfileSection && [
+          <ListSubheader
+            key="profils-header"
+            sx={{ lineHeight: "32px", fontWeight: "bold" }}
+          >
+            Profils
+          </ListSubheader>,
+          ...profileTemplates.map((t) => (
+            <MenuItem
+              key={t.id}
+              onClick={() =>
+                handleSelect({
+                  key: "EXTRUSION_PROFILE",
+                  profileTemplateId: t.id,
+                })
+              }
+              dense
+            >
+              {isProfileSelected(t.id) ? (
+                <ListItemIcon>
+                  <Check fontSize="small" />
+                </ListItemIcon>
+              ) : (
+                <ListItemIcon>
+                  <AnnotationTemplateIcon
+                    template={t}
+                    spriteImage={spriteImage}
+                    size={18}
+                  />
+                </ListItemIcon>
+              )}
+              <ListItemText>{t.label}</ListItemText>
+            </MenuItem>
+          )),
+        ]}
       </Menu>
     </>
   );

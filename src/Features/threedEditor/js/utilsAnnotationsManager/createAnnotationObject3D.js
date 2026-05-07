@@ -6,12 +6,16 @@ import wallToRectRing, {
 } from "Features/geometry/utils/wallToRectRing";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 
-import { getShape3DOptionsForType } from "Features/annotations/constants/shape3DConfig";
+import {
+  getShape3DKey,
+  getShape3DOptionsForType,
+} from "Features/annotations/constants/shape3DConfig";
 
 import pixelToWorld from "./pixelToWorld";
 import extrudeClosedShape from "./extrudeClosedShape";
 import extrudePolylineWall from "./extrudePolylineWall";
 import buildRevolutionMesh from "./buildRevolutionMesh";
+import buildExtrudedProfileMesh from "./buildExtrudedProfileMesh";
 import createObject3DAnnotation from "./createObject3DAnnotation";
 
 // Reduce the rendered wall thickness slightly so its mesh doesn't z-fight
@@ -172,14 +176,14 @@ function extrudeWallPolygon(annotation, baseMap, height, material, verticalLift)
 export default function createAnnotationObject3D(annotation, baseMap, options) {
   if (!annotation || !baseMap) return null;
 
-  const shape3D = annotation.shape3D ?? null;
-  if (shape3D !== null) {
+  const shape3DKey = getShape3DKey(annotation.shape3D);
+  if (shape3DKey !== null && shape3DKey !== "EXTRUSION_PROFILE") {
     const known = getShape3DOptionsForType(annotation.type).some(
-      (o) => o.key === shape3D
+      (o) => o.key === shape3DKey
     );
     if (!known) {
       console.warn(
-        `[createAnnotationObject3D] Unknown shape3D="${shape3D}" for type="${annotation.type}", falling back to default`
+        `[createAnnotationObject3D] Unknown shape3D.key="${shape3DKey}" for type="${annotation.type}", falling back to default`
       );
     }
   }
@@ -211,10 +215,24 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       break;
     }
     case "POLYLINE": {
-      if (shape3D === "REVOLUTION") {
+      if (shape3DKey === "REVOLUTION") {
         const pts = pointsToLocal(annotation.points || [], baseMap);
         object = buildRevolutionMesh(
           pts,
+          material,
+          verticalLift,
+          annotation.hiddenSegmentsIdx || []
+        );
+        break;
+      }
+      if (
+        shape3DKey === "EXTRUSION_PROFILE" &&
+        annotation.shape3D?.profileTemplateId
+      ) {
+        const pts = pointsToLocal(annotation.points || [], baseMap);
+        object = buildExtrudedProfileMesh(
+          pts,
+          annotation.shape3D.profileTemplateId,
           material,
           verticalLift,
           annotation.hiddenSegmentsIdx || []
@@ -245,6 +263,22 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       break;
     }
     case "STRIP": {
+      if (
+        shape3DKey === "EXTRUSION_PROFILE" &&
+        annotation.shape3D?.profileTemplateId
+      ) {
+        // Use the strip's neutral/director line (annotation.points) as the
+        // sweep guide.
+        const pts = pointsToLocal(annotation.points || [], baseMap);
+        object = buildExtrudedProfileMesh(
+          pts,
+          annotation.shape3D.profileTemplateId,
+          material,
+          verticalLift,
+          annotation.hiddenSegmentsIdx || []
+        );
+        break;
+      }
       object = extrudeStripPolygons(
         annotation,
         baseMap,
