@@ -202,22 +202,30 @@ export default function TopBarDesktop() {
       }}
     >
       {/* Left section - breadcrumbs */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1 }}>
-        <TopBarBreadcrumbs />
-        {scopesEnabled && <ButtonSelectorScope />}
-        {returnLabel && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, pl: 3 }}>
-            <Divider orientation="vertical" sx={{ height: 24 }} />
-            <Button
-              size="small"
-              color="secondary"
-              startIcon={<ArrowBack />}
-              onClick={handleReturnToViewer}
-            >
-              {returnLabel}
-            </Button>
-          </Box>
-        )}
+      <Box sx={{ display: "flex", alignItems: "center", flex: 1 }}>
+        <Box
+          sx={{
+            display: { xs: "none", md: "flex" },
+            alignItems: "center",
+            gap: 0.5,
+          }}
+        >
+          <TopBarBreadcrumbs />
+          {scopesEnabled && <ButtonSelectorScope />}
+          {returnLabel && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, pl: 3 }}>
+              <Divider orientation="vertical" sx={{ height: 24 }} />
+              <Button
+                size="small"
+                color="secondary"
+                startIcon={<ArrowBack />}
+                onClick={handleReturnToViewer}
+              >
+                {returnLabel}
+              </Button>
+            </Box>
+          )}
+        </Box>
       </Box>
 
       {/* Center section - baseMap selectors or portfolio return */}
@@ -230,7 +238,10 @@ export default function TopBarDesktop() {
               size="small"
               endIcon={<ChevronRight />}
               onClick={handleGoToBaseMapsDetail}
-              sx={{ color: "grey.400" }}
+              sx={{
+                color: "grey.400",
+                display: { xs: "none", md: "inline-flex" },
+              }}
             >
               Voir le détail
             </Button>
@@ -293,14 +304,28 @@ export default function TopBarDesktop() {
       )}
 
       {/* Right section - actions */}
-      <Box sx={{ display: "flex", alignItems: "center", flex: 1, justifyContent: "flex-end", gap: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          flex: 1,
+          justifyContent: "flex-end",
+          gap: 1,
+        }}
+      >
         <ButtonToggleThreedViewer />
         {viewerKey !== "THREED" && (
-          <>
+          <Box
+            sx={{
+              display: { xs: "none", md: "flex" },
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
             <IconButtonDialogSync />
             <ButtonHistoryScope />
             <IconButtonShareScope />
-          </>
+          </Box>
         )}
       </Box>
     </Box>
