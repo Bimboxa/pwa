@@ -40,6 +40,9 @@ import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnota
 import IconButtonThreedProperties from "./IconButtonThreedProperties";
 import ToggleEditorModeThreed from "./ToggleEditorModeThreed";
 import PanelBaseMapPosition3D from "./PanelBaseMapPosition3D";
+import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
+import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
+import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
 
 export default function MainThreedEditor() {
   // ref
@@ -86,6 +89,19 @@ export default function MainThreedEditor() {
   useEffect(() => {
     editorModeRef.current = editorMode;
   }, [editorMode]);
+
+  // Mirror drawingMode.active into a ref so the existing pointer handlers can
+  // short-circuit without re-creating their callbacks (which would reset the
+  // drag tracking mid-stream).
+  const drawingActive = useSelector(
+    (s) => s.threedEditor.drawingMode.active,
+  );
+  const drawingActiveRef = useRef(drawingActive);
+  useEffect(() => {
+    drawingActiveRef.current = drawingActive;
+  }, [drawingActive]);
+
+  useDrawingPointerHandlers();
 
   // Helper: derive the right material state for a given annotation id, based
   // on the current selection in the store and whether the cursor is currently
@@ -177,6 +193,8 @@ export default function MainThreedEditor() {
       // In BASEMAP_POSITION mode the pointer is reserved for the transform
       // gizmo and the camera — annotation selection is intentionally disabled.
       if (editorModeRef.current === "BASEMAP_POSITION") return;
+      // Drawing mode owns the pointer; useDrawingPointerHandlers handles clicks.
+      if (drawingActiveRef.current) return;
 
       const threedEditor = threedEditorRef.current;
       const sceneManager = threedEditor.sceneManager;
@@ -492,6 +510,10 @@ export default function MainThreedEditor() {
   const handlePointerDown = useCallback((event) => {
     // Don't start drag tracking if clicking on popper
     if (isWithinPopper(event)) {
+      return;
+    }
+    // Drawing mode owns the pointer.
+    if (drawingActiveRef.current) {
       return;
     }
     isDraggingRef.current = false;
@@ -885,6 +907,8 @@ export default function MainThreedEditor() {
       {isThreedViewer && editorMode === "BASEMAP_POSITION" && (
         <PanelBaseMapPosition3D />
       )}
+      {isThreedViewer && <BottomToolbarThreed />}
+      {isThreedViewer && <DrawingOverlayThreed />}
     </Box>
   );
 }

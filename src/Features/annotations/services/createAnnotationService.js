@@ -13,7 +13,8 @@ export default async function createAnnotationService(annotation) {
   if (!(annotation?.annotationTemplateId ||
     annotation?.isScaleSegment ||
     annotation.type === "LABEL" ||
-    annotation.isBaseMapAnnotation
+    annotation.isBaseMapAnnotation ||
+    annotation?.isPendingTemplate
   )) return;
 
   // main
