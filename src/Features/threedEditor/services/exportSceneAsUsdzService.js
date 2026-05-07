@@ -22,11 +22,19 @@ function toExportableMaterial(source) {
   });
 }
 
+// Object3D.traverse can't prune subtrees — walk manually so we can skip the
+// entire gizmo helper subtree (tagged userData.isGizmo in TransformControlsManager).
+function traverseExportable(obj, cb) {
+  if (obj.userData?.isGizmo) return;
+  cb(obj);
+  for (const child of obj.children) traverseExportable(child, cb);
+}
+
 function buildExportScene(sourceScene) {
   sourceScene.updateMatrixWorld(true);
 
   const exportScene = new Scene();
-  sourceScene.traverse((obj) => {
+  traverseExportable(sourceScene, (obj) => {
     if (!obj.isMesh) return;
 
     const cloned = new Mesh(obj.geometry, toExportableMaterial(obj.material));

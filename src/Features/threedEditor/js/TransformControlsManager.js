@@ -34,6 +34,10 @@ export default class TransformControlsManager {
       typeof this.controls.getHelper === "function"
         ? this.controls.getHelper()
         : this.controls;
+    // Tag so scene exporters (USDZ, photoreal) can prune the gizmo subtree —
+    // its inner X/Y/Z arrows are real Mesh objects and would otherwise leak
+    // into every export.
+    this.helper.userData.isGizmo = true;
     this.sceneManager.scene.add(this.helper);
 
     // Disable orbit while dragging the gizmo so the camera doesn't move with
