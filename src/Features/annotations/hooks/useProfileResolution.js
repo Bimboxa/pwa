@@ -1,6 +1,12 @@
 import { useLiveQuery } from "dexie-react-hooks";
 
 import db from "App/db/db";
+import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
+
+// Match the codebase convention (used in createAnnotationObject3D,
+// detectPolygonFromAnnotations, useWallBoundaries) so curved profiles look
+// consistent with how curved annotations are sampled elsewhere.
+const ARC_SAMPLES = 6;
 
 // Resolve all annotations that compose a profile (those carrying the given
 // `profileTemplateId`), with their points denormalized to pixel space and
@@ -55,13 +61,25 @@ export async function resolveProfileFromDb(profileTemplateId) {
     .map((annotation) => {
       const baseMap = baseMapById.get(annotation.baseMapId);
       const imageSize = baseMap?.image?.imageSize;
-      const pointsPx = (annotation.points || [])
+      // Preserve `ref.type` (square / circle) — `circle` markers form the
+      // middle of S-C-S arc triplets and are used by `expandArcsInPath`.
+      const rawPx = (annotation.points || [])
         .map((ref) => {
           const p = pointById.get(ref.id);
           if (!p || !imageSize) return null;
-          return { x: p.x * imageSize.width, y: p.y * imageSize.height };
+          return {
+            x: p.x * imageSize.width,
+            y: p.y * imageSize.height,
+            type: ref.type,
+          };
         })
         .filter(Boolean);
+      // Expand each S-C-S triplet into a polyline approximating the arc.
+      // After expansion the profile is a plain set of straight segments —
+      // the 3D sweep and the length integration both work directly on it.
+      const pointsPx = rawPx.length >= 3
+        ? expandArcsInPath(rawPx, ARC_SAMPLES)
+        : rawPx;
       return { annotation, baseMap, pointsPx };
     })
     .filter((p) => p.pointsPx.length >= 2);
