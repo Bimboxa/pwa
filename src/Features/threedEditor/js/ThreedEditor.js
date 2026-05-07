@@ -43,6 +43,13 @@ export default class ThreedEditor {
     }
   };
 
+  // camera
+
+  panCameraToWorldPoint = (worldPoint, options) => {
+    if (!this.sceneIsInitialized) return;
+    this.sceneManager.controlsManager.panCameraToWorldPoint(worldPoint, options);
+  };
+
   // annotations
 
   loadAnnotations = (annotations, options) => {

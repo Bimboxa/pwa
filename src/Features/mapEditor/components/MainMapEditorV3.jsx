@@ -6,6 +6,10 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import { setAnchorPositionScale, setScaleInPx, setAngleInRad } from "../mapEditorSlice";
 import { setEnabledDrawingMode } from "../mapEditorSlice";
+import { setNavigateToWorldPoint } from "Features/threedEditor/threedEditorSlice";
+import pixelToWorld from "Features/threedEditor/js/utilsAnnotationsManager/pixelToWorld";
+import baseMapLocalToWorld from "Features/baseMaps/js/baseMapLocalToWorld";
+import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import { setTempAnnotations, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
 import { setBgImageRawTextAnnotations } from "Features/bgImage/bgImageSlice";
@@ -653,7 +657,37 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         dispatch(setEnabledDrawingMode(null))
     };
 
-    // handlers 
+    // handlers
+
+    // Cross-tab "navigate 3D camera to here": convert the 2D click world
+    // position to a basemap-local point, project it into the 3D world frame
+    // using the basemap's 3D placement, and dispatch a fire-and-forget event.
+    // The action is whitelisted in syncTabsMiddleware so a 3D-tab consumer
+    // (useNavigateCameraOnEvent) receives it via BroadcastChannel.
+    const handleMapClickInSelectMode = ({ worldPos }) => {
+        if (!baseMap) return;
+        const imageSize = baseMap.getImageSize?.();
+        const meterByPx = baseMap.getMeterByPx?.();
+        if (!imageSize?.width || !imageSize?.height || !Number.isFinite(meterByPx)) return;
+        const pose = basePose || { x: 0, y: 0, k: 1 };
+        const localPx = {
+            x: (worldPos.x - pose.x) / pose.k,
+            y: (worldPos.y - pose.y) / pose.k,
+        };
+        const localMeters = pixelToWorld(localPx, {
+            imageWidth: imageSize.width,
+            imageHeight: imageSize.height,
+            meterByPx,
+        });
+        const worldVec = baseMapLocalToWorld(localMeters, getBaseMapTransform(baseMap));
+        dispatch(setNavigateToWorldPoint({
+            baseMapId: baseMap.id,
+            worldX: worldVec.x,
+            worldY: worldVec.y,
+            worldZ: worldVec.z,
+            triggeredAt: Date.now(),
+        }));
+    };
 
     const handleResetCamera = () => {
         interactionLayerRef.current?.setCameraMatrix(defaultCameraMatrixRef.current);
@@ -1338,6 +1372,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     }}
                     onCommitSplitAtVertex={handlePolylineSplitAtVertex}
                     onCommitImageDrop={handleCommitImageDrop}
+                    onMapClickInSelectMode={handleMapClickInSelectMode}
                     onCommitPointsFromSurfaceDrop={handleCommitPointsFromSurfaceDrop}
                     onCommitSimilarStrips={handleCommitSimilarStrips}
                     surfaceDropBarrierMask={surfaceDropBarrierMask}

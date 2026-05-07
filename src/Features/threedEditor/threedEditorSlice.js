@@ -19,6 +19,11 @@ const threedEditorInitialState = {
   // 3D-only basemap opacity (0..1). Independent from baseMap.opacity (DB)
   // and from mapEditor.baseMapOpacity (2D). Resets to 1 on every reload.
   baseMapOpacityIn3d: 1,
+  // Fire-and-forget cross-tab event: pan the 3D camera to a world-space
+  // point. `triggeredAt` makes repeated clicks at the same spot still fire.
+  // `baseMapId` is a guard: the consumer ignores the event when its current
+  // basemap differs (frames may not match across baseMaps).
+  navigateToWorldPoint: null, // { baseMapId, worldX, worldY, worldZ, triggeredAt }
 };
 
 export const threedEditorSlice = createSlice({
@@ -40,6 +45,9 @@ export const threedEditorSlice = createSlice({
     setBaseMapOpacityIn3d: (state, action) => {
       state.baseMapOpacityIn3d = action.payload;
     },
+    setNavigateToWorldPoint: (state, action) => {
+      state.navigateToWorldPoint = action.payload;
+    },
   },
 });
 
@@ -49,6 +57,7 @@ export const {
   setEditorMode,
   setDrawingOffset,
   setBaseMapOpacityIn3d,
+  setNavigateToWorldPoint,
 } = threedEditorSlice.actions;
 
 export default threedEditorSlice.reducer;

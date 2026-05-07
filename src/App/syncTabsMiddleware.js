@@ -30,6 +30,9 @@ const SYNCED_ACTION_TYPES = new Set([
 // so neither tab can claim ownership.
 const ALWAYS_SYNCED_ACTION_TYPES = new Set([
   "threedEditor/setDrawingOffset",
+  // Fire-and-forget event: 2D click → 3D camera pan, broadcast across tabs
+  // regardless of leader/follower role.
+  "threedEditor/setNavigateToWorldPoint",
 ]);
 
 const SYNCED_PREFIXES = ["selection/"];
