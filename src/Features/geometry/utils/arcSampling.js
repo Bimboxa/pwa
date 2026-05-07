@@ -101,8 +101,13 @@ export function sampleArcPoints(
  * Returns `{ points, hiddenSegmentsIdx }` ready to feed to a downstream
  * sweep / extrusion routine that knows how to skip hidden expanded segments.
  */
-export function expandArcsInPathWithHiddenMap(path, samples = 6, hiddenSegmentsIdx = []) {
-  const expanded = expandArcsInPath(path, samples);
+export function expandArcsInPathWithHiddenMap(
+  path,
+  samples = 6,
+  hiddenSegmentsIdx = [],
+  closeLine = false
+) {
+  const expanded = expandArcsInPath(path, samples, closeLine);
   const hidden = new Set(hiddenSegmentsIdx ?? []);
   if (hidden.size === 0) {
     return { points: expanded, hiddenSegmentsIdx: [] };
@@ -111,13 +116,17 @@ export function expandArcsInPathWithHiddenMap(path, samples = 6, hiddenSegmentsI
   // Walk the ORIGINAL path the same way expandArcsInPath does, building a
   // map from original-segment index → expanded-segment range (inclusive).
   const n = path.length;
-  const range = new Array(Math.max(0, n - 1)).fill(null);
+  const get = closeLine
+    ? (k) => path[((k % n) + n) % n]
+    : (k) => path[k];
+  const range = new Array(closeLine ? n : Math.max(0, n - 1)).fill(null);
   let outSegIdx = 0;
   let i = 0;
-  while (i < n) {
-    const p0 = path[i];
-    const p1 = path[i + 1];
-    const p2 = path[i + 2];
+  let consumed = 0;
+  while (consumed < n) {
+    const p0 = get(i);
+    const p1 = get(i + 1);
+    const p2 = get(i + 2);
     const isArc =
       p1 &&
       p2 &&
@@ -128,18 +137,23 @@ export function expandArcsInPathWithHiddenMap(path, samples = 6, hiddenSegmentsI
     if (isArc) {
       const circ = circleFromThreePoints(p0, p1, p2);
       if (circ && Number.isFinite(circ.r) && circ.r > 0) {
-        range[i] = [outSegIdx, outSegIdx + samples - 1];
-        range[i + 1] = [outSegIdx + samples, outSegIdx + 2 * samples - 1];
+        const idx0 = ((i % n) + n) % n;
+        const idx1 = (((i + 1) % n) + n) % n;
+        range[idx0] = [outSegIdx, outSegIdx + samples - 1];
+        range[idx1] = [outSegIdx + samples, outSegIdx + 2 * samples - 1];
         outSegIdx += 2 * samples;
         i += 2;
+        consumed += 2;
         continue;
       }
     }
-    if (i < n - 1) {
-      range[i] = [outSegIdx, outSegIdx];
+    const idx = ((i % n) + n) % n;
+    if (closeLine || i < n - 1) {
+      range[idx] = [outSegIdx, outSegIdx];
       outSegIdx += 1;
     }
     i += 1;
+    consumed += 1;
   }
 
   const newHidden = [];
@@ -166,16 +180,20 @@ export function expandArcsInPathWithHiddenMap(path, samples = 6, hiddenSegmentsI
  * circle-type points (C-C chains) are treated as straight segments, matching
  * the convention used in getPointsSurface.
  */
-export function expandArcsInPath(path, samples = 6) {
+export function expandArcsInPath(path, samples = 6, closeLine = false) {
   const n = path.length;
   if (n < 3) return path.map((p) => ({ ...p }));
 
+  const get = closeLine
+    ? (k) => path[((k % n) + n) % n]
+    : (k) => path[k];
   const out = [];
   let i = 0;
-  while (i < n) {
-    const p0 = path[i];
-    const p1 = path[i + 1];
-    const p2 = path[i + 2];
+  let consumed = 0;
+  while (consumed < n) {
+    const p0 = get(i);
+    const p1 = get(i + 1);
+    const p2 = get(i + 2);
 
     const isArc =
       p1 &&
@@ -216,16 +234,19 @@ export function expandArcsInPath(path, samples = 6) {
           out.push({ x: arc12[k].x, y: arc12[k].y });
         }
         i += 2;
+        consumed += 2;
         continue;
       }
       // Degenerate: straight segments
       out.push({ ...p0 });
       i += 1;
+      consumed += 1;
       continue;
     }
 
     out.push({ ...p0 });
     i += 1;
+    consumed += 1;
   }
 
   return out;

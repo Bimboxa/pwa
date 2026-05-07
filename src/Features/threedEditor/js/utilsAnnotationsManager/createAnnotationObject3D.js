@@ -118,7 +118,7 @@ function extrudeWallPolygon(annotation, baseMap, height, material, verticalLift)
   }));
   if (pts.length < 2) return null;
 
-  const expanded = expandArcsInPath(pts, 6);
+  const expanded = expandArcsInPath(pts, 6, !!annotation.closeLine);
   const filtered = [expanded[0]];
   for (let i = 1; i < expanded.length; i++) {
     const prev = filtered[filtered.length - 1];
@@ -241,7 +241,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           expandArcsInPathWithHiddenMap(
             annotation.points || [],
             GUIDE_ARC_SAMPLES,
-            annotation.hiddenSegmentsIdx || []
+            annotation.hiddenSegmentsIdx || [],
+            !!annotation.closeLine
           );
         const pts = pointsToLocal(expandedPts, baseMap);
         object = buildExtrudedProfileMesh(
@@ -266,7 +267,12 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         );
         break;
       }
-      const pts = pointsToLocal(annotation.points || [], baseMap);
+      const expanded = expandArcsInPath(
+        annotation.points || [],
+        GUIDE_ARC_SAMPLES,
+        !!annotation.closeLine
+      );
+      const pts = pointsToLocal(expanded, baseMap);
       object = extrudePolylineWall(
         pts,
         height,
@@ -287,7 +293,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           expandArcsInPathWithHiddenMap(
             annotation.points || [],
             GUIDE_ARC_SAMPLES,
-            annotation.hiddenSegmentsIdx || []
+            annotation.hiddenSegmentsIdx || [],
+            !!annotation.closeLine
           );
         const pts = pointsToLocal(expandedPts, baseMap);
         object = buildExtrudedProfileMesh(
