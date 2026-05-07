@@ -161,6 +161,7 @@ const InteractionLayer = forwardRef(({
   onCommitPointsFromSurfaceDrop,
   onCommitSimilarStrips,
   onCommitImageDrop,
+  onMapClickInSelectMode,
   basePose,
   onBaseMapPoseChange,
   onBaseMapPoseCommit,
@@ -2255,6 +2256,12 @@ const InteractionLayer = forwardRef(({
   // --- GESTION DES CLICS (Ajout de point) ---
   const handleWorldClick = async ({ worldPos, viewportPos, event }) => {
 
+    // Cross-tab navigation: in pure SELECT mode (no drawing tool, no anchor
+    // pick), forward the click world position to the parent so it can
+    // broadcast a 3D-camera pan event to other tabs.
+    if (!enabledDrawingMode && !anchorSourceAnnotationId) {
+      onMapClickInSelectMode?.({ worldPos, event });
+    }
 
     //Déclencher le flash visuel au clic
     if (enabledDrawingMode) {

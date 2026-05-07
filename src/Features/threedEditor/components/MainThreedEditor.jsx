@@ -6,6 +6,7 @@ import useAutoLoadMapsInThreedEditor from "../hooks/useAutoLoadMapsInThreedEdito
 import useAutoLoadAnnotationsInThreedEditor from "../hooks/useAutoLoadAnnotationsInThreedEditor";
 import useDeleteAnnotationOnKeyboardInThreedEditor from "../hooks/useDeleteAnnotationOnKeyboardInThreedEditor";
 import useApplyBaseMapOpacityIn3d from "../hooks/useApplyBaseMapOpacityIn3d";
+import useNavigateCameraOnEvent from "../hooks/useNavigateCameraOnEvent";
 import {
   setSelectedNode,
   setAnnotationToolbarPosition,
@@ -156,6 +157,11 @@ export default function MainThreedEditor() {
   });
 
   useApplyBaseMapOpacityIn3d();
+
+  useNavigateCameraOnEvent({
+    threedEditor: threedEditorRef.current,
+    rendererIsReady,
+  });
 
   const annotations = useAutoLoadAnnotationsInThreedEditor({
     threedEditor: threedEditorRef.current,
