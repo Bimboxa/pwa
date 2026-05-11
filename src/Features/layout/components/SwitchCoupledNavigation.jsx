@@ -1,6 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import { setCoupledNavigationEnabled } from "Features/layout/layoutSlice";
+import useHasFreshPeers from "Features/layout/hooks/useHasFreshPeers";
 
 import { Box, Switch, Tooltip, Typography } from "@mui/material";
 import LinkIcon from "@mui/icons-material/Link";
@@ -16,7 +17,10 @@ export default function SwitchCoupledNavigation() {
 
   // data
 
-  const enabled = useSelector((s) => s.layout?.coupledNavigationEnabled ?? true);
+  const hasPeers = useHasFreshPeers();
+  const enabled = useSelector(
+    (s) => s.layout?.coupledNavigationEnabled ?? true
+  );
 
   // handlers
 
@@ -27,6 +31,8 @@ export default function SwitchCoupledNavigation() {
   }
 
   // render
+
+  if (!hasPeers) return null;
 
   return (
     <Tooltip title={tooltipS} placement="top">
