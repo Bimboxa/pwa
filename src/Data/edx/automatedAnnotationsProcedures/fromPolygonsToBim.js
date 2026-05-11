@@ -6,7 +6,7 @@ import mergePolylines from "Features/geometry/utils/mergePolylines";
 
 import isCutMajorityDark from "./isCutMajorityDark";
 
-const WALL_DETECTION_M = 0.6; // characteristic distance to detect wall branches
+export const WALL_DETECTION_M = 0.6; // characteristic distance to detect wall branches
 const MIN_INDEX_DISTANCE = 2; // minimum index gap to consider two points non-adjacent
 const STRIP_TEST_OFFSET = 5; // px offset to test strip orientation
 const INTERIOR_CUT_MAX_M = 0.5; // max dimension (meters) to classify a cut as interior (wall/pillar)
@@ -213,7 +213,7 @@ function distPointToSegment(px, py, ax, ay, bx, by) {
  * Includes outer ring edges and cut ring edges.
  * @returns {Array<{ax: number, ay: number, bx: number, by: number}>}
  */
-function buildForeignEdges(polygons, currentIndex) {
+export function buildForeignEdges(polygons, currentIndex) {
   const edges = [];
   for (let j = 0; j < polygons.length; j++) {
     if (j === currentIndex) continue;
@@ -227,13 +227,16 @@ function buildForeignEdges(polygons, currentIndex) {
         edges.push({
           ax: pts[i].x, ay: pts[i].y, idA: pts[i].id,
           bx: pts[next].x, by: pts[next].y, idB: pts[next].id,
+          polygonIndex: j,
+          ringKind: "outer",
         });
       }
     }
 
     // cut edges
     if (poly.cuts?.length) {
-      for (const cut of poly.cuts) {
+      for (let ci = 0; ci < poly.cuts.length; ci++) {
+        const cut = poly.cuts[ci];
         const cpts = cut.points;
         if (!cpts?.length || cpts.length < 3) continue;
         for (let i = 0; i < cpts.length; i++) {
@@ -241,6 +244,9 @@ function buildForeignEdges(polygons, currentIndex) {
           edges.push({
             ax: cpts[i].x, ay: cpts[i].y, idA: cpts[i].id,
             bx: cpts[next].x, by: cpts[next].y, idB: cpts[next].id,
+            polygonIndex: j,
+            ringKind: "cut",
+            cutIndex: ci,
           });
         }
       }
@@ -253,7 +259,7 @@ function buildForeignEdges(polygons, currentIndex) {
  * Compute twice the signed area of a ring (shoelace formula).
  * In screen coordinates (y-down): positive → clockwise, negative → counter-clockwise.
  */
-function signedArea2(points) {
+export function signedArea2(points) {
   let s = 0;
   const n = points.length;
   for (let i = 0; i < n; i++) {
@@ -390,7 +396,7 @@ function subdivideChainByForeignProjections(chain, foreignEdges, detectionPx) {
  * Subdivide a closed ring by projecting foreign vertices onto its segments.
  * Same as subdivideChainByForeignProjections but handles the closing segment.
  */
-function subdivideRingByForeignProjections(ringPoints, foreignEdges, detectionPx) {
+export function subdivideRingByForeignProjections(ringPoints, foreignEdges, detectionPx) {
   if (ringPoints.length < 3 || foreignEdges.length === 0) return ringPoints;
 
   const foreignVertices = collectForeignVertices(foreignEdges);
@@ -468,7 +474,7 @@ function clampedProjection(px, py, ax, ay, bx, by) {
  *   For cut rings, pass the FLIPPED sign so the test direction points
  *   into the hole rather than into the parent polygon's solid area.
  */
-function isSegmentInterior(p1x, p1y, p2x, p2y, outwardSign, foreignEdges, foreignPolygons, detectionPx) {
+export function isSegmentInterior(p1x, p1y, p2x, p2y, outwardSign, foreignEdges, foreignPolygons, detectionPx) {
   if (!isSegmentCloseToForeignEdges(p1x, p1y, p2x, p2y, foreignEdges, detectionPx)) {
     return false;
   }

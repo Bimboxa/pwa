@@ -5,6 +5,7 @@ import useAnnotationTemplates from "../hooks/useAnnotationTemplates";
 import useListings from "Features/listings/hooks/useListings";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useVectorisation from "Features/smartDetect/hooks/useVectorisation";
+import useTraceInteriorContours from "Features/smartDetect/hooks/useTraceInteriorContours";
 import { resolveDrawingShape } from "../constants/drawingShapeConfig";
 
 import {
@@ -15,6 +16,7 @@ import {
   FormControlLabel,
   IconButton,
   Menu,
+  Switch,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -26,6 +28,7 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const allTemplates = useAnnotationTemplates({ sortByLabel: true });
   const vectorise = useVectorisation();
+  const traceInteriorContours = useTraceInteriorContours();
   const baseMap = useMainBaseMap();
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
@@ -41,6 +44,7 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
   const [enableExteriorClose, setEnableExteriorClose] = useState(true);
   const [enableInterior, setEnableInterior] = useState(true);
   const [polygonAsFillMode, setPolygonAsFillMode] = useState(false);
+  const [isInteriorContourMode, setIsInteriorContourMode] = useState(false);
   const open = Boolean(anchorEl);
 
   // data
@@ -56,18 +60,35 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
     return true;
   });
 
+  const interiorContourTemplates = allTemplates?.filter(
+    (t) => resolveDrawingShape(t) === "POLYGON",
+  );
+
+  const activeTemplates = isInteriorContourMode
+    ? interiorContourTemplates
+    : vectorisationTemplates;
+
   // handlers
 
   function handleOpen(event) { setAnchorEl(event.currentTarget); }
   function handleClose() { setAnchorEl(null); }
 
   async function handleTemplateChange(annotationTemplateId) {
+    console.log(`[Vectorisation] handleTemplateChange templateId=${annotationTemplateId} mode=${isInteriorContourMode ? "interiorContour" : "wall"} annotations=${annotations?.length}`);
     const template = allTemplates?.find((t) => t.id === annotationTemplateId);
-    if (!template) return;
+    if (!template) {
+      console.warn("[Vectorisation] template not found");
+      return;
+    }
     setLoading(true);
     try {
-      const result = await vectorise({ annotations, annotationTemplate: template, enableExteriorOrtho, enableExteriorClose, enableInterior, polygonAsFillMode });
-      console.log(`[Vectorisation] ${result.count} wall annotations created`);
+      if (isInteriorContourMode) {
+        const result = await traceInteriorContours({ annotations, annotationTemplate: template });
+        console.log(`[Vectorisation] ${result.count} interior contour polygons created`);
+      } else {
+        const result = await vectorise({ annotations, annotationTemplate: template, enableExteriorOrtho, enableExteriorClose, enableInterior, polygonAsFillMode });
+        console.log(`[Vectorisation] ${result.count} wall annotations created`);
+      }
     } catch (e) {
       console.error("[Vectorisation]", e);
     } finally {
@@ -104,48 +125,68 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
         transformOrigin={{ vertical: "top", horizontal: "right" }}
         slotProps={{ paper: { sx: { minWidth: 240 } } }}
       >
-        <Box sx={{ px: 2, pt: 1, pb: 0 }}>
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>Variante</Typography>
-        </Box>
-        <Box sx={{ px: 1, pb: 0.5, display: "flex", flexDirection: "column" }}>
-          <FormControlLabel
-            control={<Checkbox size="small" checked={polygonAsFillMode} onChange={(e) => setPolygonAsFillMode(e.target.checked)} />}
-            label={<Typography variant="caption">Vectoriser le polygone en mur</Typography>}
-            sx={{ m: 0 }}
-          />
-        </Box>
+        {!isInteriorContourMode && (
+          <Box sx={{ px: 2, pt: 1, pb: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>Variante</Typography>
+          </Box>
+        )}
+        {!isInteriorContourMode && (
+          <Box sx={{ px: 1, pb: 0.5, display: "flex", flexDirection: "column" }}>
+            <FormControlLabel
+              control={<Checkbox size="small" checked={polygonAsFillMode} onChange={(e) => setPolygonAsFillMode(e.target.checked)} />}
+              label={<Typography variant="caption">Vectoriser le polygone en mur</Typography>}
+              sx={{ m: 0 }}
+            />
+          </Box>
+        )}
+        {!isInteriorContourMode && <Divider />}
+        {!isInteriorContourMode && (
+          <Box sx={{ px: 2, pt: 1, pb: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>Vectorisation</Typography>
+          </Box>
+        )}
+        {!isInteriorContourMode && (
+          <Box sx={{ px: 1, pb: 0.5, display: "flex", flexDirection: "column" }}>
+            <FormControlLabel
+              control={<Checkbox size="small" checked={enableExteriorOrtho} disabled={polygonAsFillMode} onChange={(e) => setEnableExteriorOrtho(e.target.checked)} />}
+              label={<Typography variant="caption">Murs ext (ortho)</Typography>}
+              sx={{ m: 0 }}
+            />
+            <FormControlLabel
+              control={<Checkbox size="small" checked={enableExteriorClose} disabled={polygonAsFillMode} onChange={(e) => setEnableExteriorClose(e.target.checked)} />}
+              label={<Typography variant="caption">Murs ext (fermeture)</Typography>}
+              sx={{ m: 0 }}
+            />
+            <FormControlLabel
+              control={<Checkbox size="small" checked={enableInterior} disabled={polygonAsFillMode} onChange={(e) => setEnableInterior(e.target.checked)} />}
+              label={<Typography variant="caption">Murs intérieurs ortho</Typography>}
+              sx={{ m: 0 }}
+            />
+          </Box>
+        )}
+
         <Divider />
-        <Box sx={{ px: 2, pt: 1, pb: 0 }}>
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>Vectorisation</Typography>
-        </Box>
-        <Box sx={{ px: 1, pb: 0.5, display: "flex", flexDirection: "column" }}>
+        <Box sx={{ px: 2, pt: 1, pb: 0.5, bgcolor: "action.hover" }}>
           <FormControlLabel
-            control={<Checkbox size="small" checked={enableExteriorOrtho} disabled={polygonAsFillMode} onChange={(e) => setEnableExteriorOrtho(e.target.checked)} />}
-            label={<Typography variant="caption">Murs ext (ortho)</Typography>}
-            sx={{ m: 0 }}
-          />
-          <FormControlLabel
-            control={<Checkbox size="small" checked={enableExteriorClose} disabled={polygonAsFillMode} onChange={(e) => setEnableExteriorClose(e.target.checked)} />}
-            label={<Typography variant="caption">Murs ext (fermeture)</Typography>}
-            sx={{ m: 0 }}
-          />
-          <FormControlLabel
-            control={<Checkbox size="small" checked={enableInterior} disabled={polygonAsFillMode} onChange={(e) => setEnableInterior(e.target.checked)} />}
-            label={<Typography variant="caption">Murs intérieurs ortho</Typography>}
+            control={<Switch size="small" checked={isInteriorContourMode} onChange={(e) => setIsInteriorContourMode(e.target.checked)} />}
+            label={<Typography variant="body2" sx={{ fontWeight: 700 }}>Contour intérieur</Typography>}
             sx={{ m: 0 }}
           />
         </Box>
-        {vectorisationTemplates?.length > 0 ? (
+
+        {activeTemplates?.length > 0 ? (
           <SelectorAnnotationTemplateVariantDense
             selectedAnnotationTemplateId={null}
             onChange={handleTemplateChange}
-            annotationTemplates={vectorisationTemplates}
+            annotationTemplates={activeTemplates}
             listings={listings}
           />
         ) : (
           <Box sx={{ px: 2, py: 1 }}>
             <Typography variant="caption" color="text.secondary">
-              Aucun template polyline éligible (strokeWidth non verrouillé, unité CM)
+              {isInteriorContourMode
+                ? "Aucun template polygone disponible"
+                : "Aucun template polyline éligible (strokeWidth non verrouillé, unité CM)"}
             </Typography>
           </Box>
         )}
