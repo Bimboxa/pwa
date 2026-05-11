@@ -1220,7 +1220,12 @@ const InteractionLayer = forwardRef(({
   const getSelectedAnnotationPoints = useCallback(() => {
     if (!selectedNode?.nodeId) return [];
     const ann = annotations?.find((a) => a.id === selectedNode.nodeId);
-    return ann?.points || [];
+    if (!ann) return [];
+    return [
+      ...(ann.points || []),
+      ...(ann.cuts || []).flatMap((c) => c?.points || []),
+      ...(ann.innerPoints || []),
+    ];
   }, [selectedNode?.nodeId, annotations]);
 
   const handlePointLassoSelection = useCallback((pointIds) => {
