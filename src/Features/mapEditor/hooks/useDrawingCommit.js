@@ -34,11 +34,15 @@ export default function useDrawingCommit({
 
   // --- cutHostId ---
 
-  const [cutHostId, setCutHostId] = useState(null);
+  const [cutHostId, setCutHostIdState] = useState(null);
   const cutHostIdRef = useRef(null);
-  useEffect(() => {
-    cutHostIdRef.current = cutHostId;
-  }, [cutHostId]);
+  // Update the ref synchronously inside the setter so that callers which
+  // setCutHostId(...) and then commitPolyline(...) within the same event
+  // handler see the new host id (useEffect-based sync would lag a render).
+  const setCutHostId = useCallback((id) => {
+    cutHostIdRef.current = id;
+    setCutHostIdState(id);
+  }, []);
 
   // --- brush path ---
 
