@@ -1,59 +1,24 @@
-import { useState, useRef, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 
-import { setLeftDrawerHovered } from "../leftPanelSlice";
+import useLeftAreaHover from "../hooks/useLeftAreaHover";
 
 import { Box } from "@mui/material";
 
 export default function LeftDrawerPanel({ children, width = 260, viewerKey }) {
-  const dispatch = useDispatch();
-
   // data
 
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const menuHovered = useSelector((s) => s.leftPanel.leftDrawerHovered);
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
-  // state
-
-  const [panelHovered, setPanelHovered] = useState(false);
-  const [visible, setVisible] = useState(false);
-  const closeTimeoutRef = useRef(null);
-
   // helpers
 
   const isActiveViewer = !viewerKey || selectedViewerKey === viewerKey;
-  const shouldBeOpen = isActiveViewer && (menuHovered || panelHovered);
+  const visible = isActiveViewer && menuHovered;
 
-  // effects
+  // hover
 
-  useEffect(() => {
-    if (shouldBeOpen) {
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current);
-        closeTimeoutRef.current = null;
-      }
-      setVisible(true);
-    } else {
-      closeTimeoutRef.current = setTimeout(() => {
-        setVisible(false);
-      }, 300);
-    }
-    return () => {
-      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
-    };
-  }, [shouldBeOpen]);
-
-  // handlers
-
-  function handleMouseEnterPanel() {
-    setPanelHovered(true);
-  }
-
-  function handleMouseLeavePanel() {
-    setPanelHovered(false);
-    dispatch(setLeftDrawerHovered(false));
-  }
+  const { onMouseEnter, onMouseLeave } = useLeftAreaHover();
 
   // render - docked mode
 
@@ -75,11 +40,11 @@ export default function LeftDrawerPanel({ children, width = 260, viewerKey }) {
 
   return (
     <Box
-      onMouseEnter={handleMouseEnterPanel}
-      onMouseLeave={handleMouseLeavePanel}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       sx={{
         position: "absolute",
-        left: 0,
+        left: 90,
         top: 0,
         bottom: 0,
         width,
@@ -87,7 +52,7 @@ export default function LeftDrawerPanel({ children, width = 260, viewerKey }) {
         bgcolor: "background.default",
         boxShadow: visible ? 4 : 0,
         overflow: "auto",
-        transform: visible ? "translateX(0)" : "translateX(-100%)",
+        transform: visible ? "translateX(0)" : "translateX(calc(-100% - 90px))",
         transition: "transform 0.25s ease, box-shadow 0.25s ease",
       }}
     >

@@ -1,6 +1,5 @@
 import { useSelector } from "react-redux";
 
-import { Typography } from "@mui/material";
 import {
   Map,
   MenuBook,
@@ -12,6 +11,7 @@ import {
   Draw,
   Layers,
   FormatListBulleted,
+  ViewInAr,
 } from "@mui/icons-material";
 
 import theme from "Styles/theme";
@@ -31,25 +31,32 @@ export default function useViewers() {
       bgcolor: theme.palette.viewers.map,
     },
     {
-      key: "LISTING",
-      label: "Liste d'objets",
-      shortLabel: "Objets",
-      icon: <FormatListBulleted />,
-      bgcolor: theme.palette.viewers.listing,
-    },
-    {
       key: "MAP",
-      label: "Repérage sur fond de plan",
-      shortLabel: "Repérages",
+      label: "Dessin",
+      shortLabel: "Dessin",
       icon: <Draw />,
       bgcolor: theme.palette.viewers.map,
     },
     {
       key: "PORTFOLIO",
-      label: "Portfolio",
-      shortLabel: "Portfolio",
+      label: "Carnet de plans",
+      shortLabel: "Carnet de plans",
       icon: <MenuBook />,
       bgcolor: theme.palette.viewers.portfolio,
+    },
+    {
+      key: "THREED",
+      label: "3D",
+      shortLabel: "3D",
+      bgcolor: theme.palette.viewers.threed,
+      icon: <ViewInAr />,
+    },
+    {
+      key: "LISTING",
+      label: "Liste d'objets",
+      shortLabel: "Objets",
+      icon: <FormatListBulleted />,
+      bgcolor: theme.palette.viewers.listing,
     },
     {
       key: "PRINT",
@@ -65,13 +72,6 @@ export default function useViewers() {
       icon: <Table />,
       bgcolor: theme.palette.viewers.map,
       disabled: true,
-    },
-    {
-      key: "THREED",
-      label: "3D",
-      shortLabel: "3D",
-      bgcolor: theme.palette.viewers.threed,
-      icon: <Typography>3D</Typography>,
     },
     {
       key: "ADMIN",

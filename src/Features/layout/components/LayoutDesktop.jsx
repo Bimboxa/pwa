@@ -1,8 +1,9 @@
-import { useRef, useEffect } from "react";
+import { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
-import { setLeftDrawerHovered } from "Features/leftPanel/leftPanelSlice";
 import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
+
+import useLeftAreaHover from "Features/leftPanel/hooks/useLeftAreaHover";
 
 import { Box } from "@mui/material";
 
@@ -17,27 +18,12 @@ import RightPanelContainer from "Features/rightPanel/components/RightPanelContai
 import VerticalMenuViewers from "Features/viewers/components/VerticalMenuViewers";
 
 function LeftEdgeHoverZone() {
-  const dispatch = useDispatch();
-  const leaveTimeoutRef = useRef(null);
-
-  function handleMouseEnter() {
-    if (leaveTimeoutRef.current) {
-      clearTimeout(leaveTimeoutRef.current);
-      leaveTimeoutRef.current = null;
-    }
-    dispatch(setLeftDrawerHovered(true));
-  }
-
-  function handleMouseLeave() {
-    leaveTimeoutRef.current = setTimeout(() => {
-      dispatch(setLeftDrawerHovered(false));
-    }, 300);
-  }
+  const { onMouseEnter, onMouseLeave } = useLeftAreaHover();
 
   return (
     <Box
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       sx={{
         position: "absolute",
         left: 0,
@@ -57,6 +43,7 @@ export default function LayoutDesktop() {
 
   const isFullScreen = useSelector((s) => s.layout.isFullScreen);
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
+  const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
   // effects
@@ -67,16 +54,12 @@ export default function LayoutDesktop() {
     }
   }, [advancedLayout, dispatch]);
 
-  // helpers
-
-  const showVerticalMenu = advancedLayout && !isFullScreen;
-
   return (
     <BoxFlexV sx={{ position: "relative" }}>
       {!isFullScreen && <TopBarDesktop />}
-      <Box sx={{ display: "flex", width: 1, flexGrow: 1, minHeight: 0 }}>
-        {showVerticalMenu && <VerticalMenuViewers />}
-        {!showVerticalMenu && !isFullScreen && <LeftEdgeHoverZone />}
+      <Box sx={{ display: "flex", width: 1, flexGrow: 1, minHeight: 0, position: "relative" }}>
+        {!isFullScreen && <VerticalMenuViewers />}
+        {!isFullScreen && !leftPanelDocked && <LeftEdgeHoverZone />}
         <Box sx={{ display: "flex", width: 1, minWidth: 0, minHeight: 0 }}>
           <LeftPanel />
           <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
