@@ -1,12 +1,34 @@
+import { execSync } from "node:child_process";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from "vite-plugin-pwa";
 import svgr from "vite-plugin-svgr";
 
+// In secondary git worktrees, `npm run link-env` creates symlinks pointing into
+// the main worktree (gitignored .env, configs, src/Data). Vite's dev server
+// refuses to serve files outside the project root unless declared here.
+function getMainWorktreeRoot() {
+  try {
+    const out = execSync("git worktree list --porcelain", {
+      stdio: ["ignore", "pipe", "ignore"],
+    }).toString();
+    const line = out.split("\n").find((l) => l.startsWith("worktree "));
+    return line ? line.replace("worktree ", "") : null;
+  } catch {
+    return null;
+  }
+}
+const mainWorktreeRoot = getMainWorktreeRoot();
+
 // https://vite.dev/config/
 export default defineConfig({
   assetsInclude: ["**/*.yaml"],
 
+  server: {
+    fs: {
+      allow: mainWorktreeRoot ? [".", mainWorktreeRoot] : ["."],
+    },
+  },
 
   plugins: [
     react(),
