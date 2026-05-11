@@ -19,6 +19,20 @@ const toRing = (points) => {
 };
 
 /**
+ * Signed area of a closed polygon-clipping ring (shoelace).
+ * Sign reflects orientation; magnitude is the polygon area in pixel² units.
+ */
+const ringSignedArea = (ring) => {
+    let s = 0;
+    for (let i = 0, n = ring.length - 1; i < n; i++) {
+        const [x1, y1] = ring[i];
+        const [x2, y2] = ring[i + 1];
+        s += x1 * y2 - x2 * y1;
+    }
+    return s / 2;
+};
+
+/**
  * Transforme un ring [x,y] (de polygon-clipping) vers le format {id,x,y}.
  * Retire le point de fermeture doublon.
  */
@@ -32,8 +46,9 @@ const fromRing = (ring) => {
     }));
 };
 
-export default function cutPolygonPoints(polygon, cutPoints) {
+export default function cutPolygonPoints(polygon, cutPoints, options = {}) {
     const { points: mainPoints, cuts: existingCuts } = polygon ?? {};
+    const splitMode = options.splitMode ?? "keepLargest";
 
     // 1. Sécurité
     if (!mainPoints || mainPoints.length < 3 || !cutPoints || cutPoints.length < 3) {
@@ -63,10 +78,25 @@ export default function cutPolygonPoints(polygon, cutPoints) {
         }
 
         // Le résultat est un MultiPolygon (Array de Polygones).
-        // Si le cut coupe le polygone en deux morceaux distincts, result.length sera > 1.
-        // Ici, on prend le premier morceau (le plus grand ou le principal) pour respecter ta signature qui attend UN polygone.
-        // Si tu veux gérer le "split", il faudrait retourner un tableau de polygones.
-        const newPolygonDef = result[0]; // [Exterior, Hole1, Hole2...]
+        // Si le cut coupe le polygone en plusieurs morceaux distincts, result.length sera > 1.
+        if (result.length > 1 && splitMode === "abort") {
+            return { points: mainPoints, cuts: existingCuts ?? [], aborted: true };
+        }
+
+        // splitMode === "keepLargest": pick the polygon with the largest exterior ring area.
+        let chosenIdx = 0;
+        if (result.length > 1) {
+            let bestArea = -Infinity;
+            for (let i = 0; i < result.length; i++) {
+                const ring = result[i][0];
+                const a = Math.abs(ringSignedArea(ring));
+                if (a > bestArea) {
+                    bestArea = a;
+                    chosenIdx = i;
+                }
+            }
+        }
+        const newPolygonDef = result[chosenIdx]; // [Exterior, Hole1, Hole2...]
 
         // L'anneau 0 est TOUJOURS l'extérieur (modifié ou non)
         const newExteriorPoints = fromRing(newPolygonDef[0]);
