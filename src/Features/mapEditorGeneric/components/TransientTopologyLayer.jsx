@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 
 import NodePolylineStatic from './NodePolylineStatic';
 import NodeStripStatic from './NodeStripStatic';
+import NodeCoteStatic from './NodeCoteStatic';
 
 export default function TransientTopologyLayer({
     annotations,
@@ -11,6 +12,7 @@ export default function TransientTopologyLayer({
     currentPos,
     virtualInsertion,
     viewportScale,
+    containerK,
     baseMapMeterByPx,
 }) {
 
@@ -186,6 +188,18 @@ export default function TransientTopologyLayer({
                             selected: true
                         }}
                         baseMapMeterByPx={baseMapMeterByPx}
+                        selected={true}
+                        isTransient={true}
+                    />}
+
+                    {ann.type === "COTE" && <NodeCoteStatic
+                        annotation={ann}
+                        annotationOverride={{
+                            strokeColor: "#2196f3",
+                            strokeOpacity: 0.5,
+                        }}
+                        baseMapMeterByPx={baseMapMeterByPx}
+                        containerK={containerK}
                         selected={true}
                         isTransient={true}
                     />}

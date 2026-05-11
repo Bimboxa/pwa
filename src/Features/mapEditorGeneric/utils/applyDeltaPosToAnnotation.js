@@ -194,8 +194,13 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         }
     }
 
-    // POLYLINE / POLYGON / STRIP
-    if (_annotation.type === "POLYLINE" || _annotation.type === "POLYGON" || _annotation.type === "STRIP") {
+    // POLYLINE / POLYGON / STRIP / COTE
+    if (
+        _annotation.type === "POLYLINE" ||
+        _annotation.type === "POLYGON" ||
+        _annotation.type === "STRIP" ||
+        _annotation.type === "COTE"
+    ) {
 
         const transformPoints = (points) => {
             if (!points) return points;

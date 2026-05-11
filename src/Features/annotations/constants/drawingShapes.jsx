@@ -72,14 +72,45 @@ const DRAWING_SHAPES = [
     label: "Surface",
     icon: (
       <SvgIcon fontSize="small" viewBox="0 0 20 20">
-        <rect
-          x="2"
-          y="3"
-          width="16"
-          height="14"
-          rx="2"
-          fill="currentColor"
+        <rect x="2" y="3" width="16" height="14" rx="2" fill="currentColor" />
+      </SvgIcon>
+    ),
+  },
+  {
+    key: "COTE",
+    label: "Cote",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        <line
+          x1="3"
+          y1="6"
+          x2="3"
+          y2="12"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeDasharray="2 2"
         />
+        <line
+          x1="17"
+          y1="6"
+          x2="17"
+          y2="12"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeDasharray="2 2"
+        />
+        <line
+          x1="3"
+          y1="9"
+          x2="17"
+          y2="9"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <text x="10" y="7" textAnchor="middle" fontSize="6" fill="currentColor">
+          12
+        </text>
       </SvgIcon>
     ),
   },

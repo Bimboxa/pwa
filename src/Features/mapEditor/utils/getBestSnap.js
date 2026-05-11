@@ -260,6 +260,11 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
 
     for (const ann of annotations) {
 
+        // COTE annotations only expose their two click points as snap targets
+        // (handled by the VERTEX pass above). Skip projection/midpoint snap so
+        // hovering near the dimension line / value text doesn't pull cursors.
+        if (ann.type === "COTE") continue;
+
         const contoursToCheck = [];
 
         // A. Main contour
