@@ -33,6 +33,8 @@ import useHandleCompleteAnnotation from "../hooks/useHandleCompleteAnnotation";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationType";
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
+import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
+import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
 
@@ -375,6 +377,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const newEntity = useNewEntity();
     _track("newEntity", newEntity);
     const { handleDrawingCommit: _handleCommitDrawing } = useHandleCommitDrawing({ newEntity });
+    const updateAnnotation = useUpdateAnnotation();
     const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit({ newEntity });
     const handleCutSegment = useHandleCutSegment({ newEntity });
     const handleTechnicalReturn = useHandleTechnicalReturn({ annotations, newEntity });
@@ -726,6 +729,44 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             }
             await Promise.all(ops);
         });
+
+        // Reflow a cut into the outer contour when the user drags one of its
+        // vertices onto (or beyond) the host polygon's outer boundary. See
+        // [annotations] issue #224.
+        const hostAnn = annotations?.find((ann) =>
+            ann.type === "POLYGON" &&
+            ann.cuts?.some((cut) => cut.points?.some((pt) => pt.id === pointId))
+        );
+        if (hostAnn) {
+            const cutOwning = hostAnn.cuts.find((cut) =>
+                cut.points?.some((pt) => pt.id === pointId)
+            );
+            const cutId = cutOwning?.id;
+            const cutPointIds = (cutOwning?.points ?? []).map((p) => p.id);
+            if (cutPointIds.length >= 3) {
+                const cutPointDocs = await db.points.bulkGet(cutPointIds);
+                const cutPx = cutPointDocs
+                    .filter(Boolean)
+                    .map((p) => ({
+                        x: p.x * imageSize.width,
+                        y: p.y * imageSize.height,
+                    }));
+                if (cutPx.length >= 3) {
+                    const reflowResult = await applyOpeningOnPolygon({
+                        host: hostAnn,
+                        openingPointsPx: cutPx,
+                        imageSize,
+                        baseMapId: hostAnn.baseMapId,
+                        projectId: hostAnn.projectId,
+                        listingId: hostAnn.listingId,
+                        excludeCutId: cutId,
+                    });
+                    if (reflowResult?.handled && reflowResult.updatedAnnotation) {
+                        await updateAnnotation(reflowResult.updatedAnnotation);
+                    }
+                }
+            }
+        }
     };
 
     const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
