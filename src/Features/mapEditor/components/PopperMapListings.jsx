@@ -83,7 +83,7 @@ import {
   setCollapsed,
 } from "Features/popperMapListings/popperMapListingsSlice";
 import DrawIcon from "@mui/icons-material/Draw";
-import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import EditIcon from "@mui/icons-material/Edit";
 import IconPointer from "Features/icons/IconPointer";
 import useLayers from "Features/layers/hooks/useLayers";
 import { alpha } from "@mui/material/styles";
@@ -1906,21 +1906,21 @@ export default function PopperMapListings() {
               </Typography>
             </ToggleButton>
             <ToggleButton
+              value="EDIT"
+              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25 }}
+            >
+              <EditIcon sx={{ fontSize: 18 }} />
+              <Typography variant="caption" sx={{ fontSize: "10px", lineHeight: 1, textTransform: "none" }}>
+                Modification
+              </Typography>
+            </ToggleButton>
+            <ToggleButton
               value="SELECT"
               sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25 }}
             >
               <IconPointer sx={{ fontSize: 18 }} />
               <Typography variant="caption" sx={{ fontSize: "10px", lineHeight: 1, textTransform: "none" }}>
                 Sélection
-              </Typography>
-            </ToggleButton>
-            <ToggleButton
-              value="EDIT"
-              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25 }}
-            >
-              <SwapHorizIcon sx={{ fontSize: 18 }} />
-              <Typography variant="caption" sx={{ fontSize: "10px", lineHeight: 1, textTransform: "none" }}>
-                Modification
               </Typography>
             </ToggleButton>
           </ToggleButtonGroup>
