@@ -3347,7 +3347,7 @@ const InteractionLayer = forwardRef(({
 
       // F. CLOSING DETECTION (screen-distance based, zoom-independent)
       const closingType = newAnnotation?.type;
-      const canClose = (closingType === "POLYGON" || closingType === "POLYLINE") && currentDrawingPts.length >= 3;
+      const canClose = (closingType === "POLYGON" || closingType === "POLYLINE" || closingType === "CUT") && currentDrawingPts.length >= 3;
       if (canClose) {
         const firstPt = currentDrawingPts[0];
         const pose = getTargetPose();

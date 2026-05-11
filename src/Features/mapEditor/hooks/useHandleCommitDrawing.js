@@ -20,6 +20,10 @@ import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
 import getAnnotationBBox from "Features/annotations/utils/getAnnotationBbox";
 import mergePolygonAnnotationsService from "Features/annotations/services/mergePolygonAnnotationsService";
+import projectPointOnSegment from "Features/annotations/utils/projectPointOnSegment";
+import { pointInPolygon } from "Features/smartDetect/utils/detectPolygonFromAnnotations";
+import cutPolygonPoints from "Features/geometry/utils/cutPolygonPoints";
+import reconcileCuts from "Features/geometry/utils/reconcileCuts";
 
 
 export default function useHandleCommitDrawing({ newEntity } = {}) {
@@ -92,6 +96,26 @@ export default function useHandleCommitDrawing({ newEntity } = {}) {
 
         if (newAnnotation.type === "CUT") {
             _updatedAnnotation = { ...await db.annotations.get(cutHostId) }
+
+            // When the drawn opening touches or exits the host polygon's outer
+            // boundary, we modify the outer contour (carving a notch) instead
+            // of appending a hole. See [annotations] issue #224.
+            if (_updatedAnnotation && width && height && rawPoints?.length >= 3) {
+                const contourResult = await tryContourModification({
+                    host: _updatedAnnotation,
+                    drawnRectPx: rawPoints.map((p) => ({ x: p.x, y: p.y })),
+                    imageSize: { width, height },
+                    baseMapId,
+                    projectId,
+                    listingId,
+                });
+                if (contourResult?.handled) {
+                    if (contourResult.updatedAnnotation) {
+                        await updateAnnotation(contourResult.updatedAnnotation);
+                    }
+                    return;
+                }
+            }
         }
 
 
@@ -600,4 +624,129 @@ export default function useHandleCommitDrawing({ newEntity } = {}) {
     }
 
     return { handleDrawingCommit };
+}
+
+// === Helpers (issue #224) ===
+
+const BOUNDARY_EPSILON = 1.5; // pixels — distance under which a point is "on the boundary"
+
+/**
+ * When a user draws a cut whose corners touch or exit the host polygon's outer
+ * boundary, modify the outer contour (notch) instead of appending an inner hole.
+ *
+ * Returns:
+ *  - { handled: false } when the drawn opening is strictly inside the outer ring
+ *    (the regular hole-append flow should proceed).
+ *  - { handled: true, updatedAnnotation } when the contour was modified — caller
+ *    should persist via updateAnnotation and stop.
+ *  - { handled: true } (no updatedAnnotation) when the operation aborted (would
+ *    split the polygon, host has no outer ring, etc.) — caller should stop
+ *    without persisting.
+ */
+async function tryContourModification({
+    host,
+    drawnRectPx,
+    imageSize,
+    baseMapId,
+    projectId,
+    listingId,
+}) {
+    const { width, height } = imageSize ?? {};
+    if (!host?.points || host.points.length < 3) return { handled: false };
+
+    // Load all points referenced by the host annotation (outer ring + cuts).
+    const hostPointIds = new Set();
+    for (const p of host.points) if (p?.id) hostPointIds.add(p.id);
+    for (const c of host.cuts ?? []) {
+        for (const p of c.points ?? []) if (p?.id) hostPointIds.add(p.id);
+    }
+    const pointsArr = await db.points.bulkGet([...hostPointIds]);
+    const pointsIndex = {};
+    for (const p of pointsArr) if (p) pointsIndex[p.id] = p;
+
+    const outerRingPx = resolvePoints({
+        points: host.points,
+        pointsIndex,
+        imageSize,
+    });
+    if (!outerRingPx || outerRingPx.length < 3) return { handled: false };
+
+    const existingCutsPx = resolveCuts({
+        cuts: host.cuts,
+        pointsIndex,
+        imageSize,
+    }) ?? [];
+
+    // Classify: are all drawn-rect corners strictly inside the outer ring
+    // (and not within BOUNDARY_EPSILON of any outer segment)?
+    const cornersFullyInside = drawnRectPx.every((pt) => {
+        if (!pointInPolygon(pt, outerRingPx)) return false;
+        for (let i = 0; i < outerRingPx.length; i++) {
+            const a = outerRingPx[i];
+            const b = outerRingPx[(i + 1) % outerRingPx.length];
+            const { distance } = projectPointOnSegment(pt, a, b);
+            if (distance < BOUNDARY_EPSILON) return false;
+        }
+        return true;
+    });
+
+    if (cornersFullyInside) {
+        // Pure hole — let the regular flow handle it.
+        return { handled: false };
+    }
+
+    // Contour-modification path: compute the boolean difference.
+    const result = cutPolygonPoints(
+        { points: outerRingPx, cuts: existingCutsPx },
+        drawnRectPx,
+        { splitMode: "abort" }
+    );
+
+    if (result.aborted) {
+        console.warn(
+            "[CUT] Aborted: drawn opening would split the polygon into multiple pieces."
+        );
+        return { handled: true }; // stop, do not persist
+    }
+    if (!result.points || result.points.length < 3) {
+        console.warn("[CUT] Aborted: drawn opening leaves an empty polygon.");
+        return { handled: true };
+    }
+
+    const reconciledCuts = reconcileCuts(existingCutsPx, result.cuts ?? []);
+
+    // Build the new db.points entries (normalized) for the new outer ring + each cut ring.
+    const newDbPoints = [];
+    const pushPoint = (p) => {
+        newDbPoints.push({
+            id: p.id,
+            x: p.x / width,
+            y: p.y / height,
+            baseMapId,
+            projectId,
+            listingId,
+        });
+        return { id: p.id };
+    };
+    const newOuterPointRefs = result.points.map(pushPoint);
+    const newCutEntries = reconciledCuts.map((c) => {
+        const entry = { id: c.id, points: c.points.map(pushPoint) };
+        if (c.label != null) entry.label = c.label;
+        if (c.type != null) entry.type = c.type;
+        if (c.hiddenSegmentsIdx != null) entry.hiddenSegmentsIdx = c.hiddenSegmentsIdx;
+        return entry;
+    });
+
+    if (newDbPoints.length > 0) {
+        await db.points.bulkAdd(newDbPoints);
+    }
+
+    return {
+        handled: true,
+        updatedAnnotation: {
+            ...host,
+            points: newOuterPointRefs,
+            cuts: newCutEntries,
+        },
+    };
 }
