@@ -9,6 +9,7 @@ import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
+import useTriggerInitialScopeSaveIfNeeded from "Features/remoteScopeConfigurations/hooks/useTriggerInitialScopeSaveIfNeeded";
 
 import db from "App/db/db";
 
@@ -64,6 +65,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
 
   const projectBaseMapListings = useProjectBaseMapListings();
   const createEntity = useCreateEntity();
+  const triggerInitialSaveIfNeeded = useTriggerInitialScopeSaveIfNeeded();
 
   // helpers
 
@@ -111,6 +113,8 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
 
       // notify parent (portfolio editor)
       onCreated?.(_entity);
+
+      if (_entity?.id) triggerInitialSaveIfNeeded();
     }
   }
 

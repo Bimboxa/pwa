@@ -5,6 +5,7 @@ import { setOpenBaseMapCreator, clearSourceContainer } from "../baseMapCreatorSl
 
 import useCreateBaseMaps from "../hooks/useCreateBaseMaps";
 import useLinkBaseMapToContainer from "../hooks/useLinkBaseMapToContainer";
+import useTriggerInitialScopeSaveIfNeeded from "Features/remoteScopeConfigurations/hooks/useTriggerInitialScopeSaveIfNeeded";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import { setShowCreateBaseMapSection, setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
@@ -16,6 +17,7 @@ export default function ButtonCreateBaseMaps() {
 
     const createBaseMaps = useCreateBaseMaps();
     const linkBaseMapToContainer = useLinkBaseMapToContainer();
+    const triggerInitialSaveIfNeeded = useTriggerInitialScopeSaveIfNeeded();
     const tempBaseMaps = useSelector((s) => s.baseMapCreator.tempBaseMaps);
     const sourceContainerId = useSelector((s) => s.baseMapCreator.sourceContainerId);
 
@@ -41,6 +43,8 @@ export default function ButtonCreateBaseMaps() {
             await linkBaseMapToContainer(baseMap0.id);
             dispatch(clearSourceContainer());
         }
+
+        if (baseMaps?.length) triggerInitialSaveIfNeeded();
     }
 
     // helpers

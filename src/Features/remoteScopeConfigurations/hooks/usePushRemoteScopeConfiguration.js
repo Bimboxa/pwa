@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setLastSyncedRemoteConfigurationVersion,
   setLastSyncAt,
+  setPushing,
 } from "../remoteScopeConfigurationsSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -44,6 +45,7 @@ export default function usePushRemoteScopeConfiguration() {
   // push
 
   const push = async (existingFile) => {
+    dispatch(setPushing(true));
     try {
       if (!pushConfig)
         throw new Error(
@@ -111,6 +113,8 @@ export default function usePushRemoteScopeConfiguration() {
     } catch (error) {
       console.error("[usePushRemoteScopeConfiguration] error", error);
       throw error;
+    } finally {
+      dispatch(setPushing(false));
     }
   };
 
