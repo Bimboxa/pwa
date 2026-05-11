@@ -7,6 +7,7 @@ import {
   setSelectedAnnotationTemplateId,
   setHeight,
   setReturnTechnique,
+  setIgnoreInteriorWalls,
   setRunning,
 } from "../annotationsAutoSlice";
 
@@ -60,6 +61,9 @@ export default function PanelAnnotationsAuto() {
   const height = useSelector((s) => s.annotationsAuto.height);
   const returnTechnique = useSelector(
     (s) => s.annotationsAuto.returnTechnique
+  );
+  const ignoreInteriorWalls = useSelector(
+    (s) => s.annotationsAuto.ignoreInteriorWalls
   );
   const running = useSelector((s) => s.annotationsAuto.running);
 
@@ -267,6 +271,25 @@ export default function PanelAnnotationsAuto() {
               }
               label={
                 <Typography variant="body2">Retour technique 1m</Typography>
+              }
+            />
+          )}
+
+          {showReturnTechnique && (
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={ignoreInteriorWalls ?? false}
+                  onChange={(e) =>
+                    dispatch(setIgnoreInteriorWalls(e.target.checked))
+                  }
+                  size="small"
+                />
+              }
+              label={
+                <Typography variant="body2">
+                  Ignorer les murs intérieurs
+                </Typography>
               }
             />
           )}

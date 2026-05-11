@@ -222,7 +222,9 @@ export function buildForeignEdges(polygons, currentIndex) {
     // outer ring edges
     const pts = poly.points;
     if (pts?.length >= 3) {
+      const outerHidden = new Set(poly.hiddenSegmentsIdx ?? []);
       for (let i = 0; i < pts.length; i++) {
+        if (outerHidden.has(i)) continue;
         const next = (i + 1) % pts.length;
         edges.push({
           ax: pts[i].x, ay: pts[i].y, idA: pts[i].id,
@@ -239,7 +241,9 @@ export function buildForeignEdges(polygons, currentIndex) {
         const cut = poly.cuts[ci];
         const cpts = cut.points;
         if (!cpts?.length || cpts.length < 3) continue;
+        const cutHidden = new Set(cut.hiddenSegmentsIdx ?? []);
         for (let i = 0; i < cpts.length; i++) {
+          if (cutHidden.has(i)) continue;
           const next = (i + 1) % cpts.length;
           edges.push({
             ax: cpts[i].x, ay: cpts[i].y, idA: cpts[i].id,
@@ -1138,6 +1142,102 @@ function extractContours(points, meterByPx, foreignEdges = [], foreignPolygons =
   return { exteriorChains, wallChains };
 }
 
+/**
+ * Build a list of hidden source segments as {ax,ay,bx,by} line objects
+ * from a ring's points and its hiddenSegmentsIdx. Segment index `i` joins
+ * ringPoints[i] and ringPoints[(i+1)%N].
+ *
+ * A geometric (line-based) representation is used rather than ID matching
+ * because chains produced by the algorithm contain subdivided projection
+ * points that don't carry source IDs. Two points are considered "on a
+ * hidden segment" when both lie within HIDDEN_TOL_PX of that source line.
+ *
+ * Returns null if no segments are hidden (so callers can skip the splitter).
+ */
+const HIDDEN_TOL_PX = 0.5;
+
+function buildHiddenSegmentLines(ringPoints, hiddenSegmentsIdx) {
+  if (!hiddenSegmentsIdx?.length || !ringPoints?.length) return null;
+  const N = ringPoints.length;
+  const lines = [];
+  for (const i of hiddenSegmentsIdx) {
+    if (i < 0 || i >= N) continue;
+    const a = ringPoints[i];
+    const b = ringPoints[(i + 1) % N];
+    if (!a || !b) continue;
+    lines.push({ ax: a.x, ay: a.y, bx: b.x, by: b.y });
+  }
+  return lines.length > 0 ? lines : null;
+}
+
+/**
+ * Split chains at sub-edges that lie on a hidden source segment.
+ * For each consecutive pair `(prev, curr)` in the chain, if both points
+ * project (clamped) within HIDDEN_TOL_PX of the same hidden source line,
+ * the chain is cut between them. Sub-chains shorter than 2 points are
+ * dropped.
+ */
+function splitChainsAtHiddenSegments(chains, hiddenLines) {
+  if (!hiddenLines) return chains;
+  const result = [];
+  for (const chain of chains) {
+    if (chain.length < 2) continue;
+    let current = [chain[0]];
+    for (let i = 1; i < chain.length; i++) {
+      const prev = chain[i - 1];
+      const curr = chain[i];
+      let isHidden = false;
+      for (const line of hiddenLines) {
+        const dPrev = distPointToSegment(prev.x, prev.y, line.ax, line.ay, line.bx, line.by);
+        if (dPrev > HIDDEN_TOL_PX) continue;
+        const dCurr = distPointToSegment(curr.x, curr.y, line.ax, line.ay, line.bx, line.by);
+        if (dCurr > HIDDEN_TOL_PX) continue;
+        isHidden = true;
+        break;
+      }
+      if (isHidden) {
+        if (current.length >= 2) result.push(current);
+        current = [curr];
+      } else {
+        current.push(curr);
+      }
+    }
+    if (current.length >= 2) result.push(current);
+  }
+  return result;
+}
+
+/**
+ * Apply hidden-segment splitting to a closed ring (open array, first ≠ last).
+ * When hidden segments exist, the ring opens and the result is one or more
+ * open chains (with no `closeLine`). When no hidden segments exist, the
+ * ring is returned unchanged so callers can still set `closeLine = true`.
+ */
+function splitClosedRingAtHiddenSegments(ringPoints, hiddenLines) {
+  if (!hiddenLines) return { chains: [ringPoints], closed: true };
+  // Cyclically wrap so the closing edge (last→first) participates in the split.
+  const cyclic = [...ringPoints, ringPoints[0]];
+  const splitted = splitChainsAtHiddenSegments([cyclic], hiddenLines);
+  if (splitted.length === 1 && splitted[0].length === cyclic.length) {
+    return { chains: [ringPoints], closed: true };
+  }
+  if (splitted.length >= 2) {
+    const first = splitted[0];
+    const last = splitted[splitted.length - 1];
+    if (first[0] === last[last.length - 1]) {
+      const merged = [...last, ...first.slice(1)];
+      const middle = splitted.slice(1, -1);
+      return { chains: [merged, ...middle], closed: false };
+    }
+  } else if (splitted.length === 1) {
+    const chain = splitted[0];
+    if (chain[0] === chain[chain.length - 1] && chain.length > 1) {
+      return { chains: [chain.slice(0, -1)], closed: false };
+    }
+  }
+  return { chains: splitted, closed: false };
+}
+
 // ---------------------------------------------------------------------------
 // Output builders
 // ---------------------------------------------------------------------------
@@ -1288,23 +1388,33 @@ export default function fromPolygonsToBim({
 
   const polygons = sourceAnnotations.filter((a) => a.type === "POLYGON");
 
-  // Build a set of FOSSE template IDs so we can identify FOSSE polygons.
-  // FOSSE polygons participate in foreign edge detection (ext→int transitions)
-  // but do not generate VCT/VI/cuts annotations themselves.
-  const fosseTemplateIds = new Set();
+  // Build a set of template IDs whose polygons act only as adjacency markers
+  // (FOSSE, SOL_PROXY). They participate in foreign edge detection
+  // (ext→int transitions) but do not generate VCT/VI/cuts annotations
+  // themselves.
+  const skipOwnContourTemplateIds = new Set();
   for (const [, templates] of templatesByListingId) {
     const fosseT = matchAnnotationTemplate(templates, ["OUVRAGE:FOSSE"]);
-    if (fosseT) fosseTemplateIds.add(fosseT.id);
+    if (fosseT) skipOwnContourTemplateIds.add(fosseT.id);
+    const solProxyT = matchAnnotationTemplate(templates, ["OUVRAGE:SOL_PROXY"]);
+    if (solProxyT) skipOwnContourTemplateIds.add(solProxyT.id);
   }
+
+  // Adjacency markers (FOSSE, SOL_PROXY) only contribute to foreign-edge
+  // detection. They must not be treated as material in RTP strip-orientation
+  // tests nor in AR reentrant-angle detection.
+  const materialPolygons = polygons.filter(
+    (p) => !skipOwnContourTemplateIds.has(p.annotationTemplateId)
+  );
 
   for (let pi = 0; pi < polygons.length; pi++) {
     const polygon = polygons[pi];
     const outerPoints = polygon.points;
     if (!outerPoints?.length || outerPoints.length < 3) continue;
 
-    // FOSSE polygons only serve as foreign zones for neighbor detection
-    const isFosse = fosseTemplateIds.has(polygon.annotationTemplateId);
-    if (isFosse) continue;
+    // FOSSE / SOL_PROXY polygons only serve as foreign zones for neighbor detection
+    const isSkipOwnContour = skipOwnContourTemplateIds.has(polygon.annotationTemplateId);
+    if (isSkipOwnContour) continue;
 
     // resolve templates from the polygon's own listing
     const polygonListingId = polygon.listingId;
@@ -1318,12 +1428,22 @@ export default function fromPolygonsToBim({
     const foreignPolygons = polygons.filter((_, j) => j !== pi);
 
     // extract exterior and wall branch contours by walking the ring
-    const { exteriorChains, wallChains } = extractContours(
+    let { exteriorChains, wallChains } = extractContours(
       outerPoints,
       meterByPx,
       foreignEdges,
       foreignPolygons
     );
+
+    // Drop segments marked hidden on the outer ring (geometry ignored).
+    const outerHiddenLines = buildHiddenSegmentLines(
+      outerPoints,
+      polygon.hiddenSegmentsIdx
+    );
+    if (outerHiddenLines) {
+      exteriorChains = splitChainsAtHiddenSegments(exteriorChains, outerHiddenLines);
+      wallChains = splitChainsAtHiddenSegments(wallChains, outerHiddenLines);
+    }
 
     // --- 1. VCT: exterior contour polylines with height ---
     if (vctTemplate) {
@@ -1370,24 +1490,42 @@ export default function fromPolygonsToBim({
       for (const cut of polygon.cuts) {
         if (!cut.points?.length || cut.points.length < 3) continue;
 
+        const cutHiddenLines = buildHiddenSegmentLines(
+          cut.points,
+          cut.hiddenSegmentsIdx
+        );
+
         // Interior cuts (walls, pillars) → always VI regardless of neighbors
         if (isInteriorCut(cut.points, meterByPx, imageData) && viTemplate) {
-          const r = buildPolylineAnnotation(
-            cut.points, viTemplate, null, imageSize, polyCtx, outputPoints
+          const { chains, closed } = splitClosedRingAtHiddenSegments(
+            cut.points, cutHiddenLines
           );
-          if (r) {
-            r.annotation.closeLine = true;
-            outputAnnotations.push(r.annotation);
-            outputRels.push(...r.rels);
+          for (const chain of chains) {
+            if (chain.length < 2) continue;
+            const r = buildPolylineAnnotation(
+              chain, viTemplate, null, imageSize, polyCtx, outputPoints
+            );
+            if (r) {
+              if (closed) r.annotation.closeLine = true;
+              outputAnnotations.push(r.annotation);
+              outputRels.push(...r.rels);
+            }
           }
           continue;
         }
 
         // Room-sized cuts: reclassify against foreign edges if present
         if (foreignEdges.length > 0 && detectionPx > 0 && vctTemplate && viTemplate) {
-          const { extChains, intChains } = reclassifyCutAgainstNeighbors(
+          let { extChains, intChains } = reclassifyCutAgainstNeighbors(
             cut.points, foreignEdges, foreignPolygons, detectionPx
           );
+
+          if (cutHiddenLines) {
+            extChains = splitChainsAtHiddenSegments(extChains, cutHiddenLines);
+            intChains = splitChainsAtHiddenSegments(intChains, cutHiddenLines);
+          }
+
+          const cutCloseable = !cutHiddenLines;
 
           for (const chain of extChains) {
             if (chain.length < 2) continue;
@@ -1395,7 +1533,9 @@ export default function fromPolygonsToBim({
               chain, vctTemplate, height, imageSize, polyCtx, outputPoints
             );
             if (r) {
-              if (extChains.length === 1 && intChains.length === 0) r.annotation.closeLine = true;
+              if (cutCloseable && extChains.length === 1 && intChains.length === 0) {
+                r.annotation.closeLine = true;
+              }
               outputAnnotations.push(r.annotation);
               outputRels.push(...r.rels);
             }
@@ -1407,19 +1547,27 @@ export default function fromPolygonsToBim({
               chain, viTemplate, null, imageSize, polyCtx, outputPoints
             );
             if (r) {
-              if (intChains.length === 1 && extChains.length === 0) r.annotation.closeLine = true;
+              if (cutCloseable && intChains.length === 1 && extChains.length === 0) {
+                r.annotation.closeLine = true;
+              }
               outputAnnotations.push(r.annotation);
               outputRels.push(...r.rels);
             }
           }
         } else if (vctTemplate) {
-          const r = buildPolylineAnnotation(
-            cut.points, vctTemplate, height, imageSize, polyCtx, outputPoints
+          const { chains, closed } = splitClosedRingAtHiddenSegments(
+            cut.points, cutHiddenLines
           );
-          if (r) {
-            r.annotation.closeLine = true;
-            outputAnnotations.push(r.annotation);
-            outputRels.push(...r.rels);
+          for (const chain of chains) {
+            if (chain.length < 2) continue;
+            const r = buildPolylineAnnotation(
+              chain, vctTemplate, height, imageSize, polyCtx, outputPoints
+            );
+            if (r) {
+              if (closed) r.annotation.closeLine = true;
+              outputAnnotations.push(r.annotation);
+              outputRels.push(...r.rels);
+            }
           }
         }
       }
@@ -1521,7 +1669,7 @@ export default function fromPolygonsToBim({
             const leftPt = { x: mid.x + (-dy / len) * offset, y: mid.y + (dx / len) * offset };
             const rightPt = { x: mid.x + (dy / len) * offset, y: mid.y + (-dx / len) * offset };
 
-            for (const pg of polygons) {
+            for (const pg of materialPolygons) {
               // Test against material = outer ring MINUS cuts
               const leftInside = isPointInsidePolygonWithCuts(leftPt, pg);
               const rightInside = isPointInsidePolygonWithCuts(rightPt, pg);
@@ -1542,7 +1690,7 @@ export default function fromPolygonsToBim({
         // do NOT need the flip — they behave like outer rings.
         if (isClosed) {
           let isRoomHoleRing = false;
-          for (const pg of polygons) {
+          for (const pg of materialPolygons) {
             if (!pg.cuts || isRoomHoleRing) continue;
             for (const cut of pg.cuts) {
               if (!cut.points) continue;
@@ -1628,7 +1776,7 @@ export default function fromPolygonsToBim({
       }))
       .filter((pl) => pl.points.length >= 2);
 
-    const pxPolygons = polygons.map((pg) => ({
+    const pxPolygons = materialPolygons.map((pg) => ({
       id: pg.id ?? nanoid(),
       points: pg.points,
       cuts: pg.cuts,
@@ -1644,7 +1792,7 @@ export default function fromPolygonsToBim({
       const sourcePl = newPolylines.find(
         (pl) => angle.polylineIds?.includes(pl.id)
       );
-      const angleLid = sourcePl?.listingId ?? polygons[0]?.listingId;
+      const angleLid = sourcePl?.listingId ?? materialPolygons[0]?.listingId;
       if (!angleLid) continue;
 
       const resolved = resolvedByListing.get(angleLid);
@@ -1686,10 +1834,27 @@ export default function fromPolygonsToBim({
     }
   }
 
+  // --- Final filter: drop all interior-wall (VI) annotations ---
+  // Runs AFTER applyRetourTechnique so the 1 m return-technique VCT pieces
+  // greffed at VI↔VCT junctions remain in the output.
+  let finalAnnotations = outputAnnotations;
+  let finalRels = outputRels;
+  if (context.ignoreInteriorWalls) {
+    const viTemplateIds = new Set();
+    for (const { viTemplate } of resolvedByListing.values()) {
+      if (viTemplate) viTemplateIds.add(viTemplate.id);
+    }
+    finalAnnotations = outputAnnotations.filter(
+      (a) => !viTemplateIds.has(a.annotationTemplateId)
+    );
+    const keptIds = new Set(finalAnnotations.map((a) => a.id));
+    finalRels = outputRels.filter((r) => keptIds.has(r.annotationId));
+  }
+
   return {
-    annotations: outputAnnotations,
+    annotations: finalAnnotations,
     points: uniquePoints,
-    rels: outputRels,
+    rels: finalRels,
   };
 }
 

@@ -8,6 +8,7 @@ const initialState = {
   showConfirmDialog: false,
   height: null,
   returnTechnique: true,
+  ignoreInteriorWalls: false,
   running: false,
 };
 
@@ -36,6 +37,9 @@ export const annotationsAutoSlice = createSlice({
     setReturnTechnique: (state, action) => {
       state.returnTechnique = action.payload;
     },
+    setIgnoreInteriorWalls: (state, action) => {
+      state.ignoreInteriorWalls = action.payload;
+    },
     setRunning: (state, action) => {
       state.running = action.payload;
     },
@@ -51,6 +55,7 @@ export const {
   setShowConfirmDialog,
   setHeight,
   setReturnTechnique,
+  setIgnoreInteriorWalls,
   setRunning,
   reset,
 } = annotationsAutoSlice.actions;
