@@ -30,6 +30,7 @@ export default function IconButtonDialogSync() {
     (s) => s.remoteScopeConfigurations.lastSyncedRemoteConfigurationVersion
   );
   const isLocallyDirty = useSelector(selectIsLocallyDirty);
+  const pushing = useSelector((s) => s.remoteScopeConfigurations.pushing);
 
   // effects
 
@@ -86,6 +87,7 @@ export default function IconButtonDialogSync() {
             variant={variant}
             color={color}
             startIcon={<CloudUploadIcon />}
+            loading={pushing}
           >
             Sauvegarder
           </Button>

@@ -59,6 +59,7 @@ const remoteScopeConfigurationsInitialState = {
   staleChangesDialogOpen: false,
   remoteNewerDialogOpen: false,
   dialogSyncOpen: false,
+  pushing: false,
 };
 
 export const remoteScopeConfigurationsSlice = createSlice({
@@ -98,6 +99,9 @@ export const remoteScopeConfigurationsSlice = createSlice({
     setDialogSyncOpen: (state, action) => {
       state.dialogSyncOpen = action.payload;
     },
+    setPushing: (state, action) => {
+      state.pushing = Boolean(action.payload);
+    },
   },
 });
 
@@ -111,6 +115,7 @@ export const {
   setStaleChangesDialogOpen,
   setRemoteNewerDialogOpen,
   setDialogSyncOpen,
+  setPushing,
 } = remoteScopeConfigurationsSlice.actions;
 
 // --- Selectors ---
