@@ -52,6 +52,9 @@ export default function useAnnotationsAutoRun() {
   const returnTechnique = useSelector(
     (s) => s.annotationsAuto.returnTechnique
   );
+  const ignoreInteriorWalls = useSelector(
+    (s) => s.annotationsAuto.ignoreInteriorWalls
+  );
   const selectedAnnotationTemplateId = useSelector(
     (s) => s.annotationsAuto.selectedAnnotationTemplateId
   );
@@ -193,6 +196,7 @@ export default function useAnnotationsAutoRun() {
         height,
         activeLayerId,
         returnTechnique,
+        ignoreInteriorWalls,
         targetAnnotationTemplate,
         targetListingId,
       },
