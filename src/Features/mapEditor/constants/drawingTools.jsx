@@ -8,6 +8,7 @@ import {
   Insights as Smart,
   Create,
   AddLocationAlt as AddInnerPoint,
+  Straighten,
 } from "@mui/icons-material";
 
 import IconPolylineClick from "Features/icons/IconPolylineClick";
@@ -216,6 +217,13 @@ const DRAWING_TOOLS = [
     annotationType: "ADD_INNER_POINT",
     behavior: "CLICK",
   },
+  {
+    key: "COTE_TWO_CLICK",
+    label: "Cote (2 clics)",
+    Icon: Straighten,
+    annotationType: "COTE",
+    behavior: "TWO_CLICK",
+  },
 ];
 
 export const DRAWING_TOOLS_BY_TYPE = {
@@ -238,7 +246,9 @@ export function getDrawingToolByKey(key) {
 
 export function getDrawingToolsByType(type) {
   const keys = DRAWING_TOOLS_BY_TYPE[type] ?? [];
-  return keys.map((k) => DRAWING_TOOLS.find((t) => t.key === k)).filter(Boolean);
+  return keys
+    .map((k) => DRAWING_TOOLS.find((t) => t.key === k))
+    .filter(Boolean);
 }
 
 export default DRAWING_TOOLS;

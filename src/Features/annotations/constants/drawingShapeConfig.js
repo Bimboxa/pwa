@@ -125,6 +125,36 @@ const DRAWING_SHAPE_CONFIG = {
     defaults: {},
     shapeCategory: "rectangle",
   },
+  COTE: {
+    label: "Cote",
+    annotationType: "COTE",
+    tools: ["COTE_TWO_CLICK"],
+    configurableProps: [
+      "strokeColor",
+      "strokeWidth",
+      "strokeWidthUnit",
+      "unit",
+      "extensionOffset",
+      "extensionOffsetUnit",
+      "decimals",
+      "fontSize",
+      "showUnitLabel",
+    ],
+    defaults: {
+      strokeColor: "#000000",
+      strokeWidth: 1,
+      strokeWidthUnit: "PX",
+      strokeOpacity: 1,
+      strokeType: "SOLID",
+      unit: "CM",
+      extensionOffset: 8,
+      extensionOffsetUnit: "PX",
+      decimals: 0,
+      fontSize: 18,
+      showUnitLabel: false,
+    },
+    shapeCategory: "polyline",
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -167,6 +197,7 @@ const TYPE_TO_SHAPE = {
   POLYGON: "POLYGON",
   RECTANGLE: "POLYGON",
   OBJECT_3D: "OBJECT_3D",
+  COTE: "COTE",
 };
 
 export function resolveDrawingShapeFromType(annotationType) {

@@ -7,6 +7,7 @@ import NodeImageStatic from "./NodeImageStatic";
 import NodeObject3DStatic from "./NodeObject3DStatic";
 import NodePointStatic from "./NodePointStatic";
 import NodeRectangleStatic from "./NodeRectangleStatic";
+import NodeCoteStatic from "./NodeCoteStatic";
 
 import resolveAnnotationDefaults from "Features/annotations/utils/resolveAnnotationDefaults";
 
@@ -99,6 +100,9 @@ export default function NodeAnnotationStatic({
 
     case "OBJECT_3D":
       return <NodeObject3DStatic {...props} annotation={annotation} />;
+
+    case "COTE":
+      return <NodeCoteStatic {...props} annotation={annotation} />;
 
     default:
       return null;

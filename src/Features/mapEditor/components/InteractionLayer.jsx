@@ -2535,7 +2535,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- CASE 3: MEASURE / SEGMENT (Auto-commit after 2 points) ---
-    else if (["MEASURE", "SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode)) {
+    else if (["MEASURE", "SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "COTE_TWO_CLICK"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
       // Apply Angle Snap (Ortho) if Shift is held or ortho snap is enabled
@@ -3333,7 +3333,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -4318,6 +4318,7 @@ const InteractionLayer = forwardRef(({
               originalPointIdForDuplication={dragState.isDuplicateMode ? dragState.originalPointId : null}
               currentPos={dragState.currentPos}
               viewportScale={targetPose.k * cameraZoom}
+              containerK={targetPose.k}
               virtualInsertion={virtualInsertion}
               selectedAnnotationId={selectedNode?.nodeId?.replace("label::", "")}
             />
@@ -4328,7 +4329,7 @@ const InteractionLayer = forwardRef(({
         {/* --- Overlay optimiste : visible pendant le drag ET en attente de convergence DB --- */}
         {(() => {
           // Wrapper mode: active drag OR convergence (pending moves remain after mouseUp)
-          const POINT_BASED_TYPES_T = ["POLYLINE", "POLYGON", "STRIP"];
+          const POINT_BASED_TYPES_T = ["POLYLINE", "POLYGON", "STRIP", "COTE"];
 
           // Resolve wrapper annotation IDs from drag state or from pending moves
           let wrapperAnnIds = null;
