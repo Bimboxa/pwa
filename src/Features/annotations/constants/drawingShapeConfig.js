@@ -106,7 +106,7 @@ const DRAWING_SHAPE_CONFIG = {
       "SURFACE_DROP",
       "STRIP",
     ],
-    configurableProps: ["fillColor", "fillOpacity", "fillType"],
+    configurableProps: ["fillColor", "fillOpacity", "fillType", "showSlope"],
     defaults: {
       fillColor: secondary,
       fillOpacity: 0.8,
@@ -114,6 +114,7 @@ const DRAWING_SHAPE_CONFIG = {
       strokeColor: secondary,
       strokeWidth: 2,
       strokeOpacity: 1,
+      showSlope: false,
     },
     shapeCategory: "rectangle",
   },

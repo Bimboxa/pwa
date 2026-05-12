@@ -12,7 +12,7 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
 
     // 2. On parcourt toutes les clés des props du template
     Object.keys(annotationTemplateProps).forEach((key) => {
-        if (key === "overrideFields" || key === "hidden") return;
+        if (key === "overrideFields" || key === "hidden" || key === "showSlope") return;
 
         // Only override fields explicitly listed in overrideFields
         if (!Array.isArray(overrideFields) || !overrideFields.includes(key)) {
@@ -77,6 +77,12 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
     // hidden is always applied (not gated by overrideFields)
     if (annotationTemplateProps.hidden !== null && annotationTemplateProps.hidden !== undefined) {
         result.hidden = annotationTemplateProps.hidden;
+    }
+
+    // showSlope is a template-level display flag and is always applied
+    // (not a per-annotation style override, so not gated by overrideFields).
+    if (annotationTemplateProps.showSlope !== null && annotationTemplateProps.showSlope !== undefined) {
+        result.showSlope = annotationTemplateProps.showSlope;
     }
 
     result.annotationTemplateProps = annotationTemplateProps;

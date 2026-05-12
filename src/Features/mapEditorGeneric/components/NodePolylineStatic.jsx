@@ -3,6 +3,7 @@ import { darken } from "@mui/material/styles";
 import theme from "Styles/theme";
 
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
+import getPolygonSlope from "Features/annotations/utils/getPolygonSlope";
 import NodeLabelStatic from "./NodeLabelStatic";
 import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerOffsetSegmentPath";
 
@@ -736,6 +737,30 @@ export default function NodePolylineStatic({
         return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
     }, [containerK]);
 
+    // --- SLOPE INDICATOR (POLYGON with per-vertex offsetTop) ---
+    // Computes the best-fit plane direction over the polygon vertices; null
+    // when the surface is flat, has too few points, or the toggle is off.
+    const slope = useMemo(() => {
+        if (type !== "POLYGON") return null;
+        if (!mergedAnnotation.showSlope) return null;
+        return getPolygonSlope({ points, meterByPx: baseMapMeterByPx });
+    }, [type, mergedAnnotation.showSlope, points, baseMapMeterByPx]);
+
+    const slopeCentroid = useMemo(() => {
+        if (!slope || !points || points.length === 0) return null;
+        let sx = 0;
+        let sy = 0;
+        let n = 0;
+        for (const p of points) {
+            if (!p || typeof p.x !== "number" || typeof p.y !== "number") continue;
+            sx += p.x;
+            sy += p.y;
+            n += 1;
+        }
+        if (n === 0) return null;
+        return { x: sx / n, y: sy / n };
+    }, [slope, points]);
+
     // Counter-scale for patterns (hatching, eraser) to keep fixed size on screen in PX mode
     const patternTransformStyle = useMemo(() => {
         if (scalesWithZoom) return undefined;
@@ -981,6 +1006,63 @@ export default function NodePolylineStatic({
 
             {/* LABEL */}
             {showLabel && <NodeLabelStatic annotation={labelAnnotation} containerK={containerK} hidden={!mergedAnnotation.showLabel} />}
+
+            {/* SLOPE INDICATOR — arrow pointing downhill + percentage label.
+                Visible only on POLYGON with template `showSlope` enabled and
+                a measurable gradient (rounded slope >= 1%). Arrow + text are
+                wrapped in `vertexScaleTransform` so they keep a constant
+                on-screen size in both Map and Portfolio viewers, matching
+                the technique used by NodeCoteStatic. */}
+            {slope && slopeCentroid && Math.round(slope.slopePct) >= 1 && (() => {
+                const angleDeg = (Math.atan2(slope.dirY, slope.dirX) * 180) / Math.PI;
+                const L = 40;          // arrow total length in screen pixels
+                const headLen = 8;     // arrowhead length in screen pixels
+                const headW = 6;       // arrowhead width in screen pixels
+                const arrowColor = "#000";
+                return (
+                    <g
+                        transform={`translate(${slopeCentroid.x}, ${slopeCentroid.y})`}
+                        style={{ pointerEvents: "none" }}
+                    >
+                        <g transform={`rotate(${angleDeg})`}>
+                            <g style={{ transform: vertexScaleTransform }}>
+                                <line
+                                    x1={-L / 2}
+                                    y1={0}
+                                    x2={L / 2 - headLen}
+                                    y2={0}
+                                    stroke={arrowColor}
+                                    strokeWidth={1.5}
+                                />
+                                <polygon
+                                    points={`${L / 2},0 ${L / 2 - headLen},${-headW / 2} ${L / 2 - headLen},${headW / 2}`}
+                                    fill={arrowColor}
+                                />
+                            </g>
+                        </g>
+                        <g style={{ transform: vertexScaleTransform }}>
+                            <text
+                                x={0}
+                                y={-8}
+                                textAnchor="middle"
+                                dominantBaseline="alphabetic"
+                                fontSize={14}
+                                fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
+                                fill={arrowColor}
+                                style={{
+                                    userSelect: "none",
+                                    paintOrder: "stroke",
+                                    stroke: "white",
+                                    strokeWidth: 3,
+                                    strokeLinejoin: "round",
+                                }}
+                            >
+                                {`${Math.round(slope.slopePct)}%`}
+                            </text>
+                        </g>
+                    </g>
+                );
+            })()}
         </g>
     );
 }

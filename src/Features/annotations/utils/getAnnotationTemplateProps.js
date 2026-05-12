@@ -38,6 +38,8 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     hidden: annotationTemplate?.hidden,
     hiddenInLegend: annotationTemplate?.hiddenInLegend,
 
+    showSlope: annotationTemplate?.showSlope,
+
     height: annotationTemplate?.height,
 
     overrideFields: annotationTemplate?.overrideFields,
