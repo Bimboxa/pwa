@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
+
+import db from "App/db/db";
 
 import { setCanTransformNode, setWrapperMode } from "Features/mapEditor/mapEditorSlice";
 import { clearSelection, setSelectedItem } from "Features/selection/selectionSlice";
@@ -25,6 +27,7 @@ import {
   ArrowDropDown as ArrowDropDownIcon,
   SettingsOutlined as SettingsIcon,
   BugReport as BugReportIcon,
+  RestartAlt as ResetIcon,
 } from "@mui/icons-material";
 
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
@@ -98,6 +101,25 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   const isClosedShape =
     selectedAnnotation?.type === "POLYGON" ||
     (selectedAnnotation?.type === "POLYLINE" && selectedAnnotation?.closeLine);
+
+  // True iff any vertex on the contour, any cut, or any innerPoint carries
+  // a non-zero offsetBottom / offsetTop — i.e. the annotation has per-vertex
+  // 3D custom offsets that the user can reset.
+  const hasCustomOffsets = useMemo(() => {
+    if (!selectedAnnotation) return false;
+    const ringHas = (ring) =>
+      (ring || []).some(
+        (p) => (p?.offsetBottom ?? 0) !== 0 || (p?.offsetTop ?? 0) !== 0
+      );
+    if (ringHas(selectedAnnotation.points)) return true;
+    if (Array.isArray(selectedAnnotation.cuts)) {
+      for (const c of selectedAnnotation.cuts) {
+        if (ringHas(c?.points)) return true;
+      }
+    }
+    if (ringHas(selectedAnnotation.innerPoints)) return true;
+    return false;
+  }, [selectedAnnotation]);
   const label =
     selectedAnnotation?.templateLabel ||
     selectedAnnotation?.annotationTemplateProps?.label ||
@@ -213,6 +235,39 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
       id: updatedAnnotation.id,
       offsetZ: updatedAnnotation.offsetZ,
     });
+  }
+
+  async function handleResetCustomOffsets() {
+    if (!selectedAnnotation?.id) return;
+    // Read the raw annotation: selectedAnnotation.points has been resolved
+    // to pixel-space x/y, so we can't write it back without corrupting
+    // geometry. The DB record carries the original normalized refs with the
+    // inline offsetTop/offsetBottom we want to strip.
+    const raw = await db.annotations.get(selectedAnnotation.id);
+    if (!raw) return;
+
+    const stripOffsets = (ring) =>
+      (ring || []).map((ref) => {
+        if (!ref) return ref;
+        const { offsetTop, offsetBottom, ...rest } = ref;
+        return rest;
+      });
+
+    const updates = { id: raw.id };
+    if (Array.isArray(raw.points)) {
+      updates.points = stripOffsets(raw.points);
+    }
+    if (Array.isArray(raw.cuts)) {
+      updates.cuts = raw.cuts.map((c) => ({
+        ...c,
+        points: stripOffsets(c?.points),
+      }));
+    }
+    if (Array.isArray(raw.innerPoints)) {
+      updates.innerPoints = stripOffsets(raw.innerPoints);
+    }
+
+    await updateAnnotation(updates);
   }
 
   return (
@@ -340,6 +395,41 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           <Box sx={{ flex: 1 }} />
           <Shape3DSelector annotation={selectedAnnotation} />
         </Box>
+
+        {/* Row 2b - 3D custom offsets indicator + reset (only when present) */}
+        {hasCustomOffsets && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              px: 1.25,
+              py: 0.25,
+              gap: 0.5,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ color: "text.secondary", fontStyle: "italic" }}
+            >
+              3D custom
+            </Typography>
+            <Box sx={{ flex: 1 }} />
+            <Tooltip title="Réinitialiser les offsets 3D personnalisés">
+              <IconButton
+                size="small"
+                onClick={handleResetCustomOffsets}
+                sx={{
+                  color: "text.disabled",
+                  "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+                }}
+              >
+                <ResetIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
 
         {/* Row 3 - Measurements (right-aligned) */}
         <Box
