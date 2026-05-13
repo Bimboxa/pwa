@@ -115,6 +115,17 @@ const mapEditorInitialState = {
 
   // printable map (lazy mount for export/pdf only)
   showPrintableMap: false,
+
+  // copy/paste of annotations
+  // pasteClipboard: { annotation, basePoints, baseCuts, basePoint, basePointSize, sourceCenter }
+  //   annotation     — source annotation object (hydrated, with template)
+  //   basePoints     — pixel-image points snapshot at Ctrl+C (POLYGON/POLYLINE/STRIP)
+  //   baseCuts       — pixel-image cut points snapshot (POLYGON only)
+  //   basePoint      — pixel-image single point (POINT/MARKER)
+  //   basePointSize  — visual hint size for ghost rendering of point-types
+  //   sourceCenter   — { x, y } center used as transform origin and ghost anchor
+  pasteClipboard: null,
+  pasteTransform: { rotationDeg: 0, flipX: false },
 };
 
 export const mapEditorSlice = createSlice({
@@ -469,6 +480,23 @@ export const mapEditorSlice = createSlice({
     setShowPrintableMap: (state, action) => {
       state.showPrintableMap = action.payload;
     },
+
+    // copy/paste of annotations
+    setPasteClipboard: (state, action) => {
+      state.pasteClipboard = action.payload;
+      state.pasteTransform = { rotationDeg: 0, flipX: false };
+    },
+    clearPasteClipboard: (state) => {
+      state.pasteClipboard = null;
+      state.pasteTransform = { rotationDeg: 0, flipX: false };
+    },
+    rotatePasteClipboard: (state) => {
+      state.pasteTransform.rotationDeg =
+        (state.pasteTransform.rotationDeg + 90) % 360;
+    },
+    flipPasteClipboardX: (state) => {
+      state.pasteTransform.flipX = !state.pasteTransform.flipX;
+    },
   },
 });
 
@@ -601,6 +629,12 @@ export const {
 
   // printable map
   setShowPrintableMap,
+
+  // copy/paste
+  setPasteClipboard,
+  clearPasteClipboard,
+  rotatePasteClipboard,
+  flipPasteClipboardX,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;
