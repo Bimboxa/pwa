@@ -1400,11 +1400,32 @@ export default function fromPolygonsToBim({
     if (solProxyT) skipOwnContourTemplateIds.add(solProxyT.id);
   }
 
+  // Per-polygon VCT height: when `height` is provided, each polygon's VCT
+  // height is (height − polygon.offsetZ). If that value is <= 0 the polygon
+  // sits at or above the cuvelage and contributes NO annotation at all
+  // (VCT, VI, cuts, RTP, AR).
+  const skippedPolygonIds = new Set();
+  const polygonVctHeightById = new Map();
+  if (height != null) {
+    for (const p of polygons) {
+      if (skipOwnContourTemplateIds.has(p.annotationTemplateId)) continue;
+      const effective = height - (p.offsetZ ?? 0);
+      if (effective <= 0) {
+        skippedPolygonIds.add(p.id);
+      } else {
+        polygonVctHeightById.set(p.id, effective);
+      }
+    }
+  }
+
   // Adjacency markers (FOSSE, SOL_PROXY) only contribute to foreign-edge
   // detection. They must not be treated as material in RTP strip-orientation
-  // tests nor in AR reentrant-angle detection.
+  // tests nor in AR reentrant-angle detection. Polygons skipped because
+  // height − offsetZ <= 0 are also excluded.
   const materialPolygons = polygons.filter(
-    (p) => !skipOwnContourTemplateIds.has(p.annotationTemplateId)
+    (p) =>
+      !skipOwnContourTemplateIds.has(p.annotationTemplateId) &&
+      !skippedPolygonIds.has(p.id)
   );
 
   for (let pi = 0; pi < polygons.length; pi++) {
@@ -1415,6 +1436,13 @@ export default function fromPolygonsToBim({
     // FOSSE / SOL_PROXY polygons only serve as foreign zones for neighbor detection
     const isSkipOwnContour = skipOwnContourTemplateIds.has(polygon.annotationTemplateId);
     if (isSkipOwnContour) continue;
+
+    // Skip polygons whose effective cuvelage height is <= 0
+    if (skippedPolygonIds.has(polygon.id)) continue;
+
+    const polygonVctHeight = polygonVctHeightById.has(polygon.id)
+      ? polygonVctHeightById.get(polygon.id)
+      : null;
 
     // resolve templates from the polygon's own listing
     const polygonListingId = polygon.listingId;
@@ -1452,7 +1480,7 @@ export default function fromPolygonsToBim({
         const result = buildPolylineAnnotation(
           chain,
           vctTemplate,
-          height,
+          polygonVctHeight,
           imageSize,
           polyCtx,
           outputPoints
@@ -1530,7 +1558,7 @@ export default function fromPolygonsToBim({
           for (const chain of extChains) {
             if (chain.length < 2) continue;
             const r = buildPolylineAnnotation(
-              chain, vctTemplate, height, imageSize, polyCtx, outputPoints
+              chain, vctTemplate, polygonVctHeight, imageSize, polyCtx, outputPoints
             );
             if (r) {
               if (cutCloseable && extChains.length === 1 && intChains.length === 0) {
@@ -1561,7 +1589,7 @@ export default function fromPolygonsToBim({
           for (const chain of chains) {
             if (chain.length < 2) continue;
             const r = buildPolylineAnnotation(
-              chain, vctTemplate, height, imageSize, polyCtx, outputPoints
+              chain, vctTemplate, polygonVctHeight, imageSize, polyCtx, outputPoints
             );
             if (r) {
               if (closed) r.annotation.closeLine = true;
@@ -1642,10 +1670,31 @@ export default function fromPolygonsToBim({
 
     if (vctPxChains.length > 0) {
       const merged = mergePolylines(vctPxChains);
-      const vctHeight = vctAnns.find((a) => a.height != null)?.height ?? null;
+
+      // Per-point VCT height map: lets each merged RTP chain pick the
+      // height of the underlying VCT it derives from (polygons at different
+      // offsetZ yield different VCT heights → different RTP offsetZ).
+      const pointIdToVctHeight = new Map();
+      for (const ann of vctAnns) {
+        if (ann.height == null) continue;
+        for (const ref of ann.points) {
+          if (!pointIdToVctHeight.has(ref.id)) {
+            pointIdToVctHeight.set(ref.id, ann.height);
+          }
+        }
+      }
 
       for (const chain of merged) {
         if (chain.length < 2) continue;
+
+        // First height found along this merged chain is used for the strip.
+        let chainHeight = null;
+        for (const pt of chain) {
+          if (pt.id != null && pointIdToVctHeight.has(pt.id)) {
+            chainHeight = pointIdToVctHeight.get(pt.id);
+            break;
+          }
+        }
 
         const pointRefs = chain.map((pt) => {
           const rec = createPointRecord(pt, imageSize, listingCtx);
@@ -1718,7 +1767,7 @@ export default function fromPolygonsToBim({
           type: "STRIP",
           points: pointRefs,
           height: null,
-          ...(vctHeight != null ? { offsetZ: vctHeight } : {}),
+          ...(chainHeight != null ? { offsetZ: chainHeight } : {}),
           fillOpacity: listingRtp?.fillOpacity ?? null,
           strokeOpacity: listingRtp?.strokeOpacity ?? null,
           opacity: listingRtp?.opacity ?? null,
@@ -1984,14 +2033,20 @@ function applyRetourTechnique(
     return null;
   }
 
-  // collect VCT endpoint IDs (real shared-point junctions only)
-  const vctEndpointIds = new Set();
+  // Collect VCT endpoint IDs + their heights. Return-technique VCT pieces
+  // inherit from the height of the main VCT they connect to so that adjacent
+  // polygons at different elevations stay consistent.
+  const vctEndpointHeight = new Map();
   for (const ann of annotations) {
     if (ann.annotationTemplateId !== vctTemplate.id) continue;
     const pts = ann.points;
     if (pts.length < 2) continue;
-    vctEndpointIds.add(pts[0].id);
-    vctEndpointIds.add(pts[pts.length - 1].id);
+    if (!vctEndpointHeight.has(pts[0].id)) {
+      vctEndpointHeight.set(pts[0].id, ann.height ?? null);
+    }
+    if (!vctEndpointHeight.has(pts[pts.length - 1].id)) {
+      vctEndpointHeight.set(pts[pts.length - 1].id, ann.height ?? null);
+    }
   }
 
   const newAnnotations = [];
@@ -2002,8 +2057,12 @@ function applyRetourTechnique(
     const ptRefs = vi.points;
     if (ptRefs.length < 2) continue;
 
-    const startConnected = vctEndpointIds.has(ptRefs[0].id);
-    const endConnected = vctEndpointIds.has(ptRefs[ptRefs.length - 1].id);
+    const startConnected = vctEndpointHeight.has(ptRefs[0].id);
+    const endConnected = vctEndpointHeight.has(ptRefs[ptRefs.length - 1].id);
+
+    const startVctHeight = vctEndpointHeight.get(ptRefs[0].id) ?? null;
+    const endVctHeight =
+      vctEndpointHeight.get(ptRefs[ptRefs.length - 1].id) ?? null;
 
     if (!startConnected && !endConnected) continue;
 
@@ -2028,7 +2087,11 @@ function applyRetourTechnique(
       } else {
         // VI too short for even one split: convert entirely to VCT.
         vi.annotationTemplateId = vctTemplate.id;
-        vi.height = vi.height ?? null;
+        vi.height =
+          (startConnected ? startVctHeight : endVctHeight) ??
+          vi.height ??
+          vctTemplate?.height ??
+          null;
         for (let r = rels.length - 1; r >= 0; r--) {
           if (rels[r].annotationId === vi.id) rels.splice(r, 1);
         }
@@ -2053,7 +2116,7 @@ function applyRetourTechnique(
         annotationTemplateId: vctTemplate.id,
         type: "POLYLINE",
         points: refs,
-        height: vi.height ?? vctTemplate?.height ?? null,
+        height: startVctHeight ?? vi.height ?? vctTemplate?.height ?? null,
         ...(context.activeLayerId ? { layerId: context.activeLayerId } : {}),
       });
       newRels.push(...buildRels(retId, vctTemplate, context));
@@ -2075,7 +2138,7 @@ function applyRetourTechnique(
         annotationTemplateId: vctTemplate.id,
         type: "POLYLINE",
         points: refs,
-        height: vi.height ?? vctTemplate?.height ?? null,
+        height: endVctHeight ?? vi.height ?? vctTemplate?.height ?? null,
         ...(context.activeLayerId ? { layerId: context.activeLayerId } : {}),
       });
       newRels.push(...buildRels(retId, vctTemplate, context));

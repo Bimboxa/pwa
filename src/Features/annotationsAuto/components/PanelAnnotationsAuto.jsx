@@ -38,6 +38,7 @@ import { PlayArrow } from "@mui/icons-material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import DialogAnnotationsAutoConfirm from "./DialogAnnotationsAutoConfirm";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
+import FieldNumberWithUnit from "Features/form/components/FieldNumberWithUnit";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -87,6 +88,7 @@ export default function PanelAnnotationsAuto() {
 
   const hideSourceListing = selectedProcedure?.hideSourceListing === true;
   const showHeightInput = selectedProcedure?.showHeightInput === true;
+  const showCuvelageHeight = selectedProcedure?.showCuvelageHeight === true;
   const showReturnTechnique = selectedProcedure?.showReturnTechnique === true;
   const showAnnotationTemplateSelect =
     selectedProcedure?.showAnnotationTemplateSelect === true;
@@ -255,6 +257,16 @@ export default function PanelAnnotationsAuto() {
                 isNumber: true,
                 changeOnBlur: true,
               }}
+            />
+          )}
+
+          {showCuvelageHeight && (
+            <FieldNumberWithUnit
+              value={height}
+              onChange={handleHeightChange}
+              label="Hauteur cuvelage"
+              unit="m"
+              helperText="Hauteur exprimée par rapport au fond de plan"
             />
           )}
 
