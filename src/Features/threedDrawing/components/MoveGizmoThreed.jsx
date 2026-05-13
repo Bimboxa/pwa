@@ -30,6 +30,10 @@ import {
 } from "../services/buildTransientFaceMesh";
 import getAnnotationFaceNormal from "../utils/getAnnotationFaceNormal";
 import roundForDisplay from "../utils/roundForDisplay";
+import {
+  getPolygonEdgeSlopePct,
+  deltaZForTargetSlope,
+} from "Features/annotations/utils/getPolygonEdgeSlopePct";
 
 const DEFAULT_Z = new Vector3(0, 0, 1);
 
@@ -86,6 +90,58 @@ function disposeMesh(obj) {
   });
 }
 
+// Resolves the polygon vertices to pixel coords + offsetTop and computes the
+// current slope-%, the moved-edge baseline z, and the basemap meterByPx for
+// the slope-input mode. Returns null when the mode does not apply (non-edge
+// sub-selection, non-POLYGON, missing basemap data, degenerate geometry).
+function computeSlopeModeSetup(snapshot, subSelectionTarget) {
+  if (!snapshot) return null;
+  if (!subSelectionTarget || subSelectionTarget.kind !== "EDGE") return null;
+  const annRec = snapshot.annotation;
+  if (!annRec || annRec.type !== "POLYGON") return null;
+  const { pointsById, baseMapForRender } = snapshot;
+  const meterByPx = baseMapForRender?.meterByPx;
+  const imageWidth = baseMapForRender?.imageWidth;
+  const imageHeight = baseMapForRender?.imageHeight;
+  if (
+    !Number.isFinite(meterByPx) ||
+    meterByPx <= 0 ||
+    !imageWidth ||
+    !imageHeight
+  ) {
+    return null;
+  }
+  const resolved = [];
+  for (const ref of annRec.points || []) {
+    const norm = pointsById.get(ref.id);
+    if (!norm) continue;
+    resolved.push({
+      id: ref.id,
+      x: norm.x * imageWidth,
+      y: norm.y * imageHeight,
+      offsetTop: ref.offsetTop ?? 0,
+    });
+  }
+  const edgeIds = (subSelectionTarget.pointIds || []).filter(Boolean);
+  const initialSlopePct = getPolygonEdgeSlopePct({
+    points: resolved,
+    edgePointIds: edgeIds,
+    meterByPx,
+  });
+  if (initialSlopePct == null) return null;
+  const edgeIdSet = new Set(edgeIds);
+  let zSum = 0;
+  let zN = 0;
+  for (const p of resolved) {
+    if (edgeIdSet.has(p.id)) {
+      zSum += p.offsetTop;
+      zN += 1;
+    }
+  }
+  const currentEdgeZ = zN > 0 ? zSum / zN : 0;
+  return { resolved, edgeIds, currentEdgeZ, meterByPx, initialSlopePct };
+}
+
 // Move-mode UI: gizmo + numeric field for the selected annotation.
 // Translation is constrained to the face's own normal. During the drag:
 //   - the moved annotation's own mesh is shifted imperatively (whole mesh
@@ -115,6 +171,21 @@ export default function MoveGizmoThreed() {
     : null;
 
   const [fieldValue, setFieldValue] = useState("0");
+  // Slope-% mode: parallel input shown when the moved sub-selection is an
+  // edge of a POLYGON face with ≥1 fixed vertex and a non-degenerate
+  // direction from the fixed centroid to the moved edge midpoint.
+  const [slopePctValue, setSlopePctValue] = useState("");
+  const [slopeModeApplies, setSlopeModeApplies] = useState(false);
+
+  // Slope-mode bookkeeping captured on enter (stable across drag).
+  // Snapshot of the polygon's vertices in pixel coords + their offsetTop at
+  // entry time; the moved-edge ids; the moved-edge baseline z; the basemap's
+  // meterByPx. Together they let us convert Δz <-> slope% without re-reading
+  // the DB while the live preview is running.
+  const slopePointsSnapshotRef = useRef(null);
+  const slopeEdgePointIdsRef = useRef(null);
+  const slopeCurrentEdgeZRef = useRef(0);
+  const slopeMeterByPxRef = useRef(0);
 
   // Gizmo bookkeeping.
   const targetRef = useRef(null);
@@ -182,7 +253,10 @@ export default function MoveGizmoThreed() {
     // (whole-face move). Sub-selection mode = centroid of the targeted
     // vertices (vertex/edge centroid).
     let centerWorld;
-    if (subSelectionTarget?.pointIds?.length && annoObject.userData?.vertexRefs) {
+    if (
+      subSelectionTarget?.pointIds?.length &&
+      annoObject.userData?.vertexRefs
+    ) {
       const refs = annoObject.userData.vertexRefs;
       const targetIdx = new Set();
       if (subSelectionTarget.vertexIndex != null) {
@@ -196,7 +270,11 @@ export default function MoveGizmoThreed() {
       for (const i of targetIdx) {
         const ref = refs[i];
         if (!ref) continue;
-        const local = new Vector3(ref.position.x, ref.position.y, ref.position.z);
+        const local = new Vector3(
+          ref.position.x,
+          ref.position.y,
+          ref.position.z
+        );
         annoObject.localToWorld(local);
         accum.add(local);
         count++;
@@ -287,6 +365,29 @@ export default function MoveGizmoThreed() {
       movedSnapshotRef.current =
         await loadAnnotationSnapshot(selectedAnnotationId);
       if (cancelled) return;
+
+      // Slope-% mode setup. Applies only when:
+      //   - we're in edge sub-selection
+      //   - the moved annotation is a POLYGON
+      //   - the (current) polygon vertices yield a finite slope value (i.e.
+      //     ≥1 fixed vertex AND non-zero horizontal distance from the fixed
+      //     centroid to the moved edge midpoint).
+      const slopeSetup = computeSlopeModeSetup(
+        movedSnapshotRef.current,
+        subSelectionTarget
+      );
+      if (slopeSetup) {
+        slopePointsSnapshotRef.current = slopeSetup.resolved;
+        slopeEdgePointIdsRef.current = slopeSetup.edgeIds;
+        slopeCurrentEdgeZRef.current = slopeSetup.currentEdgeZ;
+        slopeMeterByPxRef.current = slopeSetup.meterByPx;
+        setSlopePctValue(String(roundForDisplay(slopeSetup.initialSlopePct)));
+        setSlopeModeApplies(true);
+      } else {
+        slopePointsSnapshotRef.current = null;
+        slopeEdgePointIdsRef.current = null;
+        setSlopeModeApplies(false);
+      }
 
       // Sub-selection mode: build the initial (delta=0) transient now that
       // the snapshot is loaded. The visibility swap + parent slot were set
@@ -423,7 +524,8 @@ export default function MoveGizmoThreed() {
         movedMeshRef.current = liveAnno;
         // The slot's parent reference may also be stale after a recreate.
         if (movedTransientRef.current) {
-          movedTransientRef.current.parent = liveAnno.parent || movedTransientRef.current.parent;
+          movedTransientRef.current.parent =
+            liveAnno.parent || movedTransientRef.current.parent;
         }
         scheduleTransientRegen();
         editor.sceneManager.renderScene?.();
@@ -477,12 +579,40 @@ export default function MoveGizmoThreed() {
       sharedPointIdsRef.current = new Set();
       connectedRef.current = new Map();
       subTargetPointIdsRef.current = new Set();
+      slopePointsSnapshotRef.current = null;
+      slopeEdgePointIdsRef.current = null;
+      slopeCurrentEdgeZRef.current = 0;
+      slopeMeterByPxRef.current = 0;
+      setSlopeModeApplies(false);
+      setSlopePctValue("");
     };
   }, [active, selectedAnnotationId, dispatch, subTargetKey]);
 
   useEffect(() => {
     setFieldValue(String(roundForDisplay(deltaZ)));
   }, [deltaZ]);
+
+  // Keep the slope-% display in sync with the live Δz. Recomputes the implied
+  // slope by overlaying `deltaZ` on the entry snapshot's moved-edge vertices.
+  useEffect(() => {
+    if (!slopeModeApplies) return;
+    const snapshot = slopePointsSnapshotRef.current;
+    const edgeIds = slopeEdgePointIdsRef.current;
+    const meterByPx = slopeMeterByPxRef.current;
+    const baseZ = slopeCurrentEdgeZRef.current;
+    if (!snapshot || !edgeIds || !meterByPx) return;
+    const edgeIdSet = new Set(edgeIds);
+    const projected = snapshot.map((p) =>
+      edgeIdSet.has(p.id) ? { ...p, offsetTop: baseZ + (deltaZ || 0) } : p
+    );
+    const pct = getPolygonEdgeSlopePct({
+      points: projected,
+      edgePointIds: edgeIds,
+      meterByPx,
+    });
+    if (pct == null) return;
+    setSlopePctValue(String(roundForDisplay(pct)));
+  }, [deltaZ, slopeModeApplies]);
 
   function shiftMovedMeshLive(dn) {
     // In sub-selection mode the moved annotation is rendered via a transient
@@ -704,21 +834,39 @@ export default function MoveGizmoThreed() {
     dispatch(setMoveModeActive(false));
   }
 
+  function applyDeltaLive(v) {
+    dispatch(setMoveDeltaZ(v));
+    latestDeltaRef.current = v;
+    const t = targetRef.current;
+    const init = initialPosRef.current;
+    const n = faceNormalRef.current;
+    if (t && init && n) {
+      t.position.copy(init).add(n.clone().multiplyScalar(v));
+    }
+    shiftMovedMeshLive(v);
+    scheduleTransientRegen();
+  }
+
   function handleFieldChange(e) {
     setFieldValue(e.target.value);
     const v = Number(e.target.value);
-    if (Number.isFinite(v)) {
-      dispatch(setMoveDeltaZ(v));
-      latestDeltaRef.current = v;
-      const t = targetRef.current;
-      const init = initialPosRef.current;
-      const n = faceNormalRef.current;
-      if (t && init && n) {
-        t.position.copy(init).add(n.clone().multiplyScalar(v));
-      }
-      shiftMovedMeshLive(v);
-      scheduleTransientRegen();
-    }
+    if (Number.isFinite(v)) applyDeltaLive(v);
+  }
+
+  function handleSlopeChange(e) {
+    setSlopePctValue(e.target.value);
+    const target = Number(e.target.value);
+    if (!Number.isFinite(target)) return;
+    const dz = deltaZForTargetSlope({
+      points: slopePointsSnapshotRef.current,
+      edgePointIds: slopeEdgePointIdsRef.current,
+      meterByPx: slopeMeterByPxRef.current,
+      targetSlopePct: target,
+      currentEdgeZ: slopeCurrentEdgeZRef.current,
+    });
+    if (dz == null || !Number.isFinite(dz)) return;
+    setFieldValue(String(roundForDisplay(dz)));
+    applyDeltaLive(dz);
   }
 
   if (!active) return null;
@@ -759,6 +907,19 @@ export default function MoveGizmoThreed() {
           sx={{ width: 110 }}
           inputProps={{ step: 0.01 }}
         />
+        {slopeModeApplies && (
+          <>
+            <Box sx={{ fontSize: 12, color: "text.secondary" }}>Pente (%)</Box>
+            <TextField
+              size="small"
+              value={slopePctValue}
+              onChange={handleSlopeChange}
+              type="number"
+              sx={{ width: 100 }}
+              inputProps={{ step: 0.1 }}
+            />
+          </>
+        )}
         <IconButton size="small" color="primary" onClick={handleApply}>
           <CheckIcon fontSize="small" />
         </IconButton>
