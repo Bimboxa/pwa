@@ -46,6 +46,14 @@ export function buildTransientFaceMesh({
   sharedIds,
   deltaLocal, // {x, y, z} in baseMap-local meters
   mode,
+  // Optional in SHARED_ONLY mode: a Map<pointId, "BOTTOM" | "TOP" | null>
+  // that overrides the default "always shift offsetTop" behaviour per shared
+  // corner. Used by the move gizmo when shifting a POLYGON face propagates
+  // to connected POLYLINE walls: "BOTTOM" -> shift offsetBottom (wall above
+  // the polygon, rests on floor); "TOP" -> shift offsetTop (wall below the
+  // polygon, reaches up to ceiling); null -> the wall straddles the polygon
+  // level, leave it alone.
+  fieldByPointId,
 }) {
   if (!snapshot) return null;
   const { annotation, pointsById, baseMapForRender } = snapshot;
@@ -70,12 +78,21 @@ export function buildTransientFaceMesh({
     nextOffsetZ += dz;
   } else if (mode === "SHARED_ONLY") {
     nextRefs = nextRefs.map((ref) => {
-      if (sharedIds.has(ref.id)) {
-        return { ...ref, offsetTop: (ref.offsetTop ?? 0) + dz };
+      if (!sharedIds.has(ref.id)) return ref;
+      if (fieldByPointId) {
+        const which = fieldByPointId.get(ref.id);
+        if (which === "BOTTOM") {
+          return { ...ref, offsetBottom: (ref.offsetBottom ?? 0) + dz };
+        }
+        if (which === "TOP") {
+          return { ...ref, offsetTop: (ref.offsetTop ?? 0) + dz };
+        }
+        return ref;
       }
-      return ref;
+      return { ...ref, offsetTop: (ref.offsetTop ?? 0) + dz };
     });
     for (const id of sharedIds) {
+      if (fieldByPointId && fieldByPointId.get(id) == null) continue;
       const src = pointsById.get(id);
       if (!src) continue;
       overridePts.set(id, { x: src.x + dxNorm, y: src.y + dyNorm });

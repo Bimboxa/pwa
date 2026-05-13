@@ -34,6 +34,7 @@ import {
   getPolygonEdgeSlopePct,
   deltaZForTargetSlope,
 } from "Features/annotations/utils/getPolygonEdgeSlopePct";
+import classifyPolylineCornerVsPolygonZ from "Features/annotations/utils/classifyPolylineCornerVsPolygonZ";
 
 const DEFAULT_Z = new Vector3(0, 0, 1);
 
@@ -443,6 +444,25 @@ export default function MoveGizmoThreed() {
         }
       }
 
+      // Pre-compute the moved POLYGON's top-surface z at each of its
+      // vertices (offsetZ + height + offsetBottom + offsetTop). Used below
+      // to classify each connected POLYLINE's shared corner as ABOVE /
+      // BELOW / NEITHER relative to the moving surface, so the live
+      // transient + the final commit shift the right per-vertex offset.
+      const isMovedPolygonForPreview = ann.type === "POLYGON";
+      const movedAnnTopZByPointId = new Map();
+      if (isMovedPolygonForPreview) {
+        const mh = ann.height ?? 0;
+        const mz = ann.offsetZ ?? 0;
+        for (const ref of ann.points || []) {
+          if (!ref?.id) continue;
+          movedAnnTopZByPointId.set(
+            ref.id,
+            mz + mh + (ref.offsetBottom ?? 0) + (ref.offsetTop ?? 0)
+          );
+        }
+      }
+
       // For each connected annotation: snapshot, hide original, create
       // initial (delta=0) transient.
       const connectedMap = new Map();
@@ -469,12 +489,35 @@ export default function MoveGizmoThreed() {
         }
         if (localShared.size === 0) continue;
 
+        // POLYLINE connected to a moved POLYGON: classify each shared
+        // corner so the preview AND commit shift the right per-vertex
+        // offset (offsetBottom when wall is above, offsetTop when below).
+        let fieldByPointId = null;
+        if (isMovedPolygonForPreview && other.type === "POLYLINE") {
+          fieldByPointId = new Map();
+          const oh = other.height ?? 0;
+          const oz = other.offsetZ ?? 0;
+          for (const ref of other.points || []) {
+            if (!localShared.has(ref.id)) continue;
+            const polygonZ = movedAnnTopZByPointId.get(ref.id);
+            const which = classifyPolylineCornerVsPolygonZ({
+              polygonZ,
+              polylineOffsetZ: oz,
+              polylineHeight: oh,
+              polylineOffsetBottom: ref.offsetBottom,
+              polylineOffsetTop: ref.offsetTop,
+            });
+            fieldByPointId.set(ref.id, which);
+          }
+        }
+
         deepHide(originalMesh);
         const transient = buildTransientFaceMesh({
           snapshot,
           sharedIds: localShared,
           deltaLocal: { x: 0, y: 0, z: 0 },
           mode: "SHARED_ONLY",
+          fieldByPointId,
         });
         if (transient) {
           parent.add(transient);
@@ -484,6 +527,7 @@ export default function MoveGizmoThreed() {
           parent,
           snapshot,
           sharedIds: localShared,
+          fieldByPointId,
           transientMesh: transient,
         });
       }
@@ -706,6 +750,7 @@ export default function MoveGizmoThreed() {
         sharedIds: entry.sharedIds,
         deltaLocal,
         mode: "SHARED_ONLY",
+        fieldByPointId: entry.fieldByPointId,
       });
       if (fresh && entry.parent) {
         entry.parent.add(fresh);
@@ -789,28 +834,85 @@ export default function MoveGizmoThreed() {
         });
       }
 
-      // 3. For each connected annotation: bump per-vertex offsetTop on
-      //    SHARED refs only by `dz` so the shared corners follow the move
-      //    while the others stay put. In sub-selection mode the propagation
-      //    is further restricted to the targeted point ids.
+      // Per-corner z of the moved annotation's top surface, BEFORE the move
+      // (verticalLift + height + offsetBottom + offsetTop). Used to classify
+      // each connected POLYLINE's wall as ABOVE / BELOW / NEITHER relative
+      // to the moving surface at each shared corner.
+      const movedHeight = ann.height ?? 0;
+      const movedOffsetZ = ann.offsetZ ?? 0;
+      const movedTopZByPointId = new Map();
+      for (const ref of ann.points || []) {
+        if (!ref?.id) continue;
+        movedTopZByPointId.set(
+          ref.id,
+          movedOffsetZ +
+            movedHeight +
+            (ref.offsetBottom ?? 0) +
+            (ref.offsetTop ?? 0)
+        );
+      }
+      const isMovedPolygon = ann.type === "POLYGON";
+
+      // 3. For each connected annotation: shift the appropriate per-vertex
+      //    offset on SHARED refs by `dz` so the shared corners follow the
+      //    move. In sub-selection mode the propagation is further
+      //    restricted to the targeted point ids.
+      //
+      //    When the moved annotation is a POLYGON and the connected one is
+      //    a POLYLINE, classify each shared corner:
+      //      - wall above the polygon  → shift `offsetBottom` (wall rests
+      //                                   on the floor)
+      //      - wall below the polygon  → shift `offsetTop`    (wall reaches
+      //                                   up to the ceiling)
+      //      - wall straddles the polygon level → skip
+      //    For any other type combination, fall back to the historical
+      //    behaviour (shift `offsetTop`).
       for (const [otherId, entry] of connectedMap.entries()) {
         const other = await db.annotations.get(otherId);
         if (!other) continue;
+        const useAboveBelowLogic = isMovedPolygon && other.type === "POLYLINE";
+        const otherHeight = other.height ?? 0;
+        const otherOffsetZ = other.offsetZ ?? 0;
         let touched = false;
         const newPoints = (other.points || []).map((ref) => {
-          if (
+          const shouldPropagate =
             ownPointIdSet.has(ref.id) &&
             entry.sharedIds.has(ref.id) &&
             (sharedIds.size === 0 || sharedIds.has(ref.id)) &&
-            (!isSubMode || subPointIds.has(ref.id))
-          ) {
-            touched = true;
-            return {
-              ...ref,
-              offsetTop: roundForDisplay((ref.offsetTop ?? 0) + dz),
-            };
+            (!isSubMode || subPointIds.has(ref.id));
+          if (!shouldPropagate) return ref;
+
+          if (useAboveBelowLogic) {
+            const polygonZ = movedTopZByPointId.get(ref.id);
+            const which = classifyPolylineCornerVsPolygonZ({
+              polygonZ,
+              polylineOffsetZ: otherOffsetZ,
+              polylineHeight: otherHeight,
+              polylineOffsetBottom: ref.offsetBottom,
+              polylineOffsetTop: ref.offsetTop,
+            });
+            if (which === "BOTTOM") {
+              touched = true;
+              return {
+                ...ref,
+                offsetBottom: roundForDisplay((ref.offsetBottom ?? 0) + dz),
+              };
+            }
+            if (which === "TOP") {
+              touched = true;
+              return {
+                ...ref,
+                offsetTop: roundForDisplay((ref.offsetTop ?? 0) + dz),
+              };
+            }
+            return ref;
           }
-          return ref;
+
+          touched = true;
+          return {
+            ...ref,
+            offsetTop: roundForDisplay((ref.offsetTop ?? 0) + dz),
+          };
         });
         if (touched) {
           await db.annotations.update(otherId, { points: newPoints });
