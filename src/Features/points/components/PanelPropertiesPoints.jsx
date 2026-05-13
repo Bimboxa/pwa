@@ -11,6 +11,8 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   TextField,
+  FormControlLabel,
+  Checkbox,
 } from "@mui/material";
 import {
   ArrowBack as Back,
@@ -36,13 +38,16 @@ export default function PanelPropertiesPoints() {
   const count = selectedPoints.length;
   const headerLabel = count > 1 ? `Points · ${count}` : "Point";
 
-  const typeValue = mixed.type ? null : selectedPoints[0]?.type ?? "square";
+  const typeValue = mixed.type ? null : (selectedPoints[0]?.type ?? "square");
   const offsetBottomValue = mixed.offsetBottom
     ? ""
     : (selectedPoints[0]?.offsetBottom ?? 0);
   const offsetTopValue = mixed.offsetTop
     ? ""
     : (selectedPoints[0]?.offsetTop ?? 0);
+  const isSlidingValue = mixed.isSliding
+    ? false
+    : !!selectedPoints[0]?.isSliding;
 
   // local state for the numeric inputs (so typing doesn't fight the live db value)
 
@@ -76,6 +81,10 @@ export default function PanelPropertiesPoints() {
   function commitOffsetTop() {
     const n = parseFloat(topDraft);
     updateSelectedPoints({ offsetTop: Number.isFinite(n) ? n : 0 });
+  }
+
+  function handleIsSlidingChange(e) {
+    updateSelectedPoints({ isSliding: e.target.checked });
   }
 
   // render - no selection
@@ -163,6 +172,24 @@ export default function PanelPropertiesPoints() {
               }}
             />
           </Box>
+        </Box>
+
+        <Box>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={isSlidingValue}
+                indeterminate={!!mixed.isSliding}
+                onChange={handleIsSlidingChange}
+                size="small"
+              />
+            }
+            label={
+              <Typography variant="body2">
+                Point coulissant (isSliding)
+              </Typography>
+            }
+          />
         </Box>
       </Box>
     </BoxFlexVStretch>

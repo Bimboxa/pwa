@@ -773,7 +773,12 @@ export default function NodePolylineStatic({
         const isCircle = pt.type === "circle";
         const isCut = cutIndex !== undefined && cutIndex !== null;
         const isInner = source === "INNER";
+        const isSliding = !!pt.isSliding;
         const keyPrefix = isInner ? "inner" : isCut ? `cut-${cutIndex}` : "main";
+        // Dashed stroke for sliding vertices: the handle is still visible but
+        // visually flagged as "derived" — its position is recomputed at each
+        // commit rather than user-controlled.
+        const strokeDasharray = isSliding ? "3,2" : undefined;
 
         return (
             <g
@@ -793,6 +798,7 @@ export default function NodePolylineStatic({
                             fill={isPointSelected ? "#FF0000" : "#FFFFFF"}
                             stroke="#2196f3"
                             strokeWidth={1.5}
+                            strokeDasharray={strokeDasharray}
                         />
                     ) : (
                         <rect
@@ -800,6 +806,7 @@ export default function NodePolylineStatic({
                             fill={isPointSelected ? "#FF0000" : "#FFFFFF"}
                             stroke="#2196f3"
                             strokeWidth={1.5}
+                            strokeDasharray={strokeDasharray}
                         />
                     )}
                 </g>

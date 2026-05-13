@@ -53,6 +53,24 @@ const threedEditorInitialState = {
     // Live delta in meters along the baseMap-local Z axis, mirrored from
     // the gizmo and from the numeric field.
     deltaZ: 0,
+    // Snapshot of the active sub-selection at "Move" click time. When set,
+    // the gizmo targets the centroid of the listed pointIds (single vertex
+    // or edge midpoint) and writes the delta to per-point offsetTop instead
+    // of the annotation-wide offsetZ.
+    // Shape: { annotationId, kind: 'VERTEX'|'EDGE', pointIds, vertexIndex }
+    subSelectionTarget: null,
+  },
+  // Sub-selection inside the currently-selected annotation (vertex or edge).
+  // Populated when the user clicks a vertex / edge of an already-selected
+  // annotation. Cleared when the user clicks elsewhere on the same face or
+  // selects another annotation.
+  subSelection: {
+    annotationId: null,
+    kind: null, // 'VERTEX' | 'EDGE'
+    pointIds: [], // [pointId] for VERTEX, [pidA, pidB] for EDGE
+    vertexIndex: null, // index in annotation.points[] (for label)
+    // For EDGE: second vertex index (vertexIndex == first one).
+    vertexIndexB: null,
   },
 };
 
@@ -100,6 +118,7 @@ export const threedEditorSlice = createSlice({
       if (!action.payload) {
         state.moveMode.selectedAnnotationId = null;
         state.moveMode.deltaZ = 0;
+        state.moveMode.subSelectionTarget = null;
       } else {
         // Mutually exclusive with drawing mode.
         state.drawingMode.active = false;
@@ -114,6 +133,29 @@ export const threedEditorSlice = createSlice({
     },
     setMoveDeltaZ: (state, action) => {
       state.moveMode.deltaZ = action.payload;
+    },
+    setMoveSubSelectionTarget: (state, action) => {
+      state.moveMode.subSelectionTarget = action.payload;
+      if (action.payload) {
+        // Auto-set the moved annotation id so MoveGizmoThreed picks it up.
+        state.moveMode.selectedAnnotationId = action.payload.annotationId;
+        state.moveMode.deltaZ = 0;
+      }
+    },
+    setSubSelection: (state, action) => {
+      const p = action.payload || {};
+      state.subSelection.annotationId = p.annotationId ?? null;
+      state.subSelection.kind = p.kind ?? null;
+      state.subSelection.pointIds = p.pointIds ?? [];
+      state.subSelection.vertexIndex = p.vertexIndex ?? null;
+      state.subSelection.vertexIndexB = p.vertexIndexB ?? null;
+    },
+    clearSubSelection: (state) => {
+      state.subSelection.annotationId = null;
+      state.subSelection.kind = null;
+      state.subSelection.pointIds = [];
+      state.subSelection.vertexIndex = null;
+      state.subSelection.vertexIndexB = null;
     },
     pushDrawingVertex: (state, action) => {
       state.drawingMode.inProgressPolyline.push(action.payload);
@@ -174,6 +216,9 @@ export const {
   setMoveModeActive,
   setMoveSelectedAnnotationId,
   setMoveDeltaZ,
+  setMoveSubSelectionTarget,
+  setSubSelection,
+  clearSubSelection,
 } = threedEditorSlice.actions;
 
 export default threedEditorSlice.reducer;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
-import { Box3, Object3D, Vector3 } from "three";
+import { Box3, Object3D, Quaternion, Vector3 } from "three";
 
 import db from "App/db/db";
 
@@ -12,19 +12,14 @@ import getBaseMapTransform, {
 import BaseMap from "Features/baseMaps/js/BaseMap";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
+  clearSubSelection,
   setMoveDeltaZ,
   setMoveModeActive,
   setMoveSelectedAnnotationId,
+  setMoveSubSelectionTarget,
 } from "Features/threedEditor/threedEditorSlice";
 
-import {
-  Box,
-  Button,
-  IconButton,
-  Paper,
-  Stack,
-  TextField,
-} from "@mui/material";
+import { Box, IconButton, Paper, Stack, TextField } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 
@@ -35,8 +30,50 @@ import {
 } from "../services/buildTransientFaceMesh";
 import getAnnotationFaceNormal from "../utils/getAnnotationFaceNormal";
 import roundForDisplay from "../utils/roundForDisplay";
+import {
+  getPolygonEdgeSlopePct,
+  deltaZForTargetSlope,
+} from "Features/annotations/utils/getPolygonEdgeSlopePct";
+import classifyPolylineCornerVsPolygonZ from "Features/annotations/utils/classifyPolylineCornerVsPolygonZ";
+import splitPolylineAtSpanInversions from "Features/annotations/utils/splitPolylineAtSpanInversions";
+import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
+import getPolygonZPlane, {
+  getZAtXY,
+} from "Features/annotations/utils/getPolygonZPlane";
+import { nanoid } from "@reduxjs/toolkit";
 
 const DEFAULT_Z = new Vector3(0, 0, 1);
+
+// In sub-selection (vertex/edge) mode the user expects the constraint axis
+// to be the BASEMAP normal — not the per-face normal. For a horizontal
+// basemap the basemap-local Z axis (the normal) maps to world +Y.
+function getBaseMapNormalWorld(annoObject) {
+  // The annotation is a child of the basemap group, so the parent's world
+  // quaternion encodes the basemap orientation.
+  const parent = annoObject?.parent;
+  if (!parent) return new Vector3(0, 1, 0);
+  const q = parent.getWorldQuaternion(new Quaternion());
+  return new Vector3(0, 0, 1).applyQuaternion(q).normalize();
+}
+
+// Recursively hide an Object3D and every descendant. Setting visible=false on
+// the root is sufficient for rendering, but we also flip every child as a
+// defensive measure in case some other code reads `.visible` per-mesh.
+function deepHide(obj) {
+  if (!obj) return;
+  obj.visible = false;
+  obj.traverse?.((child) => {
+    child.visible = false;
+  });
+}
+
+function deepShow(obj) {
+  if (!obj) return;
+  obj.visible = true;
+  obj.traverse?.((child) => {
+    child.visible = true;
+  });
+}
 
 function getBaseMapInverseRotationQuat(baseMap) {
   const transform = getBaseMapTransform(baseMap);
@@ -60,6 +97,58 @@ function disposeMesh(obj) {
   });
 }
 
+// Resolves the polygon vertices to pixel coords + offsetTop and computes the
+// current slope-%, the moved-edge baseline z, and the basemap meterByPx for
+// the slope-input mode. Returns null when the mode does not apply (non-edge
+// sub-selection, non-POLYGON, missing basemap data, degenerate geometry).
+function computeSlopeModeSetup(snapshot, subSelectionTarget) {
+  if (!snapshot) return null;
+  if (!subSelectionTarget || subSelectionTarget.kind !== "EDGE") return null;
+  const annRec = snapshot.annotation;
+  if (!annRec || annRec.type !== "POLYGON") return null;
+  const { pointsById, baseMapForRender } = snapshot;
+  const meterByPx = baseMapForRender?.meterByPx;
+  const imageWidth = baseMapForRender?.imageWidth;
+  const imageHeight = baseMapForRender?.imageHeight;
+  if (
+    !Number.isFinite(meterByPx) ||
+    meterByPx <= 0 ||
+    !imageWidth ||
+    !imageHeight
+  ) {
+    return null;
+  }
+  const resolved = [];
+  for (const ref of annRec.points || []) {
+    const norm = pointsById.get(ref.id);
+    if (!norm) continue;
+    resolved.push({
+      id: ref.id,
+      x: norm.x * imageWidth,
+      y: norm.y * imageHeight,
+      offsetTop: ref.offsetTop ?? 0,
+    });
+  }
+  const edgeIds = (subSelectionTarget.pointIds || []).filter(Boolean);
+  const initialSlopePct = getPolygonEdgeSlopePct({
+    points: resolved,
+    edgePointIds: edgeIds,
+    meterByPx,
+  });
+  if (initialSlopePct == null) return null;
+  const edgeIdSet = new Set(edgeIds);
+  let zSum = 0;
+  let zN = 0;
+  for (const p of resolved) {
+    if (edgeIdSet.has(p.id)) {
+      zSum += p.offsetTop;
+      zN += 1;
+    }
+  }
+  const currentEdgeZ = zN > 0 ? zSum / zN : 0;
+  return { resolved, edgeIds, currentEdgeZ, meterByPx, initialSlopePct };
+}
+
 // Move-mode UI: gizmo + numeric field for the selected annotation.
 // Translation is constrained to the face's own normal. During the drag:
 //   - the moved annotation's own mesh is shifted imperatively (whole mesh
@@ -77,8 +166,33 @@ export default function MoveGizmoThreed() {
     (s) => s.threedEditor.moveMode.selectedAnnotationId
   );
   const deltaZ = useSelector((s) => s.threedEditor.moveMode.deltaZ);
+  const subSelectionTarget = useSelector(
+    (s) => s.threedEditor.moveMode.subSelectionTarget
+  );
+  // Stable identity inside the effect: a primitive key recomputed only when
+  // the meaningful sub-selection target changes.
+  const subTargetKey = subSelectionTarget
+    ? `${subSelectionTarget.annotationId}|${subSelectionTarget.kind}|${(
+        subSelectionTarget.pointIds || []
+      ).join(",")}`
+    : null;
 
   const [fieldValue, setFieldValue] = useState("0");
+  // Slope-% mode: parallel input shown when the moved sub-selection is an
+  // edge of a POLYGON face with ≥1 fixed vertex and a non-degenerate
+  // direction from the fixed centroid to the moved edge midpoint.
+  const [slopePctValue, setSlopePctValue] = useState("");
+  const [slopeModeApplies, setSlopeModeApplies] = useState(false);
+
+  // Slope-mode bookkeeping captured on enter (stable across drag).
+  // Snapshot of the polygon's vertices in pixel coords + their offsetTop at
+  // entry time; the moved-edge ids; the moved-edge baseline z; the basemap's
+  // meterByPx. Together they let us convert Δz <-> slope% without re-reading
+  // the DB while the live preview is running.
+  const slopePointsSnapshotRef = useRef(null);
+  const slopeEdgePointIdsRef = useRef(null);
+  const slopeCurrentEdgeZRef = useRef(0);
+  const slopeMeterByPxRef = useRef(0);
 
   // Gizmo bookkeeping.
   const targetRef = useRef(null);
@@ -100,6 +214,17 @@ export default function MoveGizmoThreed() {
   const connectedRef = useRef(new Map());
   const movedSnapshotRef = useRef(null);
   const sharedPointIdsRef = useRef(new Set());
+  // Sub-selection mode only: the moved annotation is itself rendered as a
+  // transient so non-targeted vertices stay put. Tracks the moved
+  // annotation's parent + current transient mesh + the sub-selected pointIds.
+  const movedTransientRef = useRef(null);
+  const subTargetPointIdsRef = useRef(new Set());
+  // Mirror of `selectedAnnotationId` for use inside imperative callbacks
+  // (regenTransients) without stale-closure risk.
+  const selectedAnnotationIdRef = useRef(null);
+  useEffect(() => {
+    selectedAnnotationIdRef.current = selectedAnnotationId;
+  }, [selectedAnnotationId]);
 
   // Throttle expensive transient regen to one rAF.
   const pendingFrameRef = useRef(null);
@@ -107,6 +232,13 @@ export default function MoveGizmoThreed() {
 
   useEffect(() => {
     if (!active || !selectedAnnotationId) return;
+    // CRITICAL: reset the live-delta accumulator. This ref is NOT cleared by
+    // setMoveDeltaZ(0) at commit time — it's local component state. If a
+    // previous gizmo session ended at dn != 0, the next session's initial
+    // transient build (in the async block below) would apply that stale
+    // delta and the user would see a jump on the very first frame, before
+    // the gizmo's first `update` callback resets it to 0.
+    latestDeltaRef.current = 0;
     const editor = getActiveThreedEditor();
     const tcm = editor?.sceneManager?.transformControlsManager;
     const annotationsManager = editor?.sceneManager?.annotationsManager;
@@ -117,20 +249,98 @@ export default function MoveGizmoThreed() {
       annotationsManager.annotationsObjectsMap?.[selectedAnnotationId];
     if (!annoObject) return;
 
-    const bbox = new Box3().setFromObject(annoObject);
-    const centerWorld = new Vector3();
-    bbox.getCenter(centerWorld);
+    // Force-refresh the matrix chain so localToWorld + getWorldQuaternion
+    // calls below see the current basemap-group transform (otherwise we can
+    // pick up stale matrices from before the last render and place the
+    // gizmo target far from the actual rendered geometry).
+    annoObject.parent?.updateMatrixWorld?.(true);
+    annoObject.updateMatrixWorld?.(true);
 
-    const faceNormal =
-      getAnnotationFaceNormal(annoObject) || new Vector3(0, 1, 0);
-    faceNormalRef.current = faceNormal;
+    // Centroid of the gizmo target. Default = annotation bbox center
+    // (whole-face move). Sub-selection mode = centroid of the targeted
+    // vertices (vertex/edge centroid).
+    let centerWorld;
+    if (
+      subSelectionTarget?.pointIds?.length &&
+      annoObject.userData?.vertexRefs
+    ) {
+      const refs = annoObject.userData.vertexRefs;
+      const targetIdx = new Set();
+      if (subSelectionTarget.vertexIndex != null) {
+        targetIdx.add(subSelectionTarget.vertexIndex);
+      }
+      if (subSelectionTarget.vertexIndexB != null) {
+        targetIdx.add(subSelectionTarget.vertexIndexB);
+      }
+      const accum = new Vector3();
+      let count = 0;
+      for (const i of targetIdx) {
+        const ref = refs[i];
+        if (!ref) continue;
+        const local = new Vector3(
+          ref.position.x,
+          ref.position.y,
+          ref.position.z
+        );
+        annoObject.localToWorld(local);
+        accum.add(local);
+        count++;
+      }
+      centerWorld =
+        count > 0
+          ? accum.multiplyScalar(1 / count)
+          : (() => {
+              const bbox = new Box3().setFromObject(annoObject);
+              const c = new Vector3();
+              bbox.getCenter(c);
+              return c;
+            })();
+    } else {
+      const bbox = new Box3().setFromObject(annoObject);
+      centerWorld = new Vector3();
+      bbox.getCenter(centerWorld);
+    }
+
+    // Constraint axis: in sub-selection (vertex/edge) mode use the basemap
+    // normal (so "vertical" matches what the user sees as up regardless of
+    // any per-vertex tilt the face may already have). In whole-face mode
+    // keep the historical face-normal behaviour.
+    const isSubSelectionMode = !!(
+      subSelectionTarget && (subSelectionTarget.pointIds || []).length > 0
+    );
+    const constraintNormal = isSubSelectionMode
+      ? getBaseMapNormalWorld(annoObject)
+      : getAnnotationFaceNormal(annoObject) || new Vector3(0, 1, 0);
+    faceNormalRef.current = constraintNormal;
     movedMeshRef.current = annoObject;
     movedMeshInitialLocalPosRef.current = annoObject.position.clone();
+
+    // Sub-selection mode: commit the visual swap synchronously so there is
+    // no race between the gizmo subscribe (which may fire on the very first
+    // pointer-move) and the async db.get below. Hide the original mesh and
+    // populate the targeted-pointIds ref now; the transient mesh itself is
+    // built once the snapshot is loaded (still async, but the imperative
+    // mesh.position shift is already short-circuited by subTargetPointIdsRef).
+    const subPointIdsSync = new Set(
+      (subSelectionTarget?.pointIds || []).filter(Boolean)
+    );
+    subTargetPointIdsRef.current = subPointIdsSync;
+    if (subSelectionTarget && subPointIdsSync.size > 0) {
+      deepHide(annoObject);
+      // Placeholder so regenTransients knows the parent before the snapshot
+      // arrives — even regen tick before the snapshot loads will be a no-op
+      // for the moved transient and skip safely.
+      movedTransientRef.current = {
+        parent: annoObject.parent,
+        transientMesh: null,
+      };
+      editor.sceneManager.renderScene?.();
+    }
 
     const target = new Object3D();
     target.name = "MoveGizmoTarget";
     target.position.copy(centerWorld);
-    target.quaternion.setFromUnitVectors(DEFAULT_Z, faceNormal);
+    target.quaternion.setFromUnitVectors(DEFAULT_Z, constraintNormal);
     scene.add(target);
     targetRef.current = target;
     initialPosRef.current = centerWorld.clone();
@@ -163,6 +373,170 @@ export default function MoveGizmoThreed() {
         await loadAnnotationSnapshot(selectedAnnotationId);
       if (cancelled) return;
 
+      // Slope-% mode setup. Applies only when:
+      //   - we're in edge sub-selection
+      //   - the moved annotation is a POLYGON
+      //   - the (current) polygon vertices yield a finite slope value (i.e.
+      //     ≥1 fixed vertex AND non-zero horizontal distance from the fixed
+      //     centroid to the moved edge midpoint).
+      const slopeSetup = computeSlopeModeSetup(
+        movedSnapshotRef.current,
+        subSelectionTarget
+      );
+      if (slopeSetup) {
+        slopePointsSnapshotRef.current = slopeSetup.resolved;
+        slopeEdgePointIdsRef.current = slopeSetup.edgeIds;
+        slopeCurrentEdgeZRef.current = slopeSetup.currentEdgeZ;
+        slopeMeterByPxRef.current = slopeSetup.meterByPx;
+        setSlopePctValue(String(roundForDisplay(slopeSetup.initialSlopePct)));
+        setSlopeModeApplies(true);
+      } else {
+        slopePointsSnapshotRef.current = null;
+        slopeEdgePointIdsRef.current = null;
+        setSlopeModeApplies(false);
+      }
+
+      // Sub-selection mode: build the initial (delta=0) transient now that
+      // the snapshot is loaded. The visibility swap + parent slot were set
+      // up synchronously above, so any drag tick that fired in the meantime
+      // is already short-circuiting the imperative mesh.position shift.
+      const subPointIds = subTargetPointIdsRef.current;
+      const slot = movedTransientRef.current;
+      if (
+        subSelectionTarget &&
+        subPointIds.size > 0 &&
+        slot &&
+        slot.parent &&
+        !slot.transientMesh &&
+        movedSnapshotRef.current
+      ) {
+        // Apply any delta the user has already accumulated during the async
+        // setup window so the very first transient mirrors the gizmo position.
+        const dn = latestDeltaRef.current || 0;
+        const n = faceNormalRef.current;
+        const invRot = baseMapInvRotRef.current;
+        const deltaLocal = { x: 0, y: 0, z: 0 };
+        if (n && Math.abs(dn) > 1e-9) {
+          const deltaWorld = n.clone().multiplyScalar(dn);
+          const v = invRot
+            ? deltaWorld.clone().applyQuaternion(invRot)
+            : deltaWorld;
+          deltaLocal.x = v.x;
+          deltaLocal.y = v.y;
+          deltaLocal.z = v.z;
+        }
+        const movedTransient = buildTransientFaceMesh({
+          snapshot: movedSnapshotRef.current,
+          sharedIds: subPointIds,
+          deltaLocal,
+          mode: "SHARED_ONLY",
+        });
+        if (movedTransient) {
+          slot.parent.add(movedTransient);
+          slot.transientMesh = movedTransient;
+          // Defensive re-hide via LIVE lookup: AnnotationsManager may have
+          // recreated the moved annotation during the async window above
+          // (loadAnnotations re-fires on any useAnnotationsV2 recompute).
+          // Re-fetch from the map so we hide the object actually in the scene.
+          const liveNow =
+            annotationsManager?.annotationsObjectsMap?.[selectedAnnotationId];
+          if (liveNow) {
+            deepHide(liveNow);
+            movedMeshRef.current = liveNow;
+          } else if (movedMeshRef.current) {
+            deepHide(movedMeshRef.current);
+          }
+          editor.sceneManager.renderScene?.();
+        }
+      }
+
+      // Build the moved POLYGON's per-corner z + per-corner shift coefficient
+      // (k_C): k_C * dn = the z change at corner C produced by the live drag
+      // delta dn. Two kinds of corners are handled:
+      //   - RAW corners: k_C = 1 if the corner is in subPointIds (sub-mode)
+      //     or if we're in whole-mode (offsetZ shifts uniformly), else 0.
+      //   - SLIDING corners (e.g. user-marked inflections on the polygon):
+      //     k_C is derived by linearly fitting a "unit-shift" plane through
+      //     the raw corners (subPointIds = 1, others = 0; or all = 1 in
+      //     whole-mode) and evaluating it at the sliding corner's xy. This
+      //     lets walls connected at a sliding corner follow the polygon's
+      //     plane both during the live drag and at commit.
+      //
+      // Coefficients live in `polygonShiftCoeffByPointId` and apply to every
+      // shared corner — raw or sliding — of every connected POLYLINE.
+      const isMovedPolygonForPreview = ann.type === "POLYGON";
+      const movedAnnTopZByPointId = new Map();
+      const polygonShiftCoeffByPointId = new Map();
+      if (isMovedPolygonForPreview) {
+        const mh = ann.height ?? 0;
+        const mz = ann.offsetZ ?? 0;
+        // 1. Raw corner z + simple k for raw corners. Also collect raw
+        //    pixel-space points for the plane fits below.
+        const baseRender = movedSnapshotRef.current?.baseMapForRender;
+        const imgW = baseRender?.imageWidth || 1;
+        const imgH = baseRender?.imageHeight || 1;
+        const mbpx = baseRender?.meterByPx || null;
+        const isWholeMode = !subPointIds || subPointIds.size === 0;
+        const rawPxPoints = [];
+        const rawUnitPxPoints = [];
+        for (const ref of ann.points || []) {
+          if (!ref?.id) continue;
+          if (ref.isSliding) continue;
+          const z = mz + mh + (ref.offsetBottom ?? 0) + (ref.offsetTop ?? 0);
+          movedAnnTopZByPointId.set(ref.id, z);
+          const inSub = !isWholeMode && subPointIds.has(ref.id);
+          const k = isWholeMode ? 1 : inSub ? 1 : 0;
+          polygonShiftCoeffByPointId.set(ref.id, k);
+          // Pull xy in NORMALIZED units from the snapshot's pointsById.
+          const norm = movedSnapshotRef.current?.pointsById?.get(ref.id);
+          if (norm) {
+            rawPxPoints.push({
+              x: norm.x * imgW,
+              y: norm.y * imgH,
+              offsetTop: ref.offsetTop ?? 0,
+            });
+            rawUnitPxPoints.push({
+              x: norm.x * imgW,
+              y: norm.y * imgH,
+              offsetTop: k,
+            });
+          }
+        }
+        // 2. Plane fits for sliding-corner z + shift coefficient. We fit
+        //    in METERS (meterByPx applied inside getPolygonZPlane) since
+        //    getZAtXY expects pixel coords and applies meterByPx itself.
+        let oldPlane = null;
+        let unitPlane = null;
+        if (mbpx && rawPxPoints.length >= 3) {
+          oldPlane = getPolygonZPlane({ points: rawPxPoints, meterByPx: mbpx });
+          unitPlane = getPolygonZPlane({
+            points: rawUnitPxPoints,
+            meterByPx: mbpx,
+          });
+        }
+        // 3. Sliding corner z + k_C via plane interpolation. Their xy may
+        //    not be in the (stripped) snapshot's pointsById, so we read
+        //    db.points directly.
+        const slidingRefs = (ann.points || []).filter((r) => r?.isSliding);
+        if (slidingRefs.length > 0 && oldPlane && unitPlane && mbpx) {
+          const slidingIds = slidingRefs.map((r) => r.id).filter(Boolean);
+          const slidingPts = await db.points.bulkGet(slidingIds);
+          if (cancelled) return;
+          slidingRefs.forEach((ref, i) => {
+            const pt = slidingPts[i];
+            if (!pt) return;
+            const xPx = pt.x * imgW;
+            const yPx = pt.y * imgH;
+            const planeZ = getZAtXY(oldPlane, xPx, yPx, mbpx);
+            movedAnnTopZByPointId.set(ref.id, mz + mh + planeZ);
+            polygonShiftCoeffByPointId.set(
+              ref.id,
+              getZAtXY(unitPlane, xPx, yPx, mbpx)
+            );
+          });
+        }
+      }
+
       // For each connected annotation: snapshot, hide original, create
       // initial (delta=0) transient.
       const connectedMap = new Map();
@@ -175,22 +549,67 @@ export default function MoveGizmoThreed() {
         const parent = originalMesh?.parent;
         if (!originalMesh || !parent) continue;
         // Restrict shared ids to the intersection of THIS annotation's refs
-        // and the global shared set.
+        // and the global shared set. In sub-selection mode, further restrict
+        // to the targeted point ids so only the moved vertex/edge propagates
+        // to neighbors (other shared corners stay put). For POLYGON-moved
+        // cases the restriction is based on the per-corner polygon shift
+        // coefficient instead: corners with a non-zero coefficient propagate
+        // (this includes sub-targeted raw corners AND any sliding polygon
+        // corner whose z follows the polygon plane).
         const ownIds = new Set(
           (other.points || []).map((p) => p.id).filter(Boolean)
         );
         const localShared = new Set();
         for (const id of sharedPointIds) {
-          if (ownIds.has(id)) localShared.add(id);
+          if (!ownIds.has(id)) continue;
+          if (isMovedPolygonForPreview) {
+            const k = polygonShiftCoeffByPointId.get(id);
+            if (k == null || k === 0) continue;
+          } else if (subPointIds.size > 0 && !subPointIds.has(id)) {
+            continue;
+          }
+          localShared.add(id);
         }
         if (localShared.size === 0) continue;
 
-        originalMesh.visible = false;
+        // POLYLINE connected to a moved POLYGON: classify each shared
+        // corner so the preview AND commit shift the right per-vertex
+        // offset (offsetBottom when wall is above, offsetTop when below).
+        // Also build the per-corner shift map so transient + commit can use
+        // the right z-delta at sliding corners.
+        let fieldByPointId = null;
+        let shiftCoeffByPointId = null;
+        if (isMovedPolygonForPreview && other.type === "POLYLINE") {
+          fieldByPointId = new Map();
+          shiftCoeffByPointId = new Map();
+          const oh = other.height ?? 0;
+          const oz = other.offsetZ ?? 0;
+          for (const ref of other.points || []) {
+            if (!localShared.has(ref.id)) continue;
+            const polygonZ = movedAnnTopZByPointId.get(ref.id);
+            const which = classifyPolylineCornerVsPolygonZ({
+              polygonZ,
+              polylineOffsetZ: oz,
+              polylineHeight: oh,
+              polylineOffsetBottom: ref.offsetBottom,
+              polylineOffsetTop: ref.offsetTop,
+            });
+            fieldByPointId.set(ref.id, which);
+            shiftCoeffByPointId.set(
+              ref.id,
+              polygonShiftCoeffByPointId.get(ref.id) ?? 0
+            );
+          }
+        }
+
+        deepHide(originalMesh);
         const transient = buildTransientFaceMesh({
           snapshot,
           sharedIds: localShared,
           deltaLocal: { x: 0, y: 0, z: 0 },
           mode: "SHARED_ONLY",
+          fieldByPointId,
+          shiftByPointId: null,
         });
         if (transient) {
           parent.add(transient);
@@ -200,6 +619,8 @@ export default function MoveGizmoThreed() {
           parent,
           snapshot,
           sharedIds: localShared,
+          fieldByPointId,
+          shiftCoeffByPointId,
           transientMesh: transient,
         });
       }
@@ -222,25 +643,62 @@ export default function MoveGizmoThreed() {
     };
     const unsub = tcm.subscribe(update);
 
+    // If AnnotationsManager recreates an annotation mid-drag (loadAnnotations
+    // re-fires from useAutoLoadAnnotationsInThreedEditor on any
+    // useAnnotationsV2 recompute), the freshly-rebuilt object is visible by
+    // default — overlaying our transient. Subscribe so we re-hide the moved
+    // annotation as soon as it reappears, and bump the transient regen so
+    // the deformation is reapplied to the new geometry.
+    const unsubReady = annotationsManager.subscribeAnnotationReady?.((id) => {
+      if (subTargetPointIdsRef.current.size === 0) return;
+      if (id !== selectedAnnotationIdRef.current) return;
+      const liveAnno =
+        annotationsManager.annotationsObjectsMap?.[
+          selectedAnnotationIdRef.current
+        ];
+      if (liveAnno) {
+        deepHide(liveAnno);
+        movedMeshRef.current = liveAnno;
+        // The slot's parent reference may also be stale after a recreate.
+        if (movedTransientRef.current) {
+          movedTransientRef.current.parent =
+            liveAnno.parent || movedTransientRef.current.parent;
+        }
+        scheduleTransientRegen();
+        editor.sceneManager.renderScene?.();
+      }
+    });
+
     return () => {
       cancelled = true;
       unsub();
+      unsubReady?.();
       tcm.detach();
       if (target.parent) target.parent.remove(target);
 
-      // Restore moved mesh.
+      // Restore moved mesh: position (in whole-face mode) and visibility
+      // (in sub-selection mode, where it was hidden in favor of a transient).
       const mesh = movedMeshRef.current;
       const initLocal = movedMeshInitialLocalPosRef.current;
       if (mesh && initLocal) {
         mesh.position.copy(initLocal);
       }
+      if (movedTransientRef.current) {
+        const { parent, transientMesh } = movedTransientRef.current;
+        if (transientMesh && parent) {
+          parent.remove(transientMesh);
+          disposeMesh(transientMesh);
+        }
+        movedTransientRef.current = null;
+      }
+      if (mesh) deepShow(mesh);
       // Dispose transients + restore connected originals.
       for (const entry of connectedRef.current.values()) {
         if (entry.transientMesh && entry.parent) {
           entry.parent.remove(entry.transientMesh);
           disposeMesh(entry.transientMesh);
         }
-        if (entry.originalMesh) entry.originalMesh.visible = true;
+        if (entry.originalMesh) deepShow(entry.originalMesh);
       }
       if (pendingFrameRef.current != null) {
         cancelAnimationFrame(pendingFrameRef.current);
@@ -257,14 +715,47 @@ export default function MoveGizmoThreed() {
       movedSnapshotRef.current = null;
       sharedPointIdsRef.current = new Set();
       connectedRef.current = new Map();
+      subTargetPointIdsRef.current = new Set();
+      slopePointsSnapshotRef.current = null;
+      slopeEdgePointIdsRef.current = null;
+      slopeCurrentEdgeZRef.current = 0;
+      slopeMeterByPxRef.current = 0;
+      setSlopeModeApplies(false);
+      setSlopePctValue("");
     };
-  }, [active, selectedAnnotationId, dispatch]);
+  }, [active, selectedAnnotationId, dispatch, subTargetKey]);
 
   useEffect(() => {
     setFieldValue(String(roundForDisplay(deltaZ)));
   }, [deltaZ]);
 
+  // Keep the slope-% display in sync with the live Δz. Recomputes the implied
+  // slope by overlaying `deltaZ` on the entry snapshot's moved-edge vertices.
+  useEffect(() => {
+    if (!slopeModeApplies) return;
+    const snapshot = slopePointsSnapshotRef.current;
+    const edgeIds = slopeEdgePointIdsRef.current;
+    const meterByPx = slopeMeterByPxRef.current;
+    const baseZ = slopeCurrentEdgeZRef.current;
+    if (!snapshot || !edgeIds || !meterByPx) return;
+    const edgeIdSet = new Set(edgeIds);
+    const projected = snapshot.map((p) =>
+      edgeIdSet.has(p.id) ? { ...p, offsetTop: baseZ + (deltaZ || 0) } : p
+    );
+    const pct = getPolygonEdgeSlopePct({
+      points: projected,
+      edgePointIds: edgeIds,
+      meterByPx,
+    });
+    if (pct == null) return;
+    setSlopePctValue(String(roundForDisplay(pct)));
+  }, [deltaZ, slopeModeApplies]);
+
   function shiftMovedMeshLive(dn) {
+    // In sub-selection mode the moved annotation is rendered via a transient
+    // mesh (regenerated per tick) — globally translating the original mesh
+    // would make the entire face move instead of only the targeted vertices.
+    if (subTargetPointIdsRef.current.size > 0) return;
     const mesh = movedMeshRef.current;
     const initLocal = movedMeshInitialLocalPosRef.current;
     const n = faceNormalRef.current;
@@ -293,7 +784,9 @@ export default function MoveGizmoThreed() {
     const n = faceNormalRef.current;
     const invRot = baseMapInvRotRef.current;
     const map = connectedRef.current;
-    if (!n || !map.size) return;
+    const subPointIds = subTargetPointIdsRef.current;
+    const movedTransient = movedTransientRef.current;
+    if (!n) return;
     const deltaWorld = n.clone().multiplyScalar(dn);
     const deltaLocalVec = invRot
       ? deltaWorld.clone().applyQuaternion(invRot)
@@ -303,17 +796,62 @@ export default function MoveGizmoThreed() {
       y: deltaLocalVec.y,
       z: deltaLocalVec.z,
     };
+    // Sub-selection mode: regenerate the moved annotation transient too —
+    // the original mesh is hidden, so the transient is the only visual.
+    if (movedTransient && subPointIds.size > 0 && movedSnapshotRef.current) {
+      if (movedTransient.transientMesh && movedTransient.parent) {
+        movedTransient.parent.remove(movedTransient.transientMesh);
+        disposeMesh(movedTransient.transientMesh);
+        movedTransient.transientMesh = null;
+      }
+      const freshMoved = buildTransientFaceMesh({
+        snapshot: movedSnapshotRef.current,
+        sharedIds: subPointIds,
+        deltaLocal,
+        mode: "SHARED_ONLY",
+      });
+      if (freshMoved && movedTransient.parent) {
+        movedTransient.parent.add(freshMoved);
+        movedTransient.transientMesh = freshMoved;
+      }
+      // Re-assert the original-mesh hide on every regen tick. CRITICAL:
+      // `useAutoLoadAnnotationsInThreedEditor` may re-fire `loadAnnotations`
+      // mid-drag (e.g. on any `useAnnotationsV2` recompute), which calls
+      // `deleteAllAnnotationsObjects` + recreate. The fresh annoObject is
+      // visible by default and our captured `movedMeshRef.current` becomes
+      // an orphan. Look up the LIVE entry from the map every tick so the
+      // hide always targets the object actually in the scene.
+      const liveAnno =
+        editor?.sceneManager?.annotationsManager?.annotationsObjectsMap?.[
+          selectedAnnotationIdRef.current
+        ];
+      if (liveAnno) {
+        deepHide(liveAnno);
+        if (liveAnno !== movedMeshRef.current) {
+          movedMeshRef.current = liveAnno;
+        }
+      }
+    }
     for (const entry of map.values()) {
       if (entry.transientMesh && entry.parent) {
         entry.parent.remove(entry.transientMesh);
         disposeMesh(entry.transientMesh);
         entry.transientMesh = null;
       }
+      let shiftByPointId = null;
+      if (entry.shiftCoeffByPointId) {
+        shiftByPointId = new Map();
+        for (const [id, k] of entry.shiftCoeffByPointId.entries()) {
+          shiftByPointId.set(id, k * dn);
+        }
+      }
       const fresh = buildTransientFaceMesh({
         snapshot: entry.snapshot,
         sharedIds: entry.sharedIds,
         deltaLocal,
         mode: "SHARED_ONLY",
+        fieldByPointId: entry.fieldByPointId,
+        shiftByPointId,
       });
       if (fresh && entry.parent) {
         entry.parent.add(fresh);
@@ -327,8 +865,11 @@ export default function MoveGizmoThreed() {
     if (!selectedAnnotationId) return;
     const dn = Number(fieldValue);
     if (!Number.isFinite(dn) || Math.abs(dn) < 1e-6) {
+      // Nothing to write — exit cleanly so the user is back to selection mode.
       dispatch(setMoveSelectedAnnotationId(null));
       dispatch(setMoveDeltaZ(0));
+      dispatch(setMoveSubSelectionTarget(null));
+      dispatch(setMoveModeActive(false));
       return;
     }
     const ann = await db.annotations.get(selectedAnnotationId);
@@ -351,43 +892,27 @@ export default function MoveGizmoThreed() {
     const dyNorm = -deltaLocal.y / (meterByPx * imageSize.height);
     const dz = deltaLocal.z;
 
-    const ownPointIds = (ann.points || []).map((p) => p.id).filter(Boolean);
-    const ownPointIdSet = new Set(ownPointIds);
     const sharedIds = sharedPointIdsRef.current;
     const connectedMap = connectedRef.current;
+    const subPointIds = subTargetPointIdsRef.current;
+    const isSubMode = subPointIds && subPointIds.size > 0;
 
     await db.transaction("rw", db.points, db.annotations, async () => {
-      // 1. Shared db.points get their (x, y) shifted in baseMap-local — both
-      //    the moved annotation and every connected annotation see it.
-      for (const pid of ownPointIds) {
-        const pt = await db.points.get(pid);
-        if (!pt) continue;
-        await db.points.update(pid, {
-          x: pt.x + dxNorm,
-          y: pt.y + dyNorm,
-        });
-      }
+      // Note: the moved annotation's sliding refs are KEPT — they are used
+      // to identify shared corners with connected polylines (the walls
+      // attached at a sliding corner must follow the polygon plane there).
+      // The polygon's 3D mesh ignores sliding refs (createAnnotationObject3D
+      // strips them), but the data model retains them for propagation.
 
-      // 2. Z absorbed by the moved annotation's offsetZ.
-      const nextOffsetZ = roundForDisplay((ann.offsetZ ?? 0) + dz);
-      await db.annotations.update(selectedAnnotationId, {
-        offsetZ: nextOffsetZ,
-      });
+      const ownPointIds = (ann.points || []).map((p) => p.id).filter(Boolean);
+      const ownPointIdSet = new Set(ownPointIds);
 
-      // 3. For each connected annotation: bump per-vertex offsetTop on
-      //    SHARED refs only by `dz` so the shared corners follow the move
-      //    while the others stay put.
-      for (const [otherId, entry] of connectedMap.entries()) {
-        const other = await db.annotations.get(otherId);
-        if (!other) continue;
-        let touched = false;
-        const newPoints = (other.points || []).map((ref) => {
-          if (
-            ownPointIdSet.has(ref.id) &&
-            entry.sharedIds.has(ref.id) &&
-            (sharedIds.size === 0 || sharedIds.has(ref.id))
-          ) {
-            touched = true;
+      if (isSubMode) {
+        // Sub-selection mode: vertical-only delta on the targeted RAW
+        // vertices only (subPointIds are picked by the user on the rendered
+        // mesh, which excludes sliding refs — so they are necessarily raw).
+        const newOwnPoints = (ann.points || []).map((ref) => {
+          if (subPointIds.has(ref.id) && !ref.isSliding) {
             return {
               ...ref,
               offsetTop: roundForDisplay((ref.offsetTop ?? 0) + dz),
@@ -395,40 +920,214 @@ export default function MoveGizmoThreed() {
           }
           return ref;
         });
-        if (touched) {
-          await db.annotations.update(otherId, { points: newPoints });
+        ann.points = newOwnPoints;
+        await db.annotations.update(selectedAnnotationId, {
+          points: newOwnPoints,
+        });
+      } else {
+        // 1. Shared db.points get their (x, y) shifted in baseMap-local —
+        //    both the moved annotation and every connected annotation see
+        //    it. Sliding refs are part of ownPointIds (they reference real
+        //    db.points), so their xy follows the whole-mode translation too.
+        for (const pid of ownPointIds) {
+          const pt = await db.points.get(pid);
+          if (!pt) continue;
+          await db.points.update(pid, {
+            x: pt.x + dxNorm,
+            y: pt.y + dyNorm,
+          });
+        }
+
+        // 2. Z absorbed by the moved annotation's offsetZ.
+        const nextOffsetZ = roundForDisplay((ann.offsetZ ?? 0) + dz);
+        ann.offsetZ = nextOffsetZ;
+        await db.annotations.update(selectedAnnotationId, {
+          offsetZ: nextOffsetZ,
+        });
+      }
+
+      const isMovedPolygon = ann.type === "POLYGON";
+
+      // 3. For each connected annotation: shift the appropriate per-vertex
+      //    offset on every shared corner using the SAME per-corner shift
+      //    coefficient that the live drag used (entry.shiftCoeffByPointId).
+      //
+      //    POLYGON-moved + POLYLINE-connected:
+      //      - entry.fieldByPointId tells which field (offsetBottom /
+      //        offsetTop) gets shifted at each shared corner;
+      //      - entry.shiftCoeffByPointId gives k_C so the actual shift is
+      //        k_C * dz (walls connected at a sliding polygon corner follow
+      //        the polygon plane there);
+      //      - "null" classification means the wall straddles the polygon
+      //        level — skip.
+      //    Other type combinations fall back to the historical "offsetTop +=
+      //    dz on subPointIds" behaviour.
+      for (const [otherId, entry] of connectedMap.entries()) {
+        const otherRaw = await db.annotations.get(otherId);
+        if (!otherRaw) continue;
+        // Strip auto-managed sliding refs (e.g. inflection points from a
+        // previous slope move) from this connected annotation before
+        // applying shifts. Each commit re-derives them from the raw
+        // underlying geometry.
+        const otherStripped = stripSlidingFromAnnotation(otherRaw);
+        for (const id of otherStripped.strippedIds) {
+          await db.points.delete(id);
+        }
+        const other = {
+          ...otherRaw,
+          points: otherStripped.points,
+          hiddenSegmentsIdx: otherStripped.hiddenSegmentsIdx,
+        };
+        const useAboveBelowLogic = isMovedPolygon && other.type === "POLYLINE";
+        const otherHeight = other.height ?? 0;
+        const otherOffsetZ = other.offsetZ ?? 0;
+        let touched = false;
+        const newPoints = (other.points || []).map((ref) => {
+          const shouldPropagate =
+            ownPointIdSet.has(ref.id) &&
+            entry.sharedIds.has(ref.id) &&
+            (sharedIds.size === 0 || sharedIds.has(ref.id)) &&
+            (useAboveBelowLogic || !isSubMode || subPointIds.has(ref.id));
+          if (!shouldPropagate) return ref;
+
+          if (useAboveBelowLogic) {
+            const which = entry.fieldByPointId?.get(ref.id) ?? null;
+            const k = entry.shiftCoeffByPointId?.get(ref.id) ?? 0;
+            const localDz = k * dz;
+            if (which === "BOTTOM" && Math.abs(localDz) > 1e-9) {
+              touched = true;
+              return {
+                ...ref,
+                offsetBottom: roundForDisplay(
+                  (ref.offsetBottom ?? 0) + localDz
+                ),
+              };
+            }
+            if (which === "TOP" && Math.abs(localDz) > 1e-9) {
+              touched = true;
+              return {
+                ...ref,
+                offsetTop: roundForDisplay((ref.offsetTop ?? 0) + localDz),
+              };
+            }
+            return ref;
+          }
+
+          touched = true;
+          return {
+            ...ref,
+            offsetTop: roundForDisplay((ref.offsetTop ?? 0) + dz),
+          };
+        });
+        if (!touched) {
+          // Even when no shift was applied this turn, persist the stripped
+          // state so any previously-auto-added sliding refs are gone.
+          if (otherStripped.strippedIds.length > 0) {
+            await db.annotations.update(otherId, {
+              points: other.points,
+              hiddenSegmentsIdx: other.hiddenSegmentsIdx,
+            });
+          }
+          continue;
+        }
+
+        // For connected POLYLINE walls only: if the new offsetBottom values
+        // pushed any segment into a "negative span" state (wall top below
+        // wall bottom), split the polyline at the inflection point and mark
+        // the now-invisible portion as hidden via hiddenSegmentsIdx. New
+        // intersection vertices are persisted in db.points and tagged
+        // `isSliding: true` on the refs so subsequent commits know they are
+        // auto-managed.
+        if (useAboveBelowLogic) {
+          const closeLine = !!other.closeLine;
+          const ids = newPoints.map((r) => r.id).filter(Boolean);
+          const fetched = await db.points.bulkGet(ids);
+          const pointsById = new Map();
+          fetched.forEach((p, idx) => {
+            if (p) pointsById.set(ids[idx], { x: p.x, y: p.y });
+          });
+          const split = splitPolylineAtSpanInversions({
+            refs: newPoints,
+            height: otherHeight,
+            closeLine,
+            existingHiddenIdx: other.hiddenSegmentsIdx || [],
+            pointsById,
+            newPointFactory: (x, y) => ({
+              id: nanoid(),
+              x,
+              y,
+              projectId: other.projectId,
+              baseMapId: other.baseMapId,
+              listingId: other.listingId,
+            }),
+          });
+          for (const pt of split.pointsToAdd) {
+            await db.points.add(pt);
+            // Also remember its (x, y) for the polygon-integration step.
+            pointsById.set(pt.id, { x: pt.x, y: pt.y });
+          }
+          await db.annotations.update(otherId, {
+            points: split.refs,
+            hiddenSegmentsIdx: split.hiddenSegmentsIdx,
+          });
+        } else {
+          await db.annotations.update(otherId, {
+            points: newPoints,
+            hiddenSegmentsIdx: other.hiddenSegmentsIdx,
+          });
         }
       }
     });
 
+    // Auto-exit move mode after commit — the new UX is: select → Déplacer
+    // → drag → validate → back to selection state.
     dispatch(setMoveSelectedAnnotationId(null));
     dispatch(setMoveDeltaZ(0));
+    dispatch(setMoveSubSelectionTarget(null));
+    dispatch(clearSubSelection());
+    dispatch(setMoveModeActive(false));
   }
 
   function handleCancel() {
     dispatch(setMoveSelectedAnnotationId(null));
     dispatch(setMoveDeltaZ(0));
+    dispatch(setMoveSubSelectionTarget(null));
+    dispatch(setMoveModeActive(false));
+  }
+
+  function applyDeltaLive(v) {
+    dispatch(setMoveDeltaZ(v));
+    latestDeltaRef.current = v;
+    const t = targetRef.current;
+    const init = initialPosRef.current;
+    const n = faceNormalRef.current;
+    if (t && init && n) {
+      t.position.copy(init).add(n.clone().multiplyScalar(v));
+    }
+    shiftMovedMeshLive(v);
+    scheduleTransientRegen();
   }
 
   function handleFieldChange(e) {
     setFieldValue(e.target.value);
     const v = Number(e.target.value);
-    if (Number.isFinite(v)) {
-      dispatch(setMoveDeltaZ(v));
-      latestDeltaRef.current = v;
-      const t = targetRef.current;
-      const init = initialPosRef.current;
-      const n = faceNormalRef.current;
-      if (t && init && n) {
-        t.position.copy(init).add(n.clone().multiplyScalar(v));
-      }
-      shiftMovedMeshLive(v);
-      scheduleTransientRegen();
-    }
+    if (Number.isFinite(v)) applyDeltaLive(v);
   }
 
-  function handleExit() {
-    dispatch(setMoveModeActive(false));
+  function handleSlopeChange(e) {
+    setSlopePctValue(e.target.value);
+    const target = Number(e.target.value);
+    if (!Number.isFinite(target)) return;
+    const dz = deltaZForTargetSlope({
+      points: slopePointsSnapshotRef.current,
+      edgePointIds: slopeEdgePointIdsRef.current,
+      meterByPx: slopeMeterByPxRef.current,
+      targetSlopePct: target,
+      currentEdgeZ: slopeCurrentEdgeZRef.current,
+    });
+    if (dz == null || !Number.isFinite(dz)) return;
+    setFieldValue(String(roundForDisplay(dz)));
+    applyDeltaLive(dz);
   }
 
   if (!active) return null;
@@ -449,37 +1148,45 @@ export default function MoveGizmoThreed() {
       }}
     >
       <Stack direction="row" spacing={1} alignItems="center">
-        {selectedAnnotationId ? (
-          <>
-            <Box sx={{ fontSize: 12, color: "text.secondary" }}>Δn (m)</Box>
-            <TextField
-              size="small"
-              value={fieldValue}
-              onChange={handleFieldChange}
-              type="number"
-              sx={{ width: 110 }}
-              inputProps={{ step: 0.01 }}
-            />
-            <IconButton size="small" color="primary" onClick={handleApply}>
-              <CheckIcon fontSize="small" />
-            </IconButton>
-            <IconButton size="small" onClick={handleCancel}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </>
-        ) : (
-          <Box sx={{ fontSize: 13, color: "text.secondary" }}>
-            Cliquez sur une face à déplacer
+        {subSelectionTarget && (
+          <Box sx={{ fontSize: 12, color: "text.secondary" }}>
+            {subSelectionTarget.kind === "VERTEX"
+              ? `Vertex N°${(subSelectionTarget.vertexIndex ?? 0) + 1}`
+              : `Arête N°${(subSelectionTarget.vertexIndex ?? 0) + 1}-${
+                  (subSelectionTarget.vertexIndexB ?? 0) + 1
+                }`}
           </Box>
         )}
-        <Button
+        <Box sx={{ fontSize: 12, color: "text.secondary" }}>
+          {subSelectionTarget ? "Δz (m)" : "Δn (m)"}
+        </Box>
+        <TextField
           size="small"
-          variant="text"
-          onClick={handleExit}
-          sx={{ ml: "auto", textTransform: "none" }}
-        >
-          Quitter
-        </Button>
+          value={fieldValue}
+          onChange={handleFieldChange}
+          type="number"
+          sx={{ width: 110 }}
+          inputProps={{ step: 0.01 }}
+        />
+        {slopeModeApplies && (
+          <>
+            <Box sx={{ fontSize: 12, color: "text.secondary" }}>Pente (%)</Box>
+            <TextField
+              size="small"
+              value={slopePctValue}
+              onChange={handleSlopeChange}
+              type="number"
+              sx={{ width: 100 }}
+              inputProps={{ step: 0.1 }}
+            />
+          </>
+        )}
+        <IconButton size="small" color="primary" onClick={handleApply}>
+          <CheckIcon fontSize="small" />
+        </IconButton>
+        <IconButton size="small" onClick={handleCancel}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
       </Stack>
     </Paper>
   );

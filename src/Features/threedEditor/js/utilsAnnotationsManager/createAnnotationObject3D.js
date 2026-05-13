@@ -8,6 +8,7 @@ import {
   expandArcsInPath,
   expandArcsInPathWithHiddenMap,
 } from "Features/geometry/utils/arcSampling";
+import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
 
 // Match the codebase convention used by other arc-aware paths.
 const GUIDE_ARC_SAMPLES = 6;
@@ -49,8 +50,8 @@ function makeMaterial(annotation, options) {
       : annotation.fillColor || annotation.strokeColor || "#cccccc"
   );
   const rawOpacity = isStrokeDriven
-    ? annotation.strokeOpacity ?? 1
-    : annotation.fillOpacity ?? 1;
+    ? (annotation.strokeOpacity ?? 1)
+    : (annotation.fillOpacity ?? 1);
   const opacity = options?.disableOpacity ? 1 : rawOpacity;
   return new MeshBasicMaterial({
     color: new Color(color),
@@ -87,7 +88,13 @@ function bboxToCorners(bbox) {
 // Resolve a STRIP annotation into closed polygons and extrude each one.
 // Mirrors what NodeStripStatic does in 2D so the 3D matches the visible 2D
 // footprint (closeLine, hiddenSegmentsIdx, cuts).
-function extrudeStripPolygons(annotation, baseMap, height, material, verticalLift) {
+function extrudeStripPolygons(
+  annotation,
+  baseMap,
+  height,
+  material,
+  verticalLift
+) {
   const polys = getStripePolygons(annotation, baseMap.meterByPx, true);
   if (!polys || polys.length === 0) return null;
   const group = new Group();
@@ -108,7 +115,13 @@ function extrudeStripPolygons(annotation, baseMap, height, material, verticalLif
 // (wallToRectRing in useWallBoundaries), then extrude it. Arcs in the
 // polyline are first expanded into straight samples so the offset stays
 // well-defined.
-function extrudeWallPolygon(annotation, baseMap, height, material, verticalLift) {
+function extrudeWallPolygon(
+  annotation,
+  baseMap,
+  height,
+  material,
+  verticalLift
+) {
   const pts = (annotation.points || []).map((p) => ({
     x: p.x,
     y: p.y,
@@ -131,7 +144,8 @@ function extrudeWallPolygon(annotation, baseMap, height, material, verticalLift)
   }
   if (filtered.length < 2) return null;
 
-  const strokeWidthCm = (annotation.strokeWidth ?? 10) * THICKNESS_SAFETY_FACTOR;
+  const strokeWidthCm =
+    (annotation.strokeWidth ?? 10) * THICKNESS_SAFETY_FACTOR;
   const meterByPx = baseMap.meterByPx;
   if (!meterByPx || meterByPx <= 0) return null;
   const thicknessPx = strokeWidthCm / (meterByPx * 100);
@@ -166,7 +180,7 @@ function extrudeWallPolygon(annotation, baseMap, height, material, verticalLift)
   const n = filtered.length;
   const open = ring.slice(0, -1);
   const ringPoints = open.map(([x, y], i) => {
-    const srcIdx = i < n ? i : (2 * n - 1 - i);
+    const srcIdx = i < n ? i : 2 * n - 1 - i;
     const src = filtered[srcIdx] || {};
     return {
       x,
@@ -181,6 +195,25 @@ function extrudeWallPolygon(annotation, baseMap, height, material, verticalLift)
 
 export default function createAnnotationObject3D(annotation, baseMap, options) {
   if (!annotation || !baseMap) return null;
+
+  // Strip auto-generated "sliding" refs from the outer contour (and remap
+  // hiddenSegmentsIdx), then strip them from cuts / innerPoints inline. The
+  // 3D mesh always operates on the underlying raw geometry — sliding refs
+  // are decorations re-derived at commit time and must not feed into mesh
+  // construction (this also keeps sub-mode mesh modifications stable when
+  // adjacent segments carry sliding points).
+  const stripped = stripSlidingFromAnnotation(annotation);
+  const filterSliding = (refs) => (refs || []).filter((r) => !r?.isSliding);
+  annotation = {
+    ...annotation,
+    points: stripped.points,
+    hiddenSegmentsIdx: stripped.hiddenSegmentsIdx,
+    cuts: (annotation.cuts || []).map((cut) => ({
+      ...cut,
+      points: filterSliding(cut?.points),
+    })),
+    innerPoints: filterSliding(annotation.innerPoints),
+  };
 
   const shape3DKey = getShape3DKey(annotation.shape3D);
   if (shape3DKey !== null && shape3DKey !== "EXTRUSION_PROFILE") {
@@ -211,13 +244,26 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         .map((cut) => pointsToLocal(cut.points || [], baseMap))
         .filter((c) => c.length >= 3);
       const innerPts = pointsToLocal(annotation.innerPoints || [], baseMap);
-      object = extrudeClosedShape(pts, height, material, cuts, verticalLift, innerPts);
+      object = extrudeClosedShape(
+        pts,
+        height,
+        material,
+        cuts,
+        verticalLift,
+        innerPts
+      );
       break;
     }
     case "RECTANGLE": {
       if (!annotation.bbox) break;
       const pts = pointsToLocal(bboxToCorners(annotation.bbox), baseMap);
-      object = extrudeClosedShape(pts, height, material, undefined, verticalLift);
+      object = extrudeClosedShape(
+        pts,
+        height,
+        material,
+        undefined,
+        verticalLift
+      );
       break;
     }
     case "POLYLINE": {
@@ -267,18 +313,21 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         );
         break;
       }
-      const expanded = expandArcsInPath(
-        annotation.points || [],
-        GUIDE_ARC_SAMPLES,
-        !!annotation.closeLine
-      );
+      const { points: expanded, hiddenSegmentsIdx: expandedHidden } =
+        expandArcsInPathWithHiddenMap(
+          annotation.points || [],
+          GUIDE_ARC_SAMPLES,
+          annotation.hiddenSegmentsIdx || [],
+          !!annotation.closeLine
+        );
       const pts = pointsToLocal(expanded, baseMap);
       object = extrudePolylineWall(
         pts,
         height,
         material,
         !!annotation.closeLine,
-        verticalLift
+        verticalLift,
+        expandedHidden
       );
       break;
     }
@@ -339,6 +388,32 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
 
   if (!object) return null;
 
+  // For closed faces (POLYGON / RECTANGLE), expose a vertexRefs array on
+  // userData so the hover/click raycaster can address individual vertices /
+  // edges by their pointId. Order matches annotation.points[] (extrudeClosedShape
+  // / triangulateAnnotationGeometry preserve this order). Positions are in
+  // basemap-local space; convert with annoObject.localToWorld at consumption.
+  let vertexRefs = null;
+  if (annotation.type === "POLYGON" || annotation.type === "RECTANGLE") {
+    const sourcePoints =
+      annotation.type === "RECTANGLE"
+        ? bboxToCorners(annotation.bbox || { x: 0, y: 0, width: 0, height: 0 })
+        : annotation.points || [];
+    const localPts = pointsToLocal(sourcePoints, baseMap);
+    // Basemap-local space: X/Y are planar, Z is the normal (offsetTop /
+    // verticalLift apply to Z). The basemap group's rotation then maps
+    // local Z to world Y at render time.
+    vertexRefs = localPts.map((local, i) => ({
+      pointId: sourcePoints[i]?.id ?? null,
+      position: {
+        x: local.x,
+        y: local.y,
+        z: (local.z ?? 0) + verticalLift + (local.offsetTop ?? 0),
+      },
+      index: i,
+    }));
+  }
+
   // No applyBaseMapTransform here: the annotation is attached as a child of
   // the basemap group, which already owns the basemap's position + rotation.
   // Merge into existing userData so that loader-set hooks (e.g. the
@@ -349,6 +424,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
     nodeType: "ANNOTATION",
     annotationType: annotation.type,
     listingId: annotation.listingId,
+    vertexRefs,
   };
 
   return object;
