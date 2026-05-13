@@ -21,6 +21,7 @@ function splitEdgeVsFixed(points, edgePointIds) {
   const fixedPoints = [];
   for (const p of points || []) {
     if (!p || typeof p.x !== "number" || typeof p.y !== "number") continue;
+    if (p.isSliding) continue;
     if (ids.has(p.id)) edgePoints.push(p);
     else fixedPoints.push(p);
   }

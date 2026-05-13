@@ -753,6 +753,7 @@ export default function NodePolylineStatic({
         let n = 0;
         for (const p of points) {
             if (!p || typeof p.x !== "number" || typeof p.y !== "number") continue;
+            if (p.isSliding) continue;
             sx += p.x;
             sy += p.y;
             n += 1;
@@ -1014,14 +1015,16 @@ export default function NodePolylineStatic({
             {/* LABEL */}
             {showLabel && <NodeLabelStatic annotation={labelAnnotation} containerK={containerK} hidden={!mergedAnnotation.showLabel} />}
 
-            {/* SLOPE INDICATOR — arrow pointing downhill + percentage label.
+            {/* SLOPE INDICATOR — arrow pointing uphill + percentage label.
+                `getPolygonSlope` returns a downhill unit vector by convention,
+                so we negate the components when computing the arrow rotation.
                 Visible only on POLYGON with template `showSlope` enabled and
                 a measurable gradient (rounded slope >= 1%). Arrow + text are
                 wrapped in `vertexScaleTransform` so they keep a constant
                 on-screen size in both Map and Portfolio viewers, matching
                 the technique used by NodeCoteStatic. */}
             {slope && slopeCentroid && Math.round(slope.slopePct) >= 1 && (() => {
-                const angleDeg = (Math.atan2(slope.dirY, slope.dirX) * 180) / Math.PI;
+                const angleDeg = (Math.atan2(-slope.dirY, -slope.dirX) * 180) / Math.PI;
                 const L = 40;          // arrow total length in screen pixels
                 const headLen = 8;     // arrowhead length in screen pixels
                 const headW = 6;       // arrowhead width in screen pixels

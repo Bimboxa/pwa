@@ -2,6 +2,10 @@
 // vertices, where X/Y are in meters (image pixels scaled by meterByPx) and
 // z is the per-vertex offsetTop (already in meters).
 //
+// Vertices with `isSliding: true` are excluded from the fit: they are derived
+// (their position is recomputed at each commit, not user-controlled) and
+// their `offsetTop` is not a real height sample.
+//
 // Returns { dirX, dirY, slopePct } or null when the slope is undefined or
 // effectively zero (flat surface, degenerate plane, fewer than 3 points).
 //
@@ -25,6 +29,7 @@ export default function getPolygonSlope({ points, meterByPx }) {
 
   for (const p of points) {
     if (!p || typeof p.x !== "number" || typeof p.y !== "number") continue;
+    if (p.isSliding) continue;
     const X = p.x * meterByPx;
     const Y = p.y * meterByPx;
     const Z = p.offsetTop ?? 0;
