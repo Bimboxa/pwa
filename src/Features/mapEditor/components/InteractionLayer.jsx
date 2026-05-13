@@ -12,6 +12,12 @@ import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode } from 'Featu
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import {
+  setPasteClipboard,
+  clearPasteClipboard,
+  rotatePasteClipboard,
+  flipPasteClipboardX,
+} from 'Features/mapEditor/mapEditorSlice';
+import {
   setAnchorSourceAnnotationId,
   setOrthoSnapEnabled,
   setFixedLength,
@@ -67,6 +73,7 @@ import createInnerPointService from 'Features/points/services/createInnerPointSe
 import Box from '@mui/material/Box';
 import MapEditorViewport from 'Features/mapEditorGeneric/components/MapEditorViewport';
 import DrawingLayer from 'Features/mapEditorGeneric/components/DrawingLayer';
+import PasteAnnotationPreviewLayer from 'Features/mapEditorGeneric/components/PasteAnnotationPreviewLayer';
 import BrushDrawingLayer from 'Features/mapEditorGeneric/components/BrushDrawingLayer';
 import ScreenCursorV2 from 'Features/mapEditorGeneric/components/ScreenCursorV2';
 import SnappingLayer from 'Features/mapEditorGeneric/components/SnappingLayer';
@@ -112,6 +119,7 @@ import getBestSnap from 'Features/mapEditor/utils/getBestSnap';
 import getSnapModes from 'Features/mapEditor/utils/getSnapModes';
 import getEffectiveDetectionMode from 'Features/mapEditor/utils/getEffectiveDetectionMode';
 import getAnnotationEditionPanelAnchor from 'Features/annotations/utils/getAnnotationEditionPanelAnchor';
+import pasteAnnotationService from 'Features/mapEditor/services/pasteAnnotationService';
 import getAnnotationLabelPropsFromAnnotation from 'Features/annotations/utils/getAnnotationLabelPropsFromAnnotation';
 import toggleSelectedNodeFunction from '../utils/toggleSelectedNode';
 
@@ -209,6 +217,7 @@ const InteractionLayer = forwardRef(({
 
   const viewportRef = useRef(null); // Ref vers la caméra
   const drawingLayerRef = useRef(null);
+  const pastePreviewLayerRef = useRef(null);
   const lastPreviewPosRef = useRef(null);
   const brushLayerRef = useRef(null);
   const screenCursorRef = useRef(null);
@@ -274,6 +283,11 @@ const InteractionLayer = forwardRef(({
 
   // Computed selectedNode equivalent (first item)
   const { node: selectedNode } = useSelectedNodes();
+
+  // Copy/paste clipboard state
+  const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
+  const pasteTransform = useSelector((s) => s.mapEditor.pasteTransform);
+  const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
 
   // Anchor snap mode
   const anchorSourceAnnotationId = useSelector((s) => s.mapEditor.anchorSourceAnnotationId);
@@ -886,6 +900,10 @@ const InteractionLayer = forwardRef(({
     }
   }, [annotations, selectedNode?.nodeId]);
 
+  useEffect(() => {
+    selectedAnnotationForCopyRef.current = selectedAnnotation;
+  }, [selectedAnnotation]);
+
   // annotations for Snap
   // When in point-editing mode, allow snapping to all annotations
   // Only restrict to selected annotation when actively drawing or moving the whole annotation
@@ -1424,6 +1442,18 @@ const InteractionLayer = forwardRef(({
     enabledDrawingModeRef.current = enabledDrawingMode;
   }, [enabledDrawingMode]);
 
+  const pasteClipboardRef = useRef(pasteClipboard);
+  useEffect(() => {
+    pasteClipboardRef.current = pasteClipboard;
+  }, [pasteClipboard]);
+
+  const pasteTransformRef = useRef(pasteTransform);
+  useEffect(() => {
+    pasteTransformRef.current = pasteTransform;
+  }, [pasteTransform]);
+
+  const selectedAnnotationForCopyRef = useRef(null);
+
   const newAnnotationRef = useRef(newAnnotation);
   useEffect(() => {
     newAnnotationRef.current = newAnnotation;
@@ -1778,6 +1808,84 @@ const InteractionLayer = forwardRef(({
 
       if (e.repeat) return;
 
+      // --- Copy/paste: Ctrl/Cmd+C captures the selected annotation as a
+      // paste-clipboard snapshot. Only fires on the active viewer.
+      if (
+        isActiveViewerRef.current &&
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === "c" || e.key === "C")
+      ) {
+        const ann = selectedAnnotationForCopyRef.current;
+        if (!ann) return;
+        const type = ann.type;
+        const supported = ["POLYGON", "POLYLINE", "STRIP", "POINT", "MARKER"].includes(type);
+        if (!supported) {
+          dispatch(setToaster({
+            message: `Copy/paste not yet supported for "${type}"`,
+            severity: "info",
+          }));
+          return;
+        }
+        e.preventDefault();
+
+        const clipboard = { annotation: ann };
+        if (type === "POLYGON" || type === "POLYLINE" || type === "STRIP") {
+          const basePoints = (ann.points || []).map((p) => ({
+            x: p.x,
+            y: p.y,
+            ...(p.type ? { type: p.type } : {}),
+          }));
+          clipboard.basePoints = basePoints;
+          if (type === "POLYGON") {
+            clipboard.baseCuts = (ann.cuts || []).map((cut) => ({
+              id: cut.id,
+              points: (cut.points || []).map((p) => ({
+                x: p.x,
+                y: p.y,
+                ...(p.type ? { type: p.type } : {}),
+              })),
+            }));
+          }
+          if (type === "STRIP") {
+            clipboard.stripWidthPx = ann.stripWidthPx ?? ann.width ?? null;
+            clipboard.stripOrientation = ann.stripOrientation ?? 1;
+          }
+          const bbox = getAnnotationBBox({ ...ann, points: basePoints });
+          clipboard.sourceCenter = bbox
+            ? { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 }
+            : { x: 0, y: 0 };
+        } else if (type === "POINT" || type === "MARKER") {
+          const p = ann.point || ann.targetPoint;
+          if (!p) return;
+          clipboard.basePoint = { x: p.x, y: p.y };
+          clipboard.sourceCenter = { x: p.x, y: p.y };
+        }
+
+        dispatch(setPasteClipboard(clipboard));
+        return;
+      }
+
+      // --- Paste mode: I = flip, R = rotate 90°. Only fires when a
+      // paste-clipboard is active and the viewer is the active one.
+      if (
+        isActiveViewerRef.current &&
+        pasteClipboardRef.current &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
+        if (e.key === "i" || e.key === "I") {
+          e.preventDefault();
+          dispatch(flipPasteClipboardX());
+          return;
+        }
+        if (e.key === "r" || e.key === "R") {
+          e.preventDefault();
+          dispatch(rotatePasteClipboard());
+          return;
+        }
+      }
+
       // --- Rectangle typed X/Y dimensions (after first corner placed) ---
       // Window-scoped listener — only the active viewer should react,
       // otherwise duplicate viewers (e.g. main + BASE_MAPS) double-capture each key.
@@ -1870,6 +1978,16 @@ const InteractionLayer = forwardRef(({
         // 1. ESCAPE : Reset Selection
         case 'Escape':
           console.log("Action: Reset Selection & Tool");
+
+          // Paste mode trumps everything: just exit cleanly without resetting
+          // unrelated drawing/selection state.
+          if (pasteClipboardRef.current) {
+            dispatch(clearPasteClipboard());
+            pastePreviewLayerRef.current?.clearPreview();
+            e.stopPropagation();
+            return;
+          }
+
           if (selectedPartId) {
             dispatch(setSubSelection({ partId: null }));
             e.stopPropagation();
@@ -2392,6 +2510,31 @@ const InteractionLayer = forwardRef(({
 
   // --- GESTION DES CLICS (Ajout de point) ---
   const handleWorldClick = async ({ worldPos, viewportPos, event }) => {
+
+    // --- Paste mode: a click places a copy at the cursor and keeps the
+    // mode active so multiple copies can be placed. Esc exits.
+    if (pasteClipboardRef.current) {
+      const targetCenter = toLocalCoords(worldPos);
+      // Fire-and-forget so the click feels instant; service writes points +
+      // annotation + mapping rows in a single Dexie transaction, then
+      // dispatches one liveQuery refresh.
+      pasteAnnotationService({
+        pasteClipboard: pasteClipboardRef.current,
+        pasteTransform: pasteTransformRef.current,
+        targetCenter,
+        baseMap: calibrationBaseMap,
+        activeLayerId,
+        dispatch,
+        triggerAnnotationsUpdate,
+      }).catch((err) => {
+        console.warn("[paste] failed", err);
+        dispatch(setToaster({
+          message: "Paste failed — see console for details.",
+          severity: "error",
+        }));
+      });
+      return;
+    }
 
     // Cross-tab navigation: in pure SELECT mode (no drawing tool, no anchor
     // pick), forward the click world position to the parent so it can
@@ -3238,6 +3381,12 @@ const InteractionLayer = forwardRef(({
       screenPos: { x: event.clientX, y: event.clientY },
       viewportPos: viewportPos
     };
+
+    // Paste ghost follows the cursor in local image-pixel space.
+    if (pasteClipboardRef.current) {
+      const localPos = toLocalCoords(worldPos);
+      pastePreviewLayerRef.current?.updatePreview(localPos);
+    }
 
     const showSmartDetect = showSmartDetectRef.current;
     const dragState = dragStateRef.current;
@@ -4628,6 +4777,12 @@ const InteractionLayer = forwardRef(({
             />
           </g>
 
+        )}
+
+        {pasteClipboard && (
+          <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
+            <PasteAnnotationPreviewLayer ref={pastePreviewLayerRef} />
+          </g>
         )}
 
         {/* Calibration targets layer */}
