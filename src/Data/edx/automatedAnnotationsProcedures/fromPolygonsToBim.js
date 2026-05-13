@@ -1642,6 +1642,7 @@ export default function fromPolygonsToBim({
 
     if (vctPxChains.length > 0) {
       const merged = mergePolylines(vctPxChains);
+      const vctHeight = vctAnns.find((a) => a.height != null)?.height ?? null;
 
       for (const chain of merged) {
         if (chain.length < 2) continue;
@@ -1717,6 +1718,7 @@ export default function fromPolygonsToBim({
           type: "STRIP",
           points: pointRefs,
           height: null,
+          ...(vctHeight != null ? { offsetZ: vctHeight } : {}),
           fillOpacity: listingRtp?.fillOpacity ?? null,
           strokeOpacity: listingRtp?.strokeOpacity ?? null,
           opacity: listingRtp?.opacity ?? null,
@@ -1787,7 +1789,27 @@ export default function fromPolygonsToBim({
       polygons: pxPolygons,
     });
 
+    // When ignoring interior walls, drop AR points that belong only to VI
+    // polylines. AR points at VI↔VCT junctions are kept because the prior
+    // applyRetourTechnique step has already converted the 1m near-junction
+    // VI segment into a VCT segment, making those vertices real corners.
+    const viTemplateIdSet = new Set();
+    for (const { viTemplate } of resolvedByListing.values()) {
+      if (viTemplate) viTemplateIdSet.add(viTemplate.id);
+    }
+    const polylineById = new Map(newPolylines.map((pl) => [pl.id, pl]));
+
     for (const angle of reentrantAngles) {
+      if (context.ignoreInteriorWalls) {
+        const ids = angle.polylineIds || [];
+        const allVi =
+          ids.length > 0 &&
+          ids.every((id) => {
+            const pl = polylineById.get(id);
+            return pl && viTemplateIdSet.has(pl.annotationTemplateId);
+          });
+        if (allVi) continue;
+      }
       // find the source polyline to determine listingId
       const sourcePl = newPolylines.find(
         (pl) => angle.polylineIds?.includes(pl.id)
