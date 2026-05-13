@@ -1,6 +1,7 @@
 import db from "App/db/db";
 
 import createAnnotationObject3D from "Features/threedEditor/js/utilsAnnotationsManager/createAnnotationObject3D";
+import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
 
 // Loads the annotation + its db.points and returns a snapshot suitable for
 // repeated transient mesh regeneration during the gizmo drag.
@@ -12,8 +13,18 @@ import createAnnotationObject3D from "Features/threedEditor/js/utilsAnnotationsM
 //     baseMapForRender: { imageWidth, imageHeight, meterByPx },
 //   }
 export async function loadAnnotationSnapshot(annotationId) {
-  const ann = await db.annotations.get(annotationId);
-  if (!ann) return null;
+  const annRaw = await db.annotations.get(annotationId);
+  if (!annRaw) return null;
+  // Strip auto-generated "sliding" refs (e.g. inflection points from the
+  // slope move) so the transient mesh operates on the raw underlying
+  // geometry. Sliding refs and their adjacent hidden segments are
+  // re-derived at the end of every commit.
+  const stripped = stripSlidingFromAnnotation(annRaw);
+  const ann = {
+    ...annRaw,
+    points: stripped.points,
+    hiddenSegmentsIdx: stripped.hiddenSegmentsIdx,
+  };
   const pointIds = (ann.points || []).map((p) => p.id).filter(Boolean);
   const points = await db.points.bulkGet(pointIds);
   const pointsById = new Map();
@@ -54,6 +65,11 @@ export function buildTransientFaceMesh({
   // polygon, reaches up to ceiling); null -> the wall straddles the polygon
   // level, leave it alone.
   fieldByPointId,
+  // Optional in SHARED_ONLY mode: a Map<pointId, number> giving the actual
+  // z-shift to apply per shared corner. When provided, the per-corner value
+  // is used (e.g. plane-interpolation at sliding corners) instead of the
+  // uniform deltaLocal.z. When omitted, every shared corner uses deltaLocal.z.
+  shiftByPointId,
 }) {
   if (!snapshot) return null;
   const { annotation, pointsById, baseMapForRender } = snapshot;
@@ -79,17 +95,21 @@ export function buildTransientFaceMesh({
   } else if (mode === "SHARED_ONLY") {
     nextRefs = nextRefs.map((ref) => {
       if (!sharedIds.has(ref.id)) return ref;
+      const localDz = shiftByPointId?.get(ref.id) ?? dz;
       if (fieldByPointId) {
         const which = fieldByPointId.get(ref.id);
         if (which === "BOTTOM") {
-          return { ...ref, offsetBottom: (ref.offsetBottom ?? 0) + dz };
+          return {
+            ...ref,
+            offsetBottom: (ref.offsetBottom ?? 0) + localDz,
+          };
         }
         if (which === "TOP") {
-          return { ...ref, offsetTop: (ref.offsetTop ?? 0) + dz };
+          return { ...ref, offsetTop: (ref.offsetTop ?? 0) + localDz };
         }
         return ref;
       }
-      return { ...ref, offsetTop: (ref.offsetTop ?? 0) + dz };
+      return { ...ref, offsetTop: (ref.offsetTop ?? 0) + localDz };
     });
     for (const id of sharedIds) {
       if (fieldByPointId && fieldByPointId.get(id) == null) continue;

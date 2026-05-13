@@ -18,12 +18,12 @@ export default function useSelectedPointsData() {
   const idSet = new Set(selectedPointIds);
   const allPoints = [
     ...(annotation.points || []),
-    ...((annotation.cuts || []).flatMap((c) => c?.points || [])),
+    ...(annotation.cuts || []).flatMap((c) => c?.points || []),
     ...(annotation.innerPoints || []),
   ];
   const selectedPoints = allPoints.filter((p) => idSet.has(p.id));
 
-  const fields = ["type", "offsetBottom", "offsetTop"];
+  const fields = ["type", "offsetBottom", "offsetTop", "isSliding"];
   const mixed = {};
   for (const f of fields) {
     if (selectedPoints.length <= 1) {

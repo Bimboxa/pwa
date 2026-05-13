@@ -36,6 +36,10 @@ import {
 } from "Features/annotations/utils/getPolygonEdgeSlopePct";
 import classifyPolylineCornerVsPolygonZ from "Features/annotations/utils/classifyPolylineCornerVsPolygonZ";
 import splitPolylineAtSpanInversions from "Features/annotations/utils/splitPolylineAtSpanInversions";
+import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
+import getPolygonZPlane, {
+  getZAtXY,
+} from "Features/annotations/utils/getPolygonZPlane";
 import { nanoid } from "@reduxjs/toolkit";
 
 const DEFAULT_Z = new Vector3(0, 0, 1);
@@ -446,22 +450,90 @@ export default function MoveGizmoThreed() {
         }
       }
 
-      // Pre-compute the moved POLYGON's top-surface z at each of its
-      // vertices (offsetZ + height + offsetBottom + offsetTop). Used below
-      // to classify each connected POLYLINE's shared corner as ABOVE /
-      // BELOW / NEITHER relative to the moving surface, so the live
-      // transient + the final commit shift the right per-vertex offset.
+      // Build the moved POLYGON's per-corner z + per-corner shift coefficient
+      // (k_C): k_C * dn = the z change at corner C produced by the live drag
+      // delta dn. Two kinds of corners are handled:
+      //   - RAW corners: k_C = 1 if the corner is in subPointIds (sub-mode)
+      //     or if we're in whole-mode (offsetZ shifts uniformly), else 0.
+      //   - SLIDING corners (e.g. user-marked inflections on the polygon):
+      //     k_C is derived by linearly fitting a "unit-shift" plane through
+      //     the raw corners (subPointIds = 1, others = 0; or all = 1 in
+      //     whole-mode) and evaluating it at the sliding corner's xy. This
+      //     lets walls connected at a sliding corner follow the polygon's
+      //     plane both during the live drag and at commit.
+      //
+      // Coefficients live in `polygonShiftCoeffByPointId` and apply to every
+      // shared corner — raw or sliding — of every connected POLYLINE.
       const isMovedPolygonForPreview = ann.type === "POLYGON";
       const movedAnnTopZByPointId = new Map();
+      const polygonShiftCoeffByPointId = new Map();
       if (isMovedPolygonForPreview) {
         const mh = ann.height ?? 0;
         const mz = ann.offsetZ ?? 0;
+        // 1. Raw corner z + simple k for raw corners. Also collect raw
+        //    pixel-space points for the plane fits below.
+        const baseRender = movedSnapshotRef.current?.baseMapForRender;
+        const imgW = baseRender?.imageWidth || 1;
+        const imgH = baseRender?.imageHeight || 1;
+        const mbpx = baseRender?.meterByPx || null;
+        const isWholeMode = !subPointIds || subPointIds.size === 0;
+        const rawPxPoints = [];
+        const rawUnitPxPoints = [];
         for (const ref of ann.points || []) {
           if (!ref?.id) continue;
-          movedAnnTopZByPointId.set(
-            ref.id,
-            mz + mh + (ref.offsetBottom ?? 0) + (ref.offsetTop ?? 0)
-          );
+          if (ref.isSliding) continue;
+          const z = mz + mh + (ref.offsetBottom ?? 0) + (ref.offsetTop ?? 0);
+          movedAnnTopZByPointId.set(ref.id, z);
+          const inSub = !isWholeMode && subPointIds.has(ref.id);
+          const k = isWholeMode ? 1 : inSub ? 1 : 0;
+          polygonShiftCoeffByPointId.set(ref.id, k);
+          // Pull xy in NORMALIZED units from the snapshot's pointsById.
+          const norm = movedSnapshotRef.current?.pointsById?.get(ref.id);
+          if (norm) {
+            rawPxPoints.push({
+              x: norm.x * imgW,
+              y: norm.y * imgH,
+              offsetTop: ref.offsetTop ?? 0,
+            });
+            rawUnitPxPoints.push({
+              x: norm.x * imgW,
+              y: norm.y * imgH,
+              offsetTop: k,
+            });
+          }
+        }
+        // 2. Plane fits for sliding-corner z + shift coefficient. We fit
+        //    in METERS (meterByPx applied inside getPolygonZPlane) since
+        //    getZAtXY expects pixel coords and applies meterByPx itself.
+        let oldPlane = null;
+        let unitPlane = null;
+        if (mbpx && rawPxPoints.length >= 3) {
+          oldPlane = getPolygonZPlane({ points: rawPxPoints, meterByPx: mbpx });
+          unitPlane = getPolygonZPlane({
+            points: rawUnitPxPoints,
+            meterByPx: mbpx,
+          });
+        }
+        // 3. Sliding corner z + k_C via plane interpolation. Their xy may
+        //    not be in the (stripped) snapshot's pointsById, so we read
+        //    db.points directly.
+        const slidingRefs = (ann.points || []).filter((r) => r?.isSliding);
+        if (slidingRefs.length > 0 && oldPlane && unitPlane && mbpx) {
+          const slidingIds = slidingRefs.map((r) => r.id).filter(Boolean);
+          const slidingPts = await db.points.bulkGet(slidingIds);
+          if (cancelled) return;
+          slidingRefs.forEach((ref, i) => {
+            const pt = slidingPts[i];
+            if (!pt) return;
+            const xPx = pt.x * imgW;
+            const yPx = pt.y * imgH;
+            const planeZ = getZAtXY(oldPlane, xPx, yPx, mbpx);
+            movedAnnTopZByPointId.set(ref.id, mz + mh + planeZ);
+            polygonShiftCoeffByPointId.set(
+              ref.id,
+              getZAtXY(unitPlane, xPx, yPx, mbpx)
+            );
+          });
         }
       }
 
@@ -479,14 +551,23 @@ export default function MoveGizmoThreed() {
         // Restrict shared ids to the intersection of THIS annotation's refs
         // and the global shared set. In sub-selection mode, further restrict
         // to the targeted point ids so only the moved vertex/edge propagates
-        // to neighbors (other shared corners stay put).
+        // to neighbors (other shared corners stay put). For POLYGON-moved
+        // cases the restriction is based on the per-corner polygon shift
+        // coefficient instead: corners with a non-zero coefficient propagate
+        // (this includes sub-targeted raw corners AND any sliding polygon
+        // corner whose z follows the polygon plane).
         const ownIds = new Set(
           (other.points || []).map((p) => p.id).filter(Boolean)
         );
         const localShared = new Set();
         for (const id of sharedPointIds) {
           if (!ownIds.has(id)) continue;
-          if (subPointIds.size > 0 && !subPointIds.has(id)) continue;
+          if (isMovedPolygonForPreview) {
+            const k = polygonShiftCoeffByPointId.get(id);
+            if (k == null || k === 0) continue;
+          } else if (subPointIds.size > 0 && !subPointIds.has(id)) {
+            continue;
+          }
           localShared.add(id);
         }
         if (localShared.size === 0) continue;
@@ -494,9 +575,13 @@ export default function MoveGizmoThreed() {
         // POLYLINE connected to a moved POLYGON: classify each shared
         // corner so the preview AND commit shift the right per-vertex
         // offset (offsetBottom when wall is above, offsetTop when below).
+        // Also build the per-corner shift map so transient + commit can use
+        // the right z-delta at sliding corners.
         let fieldByPointId = null;
+        let shiftCoeffByPointId = null;
         if (isMovedPolygonForPreview && other.type === "POLYLINE") {
           fieldByPointId = new Map();
+          shiftCoeffByPointId = new Map();
           const oh = other.height ?? 0;
           const oz = other.offsetZ ?? 0;
           for (const ref of other.points || []) {
@@ -510,6 +595,10 @@ export default function MoveGizmoThreed() {
               polylineOffsetTop: ref.offsetTop,
             });
             fieldByPointId.set(ref.id, which);
+            shiftCoeffByPointId.set(
+              ref.id,
+              polygonShiftCoeffByPointId.get(ref.id) ?? 0
+            );
           }
         }
 
@@ -520,6 +609,7 @@ export default function MoveGizmoThreed() {
           deltaLocal: { x: 0, y: 0, z: 0 },
           mode: "SHARED_ONLY",
           fieldByPointId,
+          shiftByPointId: null,
         });
         if (transient) {
           parent.add(transient);
@@ -530,6 +620,7 @@ export default function MoveGizmoThreed() {
           snapshot,
           sharedIds: localShared,
           fieldByPointId,
+          shiftCoeffByPointId,
           transientMesh: transient,
         });
       }
@@ -747,12 +838,20 @@ export default function MoveGizmoThreed() {
         disposeMesh(entry.transientMesh);
         entry.transientMesh = null;
       }
+      let shiftByPointId = null;
+      if (entry.shiftCoeffByPointId) {
+        shiftByPointId = new Map();
+        for (const [id, k] of entry.shiftCoeffByPointId.entries()) {
+          shiftByPointId.set(id, k * dn);
+        }
+      }
       const fresh = buildTransientFaceMesh({
         snapshot: entry.snapshot,
         sharedIds: entry.sharedIds,
         deltaLocal,
         mode: "SHARED_ONLY",
         fieldByPointId: entry.fieldByPointId,
+        shiftByPointId,
       });
       if (fresh && entry.parent) {
         entry.parent.add(fresh);
@@ -793,20 +892,27 @@ export default function MoveGizmoThreed() {
     const dyNorm = -deltaLocal.y / (meterByPx * imageSize.height);
     const dz = deltaLocal.z;
 
-    const ownPointIds = (ann.points || []).map((p) => p.id).filter(Boolean);
-    const ownPointIdSet = new Set(ownPointIds);
     const sharedIds = sharedPointIdsRef.current;
     const connectedMap = connectedRef.current;
     const subPointIds = subTargetPointIdsRef.current;
     const isSubMode = subPointIds && subPointIds.size > 0;
 
     await db.transaction("rw", db.points, db.annotations, async () => {
+      // Note: the moved annotation's sliding refs are KEPT — they are used
+      // to identify shared corners with connected polylines (the walls
+      // attached at a sliding corner must follow the polygon plane there).
+      // The polygon's 3D mesh ignores sliding refs (createAnnotationObject3D
+      // strips them), but the data model retains them for propagation.
+
+      const ownPointIds = (ann.points || []).map((p) => p.id).filter(Boolean);
+      const ownPointIdSet = new Set(ownPointIds);
+
       if (isSubMode) {
-        // Sub-selection mode: vertical-only delta on the targeted vertices.
-        // Write per-vertex offsetTop on the moved annotation; do not touch
-        // db.points (XY) or annotation.offsetZ.
+        // Sub-selection mode: vertical-only delta on the targeted RAW
+        // vertices only (subPointIds are picked by the user on the rendered
+        // mesh, which excludes sliding refs — so they are necessarily raw).
         const newOwnPoints = (ann.points || []).map((ref) => {
-          if (subPointIds.has(ref.id)) {
+          if (subPointIds.has(ref.id) && !ref.isSliding) {
             return {
               ...ref,
               offsetTop: roundForDisplay((ref.offsetTop ?? 0) + dz),
@@ -814,12 +920,15 @@ export default function MoveGizmoThreed() {
           }
           return ref;
         });
+        ann.points = newOwnPoints;
         await db.annotations.update(selectedAnnotationId, {
           points: newOwnPoints,
         });
       } else {
-        // 1. Shared db.points get their (x, y) shifted in baseMap-local — both
-        //    the moved annotation and every connected annotation see it.
+        // 1. Shared db.points get their (x, y) shifted in baseMap-local —
+        //    both the moved annotation and every connected annotation see
+        //    it. Sliding refs are part of ownPointIds (they reference real
+        //    db.points), so their xy follows the whole-mode translation too.
         for (const pid of ownPointIds) {
           const pt = await db.points.get(pid);
           if (!pt) continue;
@@ -831,47 +940,44 @@ export default function MoveGizmoThreed() {
 
         // 2. Z absorbed by the moved annotation's offsetZ.
         const nextOffsetZ = roundForDisplay((ann.offsetZ ?? 0) + dz);
+        ann.offsetZ = nextOffsetZ;
         await db.annotations.update(selectedAnnotationId, {
           offsetZ: nextOffsetZ,
         });
       }
 
-      // Per-corner z of the moved annotation's top surface, BEFORE the move
-      // (verticalLift + height + offsetBottom + offsetTop). Used to classify
-      // each connected POLYLINE's wall as ABOVE / BELOW / NEITHER relative
-      // to the moving surface at each shared corner.
-      const movedHeight = ann.height ?? 0;
-      const movedOffsetZ = ann.offsetZ ?? 0;
-      const movedTopZByPointId = new Map();
-      for (const ref of ann.points || []) {
-        if (!ref?.id) continue;
-        movedTopZByPointId.set(
-          ref.id,
-          movedOffsetZ +
-            movedHeight +
-            (ref.offsetBottom ?? 0) +
-            (ref.offsetTop ?? 0)
-        );
-      }
       const isMovedPolygon = ann.type === "POLYGON";
 
       // 3. For each connected annotation: shift the appropriate per-vertex
-      //    offset on SHARED refs by `dz` so the shared corners follow the
-      //    move. In sub-selection mode the propagation is further
-      //    restricted to the targeted point ids.
+      //    offset on every shared corner using the SAME per-corner shift
+      //    coefficient that the live drag used (entry.shiftCoeffByPointId).
       //
-      //    When the moved annotation is a POLYGON and the connected one is
-      //    a POLYLINE, classify each shared corner:
-      //      - wall above the polygon  → shift `offsetBottom` (wall rests
-      //                                   on the floor)
-      //      - wall below the polygon  → shift `offsetTop`    (wall reaches
-      //                                   up to the ceiling)
-      //      - wall straddles the polygon level → skip
-      //    For any other type combination, fall back to the historical
-      //    behaviour (shift `offsetTop`).
+      //    POLYGON-moved + POLYLINE-connected:
+      //      - entry.fieldByPointId tells which field (offsetBottom /
+      //        offsetTop) gets shifted at each shared corner;
+      //      - entry.shiftCoeffByPointId gives k_C so the actual shift is
+      //        k_C * dz (walls connected at a sliding polygon corner follow
+      //        the polygon plane there);
+      //      - "null" classification means the wall straddles the polygon
+      //        level — skip.
+      //    Other type combinations fall back to the historical "offsetTop +=
+      //    dz on subPointIds" behaviour.
       for (const [otherId, entry] of connectedMap.entries()) {
-        const other = await db.annotations.get(otherId);
-        if (!other) continue;
+        const otherRaw = await db.annotations.get(otherId);
+        if (!otherRaw) continue;
+        // Strip auto-managed sliding refs (e.g. inflection points from a
+        // previous slope move) from this connected annotation before
+        // applying shifts. Each commit re-derives them from the raw
+        // underlying geometry.
+        const otherStripped = stripSlidingFromAnnotation(otherRaw);
+        for (const id of otherStripped.strippedIds) {
+          await db.points.delete(id);
+        }
+        const other = {
+          ...otherRaw,
+          points: otherStripped.points,
+          hiddenSegmentsIdx: otherStripped.hiddenSegmentsIdx,
+        };
         const useAboveBelowLogic = isMovedPolygon && other.type === "POLYLINE";
         const otherHeight = other.height ?? 0;
         const otherOffsetZ = other.offsetZ ?? 0;
@@ -881,30 +987,27 @@ export default function MoveGizmoThreed() {
             ownPointIdSet.has(ref.id) &&
             entry.sharedIds.has(ref.id) &&
             (sharedIds.size === 0 || sharedIds.has(ref.id)) &&
-            (!isSubMode || subPointIds.has(ref.id));
+            (useAboveBelowLogic || !isSubMode || subPointIds.has(ref.id));
           if (!shouldPropagate) return ref;
 
           if (useAboveBelowLogic) {
-            const polygonZ = movedTopZByPointId.get(ref.id);
-            const which = classifyPolylineCornerVsPolygonZ({
-              polygonZ,
-              polylineOffsetZ: otherOffsetZ,
-              polylineHeight: otherHeight,
-              polylineOffsetBottom: ref.offsetBottom,
-              polylineOffsetTop: ref.offsetTop,
-            });
-            if (which === "BOTTOM") {
+            const which = entry.fieldByPointId?.get(ref.id) ?? null;
+            const k = entry.shiftCoeffByPointId?.get(ref.id) ?? 0;
+            const localDz = k * dz;
+            if (which === "BOTTOM" && Math.abs(localDz) > 1e-9) {
               touched = true;
               return {
                 ...ref,
-                offsetBottom: roundForDisplay((ref.offsetBottom ?? 0) + dz),
+                offsetBottom: roundForDisplay(
+                  (ref.offsetBottom ?? 0) + localDz
+                ),
               };
             }
-            if (which === "TOP") {
+            if (which === "TOP" && Math.abs(localDz) > 1e-9) {
               touched = true;
               return {
                 ...ref,
-                offsetTop: roundForDisplay((ref.offsetTop ?? 0) + dz),
+                offsetTop: roundForDisplay((ref.offsetTop ?? 0) + localDz),
               };
             }
             return ref;
@@ -916,21 +1019,27 @@ export default function MoveGizmoThreed() {
             offsetTop: roundForDisplay((ref.offsetTop ?? 0) + dz),
           };
         });
-        if (!touched) continue;
+        if (!touched) {
+          // Even when no shift was applied this turn, persist the stripped
+          // state so any previously-auto-added sliding refs are gone.
+          if (otherStripped.strippedIds.length > 0) {
+            await db.annotations.update(otherId, {
+              points: other.points,
+              hiddenSegmentsIdx: other.hiddenSegmentsIdx,
+            });
+          }
+          continue;
+        }
 
         // For connected POLYLINE walls only: if the new offsetBottom values
         // pushed any segment into a "negative span" state (wall top below
         // wall bottom), split the polyline at the inflection point and mark
         // the now-invisible portion as hidden via hiddenSegmentsIdx. New
-        // intersection vertices are persisted in db.points so they show up
-        // in 2D as well.
+        // intersection vertices are persisted in db.points and tagged
+        // `isSliding: true` on the refs so subsequent commits know they are
+        // auto-managed.
         if (useAboveBelowLogic) {
           const closeLine = !!other.closeLine;
-          // Fetch fresh XY for every point in the post-shift polyline.
-          // In sub-mode db.points are NOT shifted, so the snapshot values
-          // (loaded at move-mode entry) are still valid; in whole-mode the
-          // shifted shared corners have just been updated above, so we
-          // re-fetch from db.points to use the post-shift XY.
           const ids = newPoints.map((r) => r.id).filter(Boolean);
           const fetched = await db.points.bulkGet(ids);
           const pointsById = new Map();
@@ -954,17 +1063,18 @@ export default function MoveGizmoThreed() {
           });
           for (const pt of split.pointsToAdd) {
             await db.points.add(pt);
+            // Also remember its (x, y) for the polygon-integration step.
+            pointsById.set(pt.id, { x: pt.x, y: pt.y });
           }
-          if (split.changed) {
-            await db.annotations.update(otherId, {
-              points: split.refs,
-              hiddenSegmentsIdx: split.hiddenSegmentsIdx,
-            });
-          } else {
-            await db.annotations.update(otherId, { points: split.refs });
-          }
+          await db.annotations.update(otherId, {
+            points: split.refs,
+            hiddenSegmentsIdx: split.hiddenSegmentsIdx,
+          });
         } else {
-          await db.annotations.update(otherId, { points: newPoints });
+          await db.annotations.update(otherId, {
+            points: newPoints,
+            hiddenSegmentsIdx: other.hiddenSegmentsIdx,
+          });
         }
       }
     });

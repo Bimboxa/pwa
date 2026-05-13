@@ -114,6 +114,7 @@ export default function splitPolylineAtSpanInversions({
       id: factoryResult.id,
       offsetTop: otMid,
       offsetBottom: obMid,
+      isSliding: true,
     });
     inserted += 1;
     // Segment splits into newSegIdx (a → mid) and newSegIdx + 1 (mid → b).

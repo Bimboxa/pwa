@@ -8,6 +8,7 @@ import {
   expandArcsInPath,
   expandArcsInPathWithHiddenMap,
 } from "Features/geometry/utils/arcSampling";
+import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
 
 // Match the codebase convention used by other arc-aware paths.
 const GUIDE_ARC_SAMPLES = 6;
@@ -194,6 +195,25 @@ function extrudeWallPolygon(
 
 export default function createAnnotationObject3D(annotation, baseMap, options) {
   if (!annotation || !baseMap) return null;
+
+  // Strip auto-generated "sliding" refs from the outer contour (and remap
+  // hiddenSegmentsIdx), then strip them from cuts / innerPoints inline. The
+  // 3D mesh always operates on the underlying raw geometry — sliding refs
+  // are decorations re-derived at commit time and must not feed into mesh
+  // construction (this also keeps sub-mode mesh modifications stable when
+  // adjacent segments carry sliding points).
+  const stripped = stripSlidingFromAnnotation(annotation);
+  const filterSliding = (refs) => (refs || []).filter((r) => !r?.isSliding);
+  annotation = {
+    ...annotation,
+    points: stripped.points,
+    hiddenSegmentsIdx: stripped.hiddenSegmentsIdx,
+    cuts: (annotation.cuts || []).map((cut) => ({
+      ...cut,
+      points: filterSliding(cut?.points),
+    })),
+    innerPoints: filterSliding(annotation.innerPoints),
+  };
 
   const shape3DKey = getShape3DKey(annotation.shape3D);
   if (shape3DKey !== null && shape3DKey !== "EXTRUSION_PROFILE") {
