@@ -81,6 +81,19 @@ const mapEditorInitialState = {
   fixedLength: null,
   fixedDims: null, // "x; y"
 
+  // Rectangle X/Y typed-dimensions (keyboard-driven during RECTANGLE drawing,
+  // displayed in the bottom-bar which lives outside the per-viewer providers,
+  // so the state is in Redux rather than DrawingMetricsContext).
+  rectXBuffer: "",
+  rectYBuffer: "",
+  rectCurrentAxis: null, // 'x' | 'y' | null
+  rectHasFirstPoint: false,
+
+  // Segment-length constraint buffer (digits typed while drawing CLICK /
+  // POLYLINE_CLICK / etc.). Mirrors the previous DrawingMetricsContext
+  // state — moved to Redux so the bottom bar can read it.
+  constraintBuffer: "",
+
   // last selected drawing tool per annotation template / tool type
   selectedToolKeyByTemplateId: {}, // { [templateId|toolType]: toolKey }
 
@@ -339,6 +352,61 @@ export const mapEditorSlice = createSlice({
       state.fixedDims = action.payload;
     },
 
+    // rectangle typed X/Y dimensions
+    setRectXBuffer: (state, action) => {
+      state.rectXBuffer = action.payload;
+    },
+    setRectYBuffer: (state, action) => {
+      state.rectYBuffer = action.payload;
+    },
+    appendToRectXBuffer: (state, action) => {
+      state.rectXBuffer = state.rectXBuffer + action.payload;
+    },
+    appendToRectYBuffer: (state, action) => {
+      state.rectYBuffer = state.rectYBuffer + action.payload;
+    },
+    deleteLastRectXBuffer: (state) => {
+      state.rectXBuffer = state.rectXBuffer.slice(0, -1);
+    },
+    deleteLastRectYBuffer: (state) => {
+      state.rectYBuffer = state.rectYBuffer.slice(0, -1);
+    },
+    toggleRectXBufferSign: (state) => {
+      state.rectXBuffer = state.rectXBuffer.startsWith("-")
+        ? state.rectXBuffer.slice(1)
+        : "-" + state.rectXBuffer;
+    },
+    toggleRectYBufferSign: (state) => {
+      state.rectYBuffer = state.rectYBuffer.startsWith("-")
+        ? state.rectYBuffer.slice(1)
+        : "-" + state.rectYBuffer;
+    },
+    setRectCurrentAxis: (state, action) => {
+      state.rectCurrentAxis = action.payload;
+    },
+    setRectHasFirstPoint: (state, action) => {
+      state.rectHasFirstPoint = action.payload;
+    },
+    clearRectDims: (state) => {
+      state.rectXBuffer = "";
+      state.rectYBuffer = "";
+      state.rectCurrentAxis = null;
+    },
+
+    // segment-length constraint buffer
+    setConstraintBuffer: (state, action) => {
+      state.constraintBuffer = action.payload;
+    },
+    appendToConstraintBuffer: (state, action) => {
+      state.constraintBuffer = state.constraintBuffer + action.payload;
+    },
+    deleteLastConstraintBuffer: (state) => {
+      state.constraintBuffer = state.constraintBuffer.slice(0, -1);
+    },
+    clearConstraintBuffer: (state) => {
+      state.constraintBuffer = "";
+    },
+
     // selected tool per template
     setSelectedToolKeyForTemplate: (state, action) => {
       const { templateId, toolKey } = action.payload;
@@ -466,6 +534,25 @@ export const {
   // fixed
   setFixedLength,
   setFixedDims,
+
+  // rectangle typed X/Y dimensions
+  setRectXBuffer,
+  setRectYBuffer,
+  appendToRectXBuffer,
+  appendToRectYBuffer,
+  deleteLastRectXBuffer,
+  deleteLastRectYBuffer,
+  toggleRectXBufferSign,
+  toggleRectYBufferSign,
+  setRectCurrentAxis,
+  setRectHasFirstPoint,
+  clearRectDims,
+
+  // segment-length constraint buffer
+  setConstraintBuffer,
+  appendToConstraintBuffer,
+  deleteLastConstraintBuffer,
+  clearConstraintBuffer,
 
   // rectangle
   setDrawingRectanglePoints,

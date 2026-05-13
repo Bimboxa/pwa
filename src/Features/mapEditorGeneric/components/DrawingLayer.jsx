@@ -9,6 +9,7 @@ import React, {
 
 import { getCircleFrom3Points } from "Features/geometry/utils/getPolylinePointsFromCircle";
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
+import { useDrawingMetrics } from "App/contexts/DrawingMetricsContext";
 
 // Compute offset polyline with proper miter joints at corners
 function offsetPolyline(pts, distance) {
@@ -117,6 +118,11 @@ const DrawingLayer = forwardRef(
     const orthoSnapAngleOffsetRef = useRef(orthoSnapAngleOffset);
     orthoSnapAngleOffsetRef.current = orthoSnapAngleOffset;
 
+    // Rectangle typed X/Y dimensions (in meters) — optional, only set when the
+    // map editor is wrapped in <DrawingMetricsProvider> (V3 pipeline).
+    const drawingMetrics = useDrawingMetrics();
+    const rectMetricsRef = drawingMetrics?.rectMetricsRef;
+
     const { strokeColor, fillColor, type } = newAnnotation || {};
 
     // Détection des types
@@ -163,12 +169,26 @@ const DrawingLayer = forwardRef(
 
           const angle = orthoSnapAngleOffsetRef.current || 0;
 
+          // Typed X/Y dimensions override (in meters → image pixels)
+          const metrics = rectMetricsRef?.current;
+          const mbp = meterByPxRef.current;
+          const hasScale = Number.isFinite(mbp) && mbp > 0;
+          const mPerPx = hasScale ? mbp : 1;
+          const forcedDx =
+            metrics?.rectX != null ? metrics.rectX / mPerPx : null;
+          const forcedDy =
+            metrics?.rectY != null ? metrics.rectY / mPerPx : null;
+
           if (angle === 0) {
             // Axis-aligned rectangle (original behavior)
-            const x = Math.min(lastPoint.x, cursorPos.x);
-            const y = Math.min(lastPoint.y, cursorPos.y);
-            const width = Math.abs(cursorPos.x - lastPoint.x);
-            const height = Math.abs(cursorPos.y - lastPoint.y);
+            const cx =
+              forcedDx != null ? lastPoint.x + forcedDx : cursorPos.x;
+            const cy =
+              forcedDy != null ? lastPoint.y + forcedDy : cursorPos.y;
+            const x = Math.min(lastPoint.x, cx);
+            const y = Math.min(lastPoint.y, cy);
+            const width = Math.abs(cx - lastPoint.x);
+            const height = Math.abs(cy - lastPoint.y);
             previewRectRef.current.setAttribute(
               "points",
               `${x},${y} ${x + width},${y} ${x + width},${y + height} ${x},${y + height}`
@@ -183,9 +203,9 @@ const DrawingLayer = forwardRef(
             const dx = cursorPos.x - lastPoint.x;
             const dy = cursorPos.y - lastPoint.y;
 
-            // Project diagonal onto the two grid axes
-            const d1 = dx * ax1.x + dy * ax1.y;
-            const d2 = dx * ax2.x + dy * ax2.y;
+            // Project diagonal onto the two grid axes (overrideable per axis)
+            const d1 = forcedDx != null ? forcedDx : dx * ax1.x + dy * ax1.y;
+            const d2 = forcedDy != null ? forcedDy : dx * ax2.x + dy * ax2.y;
 
             // 4 corners: A, B, C (=cursor projected), D
             const A = lastPoint;

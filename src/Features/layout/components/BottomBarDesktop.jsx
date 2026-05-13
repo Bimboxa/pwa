@@ -9,6 +9,29 @@ import useHelperMessageInBottomBar from "Features/mapEditor/hooks/useHelperMessa
 import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
 import ButtonsKrto from "Features/krtoFile/components/ButtonsKrto";
 import SwitchCoupledNavigation from "Features/layout/components/SwitchCoupledNavigation";
+import RectangleDimsBottomBar from "Features/annotations/components/RectangleDimsBottomBar";
+import SegmentLengthBottomBar from "Features/annotations/components/SegmentLengthBottomBar";
+
+// Drawing modes that surface a dedicated bottom-bar UI (and hide the regular
+// bottom-bar items so they don't compete for space).
+const RECTANGLE_DRAWING_MODES = [
+  "RECTANGLE",
+  "POLYLINE_RECTANGLE",
+  "POLYGON_RECTANGLE",
+  "CUT_RECTANGLE",
+];
+
+// Modes that produce segments and support length display / constraint.
+const SEGMENT_DRAWING_MODES = [
+  "CLICK",
+  "POLYLINE_CLICK",
+  "POLYGON_CLICK",
+  "CUT_CLICK",
+  "SPLIT_CLICK",
+  "STRIP",
+  "MEASURE",
+  "COMPLETE_ANNOTATION",
+];
 
 export default function BottomBarDesktop() {
   // data
@@ -16,6 +39,39 @@ export default function BottomBarDesktop() {
   const height = useSelector((s) => s.layout.bottomBarHeightDesktop);
   const helperMessage = useHelperMessageInBottomBar();
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const enabledDrawingMode = useSelector(
+    (s) => s.mapEditor.enabledDrawingMode
+  );
+
+  // helpers
+
+  const showRectangleDims =
+    RECTANGLE_DRAWING_MODES.includes(enabledDrawingMode);
+  const showSegmentLength =
+    SEGMENT_DRAWING_MODES.includes(enabledDrawingMode);
+  const showDrawingBar = showRectangleDims || showSegmentLength;
+
+  // render
+
+  if (showDrawingBar) {
+    return (
+      <Box
+        sx={{
+          bgcolor: "white",
+          borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+          height,
+          minHeight: height,
+          display: "flex",
+          alignItems: "center",
+          zIndex: 100,
+          px: 0.5,
+        }}
+      >
+        {showRectangleDims && <RectangleDimsBottomBar />}
+        {showSegmentLength && <SegmentLengthBottomBar />}
+      </Box>
+    );
+  }
 
   return (
     <Box
