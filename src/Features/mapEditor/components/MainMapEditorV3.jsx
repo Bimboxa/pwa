@@ -376,7 +376,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     _track("legendItems.length", legendItems?.length);
     const newEntity = useNewEntity();
     _track("newEntity", newEntity);
-    const { handleDrawingCommit: _handleCommitDrawing } = useHandleCommitDrawing({ newEntity });
+    const { handleDrawingCommit: _handleCommitDrawing } = useHandleCommitDrawing({ newEntity, annotations });
     const updateAnnotation = useUpdateAnnotation();
     const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit({ newEntity });
     const handleCutSegment = useHandleCutSegment({ newEntity });

@@ -91,6 +91,7 @@ import {
   setSelectedToolKeyForTemplate,
   setAutoMergeOnCommit,
   setAutoOffsetsOnCommit,
+  setAvoidVisibleAnnotationsOnCommit,
 } from "Features/mapEditor/mapEditorSlice";
 import WarningAmber from "@mui/icons-material/WarningAmber";
 
@@ -1361,11 +1362,18 @@ function PopperDrawingHelper() {
   const autoOffsetsOnCommit = useSelector(
     (s) => s.mapEditor.autoOffsetsOnCommit
   );
+  const avoidVisibleAnnotationsOnCommit = useSelector(
+    (s) => s.mapEditor.avoidVisibleAnnotationsOnCommit
+  );
   const isSegmentSelectMode = SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
   const showSmartDetectCard = SMART_DETECT_CAPABLE_MODES.includes(enabledDrawingMode);
   const showOrientation = ORIENTATION_CAPABLE_MODES.includes(enabledDrawingMode);
   const showAutoMerge = enabledDrawingMode === "POLYGON_RECTANGLE";
   const showAutoOffsets = enabledDrawingMode === "POLYGON_CLICK";
+  const showAvoidVisibleAnnotations =
+    enabledDrawingMode === "POLYGON_RECTANGLE" ||
+    enabledDrawingMode === "POLYGON_CLICK" ||
+    enabledDrawingMode === "SURFACE_DROP";
 
   // Kept for future use (e.g. to conditionally show helper UI per target).
   // Referenced here so the helper stays imported by the component.
@@ -1466,6 +1474,31 @@ function PopperDrawingHelper() {
               size="small"
               checked={Boolean(autoMergeOnCommit)}
               onChange={(e) => dispatch(setAutoMergeOnCommit(e.target.checked))}
+            />
+          </Paper>
+        )}
+        {showAvoidVisibleAnnotations && (
+          <Paper
+            elevation={0}
+            sx={{
+              px: 1,
+              py: 0.5,
+              bgcolor: "background.default",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+            }}
+          >
+            <Typography variant="caption" color="text.secondary">
+              Eviter les annotations visibles
+            </Typography>
+            <Switch
+              size="small"
+              checked={Boolean(avoidVisibleAnnotationsOnCommit)}
+              onChange={(e) =>
+                dispatch(setAvoidVisibleAnnotationsOnCommit(e.target.checked))
+              }
             />
           </Paper>
         )}

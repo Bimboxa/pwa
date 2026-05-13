@@ -1,3 +1,5 @@
+import { useRef } from "react";
+
 import { nanoid } from "@reduxjs/toolkit";
 
 import { useSelector, useDispatch } from "react-redux";
@@ -20,10 +22,11 @@ import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
 import getAnnotationBBox from "Features/annotations/utils/getAnnotationBbox";
 import mergePolygonAnnotationsService from "Features/annotations/services/mergePolygonAnnotationsService";
+import avoidVisibleAnnotationsService from "Features/annotations/services/avoidVisibleAnnotationsService";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
 
 
-export default function useHandleCommitDrawing({ newEntity } = {}) {
+export default function useHandleCommitDrawing({ newEntity, annotations } = {}) {
 
     // dispatch
 
@@ -38,7 +41,16 @@ export default function useHandleCommitDrawing({ newEntity } = {}) {
     const openedPanel = useSelector(s => s.listings.openedPanel);
     const autoMergeOnCommit = useSelector(s => s.mapEditor.autoMergeOnCommit);
     const autoOffsetsOnCommit = useSelector(s => s.mapEditor.autoOffsetsOnCommit);
+    const avoidVisibleAnnotationsOnCommit = useSelector(s => s.mapEditor.avoidVisibleAnnotationsOnCommit);
     const enabledDrawingMode = useSelector(s => s.mapEditor.enabledDrawingMode);
+
+    // Visible annotations come from useAnnotationsV2 in the caller — that's
+    // the single source of truth for what "visible" means (soft-delete,
+    // layer/template/listing visibility, solo mode, baseMap filter).
+    // The avoid-visible-annotations feature only adds an annotationTemplateId
+    // filter on top.
+    const annotationsRef = useRef(annotations);
+    annotationsRef.current = annotations;
     // Vertical offset set from the 3D editor's basemap-position panel and
     // synced across tabs by syncTabsMiddleware. Applied to the new annotation
     // unless the auto-offsets pass already computed a value (which wins so
@@ -520,6 +532,160 @@ export default function useHandleCommitDrawing({ newEntity } = {}) {
             }
         }
 
+
+        // Avoid visible annotations: subtract every visible different-template
+        // annotation from the drawn POLYGON. Outer overlaps modify the
+        // contour; fully enclosed clips become cuts. POLYLINE/STRIP candidates
+        // are polygonized via getAnnotationAsPolygons (band of width strokeWidth).
+        const shouldAvoid = (
+            avoidVisibleAnnotationsOnCommit &&
+            ["POLYGON_RECTANGLE", "POLYGON_CLICK", "SURFACE_DROP"].includes(enabledDrawingMode) &&
+            _newAnnotation?.type === "POLYGON" &&
+            _newAnnotation?.annotationTemplateId &&
+            !_updatedAnnotation &&
+            !isBaseMapAnnotation &&
+            width && height
+        );
+
+        if (shouldAvoid) {
+            // Source candidates from useAnnotationsV2 (visible-filtered list
+            // passed in by MainMapEditorV3). The only additional filter we
+            // apply is `annotationTemplateId` mismatch.
+            const visibleAnnotations = annotationsRef.current ?? [];
+            const candidateRaws = visibleAnnotations.filter((a) =>
+                a &&
+                a.id !== _newAnnotation.id &&
+                a.baseMapId === _newAnnotation.baseMapId &&
+                a.annotationTemplateId &&
+                a.annotationTemplateId !== _newAnnotation.annotationTemplateId &&
+                ["POLYGON", "POLYLINE", "STRIP"].includes(a.type)
+            );
+
+            if (candidateRaws.length > 0) {
+                const pointIds = new Set();
+                for (const a of candidateRaws) {
+                    (a.points ?? []).forEach((p) => p?.id && pointIds.add(p.id));
+                    (a.cuts ?? []).forEach((c) =>
+                        c.points?.forEach((p) => p?.id && pointIds.add(p.id))
+                    );
+                }
+                const pointsArr = await db.points.bulkGet([...pointIds]);
+                const pointsIndex = {};
+                for (const p of pointsArr) if (p) pointsIndex[p.id] = p;
+
+                const imageSize = { width, height };
+                const resolveAnnotation = (a) => ({
+                    ...a,
+                    points: resolvePoints({ points: a.points, pointsIndex, imageSize }),
+                    cuts: resolveCuts({ cuts: a.cuts, pointsIndex, imageSize }) ?? a.cuts,
+                });
+
+                // Build drawn shape in pixel space from in-memory rawPoints / finalPointIds.
+                const drawnPoints = (_newAnnotation.points ?? [])
+                    .map((p, i) => ({ id: p.id, x: rawPoints[i]?.x, y: rawPoints[i]?.y }))
+                    .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+
+                let drawnCuts = [];
+                if (_newAnnotation.cuts && _newAnnotation.cuts.length > 0) {
+                    const cutPtIds = new Set();
+                    for (const c of _newAnnotation.cuts) {
+                        (c.points ?? []).forEach((p) => p?.id && cutPtIds.add(p.id));
+                    }
+                    const cutPtsArr = await db.points.bulkGet([...cutPtIds]);
+                    const cutPtsIndex = {};
+                    for (const p of cutPtsArr) if (p) cutPtsIndex[p.id] = p;
+                    drawnCuts = _newAnnotation.cuts.map((c) => ({
+                        ...c,
+                        points: (c.points ?? [])
+                            .map((ref) => {
+                                const stored = cutPtsIndex[ref.id];
+                                if (!stored) return null;
+                                return { id: ref.id, x: stored.x * width, y: stored.y * height };
+                            })
+                            .filter(Boolean),
+                    }));
+                }
+
+                const drawnShape = { points: drawnPoints, cuts: drawnCuts };
+                const drawnBbox = getAnnotationBBox(drawnShape);
+
+                if (drawnBbox && drawnPoints.length >= 3) {
+                    const TOL = 2;
+                    const candidatesResolved = candidateRaws
+                        .map(resolveAnnotation)
+                        .filter((a) => {
+                            const bb = getAnnotationBBox(a);
+                            if (!bb) return false;
+                            return (
+                                bb.x + bb.width >= drawnBbox.x - TOL &&
+                                bb.x <= drawnBbox.x + drawnBbox.width + TOL &&
+                                bb.y + bb.height >= drawnBbox.y - TOL &&
+                                bb.y <= drawnBbox.y + drawnBbox.height + TOL
+                            );
+                        });
+
+                    if (candidatesResolved.length > 0) {
+                        const carved = avoidVisibleAnnotationsService({
+                            drawnShape,
+                            candidates: candidatesResolved,
+                            baseMap,
+                        });
+
+                        if (carved.consumed) {
+                            // Drawn polygon fully consumed → skip the commit.
+                            return;
+                        }
+
+                        // Rebuild point-id refs: reuse existing drawn-point ids when
+                        // geometry matches; mint new ids (and save to db.points) for
+                        // boolean-intersection vertices.
+                        const keyOf = (x, y) =>
+                            `${Math.round(x * 100) / 100},${Math.round(y * 100) / 100}`;
+                        const drawnPxLookup = new Map();
+                        for (const p of drawnPoints) drawnPxLookup.set(keyOf(p.x, p.y), p.id);
+                        for (const c of drawnCuts) {
+                            for (const p of (c.points ?? [])) {
+                                if (p?.id) drawnPxLookup.set(keyOf(p.x, p.y), p.id);
+                            }
+                        }
+
+                        const carvedPointsToSave = [];
+                        const findOrMint = (px) => {
+                            const k = keyOf(px.x, px.y);
+                            const existing = drawnPxLookup.get(k);
+                            if (existing) return { id: existing };
+                            const newId = nanoid();
+                            carvedPointsToSave.push({
+                                id: newId,
+                                x: px.x / width,
+                                y: px.y / height,
+                                baseMapId,
+                                projectId,
+                                listingId,
+                            });
+                            drawnPxLookup.set(k, newId);
+                            return { id: newId };
+                        };
+
+                        const newPointsRefs = (carved.points ?? []).map(findOrMint);
+                        const newCutsRefs = (carved.cuts ?? []).map((c) => {
+                            const ref = { id: c.id, points: (c.points ?? []).map(findOrMint) };
+                            if (c.label != null) ref.label = c.label;
+                            if (c.type != null) ref.type = c.type;
+                            if (c.hiddenSegmentsIdx != null) ref.hiddenSegmentsIdx = c.hiddenSegmentsIdx;
+                            return ref;
+                        });
+
+                        if (carvedPointsToSave.length > 0) {
+                            await db.points.bulkAdd(carvedPointsToSave);
+                        }
+
+                        _newAnnotation.points = newPointsRefs;
+                        _newAnnotation.cuts = newCutsRefs;
+                    }
+                }
+            }
+        }
 
 
         // Mise à jour Optimiste Redux
