@@ -72,7 +72,6 @@ import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
 import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import getEffectiveDetectionMode from "Features/mapEditor/utils/getEffectiveDetectionMode";
-import SectionSegmentLength from "Features/annotations/components/SectionSegmentLength";
 import SectionLayers from "Features/layers/components/SectionLayers";
 import {
   setShowLayers,
@@ -1329,12 +1328,6 @@ function ListingRow({
 // Modes that select existing geometry — no smart detect needed
 const SEGMENT_SELECT_MODES = ["TECHNICAL_RETURN", "CUT_SEGMENT", "SPLIT_POLYLINE"];
 
-// Modes that produce segments and support length display / constraint
-const SEGMENT_DRAWING_MODES = [
-  "CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK",
-  "STRIP", "MEASURE", "COMPLETE_ANNOTATION",
-];
-
 // Modes where the "Détection auto" card makes sense — the base drawing
 // tool has a backing detection algorithm (see getEffectiveDetectionMode).
 const SMART_DETECT_CAPABLE_MODES = [
@@ -1369,7 +1362,6 @@ function PopperDrawingHelper() {
     (s) => s.mapEditor.autoOffsetsOnCommit
   );
   const isSegmentSelectMode = SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
-  const showSegmentLength = SEGMENT_DRAWING_MODES.includes(enabledDrawingMode);
   const showSmartDetectCard = SMART_DETECT_CAPABLE_MODES.includes(enabledDrawingMode);
   const showOrientation = ORIENTATION_CAPABLE_MODES.includes(enabledDrawingMode);
   const showAutoMerge = enabledDrawingMode === "POLYGON_RECTANGLE";
@@ -1454,7 +1446,6 @@ function PopperDrawingHelper() {
           <CardSmartDetect showOrientation={showOrientation} />
         )}
         {enabledDrawingMode === "SURFACE_DROP" && <SectionSurfaceDropOptions />}
-        {showSegmentLength && <SectionSegmentLength />}
         {showAutoMerge && (
           <Paper
             elevation={0}

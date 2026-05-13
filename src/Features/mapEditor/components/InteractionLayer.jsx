@@ -292,7 +292,23 @@ const InteractionLayer = forwardRef(({
   const convexHullEnabled = useSelector((s) => s.smartDetect.convexHull);
   const visibleAreaOnly = useSelector((s) => s.smartDetect.visibleAreaOnly);
   const { zoomContainer } = useSmartZoom();
-  const { segmentLengthPxRef, constraintBuffer, appendToBuffer, deleteFromBuffer, clearBuffer } = useDrawingMetrics();
+  const {
+    segmentLengthPxRef,
+    constraintBuffer,
+    appendToBuffer,
+    deleteFromBuffer,
+    clearBuffer,
+    rectX,
+    rectY,
+    rectMetricsRef,
+    rectCurrentAxisRef,
+    setRectHasFirstPoint,
+    setRectAxis,
+    appendToRectBuffer,
+    toggleRectBufferSign,
+    deleteFromRectBuffer,
+    clearRectBuffers,
+  } = useDrawingMetrics();
 
   const fixedLength = useSelector((s) => s.mapEditor.fixedLength);
   const fixedLengthRef = useRef(fixedLength);
@@ -318,6 +334,19 @@ const InteractionLayer = forwardRef(({
     clearBuffer();
     dispatch(setFixedLength(null));
   }, [enabledDrawingMode, clearBuffer, dispatch]);
+
+  // Clear rectangle X/Y typed buffers when drawing mode changes
+  useEffect(() => {
+    clearRectBuffers();
+  }, [enabledDrawingMode, clearRectBuffers]);
+
+  // Re-trigger preview when typed X/Y dimensions change so the rectangle
+  // adopts the typed value without requiring a mouse move.
+  useEffect(() => {
+    if (lastPreviewPosRef.current && drawingLayerRef.current) {
+      drawingLayerRef.current.updatePreview(lastPreviewPosRef.current);
+    }
+  }, [rectX, rectY]);
 
   // Re-computes smartDetectionPresent from the three detection refs and
   // dispatches only when the aggregate boolean changes (dedup).
@@ -1527,6 +1556,20 @@ const InteractionLayer = forwardRef(({
     lastSmartROI,
   });
 
+  // Track whether the first rectangle corner has been placed (for the
+  // RectangleDimsBottomBar to switch between its prompt and its dimensions UI).
+  // Placed here (after useDrawingCommit) so `drawingPoints` is in scope for the
+  // dependency array — referencing it earlier would hit the const TDZ.
+  useEffect(() => {
+    const isRect = [
+      "RECTANGLE",
+      "POLYLINE_RECTANGLE",
+      "POLYGON_RECTANGLE",
+      "CUT_RECTANGLE",
+    ].includes(enabledDrawingMode);
+    setRectHasFirstPoint(isRect && drawingPoints.length === 1);
+  }, [enabledDrawingMode, drawingPoints.length, setRectHasFirstPoint]);
+
   const saveTempAnnotations = useSaveTempAnnotations();
 
   // COMPLETE_ANNOTATION state
@@ -1735,6 +1778,94 @@ const InteractionLayer = forwardRef(({
 
       if (e.repeat) return;
 
+      // --- Rectangle typed X/Y dimensions (after first corner placed) ---
+      // Window-scoped listener — only the active viewer should react,
+      // otherwise duplicate viewers (e.g. main + BASE_MAPS) double-capture each key.
+      const isRectangleSecondPhase =
+        isActiveViewerRef.current &&
+        ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode) &&
+        drawingPointsRef.current?.length === 1;
+
+      if (isRectangleSecondPhase && e.key !== "Escape") {
+        // Axis switching (also resets the targeted buffer)
+        if (e.key === "x" || e.key === "X") {
+          e.preventDefault();
+          setRectAxis("x");
+          return;
+        }
+        if (e.key === "y" || e.key === "Y") {
+          e.preventDefault();
+          setRectAxis("y");
+          return;
+        }
+        // The remaining keys only act when an axis is currently selected
+        if (rectCurrentAxisRef.current) {
+          // Sign toggle
+          if (e.key === "-") {
+            e.preventDefault();
+            toggleRectBufferSign();
+            return;
+          }
+          // Digit / dot / comma → append to current axis buffer
+          if (/^[0-9.,]$/.test(e.key)) {
+            e.preventDefault();
+            appendToRectBuffer(e.key === "," ? "." : e.key);
+            return;
+          }
+          // Backspace → erase last char of current axis buffer
+          if (e.key === "Backspace") {
+            e.preventDefault();
+            deleteFromRectBuffer();
+            return;
+          }
+          // Space → silent separator
+          if (e.key === " ") {
+            e.preventDefault();
+            return;
+          }
+        }
+        // Enter → commit with typed dims (missing axis falls back to mouse)
+        if (e.key === "Enter") {
+          const metrics = rectMetricsRef.current || {};
+          if (metrics.rectX != null || metrics.rectY != null) {
+            e.preventDefault();
+            const lastPoint = drawingPointsRef.current[0];
+            const mbp = meterByPxRef.current;
+            const hasScale = Number.isFinite(mbp) && mbp > 0;
+            const mPerPx = hasScale ? mbp : 1;
+            const fallbackPos = lastPreviewPosRef.current || lastPoint;
+            const angleDeg = orthoSnapAngleOffsetRef.current || 0;
+            let finalPos;
+            if (angleDeg === 0) {
+              finalPos = {
+                x: metrics.rectX != null ? lastPoint.x + metrics.rectX / mPerPx : fallbackPos.x,
+                y: metrics.rectY != null ? lastPoint.y + metrics.rectY / mPerPx : fallbackPos.y,
+              };
+            } else {
+              const theta = (-angleDeg * Math.PI) / 180;
+              const cos = Math.cos(theta);
+              const sin = Math.sin(theta);
+              const fdx = fallbackPos.x - lastPoint.x;
+              const fdy = fallbackPos.y - lastPoint.y;
+              const projX = fdx * cos + fdy * sin;
+              const projY = -fdx * sin + fdy * cos;
+              const dx_local = metrics.rectX != null ? metrics.rectX / mPerPx : projX;
+              const dy_local = metrics.rectY != null ? metrics.rectY / mPerPx : projY;
+              finalPos = {
+                x: lastPoint.x + dx_local * cos - dy_local * sin,
+                y: lastPoint.y + dx_local * sin + dy_local * cos,
+              };
+            }
+            const nextPoints = [lastPoint, finalPos];
+            setDrawingPoints(nextPoints);
+            drawingPointsRef.current = nextPoints;
+            commitPolyline();
+            clearRectBuffers();
+            return;
+          }
+        }
+      }
+
       switch (e.key) {
         // 1. ESCAPE : Reset Selection
         case 'Escape':
@@ -1764,6 +1895,7 @@ const InteractionLayer = forwardRef(({
 
           // setSelectedPointId(null); // Removed
           resetNewAnnotation();
+          clearRectBuffers();
           dispatch(setEnabledDrawingMode(null));
           dispatch(clearSelection()); // Replaces setSelectedNode(null) etc.
           // dispatch(setSelectedNode(null)); 
@@ -2556,6 +2688,37 @@ const InteractionLayer = forwardRef(({
         });
       }
 
+      // Apply rectangle X/Y typed-dimensions override for the second point
+      const isRectangleMode = ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode);
+      if (isRectangleMode && drawingPoints.length === 1) {
+        const metrics = rectMetricsRef.current || {};
+        if (metrics.rectX != null || metrics.rectY != null) {
+          const lastPoint = drawingPoints[0];
+          const mbp = meterByPxRef.current;
+          const hasScale = Number.isFinite(mbp) && mbp > 0;
+          const mPerPx = hasScale ? mbp : 1;
+          const angleDeg = orthoSnapAngleOffsetRef.current || 0;
+          if (angleDeg === 0) {
+            if (metrics.rectX != null) finalPos = { ...finalPos, x: lastPoint.x + metrics.rectX / mPerPx };
+            if (metrics.rectY != null) finalPos = { ...finalPos, y: lastPoint.y + metrics.rectY / mPerPx };
+          } else {
+            const theta = (-angleDeg * Math.PI) / 180;
+            const cos = Math.cos(theta);
+            const sin = Math.sin(theta);
+            const fdx = finalPos.x - lastPoint.x;
+            const fdy = finalPos.y - lastPoint.y;
+            const projX = fdx * cos + fdy * sin;
+            const projY = -fdx * sin + fdy * cos;
+            const dx_local = metrics.rectX != null ? metrics.rectX / mPerPx : projX;
+            const dy_local = metrics.rectY != null ? metrics.rectY / mPerPx : projY;
+            finalPos = {
+              x: lastPoint.x + dx_local * cos - dy_local * sin,
+              y: lastPoint.y + dx_local * sin + dy_local * cos,
+            };
+          }
+        }
+      }
+
       // Calculate the new list of points
       const nextPoints = [...drawingPoints, finalPos];
 
@@ -2571,6 +2734,7 @@ const InteractionLayer = forwardRef(({
         // This will call onCommitDrawingRef.current(points) inside InteractionLayer
         commitPolyline(event);
         if (enabledDrawingMode === "MEASURE") dispatch(setEnabledDrawingMode(null));
+        if (isRectangleMode) clearRectBuffers();
       }
 
 
