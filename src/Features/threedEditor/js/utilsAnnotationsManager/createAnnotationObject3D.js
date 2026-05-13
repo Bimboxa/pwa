@@ -339,6 +339,32 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
 
   if (!object) return null;
 
+  // For closed faces (POLYGON / RECTANGLE), expose a vertexRefs array on
+  // userData so the hover/click raycaster can address individual vertices /
+  // edges by their pointId. Order matches annotation.points[] (extrudeClosedShape
+  // / triangulateAnnotationGeometry preserve this order). Positions are in
+  // basemap-local space; convert with annoObject.localToWorld at consumption.
+  let vertexRefs = null;
+  if (annotation.type === "POLYGON" || annotation.type === "RECTANGLE") {
+    const sourcePoints =
+      annotation.type === "RECTANGLE"
+        ? bboxToCorners(annotation.bbox || { x: 0, y: 0, width: 0, height: 0 })
+        : annotation.points || [];
+    const localPts = pointsToLocal(sourcePoints, baseMap);
+    // Basemap-local space: X/Y are planar, Z is the normal (offsetTop /
+    // verticalLift apply to Z). The basemap group's rotation then maps
+    // local Z to world Y at render time.
+    vertexRefs = localPts.map((local, i) => ({
+      pointId: sourcePoints[i]?.id ?? null,
+      position: {
+        x: local.x,
+        y: local.y,
+        z: (local.z ?? 0) + verticalLift + (local.offsetTop ?? 0),
+      },
+      index: i,
+    }));
+  }
+
   // No applyBaseMapTransform here: the annotation is attached as a child of
   // the basemap group, which already owns the basemap's position + rotation.
   // Merge into existing userData so that loader-set hooks (e.g. the
@@ -349,6 +375,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
     nodeType: "ANNOTATION",
     annotationType: annotation.type,
     listingId: annotation.listingId,
+    vertexRefs,
   };
 
   return object;

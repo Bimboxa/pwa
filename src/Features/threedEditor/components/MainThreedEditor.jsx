@@ -24,6 +24,13 @@ import applyAnnotationMaterialState, {
   STATE_HOVER,
   STATE_NONE,
 } from "Features/threedEditor/js/utilsAnnotationsManager/applyAnnotationMaterialState";
+import {
+  buildEdgeHelper,
+  buildVertexHelper,
+  disposeSubSelectionHelper,
+  findClosestEdgeToCursor,
+  findClosestVertexToCursor,
+} from "Features/threedEditor/js/utilsAnnotationsManager/subSelectionHelpers";
 import ThreedHoverTooltip from "./ThreedHoverTooltip";
 import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
@@ -44,7 +51,10 @@ import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbar
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
 import MoveGizmoThreed from "Features/threedDrawing/components/MoveGizmoThreed";
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
-import { setMoveSelectedAnnotationId } from "Features/threedEditor/threedEditorSlice";
+import {
+  clearSubSelection,
+  setSubSelection,
+} from "Features/threedEditor/threedEditorSlice";
 
 export default function MainThreedEditor() {
   // ref
@@ -67,6 +77,12 @@ export default function MainThreedEditor() {
   const orbitWasEnabledRef = useRef(true); // remember orbit state to restore
   const lassoLiveIdsRef = useRef(new Set()); // ids currently shown as green during the drag
   const lassoPreviewRafRef = useRef(null); // rAF handle for the preview pass
+  // Sub-selection helpers (vertex/edge highlight on the selected annotation):
+  // ephemeral hover helper (replaced as the cursor moves) and persistent
+  // selected helper (replaced when the user clicks a different vertex/edge).
+  const subHoverHelperRef = useRef(null);
+  const subSelectedHelperRef = useRef(null);
+  const subHoverKeyRef = useRef(null); // "V:<idx>" or "E:<a>-<b>" or null
 
   // state
 
@@ -110,6 +126,16 @@ export default function MainThreedEditor() {
     moveActiveRef.current = moveActive;
   }, [moveActive]);
 
+  // Sub-selection (vertex / edge inside the selected annotation). Sourced
+  // from threedEditorSlice. We subscribe via useSelector with a primitive
+  // key so React only re-renders when the meaningful identity changes.
+  const subSelectionKey = useSelector((s) => {
+    const sub = s.threedEditor.subSelection;
+    if (!sub?.annotationId || !sub?.kind) return null;
+    if (sub.kind === "VERTEX") return `${sub.annotationId}|V|${sub.vertexIndex}`;
+    return `${sub.annotationId}|E|${sub.vertexIndex}-${sub.vertexIndexB}`;
+  });
+
   useDrawingPointerHandlers();
 
   // Helper: derive the right material state for a given annotation id, based
@@ -129,6 +155,26 @@ export default function MainThreedEditor() {
     },
     [store]
   );
+
+  // Helper: when exactly one annotation is selected, return its id (so we can
+  // run sub-element raycasts against just that face). Returns null otherwise.
+  const getSoloSelectedAnnotationId = useCallback(() => {
+    const items = store.getState().selection.selectedItems || [];
+    const ids = items
+      .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
+      .map((i) => i.nodeId || i.id);
+    if (ids.length !== 1) return null;
+    return ids[0];
+  }, [store]);
+
+  const clearSubHoverHelper = useCallback(() => {
+    if (subHoverHelperRef.current) {
+      disposeSubSelectionHelper(subHoverHelperRef.current);
+      subHoverHelperRef.current = null;
+      subHoverKeyRef.current = null;
+      threedEditorRef.current?.renderScene?.();
+    }
+  }, []);
 
   // Sync showGrid → sceneManager.grid.visible (and re-render)
   useEffect(() => {
@@ -232,6 +278,54 @@ export default function MainThreedEditor() {
         return;
       }
 
+      // Sub-element click on the currently-selected annotation: vertex/edge
+      // sub-selection takes precedence over the regular face click. Skip when
+      // moveMode is active (the gizmo owns the cursor).
+      const soloId = getSoloSelectedAnnotationId();
+      if (soloId && !moveActiveRef.current) {
+        const annoObject =
+          sceneManager?.annotationsManager?.annotationsObjectsMap?.[soloId];
+        if (annoObject?.userData?.vertexRefs?.length) {
+          const cursor = { x: event.clientX, y: event.clientY };
+          const vertexHit = findClosestVertexToCursor(
+            annoObject,
+            cursor,
+            camera,
+            rect,
+            12
+          );
+          const edgeHit = vertexHit
+            ? null
+            : findClosestEdgeToCursor(annoObject, cursor, camera, rect, 8);
+          if (vertexHit) {
+            const ref = annoObject.userData.vertexRefs[vertexHit.index];
+            dispatch(
+              setSubSelection({
+                annotationId: soloId,
+                kind: "VERTEX",
+                pointIds: ref?.pointId ? [ref.pointId] : [],
+                vertexIndex: vertexHit.index,
+              })
+            );
+            return;
+          }
+          if (edgeHit) {
+            const refA = annoObject.userData.vertexRefs[edgeHit.indexA];
+            const refB = annoObject.userData.vertexRefs[edgeHit.indexB];
+            dispatch(
+              setSubSelection({
+                annotationId: soloId,
+                kind: "EDGE",
+                pointIds: [refA?.pointId, refB?.pointId].filter(Boolean),
+                vertexIndex: edgeHit.indexA,
+                vertexIndexB: edgeHit.indexB,
+              })
+            );
+            return;
+          }
+        }
+      }
+
       // Calculate mouse position in normalized device coordinates (-1 to +1)
       mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -259,12 +353,6 @@ export default function MainThreedEditor() {
           if (object.userData?.nodeId) {
             const { nodeId, nodeType, annotationType, listingId } =
               object.userData;
-            // Move mode: hijack the click — set the moved annotation and
-            // return without opening the standard edit popper.
-            if (moveActiveRef.current && nodeType === "ANNOTATION") {
-              dispatch(setMoveSelectedAnnotationId(nodeId));
-              return;
-            }
             const item = {
               id: nodeId,
               nodeId,
@@ -293,6 +381,8 @@ export default function MainThreedEditor() {
               // `selection.selectedItems` via useSelectedNodes.
               dispatch(setSelectedItem(item));
             }
+            // Selection of a face clears any prior vertex/edge sub-selection.
+            dispatch(clearSubSelection());
 
             // Anchor both toolbars at the click — the singular renders when
             // exactly one item is selected, the plural when 2+ are selected.
@@ -310,11 +400,12 @@ export default function MainThreedEditor() {
       if (!event.shiftKey) {
         dispatch(setSelectedNode(null));
         dispatch(setSelectedItem(null));
+        dispatch(clearSubSelection());
         dispatch(setAnnotationToolbarPosition(null));
         dispatch(setAnnotationsToolbarPosition(null));
       }
     },
-    [dispatch, rendererIsReady, isThreedViewer]
+    [dispatch, rendererIsReady, isThreedViewer, getSoloSelectedAnnotationId]
   );
 
   // Helper to check if an event target is within a MUI Popper or portal
@@ -629,6 +720,7 @@ export default function MainThreedEditor() {
       }
       lastHoveredIdRef.current = null;
       tooltipApiRef.current?.clear();
+      clearSubHoverHelper();
       return;
     }
 
@@ -643,6 +735,78 @@ export default function MainThreedEditor() {
     const domElement = renderer.domElement;
     const rect = domElement.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
+
+    // Sub-element hover (vertex / edge of the currently-selected annotation).
+    // Runs before the regular face hover so the user gets fluo-green vertex /
+    // edge feedback immediately after selecting a face.
+    const soloId = getSoloSelectedAnnotationId();
+    if (soloId) {
+      const annoObject =
+        sceneManager?.annotationsManager?.annotationsObjectsMap?.[soloId];
+      if (annoObject?.userData?.vertexRefs?.length) {
+        const cursor = { x: event.clientX, y: event.clientY };
+        const vertexHit = findClosestVertexToCursor(
+          annoObject,
+          cursor,
+          camera,
+          rect,
+          12
+        );
+        const edgeHit = vertexHit
+          ? null
+          : findClosestEdgeToCursor(annoObject, cursor, camera, rect, 8);
+        const nextKey = vertexHit
+          ? `V:${vertexHit.index}`
+          : edgeHit
+          ? `E:${edgeHit.indexA}-${edgeHit.indexB}`
+          : null;
+        if (nextKey !== subHoverKeyRef.current) {
+          if (subHoverHelperRef.current) {
+            disposeSubSelectionHelper(subHoverHelperRef.current);
+            subHoverHelperRef.current = null;
+          }
+          if (vertexHit) {
+            const helper = buildVertexHelper(annoObject, vertexHit.index);
+            if (helper) scene.add(helper);
+            subHoverHelperRef.current = helper;
+          } else if (edgeHit) {
+            const helper = buildEdgeHelper(
+              annoObject,
+              edgeHit.indexA,
+              edgeHit.indexB
+            );
+            if (helper) scene.add(helper);
+            subHoverHelperRef.current = helper;
+          }
+          subHoverKeyRef.current = nextKey;
+          threedEditor.renderScene?.();
+        }
+        if (vertexHit || edgeHit) {
+          // Vertex/edge hover takes precedence — clear face hover state and
+          // tooltip, return early.
+          if (prevHoveredObjectRef.current) {
+            const prevId = prevHoveredObjectRef.current.userData?.nodeId;
+            applyAnnotationMaterialState(
+              prevHoveredObjectRef.current,
+              getStateForId(prevId, false)
+            );
+            prevHoveredObjectRef.current = null;
+            threedEditor.renderScene?.();
+          }
+          lastHoveredIdRef.current = null;
+          tooltipApiRef.current?.clear();
+          return;
+        }
+      }
+    }
+    // No sub-element hover this tick — make sure any leftover hover helper
+    // is cleared.
+    if (subHoverHelperRef.current) {
+      disposeSubSelectionHelper(subHoverHelperRef.current);
+      subHoverHelperRef.current = null;
+      subHoverKeyRef.current = null;
+      threedEditor.renderScene?.();
+    }
 
     mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -703,7 +867,13 @@ export default function MainThreedEditor() {
         tooltipApiRef.current?.clear();
       }
     }
-  }, [rendererIsReady, isThreedViewer, getStateForId]);
+  }, [
+    rendererIsReady,
+    isThreedViewer,
+    getStateForId,
+    getSoloSelectedAnnotationId,
+    clearSubHoverHelper,
+  ]);
 
   // Handle pointer move (drag tracking + schedule hover raycast)
   const handleHoverPointerMove = useCallback(
@@ -716,7 +886,8 @@ export default function MainThreedEditor() {
     [runHoverRaycast]
   );
 
-  // Reset hover when the pointer leaves the canvas.
+  // Reset hover when the pointer leaves the canvas. Also clears the
+  // ephemeral sub-selection (vertex/edge) hover helper.
   const handlePointerLeave = useCallback(() => {
     lastPointerEventRef.current = null;
     if (hoverRafRef.current != null) {
@@ -734,6 +905,7 @@ export default function MainThreedEditor() {
     }
     lastHoveredIdRef.current = null;
     tooltipApiRef.current?.clear();
+    clearSubHoverHelper();
 
     // Cancel any in-flight lasso so the rectangle doesn't stay stuck on
     // screen and OrbitControls is restored.
@@ -760,7 +932,7 @@ export default function MainThreedEditor() {
         threedEditorRef.current?.renderScene?.();
       }
     }
-  }, [getStateForId]);
+  }, [getStateForId, clearSubHoverHelper]);
 
   // Handle pointer up - if not dragging, treat as click
   const handlePointerUp = useCallback(
@@ -855,6 +1027,57 @@ export default function MainThreedEditor() {
     handlePointerUp,
     isThreedViewer,
   ]);
+
+  // Sub-selection persistent helper: rebuild whenever the subSelection key
+  // changes. Reads the full sub-selection state at apply time to access the
+  // pointIds / vertexIndex fields. The helper is added to the scene so it
+  // overlays the annotation regardless of the basemap group transform.
+  useEffect(() => {
+    if (!rendererIsReady || !threedEditorRef.current) return;
+    // Dispose any prior persistent helper.
+    if (subSelectedHelperRef.current) {
+      disposeSubSelectionHelper(subSelectedHelperRef.current);
+      subSelectedHelperRef.current = null;
+    }
+    if (!subSelectionKey) {
+      threedEditorRef.current.renderScene?.();
+      return;
+    }
+    const sub = store.getState().threedEditor.subSelection;
+    if (!sub?.annotationId) return;
+    const annoObject =
+      threedEditorRef.current.sceneManager?.annotationsManager
+        ?.annotationsObjectsMap?.[sub.annotationId];
+    if (!annoObject) return;
+    let helper = null;
+    if (sub.kind === "VERTEX" && sub.vertexIndex != null) {
+      helper = buildVertexHelper(annoObject, sub.vertexIndex, {
+        selected: true,
+      });
+    } else if (
+      sub.kind === "EDGE" &&
+      sub.vertexIndex != null &&
+      sub.vertexIndexB != null
+    ) {
+      helper = buildEdgeHelper(annoObject, sub.vertexIndex, sub.vertexIndexB, {
+        selected: true,
+      });
+    }
+    if (helper) {
+      threedEditorRef.current.sceneManager.scene.add(helper);
+      subSelectedHelperRef.current = helper;
+    }
+    threedEditorRef.current.renderScene?.();
+  }, [subSelectionKey, rendererIsReady, store]);
+
+  // Cleanup the persistent helper on unmount / viewer switch.
+  useEffect(() => {
+    if (!isThreedViewer && subSelectedHelperRef.current) {
+      disposeSubSelectionHelper(subSelectedHelperRef.current);
+      subSelectedHelperRef.current = null;
+      threedEditorRef.current?.renderScene?.();
+    }
+  }, [isThreedViewer]);
 
   // Reset hover when leaving the 3D viewer.
   useEffect(() => {
