@@ -35,6 +35,8 @@ import {
   deltaZForTargetSlope,
 } from "Features/annotations/utils/getPolygonEdgeSlopePct";
 import classifyPolylineCornerVsPolygonZ from "Features/annotations/utils/classifyPolylineCornerVsPolygonZ";
+import splitPolylineAtSpanInversions from "Features/annotations/utils/splitPolylineAtSpanInversions";
+import { nanoid } from "@reduxjs/toolkit";
 
 const DEFAULT_Z = new Vector3(0, 0, 1);
 
@@ -914,7 +916,54 @@ export default function MoveGizmoThreed() {
             offsetTop: roundForDisplay((ref.offsetTop ?? 0) + dz),
           };
         });
-        if (touched) {
+        if (!touched) continue;
+
+        // For connected POLYLINE walls only: if the new offsetBottom values
+        // pushed any segment into a "negative span" state (wall top below
+        // wall bottom), split the polyline at the inflection point and mark
+        // the now-invisible portion as hidden via hiddenSegmentsIdx. New
+        // intersection vertices are persisted in db.points so they show up
+        // in 2D as well.
+        if (useAboveBelowLogic) {
+          const closeLine = !!other.closeLine;
+          // Fetch fresh XY for every point in the post-shift polyline.
+          // In sub-mode db.points are NOT shifted, so the snapshot values
+          // (loaded at move-mode entry) are still valid; in whole-mode the
+          // shifted shared corners have just been updated above, so we
+          // re-fetch from db.points to use the post-shift XY.
+          const ids = newPoints.map((r) => r.id).filter(Boolean);
+          const fetched = await db.points.bulkGet(ids);
+          const pointsById = new Map();
+          fetched.forEach((p, idx) => {
+            if (p) pointsById.set(ids[idx], { x: p.x, y: p.y });
+          });
+          const split = splitPolylineAtSpanInversions({
+            refs: newPoints,
+            height: otherHeight,
+            closeLine,
+            existingHiddenIdx: other.hiddenSegmentsIdx || [],
+            pointsById,
+            newPointFactory: (x, y) => ({
+              id: nanoid(),
+              x,
+              y,
+              projectId: other.projectId,
+              baseMapId: other.baseMapId,
+              listingId: other.listingId,
+            }),
+          });
+          for (const pt of split.pointsToAdd) {
+            await db.points.add(pt);
+          }
+          if (split.changed) {
+            await db.annotations.update(otherId, {
+              points: split.refs,
+              hiddenSegmentsIdx: split.hiddenSegmentsIdx,
+            });
+          } else {
+            await db.annotations.update(otherId, { points: split.refs });
+          }
+        } else {
           await db.annotations.update(otherId, { points: newPoints });
         }
       }

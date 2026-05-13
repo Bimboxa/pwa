@@ -49,8 +49,8 @@ function makeMaterial(annotation, options) {
       : annotation.fillColor || annotation.strokeColor || "#cccccc"
   );
   const rawOpacity = isStrokeDriven
-    ? annotation.strokeOpacity ?? 1
-    : annotation.fillOpacity ?? 1;
+    ? (annotation.strokeOpacity ?? 1)
+    : (annotation.fillOpacity ?? 1);
   const opacity = options?.disableOpacity ? 1 : rawOpacity;
   return new MeshBasicMaterial({
     color: new Color(color),
@@ -87,7 +87,13 @@ function bboxToCorners(bbox) {
 // Resolve a STRIP annotation into closed polygons and extrude each one.
 // Mirrors what NodeStripStatic does in 2D so the 3D matches the visible 2D
 // footprint (closeLine, hiddenSegmentsIdx, cuts).
-function extrudeStripPolygons(annotation, baseMap, height, material, verticalLift) {
+function extrudeStripPolygons(
+  annotation,
+  baseMap,
+  height,
+  material,
+  verticalLift
+) {
   const polys = getStripePolygons(annotation, baseMap.meterByPx, true);
   if (!polys || polys.length === 0) return null;
   const group = new Group();
@@ -108,7 +114,13 @@ function extrudeStripPolygons(annotation, baseMap, height, material, verticalLif
 // (wallToRectRing in useWallBoundaries), then extrude it. Arcs in the
 // polyline are first expanded into straight samples so the offset stays
 // well-defined.
-function extrudeWallPolygon(annotation, baseMap, height, material, verticalLift) {
+function extrudeWallPolygon(
+  annotation,
+  baseMap,
+  height,
+  material,
+  verticalLift
+) {
   const pts = (annotation.points || []).map((p) => ({
     x: p.x,
     y: p.y,
@@ -131,7 +143,8 @@ function extrudeWallPolygon(annotation, baseMap, height, material, verticalLift)
   }
   if (filtered.length < 2) return null;
 
-  const strokeWidthCm = (annotation.strokeWidth ?? 10) * THICKNESS_SAFETY_FACTOR;
+  const strokeWidthCm =
+    (annotation.strokeWidth ?? 10) * THICKNESS_SAFETY_FACTOR;
   const meterByPx = baseMap.meterByPx;
   if (!meterByPx || meterByPx <= 0) return null;
   const thicknessPx = strokeWidthCm / (meterByPx * 100);
@@ -166,7 +179,7 @@ function extrudeWallPolygon(annotation, baseMap, height, material, verticalLift)
   const n = filtered.length;
   const open = ring.slice(0, -1);
   const ringPoints = open.map(([x, y], i) => {
-    const srcIdx = i < n ? i : (2 * n - 1 - i);
+    const srcIdx = i < n ? i : 2 * n - 1 - i;
     const src = filtered[srcIdx] || {};
     return {
       x,
@@ -211,13 +224,26 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         .map((cut) => pointsToLocal(cut.points || [], baseMap))
         .filter((c) => c.length >= 3);
       const innerPts = pointsToLocal(annotation.innerPoints || [], baseMap);
-      object = extrudeClosedShape(pts, height, material, cuts, verticalLift, innerPts);
+      object = extrudeClosedShape(
+        pts,
+        height,
+        material,
+        cuts,
+        verticalLift,
+        innerPts
+      );
       break;
     }
     case "RECTANGLE": {
       if (!annotation.bbox) break;
       const pts = pointsToLocal(bboxToCorners(annotation.bbox), baseMap);
-      object = extrudeClosedShape(pts, height, material, undefined, verticalLift);
+      object = extrudeClosedShape(
+        pts,
+        height,
+        material,
+        undefined,
+        verticalLift
+      );
       break;
     }
     case "POLYLINE": {
@@ -267,18 +293,21 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         );
         break;
       }
-      const expanded = expandArcsInPath(
-        annotation.points || [],
-        GUIDE_ARC_SAMPLES,
-        !!annotation.closeLine
-      );
+      const { points: expanded, hiddenSegmentsIdx: expandedHidden } =
+        expandArcsInPathWithHiddenMap(
+          annotation.points || [],
+          GUIDE_ARC_SAMPLES,
+          annotation.hiddenSegmentsIdx || [],
+          !!annotation.closeLine
+        );
       const pts = pointsToLocal(expanded, baseMap);
       object = extrudePolylineWall(
         pts,
         height,
         material,
         !!annotation.closeLine,
-        verticalLift
+        verticalLift,
+        expandedHidden
       );
       break;
     }
