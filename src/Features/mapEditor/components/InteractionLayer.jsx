@@ -4010,7 +4010,7 @@ const InteractionLayer = forwardRef(({
         commitPoint();
       }
 
-      else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "MEASURE", "SEGMENT"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
+      else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "MEASURE", "SEGMENT", "COTE_TWO_CLICK"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
         commitPolyline(e); // add "e" to get clientX & clientY to set the measurePopper anchor position.
       }
 
