@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setDialogSyncOpen } from "../remoteScopeConfigurationsSlice";
 
 import usePullLastRemoteScopeConfiguration from "../hooks/usePullLastRemoteScopeConfiguration";
+import useAutoTriggerInitialScopeSaveOnCreate from "../hooks/useAutoTriggerInitialScopeSaveOnCreate";
 import { setPullHandle } from "../services/pullHandle";
 
 import DialogSync from "./DialogSync";
@@ -27,6 +28,8 @@ export default function SyncDialogsContainer() {
   );
 
   const pull = usePullLastRemoteScopeConfiguration();
+
+  useAutoTriggerInitialScopeSaveOnCreate();
 
   // effects
 

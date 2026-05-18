@@ -9,6 +9,11 @@ import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
+import {
+  setLastRemoteConfiguration,
+  setLastSyncedRemoteConfigurationVersion,
+  setPendingInitialSaveScopeId,
+} from "Features/remoteScopeConfigurations/remoteScopeConfigurationsSlice";
 
 import useCreateScope from "Features/scopes/hooks/useCreateScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -126,6 +131,20 @@ export default function SectionCreateScope() {
       dispatch(setSelectedScopeId(scope.id));
       dispatch(setSelectedProjectId(projectId));
       dispatch(setSelectedListingId(newListings?.[0]?.id));
+
+      // reset remote-save guards for the freshly created scope: these are never
+      // cleared on scope switch (restoreSyncedVersionFromStorage no-ops on absent
+      // value), so a stale non-null value from a previous scope would short-circuit
+      // the initial auto-save.
+      dispatch(setLastRemoteConfiguration(null));
+      dispatch(setLastSyncedRemoteConfigurationVersion(null));
+
+      // Case 2: project already has baseMaps -> auto-save right after scope creation.
+      // Case 1 (no baseMaps yet) keeps being handled when baseMaps are added.
+      if (baseMapsListings?.length > 0) {
+        dispatch(setPendingInitialSaveScopeId(scope.id));
+      }
+
       dispatch(setOpenScopeCreator(false));
       navigate('/')
     }

@@ -60,6 +60,7 @@ const remoteScopeConfigurationsInitialState = {
   remoteNewerDialogOpen: false,
   dialogSyncOpen: false,
   pushing: false,
+  pendingInitialSaveScopeId: null,
 };
 
 export const remoteScopeConfigurationsSlice = createSlice({
@@ -102,6 +103,9 @@ export const remoteScopeConfigurationsSlice = createSlice({
     setPushing: (state, action) => {
       state.pushing = Boolean(action.payload);
     },
+    setPendingInitialSaveScopeId: (state, action) => {
+      state.pendingInitialSaveScopeId = action.payload;
+    },
   },
 });
 
@@ -116,6 +120,7 @@ export const {
   setRemoteNewerDialogOpen,
   setDialogSyncOpen,
   setPushing,
+  setPendingInitialSaveScopeId,
 } = remoteScopeConfigurationsSlice.actions;
 
 // --- Selectors ---
