@@ -23,7 +23,6 @@ import { Box, IconButton, Paper, Stack, TextField } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 
-import findConnectedAnnotations from "../services/findConnectedAnnotations";
 import {
   buildTransientFaceMesh,
   loadAnnotationSnapshot,
@@ -151,8 +150,10 @@ function computeSlopeModeSetup(snapshot, subSelectionTarget) {
 
 // Move-mode UI: gizmo + numeric field for the selected annotation.
 // Translation is constrained to the face's own normal. During the drag:
-//   - the moved annotation's own mesh is shifted imperatively (whole mesh
-//     follows uniformly)
+//   - the moved annotation's own mesh is hidden and replaced by a
+//     "transient" ghost regenerated per drag tick — mode WHOLE in
+//     whole-face mode (the whole shape follows the delta), mode
+//     SHARED_ONLY in sub-selection mode (only targeted vertices follow)
 //   - each connected annotation's mesh is hidden and replaced by a
 //     "transient" ghost that's regenerated per drag tick — only the
 //     shared refs follow the delta, the other corners stay still
@@ -199,6 +200,9 @@ export default function MoveGizmoThreed() {
   const initialPosRef = useRef(null);
   const faceNormalRef = useRef(null);
   const baseMapInvRotRef = useRef(null);
+  // Offset the annotation already had when the move started. The field shows
+  // the ABSOLUTE resulting offset (base + live delta), not the relative move.
+  const baseOffsetRef = useRef(0);
 
   // Moved annotation: imperative mesh shift bookkeeping.
   const movedMeshRef = useRef(null);
@@ -315,27 +319,25 @@ export default function MoveGizmoThreed() {
     movedMeshRef.current = annoObject;
     movedMeshInitialLocalPosRef.current = annoObject.position.clone();
 
-    // Sub-selection mode: commit the visual swap synchronously so there is
-    // no race between the gizmo subscribe (which may fire on the very first
-    // pointer-move) and the async db.get below. Hide the original mesh and
-    // populate the targeted-pointIds ref now; the transient mesh itself is
-    // built once the snapshot is loaded (still async, but the imperative
-    // mesh.position shift is already short-circuited by subTargetPointIdsRef).
+    // Commit the visual swap synchronously so there is no race between the
+    // gizmo subscribe (which may fire on the very first pointer-move) and
+    // the async db.get below. The moved annotation is rendered via a
+    // transient ghost in BOTH modes (sub-selection: SHARED_ONLY;
+    // whole-face: WHOLE) so the move stays robust to mid-drag
+    // AnnotationsManager recreation — the old imperative mesh.position path
+    // orphaned the moved mesh in whole-face mode.
     const subPointIdsSync = new Set(
       (subSelectionTarget?.pointIds || []).filter(Boolean)
     );
     subTargetPointIdsRef.current = subPointIdsSync;
-    if (subSelectionTarget && subPointIdsSync.size > 0) {
-      deepHide(annoObject);
-      // Placeholder so regenTransients knows the parent before the snapshot
-      // arrives — even regen tick before the snapshot loads will be a no-op
-      // for the moved transient and skip safely.
-      movedTransientRef.current = {
-        parent: annoObject.parent,
-        transientMesh: null,
-      };
-      editor.sceneManager.renderScene?.();
-    }
+    deepHide(annoObject);
+    // Placeholder so regenTransients knows the parent before the snapshot
+    // arrives — any regen tick before the snapshot loads is a safe no-op.
+    movedTransientRef.current = {
+      parent: annoObject.parent,
+      transientMesh: null,
+    };
+    editor.sceneManager.renderScene?.();
 
     const target = new Object3D();
     target.name = "MoveGizmoTarget";
@@ -355,6 +357,30 @@ export default function MoveGizmoThreed() {
       const ann = await db.annotations.get(selectedAnnotationId);
       if (cancelled || !ann) return;
 
+      // Capture the offset the annotation already has so the field can
+      // display the absolute resulting offset (base + live delta).
+      const subIdsForBase = subTargetPointIdsRef.current;
+      if (subIdsForBase && subIdsForBase.size > 0) {
+        let s = 0;
+        let nb = 0;
+        for (const ref of ann.points || []) {
+          if (subIdsForBase.has(ref.id) && !ref.isSliding) {
+            s += ref.offsetTop ?? 0;
+            nb += 1;
+          }
+        }
+        baseOffsetRef.current = nb > 0 ? s / nb : 0;
+      } else {
+        baseOffsetRef.current = ann.offsetZ ?? 0;
+      }
+      // A drag tick may already have accumulated a delta during this async
+      // window — reflect the absolute value immediately.
+      setFieldValue(
+        String(
+          roundForDisplay(baseOffsetRef.current + (latestDeltaRef.current || 0))
+        )
+      );
+
       const baseMapRecord = await db.baseMaps.get(ann.baseMapId);
       const baseMap =
         baseMapRecord && (await BaseMap.createFromRecord(baseMapRecord));
@@ -363,9 +389,15 @@ export default function MoveGizmoThreed() {
         baseMapInvRotRef.current = getBaseMapInverseRotationQuat(baseMap);
       }
 
-      const { sharedPointIds, connectedAnnotations } =
-        await findConnectedAnnotations(ann, selectedAnnotationId);
-      if (cancelled) return;
+      // Adjacent annotations are intentionally NOT modified by a gizmo
+      // move. They will only follow once they are explicitly "constrained"
+      // (a prop introduced later). Until then, skip connected-annotation
+      // discovery entirely so the commit mutates ONLY the selected
+      // annotation. The transient/commit propagation machinery below is
+      // kept (it iterates an empty connected set) so it can be re-enabled
+      // once the "constrained" prop exists.
+      const connectedAnnotations = [];
+      const sharedPointIds = new Set();
       sharedPointIdsRef.current = sharedPointIds;
 
       // Snapshot the moved annotation (used at commit to read .offsetZ).
@@ -396,15 +428,12 @@ export default function MoveGizmoThreed() {
         setSlopeModeApplies(false);
       }
 
-      // Sub-selection mode: build the initial (delta=0) transient now that
-      // the snapshot is loaded. The visibility swap + parent slot were set
-      // up synchronously above, so any drag tick that fired in the meantime
-      // is already short-circuiting the imperative mesh.position shift.
+      // Build the initial (delta=0) transient now that the snapshot is
+      // loaded. The visibility swap + parent slot were set up synchronously
+      // above. Mode: SHARED_ONLY in sub-selection, WHOLE in whole-face.
       const subPointIds = subTargetPointIdsRef.current;
       const slot = movedTransientRef.current;
       if (
-        subSelectionTarget &&
-        subPointIds.size > 0 &&
         slot &&
         slot.parent &&
         !slot.transientMesh &&
@@ -429,7 +458,7 @@ export default function MoveGizmoThreed() {
           snapshot: movedSnapshotRef.current,
           sharedIds: subPointIds,
           deltaLocal,
-          mode: "SHARED_ONLY",
+          mode: subPointIds.size > 0 ? "SHARED_ONLY" : "WHOLE",
         });
         if (movedTransient) {
           slot.parent.add(movedTransient);
@@ -467,7 +496,9 @@ export default function MoveGizmoThreed() {
       const isMovedPolygonForPreview = ann.type === "POLYGON";
       const movedAnnTopZByPointId = new Map();
       const polygonShiftCoeffByPointId = new Map();
-      if (isMovedPolygonForPreview) {
+      // Only needed to drive connected-annotation propagation — skip the
+      // (async) precompute entirely while connected handling is disabled.
+      if (connectedAnnotations.length > 0 && isMovedPolygonForPreview) {
         const mh = ann.height ?? 0;
         const mz = ann.offsetZ ?? 0;
         // 1. Raw corner z + simple k for raw corners. Also collect raw
@@ -637,8 +668,7 @@ export default function MoveGizmoThreed() {
       const dn = disp.dot(n);
       latestDeltaRef.current = dn;
       dispatch(setMoveDeltaZ(dn));
-      setFieldValue(String(roundForDisplay(dn)));
-      shiftMovedMeshLive(dn);
+      setFieldValue(String(roundForDisplay(baseOffsetRef.current + dn)));
       scheduleTransientRegen();
     };
     const unsub = tcm.subscribe(update);
@@ -650,7 +680,6 @@ export default function MoveGizmoThreed() {
     // annotation as soon as it reappears, and bump the transient regen so
     // the deformation is reapplied to the new geometry.
     const unsubReady = annotationsManager.subscribeAnnotationReady?.((id) => {
-      if (subTargetPointIdsRef.current.size === 0) return;
       if (id !== selectedAnnotationIdRef.current) return;
       const liveAnno =
         annotationsManager.annotationsObjectsMap?.[
@@ -676,8 +705,10 @@ export default function MoveGizmoThreed() {
       tcm.detach();
       if (target.parent) target.parent.remove(target);
 
-      // Restore moved mesh: position (in whole-face mode) and visibility
-      // (in sub-selection mode, where it was hidden in favor of a transient).
+      // Restore the moved mesh visibility — it was hidden in favor of a
+      // transient in both modes. Position is also reset defensively (it is
+      // no longer mutated during the drag, so this is a no-op for
+      // geometry-baked annotation objects).
       const mesh = movedMeshRef.current;
       const initLocal = movedMeshInitialLocalPosRef.current;
       if (mesh && initLocal) {
@@ -712,6 +743,7 @@ export default function MoveGizmoThreed() {
       baseMapInvRotRef.current = null;
       movedMeshRef.current = null;
       movedMeshInitialLocalPosRef.current = null;
+      baseOffsetRef.current = 0;
       movedSnapshotRef.current = null;
       sharedPointIdsRef.current = new Set();
       connectedRef.current = new Map();
@@ -726,7 +758,7 @@ export default function MoveGizmoThreed() {
   }, [active, selectedAnnotationId, dispatch, subTargetKey]);
 
   useEffect(() => {
-    setFieldValue(String(roundForDisplay(deltaZ)));
+    setFieldValue(String(roundForDisplay(baseOffsetRef.current + deltaZ)));
   }, [deltaZ]);
 
   // Keep the slope-% display in sync with the live Δz. Recomputes the implied
@@ -750,24 +782,6 @@ export default function MoveGizmoThreed() {
     if (pct == null) return;
     setSlopePctValue(String(roundForDisplay(pct)));
   }, [deltaZ, slopeModeApplies]);
-
-  function shiftMovedMeshLive(dn) {
-    // In sub-selection mode the moved annotation is rendered via a transient
-    // mesh (regenerated per tick) — globally translating the original mesh
-    // would make the entire face move instead of only the targeted vertices.
-    if (subTargetPointIdsRef.current.size > 0) return;
-    const mesh = movedMeshRef.current;
-    const initLocal = movedMeshInitialLocalPosRef.current;
-    const n = faceNormalRef.current;
-    const invRot = baseMapInvRotRef.current;
-    if (!mesh || !initLocal || !n) return;
-    const deltaWorld = n.clone().multiplyScalar(dn);
-    const deltaLocal = invRot
-      ? deltaWorld.clone().applyQuaternion(invRot)
-      : deltaWorld;
-    mesh.position.copy(initLocal).add(deltaLocal);
-    getActiveThreedEditor()?.sceneManager?.renderScene?.();
-  }
 
   // Regenerate the transient ghost meshes for connected annotations on the
   // next animation frame, using the latest delta.
@@ -796,9 +810,11 @@ export default function MoveGizmoThreed() {
       y: deltaLocalVec.y,
       z: deltaLocalVec.z,
     };
-    // Sub-selection mode: regenerate the moved annotation transient too —
-    // the original mesh is hidden, so the transient is the only visual.
-    if (movedTransient && subPointIds.size > 0 && movedSnapshotRef.current) {
+    // Regenerate the moved annotation transient too (BOTH modes) — the
+    // original mesh is hidden, so the transient is the only visual.
+    //   - sub-selection: SHARED_ONLY (only targeted vertices follow)
+    //   - whole-face:     WHOLE (the whole shape follows the delta)
+    if (movedTransient && movedSnapshotRef.current) {
       if (movedTransient.transientMesh && movedTransient.parent) {
         movedTransient.parent.remove(movedTransient.transientMesh);
         disposeMesh(movedTransient.transientMesh);
@@ -808,7 +824,7 @@ export default function MoveGizmoThreed() {
         snapshot: movedSnapshotRef.current,
         sharedIds: subPointIds,
         deltaLocal,
-        mode: "SHARED_ONLY",
+        mode: subPointIds.size > 0 ? "SHARED_ONLY" : "WHOLE",
       });
       if (freshMoved && movedTransient.parent) {
         movedTransient.parent.add(freshMoved);
@@ -863,7 +879,9 @@ export default function MoveGizmoThreed() {
 
   async function handleApply() {
     if (!selectedAnnotationId) return;
-    const dn = Number(fieldValue);
+    // The field holds the ABSOLUTE target offset; the move delta is the
+    // difference from the offset the annotation started with.
+    const dn = Number(fieldValue) - (baseOffsetRef.current || 0);
     if (!Number.isFinite(dn) || Math.abs(dn) < 1e-6) {
       // Nothing to write — exit cleanly so the user is back to selection mode.
       dispatch(setMoveSelectedAnnotationId(null));
@@ -1104,14 +1122,15 @@ export default function MoveGizmoThreed() {
     if (t && init && n) {
       t.position.copy(init).add(n.clone().multiplyScalar(v));
     }
-    shiftMovedMeshLive(v);
     scheduleTransientRegen();
   }
 
   function handleFieldChange(e) {
     setFieldValue(e.target.value);
-    const v = Number(e.target.value);
-    if (Number.isFinite(v)) applyDeltaLive(v);
+    const total = Number(e.target.value);
+    if (Number.isFinite(total)) {
+      applyDeltaLive(total - (baseOffsetRef.current || 0));
+    }
   }
 
   function handleSlopeChange(e) {
@@ -1126,7 +1145,7 @@ export default function MoveGizmoThreed() {
       currentEdgeZ: slopeCurrentEdgeZRef.current,
     });
     if (dz == null || !Number.isFinite(dz)) return;
-    setFieldValue(String(roundForDisplay(dz)));
+    setFieldValue(String(roundForDisplay((baseOffsetRef.current || 0) + dz)));
     applyDeltaLive(dz);
   }
 
@@ -1144,7 +1163,7 @@ export default function MoveGizmoThreed() {
         py: 1,
         borderRadius: "10px",
         zIndex: 11,
-        minWidth: 280,
+        width: "max-content",
       }}
     >
       <Stack direction="row" spacing={1} alignItems="center">
@@ -1157,9 +1176,7 @@ export default function MoveGizmoThreed() {
                 }`}
           </Box>
         )}
-        <Box sx={{ fontSize: 12, color: "text.secondary" }}>
-          {subSelectionTarget ? "Δz (m)" : "Δn (m)"}
-        </Box>
+        <Box sx={{ fontSize: 12, color: "text.secondary" }}>Offset (m)</Box>
         <TextField
           size="small"
           value={fieldValue}
