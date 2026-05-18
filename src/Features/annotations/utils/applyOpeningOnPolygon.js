@@ -67,6 +67,24 @@ export default async function applyOpeningOnPolygon({
     });
     if (!outerRingPx || outerRingPx.length < 3) return { handled: false };
 
+    // If any host point failed to resolve to finite coordinates, its
+    // db.points entry is missing (orphaned / soft-deleted / not synced).
+    // Proceeding would feed NaN geometry to polygon-clipping and then
+    // re-add existing point ids via bulkAdd (Dexie BulkError + crash).
+    const unresolvedIds = host.points
+        .filter((ref, i) => {
+            const p = outerRingPx[i];
+            return !Number.isFinite(p?.x) || !Number.isFinite(p?.y);
+        })
+        .map((ref) => ref?.id);
+    if (unresolvedIds.length > 0) {
+        console.warn(
+            `[CUT] Aborted: host annotation ${host?.id} has unresolved points ` +
+                `${JSON.stringify(unresolvedIds)} — opening not applied.`
+        );
+        return { handled: true };
+    }
+
     const allCutsPx = resolveCuts({
         cuts: host.cuts,
         pointsIndex,
@@ -99,6 +117,13 @@ export default async function applyOpeningOnPolygon({
         { splitMode: "abort" }
     );
 
+    if (result.error) {
+        console.warn(
+            `[CUT] Aborted: host annotation ${host?.id} has invalid/unresolved ` +
+                `geometry — opening not applied.`
+        );
+        return { handled: true };
+    }
     if (result.aborted) {
         console.warn(
             "[CUT] Aborted: opening would split the polygon into multiple pieces."

@@ -19,6 +19,18 @@ const toRing = (points) => {
 };
 
 /**
+ * A ring is usable by polygon-clipping only if it has >= 3 points and every
+ * coordinate is a finite number. Unresolved point references (orphaned
+ * db.points) surface here as undefined/NaN x/y and must be rejected before
+ * reaching polygon-clipping, which would otherwise throw
+ * "Input geometry is not a valid Polygon or MultiPolygon".
+ */
+const isValidRing = (pts) =>
+    Array.isArray(pts) &&
+    pts.length >= 3 &&
+    pts.every((p) => Number.isFinite(p?.x) && Number.isFinite(p?.y));
+
+/**
  * Signed area of a closed polygon-clipping ring (shoelace).
  * Sign reflects orientation; magnitude is the polygon area in pixel² units.
  */
@@ -55,11 +67,21 @@ export default function cutPolygonPoints(polygon, cutPoints, options = {}) {
         return { points: mainPoints ?? [], cuts: existingCuts ?? [] };
     }
 
+    // 1b. Reject unresolved/non-finite geometry before it reaches
+    // polygon-clipping (orphaned db.points → undefined/NaN coords).
+    if (!isValidRing(mainPoints) || !isValidRing(cutPoints)) {
+        return { points: mainPoints ?? [], cuts: existingCuts ?? [], error: true };
+    }
+
     // 2. Préparation du "Subject" (Le polygone actuel avec ses trous existants)
     // Structure GeoJSON : [[ExteriorRing], [Hole1], [Hole2]...]
+    // Degenerate existing cuts are skipped so a single broken hole cannot
+    // blow up the whole difference operation.
     const subjectGeom = [
         toRing(mainPoints),
-        ...(existingCuts || []).map(cut => toRing(cut.points))
+        ...(existingCuts || [])
+            .filter(cut => isValidRing(cut?.points))
+            .map(cut => toRing(cut.points))
     ];
 
     // 3. Préparation du "Clipper" (Le nouveau trou)
@@ -122,7 +144,9 @@ export default function cutPolygonPoints(polygon, cutPoints, options = {}) {
 
     } catch (error) {
         console.error("Erreur lors du cutPolygon:", error);
-        // Fallback : on ne fait rien
-        return { points: mainPoints, cuts: existingCuts };
+        // Fallback : on ne fait rien. `error: true` signals the caller NOT
+        // to persist this (unchanged) geometry — its point ids already
+        // exist in db.points and re-adding them throws a Dexie BulkError.
+        return { points: mainPoints, cuts: existingCuts, error: true };
     }
 }
