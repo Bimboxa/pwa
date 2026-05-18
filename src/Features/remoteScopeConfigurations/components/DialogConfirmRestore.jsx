@@ -10,21 +10,7 @@ import {
     Typography,
 } from "@mui/material";
 
-function formatDate(iso) {
-    if (!iso) return "";
-    try {
-        const d = new Date(iso);
-        return d.toLocaleString("fr-FR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
-    } catch {
-        return iso;
-    }
-}
+import formatDateTime from "Features/date/utils/formatDateTime";
 
 export default function DialogConfirmRestore({ open, onClose, version, onConfirmAsync }) {
     const confirmBtnRef = useRef(null);
@@ -42,7 +28,7 @@ export default function DialogConfirmRestore({ open, onClose, version, onConfirm
     // helpers
 
     const author = version?.createdBy?.trigram || "—";
-    const date = formatDate(version?.createdAt);
+    const date = formatDateTime(version?.createdAt);
 
     // handlers
 

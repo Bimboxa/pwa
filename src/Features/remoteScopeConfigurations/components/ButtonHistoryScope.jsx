@@ -3,6 +3,8 @@ import { useSelector } from "react-redux";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
+import formatDateTime from "Features/date/utils/formatDateTime";
+
 import useAllScopeConfigurations from "../hooks/useAllScopeConfigurations";
 import restoreScopeConfigurationService from "../services/restoreScopeConfigurationService";
 
@@ -23,22 +25,6 @@ import {
 import { History as HistoryIcon, Restore as RestoreIcon } from "@mui/icons-material";
 
 import DialogConfirmRestore from "./DialogConfirmRestore";
-
-function formatDate(iso) {
-    if (!iso) return "";
-    try {
-        const d = new Date(iso);
-        return d.toLocaleString("fr-FR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
-    } catch {
-        return iso;
-    }
-}
 
 export default function ButtonHistoryScope() {
 
@@ -164,7 +150,7 @@ export default function ButtonHistoryScope() {
                     <List dense disablePadding sx={{ overflow: "auto" }}>
                         {versions.map((v, idx) => {
                             const author = v.createdBy?.trigram || "—";
-                            const date = formatDate(v.createdAt);
+                            const date = formatDateTime(v.createdAt);
                             return (
                                 <Box key={v.id ?? idx}>
                                     {idx > 0 && <Divider component="li" />}
