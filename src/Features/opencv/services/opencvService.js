@@ -182,7 +182,7 @@ class CV {
     return this._dispatch({ msg: "highlightDifferences", payload });
   }
   findPattern(payload) {
-    return this._dispatch({ msg: "findPattern", payload });
+    return this._dispatch({ msg: "findPattern", payload, timeout: 60000 });
   }
   opencvDebugAsync(payload) {
     return this._dispatch({ msg: "opencvDebugAsync", payload });

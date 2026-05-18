@@ -127,6 +127,8 @@ const mapEditorInitialState = {
   //   sourceCenter   — { x, y } center used as transform origin and ghost anchor
   pasteClipboard: null,
   pasteTransform: { rotationDeg: 0, flipX: false },
+  // copy/paste pattern detection sub-mode: null | "GLOBAL" | "HOVER"
+  pasteDetectionMode: null,
 };
 
 export const mapEditorSlice = createSlice({
@@ -489,10 +491,15 @@ export const mapEditorSlice = createSlice({
     setPasteClipboard: (state, action) => {
       state.pasteClipboard = action.payload;
       state.pasteTransform = { rotationDeg: 0, flipX: false };
+      state.pasteDetectionMode = null;
     },
     clearPasteClipboard: (state) => {
       state.pasteClipboard = null;
       state.pasteTransform = { rotationDeg: 0, flipX: false };
+      state.pasteDetectionMode = null;
+    },
+    setPasteDetectionMode: (state, action) => {
+      state.pasteDetectionMode = action.payload;
     },
     rotatePasteClipboard: (state) => {
       state.pasteTransform.rotationDeg =
@@ -640,6 +647,7 @@ export const {
   clearPasteClipboard,
   rotatePasteClipboard,
   flipPasteClipboardX,
+  setPasteDetectionMode,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;
