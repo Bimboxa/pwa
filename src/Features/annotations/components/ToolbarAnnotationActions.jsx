@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Box, IconButton, Tooltip, Divider } from "@mui/material";
 import {
   ContentCopy as CloneIcon,
-  OpenInFull as ResizeIcon,
+  OpenWith as MoveResizeIcon,
   DeleteOutline as DeleteIcon,
 } from "@mui/icons-material";
 
@@ -65,7 +65,7 @@ export default function ToolbarAnnotationActions({
         </IconButton>
       </Tooltip>
 
-      <Tooltip title={resizeActive ? "Désactiver le redimensionnement" : "Redimensionner"}>
+      <Tooltip title={resizeActive ? "Désactiver déplacer / redimensionner" : "Déplacer / Redimensionner"}>
         <IconButton
           size="small"
           onClick={onResize}
@@ -78,7 +78,7 @@ export default function ToolbarAnnotationActions({
             },
           }}
         >
-          <ResizeIcon fontSize="small" />
+          <MoveResizeIcon fontSize="small" />
         </IconButton>
       </Tooltip>
 
