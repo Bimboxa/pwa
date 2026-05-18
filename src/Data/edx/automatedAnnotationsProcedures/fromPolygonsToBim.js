@@ -1475,10 +1475,31 @@ export default function fromPolygonsToBim({
 
     // --- 1. VCT: exterior contour polylines with height ---
     if (vctTemplate) {
+      // The exterior contour is a full closed ring only when it is a single
+      // chain with no wall branches and the outer ring was not split by
+      // hidden segments. In that case the polyline must close (last→first).
+      const exteriorIsClosedRing =
+        exteriorChains.length === 1 &&
+        wallChains.length === 0 &&
+        !outerHiddenLines;
+
       for (const chain of exteriorChains) {
         if (chain.length < 2) continue;
+
+        let ringChain = chain;
+        let closed = false;
+        if (exteriorIsClosedRing) {
+          // Drop the duplicate closing point appended by extractContours'
+          // isClosedRing handling so the output follows the canonical
+          // "open array + closeLine" convention.
+          if (chain.length >= 4 && chain[0] === chain[chain.length - 1]) {
+            ringChain = chain.slice(0, -1);
+          }
+          closed = ringChain.length >= 3;
+        }
+
         const result = buildPolylineAnnotation(
-          chain,
+          ringChain,
           vctTemplate,
           polygonVctHeight,
           imageSize,
@@ -1486,6 +1507,7 @@ export default function fromPolygonsToBim({
           outputPoints
         );
         if (result) {
+          if (closed) result.annotation.closeLine = true;
           outputAnnotations.push(result.annotation);
           outputRels.push(...result.rels);
         }
