@@ -64,6 +64,10 @@ export default function NodePolylineStatic({
     // State local pour le survol immédiat (feedback visuel)
     const [hoveredPartId, setHoveredPartId] = useState(null);
 
+    // En aperçu transient (drag de vertex), on ignore complètement le hover :
+    // sinon les segments clignotent quand le curseur les survole pendant le drag.
+    const effectiveHoveredPartId = isTransient ? null : hoveredPartId;
+
     // Fusion des props et overrides
     const mergedAnnotation = { ...annotation, ...annotationOverride };
 
@@ -157,7 +161,7 @@ export default function NodePolylineStatic({
 
     const getPartStyle = (currentPartId) => {
         // A0. Segment selection mode — highlight hovered segment in neon green
-        if (selectMode === "SEGMENT" && hoveredPartId === currentPartId && !isTransient) {
+        if (selectMode === "SEGMENT" && effectiveHoveredPartId === currentPartId && !isTransient) {
             return {
                 stroke: SEGMENT_HOVER_COLOR,
                 fill: SEGMENT_HOVER_COLOR,
@@ -167,7 +171,7 @@ export default function NodePolylineStatic({
 
         // A. Mode Standard (Pas de sous-sélection)
         if (!selectedPartId) {
-            if (hoveredPartId === currentPartId && !isTransient) {
+            if (effectiveHoveredPartId === currentPartId && !isTransient) {
                 return {
                     stroke: hoverStrokeColor,
                     fill: hoverFillColor,
@@ -179,7 +183,7 @@ export default function NodePolylineStatic({
 
         // B. Mode Sous-Sélection
         const isSelected = selectedPartId === currentPartId;
-        const isHovered = hoveredPartId === currentPartId;
+        const isHovered = effectiveHoveredPartId === currentPartId;
 
         if (isSelected) {
             return {
@@ -410,7 +414,7 @@ export default function NodePolylineStatic({
             const partId = getSegmentPartId(basePartType, contextIndex, idx);
             const style = getPartStyle(partId);
             const isSelectedSeg = selectedPartId === partId;
-            const isHoveredSeg = hoveredPartId === partId;
+            const isHoveredSeg = effectiveHoveredPartId === partId;
 
             // Hit area — transparent stroke that captures pointer events.
             const hitAreaPath = useFixedPolygonHit ? (
@@ -446,7 +450,7 @@ export default function NodePolylineStatic({
                 return (
                     <g
                         key={`seg-hidden-${basePartType}-${contextIndex}-${idx}`}
-                        onMouseEnter={(e) => { e.stopPropagation(); setHoveredPartId(partId); }}
+                        onMouseEnter={(e) => { e.stopPropagation(); if (!isTransient) setHoveredPartId(partId); }}
                         onMouseLeave={() => setHoveredPartId(null)}
                         data-part-id={partId}
                         data-node-id={annotationId}
@@ -478,7 +482,7 @@ export default function NodePolylineStatic({
             return (
                 <g
                     key={`seg-${basePartType}-${contextIndex}-${idx}-${seg.startPointIdx}`}
-                    onMouseEnter={(e) => { e.stopPropagation(); setHoveredPartId(partId); }}
+                    onMouseEnter={(e) => { e.stopPropagation(); if (!isTransient) setHoveredPartId(partId); }}
                     onMouseLeave={() => setHoveredPartId(null)}
                     data-part-id={partId}
                     data-node-id={annotationId}
@@ -934,7 +938,7 @@ export default function NodePolylineStatic({
                     fillRule="evenodd"
                     stroke="none"
                     style={{ cursor: isTransient ? "crosshair" : "pointer", transition: "fill 0.2s" }}
-                    onMouseEnter={() => setHoveredPartId(mainPartId)}
+                    onMouseEnter={() => { if (!isTransient) setHoveredPartId(mainPartId); }}
                     onMouseLeave={() => setHoveredPartId(null)}
                     data-part-type="MAIN"
                     {...dataProps}
@@ -946,7 +950,7 @@ export default function NodePolylineStatic({
                 const partId = getPartId("CUT", i);
                 const style = getPartStyle(partId);
                 const isSelected = selectedPartId === partId;
-                const isHovered = hoveredPartId === partId;
+                const isHovered = effectiveHoveredPartId === partId;
 
                 // Bleu si sélectionné, sinon couleur dynamique (ou contexte)
                 const holeFill = isSelected ? STYLE_CONSTANTS.COLORS.CUT_SELECTED : (isHovered ? style.fill : displayFillColor);
@@ -967,7 +971,7 @@ export default function NodePolylineStatic({
                         data-part-id={partId}
                         data-part-type="CUT"
                         data-node-id={annotationId}
-                        onMouseEnter={(e) => { e.stopPropagation(); setHoveredPartId(partId); }}
+                        onMouseEnter={(e) => { e.stopPropagation(); if (!isTransient) setHoveredPartId(partId); }}
                         onMouseLeave={() => setHoveredPartId(null)}
                     />
                 );
