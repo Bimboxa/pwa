@@ -24,6 +24,7 @@ import getAnnotationBBox from "Features/annotations/utils/getAnnotationBbox";
 import mergePolygonAnnotationsService from "Features/annotations/services/mergePolygonAnnotationsService";
 import avoidVisibleAnnotationsService from "Features/annotations/services/avoidVisibleAnnotationsService";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
+import findCutHostAnnotationId from "Features/annotations/utils/findCutHostAnnotationId";
 
 
 export default function useHandleCommitDrawing({ newEntity, annotations } = {}) {
@@ -104,7 +105,20 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         // cuts
 
         if (newAnnotation.type === "CUT") {
-            _updatedAnnotation = { ...await db.annotations.get(cutHostId) }
+            // The host is normally captured by the first-click DOM hit-test in
+            // InteractionLayer (cutHostId). When the user starts the rectangle
+            // on the polygon border instead of inside it, that hit-test misses
+            // and cutHostId stays null — resolve the host geometrically from
+            // the drawn opening so the same downstream pattern still applies.
+            let _cutHostId = cutHostId;
+            if (!_cutHostId && rawPoints?.length >= 3) {
+                _cutHostId = findCutHostAnnotationId({
+                    openingPx: rawPoints,
+                    annotations: annotationsRef.current,
+                    meterByPx: baseMap?.getMeterByPx?.(),
+                });
+            }
+            _updatedAnnotation = { ...await db.annotations.get(_cutHostId) }
 
             // When the drawn opening touches or exits the host polygon's outer
             // boundary, we modify the outer contour (carving a notch) instead

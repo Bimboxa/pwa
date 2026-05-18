@@ -604,7 +604,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // handlers - rectangle
 
     const handleCommitDrawingFromRectangle = (points, event) => {
-        if (["POLYGON", "POLYLINE"].includes(type) && points.length === 2) {
+        if (["POLYGON", "POLYLINE", "CUT"].includes(type) && points.length === 2) {
             points = getPolylinePointsFromRectangle(points, orthoSnapAngleOffset)
         }
         const options = {}
