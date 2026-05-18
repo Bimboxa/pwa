@@ -33,6 +33,9 @@ const ALWAYS_SYNCED_ACTION_TYPES = new Set([
   // Fire-and-forget event: 2D click → 3D camera pan, broadcast across tabs
   // regardless of leader/follower role.
   "threedEditor/setNavigateToWorldPoint",
+  // Fire-and-forget event: 2D "Nav" click → select the annotation in the 3D
+  // tab, broadcast across tabs regardless of leader/follower role.
+  "threedEditor/setSelectAnnotationInThreed",
 ]);
 
 const SYNCED_PREFIXES = ["selection/"];

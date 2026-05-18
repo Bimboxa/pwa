@@ -24,7 +24,7 @@ export const LOCAL_TAB_ID =
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const channel = new BroadcastChannel(CHANNEL_NAME);
-const peers = new Map(); // tabId -> { tabId, innerWidth, coupledEnabled, lastSeen }
+const peers = new Map(); // tabId -> { tabId, innerWidth, inSyncGroup, is3dView, lastSeen }
 const peerListeners = new Set();
 let peersVersion = 0;
 
@@ -76,6 +76,18 @@ function getLocalInSyncGroup() {
   }
 }
 
+// Whether this tab is currently showing the 3D viewer. Broadcast in HELLO so
+// other tabs can offer an explicit "navigate the 3D camera" action only when a
+// 3D-viewer tab actually exists.
+function getLocalIs3dView() {
+  if (!getStoreRef) return false;
+  try {
+    return getStoreRef().getState().viewers?.selectedViewerKey === "THREED";
+  } catch {
+    return false;
+  }
+}
+
 function getLocalInnerWidth() {
   return typeof window !== "undefined" ? window.innerWidth : 0;
 }
@@ -87,6 +99,7 @@ function broadcastHello() {
     timestamp: Date.now(),
     innerWidth: getLocalInnerWidth(),
     inSyncGroup: getLocalInSyncGroup(),
+    is3dView: getLocalIs3dView(),
   });
 }
 
@@ -180,6 +193,7 @@ channel.onmessage = (event) => {
         tabId: msg.tabId,
         innerWidth: Number(msg.innerWidth) || 0,
         inSyncGroup: Boolean(msg.inSyncGroup),
+        is3dView: Boolean(msg.is3dView),
         lastSeen: Date.now(),
       });
       notifyPeerListeners();
@@ -259,6 +273,7 @@ export function startTabsRegistry(getStore) {
   // flips, and broadcast TAKE_OVER when the switch flips on (the local tab
   // becomes the follower) so any other follower yields the role.
   let lastInSyncGroup = getLocalInSyncGroup();
+  let lastIs3dView = getLocalIs3dView();
   let lastRaw = Boolean(
     getStoreRef?.().getState().layout?.coupledNavigationEnabled
   );
@@ -277,8 +292,13 @@ export function startTabsRegistry(getStore) {
         lastRaw = nextRaw;
 
         const nextInSyncGroup = getLocalInSyncGroup();
-        if (nextInSyncGroup !== lastInSyncGroup) {
+        const nextIs3dView = getLocalIs3dView();
+        if (
+          nextInSyncGroup !== lastInSyncGroup ||
+          nextIs3dView !== lastIs3dView
+        ) {
           lastInSyncGroup = nextInSyncGroup;
+          lastIs3dView = nextIs3dView;
           broadcastHello();
         }
       });

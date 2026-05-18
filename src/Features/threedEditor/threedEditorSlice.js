@@ -24,6 +24,11 @@ const threedEditorInitialState = {
   // `baseMapId` is a guard: the consumer ignores the event when its current
   // basemap differs (frames may not match across baseMaps).
   navigateToWorldPoint: null, // { baseMapId, worldX, worldY, worldZ, triggeredAt }
+  // Fire-and-forget cross-tab event: select an annotation in the 3D tab, so a
+  // "Nav" click in the 2D tab also brings the object into the 3D selection
+  // (only if it isn't already selected there). `triggeredAt` makes repeated
+  // requests for the same annotation still fire.
+  selectAnnotationInThreed: null, // { annotationId, annotationType, listingId, triggeredAt }
   // 3D drawing mode: vertex-snapped polylines that auto-commit to a 2D
   // annotation when a closed coplanar face is detected.
   drawingMode: {
@@ -95,6 +100,9 @@ export const threedEditorSlice = createSlice({
     },
     setNavigateToWorldPoint: (state, action) => {
       state.navigateToWorldPoint = action.payload;
+    },
+    setSelectAnnotationInThreed: (state, action) => {
+      state.selectAnnotationInThreed = action.payload;
     },
     setDrawingModeActive: (state, action) => {
       state.drawingMode.active = action.payload;
@@ -206,6 +214,7 @@ export const {
   setDrawingOffset,
   setBaseMapOpacityIn3d,
   setNavigateToWorldPoint,
+  setSelectAnnotationInThreed,
   setDrawingModeActive,
   pushDrawingVertex,
   cancelInProgressPolyline,

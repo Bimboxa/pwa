@@ -13,6 +13,8 @@ import useDeleteAnnotation from "../hooks/useDeleteAnnotation";
 import useCloneAnnotationAndEntity from "Features/mapEditor/hooks/useCloneAnnotationAndEntity";
 import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
+import useHasThreedViewerPeer from "Features/threedEditor/hooks/useHasThreedViewerPeer";
+import useNavigateThreedCameraToAnnotation from "Features/threedEditor/hooks/useNavigateThreedCameraToAnnotation";
 
 import {
   Box,
@@ -25,6 +27,7 @@ import {
 import {
   DragIndicator as GripIcon,
   ArrowDropDown as ArrowDropDownIcon,
+  ThreeDRotation as ThreeDRotationIcon,
   SettingsOutlined as SettingsIcon,
   BugReport as BugReportIcon,
   RestartAlt as ResetIcon,
@@ -64,6 +67,8 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   const deleteAnnotation = useDeleteAnnotation();
   const cloneAnnotationAndEntity = useCloneAnnotationAndEntity();
   const updateAnnotation = useUpdateAnnotation();
+  const hasThreedPeer = useHasThreedViewerPeer();
+  const navigateThreedCamera = useNavigateThreedCameraToAnnotation();
 
   // Template candidates: same type for the dropdown, compatible for clone
   const { candidates: sameTypeCandidates, listings: sameTypeListings } =
@@ -350,6 +355,26 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               <BugReportIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
+
+          {hasThreedPeer && (
+            <Tooltip title="Centrer la vue 3D sur l'annotation">
+              <IconButton
+                size="small"
+                onClick={() => navigateThreedCamera(selectedAnnotation)}
+                onMouseDown={(e) => e.stopPropagation()}
+                sx={{
+                  flexShrink: 0,
+                  color: "text.disabled",
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                    color: "text.primary",
+                  },
+                }}
+              >
+                <ThreeDRotationIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+          )}
 
           <Tooltip title="Propriétés du modèle">
             <IconButton
