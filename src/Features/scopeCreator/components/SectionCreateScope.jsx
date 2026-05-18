@@ -13,6 +13,7 @@ import {
   setLastRemoteConfiguration,
   setLastSyncedRemoteConfigurationVersion,
   setPendingInitialSaveScopeId,
+  restoreScopeSyncStateFromStorage,
 } from "Features/remoteScopeConfigurations/remoteScopeConfigurationsSlice";
 
 import useCreateScope from "Features/scopes/hooks/useCreateScope";
@@ -131,6 +132,10 @@ export default function SectionCreateScope() {
       dispatch(setSelectedScopeId(scope.id));
       dispatch(setSelectedProjectId(projectId));
       dispatch(setSelectedListingId(newListings?.[0]?.id));
+
+      // reinitialize the per-scope save counter so the stale-changes timer
+      // can't inherit the previously selected scope's timestamp.
+      dispatch(restoreScopeSyncStateFromStorage(scope.id));
 
       // reset remote-save guards for the freshly created scope: these are never
       // cleared on scope switch (restoreSyncedVersionFromStorage no-ops on absent

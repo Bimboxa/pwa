@@ -1,4 +1,5 @@
 import store from "App/store";
+import db from "App/db/db";
 
 import {
   setLastLocalChangeAt,
@@ -31,6 +32,18 @@ export function notifyDialogDismissed() {
 export async function evaluateAndOpenSyncDialog({
   isUserTriggered = false,
 } = {}) {
+  // Do not track local changes / prompt to save until the project has at least
+  // one baseMap. A freshly created scope only has scope/listings/entities rows,
+  // which would otherwise mark it dirty and trip the stale-changes dialog.
+  const projectId = store.getState().projects?.selectedProjectId;
+  if (!projectId) return;
+  const baseMapCount = await db.baseMaps
+    .where("projectId")
+    .equals(projectId)
+    .filter((r) => !r.deletedAt)
+    .count();
+  if (baseMapCount === 0) return;
+
   const stateBefore = store.getState().remoteScopeConfigurations;
   const previousLastLocalChangeAt = stateBefore.lastLocalChangeAt;
   const wasDirty = selectIsLocallyDirty(store.getState());
