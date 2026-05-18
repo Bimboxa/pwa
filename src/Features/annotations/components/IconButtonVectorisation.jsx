@@ -6,6 +6,7 @@ import useListings from "Features/listings/hooks/useListings";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useVectorisation from "Features/smartDetect/hooks/useVectorisation";
 import useTraceInteriorContours from "Features/smartDetect/hooks/useTraceInteriorContours";
+import useVectoriseWallsAsPolylines from "Features/smartDetect/hooks/useVectoriseWallsAsPolylines";
 import { resolveDrawingShape } from "../constants/drawingShapeConfig";
 
 import {
@@ -29,6 +30,7 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
   const allTemplates = useAnnotationTemplates({ sortByLabel: true });
   const vectorise = useVectorisation();
   const traceInteriorContours = useTraceInteriorContours();
+  const vectoriseAsPolylines = useVectoriseWallsAsPolylines();
   const baseMap = useMainBaseMap();
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
@@ -44,6 +46,7 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
   const [enableExteriorClose, setEnableExteriorClose] = useState(true);
   const [enableInterior, setEnableInterior] = useState(true);
   const [polygonAsFillMode, setPolygonAsFillMode] = useState(false);
+  const [polylineVariantMode, setPolylineVariantMode] = useState(false);
   const [isInteriorContourMode, setIsInteriorContourMode] = useState(false);
   const open = Boolean(anchorEl);
 
@@ -85,6 +88,9 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
       if (isInteriorContourMode) {
         const result = await traceInteriorContours({ annotations, annotationTemplate: template });
         console.log(`[Vectorisation] ${result.count} interior contour polygons created`);
+      } else if (polylineVariantMode) {
+        const result = await vectoriseAsPolylines({ annotations, annotationTemplate: template });
+        console.log(`[Vectorisation] ${result.count} polyline walls created`);
       } else {
         const result = await vectorise({ annotations, annotationTemplate: template, enableExteriorOrtho, enableExteriorClose, enableInterior, polygonAsFillMode });
         console.log(`[Vectorisation] ${result.count} wall annotations created`);
@@ -133,8 +139,13 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
         {!isInteriorContourMode && (
           <Box sx={{ px: 1, pb: 0.5, display: "flex", flexDirection: "column" }}>
             <FormControlLabel
-              control={<Checkbox size="small" checked={polygonAsFillMode} onChange={(e) => setPolygonAsFillMode(e.target.checked)} />}
+              control={<Checkbox size="small" checked={polygonAsFillMode} disabled={polylineVariantMode} onChange={(e) => setPolygonAsFillMode(e.target.checked)} />}
               label={<Typography variant="caption">Vectoriser le polygone en mur</Typography>}
+              sx={{ m: 0 }}
+            />
+            <FormControlLabel
+              control={<Checkbox size="small" checked={polylineVariantMode} disabled={polygonAsFillMode} onChange={(e) => setPolylineVariantMode(e.target.checked)} />}
+              label={<Typography variant="caption">Vectorisation avec polyligne</Typography>}
               sx={{ m: 0 }}
             />
           </Box>
@@ -148,17 +159,17 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
         {!isInteriorContourMode && (
           <Box sx={{ px: 1, pb: 0.5, display: "flex", flexDirection: "column" }}>
             <FormControlLabel
-              control={<Checkbox size="small" checked={enableExteriorOrtho} disabled={polygonAsFillMode} onChange={(e) => setEnableExteriorOrtho(e.target.checked)} />}
+              control={<Checkbox size="small" checked={enableExteriorOrtho} disabled={polygonAsFillMode || polylineVariantMode} onChange={(e) => setEnableExteriorOrtho(e.target.checked)} />}
               label={<Typography variant="caption">Murs ext (ortho)</Typography>}
               sx={{ m: 0 }}
             />
             <FormControlLabel
-              control={<Checkbox size="small" checked={enableExteriorClose} disabled={polygonAsFillMode} onChange={(e) => setEnableExteriorClose(e.target.checked)} />}
+              control={<Checkbox size="small" checked={enableExteriorClose} disabled={polygonAsFillMode || polylineVariantMode} onChange={(e) => setEnableExteriorClose(e.target.checked)} />}
               label={<Typography variant="caption">Murs ext (fermeture)</Typography>}
               sx={{ m: 0 }}
             />
             <FormControlLabel
-              control={<Checkbox size="small" checked={enableInterior} disabled={polygonAsFillMode} onChange={(e) => setEnableInterior(e.target.checked)} />}
+              control={<Checkbox size="small" checked={enableInterior} disabled={polygonAsFillMode || polylineVariantMode} onChange={(e) => setEnableInterior(e.target.checked)} />}
               label={<Typography variant="caption">Murs intérieurs ortho</Typography>}
               sx={{ m: 0 }}
             />
