@@ -49,6 +49,7 @@ import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
 import IconButtonConvertAnnotation from "./IconButtonConvertAnnotation";
 import IconButtonVectorisation from "./IconButtonVectorisation";
 import IconButtonSimplifyAnnotation from "./IconButtonSimplifyAnnotation";
+import IconButtonCloseWallFootprint from "./IconButtonCloseWallFootprint";
 import IconButtonContours from "./IconButtonContours";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
@@ -510,6 +511,12 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               {selectedAnnotation?.type === "POLYGON" && (
                 <IconButtonVectorisation
                   annotations={[selectedAnnotation]}
+                  accentColor={accentColor}
+                />
+              )}
+              {selectedAnnotation?.type === "POLYGON" && (
+                <IconButtonCloseWallFootprint
+                  annotation={selectedAnnotation}
                   accentColor={accentColor}
                 />
               )}
