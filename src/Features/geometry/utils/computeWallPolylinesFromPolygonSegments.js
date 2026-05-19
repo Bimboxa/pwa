@@ -159,10 +159,16 @@ export default function computeWallPolylinesFromPolygonSegments({
 
   const thresholdPx = maxWallThicknessM / meterByPx;
   const epsLenPx = Math.max(1, 0.02 * thresholdPx);
-  const minOverlapPx = Math.max(4, 0.1 * thresholdPx);
+  // thresholdPx = max ALLOWED wall thickness (maxWallThicknessM / meterByPx).
+  // On a small-scale plan it can be far larger than the actual wall, so it
+  // must ONLY gate the gap distance. The longitudinal-overlap minimum and the
+  // piece-dedup grid stay at the (small) chord scale — otherwise a thin or
+  // curved wall, whose midline is many short pieces (~one per arc chord), has
+  // all its pieces rejected/deduped and no wall is produced.
+  const minOverlapPx = Math.max(2, epsLenPx);
+  const dedupPx = Math.max(2, epsLenPx);
   const snapPx = Math.max(6, 0.2 * thresholdPx);
   const thickTolPx = Math.max(2, 0.15 * thresholdPx);
-  const minWallLengthPx = Math.max(8, 0.5 * thresholdPx);
 
   // 1. Collect every segment (outer rings + cut rings) with its outward normal.
   const segs = [];
@@ -180,8 +186,8 @@ export default function computeWallPolylinesFromPolygonSegments({
   const pieces = [];
   const seen = new Set();
   const keyFor = (m0, m1) => {
-    const a = `${Math.round(m0.x / snapPx)},${Math.round(m0.y / snapPx)}`;
-    const b = `${Math.round(m1.x / snapPx)},${Math.round(m1.y / snapPx)}`;
+    const a = `${Math.round(m0.x / dedupPx)},${Math.round(m0.y / dedupPx)}`;
+    const b = `${Math.round(m1.x / dedupPx)},${Math.round(m1.y / dedupPx)}`;
     return a < b ? `${a}|${b}` : `${b}|${a}`;
   };
 
@@ -279,7 +285,10 @@ export default function computeWallPolylinesFromPolygonSegments({
         group.map((pt) => ({ x: pt.x, y: pt.y })),
         maxBridgePx
       );
-      if (polylineLength(healed) < minWallLengthPx) continue;
+      // A real wall is at least about as long as it is thick — keeps short
+      // partitions while dropping tiny spurious fragments. Threshold-
+      // independent (see the minOverlapPx / dedupPx note above).
+      if (polylineLength(healed) < Math.max(8, bucketThickness)) continue;
       walls.push({ pointsPx: healed, thicknessPx: bucketThickness });
     }
   }

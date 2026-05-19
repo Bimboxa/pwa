@@ -12,6 +12,12 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import getAnnotationTemplateProps from "Features/annotations/utils/getAnnotationTemplateProps";
 import insertWallJunctionPoints from "Features/geometry/utils/insertWallJunctionPoints";
+import cleanPolylinePoints from "Features/geometry/utils/cleanPolylinePoints";
+import collapseArcsInPolyline from "Features/geometry/utils/collapseArcsInPolyline";
+import {
+  circleFromThreePoints,
+  typeOf,
+} from "Features/geometry/utils/arcSampling";
 
 import db from "App/db/db";
 import computeWallPolylinesFromPolygonSegments from "Features/geometry/utils/computeWallPolylinesFromPolygonSegments";
@@ -141,24 +147,69 @@ export default function useVectoriseWallsAsPolylines() {
         .map(parseMappingCategory)
         .filter(Boolean);
 
-      // Split every wall into independent 2-point segments (points are cloned
-      // so each segment can move on its own at a junction — two arms of one
-      // L-shaped wall must NOT share the bend vertex object).
+      // Circles of every S-C-S arc present in the SOURCE polygons (px). A wall
+      // run whose fitted circle matches one of these came from an arc-shaped
+      // polygon edge — a robust hint to collapse it to an arc.
+      const sourceArcCircles = [];
+      const collectArcs = (ring) => {
+        if (!Array.isArray(ring)) return;
+        for (let k = 0; k + 2 < ring.length; k++) {
+          if (
+            typeOf(ring[k]) !== "circle" &&
+            typeOf(ring[k + 1]) === "circle" &&
+            typeOf(ring[k + 2]) !== "circle"
+          ) {
+            const c = circleFromThreePoints(ring[k], ring[k + 1], ring[k + 2]);
+            if (c) sourceArcCircles.push(c);
+          }
+        }
+      };
+      for (const poly of sourcePolygons) {
+        collectArcs(poly.points);
+        if (poly.cuts) for (const cut of poly.cuts) collectArcs(cut.points);
+      }
+
+      // Per wall: merge collinear vertices (within the wall — same thickness),
+      // then split into emit units: straight runs become 2-point segments,
+      // arc-shaped runs become a single S-C-S polyline.
       const wallSegments = [];
+      const arcUnits = []; // { points: [sq, circle, sq], thicknessPx }
       for (const wall of walls) {
-        const pts = wall.pointsPx;
+        let pts = wall.pointsPx;
         if (!pts || pts.length < 2) continue;
-        for (let s = 0; s + 1 < pts.length; s++) {
-          const a = pts[s];
-          const b = pts[s + 1];
-          if (Math.hypot(b.x - a.x, b.y - a.y) < 1e-3) continue;
-          wallSegments.push({
-            pointsPx: [
-              { x: a.x, y: a.y },
-              { x: b.x, y: b.y },
-            ],
-            thicknessPx: wall.thicknessPx,
-          });
+        // Step A — collinear merge. minDistance in px (file default is for
+        // normalized coords); small angle so genuine arc chords survive.
+        pts = cleanPolylinePoints(pts, {
+          minDistance: 1,
+          angleThreshold: 0.02,
+        });
+        if (!pts || pts.length < 2) continue;
+        // Step B — collapse arc-shaped chord runs into S-C-S triples.
+        const units = collapseArcsInPolyline(pts, {
+          thicknessPx: wall.thicknessPx,
+          sourceArcCircles,
+        });
+        for (const unit of units) {
+          if (unit.kind === "arc") {
+            arcUnits.push({
+              points: unit.points,
+              thicknessPx: wall.thicknessPx,
+            });
+            continue;
+          }
+          const up = unit.points;
+          for (let s = 0; s + 1 < up.length; s++) {
+            const a = up[s];
+            const b = up[s + 1];
+            if (Math.hypot(b.x - a.x, b.y - a.y) < 1e-3) continue;
+            wallSegments.push({
+              pointsPx: [
+                { x: a.x, y: a.y },
+                { x: b.x, y: b.y },
+              ],
+              thicknessPx: wall.thicknessPx,
+            });
+          }
         }
       }
 
@@ -244,6 +295,70 @@ export default function useVectoriseWallsAsPolylines() {
           ...(activeLayerId ? { layerId: activeLayerId } : {}),
           points: [
             { id: id1, type: "square" },
+            { id: id2, type: "square" },
+          ],
+        });
+
+        for (const mc of mappingCategories) {
+          allMappingRels.push({
+            id: nanoid(),
+            annotationId,
+            projectId,
+            nomenclatureKey: mc.nomenclatureKey,
+            categoryKey: mc.categoryKey,
+            source: "annotationTemplate",
+          });
+        }
+      }
+
+      // Emit each arc run as a single S-C-S POLYLINE (square / circle /
+      // square). Bypasses the junction pass; endpoints still share ids via
+      // the grid so they stay continuous with adjacent straight segments.
+      for (const arc of arcUnits) {
+        const a = arc.points?.[0];
+        const c = arc.points?.[1];
+        const b = arc.points?.[2];
+        if (!a || !c || !b) continue;
+
+        const thicknessCm =
+          Math.round(arc.thicknessPx * meterByPx * 100 * 10) / 10;
+
+        const id1 = getOrCreatePoint(a.x, a.y);
+        const idC = getOrCreatePoint(c.x, c.y);
+        const id2 = getOrCreatePoint(b.x, b.y);
+        if (id1 === id2 || id1 === idC || idC === id2) continue;
+
+        let entityId;
+        if (entityTable && targetListing) {
+          entityId = nanoid();
+          allEntities.push({
+            id: entityId,
+            createdBy: userEmail,
+            listingId: targetListingId,
+            projectId: targetListing.projectId ?? projectId,
+          });
+        }
+
+        const annotationId = nanoid();
+        allAnnotations.push({
+          id: annotationId,
+          type: "POLYLINE",
+          annotationTemplateId: annotationTemplate.id,
+          strokeColor: templateProps.strokeColor,
+          strokeType: templateProps.strokeType ?? "SOLID",
+          strokeOpacity: templateProps.strokeOpacity ?? 1,
+          strokeWidth: thicknessCm,
+          strokeWidthUnit: "CM",
+          closeLine: false,
+          baseMapId,
+          projectId,
+          listingId: targetListingId,
+          createdBy: userEmail,
+          ...(entityId ? { entityId } : {}),
+          ...(activeLayerId ? { layerId: activeLayerId } : {}),
+          points: [
+            { id: id1, type: "square" },
+            { id: idC, type: "circle" },
             { id: id2, type: "square" },
           ],
         });
