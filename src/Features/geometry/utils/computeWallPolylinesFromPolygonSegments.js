@@ -193,36 +193,46 @@ export default function computeWallPolylinesFromPolygonSegments({
       if (Sa.dir.x * Sb.dir.x + Sa.dir.y * Sb.dir.y >= -COS_ANG) continue;
       if (Sa.n.x * Sb.n.x + Sa.n.y * Sb.n.y >= -COS_ANG) continue;
 
-      const midA = mid(Sa.A, Sa.B);
-      const midB = mid(Sb.A, Sb.B);
-
-      const projBonA = projectPointOnSegment(midB, Sa.A, Sa.B);
-      const projAonB = projectPointOnSegment(midA, Sb.A, Sb.B);
-      const dA = projBonA.distance;
-      const dB = projAonB.distance;
-      if (!(dA > epsLenPx && dA < thresholdPx)) continue;
-      if (!(dB > epsLenPx && dB < thresholdPx)) continue;
-      if (Math.abs(dA - dB) > 0.3 * thresholdPx) continue;
-
-      // Facing: Sb must lie on the gap side of Sa (along Sa's outward normal).
-      const fvx = projAonB.projectedPoint.x - midA.x;
-      const fvy = projAonB.projectedPoint.y - midA.y;
-      if (fvx * Sa.n.x + fvy * Sa.n.y <= 0) continue;
-
-      // Longitudinal overlap of Sb projected onto Sa's line.
+      // Longitudinal overlap of Sb projected onto Sa's line. Computed first so
+      // the gap is measured inside the shared span: with multiple input
+      // polygons the two facing edges often differ greatly in length, and a
+      // full-segment midpoint of the longer edge projects outside the shorter
+      // one (projectPointOnSegment clamps to an endpoint and returns an
+      // inflated distance, which used to spuriously reject the pair).
       const tb0 = tOnLine(Sb.A, Sa.A, Sa.B);
       const tb1 = tOnLine(Sb.B, Sa.A, Sa.B);
       const tLo = Math.max(0, Math.min(tb0, tb1));
       const tHi = Math.min(1, Math.max(tb0, tb1));
       if (tHi <= tLo || (tHi - tLo) * Sa.L < minOverlapPx) continue;
 
-      // 3. Midline piece over the common interval.
+      // Sample the perpendicular gap at both ends and the middle of the
+      // overlap. These points lie within Sb by construction, so the distances
+      // are true gaps (no endpoint clamping).
       const Pa0 = lerp(Sa.A, Sa.B, tLo);
       const Pa1 = lerp(Sa.A, Sa.B, tHi);
-      const Pb0 = projectPointOnSegment(Pa0, Sb.A, Sb.B).projectedPoint;
-      const Pb1 = projectPointOnSegment(Pa1, Sb.A, Sb.B).projectedPoint;
-      const M0 = mid(Pa0, Pb0);
-      const M1 = mid(Pa1, Pb1);
+      const Pam = lerp(Sa.A, Sa.B, (tLo + tHi) / 2);
+      const p0 = projectPointOnSegment(Pa0, Sb.A, Sb.B);
+      const p1 = projectPointOnSegment(Pa1, Sb.A, Sb.B);
+      const pm = projectPointOnSegment(Pam, Sb.A, Sb.B);
+      const d0 = p0.distance;
+      const d1 = p1.distance;
+      const dm = pm.distance;
+
+      const gap = (d0 + d1 + dm) / 3;
+      if (!(gap > epsLenPx && gap < thresholdPx)) continue;
+      // Gap must stay roughly constant across the overlap (rejects
+      // non-parallel pairs — the real intent of the old |dA - dB| test).
+      if (Math.max(d0, d1, dm) - Math.min(d0, d1, dm) > 0.3 * thresholdPx)
+        continue;
+
+      // Facing: Sb must lie on the gap side of Sa (along Sa's outward normal).
+      const fvx = pm.projectedPoint.x - Pam.x;
+      const fvy = pm.projectedPoint.y - Pam.y;
+      if (fvx * Sa.n.x + fvy * Sa.n.y <= 0) continue;
+
+      // 3. Midline piece over the common interval.
+      const M0 = mid(Pa0, p0.projectedPoint);
+      const M1 = mid(Pa1, p1.projectedPoint);
       if (Math.hypot(M1.x - M0.x, M1.y - M0.y) < epsLenPx) continue;
 
       // 4. Dedup (a subdivided segment can match the same opposite edge twice).
@@ -230,7 +240,7 @@ export default function computeWallPolylinesFromPolygonSegments({
       if (seen.has(k)) continue;
       seen.add(k);
 
-      pieces.push({ a: M0, b: M1, thicknessPx: (dA + dB) / 2 });
+      pieces.push({ a: M0, b: M1, thicknessPx: gap });
     }
   }
 
@@ -254,7 +264,8 @@ export default function computeWallPolylinesFromPolygonSegments({
       wSum += p.thicknessPx * len;
       wLen += len;
     }
-    const bucketThickness = wLen > 0 ? wSum / wLen : bucketPieces[0].thicknessPx;
+    const bucketThickness =
+      wLen > 0 ? wSum / wLen : bucketPieces[0].thicknessPx;
 
     const list = bucketPieces.map((p) => [
       { x: p.a.x, y: p.a.y },
