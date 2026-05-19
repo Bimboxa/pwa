@@ -87,6 +87,7 @@ export default function NodePolylineStatic({
         strokeWidth,
         strokeWidthUnit = "PX",
         hiddenSegmentsIdx = [],
+        isoHeightSegmentsIdx = [],
     } = mergedAnnotation || {};
 
     if (type === "POLYGON") closeLine = true;
@@ -407,11 +408,17 @@ export default function NodePolylineStatic({
         const hiddenList = isMainPath
             ? (hiddenSegmentsIdx ?? [])
             : (cuts[contextIndex]?.hiddenSegmentsIdx ?? []);
+        const isoList = isMainPath
+            ? (isoHeightSegmentsIdx ?? [])
+            : (cuts[contextIndex]?.isoHeightSegmentsIdx ?? []);
 
         const useFixedPolygonHit = type === "POLYGON";
 
         return segmentsList.map((seg, idx) => {
             const partId = getSegmentPartId(basePartType, contextIndex, idx);
+            // "SEG" / "CUT_SEG" — exposed so the generic part-click handler
+            // sets selectedItem.partType (mirrors the explicit VERTEX path).
+            const segPartType = partId.split("::")[1];
             const style = getPartStyle(partId);
             const isSelectedSeg = selectedPartId === partId;
             const isHoveredSeg = effectiveHoveredPartId === partId;
@@ -453,6 +460,7 @@ export default function NodePolylineStatic({
                         onMouseEnter={(e) => { e.stopPropagation(); if (!isTransient) setHoveredPartId(partId); }}
                         onMouseLeave={() => setHoveredPartId(null)}
                         data-part-id={partId}
+                        data-part-type={segPartType}
                         data-node-id={annotationId}
                         style={{ cursor: isTransient ? "crosshair" : "pointer" }}
                     >
@@ -479,16 +487,33 @@ export default function NodePolylineStatic({
             // visible stroke is the default 0.5 px.
             const showPolygonOverlay = type === "POLYGON" && (isSelectedSeg || isHoveredSeg);
 
+            // isoHeight (contour line) segments are drawn in red while the
+            // annotation is selected so the user can see which edge keeps a
+            // constant height when the face is reshaped as a ramp in 3D.
+            const isIsoSeg = selected && isoList.includes(idx);
+
             return (
                 <g
                     key={`seg-${basePartType}-${contextIndex}-${idx}-${seg.startPointIdx}`}
                     onMouseEnter={(e) => { e.stopPropagation(); if (!isTransient) setHoveredPartId(partId); }}
                     onMouseLeave={() => setHoveredPartId(null)}
                     data-part-id={partId}
+                    data-part-type={segPartType}
                     data-node-id={annotationId}
                     style={{ cursor: isTransient ? "crosshair" : "pointer" }}
                 >
                     {hitAreaPath}
+                    {isIsoSeg && (
+                        <path
+                            d={seg.d}
+                            fill="none"
+                            stroke="#d32f2f"
+                            strokeWidth={3}
+                            vectorEffect="non-scaling-stroke"
+                            strokeLinecap="round"
+                            style={{ pointerEvents: "none" }}
+                        />
+                    )}
                     {showPolygonOverlay && (
                         <path
                             d={seg.d}

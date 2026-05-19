@@ -13,6 +13,7 @@ import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 import wallToRectRing, {
   segNormal,
   lineLineIntersection,
+  wallToHollowRings,
 } from "Features/geometry/utils/wallToRectRing";
 
 import db from "App/db/db";
@@ -342,60 +343,92 @@ export default function useWallBoundaries() {
           points: filtered,
           halfWidth: thicknessPx / 2,
           side: ann.topologySide ?? "INT",
+          closed: ann.closeLine === true,
         });
       }
 
       if (walls.length === 0)
         throw new Error("No valid wall annotations found");
 
-      // ── 2. Convert each wall to a rectangle polygon ───────────────────
-      const rectRings = [];
-      for (const wall of walls) {
-        const ring = wallToRectRing(wall.points, wall.halfWidth);
-        if (ring) rectRings.push(ring);
-      }
+      // A closed-line wall is itself a loop: its contour is an annulus
+      // (outer + inner closed ring), not an open offset band. Routing it
+      // through the open-band pipeline would skip the closing segment and
+      // add butt caps, producing a "U" instead of two closed contours.
+      const openWalls = walls.filter((w) => !w.closed);
+      const closedWalls = walls.filter((w) => w.closed);
 
-      if (rectRings.length === 0) throw new Error("No valid wall rectangles");
-
-      // ── 3. Union all wall rectangles ──────────────────────────────────
-      const polyArgs = rectRings.map((ring) => [[ring]]);
-      let merged;
-      try {
-        merged = polygonClipping.union(...polyArgs);
-      } catch (e) {
-        console.error("[useWallBoundaries] polygon-clipping union failed:", e);
-        throw new Error("Polygon union failed");
-      }
-
-      // ── 3b. Remove step artifacts at L-junction corners ────────────────
-      for (const polygon of merged) {
-        for (let r = 0; r < polygon.length; r++) {
-          polygon[r] = removeSteps(polygon[r], walls);
-        }
-      }
-
-      // ── 4. Compute centroid for EXT side classification ───────────────
-      let cx = 0,
-        cy = 0,
-        totalPts = 0;
-      for (const w of walls) {
-        for (const p of w.points) {
-          cx += p.x;
-          cy += p.y;
-          totalPts++;
-        }
-      }
-      const centroid = { x: cx / totalPts, y: cy / totalPts };
-
-      // ── 5. Walk merged boundary, classify edges, group into polylines ─
       const allGroups = [];
 
-      for (const polygon of merged) {
-        for (const ring of polygon) {
-          const groups = groupEdgesByType(ring, walls, centroid);
-          allGroups.push(...groups);
+      // ── 2a. Closed-line walls → outer + inner closed contour ──────────
+      for (const wall of closedWalls) {
+        const rings = wallToHollowRings(wall.points, wall.halfWidth);
+        if (!rings) continue;
+        allGroups.push({
+          type: "EXT_EXTERIOR",
+          points: rings.outer.map((p) => [p.x, p.y]),
+          closed: true,
+        });
+        allGroups.push({
+          type: "EXT_INTERIOR",
+          points: rings.inner.map((p) => [p.x, p.y]),
+          closed: true,
+        });
+      }
+
+      // ── 2b. Open walls → rectangle-band union pipeline ────────────────
+      if (openWalls.length > 0) {
+        const rectRings = [];
+        for (const wall of openWalls) {
+          const ring = wallToRectRing(wall.points, wall.halfWidth);
+          if (ring) rectRings.push(ring);
+        }
+
+        if (rectRings.length > 0) {
+          // ── 3. Union all wall rectangles ──────────────────────────────
+          const polyArgs = rectRings.map((ring) => [[ring]]);
+          let merged;
+          try {
+            merged = polygonClipping.union(...polyArgs);
+          } catch (e) {
+            console.error(
+              "[useWallBoundaries] polygon-clipping union failed:",
+              e
+            );
+            throw new Error("Polygon union failed");
+          }
+
+          // ── 3b. Remove step artifacts at L-junction corners ───────────
+          for (const polygon of merged) {
+            for (let r = 0; r < polygon.length; r++) {
+              polygon[r] = removeSteps(polygon[r], openWalls);
+            }
+          }
+
+          // ── 4. Compute centroid for EXT side classification ───────────
+          let cx = 0,
+            cy = 0,
+            totalPts = 0;
+          for (const w of openWalls) {
+            for (const p of w.points) {
+              cx += p.x;
+              cy += p.y;
+              totalPts++;
+            }
+          }
+          const centroid = { x: cx / totalPts, y: cy / totalPts };
+
+          // ── 5. Walk merged boundary, classify, group into polylines ───
+          for (const polygon of merged) {
+            for (const ring of polygon) {
+              const groups = groupEdgesByType(ring, openWalls, centroid);
+              allGroups.push(...groups);
+            }
+          }
         }
       }
+
+      if (allGroups.length === 0)
+        throw new Error("No boundary contours produced");
 
       // ── 6. Create boundary annotations ────────────────────────────────
       const entityTable =
@@ -440,7 +473,7 @@ export default function useWallBoundaries() {
           strokeOpacity: boundaryAnnotationTemplate.strokeOpacity ?? 1,
           strokeWidth: boundaryAnnotationTemplate.strokeWidth ?? 2,
           strokeWidthUnit: boundaryAnnotationTemplate.strokeWidthUnit ?? "PX",
-          closeLine: false,
+          closeLine: group.closed === true,
           entityId,
           baseMapId,
           projectId,

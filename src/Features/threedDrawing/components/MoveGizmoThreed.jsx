@@ -29,6 +29,7 @@ import {
 } from "../services/buildTransientFaceMesh";
 import getAnnotationFaceNormal from "../utils/getAnnotationFaceNormal";
 import roundForDisplay from "../utils/roundForDisplay";
+import { buildIndex } from "../hooks/useVertexSnap";
 import {
   getPolygonEdgeSlopePct,
   deltaZForTargetSlope,
@@ -39,9 +40,22 @@ import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingF
 import getPolygonZPlane, {
   getZAtXY,
 } from "Features/annotations/utils/getPolygonZPlane";
+import getRampRailChains from "Features/annotations/utils/getRampRailChains";
+import buildRampLayout from "Features/annotations/utils/buildRampLayout";
+import rampOffsetTopByPointId from "Features/annotations/utils/rampOffsetTopByPointId";
 import { nanoid } from "@reduxjs/toolkit";
 
 const DEFAULT_Z = new Vector3(0, 0, 1);
+
+// Vertical-snap helper: same magenta circle as the drawing snap
+// (DrawingOverlayThreed COLOR_VERTEX). Detection is mouse-driven: one helper,
+// on the existing vertex closest to the cursor. When the cursor is within
+// SNAP_PX of it ("inside"), the helper fills in and that vertex becomes the
+// snap target — its elevation is applied on gizmo release.
+const SNAP_PX = 12;
+const SNAP_COLOR = "#ff2d8d";
+const SNAP_CIRCLE_RADIUS_PX = 6;
+const SNAP_CIRCLE_STROKE_PX = 2;
 
 // In sub-selection (vertex/edge) mode the user expects the constraint axis
 // to be the BASEMAP normal — not the per-face normal. For a horizontal
@@ -195,6 +209,21 @@ export default function MoveGizmoThreed() {
   const slopeCurrentEdgeZRef = useRef(0);
   const slopeMeterByPxRef = useRef(0);
 
+  // Ramp-mode bookkeeping. When the moved annotation is a POLYGON with an
+  // isoHeight segment, the whole face is reshaped as a constant-slope ramp
+  // between the iso edge (constant z) and the moved edge. Layout (rail chains,
+  // inserted points, per-point t) is delta-independent and captured on enter;
+  // only the moved height scales with the live delta.
+  const rampAppliesRef = useRef(false);
+  const rampLayoutRef = useRef(null);
+  const rampSnapshotRef = useRef(null);
+  const rampSnapshotOffsetTopByIdRef = useRef(null);
+  const rampIsoZRef = useRef(0);
+  const rampMovedBaseZRef = useRef(0);
+  const rampIsoPointsPxRef = useRef(null);
+  const rampMovedMidPxRef = useRef(null);
+  const rampMeterByPxRef = useRef(0);
+
   // Gizmo bookkeeping.
   const targetRef = useRef(null);
   const initialPosRef = useRef(null);
@@ -233,6 +262,21 @@ export default function MoveGizmoThreed() {
   // Throttle expensive transient regen to one rAF.
   const pendingFrameRef = useRef(null);
   const latestDeltaRef = useRef(0);
+
+  // Vertical snap: all snappable world-space scene vertices captured once at
+  // drag start (other annotations don't move during the drag) and the
+  // current commit target (closest vertex inside the COMMIT zone — snapped
+  // on release).
+  const candidateVertsRef = useRef([]);
+  const filledSnapRef = useRef(null);
+  // Latest cursor position in canvas-relative px — drives which vertex the
+  // single helper sticks to and whether it is "inside" (snapped).
+  const mouseClientRef = useRef(null);
+  // Whole-face only: the annotation's base-plane level (along the drag axis)
+  // at drag start with offsetTop/Bottom = 0. The live reference is this +
+  // delta. Null in segment mode (there the moving segment centroid is used).
+  const baseRefLevelRef = useRef(null);
+  const [snapMarkers, setSnapMarkers] = useState([]);
 
   useEffect(() => {
     if (!active || !selectedAnnotationId) return;
@@ -339,6 +383,12 @@ export default function MoveGizmoThreed() {
     };
     editor.sceneManager.renderScene?.();
 
+    // Candidate vertices for the vertical snap. Built AFTER deepHide so the
+    // moved annotation (now invisible) is excluded by buildIndex's
+    // visibility filter — you can't snap a thing onto itself. Same source as
+    // the drawing snap, so both behave identically.
+    candidateVertsRef.current = buildIndex(scene).verts || [];
+
     const target = new Object3D();
     target.name = "MoveGizmoTarget";
     target.position.copy(centerWorld);
@@ -372,6 +422,21 @@ export default function MoveGizmoThreed() {
         baseOffsetRef.current = nb > 0 ? s / nb : 0;
       } else {
         baseOffsetRef.current = ann.offsetZ ?? 0;
+      }
+
+      // Whole-face snap reference = the annotation's base plane at the
+      // current offset (offsetTop/Bottom = 0), NOT the bbox centroid. The
+      // base plane translates rigidly with the drag, so the live reference
+      // is this start level + delta. Segment mode tracks the moving segment
+      // centroid instead (the gizmo target) — handled in recompute.
+      if (subIdsForBase && subIdsForBase.size > 0) {
+        baseRefLevelRef.current = null;
+      } else if (faceNormalRef.current && initialPosRef.current) {
+        annoObject.updateMatrixWorld?.(true);
+        const lc = annoObject.worldToLocal(initialPosRef.current.clone());
+        lc.z = baseOffsetRef.current;
+        const baseWorld = annoObject.localToWorld(lc);
+        baseRefLevelRef.current = baseWorld.dot(faceNormalRef.current);
       }
       // A drag tick may already have accumulated a delta during this async
       // window — reflect the absolute value immediately.
@@ -428,6 +493,137 @@ export default function MoveGizmoThreed() {
         setSlopeModeApplies(false);
       }
 
+      // Ramp mode: POLYGON edge move + ≥1 isoHeight segment ⇒ reshape the
+      // whole face as a constant-slope ramp between the moved edge and the
+      // iso edge (the contour line that stays at constant height).
+      rampAppliesRef.current = false;
+      rampLayoutRef.current = null;
+      rampSnapshotRef.current = null;
+      try {
+        const snap = movedSnapshotRef.current;
+        const isoIdxList = ann.isoHeightSegmentsIdx || [];
+        if (
+          ann.type === "POLYGON" &&
+          subSelectionTarget?.kind === "EDGE" &&
+          isoIdxList.length > 0 &&
+          slopeSetup &&
+          Array.isArray(slopeSetup.resolved) &&
+          slopeSetup.resolved.length >= 4
+        ) {
+          // Stripped ring in pixel coords + offsetTop, annotation.points order.
+          const ring = slopeSetup.resolved;
+          const N = ring.length;
+          const idToRingIdx = new Map(ring.map((p, i) => [p.id, i]));
+
+          const movedIds = (subSelectionTarget.pointIds || []).filter(Boolean);
+          let movedSegIdx = -1;
+          if (movedIds.length === 2) {
+            for (let i = 0; i < N; i++) {
+              const a = ring[i].id;
+              const b = ring[(i + 1) % N].id;
+              if (
+                (a === movedIds[0] && b === movedIds[1]) ||
+                (a === movedIds[1] && b === movedIds[0])
+              ) {
+                movedSegIdx = i;
+                break;
+              }
+            }
+          }
+          // Map the first raw iso segment into stripped-ring space via its
+          // start point id (robust to sliding-ref stripping).
+          const rawIsoIdx = isoIdxList[0];
+          const rawIsoStartId = ann.points?.[rawIsoIdx]?.id;
+          const isoSegIdx =
+            rawIsoStartId != null && idToRingIdx.has(rawIsoStartId)
+              ? idToRingIdx.get(rawIsoStartId)
+              : -1;
+
+          if (movedSegIdx >= 0 && isoSegIdx >= 0) {
+            const chains = getRampRailChains({ ring, isoSegIdx, movedSegIdx });
+            const arcPointIds = new Set(
+              (snap.annotation.points || [])
+                .filter((r) => r?.type === "circle")
+                .map((r) => r.id)
+            );
+            const layout = chains
+              ? buildRampLayout({
+                  ring,
+                  chains,
+                  idFactory: () => nanoid(),
+                  arcPointIds,
+                })
+              : null;
+            if (chains && layout) {
+              const offsetTopById = new Map(
+                ring.map((p) => [p.id, p.offsetTop ?? 0])
+              );
+              const zIso =
+                ((offsetTopById.get(chains.isoIds[0]) ?? 0) +
+                  (offsetTopById.get(chains.isoIds[1]) ?? 0)) /
+                2;
+
+              const origRefById = new Map(
+                (snap.annotation.points || []).map((r) => [r.id, r])
+              );
+              const augPoints = layout.augmentedRing.map((v) => {
+                const orig = origRefById.get(v.id);
+                if (orig) return { ...orig };
+                return { id: v.id, offsetTop: 0, offsetBottom: 0 };
+              });
+              const imgW = snap.baseMapForRender.imageWidth || 1;
+              const imgH = snap.baseMapForRender.imageHeight || 1;
+              const augPointsById = new Map(snap.pointsById);
+              for (const ip of layout.insertedPoints) {
+                augPointsById.set(ip.id, { x: ip.x / imgW, y: ip.y / imgH });
+              }
+
+              rampSnapshotRef.current = {
+                ...snap,
+                annotation: { ...snap.annotation, points: augPoints },
+                pointsById: augPointsById,
+              };
+              rampSnapshotOffsetTopByIdRef.current = new Map(
+                augPoints.map((r) => [r.id, r.offsetTop ?? 0])
+              );
+              rampLayoutRef.current = layout;
+              rampIsoZRef.current = zIso;
+              rampMovedBaseZRef.current = slopeSetup.currentEdgeZ ?? 0;
+              rampMeterByPxRef.current = slopeSetup.meterByPx ?? 0;
+              const ia = ring[idToRingIdx.get(chains.isoIds[0])];
+              const ib = ring[idToRingIdx.get(chains.isoIds[1])];
+              const ma = ring[idToRingIdx.get(chains.movedIds[0])];
+              const mb = ring[idToRingIdx.get(chains.movedIds[1])];
+              rampIsoPointsPxRef.current = [
+                { x: ia.x, y: ia.y },
+                { x: ib.x, y: ib.y },
+              ];
+              rampMovedMidPxRef.current = {
+                x: (ma.x + mb.x) / 2,
+                y: (ma.y + mb.y) / 2,
+              };
+              rampAppliesRef.current = true;
+              setSlopeModeApplies(true);
+              const L0 = rampSlopeLengthM();
+              if (L0) {
+                setSlopePctValue(
+                  String(
+                    roundForDisplay(
+                      (100 *
+                        ((rampMovedBaseZRef.current || 0) -
+                          (rampIsoZRef.current || 0))) /
+                        L0
+                    )
+                  )
+                );
+              }
+            }
+          }
+        }
+      } catch (e) {
+        rampAppliesRef.current = false;
+      }
+
       // Build the initial (delta=0) transient now that the snapshot is
       // loaded. The visibility swap + parent slot were set up synchronously
       // above. Mode: SHARED_ONLY in sub-selection, WHOLE in whole-face.
@@ -441,25 +637,9 @@ export default function MoveGizmoThreed() {
       ) {
         // Apply any delta the user has already accumulated during the async
         // setup window so the very first transient mirrors the gizmo position.
-        const dn = latestDeltaRef.current || 0;
-        const n = faceNormalRef.current;
-        const invRot = baseMapInvRotRef.current;
-        const deltaLocal = { x: 0, y: 0, z: 0 };
-        if (n && Math.abs(dn) > 1e-9) {
-          const deltaWorld = n.clone().multiplyScalar(dn);
-          const v = invRot
-            ? deltaWorld.clone().applyQuaternion(invRot)
-            : deltaWorld;
-          deltaLocal.x = v.x;
-          deltaLocal.y = v.y;
-          deltaLocal.z = v.z;
-        }
-        const movedTransient = buildTransientFaceMesh({
-          snapshot: movedSnapshotRef.current,
-          sharedIds: subPointIds,
-          deltaLocal,
-          mode: subPointIds.size > 0 ? "SHARED_ONLY" : "WHOLE",
-        });
+        const movedTransient = buildTransientFaceMesh(
+          computeMovedTransientArgs(latestDeltaRef.current || 0)
+        );
         if (movedTransient) {
           slot.parent.add(movedTransient);
           slot.transientMesh = movedTransient;
@@ -670,8 +850,47 @@ export default function MoveGizmoThreed() {
       dispatch(setMoveDeltaZ(dn));
       setFieldValue(String(roundForDisplay(baseOffsetRef.current + dn)));
       scheduleTransientRegen();
+      recomputeVerticalSnap();
     };
     const unsub = tcm.subscribe(update);
+
+    // Mouse drives the helper: recompute on every move (TransformControls
+    // still emits pointermove on the canvas during a gizmo drag).
+    const snapDom = editor?.sceneManager?.renderer?.domElement;
+    const onSnapPointerMove = (e) => {
+      const r = snapDom?.getBoundingClientRect?.();
+      if (!r) return;
+      mouseClientRef.current = {
+        x: e.clientX - r.left,
+        y: e.clientY - r.top,
+      };
+      recomputeVerticalSnap();
+    };
+    snapDom?.addEventListener("pointermove", onSnapPointerMove);
+
+    // On release: if a point is filled, snap the offset field + ghost to its
+    // exact elevation. The user still confirms with the ✓ button (handleApply
+    // re-derives the delta from fieldValue and branches offsetZ vs offsetTop).
+    tcm.setDragEndCallback(() => {
+      const snap = filledSnapRef.current;
+      const initPos = initialPosRef.current;
+      const axis = faceNormalRef.current;
+      if (!snap || !initPos || !axis) return;
+      // dn must align the SAME reference recompute used: the base plane
+      // (whole-face) or the moving segment centroid = gizmo init (segment).
+      const subIds = subTargetPointIdsRef.current;
+      const isSub = !!(subIds && subIds.size > 0);
+      const dnSnapped =
+        !isSub && baseRefLevelRef.current != null
+          ? snap.vLevel - baseRefLevelRef.current
+          : snap.vLevel - initPos.dot(axis);
+      latestDeltaRef.current = dnSnapped;
+      dispatch(setMoveDeltaZ(dnSnapped));
+      setFieldValue(
+        String(roundForDisplay((baseOffsetRef.current || 0) + dnSnapped))
+      );
+      scheduleTransientRegen();
+    });
 
     // If AnnotationsManager recreates an annotation mid-drag (loadAnnotations
     // re-fires from useAutoLoadAnnotationsInThreedEditor on any
@@ -737,6 +956,14 @@ export default function MoveGizmoThreed() {
       }
       editor.sceneManager.renderScene?.();
 
+      snapDom?.removeEventListener("pointermove", onSnapPointerMove);
+      tcm.setDragEndCallback(null);
+      candidateVertsRef.current = [];
+      filledSnapRef.current = null;
+      baseRefLevelRef.current = null;
+      mouseClientRef.current = null;
+      setSnapMarkers([]);
+
       targetRef.current = null;
       initialPosRef.current = null;
       faceNormalRef.current = null;
@@ -752,6 +979,15 @@ export default function MoveGizmoThreed() {
       slopeEdgePointIdsRef.current = null;
       slopeCurrentEdgeZRef.current = 0;
       slopeMeterByPxRef.current = 0;
+      rampAppliesRef.current = false;
+      rampLayoutRef.current = null;
+      rampSnapshotRef.current = null;
+      rampSnapshotOffsetTopByIdRef.current = null;
+      rampIsoZRef.current = 0;
+      rampMovedBaseZRef.current = 0;
+      rampIsoPointsPxRef.current = null;
+      rampMovedMidPxRef.current = null;
+      rampMeterByPxRef.current = 0;
       setSlopeModeApplies(false);
       setSlopePctValue("");
     };
@@ -764,6 +1000,20 @@ export default function MoveGizmoThreed() {
   // Keep the slope-% display in sync with the live Δz. Recomputes the implied
   // slope by overlaying `deltaZ` on the entry snapshot's moved-edge vertices.
   useEffect(() => {
+    // Ramp mode: slope is referenced to the iso line, not the all-vertices
+    // centroid used by getPolygonEdgeSlopePct.
+    if (rampAppliesRef.current) {
+      const L = rampSlopeLengthM();
+      if (L) {
+        const zMoved = (rampMovedBaseZRef.current || 0) + (deltaZ || 0);
+        setSlopePctValue(
+          String(
+            roundForDisplay((100 * (zMoved - (rampIsoZRef.current || 0))) / L)
+          )
+        );
+      }
+      return;
+    }
     if (!slopeModeApplies) return;
     const snapshot = slopePointsSnapshotRef.current;
     const edgeIds = slopeEdgePointIdsRef.current;
@@ -783,6 +1033,121 @@ export default function MoveGizmoThreed() {
     setSlopePctValue(String(roundForDisplay(pct)));
   }, [deltaZ, slopeModeApplies]);
 
+  // Horizontal distance (meters) from the moved-edge midpoint to the infinite
+  // iso line — the run of the ramp used for the iso-referenced slope %.
+  function rampSlopeLengthM() {
+    const iso = rampIsoPointsPxRef.current;
+    const mid = rampMovedMidPxRef.current;
+    const mbpx = rampMeterByPxRef.current;
+    if (!iso || !mid || !(mbpx > 0)) return null;
+    const [A, B] = iso;
+    const vx = B.x - A.x;
+    const vy = B.y - A.y;
+    const len = Math.hypot(vx, vy);
+    if (len < 1e-9) return null;
+    const dPx = Math.abs((mid.x - A.x) * vy - (mid.y - A.y) * vx) / len;
+    const L = dPx * mbpx;
+    return Number.isFinite(L) && L > 1e-6 ? L : null;
+  }
+
+  // Args for buildTransientFaceMesh covering the moved annotation. In ramp
+  // mode the whole face is rebuilt from the augmented snapshot with an
+  // absolute per-vertex offsetTop (zero XY delta). Otherwise the historical
+  // sub-selection / whole-face path is used unchanged.
+  function computeMovedTransientArgs(dn) {
+    if (
+      rampAppliesRef.current &&
+      rampSnapshotRef.current &&
+      rampLayoutRef.current
+    ) {
+      const zMoved = (rampMovedBaseZRef.current || 0) + dn;
+      const rampMap = rampOffsetTopByPointId({
+        tById: rampLayoutRef.current.tById,
+        zIso: rampIsoZRef.current || 0,
+        zMoved,
+      });
+      const baseOff = rampSnapshotOffsetTopByIdRef.current || new Map();
+      const shiftByPointId = new Map();
+      for (const [id, z] of rampMap.entries()) {
+        shiftByPointId.set(id, z - (baseOff.get(id) ?? 0));
+      }
+      return {
+        snapshot: rampSnapshotRef.current,
+        sharedIds: new Set(rampMap.keys()),
+        deltaLocal: { x: 0, y: 0, z: 0 },
+        mode: "SHARED_ONLY",
+        shiftByPointId,
+      };
+    }
+    const n = faceNormalRef.current;
+    const invRot = baseMapInvRotRef.current;
+    const deltaLocal = { x: 0, y: 0, z: 0 };
+    if (n && Math.abs(dn) > 1e-9) {
+      const deltaWorld = n.clone().multiplyScalar(dn);
+      const v = invRot
+        ? deltaWorld.clone().applyQuaternion(invRot)
+        : deltaWorld;
+      deltaLocal.x = v.x;
+      deltaLocal.y = v.y;
+      deltaLocal.z = v.z;
+    }
+    const subPointIds = subTargetPointIdsRef.current;
+    return {
+      snapshot: movedSnapshotRef.current,
+      sharedIds: subPointIds,
+      deltaLocal,
+      mode: subPointIds.size > 0 ? "SHARED_ONLY" : "WHOLE",
+    };
+  }
+
+  // Vertical snap: a single magenta helper (same as the drawing snap) on the
+  // existing vertex whose screen position is closest to the cursor. When the
+  // cursor is within SNAP_PX of it ("inside"), the helper fills in and that
+  // vertex's elevation (vLevel = projection on the drag axis) becomes the
+  // snap target, applied on gizmo release. Uses only refs + the stable
+  // setState setter, so it is safe to call from the effect's (stale) closure.
+  function recomputeVerticalSnap() {
+    const editor = getActiveThreedEditor();
+    const camera = editor?.sceneManager?.camera;
+    const dom = editor?.sceneManager?.renderer?.domElement;
+    const n = faceNormalRef.current;
+    const verts = candidateVertsRef.current;
+    const mouse = mouseClientRef.current;
+    if (!camera || !dom || !n || !verts.length || !mouse) {
+      filledSnapRef.current = null;
+      setSnapMarkers([]);
+      return;
+    }
+    const rect = dom.getBoundingClientRect();
+
+    // Closest existing vertex to the cursor in screen space.
+    const tmp = new Vector3();
+    let best = null;
+    let bestDist2 = Infinity;
+    for (const v of verts) {
+      tmp.copy(v.position).project(camera);
+      if (tmp.z < -1 || tmp.z > 1) continue;
+      const sx = ((tmp.x + 1) / 2) * rect.width;
+      const sy = ((1 - tmp.y) / 2) * rect.height;
+      const dx = sx - mouse.x;
+      const dy = sy - mouse.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestDist2) {
+        bestDist2 = d2;
+        best = { sx, sy, vLevel: v.position.dot(n) };
+      }
+    }
+    if (!best) {
+      filledSnapRef.current = null;
+      setSnapMarkers([]);
+      return;
+    }
+
+    const inside = bestDist2 <= SNAP_PX * SNAP_PX;
+    filledSnapRef.current = inside ? { vLevel: best.vLevel } : null;
+    setSnapMarkers([{ sx: best.sx, sy: best.sy, filled: inside }]);
+  }
+
   // Regenerate the transient ghost meshes for connected annotations on the
   // next animation frame, using the latest delta.
   function scheduleTransientRegen() {
@@ -798,7 +1163,6 @@ export default function MoveGizmoThreed() {
     const n = faceNormalRef.current;
     const invRot = baseMapInvRotRef.current;
     const map = connectedRef.current;
-    const subPointIds = subTargetPointIdsRef.current;
     const movedTransient = movedTransientRef.current;
     if (!n) return;
     const deltaWorld = n.clone().multiplyScalar(dn);
@@ -820,12 +1184,7 @@ export default function MoveGizmoThreed() {
         disposeMesh(movedTransient.transientMesh);
         movedTransient.transientMesh = null;
       }
-      const freshMoved = buildTransientFaceMesh({
-        snapshot: movedSnapshotRef.current,
-        sharedIds: subPointIds,
-        deltaLocal,
-        mode: subPointIds.size > 0 ? "SHARED_ONLY" : "WHOLE",
-      });
+      const freshMoved = buildTransientFaceMesh(computeMovedTransientArgs(dn));
       if (freshMoved && movedTransient.parent) {
         movedTransient.parent.add(freshMoved);
         movedTransient.transientMesh = freshMoved;
@@ -916,6 +1275,77 @@ export default function MoveGizmoThreed() {
     const isSubMode = subPointIds && subPointIds.size > 0;
 
     await db.transaction("rw", db.points, db.annotations, async () => {
+      // Ramp mode: rewrite the whole face as a constant-slope ramp. Inserted
+      // points are persisted, every ramp vertex gets its plane offsetTop, and
+      // the segment-index arrays are remapped (insertion renumbers segments).
+      if (
+        rampAppliesRef.current &&
+        rampLayoutRef.current &&
+        rampSnapshotRef.current
+      ) {
+        const layout = rampLayoutRef.current;
+        const zMoved = (rampMovedBaseZRef.current || 0) + dn;
+        const rampMap = rampOffsetTopByPointId({
+          tById: layout.tById,
+          zIso: rampIsoZRef.current || 0,
+          zMoved,
+        });
+
+        // No inserted geometry (rectangle / arc-preserving ramp): only
+        // persist offsetTop on the existing points. Keep the points array
+        // order and the segment-index arrays untouched so arcs and hidden
+        // segments stay intact — the 3D shape adapts from the offsets alone.
+        if (!layout.insertedPoints || layout.insertedPoints.length === 0) {
+          const newPoints = (ann.points || []).map((ref) =>
+            rampMap.has(ref.id) && !ref.isSliding
+              ? { ...ref, offsetTop: roundForDisplay(rampMap.get(ref.id)) }
+              : ref
+          );
+          await db.annotations.update(selectedAnnotationId, {
+            points: newPoints,
+          });
+          return;
+        }
+
+        const imgW = rampSnapshotRef.current.baseMapForRender.imageWidth || 1;
+        const imgH = rampSnapshotRef.current.baseMapForRender.imageHeight || 1;
+        for (const ip of layout.insertedPoints) {
+          await db.points.add({
+            id: ip.id,
+            x: ip.x / imgW,
+            y: ip.y / imgH,
+            projectId: ann.projectId,
+            baseMapId: ann.baseMapId,
+            listingId: ann.listingId,
+          });
+        }
+        const newRefs = rampSnapshotRef.current.annotation.points.map(
+          (ref) => ({
+            ...ref,
+            offsetTop: roundForDisplay(
+              rampMap.get(ref.id) ?? ref.offsetTop ?? 0
+            ),
+          })
+        );
+        const augIdxById = new Map(newRefs.map((r, i) => [r.id, i]));
+        const snapPoints = movedSnapshotRef.current?.annotation?.points || [];
+        const newHidden = (
+          movedSnapshotRef.current?.annotation?.hiddenSegmentsIdx || []
+        )
+          .map((s) => augIdxById.get(snapPoints[s]?.id))
+          .filter((v) => Number.isInteger(v));
+        const rawPoints = ann.points || [];
+        const newIso = (ann.isoHeightSegmentsIdx || [])
+          .map((s) => augIdxById.get(rawPoints[s]?.id))
+          .filter((v) => Number.isInteger(v));
+        await db.annotations.update(selectedAnnotationId, {
+          points: newRefs,
+          hiddenSegmentsIdx: newHidden,
+          isoHeightSegmentsIdx: newIso,
+        });
+        return;
+      }
+
       // Note: the moved annotation's sliding refs are KEPT — they are used
       // to identify shared corners with connected polylines (the walls
       // attached at a sliding corner must follow the polygon plane there).
@@ -1137,6 +1567,16 @@ export default function MoveGizmoThreed() {
     setSlopePctValue(e.target.value);
     const target = Number(e.target.value);
     if (!Number.isFinite(target)) return;
+    if (rampAppliesRef.current) {
+      const L = rampSlopeLengthM();
+      if (L == null) return;
+      const zMoved = (rampIsoZRef.current || 0) + (target / 100) * L;
+      const dz = zMoved - (rampMovedBaseZRef.current || 0);
+      if (!Number.isFinite(dz)) return;
+      setFieldValue(String(roundForDisplay((baseOffsetRef.current || 0) + dz)));
+      applyDeltaLive(dz);
+      return;
+    }
     const dz = deltaZForTargetSlope({
       points: slopePointsSnapshotRef.current,
       edgePointIds: slopeEdgePointIdsRef.current,
@@ -1152,59 +1592,85 @@ export default function MoveGizmoThreed() {
   if (!active) return null;
 
   return (
-    <Paper
-      elevation={3}
-      sx={{
-        position: "absolute",
-        bottom: 80,
-        left: "50%",
-        transform: "translateX(-50%)",
-        px: 1.5,
-        py: 1,
-        borderRadius: "10px",
-        zIndex: 11,
-        width: "max-content",
-      }}
-    >
-      <Stack direction="row" spacing={1} alignItems="center">
-        {subSelectionTarget && (
-          <Box sx={{ fontSize: 12, color: "text.secondary" }}>
-            {subSelectionTarget.kind === "VERTEX"
-              ? `Vertex N°${(subSelectionTarget.vertexIndex ?? 0) + 1}`
-              : `Arête N°${(subSelectionTarget.vertexIndex ?? 0) + 1}-${
-                  (subSelectionTarget.vertexIndexB ?? 0) + 1
-                }`}
-          </Box>
-        )}
-        <Box sx={{ fontSize: 12, color: "text.secondary" }}>Offset (m)</Box>
-        <TextField
-          size="small"
-          value={fieldValue}
-          onChange={handleFieldChange}
-          type="number"
-          sx={{ width: 110 }}
-          inputProps={{ step: 0.01 }}
-        />
-        {slopeModeApplies && (
-          <>
-            <Box sx={{ fontSize: 12, color: "text.secondary" }}>Pente (%)</Box>
-            <TextField
-              size="small"
-              value={slopePctValue}
-              onChange={handleSlopeChange}
-              type="number"
-              sx={{ width: 100 }}
-              inputProps={{ step: 0.1 }}
-            />
-          </>
-        )}
-        <IconButton size="small" color="primary" onClick={handleApply}>
-          <CheckIcon fontSize="small" />
-        </IconButton>
-        <IconButton size="small" onClick={handleCancel}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </Stack>
-    </Paper>
+    <>
+      <svg
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+          zIndex: 5,
+        }}
+      >
+        {snapMarkers.map((m, i) => (
+          <circle
+            key={i}
+            cx={m.sx}
+            cy={m.sy}
+            r={SNAP_CIRCLE_RADIUS_PX}
+            stroke={SNAP_COLOR}
+            strokeWidth={SNAP_CIRCLE_STROKE_PX}
+            fill={m.filled ? SNAP_COLOR : "none"}
+          />
+        ))}
+      </svg>
+      <Paper
+        elevation={3}
+        sx={{
+          position: "absolute",
+          bottom: 80,
+          left: "50%",
+          transform: "translateX(-50%)",
+          px: 1.5,
+          py: 1,
+          borderRadius: "10px",
+          zIndex: 11,
+          width: "max-content",
+        }}
+      >
+        <Stack direction="row" spacing={1} alignItems="center">
+          {subSelectionTarget && (
+            <Box sx={{ fontSize: 12, color: "text.secondary" }}>
+              {subSelectionTarget.kind === "VERTEX"
+                ? `Vertex N°${(subSelectionTarget.vertexIndex ?? 0) + 1}`
+                : `Arête N°${(subSelectionTarget.vertexIndex ?? 0) + 1}-${
+                    (subSelectionTarget.vertexIndexB ?? 0) + 1
+                  }`}
+            </Box>
+          )}
+          <Box sx={{ fontSize: 12, color: "text.secondary" }}>Offset (m)</Box>
+          <TextField
+            size="small"
+            value={fieldValue}
+            onChange={handleFieldChange}
+            type="number"
+            sx={{ width: 110 }}
+            inputProps={{ step: 0.01 }}
+          />
+          {slopeModeApplies && (
+            <>
+              <Box sx={{ fontSize: 12, color: "text.secondary" }}>
+                Pente (%)
+              </Box>
+              <TextField
+                size="small"
+                value={slopePctValue}
+                onChange={handleSlopeChange}
+                type="number"
+                sx={{ width: 100 }}
+                inputProps={{ step: 0.1 }}
+              />
+            </>
+          )}
+          <IconButton size="small" color="primary" onClick={handleApply}>
+            <CheckIcon fontSize="small" />
+          </IconButton>
+          <IconButton size="small" onClick={handleCancel}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+      </Paper>
+    </>
   );
 }
