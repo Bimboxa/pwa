@@ -5,7 +5,9 @@ import { useDispatch, useSelector } from "react-redux";
 import db from "App/db/db";
 
 import useSelectedBaseMap from "Features/baseMaps/hooks/useSelectedBaseMap";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import getBaseMapTransform, {
   DEFAULT_ANGLE_DEG,
   DEFAULT_ORIENTATION,
@@ -21,6 +23,7 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import {
   setDrawingOffset,
   setBaseMapOpacityIn3d,
+  toggleBaseMapVisibleIn3d,
 } from "Features/threedEditor/threedEditorSlice";
 
 import FieldMeasure from "./FieldMeasure";
@@ -29,6 +32,10 @@ import { IconGizmoTranslate, IconGizmoRotate } from "./iconsGizmo";
 import {
   Box,
   IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
   Paper,
   Slider,
   Stack,
@@ -126,6 +133,11 @@ export default function PanelBaseMapPosition3D() {
   const main = useMainBaseMap();
   const baseMap = selected ?? main;
   const baseMapId = baseMap?.id ?? null;
+
+  const { value: projectBaseMaps = [] } = useBaseMaps();
+  const visibleIds = useSelector(
+    (s) => s.threedEditor.visibleBaseMapIdsIn3d
+  );
 
   const drawingOffset = useSelector((s) => s.threedEditor.drawingOffset ?? 0);
   const opacity = useSelector(
@@ -434,6 +446,73 @@ export default function PanelBaseMapPosition3D() {
       </Stack>
 
       <Stack spacing={1.75}>
+        {/* Base maps */}
+        <Box>
+          <SectionHeader title="Fonds de plan" />
+          <List
+            dense
+            disablePadding
+            sx={{ maxHeight: 180, overflowY: "auto" }}
+          >
+            {projectBaseMaps.map((map) => {
+              const isMain = map.id === baseMapId;
+              const isVisible = isMain || visibleIds.includes(map.id);
+              return (
+                <ListItem
+                  key={map.id}
+                  disablePadding
+                  secondaryAction={
+                    <Tooltip
+                      title={
+                        isMain
+                          ? "Fond de plan sélectionné (toujours affiché en 3D)"
+                          : isVisible
+                            ? "Masquer dans la vue 3D"
+                            : "Afficher dans la vue 3D"
+                      }
+                    >
+                      <span>
+                        <IconButton
+                          size="small"
+                          edge="end"
+                          disabled={isMain}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            dispatch(toggleBaseMapVisibleIn3d(map.id));
+                          }}
+                        >
+                          {isVisible ? (
+                            <Visibility fontSize="small" />
+                          ) : (
+                            <VisibilityOff fontSize="small" color="error" />
+                          )}
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  }
+                >
+                  <ListItemButton
+                    selected={isMain}
+                    onClick={() =>
+                      dispatch(setSelectedMainBaseMapId(map.id))
+                    }
+                    sx={{ py: 0.25, borderRadius: 1 }}
+                  >
+                    <ListItemText
+                      primary={map.name}
+                      primaryTypographyProps={{
+                        variant: "body2",
+                        noWrap: true,
+                        fontWeight: isMain ? 700 : 400,
+                      }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
+          </List>
+        </Box>
+
         {/* Rotation */}
         <Box>
           <SectionHeader title="Rotation" onReset={resetRotation} />

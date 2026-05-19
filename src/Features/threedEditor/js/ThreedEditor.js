@@ -43,6 +43,29 @@ export default class ThreedEditor {
     }
   };
 
+  // Lazily create a single basemap group if it isn't already in the scene.
+  // Used by the live visibility hook so showing an extra basemap doesn't
+  // rebuild the whole scene like loadMaps does.
+  ensureBaseMapLoaded = (baseMap, options = {}) => {
+    try {
+      if (!baseMap?.id) return;
+      const imagesManager = this.sceneManager.imagesManager;
+      if (imagesManager.hasImageObject(baseMap.id)) return;
+      const image = getEditorImageFromBaseMap(baseMap);
+      if (!image?.url) return;
+      if (typeof options.opacity === "number") image.opacity = options.opacity;
+      imagesManager.addImageObject(image, baseMap);
+      this.renderScene();
+    } catch (e) {
+      console.log("Error", e);
+    }
+  };
+
+  setBaseMapVisibleIn3d = (baseMapId, visible) => {
+    this.sceneManager.imagesManager.setBaseMapVisible(baseMapId, visible);
+    this.renderScene();
+  };
+
   // camera
 
   panCameraToWorldPoint = (worldPoint, options) => {

@@ -248,6 +248,17 @@ export default function TopBarDesktop() {
           )}
         </Box>
       )}
+      {viewerKey === "THREED" && (
+        <Box
+          sx={{
+            display: { xs: "none", md: "flex" },
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <BaseMapSelectorInMapEditorV2 />
+        </Box>
+      )}
       {isPortfolioViewer && (
         <Button
           size="small"
