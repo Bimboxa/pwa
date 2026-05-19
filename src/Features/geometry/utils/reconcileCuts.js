@@ -50,6 +50,7 @@ export default function reconcileCuts(oldCuts, newCuts, options = {}) {
             if (oldCut.label != null) reconciled.label = oldCut.label;
             if (oldCut.type != null) reconciled.type = oldCut.type;
             if (oldCut.hiddenSegmentsIdx != null) reconciled.hiddenSegmentsIdx = oldCut.hiddenSegmentsIdx;
+            if (oldCut.isoHeightSegmentsIdx != null) reconciled.isoHeightSegmentsIdx = oldCut.isoHeightSegmentsIdx;
             return reconciled;
         }
         return newCut;

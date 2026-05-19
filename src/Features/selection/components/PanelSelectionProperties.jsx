@@ -21,6 +21,7 @@ import PanelMapSummary from "Features/mapEditor/components/PanelMapSummary";
 import PanelMultiAnnotationProperties from "./PanelMultiAnnotationProperties";
 import PanelPropertiesPopperMapListings from "Features/popperMapListings/components/PanelPropertiesPopperMapListings";
 import PanelPropertiesPoints from "Features/points/components/PanelPropertiesPoints";
+import PanelPropertiesSegment from "Features/points/components/PanelPropertiesSegment";
 
 export default function PanelSelectionProperties() {
   // data
@@ -59,6 +60,16 @@ export default function PanelSelectionProperties() {
     // vertices of the selected annotation are in selectedPointIds, show the
     // point-level properties instead of the annotation/multi-annotation panel.
     type = "POINTS";
+  } else if (
+    isMapViewer &&
+    selectedItem?.type === "NODE" &&
+    ["SEG", "CUT_SEG"].includes(
+      String(selectedItem?.partId || "").split("::")[1]
+    )
+  ) {
+    // A polygon/polyline segment is sub-selected: show its per-segment
+    // properties (isoHeight flag + read-only endpoint offsets).
+    type = "SEGMENT";
   } else if (isMapViewer && !selectedItem) {
     type = "MAP_SUMMARY";
   } else if (
@@ -138,6 +149,8 @@ export default function PanelSelectionProperties() {
       {type === "MULTI_ANNOTATION" && <PanelMultiAnnotationProperties />}
 
       {type === "POINTS" && <PanelPropertiesPoints />}
+
+      {type === "SEGMENT" && <PanelPropertiesSegment />}
     </BoxFlexVStretch>
   );
 }

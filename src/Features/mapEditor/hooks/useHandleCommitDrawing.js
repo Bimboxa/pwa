@@ -687,6 +687,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                             if (c.label != null) ref.label = c.label;
                             if (c.type != null) ref.type = c.type;
                             if (c.hiddenSegmentsIdx != null) ref.hiddenSegmentsIdx = c.hiddenSegmentsIdx;
+                            if (c.isoHeightSegmentsIdx != null) ref.isoHeightSegmentsIdx = c.isoHeightSegmentsIdx;
                             return ref;
                         });
 

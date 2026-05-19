@@ -18,7 +18,7 @@ import quantizeVertex from "../utils/quantizeVertex";
 //     to redraw segments that already exist as mesh geometry
 // Snappable = baseMap meshes (userData.isBasemap) and existing annotation
 // meshes (userData.nodeType === "ANNOTATION").
-function buildIndex(scene) {
+export function buildIndex(scene) {
   const verts = [];
   const adjacency = new Map(); // key -> { position, neighbors: Set<key> }
   if (!scene) return { verts, adjacency };

@@ -156,6 +156,7 @@ export default async function applyOpeningOnPolygon({
         if (c.label != null) entry.label = c.label;
         if (c.type != null) entry.type = c.type;
         if (c.hiddenSegmentsIdx != null) entry.hiddenSegmentsIdx = c.hiddenSegmentsIdx;
+        if (c.isoHeightSegmentsIdx != null) entry.isoHeightSegmentsIdx = c.isoHeightSegmentsIdx;
         return entry;
     });
 
