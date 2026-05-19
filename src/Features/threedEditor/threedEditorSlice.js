@@ -5,6 +5,9 @@ const threedEditorInitialState = {
   // When true, annotation materials ignore `annotation.opacity` and render
   // fully opaque. Exposed as the "Transparence des annotations" switch.
   disableOpacity: true,
+  // When true, CM-width POLYLINE footprints are contracted by 5 mm before
+  // extrusion to avoid coplanar-face aliasing when a parement abuts a wall.
+  antiAliasingShrink: true,
   // "NAVIGATION" | "SELECTION" | "BASEMAP_POSITION".
   // - NAVIGATION: shift+drag = camera (OrbitControls).
   // - SELECTION: shift+drag = lasso selection.
@@ -92,6 +95,9 @@ export const threedEditorSlice = createSlice({
     },
     setDisableOpacity: (state, action) => {
       state.disableOpacity = action.payload;
+    },
+    setAntiAliasingShrink: (state, action) => {
+      state.antiAliasingShrink = action.payload;
     },
     setEditorMode: (state, action) => {
       state.editorMode = action.payload;
@@ -223,6 +229,7 @@ export const threedEditorSlice = createSlice({
 export const {
   setShowGrid,
   setDisableOpacity,
+  setAntiAliasingShrink,
   setEditorMode,
   setDrawingOffset,
   setBaseMapOpacityIn3d,

@@ -10,6 +10,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const isActiveViewer = selectedViewerKey === "THREED";
   const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
+  const antiAliasingShrink = useSelector(
+    (s) => s.threedEditor.antiAliasingShrink
+  );
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
 
   const annotations = useAnnotationsV2({
@@ -26,8 +29,17 @@ export default function useAutoLoadAnnotationsInThreedEditor({
 
   useEffect(() => {
     if (!threedEditor?.loadAnnotations || !rendererIsReady) return;
-    threedEditor.loadAnnotations(annotations || [], { disableOpacity });
-  }, [rendererIsReady, annotations, threedEditor, disableOpacity]);
+    threedEditor.loadAnnotations(annotations || [], {
+      disableOpacity,
+      antiAliasingShrink,
+    });
+  }, [
+    rendererIsReady,
+    annotations,
+    threedEditor,
+    disableOpacity,
+    antiAliasingShrink,
+  ]);
 
   return annotations;
 }

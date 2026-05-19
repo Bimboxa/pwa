@@ -18,7 +18,11 @@ import {
 import Tune from "@mui/icons-material/Tune";
 import ViewInAr from "@mui/icons-material/ViewInAr";
 
-import { setShowGrid, setDisableOpacity } from "Features/threedEditor/threedEditorSlice";
+import {
+  setShowGrid,
+  setDisableOpacity,
+  setAntiAliasingShrink,
+} from "Features/threedEditor/threedEditorSlice";
 import DialogExportPhotoreal from "Features/photorealRender/components/DialogExportPhotoreal";
 import exportSceneAsUsdzService from "Features/threedEditor/services/exportSceneAsUsdzService";
 
@@ -31,6 +35,9 @@ export default function IconButtonThreedProperties() {
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
   const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
+  const antiAliasingShrink = useSelector(
+    (s) => s.threedEditor.antiAliasingShrink
+  );
 
   const open = Boolean(anchorEl);
 
@@ -115,6 +122,22 @@ export default function IconButtonThreedProperties() {
                 />
               }
               label={<Typography variant="body2">Transparence des annotations</Typography>}
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={antiAliasingShrink}
+                  onChange={(e) =>
+                    dispatch(setAntiAliasingShrink(e.target.checked))
+                  }
+                />
+              }
+              label={
+                <Typography variant="body2">
+                  Réduire le crénelage des parements
+                </Typography>
+              }
             />
           </Box>
 
