@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-import { Box, Typography, CircularProgress } from "@mui/material";
+import { Box, Typography, CircularProgress, IconButton, Tooltip } from "@mui/material";
+import { ArrowBack } from "@mui/icons-material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
@@ -56,6 +57,10 @@ export default function PageGmap() {
   const subtitle = [project?.name, scope?.name].filter(Boolean).join(" • ");
 
   // handlers
+
+  function handleBack() {
+    navigate(-1);
+  }
 
   async function handleCreateClick() {
     if (!gmap || loading) return;
@@ -139,6 +144,11 @@ export default function PageGmap() {
             gap: 2,
           }}
         >
+          <Tooltip title="Retour à la création du fond de plan">
+            <IconButton onClick={handleBack} size="small" edge="start">
+              <ArrowBack />
+            </IconButton>
+          </Tooltip>
           <Typography sx={{ fontWeight: 600 }} noWrap>
             {listingName}
           </Typography>

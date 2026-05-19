@@ -49,6 +49,9 @@ src/Data/
 gemini.jsx
 geminiPrompt.text
 
+# n8n workflows
+n8n/
+
 # Claude Code
 .claude/worktrees
 

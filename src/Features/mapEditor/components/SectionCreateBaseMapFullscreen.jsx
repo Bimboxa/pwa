@@ -157,12 +157,13 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
           />
         </Box>
 
+        {/* Inset past the drop-zone dashed border (sibling Box has p: 4 = 32px) */}
         <Box
           sx={{
             position: "absolute",
-            bottom: 0,
-            right: 0,
-            p: 2,
+            bottom: 48,
+            right: 48,
+            zIndex: 1,
           }}
         >
           <Button
