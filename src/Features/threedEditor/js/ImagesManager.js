@@ -19,16 +19,34 @@ export default class ImagesManager {
         this.baseMapsMap[baseMap.id] = baseMap;
       });
     }
-    images.forEach((image) => {
-      const { group, ready } = createImageObject(image);
-      this.imagesMap[image.id] = group;
-      this.scene.add(group);
-      // Re-render once the texture is in. The group is already in the scene
-      // graph so any annotations attached in the meantime are rendered too.
-      ready
-        .then(() => this.sceneManager.renderScene())
-        .catch((e) => console.error("[ImagesManager] texture load failed", e));
-    });
+    images.forEach((image) => this.addImageObject(image));
+  }
+
+  // Create + add a single basemap group. Idempotent: a no-op if a group for
+  // this basemap already exists, so it can be called lazily the first time a
+  // basemap is shown without reloading the rest of the scene.
+  addImageObject(image, baseMap) {
+    if (!image || this.imagesMap[image.id]) return;
+    if (baseMap) this.baseMapsMap[baseMap.id] = baseMap;
+    const { group, ready } = createImageObject(image);
+    this.imagesMap[image.id] = group;
+    this.scene.add(group);
+    // Re-render once the texture is in. The group is already in the scene
+    // graph so any annotations attached in the meantime are rendered too.
+    ready
+      .then(() => this.sceneManager.renderScene())
+      .catch((e) => console.error("[ImagesManager] texture load failed", e));
+  }
+
+  hasImageObject(baseMapId) {
+    return Boolean(this.imagesMap[baseMapId]);
+  }
+
+  // Toggle a cached basemap group's visibility without removing it from the
+  // scene, so re-showing it later is a cheap flag flip (no texture reload).
+  setBaseMapVisible(baseMapId, visible) {
+    const group = this.imagesMap[baseMapId];
+    if (group) group.visible = visible;
   }
 
   // Look up a basemap's group (parent for annotations attached to that map).
