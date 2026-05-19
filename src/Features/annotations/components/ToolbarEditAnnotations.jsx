@@ -52,6 +52,7 @@ import IconButtonExtractStripBoundaries from "./IconButtonExtractStripBoundaries
 import IconButtonReentrantAngles from "./IconButtonReentrantAngles";
 import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
 import IconButtonCleanSegments from "./IconButtonCleanSegments";
+import IconButtonCurvature from "./IconButtonCurvature";
 import IconButtonConvertAnnotation from "./IconButtonConvertAnnotation";
 import IconButtonVectorisation from "./IconButtonVectorisation";
 import IconButtonContours from "./IconButtonContours";
@@ -439,6 +440,12 @@ export default function ToolbarEditAnnotations({
               )}
               {allArePolylines && (
                 <IconButtonCleanSegments
+                  annotations={annotations}
+                  accentColor="#6366F1"
+                />
+              )}
+              {allArePolylines && (
+                <IconButtonCurvature
                   annotations={annotations}
                   accentColor="#6366F1"
                 />
