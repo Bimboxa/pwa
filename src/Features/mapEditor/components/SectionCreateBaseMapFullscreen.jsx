@@ -1,19 +1,13 @@
 import IconFloorPlan from "../assets/IconFloorPlan";
 
 import { useState, useEffect } from "react";
-import { nanoid } from "@reduxjs/toolkit";
+import { useNavigate } from "react-router-dom";
 
-import { useDispatch } from "react-redux";
-
-import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
-
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
-import useTriggerInitialScopeSaveIfNeeded from "Features/remoteScopeConfigurations/hooks/useTriggerInitialScopeSaveIfNeeded";
-
-import db from "App/db/db";
+import useCreateBaseMapFromImage from "Features/baseMaps/hooks/useCreateBaseMapFromImage";
 
 import { Box, Typography, TextField, Button } from "@mui/material";
+import { Public } from "@mui/icons-material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
@@ -31,7 +25,7 @@ import ImageGeneric from "Features/images/components/ImageGeneric";
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
 
 export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onCreated, listing: listingProp }) {
-  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   // strings
 
@@ -64,8 +58,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
   // data
 
   const projectBaseMapListings = useProjectBaseMapListings();
-  const createEntity = useCreateEntity();
-  const triggerInitialSaveIfNeeded = useTriggerInitialScopeSaveIfNeeded();
+  const createBaseMapFromImage = useCreateBaseMapFromImage();
 
   // helpers
 
@@ -73,49 +66,22 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
 
   async function _createBaseMap(file) {
     const listing = listingProp ?? projectBaseMapListings?.[0];
+    if (!listing) return;
 
-    if (listing) {
-      const entity = {
-        name,
-        image: { file },
-        meterByPx,
-      };
-      const _entity = await createEntity(entity, { listing });
+    const _entity = await createBaseMapFromImage({
+      file,
+      name,
+      listing,
+      meterByPx,
+    });
 
-      // Post-process: set up version system with initial version
-      if (_entity?.id) {
-        const record = await db.baseMaps.get(_entity.id);
-        if (record?.image?.imageSize) {
-          await db.baseMaps.update(_entity.id, {
-            refWidth: record.image.imageSize.width,
-            refHeight: record.image.imageSize.height,
-          });
-          await db.baseMapVersions.put({
-            id: nanoid(),
-            baseMapId: _entity.id,
-            projectId: record.projectId,
-            listingId: record.listingId,
-            label: "Image d'origine",
-            fractionalIndex: "a0",
-            isActive: true,
-            image: record.image,
-            transform: { x: 0, y: 0, rotation: 0, scale: 1 },
-          });
-        }
-      }
+    // clean
+    setImageFile(null);
+    setName("");
+    setMeterByPx(null);
 
-      dispatch(setSelectedMainBaseMapId(_entity?.id));
-
-      // clean
-      setImageFile(null);
-      setName("");
-      setMeterByPx(null);
-
-      // notify parent (portfolio editor)
-      onCreated?.(_entity);
-
-      if (_entity?.id) triggerInitialSaveIfNeeded();
-    }
+    // notify parent (portfolio editor)
+    onCreated?.(_entity);
   }
 
   // helpers
@@ -144,8 +110,8 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
   }
 
   function handleOpenPageGmap() {
-    const url = `${window.location.origin}/gmap`;
-    window.open(url, "_blank", "noopener");
+    const listing = listingProp ?? projectBaseMapListings?.[0];
+    navigate("/gmap", { state: { listingId: listing?.id } });
   }
 
   return (
@@ -191,9 +157,23 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
           />
         </Box>
 
-        {/* <Box sx={{ p: 1, width: 1, display: "flex", justifyContent: "flex-end" }}>
-          <Button onClick={handleOpenPageGmap} variant="outlined" size="small">Ouvrir Google Maps</Button>
-        </Box> */}
+        <Box
+          sx={{
+            position: "absolute",
+            bottom: 0,
+            right: 0,
+            p: 2,
+          }}
+        >
+          <Button
+            onClick={handleOpenPageGmap}
+            variant="outlined"
+            color="secondary"
+            startIcon={<Public />}
+          >
+            Ajouter une image satellite
+          </Button>
+        </Box>
 
       </BoxCenter>
 

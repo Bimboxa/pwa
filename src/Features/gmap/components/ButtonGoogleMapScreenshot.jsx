@@ -1,9 +1,7 @@
 import { useState } from "react";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
-
-// TODO: Replace with your actual Google Maps Static API key
-const GOOGLE_STATIC_MAPS_API_KEY = "AIzaSyCZbEVpuUxtkyXo9gqa8ngGUWQSC-h858g";
 
 function metersPerPixel(lat, zoom) {
   const earthCircumference = 40075016.686; // in meters
@@ -17,15 +15,17 @@ export default function ButtonGoogleMapScreenshot({ map, mapContainer }) {
   // strings
   const takeScreenshotS = "Prendre une photo";
 
+  // data
+  const appConfig = useAppConfig();
+  const jsApiKey = appConfig?.features?.gmap?.jsApiKey;
+
   // state
   const [meterByPx, setMeterByPx] = useState(null);
   const [mapImageFile, setMapImageFile] = useState(null);
 
-  console.log("mapImageFile", mapImageFile);
-
   // handler
   function handleClick() {
-    if (!map || !mapContainer) return;
+    if (!map || !mapContainer || !jsApiKey) return;
     const center = map.getCenter();
     const zoom = map.getZoom();
     const mapTypeId = map.getMapTypeId();
@@ -39,7 +39,7 @@ export default function ButtonGoogleMapScreenshot({ map, mapContainer }) {
     const maxSize = 640;
     const size = `${Math.min(width, maxSize)}x${Math.min(height, maxSize)}`;
 
-    const url = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=${zoom}&size=${size}&maptype=${mapTypeId}&key=${GOOGLE_STATIC_MAPS_API_KEY}`;
+    const url = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=${zoom}&size=${size}&maptype=${mapTypeId}&key=${jsApiKey}`;
     setMapImageFile(url);
     setMeterByPx(metersPerPixel(lat, zoom));
   }

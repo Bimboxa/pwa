@@ -1,4 +1,5 @@
-const GOOGLE_STATIC_MAPS_API_KEY = "AIzaSyCZbEVpuUxtkyXo9gqa8ngGUWQSC-h858g";
+// The Static Maps key comes from appConfig (features.gmap.jsApiKey) — passed
+// in by the caller. Do not hardcode it here.
 
 function metersPerPixel(lat, zoom) {
   const earthCircumference = 40075016.686; // in meters
@@ -8,8 +9,17 @@ function metersPerPixel(lat, zoom) {
   );
 }
 
-export default async function takeGmapScreenshot({ gmap, gmapContainer }) {
+export default async function takeGmapScreenshot({
+  gmap,
+  gmapContainer,
+  apiKey,
+}) {
   if (!gmap || !gmapContainer) return;
+  if (!apiKey) {
+    throw new Error(
+      "[takeGmapScreenshot] Missing Maps API key (appConfig.features.gmap.jsApiKey)"
+    );
+  }
   const center = gmap.getCenter();
   const zoom = gmap.getZoom();
   const gmapTypeId = gmap.getMapTypeId();
@@ -24,7 +34,7 @@ export default async function takeGmapScreenshot({ gmap, gmapContainer }) {
   //const size = `${Math.min(width, maxSize)}x${Math.min(height, maxSize)}`;
   const size = `${width}x${height}`;
 
-  const url = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=${zoom}&size=${size}&maptype=${gmapTypeId}&key=${GOOGLE_STATIC_MAPS_API_KEY}`;
+  const url = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=${zoom}&size=${size}&maptype=${gmapTypeId}&key=${apiKey}`;
 
   // Fetch the image as a Blob
   const response = await fetch(url);

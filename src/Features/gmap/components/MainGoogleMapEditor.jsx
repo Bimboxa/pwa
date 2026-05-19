@@ -1,12 +1,18 @@
 import { useState } from "react";
 
 import { Box } from "@mui/material";
+
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import GoogleMap from "./GoogleMap";
-import LayersGoogleMap from "./LayersGoogleMap";
-import SearchGoogleMap from "./SearchGoogleMap";
 import LayerGoogleMap from "./LayerGoogleMap";
 
 export default function MainGoogleMapEditor() {
+  // data
+
+  const appConfig = useAppConfig();
+  const jsApiKey = appConfig?.features?.gmap?.jsApiKey;
+
   // state
 
   const [gmap, setGmap] = useState(null);
@@ -15,6 +21,7 @@ export default function MainGoogleMapEditor() {
   return (
     <Box sx={{ width: 1, height: 1 }}>
       <GoogleMap
+        apiKey={jsApiKey}
         onGmapChange={setGmap}
         onGmapContainerChange={setGmapContainer}
       />

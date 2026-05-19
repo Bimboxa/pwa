@@ -12,6 +12,7 @@ import theme from "Styles/theme";
 
 import IconButtonDropDown from "Features/layout/components/IconButtonDropDown";
 import takeGmapScreenshot from "Features/gmap/services/takeGmapScreenshot";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useCreateOnboardingData from "Features/onboarding/hooks/useCreateOnboardingData";
 import { setOpenPanelCreateData } from "Features/onboarding/onboardingSlice";
 
@@ -35,12 +36,19 @@ export default function SectionCreateMasterProject({ gmap, gmapContainer }) {
 
   // data
 
+  const appConfig = useAppConfig();
+  const jsApiKey = appConfig?.features?.gmap?.jsApiKey;
+
   const createOnboardingData = useCreateOnboardingData();
 
   // handlers
 
   async function handleCreate() {
-    const screenshot = await takeGmapScreenshot({ gmap, gmapContainer });
+    const screenshot = await takeGmapScreenshot({
+      gmap,
+      gmapContainer,
+      apiKey: jsApiKey,
+    });
 
     // onboardingData
 

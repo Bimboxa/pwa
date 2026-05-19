@@ -1,14 +1,24 @@
 import { useRef, useEffect, useState } from "react";
 
-import { IconButton, Box } from "@mui/material";
-import { ContentCopy, Public } from "@mui/icons-material";
-
 import getMapsApiAsync from "../services/getMapsApiAsync";
+import {
+  computeStaticMapGeo,
+  GMAP_STATIC_SIZE,
+  GMAP_STATIC_SCALE,
+} from "../services/fetchGmapStaticImage";
 
-export default function GoogleMap({ onGmapChange, onGmapContainerChange, hideButtons, onBoundsChange }) {
+export default function GoogleMap({
+  onGmapChange,
+  onGmapContainerChange,
+  hideButtons,
+  onBoundsChange,
+  apiKey,
+  showCaptureFootprint,
+}) {
   const mapsRef = useRef();
   const mapInstanceRef = useRef(null);
   const mapRef = useRef(null);
+  const footprintRef = useRef(null);
 
   // 1. Create a ref for the search input
   const searchInputRef = useRef(null);
@@ -20,14 +30,14 @@ export default function GoogleMap({ onGmapChange, onGmapContainerChange, hideBut
 
     async function initMapAsync() {
       if (!mapsRef.current) {
-        const maps = await getMapsApiAsync();
+        const maps = await getMapsApiAsync(apiKey);
         mapsRef.current = maps;
         setMapsLoaded(true);
       } else {
         setMapsLoaded(true);
       }
     }
-  }, []);
+  }, [apiKey]);
 
   useEffect(() => {
     if (
@@ -44,21 +54,44 @@ export default function GoogleMap({ onGmapChange, onGmapContainerChange, hideBut
         zoom: 18,
         fullscreenControl: false,
         mapTypeControl: false,
-        streetViewControl: false,  // Removes the Street View pegman
-        zoomControl: false,         // Removes zoom +/- buttons
-        rotateControl: false,       // Removes rotate control
-        scaleControl: false,        // Removes scale control
+        streetViewControl: false, // Removes the Street View pegman
+        zoomControl: false, // Removes zoom +/- buttons
+        rotateControl: false, // Removes rotate control
+        scaleControl: false, // Removes scale control
         mapTypeId: "satellite",
         tilt: 0,
       });
 
       mapInstanceRef.current = map;
 
-      // --- SEARCH BAR LOGIC ---
+      // --- CAPTURE FOOTPRINT (red square = exact static-image area) ---
+      if (showCaptureFootprint) {
+        footprintRef.current = new googleMaps.Rectangle({
+          map,
+          strokeColor: "#F44336",
+          strokeOpacity: 1,
+          strokeWeight: 2,
+          fillOpacity: 0,
+          clickable: false,
+          zIndex: 9999,
+        });
+      }
 
-      // 2. Check if the Places library is loaded
-      console.log("googleMaps.places", googleMaps.places);
-      console.log("searchInputRef.current", searchInputRef.current);
+      function updateFootprint() {
+        if (!footprintRef.current) return;
+        const center = map.getCenter();
+        if (!center) return;
+        const { bounds } = computeStaticMapGeo({
+          lat: center.lat(),
+          lng: center.lng(),
+          zoom: Math.round(map.getZoom()),
+          size: GMAP_STATIC_SIZE,
+          scale: GMAP_STATIC_SCALE,
+        });
+        footprintRef.current.setBounds(bounds);
+      }
+
+      // --- SEARCH BAR LOGIC ---
 
       if (googleMaps.places && searchInputRef.current) {
         // Create the SearchBox
@@ -71,12 +104,10 @@ export default function GoogleMap({ onGmapChange, onGmapContainerChange, hideBut
           searchInputRef.current
         );
 
-        console.log("Search input added to map controls");
-
         // Bias the SearchBox results towards current map's viewport.
         map.addListener("bounds_changed", () => {
-          console.log("bounds_changed");
           searchBox.setBounds(map.getBounds());
+          updateFootprint();
           if (onBoundsChange) onBoundsChange(map.getBounds());
         });
 
@@ -107,9 +138,6 @@ export default function GoogleMap({ onGmapChange, onGmapContainerChange, hideBut
 
           // Fit map to result
           map.fitBounds(bounds);
-
-          // Optional: Force zoom to 19 or 20 if fitBounds zooms out too much
-          // map.setZoom(18);
         });
       } else {
         console.error(
@@ -118,36 +146,31 @@ export default function GoogleMap({ onGmapChange, onGmapContainerChange, hideBut
       }
       // ------------------------
 
+      updateFootprint();
+
       if (onGmapChange) onGmapChange(map);
       if (onGmapContainerChange) onGmapContainerChange(mapRef.current);
     }
-  }, [mapsLoaded, onGmapChange, onGmapContainerChange]);
-
-
-  // handlers
-
-
+  }, [mapsLoaded, onGmapChange, onGmapContainerChange, showCaptureFootprint]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
-      {/* 3. The Search Input 
-        We give it generic styles here, but once mounted into the map
-        via map.controls, it becomes part of the map UI.
-      */}
+      {/* The search input — once mounted into the map via map.controls it
+          becomes part of the map UI. */}
       <input
         ref={searchInputRef}
         type="text"
-        placeholder="Rechercher"
+        placeholder="Rechercher une adresse"
         style={{
           visibility: hideButtons ? "hidden" : "visible",
           boxSizing: "border-box",
           border: "1px solid transparent",
-          width: "240px",
-          height: "32px",
+          width: "320px",
+          height: "40px",
           marginTop: "10px",
           marginLeft: "10px",
           padding: "0 12px",
-          borderRadius: "3px",
+          borderRadius: "4px",
           boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3)",
           fontSize: "14px",
           outline: "none",
@@ -155,8 +178,6 @@ export default function GoogleMap({ onGmapChange, onGmapContainerChange, hideBut
           backgroundColor: "white",
         }}
       />
-
-
 
       <div
         ref={mapRef}

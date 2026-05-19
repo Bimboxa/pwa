@@ -3,9 +3,14 @@ import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import getMapsApiAsync from "../services/getMapsApiAsync";
 
 export default function SearchGoogleMap() {
+  const appConfig = useAppConfig();
+  const jsApiKey = appConfig?.features?.gmap?.jsApiKey;
+
   const [inputValue, setInputValue] = useState("");
   const [options, setOptions] = useState([]);
   const [selectedPlace, setSelectedPlace] = useState(null);
@@ -15,15 +20,16 @@ export default function SearchGoogleMap() {
 
   // Load Google Maps script and initialize services
   useEffect(() => {
+    if (!jsApiKey) return;
     initServicesAsync();
     async function initServicesAsync() {
-      const mapsApi = await getMapsApiAsync();
+      const mapsApi = await getMapsApiAsync(jsApiKey);
       if (mapsApi) {
         autocompleteServiceRef.current =
           new mapsApi.places.AutocompleteService();
       }
     }
-  }, []);
+  }, [jsApiKey]);
 
   // Fetch autocomplete suggestions
   useEffect(() => {
