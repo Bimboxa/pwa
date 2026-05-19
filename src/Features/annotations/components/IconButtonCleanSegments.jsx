@@ -13,7 +13,7 @@ export default function IconButtonCleanSegments({ annotations, accentColor }) {
 
   // strings
 
-  const titleS = "Nettoyer les segments";
+  const titleS = "Aligner";
 
   // data
 
