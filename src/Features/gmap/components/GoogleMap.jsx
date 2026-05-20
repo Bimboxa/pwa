@@ -26,6 +26,7 @@ export default function GoogleMap({
   const [mapsLoaded, setMapsLoaded] = useState(false);
 
   useEffect(() => {
+    if (!apiKey) return;
     initMapAsync();
 
     async function initMapAsync() {
