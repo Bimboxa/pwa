@@ -5,7 +5,6 @@ import { Box } from "@mui/material";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import GoogleMap from "./GoogleMap";
-import LayerGoogleMap from "./LayerGoogleMap";
 
 export default function MainGoogleMapEditor() {
   // data
@@ -31,7 +30,6 @@ export default function MainGoogleMapEditor() {
       >
         <SearchGoogleMap />
       </Box> */}
-      <LayerGoogleMap gmap={gmap} gmapContainer={gmapContainer} />
     </Box>
   );
 }
