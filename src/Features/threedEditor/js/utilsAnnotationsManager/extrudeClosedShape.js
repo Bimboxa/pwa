@@ -12,9 +12,13 @@ import {
   LineBasicMaterial,
   DoubleSide,
   FrontSide,
+  ShapeUtils,
+  Vector2,
 } from "three";
 
-import triangulateAnnotationGeometry from "Features/geometry/utils/triangulateAnnotationGeometry";
+import triangulateAnnotationGeometry, {
+  ISO_BAND_LEVELS,
+} from "Features/geometry/utils/triangulateAnnotationGeometry";
 import {
   typeOf,
   circleFromThreePoints,
@@ -167,7 +171,87 @@ function hasPerVertexZ(points, holes, innerPoints) {
   return ringHas(points) || (holes || []).some(ringHas) || ringHas(innerPoints);
 }
 
-export default function extrudeClosedShape(points, height, material, holes, verticalLift = 0, innerPoints = []) {
+// ~12 "virtual" iso-height contour lines on the top surface (transverse to
+// the slope / guideLine). Pure visualization — not stored on the annotation.
+// The top surface is the (arc-expanded) contour minus holes, triangulated and
+// sliced at evenly-spaced height levels (same count as the mesh banding).
+const ISO_LEVELS = ISO_BAND_LEVELS;
+
+function buildIsoHeightLines(expContour, expHoles, topZOf) {
+  if (!expContour || expContour.length < 3) return null;
+  const contourV2 = expContour.map((p) => new Vector2(p.x, p.y));
+  const holesV2 = (expHoles || [])
+    .filter((h) => h && h.length >= 3)
+    .map((h) => h.map((p) => new Vector2(p.x, p.y)));
+  let faces;
+  try {
+    faces = ShapeUtils.triangulateShape(contourV2, holesV2) || [];
+  } catch (e) {
+    return null;
+  }
+  if (faces.length === 0) return null;
+  const flat = [expContour, ...(expHoles || []).filter((h) => h && h.length >= 3)].flat();
+  const z = flat.map(topZOf);
+  let zMin = Infinity;
+  let zMax = -Infinity;
+  for (const v of z) {
+    if (v < zMin) zMin = v;
+    if (v > zMax) zMax = v;
+  }
+  if (!Number.isFinite(zMin) || !Number.isFinite(zMax) || zMax - zMin < 1e-4) {
+    return null;
+  }
+  const positions = [];
+  const LIFT = 0.004; // sit just above the surface to avoid z-fighting
+  for (let li = 1; li <= ISO_LEVELS; li++) {
+    const level = zMin + ((zMax - zMin) * li) / (ISO_LEVELS + 1);
+    // Collect every triangle-edge crossing at this height, then emit ONE
+    // straight segment per level (the farthest-apart pair). On a ramp an
+    // iso contour is a straight line transverse to the slope, so this keeps
+    // it a clean segment instead of a triangle-by-triangle jagged polyline.
+    const hits = [];
+    for (const f of faces) {
+      const tri = [flat[f[0]], flat[f[1]], flat[f[2]]];
+      const tz = [z[f[0]], z[f[1]], z[f[2]]];
+      for (let e = 0; e < 3; e++) {
+        const a = tri[e];
+        const b = tri[(e + 1) % 3];
+        const da = tz[e] - level;
+        const db = tz[(e + 1) % 3] - level;
+        if ((da < 0 && db < 0) || (da > 0 && db > 0)) continue;
+        if (da === 0 && db === 0) continue;
+        const t = da / (da - db);
+        if (!Number.isFinite(t)) continue;
+        hits.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+      }
+    }
+    if (hits.length < 2) continue;
+    let p0 = hits[0];
+    let p1 = hits[1];
+    let best = -1;
+    for (let i = 0; i < hits.length; i++) {
+      for (let j = i + 1; j < hits.length; j++) {
+        const d =
+          (hits[i].x - hits[j].x) ** 2 + (hits[i].y - hits[j].y) ** 2;
+        if (d > best) {
+          best = d;
+          p0 = hits[i];
+          p1 = hits[j];
+        }
+      }
+    }
+    positions.push(p0.x, p0.y, level + LIFT, p1.x, p1.y, level + LIFT);
+  }
+  if (positions.length === 0) return null;
+  const g = new BufferGeometry();
+  g.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  return new LineSegments(
+    g,
+    new LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 })
+  );
+}
+
+export default function extrudeClosedShape(points, height, material, holes, verticalLift = 0, innerPoints = [], options = {}) {
   if (!points || points.length < 3) return null;
 
   const isExtruded = height && height > 0;
@@ -199,20 +283,38 @@ export default function extrudeClosedShape(points, height, material, holes, vert
       : new ShapeGeometry(shape);
     geometry.translate(0, 0, verticalLift + Z_FIGHT_OFFSET);
   } else {
+    const expContour = expandRingWithOffsets(points, ARC_SAMPLES, true);
+    const expHoles = (holes || []).map((h) =>
+      expandRingWithOffsets(h, ARC_SAMPLES, true)
+    );
     const tri = triangulateAnnotationGeometry({
-      contour: expandRingWithOffsets(points, ARC_SAMPLES, true),
-      holes: (holes || []).map((h) =>
-        expandRingWithOffsets(h, ARC_SAMPLES, true)
-      ),
+      contour: expContour,
+      holes: expHoles,
       innerPoints,
       height: isExtruded ? height : 0,
       verticalLift,
       zFightOffset: Z_FIGHT_OFFSET,
+      isoBandLevels: options.isoLines ? ISO_LEVELS : 0,
     });
     geometry = new BufferGeometry();
     geometry.setAttribute("position", new Float32BufferAttribute(tri.positions, 3));
     geometry.setIndex(Array.from(tri.indices));
     geometry.computeVertexNormals();
+
+    if (options.isoLines) {
+      const h = isExtruded ? height : 0;
+      const isoLines = buildIsoHeightLines(
+        expContour,
+        expHoles,
+        (p) =>
+          verticalLift +
+          h +
+          (p.offsetBottom ?? 0) +
+          (p.offsetTop ?? 0) +
+          Z_FIGHT_OFFSET
+      );
+      if (isoLines) group.add(isoLines);
+    }
   }
 
   // DoubleSide for both flat and extruded paths: pixelToWorld inverts Y which

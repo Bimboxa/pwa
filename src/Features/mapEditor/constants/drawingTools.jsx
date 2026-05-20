@@ -9,6 +9,7 @@ import {
   Create,
   AddLocationAlt as AddInnerPoint,
   Straighten,
+  Timeline as GuideLineIcon,
 } from "@mui/icons-material";
 
 import IconPolylineClick from "Features/icons/IconPolylineClick";
@@ -224,6 +225,16 @@ const DRAWING_TOOLS = [
     annotationType: "COTE",
     behavior: "TWO_CLICK",
   },
+  // ADD_GUIDE_LINE tool — draw a guideLine polyline on the selected
+  // annotation (the ramp gradient axis + slope arrow). Multi-click, finish
+  // with Enter, cancel with Escape.
+  {
+    key: "ADD_GUIDE_LINE",
+    label: "Ajouter une ligne guide",
+    Icon: GuideLineIcon,
+    annotationType: "GUIDE_LINE",
+    behavior: "CLICK",
+  },
 ];
 
 export const DRAWING_TOOLS_BY_TYPE = {
@@ -233,6 +244,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
   TECHNICAL_RETURN: ["TECHNICAL_RETURN"],
   COMPLETE_ANNOTATION: ["COMPLETE_ANNOTATION"],
   ADD_INNER_POINT: ["ADD_INNER_POINT"],
+  GUIDE_LINE: ["ADD_GUIDE_LINE"],
 };
 
 export function getDrawingToolsByShape(drawingShape) {

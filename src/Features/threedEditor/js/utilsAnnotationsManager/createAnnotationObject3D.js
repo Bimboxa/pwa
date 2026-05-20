@@ -299,7 +299,12 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         material,
         cuts,
         verticalLift,
-        innerPts
+        innerPts,
+        {
+          isoLines: !!(
+            annotation.guideLine && annotation.guideLine.length >= 2
+          ),
+        }
       );
       break;
     }

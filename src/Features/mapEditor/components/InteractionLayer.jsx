@@ -171,6 +171,7 @@ const InteractionLayer = forwardRef(({
   enabledDrawingMode,
   newAnnotation,
   onCommitDrawing,
+  onCommitGuideLine,
   onCommitSplitAtVertex,
   onCommitPointsFromSurfaceDrop,
   onCommitSimilarStrips,
@@ -195,6 +196,7 @@ const InteractionLayer = forwardRef(({
   onDeletePoints,
   onHideSegment,
   onRemoveCut,
+  onDeleteGuideLine,
   onAnnotationMoveCommit,
   onSegmentSplit,
   onCutSegment,
@@ -1359,6 +1361,7 @@ const InteractionLayer = forwardRef(({
       ...(ann.points || []),
       ...(ann.cuts || []).flatMap((c) => c?.points || []),
       ...(ann.innerPoints || []),
+      ...(ann.guideLine || []),
     ];
   }, [selectedNode?.nodeId, annotations]);
 
@@ -1785,6 +1788,11 @@ const InteractionLayer = forwardRef(({
     onCommitDrawingRef.current = onCommitDrawing;
   }, [onCommitDrawing]);
 
+  const onCommitGuideLineRef = useRef(onCommitGuideLine);
+  useEffect(() => {
+    onCommitGuideLineRef.current = onCommitGuideLine;
+  }, [onCommitGuideLine]);
+
   const onCommitSimilarStripsRef = useRef(onCommitSimilarStrips);
   useEffect(() => {
     onCommitSimilarStripsRef.current = onCommitSimilarStrips;
@@ -1840,6 +1848,33 @@ const InteractionLayer = forwardRef(({
     lastSmartROI,
   });
 
+  // ADD_GUIDE_LINE: self-contained multi-click capture (reuses the generic
+  // drawingPoints/DrawingLayer preview in local pixel space). Enter commits
+  // the polyline to the selected annotation's guideLine, Escape cancels.
+  useEffect(() => {
+    if (enabledDrawingMode !== "ADD_GUIDE_LINE") return;
+    const clear = () => {
+      setDrawingPoints([]);
+      drawingPointsRef.current = [];
+      drawingLayerRef.current?.setPoints?.([]);
+    };
+    const onKey = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const pts = drawingPointsRef.current || [];
+        if (pts.length >= 2) onCommitGuideLineRef.current?.(pts);
+        clear();
+        dispatch(setEnabledDrawingMode(null));
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        clear();
+        dispatch(setEnabledDrawingMode(null));
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [enabledDrawingMode, dispatch, setDrawingPoints, drawingPointsRef]);
+
   // Track whether the first rectangle corner has been placed (for the
   // RectangleDimsBottomBar to switch between its prompt and its dimensions UI).
   // Placed here (after useDrawingCommit) so `drawingPoints` is in scope for the
@@ -1870,6 +1905,7 @@ const InteractionLayer = forwardRef(({
     onDeletePoints,
     onHideSegment,
     onRemoveCut,
+    onDeleteGuideLine,
     permissions,
   });
   useEffect(() => {
@@ -1882,10 +1918,11 @@ const InteractionLayer = forwardRef(({
       onDeletePoints,
       onHideSegment,
       onRemoveCut,
+      onDeleteGuideLine,
       enabledDrawingMode,
       permissions,
     };
-  }, [selectedNode?.nodeId, selectedPointId, selectedPartId, selectedPointIds, onDeletePoint, onDeletePoints, onHideSegment, onRemoveCut, enabledDrawingMode, permissions]);
+  }, [selectedNode?.nodeId, selectedPointId, selectedPartId, selectedPointIds, onDeletePoint, onDeletePoints, onHideSegment, onRemoveCut, onDeleteGuideLine, enabledDrawingMode, permissions]);
 
 
   // 1. Calculer le style curseur du conteneur
@@ -2748,6 +2785,15 @@ const InteractionLayer = forwardRef(({
               e.stopPropagation();
               return;
             }
+
+            // D. Suppression de la guideLine
+            const { onDeleteGuideLine } = stateRef.current;
+            if (type === 'GUIDE_LINE' && onDeleteGuideLine) {
+              onDeleteGuideLine({ annotationId: selectedNode.nodeId });
+              dispatch(setSubSelection({ partId: null, partType: null }));
+              e.stopPropagation();
+              return;
+            }
           }
           else if (selectedNode?.nodeId) {
             // PERMISSION GUARD : bloquer si pas propriétaire de l'annotation
@@ -2944,6 +2990,18 @@ const InteractionLayer = forwardRef(({
           }
         }
       }
+      return;
+    }
+
+    // --- ADD_GUIDE_LINE: accumulate a polyline on the selected annotation ---
+    // Each click appends a point (local pixel space); DrawingLayer renders
+    // the in-progress polyline. Enter/Escape (keydown effect) finishes.
+    if (enabledDrawingMode === "ADD_GUIDE_LINE") {
+      const local = toLocalCoords(worldPos);
+      const next = [...(drawingPointsRef.current || []), local];
+      setDrawingPoints(next);
+      drawingPointsRef.current = next;
+      drawingLayerRef.current?.setPoints?.(next);
       return;
     }
 
@@ -3788,6 +3846,9 @@ const InteractionLayer = forwardRef(({
             ...cut,
             points: cut.points?.filter(pt => pt.id !== dragPointId),
           })),
+          guideLine: ann.guideLine?.filter(
+            (g) => g.pointId !== dragPointId && g.id !== dragPointId
+          ),
         }));
 
         const snapResult = getBestSnap(localPos, annotationsExcludingDragPoint, snapThreshold, {vertex: true, midpoint: true, projection: true});
@@ -3968,7 +4029,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 

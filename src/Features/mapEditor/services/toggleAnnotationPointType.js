@@ -33,11 +33,22 @@ export default async function toggleAnnotationPointType({ annotationId, pointId 
         });
     }
 
+    // 2b. Chercher dans la guideLine (refs {pointId, type})
+    if (annotation.guideLine) {
+        annotation.guideLine.forEach((g) => {
+            if (g.pointId === pointId) {
+                g.type = (g.type === "circle") ? "square" : "circle";
+                hasChanged = true;
+            }
+        });
+    }
+
     // 3. Sauvegarder uniquement si une modification a eu lieu
     if (hasChanged) {
         await db.annotations.update(annotationId, {
             points: annotation.points,
-            cuts: annotation.cuts
+            cuts: annotation.cuts,
+            guideLine: annotation.guideLine
         });
         console.log(`[toggleAnnotationPointType] Point ${pointId} mis à jour.`);
     } else {

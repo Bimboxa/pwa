@@ -24,6 +24,7 @@ import useAutoResetBaseMapPose from "Features/bgImage/hooks/useAutoResetBaseMapP
 import useAutoShowBgImage from "Features/bgImage/hooks/useAutoShowBgImage";
 import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgImageRawTextAnnotations";
 import useHandleCommitDrawing from "../hooks/useHandleCommitDrawing";
+import useHandleCommitGuideLine from "../hooks/useHandleCommitGuideLine";
 import useHandleSplitCommit from "../hooks/useHandleSplitCommit";
 import useHandleCompleteAnnotation from "../hooks/useHandleCompleteAnnotation";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -379,6 +380,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const handleTechnicalReturn = useHandleTechnicalReturn({ annotations, newEntity });
     const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline({ newEntity });
     const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick({ newEntity });
+    const handleCommitGuideLine = useHandleCommitGuideLine();
     const { handleCompleteAnnotationCommit } = useHandleCompleteAnnotation({ newEntity });
     const saveTempAnnotations = useSaveTempAnnotations();
     const createAnnotationsFromDetectedStrips = useCreateAnnotationsFromDetectedStrips();
@@ -770,6 +772,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         };
 
         const newPointObject = { id: newPointId, type: 'square' };
+        // guideLine refs key on `pointId` (not `id`).
+        const newGuidePointObject = { pointId: newPointId, type: 'square' };
 
         // Helper function to try inserting point in a specific list of points
         // Returns the new array if insertion happened, or null if segment not found
@@ -809,6 +813,27 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             if (newMainPoints) {
                 updates.points = newMainPoints;
                 hasChanges = true;
+            }
+
+            // B'. Check guideLine (open polyline, ref key `pointId`)
+            if (Array.isArray(ann.guideLine) && ann.guideLine.length >= 2) {
+                const gl = ann.guideLine;
+                for (let i = 0; i < gl.length - 1; i++) {
+                    const a = gl[i];
+                    const b = gl[i + 1];
+                    const aId = a.pointId || a.id;
+                    const bId = b.pointId || b.id;
+                    if (
+                        (aId === segmentStartId && bId === segmentEndId) ||
+                        (aId === segmentEndId && bId === segmentStartId)
+                    ) {
+                        const newGuide = [...gl];
+                        newGuide.splice(i + 1, 0, newGuidePointObject);
+                        updates.guideLine = newGuide;
+                        hasChanges = true;
+                        break;
+                    }
+                }
             }
 
             // B. Check Cuts (Holes)
@@ -1310,6 +1335,19 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         await removeCutAsync({ annotationId, cutIndex, annotations });
     };
 
+    // Deletes the whole guideLine: drops every db.points it referenced and
+    // clears annotation.guideLine. Triggered by Delete/Backspace when the
+    // guideLine polyline is the selected part.
+    const handleDeleteGuideLine = async ({ annotationId }) => {
+        const ann = await db.annotations.get(annotationId);
+        if (!ann || !Array.isArray(ann.guideLine) || ann.guideLine.length === 0) return;
+        const pointIds = ann.guideLine.map((g) => g.pointId).filter(Boolean);
+        await db.transaction("rw", db.points, db.annotations, async () => {
+            if (pointIds.length > 0) await db.points.bulkDelete(pointIds);
+            await db.annotations.update(annotationId, { guideLine: [] });
+        });
+    };
+
     // snapping
 
     //const isSnappingEnabled = enabledDrawingMode || !selectedNode;
@@ -1399,6 +1437,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onDeletePoints={handleDeletePoints}
                     onHideSegment={handleHideSegment}
                     onRemoveCut={handleRemoveCut}
+                    onDeleteGuideLine={handleDeleteGuideLine}
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
                     onCutSegment={handleCutSegment}
@@ -1407,6 +1446,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onSplitPolylineEnter={handleSplitPolylineEnter}
                     onSplitPolylineReset={resetSplitPolyline}
                     onSplitPolylineClickPoint={handleSplitPolylineClickPoint}
+                    onCommitGuideLine={handleCommitGuideLine}
                     onProjectionSnapInsert={handleProjectionSnapInsert}
                     snappingEnabled={isSnappingEnabled}
                     baseMapMeterByPx={baseMap?.getMeterByPx()}

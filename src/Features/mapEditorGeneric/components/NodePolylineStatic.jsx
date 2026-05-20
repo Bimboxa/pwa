@@ -4,6 +4,7 @@ import theme from "Styles/theme";
 
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import getPolygonSlope from "Features/annotations/utils/getPolygonSlope";
+import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 import NodeLabelStatic from "./NodeLabelStatic";
 import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerOffsetSegmentPath";
 
@@ -791,6 +792,80 @@ export default function NodePolylineStatic({
         return { x: sx / n, y: sy / n };
     }, [slope, points]);
 
+    // guideLine (ramp gradient axis): resolved + arc-expanded pixel polyline.
+    const guideLinePx = useMemo(() => {
+        if (type !== "POLYGON") return null;
+        const g = mergedAnnotation.guideLine;
+        if (!Array.isArray(g) || g.length < 2) return null;
+        const expanded = expandArcsInPath(g, 16, false)
+            .filter((p) => typeof p?.x === "number" && typeof p?.y === "number")
+            .map((p) => ({ x: p.x, y: p.y }));
+        return expanded.length >= 2 ? expanded : null;
+    }, [type, mergedAnnotation.guideLine]);
+
+    // Slope arrow drawn along the MIDDLE of the guideLine, following the
+    // curve and pointing uphill. % = Δz / 3D-length (distance walked).
+    const guideSlope = useMemo(() => {
+        if (!guideLinePx || guideLinePx.length < 2 || !points || points.length === 0) return null;
+        let zMin = Infinity;
+        let zMax = -Infinity;
+        for (const p of points) {
+            if (!p || p.isSliding) continue;
+            const z = p.offsetTop ?? 0;
+            if (z < zMin) zMin = z;
+            if (z > zMax) zMax = z;
+        }
+        if (!Number.isFinite(zMin) || !Number.isFinite(zMax)) return null;
+        const dz = zMax - zMin;
+
+        // Cumulative arc length along the (arc-expanded) guideLine.
+        const cum = [0];
+        for (let i = 0; i < guideLinePx.length - 1; i++) {
+            cum.push(cum[i] + Math.hypot(
+                guideLinePx[i + 1].x - guideLinePx[i].x,
+                guideLinePx[i + 1].y - guideLinePx[i].y
+            ));
+        }
+        const L2D = cum[cum.length - 1];
+        if (!Number.isFinite(L2D) || L2D < 1e-6) return null;
+        const L2Dm = L2D * (baseMapMeterByPx || 0);
+        const slopePct = L2Dm > 1e-6 ? (100 * dz) / Math.hypot(L2Dm, dz) : 0;
+
+        // Point on the polyline at a given arc length.
+        const at = (s) => {
+            const t = Math.max(0, Math.min(L2D, s));
+            let i = 0;
+            while (i < cum.length - 2 && cum[i + 1] < t) i++;
+            const seg = cum[i + 1] - cum[i] || 1;
+            const f = (t - cum[i]) / seg;
+            return {
+                x: guideLinePx[i].x + (guideLinePx[i + 1].x - guideLinePx[i].x) * f,
+                y: guideLinePx[i].y + (guideLinePx[i + 1].y - guideLinePx[i].y) * f,
+            };
+        };
+
+        // Central window of the guideLine = the arrow shaft (follows curve).
+        const s0 = L2D * 0.3;
+        const s1 = L2D * 0.7;
+        let shaft = [at(s0)];
+        for (let i = 0; i < cum.length; i++) {
+            if (cum[i] > s0 && cum[i] < s1) shaft.push(guideLinePx[i]);
+        }
+        shaft.push(at(s1));
+
+        // Orient the shaft so its last point is uphill (slope is downhill).
+        const ux = slope ? -slope.dirX : shaft[shaft.length - 1].x - shaft[0].x;
+        const uy = slope ? -slope.dirY : shaft[shaft.length - 1].y - shaft[0].y;
+        const startDot = shaft[0].x * ux + shaft[0].y * uy;
+        const endDot = shaft[shaft.length - 1].x * ux + shaft[shaft.length - 1].y * uy;
+        if (endDot < startDot) shaft = shaft.slice().reverse();
+
+        const head = shaft[shaft.length - 1];
+        const prev = shaft[shaft.length - 2];
+        const angleDeg = (Math.atan2(head.y - prev.y, head.x - prev.x) * 180) / Math.PI;
+        return { shaft, head, angleDeg, slopePct, mid: at(L2D / 2) };
+    }, [guideLinePx, points, slope, baseMapMeterByPx]);
+
     // Counter-scale for patterns (hatching, eraser) to keep fixed size on screen in PX mode
     const patternTransformStyle = useMemo(() => {
         if (scalesWithZoom) return undefined;
@@ -804,7 +879,8 @@ export default function NodePolylineStatic({
         const isCut = cutIndex !== undefined && cutIndex !== null;
         const isInner = source === "INNER";
         const isSliding = !!pt.isSliding;
-        const keyPrefix = isInner ? "inner" : isCut ? `cut-${cutIndex}` : "main";
+        const isGuide = source === "GUIDE";
+        const keyPrefix = isGuide ? "guide" : isInner ? "inner" : isCut ? `cut-${cutIndex}` : "main";
         // Dashed stroke for sliding vertices: the handle is still visible but
         // visually flagged as "derived" — its position is recomputed at each
         // commit rather than user-controlled.
@@ -820,6 +896,7 @@ export default function NodePolylineStatic({
                 data-annotation-id={annotationId}
                 {...(isCut ? { "data-cut-index": cutIndex } : {})}
                 {...(isInner ? { "data-inner": "1" } : {})}
+                {...(isGuide ? { "data-guide": "1" } : {})}
             >
                 <g style={{ transform: vertexScaleTransform }}>
                     {isCircle ? (
@@ -860,6 +937,7 @@ export default function NodePolylineStatic({
             (c?.points || []).map((p) => ({ point: p, cutIndex: ci, source: undefined }))
         ),
         ...(mergedAnnotation.innerPoints || []).map((p) => ({ point: p, cutIndex: undefined, source: "INNER" })),
+        ...(mergedAnnotation.guideLine || []).map((p) => ({ point: p, cutIndex: undefined, source: "GUIDE" })),
     ];
 
     let pointEntriesToRender = [];
@@ -880,6 +958,7 @@ export default function NodePolylineStatic({
         pointEntriesToRender = [
             ...pointEntriesToRender,
             ...(mergedAnnotation.innerPoints || []).map((p) => ({ point: p, cutIndex: undefined, source: "INNER" })),
+            ...(mergedAnnotation.guideLine || []).map((p) => ({ point: p, cutIndex: undefined, source: "GUIDE" })),
         ];
     } else {
         pointEntriesToRender = allPointEntries;
@@ -1052,7 +1131,115 @@ export default function NodePolylineStatic({
                 wrapped in `vertexScaleTransform` so they keep a constant
                 on-screen size in both Map and Portfolio viewers, matching
                 the technique used by NodeCoteStatic. */}
-            {slope && slopeCentroid && Math.round(slope.slopePct) >= 1 && (() => {
+            {/* guideLine: drawn while the annotation is selected so the user
+                can see / re-draw the ramp axis. Solid when the slope arrow is
+                shown, dashed otherwise. */}
+            {selected && guideLinePx && (() => {
+                const guidePartId = `${annotationId}::GUIDE_LINE`;
+                const isSelectedGuide = selectedPartId === guidePartId;
+                const isHoveredGuide = effectiveHoveredPartId === guidePartId;
+                const pointsStr = guideLinePx.map((p) => `${p.x},${p.y}`).join(" ");
+                const strokeColor = isSelectedGuide
+                    ? STYLE_CONSTANTS.COLORS.SELECTED_PART
+                    : "#1976d2";
+                const strokeWidth = isSelectedGuide || isHoveredGuide ? 3 : 2;
+                const strokeOpacity = isSelectedGuide || isHoveredGuide ? 1 : 0.7;
+                return (
+                    <g
+                        onMouseEnter={(e) => {
+                            e.stopPropagation();
+                            if (!isTransient) setHoveredPartId(guidePartId);
+                        }}
+                        onMouseLeave={() => setHoveredPartId(null)}
+                        data-part-id={guidePartId}
+                        data-part-type="GUIDE_LINE"
+                        data-node-id={annotationId}
+                        style={{ cursor: isTransient ? "crosshair" : "pointer" }}
+                    >
+                        {/* Hit area (transparent wide stroke) */}
+                        <polyline
+                            points={pointsStr}
+                            fill="none"
+                            stroke="transparent"
+                            strokeWidth={POLYGON_HIT_STROKE_WIDTH_PX}
+                            vectorEffect="non-scaling-stroke"
+                        />
+                        {/* Visible stroke */}
+                        <polyline
+                            points={pointsStr}
+                            fill="none"
+                            stroke={strokeColor}
+                            strokeWidth={strokeWidth}
+                            strokeOpacity={strokeOpacity}
+                            strokeDasharray={mergedAnnotation.showSlope ? undefined : "6 5"}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            vectorEffect="non-scaling-stroke"
+                            style={{ pointerEvents: "none" }}
+                        />
+                    </g>
+                );
+            })()}
+
+            {/* Slope arrow along the MIDDLE of the guideLine, following the
+                curve and pointing uphill (replaces the centroid arrow when a
+                guideLine exists). */}
+            {mergedAnnotation.showSlope &&
+                guideSlope &&
+                Math.round(guideSlope.slopePct) >= 1 && (() => {
+                const headLen = 12;
+                const headW = 9;
+                const arrowColor = "#000";
+                return (
+                    <g style={{ pointerEvents: "none" }}>
+                        <polyline
+                            points={guideSlope.shaft.map((p) => `${p.x},${p.y}`).join(" ")}
+                            fill="none"
+                            stroke={arrowColor}
+                            strokeWidth={2}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            vectorEffect="non-scaling-stroke"
+                        />
+                        <g transform={`translate(${guideSlope.head.x}, ${guideSlope.head.y})`}>
+                            <g transform={`rotate(${guideSlope.angleDeg})`}>
+                                <g style={{ transform: vertexScaleTransform }}>
+                                    <polygon
+                                        points={`0,0 ${-headLen},${-headW / 2} ${-headLen},${headW / 2}`}
+                                        fill={arrowColor}
+                                    />
+                                </g>
+                            </g>
+                        </g>
+                        <g
+                            transform={`translate(${guideSlope.mid.x}, ${guideSlope.mid.y})`}
+                        >
+                        <g style={{ transform: vertexScaleTransform }}>
+                            <text
+                                x={0}
+                                y={-12}
+                                textAnchor="middle"
+                                dominantBaseline="alphabetic"
+                                fontSize={14}
+                                fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
+                                fill={arrowColor}
+                                style={{
+                                    userSelect: "none",
+                                    paintOrder: "stroke",
+                                    stroke: "white",
+                                    strokeWidth: 3,
+                                    strokeLinejoin: "round",
+                                }}
+                            >
+                                {`${Math.round(guideSlope.slopePct)}%`}
+                            </text>
+                        </g>
+                        </g>
+                    </g>
+                );
+            })()}
+
+            {!guideLinePx && slope && slopeCentroid && Math.round(slope.slopePct) >= 1 && (() => {
                 const angleDeg = (Math.atan2(-slope.dirY, -slope.dirX) * 180) / Math.PI;
                 const L = 40;          // arrow total length in screen pixels
                 const headLen = 8;     // arrowhead length in screen pixels

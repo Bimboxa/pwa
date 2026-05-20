@@ -37,6 +37,7 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
+import resolveGuideLine from "Features/annotations/utils/resolveGuideLine";
 
 import db from "App/db/db";
 
@@ -383,6 +384,9 @@ export default function useAnnotationsV2(options) {
                     // contour and cuts.
                     if (annotation.innerPoints) {
                         _annotation.innerPoints = resolvePoints({ points: annotation.innerPoints, pointsIndex, imageSize });
+                    }
+                    if (annotation.guideLine) {
+                        _annotation.guideLine = resolveGuideLine({ guideLine: annotation.guideLine, pointsIndex, imageSize });
                     }
 
                 }

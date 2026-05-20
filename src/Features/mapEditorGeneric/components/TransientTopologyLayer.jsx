@@ -26,6 +26,48 @@ export default function TransientTopologyLayer({
             const targetAnn = annotations.find(a => a.id === virtualInsertion.annotationId);
             if (!targetAnn) return [];
 
+            // Detect whether the insertion targets the guideLine (vs the main
+            // contour / a cut). The snap's segment endpoint ids unambiguously
+            // identify which ring this segment belongs to.
+            const sId = virtualInsertion.segmentStartId;
+            const eId = virtualInsertion.segmentEndId;
+            const onGuideLine =
+                Array.isArray(targetAnn.guideLine) &&
+                targetAnn.guideLine.length >= 2 &&
+                targetAnn.guideLine.some((g) => (g.pointId || g.id) === sId) &&
+                targetAnn.guideLine.some((g) => (g.pointId || g.id) === eId);
+
+            if (onGuideLine) {
+                // Insert into the guideLine. Refs use `pointId` as the id
+                // field; mirror `id` so the renderer (which reads `id`) finds
+                // the virtual point's x/y unchanged.
+                const guide = targetAnn.guideLine;
+                let insertAt = -1;
+                for (let i = 0; i < guide.length - 1; i++) {
+                    const aId = guide[i].pointId || guide[i].id;
+                    const bId = guide[i + 1].pointId || guide[i + 1].id;
+                    if (
+                        (aId === sId && bId === eId) ||
+                        (aId === eId && bId === sId)
+                    ) {
+                        insertAt = i + 1;
+                        break;
+                    }
+                }
+                if (insertAt < 0) return [];
+                const nextG = guide[insertAt] || guide[insertAt - 1];
+                const virtualGuidePoint = {
+                    pointId: movingPointId,
+                    id: movingPointId,
+                    x: currentPos.x,
+                    y: currentPos.y,
+                    type: nextG?.type === 'circle' ? 'circle' : 'square',
+                };
+                const newGuide = [...guide];
+                newGuide.splice(insertAt, 0, virtualGuidePoint);
+                return [{ ...targetAnn, guideLine: newGuide }];
+            }
+
             // 1. Récupérer les points du contour concerné (Main ou Cut)
             const pointsRef = (typeof virtualInsertion.cutIndex === 'number')
                 ? targetAnn.cuts[virtualInsertion.cutIndex].points
@@ -114,6 +156,7 @@ export default function TransientTopologyLayer({
             if (inMain) return true;
             if (ann.cuts?.some(cut => cut.points?.some(pt => pt.id === movingPointId))) return true;
             if (ann.innerPoints?.some(pt => pt.id === movingPointId)) return true;
+            if (ann.guideLine?.some(g => g.pointId === movingPointId || g.id === movingPointId)) return true;
             return false;
         });
 
@@ -152,6 +195,15 @@ export default function TransientTopologyLayer({
                     pt.id === movingPointId
                         ? { ...pt, x: currentPos.x, y: currentPos.y }
                         : pt
+                );
+            }
+
+            // D. guideLine (resolved refs key on `pointId` AND mirror `id`)
+            if (_ann.guideLine?.some(g => g.pointId === movingPointId || g.id === movingPointId)) {
+                _ann.guideLine = _ann.guideLine.map(g =>
+                    (g.pointId === movingPointId || g.id === movingPointId)
+                        ? { ...g, x: currentPos.x, y: currentPos.y }
+                        : g
                 );
             }
 
