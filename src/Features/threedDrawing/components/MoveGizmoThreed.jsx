@@ -43,6 +43,7 @@ import getPolygonZPlane, {
 import getRampRailChains from "Features/annotations/utils/getRampRailChains";
 import buildRampLayout from "Features/annotations/utils/buildRampLayout";
 import rampOffsetTopByPointId from "Features/annotations/utils/rampOffsetTopByPointId";
+import getGuideLineAxis from "Features/annotations/utils/getGuideLineAxis";
 import { nanoid } from "@reduxjs/toolkit";
 
 const DEFAULT_Z = new Vector3(0, 0, 1);
@@ -223,6 +224,12 @@ export default function MoveGizmoThreed() {
   const rampIsoPointsPxRef = useRef(null);
   const rampMovedMidPxRef = useRef(null);
   const rampMeterByPxRef = useRef(0);
+  // guideLine mode (takes precedence over the iso-segment ramp): the drawn
+  // guideLine is the gradient axis; every vertex's height = linear function
+  // of its projection s onto the guideLine. `guideLineSpanPxRef` is the
+  // signed pixel distance (s_moved − s_ref) used for the slope ↔ Δz mapping.
+  const guideLineModeRef = useRef(false);
+  const guideLineSpanPxRef = useRef(0);
 
   // Gizmo bookkeeping.
   const targetRef = useRef(null);
@@ -493,9 +500,139 @@ export default function MoveGizmoThreed() {
         setSlopeModeApplies(false);
       }
 
+      // guideLine mode (takes precedence over the iso-segment ramp): a drawn
+      // guideLine is the gradient axis. Each polygon vertex's height is a
+      // linear function of its projection s onto the guideLine, anchored at
+      // the moved edge (z = baseZ + dn) and at the guideLine extremity
+      // farthest from it (kept at its current fitted height). iso-height
+      // contours are then automatically the constant-s loci.
+      guideLineModeRef.current = false;
+      rampAppliesRef.current = false;
+      rampLayoutRef.current = null;
+      rampSnapshotRef.current = null;
+      try {
+        const snap = movedSnapshotRef.current;
+        const rawGuide = ann.guideLine || [];
+        if (
+          ann.type === "POLYGON" &&
+          subSelectionTarget?.kind === "EDGE" &&
+          rawGuide.length >= 2 &&
+          slopeSetup &&
+          Array.isArray(slopeSetup.resolved) &&
+          slopeSetup.resolved.length >= 3
+        ) {
+          const ring = slopeSetup.resolved;
+          const mbpx = slopeSetup.meterByPx ?? 0;
+          const imgW = snap.baseMapForRender.imageWidth || 1;
+          const imgH = snap.baseMapForRender.imageHeight || 1;
+          const guideDbPts = await db.points.bulkGet(
+            rawGuide.map((g) => g.pointId)
+          );
+          if (cancelled) return;
+          const guidePts = [];
+          rawGuide.forEach((g, i) => {
+            const p = guideDbPts[i];
+            if (p)
+              guidePts.push({
+                x: p.x * imgW,
+                y: p.y * imgH,
+                type: g?.type ?? "square",
+              });
+          });
+          const axis =
+            guidePts.length >= 2
+              ? getGuideLineAxis({ guidePts, polygonPts: ring })
+              : null;
+          const movedIds = (subSelectionTarget.pointIds || []).filter(Boolean);
+          if (axis && mbpx > 0 && movedIds.length === 2) {
+            const { sById, L2D } = axis;
+            const sMovedVals = movedIds
+              .map((id) => sById.get(id))
+              .filter((v) => Number.isFinite(v));
+            if (sMovedVals.length > 0) {
+              const sMoved =
+                sMovedVals.reduce((a, b) => a + b, 0) / sMovedVals.length;
+              // Fixed reference = guideLine extremity farthest from the moved
+              // edge's projection.
+              const sRef =
+                Math.abs(0 - sMoved) >= Math.abs(L2D - sMoved) ? 0 : L2D;
+              const span = sMoved - sRef;
+              if (Math.abs(span) > 1e-6) {
+                // Least-squares line offsetTop = α·s + β over the ring, so the
+                // far end keeps its current fitted height (0 for a flat face).
+                let n = 0;
+                let sumS = 0;
+                let sumZ = 0;
+                let sumSS = 0;
+                let sumSZ = 0;
+                for (const v of ring) {
+                  const s = sById.get(v.id);
+                  if (!Number.isFinite(s)) continue;
+                  const z = v.offsetTop ?? 0;
+                  n += 1;
+                  sumS += s;
+                  sumZ += z;
+                  sumSS += s * s;
+                  sumSZ += s * z;
+                }
+                const det = n * sumSS - sumS * sumS;
+                let alpha = 0;
+                let beta = 0;
+                if (Math.abs(det) > 1e-9) {
+                  alpha = (n * sumSZ - sumS * sumZ) / det;
+                  beta = (sumZ - alpha * sumS) / n;
+                }
+                const zRef = alpha * sRef + beta;
+
+                const tById = new Map();
+                for (const v of ring) {
+                  const s = sById.get(v.id);
+                  if (!Number.isFinite(s)) continue;
+                  tById.set(v.id, (s - sRef) / span);
+                }
+
+                rampSnapshotRef.current = snap;
+                rampSnapshotOffsetTopByIdRef.current = new Map(
+                  (snap.annotation.points || []).map((r) => [
+                    r.id,
+                    r.offsetTop ?? 0,
+                  ])
+                );
+                rampLayoutRef.current = { tById, insertedPoints: [] };
+                rampIsoZRef.current = zRef;
+                rampMovedBaseZRef.current = slopeSetup.currentEdgeZ ?? 0;
+                rampMeterByPxRef.current = mbpx;
+                guideLineSpanPxRef.current = span;
+                guideLineModeRef.current = true;
+                rampAppliesRef.current = true;
+                setSlopeModeApplies(true);
+                // Initial slope %: 100·|m|/√(1+m²), m = Δz / horizontalRun.
+                const horiz = span * mbpx;
+                const m0 =
+                  ((rampMovedBaseZRef.current || 0) - zRef) / horiz;
+                if (Number.isFinite(m0)) {
+                  setSlopePctValue(
+                    String(
+                      roundForDisplay(
+                        (100 * m0) / Math.sqrt(1 + m0 * m0)
+                      )
+                    )
+                  );
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        guideLineModeRef.current = false;
+        rampAppliesRef.current = false;
+      }
+
       // Ramp mode: POLYGON edge move + ≥1 isoHeight segment ⇒ reshape the
       // whole face as a constant-slope ramp between the moved edge and the
-      // iso edge (the contour line that stays at constant height).
+      // iso edge (the contour line that stays at constant height). Fallback
+      // only — skipped when a guideLine already drives the ramp.
+      if (!guideLineModeRef.current) {
       rampAppliesRef.current = false;
       rampLayoutRef.current = null;
       rampSnapshotRef.current = null;
@@ -622,6 +759,7 @@ export default function MoveGizmoThreed() {
         }
       } catch (e) {
         rampAppliesRef.current = false;
+      }
       }
 
       // Build the initial (delta=0) transient now that the snapshot is
@@ -988,6 +1126,8 @@ export default function MoveGizmoThreed() {
       rampIsoPointsPxRef.current = null;
       rampMovedMidPxRef.current = null;
       rampMeterByPxRef.current = 0;
+      guideLineModeRef.current = false;
+      guideLineSpanPxRef.current = 0;
       setSlopeModeApplies(false);
       setSlopePctValue("");
     };
@@ -1002,6 +1142,18 @@ export default function MoveGizmoThreed() {
   useEffect(() => {
     // Ramp mode: slope is referenced to the iso line, not the all-vertices
     // centroid used by getPolygonEdgeSlopePct.
+    if (guideLineModeRef.current) {
+      // slope% = 100·m/√(1+m²), m = Δz / horizontal run along the guideLine.
+      const horiz = (guideLineSpanPxRef.current || 0) * (rampMeterByPxRef.current || 0);
+      if (Math.abs(horiz) > 1e-9) {
+        const zMoved = (rampMovedBaseZRef.current || 0) + (deltaZ || 0);
+        const m = (zMoved - (rampIsoZRef.current || 0)) / horiz;
+        setSlopePctValue(
+          String(roundForDisplay((100 * m) / Math.sqrt(1 + m * m)))
+        );
+      }
+      return;
+    }
     if (rampAppliesRef.current) {
       const L = rampSlopeLengthM();
       if (L) {
@@ -1567,6 +1719,20 @@ export default function MoveGizmoThreed() {
     setSlopePctValue(e.target.value);
     const target = Number(e.target.value);
     if (!Number.isFinite(target)) return;
+    if (guideLineModeRef.current) {
+      const r = target / 100;
+      if (Math.abs(r) >= 1) return; // slope% asymptote (vertical)
+      const horiz =
+        (guideLineSpanPxRef.current || 0) * (rampMeterByPxRef.current || 0);
+      if (Math.abs(horiz) < 1e-9) return;
+      const m = r / Math.sqrt(1 - r * r);
+      const zMoved = (rampIsoZRef.current || 0) + m * horiz;
+      const dz = zMoved - (rampMovedBaseZRef.current || 0);
+      if (!Number.isFinite(dz)) return;
+      setFieldValue(String(roundForDisplay((baseOffsetRef.current || 0) + dz)));
+      applyDeltaLive(dz);
+      return;
+    }
     if (rampAppliesRef.current) {
       const L = rampSlopeLengthM();
       if (L == null) return;

@@ -96,7 +96,11 @@ export default function usePointDrag({
         const { allowed, mustFork } = permissions.checkPointPermission(pointId);
         if (!allowed) return false; // Aucune de mes annotations n'utilise ce point → bloquer
 
-        // Détection duplication existante (annotation sélectionnée a ce point)
+        // Détection duplication existante (annotation sélectionnée a ce point
+        // dans son contour — c'est le seul cas où le fork "préserve les
+        // annotations voisines" est nécessaire). guideLine / innerPoints / cuts
+        // ont des ids uniques par construction et passent par le simple move,
+        // évitant un duplicateAndMovePoint qui ne sait pas les recâbler.
         const selectedAnnotationHasPoint =
           _selectedNode &&
           _annotations
@@ -118,7 +122,10 @@ export default function usePointDrag({
               cut.points?.some((pt) => pt.id === pointId)
             );
             const inInner = ann.innerPoints?.some((pt) => pt.id === pointId);
-            return inMain || inCuts || inInner;
+            const inGuide = ann.guideLine?.some(
+              (g) => g.pointId === pointId || g.id === pointId
+            );
+            return inMain || inCuts || inInner || inGuide;
           })
           .map((ann) => ann.id);
 

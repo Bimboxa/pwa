@@ -1,5 +1,7 @@
 import getStripePolygons from "Features/geometry/utils/getStripePolygons";
-import triangulateAnnotationGeometry from "Features/geometry/utils/triangulateAnnotationGeometry";
+import triangulateAnnotationGeometry, {
+  ISO_BAND_LEVELS,
+} from "Features/geometry/utils/triangulateAnnotationGeometry";
 
 // True iff any point on the contour, any cut, or any innerPoint carries a
 // non-zero offsetBottom / offsetTop. Used to gate the per-vertex-Z surface
@@ -322,6 +324,11 @@ export default function getAnnotationQties({
         height: 0,
         verticalLift: 0,
         unitScale: meterByPx,
+        // Match the banded 3D ramp mesh so the developed surface is consistent.
+        isoBandLevels:
+          annotation?.guideLine && annotation.guideLine.length >= 2
+            ? ISO_BAND_LEVELS
+            : 0,
       });
       result.surfaceDeveloped = tri.areaTop;
     }

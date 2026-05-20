@@ -171,6 +171,12 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
                 pointArraysToCheck.push({ list: ann.innerPoints, cutIndex: undefined, source: "INNER" });
             }
 
+            // D. guideLine points (resolved → carry id/x/y) so the drawn ramp
+            // axis is snappable / draggable like a contour or cut ring.
+            if (ann.guideLine) {
+                pointArraysToCheck.push({ list: ann.guideLine, cutIndex: undefined, source: "GUIDE" });
+            }
+
             for (const { list, cutIndex, source } of pointArraysToCheck) {
                 for (const pt of list) {
                     const d2 = dist2(pt, mousePos);
@@ -287,6 +293,17 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
                         cutIndex: index
                     });
                 }
+            });
+        }
+
+        // C. guideLine (open polyline) — same midpoint/projection insertion
+        // behaviour as the contour, so the user can drop a new point on a
+        // guideLine segment by clicking/dragging its midpoint or projection.
+        if (Array.isArray(ann.guideLine) && ann.guideLine.length >= 2) {
+            contoursToCheck.push({
+                points: ann.guideLine,
+                shouldClose: false,
+                cutIndex: undefined,
             });
         }
 

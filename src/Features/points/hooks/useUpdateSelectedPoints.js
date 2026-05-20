@@ -34,6 +34,12 @@ export default function useUpdateSelectedPoints() {
     if (annotation.innerPoints) {
       updates.innerPoints = remap(annotation.innerPoints);
     }
+    if (annotation.guideLine) {
+      // guideLine refs key on `pointId` (not `id`).
+      updates.guideLine = annotation.guideLine.map((g) =>
+        idSet.has(g.pointId) ? { ...g, ...partial } : g
+      );
+    }
 
     await db.annotations.update(annotationId, updates);
   };
