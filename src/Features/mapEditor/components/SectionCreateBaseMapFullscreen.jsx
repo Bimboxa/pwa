@@ -5,12 +5,10 @@ import { useState, useEffect } from "react";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useCreateBaseMapFromImage from "Features/baseMaps/hooks/useCreateBaseMapFromImage";
 
-import { Box, Typography, TextField, Button } from "@mui/material";
-import { Public } from "@mui/icons-material";
+import { Box, Typography, TextField } from "@mui/material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
-import DialogFs from "Features/layout/components/DialogFs";
 import testIsImage from "Features/files/utils/testIsImage";
 
 import FilesSelectorButton from "Features/files/components/FilesSelectorButton";
@@ -23,8 +21,6 @@ import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import ImageGeneric from "Features/images/components/ImageGeneric";
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
-
-import SectionGmapEditor from "Features/gmap/components/SectionGmapEditor";
 
 export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onCreated, listing: listingProp }) {
 
@@ -43,8 +39,6 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
   const [imageFile, setImageFile] = useState(null);
   const [name, setName] = useState("");
   const [meterByPx, setMeterByPx] = useState(null);
-
-  const [gmapOpen, setGmapOpen] = useState(false);
 
   // effect
 
@@ -112,22 +106,6 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
     setMeterByPx(0.011975);
   }
 
-  function handleOpenGmap() {
-    setGmapOpen(true);
-  }
-
-  function handleCloseGmap() {
-    setGmapOpen(false);
-  }
-
-  function handleGmapCreated(entity) {
-    setGmapOpen(false);
-    onCreated?.(entity);
-    if (onClose) onClose();
-  }
-
-  const gmapListing = listingProp ?? projectBaseMapListings?.[0];
-
   return (
     <>
       <BoxCenter
@@ -171,37 +149,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
           />
         </Box>
 
-        {/* Inset past the drop-zone dashed border (sibling Box has p: 4 = 32px) */}
-        <Box
-          sx={{
-            position: "absolute",
-            bottom: 48,
-            right: 48,
-            zIndex: 1,
-          }}
-        >
-          <Button
-            onClick={handleOpenGmap}
-            variant="outlined"
-            color="secondary"
-            startIcon={<Public />}
-          >
-            Ajouter une image satellite
-          </Button>
-        </Box>
-
       </BoxCenter>
-
-      <DialogFs
-        open={gmapOpen}
-        onClose={handleCloseGmap}
-        title="Ajouter une image satellite"
-      >
-        <SectionGmapEditor
-          listing={gmapListing}
-          onCreated={handleGmapCreated}
-        />
-      </DialogFs>
 
       <DialogGeneric width={400} open={imageFile} onClose={() => setImageFile(null)}>
         <Box sx={{ p: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}>

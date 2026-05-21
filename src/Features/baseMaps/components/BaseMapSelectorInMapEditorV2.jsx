@@ -15,8 +15,6 @@ import {
     createTheme,
     ThemeProvider,
     InputBase,
-    Menu,
-    MenuItem,
     Popover,
     ButtonBase
 } from "@mui/material";
@@ -28,7 +26,6 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 // Redux & Hooks (inchangés)
 import { setSelectedMainBaseMapId, setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
@@ -51,7 +48,6 @@ export default function BaseMapSelectorInMapEditorV2() {
     const showCreateBaseMapSection = useSelector((s) => s.mapEditor.showCreateBaseMapSection);
 
     const [anchorEl, setAnchorEl] = useState(null);
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
     const [editingMapId, setEditingMapId] = useState(null);
     const [tempName, setTempName] = useState("");
 
@@ -68,8 +64,6 @@ export default function BaseMapSelectorInMapEditorV2() {
     // --- Handlers ---
     const handleOpen = (event) => setAnchorEl(event.currentTarget);
     const handleClose = () => { setAnchorEl(null); setEditingMapId(null); };
-    const handleOpenMoreMenu = (e) => { e.stopPropagation(); setMoreMenuAnchor(e.currentTarget); };
-    const handleCloseMoreMenu = () => setMoreMenuAnchor(null);
 
     const handleSelectMap = (map) => {
         if (editingMapId === map.id) return;
@@ -246,23 +240,8 @@ export default function BaseMapSelectorInMapEditorV2() {
                             primaryTypographyProps={{ variant: 'body2', color: "grey.300", fontWeight: 600 }}
                         />
                     </ListItemButton>
-                    <IconButton size="small" onClick={handleOpenMoreMenu} sx={{ mr: 1, color: "grey.500" }}>
-                        <MoreVertIcon fontSize="small" />
-                    </IconButton>
                 </Box>
             </Popover>
-
-            <Menu
-                anchorEl={moreMenuAnchor}
-                open={Boolean(moreMenuAnchor)}
-                onClose={handleCloseMoreMenu}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-            >
-                <MenuItem onClick={() => { window.open('/gmap', '_blank'); handleCloseMoreMenu(); handleClose(); }}>
-                    <ListItemIcon><MapIcon fontSize="small" /></ListItemIcon>
-                    <ListItemText>Image satellite</ListItemText>
-                </MenuItem>
-            </Menu>
         </ThemeProvider>
     );
 }

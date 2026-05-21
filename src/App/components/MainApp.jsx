@@ -32,7 +32,6 @@ import PageProjects from "Features/projects/components/PageProjects";
 import PageProject from "Features/projects/components/PageProject";
 import PageScopes from "Features/scopes/components/PageScopes";
 import PageScopeLoader from "Features/scopes/components/PageScopeLoader";
-import PageGmap from "Features/gmap/components/PageGmap";
 
 // dexie
 
@@ -94,7 +93,6 @@ function App({ pca, runningIn }) {
                       path="/download/:mediaId"
                       element={<PageDownloadKrtro />}
                     />
-                    <Route path="/gmap" element={<PageGmap />} />
                   </Routes>
                 </AuthGate>
               </ClerkProviderCustom>

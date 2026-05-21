@@ -3,11 +3,6 @@ import { useRef, useEffect, useState } from "react";
 import { Autocomplete, TextField, Box } from "@mui/material";
 
 import getMapsApiAsync from "../services/getMapsApiAsync";
-import {
-  computeStaticMapGeo,
-  GMAP_STATIC_SIZE,
-  GMAP_STATIC_SCALE,
-} from "../services/fetchGmapStaticImage";
 
 export default function GoogleMap({
   onGmapChange,
@@ -15,12 +10,10 @@ export default function GoogleMap({
   hideButtons,
   onBoundsChange,
   apiKey,
-  showCaptureFootprint,
 }) {
   const mapsRef = useRef();
   const mapInstanceRef = useRef(null);
   const mapRef = useRef(null);
-  const footprintRef = useRef(null);
 
   const autocompleteServiceRef = useRef(null);
   const placesServiceRef = useRef(null);
@@ -76,35 +69,7 @@ export default function GoogleMap({
 
       mapInstanceRef.current = map;
 
-      // --- CAPTURE FOOTPRINT (red square = exact static-image area) ---
-      if (showCaptureFootprint) {
-        footprintRef.current = new googleMaps.Rectangle({
-          map,
-          strokeColor: "#F44336",
-          strokeOpacity: 1,
-          strokeWeight: 2,
-          fillOpacity: 0,
-          clickable: false,
-          zIndex: 9999,
-        });
-      }
-
-      function updateFootprint() {
-        if (!footprintRef.current) return;
-        const center = map.getCenter();
-        if (!center) return;
-        const { bounds } = computeStaticMapGeo({
-          lat: center.lat(),
-          lng: center.lng(),
-          zoom: Math.round(map.getZoom()),
-          size: GMAP_STATIC_SIZE,
-          scale: GMAP_STATIC_SCALE,
-        });
-        footprintRef.current.setBounds(bounds);
-      }
-
       map.addListener("bounds_changed", () => {
-        updateFootprint();
         if (onBoundsChange) onBoundsChange(map.getBounds());
       });
 
@@ -112,12 +77,10 @@ export default function GoogleMap({
         placesServiceRef.current = new googleMaps.places.PlacesService(map);
       }
 
-      updateFootprint();
-
       if (onGmapChange) onGmapChange(map);
       if (onGmapContainerChange) onGmapContainerChange(mapRef.current);
     }
-  }, [mapsLoaded, onGmapChange, onGmapContainerChange, showCaptureFootprint]);
+  }, [mapsLoaded, onGmapChange, onGmapContainerChange]);
 
   // Fetch predictions as the user types (debounced)
   useEffect(() => {

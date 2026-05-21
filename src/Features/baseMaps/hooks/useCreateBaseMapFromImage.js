@@ -11,7 +11,7 @@ import db from "App/db/db";
 
 /**
  * Creates a baseMap entity from an image File and sets up its version system.
- * Shared by the file-drop creator and the satellite-image (/gmap) flow.
+ * Used by the file-drop creator.
  *
  * @returns async ({ file, name, listing?, meterByPx?, latLng? }) => entity
  */

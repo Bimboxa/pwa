@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
-import { useNavigate } from "react-router-dom";
-
 import { setSelectedEntityId } from "Features/entities/entitiesSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
@@ -27,7 +25,6 @@ import getImageSizeAsync from "Features/misc/utils/getImageSize";
 
 export default function SectionCreateBaseMap({ onClose }) {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
 
   // strings
 
@@ -141,11 +138,6 @@ export default function SectionCreateBaseMap({ onClose }) {
     if (onClose) onClose();
   }
 
-  function handleOpenPageGmap() {
-    const url = `${window.location.origin}/gmap`;
-    window.open(url, "_blank", "noopener");
-  }
-
   return (
     <BoxFlexVStretch>
       <HeaderTitleClose title={title} onClose={handleClose} />
@@ -175,15 +167,6 @@ export default function SectionCreateBaseMap({ onClose }) {
           <IconButton size="small" onClick={() => setOpenAdvanced(!openAdvanced)}>{openAdvanced ? <ExpandLess /> : <ExpandMore />}</IconButton>
         </Box>
         <Box sx={{ display: openAdvanced ? "flex" : "none", flexDirection: "column", gap: 1 }}>
-
-
-          <ButtonInPanelV2
-            label="Ouvrir Google Maps"
-            onClick={handleOpenPageGmap}
-            size="small"
-            variant="outlined"
-            color="secondary"
-          />
           <ButtonDialogCreateBaseMapFromJson />
         </Box>
       </Box>
