@@ -51,12 +51,17 @@ import {
   setSelectedPointIds,
   toggleSelectedPointId,
   clearSelectedPointIds,
+  selectSelectedPartIds,
+  setSelectedPartIds,
+  toggleSelectedPartId,
+  clearSelectedPartIds,
   setShowAnnotationsProperties
 } from "Features/selection/selectionSlice";
 
 import useResetNewAnnotation from 'Features/annotations/hooks/useResetNewAnnotation';
 import useLassoSelection from 'Features/mapEditorGeneric/hooks/useLassoSelection';
 import useLassoPointSelection from 'Features/annotations/hooks/useLassoPointSelection';
+import getAnnotationLassoSegments from 'Features/annotations/utils/getAnnotationLassoSegments';
 import useSelectedNodes from 'Features/mapEditor/hooks/useSelectedNodes';
 import useAnnotationPermissions from 'Features/mapEditor/hooks/useAnnotationPermissions';
 import usePointDrag from 'Features/mapEditor/hooks/usePointDrag';
@@ -290,6 +295,7 @@ const InteractionLayer = forwardRef(({
   const selectedItems = useSelector(selectSelectedItems);
   const selectedPointId = useSelector(selectSelectedPointId);
   const selectedPartId = useSelector(selectSelectedPartId);
+  const selectedPartIds = useSelector(selectSelectedPartIds);
   const selectedPointIds = useSelector(selectSelectedPointIds);
 
   // PopperMapListings interaction mode (DRAW | EDIT | SELECT)
@@ -1365,9 +1371,38 @@ const InteractionLayer = forwardRef(({
     ];
   }, [selectedNode?.nodeId, annotations]);
 
-  const handlePointLassoSelection = useCallback((pointIds) => {
-    dispatch(setSelectedPointIds(pointIds));
-  }, [dispatch]);
+  const getSelectedAnnotationSegments = useCallback(() => {
+    if (!selectedNode?.nodeId) return [];
+    const ann = annotations?.find((a) => a.id === selectedNode.nodeId);
+    if (!ann) return [];
+    return getAnnotationLassoSegments(ann);
+  }, [selectedNode?.nodeId, annotations]);
+
+  const handlePointLassoSelection = useCallback(
+    (pointIds, partIds) => {
+      // When the lasso catches at least one segment, drop the point hits:
+      // segment-level selection is the user's intent and mixing in vertex
+      // squares just adds noise (mirrors the shift+click behaviour).
+      const hasParts = (partIds || []).length > 0;
+      const effectivePointIds = hasParts ? [] : (pointIds || []);
+      dispatch(setSelectedPointIds(effectivePointIds));
+      dispatch(setSelectedPartIds(partIds || []));
+      // Sync the single sub-selection slot so toolbar/panel branch correctly
+      // when there is exactly one segment hit and no point hits, etc.
+      if (hasParts) {
+        const firstId = partIds[0];
+        const partType = firstId.includes("::CUT_SEG::") ? "CUT_SEG" : "SEG";
+        dispatch(setSubSelection({ partId: firstId, partType, pointId: null }));
+      } else if (effectivePointIds.length > 0) {
+        dispatch(
+          setSubSelection({ partId: null, partType: "VERTEX", pointId: effectivePointIds[0] })
+        );
+      } else {
+        dispatch(setSubSelection({ partId: null, partType: null, pointId: null }));
+      }
+    },
+    [dispatch]
+  );
 
   const {
     lassoRect: pointLassoRect,
@@ -1379,6 +1414,7 @@ const InteractionLayer = forwardRef(({
     toLocalCoords,
     onSelectionComplete: handlePointLassoSelection,
     getSelectedAnnotationPoints,
+    getSelectedAnnotationSegments,
   });
 
   const currentSnapRef = useRef(null); // Stocke le résultat du getBestSnap
@@ -3593,8 +3629,62 @@ const InteractionLayer = forwardRef(({
         const isParentSelected = selectedNode?.nodeId === nodeId;
 
         if (isParentSelected) {
+          const isMultiSelectable =
+            partType === "SEG" || partType === "CUT_SEG" || partType === "CUT";
+          if (event.shiftKey && isMultiSelectable) {
+            // Selecting parts and points concurrently isn't useful — when the
+            // user pivots to multi-segment, drop any point selection so the
+            // toolbar / canvas focus on segments only.
+            if (selectedPointId) dispatch(setSubSelection({ pointId: null }));
+            if (selectedPointIds.length > 0) dispatch(clearSelectedPointIds());
+            // Multi-segment selection. The first shift+click after a single
+            // segment selection has to PROMOTE the existing selectedPartId
+            // into selectedPartIds — otherwise toggling only ever tracks the
+            // latest click and the original selection is lost.
+            const alreadyInMulti = selectedPartIds.includes(partId);
+            // Compute the post-dispatch multi state so we can sync the
+            // single-selection slot to a still-selected part (otherwise the
+            // green highlight sticks to the segment we just removed).
+            let nextMulti;
+            if (selectedPartIds.length === 0) {
+              nextMulti = [];
+              if (selectedPartId && selectedPartId !== partId) nextMulti.push(selectedPartId);
+              nextMulti.push(partId);
+              dispatch(setSelectedPartIds(nextMulti));
+            } else if (alreadyInMulti && selectedPartIds.length > 1) {
+              nextMulti = selectedPartIds.filter((id) => id !== partId);
+              dispatch(toggleSelectedPartId(partId));
+            } else if (alreadyInMulti) {
+              nextMulti = [];
+              dispatch(clearSelectedPartIds());
+            } else {
+              nextMulti = [...selectedPartIds, partId];
+              dispatch(toggleSelectedPartId(partId));
+            }
+            console.log("Toggle Part Selection:", partId, partType, "nextMulti=", nextMulti);
+            // Pick a representative for the single-selection slot:
+            // - if the clicked part is still in the multi → it stays current
+            // - else fall back to any remaining part, or clear
+            let nextSinglePartId = null;
+            let nextSinglePartType = null;
+            if (nextMulti.includes(partId)) {
+              nextSinglePartId = partId;
+              nextSinglePartType = partType;
+            } else if (nextMulti.length > 0) {
+              nextSinglePartId = nextMulti[0];
+              nextSinglePartType = nextSinglePartId.split("::")[1];
+            }
+            dispatch(setSubSelection({
+              partId: nextSinglePartId,
+              partType: nextSinglePartType,
+            }));
+            return;
+          }
           console.log("Selecting Part:", partId, partType);
-          // Toggle part selection
+          // Toggle single part selection — clears any multi-part state.
+          if (selectedPartIds.length > 0) {
+            dispatch(clearSelectedPartIds());
+          }
           const nextPartId = selectedPartId === partId ? null : partId;
           const nextPartType = selectedPartId === partId ? null : partType;
           dispatch(setSubSelection({ partId: nextPartId, partType: nextPartType }));
@@ -4645,11 +4735,16 @@ const InteractionLayer = forwardRef(({
         // Point-level lasso: when an annotation is already selected
         // Skip if clicking on a vertex/snap helper (shift+click = multi-select point)
         // Skip if clicking on a DIFFERENT annotation (shift+click = multi-select annotation)
+        // Skip if clicking on a segment of the selected annotation (shift+click =
+        // multi-select segment), otherwise the 0×0 lasso wipes the selection on mouseUp.
         const hitVertex = target.closest?.('[data-node-type="VERTEX"]');
         const hitSnapVertex = target.closest?.('[data-snap-type="VERTEX"]');
         const hitAnnotation = hit?.dataset?.nodeType === "ANNOTATION" ? hit?.dataset?.nodeId : null;
         const isClickOnOtherAnnotation = hitAnnotation && hitAnnotation !== selectedNode?.nodeId;
-        if (!hitVertex && !hitSnapVertex && !isClickOnOtherAnnotation) {
+        const hitPartNode = target.closest?.('[data-part-id]');
+        const hitPartOnSelected =
+          hitPartNode && hitPartNode.dataset?.nodeId === selectedNode?.nodeId;
+        if (!hitVertex && !hitSnapVertex && !isClickOnOtherAnnotation && !hitPartOnSelected) {
           const started = startPointLasso(e);
           if (started) {
             console.log("point lasso started");
@@ -4844,10 +4939,45 @@ const InteractionLayer = forwardRef(({
     return false;
   }, [enabledDrawingMode]);
 
+  // Double-click on the already-selected annotation (no sub-selection active)
+  // selects every segment of the annotation — main contour + cut rings. The
+  // user uses this as a quick "select all segments" shortcut so they can clone
+  // / measure them in one shot.
+  const handleDoubleClick = (event) => {
+    if (enabledDrawingMode) return;
+    const target = event.nativeEvent?.target || event.target;
+    const hit = target.closest?.('[data-node-type="ANNOTATION"]');
+    if (!hit) return;
+    const annotationId = hit.dataset?.nodeId;
+    if (!annotationId) return;
+    if (selectedNode?.nodeId !== annotationId) return;
+
+    const currentItem = selectedItems[0];
+    const hasSubSelection =
+      currentItem?.partId ||
+      currentItem?.pointId ||
+      selectedPartIds.length > 0 ||
+      selectedPointIds.length > 0;
+    if (hasSubSelection) return;
+
+    const annotation = annotations?.find((a) => a.id === annotationId);
+    if (!annotation) return;
+    const segs = getAnnotationLassoSegments(annotation);
+    const partIds = segs.map((s) => s.partId);
+    if (partIds.length === 0) return;
+
+    dispatch(setSelectedPartIds(partIds));
+    const firstId = partIds[0];
+    const partType = firstId.includes("::CUT_SEG::") ? "CUT_SEG" : "SEG";
+    dispatch(setSubSelection({ partId: firstId, partType, pointId: null }));
+    if (selectedPointIds.length > 0) dispatch(clearSelectedPointIds());
+  };
+
   return (
     <Box
       onMouseUp={handleMouseUp}
       onMouseDownCapture={handleMouseDownCapture}
+      onDoubleClick={handleDoubleClick}
       onMouseLeave={handleMouseLeave}
       onContextMenu={handleContextMenu}
       sx={{

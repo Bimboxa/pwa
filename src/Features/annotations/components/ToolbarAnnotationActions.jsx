@@ -10,9 +10,14 @@ import {
 export default function ToolbarAnnotationActions({
   accentColor,
   onClone,
+  cloneDisabled = false,
+  cloneTooltip,
+  hideClone = false,
   onResize,
   resizeActive = false,
+  hideResize = false,
   onDelete,
+  hideDelete = false,
   layerChip,
   extraActions,
 }) {
@@ -49,38 +54,45 @@ export default function ToolbarAnnotationActions({
         gap: 0.25,
       }}
     >
-      <Tooltip title="Dupliquer">
-        <IconButton
-          size="small"
-          onClick={onClone}
-          sx={{
-            color: "text.disabled",
-            "&:hover": {
-              color: accentColor,
-              bgcolor: accentColor + "18",
-            },
-          }}
-        >
-          <CloneIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
+      {!hideClone && (
+        <Tooltip title={cloneTooltip || "Dupliquer"}>
+          <span>
+            <IconButton
+              size="small"
+              onClick={onClone}
+              disabled={cloneDisabled}
+              sx={{
+                color: "text.disabled",
+                "&:hover": {
+                  color: accentColor,
+                  bgcolor: accentColor + "18",
+                },
+              }}
+            >
+              <CloneIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+      )}
 
-      <Tooltip title={resizeActive ? "Désactiver déplacer / redimensionner" : "Déplacer / Redimensionner"}>
-        <IconButton
-          size="small"
-          onClick={onResize}
-          sx={{
-            color: resizeActive ? accentColor : "text.disabled",
-            bgcolor: resizeActive ? accentColor + "18" : "transparent",
-            "&:hover": {
-              color: accentColor,
-              bgcolor: accentColor + "18",
-            },
-          }}
-        >
-          <MoveResizeIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
+      {!hideResize && (
+        <Tooltip title={resizeActive ? "Désactiver déplacer / redimensionner" : "Déplacer / Redimensionner"}>
+          <IconButton
+            size="small"
+            onClick={onResize}
+            sx={{
+              color: resizeActive ? accentColor : "text.disabled",
+              bgcolor: resizeActive ? accentColor + "18" : "transparent",
+              "&:hover": {
+                color: accentColor,
+                bgcolor: accentColor + "18",
+              },
+            }}
+          >
+            <MoveResizeIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
 
       {extraActions}
 
@@ -88,24 +100,28 @@ export default function ToolbarAnnotationActions({
 
       {layerChip}
 
-      <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+      {!hideDelete && (
+        <>
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-      <Tooltip title={deleteConfirm ? "Confirmer la suppression" : "Supprimer"}>
-        <IconButton
-          size="small"
-          onClick={handleDeleteClick}
-          sx={{
-            color: deleteConfirm ? "error.main" : "text.disabled",
-            bgcolor: deleteConfirm ? "error.lighter" : "transparent",
-            "&:hover": {
-              color: "error.main",
-              bgcolor: "error.lighter",
-            },
-          }}
-        >
-          <DeleteIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
+          <Tooltip title={deleteConfirm ? "Confirmer la suppression" : "Supprimer"}>
+            <IconButton
+              size="small"
+              onClick={handleDeleteClick}
+              sx={{
+                color: deleteConfirm ? "error.main" : "text.disabled",
+                bgcolor: deleteConfirm ? "error.lighter" : "transparent",
+                "&:hover": {
+                  color: "error.main",
+                  bgcolor: "error.lighter",
+                },
+              }}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </>
+      )}
     </Box>
   );
 }

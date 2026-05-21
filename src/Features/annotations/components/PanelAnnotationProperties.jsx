@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { triggerSelectionBack, setAnnotationPropertiesTab } from "Features/selection/selectionSlice";
 
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
+import useSelectedAnnotationPart from "Features/annotations/hooks/useSelectedAnnotationPart";
 import useSelectedEntity from "Features/entities/hooks/useSelectedEntity";
 import useEntityFormTemplate from "Features/entities/hooks/useEntityFormTemplate";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
@@ -14,6 +15,8 @@ import { ArrowBack as Back } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionAnnotationPropertiesContent from "./SectionAnnotationPropertiesContent";
+import SectionAnnotationPartPropertiesContent from "./SectionAnnotationPartPropertiesContent";
+import SectionMultiPartProperties from "./SectionMultiPartProperties";
 import FormEntity from "Features/entities/components/FormEntity";
 import SectionEntityAnnotations from "Features/entities/components/SectionEntityAnnotations";
 
@@ -29,6 +32,8 @@ export default function PanelAnnotationProperties() {
   // data
 
   const annotation = useSelectedAnnotation();
+  const part = useSelectedAnnotationPart();
+  const hasPart = part && part.kind && part.kind !== "NONE";
   const tab = useSelector((s) => s.selection.annotationPropertiesTab);
   const { value: entity } = useSelectedEntity({ withImages: true, withAnnotations: true });
   const template = useEntityFormTemplate();
@@ -77,27 +82,37 @@ export default function PanelAnnotationProperties() {
 
         <Box sx={{ ml: 1 }}>
           <Typography variant="caption" color="text.secondary">
-            Annotation
+            {hasPart ? part.captionFr : "Annotation"}
           </Typography>
           <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-            {label}
+            {hasPart ? part.label : label}
           </Typography>
         </Box>
       </Box>
 
-      <Tabs value={idx} onChange={handleTabChange}>
-        {tabs.map(({ id, label }) => (
-          <Tab key={id} label={label} id={id} />
-        ))}
-      </Tabs>
+      {!hasPart && (
+        <Tabs value={idx} onChange={handleTabChange}>
+          {tabs.map(({ id, label }) => (
+            <Tab key={id} label={label} id={id} />
+          ))}
+        </Tabs>
+      )}
 
       <BoxFlexVStretch sx={{ overflowY: "auto" }}>
 
-        {tab === "PROPERTIES" && (
+        {hasPart && part.kind === "MIXED" && (
+          <SectionMultiPartProperties part={part} />
+        )}
+
+        {hasPart && part.kind !== "MIXED" && (
+          <SectionAnnotationPartPropertiesContent annotation={annotation} part={part} />
+        )}
+
+        {!hasPart && tab === "PROPERTIES" && (
           <SectionAnnotationPropertiesContent annotation={annotation} />
         )}
 
-        {tab === "ENTITY" && (
+        {!hasPart && tab === "ENTITY" && (
           entity ? (
             <>
               <FormEntity

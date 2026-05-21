@@ -1,5 +1,5 @@
 import { useSelector } from "react-redux";
-import { selectSelectedItems, selectSelectedPointIds } from "../selectionSlice";
+import { selectSelectedItems, selectSelectedPointIds, selectSelectedPartIds } from "../selectionSlice";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useListingById from "Features/listings/hooks/useListingById";
@@ -29,6 +29,7 @@ export default function PanelSelectionProperties() {
   const selectedItems = useSelector(selectSelectedItems);
   const selectedItem = selectedItems[0];
   const selectedPointIds = useSelector(selectSelectedPointIds);
+  const selectedPartIds = useSelector(selectSelectedPartIds);
   const { value: defaultListing } = useSelectedListing();
   const selectedViewerKey = useSelector(
     (s) => s.viewers.selectedViewerKey
@@ -65,10 +66,14 @@ export default function PanelSelectionProperties() {
     selectedItem?.type === "NODE" &&
     ["SEG", "CUT_SEG"].includes(
       String(selectedItem?.partId || "").split("::")[1]
-    )
+    ) &&
+    selectedPartIds.length <= 1
   ) {
     // A polygon/polyline segment is sub-selected: show its per-segment
-    // properties (isoHeight flag + read-only endpoint offsets).
+    // properties (isoHeight flag + read-only endpoint offsets). Only when
+    // a SINGLE segment is selected — multi-segment selections fall through
+    // to the annotation panel, which detects the multi state via the
+    // part hook and renders the sectioned UI.
     type = "SEGMENT";
   } else if (isMapViewer && !selectedItem) {
     type = "MAP_SUMMARY";

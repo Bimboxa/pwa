@@ -31,19 +31,28 @@ export default function useCloneAnnotationAndEntity() {
     return async (annotation, options) => {
         // options
         const entityLabel = options?.entityLabel;
+        const part = options?.part;
         let newAnnotation = options?.newAnnotation;
 
         if (!newAnnotation) newAnnotation = _newAnnotation;
 
-        console.log("CLONE with newAnnotation", newAnnotation, _newAnnotation)
+        console.log("CLONE with newAnnotation", newAnnotation, _newAnnotation, "part=", part?.kind)
+
+        // 0. Part-based clone: when a sub-part of the annotation is selected
+        // we ignore the host's points/cuts and use the part geometry directly.
+        // - SEGMENT(S) / CUT_SEG / GUIDE → open polyline of the part's pointRefs
+        // - CUT → closed polygon of the cut's pointRefs (host keeps its cut)
+        const hasPart = part && part.kind && part.kind !== "NONE";
 
         // 1. Identify Logic: Are we splitting a Polygon with cuts into Polylines?
         const isPolygonToPolyline =
+            !hasPart &&
             annotation.type === "POLYGON" && newAnnotation.type === "POLYLINE";
         const hasCuts = Array.isArray(annotation.cuts) && annotation.cuts.length > 0;
         const shouldSplitIntoMultiple = isPolygonToPolyline && hasCuts;
 
         const isStripToPolygon =
+            !hasPart &&
             annotation.type === "STRIP" && newAnnotation.type === "POLYGON";
 
         const isToStrip = newAnnotation.type === "STRIP" && annotation.type !== "STRIP";
@@ -52,7 +61,32 @@ export default function useCloneAnnotationAndEntity() {
         // Each item contains { points: [], cuts: [] }
         const itemsToCreate = [];
 
-        if (shouldSplitIntoMultiple) {
+        if (hasPart) {
+            // Batch mode: a non-contiguous multi-segment selection arrives as
+            // `part.chains` — one chain per group of contiguous segments. Create
+            // one polyline annotation per chain.
+            if (part.kind === "SEGMENTS" && Array.isArray(part.chains) && part.chains.length > 0) {
+                for (const chain of part.chains) {
+                    const refs = chain?.pointRefs || [];
+                    if (refs.length < 2) continue;
+                    itemsToCreate.push({ points: refs, cuts: [] });
+                }
+                if (itemsToCreate.length === 0) {
+                    console.warn("[clone] no usable chain in part.chains", part);
+                    return null;
+                }
+            } else {
+                const pointRefs = Array.isArray(part.pointRefs) ? part.pointRefs : [];
+                const minPoints = part.kind === "CUT" ? 3 : 2;
+                if (pointRefs.length < minPoints) {
+                    console.warn("[clone] part has too few points, aborting", part);
+                    return null;
+                }
+                itemsToCreate.push({ points: pointRefs, cuts: [] });
+            }
+        }
+
+        else if (shouldSplitIntoMultiple) {
             // A. Main Contour -> Becomes 1 independent Polyline
             itemsToCreate.push({
                 points: annotation.points,
@@ -110,6 +144,23 @@ export default function useCloneAnnotationAndEntity() {
                 cuts: item.cuts,
                 ...(activeLayerId ? { layerId: activeLayerId } : {}),
             };
+
+            // Part clones inherit the host's styles/template but must drop
+            // host-only ring metadata that doesn't belong to the slice we kept.
+            if (hasPart) {
+                delete clonedAnnotation.guideLine;
+                delete clonedAnnotation.innerPoints;
+                delete clonedAnnotation.hiddenSegmentsIdx;
+                delete clonedAnnotation.isoHeightSegmentsIdx;
+                // Open vs closed line:
+                //   CUT → closed polygon (or polyline-with-closeLine)
+                //   SEGMENT(S) / CUT_SEG / GUIDE → open polyline
+                if (part.kind === "CUT") {
+                    clonedAnnotation.closeLine = true;
+                } else if (clonedAnnotation.type === "POLYLINE") {
+                    clonedAnnotation.closeLine = false;
+                }
+            }
 
             // Ensure lines are closed if converting from Polygon to Polyline
             if (isPolygonToPolyline || isStripToPolygon) {

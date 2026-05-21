@@ -3,6 +3,7 @@ import { createSlice } from "@reduxjs/toolkit";
 const selectionInitialState = {
   selectedItems: [], // Array of { id, nodeId, type, nodeType, listingId, context, pointId, partId, partType }
   selectedPointIds: [], // Array of point IDs for multi-point selection
+  selectedPartIds: [], // Array of part IDs (e.g. "{annotationId}::SEG::{idx}") for multi-segment selection
   openDialogDeleteSelectedItem: false,
   //
   showAnnotationsProperties: false,
@@ -23,6 +24,7 @@ export const selectionSlice = createSlice({
         state.selectedItems = [item];
       }
       state.selectedPointIds = [];
+      state.selectedPartIds = [];
       if (!item || item.type !== "NODE") {
         state.showAnnotationsProperties = false;
       }
@@ -79,10 +81,29 @@ export const selectionSlice = createSlice({
     clearSelection: (state) => {
       state.selectedItems = [];
       state.selectedPointIds = [];
+      state.selectedPartIds = [];
     },
     triggerSelectionBack: (state) => {
       const item = state.selectedItems[0];
       console.log("[ANNOTATION] item", item?.type);
+
+      // First level of back: if a sub-selection (part/point) is active on a NODE,
+      // clear it instead of walking up the selection chain. Lets the user return
+      // from "Segment X" → "Annotation Y" before going further up.
+      const hasSubSelection =
+        item?.type === "NODE" &&
+        (item.partId || item.pointId ||
+          state.selectedPartIds.length > 0 ||
+          state.selectedPointIds.length > 0);
+      if (hasSubSelection) {
+        item.partId = null;
+        item.partType = null;
+        item.pointId = null;
+        state.selectedPartIds = [];
+        state.selectedPointIds = [];
+        return;
+      }
+
       if (item) {
         if (item.type === "ANNOTATION_TEMPLATE") {
           item.type = "LISTING";
@@ -143,6 +164,21 @@ export const selectionSlice = createSlice({
     clearSelectedPointIds: (state) => {
       state.selectedPointIds = [];
     },
+    setSelectedPartIds: (state, action) => {
+      state.selectedPartIds = action.payload || [];
+    },
+    toggleSelectedPartId: (state, action) => {
+      const partId = action.payload;
+      const index = state.selectedPartIds.indexOf(partId);
+      if (index >= 0) {
+        state.selectedPartIds.splice(index, 1);
+      } else {
+        state.selectedPartIds.push(partId);
+      }
+    },
+    clearSelectedPartIds: (state) => {
+      state.selectedPartIds = [];
+    },
   },
 });
 
@@ -162,6 +198,9 @@ export const {
   setSelectedPointIds,
   toggleSelectedPointId,
   clearSelectedPointIds,
+  setSelectedPartIds,
+  toggleSelectedPartId,
+  clearSelectedPartIds,
 } = selectionSlice.actions;
 
 // Selectors
@@ -184,5 +223,8 @@ export const selectSelectedPartId = (state) => {
 
 // Multi-point selection
 export const selectSelectedPointIds = (state) => state.selection.selectedPointIds;
+
+// Multi-part selection
+export const selectSelectedPartIds = (state) => state.selection.selectedPartIds;
 
 export default selectionSlice.reducer;

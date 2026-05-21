@@ -1,20 +1,24 @@
 import { useState, useRef, useCallback } from "react";
 
 /**
- * Point-level lasso selection for when an annotation is already selected.
- * Shift+drag creates a rectangle that selects individual points within the annotation.
+ * Point + segment lasso selection for when an annotation is already selected.
+ * Shift+drag creates a rectangle. Hit-tested members:
+ *   - points whose coords fall inside the rectangle
+ *   - segments whose BOTH endpoints fall inside the rectangle
  *
  * @param {Object} params
  * @param {Function} params.toLocalCoords - Screen → Local coords conversion via viewport
  * @param {Object} params.viewportRef - Ref to viewport with screenToWorld method
- * @param {Function} params.onSelectionComplete - Callback receiving selected point IDs
- * @param {Function} params.getSelectedAnnotationPoints - Returns resolved points [{id, x, y}] of the selected annotation
+ * @param {Function} params.onSelectionComplete - Callback `(pointIds, partIds)`
+ * @param {Function} params.getSelectedAnnotationPoints - Returns resolved points [{id, x, y}]
+ * @param {Function} [params.getSelectedAnnotationSegments] - Returns segments [{partId, p0, p1}]
  */
 export default function useLassoPointSelection({
   viewportRef,
   toLocalCoords,
   onSelectionComplete,
   getSelectedAnnotationPoints,
+  getSelectedAnnotationSegments,
 }) {
   const [lassoRect, setLassoRect] = useState(null);
   const startScreenPosRef = useRef(null);
@@ -70,23 +74,29 @@ export default function useLassoPointSelection({
       height: Math.abs(p2_local.y - p1_local.y),
     };
 
+    const inBox = (pt) =>
+      pt &&
+      pt.x >= selectionBox.x &&
+      pt.x <= selectionBox.x + selectionBox.width &&
+      pt.y >= selectionBox.y &&
+      pt.y <= selectionBox.y + selectionBox.height;
+
     // Hit-test individual points
     const points = getSelectedAnnotationPoints?.() || [];
     const hitPointIds = [];
-
     points.forEach((pt) => {
-      if (
-        pt.x >= selectionBox.x &&
-        pt.x <= selectionBox.x + selectionBox.width &&
-        pt.y >= selectionBox.y &&
-        pt.y <= selectionBox.y + selectionBox.height
-      ) {
-        hitPointIds.push(pt.id);
-      }
+      if (inBox(pt)) hitPointIds.push(pt.id);
+    });
+
+    // Hit-test segments — both endpoints must be inside the rectangle.
+    const segments = getSelectedAnnotationSegments?.() || [];
+    const hitPartIds = [];
+    segments.forEach((seg) => {
+      if (inBox(seg.p0) && inBox(seg.p1)) hitPartIds.push(seg.partId);
     });
 
     if (onSelectionComplete) {
-      onSelectionComplete(hitPointIds);
+      onSelectionComplete(hitPointIds, hitPartIds);
     }
 
     // Reset
@@ -98,6 +108,7 @@ export default function useLassoPointSelection({
     toLocalCoords,
     onSelectionComplete,
     getSelectedAnnotationPoints,
+    getSelectedAnnotationSegments,
   ]);
 
   return {

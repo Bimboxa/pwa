@@ -6,7 +6,7 @@ import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/ge
 import AnnotationEditingWrapper from "./AnnotationEditingWrapper";
 import computeWrapperBbox from "../utils/computeWrapperBbox";
 import theme from 'Styles/theme';
-import { selectSelectedItems, selectSelectedPointId, selectSelectedPointIds, selectSelectedPartId } from "Features/selection/selectionSlice";
+import { selectSelectedItems, selectSelectedPointId, selectSelectedPointIds, selectSelectedPartId, selectSelectedPartIds } from "Features/selection/selectionSlice";
 import useSelectedNodes from '../hooks/useSelectedNodes';
 
 const selectWrapperMode = (state) => state.mapEditor.wrapperMode;
@@ -29,6 +29,7 @@ export default function EditedObjectLayer({
     const selectedPointId = useSelector(selectSelectedPointId);
     const selectedPointIds = useSelector(selectSelectedPointIds);
     const selectedPartId = useSelector(selectSelectedPartId);
+    const selectedPartIds = useSelector(selectSelectedPartIds);
     const wrapperMode = useSelector(selectWrapperMode);
 
     // Compat with existing logic
@@ -191,6 +192,7 @@ export default function EditedObjectLayer({
                             selectedPointId={selectedPointId}
                             selectedPointIds={selectedPointIds}
                             selectedPartId={selectedPartId}
+                            selectedPartIds={selectedPartIds}
                             highlightConnectedSegments={isPointSelectionMode}
                         />
                     </g>

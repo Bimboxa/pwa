@@ -30,6 +30,19 @@ const TYPE_OPTIONS_MAP = {
   STRIP: [OPTIONS.STRIP, OPTIONS.POLYLINE, OPTIONS.POLYGON],
 };
 
-export default function getCloneTypeOptions(sourceType) {
+// When a sub-part is selected the legal clone targets shrink to whatever can
+// be built from that part's geometry:
+//   - segment(s) / cut_seg / guide → open polyline (or STRIP built from it)
+//   - cut (closed ring) → polygon (or STRIP / polyline)
+export default function getCloneTypeOptions(sourceType, part) {
+  if (part && part.kind && part.kind !== "NONE") {
+    if (part.kind === "POINT") return null;
+    if (part.kind === "CUT") {
+      return [OPTIONS.POLYGON, OPTIONS.POLYLINE, OPTIONS.STRIP];
+    }
+    if (part.kind === "SEGMENT" || part.kind === "SEGMENTS" || part.kind === "CUT_SEG" || part.kind === "GUIDE") {
+      return [OPTIONS.POLYLINE, OPTIONS.STRIP];
+    }
+  }
   return TYPE_OPTIONS_MAP[sourceType] ?? null;
 }

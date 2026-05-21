@@ -3,9 +3,10 @@ import { Box, Typography } from "@mui/material";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import getAnnotationQties from "../utils/getAnnotationQties";
+import getAnnotationPartQties from "../utils/getAnnotationPartQties";
 import useProfileResolution from "../hooks/useProfileResolution";
 
-export default function AnnotationMeasurements({ annotation, surface, length }) {
+export default function AnnotationMeasurements({ annotation, surface, length, part }) {
   // data
 
   const baseMap = useMainBaseMap();
@@ -25,27 +26,37 @@ export default function AnnotationMeasurements({ annotation, surface, length }) 
   let computedSurface = surface;
   let computedLength = length;
   let enabled = true;
+  const hasPart = part && part.kind && part.kind !== "NONE";
 
   if (annotation && surface == null && length == null) {
-    const qties = getAnnotationQties({
-      annotation,
-      meterByPx: baseMap?.meterByPx,
-      profileLengthMeters,
-    });
+    const qties = hasPart
+      ? getAnnotationPartQties({
+          annotation,
+          part,
+          meterByPx: baseMap?.meterByPx,
+        })
+      : getAnnotationQties({
+          annotation,
+          meterByPx: baseMap?.meterByPx,
+          profileLengthMeters,
+        });
     if (!qties?.enabled) enabled = false;
     computedSurface = qties?.surface;
     computedLength = qties?.length;
   }
 
-  const showSurface =
-    computedSurface != null &&
-    computedSurface > 0 &&
-    (surface != null ||
-      ["RECTANGLE", "POLYGON", "STRIP"].includes(annotation?.type) ||
-      (annotation?.type === "POLYLINE" &&
-        (annotation?.height ||
-          annotation?.shape3D?.key === "REVOLUTION" ||
-          annotation?.shape3D?.key === "EXTRUSION_PROFILE")));
+  // When a part is selected we want surface to show whenever the calc returns
+  // one (e.g. CUT → area), not gated on the host annotation type.
+  const showSurface = hasPart
+    ? computedSurface != null && computedSurface > 0
+    : computedSurface != null &&
+      computedSurface > 0 &&
+      (surface != null ||
+        ["RECTANGLE", "POLYGON", "STRIP"].includes(annotation?.type) ||
+        (annotation?.type === "POLYLINE" &&
+          (annotation?.height ||
+            annotation?.shape3D?.key === "REVOLUTION" ||
+            annotation?.shape3D?.key === "EXTRUSION_PROFILE")));
 
   const showLength = computedLength != null && computedLength > 0;
 

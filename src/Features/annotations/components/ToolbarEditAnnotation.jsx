@@ -5,10 +5,19 @@ import { useDispatch, useSelector } from "react-redux";
 import db from "App/db/db";
 
 import { setCanTransformNode, setWrapperMode } from "Features/mapEditor/mapEditorSlice";
-import { clearSelection, setSelectedItem } from "Features/selection/selectionSlice";
+import {
+  clearSelection,
+  clearSelectedPartIds,
+  clearSelectedPointIds,
+  setSelectedItem,
+  setSelectedPartIds,
+  setSelectedPointIds,
+  setSubSelection,
+} from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
+import useSelectedAnnotationPart from "../hooks/useSelectedAnnotationPart";
 import useDeleteAnnotation from "../hooks/useDeleteAnnotation";
 import useCloneAnnotationAndEntity from "Features/mapEditor/hooks/useCloneAnnotationAndEntity";
 import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
@@ -31,11 +40,13 @@ import {
   SettingsOutlined as SettingsIcon,
   BugReport as BugReportIcon,
   RestartAlt as ResetIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
+import ToolbarPartGroupRow from "./ToolbarPartGroupRow";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
@@ -65,6 +76,8 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   // data
 
   const selectedAnnotation = useSelectedAnnotation();
+  const part = useSelectedAnnotationPart();
+  const hasPart = part && part.kind && part.kind !== "NONE";
   const deleteAnnotation = useDeleteAnnotation();
   const cloneAnnotationAndEntity = useCloneAnnotationAndEntity();
   const updateAnnotation = useUpdateAnnotation();
@@ -89,7 +102,17 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
 
   // helpers
 
-  const cloneTypeOptions = getCloneTypeOptions(selectedAnnotation?.type);
+  const cloneTypeOptions = getCloneTypeOptions(selectedAnnotation?.type, part);
+  const isMixedPart = hasPart && part.kind === "MIXED";
+  const segmentsHasChains =
+    hasPart && part.kind === "SEGMENTS" && Array.isArray(part.chains) && part.chains.length > 0;
+  const cloneDisabled =
+    isMixedPart ||
+    (hasPart &&
+      !isMixedPart &&
+      part.kind !== "SEGMENTS" &&
+      (!part.pointRefs || part.pointRefs.length < 2)) ||
+    (hasPart && part.kind === "SEGMENTS" && !segmentsHasChains);
 
   // Filter clone candidates based on selected clone type
   const filteredCloneCandidates = (() => {
@@ -177,8 +200,38 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   }
 
   function handleCloneClick(event) {
-    setSelectedCloneType(selectedAnnotation?.type);
+    if (cloneDisabled) return;
+    const defaultCloneType = hasPart
+      ? part.targetAnnotationType || cloneTypeOptions?.[0]?.key
+      : selectedAnnotation?.type;
+    setSelectedCloneType(defaultCloneType);
     setCloneAnchorEl(event.currentTarget);
+  }
+
+  function handleClearSubSelection() {
+    dispatch(setSubSelection({ partId: null, partType: null, pointId: null }));
+    dispatch(clearSelectedPartIds());
+    dispatch(clearSelectedPointIds());
+  }
+
+  function handleRemoveGroup(group) {
+    if (group.kind === "POINTS") {
+      dispatch(clearSelectedPointIds());
+      return;
+    }
+    if (group.kind === "SEGMENTS") {
+      // Keep entries that are NOT segments / cut-segments
+      const toRemove = new Set(group.items.map((i) => i.id));
+      const next = (part?.partIds || []).filter((id) => !toRemove.has(id));
+      dispatch(setSelectedPartIds(next));
+      return;
+    }
+    if (group.kind === "CUTS") {
+      const toRemove = new Set(group.items.map((i) => i.id));
+      const next = (part?.partIds || []).filter((id) => !toRemove.has(id));
+      dispatch(setSelectedPartIds(next));
+      return;
+    }
   }
 
   function handleCloneClose() {
@@ -202,7 +255,10 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     // Override type if user selected a different one
     if (selectedCloneType) newAnnotation.type = selectedCloneType;
 
-    await cloneAnnotationAndEntity(selectedAnnotation, { newAnnotation });
+    await cloneAnnotationAndEntity(selectedAnnotation, {
+      newAnnotation,
+      part: hasPart ? part : undefined,
+    });
     handleCloneClose();
   }
 
@@ -304,126 +360,210 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
         >
           <GripIcon fontSize="small" sx={{ color: "text.disabled", flexShrink: 0 }} />
 
-          <AnnotationTemplateIcon template={selectedAnnotation?.annotationTemplate || selectedAnnotation || {}} size={16} />
-
-          <Typography
-            variant="body2"
-            sx={{
-              flex: 1,
-              fontWeight: 600,
-              fontSize: "0.8rem",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              minWidth: 0,
-            }}
-          >
-            {label}
-          </Typography>
-
-          <Tooltip title="Changer le modèle">
-            <IconButton
-              size="small"
-              onClick={handleTemplateDropdownClick}
-              onMouseDown={(e) => e.stopPropagation()}
-              sx={{
-                flexShrink: 0,
-                color: "text.disabled",
-                "&:hover": { bgcolor: "action.hover", color: "text.primary" },
-              }}
-            >
-              <ArrowDropDownIcon sx={{ fontSize: 20 }} />
-            </IconButton>
-          </Tooltip>
-
-          <Tooltip title="Copy annotation data">
-            <IconButton
-              size="small"
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => {
-                if (selectedAnnotation) {
-                  const data = JSON.stringify(selectedAnnotation, null, 2);
-                  navigator.clipboard.writeText(data);
-                }
-              }}
-              sx={{
-                flexShrink: 0,
-                color: "text.disabled",
-                opacity: 0.4,
-                "&:hover": { opacity: 1, bgcolor: "action.hover" },
-              }}
-            >
-              <BugReportIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-
-          {hasThreedPeer && (
-            <Tooltip title="Centrer la vue 3D sur l'annotation">
-              <IconButton
-                size="small"
-                onClick={() => navigateThreedCamera(selectedAnnotation)}
-                onMouseDown={(e) => e.stopPropagation()}
+          {isMixedPart ? (
+            <>
+              <Typography
+                variant="body2"
                 sx={{
-                  flexShrink: 0,
-                  color: "text.disabled",
-                  "&:hover": {
-                    bgcolor: "action.hover",
-                    color: "text.primary",
-                  },
+                  flex: 1,
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
                 }}
               >
-                <ThreeDRotationIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-            </Tooltip>
+                Multi-sélection
+              </Typography>
+              <Tooltip title="Revenir à l'annotation entière">
+                <IconButton
+                  size="small"
+                  onClick={handleClearSubSelection}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  sx={{
+                    flexShrink: 0,
+                    color: "text.disabled",
+                    "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+                  }}
+                >
+                  <CloseIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            </>
+          ) : hasPart ? (
+            <>
+              <Typography
+                variant="caption"
+                sx={{ color: "text.secondary", fontSize: "0.7rem", flexShrink: 0 }}
+              >
+                {part.captionFr}
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  flex: 1,
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  minWidth: 0,
+                  color: "text.primary",
+                }}
+              >
+                {part.label}
+              </Typography>
+              <Tooltip title="Revenir à l'annotation entière">
+                <IconButton
+                  size="small"
+                  onClick={handleClearSubSelection}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  sx={{
+                    flexShrink: 0,
+                    color: "text.disabled",
+                    "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+                  }}
+                >
+                  <CloseIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            </>
+          ) : (
+            <>
+              <AnnotationTemplateIcon template={selectedAnnotation?.annotationTemplate || selectedAnnotation || {}} size={16} />
+
+              <Typography
+                variant="body2"
+                sx={{
+                  flex: 1,
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  minWidth: 0,
+                }}
+              >
+                {label}
+              </Typography>
+
+              <Tooltip title="Changer le modèle">
+                <IconButton
+                  size="small"
+                  onClick={handleTemplateDropdownClick}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  sx={{
+                    flexShrink: 0,
+                    color: "text.disabled",
+                    "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+                  }}
+                >
+                  <ArrowDropDownIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip title="Copy annotation data">
+                <IconButton
+                  size="small"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => {
+                    if (selectedAnnotation) {
+                      const data = JSON.stringify(selectedAnnotation, null, 2);
+                      navigator.clipboard.writeText(data);
+                    }
+                  }}
+                  sx={{
+                    flexShrink: 0,
+                    color: "text.disabled",
+                    opacity: 0.4,
+                    "&:hover": { opacity: 1, bgcolor: "action.hover" },
+                  }}
+                >
+                  <BugReportIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+
+              {hasThreedPeer && (
+                <Tooltip title="Centrer la vue 3D sur l'annotation">
+                  <IconButton
+                    size="small"
+                    onClick={() => navigateThreedCamera(selectedAnnotation)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    sx={{
+                      flexShrink: 0,
+                      color: "text.disabled",
+                      "&:hover": {
+                        bgcolor: "action.hover",
+                        color: "text.primary",
+                      },
+                    }}
+                  >
+                    <ThreeDRotationIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+
+              <Tooltip title="Propriétés du modèle">
+                <IconButton
+                  size="small"
+                  onClick={handleOpenTemplateProperties}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  sx={{
+                    flexShrink: 0,
+                    color: "text.disabled",
+                    "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+                  }}
+                >
+                  <SettingsIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+            </>
           )}
-
-          <Tooltip title="Propriétés du modèle">
-            <IconButton
-              size="small"
-              onClick={handleOpenTemplateProperties}
-              onMouseDown={(e) => e.stopPropagation()}
-              sx={{
-                flexShrink: 0,
-                color: "text.disabled",
-                "&:hover": { bgcolor: "action.hover", color: "text.primary" },
-              }}
-            >
-              <SettingsIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
         </Box>
 
-        {/* Row 2 - 3D geometry props (height + offsetZ) */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            px: 1.25,
-            py: 0.25,
-            gap: 0.5,
-            borderBottom: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          {selectedAnnotation?.shape3D?.key !== "REVOLUTION" &&
-            selectedAnnotation?.shape3D?.key !== "EXTRUSION_PROFILE" && (
-              <FieldAnnotationHeight
-                annotation={selectedAnnotation}
-                onChange={handleHeightChange}
+        {/* Group rows — only in MIXED mode (1 row per kind with key qty + remove) */}
+        {isMixedPart && (
+          <Box sx={{ py: 0.5, borderBottom: "1px solid", borderColor: "divider" }}>
+            {part.groups.map((group) => (
+              <ToolbarPartGroupRow
+                key={group.kind}
+                group={group}
+                onRemove={() => handleRemoveGroup(group)}
               />
-            )}
-          <FieldAnnotationHeight
-            annotation={selectedAnnotation}
-            onChange={handleOffsetZChange}
-            field="offsetZ"
-            label="Offset"
-          />
-          <Box sx={{ flex: 1 }} />
-          <Shape3DSelector annotation={selectedAnnotation} />
-        </Box>
+            ))}
+          </Box>
+        )}
+
+        {/* Row 2 - 3D geometry props (height + offsetZ) — hidden when a part is selected */}
+        {!hasPart && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              px: 1.25,
+              py: 0.25,
+              gap: 0.5,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            {selectedAnnotation?.shape3D?.key !== "REVOLUTION" &&
+              selectedAnnotation?.shape3D?.key !== "EXTRUSION_PROFILE" && (
+                <FieldAnnotationHeight
+                  annotation={selectedAnnotation}
+                  onChange={handleHeightChange}
+                />
+              )}
+            <FieldAnnotationHeight
+              annotation={selectedAnnotation}
+              onChange={handleOffsetZChange}
+              field="offsetZ"
+              label="Offset"
+            />
+            <Box sx={{ flex: 1 }} />
+            <Shape3DSelector annotation={selectedAnnotation} />
+          </Box>
+        )}
 
         {/* Row 2b - 3D custom offsets indicator + reset (only when present) */}
-        {hasCustomOffsets && (
+        {!hasPart && hasCustomOffsets && (
           <Box
             sx={{
               display: "flex",
@@ -457,29 +597,42 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           </Box>
         )}
 
-        {/* Row 3 - Measurements (right-aligned) */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            px: 1.25,
-            py: 0.25,
-            borderBottom: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <AnnotationMeasurements annotation={selectedAnnotation} />
-        </Box>
+        {/* Row 3 - Measurements (right-aligned) — hidden in MIXED, group rows carry per-kind qties */}
+        {!isMixedPart && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              px: 1.25,
+              py: 0.25,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <AnnotationMeasurements annotation={selectedAnnotation} part={part} />
+          </Box>
+        )}
 
         {/* Row 4 - Actions row */}
         <ToolbarAnnotationActions
           accentColor={accentColor}
           onClone={handleCloneClick}
+          cloneDisabled={cloneDisabled}
+          cloneTooltip={
+            hasPart && part.kind === "MIXED"
+              ? "Sélectionnez une seule catégorie (segments, ouverture ou guide) pour dupliquer"
+              : hasPart && part.kind === "SEGMENTS" && part.chains?.length > 1
+                ? `Dupliquer (${part.chains.length} polylines créées)`
+                : undefined
+          }
+          hideClone={hasPart && part.kind === "POINT"}
           onResize={handleResizeClick}
           resizeActive={wrapperMode}
+          hideResize={hasPart}
           onDelete={handleDeleteClick}
-          extraActions={
+          hideDelete={hasPart}
+          extraActions={hasPart ? null : (
             <>
               {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
                 <IconButtonAnchorAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
@@ -533,9 +686,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 />
               )}
             </>
-          }
+          )}
           layerChip={
-            selectedAnnotation && !selectedAnnotation.isBaseMapAnnotation ? (
+            !hasPart && selectedAnnotation && !selectedAnnotation.isBaseMapAnnotation ? (
               <ChipLayerSelector
                 annotationIds={[selectedAnnotation.id]}
                 annotations={[selectedAnnotation]}

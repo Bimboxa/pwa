@@ -53,6 +53,7 @@ export default function NodePolylineStatic({
     selectedPointId,
     selectedPointIds = [],
     selectedPartId,
+    selectedPartIds = [],
     highlightConnectedSegments = false,
     selectMode,
     printMode,
@@ -161,6 +162,12 @@ export default function NodePolylineStatic({
 
     const SEGMENT_HOVER_COLOR = "#76ff03"; // neon green
 
+    const hasAnyPartSelection =
+        Boolean(selectedPartId) || (Array.isArray(selectedPartIds) && selectedPartIds.length > 0);
+    const isPartSelected = (currentPartId) =>
+        selectedPartId === currentPartId ||
+        (Array.isArray(selectedPartIds) && selectedPartIds.includes(currentPartId));
+
     const getPartStyle = (currentPartId) => {
         // A0. Segment selection mode — highlight hovered segment in neon green
         if (selectMode === "SEGMENT" && effectiveHoveredPartId === currentPartId && !isTransient) {
@@ -172,7 +179,7 @@ export default function NodePolylineStatic({
         }
 
         // A. Mode Standard (Pas de sous-sélection)
-        if (!selectedPartId) {
+        if (!hasAnyPartSelection) {
             if (effectiveHoveredPartId === currentPartId && !isTransient) {
                 return {
                     stroke: hoverStrokeColor,
@@ -184,7 +191,7 @@ export default function NodePolylineStatic({
         }
 
         // B. Mode Sous-Sélection
-        const isSelected = selectedPartId === currentPartId;
+        const isSelected = isPartSelected(currentPartId);
         const isHovered = effectiveHoveredPartId === currentPartId;
 
         if (isSelected) {
@@ -421,7 +428,7 @@ export default function NodePolylineStatic({
             // sets selectedItem.partType (mirrors the explicit VERTEX path).
             const segPartType = partId.split("::")[1];
             const style = getPartStyle(partId);
-            const isSelectedSeg = selectedPartId === partId;
+            const isSelectedSeg = isPartSelected(partId);
             const isHoveredSeg = effectiveHoveredPartId === partId;
 
             // Hit area — transparent stroke that captures pointer events.
@@ -941,7 +948,20 @@ export default function NodePolylineStatic({
     ];
 
     let pointEntriesToRender = [];
-    if (selectedPartId) {
+    // When the user has zeroed in on segments / openings, the geometry vertex
+    // handles become noise — hide them so the active selection is the only
+    // thing on screen.
+    const hasSegmentLikeSelection =
+        (selectedPartIds || []).some((id) => {
+            const t = id?.split?.("::")[1];
+            return t === "SEG" || t === "CUT_SEG" || t === "CUT";
+        }) ||
+        (selectedPartId &&
+            ["SEG", "CUT_SEG", "CUT"].includes(selectedPartId.split('::')[1]));
+
+    if (hasSegmentLikeSelection) {
+        pointEntriesToRender = [];
+    } else if (selectedPartId) {
         const parts = selectedPartId.split('::');
         const partType = parts[1];
         const partIndex = parseInt(parts[2], 10);
