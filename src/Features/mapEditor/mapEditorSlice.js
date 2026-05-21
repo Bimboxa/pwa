@@ -42,7 +42,27 @@ const mapEditorInitialState = {
   tempAnnotationToolbarPosition: null,
   toolbarDragOffset: { x: 0, y: 0 },
   //
-  legendFormat: { x: 1320, y: 216, width: 200, height: 50 },
+  legendFormat: {
+    x: 1320,
+    y: 216,
+    width: 200,
+    height: 50,
+    fontSize: 12,
+    showQty: true,
+  },
+  //
+  imageModeEnabled: false,
+  imageModeLegendSelected: false,
+  // image mode capture rectangle (screen space)
+  imageModeAspectRatio: "LANDSCAPE", // "LANDSCAPE" | "SQUARE" | "PORTRAIT"
+  // legend overlay: position/size in pixels relative to the capture rect origin
+  imageModeLegendOverlay: {
+    x: 16,
+    y: 16,
+    width: 240,
+    fontSize: 12,
+    showQty: true,
+  },
   //
   selectedAnnotationTemplateId: null,
 
@@ -225,6 +245,25 @@ export const mapEditorSlice = createSlice({
     // Legend
     setLegendFormat: (state, action) => {
       state.legendFormat = action.payload;
+    },
+
+    // Image mode
+    setImageModeEnabled: (state, action) => {
+      state.imageModeEnabled = action.payload;
+      if (!action.payload) state.imageModeLegendSelected = false;
+    },
+    toggleImageModeEnabled: (state) => {
+      state.imageModeEnabled = !state.imageModeEnabled;
+      if (!state.imageModeEnabled) state.imageModeLegendSelected = false;
+    },
+    setImageModeLegendSelected: (state, action) => {
+      state.imageModeLegendSelected = action.payload;
+    },
+    setImageModeAspectRatio: (state, action) => {
+      state.imageModeAspectRatio = action.payload;
+    },
+    setImageModeLegendOverlay: (state, action) => {
+      state.imageModeLegendOverlay = action.payload;
     },
 
     // Wrapper mode
@@ -561,6 +600,12 @@ export const {
   setTempAnnotationToolbarPosition,
   //
   setLegendFormat,
+  //
+  setImageModeEnabled,
+  toggleImageModeEnabled,
+  setImageModeLegendSelected,
+  setImageModeAspectRatio,
+  setImageModeLegendOverlay,
   //
   setSelectedAnnotationTemplateId,
   // baseMap

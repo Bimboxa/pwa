@@ -11,6 +11,7 @@ import { setSelectedEntityId } from 'Features/entities/entitiesSlice';
 import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
+import { setImageModeLegendSelected } from 'Features/mapEditor/mapEditorSlice';
 import {
   setPasteClipboard,
   clearPasteClipboard,
@@ -1567,6 +1568,24 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     enabledDrawingModeRef.current = enabledDrawingMode;
   }, [enabledDrawingMode]);
+
+  // Image-mode flags (read inside event handlers via refs so we don't
+  // re-bind handlers on every redux change).
+  const imageModeEnabled = useSelector(
+    (s) => s.mapEditor.imageModeEnabled
+  );
+  const imageModeEnabledRef = useRef(imageModeEnabled);
+  useEffect(() => {
+    imageModeEnabledRef.current = imageModeEnabled;
+  }, [imageModeEnabled]);
+
+  const imageModeLegendSelected = useSelector(
+    (s) => s.mapEditor.imageModeLegendSelected
+  );
+  const imageModeLegendSelectedRef = useRef(imageModeLegendSelected);
+  useEffect(() => {
+    imageModeLegendSelectedRef.current = imageModeLegendSelected;
+  }, [imageModeLegendSelected]);
 
   const pasteClipboardRef = useRef(pasteClipboard);
   useEffect(() => {
@@ -3560,6 +3579,21 @@ const InteractionLayer = forwardRef(({
     else if (!enabledDrawingMode) {
       const nativeTarget = event.nativeEvent?.target || event.target;
 
+      // A0. Image-mode LEGEND selection.
+      // Independent of showBgImage / selectedNode plumbing: a click on the
+      // legend toggles a dedicated flag, and any click elsewhere clears it.
+      // This drives EditedLegendLayer's chrome (frame + resize handles).
+      if (imageModeEnabledRef.current) {
+        const hitLegend = nativeTarget.closest?.('[data-node-type="LEGEND"]');
+        if (hitLegend) {
+          dispatch(setImageModeLegendSelected(true));
+          return;
+        } else if (imageModeLegendSelectedRef.current) {
+          dispatch(setImageModeLegendSelected(false));
+          // fall through — other selections may still apply
+        }
+      }
+
       // A. DÉTECTION DU CLIC SUR UN POINT (VERTEX)
       // Les points auront data-node-type="VERTEX"
       const hitPoint = nativeTarget.closest?.('[data-node-type="VERTEX"]');
@@ -4766,7 +4800,7 @@ const InteractionLayer = forwardRef(({
 
 
     console.log("debug_A_selectedNode", selectedNode)
-    if (!selectedNode && !showBgImage && !draggableGroup && !resizeHandle && !rotateHandle && !versionHandle && !calibrationHandle) return;
+    if (!selectedNode && !showBgImage && !draggableGroup && !resizeHandle && !rotateHandle && !versionHandle && !calibrationHandle && !legendHandle) return;
 
 
 

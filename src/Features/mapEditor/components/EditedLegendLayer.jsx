@@ -8,6 +8,9 @@ export default function EditedLegendLayer({
     legendItems,
     spriteImage,
     legendFormat,
+    showQty = false,
+    qtiesById,
+    selected = true,
     scaleFactor = 1,
 }) {
     const { x = 16, y = 16 } = legendFormat || {};
@@ -67,32 +70,42 @@ export default function EditedLegendLayer({
                 legendItems={legendItems}
                 spriteImage={spriteImage}
                 legendFormat={legendFormat}
+                showQty={showQty}
+                qtiesById={qtiesById}
                 onSizeChange={handleSizeChange}
             />
 
-            {/* 2. LE CADRE (Basé sur la mesure réelle) */}
-            <rect
-                x={x}
-                y={y}
-                width={w}
-                height={h}
-                fill="transparent"
-                stroke="#2196f3"
-                vectorEffect="non-scaling-stroke"
-                strokeWidth={1}
-                style={{ cursor: 'move', pointerEvents: 'auto' }}
-                data-interaction="transform-legend"
-                data-handle-type="MOVE"
-            />
+            {/* Editing chrome: frame + resize handles. Rendered only when
+                `selected` so the legend looks like a plain widget in image
+                mode until the user clicks it. Tagged data-capture-hide so
+                captureMapAsPng() hides it during PNG export. */}
+            {selected && (
+                <g data-capture-hide>
+                    {/* 2. LE CADRE (Basé sur la mesure réelle) */}
+                    <rect
+                        x={x}
+                        y={y}
+                        width={w}
+                        height={h}
+                        fill="transparent"
+                        stroke="#2196f3"
+                        vectorEffect="non-scaling-stroke"
+                        strokeWidth={1}
+                        style={{ cursor: 'move', pointerEvents: 'auto' }}
+                        data-interaction="transform-legend"
+                        data-handle-type="MOVE"
+                    />
 
-            {/* 3. LES POIGNÉES (Placées aux coins réels) */}
-            <Handle cx={x} cy={y} cursor="ew-resize" type="NW" />
-            <Handle cx={x + w} cy={y} cursor="ew-resize" type="NE" />
-            <Handle cx={x + w} cy={y + h} cursor="ew-resize" type="SE" />
-            <Handle cx={x} cy={y + h} cursor="ew-resize" type="SW" />
+                    {/* 3. LES POIGNÉES (Placées aux coins réels) */}
+                    <Handle cx={x} cy={y} cursor="ew-resize" type="NW" />
+                    <Handle cx={x + w} cy={y} cursor="ew-resize" type="NE" />
+                    <Handle cx={x + w} cy={y + h} cursor="ew-resize" type="SE" />
+                    <Handle cx={x} cy={y + h} cursor="ew-resize" type="SW" />
 
-            <Handle cx={x + w} cy={y + h / 2} cursor="ew-resize" type="E" />
-            <Handle cx={x} cy={y + h / 2} cursor="ew-resize" type="W" />
+                    <Handle cx={x + w} cy={y + h / 2} cursor="ew-resize" type="E" />
+                    <Handle cx={x} cy={y + h / 2} cursor="ew-resize" type="W" />
+                </g>
+            )}
         </g>
     );
 }
