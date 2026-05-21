@@ -16,15 +16,21 @@ export default function getAnnotationPartQties({ annotation, part, meterByPx }) 
   }
 
   if (kind === "SEGMENT" || kind === "SEGMENTS" || kind === "CUT_SEG" || kind === "GUIDE") {
-    // Non-contiguous SEGMENTS expose multiple chains — sum each chain's length
-    // so the total matches what bulk-clone will produce.
-    if (kind === "SEGMENTS" && Array.isArray(part.chains) && part.chains.length > 1) {
+    // For SEGMENTS, always sum across chains so closed-ring chains contribute
+    // their wraparound segment (chain.closesRing → closeLine on the temp
+    // polyline used for qty computation). Single-chain selections also flow
+    // through this path so the closing segment is counted when applicable.
+    if (kind === "SEGMENTS" && Array.isArray(part.chains) && part.chains.length > 0) {
       let total = 0;
       for (const chain of part.chains) {
         const pts = chain?.pointRefs || [];
         if (pts.length < 2) continue;
         const q = getAnnotationQties({
-          annotation: { type: "POLYLINE", points: pts, closeLine: false },
+          annotation: {
+            type: "POLYLINE",
+            points: pts,
+            closeLine: !!chain.closesRing,
+          },
           meterByPx,
         });
         total += q?.length || 0;

@@ -64,12 +64,19 @@ export default function useCloneAnnotationAndEntity() {
         if (hasPart) {
             // Batch mode: a non-contiguous multi-segment selection arrives as
             // `part.chains` — one chain per group of contiguous segments. Create
-            // one polyline annotation per chain.
+            // one polyline annotation per chain. Each chain may carry
+            // `closesRing: true` when it covers an entire closed ring; the
+            // resulting polyline gets closeLine=true so the wraparound segment
+            // (last point → first point) is preserved.
             if (part.kind === "SEGMENTS" && Array.isArray(part.chains) && part.chains.length > 0) {
                 for (const chain of part.chains) {
                     const refs = chain?.pointRefs || [];
                     if (refs.length < 2) continue;
-                    itemsToCreate.push({ points: refs, cuts: [] });
+                    itemsToCreate.push({
+                        points: refs,
+                        cuts: [],
+                        closesRing: !!chain.closesRing,
+                    });
                 }
                 if (itemsToCreate.length === 0) {
                     console.warn("[clone] no usable chain in part.chains", part);
@@ -154,11 +161,12 @@ export default function useCloneAnnotationAndEntity() {
                 delete clonedAnnotation.isoHeightSegmentsIdx;
                 // Open vs closed line:
                 //   CUT → closed polygon (or polyline-with-closeLine)
-                //   SEGMENT(S) / CUT_SEG / GUIDE → open polyline
+                //   SEGMENTS chain with closesRing → closed polyline
+                //   other SEGMENT(S) / CUT_SEG / GUIDE → open polyline
                 if (part.kind === "CUT") {
                     clonedAnnotation.closeLine = true;
                 } else if (clonedAnnotation.type === "POLYLINE") {
-                    clonedAnnotation.closeLine = false;
+                    clonedAnnotation.closeLine = item.closesRing === true;
                 }
             }
 
