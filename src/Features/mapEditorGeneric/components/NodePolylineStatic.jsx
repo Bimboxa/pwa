@@ -1,6 +1,34 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { darken } from "@mui/material/styles";
 import theme from "Styles/theme";
+
+// Tracks whether Shift is currently held — used to swap segment/cut hit-area
+// cursors to "+"/"−" so the user sees ahead of clicking whether shift+click
+// will add or remove from a multi-part selection.
+function useIsShiftDown() {
+    const [shift, setShift] = useState(false);
+    useEffect(() => {
+        const down = (e) => {
+            if (e.key === "Shift") setShift(true);
+        };
+        const up = (e) => {
+            if (e.key === "Shift") setShift(false);
+        };
+        const blur = () => setShift(false);
+        window.addEventListener("keydown", down);
+        window.addEventListener("keyup", up);
+        window.addEventListener("blur", blur);
+        return () => {
+            window.removeEventListener("keydown", down);
+            window.removeEventListener("keyup", up);
+            window.removeEventListener("blur", blur);
+        };
+    }, []);
+    return shift;
+}
+
+const CURSOR_ADD = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><circle cx='12' cy='12' r='9' fill='%2376ff03' stroke='white' stroke-width='1.5'/><path d='M12 7v10M7 12h10' stroke='white' stroke-width='2' stroke-linecap='round'/></svg>") 12 12, copy`;
+const CURSOR_REMOVE = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><circle cx='12' cy='12' r='9' fill='%23f44336' stroke='white' stroke-width='1.5'/><path d='M7 12h10' stroke='white' stroke-width='2' stroke-linecap='round'/></svg>") 12 12, not-allowed`;
 
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import getPolygonSlope from "Features/annotations/utils/getPolygonSlope";
@@ -65,6 +93,7 @@ export default function NodePolylineStatic({
 
     // State local pour le survol immédiat (feedback visuel)
     const [hoveredPartId, setHoveredPartId] = useState(null);
+    const isShiftDown = useIsShiftDown();
 
     // En aperçu transient (drag de vertex), on ignore complètement le hover :
     // sinon les segments clignotent quand le curseur les survole pendant le drag.
@@ -168,6 +197,14 @@ export default function NodePolylineStatic({
         selectedPartId === currentPartId ||
         (Array.isArray(selectedPartIds) && selectedPartIds.includes(currentPartId));
 
+    // Cursor for a clickable part hit-area. When Shift is held, signal whether
+    // a click will add ("+") or remove ("-") that part from the selection.
+    const getPartCursor = (currentPartId) => {
+        if (isTransient) return "crosshair";
+        if (!isShiftDown) return "pointer";
+        return isPartSelected(currentPartId) ? CURSOR_REMOVE : CURSOR_ADD;
+    };
+
     const getPartStyle = (currentPartId) => {
         // A0. Segment selection mode — highlight hovered segment in neon green
         if (selectMode === "SEGMENT" && effectiveHoveredPartId === currentPartId && !isTransient) {
@@ -195,10 +232,30 @@ export default function NodePolylineStatic({
         const isHovered = effectiveHoveredPartId === currentPartId;
 
         if (isSelected) {
+            // Selected segments use a fixed-screen-px stroke (3 px, scaling
+            // override) — otherwise polygon/polyline default strokes (often
+            // 0.5 px or CM-scaled) make the selection hard to see at most
+            // zoom levels.
+            const SELECTED_STROKE_PX = 3;
+            // Hover on a selected part: darken + thicken so the user gets
+            // visual feedback (otherwise it blends in with its peers).
+            if (isHovered && !isTransient) {
+                let hoverSelectedColor = STYLE_CONSTANTS.COLORS.SELECTED_PART;
+                try {
+                    hoverSelectedColor = darken(STYLE_CONSTANTS.COLORS.SELECTED_PART, 0.25);
+                } catch (e) { /* keep base color */ }
+                return {
+                    stroke: hoverSelectedColor,
+                    fill: hoverSelectedColor,
+                    strokeWidth: SELECTED_STROKE_PX,
+                    forceNonScaling: true,
+                };
+            }
             return {
                 stroke: STYLE_CONSTANTS.COLORS.SELECTED_PART,
                 fill: STYLE_CONSTANTS.COLORS.SELECTED_PART,
-                strokeWidth: computedStrokeWidth + 0
+                strokeWidth: SELECTED_STROKE_PX,
+                forceNonScaling: true,
             };
         } else if (isHovered) {
             return {
@@ -470,7 +527,7 @@ export default function NodePolylineStatic({
                         data-part-id={partId}
                         data-part-type={segPartType}
                         data-node-id={annotationId}
-                        style={{ cursor: isTransient ? "crosshair" : "pointer" }}
+                        style={{ cursor: getPartCursor(partId) }}
                     >
                         {hitAreaPath}
                         <path
@@ -508,7 +565,7 @@ export default function NodePolylineStatic({
                     data-part-id={partId}
                     data-part-type={segPartType}
                     data-node-id={annotationId}
-                    style={{ cursor: isTransient ? "crosshair" : "pointer" }}
+                    style={{ cursor: getPartCursor(partId) }}
                 >
                     {hitAreaPath}
                     {isIsoSeg && (
@@ -526,8 +583,8 @@ export default function NodePolylineStatic({
                         <path
                             d={seg.d}
                             fill="none"
-                            stroke={isSelectedSeg ? STYLE_CONSTANTS.COLORS.SELECTED_PART : (style.stroke || hoverStrokeColor)}
-                            strokeWidth={3}
+                            stroke={style.stroke || hoverStrokeColor}
+                            strokeWidth={style.strokeWidth || 3}
                             vectorEffect="non-scaling-stroke"
                             strokeLinecap="round"
                             style={{ pointerEvents: "none" }}
@@ -570,8 +627,17 @@ export default function NodePolylineStatic({
             let displayColor = wholeCutSelected
                 ? STYLE_CONSTANTS.COLORS.CUT_SELECTED
                 : style.stroke;
+            const segStrokeWidth = style.strokeWidth ?? computedStrokeWidth;
+            const forceNonScaling = !!style.forceNonScaling;
             const isHidden = hiddenList.includes(idx);
-            return { seg, displayColor, strokeOpacity: finalStrokeOpacity, isHidden };
+            return {
+                seg,
+                displayColor,
+                strokeOpacity: finalStrokeOpacity,
+                strokeWidth: segStrokeWidth,
+                forceNonScaling,
+                isHidden,
+            };
         });
 
         const total = segmentsList.length;
@@ -597,6 +663,8 @@ export default function NodePolylineStatic({
                     dParts: [m.seg.d],
                     displayColor: m.displayColor,
                     strokeOpacity: m.strokeOpacity,
+                    strokeWidth: m.strokeWidth,
+                    forceNonScaling: m.forceNonScaling,
                     firstSegIdx: idx,
                     count: 1,
                 };
@@ -605,7 +673,9 @@ export default function NodePolylineStatic({
 
             const styleMatches =
                 m.displayColor === current.displayColor &&
-                m.strokeOpacity === current.strokeOpacity;
+                m.strokeOpacity === current.strokeOpacity &&
+                m.strokeWidth === current.strokeWidth &&
+                m.forceNonScaling === current.forceNonScaling;
 
             if (styleMatches) {
                 current.dParts.push(stripLeadingMove(m.seg.d));
@@ -616,6 +686,8 @@ export default function NodePolylineStatic({
                     dParts: [m.seg.d],
                     displayColor: m.displayColor,
                     strokeOpacity: m.strokeOpacity,
+                    strokeWidth: m.strokeWidth,
+                    forceNonScaling: m.forceNonScaling,
                     firstSegIdx: idx,
                     count: 1,
                 };
@@ -639,11 +711,15 @@ export default function NodePolylineStatic({
                     d={d}
                     fill="none"
                     stroke={run.displayColor}
-                    strokeWidth={computedStrokeWidth}
+                    strokeWidth={run.strokeWidth ?? computedStrokeWidth}
                     strokeOpacity={run.strokeOpacity}
                     strokeLinecap={isDashed ? "bevel" : "butt"}
                     strokeLinejoin={isDashed ? "bevel" : "round"}
-                    vectorEffect={scalesWithZoom ? undefined : "non-scaling-stroke"}
+                    vectorEffect={
+                        run.forceNonScaling || !scalesWithZoom
+                            ? "non-scaling-stroke"
+                            : undefined
+                    }
                     style={{ pointerEvents: "none", transition: "stroke 0.2s" }}
                     {...(isDashed && { strokeDasharray: "1 1" })}
                 />
@@ -1091,7 +1167,7 @@ export default function NodePolylineStatic({
                         fill={holeFill}
                         fillOpacity={holeOpacity}
                         stroke="none"
-                        style={{ cursor: "pointer" }}
+                        style={{ cursor: getPartCursor(partId) }}
                         data-part-id={partId}
                         data-part-type="CUT"
                         data-node-id={annotationId}
@@ -1174,7 +1250,7 @@ export default function NodePolylineStatic({
                         data-part-id={guidePartId}
                         data-part-type="GUIDE_LINE"
                         data-node-id={annotationId}
-                        style={{ cursor: isTransient ? "crosshair" : "pointer" }}
+                        style={{ cursor: getPartCursor(partId) }}
                     >
                         {/* Hit area (transparent wide stroke) */}
                         <polyline
