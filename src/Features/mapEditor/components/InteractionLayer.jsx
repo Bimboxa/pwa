@@ -2382,6 +2382,17 @@ const InteractionLayer = forwardRef(({
             return;
           }
 
+          // Mid-drawing: if points have already been placed, reset just the
+          // in-progress points and stay in the current drawing mode so the
+          // user can restart the click cycle without re-picking the tool.
+          if (enabledDrawingMode && drawingPointsRef.current?.length > 0) {
+            setDrawingPoints([]);
+            drawingPointsRef.current = [];
+            clearRectBuffers();
+            e.stopPropagation();
+            return;
+          }
+
           // Reset split polyline state if active
           onSplitPolylineResetRef.current?.();
 

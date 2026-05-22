@@ -41,6 +41,7 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     showSlope: annotationTemplate?.showSlope,
 
     height: annotationTemplate?.height,
+    offsetZ: annotationTemplate?.offsetZ,
 
     overrideFields: annotationTemplate?.overrideFields,
   };

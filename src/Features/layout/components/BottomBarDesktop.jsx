@@ -12,6 +12,7 @@ import ButtonsKrto from "Features/krtoFile/components/ButtonsKrto";
 import SwitchCoupledNavigation from "Features/layout/components/SwitchCoupledNavigation";
 import RectangleDimsBottomBar from "Features/annotations/components/RectangleDimsBottomBar";
 import SegmentLengthBottomBar from "Features/annotations/components/SegmentLengthBottomBar";
+import ToolbarDrawingDraft from "Features/mapEditor/components/ToolbarDrawingDraft";
 
 // Drawing modes that surface a dedicated bottom-bar UI (and hide the regular
 // bottom-bar items so they don't compete for space).
@@ -66,8 +67,10 @@ export default function BottomBarDesktop() {
           alignItems: "center",
           zIndex: 100,
           px: 0.5,
+          position: "relative",
         }}
       >
+        <ToolbarDrawingDraft />
         {showRectangleDims && <RectangleDimsBottomBar />}
         {showSegmentLength && <SegmentLengthBottomBar />}
       </Box>
@@ -86,8 +89,10 @@ export default function BottomBarDesktop() {
         justifyContent: "space-between",
         zIndex: 100,
         pr: 0.5,
+        position: "relative",
       }}
     >
+      <ToolbarDrawingDraft />
       <Box sx={{ display: "flex", gap: 1, alignItems: "center", pl: 1 }}>
         <ButtonSigninV2 />
         <ButtonAppVersion />
