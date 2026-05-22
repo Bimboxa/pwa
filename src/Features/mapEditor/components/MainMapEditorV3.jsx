@@ -34,6 +34,7 @@ import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation"
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
+import useAnnotationTemplateQtiesByIdForBaseMap from "Features/annotations/hooks/useAnnotationTemplateQtiesByIdForBaseMap";
 
 import { Box } from "@mui/material";
 
@@ -63,6 +64,7 @@ import useSurfaceDropBarrierMask from "Features/smartDetect/hooks/useSurfaceDrop
 import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCreateAnnotationFromSurfaceDrop";
 import LayerSurfaceDropPreview from "./LayerSurfaceDropPreview";
 import PopperMapListings from "./PopperMapListings";
+import ImageModeOverlay from "./ImageModeOverlay";
 
 
 import { InteractionProvider } from "../context/InteractionContext";
@@ -312,8 +314,17 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     const legendItems = useLegendItems();
     const legendFormat = useSelector((s) => s.mapEditor.legendFormat);
+    const legendQtiesById = useAnnotationTemplateQtiesByIdForBaseMap(baseMap?.id);
 
     const isLegendSelected = showBgImage && selectedNode?.nodeType === "LEGEND";
+
+    // image mode (MAP viewer only)
+    const isMapViewer = forViewerKey === "MAP";
+    const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
+    const imageModeActive = isMapViewer && imageModeEnabled;
+    const imageModeLegendSelected = useSelector(
+        (s) => s.mapEditor.imageModeLegendSelected
+    );
 
     function handleLegendFormatChange(newFormat) {
         dispatch(setLegendFormat(newFormat));
@@ -1375,7 +1386,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     return (
         <SmartZoomProvider>
         <DrawingMetricsProvider>
-        <Box ref={containerRef} sx={{ width: '100%', height: '100%', position: "relative", bgcolor: "background.default" }}>
+        <Box ref={containerRef} data-image-capture-host={forViewerKey} sx={{ width: '100%', height: '100%', position: "relative", bgcolor: "background.default" }}>
             <InteractionProvider>
                 <InteractionLayer
                     isActiveViewer={isActiveViewer}
@@ -1465,7 +1476,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             baseMapImageUrl={baseMap?.getUrl()}
                             baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
                             annotations={annotations}
-                            legendItems={legendItems}
+                            legendItems={imageModeActive ? null : legendItems}
                             legendFormat={legendFormat}
                             sizeVariant={sizeVariant}
                             isEditingBaseMap={isBaseMapSelected}
@@ -1581,6 +1592,16 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             <LayerCreateBaseMap />
 
             {!versionCompareEnabled && <PopperMapListings />}
+
+            {imageModeActive && (
+                <ImageModeOverlay
+                    viewportWidth={bounds.width}
+                    viewportHeight={bounds.height}
+                    baseMapId={baseMap?.id}
+                    spriteImage={spriteImage}
+                    qtiesById={legendQtiesById}
+                />
+            )}
         </Box>
         </DrawingMetricsProvider>
         </SmartZoomProvider>

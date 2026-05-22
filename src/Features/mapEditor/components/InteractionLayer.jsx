@@ -11,6 +11,7 @@ import { setSelectedEntityId } from 'Features/entities/entitiesSlice';
 import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
+import { setImageModeLegendSelected } from 'Features/mapEditor/mapEditorSlice';
 import {
   setPasteClipboard,
   clearPasteClipboard,
@@ -1568,6 +1569,24 @@ const InteractionLayer = forwardRef(({
     enabledDrawingModeRef.current = enabledDrawingMode;
   }, [enabledDrawingMode]);
 
+  // Image-mode flags (read inside event handlers via refs so we don't
+  // re-bind handlers on every redux change).
+  const imageModeEnabled = useSelector(
+    (s) => s.mapEditor.imageModeEnabled
+  );
+  const imageModeEnabledRef = useRef(imageModeEnabled);
+  useEffect(() => {
+    imageModeEnabledRef.current = imageModeEnabled;
+  }, [imageModeEnabled]);
+
+  const imageModeLegendSelected = useSelector(
+    (s) => s.mapEditor.imageModeLegendSelected
+  );
+  const imageModeLegendSelectedRef = useRef(imageModeLegendSelected);
+  useEffect(() => {
+    imageModeLegendSelectedRef.current = imageModeLegendSelected;
+  }, [imageModeLegendSelected]);
+
   const pasteClipboardRef = useRef(pasteClipboard);
   useEffect(() => {
     pasteClipboardRef.current = pasteClipboard;
@@ -2902,6 +2921,10 @@ const InteractionLayer = forwardRef(({
   // --- GESTION DES CLICS (Ajout de point) ---
   const handleWorldClick = async ({ worldPos, viewportPos, event }) => {
 
+    // CAPTURE / image mode: all annotation interactions are disabled.
+    // Pan/zoom remain available because they live in MapEditorViewport.
+    if (imageModeEnabledRef.current) return;
+
     // --- Paste mode: a click places a copy at the cursor and keeps the
     // mode active so multiple copies can be placed. Esc exits.
     if (pasteClipboardRef.current) {
@@ -3560,6 +3583,21 @@ const InteractionLayer = forwardRef(({
     else if (!enabledDrawingMode) {
       const nativeTarget = event.nativeEvent?.target || event.target;
 
+      // A0. Image-mode LEGEND selection.
+      // Independent of showBgImage / selectedNode plumbing: a click on the
+      // legend toggles a dedicated flag, and any click elsewhere clears it.
+      // This drives EditedLegendLayer's chrome (frame + resize handles).
+      if (imageModeEnabledRef.current) {
+        const hitLegend = nativeTarget.closest?.('[data-node-type="LEGEND"]');
+        if (hitLegend) {
+          dispatch(setImageModeLegendSelected(true));
+          return;
+        } else if (imageModeLegendSelectedRef.current) {
+          dispatch(setImageModeLegendSelected(false));
+          // fall through — other selections may still apply
+        }
+      }
+
       // A. DÉTECTION DU CLIC SUR UN POINT (VERTEX)
       // Les points auront data-node-type="VERTEX"
       const hitPoint = nativeTarget.closest?.('[data-node-type="VERTEX"]');
@@ -3833,6 +3871,17 @@ const InteractionLayer = forwardRef(({
 
   // --- GESTION DU MOUVEMENT (Feedback visuel) ---
   const handleWorldMouseMove = ({ worldPos, viewportPos, event, isPanning }) => {
+
+    // CAPTURE / image mode: no snap, no hover detection on annotations.
+    // We still record the screen pos so pan/zoom cursor updates stay
+    // accurate, but everything below early-returns.
+    if (imageModeEnabledRef.current) {
+      lastMouseScreenPosRef.current = {
+        screenPos: { x: event.clientX, y: event.clientY },
+        viewportPos,
+      };
+      return;
+    }
 
     lastMouseScreenPosRef.current = {
       screenPos: { x: event.clientX, y: event.clientY },
@@ -4318,6 +4367,8 @@ const InteractionLayer = forwardRef(({
   // --- GESTION CLICK / DRAG ---
 
   const handleMarkerMouseDown = (e) => {
+    // CAPTURE / image mode: skip snap markers entirely.
+    if (imageModeEnabledRef.current) return;
     // 1. Prevent Viewport Pan
     e.stopPropagation();
     e.preventDefault();
@@ -4514,6 +4565,9 @@ const InteractionLayer = forwardRef(({
   // --- 3. MOUSE UP (Global) ---
   const handleMouseUp = (event) => {
 
+    // CAPTURE / image mode: no annotation drag to finalize.
+    if (imageModeEnabledRef.current) return;
+
     console.log("[MouseUp] lassoRect", lassoRect)
     if (lassoRect) {
       endLasso();
@@ -4692,6 +4746,10 @@ const InteractionLayer = forwardRef(({
 
   const handleMouseDownCapture = (e) => {
 
+    // CAPTURE / image mode: skip all annotation drag / resize / select
+    // logic. Pan still works via MapEditorViewport's own onMouseDown.
+    if (imageModeEnabledRef.current) return;
+
     // ==================
     // Annotation
     // ==================
@@ -4766,7 +4824,7 @@ const InteractionLayer = forwardRef(({
 
 
     console.log("debug_A_selectedNode", selectedNode)
-    if (!selectedNode && !showBgImage && !draggableGroup && !resizeHandle && !rotateHandle && !versionHandle && !calibrationHandle) return;
+    if (!selectedNode && !showBgImage && !draggableGroup && !resizeHandle && !rotateHandle && !versionHandle && !calibrationHandle && !legendHandle) return;
 
 
 
@@ -4893,6 +4951,10 @@ const InteractionLayer = forwardRef(({
   function handleContextMenu(e) {
     e.preventDefault();
 
+    // CAPTURE / image mode: suppress the context menu entirely (preventDefault
+    // already blocks the browser menu, just bail before the annotation logic).
+    if (imageModeEnabledRef.current) return;
+
     // Detect if clicking on a node
     const nativeTarget = e.nativeEvent?.target || e.target;
     const hit = nativeTarget.closest?.("[data-node-type]");
@@ -4944,6 +5006,7 @@ const InteractionLayer = forwardRef(({
   // user uses this as a quick "select all segments" shortcut so they can clone
   // / measure them in one shot.
   const handleDoubleClick = (event) => {
+    if (imageModeEnabledRef.current) return;
     if (enabledDrawingMode) return;
     const target = event.nativeEvent?.target || event.target;
     const hit = target.closest?.('[data-node-type="ANNOTATION"]');
@@ -5101,7 +5164,7 @@ const InteractionLayer = forwardRef(({
         }
         htmlOverlay={
           <>
-            <Box sx={{ position: 'absolute', bottom: "16px", left: "76px", zIndex: 1 }}>
+            <Box data-capture-hide sx={{ position: 'absolute', bottom: "16px", left: "76px", zIndex: 1 }}>
               <HelperScale
                 ref={helperScaleRef} // <--- Brancher la ref
                 meterByPx={baseMapMeterByPx} // Passer la prop statique venant de baseMap
@@ -5112,6 +5175,7 @@ const InteractionLayer = forwardRef(({
             {/* Render conditionally based on Data State */}
             {tooltipData && (
               <MapTooltip
+                data-capture-hide
                 ref={tooltipRef} // Pass the Ref
                 hoveredNode={tooltipData}
                 annotations={annotations}

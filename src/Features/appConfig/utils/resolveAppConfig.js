@@ -42,6 +42,19 @@ const DATA_LOADERS = import.meta.glob("../../../Data/**/*", {
   eager: false,
 });
 
+// SVG assets stored under each org's Data folder, returned as URLs so we
+// can use them in <img src> or SVG <image href>.
+const DATA_SVG_URL_LOADERS = import.meta.glob("../../../Data/**/*.svg", {
+  as: "url",
+  eager: false,
+});
+
+// Raster assets (PNG / JPG) stored under each org's Data folder.
+const DATA_IMAGE_URL_LOADERS = import.meta.glob(
+  "../../../Data/**/*.{png,jpg,jpeg,webp}",
+  { as: "url", eager: false }
+);
+
 export default async function resolveAppConfig(appConfig) {
   // edge case
 
@@ -241,6 +254,61 @@ export default async function resolveAppConfig(appConfig) {
       })
     );
     newAppConfig.features.bgImages.options = options;
+  }
+
+  // watermark - resolve per-org SVG paths to URLs (one per aspect ratio).
+  // Source: features.watermark.pathsByAspectRatio (relative to Data/<orga>/).
+  // Output:  features.watermark.urlsByAspectRatio (same keys, full URLs).
+  if (
+    orgaCode &&
+    newAppConfig.features?.watermark?.pathsByAspectRatio
+  ) {
+    const pathsByAspect = newAppConfig.features.watermark.pathsByAspectRatio;
+    const urlsByAspect = {};
+    for (const [aspectKey, relPath] of Object.entries(pathsByAspect)) {
+      const fullPath = `../../../Data/${orgaCode}/${relPath}`;
+      const loader = DATA_SVG_URL_LOADERS[fullPath];
+      if (!loader) {
+        console.warn(
+          `[resolveAppConfig] watermark SVG not found at ${fullPath}`
+        );
+        continue;
+      }
+      try {
+        urlsByAspect[aspectKey] = await loader();
+      } catch (error) {
+        console.error(
+          `[resolveAppConfig] Error loading watermark "${aspectKey}":`,
+          error
+        );
+      }
+    }
+    newAppConfig.features.watermark.urlsByAspectRatio = urlsByAspect;
+  }
+
+  // watermark logo - SVG or raster image used as a corporate stamp on
+  // captures. Source: features.watermark.logoPath (relative to
+  // Data/<orga>/). Output: features.watermark.logoUrl (full URL).
+  if (orgaCode && newAppConfig.features?.watermark?.logoPath) {
+    const relPath = newAppConfig.features.watermark.logoPath;
+    const fullPath = `../../../Data/${orgaCode}/${relPath}`;
+    const loader =
+      DATA_SVG_URL_LOADERS[fullPath] ||
+      DATA_IMAGE_URL_LOADERS[fullPath];
+    if (loader) {
+      try {
+        newAppConfig.features.watermark.logoUrl = await loader();
+      } catch (error) {
+        console.error(
+          `[resolveAppConfig] Error loading watermark logo:`,
+          error
+        );
+      }
+    } else {
+      console.warn(
+        `[resolveAppConfig] watermark logo not found at ${fullPath}`
+      );
+    }
   }
 
   // path

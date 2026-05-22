@@ -46,8 +46,13 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
       const isDisabledInContainer = !includeHidden && disabledAnnotationTemplates?.includes(templateId);
       if (!idsMap[templateId] && !isTemplateHidden && !isHiddenInLegend && !isDisabledInContainer) {
         idsMap[templateId] = annotation;
-        const { iconKey, fillColor, strokeColor, type, closeLine, listingName, variant, strokeType, fillType } =
+        const { iconKey, type, closeLine, listingName, variant, strokeType, fillType } =
           annotation;
+        // Fall back to template colors when the annotation itself doesn't
+        // carry an explicit color override (annotations created from a
+        // template inherit colors at render time, not on the stored row).
+        const fillColor = annotation.fillColor ?? template?.fillColor;
+        const strokeColor = annotation.strokeColor ?? template?.strokeColor;
         const newLegendItem = {
           id: templateId,
           listingName,

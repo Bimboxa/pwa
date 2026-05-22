@@ -42,7 +42,34 @@ const mapEditorInitialState = {
   tempAnnotationToolbarPosition: null,
   toolbarDragOffset: { x: 0, y: 0 },
   //
-  legendFormat: { x: 1320, y: 216, width: 200, height: 50 },
+  legendFormat: {
+    x: 1320,
+    y: 216,
+    width: 200,
+    height: 50,
+    fontSize: 12,
+    showQty: true,
+  },
+  //
+  imageModeEnabled: false,
+  imageModeLegendSelected: false,
+  // image mode capture rectangle (screen space)
+  imageModeAspectRatio: "LANDSCAPE", // "LANDSCAPE" | "SQUARE" | "PORTRAIT"
+  imageModeHighRes: false, // when true, captureMapAsPng doubles the output pixel ratio
+  imageModeShowWatermark: false, // when true, render the org's watermark SVG inside the capture rect
+  imageModeShowLogo: false, // when true, render the org's logo SVG anchored bottom-right of the capture rect
+  imageModeWhiteBackground: false, // when true, captureMapAsPng fills the canvas with white (no transparency)
+  // legend overlay: position/size in pixels relative to the capture rect.
+  // x/y default to null → resolved at render time to "top-right" of the
+  // capture rect (so the default works for any aspect ratio + viewport).
+  // The user dragging pins them to numeric pixel values.
+  imageModeLegendOverlay: {
+    x: null,
+    y: null,
+    width: 240,
+    fontSize: 12,
+    showQty: true,
+  },
   //
   selectedAnnotationTemplateId: null,
 
@@ -225,6 +252,37 @@ export const mapEditorSlice = createSlice({
     // Legend
     setLegendFormat: (state, action) => {
       state.legendFormat = action.payload;
+    },
+
+    // Image mode
+    setImageModeEnabled: (state, action) => {
+      state.imageModeEnabled = action.payload;
+      if (!action.payload) state.imageModeLegendSelected = false;
+    },
+    toggleImageModeEnabled: (state) => {
+      state.imageModeEnabled = !state.imageModeEnabled;
+      if (!state.imageModeEnabled) state.imageModeLegendSelected = false;
+    },
+    setImageModeLegendSelected: (state, action) => {
+      state.imageModeLegendSelected = action.payload;
+    },
+    setImageModeAspectRatio: (state, action) => {
+      state.imageModeAspectRatio = action.payload;
+    },
+    setImageModeLegendOverlay: (state, action) => {
+      state.imageModeLegendOverlay = action.payload;
+    },
+    setImageModeHighRes: (state, action) => {
+      state.imageModeHighRes = action.payload;
+    },
+    setImageModeShowWatermark: (state, action) => {
+      state.imageModeShowWatermark = action.payload;
+    },
+    setImageModeShowLogo: (state, action) => {
+      state.imageModeShowLogo = action.payload;
+    },
+    setImageModeWhiteBackground: (state, action) => {
+      state.imageModeWhiteBackground = action.payload;
     },
 
     // Wrapper mode
@@ -561,6 +619,16 @@ export const {
   setTempAnnotationToolbarPosition,
   //
   setLegendFormat,
+  //
+  setImageModeEnabled,
+  toggleImageModeEnabled,
+  setImageModeLegendSelected,
+  setImageModeAspectRatio,
+  setImageModeLegendOverlay,
+  setImageModeHighRes,
+  setImageModeShowWatermark,
+  setImageModeShowLogo,
+  setImageModeWhiteBackground,
   //
   setSelectedAnnotationTemplateId,
   // baseMap

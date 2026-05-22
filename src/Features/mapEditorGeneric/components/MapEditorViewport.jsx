@@ -268,6 +268,7 @@ const MapEditorViewport = forwardRef(({
         <div style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
             <svg
                 ref={svgRef}
+                data-capture-keep
                 width="100%"
                 height="100%"
                 onMouseMove={handleMouseMove} // Hover (calcul coordonnées)
