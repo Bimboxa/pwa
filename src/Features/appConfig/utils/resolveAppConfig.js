@@ -37,8 +37,10 @@ const IMAGE_TRANSFORMATION_PROMPTS_LOADERS = import.meta.glob("../../../Data/*/i
   eager: false,
 });
 
-// Dynamic loader for Data files
-const DATA_LOADERS = import.meta.glob("../../../Data/**/*", {
+// Dynamic loader for Data files (JS modules referenced via `importFromData`).
+// Keep this narrow: a `Data/**/*` glob would also match .md/.css/.json files
+// that Vite would then try to parse as JS at build time.
+const DATA_LOADERS = import.meta.glob("../../../Data/**/*.js", {
   eager: false,
 });
 
