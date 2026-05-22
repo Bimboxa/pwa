@@ -1376,7 +1376,9 @@ function PopperDrawingHelper() {
   const isSegmentSelectMode = SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
   const showSmartDetectCard = SMART_DETECT_CAPABLE_MODES.includes(enabledDrawingMode);
   const showOrientation = ORIENTATION_CAPABLE_MODES.includes(enabledDrawingMode);
-  const showAutoMerge = enabledDrawingMode === "POLYGON_RECTANGLE";
+  const showAutoMerge =
+    enabledDrawingMode === "POLYGON_RECTANGLE" ||
+    enabledDrawingMode === "POLYGON_CLICK";
   const showAutoOffsets = enabledDrawingMode === "POLYGON_CLICK";
   const showAvoidVisibleAnnotations =
     enabledDrawingMode === "POLYGON_RECTANGLE" ||

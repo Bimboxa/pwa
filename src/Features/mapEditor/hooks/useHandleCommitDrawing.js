@@ -713,12 +713,14 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         }
 
 
-        // Auto-merge : on commit of a POLYGON drawn via the RECTANGLE tool, try to
-        // absorb overlapping same-template polygons on the same baseMap / listing.
-        // The newly-committed polygon stays as the winner.
+        // Auto-merge : on commit of a POLYGON drawn via the RECTANGLE or
+        // point-by-point CLICK tool, try to absorb overlapping same-template
+        // polygons on the same baseMap / listing. The newly-committed polygon
+        // stays as the winner.
         const shouldAutoMerge = (
             autoMergeOnCommit &&
-            enabledDrawingMode === "POLYGON_RECTANGLE" &&
+            (enabledDrawingMode === "POLYGON_RECTANGLE" ||
+             enabledDrawingMode === "POLYGON_CLICK") &&
             newAnnotation?.type === "POLYGON" &&
             _newAnnotation?.annotationTemplateId &&
             !isBaseMapAnnotation
