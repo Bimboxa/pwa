@@ -59,7 +59,7 @@ function SectionBlock({ children }) {
         border: (theme) => `1px solid ${theme.palette.divider}`,
         display: "flex",
         flexDirection: "column",
-        gap: 1,
+        gap: 0.5,
       }}
     >
       {children}
@@ -229,7 +229,7 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
             value={showQty}
             onChange={handleToggleShowQty}
             label="Afficher les quantités"
-            options={{ type: "switch" }}
+            options={{ type: "switch", showAsInline: true }}
           />
         </SectionBlock>
       </Box>
@@ -242,13 +242,13 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
             value={showWatermark}
             onChange={handleToggleWatermark}
             label="Watermark"
-            options={{ type: "switch" }}
+            options={{ type: "switch", showAsInline: true }}
           />
           <FieldCheck
             value={showLogo}
             onChange={handleToggleLogo}
             label="Afficher le logo"
-            options={{ type: "switch" }}
+            options={{ type: "switch", showAsInline: true }}
           />
         </SectionBlock>
       </Box>
@@ -261,14 +261,14 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
             value={highRes}
             onChange={handleToggleHighRes}
             label="Haute définition"
-            options={{ type: "switch" }}
+            options={{ type: "switch", showAsInline: true }}
           />
 
           <FieldCheck
             value={whiteBackground}
             onChange={handleToggleWhiteBackground}
             label="Fond blanc"
-            options={{ type: "switch" }}
+            options={{ type: "switch", showAsInline: true }}
           />
 
           <Button
