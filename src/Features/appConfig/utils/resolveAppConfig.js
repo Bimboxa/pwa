@@ -55,6 +55,25 @@ const DATA_IMAGE_URL_LOADERS = import.meta.glob(
   { as: "url", eager: false }
 );
 
+// Documentation: per-org Markdown pages, sidebar manifest, and optional CSS.
+// Lives under Data/<orga>/documentation/.
+const DOCUMENTATION_MD_LOADERS = import.meta.glob(
+  "../../../Data/*/documentation/**/*.md",
+  { query: "?raw", import: "default", eager: false }
+);
+const DOCUMENTATION_SIDEBAR_LOADERS = import.meta.glob(
+  "../../../Data/*/documentation/sidebar.json",
+  { eager: false }
+);
+const DOCUMENTATION_CSS_LOADERS = import.meta.glob(
+  "../../../Data/*/documentation/**/*.css",
+  { query: "?raw", import: "default", eager: false }
+);
+const DOCUMENTATION_IMAGE_LOADERS = import.meta.glob(
+  "../../../Data/*/documentation/**/*.{png,jpg,jpeg,webp,svg,gif}",
+  { query: "?url", import: "default", eager: false }
+);
+
 export default async function resolveAppConfig(appConfig) {
   // edge case
 
@@ -188,6 +207,65 @@ export default async function resolveAppConfig(appConfig) {
         newAppConfig.imageTransformationPrompts = module.default;
       } catch (error) {
         console.error(`[resolveAppConfig] Error loading imageTransformationPrompts for "${orgaCode}":`, error);
+      }
+    }
+  }
+
+  // documentation - per-org Markdown docs (Docusaurus-style).
+  // Opt-in: enabled only if a sidebar.json exists for this org.
+  if (orgaCode) {
+    const sidebarKey = `../../../Data/${orgaCode}/documentation/sidebar.json`;
+    const sidebarLoader = DOCUMENTATION_SIDEBAR_LOADERS[sidebarKey];
+
+    if (sidebarLoader) {
+      try {
+        const sidebarModule = await sidebarLoader();
+        const sidebar = sidebarModule.default ?? sidebarModule;
+
+        const docPrefix = `../../../Data/${orgaCode}/documentation/`;
+
+        const pageLoaders = {};
+        for (const [path, loader] of Object.entries(DOCUMENTATION_MD_LOADERS)) {
+          if (!path.startsWith(docPrefix)) continue;
+          const id = path.slice(docPrefix.length).replace(/\.md$/, "");
+          pageLoaders[id] = loader;
+        }
+
+        const imageLoaders = {};
+        for (const [path, loader] of Object.entries(DOCUMENTATION_IMAGE_LOADERS)) {
+          if (!path.startsWith(docPrefix)) continue;
+          const relPath = path.slice(docPrefix.length);
+          imageLoaders[relPath] = loader;
+        }
+
+        let customCss = null;
+        const customCssKey = `${docPrefix}custom.css`;
+        const cssLoader = DOCUMENTATION_CSS_LOADERS[customCssKey];
+        if (cssLoader) {
+          try {
+            customCss = await cssLoader();
+          } catch (error) {
+            console.error(
+              `[resolveAppConfig] Error loading documentation custom.css:`,
+              error
+            );
+          }
+        }
+
+        newAppConfig.features = newAppConfig.features ?? {};
+        newAppConfig.features.documentation = {
+          enabled: true,
+          basePath: `Data/${orgaCode}/documentation`,
+          sidebar,
+          pageLoaders,
+          imageLoaders,
+          customCss,
+        };
+      } catch (error) {
+        console.error(
+          `[resolveAppConfig] Error resolving documentation for "${orgaCode}":`,
+          error
+        );
       }
     }
   }

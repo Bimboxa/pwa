@@ -4,6 +4,7 @@ import { Box, Typography } from "@mui/material";
 
 import ButtonAppVersion from "App/components/ButtonAppVersion";
 import ButtonDialogAppConfig from "Features/appConfig/components/ButtonDialogAppConfig";
+import ButtonDocumentation from "Features/documentation/components/ButtonDocumentation";
 import HelperClickInBgPosition from "Features/mapEditor/components/HelperClickInBgPosition";
 import useHelperMessageInBottomBar from "Features/mapEditor/hooks/useHelperMessageInBottomBar";
 import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
@@ -91,6 +92,7 @@ export default function BottomBarDesktop() {
         <ButtonSigninV2 />
         <ButtonAppVersion />
         <ButtonDialogAppConfig />
+        <ButtonDocumentation />
       </Box>
 
       {helperMessage && (
