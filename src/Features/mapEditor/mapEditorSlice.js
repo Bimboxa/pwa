@@ -55,10 +55,17 @@ const mapEditorInitialState = {
   imageModeLegendSelected: false,
   // image mode capture rectangle (screen space)
   imageModeAspectRatio: "LANDSCAPE", // "LANDSCAPE" | "SQUARE" | "PORTRAIT"
-  // legend overlay: position/size in pixels relative to the capture rect origin
+  imageModeHighRes: false, // when true, captureMapAsPng doubles the output pixel ratio
+  imageModeShowWatermark: false, // when true, render the org's watermark SVG inside the capture rect
+  imageModeShowLogo: false, // when true, render the org's logo SVG anchored bottom-right of the capture rect
+  imageModeWhiteBackground: false, // when true, captureMapAsPng fills the canvas with white (no transparency)
+  // legend overlay: position/size in pixels relative to the capture rect.
+  // x/y default to null → resolved at render time to "top-right" of the
+  // capture rect (so the default works for any aspect ratio + viewport).
+  // The user dragging pins them to numeric pixel values.
   imageModeLegendOverlay: {
-    x: 16,
-    y: 16,
+    x: null,
+    y: null,
     width: 240,
     fontSize: 12,
     showQty: true,
@@ -264,6 +271,18 @@ export const mapEditorSlice = createSlice({
     },
     setImageModeLegendOverlay: (state, action) => {
       state.imageModeLegendOverlay = action.payload;
+    },
+    setImageModeHighRes: (state, action) => {
+      state.imageModeHighRes = action.payload;
+    },
+    setImageModeShowWatermark: (state, action) => {
+      state.imageModeShowWatermark = action.payload;
+    },
+    setImageModeShowLogo: (state, action) => {
+      state.imageModeShowLogo = action.payload;
+    },
+    setImageModeWhiteBackground: (state, action) => {
+      state.imageModeWhiteBackground = action.payload;
     },
 
     // Wrapper mode
@@ -606,6 +625,10 @@ export const {
   setImageModeLegendSelected,
   setImageModeAspectRatio,
   setImageModeLegendOverlay,
+  setImageModeHighRes,
+  setImageModeShowWatermark,
+  setImageModeShowLogo,
+  setImageModeWhiteBackground,
   //
   setSelectedAnnotationTemplateId,
   // baseMap

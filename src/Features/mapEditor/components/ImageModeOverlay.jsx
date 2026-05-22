@@ -37,6 +37,19 @@ export default function ImageModeOverlay({
 
   const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
   const overlay = useSelector((s) => s.mapEditor.imageModeLegendOverlay);
+  const showWatermark = useSelector(
+    (s) => s.mapEditor.imageModeShowWatermark
+  );
+  const watermarkUrl = useSelector(
+    (s) =>
+      s.appConfig.value?.features?.watermark?.urlsByAspectRatio?.[
+        s.mapEditor.imageModeAspectRatio
+      ] ?? null
+  );
+  const showLogo = useSelector((s) => s.mapEditor.imageModeShowLogo);
+  const logoUrl = useSelector(
+    (s) => s.appConfig.value?.features?.watermark?.logoUrl ?? null
+  );
 
   // Use the same hook as Portfolio's LegendBlockSvg so the legend items
   // (shape, ordering, groupings) match exactly.
@@ -47,6 +60,13 @@ export default function ImageModeOverlay({
     viewportHeight,
     aspectRatio
   );
+
+  // Resolve x/y null → default top-right of the capture rect. As soon as
+  // the user drags, x/y become numeric and stick.
+  const DEFAULT_PADDING = 16;
+  const resolvedX =
+    overlay.x ?? Math.max(0, rect.width - overlay.width - DEFAULT_PADDING);
+  const resolvedY = overlay.y ?? DEFAULT_PADDING;
 
   // measure legend height (provided by NodeLegendStatic)
   const [legendHeight, setLegendHeight] = useState(60);
@@ -120,11 +140,13 @@ export default function ImageModeOverlay({
   function startMove(e) {
     e.preventDefault();
     e.stopPropagation();
+    // Seed the drag with resolved pixel values so dragging from the
+    // default (null) position works smoothly.
     dragRef.current = {
       type: "MOVE",
       startX: e.clientX,
       startY: e.clientY,
-      base: { ...overlayRef.current },
+      base: { ...overlayRef.current, x: resolvedX, y: resolvedY },
     };
     document.body.style.cursor = "grabbing";
   }
@@ -136,14 +158,14 @@ export default function ImageModeOverlay({
       type: "RESIZE",
       startX: e.clientX,
       startY: e.clientY,
-      base: { ...overlayRef.current },
+      base: { ...overlayRef.current, x: resolvedX, y: resolvedY },
     };
     document.body.style.cursor = "ew-resize";
   }
 
   // legend origin in viewport coords
-  const legendX = rect.left + overlay.x;
-  const legendY = rect.top + overlay.y;
+  const legendX = rect.left + resolvedX;
+  const legendY = rect.top + resolvedY;
 
   // render
 
@@ -203,8 +225,48 @@ export default function ImageModeOverlay({
         />
       </g>
 
+      {/* WATERMARK (above the map, below the legend).
+          The SVG asset is authored in mid-grey (stroke #888); opacity
+          on the `<image>` softens it further. */}
+      {showWatermark && watermarkUrl && (
+        <image
+          data-capture-keep
+          href={watermarkUrl}
+          x={rect.left}
+          y={rect.top}
+          width={rect.width}
+          height={rect.height}
+          preserveAspectRatio="xMidYMid meet"
+          opacity={0.5}
+          style={{ pointerEvents: "none" }}
+        />
+      )}
+
+      {/* LOGO (anchored bottom-right of the capture rect, 60px from bottom).
+          Sized 200x50 (4:1 aspect). */}
+      {showLogo && logoUrl && (() => {
+        const LOGO_W = 200;
+        const LOGO_H = 50;
+        const BOTTOM_MARGIN = 60;
+        const x = rect.left + rect.width - LOGO_W;
+        const y = rect.top + rect.height - BOTTOM_MARGIN - LOGO_H;
+        return (
+          <image
+            data-capture-keep
+            href={logoUrl}
+            x={x}
+            y={y}
+            width={LOGO_W}
+            height={LOGO_H}
+            preserveAspectRatio="xMaxYMax meet"
+            style={{ pointerEvents: "none" }}
+          />
+        );
+      })()}
+
       {/* LEGEND OVERLAY (inside the capture rect) */}
       <g
+        data-capture-keep
         transform={`translate(${legendX}, ${legendY})`}
         onMouseDown={startMove}
         style={{ cursor: "grab" }}

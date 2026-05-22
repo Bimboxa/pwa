@@ -46,6 +46,7 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
             {/* BaseMapSelector moved to TopBarDesktop for both MAP and BASE_MAPS viewers */}
 
             <Box
+                data-capture-hide
                 sx={{
                     position: "absolute",
                     left: "8px",
@@ -77,6 +78,7 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
             {/* ToolbarMapEditorV3 removed — harmonize icon buttons (#67) */}
 
             {showEditScale && <Box
+                data-capture-hide
                 sx={{
                     position: "absolute",
                     left: "16px",
@@ -104,15 +106,18 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
 
 
 
-            <Box sx={{
-                position: "absolute",
-                right: "16px",
-                bottom: "16px",
-                zIndex: 1,
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-            }}>
+            <Box
+                data-capture-hide
+                sx={{
+                    position: "absolute",
+                    right: "16px",
+                    bottom: "16px",
+                    zIndex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                }}
+            >
                 <SelectorOrthoSnap />
                 {/* "Modification rapide des points" (QUICK_POINTS_CHANGE) is now
                     automatically active when PopperMapListings is in DRAW mode,

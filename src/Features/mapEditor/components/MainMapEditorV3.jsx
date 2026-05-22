@@ -64,7 +64,6 @@ import useSurfaceDropBarrierMask from "Features/smartDetect/hooks/useSurfaceDrop
 import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCreateAnnotationFromSurfaceDrop";
 import LayerSurfaceDropPreview from "./LayerSurfaceDropPreview";
 import PopperMapListings from "./PopperMapListings";
-import ToolbarImageMode from "./ToolbarImageMode";
 import ImageModeOverlay from "./ImageModeOverlay";
 
 
@@ -1592,7 +1591,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             <LayerTools />
             <LayerCreateBaseMap />
 
-            {!versionCompareEnabled && !imageModeActive && <PopperMapListings />}
+            {!versionCompareEnabled && <PopperMapListings />}
 
             {imageModeActive && (
                 <ImageModeOverlay
@@ -1603,8 +1602,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     qtiesById={legendQtiesById}
                 />
             )}
-
-            {isMapViewer && <ToolbarImageMode viewerKey={forViewerKey} />}
         </Box>
         </DrawingMetricsProvider>
         </SmartZoomProvider>

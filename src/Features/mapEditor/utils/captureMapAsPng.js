@@ -7,10 +7,14 @@ import getCaptureRectBounds from "./getCaptureRectBounds";
 /**
  * Capture only the area inside the image-mode rectangle as a PNG.
  *
- * The whole host (`[data-image-capture-host="{viewerKey}"]`) is rendered to
- * a canvas via html-to-image, then cropped to the rectangle bounds. Elements
- * marked `[data-capture-hide]` (toolbar, dim mask, resize handle, etc.) are
- * temporarily hidden so the export is clean.
+ * Whitelist-based: only elements explicitly marked `data-capture-keep`
+ * (and their descendants) are visible during capture. Everything else
+ * inside the host is hidden — so any UI added in the future (poppers,
+ * toolbars, side panels…) is automatically excluded from the screenshot
+ * unless someone deliberately opts in.
+ *
+ * `data-capture-hide` still works inside keep zones (e.g. the legend's
+ * resize handle sits inside the legend group but should not be captured).
  *
  * @param {Object} opts
  * @param {string} opts.viewerKey
@@ -25,6 +29,7 @@ export default async function captureMapAsPng({
   fileName = "map.png",
   aspectRatio = "LANDSCAPE",
   pixelRatio = 2,
+  whiteBackground = false,
 } = {}) {
   const host = document.querySelector(
     `[data-image-capture-host="${viewerKey}"]`
@@ -44,24 +49,48 @@ export default async function captureMapAsPng({
   );
   if (rect.width <= 0 || rect.height <= 0) return;
 
-  // Temporarily hide editing chrome (toolbars, dim mask, handles, etc.)
-  const hidden = host.querySelectorAll("[data-capture-hide]");
-  const restore = [];
-  hidden.forEach((el) => {
-    restore.push([el, el.style.visibility]);
+  // Build the visibility plan.
+  //
+  // html-to-image's clone process doesn't reliably cascade inherited
+  // `visibility: hidden` from a parent to its descendants, so we set
+  // it explicitly on every descendant. Three passes:
+  //   1. Hide every descendant of the host.
+  //   2. Re-show each `[data-capture-keep]` element AND all its descendants.
+  //   3. Re-hide each `[data-capture-hide]` element AND all its descendants
+  //      (so e.g. the legend's resize handle, which sits inside a keep zone,
+  //      still gets hidden).
+  const allDescendants = Array.from(host.querySelectorAll("*"));
+  const restoreList = allDescendants.map((el) => [el, el.style.visibility]);
+
+  allDescendants.forEach((el) => {
     el.style.visibility = "hidden";
+  });
+
+  host.querySelectorAll("[data-capture-keep]").forEach((keep) => {
+    keep.style.visibility = "visible";
+    keep.querySelectorAll("*").forEach((child) => {
+      child.style.visibility = "visible";
+    });
+  });
+
+  host.querySelectorAll("[data-capture-hide]").forEach((hide) => {
+    hide.style.visibility = "hidden";
+    hide.querySelectorAll("*").forEach((child) => {
+      child.style.visibility = "hidden";
+    });
   });
 
   try {
     const fullCanvas = await htmlToImage.toCanvas(host, {
       pixelRatio,
-      // bgcolor avoids transparent regions where the SVG has no fill (the
-      // base map area), which would otherwise come out checkered when
-      // pasted into Word/Slides.
-      backgroundColor: "#ffffff",
+      // Optional white background: when enabled, fills the canvas before
+      // drawing so the cropped PNG has no transparency (useful for
+      // pasting into Word / Slides). Otherwise the unrendered (hidden)
+      // areas stay transparent.
+      ...(whiteBackground ? { backgroundColor: "#ffffff" } : {}),
     });
 
-    // Crop to the rect bounds (account for pixelRatio scaling).
+    // Crop the canvas to the capture rectangle (in pixel-ratio space).
     const sx = rect.left * pixelRatio;
     const sy = rect.top * pixelRatio;
     const sw = rect.width * pixelRatio;
@@ -93,8 +122,9 @@ export default async function captureMapAsPng({
       downloadBlob(blob, fileName);
     }
   } finally {
-    restore.forEach(([el, prev]) => {
-      el.style.visibility = prev;
+    // Restore every descendant's visibility to whatever it was before.
+    restoreList.forEach(([el, v]) => {
+      el.style.visibility = v;
     });
   }
 }

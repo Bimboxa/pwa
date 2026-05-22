@@ -1,10 +1,12 @@
 // Centered rectangle inside a viewport, matching one of three aspect ratios.
 // Returns the rect bounds in pixels (viewport-local coords).
 
+// A4 paper: 210mm × 297mm. We match its aspect ratio for landscape and
+// portrait so the captured PNG drops cleanly into Word/PDF page layouts.
 const ASPECT_RATIOS = {
-  LANDSCAPE: 16 / 9,
+  LANDSCAPE: 297 / 210, // ≈ 1.4143
   SQUARE: 1,
-  PORTRAIT: 9 / 16,
+  PORTRAIT: 210 / 297, // ≈ 0.7071
 };
 
 export default function getCaptureRectBounds(
