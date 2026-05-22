@@ -38,6 +38,7 @@ import PageScopeLoader from "Features/scopes/components/PageScopeLoader";
 import { startDexieSync } from "App/dexieSyncService";
 import useNetworkStatus from "Features/auth/hooks/useNetworkStatus";
 import PageDownloadKrtro from "Features/krtoFile/components/PageDownloadKrto";
+import PageDocumentation from "Features/documentation/components/PageDocumentation";
 
 startDexieSync();
 
@@ -92,6 +93,14 @@ function App({ pca, runningIn }) {
                     <Route
                       path="/download/:mediaId"
                       element={<PageDownloadKrtro />}
+                    />
+                    <Route
+                      path="/documentation"
+                      element={<PageDocumentation />}
+                    />
+                    <Route
+                      path="/documentation/*"
+                      element={<PageDocumentation />}
                     />
                   </Routes>
                 </AuthGate>
