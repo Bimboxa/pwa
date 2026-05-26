@@ -30,6 +30,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   const showClose = options?.showClose;
   const isNumber = options?.isNumber;
   const changeOnBlur = options?.changeOnBlur;
+  const startAdornment = options?.startAdornment; // string | ReactNode
 
   const [recording, setRecording] = useState(false);
 
@@ -97,6 +98,17 @@ export default function FieldTextV2({ value, onChange, options, label }) {
     onKeyDown={(e) => e.stopPropagation()}
     slotProps={{
       input: {
+        startAdornment: startAdornment ? (
+          <InputAdornment position="start" sx={{ mr: 0.5 }}>
+            {typeof startAdornment === "string" ? (
+              <Typography variant="body2" color="text.secondary">
+                {startAdornment}
+              </Typography>
+            ) : (
+              startAdornment
+            )}
+          </InputAdornment>
+        ) : null,
         endAdornment:
           tempValue && !readOnly && showClose ? (
             <InputAdornment position="end">

@@ -4,11 +4,12 @@ import { useSelector, useDispatch } from "react-redux"
 import { setPageNumber } from "Features/baseMapCreator/baseMapCreatorSlice"
 import { setRotate, setPdfFile, setTempBaseMaps } from "Features/baseMapCreator/baseMapCreatorSlice"
 
+import usePdfDocument from "Features/pdf/hooks/usePdfDocument"
 import usePdfThumbnails from "Features/pdf/hooks/usePdfThumbnails"
 import usePdfPageImageUrl from "../hooks/usePdfPageImageUrl"
 
 // Ajout de Skeleton dans les imports
-import { Box, Typography, Skeleton, IconButton } from "@mui/material"
+import { Box, Typography, Skeleton, IconButton, Chip, CircularProgress, LinearProgress } from "@mui/material"
 import { Rotate90DegreesCcw as RotateCcw, Rotate90DegreesCw as RotateCw } from "@mui/icons-material";
 
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight"
@@ -31,10 +32,24 @@ export default function PageBaseMapCreator({ onClose }) {
     const rotate = useSelector(s => s.baseMapCreator.rotate);
 
     // state
-    const { thumbnails, error } = usePdfThumbnails(pdfFile);
-    const imageUrl = usePdfPageImageUrl(pdfFile, pageNumber, rotate);
+    const { pdfDocument, error: pdfError, progress: pdfProgress } = usePdfDocument(pdfFile);
+    const { thumbnails, error } = usePdfThumbnails(pdfDocument, pageNumber);
+    const { imageUrl, isUpgrading } = usePdfPageImageUrl(pdfDocument, pageNumber, rotate);
+    const sourceKey = `${pageNumber}_${rotate}`;
 
-    console.log("thumbnails", thumbnails, error);
+    // Use the page thumbnail (200 px JPEG, generated for the left panel) as
+    // an immediate fallback while the editor-quality render (36 → 72 DPI) is
+    // still in flight. Avoids the long gray-Skeleton gap on heavy vector PDFs.
+    const pageThumbnailUrl = thumbnails[pageNumber - 1]?.imageUrl ?? null;
+    const displayImageUrl = imageUrl ?? pageThumbnailUrl;
+    const isThumbnailFallback = !imageUrl && Boolean(pageThumbnailUrl);
+
+    const isParsingPdf = Boolean(pdfFile) && !pdfDocument && !pdfError;
+    const isPreparingPage = Boolean(pdfDocument) && !displayImageUrl && !pdfError;
+    const pdfProgressPct =
+        pdfProgress && pdfProgress.total > 0
+            ? Math.min(100, Math.round((pdfProgress.loaded / pdfProgress.total) * 100))
+            : null;
 
     const [blueprintScale, setBlueprintScale] = useState("");
 
@@ -53,7 +68,6 @@ export default function PageBaseMapCreator({ onClose }) {
 
     useEffect(() => {
         return () => {
-            console.log("Unmounting PageBaseMapCreator");
             dispatch(setRotate(0));
             dispatch(setPageNumber(1));
             //dispatch(setPdfFile(null));
@@ -83,6 +97,25 @@ export default function PageBaseMapCreator({ onClose }) {
                         position: "relative",
                     }}>
 
+                        {/* Indicateur d'upgrade — toujours monté pour ne pas
+                            déclencher de reflow dans le conteneur mesuré par
+                            PdfImageEditor. Visibilité pilotée par opacity. */}
+                        <Chip
+                            icon={<CircularProgress size={14} />}
+                            label="Amélioration de la qualité…"
+                            size="small"
+                            sx={{
+                                position: "absolute",
+                                top: 56,
+                                right: 8,
+                                zIndex: 3,
+                                bgcolor: "rgba(255,255,255,0.92)",
+                                opacity: displayImageUrl && (isUpgrading || isThumbnailFallback) ? 1 : 0,
+                                pointerEvents: displayImageUrl && (isUpgrading || isThumbnailFallback) ? "auto" : "none",
+                                transition: "opacity 150ms ease",
+                            }}
+                        />
+
                         <Box sx={{
                             p: 0.5,
                             bgcolor: "white",
@@ -97,26 +130,34 @@ export default function PageBaseMapCreator({ onClose }) {
                             <IconButton onClick={() => handleRotate({ counter: true })}>
                                 <RotateCcw />
                             </IconButton>
-                            <Box sx={{ width: 100, minWidth: 100, display: "flex", alignItems: "center" }}>
+                            <Box sx={{ width: 140, minWidth: 140, display: "flex", alignItems: "center" }}>
                                 <FieldTextV2
                                     value={blueprintScale}
                                     onChange={setBlueprintScale}
-                                    label="Echelle 1:"
-                                    options={{ showLabel: true, fullWidth: true, showAsLabelAndValue: true }}
+                                    label="Echelle"
+                                    options={{
+                                        showLabel: true,
+                                        fullWidth: true,
+                                        showAsLabelAndValue: true,
+                                        startAdornment: "1 :",
+                                    }}
                                 />
                             </Box>
-                            <ButtonAddTempImage pdfFile={pdfFile} blueprintScale={blueprintScale} />
+                            <ButtonAddTempImage pdfFile={pdfFile} pdfDocument={pdfDocument} blueprintScale={blueprintScale} />
                         </Box>
 
                         <Box sx={{
                             display: "flex", flexGrow: 1, flexDirection: "column",
                             minHeight: 0,
+                            position: "relative",
                         }}>
-                            {imageUrl ? (
-                                <PdfImageEditor imageUrl={imageUrl} />
+                            {displayImageUrl ? (
+                                <PdfImageEditor imageUrl={displayImageUrl} sourceKey={sourceKey} />
                             ) : (
-                                // Wrapper pour le padding
-                                <Box sx={{ width: "100%", height: "100%", p: 4, boxSizing: "border-box" }}>
+                                <Box sx={{
+                                    width: "100%", height: "100%", p: 4, boxSizing: "border-box",
+                                    position: "relative",
+                                }}>
                                     <Skeleton
                                         variant="rectangular"
                                         width="100%"
@@ -124,6 +165,47 @@ export default function PageBaseMapCreator({ onClose }) {
                                         animation="wave"
                                         sx={{ borderRadius: 1 }}
                                     />
+                                    {(isParsingPdf || isPreparingPage) && (
+                                        <Box sx={{
+                                            position: "absolute",
+                                            inset: 0,
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: 1.5,
+                                            color: "text.secondary",
+                                        }}>
+                                            <CircularProgress size={32} />
+                                            <Typography variant="body2">
+                                                {isParsingPdf
+                                                    ? `Chargement du PDF…${pdfProgressPct !== null ? ` ${pdfProgressPct}%` : ""}`
+                                                    : `Rendu de la page ${pageNumber}…`}
+                                            </Typography>
+                                            {isParsingPdf && pdfProgressPct !== null && (
+                                                <Box sx={{ width: 220 }}>
+                                                    <LinearProgress
+                                                        variant="determinate"
+                                                        value={pdfProgressPct}
+                                                    />
+                                                </Box>
+                                            )}
+                                        </Box>
+                                    )}
+                                    {pdfError && (
+                                        <Box sx={{
+                                            position: "absolute",
+                                            inset: 0,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            color: "error.main",
+                                        }}>
+                                            <Typography variant="body2">
+                                                Erreur de chargement du PDF
+                                            </Typography>
+                                        </Box>
+                                    )}
                                 </Box>
                             )}
                         </Box>

@@ -21,6 +21,8 @@ export default function SelectorPdfPage({ pageNumber, thumbnails, onPageNumberCh
                     // const showPlaceholder = pending || status === "error";
 
                     return (
+                        // keep clickable even when pending so the user can switch
+                        // pages before all thumbnails have finished rendering
                         <ListItemButton
                             selected={selected}
                             key={index}
