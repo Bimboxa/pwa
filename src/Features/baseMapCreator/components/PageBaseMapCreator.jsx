@@ -214,10 +214,13 @@ export default function PageBaseMapCreator({ onClose }) {
 
                     </Box>
 
-                    {/* Colonne de droite : Aperçus */}
+                    {/* Colonne de droite : Aperçus (le panneau gère son propre scroll) */}
                     <Box sx={{
-                        overflow: "auto", minWidth: 0, width: 200,
-                        display: "flex", flexDirection: "column"
+                        minWidth: 0,
+                        width: 300,
+                        display: "flex", flexDirection: "column",
+                        borderTop: theme => `1px solid ${theme.palette.divider}`,
+                        borderLeft: theme => `1px solid ${theme.palette.divider}`,
                     }}>
                         <SectionPreviewBaseMaps />
                     </Box>
