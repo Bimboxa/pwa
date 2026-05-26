@@ -7,8 +7,6 @@ import {
   setImageModeAspectRatio,
   setImageModeLegendOverlay,
   setImageModeHighRes,
-  setImageModeShowWatermark,
-  setImageModeShowLogo,
   setImageModeWhiteBackground,
 } from "../mapEditorSlice";
 
@@ -79,14 +77,11 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
     (s) => s.mapEditor.imageModeLegendOverlay
   );
   const highRes = useSelector((s) => s.mapEditor.imageModeHighRes);
-  const showWatermark = useSelector(
-    (s) => s.mapEditor.imageModeShowWatermark
-  );
-  const showLogo = useSelector((s) => s.mapEditor.imageModeShowLogo);
   const whiteBackground = useSelector(
     (s) => s.mapEditor.imageModeWhiteBackground
   );
   const showQty = overlay?.showQty ?? true;
+  const legendVisible = overlay?.visible ?? true;
   const fontSize = overlay?.fontSize || 12;
 
   // High def doubles the html-to-image pixelRatio (default 2 → 4).
@@ -127,14 +122,6 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
     dispatch(setImageModeHighRes(Boolean(checked)));
   }
 
-  function handleToggleWatermark(checked) {
-    dispatch(setImageModeShowWatermark(Boolean(checked)));
-  }
-
-  function handleToggleLogo(checked) {
-    dispatch(setImageModeShowLogo(Boolean(checked)));
-  }
-
   function handleToggleWhiteBackground(checked) {
     dispatch(setImageModeWhiteBackground(Boolean(checked)));
   }
@@ -154,6 +141,12 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
   function handleToggleShowQty(checked) {
     dispatch(
       setImageModeLegendOverlay({ ...overlay, showQty: Boolean(checked) })
+    );
+  }
+
+  function handleToggleLegendVisible(checked) {
+    dispatch(
+      setImageModeLegendOverlay({ ...overlay, visible: Boolean(checked) })
     );
   }
 
@@ -200,56 +193,48 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
       <Box>
         <SectionTitle>Légende</SectionTitle>
         <SectionBlock>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ mb: -0.5 }}
-          >
-            Taille
-          </Typography>
-          <ToggleButtonGroup
-            value={String(fontSize)}
-            exclusive
-            onChange={handleFontSizeChange}
-            size="small"
-            fullWidth
-          >
-            <ToggleButton value="10">
-              <FormatSize sx={{ fontSize: 14 }} />
-            </ToggleButton>
-            <ToggleButton value="12">
-              <FormatSize sx={{ fontSize: 18 }} />
-            </ToggleButton>
-            <ToggleButton value="14">
-              <FormatSize sx={{ fontSize: 22 }} />
-            </ToggleButton>
-          </ToggleButtonGroup>
+          <FieldCheck
+            value={legendVisible}
+            onChange={handleToggleLegendVisible}
+            label="Afficher la légende"
+            options={{ type: "switch", showAsInline: true }}
+          />
 
-          <FieldCheck
-            value={showQty}
-            onChange={handleToggleShowQty}
-            label="Afficher les quantités"
-            options={{ type: "switch", showAsInline: true }}
-          />
-        </SectionBlock>
-      </Box>
+          {legendVisible && (
+            <>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mb: -0.5 }}
+              >
+                Taille
+              </Typography>
+              <ToggleButtonGroup
+                value={String(fontSize)}
+                exclusive
+                onChange={handleFontSizeChange}
+                size="small"
+                fullWidth
+              >
+                <ToggleButton value="10">
+                  <FormatSize sx={{ fontSize: 14 }} />
+                </ToggleButton>
+                <ToggleButton value="12">
+                  <FormatSize sx={{ fontSize: 18 }} />
+                </ToggleButton>
+                <ToggleButton value="14">
+                  <FormatSize sx={{ fontSize: 22 }} />
+                </ToggleButton>
+              </ToggleButtonGroup>
 
-      {/* MARQUAGE */}
-      <Box>
-        <SectionTitle>Marquage</SectionTitle>
-        <SectionBlock>
-          <FieldCheck
-            value={showWatermark}
-            onChange={handleToggleWatermark}
-            label="Watermark"
-            options={{ type: "switch", showAsInline: true }}
-          />
-          <FieldCheck
-            value={showLogo}
-            onChange={handleToggleLogo}
-            label="Afficher le logo"
-            options={{ type: "switch", showAsInline: true }}
-          />
+              <FieldCheck
+                value={showQty}
+                onChange={handleToggleShowQty}
+                label="Afficher les quantités"
+                options={{ type: "switch", showAsInline: true }}
+              />
+            </>
+          )}
         </SectionBlock>
       </Box>
 

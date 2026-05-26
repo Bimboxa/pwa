@@ -69,6 +69,7 @@ const mapEditorInitialState = {
     width: 240,
     fontSize: 12,
     showQty: true,
+    visible: true,
   },
   //
   selectedAnnotationTemplateId: null,

@@ -265,6 +265,7 @@ export default function ImageModeOverlay({
       })()}
 
       {/* LEGEND OVERLAY (inside the capture rect) */}
+      {overlay.visible !== false && (
       <g
         data-capture-keep
         transform={`translate(${legendX}, ${legendY})`}
@@ -337,6 +338,7 @@ export default function ImageModeOverlay({
           />
         </g>
       </g>
+      )}
     </svg>
   );
 }
