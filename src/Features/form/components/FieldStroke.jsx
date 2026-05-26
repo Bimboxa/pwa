@@ -174,7 +174,7 @@ export default function FieldStroke({ value, onChange, label = "Contour", disabl
           }}>
             <AutoResizeInput
               value={strokeWidth}
-              onChange={(val) => onChange({ ...value, strokeWidth: val })}
+              onChange={(val) => onChange({ ...value, strokeWidth: Number(val) })}
             />
             <Box sx={{ ml: 1, borderLeft: '1px solid', borderColor: 'divider', pl: 1 }}>
               <Button

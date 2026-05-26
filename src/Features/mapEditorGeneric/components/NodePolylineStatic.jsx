@@ -32,6 +32,7 @@ const CURSOR_REMOVE = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.or
 
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import getPolygonSlope from "Features/annotations/utils/getPolygonSlope";
+import coerceAnnotationNumericFields from "Features/annotations/utils/coerceAnnotationNumericFields";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 import NodeLabelStatic from "./NodeLabelStatic";
 import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerOffsetSegmentPath";
@@ -99,8 +100,10 @@ export default function NodePolylineStatic({
     // sinon les segments clignotent quand le curseur les survole pendant le drag.
     const effectiveHoveredPartId = isTransient ? null : hoveredPartId;
 
-    // Fusion des props et overrides
-    const mergedAnnotation = { ...annotation, ...annotationOverride };
+    // Fusion des props et overrides, puis coercion des champs numériques au
+    // cas où des valeurs string traîneraient en base (legacy data) — sinon
+    // `computedStrokeWidth + 1` deviendrait `"3" + 1 === "31"` au hover.
+    const mergedAnnotation = coerceAnnotationNumericFields({ ...annotation, ...annotationOverride });
 
     // --- PROPS EXTRACTION ---
     let {

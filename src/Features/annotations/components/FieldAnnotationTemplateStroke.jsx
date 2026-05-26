@@ -306,7 +306,7 @@ export default function FieldAnnotationTemplateStroke({
             >
               <AutoResizeInput
                 value={strokeWidth}
-                onChange={(val) => onChange({ ...value, strokeWidth: val })}
+                onChange={(val) => onChange({ ...value, strokeWidth: Number(val) })}
               />
               <Box
                 sx={{
