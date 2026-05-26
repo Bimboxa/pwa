@@ -27,6 +27,8 @@ export const OrthoIGN = L.tileLayer(
     style: "normal",
     format: "image/jpeg",
     service: "WMTS",
+    maxZoom: 21,
+    maxNativeZoom: 19,
     crossOrigin: true,
   }
 );
