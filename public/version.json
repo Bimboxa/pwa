@@ -1,4 +1,4 @@
 {
-  "version": "1.5.4",
-  "description": "- Nouveau: détection automatique des mises à jour de l'application.\n- L'application vérifie périodiquement si une nouvelle version est déployée et affiche une notification le cas échéant."
+  "version": "1.6.0",
+  "description": "nouveautés:\n\n* résolution auto à la création d'un fond de plan depuis un plan PDF\n* création d'un fond de plan depuis une image satellite (geo-portail)\n \n\n* détection d'une nouvelle version de Krto"
 }
