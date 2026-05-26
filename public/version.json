@@ -1,0 +1,4 @@
+{
+  "version": "1.5.4",
+  "description": "- Nouveau: détection automatique des mises à jour de l'application.\n- L'application vérifie périodiquement si une nouvelle version est déployée et affiche une notification le cas échéant."
+}

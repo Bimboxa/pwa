@@ -5,7 +5,8 @@ const appConfigSlice = createSlice({
   initialState: {
     appVersion: "1.3.34",
     configCode: null, // updated by useInitAppConfig
-    newVersionAvailable: false,
+    newVersionAvailable: null, // { version, description } | null
+    newVersionDialogOpen: false,
     value: null,
     openAppConfig: false,
     forceUpdateAt: null,
@@ -24,6 +25,9 @@ const appConfigSlice = createSlice({
     },
     setNewVersionAvailable: (state, action) => {
       state.newVersionAvailable = action.payload;
+    },
+    setNewVersionDialogOpen: (state, action) => {
+      state.newVersionDialogOpen = action.payload;
     },
     forceUpdate: (state) => {
       state.forceUpdateAt = Date.now();
@@ -46,6 +50,7 @@ export const {
   setAppConfig,
   setOpenAppConfig,
   setNewVersionAvailable,
+  setNewVersionDialogOpen,
   forceUpdate,
   setUseDefault,
   setEnableMapEditorLegacy,

@@ -1,6 +1,11 @@
+import { useEffect } from "react";
+
 import useInitDeviceType from "Features/layout/hooks/useInitDeviceType";
 
 import useInitAppConfig from "Features/appConfig/hooks/useInitAppConfig";
+import useDetectNewVersion from "Features/appConfig/hooks/useDetectNewVersion";
+
+import { setupSWUpdateListener } from "App/services/sw-update-listener";
 
 import useInitToken from "Features/auth/hooks/useInitToken";
 import useInitUserProfile from "Features/auth/hooks/useInitUserProfile";
@@ -33,6 +38,11 @@ export default function useInit() {
   useInitDeviceType();
 
   useInitAppConfig();
+  useDetectNewVersion();
+
+  useEffect(() => {
+    setupSWUpdateListener();
+  }, []);
 
   useInitWarningWasShowed(); // we need it when the app reload after first connection
 
