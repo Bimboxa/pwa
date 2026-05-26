@@ -15,6 +15,7 @@ import FilesSelectorButton from "Features/files/components/FilesSelectorButton";
 import SelectorImage from "Features/images/components/SelectorImage";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import ButtonOpenSatelliteMapDialog from "Features/satelliteMap/components/ButtonOpenSatelliteMapDialog";
 
 import a3_1_50 from "App/assets/a3_1_50.png";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
@@ -146,6 +147,22 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
             selectedImageUrl={selectedImageUrl}
             onImageFileChange={handleImageFileChange}
             variant="BASE_MAP_CREATOR"
+          />
+        </Box>
+
+        <Box
+          sx={{
+            width: 1,
+            display: "flex",
+            justifyContent: "flex-end",
+            px: 4,
+            pb: 2,
+          }}
+        >
+          <ButtonOpenSatelliteMapDialog
+            listing={listingProp ?? projectBaseMapListings?.[0]}
+            onCreated={onCreated}
+            onClose={onClose}
           />
         </Box>
 
