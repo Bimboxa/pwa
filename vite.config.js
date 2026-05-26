@@ -39,6 +39,9 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         maximumFileSizeToCacheInBytes: 30 * 1024 * 1024, // 5 => 10 for opencv.js 10=>20 for transformers
+        // version.json must always be fetched fresh from the network so the
+        // client can detect when a new app version is deployed.
+        globIgnores: ["**/version.json"],
       },
       includeAssets: [
         "favicon.svg",
