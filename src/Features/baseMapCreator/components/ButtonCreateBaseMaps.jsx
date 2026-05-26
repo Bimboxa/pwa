@@ -49,15 +49,20 @@ export default function ButtonCreateBaseMaps() {
 
     // helpers
 
-    const disabled = !tempBaseMaps.length;
+    const count = tempBaseMaps.length;
+    const disabled = count === 0;
+    const label = count > 0
+        ? `Créer les fonds de plans (${count})`
+        : "Créer les fonds de plans";
 
     return (
         <ButtonGeneric
-            size="small"
-            label="Créer les fonds de plans"
+            size="large"
+            fullWidth
+            label={label}
             onClick={handleCreateClick}
             variant="contained"
-            color="secondary"
+            color="primary"
             disabled={disabled}
             loading={loading}
         />

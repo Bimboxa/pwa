@@ -30,35 +30,58 @@ function centerAspectCrop(mediaWidth, mediaHeight, aspect) {
 
 // --- COMPOSANT PRINCIPAL ---
 
-export default function PdfImageEditor({ imageUrl, onSave, onCancel }) {
+export default function PdfImageEditor({ imageUrl, sourceKey, onSave, onCancel }) {
     const dispatch = useDispatch();
 
     const imgRef = useRef(null);
+    const lastSourceKeyRef = useRef(null);
     const [crop, setCrop] = useState(); // État du cadre visuel
     const [completedCrop, setCompletedCrop] = useState(); // État final validé
-    const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
+    const [aspect, setAspect] = useState(null); // ratio = naturalWidth / naturalHeight
     const [containerRef, bounds] = useMeasure();
 
-
-    console.log("completedCrop", completedCrop)
+    // Compute a stable display size for the <img> from the container bounds
+    // and the page aspect ratio (identical across thumbnail / 36 DPI / 72 DPI),
+    // so quality upgrades don't change the on-screen size.
+    const containerW = Math.max(0, bounds.width - 32);
+    const containerH = Math.max(0, bounds.height - 32);
+    let displayW = null;
+    let displayH = null;
+    if (aspect && containerW > 0 && containerH > 0) {
+        const containerAspect = containerW / containerH;
+        if (aspect > containerAspect) {
+            displayW = containerW;
+            displayH = containerW / aspect;
+        } else {
+            displayH = containerH;
+            displayW = containerH * aspect;
+        }
+    }
 
     // Handler appelé quand l'image est chargée dans le DOM
-    // Sert à initialiser une zone de crop par défaut centrée
+    // Sert à initialiser une zone de crop par défaut centrée — UNIQUEMENT
+    // lorsqu'on charge une nouvelle source (page/rotation différente).
+    // Sur upgrade de qualité de la même source, on conserve le crop courant.
     function onImageLoad(e) {
-        const { width, height, naturalWidth, naturalHeight } = e.currentTarget;
+        const { naturalWidth, naturalHeight } = e.currentTarget;
+        const newAspect = naturalHeight > 0 ? naturalWidth / naturalHeight : null;
 
-        setImgSize({ width: naturalWidth, height: naturalHeight });
-
-        // Initialiser un crop qui prend 100% de l'image
-        const initialCrop = {
-            unit: '%',
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 100
-        };
-        setCrop(initialCrop);
-        dispatch(setBboxInRatio({ x1: 0, y1: 0, x2: 1, y2: 1 }));
+        if (sourceKey !== lastSourceKeyRef.current) {
+            lastSourceKeyRef.current = sourceKey;
+            setAspect(newAspect);
+            const initialCrop = {
+                unit: '%',
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100
+            };
+            setCrop(initialCrop);
+            dispatch(setBboxInRatio({ x1: 0, y1: 0, x2: 1, y2: 1 }));
+        } else if (aspect === null && newAspect !== null) {
+            // safety: aspect couldn't be set yet (e.g. unmount/remount edge)
+            setAspect(newAspect);
+        }
     }
 
     function handleCommitCrop(crop, percentCrop) {
@@ -128,11 +151,15 @@ export default function PdfImageEditor({ imageUrl, onSave, onCancel }) {
                         alt="Crop me"
                         src={imageUrl}
                         style={{
-                            maxWidth: (bounds.width - 32) > 0 ? (bounds.width - 32) : "100%",
-                            maxHeight: (bounds.height - 32) > 0 ? (bounds.height - 32) : "100%",
-                            objectFit: "contain",
-                            display: "block"
-                        }} // Limite visuelle de l'image
+                            // Locked to (containerW × containerH) × aspect — stable
+                            // across thumbnail / 36 DPI / 72 DPI upgrades.
+                            width: displayW ? `${displayW}px` : "auto",
+                            height: displayH ? `${displayH}px` : "auto",
+                            maxWidth: containerW > 0 ? `${containerW}px` : "100%",
+                            maxHeight: containerH > 0 ? `${containerH}px` : "100%",
+                            display: "block",
+                            imageRendering: "auto",
+                        }}
                         onLoad={onImageLoad}
                     />
                 </ReactCrop>
