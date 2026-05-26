@@ -200,11 +200,14 @@ export default function NodePolylineStatic({
         selectedPartId === currentPartId ||
         (Array.isArray(selectedPartIds) && selectedPartIds.includes(currentPartId));
 
-    // Cursor for a clickable part hit-area. When Shift is held, signal whether
-    // a click will add ("+") or remove ("-") that part from the selection.
+    // Cursor for a clickable part hit-area. When Shift is held *and the
+    // annotation is already selected*, signal whether a click will add ("+")
+    // or remove ("-") that part from the segment multi-selection. On an
+    // unselected annotation, Shift means annotation-level multi-select, so
+    // keep the plain pointer.
     const getPartCursor = (currentPartId) => {
         if (isTransient) return "crosshair";
-        if (!isShiftDown) return "pointer";
+        if (!isShiftDown || !selected) return "pointer";
         return isPartSelected(currentPartId) ? CURSOR_REMOVE : CURSOR_ADD;
     };
 

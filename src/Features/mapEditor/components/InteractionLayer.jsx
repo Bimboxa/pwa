@@ -2154,6 +2154,12 @@ const InteractionLayer = forwardRef(({
 
       if (e.repeat) return;
 
+      // Shift outside drawing starts a selection (lasso / shift+click). Hide
+      // any visible snap helper so it can't intercept the next click.
+      if (e.key === "Shift" && !enabledDrawingMode) {
+        snappingLayerRef.current?.update(null);
+      }
+
       // --- Copy/paste: Ctrl/Cmd+C captures the selected annotation as a
       // paste-clipboard snapshot. Only fires on the active viewer.
       if (
@@ -4133,7 +4139,10 @@ const InteractionLayer = forwardRef(({
     // D. SNAPPING
     // Correction : On autorise le snapping pendant le dessin (enabledDrawingMode)
     // On l'interdit seulement pour le Pan ou le Drag d'objets lourds
-    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || POINTER_CLICK_MODES.includes(enabledDrawingMode) || interactionMode === "SELECT";
+    // Shift outside drawing means the user is starting a selection (lasso or
+    // shift+click). Snap helpers would intercept the click — suppress them.
+    const isShiftSelection = !enabledDrawingMode && Boolean(event.shiftKey || event.evt?.shiftKey);
+    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || POINTER_CLICK_MODES.includes(enabledDrawingMode) || interactionMode === "SELECT" || isShiftSelection;
 
     let snapResult;
     if (snappingEnabled && !preventSnapping) {
