@@ -137,9 +137,10 @@ const mapEditorInitialState = {
   smartDetectEnabled: false, // switch "Actif" — when true, active drawing tool triggers its auto-detection algorithm
   smartDetectionPresent: false, // true when a detection is currently available (flashes the Space shortcut badge)
   loupeAspect: "SQUARE", // "SQUARE" | "LANDSCAPE" | "PORTRAIT"
+  smartDetectMode: "HOVER", // "HOVER" (loupe-based, S) | "GLOBAL" (whole-plan, A)
+  globalDetectionRunning: false, // true while the mocked global-detection async run is in flight
 
-  // strip detection orientation (used by STRIP + smart, POLYLINE_CLICK + smart)
-  stripDetectionOrientation: "H", // "H" | "V"
+  // strip detection multi-band (used by STRIP + smart, POLYLINE_CLICK + smart)
   stripDetectionMultiple: false, // false → only the band closest to the loupe center; true → all parallel bands
 
   // printable map (lazy mount for export/pdf only)
@@ -502,13 +503,6 @@ export const mapEditorSlice = createSlice({
     setOrthoSnapAngleOffset: (state, action) => {
       state.orthoSnapAngleOffset = action.payload;
     },
-    setStripDetectionOrientation: (state, action) => {
-      state.stripDetectionOrientation = action.payload;
-    },
-    toggleStripDetectionOrientation: (state) => {
-      state.stripDetectionOrientation =
-        state.stripDetectionOrientation === "H" ? "V" : "H";
-    },
     setStripDetectionMultiple: (state, action) => {
       state.stripDetectionMultiple = action.payload;
     },
@@ -532,6 +526,12 @@ export const mapEditorSlice = createSlice({
     },
     setSmartDetectionPresent: (state, action) => {
       state.smartDetectionPresent = action.payload;
+    },
+    setSmartDetectMode: (state, action) => {
+      state.smartDetectMode = action.payload;
+    },
+    setGlobalDetectionRunning: (state, action) => {
+      state.globalDetectionRunning = action.payload;
     },
 
     // loupe aspect
@@ -695,14 +695,14 @@ export const {
   setOrthoSnapAngleOffset,
 
   // strip detection
-  setStripDetectionOrientation,
-  toggleStripDetectionOrientation,
   setStripDetectionMultiple,
 
   // smart detect
   setSmartDetectEnabled,
   toggleSmartDetectEnabled,
   setSmartDetectionPresent,
+  setSmartDetectMode,
+  setGlobalDetectionRunning,
 
   // loupe aspect
   setLoupeAspect,
