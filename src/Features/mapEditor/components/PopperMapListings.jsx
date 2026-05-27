@@ -1345,10 +1345,6 @@ const SMART_DETECT_CAPABLE_MODES = [
   "SURFACE_DROP",
 ];
 
-// Among the smart-capable modes, the ones that expose an H/V orientation
-// (the rectangle/surface variants don't — orientation is irrelevant there).
-const ORIENTATION_CAPABLE_MODES = ["STRIP", "POLYLINE_CLICK"];
-
 function PopperDrawingHelper() {
   const dispatch = useDispatch();
 
@@ -1375,7 +1371,6 @@ function PopperDrawingHelper() {
   );
   const isSegmentSelectMode = SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
   const showSmartDetectCard = SMART_DETECT_CAPABLE_MODES.includes(enabledDrawingMode);
-  const showOrientation = ORIENTATION_CAPABLE_MODES.includes(enabledDrawingMode);
   const showAutoMerge =
     enabledDrawingMode === "POLYGON_RECTANGLE" ||
     enabledDrawingMode === "POLYGON_CLICK";
@@ -1461,7 +1456,7 @@ function PopperDrawingHelper() {
           </Box>
         )}
         {showSmartDetectCard && (
-          <CardSmartDetect showOrientation={showOrientation} />
+          <CardSmartDetect />
         )}
         {enabledDrawingMode === "SURFACE_DROP" && <SectionSurfaceDropOptions />}
         {showAutoMerge && (

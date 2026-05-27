@@ -285,6 +285,13 @@ class CV {
       timeout: 120000,
     });
   }
+  detectFloorPlanFeaturesAsync(payload) {
+    return this._dispatch({
+      msg: "detectFloorPlanFeaturesAsync",
+      payload,
+      timeout: 60000,
+    });
+  }
 }
 
 // Export the same instant everywhere

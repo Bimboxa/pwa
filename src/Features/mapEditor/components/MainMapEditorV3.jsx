@@ -60,6 +60,7 @@ import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu"
 import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
 import useSaveTempAnnotations from "Features/mapEditor/hooks/useSaveTempAnnotations";
 import useCreateAnnotationsFromDetectedStrips from "Features/smartDetect/hooks/useCreateAnnotationsFromDetectedStrips";
+import useCreateAnnotationsFromDetectedFeatures from "Features/smartDetect/hooks/useCreateAnnotationsFromDetectedFeatures";
 import useSurfaceDropBarrierMask from "Features/smartDetect/hooks/useSurfaceDropBarrierMask";
 import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCreateAnnotationFromSurfaceDrop";
 import LayerSurfaceDropPreview from "./LayerSurfaceDropPreview";
@@ -395,7 +396,19 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const { handleCompleteAnnotationCommit } = useHandleCompleteAnnotation({ newEntity });
     const saveTempAnnotations = useSaveTempAnnotations();
     const createAnnotationsFromDetectedStrips = useCreateAnnotationsFromDetectedStrips();
+    const createAnnotationsFromDetectedFeatures = useCreateAnnotationsFromDetectedFeatures();
     const createAnnotationFromSurfaceDrop = useCreateAnnotationFromSurfaceDrop();
+
+    const handleCommitDetectedFeatures = async ({ features, sourceAnnotation }) => {
+        try {
+            await createAnnotationsFromDetectedFeatures({
+                features,
+                sourceAnnotation: sourceAnnotation ?? newAnnotation,
+            });
+        } catch (err) {
+            console.error("[handleCommitDetectedFeatures] bulk create failed", err);
+        }
+    };
 
     const handleCommitDrawing = (rawPoints, options) => {
 
@@ -1430,6 +1443,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onCommitImageDrop={handleCommitImageDrop}
                     onCommitPointsFromSurfaceDrop={handleCommitPointsFromSurfaceDrop}
                     onCommitSimilarStrips={handleCommitSimilarStrips}
+                    onCommitDetectedFeatures={handleCommitDetectedFeatures}
                     surfaceDropBarrierMask={surfaceDropBarrierMask}
                     baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
                     baseMapImageScale={baseMap?.getImageScale()}

@@ -23,12 +23,11 @@ import {
   setAnchorSourceAnnotationId,
   setOrthoSnapEnabled,
   setFixedLength,
-  setStripDetectionOrientation,
-  toggleStripDetectionOrientation,
   toggleSmartDetectEnabled,
   cycleLoupeAspect,
-  setLoupeAspect,
   setSmartDetectionPresent,
+  setSmartDetectMode,
+  setGlobalDetectionRunning,
   setAutoOffsetsOnCommit,
 } from 'Features/mapEditor/mapEditorSlice';
 import { setColorToReplace } from 'Features/opencv/opencvSlice';
@@ -106,6 +105,7 @@ import TransientDetectedPatternLayer from 'Features/mapEditorGeneric/components/
 import extractAnnotationImagePatch from 'Features/annotations/utils/extractAnnotationImagePatch';
 import transformImageData from 'Features/annotations/utils/transformImageData';
 import runPatternDetection from 'Features/smartDetect/utils/runPatternDetection';
+import runGlobalFloorPlanDetection from 'Features/smartDetect/utils/runGlobalFloorPlanDetection';
 import useCreateAnnotationsFromDetectedMatches from 'Features/annotations/hooks/useCreateAnnotationsFromDetectedMatches';
 import detectPolygonFromAnnotations from 'Features/smartDetect/utils/detectPolygonFromAnnotations';
 import detectStripFromLoupe from 'Features/smartDetect/utils/detectStripFromLoupe';
@@ -181,6 +181,7 @@ const InteractionLayer = forwardRef(({
   onCommitSplitAtVertex,
   onCommitPointsFromSurfaceDrop,
   onCommitSimilarStrips,
+  onCommitDetectedFeatures,
   onCommitImageDrop,
   onMapClickInSelectMode,
   basePose,
@@ -247,6 +248,9 @@ const InteractionLayer = forwardRef(({
   const detectedPolygonRef = useRef(null); // current polygon detection result { outerRing, cuts }
   const transientDetectedStripsRef = useRef(null);
   const detectedSimilarStripsRef = useRef(null); // { strips, sourceAnnotation }
+  // Global smart-detect (A): result holder for the wall/pillar features
+  // produced by runGlobalFloorPlanDetection. Cleared on commit / Escape.
+  const detectedGlobalFeaturesRef = useRef(null); // { features, sourceAnnotation }
   const detectedShapeRef = useRef(null); // current rectangle detection { type, points }
   // Copy/paste pattern detection (Ctrl+C → A/S sub-modes).
   const transientDetectedPatternRef = useRef(null);
@@ -318,11 +322,17 @@ const InteractionLayer = forwardRef(({
   const mapEditorMode = useSelector((s) => s.mapEditor.mapEditorMode);
   const orthoSnapEnabled = useSelector((s) => s.mapEditor.orthoSnapEnabled);
   const orthoSnapAngleOffset = useSelector((s) => s.mapEditor.orthoSnapAngleOffset);
-  const stripDetectionOrientation = useSelector((s) => s.mapEditor.stripDetectionOrientation);
   const stripDetectionMultiple = useSelector((s) => s.mapEditor.stripDetectionMultiple);
   const smartDetectEnabled = useSelector((s) => s.mapEditor.smartDetectEnabled);
+  const smartDetectMode = useSelector((s) => s.mapEditor.smartDetectMode);
+  const globalDetectionRunning = useSelector((s) => s.mapEditor.globalDetectionRunning);
   const autoOffsetsOnCommit = useSelector((s) => s.mapEditor.autoOffsetsOnCommit);
   const loupeAspectRedux = useSelector((s) => s.mapEditor.loupeAspect);
+  // Strip detection orientation is now derived from the loupe aspect (set via F):
+  // LANDSCAPE → "H", PORTRAIT → "V", SQUARE → "H" (fallback). The standalone
+  // orientation control + O shortcut were removed because the underlying algo
+  // is sufficiently driven by the loupe format alone.
+  const stripDetectionOrientation = loupeAspectRedux === "PORTRAIT" ? "V" : "H";
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const rawDetection = useSelector((s) => s.smartDetect.rawDetection);
   const noCuts = useSelector((s) => s.smartDetect.noCuts);
@@ -393,6 +403,7 @@ const InteractionLayer = forwardRef(({
       detectedShapeRef.current ||
       detectedPolygonRef.current ||
       detectedSimilarStripsRef.current ||
+      detectedGlobalFeaturesRef.current ||
       detectedPatternMatchesRef.current
     );
     if (present !== lastSmartDetectionPresentRef.current) {
@@ -1305,31 +1316,6 @@ const InteractionLayer = forwardRef(({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [smartDetectEnabled]);
 
-  // Keep loupe aspect consistent with strip-detection orientation: when the
-  // user toggles orientation, a LANDSCAPE loupe for a V detection (or
-  // PORTRAIT for H) is counter-productive, so auto-flip to the matching
-  // aspect. SQUARE stays untouched — it's compatible with both orientations.
-  useEffect(() => {
-    if (stripDetectionOrientation === "H" && loupeAspectRedux === "PORTRAIT") {
-      dispatch(setLoupeAspect("LANDSCAPE"));
-    } else if (stripDetectionOrientation === "V" && loupeAspectRedux === "LANDSCAPE") {
-      dispatch(setLoupeAspect("PORTRAIT"));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stripDetectionOrientation]);
-
-  // Reverse coupling: when the user cycles the loupe format (F or ToggleButton),
-  // keep the orientation in sync — LANDSCAPE → H, PORTRAIT → V, SQUARE leaves it.
-  useEffect(() => {
-    if (loupeAspectRedux === "LANDSCAPE" && stripDetectionOrientation !== "H") {
-      dispatch(setStripDetectionOrientation("H"));
-    } else if (loupeAspectRedux === "PORTRAIT" && stripDetectionOrientation !== "V") {
-      dispatch(setStripDetectionOrientation("V"));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loupeAspectRedux]);
-
-
 
   // Lasso selection
   function handleLassoSelection({ annotationIds, selectionBox, anchorPosition }) {
@@ -1805,6 +1791,20 @@ const InteractionLayer = forwardRef(({
     smartDetectEnabledRef.current = smartDetectEnabled;
   }, [smartDetectEnabled]);
 
+  const smartDetectModeRef = useRef(smartDetectMode);
+  useEffect(() => {
+    smartDetectModeRef.current = smartDetectMode;
+  }, [smartDetectMode]);
+
+  const globalDetectionRunningRef = useRef(globalDetectionRunning);
+  useEffect(() => {
+    globalDetectionRunningRef.current = globalDetectionRunning;
+  }, [globalDetectionRunning]);
+
+  // AbortController for the in-flight global-detection mock run. Created on
+  // A press, aborted on Escape, cleared after resolve / abort.
+  const globalDetectionAbortRef = useRef(null);
+
   const autoOffsetsOnCommitRef = useRef(autoOffsetsOnCommit);
   useEffect(() => {
     autoOffsetsOnCommitRef.current = autoOffsetsOnCommit;
@@ -1852,6 +1852,11 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     onCommitSimilarStripsRef.current = onCommitSimilarStrips;
   }, [onCommitSimilarStrips]);
+
+  const onCommitDetectedFeaturesRef = useRef(onCommitDetectedFeatures);
+  useEffect(() => {
+    onCommitDetectedFeaturesRef.current = onCommitDetectedFeatures;
+  }, [onCommitDetectedFeatures]);
 
   const onCommitPointsFromSurfaceDropRef = useRef(onCommitPointsFromSurfaceDrop);
   useEffect(() => {
@@ -2388,6 +2393,27 @@ const InteractionLayer = forwardRef(({
             return;
           }
 
+          // Abort an in-flight GLOBAL smart-detect run (spinner phase) without
+          // clearing the rest of the drawing state.
+          if (globalDetectionAbortRef.current) {
+            globalDetectionAbortRef.current.abort();
+            globalDetectionAbortRef.current = null;
+            screenCursorRef.current?.hideSpinner();
+            dispatch(setGlobalDetectionRunning(false));
+            e.stopPropagation();
+            return;
+          }
+
+          // Dismiss a pending GLOBAL feature set (post-run, awaiting Space)
+          // without leaving the drawing tool.
+          if (detectedGlobalFeaturesRef.current) {
+            detectedGlobalFeaturesRef.current = null;
+            transientDetectedStripsRef.current?.clear();
+            syncSmartDetectionPresent();
+            e.stopPropagation();
+            return;
+          }
+
           // Mid-drawing: if points have already been placed, reset just the
           // in-progress points and stay in the current drawing mode so the
           // user can restart the click cycle without re-picking the tool.
@@ -2431,8 +2457,10 @@ const InteractionLayer = forwardRef(({
           transientOrthoPathsRef.current?.clear();
           // Clear polygon detection
           detectedPolygonRef.current = null;
-          // Clear detected similar strips
+          // Clear detected similar strips + global features (share the
+          // same transient layer for the green flash preview).
           detectedSimilarStripsRef.current = null;
+          detectedGlobalFeaturesRef.current = null;
           transientDetectedStripsRef.current?.clear();
           cachedDetectImageUrlRef.current = null;
           transientDetectedPolygonRef.current?.clear();
@@ -2544,6 +2572,24 @@ const InteractionLayer = forwardRef(({
               onCommitSimilarStripsRef.current({ strips, sourceAnnotation });
             }
             detectedSimilarStripsRef.current = null;
+            syncSmartDetectionPresent();
+            transientDetectedStripsRef.current?.clear();
+            return;
+          }
+
+          // --- GLOBAL FLOOR-PLAN DETECTION: commit all detected features ---
+          if (detectedGlobalFeaturesRef.current) {
+            e.preventDefault();
+            const { features, sourceAnnotation } = detectedGlobalFeaturesRef.current;
+            if (features?.length > 0 && onCommitDetectedFeaturesRef.current) {
+              console.log(
+                "[GLOBAL_DETECTION] Committing",
+                features.length,
+                "features",
+              );
+              onCommitDetectedFeaturesRef.current({ features, sourceAnnotation });
+            }
+            detectedGlobalFeaturesRef.current = null;
             syncSmartDetectionPresent();
             transientDetectedStripsRef.current?.clear();
             return;
@@ -2667,20 +2713,68 @@ const InteractionLayer = forwardRef(({
           }
           break;
 
-        case "o":
-          // Toggle H/V orientation for STRIP + smart and POLYLINE_CLICK + smart.
-          if (
-            enabledDrawingMode === "STRIP" ||
-            enabledDrawingMode === "POLYLINE_CLICK"
-          ) {
-            dispatch(toggleStripDetectionOrientation());
-          }
-          break;
-
         case "a":
-          // Toggle the unified smart-detect switch.
-          if (showSmartDetectRef.current) {
-            dispatch(toggleSmartDetectEnabled());
+          // GLOBAL smart-detect: runs the OpenCV wall + pillar detector
+          // (see runGlobalFloorPlanDetection) over the whole baseMap image
+          // with the existing-annotations exclusion mask applied. Spinner
+          // shows on the cursor during the worker run, results flash green
+          // via transientDetectedStripsRef, Space commits them all as new
+          // POLYLINE annotations, Escape aborts.
+          if (showSmartDetectRef.current && !globalDetectionRunningRef.current) {
+            e.preventDefault();
+            const meterByPx = meterByPxRef.current ?? 0;
+            const imageScale = baseMapImageScaleRef.current || 1;
+            const imageOffset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+            const baseMap = calibrationBaseMapRef.current;
+            const na = newAnnotationRef.current;
+            if (!baseMap || !(meterByPx > 0) || !na) {
+              console.warn(
+                "[smartDetect] global run skipped — missing baseMap / scale / annotation template",
+              );
+              break;
+            }
+            dispatch(setSmartDetectMode("GLOBAL"));
+            dispatch(setGlobalDetectionRunning(true));
+            screenCursorRef.current?.showSpinner();
+            const controller = new AbortController();
+            globalDetectionAbortRef.current = controller;
+            runGlobalFloorPlanDetection({
+              signal: controller.signal,
+              baseMap,
+              annotations: annotationsRef.current || [],
+              newAnnotation: na,
+              imageScale,
+              imageOffset,
+              meterByPx,
+            })
+              .then(({ features }) => {
+                if (controller.signal.aborted) return;
+                screenCursorRef.current?.hideSpinner();
+                globalDetectionAbortRef.current = null;
+                dispatch(setGlobalDetectionRunning(false));
+                if (!features?.length) {
+                  console.log("[smartDetect] global run: no features detected");
+                  detectedGlobalFeaturesRef.current = null;
+                  transientDetectedStripsRef.current?.clear();
+                  syncSmartDetectionPresent();
+                  return;
+                }
+                detectedGlobalFeaturesRef.current = {
+                  features,
+                  sourceAnnotation: na,
+                };
+                transientDetectedStripsRef.current?.updateStrips(
+                  features.map((f) => ({ polygon: f.polygon })),
+                );
+                syncSmartDetectionPresent();
+              })
+              .catch((err) => {
+                if (err?.name === "AbortError") return;
+                console.warn("[smartDetect] global run failed", err);
+                screenCursorRef.current?.hideSpinner();
+                globalDetectionAbortRef.current = null;
+                dispatch(setGlobalDetectionRunning(false));
+              });
           }
           break;
 
@@ -2735,6 +2829,13 @@ const InteractionLayer = forwardRef(({
                 drawingLayerRef.current?.updatePreview(lastPreviewPosRef.current);
               });
             }
+            break;
+          }
+          // HOVER smart-detect (formerly bound to A): toggle the loupe-based
+          // detection that runs as the cursor moves.
+          if (showSmartDetectRef.current) {
+            dispatch(setSmartDetectMode("HOVER"));
+            dispatch(toggleSmartDetectEnabled());
           }
           break;
         }
