@@ -127,6 +127,11 @@ const DrawingLayer = forwardRef(
 
     // Détection des types
     const isPolygon = type === "POLYGON";
+
+    // Mirror NodePolylineStatic: for POLYGON the visible stroke matches the
+    // fillColor, so the live drawing preview must do the same — otherwise the
+    // contour color jumps the moment the user finalizes the shape.
+    const effectiveStrokeColor = isPolygon ? fillColor : strokeColor;
     const isStrip = type === "STRIP";
     const drawRectangle = [
       "RECTANGLE",
@@ -497,7 +502,7 @@ const DrawingLayer = forwardRef(
             fill="none"
             {...(isPolygon && { fill: fillColor || "rgba(92, 92, 236, 0.1)" })}
             fillOpacity={newAnnotation?.fillOpacity ?? 0.8}
-            stroke={strokeColor || "#2196f3"}
+            stroke={effectiveStrokeColor || "#2196f3"}
             strokeWidth={2}
             vectorEffect="non-scaling-stroke"
             style={{ display: "none", pointerEvents: "none" }}
@@ -511,7 +516,7 @@ const DrawingLayer = forwardRef(
             fill="none"
             {...(isPolygon && { fill: fillColor || "rgba(92, 92, 236, 0.1)" })}
             fillOpacity={newAnnotation?.fillOpacity ?? 0.8}
-            stroke={strokeColor || "#2196f3"}
+            stroke={effectiveStrokeColor || "#2196f3"}
             strokeWidth={2}
             vectorEffect="non-scaling-stroke"
             style={{ display: "none", pointerEvents: "none" }}
@@ -523,7 +528,7 @@ const DrawingLayer = forwardRef(
         {!drawCote && (
           <path
             d={staticPath}
-            stroke={strokeColor || "blue"}
+            stroke={effectiveStrokeColor || "blue"}
             strokeWidth={2}
             fill="none"
             vectorEffect="non-scaling-stroke"
@@ -539,7 +544,7 @@ const DrawingLayer = forwardRef(
               r={3} // Taille fixe visuelle (avant transform)
               cx={0}
               cy={0} // Centré car on translate via le groupe ou le transform direct
-              fill={strokeColor || "blue"}
+              fill={effectiveStrokeColor || "blue"}
               style={{
                 transform: `translate(${p.x}px, ${p.y}px) ${scaleTransform}`,
                 vectorEffect: "non-scaling-stroke", // Peut-être redundante si on scale le container, mais safe
@@ -553,7 +558,7 @@ const DrawingLayer = forwardRef(
         {!drawRectangle && !(drawCircle && points.length >= 2) && !drawCote && (
           <line
             ref={previewLineRef}
-            stroke={strokeColor || "blue"}
+            stroke={effectiveStrokeColor || "blue"}
             strokeWidth={2}
             strokeDasharray="5,5"
             vectorEffect="non-scaling-stroke"
