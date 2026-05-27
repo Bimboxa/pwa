@@ -1,6 +1,6 @@
 /**
- * Detect walls and pillars from a floor plan image using morphological subtraction
- * and profile-thickness trimming to avoid overshoot artifacts.
+ * Detect walls and pillars from a floor plan image using morphological subtraction,
+ * profile-thickness trimming, and center-alignment corrections.
  */
 async function detectFloorPlanFeaturesAsync({ msg, payload }) {
   const matList = [];
@@ -59,28 +59,87 @@ async function detectFloorPlanFeaturesAsync({ msg, payload }) {
       pillars: [],
     };
 
+    // --- CORRECTION 1 : FORCER LES NOYAUX À ÊTRE IMPAIRS ---
+    let kSize = Math.max(3, Math.floor(minThickness * 0.75));
+    if (kSize % 2 === 0) kSize += 1;
+
     // Nettoyage global pour enlever les textes et lignes de cotes fines
     const cleanBw = track(new cv.Mat());
-    const kSize = Math.max(3, Math.floor(minThickness * 0.75));
     const squareKernel = track(
       cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(kSize, kSize)),
     );
     cv.morphologyEx(bw, cleanBw, cv.MORPH_OPEN, squareKernel);
 
-    // 3. Extraction des grands murs horizontaux et verticaux
+    const cleanBwData = cleanBw.data;
+
+    // 3. Extraction des petits segments / poteaux isolés depuis l'image nettoyée
+    {
+      const contours = track(new cv.MatVector());
+      const hierarchy = track(new cv.Mat());
+      cv.findContours(
+        cleanBw,
+        contours,
+        hierarchy,
+        cv.RETR_LIST,
+        cv.CHAIN_APPROX_SIMPLE,
+      );
+
+      for (let i = 0; i < contours.size(); ++i) {
+        const rect = cv.boundingRect(contours.get(i));
+
+        const isShortW = rect.width < minWallLength;
+        const isShortH = rect.height < minWallLength;
+
+        if (
+          isShortW &&
+          isShortH &&
+          (rect.width >= minThickness || rect.height >= minThickness)
+        ) {
+          if (rect.width >= rect.height) {
+            // Mini segment Horizontal (Correction -0.5px incluse)
+            const centerY = rect.y + rect.height / 2 - 0.5;
+            features.horizontalWalls.push({
+              x1: rect.x,
+              y1: centerY,
+              x2: rect.x + rect.width,
+              y2: centerY,
+              thickness: rect.height,
+            });
+          } else {
+            // Mini segment Vertical (Correction -0.5px incluse)
+            const centerX = rect.x + rect.width / 2 - 0.5;
+            features.verticalWalls.push({
+              x1: centerX,
+              y1: rect.y,
+              x2: centerX,
+              y2: rect.y + rect.height,
+              thickness: rect.width,
+            });
+          }
+        }
+      }
+    }
+
+    // --- CORRECTION 1 (SUITE) : LONGUEURS DE NOYAUX IMPAIRES ---
+    let hKernelLength = minWallLength;
+    if (hKernelLength % 2 === 0) hKernelLength += 1;
+
+    let vKernelLength = minWallLength;
+    if (vKernelLength % 2 === 0) vKernelLength += 1;
+
     const horizontalWallsImg = track(new cv.Mat());
     const hKernel = track(
-      cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(minWallLength, 1)),
+      cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(hKernelLength, 1)),
     );
     cv.morphologyEx(cleanBw, horizontalWallsImg, cv.MORPH_OPEN, hKernel);
 
     const verticalWallsImg = track(new cv.Mat());
     const vKernel = track(
-      cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(1, minWallLength)),
+      cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(1, vKernelLength)),
     );
     cv.morphologyEx(cleanBw, verticalWallsImg, cv.MORPH_OPEN, vKernel);
 
-    // 4. SOUSTRACTION MORPHOLOGIQUE (Pour isoler les carrés et fragments manquants)
+    // 4. SOUSTRACTION MORPHOLOGIQUE (Pour isoler les morceaux restants)
     const reconstructedWalls = track(new cv.Mat());
     cv.bitwise_or(horizontalWallsImg, verticalWallsImg, reconstructedWalls);
 
@@ -90,8 +149,8 @@ async function detectFloorPlanFeaturesAsync({ msg, payload }) {
     const shortElementsImg = track(new cv.Mat());
     cv.bitwise_and(cleanBw, notReconstructed, shortElementsImg);
 
-    // 5. Extraction des segments depuis les images de contours avec Trimming de profil
-    const extractSegments = (binImg, isHorizontal, isShortElement = false) => {
+    // 5. Extraction des grands segments avec Trimming et Correction d'alignement
+    const extractSegments = (binImg, isHorizontal) => {
       const segments = [];
       const contours = track(new cv.MatVector());
       const hierarchy = track(new cv.Mat());
@@ -109,87 +168,79 @@ async function detectFloorPlanFeaturesAsync({ msg, payload }) {
       for (let i = 0; i < contours.size(); ++i) {
         const rect = cv.boundingRect(contours.get(i));
 
-        if (isShortElement && rect.width < 4 && rect.height < 4) continue;
-
         if (isHorizontal) {
           const thickness = rect.height;
-          if (!isShortElement && (thickness < minThickness || thickness > maxThickness))
-            continue;
+          if (thickness < minThickness || thickness > maxThickness) continue;
 
           let x1 = rect.x;
           let x2 = rect.x + rect.width;
 
-          // --- SÉCURITÉ ANTI-EXCROISSANCE POUR LES GRANDS MURS ---
-          if (!isShortElement) {
-            const minProfileCount = Math.max(2, Math.floor(minThickness * 0.5));
+          const minProfileCount = Math.max(2, Math.floor(minThickness * 0.5));
 
-            // Balayage de gauche à droite pour trouver le vrai début fiable
-            for (let x = rect.x; x < rect.x + rect.width; x++) {
-              let colCount = 0;
-              for (let y = rect.y; y < rect.y + rect.height; y++) {
-                if (imgData[y * imgCols + x]) colCount++;
-              }
-              if (colCount >= minProfileCount) {
-                x1 = x;
-                break;
-              }
+          // Balayage de gauche à droite
+          for (let x = rect.x; x < rect.x + rect.width; x++) {
+            let colCount = 0;
+            for (let y = rect.y; y < rect.y + rect.height; y++) {
+              if (imgData[y * imgCols + x]) colCount++;
             }
-
-            // Balayage de droite à gauche pour éliminer les excroissances
-            for (let x = rect.x + rect.width - 1; x >= x1; x--) {
-              let colCount = 0;
-              for (let y = rect.y; y < rect.y + rect.height; y++) {
-                if (imgData[y * imgCols + x]) colCount++;
-              }
-              if (colCount >= minProfileCount) {
-                x2 = x + 1;
-                break;
-              }
+            if (colCount >= minProfileCount) {
+              x1 = x;
+              break;
             }
           }
 
-          const centerY = rect.y + rect.height / 2;
+          // Balayage de droite à gauche (Anti-excroissance)
+          for (let x = rect.x + rect.width - 1; x >= x1; x--) {
+            let colCount = 0;
+            for (let y = rect.y; y < rect.y + rect.height; y++) {
+              if (imgData[y * imgCols + x]) colCount++;
+            }
+            if (colCount >= minProfileCount) {
+              x2 = x + 1;
+              break;
+            }
+          }
+
+          // CORRECTION 2 : AJUSTEMENT -0.5 PX DE L'AXE Y
+          const centerY = rect.y + rect.height / 2 - 0.5;
           if (x2 > x1) {
             segments.push({ x1, y1: centerY, x2, y2: centerY, thickness });
           }
         } else {
           const thickness = rect.width;
-          if (!isShortElement && (thickness < minThickness || thickness > maxThickness))
-            continue;
+          if (thickness < minThickness || thickness > maxThickness) continue;
 
           let y1 = rect.y;
           let y2 = rect.y + rect.height;
 
-          // --- SÉCURITÉ ANTI-EXCROISSANCE POUR LES GRANDS MURS ---
-          if (!isShortElement) {
-            const minProfileCount = Math.max(2, Math.floor(minThickness * 0.5));
+          const minProfileCount = Math.max(2, Math.floor(minThickness * 0.5));
 
-            // Balayage du haut vers le bas
-            for (let y = rect.y; y < rect.y + rect.height; y++) {
-              let rowCount = 0;
-              for (let x = rect.x; x < rect.x + rect.width; x++) {
-                if (imgData[y * imgCols + x]) rowCount++;
-              }
-              if (rowCount >= minProfileCount) {
-                y1 = y;
-                break;
-              }
+          // Balayage du haut vers le bas
+          for (let y = rect.y; y < rect.y + rect.height; y++) {
+            let rowCount = 0;
+            for (let x = rect.x; x < rect.x + rect.width; x++) {
+              if (imgData[y * imgCols + x]) rowCount++;
             }
-
-            // Balayage du bas vers le haut
-            for (let y = rect.y + rect.height - 1; y >= y1; y--) {
-              let rowCount = 0;
-              for (let x = rect.x; x < rect.x + rect.width; x++) {
-                if (imgData[y * imgCols + x]) rowCount++;
-              }
-              if (rowCount >= minProfileCount) {
-                y2 = y + 1;
-                break;
-              }
+            if (rowCount >= minProfileCount) {
+              y1 = y;
+              break;
             }
           }
 
-          const centerX = rect.x + rect.width / 2;
+          // Balayage du bas vers le haut
+          for (let y = rect.y + rect.height - 1; y >= y1; y--) {
+            let rowCount = 0;
+            for (let x = rect.x; x < rect.x + rect.width; x++) {
+              if (imgData[y * imgCols + x]) rowCount++;
+            }
+            if (rowCount >= minProfileCount) {
+              y2 = y + 1;
+              break;
+            }
+          }
+
+          // CORRECTION 2 : AJUSTEMENT -0.5 PX DE L'AXE X
+          const centerX = rect.x + rect.width / 2 - 0.5;
           if (y2 > y1) {
             segments.push({ x1: centerX, y1, x2: centerX, y2, thickness });
           }
@@ -199,10 +250,10 @@ async function detectFloorPlanFeaturesAsync({ msg, payload }) {
     };
 
     // Récupération des grands segments nettoyés des excroissances
-    features.horizontalWalls = extractSegments(horizontalWallsImg, true, false);
-    features.verticalWalls = extractSegments(verticalWallsImg, false, false);
+    features.horizontalWalls = extractSegments(horizontalWallsImg, true);
+    features.verticalWalls = extractSegments(verticalWallsImg, false);
 
-    // Récupération et dispatch des petits éléments issus de la soustraction (inchangé)
+    // Récupération et dispatch des petits éléments issus de la soustraction
     const shortContours = track(new cv.MatVector());
     const shortHierarchy = track(new cv.Mat());
     cv.findContours(
@@ -218,7 +269,8 @@ async function detectFloorPlanFeaturesAsync({ msg, payload }) {
       if (rect.width < 4 && rect.height < 4) continue;
 
       if (rect.width >= rect.height) {
-        const centerY = rect.y + rect.height / 2;
+        // Correction -0.5px incluse
+        const centerY = rect.y + rect.height / 2 - 0.5;
         features.horizontalWalls.push({
           x1: rect.x,
           y1: centerY,
@@ -227,7 +279,8 @@ async function detectFloorPlanFeaturesAsync({ msg, payload }) {
           thickness: rect.height,
         });
       } else {
-        const centerX = rect.x + rect.width / 2;
+        // Correction -0.5px incluse
+        const centerX = rect.x + rect.width / 2 - 0.5;
         features.verticalWalls.push({
           x1: centerX,
           y1: rect.y,
@@ -238,7 +291,7 @@ async function detectFloorPlanFeaturesAsync({ msg, payload }) {
       }
     }
 
-    // 6. Filtrage par densité (Inchangé)
+    // 6. Filtrage par densité final (basé sur bwOrig)
     const bwOrigData = bwOrig.data;
     const bwCols = bwOrig.cols;
     const bwRows = bwOrig.rows;
@@ -291,6 +344,7 @@ async function detectFloorPlanFeaturesAsync({ msg, payload }) {
       (w) => wallPassesDensity(w, false) >= densityMinPassingSamples,
     );
 
+    // Envoi des résultats
     postMessage({
       msg,
       payload: {
@@ -306,6 +360,7 @@ async function detectFloorPlanFeaturesAsync({ msg, payload }) {
     );
     postMessage({ msg, error: errorMessage });
   } finally {
+    // Libération stricte de la mémoire WebAssembly
     matList.forEach((m) => m && !m.isDeleted() && m.delete());
   }
 }
