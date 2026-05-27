@@ -92,8 +92,11 @@ function wallToFeature(wall, isHorizontal, imageScale, imageOffset, meterByPx) {
     { x: wall.x1, y: wall.y1 },
     { x: wall.x2, y: wall.y2 },
   ];
+  // Round to the nearest whole CM — sub-cm precision is meaningless given
+  // pixel-rounding noise in the morphology output and matches what a user
+  // would expect when picking a wall thickness from a standard catalogue.
   const thicknessCm =
-    meterByPx > 0 ? Math.round(wall.thickness * meterByPx * 100 * 10) / 10 : null;
+    meterByPx > 0 ? Math.round(wall.thickness * meterByPx * 100) : null;
   return {
     kind: "WALL",
     closeLine: false,
@@ -140,10 +143,9 @@ function pillarToFeature(pillar, imageScale, imageOffset, meterByPx) {
     imageToLocal(p, imageScale, imageOffset),
   );
 
+  // Same whole-CM rounding as walls — see comment in wallToFeature.
   const thicknessCm =
-    meterByPx > 0
-      ? Math.round(thicknessPx * meterByPx * 100 * 10) / 10
-      : null;
+    meterByPx > 0 ? Math.round(thicknessPx * meterByPx * 100) : null;
 
   return {
     kind: "PILLAR",
