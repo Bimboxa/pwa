@@ -264,11 +264,77 @@ async function detectFloorPlanFeaturesAsync({ msg, payload }) {
       cv.CHAIN_APPROX_SIMPLE,
     );
 
+    // --- ORIENTATION PERPENDICULAIRE AUX GRANDS MURS ADJACENTS ---
+    // Quand un petit bout est "collé" à un grand mur (typiquement une
+    // amorce de T-junction ou un coin que la morpho longue n'a pas
+    // capturé), son axe doit être normal au mur qu'il touche pour ne
+    // pas être confondu avec une simple extension parallèle par les
+    // algos de clean en aval. On compte les pixels foreground des deux
+    // images de grands murs sur les 4 bords immédiatement extérieurs au
+    // bbox du contour : la direction d'adjacence dominante détermine
+    // l'axe perpendiculaire choisi. Si rien n'est adjacent, on retombe
+    // sur le ratio largeur/hauteur du bbox.
+    const hImgData = horizontalWallsImg.data;
+    const vImgData = verticalWallsImg.data;
+    const countAdjacentH = (rect) => {
+      let count = 0;
+      const yAbove = rect.y - 1;
+      if (yAbove >= 0) {
+        const rowOff = yAbove * width;
+        const xEnd = Math.min(width, rect.x + rect.width);
+        for (let x = Math.max(0, rect.x); x < xEnd; x++) {
+          if (hImgData[rowOff + x]) count++;
+        }
+      }
+      const yBelow = rect.y + rect.height;
+      if (yBelow < height) {
+        const rowOff = yBelow * width;
+        const xEnd = Math.min(width, rect.x + rect.width);
+        for (let x = Math.max(0, rect.x); x < xEnd; x++) {
+          if (hImgData[rowOff + x]) count++;
+        }
+      }
+      return count;
+    };
+    const countAdjacentV = (rect) => {
+      let count = 0;
+      const xLeft = rect.x - 1;
+      const yEnd = Math.min(height, rect.y + rect.height);
+      const yStart = Math.max(0, rect.y);
+      if (xLeft >= 0) {
+        for (let y = yStart; y < yEnd; y++) {
+          if (vImgData[y * width + xLeft]) count++;
+        }
+      }
+      const xRight = rect.x + rect.width;
+      if (xRight < width) {
+        for (let y = yStart; y < yEnd; y++) {
+          if (vImgData[y * width + xRight]) count++;
+        }
+      }
+      return count;
+    };
+
     for (let i = 0; i < shortContours.size(); ++i) {
       const rect = cv.boundingRect(shortContours.get(i));
       if (rect.width < 4 && rect.height < 4) continue;
 
-      if (rect.width >= rect.height) {
+      const hAdj = countAdjacentH(rect);
+      const vAdj = countAdjacentV(rect);
+
+      // Adjacence dominante → orientation perpendiculaire.
+      // Pas d'adjacence (hAdj === 0 && vAdj === 0) → on retombe sur le
+      // ratio d'aspect (pillar isolé, fragment libre).
+      let isHorizontalSegment;
+      if (hAdj > vAdj) {
+        isHorizontalSegment = false; // collé à un mur H → segment vertical
+      } else if (vAdj > hAdj) {
+        isHorizontalSegment = true; // collé à un mur V → segment horizontal
+      } else {
+        isHorizontalSegment = rect.width >= rect.height;
+      }
+
+      if (isHorizontalSegment) {
         // Correction -0.5px incluse
         const centerY = rect.y + rect.height / 2 - 0.5;
         features.horizontalWalls.push({
