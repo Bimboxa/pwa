@@ -20,7 +20,8 @@ export default function ButtonDialogAppConfig() {
 
   // helpers
 
-  const label = `${appConfig?.name + "." ?? "-?-"}`;
+  // Avoid rendering "undefined." while the org yaml is still loading.
+  const label = appConfig?.name ? `${appConfig.name}.` : "...";
 
   // handlers
 

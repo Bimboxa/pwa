@@ -12,12 +12,18 @@ const LAST_SEEN_VERSION_KEY = "appLastSeenVersion";
 
 export default function useDetectNewVersion() {
   const dispatch = useDispatch();
-  const bundledVersion = useSelector((s) => s.appConfig.appVersion);
+  // Source the bundled version from the resolved appConfig (loaded from the
+  // org-specific yaml) — same source the version button displays. Stays
+  // undefined until the yaml is loaded, which gates checkVersion below.
+  const bundledVersion = useSelector((s) => s.appConfig.value?.appVersion);
 
   useEffect(() => {
     let cancelled = false;
 
     async function checkVersion() {
+      // Skip until the bundled version is actually resolved — otherwise we'd
+      // compare against a placeholder and surface a spurious "new version".
+      if (!bundledVersion) return;
       try {
         const res = await fetch(`/version.json?t=${Date.now()}`, {
           cache: "no-store",
@@ -25,7 +31,14 @@ export default function useDetectNewVersion() {
         if (!res.ok) return;
         const remote = await res.json();
         if (cancelled) return;
-        if (!remote?.version || remote.version === bundledVersion) return;
+        if (!remote?.version) return;
+        if (remote.version === bundledVersion) {
+          // Versions match — clear any stale "new version available" flag
+          // left over from an earlier dispatch (e.g. the SW listener firing
+          // before the yaml resolved, or a previous session).
+          dispatch(setNewVersionAvailable(null));
+          return;
+        }
 
         dispatch(
           setNewVersionAvailable({
