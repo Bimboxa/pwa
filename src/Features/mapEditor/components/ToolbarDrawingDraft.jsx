@@ -2,11 +2,7 @@ import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { Paper, Box, Divider, Popover, Typography, IconButton } from "@mui/material";
-import {
-  Close as CloseIcon,
-  Lock as LockIcon,
-  LockOpen as LockOpenIcon,
-} from "@mui/icons-material";
+import { Close as CloseIcon } from "@mui/icons-material";
 import { CompactPicker } from "react-color";
 
 import { setEnabledDrawingMode } from "../mapEditorSlice";
@@ -21,6 +17,7 @@ import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
+import FieldAnnotationThickness from "Features/annotations/components/FieldAnnotationThickness";
 
 import theme from "Styles/theme";
 
@@ -46,8 +43,15 @@ export default function ToolbarDrawingDraft() {
   const colorField = isStrokeColor ? "strokeColor" : "fillColor";
 
   const overrideFields = newAnnotation?.overrideFields;
-  const isColorLocked =
-    Array.isArray(overrideFields) && overrideFields.includes(colorField);
+  const isFieldOverridden = (field) =>
+    Array.isArray(overrideFields) && overrideFields.includes(field);
+
+  const showColor = !isFieldOverridden(colorField);
+  const showThickness =
+    drawingShape === "POLYLINE" && !isFieldOverridden("strokeWidth");
+  const showOffset = !isFieldOverridden("offsetZ");
+  const showHeight = !isFieldOverridden("height");
+  const showAnyField = showThickness || showOffset || showHeight;
 
   const tools = drawingShape ? getDrawingToolsByShape(drawingShape) : [];
   const options = tools.map(({ key, label, Icon }) => ({
@@ -55,6 +59,7 @@ export default function ToolbarDrawingDraft() {
     label,
     icon: <Icon sx={{ color }} />,
   }));
+  const showShape = options.length > 0;
 
   const colorPopoverTitle = isStrokeColor
     ? "Couleur de tracé"
@@ -73,7 +78,6 @@ export default function ToolbarDrawingDraft() {
   }
 
   function handleOpenColor(e) {
-    if (isColorLocked) return;
     setColorAnchorEl(e.currentTarget);
   }
 
@@ -110,19 +114,7 @@ export default function ToolbarDrawingDraft() {
         zIndex: 110,
       }}
     >
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 0.25,
-          opacity: isColorLocked ? 0.5 : 1,
-        }}
-      >
-        {isColorLocked ? (
-          <LockIcon sx={{ fontSize: 16, color: "action.active" }} />
-        ) : (
-          <LockOpenIcon sx={{ fontSize: 16, color: "text.disabled" }} />
-        )}
+      {showColor && (
         <Box
           onClick={handleOpenColor}
           sx={{
@@ -130,18 +122,20 @@ export default function ToolbarDrawingDraft() {
             height: 24,
             borderRadius: "50%",
             bgcolor: color,
-            cursor: isColorLocked ? "not-allowed" : "pointer",
+            cursor: "pointer",
             border: "2px solid",
             borderColor: "divider",
             transition: "transform 0.2s",
-            "&:hover": isColorLocked ? {} : { transform: "scale(1.1)" },
+            "&:hover": { transform: "scale(1.1)" },
           }}
         />
-      </Box>
+      )}
 
-      {options.length > 0 && (
+      {showShape && (
         <>
-          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+          {showColor && (
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+          )}
           <ToggleSingleSelectorGeneric
             options={options}
             selectedKey={enabledDrawingMode}
@@ -150,18 +144,30 @@ export default function ToolbarDrawingDraft() {
         </>
       )}
 
-      <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+      {showAnyField && (showColor || showShape) && (
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+      )}
 
-      <FieldAnnotationHeight
-        annotation={newAnnotation}
-        onChange={handleFieldChange}
-        field="offsetZ"
-        label="Offset"
-      />
-      <FieldAnnotationHeight
-        annotation={newAnnotation}
-        onChange={handleFieldChange}
-      />
+      {showThickness && (
+        <FieldAnnotationThickness
+          annotation={newAnnotation}
+          onChange={handleFieldChange}
+        />
+      )}
+      {showOffset && (
+        <FieldAnnotationHeight
+          annotation={newAnnotation}
+          onChange={handleFieldChange}
+          field="offsetZ"
+          label="Offset"
+        />
+      )}
+      {showHeight && (
+        <FieldAnnotationHeight
+          annotation={newAnnotation}
+          onChange={handleFieldChange}
+        />
+      )}
 
       <Popover
         open={Boolean(colorAnchorEl)}
