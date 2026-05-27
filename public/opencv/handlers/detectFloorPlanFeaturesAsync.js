@@ -315,6 +315,65 @@ async function detectFloorPlanFeaturesAsync({ msg, payload }) {
       return count;
     };
 
+    // Build the axis registries used by the isolated-contour pass below.
+    // We seed them with every big wall now and append each touching stub
+    // we classify in pass 1, so the isolated pass can compare against
+    // both classes of references.
+    const horizontalAxes = features.horizontalWalls.map((w) => ({
+      y: w.y1,
+      x1: w.x1,
+      x2: w.x2,
+      thickness: w.thickness,
+    }));
+    const verticalAxes = features.verticalWalls.map((w) => ({
+      x: w.x1,
+      y1: w.y1,
+      y2: w.y2,
+      thickness: w.thickness,
+    }));
+
+    // Helpers that push a classified small contour to the output AND to
+    // the matching axis registry so it becomes a reference for pass 2.
+    const pushHorizontalSegment = (rect) => {
+      const centerY = rect.y + rect.height / 2 - 0.5;
+      const seg = {
+        x1: rect.x,
+        y1: centerY,
+        x2: rect.x + rect.width,
+        y2: centerY,
+        thickness: rect.height,
+      };
+      features.horizontalWalls.push(seg);
+      horizontalAxes.push({
+        y: centerY,
+        x1: seg.x1,
+        x2: seg.x2,
+        thickness: seg.thickness,
+      });
+    };
+    const pushVerticalSegment = (rect) => {
+      const centerX = rect.x + rect.width / 2 - 0.5;
+      const seg = {
+        x1: centerX,
+        y1: rect.y,
+        x2: centerX,
+        y2: rect.y + rect.height,
+        thickness: rect.width,
+      };
+      features.verticalWalls.push(seg);
+      verticalAxes.push({
+        x: centerX,
+        y1: seg.y1,
+        y2: seg.y2,
+        thickness: seg.thickness,
+      });
+    };
+
+    // --- PASS 1 — touching stubs (perpendicular to adjacent big wall) ---
+    // Isolated contours (hAdj === 0 && vAdj === 0) are deferred to pass 2
+    // so they can lean on the stubs we classify here when picking an
+    // orientation.
+    const isolatedRects = [];
     for (let i = 0; i < shortContours.size(); ++i) {
       const rect = cv.boundingRect(shortContours.get(i));
       if (rect.width < 4 && rect.height < 4) continue;
@@ -322,39 +381,101 @@ async function detectFloorPlanFeaturesAsync({ msg, payload }) {
       const hAdj = countAdjacentH(rect);
       const vAdj = countAdjacentV(rect);
 
+      if (hAdj === 0 && vAdj === 0) {
+        isolatedRects.push(rect);
+        continue;
+      }
+
       // Adjacence dominante → orientation perpendiculaire.
-      // Pas d'adjacence (hAdj === 0 && vAdj === 0) → on retombe sur le
-      // ratio d'aspect (pillar isolé, fragment libre).
-      let isHorizontalSegment;
       if (hAdj > vAdj) {
-        isHorizontalSegment = false; // collé à un mur H → segment vertical
+        pushVerticalSegment(rect); // collé à un mur H → segment vertical
       } else if (vAdj > hAdj) {
-        isHorizontalSegment = true; // collé à un mur V → segment horizontal
+        pushHorizontalSegment(rect); // collé à un mur V → segment horizontal
       } else {
+        // Égalité non nulle (jonction T touchant H et V) → on prend la
+        // direction la plus naturelle d'après le ratio d'aspect.
+        if (rect.width >= rect.height) pushHorizontalSegment(rect);
+        else pushVerticalSegment(rect);
+      }
+    }
+
+    // --- Cluster collinear axes before pass 2 ---
+    // Two big-wall sections (or touching stubs) sitting at the same Y but
+    // separated by an opening should be treated as one logical row: an
+    // isolated fragment between them still belongs to that row even
+    // though no single member covers its X. We sort the registries by
+    // perpendicular position and merge entries whose perpendicular gap
+    // is within max(thickness)/2 — the unioned parallel span covers the
+    // whole row.
+    const mergeAxes = (axes, perpKey, lo, hi) => {
+      if (axes.length === 0) return [];
+      const sorted = [...axes].sort((a, b) => a[perpKey] - b[perpKey]);
+      const out = [];
+      for (const a of sorted) {
+        const last = out.length > 0 ? out[out.length - 1] : null;
+        const gap = last ? Math.abs(a[perpKey] - last[perpKey]) : Infinity;
+        const merge = last && gap <= Math.max(last.thickness, a.thickness) / 2;
+        if (merge) {
+          last[perpKey] = (last[perpKey] + a[perpKey]) / 2;
+          last[lo] = Math.min(last[lo], a[lo]);
+          last[hi] = Math.max(last[hi], a[hi]);
+          last.thickness = Math.max(last.thickness, a.thickness);
+        } else {
+          out.push({ ...a });
+        }
+      }
+      return out;
+    };
+    const mergedHAxes = mergeAxes(horizontalAxes, "y", "x1", "x2");
+    const mergedVAxes = mergeAxes(verticalAxes, "x", "y1", "y2");
+
+    // --- PASS 2 — isolated contours, oriented by nearest classified axis ---
+    // A horizontal axis is considered to "contain" a centroid when the
+    // centroid sits within ± thickness/2 of the axis line AND inside its
+    // (merged) parallel span — extended by `parallelSlack` to absorb
+    // small overshoots past the row's leftmost / rightmost end. Same
+    // logic for vertical axes. The closer of the two candidates
+    // (perpendicular distance) wins; tie → aspect ratio.
+    const parallelSlack = minWallLength;
+    const findClosestHAxis = (cx, cy) => {
+      let best = null;
+      for (const a of mergedHAxes) {
+        if (cx < a.x1 - parallelSlack || cx > a.x2 + parallelSlack) continue;
+        const d = Math.abs(cy - a.y);
+        if (d > a.thickness / 2) continue;
+        if (best === null || d < best) best = d;
+      }
+      return best;
+    };
+    const findClosestVAxis = (cx, cy) => {
+      let best = null;
+      for (const a of mergedVAxes) {
+        if (cy < a.y1 - parallelSlack || cy > a.y2 + parallelSlack) continue;
+        const d = Math.abs(cx - a.x);
+        if (d > a.thickness / 2) continue;
+        if (best === null || d < best) best = d;
+      }
+      return best;
+    };
+
+    for (const rect of isolatedRects) {
+      const cx = rect.x + rect.width / 2;
+      const cy = rect.y + rect.height / 2;
+      const bestH = findClosestHAxis(cx, cy);
+      const bestV = findClosestVAxis(cx, cy);
+
+      let isHorizontalSegment;
+      if (bestH !== null && (bestV === null || bestH < bestV)) {
+        isHorizontalSegment = true;
+      } else if (bestV !== null && (bestH === null || bestV < bestH)) {
+        isHorizontalSegment = false;
+      } else {
+        // Aucun axe candidat (ou égalité parfaite) → fallback ratio d'aspect.
         isHorizontalSegment = rect.width >= rect.height;
       }
 
-      if (isHorizontalSegment) {
-        // Correction -0.5px incluse
-        const centerY = rect.y + rect.height / 2 - 0.5;
-        features.horizontalWalls.push({
-          x1: rect.x,
-          y1: centerY,
-          x2: rect.x + rect.width,
-          y2: centerY,
-          thickness: rect.height,
-        });
-      } else {
-        // Correction -0.5px incluse
-        const centerX = rect.x + rect.width / 2 - 0.5;
-        features.verticalWalls.push({
-          x1: centerX,
-          y1: rect.y,
-          x2: centerX,
-          y2: rect.y + rect.height,
-          thickness: rect.width,
-        });
-      }
+      if (isHorizontalSegment) pushHorizontalSegment(rect);
+      else pushVerticalSegment(rect);
     }
 
     // 6. Filtrage par densité final (basé sur bwOrig)
