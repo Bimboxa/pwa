@@ -9,6 +9,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import FieldCheck from "Features/form/components/FieldCheck";
 
 import ButtonDeleteProjects from "./ButtonDeleteProjects";
+import ButtonShowChrono from "Features/chrono/components/ButtonShowChrono";
 
 export default function PanelAppConfig({ onClose }) {
   const dispatch = useDispatch();
@@ -46,6 +47,8 @@ export default function PanelAppConfig({ onClose }) {
           options={{ type: "switch" }}
         />
       </Box>
+
+      <ButtonShowChrono />
 
       <BoxFlexVStretch sx={{ overflow: "auto", flexGrow: 1 }}>
         <ButtonDeleteProjects onDeleted={onClose} />

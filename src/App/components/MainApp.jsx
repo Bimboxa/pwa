@@ -40,6 +40,9 @@ import useNetworkStatus from "Features/auth/hooks/useNetworkStatus";
 import PageDownloadKrtro from "Features/krtoFile/components/PageDownloadKrto";
 import PageDocumentation from "Features/documentation/components/PageDocumentation";
 
+import FloatingChrono from "Features/chrono/components/FloatingChrono";
+import OverlayNewChronoStep from "Features/chrono/components/OverlayNewChronoStep";
+
 startDexieSync();
 
 function App({ pca, runningIn }) {
@@ -103,6 +106,8 @@ function App({ pca, runningIn }) {
                       element={<PageDocumentation />}
                     />
                   </Routes>
+                  <FloatingChrono />
+                  <OverlayNewChronoStep />
                 </AuthGate>
               </ClerkProviderCustom>
             </OnboardingGate>
