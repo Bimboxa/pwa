@@ -58,17 +58,22 @@ export default function PdfImageEditor({ imageUrl, sourceKey, onSave, onCancel }
         }
     }
 
-    // Handler appelé quand l'image est chargée dans le DOM
-    // Sert à initialiser une zone de crop par défaut centrée — UNIQUEMENT
-    // lorsqu'on charge une nouvelle source (page/rotation différente).
-    // Sur upgrade de qualité de la même source, on conserve le crop courant.
+    // Handler appelé quand l'image est chargée dans le DOM.
+    // - aspect: toujours synchronisé avec l'image affichée (pour gérer la
+    //   rotation, où la thumbnail fallback non-pivotée a un aspect différent
+    //   du rendu pivoté qui arrive ensuite).
+    // - crop: ré-initialisé UNIQUEMENT sur changement de source (page/rotation),
+    //   pas sur upgrade de qualité de la même source.
     function onImageLoad(e) {
         const { naturalWidth, naturalHeight } = e.currentTarget;
         const newAspect = naturalHeight > 0 ? naturalWidth / naturalHeight : null;
 
+        if (newAspect !== null) {
+            setAspect(newAspect);
+        }
+
         if (sourceKey !== lastSourceKeyRef.current) {
             lastSourceKeyRef.current = sourceKey;
-            setAspect(newAspect);
             const initialCrop = {
                 unit: '%',
                 x: 0,
@@ -78,9 +83,6 @@ export default function PdfImageEditor({ imageUrl, sourceKey, onSave, onCancel }
             };
             setCrop(initialCrop);
             dispatch(setBboxInRatio({ x1: 0, y1: 0, x2: 1, y2: 1 }));
-        } else if (aspect === null && newAspect !== null) {
-            // safety: aspect couldn't be set yet (e.g. unmount/remount edge)
-            setAspect(newAspect);
         }
     }
 
