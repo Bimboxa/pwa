@@ -86,6 +86,17 @@ const getRawOffsetPolyline = (points, distance) => {
     return offsetPoints;
 };
 
+/**
+ * Offset (parallel) line for an OPEN polyline.
+ * Returns the offset line points (miter joints), same count as the input.
+ * Positive distance offsets to the "left" of the path (normale = (-uy, ux)),
+ * negative to the "right". Each returned point gets a fresh id.
+ */
+export const offsetPolyline = (points, distance) => {
+    const offsetPoints = getRawOffsetPolyline(points, distance);
+    return offsetPoints.map((p) => ({ id: nanoid(), x: p.x, y: p.y }));
+};
+
 // --- 2. FONCTION PRINCIPALE ---
 
 /**

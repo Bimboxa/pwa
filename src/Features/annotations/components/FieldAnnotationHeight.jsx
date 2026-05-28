@@ -6,6 +6,7 @@ export default function FieldAnnotationHeight({
   onChange,
   label: labelProp,
   field: fieldProp,
+  disabled = false,
 }) {
   const field = fieldProp ?? "height";
   const label = labelProp ?? "ht.";
@@ -50,7 +51,7 @@ export default function FieldAnnotationHeight({
   };
 
   async function handleChange(e) {
-    if (!annotation) return;
+    if (!annotation || disabled) return;
     e.stopPropagation();
     e.preventDefault();
 
@@ -80,8 +81,20 @@ export default function FieldAnnotationHeight({
   }
 
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, p: 0.5 }}>
-      <Typography variant="body2" color="text.secondary" noWrap>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 0.5,
+        p: 0.5,
+        ...(disabled && { pointerEvents: "none" }),
+      }}
+    >
+      <Typography
+        variant="body2"
+        color={disabled ? "text.disabled" : "text.secondary"}
+        noWrap
+      >
         {label}
       </Typography>
 
@@ -107,6 +120,7 @@ export default function FieldAnnotationHeight({
           value={localValue}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
+          readOnly={disabled}
           fullWidth
           sx={{
             position: "absolute",
@@ -120,6 +134,7 @@ export default function FieldAnnotationHeight({
             "& .MuiInputBase-input": {
               ...commonFontStyles,
               bgcolor: "background.default",
+              color: disabled ? "text.disabled" : undefined,
               px: 1,
               boxSizing: "border-box",
               textAlign: "left",
@@ -131,7 +146,11 @@ export default function FieldAnnotationHeight({
         />
       </Box>
 
-      <Typography variant="body2" color="text.secondary" noWrap>
+      <Typography
+        variant="body2"
+        color={disabled ? "text.disabled" : "text.secondary"}
+        noWrap
+      >
         m
       </Typography>
     </Box>

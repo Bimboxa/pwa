@@ -50,8 +50,10 @@ import ToolbarPartGroupRow from "./ToolbarPartGroupRow";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
+import FieldAnnotationThickness from "./FieldAnnotationThickness";
 import Shape3DSelector from "./Shape3DSelector";
 import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
+import IconButtonToggleStripType from "./IconButtonToggleStripType";
 import IconButtonDetectSimilarStrips from "./IconButtonDetectSimilarStrips";
 import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
 import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
@@ -128,6 +130,15 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   })();
 
   const accentColor = getAnnotationColor(selectedAnnotation) || "#6366F1";
+
+  // Template-locked fields (overrideFields): editing them is a no-op since the
+  // template value wins on the next read, so we gray them out.
+  const overrideFields = selectedAnnotation?.annotationTemplateProps?.overrideFields;
+  const isLocked = (f) =>
+    Array.isArray(overrideFields) && overrideFields.includes(f);
+  const isPolylineOrStrip = ["POLYLINE", "STRIP"].includes(
+    selectedAnnotation?.type
+  );
   const isClosedShape =
     selectedAnnotation?.type === "POLYGON" ||
     (selectedAnnotation?.type === "POLYLINE" && selectedAnnotation?.closeLine);
@@ -297,6 +308,15 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     await updateAnnotation({
       id: updatedAnnotation.id,
       offsetZ: updatedAnnotation.offsetZ,
+    });
+  }
+
+  async function handleStrokeWidthChange(updatedAnnotation) {
+    if (!updatedAnnotation?.id) return;
+    await updateAnnotation({
+      id: updatedAnnotation.id,
+      strokeWidth: updatedAnnotation.strokeWidth,
+      strokeWidthUnit: updatedAnnotation.strokeWidthUnit,
     });
   }
 
@@ -550,6 +570,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 <FieldAnnotationHeight
                   annotation={selectedAnnotation}
                   onChange={handleHeightChange}
+                  disabled={isLocked("height")}
                 />
               )}
             <FieldAnnotationHeight
@@ -557,7 +578,15 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               onChange={handleOffsetZChange}
               field="offsetZ"
               label="Offset"
+              disabled={isLocked("offsetZ")}
             />
+            {isPolylineOrStrip && (
+              <FieldAnnotationThickness
+                annotation={selectedAnnotation}
+                onChange={handleStrokeWidthChange}
+                disabled={isLocked("strokeWidth")}
+              />
+            )}
             <Box sx={{ flex: 1 }} />
             <Shape3DSelector annotation={selectedAnnotation} />
           </Box>
@@ -638,6 +667,10 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
                 <IconButtonAnchorAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
               )}
+              {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) &&
+                !selectedAnnotation?.closeLine && (
+                  <IconButtonToggleStripType annotation={selectedAnnotation} accentColor={accentColor} />
+                )}
               {selectedAnnotation?.type === "STRIP" && (
                 <IconButtonFlipStripAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
               )}
