@@ -13,6 +13,9 @@ import {
 import MarkdownCode from "./MarkdownCode";
 import MarkdownImage from "./MarkdownImage";
 import MarkdownLink from "./MarkdownLink";
+import MarkdownVideo from "./MarkdownVideo";
+
+import resolveVideoEmbed from "../../utils/resolveVideoEmbed";
 
 // Factory: build the components map for react-markdown with page-scoped
 // resolvers (image loaders, link routing) bound in.
@@ -50,13 +53,36 @@ export default function buildMarkdownComponents({pageId, imageLoaders}) {
         {...props}
       />
     ),
-    p: ({node, ...props}) => (
-      <Typography variant="body1" sx={{my: 1.5, lineHeight: 1.7}} {...props} />
-    ),
+    p: ({node, ...props}) => {
+      // react-markdown wraps a standalone image in a <p>. When that image is a
+      // video embed (rendered as a block <div>), a <div> inside <p> is invalid
+      // HTML — drop the paragraph wrapper and render the embed directly.
+      const onlyChild =
+        node?.children?.length === 1 ? node.children[0] : null;
+      if (
+        onlyChild?.tagName === "img" &&
+        resolveVideoEmbed(onlyChild.properties?.src)
+      ) {
+        return <>{props.children}</>;
+      }
+      return (
+        <Typography variant="body1" sx={{my: 1.5, lineHeight: 1.7}} {...props} />
+      );
+    },
     a: ({node, ...props}) => <MarkdownLink pageId={pageId} {...props} />,
-    img: ({node, ...props}) => (
-      <MarkdownImage pageId={pageId} imageLoaders={imageLoaders} {...props} />
-    ),
+    img: ({node, src, alt, ...props}) => {
+      const video = resolveVideoEmbed(src);
+      if (video) return <MarkdownVideo embedSrc={video.embedSrc} title={alt} />;
+      return (
+        <MarkdownImage
+          pageId={pageId}
+          imageLoaders={imageLoaders}
+          src={src}
+          alt={alt}
+          {...props}
+        />
+      );
+    },
     code: MarkdownCode,
     hr: () => <Divider sx={{my: 3}} />,
     ul: ({node, ...props}) => (
