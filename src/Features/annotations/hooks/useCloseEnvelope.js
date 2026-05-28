@@ -25,23 +25,47 @@ function parseMappingCategory(entry) {
 
 const coordKey = (x, y) => `${Math.round(x)},${Math.round(y)}`;
 
-const ON_SEG_EPS = 1.2; // px tolerance for "point lies on segment"
+// Single tunable knob. A closing sub-segment running within this perpendicular
+// distance (px) of — and parallel to — an existing wall is considered "already
+// drawn" and dropped; existing points within this distance of an outline edge
+// are used as cut points (so the closing path snaps onto the grid). ~= stroke width.
+const PROXIMITY_PX = 2;
+const PARALLEL_SIN = 0.09; // ~5°: max |sin(angle)| to treat two segments as parallel
+const OVERLAP_SLACK = 0.02; // projection-param slack for "contained in E's extent"
 
-// Is P on segment AB (collinear within eps AND between A and B)? Returns the
-// param t in [0,1] along A->B, or null.
+// Is P on segment AB (within PROXIMITY_PX AND between A and B)? Returns the param
+// t in [0,1] along A->B, or null.
 function paramOnSegment(px, py, ax, ay, bx, by) {
   const dx = bx - ax;
   const dy = by - ay;
   const len2 = dx * dx + dy * dy;
   if (len2 < 1e-9) return null;
   const t = ((px - ax) * dx + (py - ay) * dy) / len2;
-  const slack = ON_SEG_EPS / Math.sqrt(len2);
+  const slack = PROXIMITY_PX / Math.sqrt(len2);
   if (t < -slack || t > 1 + slack) return null;
   const cx = ax + t * dx;
   const cy = ay + t * dy;
   const d2 = (px - cx) * (px - cx) + (py - cy) * (py - cy);
-  if (d2 > ON_SEG_EPS * ON_SEG_EPS) return null;
+  if (d2 > PROXIMITY_PX * PROXIMITY_PX) return null;
   return Math.max(0, Math.min(1, t));
+}
+
+// Perpendicular distance from P to the infinite line through A-B.
+function perpDistToLine(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-9) return Math.hypot(px - ax, py - ay);
+  return Math.abs((px - ax) * dy - (py - ay) * dx) / len;
+}
+
+// Projection parameter of P onto segment A-B (0 at A, 1 at B).
+function projParam(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  if (len2 < 1e-9) return 0;
+  return ((px - ax) * dx + (py - ay) * dy) / len2;
 }
 
 /**
@@ -96,12 +120,30 @@ export default function useCloseEnvelope() {
     }
     if (points.length < 3) return [];
 
-    // a sub-segment is "already drawn" if its midpoint lies on an existing segment
-    const isCovered = (x1, y1, x2, y2) => {
-      const mx = (x1 + x2) / 2;
-      const my = (y1 + y2) / 2;
-      for (const s of existingSegments) {
-        if (paramOnSegment(mx, my, s.ax, s.ay, s.bx, s.by) != null) return true;
+    // A sub-segment is "already drawn" if it runs ALONGSIDE an existing wall:
+    // nearly parallel, both endpoints within PROXIMITY_PX of the wall's line, and
+    // its projection contained in the wall's extent. Catches slightly-sloped
+    // closing segments that graze a parallel contour (not just exact overlaps).
+    const runsAlongExisting = (x1, y1, x2, y2) => {
+      const sdx = x2 - x1;
+      const sdy = y2 - y1;
+      const slen = Math.hypot(sdx, sdy);
+      if (slen < 1e-9) return false;
+      for (const e of existingSegments) {
+        const edx = e.bx - e.ax;
+        const edy = e.by - e.ay;
+        const elen = Math.hypot(edx, edy);
+        if (elen < 1e-9) continue;
+        // parallel?
+        if (Math.abs(sdx * edy - sdy * edx) / (slen * elen) > PARALLEL_SIN) continue;
+        // both endpoints close to the wall's line?
+        if (perpDistToLine(x1, y1, e.ax, e.ay, e.bx, e.by) > PROXIMITY_PX) continue;
+        if (perpDistToLine(x2, y2, e.ax, e.ay, e.bx, e.by) > PROXIMITY_PX) continue;
+        // sub-segment contained within the wall's extent?
+        const t1 = projParam(x1, y1, e.ax, e.ay, e.bx, e.by);
+        const t2 = projParam(x2, y2, e.ax, e.ay, e.bx, e.by);
+        if (Math.min(t1, t2) >= -OVERLAP_SLACK && Math.max(t1, t2) <= 1 + OVERLAP_SLACK)
+          return true;
       }
       return false;
     };
@@ -124,8 +166,8 @@ export default function useCloseEnvelope() {
 
     const addSegment = (aId, bId, x1, y1, x2, y2) => {
       if (!aId || !bId || aId === bId) return;
-      // never re-trace over an existing wall segment
-      if (isCovered(x1, y1, x2, y2)) return;
+      // never re-trace over (or graze) an existing wall segment
+      if (runsAlongExisting(x1, y1, x2, y2)) return;
       const pairKey = ek(aId, bId);
       if (createdPairs.has(pairKey)) return;
       createdPairs.add(pairKey);
