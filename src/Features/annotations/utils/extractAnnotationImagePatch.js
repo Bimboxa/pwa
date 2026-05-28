@@ -3,8 +3,8 @@
  * as the reference template for cv.findPattern.
  *
  * Coordinate spaces (see InteractionLayer / runStripDetectionFromLoupe):
- *   - clipboard.basePoints / basePoint / sourceCenter are in REFERENCE space
- *     (resolved pixels = normalized × baseMap.getImageSize()).
+ *   - clipboard.items[0].basePoints / basePoint and clipboard.sourceCenter are
+ *     in REFERENCE space (resolved pixels = normalized × baseMap.getImageSize()).
  *   - The source bitmap (`sourceImageEl`) lives in SOURCE-PIXEL space.
  *   - imgPx = (ref - imageOffset) / imageScale  (inverse of toLocal in
  *     runStripDetectionFromLoupe).
@@ -32,11 +32,13 @@ export default function extractAnnotationImagePatch({
 
   const scale = imageScale || 1;
   const offset = imageOffset || { x: 0, y: 0 };
-  const type = clipboard.annotation?.type;
+  // Pattern detection is single-template only (gated upstream to items.length===1).
+  const item = clipboard.items?.[0];
+  const type = item?.annotation?.type;
 
   let bbox; // source-pixel space
   if (type === "POLYGON" || type === "POLYLINE" || type === "STRIP") {
-    const pts = clipboard.basePoints;
+    const pts = item.basePoints;
     if (!pts?.length) return null;
     let minX = Infinity,
       minY = Infinity,
@@ -51,7 +53,7 @@ export default function extractAnnotationImagePatch({
     }
     bbox = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
   } else if (type === "POINT" || type === "MARKER") {
-    const p = clipboard.basePoint;
+    const p = item.basePoint;
     if (!p) return null;
     const ip = refToImgPx(p, scale, offset);
     bbox = {

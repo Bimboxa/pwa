@@ -33,21 +33,23 @@ function cropImageData(src, win) {
 }
 
 function buildPlacedGeometry(clipboard, pasteTransform, targetCenter) {
-  const type = clipboard.annotation?.type;
+  // Pattern detection is single-template only (gated upstream to items.length===1).
+  const item = clipboard.items?.[0];
+  const type = item?.annotation?.type;
   const sc = clipboard.sourceCenter;
   const polylines = [];
   let point = null;
 
   if (type === "POLYGON" || type === "POLYLINE" || type === "STRIP") {
     const pts = applyPasteTransformToPoints(
-      clipboard.basePoints || [],
+      item.basePoints || [],
       sc,
       targetCenter,
       pasteTransform,
     );
     polylines.push({ points: pts, closed: type === "POLYGON" });
-    if (type === "POLYGON" && clipboard.baseCuts?.length) {
-      for (const cut of clipboard.baseCuts) {
+    if (type === "POLYGON" && item.baseCuts?.length) {
+      for (const cut of item.baseCuts) {
         const cp = applyPasteTransformToPoints(
           cut.points || [],
           sc,
@@ -59,7 +61,7 @@ function buildPlacedGeometry(clipboard, pasteTransform, targetCenter) {
     }
   } else if (type === "POINT" || type === "MARKER") {
     const [p] = applyPasteTransformToPoints(
-      [clipboard.basePoint],
+      [item.basePoint],
       sc,
       targetCenter,
       pasteTransform,

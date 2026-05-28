@@ -1602,6 +1602,11 @@ function PopperPasteHelper() {
   const smartDetectionPresent = useSelector(
     (s) => s.mapEditor.smartDetectionPresent
   );
+  const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
+
+  const copiedCount = pasteClipboard?.items?.length ?? 0;
+  // Pattern detection is single-template only.
+  const isSingle = copiedCount === 1;
 
   // state
 
@@ -1650,10 +1655,20 @@ function PopperPasteHelper() {
         >
           {titleS}
         </Typography>
+        <Box sx={{ flex: 1 }} />
+        <Typography
+          variant="caption"
+          sx={{ color: "panel.textLight", fontWeight: 600, whiteSpace: "nowrap" }}
+        >
+          {copiedCount > 1
+            ? `${copiedCount} annotations`
+            : "1 annotation"}
+        </Typography>
       </Box>
 
       <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
-        {/* Detection card — same style as CardSmartDetect */}
+        {/* Detection card — single-template only; hidden in multi-selection. */}
+        {isSingle && (
         <Paper
           variant="outlined"
           sx={{ p: 1, borderRadius: 1, bgcolor: "background.paper" }}
@@ -1728,6 +1743,7 @@ function PopperPasteHelper() {
             </Box>
           )}
         </Paper>
+        )}
 
         {/* Keyboard shortcuts card — same style as SectionShortcutHelpers */}
         <Box

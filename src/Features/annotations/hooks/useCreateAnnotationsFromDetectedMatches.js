@@ -35,7 +35,9 @@ export default function useCreateAnnotationsFromDetectedMatches() {
     if (!imageSize?.width || !imageSize?.height) return [];
     const { width, height } = imageSize;
 
-    const sourceAnnotation = clipboard.annotation;
+    // Pattern detection is single-template only (gated upstream to items.length===1).
+    const templateItem = clipboard.items?.[0];
+    const sourceAnnotation = templateItem?.annotation;
     const sourceCenter = clipboard.sourceCenter;
     const type = sourceAnnotation?.type;
     if (!type) return [];
@@ -94,9 +96,9 @@ export default function useCreateAnnotationsFromDetectedMatches() {
       };
 
       if (type === "POLYGON" || type === "POLYLINE" || type === "STRIP") {
-        if (!clipboard.basePoints?.length) continue;
+        if (!templateItem.basePoints?.length) continue;
         const transformed = applyPasteTransformToPoints(
-          clipboard.basePoints,
+          templateItem.basePoints,
           sourceCenter,
           targetCenter,
           pasteTransform,
@@ -106,8 +108,8 @@ export default function useCreateAnnotationsFromDetectedMatches() {
           sourceAnnotation.points,
         );
 
-        if (type === "POLYGON" && clipboard.baseCuts?.length) {
-          clonedAnnotation.cuts = clipboard.baseCuts.map((cut, ci) => {
+        if (type === "POLYGON" && templateItem.baseCuts?.length) {
+          clonedAnnotation.cuts = templateItem.baseCuts.map((cut, ci) => {
             const cutTransformed = applyPasteTransformToPoints(
               cut.points,
               sourceCenter,
@@ -126,9 +128,9 @@ export default function useCreateAnnotationsFromDetectedMatches() {
           clonedAnnotation.cuts = [];
         }
       } else if (type === "POINT" || type === "MARKER") {
-        if (!clipboard.basePoint) continue;
+        if (!templateItem.basePoint) continue;
         const [transformed] = applyPasteTransformToPoints(
-          [clipboard.basePoint],
+          [templateItem.basePoint],
           sourceCenter,
           targetCenter,
           pasteTransform,

@@ -4,22 +4,28 @@ import db from "App/db/db";
 import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTransformToPoints";
 
 /**
- * Build the geometry for a pasted annotation, persist points + annotation +
- * mapping-category rows in a SINGLE Dexie transaction, then trigger one
- * Redux update. Always mints fresh point ids — never reuses ids from the
- * source annotation, so moving the paste cannot tug the original.
+ * Batch-paste every annotation in the clipboard at the cursor, persisting all
+ * points + annotations + mapping-category rows in a SINGLE Dexie transaction,
+ * then triggering one Redux update. Always mints fresh point/annotation/cut/
+ * mapping ids — never reuses ids from the source annotations, so moving a paste
+ * cannot tug the originals.
  *
- * Supported types: POLYGON (with cuts), POLYLINE, STRIP, POINT, MARKER.
+ * The whole group shares `pasteClipboard.sourceCenter`, so feeding each item
+ * its own absolute basePoints with the same (sourceCenter → targetCenter)
+ * transform translates the entire group by one delta (relative positions
+ * preserved) and rotates/flips it rigidly around the group center.
+ *
+ * Supported types per item: POLYGON (with cuts), POLYLINE, STRIP, POINT, MARKER.
  *
  * @param {Object} params
- * @param {Object} params.pasteClipboard  - snapshot from mapEditorsSlice
+ * @param {Object} params.pasteClipboard  - { sourceCenter, items[] } from mapEditorSlice
  * @param {Object} params.pasteTransform  - { rotationDeg, flipX }
- * @param {{x:number,y:number}} params.targetCenter - bbox center / point position (pixel image space)
+ * @param {{x:number,y:number}} params.targetCenter - group anchor (pixel image space)
  * @param {Object} params.baseMap         - active basemap (provides imageSize)
- * @param {string} params.activeLayerId   - optional, applied to the new annotation
+ * @param {string} params.activeLayerId   - optional, applied to new annotations
  * @param {Function} params.dispatch      - Redux dispatch
  * @param {Function} params.triggerAnnotationsUpdate - the slice action
- * @returns {Promise<Object|null>}
+ * @returns {Promise<Object[]>}
  */
 export default async function pasteAnnotationService({
   pasteClipboard,
@@ -30,136 +36,163 @@ export default async function pasteAnnotationService({
   dispatch,
   triggerAnnotationsUpdate,
 }) {
-  if (!pasteClipboard || !targetCenter || !baseMap) return null;
+  if (!pasteClipboard?.items?.length || !targetCenter || !baseMap) return [];
 
   const imageSize =
     baseMap?.getImageSize?.() || baseMap?.image?.imageSize || null;
-  if (!imageSize?.width || !imageSize?.height) return null;
+  if (!imageSize?.width || !imageSize?.height) return [];
   const { width, height } = imageSize;
 
-  const sourceAnnotation = pasteClipboard.annotation;
   const sourceCenter = pasteClipboard.sourceCenter;
-  const type = sourceAnnotation?.type;
 
-  const pointsToBulkAdd = [];
+  const allPoints = [];
+  const allAnnotations = [];
+  const allSourceIds = []; // parallel to allAnnotations: each clone's source id
 
-  function normalize(p) {
-    return {
-      id: nanoid(),
+  function normalize(p, sourceAnnotation) {
+    const id = nanoid();
+    allPoints.push({
+      id,
       x: p.x / width,
       y: p.y / height,
       projectId: sourceAnnotation.projectId,
       baseMapId: sourceAnnotation.baseMapId,
-    };
+    });
+    return id;
   }
 
-  function refsFromTransformedPoints(transformedPxPoints, sourceRefs) {
+  function refsFrom(transformedPxPoints, sourceRefs, sourceAnnotation) {
     return transformedPxPoints.map((pt, i) => {
-      const record = normalize(pt);
-      pointsToBulkAdd.push(record);
-      const sourceRef = sourceRefs?.[i];
-      const carriedType = sourceRef?.type;
-      return { id: record.id, ...(carriedType ? { type: carriedType } : {}) };
+      const id = normalize(pt, sourceAnnotation);
+      const carriedType = sourceRefs?.[i]?.type;
+      return { id, ...(carriedType ? { type: carriedType } : {}) };
     });
   }
 
-  const newAnnotationId = nanoid();
+  for (const item of pasteClipboard.items) {
+    const sourceAnnotation = item.annotation;
+    const type = sourceAnnotation?.type;
+    if (!type) continue;
 
-  // Start from the source but strip hydrated/runtime-only fields so we don't
-  // bloat the DB record with computed data from useAnnotationsV2.
-  const {
-    points: _srcPoints,
-    cuts: _srcCuts,
-    point: _srcPoint,
-    targetPoint: _srcTargetPoint,
-    baseMapName: _srcBaseMapName,
-    templateLabel: _srcTemplateLabel,
-    annotationTemplate: _srcAnnotationTemplate,
-    ...sourceAnnotationCleaned
-  } = sourceAnnotation;
+    // Start from the source but strip hydrated/runtime-only fields so we don't
+    // bloat the DB record with computed data from useAnnotationsV2.
+    const {
+      points: _srcPoints,
+      cuts: _srcCuts,
+      point: _srcPoint,
+      targetPoint: _srcTargetPoint,
+      baseMapName: _srcBaseMapName,
+      templateLabel: _srcTemplateLabel,
+      annotationTemplate: _srcAnnotationTemplate,
+      ...sourceAnnotationCleaned
+    } = sourceAnnotation;
 
-  const clonedAnnotation = {
-    ...sourceAnnotationCleaned,
-    id: newAnnotationId,
-    entityId: undefined, // logical entity link not carried over — would require its own row
-    ...(activeLayerId ? { layerId: activeLayerId } : {}),
-  };
+    const newAnnotationId = nanoid();
+    const clonedAnnotation = {
+      ...sourceAnnotationCleaned,
+      id: newAnnotationId,
+      entityId: undefined, // logical entity link not carried over — would require its own row
+      ...(activeLayerId ? { layerId: activeLayerId } : {}),
+    };
 
-  // --- type-specific geometry rebuild
-  if (type === "POLYGON" || type === "POLYLINE" || type === "STRIP") {
-    if (!pasteClipboard.basePoints?.length) return null;
+    if (type === "POLYGON" || type === "POLYLINE" || type === "STRIP") {
+      if (!item.basePoints?.length) continue;
+      const transformed = applyPasteTransformToPoints(
+        item.basePoints,
+        sourceCenter,
+        targetCenter,
+        pasteTransform,
+      );
+      clonedAnnotation.points = refsFrom(
+        transformed,
+        sourceAnnotation.points,
+        sourceAnnotation,
+      );
 
-    const transformed = applyPasteTransformToPoints(
-      pasteClipboard.basePoints,
-      sourceCenter,
-      targetCenter,
-      pasteTransform,
-    );
-    clonedAnnotation.points = refsFromTransformedPoints(
-      transformed,
-      sourceAnnotation.points,
-    );
-
-    if (type === "POLYGON" && pasteClipboard.baseCuts?.length) {
-      clonedAnnotation.cuts = pasteClipboard.baseCuts.map((cut, ci) => {
-        const cutTransformed = applyPasteTransformToPoints(
-          cut.points,
-          sourceCenter,
-          targetCenter,
-          pasteTransform,
-        );
-        const sourceCut = sourceAnnotation.cuts?.[ci];
-        return {
-          id: nanoid(),
-          points: refsFromTransformedPoints(
-            cutTransformed,
-            sourceCut?.points,
-          ),
-        };
-      });
-    } else if (type === "POLYGON") {
-      clonedAnnotation.cuts = [];
+      if (type === "POLYGON" && item.baseCuts?.length) {
+        clonedAnnotation.cuts = item.baseCuts.map((cut, ci) => {
+          const cutTransformed = applyPasteTransformToPoints(
+            cut.points,
+            sourceCenter,
+            targetCenter,
+            pasteTransform,
+          );
+          return {
+            id: nanoid(),
+            points: refsFrom(
+              cutTransformed,
+              sourceAnnotation.cuts?.[ci]?.points,
+              sourceAnnotation,
+            ),
+          };
+        });
+      } else if (type === "POLYGON") {
+        clonedAnnotation.cuts = [];
+      }
+    } else if (type === "POINT" || type === "MARKER") {
+      if (!item.basePoint) continue;
+      const [transformed] = applyPasteTransformToPoints(
+        [item.basePoint],
+        sourceCenter,
+        targetCenter,
+        pasteTransform,
+      );
+      clonedAnnotation.point = { id: normalize(transformed, sourceAnnotation) };
+    } else {
+      continue;
     }
-  } else if (type === "POINT" || type === "MARKER") {
-    if (!pasteClipboard.basePoint) return null;
-    const [transformed] = applyPasteTransformToPoints(
-      [pasteClipboard.basePoint],
-      sourceCenter,
-      targetCenter,
-      pasteTransform,
-    );
-    const record = normalize(transformed);
-    pointsToBulkAdd.push(record);
-    clonedAnnotation.point = { id: record.id };
-  } else {
-    return null;
+
+    allAnnotations.push(clonedAnnotation);
+    allSourceIds.push(sourceAnnotation.id);
   }
 
-  // Single transaction: clone mapping rows + write points + write annotation.
+  if (allAnnotations.length === 0) return [];
+
+  // Source ids that actually produced a clone, so mapping-category rows can be
+  // cloned in a single query below.
+  const sourceIds = allSourceIds.filter(Boolean);
+
+  // Single transaction: write points + annotations + cloned mapping rows.
   await db.transaction(
     "rw",
     [db.points, db.annotations, db.relAnnotationMappingCategory],
     async () => {
-      if (pointsToBulkAdd.length > 0) {
-        await db.points.bulkAdd(pointsToBulkAdd);
+      if (allPoints.length > 0) {
+        await db.points.bulkAdd(allPoints);
       }
+      await db.annotations.bulkAdd(allAnnotations);
 
-      await db.annotations.put(clonedAnnotation);
-
-      // Clone mapping-category rows from the source so qty sums work
-      // immediately. Cheaper than re-fetching the template + re-deriving them.
-      const sourceMappingRows = await db.relAnnotationMappingCategory
-        .where("annotationId")
-        .equals(sourceAnnotation.id)
-        .toArray();
+      // Clone mapping-category rows from the sources so qty sums work
+      // immediately. One query for all sources, then re-key per pasted clone.
+      const sourceMappingRows = sourceIds.length
+        ? await db.relAnnotationMappingCategory
+            .where("annotationId")
+            .anyOf(sourceIds)
+            .toArray()
+        : [];
 
       if (sourceMappingRows.length > 0) {
-        const clonedMappingRows = sourceMappingRows.map((r) => ({
-          ...r,
-          id: nanoid(),
-          annotationId: newAnnotationId,
-        }));
-        await db.relAnnotationMappingCategory.bulkAdd(clonedMappingRows);
+        const rowsBySourceId = new Map();
+        for (const r of sourceMappingRows) {
+          const list = rowsBySourceId.get(r.annotationId) || [];
+          list.push(r);
+          rowsBySourceId.set(r.annotationId, list);
+        }
+        const clonedMappingRows = [];
+        for (let i = 0; i < allAnnotations.length; i++) {
+          const rows = rowsBySourceId.get(allSourceIds[i]);
+          if (!rows) continue;
+          for (const r of rows) {
+            clonedMappingRows.push({
+              ...r,
+              id: nanoid(),
+              annotationId: allAnnotations[i].id,
+            });
+          }
+        }
+        if (clonedMappingRows.length > 0) {
+          await db.relAnnotationMappingCategory.bulkAdd(clonedMappingRows);
+        }
       }
     },
   );
@@ -169,5 +202,5 @@ export default async function pasteAnnotationService({
     dispatch(triggerAnnotationsUpdate());
   }
 
-  return clonedAnnotation;
+  return allAnnotations;
 }

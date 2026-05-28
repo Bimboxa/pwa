@@ -6,8 +6,6 @@ import {
 } from "react";
 import { useSelector } from "react-redux";
 
-import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTransformToPoints";
-
 const POINT_GHOST_RADIUS_PX = 8;
 const STRIP_DEFAULT_WIDTH_PX = 20;
 
@@ -64,223 +62,160 @@ function stripPathD(pts, distance) {
   return "M " + all.map((p) => `${p.x} ${p.y}`).join(" L ") + " Z";
 }
 
+// One ghost shape per clipboard item, drawn in absolute base-px coords. The
+// parent <g> carries the single rigid transform that places the whole group.
+function renderItem(item, key) {
+  const ann = item.annotation;
+  const type = ann?.type;
+  const strokeColor = ann?.strokeColor || "#2196f3";
+  const fillColor = ann?.fillColor || "rgba(33, 150, 243, 0.2)";
+
+  if (type === "POLYGON" && item.basePoints?.length) {
+    const outerD =
+      "M " + item.basePoints.map((p) => `${p.x} ${p.y}`).join(" L ") + " Z";
+    const cutsD = (item.baseCuts || [])
+      .map((cut) =>
+        cut.points?.length
+          ? "M " + cut.points.map((p) => `${p.x} ${p.y}`).join(" L ") + " Z"
+          : "",
+      )
+      .filter(Boolean)
+      .join(" ");
+    return (
+      <path
+        key={key}
+        d={cutsD ? `${outerD} ${cutsD}` : outerD}
+        fill={fillColor}
+        fillRule="evenodd"
+        stroke={strokeColor}
+        strokeWidth={2}
+        strokeDasharray="6 4"
+        vectorEffect="non-scaling-stroke"
+        opacity={0.8}
+        style={{ pointerEvents: "none" }}
+      />
+    );
+  }
+
+  if (type === "POLYLINE" && item.basePoints?.length) {
+    return (
+      <polyline
+        key={key}
+        points={pointsToAttr(item.basePoints)}
+        fill="none"
+        stroke={strokeColor}
+        strokeWidth={2}
+        strokeDasharray="6 4"
+        vectorEffect="non-scaling-stroke"
+        opacity={0.9}
+        style={{ pointerEvents: "none" }}
+      />
+    );
+  }
+
+  if (type === "STRIP" && item.basePoints?.length) {
+    const width = item.stripWidthPx ?? STRIP_DEFAULT_WIDTH_PX;
+    const orientation = item.stripOrientation ?? 1;
+    const d = stripPathD(item.basePoints, orientation * width);
+    return (
+      <g key={key}>
+        {d && (
+          <path
+            d={d}
+            fill={fillColor}
+            opacity={0.4}
+            stroke="none"
+            style={{ pointerEvents: "none" }}
+          />
+        )}
+        <polyline
+          points={pointsToAttr(item.basePoints)}
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={2}
+          strokeDasharray="6 4"
+          vectorEffect="non-scaling-stroke"
+          opacity={0.9}
+          style={{ pointerEvents: "none" }}
+        />
+      </g>
+    );
+  }
+
+  if ((type === "POINT" || type === "MARKER") && item.basePoint) {
+    return (
+      <circle
+        key={key}
+        cx={item.basePoint.x}
+        cy={item.basePoint.y}
+        r={POINT_GHOST_RADIUS_PX}
+        fill={fillColor}
+        stroke={strokeColor}
+        strokeWidth={2}
+        strokeDasharray="4 3"
+        vectorEffect="non-scaling-stroke"
+        opacity={0.9}
+        style={{ pointerEvents: "none" }}
+      />
+    );
+  }
+
+  return null;
+}
+
 const PasteAnnotationPreviewLayer = forwardRef((_props, ref) => {
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
   const pasteTransform = useSelector((s) => s.mapEditor.pasteTransform);
 
+  const groupRef = useRef(null);
   const lastCursorRef = useRef(null);
-  const polygonRef = useRef(null);
-  const polylineRef = useRef(null);
-  const stripPathRef = useRef(null);
-  const pointCircleRef = useRef(null);
-  const cutPathRef = useRef(null);
 
-  const annotation = pasteClipboard?.annotation;
-  const type = annotation?.type;
+  const items = pasteClipboard?.items;
+  const sourceCenter = pasteClipboard?.sourceCenter;
 
-  const isPolyline = type === "POLYLINE";
-  const isPolygon = type === "POLYGON";
-  const isStrip = type === "STRIP";
-  const isPointLike = type === "POINT" || type === "MARKER";
-
-  const strokeColor = annotation?.strokeColor || "#2196f3";
-  const fillColor = annotation?.fillColor || "rgba(33, 150, 243, 0.2)";
-
-  // Reapply the transform using the last known cursor whenever the
-  // clipboard or the transform changes (e.g. user presses R or I).
-  useEffect(() => {
-    if (lastCursorRef.current) render(lastCursorRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pasteClipboard, pasteTransform]);
-
-  function render(cursorPos) {
-    if (!pasteClipboard || !cursorPos) return;
-
-    const sourceCenter = pasteClipboard.sourceCenter;
-
-    if (isPolyline && pasteClipboard.basePoints?.length) {
-      const transformed = applyPasteTransformToPoints(
-        pasteClipboard.basePoints,
-        sourceCenter,
-        cursorPos,
-        pasteTransform,
-      );
-      if (polylineRef.current) {
-        polylineRef.current.setAttribute("points", pointsToAttr(transformed));
-        polylineRef.current.style.display = "block";
-      }
-      return;
-    }
-
-    if (isPolygon && pasteClipboard.basePoints?.length) {
-      const transformed = applyPasteTransformToPoints(
-        pasteClipboard.basePoints,
-        sourceCenter,
-        cursorPos,
-        pasteTransform,
-      );
-      if (polygonRef.current) {
-        polygonRef.current.setAttribute("points", pointsToAttr(transformed));
-        polygonRef.current.style.display = "block";
-      }
-
-      // Render cuts as evenodd-fill holes within a single combined path.
-      if (cutPathRef.current) {
-        if (pasteClipboard.baseCuts?.length) {
-          const outerD =
-            "M " + transformed.map((p) => `${p.x} ${p.y}`).join(" L ") + " Z";
-          const cutsD = pasteClipboard.baseCuts
-            .map((cut) => {
-              if (!cut.points?.length) return "";
-              const cutTransformed = applyPasteTransformToPoints(
-                cut.points,
-                sourceCenter,
-                cursorPos,
-                pasteTransform,
-              );
-              return (
-                "M " +
-                cutTransformed.map((p) => `${p.x} ${p.y}`).join(" L ") +
-                " Z"
-              );
-            })
-            .filter(Boolean)
-            .join(" ");
-          cutPathRef.current.setAttribute("d", `${outerD} ${cutsD}`);
-          cutPathRef.current.style.display = "block";
-        } else {
-          cutPathRef.current.style.display = "none";
-        }
-      }
-      return;
-    }
-
-    if (isStrip && pasteClipboard.basePoints?.length) {
-      const transformed = applyPasteTransformToPoints(
-        pasteClipboard.basePoints,
-        sourceCenter,
-        cursorPos,
-        pasteTransform,
-      );
-      const width =
-        pasteClipboard.stripWidthPx ?? STRIP_DEFAULT_WIDTH_PX;
-      const orientation = pasteClipboard.stripOrientation ?? 1;
-      const d = stripPathD(transformed, orientation * width);
-      if (stripPathRef.current && d) {
-        stripPathRef.current.setAttribute("d", d);
-        stripPathRef.current.style.display = "block";
-      }
-      // Also draw the source polyline so the user sees the band's spine
-      if (polylineRef.current) {
-        polylineRef.current.setAttribute("points", pointsToAttr(transformed));
-        polylineRef.current.style.display = "block";
-      }
-      return;
-    }
-
-    if (isPointLike && pasteClipboard.basePoint) {
-      // Single point: rotation/flip around the point itself = noop, so this
-      // just translates to the cursor.
-      const transformed = applyPasteTransformToPoints(
-        [pasteClipboard.basePoint],
-        sourceCenter,
-        cursorPos,
-        pasteTransform,
-      );
-      const [p] = transformed;
-      if (pointCircleRef.current && p) {
-        pointCircleRef.current.setAttribute("cx", String(p.x));
-        pointCircleRef.current.setAttribute("cy", String(p.y));
-        pointCircleRef.current.style.display = "block";
-      }
-    }
+  // The whole group shares one rigid transform: flip → rotate around the group
+  // source center → translate that center onto the cursor. SVG applies right to
+  // left, so this matches applyPasteTransformToPoints exactly.
+  function applyTransform(cursorPos) {
+    if (!groupRef.current || !cursorPos || !sourceCenter) return;
+    const { rotationDeg = 0, flipX = false } = pasteTransform ?? {};
+    const sx = flipX ? -1 : 1;
+    const t =
+      `translate(${cursorPos.x} ${cursorPos.y}) ` +
+      `rotate(${rotationDeg}) ` +
+      `scale(${sx} 1) ` +
+      `translate(${-sourceCenter.x} ${-sourceCenter.y})`;
+    groupRef.current.setAttribute("transform", t);
+    groupRef.current.style.display = "block";
   }
+
+  // Reapply with the last known cursor whenever clipboard/transform change
+  // (e.g. user presses R or I).
+  useEffect(() => {
+    if (lastCursorRef.current) applyTransform(lastCursorRef.current);
+  }, [pasteClipboard, pasteTransform]);
 
   useImperativeHandle(ref, () => ({
     updatePreview: (cursorPos) => {
       if (!cursorPos) return;
       lastCursorRef.current = cursorPos;
-      render(cursorPos);
+      applyTransform(cursorPos);
     },
     clearPreview: () => {
       lastCursorRef.current = null;
-      [polygonRef, polylineRef, stripPathRef, pointCircleRef, cutPathRef].forEach(
-        (r) => {
-          if (r.current) r.current.style.display = "none";
-        },
-      );
+      if (groupRef.current) groupRef.current.style.display = "none";
     },
   }));
 
-  if (!pasteClipboard) return null;
+  if (!pasteClipboard || !items?.length) return null;
 
   return (
-    <g className="paste-preview-layer" style={{ pointerEvents: "none" }}>
-      {isStrip && (
-        <path
-          ref={stripPathRef}
-          fill={fillColor}
-          opacity={0.4}
-          stroke="none"
-          style={{ display: "none", pointerEvents: "none" }}
-        />
-      )}
-
-      {isPolygon && (
-        <path
-          ref={cutPathRef}
-          fill={fillColor}
-          fillRule="evenodd"
-          stroke={strokeColor}
-          strokeWidth={2}
-          strokeDasharray="6 4"
-          vectorEffect="non-scaling-stroke"
-          opacity={0.8}
-          style={{ display: "none", pointerEvents: "none" }}
-        />
-      )}
-
-      {/* Polygon outline (used when there are no cuts — kept here for
-          consistency; cutPath above handles polygons with or without cuts). */}
-      {isPolygon && (
-        <polygon
-          ref={polygonRef}
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth={2}
-          strokeDasharray="6 4"
-          vectorEffect="non-scaling-stroke"
-          opacity={0.9}
-          style={{ display: "none", pointerEvents: "none" }}
-        />
-      )}
-
-      {(isPolyline || isStrip) && (
-        <polyline
-          ref={polylineRef}
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth={2}
-          strokeDasharray="6 4"
-          vectorEffect="non-scaling-stroke"
-          opacity={0.9}
-          style={{ display: "none", pointerEvents: "none" }}
-        />
-      )}
-
-      {isPointLike && (
-        <circle
-          ref={pointCircleRef}
-          r={POINT_GHOST_RADIUS_PX}
-          fill={fillColor}
-          stroke={strokeColor}
-          strokeWidth={2}
-          strokeDasharray="4 3"
-          vectorEffect="non-scaling-stroke"
-          opacity={0.9}
-          style={{ display: "none", pointerEvents: "none" }}
-        />
-      )}
+    <g
+      ref={groupRef}
+      className="paste-preview-layer"
+      style={{ display: "none", pointerEvents: "none" }}
+    >
+      {items.map((item, idx) => renderItem(item, idx))}
     </g>
   );
 });

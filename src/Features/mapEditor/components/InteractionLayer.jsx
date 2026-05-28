@@ -170,6 +170,43 @@ import mergeDetectedPolyIntoDrawing from 'Features/smartDetect/utils/mergeDetect
 
 const PAN_STEP = 30;
 
+const PASTE_SUPPORTED_TYPES = ["POLYGON", "POLYLINE", "STRIP", "POINT", "MARKER"];
+
+// Snapshot one annotation's geometry (pixel-image space) into a paste-clipboard
+// item. Pure — used by the Ctrl+C handler for both single and multi selection.
+function buildClipboardItem(ann) {
+  const type = ann?.type;
+  const item = { annotation: ann };
+  if (type === "POLYGON" || type === "POLYLINE" || type === "STRIP") {
+    item.basePoints = (ann.points || []).map((p) => ({
+      x: p.x,
+      y: p.y,
+      ...(p.type ? { type: p.type } : {}),
+    }));
+    if (type === "POLYGON") {
+      item.baseCuts = (ann.cuts || []).map((cut) => ({
+        id: cut.id,
+        points: (cut.points || []).map((p) => ({
+          x: p.x,
+          y: p.y,
+          ...(p.type ? { type: p.type } : {}),
+        })),
+      }));
+    }
+    if (type === "STRIP") {
+      item.stripWidthPx = ann.stripWidthPx ?? ann.width ?? null;
+      item.stripOrientation = ann.stripOrientation ?? 1;
+    }
+  } else if (type === "POINT" || type === "MARKER") {
+    const p = ann.point || ann.targetPoint;
+    if (!p) return null;
+    item.basePoint = { x: p.x, y: p.y };
+  } else {
+    return null;
+  }
+  return item;
+}
+
 
 const InteractionLayer = forwardRef(({
   children,
@@ -896,7 +933,11 @@ const InteractionLayer = forwardRef(({
   // when a paste detection sub-mode is active (cleared otherwise). Same lazy
   // setTimeout pattern as the STRIP cache so the keypress isn't blocked.
   useEffect(() => {
-    if (!pasteClipboard || !pasteDetectionMode || !sourceImageEl) {
+    if (
+      pasteClipboard?.items?.length !== 1 ||
+      !pasteDetectionMode ||
+      !sourceImageEl
+    ) {
       pasteDetectImageDataRef.current = null;
       patternPatchRef.current = null;
       return;
@@ -933,7 +974,11 @@ const InteractionLayer = forwardRef(({
   // bulk commit — so each validated copy progressively masks the image.
   // Reuses the same util/coords as STRIP detection (buildExclusionMask).
   useEffect(() => {
-    if (!pasteClipboard || !pasteDetectionMode || !sourceImageEl) {
+    if (
+      pasteClipboard?.items?.length !== 1 ||
+      !pasteDetectionMode ||
+      !sourceImageEl
+    ) {
       patternExclusionMaskRef.current = null;
       return;
     }
@@ -950,7 +995,7 @@ const InteractionLayer = forwardRef(({
           baseMapImageScaleRef.current || 1,
           baseMapImageOffsetRef.current || { x: 0, y: 0 },
           meterByPxRef.current ?? 0,
-          pasteClipboard?.annotation?.id ?? null,
+          pasteClipboard?.items?.[0]?.annotation?.id ?? null,
         );
       } catch (err) {
         console.error("[patternDetection] failed to build exclusion mask:", err);
@@ -1010,6 +1055,31 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     selectedAnnotationForCopyRef.current = selectedAnnotation;
   }, [selectedAnnotation]);
+
+  // Resolve the FULL set of selected annotations for Ctrl+C: multi-selection
+  // items (shift-click / lasso) unioned with the single-selection fallback,
+  // deduped by id. Drives multi-annotation copy.
+  const selectedAnnotationsForCopy = useMemo(() => {
+    const byId = new Map();
+    // Resolve each selection item by its nodeId against annotations. This is
+    // convention-agnostic: shift-click sets nodeType "ANNOTATION" while lasso
+    // sets nodeType to the annotation's own type (e.g. "POLYGON") — resolving
+    // by id catches both, and non-annotation nodes (base map, bg image) simply
+    // won't match an annotation id.
+    for (const item of selectedItems || []) {
+      if (!item?.nodeId) continue;
+      const ann = annotations?.find((a) => a.id === item.nodeId);
+      if (ann) byId.set(ann.id, ann);
+    }
+    if (selectedAnnotation?.id && !byId.has(selectedAnnotation.id)) {
+      byId.set(selectedAnnotation.id, selectedAnnotation);
+    }
+    return Array.from(byId.values());
+  }, [selectedItems, annotations, selectedAnnotation]);
+
+  useEffect(() => {
+    selectedAnnotationsForCopyRef.current = selectedAnnotationsForCopy;
+  }, [selectedAnnotationsForCopy]);
 
   // annotations for Snap
   // When in point-editing mode, allow snapping to all annotations
@@ -1742,7 +1812,10 @@ const InteractionLayer = forwardRef(({
   // (pasteTransform). GLOBAL scans once; HOVER is cleared here and
   // repopulated on mouse move; null/no-clipboard clears.
   useEffect(() => {
-    if (pasteClipboard && pasteDetectionMode === "GLOBAL") {
+    if (
+      pasteClipboard?.items?.length === 1 &&
+      pasteDetectionMode === "GLOBAL"
+    ) {
       runPatternDetect({ mode: "GLOBAL" });
     } else {
       clearPatternDetection();
@@ -1751,6 +1824,7 @@ const InteractionLayer = forwardRef(({
   }, [pasteClipboard, pasteDetectionMode, pasteTransform]);
 
   const selectedAnnotationForCopyRef = useRef(null);
+  const selectedAnnotationsForCopyRef = useRef([]);
 
   const newAnnotationRef = useRef(newAnnotation);
   useEffect(() => {
@@ -2172,55 +2246,45 @@ const InteractionLayer = forwardRef(({
         (e.ctrlKey || e.metaKey) &&
         (e.key === "c" || e.key === "C")
       ) {
-        const ann = selectedAnnotationForCopyRef.current;
-        if (!ann) return;
-        const type = ann.type;
-        const supported = ["POLYGON", "POLYLINE", "STRIP", "POINT", "MARKER"].includes(type);
-        if (!supported) {
+        const anns = selectedAnnotationsForCopyRef.current || [];
+        if (!anns.length) return;
+        const supportedAnns = anns.filter((a) =>
+          PASTE_SUPPORTED_TYPES.includes(a?.type),
+        );
+        if (!supportedAnns.length) {
           dispatch(setToaster({
-            message: `Copy/paste not yet supported for "${type}"`,
+            message: `Copy/paste not yet supported for "${anns[0]?.type}"`,
             severity: "info",
           }));
           return;
         }
         e.preventDefault();
 
-        const clipboard = { annotation: ann };
-        if (type === "POLYGON" || type === "POLYLINE" || type === "STRIP") {
-          const basePoints = (ann.points || []).map((p) => ({
-            x: p.x,
-            y: p.y,
-            ...(p.type ? { type: p.type } : {}),
-          }));
-          clipboard.basePoints = basePoints;
-          if (type === "POLYGON") {
-            clipboard.baseCuts = (ann.cuts || []).map((cut) => ({
-              id: cut.id,
-              points: (cut.points || []).map((p) => ({
-                x: p.x,
-                y: p.y,
-                ...(p.type ? { type: p.type } : {}),
-              })),
-            }));
-          }
-          if (type === "STRIP") {
-            clipboard.stripWidthPx = ann.stripWidthPx ?? ann.width ?? null;
-            clipboard.stripOrientation = ann.stripOrientation ?? 1;
-          }
-          const bbox = getAnnotationBBox({ ...ann, points: basePoints });
-          clipboard.sourceCenter = bbox
-            ? { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 }
-            : { x: 0, y: 0 };
-        } else if (type === "POINT" || type === "MARKER") {
-          const p = ann.point || ann.targetPoint;
-          if (!p) return;
-          clipboard.basePoint = { x: p.x, y: p.y };
-          clipboard.sourceCenter = { x: p.x, y: p.y };
-        }
+        const items = supportedAnns.map(buildClipboardItem).filter(Boolean);
+        if (!items.length) return;
 
-        dispatch(setPasteClipboard(clipboard));
+        // Group center = center of the union bbox of every item's px points.
+        // A single shared center is what lets the whole group translate by one
+        // (targetCenter − groupCenter) and rotate/flip rigidly on paste.
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        const acc = (p) => {
+          if (p.x < minX) minX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y > maxY) maxY = p.y;
+        };
+        for (const it of items) {
+          if (it.basePoints) it.basePoints.forEach(acc);
+          if (it.baseCuts) it.baseCuts.forEach((c) => c.points.forEach(acc));
+          if (it.basePoint) acc(it.basePoint);
+        }
+        const sourceCenter = Number.isFinite(minX)
+          ? { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }
+          : { x: 0, y: 0 };
+
+        dispatch(setPasteClipboard({ sourceCenter, items }));
         // The clipboard now holds a full snapshot — drop the live selection
-        // so the copied annotation is no longer selected (mirrors Escape).
+        // so the copied annotations are no longer selected (mirrors Escape).
         dispatch(clearSelection());
         dispatch(setSelectedEntityId(null));
         return;
@@ -2247,8 +2311,11 @@ const InteractionLayer = forwardRef(({
         }
         // A / S — toggle the pattern detection sub-mode. The actual
         // detection run is centralized in a paste-detection effect so the
-        // panel switches and the keyboard stay in sync.
-        if (e.key === "a" || e.key === "A") {
+        // panel switches and the keyboard stay in sync. Pattern detection is
+        // single-template only: ignore when multiple annotations are copied.
+        const singleTemplate =
+          pasteClipboardRef.current?.items?.length === 1;
+        if (singleTemplate && (e.key === "a" || e.key === "A")) {
           e.preventDefault();
           dispatch(
             setPasteDetectionMode(
@@ -2257,7 +2324,7 @@ const InteractionLayer = forwardRef(({
           );
           return;
         }
-        if (e.key === "s" || e.key === "S") {
+        if (singleTemplate && (e.key === "s" || e.key === "S")) {
           e.preventDefault();
           dispatch(
             setPasteDetectionMode(

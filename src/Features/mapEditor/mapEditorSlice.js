@@ -147,13 +147,17 @@ const mapEditorInitialState = {
   showPrintableMap: false,
 
   // copy/paste of annotations
-  // pasteClipboard: { annotation, basePoints, baseCuts, basePoint, basePointSize, sourceCenter }
-  //   annotation     — source annotation object (hydrated, with template)
-  //   basePoints     — pixel-image points snapshot at Ctrl+C (POLYGON/POLYLINE/STRIP)
-  //   baseCuts       — pixel-image cut points snapshot (POLYGON only)
-  //   basePoint      — pixel-image single point (POINT/MARKER)
-  //   basePointSize  — visual hint size for ghost rendering of point-types
-  //   sourceCenter   — { x, y } center used as transform origin and ghost anchor
+  // pasteClipboard: { sourceCenter, items: [ item, ... ] }
+  //   sourceCenter — { x, y } GROUP bbox center across ALL copied annotations,
+  //                  shared transform origin + ghost anchor (preserves relative
+  //                  positions and rotates/flips the whole group rigidly).
+  //   items[]      — one entry per copied annotation, each:
+  //     annotation       — source annotation object (hydrated, with template)
+  //     basePoints       — pixel-image points snapshot at Ctrl+C (POLYGON/POLYLINE/STRIP)
+  //     baseCuts         — pixel-image cut points snapshot (POLYGON only)
+  //     basePoint        — pixel-image single point (POINT/MARKER)
+  //     stripWidthPx     — STRIP only
+  //     stripOrientation — STRIP only
   pasteClipboard: null,
   pasteTransform: { rotationDeg: 0, flipX: false },
   // copy/paste pattern detection sub-mode: null | "GLOBAL" | "HOVER"
