@@ -26,6 +26,9 @@ export default function CardSmartDetect() {
   // data
 
   const dispatch = useDispatch();
+  const enabledDrawingMode = useSelector(
+    (s) => s.mapEditor.enabledDrawingMode
+  );
   const smartDetectEnabled = useSelector(
     (s) => s.mapEditor.smartDetectEnabled
   );
@@ -41,6 +44,12 @@ export default function CardSmartDetect() {
 
   const hoverActive = smartDetectEnabled && smartDetectMode === "HOVER";
   const globalActive = smartDetectMode === "GLOBAL";
+
+  // Surface drawing (POLYGON_CLICK) only supports hover detection: it finds the
+  // closed loop of segments around the cursor (detectPolygonFromAnnotations).
+  // "Globale" (OpenCV wall/pillar detector) and "Détection multiple" (strip
+  // detection) don't apply, so they are hidden here.
+  const isSurfaceMode = enabledDrawingMode === "POLYGON_CLICK";
 
   // handlers
 
@@ -88,12 +97,14 @@ export default function CardSmartDetect() {
         Détection auto.
       </Typography>
 
-      <ModeRow
-        label="Globale"
-        shortcut="A"
-        active={globalActive}
-        onClick={handleSelectGlobal}
-      />
+      {!isSurfaceMode && (
+        <ModeRow
+          label="Globale"
+          shortcut="A"
+          active={globalActive}
+          onClick={handleSelectGlobal}
+        />
+      )}
 
       <ModeRow
         label="Au survol"
@@ -102,7 +113,7 @@ export default function CardSmartDetect() {
         onClick={handleSelectHover}
       />
 
-      {hoverActive && (
+      {hoverActive && !isSurfaceMode && (
         <Box
           sx={{
             display: "flex",

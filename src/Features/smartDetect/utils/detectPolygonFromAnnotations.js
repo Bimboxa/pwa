@@ -2,13 +2,18 @@ import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 
 import findPolygonCandidates from "./findPolygonCandidates";
 
+// Cap the number of segments fed to the planar arrangement (O(n^2) split pass).
+// Far-away geometry can't bound the loop around the cursor, so when a plan is
+// very dense we keep only the segments closest to the mouse.
+const MAX_SEGMENTS = 1500;
+
 /**
  * detectPolygonFromAnnotations
  *
- * 1. Normalize annotations + drawingPoints into paths (arrays of ordered points)
- * 2. Call findPolygonCandidates to get all closed polygon candidates
- * 3. Pick the smallest one containing the mouse position
- * 4. Find cuts (existing closed annotations inside the envelope)
+ * 1. Decompose annotations + drawingPoints into INDEPENDENT segments
+ * 2. Call findPolygonCandidates → minimal closed loops of the planar arrangement
+ * 3. Pick the smallest loop containing the mouse position
+ * 4. Find cuts (closed loops fully inside the envelope)
  *
  * @param {Object} params
  * @param {Array} params.annotations - Resolved annotations with {type, points, closeLine, cuts}
@@ -25,12 +30,15 @@ export default function detectPolygonFromAnnotations({
 }) {
   if (!annotations || !mousePos) return null;
 
-  // Step 1: Normalize all annotations into paths
-  const paths = extractPaths(annotations, drawingPoints, tolerance);
-  if (paths.length === 0) return null;
+  // Step 1: Decompose everything into independent segments
+  let segments = extractSegments(annotations, drawingPoints);
+  if (segments.length === 0) return null;
+  if (segments.length > MAX_SEGMENTS) {
+    segments = keepClosestSegments(segments, mousePos, MAX_SEGMENTS);
+  }
 
-  // Step 2: Find all polygon candidates (pure geometry)
-  const candidates = findPolygonCandidates(paths, tolerance);
+  // Step 2: Minimal closed loops of the planar arrangement
+  const candidates = findPolygonCandidates(segments, tolerance);
 
   if (candidates.length === 0) return null;
 
@@ -66,66 +74,88 @@ export default function detectPolygonFromAnnotations({
 }
 
 // ---------------------------------------------------------------------------
-// Normalize annotations → paths
+// Decompose annotations → independent segments
 // ---------------------------------------------------------------------------
 
-function extractPaths(annotations, drawingPoints, tolerance) {
-  const tolSq = tolerance * tolerance;
-  const paths = [];
+function extractSegments(annotations, drawingPoints) {
+  const segments = [];
+
+  // Push every consecutive point pair of a (arc-expanded) path as its own
+  // segment. `closed` adds the wrap-around segment back to the first point.
+  const pushPath = (rawPts, closed) => {
+    if (!rawPts || rawPts.length < 2) return;
+    const pts = expandArcsInPath(rawPts, 6);
+    for (let i = 0; i < pts.length - 1; i++) {
+      segments.push({
+        a: { x: pts[i].x, y: pts[i].y },
+        b: { x: pts[i + 1].x, y: pts[i + 1].y },
+      });
+    }
+    if (closed && pts.length >= 3) {
+      const f = pts[0];
+      const l = pts[pts.length - 1];
+      if ((f.x - l.x) ** 2 + (f.y - l.y) ** 2 > 1e-6) {
+        segments.push({
+          a: { x: l.x, y: l.y },
+          b: { x: f.x, y: f.y },
+        });
+      }
+    }
+  };
 
   for (const ann of annotations) {
     if (!ann.points || ann.points.length < 2) continue;
+    const pts = ann.points.map((p) => ({ x: p.x, y: p.y, type: p.type }));
 
-    if (ann.type === "POLYLINE") {
-      const pts = ann.points.map((p) => ({
-        x: p.x,
-        y: p.y,
-        _id: p.id,
-        type: p.type,
-      }));
-      if (pts.length >= 3) {
-        const first = pts[0],
-          last = pts[pts.length - 1];
-        const dSq = (first.x - last.x) ** 2 + (first.y - last.y) ** 2;
-        if (dSq <= tolSq || (first._id && first._id === last._id)) {
-          // First ≈ last (or same ID): snap last to exact first position
-          pts[pts.length - 1] = { ...first };
-        } else if (ann.closeLine) {
-          // closeLine: append first point to close the path (don't replace last!)
-          pts.push({ ...first });
+    if (ann.type === "POLYGON") {
+      pushPath(pts, true);
+      // A polygon's holes are independent loops too — include their edges.
+      if (Array.isArray(ann.cuts)) {
+        for (const cut of ann.cuts) {
+          if (cut?.points?.length >= 2) {
+            pushPath(
+              cut.points.map((p) => ({ x: p.x, y: p.y, type: p.type })),
+              true
+            );
+          }
         }
       }
-      // Expand S-C-S arcs into sampled straight segments so the DFS cycle
-      // detection walks along the curve instead of cutting across the chord.
-      paths.push(expandArcsInPath(pts, 6));
-    } else if (ann.type === "POLYGON") {
-      const ring = ann.points.map((p) => ({
-        x: p.x,
-        y: p.y,
-        _id: p.id,
-        type: p.type,
-      }));
-      if (ring.length >= 3) {
-        ring.push({ ...ring[0] });
-        paths.push(expandArcsInPath(ring, 6));
-      }
+    } else if (ann.type === "POLYLINE") {
+      pushPath(pts, !!ann.closeLine);
     }
   }
 
   if (drawingPoints && drawingPoints.length >= 2) {
-    const pts = drawingPoints.map((p) => ({ x: p.x, y: p.y }));
-    if (pts.length >= 3) {
-      const first = pts[0],
-        last = pts[pts.length - 1];
-      const dSq = (first.x - last.x) ** 2 + (first.y - last.y) ** 2;
-      if (dSq <= tolSq) {
-        pts[pts.length - 1] = { x: first.x, y: first.y };
-      }
-    }
-    paths.push(pts);
+    pushPath(
+      drawingPoints.map((p) => ({ x: p.x, y: p.y })),
+      false
+    );
   }
 
-  return paths;
+  return segments;
+}
+
+// Keep the `limit` segments closest to `mousePos` (by min distance from the
+// point to the segment), so dense plans stay within the O(n^2) split budget.
+function keepClosestSegments(segments, mousePos, limit) {
+  const scored = segments.map((s) => ({
+    s,
+    d: pointToSegmentDistSq(mousePos, s.a, s.b),
+  }));
+  scored.sort((p, q) => p.d - q.d);
+  return scored.slice(0, limit).map((e) => e.s);
+}
+
+function pointToSegmentDistSq(p, a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return (p.x - a.x) ** 2 + (p.y - a.y) ** 2;
+  let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  const px = a.x + t * dx;
+  const py = a.y + t * dy;
+  return (p.x - px) ** 2 + (p.y - py) ** 2;
 }
 
 // ---------------------------------------------------------------------------

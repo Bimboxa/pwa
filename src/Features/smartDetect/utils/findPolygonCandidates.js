@@ -1,187 +1,169 @@
 /**
  * findPolygonCandidates
  *
- * Pure geometry algorithm. Takes an array of paths (ordered points) and returns
- * all closed polygon candidates that can be formed by following these paths.
+ * Treats every input segment as an INDEPENDENT edge — segments may come from
+ * different annotations and need not share point ids. Builds the planar
+ * arrangement of all segments (splitting each one at every mutual intersection
+ * so that each crossing / T-junction becomes a graph node), then extracts every
+ * minimal closed loop (bounded face) of that graph.
  *
- * A path = an array of {x, y} points defining consecutive edges.
- * Points shared between paths (within tolerance) create junctions where the
- * traversal can switch from one path to another.
+ * The caller picks the smallest loop containing the mouse — that is the polygon
+ * "around the cursor" formed by some subset of the surrounding segments.
  *
- * Algorithm:
- * 1. Build a graph: nodes = unique points (merged by tolerance),
- *    edges = consecutive point pairs from each path
- * 2. DFS from each node: follow edges, track visited nodes in current path.
- *    When revisiting a node → extract the cycle as a candidate polygon.
- *
- * @param {Array<Array<{x: number, y: number}>>} paths - Array of polylines
- * @param {number} [tolerance=5] - Distance threshold for merging points
- * @returns {Array<Array<{x: number, y: number}>>} - Closed rings (last point = first point)
+ * @param {Array<{a:{x:number,y:number}, b:{x:number,y:number}}>} segments
+ * @param {number} [tolerance=5] - Merge / intersection tolerance in pixels
+ * @returns {Array<Array<{x:number, y:number}>>} - Closed rings (last point === first point)
  */
-export default function findPolygonCandidates(paths, tolerance = 5) {
-  if (!paths || paths.length === 0) return [];
+export default function findPolygonCandidates(segments, tolerance = 5) {
+  if (!segments || segments.length === 0) return [];
 
-  // Step 0: Insert junction points where a path endpoint falls on another path's segment
-  const enrichedPaths = insertJunctions(paths, tolerance);
+  // 1. Split every segment at its intersections with all the others.
+  const split = splitSegmentsAtIntersections(segments, tolerance);
+  if (split.length === 0) return [];
 
-  // Step 1: Build graph
-  const graph = buildGraph(enrichedPaths, tolerance);
+  // 2. Build the planar graph (endpoints merged by proximity).
+  const graph = buildGraph(split, tolerance);
   if (graph.nodes.length === 0) return [];
 
-  // Step 2: Find all cycles via DFS
-  return findAllCycles(graph);
+  // 3. Drop dangling edges (degree <= 1) — they can't bound a loop.
+  pruneLeaves(graph);
+
+  // 4. Walk every minimal face.
+  return extractFaces(graph);
 }
 
 // ---------------------------------------------------------------------------
-// Step 0: Insert junction points
+// Step 1: planar split
 // ---------------------------------------------------------------------------
 
-/**
- * For each endpoint of each path, check if it falls on a segment of another path.
- * If so, insert that point into the other path, splitting the segment.
- * This creates proper graph junctions where polylines meet mid-segment.
- */
-function insertJunctions(paths, tolerance) {
-  // Collect all endpoints (first and last point of each path)
-  const endpoints = [];
-  for (let pi = 0; pi < paths.length; pi++) {
-    const path = paths[pi];
-    if (path.length < 2) continue;
-    endpoints.push({ pt: path[0], pathIdx: pi });
-    endpoints.push({ pt: path[path.length - 1], pathIdx: pi });
-    // Also collect intermediate points that have _id (shared topology points)
-    for (let k = 1; k < path.length - 1; k++) {
-      if (path[k]._id) endpoints.push({ pt: path[k], pathIdx: pi });
+function splitSegmentsAtIntersections(segments, tolerance) {
+  // Normalize input + drop degenerate (zero-length) segments.
+  const segs = [];
+  for (const s of segments) {
+    if (!s || !s.a || !s.b) continue;
+    const dx = s.b.x - s.a.x;
+    const dy = s.b.y - s.a.y;
+    if (dx * dx + dy * dy < 1e-9) continue;
+    segs.push({
+      a: { x: s.a.x, y: s.a.y },
+      b: { x: s.b.x, y: s.b.y },
+      len: Math.sqrt(dx * dx + dy * dy),
+    });
+  }
+
+  const n = segs.length;
+  const splitTs = segs.map(() => []); // interior split params per segment
+
+  for (let i = 0; i < n; i++) {
+    const s1 = segs[i];
+    const eps1 = tolerance / s1.len;
+    for (let j = i + 1; j < n; j++) {
+      const s2 = segs[j];
+      const hit = segmentIntersection(s1.a, s1.b, s2.a, s2.b);
+      if (!hit) continue;
+      const eps2 = tolerance / s2.len;
+      if (hit.t1 > eps1 && hit.t1 < 1 - eps1) splitTs[i].push(hit.t1);
+      if (hit.t2 > eps2 && hit.t2 < 1 - eps2) splitTs[j].push(hit.t2);
     }
   }
 
-  // For each endpoint, check against all segments of OTHER paths
-  // Collect insertions: { pathIdx, segmentIdx, point }
-  const insertions = []; // grouped by pathIdx
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const { a, b, len } = segs[i];
+    const epsT = tolerance / len;
+    const ts = splitTs[i];
+    ts.push(0, 1);
+    ts.sort((x, y) => x - y);
 
-  for (const { pt, pathIdx: srcPathIdx } of endpoints) {
-    for (let pi = 0; pi < paths.length; pi++) {
-      if (pi === srcPathIdx) continue;
-      const path = paths[pi];
-      for (let si = 0; si < path.length - 1; si++) {
-        const a = path[si], b = path[si + 1];
-        if (isPointOnSegment(pt, a, b, tolerance)) {
-          insertions.push({ pathIdx: pi, segmentIdx: si, point: { ...pt } });
+    // Deduplicate params that are closer than the tolerance.
+    const uniq = [];
+    for (const t of ts) {
+      if (uniq.length === 0 || t - uniq[uniq.length - 1] > epsT) uniq.push(t);
+    }
+    if (uniq[uniq.length - 1] < 1) uniq[uniq.length - 1] = 1;
+
+    for (let k = 0; k < uniq.length - 1; k++) {
+      const ta = uniq[k];
+      const tb = uniq[k + 1];
+      out.push({
+        a: { x: a.x + (b.x - a.x) * ta, y: a.y + (b.y - a.y) * ta },
+        b: { x: a.x + (b.x - a.x) * tb, y: a.y + (b.y - a.y) * tb },
+      });
+    }
+  }
+
+  return out;
+}
+
+/**
+ * Proper intersection of segments p1-p2 and p3-p4.
+ * Returns { t1, t2 } parameters (0..1) of the intersection on each segment,
+ * or null if they don't cross (parallel / collinear are treated as no-cross —
+ * shared endpoints are handled later by node merging). A small epsilon lets
+ * endpoints touching mid-segment register as T-junctions.
+ */
+function segmentIntersection(p1, p2, p3, p4) {
+  const rx = p2.x - p1.x;
+  const ry = p2.y - p1.y;
+  const sx = p4.x - p3.x;
+  const sy = p4.y - p3.y;
+  const denom = rx * sy - ry * sx;
+  if (Math.abs(denom) < 1e-9) return null;
+
+  const qpx = p3.x - p1.x;
+  const qpy = p3.y - p1.y;
+  const t1 = (qpx * sy - qpy * sx) / denom;
+  const t2 = (qpx * ry - qpy * rx) / denom;
+
+  const E = 1e-6;
+  if (t1 < -E || t1 > 1 + E || t2 < -E || t2 > 1 + E) return null;
+  return { t1, t2 };
+}
+
+// ---------------------------------------------------------------------------
+// Step 2: planar graph
+// ---------------------------------------------------------------------------
+
+function buildGraph(segments, tolerance) {
+  const nodes = []; // {x, y}
+  const adj = []; // adj[i] = Set<number>
+  const tolSq = tolerance * tolerance;
+  const cell = Math.max(tolerance, 1);
+  const grid = new Map(); // "cx,cy" -> number[] of node indices
+
+  function getNode(p) {
+    const cx = Math.floor(p.x / cell);
+    const cy = Math.floor(p.y / cell);
+    for (let gx = cx - 1; gx <= cx + 1; gx++) {
+      for (let gy = cy - 1; gy <= cy + 1; gy++) {
+        const bucket = grid.get(gx + "," + gy);
+        if (!bucket) continue;
+        for (const ni of bucket) {
+          const dx = nodes[ni].x - p.x;
+          const dy = nodes[ni].y - p.y;
+          if (dx * dx + dy * dy <= tolSq) return ni;
         }
       }
     }
-  }
-
-  if (insertions.length === 0) return paths;
-
-  // Group insertions by path, sort by segment index (descending to insert from end)
-  const byPath = {};
-  for (const ins of insertions) {
-    if (!byPath[ins.pathIdx]) byPath[ins.pathIdx] = [];
-    byPath[ins.pathIdx].push(ins);
-  }
-
-  // Clone paths and insert points
-  const result = paths.map((p) => [...p]);
-  for (const [pathIdx, insList] of Object.entries(byPath)) {
-    // Sort by segmentIdx descending, then by distance from segment start descending
-    // (inserting from the end avoids index shifting issues)
-    const pi = Number(pathIdx);
-    const path = result[pi];
-
-    // Deduplicate: don't insert if a point already exists nearby
-    const tolSq = tolerance * tolerance;
-    const filtered = insList.filter((ins) => {
-      // Check if this point already exists in the path near the insertion position
-      const nearby = path.some((p) => {
-        const dx = p.x - ins.point.x, dy = p.y - ins.point.y;
-        return dx * dx + dy * dy <= tolSq;
-      });
-      return !nearby;
-    });
-
-    // Sort by segment index descending, then by parameter t descending
-    filtered.sort((a, b) => {
-      if (a.segmentIdx !== b.segmentIdx) return b.segmentIdx - a.segmentIdx;
-      // Compute t parameter for ordering within same segment
-      const segA = path[a.segmentIdx], segB = path[a.segmentIdx + 1];
-      const dx = segB.x - segA.x, dy = segB.y - segA.y;
-      const lenSq = dx * dx + dy * dy;
-      const tA = lenSq > 0 ? ((a.point.x - segA.x) * dx + (a.point.y - segA.y) * dy) / lenSq : 0;
-      const tB = lenSq > 0 ? ((b.point.x - segA.x) * dx + (b.point.y - segA.y) * dy) / lenSq : 0;
-      return tB - tA;
-    });
-
-    for (const ins of filtered) {
-      result[pi].splice(ins.segmentIdx + 1, 0, ins.point);
-    }
-  }
-
-  return result;
-}
-
-/**
- * Check if point P falls on segment A-B within tolerance.
- * Returns true if the projection of P onto A-B is within the segment
- * and the distance from P to the projection is within tolerance.
- */
-function isPointOnSegment(p, a, b, tolerance) {
-  const dx = b.x - a.x, dy = b.y - a.y;
-  const lenSq = dx * dx + dy * dy;
-  if (lenSq === 0) return false;
-
-  const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
-  // Must be strictly inside the segment (not at endpoints)
-  if (t <= 0.01 || t >= 0.99) return false;
-
-  const projX = a.x + t * dx, projY = a.y + t * dy;
-  const distSq = (p.x - projX) ** 2 + (p.y - projY) ** 2;
-  return distSq <= tolerance * tolerance;
-}
-
-// ---------------------------------------------------------------------------
-// Graph construction
-// ---------------------------------------------------------------------------
-
-function buildGraph(paths, tolerance) {
-  const nodes = []; // {x, y}
-  const adj = [];   // adj[i] = Set<number> (neighbor indices)
-  const tolSq = tolerance * tolerance;
-  const idToNodeIdx = new Map(); // point ID → node index (primary merge key)
-
-  function getNodeIdx(p) {
-    // 1. Merge by point ID first (shared topology points)
-    if (p._id && idToNodeIdx.has(p._id)) {
-      return idToNodeIdx.get(p._id);
-    }
-
-    // 2. Merge by coordinate proximity
-    for (let i = 0; i < nodes.length; i++) {
-      const dx = nodes[i].x - p.x;
-      const dy = nodes[i].y - p.y;
-      if (dx * dx + dy * dy <= tolSq) {
-        // Register this ID for the existing node
-        if (p._id) idToNodeIdx.set(p._id, i);
-        return i;
-      }
-    }
-
-    // 3. Create new node
     const idx = nodes.length;
     nodes.push({ x: p.x, y: p.y });
     adj.push(new Set());
-    if (p._id) idToNodeIdx.set(p._id, idx);
+    const key = cx + "," + cy;
+    let bucket = grid.get(key);
+    if (!bucket) {
+      bucket = [];
+      grid.set(key, bucket);
+    }
+    bucket.push(idx);
     return idx;
   }
 
-  for (const path of paths) {
-    for (let i = 0; i < path.length - 1; i++) {
-      const a = getNodeIdx(path[i]);
-      const b = getNodeIdx(path[i + 1]);
-      if (a !== b) {
-        adj[a].add(b);
-        adj[b].add(a);
-      }
+  for (const s of segments) {
+    const a = getNode(s.a);
+    const b = getNode(s.b);
+    if (a !== b) {
+      adj[a].add(b);
+      adj[b].add(a);
     }
   }
 
@@ -189,63 +171,109 @@ function buildGraph(paths, tolerance) {
 }
 
 // ---------------------------------------------------------------------------
-// Cycle detection via DFS
+// Step 3: prune dangling edges
 // ---------------------------------------------------------------------------
 
-function findAllCycles(graph) {
+function pruneLeaves(graph) {
   const { nodes, adj } = graph;
-  const MAX_DEPTH = 500;
-  const MAX_CYCLES = 200;
-  const cycles = [];
-  const seenKeys = new Set();
-
-  for (let startNode = 0; startNode < nodes.length; startNode++) {
-    if (adj[startNode].size < 2) continue;
-
-    const path = [startNode];
-    const inPath = new Uint8Array(nodes.length);
-    inPath[startNode] = 1;
-
-    function dfs(current, prevNode, depth) {
-      if (cycles.length >= MAX_CYCLES || depth >= MAX_DEPTH) return;
-
-      for (const neighbor of adj[current]) {
-        if (cycles.length >= MAX_CYCLES) return;
-        if (neighbor === prevNode) continue;
-
-        if (inPath[neighbor]) {
-          // Cycle found: extract sub-path from neighbor's position to current
-          const cycleStartIdx = path.indexOf(neighbor);
-          if (cycleStartIdx < 0) continue;
-          const cycleNodes = path.slice(cycleStartIdx);
-          if (cycleNodes.length < 3) continue;
-
-          const key = normalizeCycleKey(cycleNodes);
-          if (!seenKeys.has(key)) {
-            seenKeys.add(key);
-            const ring = cycleNodes.map((idx) => ({
-              x: nodes[idx].x,
-              y: nodes[idx].y,
-            }));
-            ring.push({ x: ring[0].x, y: ring[0].y }); // close
-            cycles.push(ring);
-          }
-          continue; // don't recurse past a cycle
-        }
-
-        path.push(neighbor);
-        inPath[neighbor] = 1;
-        dfs(neighbor, current, depth + 1);
-        path.pop();
-        inPath[neighbor] = 0;
-      }
+  const queue = [];
+  for (let i = 0; i < nodes.length; i++) {
+    if (adj[i].size <= 1) queue.push(i);
+  }
+  while (queue.length > 0) {
+    const i = queue.pop();
+    if (adj[i].size === 0) continue;
+    for (const nb of adj[i]) {
+      adj[nb].delete(i);
+      if (adj[nb].size <= 1) queue.push(nb);
     }
+    adj[i].clear();
+  }
+}
 
-    dfs(startNode, -1, 0);
-    inPath[startNode] = 0;
+// ---------------------------------------------------------------------------
+// Step 4: minimal face extraction (half-edge traversal)
+// ---------------------------------------------------------------------------
+
+function extractFaces(graph) {
+  const { nodes, adj } = graph;
+
+  // Neighbors of each node sorted by polar angle (ascending = CCW).
+  const sorted = nodes.map((_, i) =>
+    [...adj[i]]
+      .map((j) => ({
+        j,
+        ang: Math.atan2(nodes[j].y - nodes[i].y, nodes[j].x - nodes[i].x),
+      }))
+      .sort((p, q) => p.ang - q.ang)
+  );
+  const indexOfNbr = nodes.map((_, i) => {
+    const m = new Map();
+    sorted[i].forEach((e, k) => m.set(e.j, k));
+    return m;
+  });
+
+  // Arriving at v from u, the next face edge is the neighbor of v that is the
+  // next one CLOCKWISE from u (one step before u in the CCW-sorted list).
+  function nextVertex(u, v) {
+    const list = sorted[v];
+    if (list.length === 0) return -1;
+    const ui = indexOfNbr[v].get(u);
+    if (ui === undefined) return -1;
+    const k = (ui - 1 + list.length) % list.length;
+    return list[k].j;
   }
 
-  return cycles;
+  const visited = new Set(); // "u,v" directed half-edges
+  const seenKeys = new Set(); // dedupe reversed orientation of isolated cycles
+  const faces = [];
+
+  let halfEdgeCount = 0;
+  for (let i = 0; i < nodes.length; i++) halfEdgeCount += adj[i].size;
+  const maxSteps = halfEdgeCount + 1;
+
+  for (let u = 0; u < nodes.length; u++) {
+    for (const start of sorted[u]) {
+      const v0 = start.j;
+      if (visited.has(u + "," + v0)) continue;
+
+      const cycle = [];
+      let pu = u;
+      let pv = v0;
+      let steps = 0;
+      let ok = true;
+      while (true) {
+        const k = pu + "," + pv;
+        if (visited.has(k)) break;
+        visited.add(k);
+        cycle.push(pu);
+        const w = nextVertex(pu, pv);
+        if (w < 0) {
+          ok = false;
+          break;
+        }
+        pu = pv;
+        pv = w;
+        if (pu === u && pv === v0) break;
+        if (++steps > maxSteps) {
+          ok = false;
+          break;
+        }
+      }
+
+      if (!ok || cycle.length < 3) continue;
+
+      const key = normalizeCycleKey(cycle);
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+
+      const ring = cycle.map((idx) => ({ x: nodes[idx].x, y: nodes[idx].y }));
+      ring.push({ x: ring[0].x, y: ring[0].y }); // close
+      faces.push(ring);
+    }
+  }
+
+  return faces;
 }
 
 // ---------------------------------------------------------------------------
@@ -253,8 +281,9 @@ function findAllCycles(graph) {
 // ---------------------------------------------------------------------------
 
 /**
- * Normalize a cycle for deduplication: rotate to smallest node index,
- * pick the lexicographically smaller direction.
+ * Normalize a cycle of node indices for dedup: rotate to the smallest index,
+ * then pick the lexicographically smaller of the two directions. Collapses the
+ * two opposite orientations of an isolated cycle into one key.
  */
 function normalizeCycleKey(cycle) {
   const n = cycle.length;

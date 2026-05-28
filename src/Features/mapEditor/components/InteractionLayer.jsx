@@ -2720,6 +2720,9 @@ const InteractionLayer = forwardRef(({
           // shows on the cursor during the worker run, results flash green
           // via transientDetectedStripsRef, Space commits them all as new
           // POLYLINE annotations, Escape aborts.
+          // Not applicable to surface drawing: POLYGON_CLICK only uses hover
+          // polygon detection (detectPolygonFromAnnotations), not line detection.
+          if (enabledDrawingModeRef.current === "POLYGON_CLICK") break;
           if (showSmartDetectRef.current && !globalDetectionRunningRef.current) {
             e.preventDefault();
             const meterByPx = meterByPxRef.current ?? 0;
