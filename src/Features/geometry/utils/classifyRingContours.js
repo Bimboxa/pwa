@@ -1,9 +1,9 @@
 // Exterior-contour classification for a closed polygon ring.
 //
-// Ported verbatim from the proven algorithm in
-// Data/edx/automatedAnnotationsProcedures/fromPolygonsToBim.js so it can be
-// reused by generic Features code without depending on an org-specific Data
-// procedure. Keep the two in sync if the BIM pipeline algorithm evolves.
+// Shared, org-agnostic geometry: generic Features code and org-specific Data
+// procedures both depend on this module rather than the reverse. The related
+// foreign-edge helpers (signedArea2, buildForeignEdges,
+// subdivideRingByForeignProjections) live alongside it in this folder.
 //
 // The ring is scanned in BOTH directions (forward + reversed) for "wall
 // branches" — places where the contour dives in and comes back out within a

@@ -1,10 +1,7 @@
-import {
-  WALL_DETECTION_M,
-  buildForeignEdges,
-  classifyRingContours,
-  signedArea2,
-  subdivideRingByForeignProjections,
-} from "Data/edx/automatedAnnotationsProcedures/fromPolygonsToBim";
+import { WALL_DETECTION_M, classifyRingContours } from "./classifyRingContours";
+import signedArea2 from "./signedArea2";
+import buildForeignEdges from "./buildForeignEdges";
+import subdivideRingByForeignProjections from "./subdivideRingByForeignProjections";
 
 const COLINEAR_TOL_PX = 0.5;
 const COINCIDENT_TOL_PX = 0.5;
