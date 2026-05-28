@@ -62,6 +62,7 @@ import IconButtonVectorisation from "./IconButtonVectorisation";
 import IconButtonSimplifyAnnotation from "./IconButtonSimplifyAnnotation";
 import IconButtonCloseWallFootprint from "./IconButtonCloseWallFootprint";
 import IconButtonContours from "./IconButtonContours";
+import IconButtonCloseEnvelope from "./IconButtonCloseEnvelope";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
@@ -681,6 +682,12 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               )}
               {selectedAnnotation?.type === "POLYLINE" && (
                 <IconButtonContours
+                  annotations={[selectedAnnotation]}
+                  accentColor={accentColor}
+                />
+              )}
+              {selectedAnnotation?.type === "POLYLINE" && (
+                <IconButtonCloseEnvelope
                   annotations={[selectedAnnotation]}
                   accentColor={accentColor}
                 />
