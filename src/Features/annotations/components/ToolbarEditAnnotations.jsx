@@ -56,6 +56,7 @@ import IconButtonCurvature from "./IconButtonCurvature";
 import IconButtonConvertAnnotation from "./IconButtonConvertAnnotation";
 import IconButtonVectorisation from "./IconButtonVectorisation";
 import IconButtonContours from "./IconButtonContours";
+import IconButtonCloseEnvelope from "./IconButtonCloseEnvelope";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "./DatagridAnnotations";
@@ -464,6 +465,12 @@ export default function ToolbarEditAnnotations({
               )}
               {hasPolylinesOrPolygons && (
                 <IconButtonContours
+                  annotations={annotations.filter((a) => a.type === "POLYLINE")}
+                  accentColor="#6366F1"
+                />
+              )}
+              {annotations.some((a) => a.type === "POLYLINE") && (
+                <IconButtonCloseEnvelope
                   annotations={annotations.filter((a) => a.type === "POLYLINE")}
                   accentColor="#6366F1"
                 />
