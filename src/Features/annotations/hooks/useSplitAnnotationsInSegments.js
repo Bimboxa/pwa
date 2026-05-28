@@ -8,6 +8,12 @@ import {
 
 import db from "App/db/db";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import {
+  getStripWidthPx,
+  stripEdgeToCenterline,
+  getStripProps,
+} from "../utils/convertStripPolyline";
 
 function parseMappingCategory(entry) {
   if (!entry) return null;
@@ -26,8 +32,9 @@ export default function useSplitAnnotationsInSegments() {
   const dispatch = useDispatch();
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const baseMap = useMainBaseMap();
 
-  return async ({ annotations, annotationTemplateId }) => {
+  return async ({ annotations, annotationTemplateId, outputType = "POLYLINE" }) => {
     const template = await db.annotationTemplates.get(annotationTemplateId);
     if (!template) return [];
 
@@ -42,15 +49,51 @@ export default function useSplitAnnotationsInSegments() {
 
     const allAnnotations = [];
     const allMappingRels = [];
+    const allPoints = []; // freshly minted db.points (STRIP -> POLYLINE centerlines)
 
     for (const annotation of annotations) {
       if (!annotation?.points?.length || annotation.points.length < 2) continue;
+
+      const sourceIsStrip = annotation.type === "STRIP";
+      // Keep the band: split STRIP into STRIP segments (same edge, same width).
+      const keepStrip = outputType === "STRIP" && sourceIsStrip;
+      const segType = keepStrip ? "STRIP" : "POLYLINE";
+      const stripProps = keepStrip ? getStripProps(annotation) : null;
+
+      // STRIP -> POLYLINE: split the centerline (mint fresh db.points for it)
+      // instead of the edge, so the resulting polyline runs through the band axis.
+      let refPoints = annotation.points;
+      if (sourceIsStrip && !keepStrip) {
+        const meterByPx = baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx;
+        const imageSize =
+          baseMap?.getImageSize?.() || baseMap?.image?.imageSize;
+        if (!imageSize?.width || !imageSize?.height) continue;
+        const Wpx = getStripWidthPx(annotation, meterByPx);
+        const orientation = annotation.stripOrientation ?? 1;
+        const centerline = stripEdgeToCenterline(
+          annotation.points.map((p) => ({ x: p.x, y: p.y })),
+          Wpx,
+          orientation
+        );
+        if (centerline.length !== annotation.points.length) continue;
+        for (const p of centerline) {
+          allPoints.push({
+            id: p.id,
+            x: p.x / imageSize.width,
+            y: p.y / imageSize.height,
+            projectId,
+            baseMapId: annotation.baseMapId,
+            listingId: annotation.listingId,
+          });
+        }
+        refPoints = centerline.map((p) => ({ id: p.id }));
+      }
 
       // Collect rings to split
       const rings = [];
       const isClosed =
         annotation.type === "POLYGON" || annotation.closeLine === true;
-      rings.push({ points: annotation.points, closed: isClosed });
+      rings.push({ points: refPoints, closed: isClosed });
 
       // Polygon cuts are always closed rings
       if (annotation.type === "POLYGON" && Array.isArray(annotation.cuts)) {
@@ -74,7 +117,7 @@ export default function useSplitAnnotationsInSegments() {
           const segAnnotation = {
             ...templateProps,
             id,
-            type: "POLYLINE",
+            type: segType,
             annotationTemplateId,
             annotationTemplateProps: { label: template.label },
             listingId,
@@ -82,6 +125,7 @@ export default function useSplitAnnotationsInSegments() {
             baseMapId: annotation.baseMapId,
             points: [{ id: p1.id }, { id: p2.id }],
             ...(activeLayerId ? { layerId: activeLayerId } : {}),
+            ...(stripProps ?? {}),
           };
 
           allAnnotations.push(segAnnotation);
@@ -102,6 +146,9 @@ export default function useSplitAnnotationsInSegments() {
     }
 
     // Bulk create all at once
+    if (allPoints.length > 0) {
+      await db.points.bulkAdd(allPoints);
+    }
     if (allAnnotations.length > 0) {
       await db.annotations.bulkAdd(allAnnotations);
     }

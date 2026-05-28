@@ -9,6 +9,12 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import db from "App/db/db";
 
 import cleanSegments from "../utils/cleanSegments";
+import {
+  getStripWidthPx,
+  stripEdgeToCenterline,
+  centerlineToStripEdge,
+  getStripProps,
+} from "../utils/convertStripPolyline";
 
 // Builds the static (non-points) part of a 2-point POLYLINE annotation that
 // will be created from one consecutive point pair of an existing multi-point
@@ -55,7 +61,36 @@ export default function useCleanSegments() {
       };
     }
 
-    const polylines = annotations.filter(
+    const meterByPx = baseMap?.meterByPx;
+
+    // STRIP support: run the alignment on each band's CENTERLINE (treating it
+    // as a polyline), then re-derive the edge + STRIP type when persisting.
+    // `stripInfoByOriginId` maps a source annotation id to its band params.
+    const stripInfoByOriginId = new Map();
+    const inputAnnotations = annotations.map((a) => {
+      if (
+        a?.type !== "STRIP" ||
+        !Array.isArray(a.points) ||
+        a.points.length < 2
+      )
+        return a;
+      const Wpx = getStripWidthPx(a, meterByPx);
+      const orientation = a.stripOrientation ?? 1;
+      const centerline = stripEdgeToCenterline(
+        a.points.map((p) => ({ x: p.x, y: p.y })),
+        Wpx,
+        orientation
+      );
+      if (centerline.length !== a.points.length) return a;
+      stripInfoByOriginId.set(a.id, {
+        Wpx,
+        orientation,
+        stripProps: getStripProps(a),
+      });
+      return { ...a, type: "POLYLINE", points: centerline };
+    });
+
+    const polylines = inputAnnotations.filter(
       (a) =>
         a?.type === "POLYLINE" &&
         Array.isArray(a.points) &&
@@ -125,7 +160,6 @@ export default function useCleanSegments() {
     }
 
     // Phase 2 — clean.
-    const meterByPx = baseMap?.meterByPx;
     const { updates, deleteIds } = cleanSegments({
       segments: segmentsForAlgo,
       meterByPx,
@@ -174,9 +208,26 @@ export default function useCleanSegments() {
       });
     }
 
+    // For a strip-origin segment, convert the aligned centerline back to a
+    // band edge and tag it as STRIP; otherwise mint refs as-is.
+    function finalize(originId, pxPoints, baseMapId, parentProjectId) {
+      const info = stripInfoByOriginId.get(originId);
+      if (info) {
+        const edge = centerlineToStripEdge(pxPoints, info.Wpx, info.orientation);
+        return {
+          points: makeRefs(edge, baseMapId, parentProjectId),
+          extra: { type: "STRIP", ...info.stripProps },
+        };
+      }
+      return {
+        points: makeRefs(pxPoints, baseMapId, parentProjectId),
+        extra: null,
+      };
+    }
+
     // Route algo updates between existing 2-pt polylines and virtual
     // (not-yet-persisted) segments coming from split.
-    const annotationsToUpdate = []; // { id, points: [{id, type}] }
+    const annotationsToUpdate = []; // { id, points: [{id, type}], extra? }
     const annotationsToBulkAdd = []; // fresh full annotations
     const survivingVirtualIds = new Set();
 
@@ -185,25 +236,27 @@ export default function useCleanSegments() {
       if (parentPoly) {
         // This update belongs to a virtual segment — carry it via fresh add.
         survivingVirtualIds.add(u.id);
+        const { points, extra } = finalize(
+          parentPoly.id,
+          u.points,
+          parentPoly.baseMapId,
+          parentPoly.projectId ?? projectId
+        );
         annotationsToBulkAdd.push({
           ...buildSplitSegmentSkeleton(parentPoly),
-          points: makeRefs(
-            u.points,
-            parentPoly.baseMapId,
-            parentPoly.projectId ?? projectId
-          ),
+          ...(extra ?? {}),
+          points,
         });
       } else {
         // Existing 2-pt polyline — update its points to fresh refs.
         const existing = polylines.find((p) => p.id === u.id);
-        annotationsToUpdate.push({
-          id: u.id,
-          points: makeRefs(
-            u.points,
-            existing?.baseMapId ?? polylines[0].baseMapId,
-            existing?.projectId ?? polylines[0].projectId ?? projectId
-          ),
-        });
+        const { points, extra } = finalize(
+          u.id,
+          u.points,
+          existing?.baseMapId ?? polylines[0].baseMapId,
+          existing?.projectId ?? polylines[0].projectId ?? projectId
+        );
+        annotationsToUpdate.push({ id: u.id, points, extra });
       }
     }
 
@@ -218,13 +271,16 @@ export default function useCleanSegments() {
       // Find this virtual segment's original points
       const virtual = segmentsForAlgo.find((s) => s.id === virtualId);
       if (!virtual) continue;
+      const { points, extra } = finalize(
+        parentPoly.id,
+        virtual.points,
+        parentPoly.baseMapId,
+        parentPoly.projectId ?? projectId
+      );
       annotationsToBulkAdd.push({
         ...buildSplitSegmentSkeleton(parentPoly),
-        points: makeRefs(
-          virtual.points,
-          parentPoly.baseMapId,
-          parentPoly.projectId ?? projectId
-        ),
+        ...(extra ?? {}),
+        points,
       });
     }
 
@@ -249,7 +305,10 @@ export default function useCleanSegments() {
       if (annotationsToUpdate.length > 0) {
         await Promise.all(
           annotationsToUpdate.map((u) =>
-            db.annotations.update(u.id, { points: u.points })
+            db.annotations.update(u.id, {
+              points: u.points,
+              ...(u.extra ?? {}),
+            })
           )
         );
       }

@@ -1,8 +1,15 @@
+import { useSelector } from "react-redux";
+
 import { IconButton, Tooltip } from "@mui/material";
 import { Healing as HealingIcon } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import repairAnnotationGeometry from "../utils/repairAnnotationGeometry";
+import {
+  getStripWidthPx,
+  stripEdgeToCenterline,
+  centerlineToStripEdge,
+} from "../utils/convertStripPolyline";
 
 import db from "App/db/db";
 
@@ -13,11 +20,18 @@ export default function IconButtonRepairAnnotation({
   // data
 
   const baseMap = useMainBaseMap();
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
 
   // handlers
 
   async function handleClick() {
     if (!annotation?.points?.length) return;
+
+    // STRIP: repair the band centerline, then re-derive the edge it stores.
+    if (annotation.type === "STRIP") {
+      await repairStrip();
+      return;
+    }
 
     const result = repairAnnotationGeometry(annotation);
     if (!result) return;
@@ -71,6 +85,50 @@ export default function IconButtonRepairAnnotation({
         await db.points.bulkPut(pointUpdates);
       }
     }
+  }
+
+  async function repairStrip() {
+    const refImageSize = baseMap?.getImageSize?.();
+    if (!refImageSize) return;
+    const { width: refW, height: refH } = refImageSize;
+    const meterByPx = baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx;
+    const Wpx = getStripWidthPx(annotation, meterByPx);
+    const orientation = annotation.stripOrientation ?? 1;
+
+    const centerline = stripEdgeToCenterline(
+      annotation.points.map((p) => ({ x: p.x, y: p.y })),
+      Wpx,
+      orientation
+    );
+
+    const result = repairAnnotationGeometry({
+      ...annotation,
+      type: "POLYLINE",
+      points: centerline,
+      cuts: undefined,
+    });
+    if (!result) return;
+
+    const edge = centerlineToStripEdge(
+      result.repairedPoints.map((p) => ({ x: p.x, y: p.y })),
+      Wpx,
+      orientation
+    );
+
+    const records = edge.map((p) => ({
+      id: p.id,
+      x: p.x / refW,
+      y: p.y / refH,
+      projectId,
+      baseMapId: annotation.baseMapId,
+      listingId: annotation.listingId,
+    }));
+    const refs = records.map((r) => ({ id: r.id }));
+
+    await db.transaction("rw", db.annotations, db.points, async () => {
+      await db.points.bulkAdd(records);
+      await db.annotations.update(annotation.id, { points: refs });
+    });
   }
 
   // render

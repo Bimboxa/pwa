@@ -48,7 +48,6 @@ import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
-import IconButtonExtractStripBoundaries from "./IconButtonExtractStripBoundaries";
 import IconButtonReentrantAngles from "./IconButtonReentrantAngles";
 import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
 import IconButtonCleanSegments from "./IconButtonCleanSegments";
@@ -105,7 +104,6 @@ export default function ToolbarEditAnnotations({
   const countLabel = `${count} annotation${count > 1 ? "s" : ""} sélectionnée${count > 1 ? "s" : ""}`;
 
   const hasStrips = annotations.some((a) => a.type === "STRIP");
-  const showExtractBoundaries = hasStrips;
 
   const hasPolylinesAndPolygons =
     annotations.some((a) => a.type === "POLYLINE") &&
@@ -113,6 +111,11 @@ export default function ToolbarEditAnnotations({
 
   const hasPolylinesOrPolygons = annotations.some(
     (a) => a.type === "POLYLINE" || a.type === "POLYGON"
+  );
+
+  // Tools shared by open lines and bands (cut, contours, close-envelope).
+  const hasPolylinesOrStrips = annotations.some(
+    (a) => a.type === "POLYLINE" || a.type === "STRIP"
   );
 
   const hasPolygons = annotations.some((a) => a.type === "POLYGON");
@@ -124,6 +127,14 @@ export default function ToolbarEditAnnotations({
   const allArePolylines =
     annotations.length >= 2 &&
     annotations.every((a) => a.type === "POLYLINE" && a.points?.length >= 2);
+
+  // "Aligner" (clean segments) also accepts bands: strips are aligned on their
+  // centerline, then re-derived as strips. Allows mixed strip + polyline.
+  const allAreAlignable =
+    annotations.length >= 2 &&
+    annotations.every(
+      (a) => ["POLYLINE", "STRIP"].includes(a.type) && a.points?.length >= 2
+    );
 
   // helpers - can merge
 
@@ -419,27 +430,21 @@ export default function ToolbarEditAnnotations({
                   </IconButton>
                 </Tooltip>
               )}
-              {showExtractBoundaries && (
-                <IconButtonExtractStripBoundaries
-                  annotations={annotations}
-                  accentColor="#6366F1"
-                />
-              )}
               {hasPolylinesAndPolygons && (
                 <IconButtonReentrantAngles
                   annotations={annotations}
                   accentColor="#6366F1"
                 />
               )}
-              {hasPolylinesOrPolygons && (
+              {(hasPolylinesOrPolygons || hasStrips) && (
                 <IconButtonSplitInSegments
-                  annotations={annotations.filter(
-                    (a) => a.type === "POLYLINE" || a.type === "POLYGON"
+                  annotations={annotations.filter((a) =>
+                    ["POLYLINE", "POLYGON", "STRIP"].includes(a.type)
                   )}
                   accentColor="#6366F1"
                 />
               )}
-              {allArePolylines && (
+              {allAreAlignable && (
                 <IconButtonCleanSegments
                   annotations={annotations}
                   accentColor="#6366F1"
@@ -463,15 +468,19 @@ export default function ToolbarEditAnnotations({
                   accentColor="#6366F1"
                 />
               )}
-              {hasPolylinesOrPolygons && (
+              {hasPolylinesOrStrips && (
                 <IconButtonContours
-                  annotations={annotations.filter((a) => a.type === "POLYLINE")}
+                  annotations={annotations.filter((a) =>
+                    ["POLYLINE", "STRIP"].includes(a.type)
+                  )}
                   accentColor="#6366F1"
                 />
               )}
-              {annotations.some((a) => a.type === "POLYLINE") && (
+              {hasPolylinesOrStrips && (
                 <IconButtonCloseEnvelope
-                  annotations={annotations.filter((a) => a.type === "POLYLINE")}
+                  annotations={annotations.filter((a) =>
+                    ["POLYLINE", "STRIP"].includes(a.type)
+                  )}
                   accentColor="#6366F1"
                 />
               )}

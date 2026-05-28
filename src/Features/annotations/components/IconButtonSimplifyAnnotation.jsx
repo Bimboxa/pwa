@@ -14,6 +14,11 @@ import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import IconSimplify from "./IconSimplify";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import {
+  getStripWidthPx,
+  stripEdgeToCenterline,
+  centerlineToStripEdge,
+} from "../utils/convertStripPolyline";
 
 import * as turf from "@turf/turf";
 import db from "App/db/db";
@@ -32,6 +37,7 @@ export default function IconButtonSimplifyAnnotation({
     (s) => s.smartDetect.simplifyOuterContour
   );
   const baseMap = useMainBaseMap();
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
 
   // state
 
@@ -57,6 +63,12 @@ export default function IconButtonSimplifyAnnotation({
     const refImageSize = baseMap?.getImageSize?.();
     if (!refImageSize) return;
     const { width: refW, height: refH } = refImageSize;
+
+    // STRIP: simplify the band centerline, then re-derive the stored edge.
+    if (annotation.type === "STRIP") {
+      await simplifyStrip(refW, refH);
+      return;
+    }
 
     // Build GeoJSON coords from annotation points (already in ref pixel space)
     const coords = annotation.points.map((p) => [p.x, p.y]);
@@ -167,6 +179,50 @@ export default function IconButtonSimplifyAnnotation({
         await db.points.bulkPut(pointUpdates);
       }
     }
+
+    handleClose();
+  }
+
+  async function simplifyStrip(refW, refH) {
+    const meterByPx = baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx;
+    const Wpx = getStripWidthPx(annotation, meterByPx);
+    const orientation = annotation.stripOrientation ?? 1;
+
+    const centerline = stripEdgeToCenterline(
+      annotation.points.map((p) => ({ x: p.x, y: p.y })),
+      Wpx,
+      orientation
+    );
+
+    let geometry = turf.lineString(centerline.map((p) => [p.x, p.y]));
+    geometry = turf.truncate(geometry, { precision: 2 });
+    if (simplifyPolynomial) {
+      geometry = turf.simplify(geometry, { tolerance: 1, highQuality: true });
+    }
+
+    const newCenterCoords = geometry.geometry.coordinates;
+    if (newCenterCoords.length < 2) return;
+
+    const edge = centerlineToStripEdge(
+      newCenterCoords.map((c) => ({ x: c[0], y: c[1] })),
+      Wpx,
+      orientation
+    );
+
+    const records = edge.map((p) => ({
+      id: p.id,
+      x: p.x / refW,
+      y: p.y / refH,
+      projectId,
+      baseMapId: annotation.baseMapId,
+      listingId: annotation.listingId,
+    }));
+    const refs = records.map((r) => ({ id: r.id }));
+
+    await db.transaction("rw", db.annotations, db.points, async () => {
+      await db.points.bulkAdd(records);
+      await db.annotations.update(annotation.id, { points: refs });
+    });
 
     handleClose();
   }

@@ -4,7 +4,12 @@ import { useSelector } from "react-redux";
 import useAnnotationTemplates from "../hooks/useAnnotationTemplates";
 import useListings from "Features/listings/hooks/useListings";
 import useWallBoundaries from "Features/smartDetect/hooks/useWallBoundaries";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { resolveDrawingShape } from "../constants/drawingShapeConfig";
+import {
+  getStripWidthPx,
+  stripEdgeToCenterline,
+} from "../utils/convertStripPolyline";
 
 import { CircularProgress, IconButton, Menu, Tooltip } from "@mui/material";
 
@@ -17,6 +22,7 @@ export default function IconButtonContours({ annotations, accentColor }) {
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const allTemplates = useAnnotationTemplates({ sortByLabel: true });
   const computeBoundaries = useWallBoundaries();
+  const baseMap = useMainBaseMap();
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
@@ -35,7 +41,29 @@ export default function IconButtonContours({ annotations, accentColor }) {
     (t) => resolveDrawingShape(t) === "POLYLINE"
   );
 
-  const polylineAnnotations = annotations?.filter((a) => a.type === "POLYLINE");
+  const wallCandidates = annotations?.filter((a) =>
+    ["POLYLINE", "STRIP"].includes(a.type)
+  );
+
+  // A STRIP stores one edge of the band: feed the contours algorithm its
+  // centerline + the band thickness so the produced boundaries hug both edges.
+  function toWallPolyline(a) {
+    if (a.type !== "STRIP") return a;
+    const meterByPx = baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx;
+    const Wpx = getStripWidthPx(a, meterByPx);
+    const orientation = a.stripOrientation ?? 1;
+    const centerline = stripEdgeToCenterline(a.points ?? [], Wpx, orientation);
+    return {
+      ...a,
+      type: "POLYLINE",
+      points: centerline,
+      // computeBoundaries reads strokeWidth as CM; encode Wpx back into CM so
+      // halfWidth === Wpx/2 regardless of the strip's original unit.
+      strokeWidth: meterByPx > 0 ? Wpx * meterByPx * 100 : Wpx,
+      strokeWidthUnit: "CM",
+      closeLine: false,
+    };
+  }
 
   // handlers
 
@@ -44,12 +72,12 @@ export default function IconButtonContours({ annotations, accentColor }) {
 
   async function handleTemplateChange(annotationTemplateId) {
     const template = allTemplates?.find((t) => t.id === annotationTemplateId);
-    if (!template || !polylineAnnotations?.length) return;
+    if (!template || !wallCandidates?.length) return;
     setLoading(true);
     handleClose();
     try {
       const result = await computeBoundaries({
-        wallAnnotations: polylineAnnotations,
+        wallAnnotations: wallCandidates.map(toWallPolyline),
         boundaryAnnotationTemplate: template,
       });
       console.log(`[Contours] ${result.count} boundary annotations created`);
@@ -69,7 +97,7 @@ export default function IconButtonContours({ annotations, accentColor }) {
           <IconButton
             size="small"
             onClick={handleOpen}
-            disabled={loading || !polylineAnnotations?.length}
+            disabled={loading || !wallCandidates?.length}
             sx={{
               color: "text.disabled",
               "&:hover": { color: accentColor, bgcolor: accentColor + "18" },

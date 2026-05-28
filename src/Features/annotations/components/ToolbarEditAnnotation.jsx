@@ -680,10 +680,10 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               {isClosedShape && (
                 <IconButtonDilateAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
               )}
-              {["POLYLINE", "POLYGON"].includes(selectedAnnotation?.type) && (
+              {["POLYLINE", "POLYGON", "STRIP"].includes(selectedAnnotation?.type) && (
                 <IconButtonRepairAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
               )}
-              {["POLYLINE", "POLYGON"].includes(selectedAnnotation?.type) && (
+              {["POLYLINE", "POLYGON", "STRIP"].includes(selectedAnnotation?.type) && (
                 <IconButtonSplitInSegments
                   annotations={[selectedAnnotation]}
                   accentColor={accentColor}
@@ -707,19 +707,19 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                   accentColor={accentColor}
                 />
               )}
-              {["POLYLINE", "POLYGON"].includes(selectedAnnotation?.type) && (
+              {["POLYLINE", "POLYGON", "STRIP"].includes(selectedAnnotation?.type) && (
                 <IconButtonSimplifyAnnotation
                   annotation={selectedAnnotation}
                   accentColor={accentColor}
                 />
               )}
-              {selectedAnnotation?.type === "POLYLINE" && (
+              {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
                 <IconButtonContours
                   annotations={[selectedAnnotation]}
                   accentColor={accentColor}
                 />
               )}
-              {selectedAnnotation?.type === "POLYLINE" && (
+              {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
                 <IconButtonCloseEnvelope
                   annotations={[selectedAnnotation]}
                   accentColor={accentColor}

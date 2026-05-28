@@ -49,7 +49,11 @@ export default function IconButtonSplitInSegments({
     (t) => resolveDrawingShape(t) === "POLYLINE"
   );
 
-  const allArePolylines = annotations?.every((a) => a.type === "POLYLINE");
+  // Same-template split keeps the source type (STRIP stays a band); the menu
+  // below always produces POLYLINE segments from the chosen polyline template.
+  const allAreSplittableSameTemplate = annotations?.every((a) =>
+    ["POLYLINE", "STRIP"].includes(a.type)
+  );
 
   // handlers
 
@@ -61,9 +65,9 @@ export default function IconButtonSplitInSegments({
     setAnchorEl(null);
   }
 
-  async function handleSplit(annotationTemplateId) {
+  async function handleSplit(annotationTemplateId, outputType = "POLYLINE") {
     try {
-      await splitInSegments({ annotations, annotationTemplateId });
+      await splitInSegments({ annotations, annotationTemplateId, outputType });
       const ids = annotations.map((a) => a.id).filter(Boolean);
       await deleteAnnotations(ids);
       dispatch(clearSelection());
@@ -77,11 +81,16 @@ export default function IconButtonSplitInSegments({
   async function handleSplitSameTemplate() {
     const templateId = annotations?.[0]?.annotationTemplateId;
     if (!templateId) return;
-    await handleSplit(templateId);
+    // Preserve bands: any STRIP in the selection keeps its STRIP segments;
+    // the template menu below always forces POLYLINE output.
+    const outputType = annotations?.some((a) => a.type === "STRIP")
+      ? "STRIP"
+      : "POLYLINE";
+    await handleSplit(templateId, outputType);
   }
 
   async function handleTemplateChange(annotationTemplateId) {
-    await handleSplit(annotationTemplateId);
+    await handleSplit(annotationTemplateId, "POLYLINE");
   }
 
   // render
@@ -133,7 +142,7 @@ export default function IconButtonSplitInSegments({
               variant="contained"
               fullWidth
               size="small"
-              disabled={!allArePolylines}
+              disabled={!allAreSplittableSameTemplate}
               onClick={handleSplitSameTemplate}
               sx={{ mt: 1 }}
             >
