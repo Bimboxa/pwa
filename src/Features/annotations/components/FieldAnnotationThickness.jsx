@@ -5,7 +5,11 @@ const FIELD = "strokeWidth";
 const UNIT_FIELD = "strokeWidthUnit";
 const UNIT_OPTIONS = ["PX", "CM"];
 
-export default function FieldAnnotationThickness({ annotation, onChange }) {
+export default function FieldAnnotationThickness({
+  annotation,
+  onChange,
+  disabled = false,
+}) {
   const [localValue, setLocalValue] = useState(annotation?.[FIELD] ?? "");
   const [unitAnchorEl, setUnitAnchorEl] = useState(null);
 
@@ -34,7 +38,7 @@ export default function FieldAnnotationThickness({ annotation, onChange }) {
   };
 
   function handleChange(e) {
-    if (!annotation) return;
+    if (!annotation || disabled) return;
     e.stopPropagation();
     e.preventDefault();
 
@@ -56,6 +60,7 @@ export default function FieldAnnotationThickness({ annotation, onChange }) {
   }
 
   function handleOpenUnit(e) {
+    if (disabled) return;
     setUnitAnchorEl(e.currentTarget);
   }
 
@@ -66,8 +71,20 @@ export default function FieldAnnotationThickness({ annotation, onChange }) {
   }
 
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, p: 0.5 }}>
-      <Typography variant="body2" color="text.secondary" noWrap>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 0.5,
+        p: 0.5,
+        ...(disabled && { pointerEvents: "none" }),
+      }}
+    >
+      <Typography
+        variant="body2"
+        color={disabled ? "text.disabled" : "text.secondary"}
+        noWrap
+      >
         Ep.
       </Typography>
 
@@ -91,6 +108,7 @@ export default function FieldAnnotationThickness({ annotation, onChange }) {
           value={localValue}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
+          readOnly={disabled}
           fullWidth
           sx={{
             position: "absolute",
@@ -104,6 +122,7 @@ export default function FieldAnnotationThickness({ annotation, onChange }) {
             "& .MuiInputBase-input": {
               ...commonFontStyles,
               bgcolor: "background.default",
+              color: disabled ? "text.disabled" : undefined,
               px: 1,
               boxSizing: "border-box",
               textAlign: "left",
@@ -117,14 +136,14 @@ export default function FieldAnnotationThickness({ annotation, onChange }) {
 
       <Typography
         variant="body2"
-        color="text.secondary"
+        color={disabled ? "text.disabled" : "text.secondary"}
         noWrap
         onClick={handleOpenUnit}
         sx={{
-          cursor: "pointer",
+          cursor: disabled ? "default" : "pointer",
           px: 0.5,
           borderRadius: 0.5,
-          "&:hover": { bgcolor: "action.hover" },
+          ...(!disabled && { "&:hover": { bgcolor: "action.hover" } }),
         }}
       >
         {unitLabel}
