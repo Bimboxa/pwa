@@ -12,163 +12,10 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 import wallToRectRing, {
   segNormal,
-  lineLineIntersection,
   wallToHollowRings,
 } from "Features/geometry/utils/wallToRectRing";
 
 import db from "App/db/db";
-
-/**
- * Find the thickness of the nearest wall to a point.
- */
-function nearestWallThickness(px, py, walls) {
-  let bestDist = Infinity;
-  let bestThick = 0;
-  for (const wall of walls) {
-    const pts = wall.points;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i],
-        b = pts[i + 1];
-      const dx = b.x - a.x,
-        dy = b.y - a.y;
-      const lenSq = dx * dx + dy * dy;
-      if (lenSq === 0) continue;
-      const t = Math.max(
-        0,
-        Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / lenSq)
-      );
-      const dist = Math.sqrt(
-        (px - (a.x + t * dx)) ** 2 + (py - (a.y + t * dy)) ** 2
-      );
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestThick = wall.halfWidth * 2;
-      }
-    }
-  }
-  return bestThick;
-}
-
-/**
- * Remove step artifacts from a polygon ring produced by polygon-clipping union.
- *
- * 1. Mark each segment as "step" (shorter than local wall thickness) or "real".
- * 2. Find chains of consecutive step segments.
- * 3. For each chain, intersect the real segment BEFORE with the real segment AFTER.
- * 4. Replace the entire chain with the single intersection point.
- */
-function removeSteps(ring, walls) {
-  if (ring.length < 5) return ring;
-
-  const realN = ring.length - 1; // closed ring: last === first
-
-  // 1. Classify each segment as step or real
-  const isStep = new Array(realN).fill(false);
-  for (let i = 0; i < realN; i++) {
-    const a = ring[i],
-      b = ring[(i + 1) % realN];
-    const len = Math.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2);
-    if (len === 0) {
-      isStep[i] = true;
-      continue;
-    }
-    const midX = (a[0] + b[0]) / 2,
-      midY = (a[1] + b[1]) / 2;
-    const localThick = nearestWallThickness(midX, midY, walls);
-    if (len < localThick * 1.2) isStep[i] = true;
-  }
-
-  // 2. Find chains of consecutive step segments
-  // A chain starting at segment index s and ending at segment index e means
-  // segments s, s+1, ..., e are all steps.
-  // The real segment before the chain is segment (s-1), going from point (s-1) to point s.
-  // The real segment after the chain is segment (e+1), going from point (e+1) to point (e+2).
-  // We replace points s+1 through e+1 (the interior points of the chain) with a single intersection point.
-
-  const keep = new Array(ring.length).fill(true);
-  const replacements = []; // { replaceIdx, point }
-
-  let i = 0;
-  while (i < realN) {
-    if (!isStep[i]) {
-      i++;
-      continue;
-    }
-
-    // Find the chain: consecutive step segments starting at i
-    let chainEnd = i;
-    while (chainEnd < realN && isStep[chainEnd % realN]) chainEnd++;
-    // Chain covers segments i, i+1, ..., chainEnd-1
-    // Points involved: i, i+1, ..., chainEnd
-
-    // Real segment BEFORE chain: segment (i-1), from point (i-1) to point i
-    const prevIdx = (i - 1 + realN) % realN;
-    const prevStart = ring[prevIdx];
-    const prevEnd = ring[i % realN];
-    const v1 = { x: prevEnd[0] - prevStart[0], y: prevEnd[1] - prevStart[1] };
-
-    // Real segment AFTER chain: segment chainEnd, from point chainEnd to point chainEnd+1
-    const afterStart = ring[chainEnd % realN];
-    const afterEnd = ring[(chainEnd + 1) % realN];
-    const v2 = {
-      x: afterEnd[0] - afterStart[0],
-      y: afterEnd[1] - afterStart[1],
-    };
-
-    // Skip if either direction is zero
-    if ((v1.x === 0 && v1.y === 0) || (v2.x === 0 && v2.y === 0)) {
-      i = chainEnd + 1;
-      continue;
-    }
-
-    // Intersect line(prevStart, v1) with line(afterStart, v2)
-    const inter = lineLineIntersection(
-      { x: prevStart[0], y: prevStart[1] },
-      v1,
-      { x: afterStart[0], y: afterStart[1] },
-      v2
-    );
-
-    if (inter) {
-      // Sanity: intersection should be near the chain
-      const chainMidX = (prevEnd[0] + afterStart[0]) / 2;
-      const chainMidY = (prevEnd[1] + afterStart[1]) / 2;
-      const dInter = Math.sqrt(
-        (inter.x - chainMidX) ** 2 + (inter.y - chainMidY) ** 2
-      );
-      const localThick = nearestWallThickness(chainMidX, chainMidY, walls);
-
-      if (dInter < localThick * 3) {
-        // Mark all interior chain points for removal, keep first chain point as intersection
-        const firstChainPt = i % realN;
-        replacements.push({ idx: firstChainPt, point: [inter.x, inter.y] });
-
-        // Remove points (i+1) through chainEnd (inclusive) — all chain vertices after the replacement
-        for (let k = i + 1; k <= chainEnd; k++) {
-          keep[k % realN] = false;
-        }
-      }
-    }
-
-    i = chainEnd + 1;
-  }
-
-  // Apply replacements
-  const result = [...ring];
-  for (const r of replacements) {
-    result[r.idx] = r.point;
-  }
-
-  // Filter removed points
-  const filtered = result.filter((_, idx) => keep[idx]);
-
-  // Re-close the ring
-  if (filtered.length >= 2) {
-    filtered[filtered.length - 1] = [...filtered[0]];
-  }
-
-  return filtered;
-}
 
 /**
  * Classify an edge midpoint: find the nearest wall and determine side.
@@ -395,13 +242,6 @@ export default function useWallBoundaries() {
               e
             );
             throw new Error("Polygon union failed");
-          }
-
-          // ── 3b. Remove step artifacts at L-junction corners ───────────
-          for (const polygon of merged) {
-            for (let r = 0; r < polygon.length; r++) {
-              polygon[r] = removeSteps(polygon[r], openWalls);
-            }
           }
 
           // ── 4. Compute centroid for EXT side classification ───────────
