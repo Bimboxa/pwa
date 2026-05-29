@@ -27,7 +27,7 @@ export default function SectionSelectPresetScope() {
 
   // helpers
 
-  const scopeS = appConfig?.strings?.scope?.nameSingular ?? "Dossier";
+  const createScopeS = appConfig?.strings?.scope?.create ?? "Créer un nouveau dossier";
 
   const items = presetScopes?.map((ps) => ({
     ...ps,
@@ -70,7 +70,7 @@ export default function SectionSelectPresetScope() {
         }}>
           <CreateIcon sx={{ fontSize: 18, color: "text.secondary" }} />
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            Créer un nouveau {scopeS.toLowerCase()}
+            {createScopeS}
           </Typography>
         </Box>
 
