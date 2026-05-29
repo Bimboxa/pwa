@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import {
   List,
+  ListItem,
   ListItemIcon,
   ListItemButton,
   ListItemAvatar,
@@ -8,8 +9,10 @@ import {
   Typography,
   Avatar,
   Icon,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
-import { Square, Add } from "@mui/icons-material";
+import { Square, Add, ArrowForwardIos } from "@mui/icons-material";
 
 import iconsMap from "../data/iconsMap";
 import SkeletonList from "Features/layout/components/SkeletonList";
@@ -19,9 +22,13 @@ export default function ListListings({
   listings,
   selection,
   onClick,
+  onSeeObjects,
   loading,
   onAddClick,
 }) {
+  // strings
+
+  const seeObjectsS = "Voir les objets";
   // string
 
   const addPrimary = "Nouveau";
@@ -33,18 +40,38 @@ export default function ListListings({
       {!loading && (
         <List sx={{ width: 1 }} dense>
           {listings?.map((listing) => (
-            <ListItemButton
-              sx={{ p: 0.5, px: 1 }}
+            <ListItem
               key={listing?.id}
-              selected={selection?.includes(listing?.id)}
-              onClick={() => onClick(listing)}
+              disablePadding
               divider
+              secondaryAction={
+                onSeeObjects ? (
+                  <Tooltip title={seeObjectsS} placement="top">
+                    <IconButton
+                      edge="end"
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSeeObjects(listing);
+                      }}
+                    >
+                      <ArrowForwardIos fontSize="inherit" />
+                    </IconButton>
+                  </Tooltip>
+                ) : undefined
+              }
             >
-              <IconListingVariantBasic listing={listing} />
-              <Typography variant="body2" sx={{ pl: 1 }}>
-                {listing?.name}
-              </Typography>
-            </ListItemButton>
+              <ListItemButton
+                sx={{ p: 0.5, px: 1 }}
+                selected={selection?.includes(listing?.id)}
+                onClick={() => onClick(listing)}
+              >
+                <IconListingVariantBasic listing={listing} />
+                <Typography variant="body2" sx={{ pl: 1 }}>
+                  {listing?.name}
+                </Typography>
+              </ListItemButton>
+            </ListItem>
           ))}
           {/* {onAddClick && (
             <ListItemButton onClick={onAddClick}>

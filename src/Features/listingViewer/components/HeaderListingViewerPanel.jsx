@@ -3,7 +3,13 @@ import { SwapHoriz } from "@mui/icons-material";
 
 import IconListingVariantBasic from "Features/listings/components/IconListingVariantBasic";
 
-export default function HeaderListingViewerPanel({ listing, onSelectListing }) {
+export default function HeaderListingViewerPanel({
+  listing,
+  title,
+  showIcon = true,
+  showSwap = true,
+  onSelectListing,
+}) {
   // render
 
   return (
@@ -19,14 +25,16 @@ export default function HeaderListingViewerPanel({ listing, onSelectListing }) {
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", minWidth: 0 }}>
-        {listing && <IconListingVariantBasic listing={listing} />}
-        <Typography noWrap sx={{ ml: 1, fontWeight: "bold" }}>
-          {listing?.name || "Listing"}
+        {showIcon && listing && <IconListingVariantBasic listing={listing} />}
+        <Typography noWrap sx={{ ml: showIcon && listing ? 1 : 0, fontWeight: "bold" }}>
+          {title}
         </Typography>
       </Box>
-      <IconButton size="small" onClick={onSelectListing}>
-        <SwapHoriz />
-      </IconButton>
+      {showSwap && (
+        <IconButton size="small" onClick={onSelectListing}>
+          <SwapHoriz />
+        </IconButton>
+      )}
     </Box>
   );
 }

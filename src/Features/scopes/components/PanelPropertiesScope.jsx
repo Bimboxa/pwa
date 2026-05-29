@@ -18,8 +18,6 @@ import {
   Button,
   Chip,
   Tooltip,
-  Switch,
-  FormControlLabel,
 } from "@mui/material";
 import {
   Visibility,
@@ -29,8 +27,6 @@ import {
   BugReport,
   TableChart,
 } from "@mui/icons-material";
-
-import { setShowLayers, setSoloMode } from "Features/popperMapListings/popperMapListingsSlice";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
@@ -42,6 +38,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useUpdateScope from "Features/scopes/hooks/useUpdateScope";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotations from "Features/annotations/hooks/useAnnotations";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useLayers from "Features/layers/hooks/useLayers";
@@ -50,10 +47,11 @@ import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "Features/annotations/components/DatagridAnnotations";
 import CardBaseMapShare from "Features/baseMapShare/components/CardBaseMapShare";
 
-export default function PanelMapSummary() {
+export default function PanelPropertiesScope() {
   // data
 
   const dispatch = useDispatch();
+  const appConfig = useAppConfig();
   const updateScope = useUpdateScope();
   const baseMap = useMainBaseMap();
   const mainBaseMapListing = useMainBaseMapListing();
@@ -63,21 +61,20 @@ export default function PanelMapSummary() {
 
   const annotations = useAnnotations({ filterByBaseMapId: baseMapId });
   const annotationsV2 = useAnnotationsV2({
-    caller: "PanelMapSummary",
+    caller: "PanelPropertiesScope",
     filterByBaseMapId: baseMapId,
     excludeBgAnnotations: true,
     withQties: true,
     withEntity: true,
   });
   const layers = useLayers({ filterByBaseMapId: baseMapId, filterByScopeId: selectedScope?.id });
-  const showLayers = useSelector((s) => s.popperMapListings.showLayers);
-  const soloMode = useSelector((s) => s.popperMapListings.soloMode);
 
   const [openDatagrid, setOpenDatagrid] = useState(false);
 
   // helpers
 
   const scopeName = selectedScope?.name ?? "-";
+  const scopeLabel = appConfig?.strings?.scope?.nameSingular ?? "Repérage";
   const baseMapUrl = baseMap?.getUrl?.();
 
   const annotationsByLayer = useMemo(() => {
@@ -165,7 +162,7 @@ export default function PanelMapSummary() {
             fontSize: (theme) => theme.typography.caption.fontSize,
           }}
         >
-          Module Dessin
+          {scopeLabel}
         </Typography>
         <Typography variant="body2" sx={{ fontWeight: "bold" }}>
           {scopeName}
@@ -173,13 +170,13 @@ export default function PanelMapSummary() {
       </Box>
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
-        {/* Krto: Scope name */}
+        {/* Scope name */}
         {selectedScope && (
           <FieldTextV2
-            label="Krto"
+            label="Nom"
             value={selectedScope.name}
             onChange={handleNameChange}
-            options={{ showAsSection: true, fullWidth: true, changeOnBlur: true }}
+            options={{ showAsField: true, fullWidth: true, changeOnBlur: true }}
           />
         )}
 
@@ -374,69 +371,7 @@ export default function PanelMapSummary() {
         {/* Card 3: Sortable listings */}
         <FieldSortableListings />
 
-        {/* Card 4: Layers toggle */}
-        <WhiteSectionGeneric>
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: 700,
-              fontSize: "0.7rem",
-              textTransform: "uppercase",
-              color: "text.secondary",
-              letterSpacing: 0.5,
-              mb: 0.5,
-              display: "block",
-            }}
-          >
-            Calques
-          </Typography>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={showLayers}
-                onChange={(e) => dispatch(setShowLayers(e.target.checked))}
-                size="small"
-              />
-            }
-            label={
-              <Typography variant="body2">
-                Travailler avec des calques
-              </Typography>
-            }
-            sx={{ ml: 0 }}
-          />
-        </WhiteSectionGeneric>
-
-        {/* Card 5: Visibility */}
-        <WhiteSectionGeneric>
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: 700,
-              fontSize: "0.7rem",
-              textTransform: "uppercase",
-              color: "text.secondary",
-              letterSpacing: 0.5,
-              mb: 0.5,
-              display: "block",
-            }}
-          >
-            Visibilité
-          </Typography>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={soloMode}
-                onChange={(e) => dispatch(setSoloMode(e.target.checked))}
-                size="small"
-              />
-            }
-            label={<Typography variant="body2">Mode solo</Typography>}
-            sx={{ ml: 0 }}
-          />
-        </WhiteSectionGeneric>
-
-        {/* Card 6: Partage */}
+        {/* Card 4: Partage */}
         <CardBaseMapShare />
 
       </BoxFlexVStretch>

@@ -23,6 +23,7 @@ import {
   ListItemButton,
   ListItemText,
   Chip,
+  Tooltip,
 } from "@mui/material";
 import {
   ChevronRight,
@@ -30,6 +31,7 @@ import {
   FavoriteBorder,
   DragIndicator,
   TableChart,
+  ArrowBack,
 } from "@mui/icons-material";
 
 import { DndContext, closestCenter } from "@dnd-kit/core";
@@ -270,6 +272,7 @@ export default function PanelPropertiesListingV2({ listing }) {
   const updateListing = useUpdateListing();
   const { isFavorite, toggleFavorite } = useFavoriteListings();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const annotationTemplates = useAnnotationTemplates({
     filterByListingId: listing?.id,
     sortByOrder: true,
@@ -346,8 +349,14 @@ export default function PanelPropertiesListingV2({ listing }) {
   // helpers
 
   const label = listing?.name ?? "Liste";
+  const backToScopeS = "Retour";
 
   // handlers
+
+  function handleBackToScope() {
+    dispatch(setSelectedItem({ id: selectedScopeId, type: "SCOPE" }));
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+  }
 
   const handleNameBlur = async () => {
     if (!listing?.id || name === listing.name) return;
@@ -473,23 +482,30 @@ export default function PanelPropertiesListingV2({ listing }) {
           alignItems: "center",
           justifyContent: "space-between",
           p: 0.5,
-          pl: 2,
+          pl: 1,
         }}
       >
-        <Box>
-          <Typography
-            variant="subtitle2"
-            color="text.secondary"
-            sx={{
-              fontStyle: "italic",
-              fontSize: (theme) => theme.typography.caption.fontSize,
-            }}
-          >
-            Liste
-          </Typography>
-          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-            {label}
-          </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", minWidth: 0 }}>
+          <Tooltip title={backToScopeS}>
+            <IconButton size="small" onClick={handleBackToScope}>
+              <ArrowBack fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Box sx={{ ml: 1, minWidth: 0 }}>
+            <Typography
+              variant="subtitle2"
+              color="text.secondary"
+              sx={{
+                fontStyle: "italic",
+                fontSize: (theme) => theme.typography.caption.fontSize,
+              }}
+            >
+              Liste
+            </Typography>
+            <Typography noWrap variant="body2" sx={{ fontWeight: "bold" }}>
+              {label}
+            </Typography>
+          </Box>
         </Box>
         <IconButtonMoreActionsListing listing={listing} />
       </Box>
