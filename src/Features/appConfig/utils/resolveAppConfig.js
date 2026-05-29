@@ -281,28 +281,22 @@ export default async function resolveAppConfig(appConfig) {
   //   };
   // }
 
-  // portfolios - resolve default logo asset
-
-  if (newAppConfig.features?.portfolios) {
+  // portfolios - resolve default logo asset (relative to Data/<orga>/)
+  if (orgaCode && newAppConfig.features?.portfolios?.logoDefault?.path) {
     const config = newAppConfig.features.portfolios;
-    if (config.logoDefault?.urlFromAssetKey && !config.logoDefault.url) {
-      const assetKey = `../../../App/assets/${config.logoDefault.urlFromAssetKey}.png`;
-      const loader = APP_IMAGE_ASSET_LOADERS[assetKey];
-
-      if (loader) {
-        try {
-          config.logoDefault.url = await loader();
-        } catch (error) {
-          console.error(
-            `[resolveAppConfig] Error loading asset "${config.logoDefault.urlFromAssetKey}":`,
-            error
-          );
-        }
-      } else {
-        console.warn(
-          `[resolveAppConfig] Asset "${config.logoDefault.urlFromAssetKey}.png" not found in App/assets/`
-        );
+    const fullPath = `../../../Data/${orgaCode}/${config.logoDefault.path}`;
+    const loader =
+      DATA_IMAGE_URL_LOADERS[fullPath] || DATA_SVG_URL_LOADERS[fullPath];
+    if (loader) {
+      try {
+        config.logoDefault.url = await loader();
+      } catch (error) {
+        console.error(`[resolveAppConfig] Error loading portfolio logo:`, error);
       }
+    } else {
+      console.warn(
+        `[resolveAppConfig] portfolio logo not found at ${fullPath}`
+      );
     }
   }
 
