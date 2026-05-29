@@ -48,6 +48,9 @@ export default function MainListingViewer() {
         <BoxFlexVStretch sx={{ height: 1 }}>
           <HeaderListingViewerPanel
             listing={listing}
+            title={showSelector ? "Listes" : listing?.name || "Listing"}
+            showIcon={!showSelector}
+            showSwap={!showSelector}
             onSelectListing={handleSelectListing}
           />
           {!showSelector && listing && <PanelListingViewerTabs />}

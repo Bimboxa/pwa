@@ -2097,7 +2097,7 @@ export default function PopperMapListings() {
                 dispatch(
                   setSelectedItem({
                     id: selectedScopeId,
-                    type: "SCOPE",
+                    type: "POPPER_MAP_LISTINGS",
                   })
                 );
                 dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));

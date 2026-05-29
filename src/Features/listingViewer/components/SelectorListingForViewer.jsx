@@ -1,6 +1,8 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedListingId } from "Features/listings/listingsSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
@@ -35,8 +37,18 @@ export default function SelectorListingForViewer({
 
   // handlers
 
-  function handleListingClick(listing) {
+  function selectListing(listing) {
     dispatch(setSelectedListingId(listing.id));
+    dispatch(setSelectedItem({ id: listing.id, type: "LISTING" }));
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+  }
+
+  function handleListingClick(listing) {
+    selectListing(listing);
+  }
+
+  function handleSeeObjects(listing) {
+    selectListing(listing);
     if (onListingSelected) onListingSelected();
   }
 
@@ -53,6 +65,7 @@ export default function SelectorListingForViewer({
             loading={loading}
             listings={listings}
             onClick={handleListingClick}
+            onSeeObjects={handleSeeObjects}
             selection={selection}
           />
         </Box>

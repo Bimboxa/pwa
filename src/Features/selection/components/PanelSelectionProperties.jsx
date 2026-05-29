@@ -17,8 +17,8 @@ import PanelPortfolioPageProperties from "Features/portfolioEditor/components/Pa
 import PanelBaseMapProperties from "Features/baseMaps/components/PanelBaseMapProperties";
 import PanelBaseMapVersionProperties from "Features/baseMaps/components/PanelBaseMapVersionProperties";
 import PanelLayerProperties from "Features/layers/components/PanelLayerProperties";
-import PanelMapSummary from "Features/mapEditor/components/PanelMapSummary";
 import PanelMultiAnnotationProperties from "./PanelMultiAnnotationProperties";
+import PanelPropertiesScope from "Features/scopes/components/PanelPropertiesScope";
 import PanelPropertiesPopperMapListings from "Features/popperMapListings/components/PanelPropertiesPopperMapListings";
 import PanelPropertiesPoints from "Features/points/components/PanelPropertiesPoints";
 import PanelPropertiesSegment from "Features/points/components/PanelPropertiesSegment";
@@ -50,6 +50,7 @@ export default function PanelSelectionProperties() {
   const isBaseMapsViewer = selectedViewerKey === "BASE_MAPS";
 
   const isMapViewer = selectedViewerKey === "MAP";
+  const isListingViewer = selectedViewerKey === "LISTING";
 
   let type = "LISTING";
   if (
@@ -85,9 +86,12 @@ export default function PanelSelectionProperties() {
     type = "MULTI_ANNOTATION";
   } else if (isMapViewer && selectedItem?.type === "BASE_MAP") {
     type = "BASE_MAP";
-  } else if (isBaseMapsViewer && selectedItem?.type === "BASE_MAP_VERSION") {
-    type = "BASE_MAP";
-  } else if (isBaseMapsViewer && selectedItem?.type === "BASE_MAP") {
+  } else if (isBaseMapsViewer && selectedItem?.type === "SCOPE") {
+    // Allow navigating back to the scope panel from the baseMap properties.
+    type = "SCOPE";
+  } else if (isBaseMapsViewer) {
+    // In the BASE_MAPS viewer always show the baseMap properties (transforms),
+    // even when the persisted selection is a LISTING/other type from another viewer.
     type = "BASE_MAP";
   } else if (isPortfolioViewer) {
     if (selectedItem?.type === "LEGEND_BLOCK") {
@@ -108,6 +112,8 @@ export default function PanelSelectionProperties() {
     type = "LAYER";
   } else if (selectedItem?.type === "SCOPE") {
     type = "SCOPE";
+  } else if (selectedItem?.type === "POPPER_MAP_LISTINGS") {
+    type = "POPPER_MAP_LISTINGS";
   } else if (showAnnotationsProperties) {
     type = "ANNOTATION";
   } else if (
@@ -122,10 +128,10 @@ export default function PanelSelectionProperties() {
 
   return (
     <BoxFlexVStretch>
-      {type === "MAP_SUMMARY" && <PanelMapSummary />}
+      {type === "MAP_SUMMARY" && <PanelPropertiesScope />}
 
-      {type === "LISTING" && isMapViewer && <PanelPropertiesListingV2 listing={listing} />}
-      {type === "LISTING" && !isMapViewer && <PanelListingProperties listing={listing} />}
+      {type === "LISTING" && (isMapViewer || isListingViewer) && <PanelPropertiesListingV2 listing={listing} />}
+      {type === "LISTING" && !isMapViewer && !isListingViewer && <PanelListingProperties listing={listing} />}
 
       {type === "ENTITY" && <PanelEntityProperties />}
 
@@ -149,7 +155,9 @@ export default function PanelSelectionProperties() {
 
       {type === "LAYER" && <PanelLayerProperties />}
 
-      {type === "SCOPE" && <PanelPropertiesPopperMapListings />}
+      {type === "SCOPE" && <PanelPropertiesScope />}
+
+      {type === "POPPER_MAP_LISTINGS" && <PanelPropertiesPopperMapListings />}
 
       {type === "MULTI_ANNOTATION" && <PanelMultiAnnotationProperties />}
 

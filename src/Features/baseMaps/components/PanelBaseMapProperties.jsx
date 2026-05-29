@@ -5,8 +5,12 @@ import { useSelector, useDispatch } from "react-redux";
 import {
   selectSelectedItems,
   setSelectedItem,
-  triggerSelectionBack,
 } from "Features/selection/selectionSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import {
+  setSelectedViewerKey,
+  setViewerReturnContext,
+} from "Features/viewers/viewersSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -42,6 +46,8 @@ export default function PanelBaseMapProperties() {
   const mainBaseMapListing = useMainBaseMapListing();
   const selectedItems = useSelector(selectSelectedItems);
   const selectedItem = selectedItems[0];
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
   const deleteEntity = useDeleteEntity();
   const updateEntity = useUpdateEntity();
 
@@ -74,6 +80,17 @@ export default function PanelBaseMapProperties() {
   const fileSizeS = stringifyFileSize(activeVersion?.image?.file?.size);
 
   // handlers
+
+  function handleBack() {
+    // Back from baseMap properties returns to the scope panel. If we drilled in
+    // from another viewer (e.g. "Voir le détail"), also restore that viewer.
+    dispatch(setSelectedItem({ id: selectedScopeId, type: "SCOPE" }));
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+    if (viewerReturnContext?.fromViewer) {
+      dispatch(setSelectedViewerKey(viewerReturnContext.fromViewer));
+      dispatch(setViewerReturnContext(null));
+    }
+  }
 
   function handleMenuClick(event) {
     event.stopPropagation();
@@ -165,7 +182,7 @@ export default function PanelBaseMapProperties() {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center" }}>
-          <IconButton onClick={() => dispatch(triggerSelectionBack())}>
+          <IconButton onClick={handleBack}>
             <Back />
           </IconButton>
           <Box sx={{ ml: 1 }}>
