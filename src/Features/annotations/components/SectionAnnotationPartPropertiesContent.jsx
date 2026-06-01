@@ -1,12 +1,23 @@
-import { Box, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Checkbox,
+  FormControlLabel,
+  Stack,
+  Typography,
+} from "@mui/material";
+
+import useSegmentsExtEdge from "Features/points/hooks/useSegmentsExtEdge";
 
 import AnnotationMeasurements from "./AnnotationMeasurements";
 
 export default function SectionAnnotationPartPropertiesContent({ annotation, part }) {
+  const { checked, indeterminate, toggle } = useSegmentsExtEdge();
+
   if (!part || part.kind === "NONE") return null;
 
   const points = part.geometryPx || part.pointRefs || [];
   const isClosed = part.kind === "CUT";
+  const isSegmentPart = part.kind === "SEGMENT" || part.kind === "SEGMENTS";
 
   return (
     <Box sx={{ p: 2 }}>
@@ -49,6 +60,20 @@ export default function SectionAnnotationPartPropertiesContent({ annotation, par
           </Typography>
           <AnnotationMeasurements annotation={annotation} part={part} />
         </Stack>
+
+        {isSegmentPart && (
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={checked}
+                indeterminate={indeterminate}
+                onChange={toggle}
+                size="small"
+              />
+            }
+            label={<Typography variant="body2">Segment extérieur</Typography>}
+          />
+        )}
       </Stack>
     </Box>
   );

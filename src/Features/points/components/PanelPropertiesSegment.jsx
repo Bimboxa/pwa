@@ -16,6 +16,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 import useSelectedSegmentData from "Features/points/hooks/useSelectedSegmentData";
 import useToggleSegmentIsoHeight from "Features/points/hooks/useToggleSegmentIsoHeight";
+import useSegmentsExtEdge from "Features/points/hooks/useSegmentsExtEdge";
 
 function ReadOnlyOffset({ label, value }) {
   return (
@@ -36,6 +37,7 @@ export default function PanelPropertiesSegment() {
 
   const { segIdx, pointA, pointB, isIso } = useSelectedSegmentData();
   const toggleIsoHeight = useToggleSegmentIsoHeight();
+  const { checked: isExtEdge, toggle: toggleExtEdge } = useSegmentsExtEdge();
 
   // handlers
 
@@ -45,6 +47,10 @@ export default function PanelPropertiesSegment() {
 
   function handleIsoChange() {
     toggleIsoHeight();
+  }
+
+  function handleExtEdgeChange() {
+    toggleExtEdge();
   }
 
   // render - no selection
@@ -78,7 +84,7 @@ export default function PanelPropertiesSegment() {
       </Box>
 
       <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-        <Box>
+        <Box sx={{ display: "flex", flexDirection: "column" }}>
           <FormControlLabel
             control={
               <Checkbox
@@ -92,6 +98,16 @@ export default function PanelPropertiesSegment() {
                 Courbe de niveau (isoHeight)
               </Typography>
             }
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={!!isExtEdge}
+                onChange={handleExtEdgeChange}
+                size="small"
+              />
+            }
+            label={<Typography variant="body2">Segment extérieur</Typography>}
           />
         </Box>
 
