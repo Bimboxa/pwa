@@ -1490,10 +1490,14 @@ export default function MoveGizmoThreed() {
         const newIso = (ann.isoHeightSegmentsIdx || [])
           .map((s) => augIdxById.get(rawPoints[s]?.id))
           .filter((v) => Number.isInteger(v));
+        const newExtEdge = (ann.isExtEdgeSegmentsIdx || [])
+          .map((s) => augIdxById.get(rawPoints[s]?.id))
+          .filter((v) => Number.isInteger(v));
         await db.annotations.update(selectedAnnotationId, {
           points: newRefs,
           hiddenSegmentsIdx: newHidden,
           isoHeightSegmentsIdx: newIso,
+          isExtEdgeSegmentsIdx: newExtEdge,
         });
         return;
       }

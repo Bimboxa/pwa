@@ -122,6 +122,7 @@ export default function NodePolylineStatic({
         strokeWidthUnit = "PX",
         hiddenSegmentsIdx = [],
         isoHeightSegmentsIdx = [],
+        isExtEdgeSegmentsIdx = [],
     } = mergedAnnotation || {};
 
     if (type === "POLYGON") closeLine = true;
@@ -811,6 +812,55 @@ export default function NodePolylineStatic({
         return indicators;
     };
 
+    // --- RENDU EXT EDGES (Segment extérieur) ---
+    //
+    // Segments flagged `isExtEdge` are drawn with a fluo-blue solid stroke
+    // directly on the edge. Unlike the isoHeight overlay (selected-only), these
+    // stay visible regardless of selection so the user can always see which
+    // edges feed the auto-drawing algorithms. Suppressed in print/portfolio.
+    const renderExtEdges = () => {
+        if (printMode) return null;
+
+        const hasMainExt = (isExtEdgeSegmentsIdx ?? []).length > 0;
+        const hasCutExt = (cuts || []).some(c => (c.isExtEdgeSegmentsIdx ?? []).length > 0);
+        if (!hasMainExt && !hasCutExt) return null;
+
+        const makeEdge = (key, seg) => (
+            <path
+                key={key}
+                d={seg.d}
+                fill="none"
+                stroke="#00e5ff"
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+                strokeLinecap="round"
+                style={{ pointerEvents: "none" }}
+            />
+        );
+
+        const edges = [];
+
+        (isExtEdgeSegmentsIdx ?? []).forEach(idx => {
+            const seg = segmentMap[idx];
+            if (!seg) return;
+            edges.push(makeEdge(`ext-edge-main-${idx}`, seg));
+        });
+
+        (cuts || []).forEach((cut, cutIdx) => {
+            const extIdxs = cut.isExtEdgeSegmentsIdx ?? [];
+            if (extIdxs.length === 0) return;
+            const hole = holesData[cutIdx];
+            if (!hole?.segmentMap) return;
+            extIdxs.forEach(idx => {
+                const seg = hole.segmentMap[idx];
+                if (!seg) return;
+                edges.push(makeEdge(`ext-edge-cut-${cutIdx}-${idx}`, seg));
+            });
+        });
+
+        return edges;
+    };
+
     // --- RENDU CONNECTED SEGMENTS (Highlight temporaire) ---
     const renderConnectedSegments = () => {
         if (!selectedPointId || !highlightConnectedSegments) return null;
@@ -1197,6 +1247,9 @@ export default function NodePolylineStatic({
 
             {/* GHOST OFFSET INDICATORS (Image D — polygon only, when unselected) */}
             {renderGhostOffsetIndicators()}
+
+            {/* EXT EDGES (Segment extérieur — fluo-blue, always visible) */}
+            {renderExtEdges()}
 
             {/* CONNECTED SEGMENTS HIGHLIGHT */}
             {renderConnectedSegments()}

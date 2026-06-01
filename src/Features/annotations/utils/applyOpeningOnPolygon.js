@@ -157,6 +157,7 @@ export default async function applyOpeningOnPolygon({
         if (c.type != null) entry.type = c.type;
         if (c.hiddenSegmentsIdx != null) entry.hiddenSegmentsIdx = c.hiddenSegmentsIdx;
         if (c.isoHeightSegmentsIdx != null) entry.isoHeightSegmentsIdx = c.isoHeightSegmentsIdx;
+        if (c.isExtEdgeSegmentsIdx != null) entry.isExtEdgeSegmentsIdx = c.isExtEdgeSegmentsIdx;
         return entry;
     });
 
