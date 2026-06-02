@@ -2,7 +2,11 @@ import { useState, useMemo } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 import { setShowBgImageInMapEditor } from "Features/bgImage/bgImageSlice";
-import { setShowPrintableMap } from "Features/mapEditor/mapEditorSlice";
+import {
+  setShowPrintableMap,
+  setImageModeEnabled,
+  setEnabledDrawingMode,
+} from "Features/mapEditor/mapEditorSlice";
 
 import {
   Box,
@@ -11,15 +15,14 @@ import {
   IconButton,
   Divider,
   Switch,
-  FormControlLabel,
   CircularProgress,
 } from "@mui/material";
-import { styled } from "@mui/material/styles";
 import {
   TableChart,
   Download,
   MenuBook,
   PictureAsPdf,
+  PhotoCamera,
 } from "@mui/icons-material";
 
 import * as Excel from "exceljs";
@@ -36,6 +39,7 @@ import useDownladPdfReport from "Features/pdfReport/hooks/useDownladPdfReport";
 import usePdfReportName from "Features/pdfReport/hooks/usePdfReportName";
 import SliderBaseMapOpacity from "Features/mapEditor/components/SliderBaseMapOpacity";
 import SwitchBaseMapGrayScale from "Features/mapEditor/components/SwitchBaseMapGrayScale";
+import PanelCaptureMode from "Features/mapEditor/components/PanelCaptureMode";
 import createSheetAnnotations from "Features/excel/utils/createSheetAnnotations";
 import createSheetAnnotationsAggregated from "Features/excel/utils/createSheetAnnotationsAggregated";
 import downloadBlob from "Features/files/utils/downloadBlob";
@@ -44,45 +48,15 @@ import db from "App/db/db";
 import editor from "App/editor";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
-// --- MiniSwitch from old PanelExport ---
-const MiniSwitch = styled(Switch)(({ theme }) => ({
-  width: 26,
-  height: 14,
-  padding: 0,
-  display: "flex",
-  "& .MuiSwitch-switchBase": {
-    padding: 2,
-    "&.Mui-checked": {
-      transform: "translateX(12px)",
-      color: "#fff",
-      "& + .MuiSwitch-track": {
-        opacity: 1,
-        backgroundColor: theme.palette.primary.main,
-      },
-    },
-  },
-  "& .MuiSwitch-thumb": {
-    width: 10,
-    height: 10,
-    boxShadow: "none",
-  },
-  "& .MuiSwitch-track": {
-    borderRadius: 16 / 2,
-    opacity: 1,
-    backgroundColor:
-      theme.palette.mode === "dark"
-        ? "rgba(255,255,255,.35)"
-        : "rgba(0,0,0,.25)",
-    boxSizing: "border-box",
-  },
-}));
-
 export default function PanelPrint() {
   const dispatch = useDispatch();
 
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+
+  const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
+  const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
   const annotations = useAnnotationsV2({
     caller: "PanelPrint",
@@ -120,6 +94,13 @@ export default function PanelPrint() {
   const [openDatagridAll, setOpenDatagridAll] = useState(false);
   const [openDatagridAggregated, setOpenDatagridAggregated] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+
+  // handlers - capture mode
+
+  function handleToggleCaptureMode(_e, checked) {
+    if (checked) dispatch(setEnabledDrawingMode(null)); // clear active drawing tool
+    dispatch(setImageModeEnabled(checked));
+  }
 
   // handlers - Excel
 
@@ -190,6 +171,37 @@ export default function PanelPrint() {
       </Box>
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
+        {/* Card 0 — Export rapide (screenshot capture mode) */}
+        <WhiteSectionGeneric>
+          {/* Line 1 — title */}
+          <Typography variant="body2" sx={{ fontWeight: "bold", mb: 0.5 }}>
+            Export rapide
+          </Typography>
+
+          {/* Line 2 — icon + label + switch */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 2,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <PhotoCamera fontSize="small" color="action" />
+              <Typography variant="body2">Mode capture d'écran</Typography>
+            </Box>
+            <Switch
+              size="small"
+              checked={imageModeEnabled}
+              onChange={handleToggleCaptureMode}
+            />
+          </Box>
+        </WhiteSectionGeneric>
+
+        {/* Capture controls (Format / Légende / Export) — shown when capture mode is on */}
+        {imageModeEnabled && <PanelCaptureMode viewerKey={viewerKey} />}
+
         {/* Card 1 — Annotations count */}
         <WhiteSectionGeneric>
           <Box

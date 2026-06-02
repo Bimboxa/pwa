@@ -84,7 +84,6 @@ import {
 } from "Features/popperMapListings/popperMapListingsSlice";
 import DrawIcon from "@mui/icons-material/Draw";
 import EditIcon from "@mui/icons-material/Edit";
-import PhotoCamera from "@mui/icons-material/PhotoCamera";
 import IconPointer from "Features/icons/IconPointer";
 import useLayers from "Features/layers/hooks/useLayers";
 import { alpha } from "@mui/material/styles";
@@ -95,9 +94,7 @@ import {
   setAutoOffsetsOnCommit,
   setAvoidVisibleAnnotationsOnCommit,
   setPasteDetectionMode,
-  setImageModeEnabled,
 } from "Features/mapEditor/mapEditorSlice";
-import PanelCaptureMode from "./PanelCaptureMode";
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 import { keyframes } from "@emotion/react";
 import WarningAmber from "@mui/icons-material/WarningAmber";
@@ -1933,15 +1930,6 @@ export default function PopperMapListings() {
         dispatch(setSelectedItem(null));
       }
     }
-    // Sync image-mode flag with the CAPTURE interaction mode. Also clear
-    // any active drawing tool when entering CAPTURE so the cursor doesn't
-    // stay in crosshair mode over the screenshot rectangle.
-    if (next === "CAPTURE") {
-      dispatch(setEnabledDrawingMode(null));
-      dispatch(setImageModeEnabled(true));
-    } else if (interactionMode === "CAPTURE") {
-      dispatch(setImageModeEnabled(false));
-    }
     dispatch(setInteractionMode(next));
   }
 
@@ -2204,26 +2192,11 @@ export default function PopperMapListings() {
                 Sélection
               </Typography>
             </ToggleButton>
-            <ToggleButton
-              value="CAPTURE"
-              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25 }}
-            >
-              <PhotoCamera sx={{ fontSize: 18 }} />
-              <Typography variant="caption" sx={{ fontSize: "10px", lineHeight: 1, textTransform: "none" }}>
-                Capture
-              </Typography>
-            </ToggleButton>
           </ToggleButtonGroup>
         </Box>
       )}
 
-      {/* CAPTURE mode body — replaces layers / listings / cut tools */}
-      {interactionMode === "CAPTURE" && !isBaseMapsViewer && (
-        <PanelCaptureMode viewerKey={viewerKey} />
-      )}
-
-      {/* Standard body (layers / listings / cut tools) — hidden in CAPTURE mode */}
-      {interactionMode !== "CAPTURE" && (<>
+      {/* Standard body (layers / listings / cut tools) */}
       {/* Warning: base map has no scale */}
       {baseMap && !baseMap.meterByPx && (
         <Box
@@ -2375,7 +2348,6 @@ export default function PopperMapListings() {
           </Box>
         </>
       )}
-      </>)}
       </>)}
 
       {/* Create listing dialog */}

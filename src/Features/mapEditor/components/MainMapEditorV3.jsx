@@ -5,7 +5,7 @@ import { nanoid } from "@reduxjs/toolkit";
 
 
 import { setAnchorPositionScale, setScaleInPx, setAngleInRad } from "../mapEditorSlice";
-import { setEnabledDrawingMode } from "../mapEditorSlice";
+import { setEnabledDrawingMode, setImageModeEnabled } from "../mapEditorSlice";
 import { setTempAnnotations, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
 import { setBgImageRawTextAnnotations } from "Features/bgImage/bgImageSlice";
@@ -36,7 +36,8 @@ import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSp
 import useLegendItems from "Features/legend/hooks/useLegendItems";
 import useAnnotationTemplateQtiesByIdForBaseMap from "Features/annotations/hooks/useAnnotationTemplateQtiesByIdForBaseMap";
 
-import { Box } from "@mui/material";
+import { Box, Button } from "@mui/material";
+import { Close } from "@mui/icons-material";
 
 import InteractionLayer from "./InteractionLayer";
 import PrintableMap from "./PrintableMap";
@@ -1615,6 +1616,28 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     spriteImage={spriteImage}
                     qtiesById={legendQtiesById}
                 />
+            )}
+
+            {imageModeActive && (
+                <Button
+                    data-capture-hide
+                    variant="contained"
+                    color="secondary"
+                    size="small"
+                    startIcon={<Close />}
+                    onClick={() => dispatch(setImageModeEnabled(false))}
+                    sx={{
+                        position: "absolute",
+                        top: 12,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        zIndex: 20,
+                        textTransform: "none",
+                        boxShadow: 3,
+                    }}
+                >
+                    Quitter le mode capture
+                </Button>
             )}
         </Box>
         </DrawingMetricsProvider>
