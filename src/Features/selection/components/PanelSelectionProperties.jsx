@@ -22,6 +22,7 @@ import PanelPropertiesScope from "Features/scopes/components/PanelPropertiesScop
 import PanelPropertiesPopperMapListings from "Features/popperMapListings/components/PanelPropertiesPopperMapListings";
 import PanelPropertiesPoints from "Features/points/components/PanelPropertiesPoints";
 import PanelPropertiesSegment from "Features/points/components/PanelPropertiesSegment";
+import PanelPropertiesPointsAndSegments from "Features/points/components/PanelPropertiesPointsAndSegments";
 
 export default function PanelSelectionProperties() {
   // data
@@ -54,6 +55,16 @@ export default function PanelSelectionProperties() {
 
   let type = "LISTING";
   if (
+    isMapViewer &&
+    selectedPointIds.length > 0 &&
+    selectedPartIds.length > 0 &&
+    selectedItem?.type === "NODE"
+  ) {
+    // A lasso (or successive shift+clicks) caught both vertices and segments of
+    // the selected annotation: show the combined panel exposing both control
+    // sets, with shortcuts to narrow down to one kind.
+    type = "POINTS_AND_SEGMENTS";
+  } else if (
     isMapViewer &&
     selectedPointIds.length > 0 &&
     selectedItem?.type === "NODE"
@@ -164,6 +175,8 @@ export default function PanelSelectionProperties() {
       {type === "POINTS" && <PanelPropertiesPoints />}
 
       {type === "SEGMENT" && <PanelPropertiesSegment />}
+
+      {type === "POINTS_AND_SEGMENTS" && <PanelPropertiesPointsAndSegments />}
     </BoxFlexVStretch>
   );
 }

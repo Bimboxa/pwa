@@ -172,6 +172,17 @@ const PAN_STEP = 30;
 
 const PASTE_SUPPORTED_TYPES = ["POLYGON", "POLYLINE", "STRIP", "POINT", "MARKER"];
 
+// Toggle `incoming` ids against `current`: ids not present are added, ids
+// already present are removed. Used by the lasso to refine a selection without
+// resetting it. Pure.
+function toggleIds(current = [], incoming = []) {
+  const incomingSet = new Set(incoming);
+  const currentSet = new Set(current);
+  const kept = current.filter((id) => !incomingSet.has(id));
+  const added = incoming.filter((id) => !currentSet.has(id));
+  return [...kept, ...added];
+}
+
 // Snapshot one annotation's geometry (pixel-image space) into a paste-clipboard
 // item. Pure — used by the Ctrl+C handler for both single and multi selection.
 function buildClipboardItem(ann) {
@@ -346,7 +357,7 @@ const InteractionLayer = forwardRef(({
   );
 
   // Computed selectedNode equivalent (first item)
-  const { node: selectedNode } = useSelectedNodes();
+  const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
 
   // Copy/paste clipboard state
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
@@ -1389,23 +1400,33 @@ const InteractionLayer = forwardRef(({
 
   // Lasso selection
   function handleLassoSelection({ annotationIds, selectionBox, anchorPosition }) {
-    console.log("lasso selection", annotationIds, selectionBox);
-    const newItems = annotationIds.map(id => {
-      const ann = annotations.find(a => a.id === id);
+    const buildItem = (id) => {
+      const ann = annotations.find((a) => a.id === id);
       return {
-        id: id,
+        id,
         nodeId: id,
-        type: 'NODE',
-        nodeType: ann?.type,
+        type: "NODE",
+        nodeType: "ANNOTATION",
+        annotationType: ann?.type,
         entityId: ann?.entityId,
         listingId: ann?.listingId,
+        annotationTemplateId: ann?.annotationTemplateId,
         pointId: null,
         partId: null,
-        partType: null
+        partType: null,
       };
-    });
+    };
+    // Toggle the lasso hits against the current selection: annotations not yet
+    // selected are added, those caught again are removed. Lets the user refine
+    // a multi-selection by re-lassoing instead of starting from scratch.
+    const hitSet = new Set(annotationIds);
+    const kept = selectedItems.filter((i) => !hitSet.has(i.id));
+    const added = annotationIds
+      .filter((id) => !selectedItems.some((i) => i.id === id))
+      .map(buildItem);
+    const newItems = [...kept, ...added];
     dispatch(setSelectedItems(newItems));
-    dispatch(setAnnotationsToolbarPosition(anchorPosition))
+    dispatch(setAnnotationsToolbarPosition(anchorPosition));
   }
 
   const { lassoRect, startLasso, updateLasso, endLasso } = useLassoSelection({
@@ -1437,28 +1458,31 @@ const InteractionLayer = forwardRef(({
 
   const handlePointLassoSelection = useCallback(
     (pointIds, partIds) => {
-      // When the lasso catches at least one segment, drop the point hits:
-      // segment-level selection is the user's intent and mixing in vertex
-      // squares just adds noise (mirrors the shift+click behaviour).
-      const hasParts = (partIds || []).length > 0;
-      const effectivePointIds = hasParts ? [] : (pointIds || []);
-      dispatch(setSelectedPointIds(effectivePointIds));
-      dispatch(setSelectedPartIds(partIds || []));
-      // Sync the single sub-selection slot so toolbar/panel branch correctly
-      // when there is exactly one segment hit and no point hits, etc.
-      if (hasParts) {
-        const firstId = partIds[0];
-        const partType = firstId.includes("::CUT_SEG::") ? "CUT_SEG" : "SEG";
-        dispatch(setSubSelection({ partId: firstId, partType, pointId: null }));
-      } else if (effectivePointIds.length > 0) {
-        dispatch(
-          setSubSelection({ partId: null, partType: "VERTEX", pointId: effectivePointIds[0] })
-        );
-      } else {
-        dispatch(setSubSelection({ partId: null, partType: null, pointId: null }));
-      }
+      // Select BOTH the vertices and the segments the lasso catches, toggling
+      // each against the current sub-selection (newly caught ones are added,
+      // ones caught again are removed). The user then prunes points or segments
+      // by shift+clicking / the panel to keep only what they want.
+      const nextPointIds = toggleIds(selectedPointIds, pointIds || []);
+      const nextPartIds = toggleIds(selectedPartIds, partIds || []);
+      dispatch(setSelectedPointIds(nextPointIds));
+      dispatch(setSelectedPartIds(nextPartIds));
+      // Sync the single sub-selection slot with a representative of each kind so
+      // the panels can branch (the combined panel reads the arrays directly).
+      const firstPartId = nextPartIds[0] || null;
+      const firstPartType = firstPartId
+        ? firstPartId.includes("::CUT_SEG::")
+          ? "CUT_SEG"
+          : "SEG"
+        : null;
+      dispatch(
+        setSubSelection({
+          pointId: nextPointIds[0] || null,
+          partId: firstPartId,
+          partType: firstPartType,
+        })
+      );
     },
-    [dispatch]
+    [dispatch, selectedPointIds, selectedPartIds]
   );
 
   const {
@@ -3820,6 +3844,12 @@ const InteractionLayer = forwardRef(({
           }
           if (event.shiftKey) {
             dispatch(toggleSelectedPointId(pointId));
+            if (isAlreadySelected) {
+              // Point removed from the multi-selection: don't force it back as
+              // the representative — the reducer reconciles to a remaining
+              // point (or clears it), so it deselects immediately.
+              return;
+            }
           } else if (isAlreadySelected) {
             onToggleAnnotationPointType?.({ pointId, annotationId });
           } else {
@@ -3833,15 +3863,23 @@ const InteractionLayer = forwardRef(({
         if (selectedNode?.nodeId === annotationId) {
           if (event.shiftKey) {
             // Shift+click: toggle point in multi-selection
-            console.log("Toggle Point Selection:", pointId);
+            const wasSelected = selectedPointIds.includes(pointId);
             dispatch(toggleSelectedPointId(pointId));
-            dispatch(setSubSelection({ pointId, partType: "VERTEX" }));
+            // Only make the point the representative when ADDING it. When
+            // removing, leave the representative to the reducer's reconcile so
+            // the clicked point deselects immediately (otherwise it stays
+            // highlighted until another point is clicked).
+            if (!wasSelected) {
+              dispatch(setSubSelection({ pointId, partType: "VERTEX" }));
+            }
           }
           // Normal click selection + toggle type is handled by usePointDrag mouseUp
           return;
         }
-      } else {
-        // Si on clique ailleurs (sur le trait ou le vide), on déselectionne les points
+      } else if (!event.shiftKey) {
+        // Plain click elsewhere (on the line or empty) deselects the points.
+        // A shift+click never auto-clears points: it is additive (e.g. adding a
+        // segment to a mixed points + segments selection).
         if (selectedPointId) dispatch(setSubSelection({ pointId: null }));
         if (selectedPointIds.length > 0) dispatch(clearSelectedPointIds());
       }
@@ -3858,11 +3896,9 @@ const InteractionLayer = forwardRef(({
           const isMultiSelectable =
             partType === "SEG" || partType === "CUT_SEG" || partType === "CUT";
           if (event.shiftKey && isMultiSelectable) {
-            // Selecting parts and points concurrently isn't useful — when the
-            // user pivots to multi-segment, drop any point selection so the
-            // toolbar / canvas focus on segments only.
-            if (selectedPointId) dispatch(setSubSelection({ pointId: null }));
-            if (selectedPointIds.length > 0) dispatch(clearSelectedPointIds());
+            // Keep any existing point selection: shift+click on a segment adds
+            // it to the mixed (points + segments) selection rather than
+            // replacing the vertices, so the user can curate both kinds.
             // Multi-segment selection. The first shift+click after a single
             // segment selection has to PROMOTE the existing selectedPartId
             // into selectedPartIds — otherwise toggling only ever tracks the
@@ -4759,14 +4795,21 @@ const InteractionLayer = forwardRef(({
     // CAPTURE / image mode: no annotation drag to finalize.
     if (imageModeEnabledRef.current) return;
 
-    console.log("[MouseUp] lassoRect", lassoRect)
-    if (lassoRect) {
-      endLasso();
-      return;
-    }
-
-    if (pointLassoRect) {
-      endPointLasso();
+    // Lasso end. When the gesture was a click (committed: false), fall back to
+    // the shift+click toggle logic so toggling a single point / segment /
+    // annotation still works (the viewport never saw this mouseDown — we
+    // stopPropagation'd it — so it won't fire onWorldClick itself).
+    if (lassoRect || pointLassoRect) {
+      const { committed } = lassoRect ? endLasso() : endPointLasso();
+      if (!committed) {
+        const worldPos = viewportRef.current?.screenToWorld(
+          event.clientX,
+          event.clientY
+        );
+        const { viewportPos } =
+          viewportRef.current?.getMousePositions(event) || {};
+        handleWorldClick({ event, worldPos, viewportPos });
+      }
       return;
     }
 
@@ -4974,42 +5017,29 @@ const InteractionLayer = forwardRef(({
     const hit = target.closest('[data-node-type]');
 
     // Si Shift est pressé -> Lasso (annotation-level or point-level)
-
-    console.log("hit", hit?.dataset, e.shiftKey)
+    //
+    // A shift+drag always starts a lasso, wherever it begins (over an
+    // annotation, a segment, a vertex or empty space). stopPropagation here
+    // prevents MapEditorViewport from interpreting the drag as a pan. When the
+    // gesture turns out to be a click (no real movement), the lasso hook
+    // reports `committed: false` on mouseUp and handleMouseUp falls back to the
+    // shift+click toggle logic (handleWorldClick) — so individual point /
+    // segment / annotation toggles keep working.
+    //
+    // Routing: a single selected annotation enters the point/segment lasso
+    // (refine that annotation's vertices & edges); zero or several selected
+    // annotations enter the annotation-level lasso (select whole annotations).
 
     if (e.shiftKey && !enabledDrawingModeRef.current) {
-      const hasSelectedAnnotation = !!selectedNode?.nodeId;
+      const singleAnnotationSelected =
+        selectedNodes?.length === 1 && !!selectedNode?.nodeId;
 
-      if (hasSelectedAnnotation) {
-        // Point-level lasso: when an annotation is already selected
-        // Skip if clicking on a vertex/snap helper (shift+click = multi-select point)
-        // Skip if clicking on a DIFFERENT annotation (shift+click = multi-select annotation)
-        // Skip if clicking on a segment of the selected annotation (shift+click =
-        // multi-select segment), otherwise the 0×0 lasso wipes the selection on mouseUp.
-        const hitVertex = target.closest?.('[data-node-type="VERTEX"]');
-        const hitSnapVertex = target.closest?.('[data-snap-type="VERTEX"]');
-        const hitAnnotation = hit?.dataset?.nodeType === "ANNOTATION" ? hit?.dataset?.nodeId : null;
-        const isClickOnOtherAnnotation = hitAnnotation && hitAnnotation !== selectedNode?.nodeId;
-        const hitPartNode = target.closest?.('[data-part-id]');
-        const hitPartOnSelected =
-          hitPartNode && hitPartNode.dataset?.nodeId === selectedNode?.nodeId;
-        if (!hitVertex && !hitSnapVertex && !isClickOnOtherAnnotation && !hitPartOnSelected) {
-          const started = startPointLasso(e);
-          if (started) {
-            console.log("point lasso started");
-            e.stopPropagation();
-            return;
-          }
-        }
-      }
-      // Annotation-level lasso: when clicking on empty space or base map
-      else if (!hit || hit?.dataset?.nodeType === "BASE_MAP") {
-        const started = startLasso(e);
-        if (started) {
-          console.log("lasso started")
-          e.stopPropagation();
-          return;
-        }
+      const started = singleAnnotationSelected
+        ? startPointLasso(e)
+        : startLasso(e);
+      if (started) {
+        e.stopPropagation();
+        return;
       }
     }
 

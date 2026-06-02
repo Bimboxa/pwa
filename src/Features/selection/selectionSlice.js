@@ -1,5 +1,40 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+// The single sub-selection slot (selectedItems[0].pointId / partId / partType)
+// mirrors the multi arrays as a "representative". When the arrays change we must
+// keep that representative in sync, otherwise a stale pointId/partId lingers and
+// makes the canvas highlight a phantom vertex and useSelectedAnnotationPart pick
+// the wrong kind (e.g. showing "Point …" after clearing the points group).
+
+// Points invariant: pointId is always one of selectedPointIds, or null.
+function reconcilePointRepresentative(state) {
+  const item = state.selectedItems[0];
+  if (!item || item.pointId == null) return;
+  if (!state.selectedPointIds.includes(item.pointId)) {
+    item.pointId = state.selectedPointIds[0] ?? null;
+    if (item.pointId == null && item.partType === "VERTEX") {
+      item.partType = null;
+    }
+  }
+}
+
+// Parts can also be selected singly (partId set with an empty array — single
+// segment focus), so only repoint/clear the representative when it WAS part of
+// the multi array that just changed.
+function reconcilePartRepresentative(state, wasInArray) {
+  const item = state.selectedItems[0];
+  if (!item || item.partId == null || !wasInArray) return;
+  if (!state.selectedPartIds.includes(item.partId)) {
+    const next = state.selectedPartIds[0] ?? null;
+    item.partId = next;
+    item.partType = next
+      ? next.includes("::CUT_SEG::")
+        ? "CUT_SEG"
+        : next.split("::")[1]
+      : null;
+  }
+}
+
 const selectionInitialState = {
   selectedItems: [], // Array of { id, nodeId, type, nodeType, listingId, context, pointId, partId, partType }
   selectedPointIds: [], // Array of point IDs for multi-point selection
@@ -151,6 +186,7 @@ export const selectionSlice = createSlice({
     },
     setSelectedPointIds: (state, action) => {
       state.selectedPointIds = action.payload || [];
+      reconcilePointRepresentative(state);
     },
     toggleSelectedPointId: (state, action) => {
       const pointId = action.payload;
@@ -160,24 +196,38 @@ export const selectionSlice = createSlice({
       } else {
         state.selectedPointIds.push(pointId);
       }
+      reconcilePointRepresentative(state);
     },
     clearSelectedPointIds: (state) => {
       state.selectedPointIds = [];
+      reconcilePointRepresentative(state);
     },
     setSelectedPartIds: (state, action) => {
+      const item = state.selectedItems[0];
+      const wasInArray =
+        !!item && item.partId != null && state.selectedPartIds.includes(item.partId);
       state.selectedPartIds = action.payload || [];
+      reconcilePartRepresentative(state, wasInArray);
     },
     toggleSelectedPartId: (state, action) => {
       const partId = action.payload;
+      const item = state.selectedItems[0];
+      const wasInArray =
+        !!item && item.partId != null && state.selectedPartIds.includes(item.partId);
       const index = state.selectedPartIds.indexOf(partId);
       if (index >= 0) {
         state.selectedPartIds.splice(index, 1);
       } else {
         state.selectedPartIds.push(partId);
       }
+      reconcilePartRepresentative(state, wasInArray);
     },
     clearSelectedPartIds: (state) => {
+      const item = state.selectedItems[0];
+      const wasInArray =
+        !!item && item.partId != null && state.selectedPartIds.includes(item.partId);
       state.selectedPartIds = [];
+      reconcilePartRepresentative(state, wasInArray);
     },
   },
 });
