@@ -4,7 +4,10 @@ import { useDispatch, useSelector } from "react-redux";
 
 import db from "App/db/db";
 
-import { setCanTransformNode, setWrapperMode } from "Features/mapEditor/mapEditorSlice";
+import {
+  setCanTransformNode,
+  setWrapperMode,
+} from "Features/mapEditor/mapEditorSlice";
 import {
   clearSelection,
   clearSelectedPartIds,
@@ -63,6 +66,7 @@ import IconButtonConvertAnnotation from "./IconButtonConvertAnnotation";
 import IconButtonVectorisation from "./IconButtonVectorisation";
 import IconButtonSimplifyAnnotation from "./IconButtonSimplifyAnnotation";
 import IconButtonCloseWallFootprint from "./IconButtonCloseWallFootprint";
+import IconButtonSlopeWalls from "./IconButtonSlopeWalls";
 import IconButtonContours from "./IconButtonContours";
 import IconButtonCloseEnvelope from "./IconButtonCloseEnvelope";
 
@@ -70,7 +74,11 @@ import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingle
 
 import getAnnotationColor from "../utils/getAnnotationColor";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
-import { resolveDrawingShape, resolveDrawingShapeFromType, getAnnotationType } from "../constants/drawingShapeConfig";
+import {
+  resolveDrawingShape,
+  resolveDrawingShapeFromType,
+  getAnnotationType,
+} from "../constants/drawingShapeConfig";
 import getCloneTypeOptions from "../utils/getCloneTypeOptions";
 
 export default function ToolbarEditAnnotation({ onDragStart }) {
@@ -101,14 +109,19 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
 
   const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
   const [cloneAnchorEl, setCloneAnchorEl] = useState(null);
-  const [selectedCloneType, setSelectedCloneType] = useState(selectedAnnotation?.type);
+  const [selectedCloneType, setSelectedCloneType] = useState(
+    selectedAnnotation?.type
+  );
 
   // helpers
 
   const cloneTypeOptions = getCloneTypeOptions(selectedAnnotation?.type, part);
   const isMixedPart = hasPart && part.kind === "MIXED";
   const segmentsHasChains =
-    hasPart && part.kind === "SEGMENTS" && Array.isArray(part.chains) && part.chains.length > 0;
+    hasPart &&
+    part.kind === "SEGMENTS" &&
+    Array.isArray(part.chains) &&
+    part.chains.length > 0;
   const cloneDisabled =
     isMixedPart ||
     (hasPart &&
@@ -133,7 +146,8 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
 
   // Template-locked fields (overrideFields): editing them is a no-op since the
   // template value wins on the next read, so we gray them out.
-  const overrideFields = selectedAnnotation?.annotationTemplateProps?.overrideFields;
+  const overrideFields =
+    selectedAnnotation?.annotationTemplateProps?.overrideFields;
   const isLocked = (f) =>
     Array.isArray(overrideFields) && overrideFields.includes(f);
   const isPolylineOrStrip = ["POLYLINE", "STRIP"].includes(
@@ -362,7 +376,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+    <Box
+      sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+    >
       <Paper
         elevation={6}
         sx={{
@@ -387,7 +403,10 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
             "&:active": { cursor: "grabbing" },
           }}
         >
-          <GripIcon fontSize="small" sx={{ color: "text.disabled", flexShrink: 0 }} />
+          <GripIcon
+            fontSize="small"
+            sx={{ color: "text.disabled", flexShrink: 0 }}
+          />
 
           {isMixedPart ? (
             <>
@@ -409,7 +428,10 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                   sx={{
                     flexShrink: 0,
                     color: "text.disabled",
-                    "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+                    "&:hover": {
+                      bgcolor: "action.hover",
+                      color: "text.primary",
+                    },
                   }}
                 >
                   <CloseIcon sx={{ fontSize: 16 }} />
@@ -420,7 +442,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
             <>
               <Typography
                 variant="caption"
-                sx={{ color: "text.secondary", fontSize: "0.7rem", flexShrink: 0 }}
+                sx={{
+                  color: "text.secondary",
+                  fontSize: "0.7rem",
+                  flexShrink: 0,
+                }}
               >
                 {part.captionFr}
               </Typography>
@@ -447,7 +473,10 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                   sx={{
                     flexShrink: 0,
                     color: "text.disabled",
-                    "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+                    "&:hover": {
+                      bgcolor: "action.hover",
+                      color: "text.primary",
+                    },
                   }}
                 >
                   <CloseIcon sx={{ fontSize: 16 }} />
@@ -456,7 +485,14 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
             </>
           ) : (
             <>
-              <AnnotationTemplateIcon template={selectedAnnotation?.annotationTemplate || selectedAnnotation || {}} size={16} />
+              <AnnotationTemplateIcon
+                template={
+                  selectedAnnotation?.annotationTemplate ||
+                  selectedAnnotation ||
+                  {}
+                }
+                size={16}
+              />
 
               <Typography
                 variant="body2"
@@ -481,7 +517,10 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                   sx={{
                     flexShrink: 0,
                     color: "text.disabled",
-                    "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+                    "&:hover": {
+                      bgcolor: "action.hover",
+                      color: "text.primary",
+                    },
                   }}
                 >
                   <ArrowDropDownIcon sx={{ fontSize: 20 }} />
@@ -537,7 +576,10 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                   sx={{
                     flexShrink: 0,
                     color: "text.disabled",
-                    "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+                    "&:hover": {
+                      bgcolor: "action.hover",
+                      color: "text.primary",
+                    },
                   }}
                 >
                   <SettingsIcon sx={{ fontSize: 18 }} />
@@ -549,7 +591,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
 
         {/* Group rows — only in MIXED mode (1 row per kind with key qty + remove) */}
         {isMixedPart && (
-          <Box sx={{ py: 0.5, borderBottom: "1px solid", borderColor: "divider" }}>
+          <Box
+            sx={{ py: 0.5, borderBottom: "1px solid", borderColor: "divider" }}
+          >
             {part.groups.map((group) => (
               <ToolbarPartGroupRow
                 key={group.kind}
@@ -657,7 +701,10 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               borderColor: "divider",
             }}
           >
-            <AnnotationMeasurements annotation={selectedAnnotation} part={part} />
+            <AnnotationMeasurements
+              annotation={selectedAnnotation}
+              part={part}
+            />
           </Box>
         )}
 
@@ -679,73 +726,110 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           hideResize={hasPart}
           onDelete={handleDeleteClick}
           hideDelete={hasPart}
-          extraActions={hasPart ? null : (
-            <>
-              {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
-                <IconButtonAnchorAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
-              )}
-              {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) &&
-                !selectedAnnotation?.closeLine && (
-                  <IconButtonToggleStripType annotation={selectedAnnotation} accentColor={accentColor} />
+          extraActions={
+            hasPart ? null : (
+              <>
+                {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
+                  <IconButtonAnchorAnnotation
+                    annotation={selectedAnnotation}
+                    accentColor={accentColor}
+                  />
                 )}
-              {selectedAnnotation?.type === "STRIP" && (
-                <IconButtonFlipStripAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
-              )}
-              {selectedAnnotation?.type === "STRIP" && (
-                <IconButtonDetectSimilarStrips annotation={selectedAnnotation} accentColor={accentColor} />
-              )}
-              {isClosedShape && (
-                <IconButtonDilateAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
-              )}
-              {["POLYLINE", "POLYGON", "STRIP"].includes(selectedAnnotation?.type) && (
-                <IconButtonRepairAnnotation annotation={selectedAnnotation} accentColor={accentColor} />
-              )}
-              {["POLYLINE", "POLYGON", "STRIP"].includes(selectedAnnotation?.type) && (
-                <IconButtonSplitInSegments
-                  annotations={[selectedAnnotation]}
-                  accentColor={accentColor}
-                />
-              )}
-              {selectedAnnotation?.type === "POLYGON" && (
-                <IconButtonConvertAnnotation
-                  annotations={[selectedAnnotation]}
-                  accentColor={accentColor}
-                />
-              )}
-              {selectedAnnotation?.type === "POLYGON" && (
-                <IconButtonVectorisation
-                  annotations={[selectedAnnotation]}
-                  accentColor={accentColor}
-                />
-              )}
-              {selectedAnnotation?.type === "POLYGON" && (
-                <IconButtonCloseWallFootprint
-                  annotation={selectedAnnotation}
-                  accentColor={accentColor}
-                />
-              )}
-              {["POLYLINE", "POLYGON", "STRIP"].includes(selectedAnnotation?.type) && (
-                <IconButtonSimplifyAnnotation
-                  annotation={selectedAnnotation}
-                  accentColor={accentColor}
-                />
-              )}
-              {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
-                <IconButtonContours
-                  annotations={[selectedAnnotation]}
-                  accentColor={accentColor}
-                />
-              )}
-              {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
-                <IconButtonCloseEnvelope
-                  annotations={[selectedAnnotation]}
-                  accentColor={accentColor}
-                />
-              )}
-            </>
-          )}
+                {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) &&
+                  !selectedAnnotation?.closeLine && (
+                    <IconButtonToggleStripType
+                      annotation={selectedAnnotation}
+                      accentColor={accentColor}
+                    />
+                  )}
+                {selectedAnnotation?.type === "STRIP" && (
+                  <IconButtonFlipStripAnnotation
+                    annotation={selectedAnnotation}
+                    accentColor={accentColor}
+                  />
+                )}
+                {selectedAnnotation?.type === "STRIP" && (
+                  <IconButtonDetectSimilarStrips
+                    annotation={selectedAnnotation}
+                    accentColor={accentColor}
+                  />
+                )}
+                {isClosedShape && (
+                  <IconButtonDilateAnnotation
+                    annotation={selectedAnnotation}
+                    accentColor={accentColor}
+                  />
+                )}
+                {["POLYLINE", "POLYGON", "STRIP"].includes(
+                  selectedAnnotation?.type
+                ) && (
+                  <IconButtonRepairAnnotation
+                    annotation={selectedAnnotation}
+                    accentColor={accentColor}
+                  />
+                )}
+                {["POLYLINE", "POLYGON", "STRIP"].includes(
+                  selectedAnnotation?.type
+                ) && (
+                  <IconButtonSplitInSegments
+                    annotations={[selectedAnnotation]}
+                    accentColor={accentColor}
+                  />
+                )}
+                {selectedAnnotation?.type === "POLYGON" && (
+                  <IconButtonConvertAnnotation
+                    annotations={[selectedAnnotation]}
+                    accentColor={accentColor}
+                  />
+                )}
+                {selectedAnnotation?.type === "POLYGON" && (
+                  <IconButtonVectorisation
+                    annotations={[selectedAnnotation]}
+                    accentColor={accentColor}
+                  />
+                )}
+                {selectedAnnotation?.type === "POLYGON" && (
+                  <IconButtonCloseWallFootprint
+                    annotation={selectedAnnotation}
+                    accentColor={accentColor}
+                  />
+                )}
+                {selectedAnnotation?.type === "POLYGON" &&
+                  selectedAnnotation?.guideLines?.some(
+                    (g) => g?.points?.length >= 2 && g?.slopePct
+                  ) && (
+                    <IconButtonSlopeWalls
+                      annotation={selectedAnnotation}
+                      accentColor={accentColor}
+                    />
+                  )}
+                {["POLYLINE", "POLYGON", "STRIP"].includes(
+                  selectedAnnotation?.type
+                ) && (
+                  <IconButtonSimplifyAnnotation
+                    annotation={selectedAnnotation}
+                    accentColor={accentColor}
+                  />
+                )}
+                {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
+                  <IconButtonContours
+                    annotations={[selectedAnnotation]}
+                    accentColor={accentColor}
+                  />
+                )}
+                {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
+                  <IconButtonCloseEnvelope
+                    annotations={[selectedAnnotation]}
+                    accentColor={accentColor}
+                  />
+                )}
+              </>
+            )
+          }
           layerChip={
-            !hasPart && selectedAnnotation && !selectedAnnotation.isBaseMapAnnotation ? (
+            !hasPart &&
+            selectedAnnotation &&
+            !selectedAnnotation.isBaseMapAnnotation ? (
               <ChipLayerSelector
                 annotationIds={[selectedAnnotation.id]}
                 annotations={[selectedAnnotation]}
@@ -764,7 +848,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           transformOrigin={{ vertical: "top", horizontal: "left" }}
         >
           <SelectorAnnotationTemplateVariantDense
-            selectedAnnotationTemplateId={selectedAnnotation?.annotationTemplateId}
+            selectedAnnotationTemplateId={
+              selectedAnnotation?.annotationTemplateId
+            }
             onChange={handleTemplateChange}
             annotationTemplates={sameTypeCandidates}
             listings={sameTypeListings}
@@ -787,12 +873,16 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               <ToggleSingleSelectorGeneric
                 selectedKey={selectedCloneType}
                 options={cloneTypeOptions}
-                onChange={(v) => setSelectedCloneType(v ?? selectedAnnotation?.type)}
+                onChange={(v) =>
+                  setSelectedCloneType(v ?? selectedAnnotation?.type)
+                }
               />
             </Box>
           )}
           <SelectorAnnotationTemplateVariantDense
-            selectedAnnotationTemplateId={selectedAnnotation?.annotationTemplateId}
+            selectedAnnotationTemplateId={
+              selectedAnnotation?.annotationTemplateId
+            }
             onChange={handleCloneTemplateChange}
             annotationTemplates={filteredCloneCandidates}
             listings={cloneListings}
