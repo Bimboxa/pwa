@@ -943,7 +943,7 @@ export default function NodePolylineStatic({
     }, [type, mergedAnnotation.guideLine]);
 
     // Slope arrow drawn along the MIDDLE of the guideLine, following the
-    // curve and pointing uphill. % = Δz / 3D-length (distance walked).
+    // curve and pointing uphill. % = Δz / horizontal-run (rise/run).
     const guideSlope = useMemo(() => {
         if (!guideLinePx || guideLinePx.length < 2 || !points || points.length === 0) return null;
         let zMin = Infinity;
@@ -968,7 +968,10 @@ export default function NodePolylineStatic({
         const L2D = cum[cum.length - 1];
         if (!Number.isFinite(L2D) || L2D < 1e-6) return null;
         const L2Dm = L2D * (baseMapMeterByPx || 0);
-        const slopePct = L2Dm > 1e-6 ? (100 * dz) / Math.hypot(L2Dm, dz) : 0;
+        // Slope as rise/run (tangent × 100) — the standard "pente en %" used by
+        // getPolygonSlope (plain slope arrow) and the guideLine properties
+        // panel. (Was rise/slope-length, i.e. sine, which read ~1% lower.)
+        const slopePct = L2Dm > 1e-6 ? (100 * dz) / L2Dm : 0;
 
         // Point on the polyline at a given arc length.
         const at = (s) => {

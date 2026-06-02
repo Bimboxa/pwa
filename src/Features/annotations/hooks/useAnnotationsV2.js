@@ -38,6 +38,7 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
 import resolveGuideLine from "Features/annotations/utils/resolveGuideLine";
+import applyGuideLineRampToRings from "Features/annotations/utils/applyGuideLineRampToRings";
 
 import db from "App/db/db";
 
@@ -387,6 +388,29 @@ export default function useAnnotationsV2(options) {
                     }
                     if (annotation.guideLine) {
                         _annotation.guideLine = resolveGuideLine({ guideLine: annotation.guideLine, pointsIndex, imageSize });
+                    }
+
+                    // guideLine ramp: derive each vertex's offsetTop from its
+                    // projection onto the guideLine so the sloped surface is a
+                    // pure function of position (iso-lines normal to the
+                    // guideLine) and stays correct when the contour is edited.
+                    if (
+                        _annotation.guideLine &&
+                        _annotation.guideLine.length >= 2 &&
+                        Number.isFinite(annotation.guideLineSlopePct) &&
+                        annotation.guideLineSlopePct !== 0
+                    ) {
+                        const ramped = applyGuideLineRampToRings({
+                            points: _annotation.points,
+                            cuts: _annotation.cuts,
+                            innerPoints: _annotation.innerPoints,
+                            guideLine: _annotation.guideLine,
+                            meterByPx,
+                            slopePct: annotation.guideLineSlopePct,
+                        });
+                        _annotation.points = ramped.points;
+                        _annotation.cuts = ramped.cuts;
+                        _annotation.innerPoints = ramped.innerPoints;
                     }
 
                 }

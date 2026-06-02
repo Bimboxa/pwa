@@ -22,6 +22,29 @@ function hasPerVertexZOffsets(annotation) {
   return false;
 }
 
+// Developed (3D) perimeter of a ring: sums edge lengths in meters using each
+// vertex height z = offsetBottom + offsetTop (already meters) as the third
+// dimension, so edges that climb the ramp count their true sloped length.
+// Hidden segments are excluded. Arcs are treated as straight chords (v1).
+function computeDevelopedPerimeter(ring, meterByPx, isClosed, hiddenSegmentsIdx = []) {
+  const pts = (ring || []).filter((p) => p && typeof p.x === "number");
+  const n = pts.length;
+  if (n < 2) return 0;
+  const limit = isClosed ? n : n - 1;
+  const zOf = (p) => ((p.offsetBottom ?? 0) + (p.offsetTop ?? 0));
+  let len = 0;
+  for (let i = 0; i < limit; i++) {
+    if (hiddenSegmentsIdx.includes(i)) continue;
+    const p0 = pts[i];
+    const p1 = pts[(i + 1) % n];
+    const dx = (p1.x - p0.x) * meterByPx;
+    const dy = (p1.y - p0.y) * meterByPx;
+    const dz = zOf(p1) - zOf(p0);
+    len += Math.hypot(dx, dy, dz);
+  }
+  return len;
+}
+
 /**
  * --- HELPERS GÉOMÉTRIQUES ---
  */
@@ -317,13 +340,19 @@ export default function getAnnotationQties({
       const innerPts = (annotation.innerPoints || []).filter(
         (p) => p && typeof p.x === "number"
       );
+      // x/y are in pixels while offsetTop is already in meters. Scale the
+      // contour to meters and pass unitScale=1 so all three axes share units —
+      // otherwise the slope's vertical component is under-scaled by meterByPx
+      // and the developed surface collapses to the flat footprint.
+      const toMeters = (ring) =>
+        (ring || []).map((p) => ({ ...p, x: p.x * meterByPx, y: p.y * meterByPx }));
       const tri = triangulateAnnotationGeometry({
-        contour: points,
-        holes: cutsRings,
-        innerPoints: innerPts,
+        contour: toMeters(points),
+        holes: cutsRings.map(toMeters),
+        innerPoints: toMeters(innerPts),
         height: 0,
         verticalLift: 0,
-        unitScale: meterByPx,
+        unitScale: 1,
         // Match the banded 3D ramp mesh so the developed surface is consistent.
         isoBandLevels:
           annotation?.guideLine && annotation.guideLine.length >= 2
@@ -331,6 +360,27 @@ export default function getAnnotationQties({
             : 0,
       });
       result.surfaceDeveloped = tri.areaTop;
+
+      // Developed perimeter: main contour (closed) + each cut ring (closed),
+      // matching the planar `length` aggregation but in 3D.
+      let lengthDeveloped = computeDevelopedPerimeter(
+        points,
+        meterByPx,
+        true,
+        annotation.hiddenSegmentsIdx || []
+      );
+      (annotation.cuts || []).forEach((cut) => {
+        const cutPoints = (cut.points || []).filter((p) => p && typeof p.x === "number");
+        if (cutPoints.length >= 3) {
+          lengthDeveloped += computeDevelopedPerimeter(
+            cutPoints,
+            meterByPx,
+            true,
+            cut.hiddenSegmentsIdx || []
+          );
+        }
+      });
+      result.lengthDeveloped = lengthDeveloped;
     }
 
     return result;

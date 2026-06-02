@@ -25,6 +25,7 @@ import useAutoShowBgImage from "Features/bgImage/hooks/useAutoShowBgImage";
 import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgImageRawTextAnnotations";
 import useHandleCommitDrawing from "../hooks/useHandleCommitDrawing";
 import useHandleCommitGuideLine from "../hooks/useHandleCommitGuideLine";
+import useDeleteGuideLine from "Features/annotations/hooks/useDeleteGuideLine";
 import useHandleSplitCommit from "../hooks/useHandleSplitCommit";
 import useHandleCompleteAnnotation from "../hooks/useHandleCompleteAnnotation";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -394,6 +395,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline({ newEntity });
     const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick({ newEntity });
     const handleCommitGuideLine = useHandleCommitGuideLine();
+    const deleteGuideLine = useDeleteGuideLine();
     const { handleCompleteAnnotationCommit } = useHandleCompleteAnnotation({ newEntity });
     const saveTempAnnotations = useSaveTempAnnotations();
     const createAnnotationsFromDetectedStrips = useCreateAnnotationsFromDetectedStrips();
@@ -1363,15 +1365,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // Deletes the whole guideLine: drops every db.points it referenced and
     // clears annotation.guideLine. Triggered by Delete/Backspace when the
     // guideLine polyline is the selected part.
-    const handleDeleteGuideLine = async ({ annotationId }) => {
-        const ann = await db.annotations.get(annotationId);
-        if (!ann || !Array.isArray(ann.guideLine) || ann.guideLine.length === 0) return;
-        const pointIds = ann.guideLine.map((g) => g.pointId).filter(Boolean);
-        await db.transaction("rw", db.points, db.annotations, async () => {
-            if (pointIds.length > 0) await db.points.bulkDelete(pointIds);
-            await db.annotations.update(annotationId, { guideLine: [] });
-        });
-    };
+    const handleDeleteGuideLine = deleteGuideLine;
 
     // snapping
 

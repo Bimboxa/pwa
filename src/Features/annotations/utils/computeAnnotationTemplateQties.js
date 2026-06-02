@@ -41,8 +41,12 @@ export default function computeAnnotationTemplateQties(
     }
 
     if (qty && qty.enabled) {
-      if (Number.isFinite(qty.length)) stats.length += qty.length;
-      if (Number.isFinite(qty.surface)) stats.surface += qty.surface;
+      // Prefer the developed (sloped) values when a guideLine ramp is present,
+      // so per-template totals reflect the real material quantity.
+      const length = qty.lengthDeveloped != null ? qty.lengthDeveloped : qty.length;
+      const surface = qty.surfaceDeveloped != null ? qty.surfaceDeveloped : qty.surface;
+      if (Number.isFinite(length)) stats.length += length;
+      if (Number.isFinite(surface)) stats.surface += surface;
     }
 
     return acc;

@@ -41,8 +41,9 @@ export default function AnnotationMeasurements({ annotation, surface, length, pa
           profileLengthMeters,
         });
     if (!qties?.enabled) enabled = false;
-    computedSurface = qties?.surface;
-    computedLength = qties?.length;
+    // Prefer the developed (sloped) values when a guideLine ramp is present.
+    computedSurface = qties?.surfaceDeveloped != null ? qties.surfaceDeveloped : qties?.surface;
+    computedLength = qties?.lengthDeveloped != null ? qties.lengthDeveloped : qties?.length;
   }
 
   // When a part is selected we want surface to show whenever the calc returns

@@ -17,7 +17,12 @@ export default function SectionAnnotationQties({ annotation }) {
     || (type === "POLYLINE" && annotation?.height)
 
   const lengthLabel = type === "POINT" ? "Hauteur" : "Longueur";
-  const showLength = qties?.length > 0;
+
+  // When a slope is present (guideLine ramp), surface up the developed (sloped)
+  // surface / perimeter as the displayed quantity instead of the flat footprint.
+  const surface = qties?.surfaceDeveloped != null ? qties.surfaceDeveloped : qties?.surface;
+  const length = qties?.lengthDeveloped != null ? qties.lengthDeveloped : qties?.length;
+  const showLength = length > 0;
 
   if (!qties) return null;
 
@@ -25,12 +30,12 @@ export default function SectionAnnotationQties({ annotation }) {
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, p: 1 }}>
       {showLength && (
         <Typography variant="caption" color="text.secondary">
-          {lengthLabel} : {qties.length?.toFixed?.(2) ?? 0} m
+          {lengthLabel} : {length?.toFixed?.(2) ?? 0} m
         </Typography>
       )}
       {showSurface && (
         <Typography variant="caption" color="text.secondary">
-          Surface : {qties.surface?.toFixed?.(2) ?? 0} m²
+          Surface : {surface?.toFixed?.(2) ?? 0} m²
         </Typography>
       )}
     </Box>
