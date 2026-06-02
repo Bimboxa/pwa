@@ -1,39 +1,41 @@
-import applyGuideLineSlopeOffsets from "Features/annotations/utils/applyGuideLineSlopeOffsets";
+import getGuideLinesRampOffsets from "Features/annotations/utils/getGuideLinesRampOffsets";
 
-// Derives the ramp height (`offsetTop`) of every ring vertex from its
-// projection onto the guideLine, so the sloped top surface is a deterministic
-// function of position (iso-height contours run normal to the guideLine).
+// Derives the ramp height (`offsetTop`) of every ring vertex from the sequence
+// of guideLines, so the sloped top surface is a deterministic function of
+// position (iso-height contours run normal to each guideLine, height
+// accumulates along the ramp).
 //
-// This is evaluated at resolve time (useAnnotationsV2) rather than baked into
-// the stored points: any vertex added/moved on the contour afterwards
-// automatically gets the right height, and the 3D mesh / quantities stay
-// consistent with the guideLine instead of drifting when the contour changes.
+// Evaluated at resolve time (useAnnotationsV2) rather than baked into stored
+// points: any vertex added/moved on the contour afterwards automatically gets
+// the right height, and the 3D mesh / quantities stay consistent.
 //
 // All inputs are in pixel space (resolved). Returns { points, cuts, innerPoints }
-// with `offsetTop` overwritten per the slope law; everything else is preserved.
+// with `offsetTop` overwritten per the ramp; everything else is preserved.
 export default function applyGuideLineRampToRings({
   points,
   cuts,
   innerPoints,
-  guideLine,
+  guideLines,
   meterByPx,
-  slopePct,
 }) {
   const result = { points, cuts, innerPoints };
-  if (!Array.isArray(guideLine) || guideLine.length < 2) return result;
-  if (!Number.isFinite(slopePct) || slopePct === 0) return result;
+  const usable =
+    Array.isArray(guideLines) &&
+    guideLines.some(
+      (g) => Array.isArray(g?.points) && g.points.length >= 2 && g?.slopePct
+    );
+  if (!usable) return result;
 
-  const vertices = [
+  const polygonPts = [
     ...(points || []),
     ...((cuts || []).flatMap((c) => c?.points || [])),
     ...(innerPoints || []),
   ].filter((p) => p && p.id != null && typeof p.x === "number");
 
-  const offsetMap = applyGuideLineSlopeOffsets({
-    guidePts: guideLine,
-    vertices,
+  const offsetMap = getGuideLinesRampOffsets({
+    guideLines,
+    polygonPts,
     meterByPx,
-    slopePct,
   });
   if (offsetMap.size === 0) return result;
 

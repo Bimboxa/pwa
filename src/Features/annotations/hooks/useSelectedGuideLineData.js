@@ -1,33 +1,33 @@
+import { useSelector } from "react-redux";
+
+import { selectSelectedItem } from "Features/selection/selectionSlice";
+
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
-import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
-import getPolygonSlope from "Features/annotations/utils/getPolygonSlope";
-
-// Resolves the data backing the guideLine ("Ligne guide") properties panel.
+// Resolves the data backing the guideLine ("Ligne guide") properties panel for
+// the currently sub-selected guideLine. The selected index is encoded in the
+// partId: `${annotationId}::GUIDE_LINE::${index}`.
 //
-// `slopePct` is the authoritative value stored on the annotation
-// (`guideLineSlopePct`) when present, falling back to the plane-fit estimate
-// (`getPolygonSlope`) so guideLines whose offsets were set via the 3D gizmo
-// still display a sensible value.
-//
-// Returns { annotation, guidePtsPx, meterByPx, slopePct, hasGuideLine }.
+// Returns { annotation, index, guideLine, slopePct, hasGuideLine, count }.
 export default function useSelectedGuideLineData() {
   const annotation = useSelectedAnnotation();
-  const baseMap = useMainBaseMap();
-  const meterByPx = baseMap?.meterByPx;
+  const selectedItem = useSelector(selectSelectedItem);
 
-  const guidePtsPx = annotation?.guideLine || [];
-  const hasGuideLine = guidePtsPx.length >= 2;
+  const parts = String(selectedItem?.partId || "").split("::");
+  const index = parts[1] === "GUIDE_LINE" ? Number(parts[2]) : -1;
 
-  let slopePct = 0;
-  if (annotation) {
-    if (Number.isFinite(annotation.guideLineSlopePct)) {
-      slopePct = annotation.guideLineSlopePct;
-    } else {
-      const fit = getPolygonSlope({ points: annotation.points, meterByPx });
-      slopePct = fit?.slopePct ?? 0;
-    }
-  }
+  const guideLines = annotation?.guideLines || [];
+  const guideLine =
+    Number.isInteger(index) && index >= 0 ? guideLines[index] : null;
+  const hasGuideLine = !!guideLine && (guideLine.points?.length ?? 0) >= 2;
+  const slopePct = Number.isFinite(guideLine?.slopePct) ? guideLine.slopePct : 0;
 
-  return { annotation, guidePtsPx, meterByPx, slopePct, hasGuideLine };
+  return {
+    annotation,
+    index,
+    guideLine,
+    slopePct,
+    hasGuideLine,
+    count: guideLines.length,
+  };
 }

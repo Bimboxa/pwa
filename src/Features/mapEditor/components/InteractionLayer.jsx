@@ -1446,7 +1446,7 @@ const InteractionLayer = forwardRef(({
       ...(ann.points || []),
       ...(ann.cuts || []).flatMap((c) => c?.points || []),
       ...(ann.innerPoints || []),
-      ...(ann.guideLine || []),
+      ...(ann.guideLines || []).flatMap((g) => g?.points || []),
     ];
   }, [selectedNode?.nodeId, annotations]);
 
@@ -3057,7 +3057,7 @@ const InteractionLayer = forwardRef(({
             // D. Suppression de la guideLine
             const { onDeleteGuideLine } = stateRef.current;
             if (type === 'GUIDE_LINE' && onDeleteGuideLine) {
-              onDeleteGuideLine({ annotationId: selectedNode.nodeId });
+              onDeleteGuideLine({ annotationId: selectedNode.nodeId, index });
               dispatch(setSubSelection({ partId: null, partType: null }));
               e.stopPropagation();
               return;
@@ -4210,9 +4210,12 @@ const InteractionLayer = forwardRef(({
             ...cut,
             points: cut.points?.filter(pt => pt.id !== dragPointId),
           })),
-          guideLine: ann.guideLine?.filter(
-            (g) => g.pointId !== dragPointId && g.id !== dragPointId
-          ),
+          guideLines: ann.guideLines?.map((gl) => ({
+            ...gl,
+            points: gl?.points?.filter(
+              (g) => g.pointId !== dragPointId && g.id !== dragPointId
+            ),
+          })),
         }));
 
         const snapResult = getBestSnap(localPos, annotationsExcludingDragPoint, snapThreshold, {vertex: true, midpoint: true, projection: true});

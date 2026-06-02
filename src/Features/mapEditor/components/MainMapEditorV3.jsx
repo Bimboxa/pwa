@@ -842,24 +842,32 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 hasChanges = true;
             }
 
-            // B'. Check guideLine (open polyline, ref key `pointId`)
-            if (Array.isArray(ann.guideLine) && ann.guideLine.length >= 2) {
-                const gl = ann.guideLine;
-                for (let i = 0; i < gl.length - 1; i++) {
-                    const a = gl[i];
-                    const b = gl[i + 1];
-                    const aId = a.pointId || a.id;
-                    const bId = b.pointId || b.id;
-                    if (
-                        (aId === segmentStartId && bId === segmentEndId) ||
-                        (aId === segmentEndId && bId === segmentStartId)
-                    ) {
-                        const newGuide = [...gl];
-                        newGuide.splice(i + 1, 0, newGuidePointObject);
-                        updates.guideLine = newGuide;
-                        hasChanges = true;
-                        break;
+            // B'. Check guideLines (open polylines, ref key `pointId`)
+            if (Array.isArray(ann.guideLines)) {
+                let glChanged = false;
+                const newGuideLines = ann.guideLines.map((glObj) => {
+                    const gl = glObj?.points || [];
+                    if (gl.length < 2) return glObj;
+                    for (let i = 0; i < gl.length - 1; i++) {
+                        const a = gl[i];
+                        const b = gl[i + 1];
+                        const aId = a.pointId || a.id;
+                        const bId = b.pointId || b.id;
+                        if (
+                            (aId === segmentStartId && bId === segmentEndId) ||
+                            (aId === segmentEndId && bId === segmentStartId)
+                        ) {
+                            const newGuide = [...gl];
+                            newGuide.splice(i + 1, 0, newGuidePointObject);
+                            glChanged = true;
+                            return { ...glObj, points: newGuide };
+                        }
                     }
+                    return glObj;
+                });
+                if (glChanged) {
+                    updates.guideLines = newGuideLines;
+                    hasChanges = true;
                 }
             }
 

@@ -29,7 +29,8 @@ export default function PanelPropertiesGuideline() {
 
   // data
 
-  const { annotation, slopePct, hasGuideLine } = useSelectedGuideLineData();
+  const { annotation, index, slopePct, hasGuideLine, count } =
+    useSelectedGuideLineData();
   const applySlope = useApplyGuideLineSlope();
   const deleteGuideLine = useDeleteGuideLine();
 
@@ -53,7 +54,7 @@ export default function PanelPropertiesGuideline() {
     const next = parseFloat(value);
     if (!Number.isFinite(next)) return;
     if (next === Number(slopePct)) return;
-    applySlope(next);
+    applySlope(index, next);
   }
 
   function handleKeyDown(e) {
@@ -65,7 +66,7 @@ export default function PanelPropertiesGuideline() {
 
   function handleDelete() {
     setAnchorEl(null);
-    if (annotation?.id) deleteGuideLine({ annotationId: annotation.id });
+    if (annotation?.id) deleteGuideLine({ annotationId: annotation.id, index });
     dispatch(setSubSelection({ partId: null, partType: null }));
   }
 
@@ -94,7 +95,7 @@ export default function PanelPropertiesGuideline() {
             Sélection
           </Typography>
           <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-            Ligne guide
+            {count > 1 ? `Ligne guide ${index + 1}` : "Ligne guide"}
           </Typography>
         </Box>
         <IconButton

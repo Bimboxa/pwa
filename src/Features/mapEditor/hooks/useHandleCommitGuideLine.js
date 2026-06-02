@@ -9,8 +9,11 @@ import db from "App/db/db";
 // is a polyline in pixel (resolved) space — same units as annotation.points
 // after useAnnotationsV2. Points are normalized to [0..1] vs the basemap
 // image size and stored in db.points; the annotation references them via
-// `guideLine: [{ pointId, type }]`. Redrawing REPLACES the previous guideLine
-// (one guideLine per annotation). Atomic db.points + db.annotations write.
+// `guideLines: [{ points: [{pointId, type}], slopePct }]`.
+//
+// Each draw APPENDS a new guideLine to the ordered sequence (drawing order =
+// ramp order; the first line is the low point). The new line's slope defaults
+// to the previous line's slope (else 0). Atomic db.points + db.annotations write.
 export default function useHandleCommitGuideLine() {
   const selectedItem = useSelector(selectSelectedItem);
 
@@ -35,12 +38,21 @@ export default function useHandleCommitGuideLine() {
       listingId: ann.listingId,
     }));
 
+    const prevGuideLines = Array.isArray(ann.guideLines) ? ann.guideLines : [];
+    const defaultSlopePct = prevGuideLines.length
+      ? prevGuideLines[prevGuideLines.length - 1]?.slopePct ?? 0
+      : 0;
+    const newGuideLine = {
+      points: newPoints.map((np) => ({ pointId: np.id, type: "square" })),
+      slopePct: defaultSlopePct,
+    };
+
     await db.transaction("rw", db.points, db.annotations, async () => {
       for (const np of newPoints) {
         await db.points.add(np);
       }
       await db.annotations.update(annotationId, {
-        guideLine: newPoints.map((np) => ({ pointId: np.id, type: "square" })),
+        guideLines: [...prevGuideLines, newGuideLine],
       });
     });
   };

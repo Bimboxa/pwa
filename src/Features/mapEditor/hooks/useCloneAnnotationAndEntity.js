@@ -155,7 +155,7 @@ export default function useCloneAnnotationAndEntity() {
             // Part clones inherit the host's styles/template but must drop
             // host-only ring metadata that doesn't belong to the slice we kept.
             if (hasPart) {
-                delete clonedAnnotation.guideLine;
+                delete clonedAnnotation.guideLines;
                 delete clonedAnnotation.innerPoints;
                 delete clonedAnnotation.hiddenSegmentsIdx;
                 delete clonedAnnotation.isoHeightSegmentsIdx;

@@ -355,7 +355,7 @@ export default function getAnnotationQties({
         unitScale: 1,
         // Match the banded 3D ramp mesh so the developed surface is consistent.
         isoBandLevels:
-          annotation?.guideLine && annotation.guideLine.length >= 2
+          annotation?.guideLines?.some((g) => g?.points?.length >= 2)
             ? ISO_BAND_LEVELS
             : 0,
       });
