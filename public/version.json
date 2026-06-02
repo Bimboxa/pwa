@@ -1,4 +1,4 @@
 {
-  "version": "1.6.0",
-  "description": "nouveautés:\n\n* résolution auto à la création d'un fond de plan depuis un plan PDF\n* création d'un fond de plan depuis une image satellite (geo-portail)\n \n\n* détection d'une nouvelle version de Krto"
+  "version": "1.7.0",
+  "description": "nouveautés:\n\n* sélectionnez plusieurs annotations à partir de plusieurs lassos.\n\n* dessin automatique cuvelage : gestion des hauteurs différentes + JD + quickskin (pas de murs intérieurs)."
 }

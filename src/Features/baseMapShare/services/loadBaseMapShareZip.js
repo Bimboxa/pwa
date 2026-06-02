@@ -22,7 +22,14 @@ function rewriteFileNamesInObject(obj, fileNameMap, seen = new WeakSet()) {
   }
 }
 
-export default async function loadBaseMapShareZip(file, { projectId, scopeId }) {
+function isBaseMapListing(row) {
+  return row?.table === "baseMaps" || row?.entityModel?.type === "BASE_MAP";
+}
+
+export default async function loadBaseMapShareZip(
+  file,
+  { projectId, scopeId, baseMapsListingId }
+) {
   if (!file) throw new Error("Fichier invalide");
   if (!projectId) throw new Error("projectId missing");
 
@@ -53,6 +60,26 @@ export default async function loadBaseMapShareZip(file, { projectId, scopeId }) 
   );
 
   const tables = jsonData.data?.data || [];
+  const listingsTable = tables.find((t) => t.tableName === "listings");
+
+  // Resolve the scope's current base-map listing so imported base maps are
+  // added to it instead of spawning a duplicate "Fonds de plan" listing.
+  // Falls back to the project's existing base-map listing (preferring the
+  // canonical `mapsGeneric`), and only to a new listing if none exists.
+  let targetBaseMapListingId = baseMapsListingId || null;
+  if (!targetBaseMapListingId) {
+    const projectListings = (
+      await db.listings.where("projectId").equals(projectId).toArray()
+    ).filter((l) => !l.deletedAt && isBaseMapListing(l));
+    targetBaseMapListingId =
+      projectListings.find((l) => l.key === "mapsGeneric")?.id ??
+      projectListings[0]?.id ??
+      null;
+  }
+  // Old ids of the imported base-map listings (to merge into the target).
+  const importedBaseMapListingIds = new Set(
+    (listingsTable?.rows ?? []).filter(isBaseMapListing).map((r) => r.id)
+  );
 
   // 1. Build id maps
   const idMap = {};
@@ -74,14 +101,31 @@ export default async function loadBaseMapShareZip(file, { projectId, scopeId }) 
       // Fixed tables + any other table (dynamic entity tables)
       if (!idMap[tableName]) idMap[tableName] = {};
       for (const row of t.rows) {
-        if (row.id) idMap[tableName][row.id] = nanoid();
+        if (!row.id) continue;
+        if (
+          tableName === "listings" &&
+          targetBaseMapListingId &&
+          importedBaseMapListingIds.has(row.id)
+        ) {
+          // Redirect references to the scope's existing base-map listing.
+          idMap.listings[row.id] = targetBaseMapListingId;
+        } else {
+          idMap[tableName][row.id] = nanoid();
+        }
       }
     }
   }
 
+  // Drop the imported base-map listing rows: we merge into the existing
+  // listing rather than overwriting it (keep its name/color/order).
+  if (targetBaseMapListingId && listingsTable?.rows) {
+    listingsTable.rows = listingsTable.rows.filter(
+      (row) => !importedBaseMapListingIds.has(row.id)
+    );
+  }
+
   // Build listing.table lookup from the listings table (old id -> table name)
   const listingTableByOldId = {};
-  const listingsTable = tables.find((t) => t.tableName === "listings");
   if (listingsTable?.rows) {
     for (const row of listingsTable.rows) {
       if (row.id && row.table) listingTableByOldId[row.id] = row.table;
