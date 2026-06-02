@@ -3,6 +3,8 @@ import {
   WebGLRenderer,
   PerspectiveCamera,
   AmbientLight,
+  HemisphereLight,
+  DirectionalLight,
   GridHelper,
 } from "three";
 
@@ -23,6 +25,8 @@ export default class SceneManager {
     });
 
     this.ambiantLight = null;
+    this.hemisphereLight = null;
+    this.directionalLight = null;
 
     this.camera = null;
     this.addGrid = null;
@@ -39,6 +43,8 @@ export default class SceneManager {
 
   initScene = () => {
     this.ambiantLight = this._addAmbiantLight();
+    this.hemisphereLight = this._addHemisphereLight();
+    this.directionalLight = this._addDirectionalLight();
     this.camera = this._addCamera();
     this.grid = this._addGrid();
 
@@ -84,9 +90,31 @@ export default class SceneManager {
   };
 
   _addAmbiantLight = () => {
-    const ambientLight = new AmbientLight(0xffffff, 0.5);
+    // Kept moderate so the directional contrast still reads on slopes, but
+    // high enough (with the hemisphere fill + material emissive) to avoid a
+    // too-dark result.
+    const ambientLight = new AmbientLight(0xffffff, 0.65);
     this.scene.add(ambientLight);
     return ambientLight;
+  };
+
+  // Sky/ground fill. World up is +Y (the GridHelper lies in the XZ plane and
+  // basemaps are laid flat by the parent group rotation, so annotation tops
+  // point toward +Y). Keeps horizontal surfaces (flat annotations) bright
+  // while giving sloped faces a soft gradient.
+  _addHemisphereLight = () => {
+    const light = new HemisphereLight(0xffffff, 0x9aa0a6, 0.9);
+    this.scene.add(light);
+    return light;
+  };
+
+  // Directional key light from above, offset in X/Z, so slope faces oriented
+  // toward it read brighter — this is what reveals the 3D form of a ramp.
+  _addDirectionalLight = () => {
+    const light = new DirectionalLight(0xffffff, 0.6);
+    light.position.set(8, 15, 6);
+    this.scene.add(light);
+    return light;
   };
 
   _addGrid = () => {

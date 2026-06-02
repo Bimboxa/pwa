@@ -56,6 +56,7 @@ export default function triangulateAnnotationGeometry({
   // below it. Walls / bottom / quantities then run on the SAME augmented
   // contour, keeping the mesh and the area/volume figures consistent.
   let bandedTris = null;
+  let isoSegments = null;
   if (
     isoBandLevels > 0 &&
     validHoles.length === 0 &&
@@ -67,6 +68,7 @@ export default function triangulateAnnotationGeometry({
     if (banding) {
       contour = banding.augContour;
       bandedTris = banding.tris;
+      isoSegments = banding.isoSegments;
     }
   }
 
@@ -168,6 +170,9 @@ export default function triangulateAnnotationGeometry({
   return {
     positions: new Float32Array(positions),
     indices: new Uint32Array(indices),
+    // Clean transverse iso-height segments [ax,ay,az, bx,by,bz, ...], aligned
+    // with the band boundaries of the mesh. Null when banding didn't apply.
+    isoSegments,
     topRange,
     bottomRange,
     sideRange,
@@ -337,8 +342,25 @@ function computeIsoBanding(contour, zOf, M) {
   }
   if (tris.length === 0) return null;
 
+  // Visible iso lines: one clean transverse segment per evenly-spaced display
+  // level, connecting the railA vertex to the railB vertex at that level. These
+  // are real band boundaries of the mesh, so the lines stay aligned with the
+  // surface and regular along the whole ramp (unlike a separate retriangulation
+  // with a farthest-pair heuristic). Original-vertex levels are excluded so the
+  // spacing stays even.
+  const isoSegments = [];
+  for (let i = 1; i <= M; i++) {
+    const L = snap(zMin + ((zMax - zMin) * i) / (M + 1));
+    const ia = firstAtLevel(railA, L);
+    const ib = firstAtLevel(railB, L);
+    if (ia < 0 || ib < 0) continue;
+    const pa = aug[railA[ia]];
+    const pb = aug[railB[ib]];
+    isoSegments.push([pa.x, pa.y, L, pb.x, pb.y, L]);
+  }
+
   const augContour = aug.map(({ _z, ...p }) => p);
-  return { augContour, tris };
+  return { augContour, tris, isoSegments };
 }
 
 function emptyResult() {
