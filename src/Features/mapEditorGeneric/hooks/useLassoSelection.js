@@ -1,6 +1,6 @@
 // Features/interactions/hooks/useLassoSelection.js
 import { useState, useRef, useCallback } from 'react';
-import getAnnotationBBox from 'Features/annotations/utils/getAnnotationBbox';
+import getAnnotationVertices from 'Features/annotations/utils/getAnnotationVertices';
 
 // Below this screen-pixel movement the gesture is a click, not a lasso drag.
 // Kept a hair above the viewport's pan threshold (3px) so any drag too small
@@ -81,23 +81,22 @@ export default function useLassoSelection({
             height: Math.abs(p2_local.y - p1_local.y)
         };
 
-        // B. Trouver les intersections (Hit Test)
+        // B. Hit test based on annotation vertices: an annotation is selected
+        // only if at least one of its vertices falls inside the lasso rectangle.
+        // This avoids selecting a large concave shape when the lasso is drawn in
+        // its "encoche" (notch), where the bbox would still intersect.
+        const inBox = (pt) =>
+            pt &&
+            pt.x >= selectionBox.x &&
+            pt.x <= selectionBox.x + selectionBox.width &&
+            pt.y >= selectionBox.y &&
+            pt.y <= selectionBox.y + selectionBox.height;
+
         const hitIds = [];
 
         annotations.forEach(ann => {
-            const annBBox = getAnnotationBBox(ann);
-
-            if (!annBBox) return;
-
-            // Test simple d'intersection de rectangles (AABB)
-            const isIntersecting = (
-                selectionBox.x < annBBox.x + annBBox.width &&
-                selectionBox.x + selectionBox.width > annBBox.x &&
-                selectionBox.y < annBBox.y + annBBox.height &&
-                selectionBox.y + selectionBox.height > annBBox.y
-            );
-
-            if (isIntersecting) {
+            const verts = getAnnotationVertices(ann);
+            if (verts.some(inBox)) {
                 hitIds.push(ann.id);
             }
         });
