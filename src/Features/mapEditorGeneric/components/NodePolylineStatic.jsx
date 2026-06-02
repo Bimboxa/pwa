@@ -1306,7 +1306,7 @@ export default function NodePolylineStatic({
                         data-part-id={guidePartId}
                         data-part-type="GUIDE_LINE"
                         data-node-id={annotationId}
-                        style={{ cursor: getPartCursor(partId) }}
+                        style={{ cursor: getPartCursor(guidePartId) }}
                     >
                         {/* Hit area (transparent wide stroke) */}
                         <polyline
