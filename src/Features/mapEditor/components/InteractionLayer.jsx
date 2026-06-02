@@ -62,6 +62,7 @@ import useResetNewAnnotation from 'Features/annotations/hooks/useResetNewAnnotat
 import useLassoSelection from 'Features/mapEditorGeneric/hooks/useLassoSelection';
 import useLassoPointSelection from 'Features/annotations/hooks/useLassoPointSelection';
 import getAnnotationLassoSegments from 'Features/annotations/utils/getAnnotationLassoSegments';
+import getAnnotationIdsInBox from 'Features/annotations/utils/getAnnotationIdsInBox';
 import useSelectedNodes from 'Features/mapEditor/hooks/useSelectedNodes';
 import useAnnotationPermissions from 'Features/mapEditor/hooks/useAnnotationPermissions';
 import usePointDrag from 'Features/mapEditor/hooks/usePointDrag';
@@ -4800,7 +4801,8 @@ const InteractionLayer = forwardRef(({
     // annotation still works (the viewport never saw this mouseDown — we
     // stopPropagation'd it — so it won't fire onWorldClick itself).
     if (lassoRect || pointLassoRect) {
-      const { committed } = lassoRect ? endLasso() : endPointLasso();
+      const result = lassoRect ? endLasso() : endPointLasso();
+      const { committed, empty, selectionBox, anchorPosition } = result;
       if (!committed) {
         const worldPos = viewportRef.current?.screenToWorld(
           event.clientX,
@@ -4809,6 +4811,11 @@ const InteractionLayer = forwardRef(({
         const { viewportPos } =
           viewportRef.current?.getMousePositions(event) || {};
         handleWorldClick({ event, worldPos, viewportPos });
+      } else if (empty && selectionBox) {
+        // Point-lasso caught no vertex/segment of the selected annotation:
+        // treat the gesture as an annotation-level multi-selection instead.
+        const annotationIds = getAnnotationIdsInBox(annotations, selectionBox);
+        handleLassoSelection({ annotationIds, selectionBox, anchorPosition });
       }
       return;
     }

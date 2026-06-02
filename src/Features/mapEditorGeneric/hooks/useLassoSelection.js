@@ -1,6 +1,6 @@
 // Features/interactions/hooks/useLassoSelection.js
 import { useState, useRef, useCallback } from 'react';
-import getAnnotationVertices from 'Features/annotations/utils/getAnnotationVertices';
+import getAnnotationIdsInBox from 'Features/annotations/utils/getAnnotationIdsInBox';
 
 // Below this screen-pixel movement the gesture is a click, not a lasso drag.
 // Kept a hair above the viewport's pan threshold (3px) so any drag too small
@@ -85,21 +85,7 @@ export default function useLassoSelection({
         // only if at least one of its vertices falls inside the lasso rectangle.
         // This avoids selecting a large concave shape when the lasso is drawn in
         // its "encoche" (notch), where the bbox would still intersect.
-        const inBox = (pt) =>
-            pt &&
-            pt.x >= selectionBox.x &&
-            pt.x <= selectionBox.x + selectionBox.width &&
-            pt.y >= selectionBox.y &&
-            pt.y <= selectionBox.y + selectionBox.height;
-
-        const hitIds = [];
-
-        annotations.forEach(ann => {
-            const verts = getAnnotationVertices(ann);
-            if (verts.some(inBox)) {
-                hitIds.push(ann.id);
-            }
-        });
+        const hitIds = getAnnotationIdsInBox(annotations, selectionBox);
 
         // C. Commit
         if (onSelectionComplete) {

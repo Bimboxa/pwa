@@ -110,7 +110,15 @@ export default function useLassoPointSelection({
       if (inBox(seg.p0) && inBox(seg.p1)) hitPartIds.push(seg.partId);
     });
 
-    if (onSelectionComplete) {
+    // When the lasso caught no vertex and no segment of the selected
+    // annotation, the caller should fall back to an annotation-level
+    // multi-selection with the same rectangle (see InteractionLayer). So we
+    // signal `empty` and hand back the selectionBox + screen anchor instead of
+    // committing an (empty) point sub-selection.
+    const empty = hitPointIds.length === 0 && hitPartIds.length === 0;
+    const anchorPosition = { x: lassoRect.x, y: lassoRect.y };
+
+    if (!empty && onSelectionComplete) {
       onSelectionComplete(hitPointIds, hitPartIds);
     }
 
@@ -118,7 +126,7 @@ export default function useLassoPointSelection({
     startScreenPosRef.current = null;
     setLassoRect(null);
 
-    return { committed: true };
+    return { committed: true, empty, selectionBox, anchorPosition };
   }, [
     lassoRect,
     viewportRef,
