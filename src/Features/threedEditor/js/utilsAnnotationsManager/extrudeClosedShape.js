@@ -251,6 +251,25 @@ function buildIsoHeightLines(expContour, expHoles, topZOf) {
   );
 }
 
+// White iso lines built from the mesh's own iso-band segments
+// ([ax,ay,az, bx,by,bz, ...] in local space). Lifted slightly above the
+// surface to avoid z-fighting. These are the band boundaries themselves, so
+// the lines stay regular and aligned along the whole ramp.
+function buildIsoLinesFromSegments(segments) {
+  if (!segments || segments.length === 0) return null;
+  const LIFT = 0.004;
+  const positions = [];
+  for (const s of segments) {
+    positions.push(s[0], s[1], s[2] + LIFT, s[3], s[4], s[5] + LIFT);
+  }
+  const g = new BufferGeometry();
+  g.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  return new LineSegments(
+    g,
+    new LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 })
+  );
+}
+
 export default function extrudeClosedShape(points, height, material, holes, verticalLift = 0, innerPoints = [], options = {}) {
   if (!points || points.length < 3) return null;
 
@@ -265,9 +284,10 @@ export default function extrudeClosedShape(points, height, material, holes, vert
   // even if no offsets are set yet — otherwise the fast Shape/ExtrudeGeometry
   // path would silently drop them, which is confusing during authoring.
   const hasInnerPoints = Array.isArray(innerPoints) && innerPoints.length > 0;
+  const isPerVertexZPath = hasPerVertexZ(points, holes, innerPoints) || hasInnerPoints;
 
   let geometry;
-  if (!hasPerVertexZ(points, holes, innerPoints) && !hasInnerPoints) {
+  if (!isPerVertexZPath) {
     const shape = new Shape();
     tracePath(shape, points);
     if (holes && holes.length) {
@@ -302,17 +322,23 @@ export default function extrudeClosedShape(points, height, material, holes, vert
     geometry.computeVertexNormals();
 
     if (options.isoLines) {
-      const h = isExtruded ? height : 0;
-      const isoLines = buildIsoHeightLines(
-        expContour,
-        expHoles,
-        (p) =>
-          verticalLift +
-          h +
-          (p.offsetBottom ?? 0) +
-          (p.offsetTop ?? 0) +
-          Z_FIGHT_OFFSET
-      );
+      // Prefer the mesh's own iso-band segments (regular, surface-aligned).
+      // Fall back to the standalone retriangulation when banding didn't apply
+      // (holes, Steiner points, non-monotone rails).
+      let isoLines = buildIsoLinesFromSegments(tri.isoSegments);
+      if (!isoLines) {
+        const h = isExtruded ? height : 0;
+        isoLines = buildIsoHeightLines(
+          expContour,
+          expHoles,
+          (p) =>
+            verticalLift +
+            h +
+            (p.offsetBottom ?? 0) +
+            (p.offsetTop ?? 0) +
+            Z_FIGHT_OFFSET
+        );
+      }
       if (isoLines) group.add(isoLines);
     }
   }
@@ -325,11 +351,19 @@ export default function extrudeClosedShape(points, height, material, holes, vert
   material.side = DoubleSide;
   group.add(new Mesh(geometry, material));
 
-  const edges = new LineSegments(
-    new EdgesGeometry(geometry),
-    new LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })
-  );
-  group.add(edges);
+  // Black outline only on the flat fast path, where the mesh is planar and
+  // EdgesGeometry yields a clean stroke-like border. On the per-vertex-Z path
+  // (ramps / sloped surfaces) EdgesGeometry would emit nearly every internal
+  // triangulation diagonal (1° default threshold) — a noisy black web. There,
+  // the lit shading provides the silhouette and the white iso lines structure
+  // the surface, so the edges are dropped.
+  if (!isPerVertexZPath) {
+    const edges = new LineSegments(
+      new EdgesGeometry(geometry),
+      new LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })
+    );
+    group.add(edges);
+  }
 
   return group;
 }

@@ -1,4 +1,4 @@
-import { MeshBasicMaterial, Color, Group } from "three";
+import { MeshLambertMaterial, Color, Group } from "three";
 
 import getStripePolygons from "Features/geometry/utils/getStripePolygons";
 import wallToRectRing, {
@@ -82,8 +82,18 @@ function makeMaterial(annotation, options) {
     ? (annotation.strokeOpacity ?? 1)
     : (annotation.fillOpacity ?? 1);
   const opacity = options?.disableOpacity ? 1 : rawOpacity;
-  return new MeshBasicMaterial({
-    color: new Color(color),
+  // MeshLambertMaterial (was MeshBasicMaterial): diffuse shading reacts to the
+  // scene lights, so a sloped/ramped top face reads as a 3D surface (the mesh
+  // already computes smooth vertex normals). Flat annotations stay uniformly
+  // lit thanks to the hemisphere light from above.
+  const baseColor = new Color(color);
+  return new MeshLambertMaterial({
+    color: baseColor,
+    // Self-illumination at a fraction of the surface's own color: lifts the
+    // overall brightness (otherwise the lit result reads too dark) while
+    // keeping the directional/hemisphere gradient that conveys the 3D form.
+    emissive: baseColor.clone(),
+    emissiveIntensity: 0.45,
     transparent: opacity < 1,
     opacity,
     // depthWrite stays true even when transparent: prevents the rotation
