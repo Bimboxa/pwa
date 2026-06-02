@@ -171,10 +171,14 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
                 pointArraysToCheck.push({ list: ann.innerPoints, cutIndex: undefined, source: "INNER" });
             }
 
-            // D. guideLine points (resolved → carry id/x/y) so the drawn ramp
-            // axis is snappable / draggable like a contour or cut ring.
-            if (ann.guideLine) {
-                pointArraysToCheck.push({ list: ann.guideLine, cutIndex: undefined, source: "GUIDE" });
+            // D. guideLines points (resolved → carry id/x/y) so the drawn ramp
+            // axes are snappable / draggable like a contour or cut ring.
+            if (Array.isArray(ann.guideLines)) {
+                ann.guideLines.forEach((gl) => {
+                    if (gl?.points?.length) {
+                        pointArraysToCheck.push({ list: gl.points, cutIndex: undefined, source: "GUIDE" });
+                    }
+                });
             }
 
             for (const { list, cutIndex, source } of pointArraysToCheck) {
@@ -296,14 +300,18 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
             });
         }
 
-        // C. guideLine (open polyline) — same midpoint/projection insertion
+        // C. guideLines (open polylines) — same midpoint/projection insertion
         // behaviour as the contour, so the user can drop a new point on a
         // guideLine segment by clicking/dragging its midpoint or projection.
-        if (Array.isArray(ann.guideLine) && ann.guideLine.length >= 2) {
-            contoursToCheck.push({
-                points: ann.guideLine,
-                shouldClose: false,
-                cutIndex: undefined,
+        if (Array.isArray(ann.guideLines)) {
+            ann.guideLines.forEach((gl) => {
+                if (gl?.points?.length >= 2) {
+                    contoursToCheck.push({
+                        points: gl.points,
+                        shouldClose: false,
+                        cutIndex: undefined,
+                    });
+                }
             });
         }
 

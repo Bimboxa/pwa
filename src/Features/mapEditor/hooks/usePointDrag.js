@@ -122,8 +122,8 @@ export default function usePointDrag({
               cut.points?.some((pt) => pt.id === pointId)
             );
             const inInner = ann.innerPoints?.some((pt) => pt.id === pointId);
-            const inGuide = ann.guideLine?.some(
-              (g) => g.pointId === pointId || g.id === pointId
+            const inGuide = ann.guideLines?.some((gl) =>
+              gl?.points?.some((g) => g.pointId === pointId || g.id === pointId)
             );
             return inMain || inCuts || inInner || inGuide;
           })

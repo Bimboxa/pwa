@@ -38,6 +38,7 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
 import resolveGuideLine from "Features/annotations/utils/resolveGuideLine";
+import applyGuideLineRampToRings from "Features/annotations/utils/applyGuideLineRampToRings";
 
 import db from "App/db/db";
 
@@ -385,8 +386,33 @@ export default function useAnnotationsV2(options) {
                     if (annotation.innerPoints) {
                         _annotation.innerPoints = resolvePoints({ points: annotation.innerPoints, pointsIndex, imageSize });
                     }
-                    if (annotation.guideLine) {
-                        _annotation.guideLine = resolveGuideLine({ guideLine: annotation.guideLine, pointsIndex, imageSize });
+                    if (Array.isArray(annotation.guideLines)) {
+                        _annotation.guideLines = annotation.guideLines.map((g) => ({
+                            ...g,
+                            points: resolveGuideLine({ guideLine: g?.points, pointsIndex, imageSize }),
+                        }));
+                    }
+
+                    // guideLines ramp: derive each vertex's offsetTop from its
+                    // projection onto the nearest guideLine (height accumulates
+                    // along the ordered lines) so the sloped surface is a pure
+                    // function of position (iso-lines normal to the guideLines)
+                    // and stays correct when the contour is edited.
+                    if (
+                        _annotation.guideLines?.some(
+                            (g) => g?.points?.length >= 2 && g?.slopePct
+                        )
+                    ) {
+                        const ramped = applyGuideLineRampToRings({
+                            points: _annotation.points,
+                            cuts: _annotation.cuts,
+                            innerPoints: _annotation.innerPoints,
+                            guideLines: _annotation.guideLines,
+                            meterByPx,
+                        });
+                        _annotation.points = ramped.points;
+                        _annotation.cuts = ramped.cuts;
+                        _annotation.innerPoints = ramped.innerPoints;
                     }
 
                 }

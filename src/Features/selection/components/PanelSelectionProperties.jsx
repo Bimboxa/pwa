@@ -22,6 +22,7 @@ import PanelPropertiesScope from "Features/scopes/components/PanelPropertiesScop
 import PanelPropertiesPopperMapListings from "Features/popperMapListings/components/PanelPropertiesPopperMapListings";
 import PanelPropertiesPoints from "Features/points/components/PanelPropertiesPoints";
 import PanelPropertiesSegment from "Features/points/components/PanelPropertiesSegment";
+import PanelPropertiesGuideline from "Features/annotations/components/PanelPropertiesGuideline";
 import PanelPropertiesPointsAndSegments from "Features/points/components/PanelPropertiesPointsAndSegments";
 
 export default function PanelSelectionProperties() {
@@ -87,6 +88,14 @@ export default function PanelSelectionProperties() {
     // to the annotation panel, which detects the multi state via the
     // part hook and renders the sectioned UI.
     type = "SEGMENT";
+  } else if (
+    isMapViewer &&
+    selectedItem?.type === "NODE" &&
+    String(selectedItem?.partId || "").split("::")[1] === "GUIDE_LINE"
+  ) {
+    // The guideLine (ramp axis) is sub-selected: show its dedicated panel
+    // exposing the slope (%) and a "..." menu with Supprimer.
+    type = "GUIDE";
   } else if (isMapViewer && !selectedItem) {
     type = "MAP_SUMMARY";
   } else if (
@@ -175,6 +184,8 @@ export default function PanelSelectionProperties() {
       {type === "POINTS" && <PanelPropertiesPoints />}
 
       {type === "SEGMENT" && <PanelPropertiesSegment />}
+
+      {type === "GUIDE" && <PanelPropertiesGuideline />}
 
       {type === "POINTS_AND_SEGMENTS" && <PanelPropertiesPointsAndSegments />}
     </BoxFlexVStretch>

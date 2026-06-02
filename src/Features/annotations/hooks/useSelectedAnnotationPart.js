@@ -120,9 +120,11 @@ export default function useSelectedAnnotationPart() {
       };
     }
 
-    // --- GUIDE (whole guideLine) ----------------------------------------------
-    if (effectivePartType === "GUIDE") {
-      const guidePx = annotation.guideLine || [];
+    // --- GUIDE (one guideLine of the ordered sequence) ------------------------
+    if (effectivePartType === "GUIDE" || effectivePartType === "GUIDE_LINE") {
+      const idx = Number(String(partId || "").split("::")[2]);
+      const gl = Number.isInteger(idx) ? annotation.guideLines?.[idx] : null;
+      const guidePx = gl?.points || [];
       if (guidePx.length < 2) return { kind: "NONE" };
       return {
         kind: "GUIDE",
@@ -336,7 +338,10 @@ function findPointInAnnotation(annotation, pointId) {
       label: `Sommet ouverture #${i + 1}`,
     }))),
     { ring: annotation.innerPoints, label: "Point intérieur" },
-    { ring: annotation.guideLine, label: "Point guide" },
+    {
+      ring: (annotation.guideLines || []).flatMap((g) => g?.points || []),
+      label: "Point guide",
+    },
   ];
   for (const { ring, label } of rings) {
     if (!Array.isArray(ring)) continue;

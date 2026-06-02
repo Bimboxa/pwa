@@ -301,8 +301,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         verticalLift,
         innerPts,
         {
-          isoLines: !!(
-            annotation.guideLine && annotation.guideLine.length >= 2
+          isoLines: !!annotation.guideLines?.some(
+            (g) => g?.points?.length >= 2
           ),
         }
       );

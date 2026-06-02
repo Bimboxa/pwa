@@ -33,13 +33,15 @@ export default async function toggleAnnotationPointType({ annotationId, pointId 
         });
     }
 
-    // 2b. Chercher dans la guideLine (refs {pointId, type})
-    if (annotation.guideLine) {
-        annotation.guideLine.forEach((g) => {
-            if (g.pointId === pointId) {
-                g.type = (g.type === "circle") ? "square" : "circle";
-                hasChanged = true;
-            }
+    // 2b. Chercher dans les guideLines (refs {pointId, type})
+    if (Array.isArray(annotation.guideLines)) {
+        annotation.guideLines.forEach((gl) => {
+            (gl?.points || []).forEach((g) => {
+                if (g.pointId === pointId) {
+                    g.type = (g.type === "circle") ? "square" : "circle";
+                    hasChanged = true;
+                }
+            });
         });
     }
 
@@ -48,7 +50,7 @@ export default async function toggleAnnotationPointType({ annotationId, pointId 
         await db.annotations.update(annotationId, {
             points: annotation.points,
             cuts: annotation.cuts,
-            guideLine: annotation.guideLine
+            guideLines: annotation.guideLines
         });
         console.log(`[toggleAnnotationPointType] Point ${pointId} mis à jour.`);
     } else {

@@ -31,17 +31,19 @@ export default function TransientTopologyLayer({
             // identify which ring this segment belongs to.
             const sId = virtualInsertion.segmentStartId;
             const eId = virtualInsertion.segmentEndId;
-            const onGuideLine =
-                Array.isArray(targetAnn.guideLine) &&
-                targetAnn.guideLine.length >= 2 &&
-                targetAnn.guideLine.some((g) => (g.pointId || g.id) === sId) &&
-                targetAnn.guideLine.some((g) => (g.pointId || g.id) === eId);
+            const guideLines = Array.isArray(targetAnn.guideLines) ? targetAnn.guideLines : [];
+            const guideIndex = guideLines.findIndex(
+                (gl) =>
+                    (gl?.points?.length ?? 0) >= 2 &&
+                    gl.points.some((g) => (g.pointId || g.id) === sId) &&
+                    gl.points.some((g) => (g.pointId || g.id) === eId)
+            );
 
-            if (onGuideLine) {
-                // Insert into the guideLine. Refs use `pointId` as the id
+            if (guideIndex >= 0) {
+                // Insert into that guideLine. Refs use `pointId` as the id
                 // field; mirror `id` so the renderer (which reads `id`) finds
                 // the virtual point's x/y unchanged.
-                const guide = targetAnn.guideLine;
+                const guide = guideLines[guideIndex].points;
                 let insertAt = -1;
                 for (let i = 0; i < guide.length - 1; i++) {
                     const aId = guide[i].pointId || guide[i].id;
@@ -65,7 +67,10 @@ export default function TransientTopologyLayer({
                 };
                 const newGuide = [...guide];
                 newGuide.splice(insertAt, 0, virtualGuidePoint);
-                return [{ ...targetAnn, guideLine: newGuide }];
+                const newGuideLines = guideLines.map((gl, i) =>
+                    i === guideIndex ? { ...gl, points: newGuide } : gl
+                );
+                return [{ ...targetAnn, guideLines: newGuideLines }];
             }
 
             // 1. Récupérer les points du contour concerné (Main ou Cut)
@@ -156,7 +161,7 @@ export default function TransientTopologyLayer({
             if (inMain) return true;
             if (ann.cuts?.some(cut => cut.points?.some(pt => pt.id === movingPointId))) return true;
             if (ann.innerPoints?.some(pt => pt.id === movingPointId)) return true;
-            if (ann.guideLine?.some(g => g.pointId === movingPointId || g.id === movingPointId)) return true;
+            if (ann.guideLines?.some(gl => gl?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) return true;
             return false;
         });
 
@@ -198,13 +203,16 @@ export default function TransientTopologyLayer({
                 );
             }
 
-            // D. guideLine (resolved refs key on `pointId` AND mirror `id`)
-            if (_ann.guideLine?.some(g => g.pointId === movingPointId || g.id === movingPointId)) {
-                _ann.guideLine = _ann.guideLine.map(g =>
-                    (g.pointId === movingPointId || g.id === movingPointId)
-                        ? { ...g, x: currentPos.x, y: currentPos.y }
-                        : g
-                );
+            // D. guideLines (resolved refs key on `pointId` AND mirror `id`)
+            if (_ann.guideLines?.some(gl => gl?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) {
+                _ann.guideLines = _ann.guideLines.map(gl => ({
+                    ...gl,
+                    points: (gl?.points || []).map(g =>
+                        (g.pointId === movingPointId || g.id === movingPointId)
+                            ? { ...g, x: currentPos.x, y: currentPos.y }
+                            : g
+                    ),
+                }));
             }
 
             return _ann;
