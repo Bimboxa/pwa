@@ -303,6 +303,14 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     });
   }
 
+  async function handleEdgeHeightChange(updatedAnnotation) {
+    if (!updatedAnnotation?.id) return;
+    await updateAnnotation({
+      id: updatedAnnotation.id,
+      edgeHeight: updatedAnnotation.edgeHeight,
+    });
+  }
+
   async function handleOffsetZChange(updatedAnnotation) {
     if (!updatedAnnotation?.id) return;
     await updateAnnotation({
@@ -573,6 +581,15 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                   disabled={isLocked("height")}
                 />
               )}
+            {selectedAnnotation?.type === "POLYGON" && (
+              <FieldAnnotationHeight
+                annotation={selectedAnnotation}
+                onChange={handleEdgeHeightChange}
+                field="edgeHeight"
+                label="ht. côté"
+                disabled={isLocked("edgeHeight")}
+              />
+            )}
             <FieldAnnotationHeight
               annotation={selectedAnnotation}
               onChange={handleOffsetZChange}
