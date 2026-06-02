@@ -2,6 +2,11 @@
 import { useState, useRef, useCallback } from 'react';
 import getAnnotationBBox from 'Features/annotations/utils/getAnnotationBbox';
 
+// Below this screen-pixel movement the gesture is a click, not a lasso drag.
+// Kept a hair above the viewport's pan threshold (3px) so any drag too small
+// to pan is also treated as a click.
+const LASSO_MOVE_THRESHOLD = 4;
+
 export default function useLassoSelection({
     annotations,
     viewportRef,
@@ -44,8 +49,21 @@ export default function useLassoSelection({
     }, []);
 
     // --- 3. END (MouseUp) ---
+    // Returns { committed }. committed === false means the gesture was a click
+    // (movement below threshold): the caller should fall back to click handling
+    // instead of mutating the selection.
     const endLasso = useCallback(() => {
-        if (!startScreenPosRef.current || !lassoRect) return;
+        if (!startScreenPosRef.current || !lassoRect) return { committed: false };
+
+        // Click vs drag: a sub-threshold rectangle is a click, not a lasso.
+        const moved =
+            lassoRect.width > LASSO_MOVE_THRESHOLD ||
+            lassoRect.height > LASSO_MOVE_THRESHOLD;
+        if (!moved) {
+            startScreenPosRef.current = null;
+            setLassoRect(null);
+            return { committed: false };
+        }
 
         // A. Convertir le rectangle ÉCRAN en rectangle LOCAL (BaseMap)
         // On projette les deux coins opposés
@@ -92,6 +110,8 @@ export default function useLassoSelection({
         // Reset
         startScreenPosRef.current = null;
         setLassoRect(null);
+
+        return { committed: true };
 
     }, [lassoRect, annotations, viewportRef, toLocalCoords, onSelectionComplete]);
 

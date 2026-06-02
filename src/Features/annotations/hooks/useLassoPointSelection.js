@@ -1,5 +1,8 @@
 import { useState, useRef, useCallback } from "react";
 
+// Below this screen-pixel movement the gesture is a click, not a lasso drag.
+const LASSO_MOVE_THRESHOLD = 4;
+
 /**
  * Point + segment lasso selection for when an annotation is already selected.
  * Shift+drag creates a rectangle. Hit-tested members:
@@ -51,8 +54,20 @@ export default function useLassoPointSelection({
     setLassoRect({ x, y, width, height });
   }, []);
 
+  // Returns { committed }. committed === false means the gesture was a click
+  // (movement below threshold): the caller should fall back to click handling.
   const endLasso = useCallback(() => {
-    if (!startScreenPosRef.current || !lassoRect) return;
+    if (!startScreenPosRef.current || !lassoRect) return { committed: false };
+
+    // Click vs drag: a sub-threshold rectangle is a click, not a lasso.
+    const moved =
+      lassoRect.width > LASSO_MOVE_THRESHOLD ||
+      lassoRect.height > LASSO_MOVE_THRESHOLD;
+    if (!moved) {
+      startScreenPosRef.current = null;
+      setLassoRect(null);
+      return { committed: false };
+    }
 
     // Convert screen rectangle to local coords
     const p1_world = viewportRef.current.screenToWorld(
@@ -102,6 +117,8 @@ export default function useLassoPointSelection({
     // Reset
     startScreenPosRef.current = null;
     setLassoRect(null);
+
+    return { committed: true };
   }, [
     lassoRect,
     viewportRef,

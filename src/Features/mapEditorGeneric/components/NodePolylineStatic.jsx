@@ -1080,19 +1080,16 @@ export default function NodePolylineStatic({
     ];
 
     let pointEntriesToRender = [];
-    // When the user has zeroed in on segments / openings, the geometry vertex
-    // handles become noise — hide them so the active selection is the only
-    // thing on screen.
-    const hasSegmentLikeSelection =
-        (selectedPartIds || []).some((id) => {
-            const t = id?.split?.("::")[1];
-            return t === "SEG" || t === "CUT_SEG" || t === "CUT";
-        }) ||
-        (selectedPartId &&
-            ["SEG", "CUT_SEG", "CUT"].includes(selectedPartId.split('::')[1]));
+    // Multi-selection context (lasso, or successive shift+clicks curating
+    // points / segments): keep ALL vertices on screen — even when segments are
+    // selected — so the user can freely add or remove points by shift+clicking
+    // the squares / circles alongside the highlighted segments.
+    const hasMultiSelection =
+        (selectedPointIds?.length || 0) > 0 ||
+        (selectedPartIds?.length || 0) > 0;
 
-    if (hasSegmentLikeSelection) {
-        pointEntriesToRender = [];
+    if (hasMultiSelection) {
+        pointEntriesToRender = allPointEntries;
     } else if (selectedPartId) {
         const parts = selectedPartId.split('::');
         const partType = parts[1];
