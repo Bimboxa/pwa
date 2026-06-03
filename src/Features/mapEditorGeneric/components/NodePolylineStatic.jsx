@@ -34,12 +34,42 @@ import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/ge
 import getPolygonSlope from "Features/annotations/utils/getPolygonSlope";
 import coerceAnnotationNumericFields from "Features/annotations/utils/coerceAnnotationNumericFields";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
+import useProfileResolution from "Features/annotations/hooks/useProfileResolution";
 import NodeLabelStatic from "./NodeLabelStatic";
 import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerOffsetSegmentPath";
 
 // Extra padding on each side of the visible stroke for hit detection, in
 // screen pixels (20 = ~10 px tolerance each side of the visible edge).
 const HIT_STROKE_PADDING_SCREEN_PX = 20;
+
+// Offset each point of a (possibly arc-carrying) path along its local
+// right-of-tangent normal by `distance`. The per-vertex normal uses the
+// neighbour-to-neighbour tangent, which at an arc's circle-midpoint is the
+// radial direction — so offsetting an S-C-S triplet yields a concentric arc
+// and the curve stays smooth. `type` is preserved so the arc-aware path
+// builder still recognises the S-C-S pattern (real arcs, not segments).
+function offsetPointsAlongNormals(pts, distance, closed) {
+    const n = pts.length;
+    if (n < 2) return pts.map((p) => ({ ...p }));
+    return pts.map((p, i) => {
+        let prev;
+        let next;
+        if (closed) {
+            prev = pts[(i - 1 + n) % n];
+            next = pts[(i + 1) % n];
+        } else {
+            prev = i > 0 ? pts[i - 1] : p;
+            next = i < n - 1 ? pts[i + 1] : p;
+        }
+        const dx = next.x - prev.x;
+        const dy = next.y - prev.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const tx = dx / len;
+        const ty = dy / len;
+        // Right-of-tangent normal (matches the 3D sweep side).
+        return { ...p, x: p.x + ty * distance, y: p.y + -tx * distance };
+    });
+}
 
 // For POLYGON segment hit areas we skip the zoom-aware calc and use a fixed
 // screen-space width — polygons have no visible stroke to "grow", so a zoom-
@@ -132,6 +162,26 @@ export default function NodePolylineStatic({
     //const showLabel = false;
 
     strokeColor = type === "POLYGON" ? fillColor : strokeColor;
+
+    // --- EXTRUSION PROFILE (offset preview) ---
+    // A POLYLINE whose 3D shape is a profile swept along the contour
+    // (shape3D.key === "EXTRUSION_PROFILE") gets a thin offset polyline drawn
+    // on the extrusion side, in the profile's color, as a 2D hint of the swept
+    // footprint. `extrusionOrientation` (±1) chooses the side and mirrors the
+    // 3D sweep (see buildExtrudedProfileMesh).
+    const isExtrusionProfile =
+        type === "POLYLINE" &&
+        mergedAnnotation.shape3D?.key === "EXTRUSION_PROFILE";
+    const profileTemplateId = isExtrusionProfile
+        ? mergedAnnotation.shape3D?.profileTemplateId
+        : undefined;
+    const profileResolution = useProfileResolution(profileTemplateId);
+    const profileColor =
+        profileResolution?.primary?.annotation?.strokeColor ??
+        profileResolution?.primary?.annotation?.fillColor ??
+        strokeColor;
+    const extrusionOrientation =
+        mergedAnnotation.extrusionOrientation < 0 ? -1 : 1;
 
     // --- DATA ATTRIBUTES ---
     const dataProps = {
@@ -897,6 +947,43 @@ export default function NodePolylineStatic({
         return segmentsToDraw;
     };
 
+    // --- RENDU OFFSET EXTRUSION (preview de l'emprise du profil) ---
+    //
+    // Thin offset polyline drawn on the extrusion side, in the profile color,
+    // as a 2D hint of the swept footprint. The contour points are offset along
+    // their right-of-tangent normal (flipped by `extrusionOrientation`) while
+    // preserving their `type`, then fed to the SAME arc-aware path builder as
+    // the main contour — so curved (S-C-S) points stay curved instead of being
+    // approximated by straight segments. The offset is in image space (scales
+    // with zoom); `non-scaling-stroke` keeps the line width constant on screen.
+    // Rendered UNDER the main strokes so it never blocks selection / editing.
+    const EXTRUSION_OFFSET_PX = 4;
+    const EXTRUSION_STROKE_PX = 4;
+
+    const renderExtrusionOffset = () => {
+        if (!isExtrusionProfile || printMode) return null;
+        if (!points || points.length < 2) return null;
+
+        const distance = EXTRUSION_OFFSET_PX * extrusionOrientation;
+        const offsetPts = offsetPointsAlongNormals(points, distance, closeLine);
+        const { d } = buildPathAndMap(offsetPts, closeLine);
+        if (!d) return null;
+
+        return (
+            <path
+                d={d}
+                fill="none"
+                stroke={profileColor}
+                strokeWidth={EXTRUSION_STROKE_PX}
+                strokeOpacity={0.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+                style={{ pointerEvents: "none" }}
+            />
+        );
+    };
+
     // --- RENDU POINTS (VERTEX) ---
 
     const POINT_SIZE = 6;
@@ -1012,6 +1099,7 @@ export default function NodePolylineStatic({
         const isCut = cutIndex !== undefined && cutIndex !== null;
         const isInner = source === "INNER";
         const isSliding = !!pt.isSliding;
+        const isBasePoint = !!pt.isBasePoint;
         const isGuide = source === "GUIDE";
         const keyPrefix = isGuide ? "guide" : isInner ? "inner" : isCut ? `cut-${cutIndex}` : "main";
         // Dashed stroke for sliding vertices: the handle is still visible but
@@ -1032,6 +1120,16 @@ export default function NodePolylineStatic({
                 {...(isGuide ? { "data-guide": "1" } : {})}
             >
                 <g style={{ transform: vertexScaleTransform }}>
+                    {isBasePoint && (
+                        <circle
+                            cx={0}
+                            cy={0}
+                            r={HALF_SIZE + 3}
+                            fill="none"
+                            stroke={strokeColor}
+                            strokeWidth={2}
+                        />
+                    )}
                     {isCircle ? (
                         <circle
                             cx={0} cy={0} r={HALF_SIZE}
@@ -1223,6 +1321,10 @@ export default function NodePolylineStatic({
                     />
                 );
             })}
+
+            {/* EXTRUSION PROFILE OFFSET — drawn UNDER the main strokes so it
+                never blocks selection / editing of the contour. */}
+            {renderExtrusionOffset()}
 
             {/* STROKES (Main) — continuous visual runs, then per-segment hit areas */}
             {strokeType !== "NONE" && renderContinuousStrokes(segmentMap, closeLine, 'MAIN', 0)}

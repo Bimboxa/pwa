@@ -71,6 +71,11 @@ export async function resolveProfileFromDb(profileTemplateId) {
             x: p.x * imageSize.width,
             y: p.y * imageSize.height,
             type: ref.type,
+            // Carried through so the anchor can be the user-designated base
+            // point. `expandArcsInPath` preserves `{...p0}` for non-circle
+            // vertices, so this flag survives arc expansion (the base point
+            // must be a `square` vertex, not the `circle` middle of an arc).
+            isBasePoint: ref.isBasePoint,
           };
         })
         .filter(Boolean);
@@ -87,7 +92,14 @@ export async function resolveProfileFromDb(profileTemplateId) {
   if (profiles.length === 0) return null;
 
   const primary = pickPrimary(profiles);
-  const anchorPx = primary?.pointsPx?.[0] ?? null;
+  // Anchor on the user-designated base point (the vertex flagged `isBasePoint`).
+  // Search the primary first, then any profile, and finally fall back to the
+  // first point — keeping the legacy behavior when no base point is defined.
+  const anchorPx =
+    primary?.pointsPx?.find((p) => p.isBasePoint) ??
+    profiles.map((p) => p.pointsPx.find((q) => q.isBasePoint)).find(Boolean) ??
+    primary?.pointsPx?.[0] ??
+    null;
 
   const profileLengthMeters = profiles.reduce((sum, p) => {
     const mbp = p.baseMap?.meterByPx;

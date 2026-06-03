@@ -24,7 +24,7 @@ export default function useSelectedPointsData() {
   ];
   const selectedPoints = allPoints.filter((p) => idSet.has(p.id));
 
-  const fields = ["type", "offsetBottom", "offsetTop", "isSliding"];
+  const fields = ["type", "offsetBottom", "offsetTop"];
   const mixed = {};
   for (const f of fields) {
     if (selectedPoints.length <= 1) {

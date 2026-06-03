@@ -360,7 +360,9 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           annotation.shape3D.profileTemplateId,
           material,
           verticalLift,
-          expandedHidden
+          expandedHidden,
+          annotation.extrusionOrientation,
+          !!annotation.closeLine
         );
         break;
       }
@@ -416,7 +418,9 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           annotation.shape3D.profileTemplateId,
           material,
           verticalLift,
-          expandedHidden
+          expandedHidden,
+          annotation.extrusionOrientation,
+          !!annotation.closeLine
         );
         break;
       }

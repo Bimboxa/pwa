@@ -70,9 +70,6 @@ export default function PanelPropertiesPointsAndSegments() {
   const offsetTopValue = mixed.offsetTop
     ? ""
     : (selectedPoints[0]?.offsetTop ?? 0);
-  const isSlidingValue = mixed.isSliding
-    ? false
-    : !!selectedPoints[0]?.isSliding;
 
   // local state for the numeric inputs
 
@@ -115,10 +112,6 @@ export default function PanelPropertiesPointsAndSegments() {
   function commitOffsetTop() {
     const n = parseFloat(topDraft);
     updateSelectedPoints({ offsetTop: Number.isFinite(n) ? n : 0 });
-  }
-
-  function handleIsSlidingChange(e) {
-    updateSelectedPoints({ isSliding: e.target.checked });
   }
 
   // render
@@ -211,23 +204,6 @@ export default function PanelPropertiesPointsAndSegments() {
               </Box>
             </Box>
 
-            <Box>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={isSlidingValue}
-                    indeterminate={!!mixed.isSliding}
-                    onChange={handleIsSlidingChange}
-                    size="small"
-                  />
-                }
-                label={
-                  <Typography variant="body2">
-                    Point coulissant (isSliding)
-                  </Typography>
-                }
-              />
-            </Box>
           </>
         )}
 
