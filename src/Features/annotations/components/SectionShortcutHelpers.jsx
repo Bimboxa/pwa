@@ -26,7 +26,13 @@ export default function SectionShortcutHelpers() {
         ...(newAnnotationType === "STRIP"
             ? [{ key: "S", label: "Inverser le sens de la bande" }]
             : []),
-        ...(["POLYLINE", "POLYGON", "STRIP"].includes(newAnnotationType)
+        ...([
+            "POLYLINE_CLICK",
+            "POLYGON_CLICK",
+            "STRIP",
+            "CUT_CLICK",
+            "ADD_GUIDE_LINE",
+        ].includes(enabledDrawingMode)
             ? [{ key: "T", label: "Basculer le dernier point en arc" }]
             : []),
     ];
