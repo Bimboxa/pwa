@@ -54,9 +54,13 @@ export default function PanelSelectionProperties() {
   const isMapViewer = selectedViewerKey === "MAP";
   const isListingViewer = selectedViewerKey === "LISTING";
 
+  // The MAP and BASE_MAPS viewers share the same canvas (InteractionLayer), so
+  // node / point / segment / guideline selections resolve the same way in both.
+  const isCanvasViewer = isMapViewer || isBaseMapsViewer;
+
   let type = "LISTING";
   if (
-    isMapViewer &&
+    isCanvasViewer &&
     selectedPointIds.length > 0 &&
     selectedPartIds.length > 0 &&
     selectedItem?.type === "NODE"
@@ -66,7 +70,7 @@ export default function PanelSelectionProperties() {
     // sets, with shortcuts to narrow down to one kind.
     type = "POINTS_AND_SEGMENTS";
   } else if (
-    isMapViewer &&
+    isCanvasViewer &&
     selectedPointIds.length > 0 &&
     selectedItem?.type === "NODE"
   ) {
@@ -75,7 +79,7 @@ export default function PanelSelectionProperties() {
     // point-level properties instead of the annotation/multi-annotation panel.
     type = "POINTS";
   } else if (
-    isMapViewer &&
+    isCanvasViewer &&
     selectedItem?.type === "NODE" &&
     ["SEG", "CUT_SEG"].includes(
       String(selectedItem?.partId || "").split("::")[1]
@@ -89,7 +93,7 @@ export default function PanelSelectionProperties() {
     // part hook and renders the sectioned UI.
     type = "SEGMENT";
   } else if (
-    isMapViewer &&
+    isCanvasViewer &&
     selectedItem?.type === "NODE" &&
     String(selectedItem?.partId || "").split("::")[1] === "GUIDE_LINE"
   ) {
@@ -99,7 +103,7 @@ export default function PanelSelectionProperties() {
   } else if (isMapViewer && !selectedItem) {
     type = "MAP_SUMMARY";
   } else if (
-    isMapViewer &&
+    isCanvasViewer &&
     selectedItems.length > 1 &&
     selectedItem?.type === "NODE"
   ) {
@@ -109,9 +113,10 @@ export default function PanelSelectionProperties() {
   } else if (isBaseMapsViewer && selectedItem?.type === "SCOPE") {
     // Allow navigating back to the scope panel from the baseMap properties.
     type = "SCOPE";
-  } else if (isBaseMapsViewer) {
-    // In the BASE_MAPS viewer always show the baseMap properties (transforms),
-    // even when the persisted selection is a LISTING/other type from another viewer.
+  } else if (isBaseMapsViewer && !selectedItem) {
+    // Empty selection (e.g. after Escape): show the baseMap properties
+    // (transform operations). A selected drawing instead falls through to the
+    // viewer-agnostic branches below (ENTITY / ANNOTATION / ...), mirroring MAP.
     type = "BASE_MAP";
   } else if (isPortfolioViewer) {
     if (selectedItem?.type === "LEGEND_BLOCK") {
@@ -142,6 +147,11 @@ export default function PanelSelectionProperties() {
     Boolean(selectedItem.entityId)
   ) {
     type = "ENTITY_WITH_ANNOTATIONS";
+  } else if (isBaseMapsViewer) {
+    // Safety fallback in the BASE_MAPS viewer: a persisted selection of a type
+    // not handled above (e.g. a LISTING left over from another viewer) still
+    // shows the baseMap properties rather than the default LISTING panel.
+    type = "BASE_MAP";
   }
 
   // render
