@@ -43,7 +43,12 @@ export default function useHandleCommitGuideLine() {
       ? prevGuideLines[prevGuideLines.length - 1]?.slopePct ?? 0
       : 0;
     const newGuideLine = {
-      points: newPoints.map((np) => ({ pointId: np.id, type: "square" })),
+      points: newPoints.map((np, i) => ({
+        pointId: np.id,
+        // Preserve the per-point type toggled during drawing (square <-> circle)
+        // so square->circle->square triplets render as arcs.
+        type: pixelPts[i]?.type === "circle" ? "circle" : "square",
+      })),
       slopePct: defaultSlopePct,
     };
 

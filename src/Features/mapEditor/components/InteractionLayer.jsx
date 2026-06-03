@@ -2942,7 +2942,15 @@ const InteractionLayer = forwardRef(({
         case "T": {
           if (!isActiveViewerRef.current) break;
           const mode = enabledDrawingModeRef.current;
-          if (["POLYLINE_CLICK", "POLYGON_CLICK", "STRIP"].includes(mode)) {
+          if (
+            [
+              "POLYLINE_CLICK",
+              "POLYGON_CLICK",
+              "STRIP",
+              "CUT_CLICK",
+              "ADD_GUIDE_LINE",
+            ].includes(mode)
+          ) {
             const pts = drawingPointsRef.current || [];
             if (pts.length === 0) break;
             const lastIdx = pts.length - 1;
