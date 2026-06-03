@@ -263,4 +263,12 @@ export function getDrawingToolsByType(type) {
     .filter(Boolean);
 }
 
+export function getDrawingToolTypeByKey(key) {
+  return (
+    Object.keys(DRAWING_TOOLS_BY_TYPE).find((type) =>
+      DRAWING_TOOLS_BY_TYPE[type].includes(key)
+    ) ?? null
+  );
+}
+
 export default DRAWING_TOOLS;
