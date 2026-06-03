@@ -2935,6 +2935,35 @@ const InteractionLayer = forwardRef(({
           break;
         }
 
+        // Toggle the type (square <-> circle) of the LAST placed drawing point.
+        // A trailing "circle" forms a live arc with its previous square point and
+        // the cursor, so the curve adapts on mouseMove. POLYLINE/POLYGON/STRIP only.
+        case "t":
+        case "T": {
+          if (!isActiveViewerRef.current) break;
+          const mode = enabledDrawingModeRef.current;
+          if (["POLYLINE_CLICK", "POLYGON_CLICK", "STRIP"].includes(mode)) {
+            const pts = drawingPointsRef.current || [];
+            if (pts.length === 0) break;
+            const lastIdx = pts.length - 1;
+            const next = pts.map((p, idx) =>
+              idx === lastIdx
+                ? { ...p, type: p.type === "circle" ? "square" : "circle" }
+                : p
+            );
+            setDrawingPoints(next);
+            drawingPointsRef.current = next;
+            // Push fresh points to DrawingLayer so updatePreview reads them.
+            drawingLayerRef.current?.setPoints?.(next);
+            if (lastPreviewPosRef.current) {
+              requestAnimationFrame(() => {
+                drawingLayerRef.current?.updatePreview(lastPreviewPosRef.current);
+              });
+            }
+          }
+          break;
+        }
+
         case "Enter":
           if (enabledDrawingModeRef.current === "SPLIT_POLYLINE") {
             const splitResult = await onSplitPolylineEnterRef.current?.();

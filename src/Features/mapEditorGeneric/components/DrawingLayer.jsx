@@ -10,6 +10,11 @@ import React, {
 import { getCircleFrom3Points } from "Features/geometry/utils/getPolylinePointsFromCircle";
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
 import { useDrawingMetrics } from "App/contexts/DrawingMetricsContext";
+import { expandArcsInPath, typeOf } from "Features/geometry/utils/arcSampling";
+
+// Number of samples per arc segment — mirrors NodePolylineStatic so the live
+// preview matches the committed render.
+const ARC_SAMPLES = 16;
 
 // Compute offset polyline with proper miter joints at corners
 function offsetPolyline(pts, distance) {
@@ -86,6 +91,7 @@ const DrawingLayer = forwardRef(
   ) => {
     // Refs pour l'accès DOM direct (Performance)
     const previewLineRef = useRef(null);
+    const previewArcPathRef = useRef(null); // arc preview for an "open" circle tail
     const previewFillRef = useRef(null);
     const previewRectRef = useRef(null); // <--- NOUVELLE REF
     const previewCircleRef = useRef(null);
@@ -396,7 +402,8 @@ const DrawingLayer = forwardRef(
           const stripWidth = isCm
             ? (rawWidth * 0.01) / meterByPxRef.current
             : rawWidth;
-          const d = computeStripPath(allPts, stripWidth * stripOrientation);
+          const centerline = expandArcsInPath(allPts, ARC_SAMPLES, false);
+          const d = computeStripPath(centerline, stripWidth * stripOrientation);
           previewStripRef.current.setAttribute("d", d);
           previewStripRef.current.style.display = "block";
 
@@ -422,20 +429,46 @@ const DrawingLayer = forwardRef(
           previewStripRef.current.style.display = "none";
 
         // 1. Mise à jour de la ligne élastique
-        if (previewLineRef.current) {
-          previewLineRef.current.setAttribute("x1", lastPoint.x);
-          previewLineRef.current.setAttribute("y1", lastPoint.y);
-          previewLineRef.current.setAttribute("x2", cursorPos.x);
-          previewLineRef.current.setAttribute("y2", cursorPos.y);
-          previewLineRef.current.style.display = "block";
+        // Si le dernier point posé est un "circle" ouvert (pas encore suivi
+        // d'un square), on dessine l'arc [avant-dernier, circle, curseur] au
+        // lieu de la ligne droite, pour voir la courbe s'adapter au mouseMove.
+        const lastIsOpenCircle =
+          currentPoints.length >= 2 && typeOf(lastPoint) === "circle";
+        if (lastIsOpenCircle && previewArcPathRef.current) {
+          const prev = currentPoints[currentPoints.length - 2];
+          const arcPts = expandArcsInPath(
+            [prev, lastPoint, cursorPos],
+            ARC_SAMPLES,
+            false
+          );
+          previewArcPathRef.current.setAttribute(
+            "d",
+            "M " + arcPts.map((p) => `${p.x} ${p.y}`).join(" L ")
+          );
+          previewArcPathRef.current.style.display = "block";
+          if (previewLineRef.current)
+            previewLineRef.current.style.display = "none";
+        } else {
+          if (previewArcPathRef.current)
+            previewArcPathRef.current.style.display = "none";
+          if (previewLineRef.current) {
+            previewLineRef.current.setAttribute("x1", lastPoint.x);
+            previewLineRef.current.setAttribute("y1", lastPoint.y);
+            previewLineRef.current.setAttribute("x2", cursorPos.x);
+            previewLineRef.current.setAttribute("y2", cursorPos.y);
+            previewLineRef.current.style.display = "block";
+          }
         }
 
         // 2. Mise à jour du remplissage dynamique (Polygone uniquement)
         if (isPolygon && previewFillRef.current) {
-          const staticPart = currentPoints
-            .map((p) => `${p.x} ${p.y}`)
-            .join(" L ");
-          const d = `M ${staticPart} L ${cursorPos.x} ${cursorPos.y} Z`;
+          const fillPts = expandArcsInPath(
+            [...currentPoints, cursorPos],
+            ARC_SAMPLES,
+            false
+          );
+          const d =
+            "M " + fillPts.map((p) => `${p.x} ${p.y}`).join(" L ") + " Z";
           previewFillRef.current.setAttribute("d", d);
           previewFillRef.current.style.display = "block";
         }
@@ -444,6 +477,8 @@ const DrawingLayer = forwardRef(
       clearPreview: () => {
         if (previewLineRef.current)
           previewLineRef.current.style.display = "none";
+        if (previewArcPathRef.current)
+          previewArcPathRef.current.style.display = "none";
         if (previewFillRef.current)
           previewFillRef.current.style.display = "none";
         if (previewRectRef.current)
@@ -459,10 +494,20 @@ const DrawingLayer = forwardRef(
 
     // Construction du chemin statique (ce qui est déjà cliqué)
     // Pour le rectangle, "points" ne contient qu'un seul point pendant le dessin, donc staticPath sera vide, ce qui est correct.
-    const staticPath =
-      points.length > 1
-        ? `M ${points.map((p) => `${p.x} ${p.y}`).join(" L ")}`
+    // Les arcs S-C-S validés sont rendus courbes (cohérent avec NodePolylineStatic).
+    // Si le dernier point est un "circle" ouvert (pas encore suivi d'un square),
+    // on le retire du tracé statique : il est dessiné par l'aperçu live à la place.
+    const staticPath = useMemo(() => {
+      if (!points || points.length <= 1) return "";
+      let committed = points;
+      const trailingOpenCircle =
+        points.length >= 2 && typeOf(points[points.length - 1]) === "circle";
+      if (trailingOpenCircle) committed = points.slice(0, -1);
+      const expanded = expandArcsInPath(committed, ARC_SAMPLES, false);
+      return expanded.length > 1
+        ? "M " + expanded.map((p) => `${p.x} ${p.y}`).join(" L ")
         : "";
+    }, [points]);
 
     // Scale pour les points fixes
     const scaleTransform = useMemo(() => {
@@ -558,6 +603,20 @@ const DrawingLayer = forwardRef(
         {!drawRectangle && !(drawCircle && points.length >= 2) && !drawCote && (
           <line
             ref={previewLineRef}
+            stroke={effectiveStrokeColor || "blue"}
+            strokeWidth={2}
+            strokeDasharray="5,5"
+            vectorEffect="non-scaling-stroke"
+            style={{ display: "none", pointerEvents: "none" }}
+          />
+        )}
+
+        {/* F2. Dynamic arc preview (replaces the rubber band when the last
+            placed point is an "open" circle — the curve follows the cursor) */}
+        {!drawRectangle && !(drawCircle && points.length >= 2) && !drawCote && (
+          <path
+            ref={previewArcPathRef}
+            fill="none"
             stroke={effectiveStrokeColor || "blue"}
             strokeWidth={2}
             strokeDasharray="5,5"
