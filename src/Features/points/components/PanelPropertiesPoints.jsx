@@ -24,14 +24,16 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 import useSelectedPointsData from "Features/points/hooks/useSelectedPointsData";
 import useUpdateSelectedPoints from "Features/points/hooks/useUpdateSelectedPoints";
+import useSetBasePoint from "Features/points/hooks/useSetBasePoint";
 
 export default function PanelPropertiesPoints() {
   const dispatch = useDispatch();
 
   // data
 
-  const { selectedPoints, mixed } = useSelectedPointsData();
+  const { annotation, selectedPoints, mixed } = useSelectedPointsData();
   const updateSelectedPoints = useUpdateSelectedPoints();
+  const setBasePoint = useSetBasePoint();
 
   // helpers
 
@@ -45,9 +47,11 @@ export default function PanelPropertiesPoints() {
   const offsetTopValue = mixed.offsetTop
     ? ""
     : (selectedPoints[0]?.offsetTop ?? 0);
-  const isSlidingValue = mixed.isSliding
-    ? false
-    : !!selectedPoints[0]?.isSliding;
+
+  // Reference / base point — only meaningful for profile annotations and a
+  // single selected vertex (it designates the profile extrusion anchor).
+  const isProfile = !!annotation?.annotationTemplate?.isProfile;
+  const isBasePointValue = !!selectedPoints[0]?.isBasePoint;
 
   // local state for the numeric inputs (so typing doesn't fight the live db value)
 
@@ -83,8 +87,10 @@ export default function PanelPropertiesPoints() {
     updateSelectedPoints({ offsetTop: Number.isFinite(n) ? n : 0 });
   }
 
-  function handleIsSlidingChange(e) {
-    updateSelectedPoints({ isSliding: e.target.checked });
+  function handleBasePointChange(e) {
+    const pointId = selectedPoints[0]?.id;
+    if (!pointId) return;
+    setBasePoint(pointId, e.target.checked);
   }
 
   // render - no selection
@@ -174,23 +180,22 @@ export default function PanelPropertiesPoints() {
           </Box>
         </Box>
 
-        <Box>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={isSlidingValue}
-                indeterminate={!!mixed.isSliding}
-                onChange={handleIsSlidingChange}
-                size="small"
-              />
-            }
-            label={
-              <Typography variant="body2">
-                Point coulissant (isSliding)
-              </Typography>
-            }
-          />
-        </Box>
+        {isProfile && count === 1 && (
+          <Box>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={isBasePointValue}
+                  onChange={handleBasePointChange}
+                  size="small"
+                />
+              }
+              label={
+                <Typography variant="body2">Point de référence</Typography>
+              }
+            />
+          </Box>
+        )}
       </Box>
     </BoxFlexVStretch>
   );

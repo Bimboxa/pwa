@@ -56,6 +56,7 @@ import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import FieldAnnotationThickness from "./FieldAnnotationThickness";
 import Shape3DSelector from "./Shape3DSelector";
 import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
+import IconButtonFlipExtrusionAnnotation from "./IconButtonFlipExtrusionAnnotation";
 import IconButtonToggleStripType from "./IconButtonToggleStripType";
 import IconButtonDetectSimilarStrips from "./IconButtonDetectSimilarStrips";
 import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
@@ -744,6 +745,12 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                   )}
                 {selectedAnnotation?.type === "STRIP" && (
                   <IconButtonFlipStripAnnotation
+                    annotation={selectedAnnotation}
+                    accentColor={accentColor}
+                  />
+                )}
+                {selectedAnnotation?.shape3D?.key === "EXTRUSION_PROFILE" && (
+                  <IconButtonFlipExtrusionAnnotation
                     annotation={selectedAnnotation}
                     accentColor={accentColor}
                   />

@@ -105,7 +105,14 @@ const SnappingLayer = forwardRef(({
                     transition: 'stroke 0.1s ease',
                     vectorEffect: "non-scaling-stroke",
                     fill: "transparent",
+                },
+                // VERTEX : "grab" → le point existant peut être déplacé.
+                "& .vertex": {
                     cursor: "grab",
+                },
+                // PROJECTION / MIDPOINT : "crosshair" → un point sera créé ici.
+                "& .projection, & .midpoint": {
+                    cursor: "crosshair",
                 },
                 "& .projection:hover, & .midpoint:hover": {
                     stroke: "#ff00ff !important",

@@ -5318,14 +5318,26 @@ const InteractionLayer = forwardRef(({
         // B. L'Override "Nucléaire" pour le mode dessin
         // Si on dessine, on force TOUS les enfants (& *) à avoir crosshair
         // Sauf pour les modes de sélection de segment (pointer)
-        ...(enabledDrawingMode && !POINTER_CLICK_MODES.includes(enabledDrawingMode) && {
+        // Exception : le helper de snap VERTEX garde "grab" pour signaler
+        // qu'on peut déplacer le point (sauf si un drag de point est en cours).
+        ...(enabledDrawingMode && !POINTER_CLICK_MODES.includes(enabledDrawingMode) && !dragState?.active && {
           '& *': {
             cursor: 'crosshair !important',
+          },
+          '& .vertex': {
+            cursor: 'grab !important',
           },
         }),
         ...(POINTER_CLICK_MODES.includes(enabledDrawingMode) && {
           '& *': {
             cursor: 'pointer !important',
+          },
+        }),
+        // Pendant un drag de point, on force le crosshair partout (y compris
+        // au-dessus des helpers de snap) pour un placement précis.
+        ...(dragState?.active && {
+          '& *': {
+            cursor: 'crosshair !important',
           },
         }),
       }}>

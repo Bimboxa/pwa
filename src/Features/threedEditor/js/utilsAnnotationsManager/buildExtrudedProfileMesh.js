@@ -38,7 +38,9 @@ export default function buildExtrudedProfileMesh(
   profileTemplateId,
   material,
   verticalLift = 0,
-  hiddenSegmentsIdx = []
+  hiddenSegmentsIdx = [],
+  extrusionOrientation = 1,
+  closeLine = false
 ) {
   if (!guidePointsLocal || guidePointsLocal.length < 2) return null;
   if (!profileTemplateId) return null;
@@ -66,6 +68,8 @@ export default function buildExtrudedProfileMesh(
       anchorPx: res.anchorPx,
       verticalLift,
       material,
+      extrusionOrientation,
+      closeLine,
     });
     if (swept) placeholder.add(swept);
   }
@@ -101,8 +105,13 @@ function sweepProfileAlongGuide({
   anchorPx,
   verticalLift,
   material,
+  extrusionOrientation = 1,
+  closeLine = false,
 }) {
   const hidden = new Set(hiddenSegmentsIdx ?? []);
+  // Flip the profile to the other side of the guide (180° about the guide
+  // tangent) by mirroring its position along the segment normal.
+  const orient = extrusionOrientation < 0 ? -1 : 1;
   const group = new Group();
 
   // Per-vertex mitered frames so adjacent segments share rings — produces a
@@ -112,7 +121,7 @@ function sweepProfileAlongGuide({
   // each adjacent segment (standard miter: M = (N_in + N_out) / (1 + N_in · N_out)).
   // At end vertices and at edges of hidden gaps, we fall back to the single
   // adjacent segment's plain right-normal (clean termination).
-  const vertexFrames = computeVertexFrames(guidePointsLocal, hidden);
+  const vertexFrames = computeVertexFrames(guidePointsLocal, hidden, closeLine);
 
   for (const profile of profiles) {
     const mbp = profile.baseMap?.meterByPx;
@@ -121,7 +130,7 @@ function sweepProfileAlongGuide({
     // Profile points in profile-local meters: X-right, Y-up (pixel Y is down,
     // so flip the sign).
     const profileLocal = profile.pointsPx.map((p) => ({
-      x: (p.x - anchorPx.x) * mbp,
+      x: (p.x - anchorPx.x) * mbp * orient,
       y: -(p.y - anchorPx.y) * mbp,
     }));
 
@@ -130,7 +139,8 @@ function sweepProfileAlongGuide({
       vertexFrames,
       hidden,
       profileLocal,
-      verticalLift
+      verticalLift,
+      closeLine
     );
     if (!subGeom) continue;
 
@@ -157,16 +167,18 @@ function sweepProfileAlongGuide({
 // Rather than tracking which "side" each ring entry covers, we collapse to a
 // single ring per vertex and let `buildSweepGeometryForProfile` use it for
 // both adjacent segments — that's the whole point of mitering.
-function computeVertexFrames(points, hidden) {
+function computeVertexFrames(points, hidden, closeLine = false) {
   const n = points.length;
   const frames = new Array(n).fill(null);
 
-  // Per-segment plain normals (cached).
-  const segN = new Array(n - 1).fill(null);
-  for (let i = 0; i < n - 1; i++) {
+  // Per-segment plain normals (cached). When the guide is closed there is one
+  // extra segment connecting the last point back to the first (index n-1).
+  const segCount = closeLine ? n : n - 1;
+  const segN = new Array(segCount).fill(null);
+  for (let i = 0; i < segCount; i++) {
     if (hidden.has(i)) continue;
     const a = points[i];
-    const b = points[i + 1];
+    const b = points[(i + 1) % n];
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const len = Math.hypot(dx, dy);
@@ -178,8 +190,10 @@ function computeVertexFrames(points, hidden) {
   }
 
   for (let v = 0; v < n; v++) {
-    const inN = v > 0 ? segN[v - 1] : null;
-    const outN = v < n - 1 ? segN[v] : null;
+    // Closed: every vertex has both an incoming and an outgoing segment
+    // (wrap-around). Open: the endpoints fall back to their single segment.
+    const inN = closeLine ? segN[(v - 1 + n) % n] : v > 0 ? segN[v - 1] : null;
+    const outN = closeLine ? segN[v] : v < n - 1 ? segN[v] : null;
 
     if (inN && outN) {
       // Mitered: M = (Ni + No) / (1 + Ni · No). Falls back to plain "out"
@@ -212,7 +226,8 @@ function buildSweepGeometryForProfile(
   vertexFrames,
   hidden,
   profileLocal,
-  verticalLift
+  verticalLift,
+  closeLine = false
 ) {
   const positions = [];
   const indices = [];
@@ -224,21 +239,28 @@ function buildSweepGeometryForProfile(
   let prevSegmentEndIdx = -1;
   let prevEndVertexIndex = -1;
 
-  for (let i = 0; i < guidePoints.length - 1; i++) {
+  // Closed guide: also sweep the closing segment (last → first), so the
+  // surface wraps all the way around (e.g. a full dome) instead of leaving a
+  // wedge-shaped gap.
+  const n = guidePoints.length;
+  const segCount = closeLine ? n : n - 1;
+
+  for (let i = 0; i < segCount; i++) {
     if (hidden.has(i)) {
       prevSegmentEndIdx = -1;
       prevEndVertexIndex = -1;
       continue;
     }
+    const endVertex = (i + 1) % n;
     const fA = vertexFrames[i];
-    const fB = vertexFrames[i + 1];
+    const fB = vertexFrames[endVertex];
     if (!fA || !fB) {
       prevSegmentEndIdx = -1;
       prevEndVertexIndex = -1;
       continue;
     }
     const a = guidePoints[i];
-    const b = guidePoints[i + 1];
+    const b = guidePoints[endVertex];
 
     // Reuse previous segment's end ring as this segment's start ring iff the
     // previous visible segment ended at this same vertex.
@@ -279,7 +301,7 @@ function buildSweepGeometryForProfile(
     }
 
     prevSegmentEndIdx = endBaseIdx;
-    prevEndVertexIndex = i + 1;
+    prevEndVertexIndex = endVertex;
   }
 
   if (positions.length === 0) return null;
