@@ -21,6 +21,7 @@ import {
 } from 'Features/mapEditor/mapEditorSlice';
 import {
   setAnchorSourceAnnotationId,
+  setSubtractSourceAnnotationId,
   setOrthoSnapEnabled,
   setFixedLength,
   toggleSmartDetectEnabled,
@@ -91,6 +92,7 @@ import DropZoneLayer from 'Features/mapEditorGeneric/components/DropZoneLayer';
 import TransientDetectedShapeLayer from 'Features/mapEditorGeneric/components/TransientDetectedShapeLayer';
 import computeWrapperBbox from '../utils/computeWrapperBbox';
 import anchorAnnotationToTarget from 'Features/annotations/services/anchorAnnotationToTarget';
+import addAnnotationSubtraction from 'Features/annotations/services/addAnnotationSubtraction';
 import updateAnnotationService from 'Features/annotations/services/updateAnnotationService';
 import AnnotationEditingWrapper from './AnnotationEditingWrapper';
 import applyDeltaPosToAnnotation from 'Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation';
@@ -368,6 +370,9 @@ const InteractionLayer = forwardRef(({
 
   // Anchor snap mode
   const anchorSourceAnnotationId = useSelector((s) => s.mapEditor.anchorSourceAnnotationId);
+  // Subtraction pick mode
+  const subtractSourceAnnotationId = useSelector((s) => s.mapEditor.subtractSourceAnnotationId);
+  const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
   const mapEditorMode = useSelector((s) => s.mapEditor.mapEditorMode);
   const orthoSnapEnabled = useSelector((s) => s.mapEditor.orthoSnapEnabled);
   const orthoSnapAngleOffset = useSelector((s) => s.mapEditor.orthoSnapAngleOffset);
@@ -1866,6 +1871,11 @@ const InteractionLayer = forwardRef(({
     anchorSourceAnnotationIdRef.current = anchorSourceAnnotationId;
   }, [anchorSourceAnnotationId]);
 
+  const subtractSourceAnnotationIdRef = useRef(subtractSourceAnnotationId);
+  useEffect(() => {
+    subtractSourceAnnotationIdRef.current = subtractSourceAnnotationId;
+  }, [subtractSourceAnnotationId]);
+
   const orthoSnapEnabledRef = useRef(orthoSnapEnabled);
   useEffect(() => {
     orthoSnapEnabledRef.current = orthoSnapEnabled;
@@ -2481,6 +2491,13 @@ const InteractionLayer = forwardRef(({
           // Cancel anchor pick mode if active
           if (anchorSourceAnnotationIdRef.current) {
             dispatch(setAnchorSourceAnnotationId(null));
+            e.stopPropagation();
+            return;
+          }
+
+          // Cancel subtraction pick mode if active
+          if (subtractSourceAnnotationIdRef.current) {
+            dispatch(setSubtractSourceAnnotationId(null));
             e.stopPropagation();
             return;
           }
@@ -3203,7 +3220,7 @@ const InteractionLayer = forwardRef(({
     // Cross-tab navigation: in pure SELECT mode (no drawing tool, no anchor
     // pick), forward the click world position to the parent so it can
     // broadcast a 3D-camera pan event to other tabs.
-    if (!enabledDrawingMode && !anchorSourceAnnotationId) {
+    if (!enabledDrawingMode && !anchorSourceAnnotationId && !subtractSourceAnnotationId) {
       onMapClickInSelectMode?.({ worldPos, event });
     }
 
@@ -3240,6 +3257,46 @@ const InteractionLayer = forwardRef(({
         // Click on empty space cancels anchor mode
         dispatch(setAnchorSourceAnnotationId(null));
       }
+      return;
+    }
+
+    // Subtraction pick mode: each click on an annotation adds it to the
+    // subtraction list. The mode stays active (multi-pick) until the user
+    // presses Escape — so empty-space clicks do nothing here.
+    if (subtractSourceAnnotationId && !enabledDrawingMode) {
+      const nativeTarget = event.nativeEvent?.target || event.target;
+      const hit = nativeTarget.closest?.('[data-node-type="ANNOTATION"]');
+      if (hit) {
+        const targetId = hit.dataset.nodeId;
+        if (targetId === subtractSourceAnnotationId) {
+          dispatch(
+            setToaster({
+              message: "Une annotation ne peut pas se soustraire elle-même",
+              severity: "warning",
+            })
+          );
+        } else {
+          const relId = await addAnnotationSubtraction({
+            projectId: selectedProjectId,
+            sourceAnnotationId: subtractSourceAnnotationId,
+            targetAnnotationId: targetId,
+          });
+          dispatch(
+            setToaster(
+              relId
+                ? {
+                    message: "Annotation ajoutée à la soustraction",
+                    severity: "success",
+                  }
+                : {
+                    message: "Annotation déjà soustraite",
+                    severity: "info",
+                  }
+            )
+          );
+        }
+      }
+      // Stay in subtraction mode; only Escape exits it.
       return;
     }
 

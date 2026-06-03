@@ -10,6 +10,7 @@ import {
 import FieldAnnotationPreview from "./FieldAnnotationPreview";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import SectionAnnotationQties from "./SectionAnnotationQties";
+import SectionAnnotationSubtractions from "./SectionAnnotationSubtractions";
 import ButtonAnnotationTemplate from "./ButtonAnnotationTemplate";
 import FieldWrapperDimensions from "./FieldWrapperDimensions";
 import FieldAnnotationRotation from "./FieldAnnotationRotation";
@@ -74,6 +75,10 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
         {showStroke && <FieldAnnotationStroke annotation={annotation} overrideFields={overrideFields} />}
         <FieldAnnotationIsEraser annotation={annotation} />
       </Box>
+
+      {["POLYGON", "RECTANGLE", "POLYLINE", "STRIP"].includes(type) && (
+        <SectionAnnotationSubtractions annotation={annotation} />
+      )}
     </>
   );
 }

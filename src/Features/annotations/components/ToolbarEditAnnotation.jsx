@@ -60,6 +60,7 @@ import IconButtonFlipExtrusionAnnotation from "./IconButtonFlipExtrusionAnnotati
 import IconButtonToggleStripType from "./IconButtonToggleStripType";
 import IconButtonDetectSimilarStrips from "./IconButtonDetectSimilarStrips";
 import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
+import IconButtonSubtractAnnotation from "./IconButtonSubtractAnnotation";
 import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
 import IconButtonRepairAnnotation from "./IconButtonRepairAnnotation";
 import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
@@ -780,6 +781,14 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 ) && (
                   <IconButtonSplitInSegments
                     annotations={[selectedAnnotation]}
+                    accentColor={accentColor}
+                  />
+                )}
+                {["POLYGON", "RECTANGLE", "POLYLINE", "STRIP"].includes(
+                  selectedAnnotation?.type
+                ) && (
+                  <IconButtonSubtractAnnotation
+                    annotation={selectedAnnotation}
                     accentColor={accentColor}
                   />
                 )}

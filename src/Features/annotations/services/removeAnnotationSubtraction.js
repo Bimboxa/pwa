@@ -1,0 +1,12 @@
+import db from "App/db/db";
+
+/**
+ * Soft-deletes a subtraction relation by its id (soft-delete middleware
+ * sets deletedAt instead of hard-removing the row).
+ *
+ * @param {string} relId
+ */
+export default async function removeAnnotationSubtraction(relId) {
+  if (!relId) return;
+  await db.relAnnotationSubtractions.delete(relId);
+}
