@@ -5,12 +5,17 @@ import { Paper, Box, Divider, Popover, Typography, IconButton } from "@mui/mater
 import { Close as CloseIcon } from "@mui/icons-material";
 import { CompactPicker } from "react-color";
 
-import { setEnabledDrawingMode } from "../mapEditorSlice";
+import {
+  setEnabledDrawingMode,
+  setSelectedToolKeyForTemplate,
+} from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
 import {
   getDrawingToolByKey,
   getDrawingToolsByShape,
+  getDrawingToolsByType,
+  getDrawingToolTypeByKey,
 } from "../constants/drawingTools.jsx";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
@@ -42,22 +47,35 @@ export default function ToolbarDrawingDraft() {
   const isStrokeColor = shapeCategory === "polyline";
   const colorField = isStrokeColor ? "strokeColor" : "fillColor";
 
+  // A cutting tool (CUT / SPLIT_LINE / …) is active when the enabled drawing
+  // mode maps back to one of the DRAWING_TOOLS_BY_TYPE groups. In that case the
+  // toolbar shows the available modes for the tool instead of the
+  // new-annotation color / height fields, which are not relevant.
+  const toolType = getDrawingToolTypeByKey(enabledDrawingMode);
+  const isCuttingTool = Boolean(toolType);
+
   const overrideFields = newAnnotation?.overrideFields;
   const isFieldOverridden = (field) =>
     Array.isArray(overrideFields) && overrideFields.includes(field);
 
-  const showColor = !isFieldOverridden(colorField);
+  const showColor = !isCuttingTool && !isFieldOverridden(colorField);
   const showThickness =
-    drawingShape === "POLYLINE" && !isFieldOverridden("strokeWidth");
-  const showOffset = !isFieldOverridden("offsetZ");
-  const showHeight = !isFieldOverridden("height");
+    !isCuttingTool &&
+    drawingShape === "POLYLINE" &&
+    !isFieldOverridden("strokeWidth");
+  const showOffset = !isCuttingTool && !isFieldOverridden("offsetZ");
+  const showHeight = !isCuttingTool && !isFieldOverridden("height");
   const showAnyField = showThickness || showOffset || showHeight;
 
-  const tools = drawingShape ? getDrawingToolsByShape(drawingShape) : [];
+  const tools = isCuttingTool
+    ? getDrawingToolsByType(toolType)
+    : drawingShape
+      ? getDrawingToolsByShape(drawingShape)
+      : [];
   const options = tools.map(({ key, label, Icon }) => ({
     key,
     label,
-    icon: <Icon sx={{ color }} />,
+    icon: <Icon sx={isCuttingTool ? undefined : { color }} />,
   }));
   const showShape = options.length > 0;
 
@@ -73,6 +91,13 @@ export default function ToolbarDrawingDraft() {
     if (tool?.annotationType) {
       dispatch(
         setNewAnnotation({ ...newAnnotation, type: tool.annotationType })
+      );
+    }
+    // Keep the popper's per-tool active-mode highlight in sync when the mode is
+    // switched from the toolbar (mirrors ToolRow.handleSelectTool).
+    if (isCuttingTool && mode) {
+      dispatch(
+        setSelectedToolKeyForTemplate({ templateId: toolType, toolKey: mode })
       );
     }
   }
