@@ -12,7 +12,7 @@ import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotat
 export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { viewBox, disabledAnnotationTemplates, disabledLayerIds } = {}) {
   // data
 
-  const allAnnotations = useAnnotationsV2({ caller: "useAnnotationTemplateQtiesByIdForBaseMap", filterByBaseMapId: baseMapId, filterBySelectedScope: true, excludeIsForBaseMapsListings: true });
+  const allAnnotations = useAnnotationsV2({ caller: "useAnnotationTemplateQtiesByIdForBaseMap", filterByBaseMapId: baseMapId, filterBySelectedScope: true, excludeIsForBaseMapsListings: true, withQties: true });
   let annotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
 
   if (disabledAnnotationTemplates?.length) {
@@ -61,14 +61,16 @@ export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { vi
       stats.count += 1;
       stats.unit = stats.count;
 
-      const qty = getAnnotationQties({ annotation, meterByPx });
+      const qty = annotation.qties ?? getAnnotationQties({ annotation, meterByPx });
 
       if (qty && qty.enabled) {
-        if (Number.isFinite(qty.length)) {
-          stats.length += qty.length;
+        const length = qty.lengthDeveloped != null ? qty.lengthDeveloped : qty.length;
+        const surface = qty.surfaceDeveloped != null ? qty.surfaceDeveloped : qty.surface;
+        if (Number.isFinite(length)) {
+          stats.length += length;
         }
-        if (Number.isFinite(qty.surface)) {
-          stats.surface += qty.surface;
+        if (Number.isFinite(surface)) {
+          stats.surface += surface;
         }
       }
 

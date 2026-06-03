@@ -98,7 +98,7 @@ export default function buildExtrudedProfileMesh(
   return placeholder;
 }
 
-function sweepProfileAlongGuide({
+export function sweepProfileAlongGuide({
   guidePointsLocal,
   hiddenSegmentsIdx,
   profiles,

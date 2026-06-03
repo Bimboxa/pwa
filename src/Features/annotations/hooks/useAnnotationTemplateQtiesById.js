@@ -14,7 +14,7 @@ import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {}) {
   // --- DATA ---
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const annotations = useAnnotationsV2({ caller: "useAnnotationTemplateQtiesById", filterByProjectId: projectId });
+  const annotations = useAnnotationsV2({ caller: "useAnnotationTemplateQtiesById", filterByProjectId: projectId, withQties: true });
   const annotationTemplates = useAnnotationTemplates();
   const { value: baseMaps } = useBaseMaps({ filterByProjectId: projectId }) ?? {};
 
@@ -59,16 +59,19 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
       const baseMap = annotation.baseMapId ? baseMapById?.[annotation.baseMapId] : null;
       const meterByPx = baseMap?.getMeterByPx();
 
-      // 4. Calcul des Quantités via la fonction utilitaire
-      // Cette fonction gère désormais : POLYGON, POLYLINE, STRIP (avec récursion), Cuts et HiddenSegments
-      const qty = getAnnotationQties({ annotation, meterByPx });
+      // 4. Calcul des Quantités. Prefer the precomputed `annotation.qties`
+      // (subtraction-aware, EXTRUSION_PROFILE-resolved) from useAnnotationsV2;
+      // fall back to a direct computation otherwise.
+      const qty = annotation.qties ?? getAnnotationQties({ annotation, meterByPx });
 
       if (qty && qty.enabled) {
-        if (Number.isFinite(qty.length)) {
-          stats.length += qty.length;
+        const length = qty.lengthDeveloped != null ? qty.lengthDeveloped : qty.length;
+        const surface = qty.surfaceDeveloped != null ? qty.surfaceDeveloped : qty.surface;
+        if (Number.isFinite(length)) {
+          stats.length += length;
         }
-        if (Number.isFinite(qty.surface)) {
-          stats.surface += qty.surface;
+        if (Number.isFinite(surface)) {
+          stats.surface += surface;
         }
       }
 

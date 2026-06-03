@@ -72,6 +72,7 @@ import CardLoupe from "Features/smartDetect/components/CardLoupe";
 import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
 import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
+import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
 import getEffectiveDetectionMode from "Features/mapEditor/utils/getEffectiveDetectionMode";
 import SectionLayers from "Features/layers/components/SectionLayers";
 import {
@@ -1805,6 +1806,9 @@ export default function PopperMapListings() {
     (s) => s.mapEditor.enabledDrawingMode
   );
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
+  const subtractSourceAnnotationId = useSelector(
+    (s) => s.mapEditor.subtractSourceAnnotationId
+  );
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
   );
@@ -2010,6 +2014,10 @@ export default function PopperMapListings() {
 
   if (pasteClipboard) {
     return <PopperPasteHelper />;
+  }
+
+  if (subtractSourceAnnotationId) {
+    return <PopperSubtractHelper />;
   }
 
   if (Boolean(enabledDrawingMode)) {

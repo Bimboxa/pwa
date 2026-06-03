@@ -66,7 +66,7 @@ function normalizeHex(hex) {
   return hex;
 }
 
-function makeMaterial(annotation, options) {
+export function makeMaterial(annotation, options) {
   // POLYLINE and STRIP are stroke-driven in the data model (no fill props);
   // POLYGON / RECTANGLE are fill-driven. Opacity must follow the matching
   // prop, otherwise stroke-driven types fall back to fillOpacity = undefined

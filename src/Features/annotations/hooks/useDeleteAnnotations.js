@@ -18,6 +18,24 @@ export default function useDeleteAnnotations() {
 
     const idsToDelete = validAnnotations.map((a) => a.id);
 
+    // 1b. Cascade: collect subtraction relations where a deleted annotation is
+    // either the source (carved polygon) or the target (subtracted shape).
+    const [relSrc, relTgt] = await Promise.all([
+      db.relAnnotationSubtractions
+        .where("sourceAnnotationId")
+        .anyOf(idsToDelete)
+        .toArray(),
+      db.relAnnotationSubtractions
+        .where("targetAnnotationId")
+        .anyOf(idsToDelete)
+        .toArray(),
+    ]);
+    const subtractionRelIds = [
+      ...new Set(
+        [...relSrc, ...relTgt].filter((r) => !r.deletedAt).map((r) => r.id)
+      ),
+    ];
+
     // 2. Determine which annotations are cutHosts (batch template lookup)
     const uniqueTemplateIds = [
       ...new Set(
@@ -113,8 +131,13 @@ export default function useDeleteAnnotations() {
     // 5. Execute all writes in a single transaction
     await db.transaction(
       "rw",
-      [db.annotations, db.listings],
+      [db.annotations, db.listings, db.relAnnotationSubtractions],
       async () => {
+        // Cascade soft-delete subtraction relations
+        if (subtractionRelIds.length > 0) {
+          await db.relAnnotationSubtractions.bulkDelete(subtractionRelIds);
+        }
+
         // Batch cuts-cleanup updates
         if (cutUpdates.length > 0) {
           await Promise.all(

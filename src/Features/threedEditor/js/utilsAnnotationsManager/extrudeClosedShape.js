@@ -349,7 +349,11 @@ export default function extrudeClosedShape(points, height, material, holes, vert
   // the user's viewpoint. DoubleSide trades a bit of depth stability during
   // rotation for predictable visibility from any angle.
   material.side = DoubleSide;
-  group.add(new Mesh(geometry, material));
+  const solidMesh = new Mesh(geometry, material);
+  // Tag the fill mesh so the CSG / subtraction pipeline can locate the solid
+  // geometry inside the returned Group (which also holds edges / iso lines).
+  solidMesh.userData = { ...(solidMesh.userData ?? {}), role: "SOLID" };
+  group.add(solidMesh);
 
   // Black outline only on the flat fast path, where the mesh is planar and
   // EdgesGeometry yields a clean stroke-like border. On the per-vertex-Z path

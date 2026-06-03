@@ -87,6 +87,14 @@ db.version(20).stores({
   layers: "id,baseMapId,projectId,scopeId",
 });
 
+db.version(21).stores({
+  // {id, projectId, sourceAnnotationId, targetAnnotationId}
+  // Directional subtraction relation: sourceAnnotation - targetAnnotation
+  // (3D boolean + quantity impact). Soft-deleted when either annotation is deleted.
+  relAnnotationSubtractions:
+    "id, projectId, sourceAnnotationId, targetAnnotationId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -116,6 +124,7 @@ const AUDIT_TABLES = [
   "entityModels",
   "baseMapVersions",
   "layers",
+  "relAnnotationSubtractions",
 ];
 
 AUDIT_TABLES.forEach((tableName) => {
@@ -193,6 +202,7 @@ const SOFT_DELETE_TABLES = new Set([
   "entityModels",
   "baseMapVersions",
   "layers",
+  "relAnnotationSubtractions",
 ]);
 
 let _skipSoftDelete = false;

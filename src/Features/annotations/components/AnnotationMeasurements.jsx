@@ -5,6 +5,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import getAnnotationQties from "../utils/getAnnotationQties";
 import getAnnotationPartQties from "../utils/getAnnotationPartQties";
 import useProfileResolution from "../hooks/useProfileResolution";
+import useSubtractedSurfaceM2 from "../hooks/useSubtractedSurfaceM2";
 
 export default function AnnotationMeasurements({ annotation, surface, length, part }) {
   // data
@@ -20,6 +21,9 @@ export default function AnnotationMeasurements({ annotation, surface, length, pa
       : null;
   const profileResolution = useProfileResolution(profileTemplateId);
   const profileLengthMeters = profileResolution?.profileLengthMeters ?? null;
+
+  // Developed surface removed by a 3D subtraction (EXTRUSION_PROFILE host).
+  const subtractedSurfaceM2 = useSubtractedSurfaceM2(annotation);
 
   // helpers - use pre-computed values if provided, otherwise compute from annotation
 
@@ -44,6 +48,11 @@ export default function AnnotationMeasurements({ annotation, surface, length, pa
     // Prefer the developed (sloped) values when a guideLine ramp is present.
     computedSurface = qties?.surfaceDeveloped != null ? qties.surfaceDeveloped : qties?.surface;
     computedLength = qties?.lengthDeveloped != null ? qties.lengthDeveloped : qties?.length;
+
+    // Subtract the developed surface removed by a 3D boolean subtraction.
+    if (!hasPart && subtractedSurfaceM2 > 0 && computedSurface != null) {
+      computedSurface = Math.max(0, computedSurface - subtractedSurfaceM2);
+    }
   }
 
   // When a part is selected we want surface to show whenever the calc returns

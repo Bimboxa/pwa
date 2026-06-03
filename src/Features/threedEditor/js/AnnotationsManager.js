@@ -1,4 +1,10 @@
 import createAnnotationObject3D from "./utilsAnnotationsManager/createAnnotationObject3D";
+import subtractAnnotationGeometries from "./utilsAnnotationsManager/subtractAnnotationGeometries";
+import buildAnnotationSolidObjectsAsync from "./utilsAnnotationsManager/buildAnnotationSolidObjectsAsync";
+import buildResolvedSourceObjectAsync from "./utilsAnnotationsManager/buildResolvedSourceObjectAsync";
+import getSolidMeshFromObject3D from "./utilsAnnotationsManager/getSolidMeshFromObject3D";
+
+import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
 
 export default class AnnotationsManager {
   constructor({ sceneManager }) {
@@ -53,6 +59,104 @@ export default class AnnotationsManager {
         },
       });
       if (!object) return;
+
+      // 3D subtraction: carve the source mesh with each target's derived solid.
+      // Targets come from `subtractionTargets` (resolved annotations attached by
+      // useAnnotationsV2 BEFORE the hidden-filter), so a subtraction is kept even
+      // when the target's template is hidden. Target objects are attached to the
+      // SAME basemap group as the source so both share a world frame, then
+      // removed after the carve (they keep rendering as their own annotations
+      // only when visible). EXTRUSION_PROFILE solids resolve asynchronously.
+      const subtractionTargets = annotation.subtractionTargets || [];
+      if (subtractionTargets.length > 0) {
+        (async () => {
+          try {
+            const targetObjects = (
+              await Promise.all(
+                subtractionTargets.map((targetAnnotation) =>
+                  buildAnnotationSolidObjectsAsync(
+                    targetAnnotation,
+                    baseMapForRender,
+                    options
+                  )
+                )
+              )
+            )
+              .flat()
+              .filter(Boolean);
+            if (targetObjects.length === 0) return;
+            // Skip if the source object was meanwhile replaced/removed.
+            if (this.annotationsObjectsMap[annotation.id] !== object) return;
+
+            // The source mesh may resolve asynchronously (EXTRUSION_PROFILE
+            // renders an async swept surface). When the synchronously-added
+            // object has no solid mesh yet, build a fully-resolved display
+            // object and swap it in before carving — so the boolean cuts
+            // openings into the resolved surface.
+            let carveTarget = object;
+            if (!getSolidMeshFromObject3D(object)) {
+              const resolved = await buildResolvedSourceObjectAsync(
+                annotation,
+                baseMapForRender,
+                options
+              );
+              if (!resolved || !getSolidMeshFromObject3D(resolved)) return;
+              if (this.annotationsObjectsMap[annotation.id] !== object) return;
+              resolved.userData = {
+                ...(resolved.userData ?? {}),
+                nodeId: annotation.id,
+                nodeType: "ANNOTATION",
+                annotationType: annotation.type,
+                listingId: annotation.listingId,
+              };
+              const parent = object.parent;
+              object.traverse?.((child) => {
+                try {
+                  child.userData?.dispose?.();
+                } catch (e) {
+                  /* ignore */
+                }
+              });
+              object.parent?.remove(object);
+              object.traverse?.((child) => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+              });
+              (parent ?? this.scene).add(resolved);
+              this.annotationsObjectsMap[annotation.id] = resolved;
+              carveTarget = resolved;
+            }
+
+            // Attach the target solids to the same parent as the source so their
+            // matrixWorld matches the source's frame, then carve, then remove.
+            const parent = carveTarget.parent ?? this.scene;
+            targetObjects.forEach((o) => parent.add(o));
+            parent.updateMatrixWorld(true);
+
+            // Open-surface sources (swept EXTRUSION_PROFILE) must use a hollow
+            // subtraction so the boolean only clips the surface and doesn't add
+            // the target's cap faces (stray triangles in the source material).
+            const hollow =
+              getShape3DKey(annotation.shape3D) === "EXTRUSION_PROFILE";
+            subtractAnnotationGeometries(carveTarget, targetObjects, {
+              hollow,
+            });
+
+            targetObjects.forEach((o) => {
+              o.parent?.remove(o);
+              o.traverse?.((child) => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+              });
+            });
+
+            this.sceneManager.renderScene();
+            this._notifyAnnotationReady(annotation.id);
+          } catch (e) {
+            console.error("[AnnotationsManager] subtraction carve failed", e);
+          }
+        })();
+      }
 
       this.annotationsObjectsMap[annotation.id] = object;
       // Attach to the basemap's group so transforms applied to the basemap

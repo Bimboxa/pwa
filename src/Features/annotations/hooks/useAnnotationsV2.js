@@ -48,6 +48,12 @@ import getAnnotationPropsFromAnnotationTemplateProps from "Features/annotations/
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
 import testObjectHasProp from "Features/misc/utils/testObjectHasProp";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
+import getAnnotationSubtractionQties from "Features/annotations/utils/getAnnotationSubtractionQties";
+import getExtrusionProfileFootprintShapes from "Features/annotations/utils/getExtrusionProfileFootprintShapes";
+import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationSubtractions";
+import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
+import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResolution";
+import computeSubtractedSurfaceM2Async from "Features/threedEditor/js/utilsAnnotationsManager/computeSubtractedSurfaceM2Async";
 
 export default function useAnnotationsV2(options) {
 
@@ -113,6 +119,9 @@ export default function useAnnotationsV2(options) {
         const soloMode = useSelector(s => s.popperMapListings.soloMode);
         const soloVisibleTemplateIds = useSelector(s => s.popperMapListings.soloVisibleTemplateIds);
         const soloListingId = useSelector(s => s.popperMapListings.soloListingId);
+
+        const { targetIdsBySource: subtractionTargetIdsBySource } =
+            useAnnotationSubtractions();
 
         const { value: baseMaps, baseMapsUpdatedAt } = useBaseMaps();
         const baseMapById = useMemo(
@@ -575,6 +584,87 @@ export default function useAnnotationsV2(options) {
                 `  TOTAL:          ${(_t6 - _t0).toFixed(1)}ms`
             );
 
+            // -- EXTRUSION_PROFILE SUBTRACTION FOOTPRINTS --
+            // For profile annotations used as subtraction targets, precompute
+            // their exact planar footprint (the swept prisms' XY projection) so
+            // the synchronous surface-quantity path can subtract it precisely.
+            // Gated to actual targets to avoid resolving profiles otherwise.
+            if (subtractionTargetIdsBySource?.size > 0 && _annotations?.length) {
+                const targetIdSet = new Set();
+                for (const ids of subtractionTargetIdsBySource.values()) {
+                    for (const id of ids) targetIdSet.add(id);
+                }
+                if (targetIdSet.size > 0) {
+                    const profileResCache = new Map();
+                    for (const a of _annotations) {
+                        if (!a || !targetIdSet.has(a.id)) continue;
+                        if (getShape3DKey(a.shape3D) !== "EXTRUSION_PROFILE") continue;
+                        const tplId = a.shape3D?.profileTemplateId;
+                        if (!tplId) continue;
+                        let res = profileResCache.get(tplId);
+                        if (res === undefined) {
+                            res = await resolveProfileFromDb(tplId);
+                            profileResCache.set(tplId, res);
+                        }
+                        const bm = baseMapById[a.baseMapId];
+                        const shapes = getExtrusionProfileFootprintShapes(
+                            a,
+                            bm?.getMeterByPx?.(),
+                            res
+                        );
+                        if (shapes) a._profileFootprintShapes = shapes;
+                    }
+                }
+            }
+
+            // -- EXTRUSION_PROFILE SUBTRACTION SOURCES (developed surface) --
+            // For EXTRUSION_PROFILE hosts that subtract other annotations, the
+            // carved quantity is a developed surface (not a footprint). Resolve
+            // the profile length (so the base surface is computed) and run the
+            // same headless 3D carve to get the removed m². Both are stored and
+            // applied to qties in the post-processing pass. Gated to withQties.
+            if (withQties && subtractionTargetIdsBySource?.size > 0 && _annotations?.length) {
+                const profileLenCache = new Map();
+                for (const a of _annotations) {
+                    const targetIds = subtractionTargetIdsBySource.get(a?.id);
+                    if (!targetIds || targetIds.length === 0) continue;
+                    if (getShape3DKey(a.shape3D) !== "EXTRUSION_PROFILE") continue;
+                    const targets = targetIds
+                        .map((id) => _annotations.find((x) => x?.id === id))
+                        .filter(Boolean);
+                    if (targets.length === 0) continue;
+                    const bm = baseMapById[a.baseMapId];
+                    const imageSize = bm?.getImageSize?.() || bm?.image?.imageSize;
+                    const meterByPx = bm?.getMeterByPx?.();
+                    if (!imageSize?.width || !meterByPx) continue;
+                    const baseMapForRender = {
+                        imageWidth: imageSize.width,
+                        imageHeight: imageSize.height,
+                        meterByPx,
+                    };
+                    const tplId = a.shape3D?.profileTemplateId;
+                    if (tplId) {
+                        let plm = profileLenCache.get(tplId);
+                        if (plm === undefined) {
+                            const res = await resolveProfileFromDb(tplId);
+                            plm = res?.profileLengthMeters ?? null;
+                            profileLenCache.set(tplId, plm);
+                        }
+                        if (plm != null) a._profileLengthMeters = plm;
+                    }
+                    try {
+                        const removed = await computeSubtractedSurfaceM2Async(
+                            a,
+                            baseMapForRender,
+                            targets
+                        );
+                        if (removed != null) a._subtractedSurfaceM2 = removed;
+                    } catch (e) {
+                        console.error("[useAnnotationsV2] profile subtraction qty failed", e);
+                    }
+                }
+            }
+
             return _annotations;
 
 
@@ -597,6 +687,7 @@ export default function useAnnotationsV2(options) {
             hiddenLayerIds,
             showAnnotationsWithoutLayer,
             layersUpdatedAt,
+            subtractionTargetIdsBySource,
         ]);
 
 
@@ -625,9 +716,72 @@ export default function useAnnotationsV2(options) {
                     const baseMap = baseMapById[annotation?.baseMapId];
                     const meterByPx = baseMap?.getMeterByPx?.();
                     if (meterByPx) {
-                        annotation.qties = getAnnotationQties({ annotation, meterByPx });
+                        annotation.qties = getAnnotationQties({
+                            annotation,
+                            meterByPx,
+                            // resolved in the async query for EXTRUSION_PROFILE
+                            // subtraction hosts so the base surface is non-zero.
+                            profileLengthMeters: annotation._profileLengthMeters,
+                        });
                     }
                     return annotation;
+                });
+            }
+
+            // -- SUBTRACTIONS --
+            // Attach subtraction relations (targetIds + resolved target
+            // annotations) so the 3D pipeline can carve the source mesh and the
+            // surface quantity reflects the boolean difference.
+            if (subtractionTargetIdsBySource?.size > 0) {
+                const resultById = getItemsByKey(result, "id");
+                result = result.map((a) => {
+                    const targetIds = subtractionTargetIdsBySource.get(a?.id);
+                    if (!targetIds || targetIds.length === 0) return a;
+                    const subtractionTargets = targetIds
+                        .map((id) => resultById[id])
+                        .filter(Boolean);
+                    const withSub = {
+                        ...a,
+                        subtractionTargetIds: targetIds,
+                        subtractionTargets,
+                    };
+                    // Planar-footprint subtraction is only meaningful for
+                    // slab-type sources (footprint = surface). For POLYLINE
+                    // surfaces the carved area is a developed/lateral surface,
+                    // not a footprint, so it is left to a dedicated path.
+                    const isFootprintSurfaceType = ["POLYGON", "RECTANGLE", "STRIP"].includes(a?.type);
+                    if (withQties && subtractionTargets.length > 0 && isFootprintSurfaceType) {
+                        const baseMap = baseMapById[a?.baseMapId];
+                        const meterByPx = baseMap?.getMeterByPx?.();
+                        const subQ = getAnnotationSubtractionQties({
+                            annotation: a,
+                            targets: subtractionTargets,
+                            meterByPx,
+                        });
+                        if (subQ) withSub.qties = { ...(withSub.qties || {}), ...subQ };
+                    }
+
+                    // Open-surface (EXTRUSION_PROFILE) hosts: subtract the 3D
+                    // developed surface removed by the boolean (precomputed in
+                    // the async query as `_subtractedSurfaceM2`).
+                    if (
+                        withQties &&
+                        subtractionTargets.length > 0 &&
+                        getShape3DKey(a?.shape3D) === "EXTRUSION_PROFILE" &&
+                        a?._subtractedSurfaceM2 > 0 &&
+                        withSub.qties
+                    ) {
+                        const removed = a._subtractedSurfaceM2;
+                        const q = { ...withSub.qties };
+                        if (Number.isFinite(q.surface)) {
+                            q.surface = Math.max(0, q.surface - removed);
+                        }
+                        if (Number.isFinite(q.surfaceDeveloped)) {
+                            q.surfaceDeveloped = Math.max(0, q.surfaceDeveloped - removed);
+                        }
+                        withSub.qties = q;
+                    }
+                    return withSub;
                 });
             }
 
@@ -745,6 +899,7 @@ export default function useAnnotationsV2(options) {
             sortByOrderIndex,
             groupByBaseMap,
             listingsUpdatedAt,
+            subtractionTargetIdsBySource,
         ]);
 
         return processed;
