@@ -1238,6 +1238,12 @@ export default function NodePolylineStatic({
         finalFill = `url(#${patternIdRef.current})`;
     }
 
+    // Hatching lines must follow the same color as a solid fill would:
+    // grey when the body is "context" (a segment is sub-selected), hover
+    // color on body hover, etc. Otherwise hatching stays its raw color while
+    // the FILL variant correctly greys out (mismatch on selection).
+    const hatchingStroke = mainFillStyle?.fill ?? fillColor;
+
     return (
         <g {...dataProps}>
             {/* HATCHING PATTERN */}
@@ -1266,9 +1272,9 @@ export default function NodePolylineStatic({
                 {!isEraser && showFill && (fillType === "HATCHING" || fillType === "HATCHING_LEFT") && (
                     <pattern id={patternIdRef.current} patternUnits="userSpaceOnUse" width={HATCHING_SPACING} height={HATCHING_SPACING} style={patternTransformStyle}>
                         {fillType === "HATCHING" ? (
-                            <path d={`M 0,${HATCHING_SPACING} L ${HATCHING_SPACING},0`} stroke={fillColor} strokeWidth={2} />
+                            <path d={`M 0,${HATCHING_SPACING} L ${HATCHING_SPACING},0`} stroke={hatchingStroke} strokeWidth={2} />
                         ) : (
-                            <path d={`M 0,0 L ${HATCHING_SPACING},${HATCHING_SPACING}`} stroke={fillColor} strokeWidth={2} />
+                            <path d={`M 0,0 L ${HATCHING_SPACING},${HATCHING_SPACING}`} stroke={hatchingStroke} strokeWidth={2} />
                         )}
                     </pattern>
                 )}
