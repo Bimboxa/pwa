@@ -2149,7 +2149,7 @@ export default function PopperMapListings() {
 
       {!collapsed && (<>
       {/* Interaction mode toggle (DRAW / EDIT / SELECT) */}
-      {!isBaseMapsViewer && (
+      {
         <Box
           sx={{
             px: 1,
@@ -2194,7 +2194,7 @@ export default function PopperMapListings() {
             </ToggleButton>
           </ToggleButtonGroup>
         </Box>
-      )}
+      }
 
       {/* Standard body (layers / listings / cut tools) */}
       {/* Warning: base map has no scale */}
