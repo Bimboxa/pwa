@@ -44,6 +44,13 @@ export default function SectionAnnotationQties({ annotation }) {
   const length = qties?.lengthDeveloped != null ? qties.lengthDeveloped : qties?.length;
   const showLength = length > 0;
 
+  // Projected (planar footprint) surface. Only worth showing alongside the
+  // developed surface when a slope makes the two differ — otherwise it would
+  // just repeat the "Surface" line.
+  const projectedSurface = qties?.surface;
+  const showProjectedSurface =
+    showSurface && qties?.surfaceDeveloped != null && projectedSurface != null;
+
   if (!qties) return null;
 
   return (
@@ -56,6 +63,11 @@ export default function SectionAnnotationQties({ annotation }) {
       {showSurface && (
         <Typography variant="caption" color="text.secondary">
           Surface : {surface?.toFixed?.(2) ?? 0} m²
+        </Typography>
+      )}
+      {showProjectedSurface && (
+        <Typography variant="caption" color="text.secondary">
+          Surface projetée : {projectedSurface?.toFixed?.(2) ?? 0} m²
         </Typography>
       )}
     </Box>
