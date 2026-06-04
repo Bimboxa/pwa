@@ -1,4 +1,5 @@
 import { nanoid } from "@reduxjs/toolkit";
+import { generateKeyBetween } from "fractional-indexing";
 import { useSelector, useDispatch } from "react-redux";
 
 import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
@@ -34,11 +35,30 @@ export default function useCreateBaseMaps() {
             dispatch(setSelectedBaseMapsListingId(listing?.id));
         }
 
-        const entities = await Promise.all(baseMaps.map(async (baseMap) => {
+        // The base maps listing sorts by `sortIndex` (fractional index) and
+        // falls back to alphabetical name sorting when it is null — which
+        // breaks page order (Page 1, Page 10, Page 11, Page 2, …). So we assign
+        // a sortIndex to each created base map, in input (page) order, appended
+        // after any base maps already present in the listing.
+        const existing = (
+            await db.baseMaps.where("listingId").equals(listing.id).toArray()
+        ).filter((r) => !r.deletedAt);
+        let prevSortIndex = existing
+            .map((r) => r.sortIndex)
+            .filter((s) => s != null)
+            .reduce((max, s) => (max == null || s > max ? s : max), null);
+
+        // Sequential creation to preserve the input order (page order for the
+        // "one base map per page" batch).
+        const entities = [];
+        for (const baseMap of baseMaps) {
+            const sortIndex = generateKeyBetween(prevSortIndex, null);
+            prevSortIndex = sortIndex;
             const entity = {
                 name: baseMap.name,
                 image: { file: baseMap.imageFile },
                 meterByPx: baseMap.meterByPx,
+                sortIndex,
             };
             const _entity = await createEntity(entity, { listing });
 
@@ -64,8 +84,8 @@ export default function useCreateBaseMaps() {
                 }
             }
 
-            return _entity;
-        }));
+            entities.push(_entity);
+        }
 
         return entities;
     }

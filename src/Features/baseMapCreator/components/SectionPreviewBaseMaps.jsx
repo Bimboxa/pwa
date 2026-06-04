@@ -1,16 +1,20 @@
 import { useSelector, useDispatch } from "react-redux";
-import { removeTempBaseMap } from "../baseMapCreatorSlice";
-import { Box, Typography, CircularProgress, IconButton, Divider } from "@mui/material";
+import { removeTempBaseMap, setOneBaseMapPerPage } from "../baseMapCreatorSlice";
+import { Box, Typography, CircularProgress, IconButton, Divider, Checkbox, FormControlLabel } from "@mui/material";
 import { Delete, ImageOutlined } from "@mui/icons-material";
 
 import ButtonCreateBaseMaps from "./ButtonCreateBaseMaps";
 
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
-export default function SectionPreviewBaseMaps() {
+export default function SectionPreviewBaseMaps({ pdfDocument, pdfFile }) {
     const dispatch = useDispatch();
 
     const tempBaseMaps = useSelector((state) => state.baseMapCreator.tempBaseMaps);
+    const oneBaseMapPerPage = useSelector((state) => state.baseMapCreator.oneBaseMapPerPage);
+    const creating = useSelector((state) => state.baseMapCreator.creating);
+
+    const showPerPageOption = (pdfDocument?.numPages ?? 0) > 1;
 
     // helpers
     const items = tempBaseMaps.map((baseMap) => {
@@ -75,6 +79,7 @@ export default function SectionPreviewBaseMaps() {
                         key={item.id}
                         sx={{
                             position: "relative",
+                            flexShrink: 0,
                             border: theme => `1px solid ${theme.palette.divider}`,
                             borderRadius: 1,
                             overflow: "hidden",
@@ -198,10 +203,28 @@ export default function SectionPreviewBaseMaps() {
                 alignItems: "center",
                 gap: 0.5,
             }}>
-                <ButtonCreateBaseMaps />
+                <ButtonCreateBaseMaps pdfDocument={pdfDocument} pdfFile={pdfFile} />
                 <Typography variant="caption" color="text.secondary">
                     Cette action ferme le dialogue.
                 </Typography>
+                {showPerPageOption && (
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                size="small"
+                                checked={oneBaseMapPerPage}
+                                disabled={creating}
+                                onChange={(e) => dispatch(setOneBaseMapPerPage(e.target.checked))}
+                            />
+                        }
+                        label={
+                            <Typography variant="caption">
+                                1 fond de plan par page
+                            </Typography>
+                        }
+                        sx={{ alignSelf: "flex-start", ml: 0 }}
+                    />
+                )}
             </Box>
         </Box>
     );
