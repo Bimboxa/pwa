@@ -16,7 +16,8 @@ import {
     ThemeProvider,
     InputBase,
     Popover,
-    ButtonBase
+    ButtonBase,
+    Tooltip
 } from "@mui/material";
 
 // Icons
@@ -35,7 +36,7 @@ import useBaseMaps from "../hooks/useBaseMaps";
 import useListingById from "Features/listings/hooks/useListingById";
 import SelectorMapsListingVariantChips from "./SelectorMapsListingVariantChips";
 
-export default function BaseMapSelectorInMapEditorV2() {
+export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
     const dispatch = useDispatch();
 
     const activeBaseMap = useMainBaseMap();
@@ -80,7 +81,8 @@ export default function BaseMapSelectorInMapEditorV2() {
                     onClick={handleOpen}
                     sx={{
                         height: 32,
-                        px: 2,
+                        pl: onEdit ? 0.5 : 2,
+                        pr: 2,
                         borderRadius: 20,
                         // Utilisation des gris MUI
                         bgcolor: open ? "grey.800" : "#252525",
@@ -93,6 +95,32 @@ export default function BaseMapSelectorInMapEditorV2() {
                         },
                     }}
                 >
+                    {onEdit && (
+                        <Tooltip title="Editer le fond de plan">
+                            <Box
+                                component="span"
+                                role="button"
+                                aria-label="Editer le fond de plan"
+                                onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                                sx={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    width: 24,
+                                    height: 24,
+                                    mr: 1,
+                                    flexShrink: 0,
+                                    borderRadius: "50%",
+                                    bgcolor: "grey.600",
+                                    color: "grey.100",
+                                    transition: "0.2s",
+                                    "&:hover": { bgcolor: "grey.500" },
+                                }}
+                            >
+                                <EditIcon sx={{ fontSize: 14 }} />
+                            </Box>
+                        </Tooltip>
+                    )}
                     <Typography
                         variant="body2"
                         sx={{

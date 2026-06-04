@@ -25,7 +25,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
 
 import { Box, Button, Divider } from "@mui/material";
-import { ArrowBack, ChevronRight } from "@mui/icons-material";
+import { ArrowBack } from "@mui/icons-material";
 
 import BoxFlexH from "Features/layout/components/BoxFlexH";
 //import SelectorProject from "Features/projectSelector/components/SelectorProject";
@@ -231,21 +231,10 @@ export default function TopBarDesktop() {
       {/* Center section - baseMap selectors or portfolio return */}
       {(viewerKey === "MAP" || viewerKey === "BASE_MAPS") && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <BaseMapSelectorInMapEditorV2 />
+          <BaseMapSelectorInMapEditorV2
+            onEdit={viewerKey === "MAP" ? handleGoToBaseMapsDetail : undefined}
+          />
           <BaseMapVersionSelectorInTopBar />
-          {viewerKey === "MAP" && (
-            <Button
-              size="small"
-              endIcon={<ChevronRight />}
-              onClick={handleGoToBaseMapsDetail}
-              sx={{
-                color: "grey.400",
-                display: { xs: "none", md: "inline-flex" },
-              }}
-            >
-              Voir le détail
-            </Button>
-          )}
         </Box>
       )}
       {viewerKey === "THREED" && (
