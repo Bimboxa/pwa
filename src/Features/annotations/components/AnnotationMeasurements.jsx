@@ -2,7 +2,9 @@ import { Box, Typography } from "@mui/material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
-import getAnnotationQties from "../utils/getAnnotationQties";
+import getAnnotationQties, {
+  hasPerVertexZOffsets,
+} from "../utils/getAnnotationQties";
 import getAnnotationPartQties from "../utils/getAnnotationPartQties";
 import useProfileResolution from "../hooks/useProfileResolution";
 import useSubtractedSurfaceM2 from "../hooks/useSubtractedSurfaceM2";
@@ -66,7 +68,10 @@ export default function AnnotationMeasurements({ annotation, surface, length, pa
         (annotation?.type === "POLYLINE" &&
           (annotation?.height ||
             annotation?.shape3D?.key === "REVOLUTION" ||
-            annotation?.shape3D?.key === "EXTRUSION_PROFILE")));
+            annotation?.shape3D?.key === "EXTRUSION_PROFILE" ||
+            // Slope walls (parois): per-vertex offsets define a vertical band,
+            // so the wall has a real lateral surface to display.
+            hasPerVertexZOffsets(annotation))));
 
   const showLength = computedLength != null && computedLength > 0;
 

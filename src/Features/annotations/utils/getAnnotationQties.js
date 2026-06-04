@@ -7,7 +7,7 @@ import triangulateAnnotationGeometry, {
 // non-zero offsetBottom / offsetTop. Used to gate the per-vertex-Z surface
 // computation. Inner points alone (no offsets) don't trigger this — a flat
 // inner point doesn't deform the surface so the planar shoelace stays exact.
-function hasPerVertexZOffsets(annotation) {
+export function hasPerVertexZOffsets(annotation) {
   const ringHas = (ring) =>
     (ring || []).some(
       (p) => (p?.offsetBottom ?? 0) !== 0 || (p?.offsetTop ?? 0) !== 0
