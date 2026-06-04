@@ -11,10 +11,12 @@ export default function DialogBaseMapCreator() {
     // data
 
     const open = useSelector(s => s.baseMapCreator.open)
+    const creating = useSelector(s => s.baseMapCreator.creating)
 
     // handlers
 
     function handleClose() {
+        if (creating) return; // block closing while batch creation is in progress
         dispatch(setOpenBaseMapCreator(false))
         dispatch(clearSourceContainer())
     }

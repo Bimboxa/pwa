@@ -3,14 +3,13 @@ import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux"
 import { nanoid } from "@reduxjs/toolkit";
 
-import { addTempBaseMap, updateTempBaseMap } from "../baseMapCreatorSlice";
+import { addTempBaseMap, updateTempBaseMap, setBaseMapName } from "../baseMapCreatorSlice";
 
 import { Box } from "@mui/material";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric"
 
-import pdfToPngAsync from "Features/pdf/utils/pdfToPngAsync";
-import findAutoDpi from "Features/pdf/utils/findAutoDpi";
+import renderTempBaseMapImage from "../utils/renderTempBaseMapImage";
 import FieldOptionKey from "Features/form/components/FieldOptionKey";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 
@@ -23,6 +22,7 @@ export default function ButtonAddTempImage({ pdfFile, pdfDocument, blueprintScal
     const bboxInRatio = useSelector((state) => state.baseMapCreator.bboxInRatio);
     const pageNumber = useSelector((state) => state.baseMapCreator.pageNumber);
     const rotate = useSelector((state) => state.baseMapCreator.rotate);
+    const name = useSelector((state) => state.baseMapCreator.baseMapName);
 
     // helpers - options
 
@@ -37,7 +37,6 @@ export default function ButtonAddTempImage({ pdfFile, pdfDocument, blueprintScal
     // state
 
     const [optionKey, setOptionKey] = useState("AUTO")
-    const [name, setName] = useState("")
 
     // handlers
 
@@ -47,20 +46,15 @@ export default function ButtonAddTempImage({ pdfFile, pdfDocument, blueprintScal
 
         dispatch(addTempBaseMap({ id, name: `Page ${pageNumber}` }));
 
-        let imageFile, meterByPx;
-        if (opt.key === "AUTO") {
-            const { dpi, probeBlob } = await findAutoDpi({ pdfFile, pdfDocument, page: pageNumber, bboxInRatio, rotate });
-            if (probeBlob) {
-                const pdfFileName = (pdfFile?.name ?? "page").replace(".pdf", "");
-                const fileName = `${pdfFileName}_page${pageNumber}_auto.png`;
-                imageFile = new File([probeBlob], fileName, { type: "image/png" });
-                meterByPx = blueprintScale ? (0.0254 / dpi) * Number(blueprintScale) : null;
-            } else {
-                ({ imageFile, meterByPx } = await pdfToPngAsync({ pdfFile, pdfDocument, page: pageNumber, bboxInRatio, resolution: dpi, rotate, blueprintScale }));
-            }
-        } else {
-            ({ imageFile, meterByPx } = await pdfToPngAsync({ pdfFile, pdfDocument, page: pageNumber, bboxInRatio, resolution: opt.resolution, rotate, blueprintScale }));
-        }
+        const { imageFile, meterByPx } = await renderTempBaseMapImage({
+            pdfFile,
+            pdfDocument,
+            page: pageNumber,
+            bboxInRatio,
+            rotate,
+            blueprintScale,
+            resolution: opt.resolution, // null => AUTO
+        });
         dispatch(updateTempBaseMap({ id, updates: { imageFile, name, meterByPx } }));
     }
     return <Box sx={{ display: "flex", alignItems: "center", width: 1 }}>
@@ -68,7 +62,7 @@ export default function ButtonAddTempImage({ pdfFile, pdfDocument, blueprintScal
         <Box sx={{ flex: 1 }}>
             <FieldTextV2
                 value={name}
-                onChange={setName}
+                onChange={(value) => dispatch(setBaseMapName(value))}
                 label="Nom du fond de plan"
                 options={{ fullWidth: true, showLabel: true }}
             />

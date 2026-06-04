@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useSelector, useDispatch } from "react-redux"
 
 import { setPageNumber } from "Features/baseMapCreator/baseMapCreatorSlice"
-import { setRotate, setPdfFile, setTempBaseMaps } from "Features/baseMapCreator/baseMapCreatorSlice"
+import { setRotate, setPdfFile, setTempBaseMaps, setBlueprintScale, setBaseMapName, setOneBaseMapPerPage, setCreating } from "Features/baseMapCreator/baseMapCreatorSlice"
 
 import usePdfDocument from "Features/pdf/hooks/usePdfDocument"
 import usePdfThumbnails from "Features/pdf/hooks/usePdfThumbnails"
@@ -30,6 +30,8 @@ export default function PageBaseMapCreator({ onClose }) {
     const { pdfFile } = useSelector((s) => s.baseMapCreator);
     const pageNumber = useSelector(s => s.baseMapCreator.pageNumber);
     const rotate = useSelector(s => s.baseMapCreator.rotate);
+    const blueprintScale = useSelector(s => s.baseMapCreator.blueprintScale);
+    const creating = useSelector(s => s.baseMapCreator.creating);
 
     // state
     const { pdfDocument, error: pdfError, progress: pdfProgress } = usePdfDocument(pdfFile);
@@ -51,8 +53,6 @@ export default function PageBaseMapCreator({ onClose }) {
             ? Math.min(100, Math.round((pdfProgress.loaded / pdfProgress.total) * 100))
             : null;
 
-    const [blueprintScale, setBlueprintScale] = useState("");
-
 
     // helpers
     const label = pdfFile ? pdfFile.name : "Selectionner un fichier PDF";
@@ -72,6 +72,10 @@ export default function PageBaseMapCreator({ onClose }) {
             dispatch(setPageNumber(1));
             //dispatch(setPdfFile(null));
             dispatch(setTempBaseMaps([]));
+            dispatch(setBlueprintScale(""));
+            dispatch(setBaseMapName(""));
+            dispatch(setOneBaseMapPerPage(false));
+            dispatch(setCreating(false));
         }
     }, [])
 
@@ -79,7 +83,7 @@ export default function PageBaseMapCreator({ onClose }) {
         <BoxFlexVStretch sx={{ width: 1 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 0.5 }}>
                 <Typography variant="h6">{label}</Typography>
-                <IconButtonClose onClose={onClose} />
+                <IconButtonClose onClose={onClose} disabled={creating} />
             </Box>
 
 
@@ -133,7 +137,7 @@ export default function PageBaseMapCreator({ onClose }) {
                             <Box sx={{ width: 140, minWidth: 140, display: "flex", alignItems: "center" }}>
                                 <FieldTextV2
                                     value={blueprintScale}
-                                    onChange={setBlueprintScale}
+                                    onChange={(value) => dispatch(setBlueprintScale(value))}
                                     label="Echelle"
                                     options={{
                                         showLabel: true,
@@ -222,7 +226,7 @@ export default function PageBaseMapCreator({ onClose }) {
                         borderTop: theme => `1px solid ${theme.palette.divider}`,
                         borderLeft: theme => `1px solid ${theme.palette.divider}`,
                     }}>
-                        <SectionPreviewBaseMaps />
+                        <SectionPreviewBaseMaps pdfDocument={pdfDocument} pdfFile={pdfFile} />
                     </Box>
                 </Box>
 

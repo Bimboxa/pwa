@@ -18,6 +18,11 @@ const baseMapCreatorInitialState = {
     y2: 1,
   },
   //
+  blueprintScale: "",
+  baseMapName: "",
+  oneBaseMapPerPage: false,
+  creating: false,
+  //
   tempBaseMaps: [],
   //
   sourceContainerId: null,
@@ -47,6 +52,18 @@ export const baseMapCreatorSlice = createSlice({
     },
     setBboxInRatio: (state, action) => {
       state.bboxInRatio = action.payload;
+    },
+    setBlueprintScale: (state, action) => {
+      state.blueprintScale = action.payload;
+    },
+    setBaseMapName: (state, action) => {
+      state.baseMapName = action.payload;
+    },
+    setOneBaseMapPerPage: (state, action) => {
+      state.oneBaseMapPerPage = action.payload;
+    },
+    setCreating: (state, action) => {
+      state.creating = action.payload;
     },
     addTempBaseMap: (state, action) => {
       state.tempBaseMaps.push(action.payload);
@@ -87,6 +104,10 @@ export const {
   setPageNumber,
   setRotate,
   setBboxInRatio,
+  setBlueprintScale,
+  setBaseMapName,
+  setOneBaseMapPerPage,
+  setCreating,
   addTempBaseMap,
   removeTempBaseMap,
   updateTempBaseMap,
