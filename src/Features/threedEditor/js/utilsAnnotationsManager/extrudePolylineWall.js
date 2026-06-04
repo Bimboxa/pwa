@@ -58,8 +58,13 @@ function visibleSubSegments(a, b, height) {
   const denom = sa - sb;
   if (Math.abs(denom) < 1e-12) return [];
   const t = sa / denom;
+  // In the mixed case the zero crossing is mathematically in [0, 1]. A value
+  // at (or numerically past) an endpoint means the positive-span region
+  // collapses to a single point — there is no visible wall here, so drop the
+  // segment. Returning the full [[a, b]] would extrude the negative-span end
+  // and produce an inverted triangle at the wall's taper point.
   if (!Number.isFinite(t) || t <= 0 || t >= 1) {
-    return aOk ? [[a, b]] : [];
+    return [];
   }
   const mid = lerpCorner(a, b, t);
   return aOk ? [[a, mid]] : [[mid, b]];
@@ -77,10 +82,17 @@ export default function extrudePolylineWall(
   const group = new Group();
   const hiddenSet = hiddenSegmentsIdx ? new Set(hiddenSegmentsIdx) : null;
 
+  // A POLYLINE can define a wall either through a global `height` or purely
+  // through per-vertex offsets (slope walls: height=0, span = offsetTop -
+  // offsetBottom). Only fall back to the flat-line rendering when there is no
+  // vertical extent at all to extrude — otherwise the mesh path below builds
+  // the wall and hides the negative-span portions via visibleSubSegments.
+  const hasVerticalSpan = points.some((p) => cornerSpan(p, height) > 1e-9);
+
   // Non-extruded fallback: a flat polyline at each point's bottom z. We do
-  // NOT apply the sign-split logic here — without a height there is no
+  // NOT apply the sign-split logic here — without a span there is no
   // "negative span" to hide.
-  if (!height || height <= 0) {
+  if ((!height || height <= 0) && !hasVerticalSpan) {
     const bottoms = points.map((p) => verticalLift + (p?.offsetBottom ?? 0));
     const positions = [];
     points.forEach((p, i) => positions.push(p.x, p.y, bottoms[i]));
