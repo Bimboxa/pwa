@@ -10,6 +10,7 @@ import {
 import FieldAnnotationPreview from "./FieldAnnotationPreview";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import SectionAnnotationQties from "./SectionAnnotationQties";
+import SectionAnnotationPentes from "./SectionAnnotationPentes";
 import SectionAnnotationSubtractions from "./SectionAnnotationSubtractions";
 import ButtonAnnotationTemplate from "./ButtonAnnotationTemplate";
 import FieldWrapperDimensions from "./FieldWrapperDimensions";
@@ -63,6 +64,8 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
           <SectionAnnotationQties annotation={annotation} />
         </Box>
       </Box>
+
+      <SectionAnnotationPentes annotation={annotation} />
 
       <Box sx={{ p: 1, width: 1 }}>
         <ButtonAnnotationTemplate annotation={annotation} bgcolor="white" fullWidth />
