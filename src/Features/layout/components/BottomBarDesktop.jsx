@@ -8,7 +8,6 @@ import ButtonDocumentation from "Features/documentation/components/ButtonDocumen
 import HelperClickInBgPosition from "Features/mapEditor/components/HelperClickInBgPosition";
 import useHelperMessageInBottomBar from "Features/mapEditor/hooks/useHelperMessageInBottomBar";
 import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
-import ButtonsKrto from "Features/krtoFile/components/ButtonsKrto";
 import SwitchCoupledNavigation from "Features/layout/components/SwitchCoupledNavigation";
 import RectangleDimsBottomBar from "Features/annotations/components/RectangleDimsBottomBar";
 import SegmentLengthBottomBar from "Features/annotations/components/SegmentLengthBottomBar";
@@ -40,7 +39,6 @@ export default function BottomBarDesktop() {
 
   const height = useSelector((s) => s.layout.bottomBarHeightDesktop);
   const helperMessage = useHelperMessageInBottomBar();
-  const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const enabledDrawingMode = useSelector(
     (s) => s.mapEditor.enabledDrawingMode
   );
@@ -111,7 +109,6 @@ export default function BottomBarDesktop() {
       <Box sx={{ display: "flex", alignItems: "center" }}>
         <HelperClickInBgPosition />
         <SwitchCoupledNavigation />
-        {viewerKey !== "THREED" && <ButtonsKrto />}
       </Box>
     </Box>
   );
