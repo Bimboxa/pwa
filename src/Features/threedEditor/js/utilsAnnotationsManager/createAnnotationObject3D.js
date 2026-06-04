@@ -29,6 +29,11 @@ import createObject3DAnnotation from "./createObject3DAnnotation";
 // with overlay annotations laid on top of it later (e.g. wall coverings).
 const THICKNESS_SAFETY_FACTOR = 0.95;
 
+// Factor applied to back-faces (the interior of a cavity / CSG-carved dome) so
+// the inner wall seen through an opening reads as "inside" instead of blending
+// into the exterior. 1 = no darkening.
+const INTERIOR_DARKEN_FACTOR = 0.5;
+
 // Inward contraction (per side) applied to CM-width POLYLINE footprints when
 // the "Réduire le crénelage des parements" setting is on, so a parement drawn
 // flush against a wall no longer shares a coplanar face (kills the aliasing
@@ -87,7 +92,7 @@ export function makeMaterial(annotation, options) {
   // already computes smooth vertex normals). Flat annotations stay uniformly
   // lit thanks to the hemisphere light from above.
   const baseColor = new Color(color);
-  return new MeshLambertMaterial({
+  const mat = new MeshLambertMaterial({
     color: baseColor,
     // Self-illumination at a fraction of the surface's own color: lifts the
     // overall brightness (otherwise the lit result reads too dark) while
@@ -103,6 +108,27 @@ export function makeMaterial(annotation, options) {
     // through, but the rendering is stable when the camera moves.
     depthWrite: true,
   });
+
+  // Darken back-faces: for a DoubleSide shell, the interior wall seen through an
+  // opening is back-facing, so it comes out darker and reveals the cavity. The
+  // emissive is already baked into gl_FragColor at this point, so multiplying
+  // the final color also dims the emissive lift. Applies to the CSG-carved mesh
+  // too (same material reference survives the geometry swap) and to clones
+  // (revolution / extruded profile both call material.clone(), which preserves
+  // onBeforeCompile + customProgramCacheKey).
+  mat.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "#include <dithering_fragment>",
+      `if ( ! gl_FrontFacing ) { gl_FragColor.rgb *= ${INTERIOR_DARKEN_FACTOR.toFixed(
+        3
+      )}; }\n#include <dithering_fragment>`
+    );
+  };
+  // Stable cache key so three compiles a program distinct from the unmodified
+  // Lambert shader (and shares it across all our annotation materials).
+  mat.customProgramCacheKey = () => "annotationInteriorDarken";
+
+  return mat;
 }
 
 function pointsToLocal(points, baseMap) {
