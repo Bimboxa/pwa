@@ -312,36 +312,40 @@ export default function FormAnnotationTemplateVariantBlock({
         }}
       />
 
-      <WhiteSectionGeneric>
-        <Typography variant="body2" sx={{ fontWeight: "bold", mb: 2 }} noWrap>
-          Libellé légende
-        </Typography>
+      {!isCreating && (
+        <WhiteSectionGeneric>
+          <Typography variant="body2" sx={{ fontWeight: "bold", mb: 2 }} noWrap>
+            Libellé légende
+          </Typography>
+          <FieldTextV2
+            value={labelLegend}
+            onChange={handleLabelLegendChange}
+            options={{
+              fullWidth: true,
+              placeholder: "Libellé légende",
+            }}
+          />
+          <FieldCheck
+            value={hiddenInLegend}
+            onChange={handleHiddenInLegendChange}
+            label="Masquer le titre dans le bloc légende"
+            options={{ type: "check" }}
+          />
+        </WhiteSectionGeneric>
+      )}
+
+      {!isCreating && (
         <FieldTextV2
-          value={labelLegend}
-          onChange={handleLabelLegendChange}
+          label="Groupe"
+          value={groupLabel}
+          onChange={handleGroupLabelChange}
           options={{
             fullWidth: true,
-            placeholder: "Libellé légende",
+            placeholder: "Groupe",
+            showAsSection: true,
           }}
         />
-        <FieldCheck
-          value={hiddenInLegend}
-          onChange={handleHiddenInLegendChange}
-          label="Masquer le titre dans le bloc légende"
-          options={{ type: "check" }}
-        />
-      </WhiteSectionGeneric>
-
-      <FieldTextV2
-        label="Groupe"
-        value={groupLabel}
-        onChange={handleGroupLabelChange}
-        options={{
-          fullWidth: true,
-          placeholder: "Groupe",
-          showAsSection: true,
-        }}
-      />
+      )}
 
       <WhiteSectionGeneric>
         <Typography variant="body2" sx={{ fontWeight: "bold", mb: 2 }}>
@@ -352,19 +356,25 @@ export default function FormAnnotationTemplateVariantBlock({
           onChange={handleDrawingShapeChange}
           valueOptions={DRAWING_SHAPES}
         />
-        <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
-          <OverrideToggle
-            field="height"
-            overrideFields={overrideFields}
-            onToggle={handleToggleOverride}
-          />
-          <FieldAnnotationHeight
-            annotation={annotationTemplate}
-            onChange={(updated) => handleHeightChange(updated.height)}
-            label="Hauteur"
-          />
-        </Box>
       </WhiteSectionGeneric>
+
+      {/* Height (POLYLINE only) */}
+      {drawingShape === "POLYLINE" && (
+        <WhiteSectionGeneric>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <OverrideToggle
+              field="height"
+              overrideFields={overrideFields}
+              onToggle={handleToggleOverride}
+            />
+            <FieldAnnotationHeight
+              annotation={annotationTemplate}
+              onChange={(updated) => handleHeightChange(updated.height)}
+              label="Hauteur"
+            />
+          </Box>
+        </WhiteSectionGeneric>
+      )}
 
       {/* Simple fill color (MARKER, LABEL, TEXT, POINT) */}
       {useSimpleFillColor && (
@@ -396,7 +406,7 @@ export default function FormAnnotationTemplateVariantBlock({
       )}
 
       {/* Slope indicator toggle (POLYGON) */}
-      {hasShowSlope && (
+      {hasShowSlope && drawingShape === "POLYGON" && (
         <FieldCheck
           label="Afficher la pente"
           value={Boolean(annotationTemplate?.showSlope)}
@@ -606,7 +616,7 @@ export default function FormAnnotationTemplateVariantBlock({
         />
       )}
 
-      {!isCreating && (
+      {drawingShape === "POLYLINE" && (
         <FieldCheck
           label="Profil"
           value={Boolean(annotationTemplate?.isProfile)}
