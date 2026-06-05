@@ -4751,27 +4751,52 @@ const InteractionLayer = forwardRef(({
         return;
       }
 
-      // 1. On prépare l'objet point de base
-      const pointToAdd = {
-        x: snap.x,
-        y: snap.y,
-        type: "square" // optionnel, pour l'affichage local immédiat
-      };
+      // Reconcile the point-snap with an active ortho constraint (Shift /
+      // orthoSnap). With ortho on, the committed point must stay on the ortho
+      // axis through the last drawn point, so we project the snapped point onto
+      // that axis: the snap then fixes only the free coordinate (matching the
+      // on-screen preview), instead of overriding both. The point no longer
+      // coincides with the snap target, so it becomes an independent point
+      // (no shared id / segment link). Excluded for COMPLETE_ANNOTATION, which
+      // relies on landing exactly on existing vertices.
+      const orthoActive =
+        (e.shiftKey || e.evt?.shiftKey || orthoSnapEnabledRef.current) &&
+        drawingPointsRef.current.length > 0 &&
+        enabledDrawingMode !== "COMPLETE_ANNOTATION";
 
-      // 2. LOGIQUE CLÉ : Si c'est un point existant (VERTEX), on passe son ID
-      if (snap.type === 'VERTEX') {
-        pointToAdd.existingPointId = snap.id;
-      }
-
-      // 3. If snapping to a PROJECTION or MIDPOINT on an existing segment,
-      // store metadata so the new point can be inserted into the target annotation at creation
-      if ((snap.type === 'PROJECTION' || snap.type === 'MIDPOINT') && snap.previewAnnotationId) {
-        pointToAdd.snapSegment = {
-          annotationId: snap.previewAnnotationId,
-          segmentStartId: snap.segmentStartId,
-          segmentEndId: snap.segmentEndId,
-          cutIndex: snap.cutIndex,
+      let pointToAdd;
+      if (orthoActive) {
+        const lastPoint =
+          drawingPointsRef.current[drawingPointsRef.current.length - 1];
+        const projected = snapToAngle(
+          { x: snap.x, y: snap.y },
+          lastPoint,
+          orthoSnapAngleOffsetRef.current
+        );
+        pointToAdd = { x: projected.x, y: projected.y, type: "square" };
+      } else {
+        // 1. On prépare l'objet point de base
+        pointToAdd = {
+          x: snap.x,
+          y: snap.y,
+          type: "square" // optionnel, pour l'affichage local immédiat
         };
+
+        // 2. LOGIQUE CLÉ : Si c'est un point existant (VERTEX), on passe son ID
+        if (snap.type === 'VERTEX') {
+          pointToAdd.existingPointId = snap.id;
+        }
+
+        // 3. If snapping to a PROJECTION or MIDPOINT on an existing segment,
+        // store metadata so the new point can be inserted into the target annotation at creation
+        if ((snap.type === 'PROJECTION' || snap.type === 'MIDPOINT') && snap.previewAnnotationId) {
+          pointToAdd.snapSegment = {
+            annotationId: snap.previewAnnotationId,
+            segmentStartId: snap.segmentStartId,
+            segmentEndId: snap.segmentEndId,
+            cutIndex: snap.cutIndex,
+          };
+        }
       }
 
       // ATTENTION : setDrawingPoints est asynchrone. 
