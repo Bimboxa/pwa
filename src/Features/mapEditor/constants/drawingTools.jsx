@@ -13,6 +13,8 @@ import {
 } from "@mui/icons-material";
 
 import IconPolylineClick from "Features/icons/IconPolylineClick";
+import IconPolylineSegment from "Features/icons/IconPolylineSegment";
+import IconStripSegment from "Features/icons/IconStripSegment";
 import IconPolygonClick from "Features/icons/IconPolygonClick";
 import IconPolylineRectangle from "Features/icons/IconPolylineRectangle";
 import IconPolygonRectangle from "Features/icons/IconPolygonRectangle";
@@ -42,6 +44,13 @@ const DRAWING_TOOLS = [
     Icon: IconPolylineClick,
     annotationType: "POLYLINE",
     behavior: "CLICK",
+  },
+  {
+    key: "POLYLINE_SEGMENT",
+    label: "Segment (2 clics)",
+    Icon: IconPolylineSegment,
+    annotationType: "POLYLINE",
+    behavior: "SEGMENT",
   },
   {
     key: "POLYGON_CLICK",
@@ -196,6 +205,14 @@ const DRAWING_TOOLS = [
     Icon: IconStrip,
     annotationType: "STRIP",
     behavior: "STRIP",
+  },
+  // STRIP_SEGMENT tool (Bande — auto-commit on the 2nd click)
+  {
+    key: "STRIP_SEGMENT",
+    label: "Bande (2 clics)",
+    Icon: IconStripSegment,
+    annotationType: "STRIP",
+    behavior: "SEGMENT",
   },
   // Note: the former STRIP_DETECTION, SEGMENT_DETECTION and
   // DETECT_SIMILAR_POLYLINES tools have been
