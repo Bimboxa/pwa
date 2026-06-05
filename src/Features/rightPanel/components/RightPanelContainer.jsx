@@ -1,6 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { setSelectedMenuItemKey } from "../rightPanelSlice";
+import { setSelectedMenuItemKey, setElevationWidth } from "../rightPanelSlice";
 
 import VerticalMenu from "Features/layout/components/VerticalMenu";
 
@@ -28,13 +28,44 @@ import PanelAdminListing from "Features/adminEditor/components/PanelAdminListing
 import PanelAdminEntity from "Features/adminEditor/components/PanelAdminEntity";
 import PanelAnnotationsAuto from "Features/annotationsAuto/components/PanelAnnotationsAuto";
 import PanelPrint from "Features/print/components/PanelPrint";
+import PanelElevation from "Features/elevation/components/PanelElevation";
 
 export default function RightPanelContainer() {
+
+  const dispatch = useDispatch();
 
   // data
 
   const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
-  const width = useSelector((s) => s.rightPanel.width);
+  const fixedWidth = useSelector((s) => s.rightPanel.width);
+  const elevationWidth = useSelector((s) => s.rightPanel.elevationWidth);
+
+  const isElevation = selectedKey === "ELEVATION";
+  const width = isElevation ? elevationWidth : fixedWidth;
+
+  // handlers - resize (Elevation tool only; updates its own width, the other
+  // tools keep their fixed width)
+
+  function handleResizeMouseDown(e) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = elevationWidth;
+    function onMove(ev) {
+      const next = Math.min(
+        Math.max(startWidth + (startX - ev.clientX), 260),
+        1000
+      );
+      dispatch(setElevationWidth(next));
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "ew-resize";
+  }
 
   const windowHeight = useSelector((s) => s.layout.windowHeight);
   const bottomBarHeight = useSelector((s) => s.layout.bottomBarHeightDesktop);
@@ -71,6 +102,24 @@ export default function RightPanelContainer() {
             boxShadow: 3,
           }}
         >
+          {/* resize handle on the left frontier — exposed for the Elevation
+              tool; the resulting width is shared by all tools */}
+          {selectedKey === "ELEVATION" && (
+            <Box
+              onMouseDown={handleResizeMouseDown}
+              sx={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 8,
+                cursor: "ew-resize",
+                zIndex: 250,
+                "&:hover": { bgcolor: "primary.main", opacity: 0.3 },
+              }}
+            />
+          )}
+
           {selectedKey === "SHOWER" && <PanelShower />}
           {selectedKey === "EDITOR_EXPORT" && <PanelEditorExport />}
           {/* EXPORT merged into PRINT panel */}
@@ -90,6 +139,7 @@ export default function RightPanelContainer() {
           {selectedKey === "ADMIN_ENTITY" && <PanelAdminEntity />}
           {selectedKey === "ANNOTATIONS_AUTO" && <PanelAnnotationsAuto />}
           {selectedKey === "PRINT" && <PanelPrint />}
+          {selectedKey === "ELEVATION" && <PanelElevation />}
         </Box>
       </Slide>
 
