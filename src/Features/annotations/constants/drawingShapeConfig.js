@@ -74,10 +74,12 @@ const DRAWING_SHAPE_CONFIG = {
     annotationType: "POLYLINE",
     tools: [
       "POLYLINE_CLICK",
+      "POLYLINE_SEGMENT",
       "POLYLINE_RECTANGLE",
       "POLYLINE_CIRCLE",
       "POLYLINE_ARC",
       "STRIP",
+      "STRIP_SEGMENT",
     ],
     configurableProps: [
       "strokeColor",
@@ -105,6 +107,7 @@ const DRAWING_SHAPE_CONFIG = {
       "POLYGON_CIRCLE",
       "SURFACE_DROP",
       "STRIP",
+      "STRIP_SEGMENT",
     ],
     configurableProps: ["fillColor", "fillOpacity", "fillType", "showSlope"],
     defaults: {
