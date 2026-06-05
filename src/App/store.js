@@ -63,6 +63,7 @@ import annotationsAutoReducer from "Features/annotationsAuto/annotationsAutoSlic
 import listingViewerReducer from "Features/listingViewer/listingViewerSlice";
 import layersReducer from "Features/layers/layersSlice";
 import popperMapListingsReducer from "Features/popperMapListings/popperMapListingsSlice";
+import elevationReducer from "Features/elevation/elevationSlice";
 
 import { syncTabsMiddleware, initSyncTabsListener } from "./syncTabsMiddleware";
 import { startTabsRegistry } from "./tabsRegistry";
@@ -132,6 +133,7 @@ const store = configureStore({
     listingViewer: listingViewerReducer,
     layers: layersReducer,
     popperMapListings: popperMapListingsReducer,
+    elevation: elevationReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -22,6 +22,7 @@ import {
   Tune,
   AutoFixHigh,
   Print,
+  Height,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -71,6 +72,10 @@ export default function VerticalMenuRightPanel() {
     PRINT: {
       label: "Export",
       icon: <Print />,
+    },
+    ELEVATION: {
+      label: "Élévation",
+      icon: <Height />,
     },
     CHAT: {
       label: "Chat",
