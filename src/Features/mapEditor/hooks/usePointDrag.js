@@ -297,7 +297,7 @@ export default function usePointDrag({
           const dx = _dragState.currentPos.x - _dragState.originPos.x;
           const dy = _dragState.currentPos.y - _dragState.originPos.y;
           if (Math.hypot(dx, dy) < 1e-6) {
-            dispatch(setToaster({ message: "Point added" }));
+            dispatch(setToaster({ message: "Point ajouté" }));
             setPointInsertedAt({ x: _dragState.currentPos.x, y: _dragState.currentPos.y });
             setTimeout(() => setPointInsertedAt(null), 600);
           }
