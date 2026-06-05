@@ -2,6 +2,12 @@ import getStripePolygons from "Features/geometry/utils/getStripePolygons";
 import triangulateAnnotationGeometry, {
   ISO_BAND_LEVELS,
 } from "Features/geometry/utils/triangulateAnnotationGeometry";
+import { expandRingWithOffsets } from "Features/geometry/utils/arcSampling";
+
+// Match the ARC_SAMPLES used by the 3D mesh builder (extrudeClosedShape) so the
+// developed surface is triangulated on the SAME arc-expanded contour as the
+// rendered geometry.
+const ARC_SAMPLES = 6;
 
 // True iff any point on the contour, any cut, or any innerPoint carries a
 // non-zero offsetBottom / offsetTop. Used to gate the per-vertex-Z surface
@@ -459,9 +465,16 @@ export default function getAnnotationQties({
           x: p.x * meterByPx,
           y: p.y * meterByPx,
         }));
+      // Expand S-C-S arcs into sampled segments (with offsetTop / offsetBottom
+      // interpolated along the arc) BEFORE triangulating — exactly as the 3D
+      // mesh builder does. Otherwise rounded corners collapse onto their chord
+      // polygon here while the planar `surface` above counts their full curved
+      // footprint, breaking the invariant developed >= projected.
       const tri = triangulateAnnotationGeometry({
-        contour: toMeters(points),
-        holes: cutsRings.map(toMeters),
+        contour: toMeters(expandRingWithOffsets(points, ARC_SAMPLES, true)),
+        holes: cutsRings.map((r) =>
+          toMeters(expandRingWithOffsets(r, ARC_SAMPLES, true))
+        ),
         innerPoints: toMeters(innerPts),
         height: 0,
         verticalLift: 0,

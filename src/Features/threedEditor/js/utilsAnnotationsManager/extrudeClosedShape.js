@@ -19,87 +19,10 @@ import {
 import triangulateAnnotationGeometry, {
   ISO_BAND_LEVELS,
 } from "Features/geometry/utils/triangulateAnnotationGeometry";
-import {
-  typeOf,
-  circleFromThreePoints,
-  sampleArcPoints,
-} from "Features/geometry/utils/arcSampling";
+import { expandRingWithOffsets } from "Features/geometry/utils/arcSampling";
 
 // Match the codebase convention used by other arc-aware paths.
 const ARC_SAMPLES = 6;
-
-const lerp = (a, b, t) => a + (b - a) * t;
-
-// The fast Shape path curves S-C-S arcs via path.absarc. The per-vertex-Z
-// path triangulates the contour directly, so arcs must be expanded into
-// straight samples here too — otherwise a curved face/ramp collapses into
-// the chord polygon of its control points. Anchor points keep their offsets;
-// sampled points get offsetTop / offsetBottom interpolated along the arc so
-// the curved top follows the ramp. Geometry matches expandArcsInPath; only
-// the offset carrying is added.
-function expandRingWithOffsets(ring, samples, closeLine) {
-  const n = (ring || []).length;
-  if (n < 3) return (ring || []).map((p) => ({ ...p }));
-  const get = closeLine
-    ? (k) => ring[((k % n) + n) % n]
-    : (k) => ring[k];
-  const out = [];
-  let i = 0;
-  let consumed = 0;
-  while (consumed < n) {
-    const p0 = get(i);
-    const p1 = get(i + 1);
-    const p2 = get(i + 2);
-    const isArc =
-      p1 &&
-      p2 &&
-      typeOf(p0) !== "circle" &&
-      typeOf(p1) === "circle" &&
-      typeOf(p2) !== "circle";
-    if (isArc) {
-      const circ = circleFromThreePoints(p0, p1, p2);
-      if (circ && Number.isFinite(circ.r) && circ.r > 0) {
-        const cross =
-          (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
-        const isCW = cross > 0;
-        const t0 = p0.offsetTop ?? 0;
-        const b0 = p0.offsetBottom ?? 0;
-        const t1 = p1.offsetTop ?? 0;
-        const b1 = p1.offsetBottom ?? 0;
-        const t2 = p2.offsetTop ?? 0;
-        const b2 = p2.offsetBottom ?? 0;
-        out.push({ ...p0 });
-        const arc01 = sampleArcPoints(p0, p1, circ.center, circ.r, isCW, samples);
-        arc01.forEach((s, k) => {
-          const f = (k + 1) / samples;
-          out.push({
-            x: s.x,
-            y: s.y,
-            offsetTop: lerp(t0, t1, f),
-            offsetBottom: lerp(b0, b1, f),
-          });
-        });
-        const arc12 = sampleArcPoints(p1, p2, circ.center, circ.r, isCW, samples);
-        for (let k = 0; k < arc12.length - 1; k++) {
-          const f = (k + 1) / samples;
-          out.push({
-            x: arc12[k].x,
-            y: arc12[k].y,
-            offsetTop: lerp(t1, t2, f),
-            offsetBottom: lerp(b1, b2, f),
-          });
-        }
-        i += 2;
-        consumed += 2;
-        continue;
-      }
-    }
-    out.push({ ...p0 });
-    i += 1;
-    consumed += 1;
-  }
-  return out;
-}
 
 function getCircleInfo(p0, p1, p2) {
   const x1 = p0.x;
@@ -167,7 +90,9 @@ const Z_FIGHT_OFFSET = 0.001;
 
 function hasPerVertexZ(points, holes, innerPoints) {
   const ringHas = (ring) =>
-    (ring || []).some((p) => (p?.offsetBottom ?? 0) !== 0 || (p?.offsetTop ?? 0) !== 0);
+    (ring || []).some(
+      (p) => (p?.offsetBottom ?? 0) !== 0 || (p?.offsetTop ?? 0) !== 0
+    );
   return ringHas(points) || (holes || []).some(ringHas) || ringHas(innerPoints);
 }
 
@@ -190,7 +115,10 @@ function buildIsoHeightLines(expContour, expHoles, topZOf) {
     return null;
   }
   if (faces.length === 0) return null;
-  const flat = [expContour, ...(expHoles || []).filter((h) => h && h.length >= 3)].flat();
+  const flat = [
+    expContour,
+    ...(expHoles || []).filter((h) => h && h.length >= 3),
+  ].flat();
   const z = flat.map(topZOf);
   let zMin = Infinity;
   let zMax = -Infinity;
@@ -231,8 +159,7 @@ function buildIsoHeightLines(expContour, expHoles, topZOf) {
     let best = -1;
     for (let i = 0; i < hits.length; i++) {
       for (let j = i + 1; j < hits.length; j++) {
-        const d =
-          (hits[i].x - hits[j].x) ** 2 + (hits[i].y - hits[j].y) ** 2;
+        const d = (hits[i].x - hits[j].x) ** 2 + (hits[i].y - hits[j].y) ** 2;
         if (d > best) {
           best = d;
           p0 = hits[i];
@@ -270,7 +197,15 @@ function buildIsoLinesFromSegments(segments) {
   );
 }
 
-export default function extrudeClosedShape(points, height, material, holes, verticalLift = 0, innerPoints = [], options = {}) {
+export default function extrudeClosedShape(
+  points,
+  height,
+  material,
+  holes,
+  verticalLift = 0,
+  innerPoints = [],
+  options = {}
+) {
   if (!points || points.length < 3) return null;
 
   const isExtruded = height && height > 0;
@@ -284,7 +219,8 @@ export default function extrudeClosedShape(points, height, material, holes, vert
   // even if no offsets are set yet — otherwise the fast Shape/ExtrudeGeometry
   // path would silently drop them, which is confusing during authoring.
   const hasInnerPoints = Array.isArray(innerPoints) && innerPoints.length > 0;
-  const isPerVertexZPath = hasPerVertexZ(points, holes, innerPoints) || hasInnerPoints;
+  const isPerVertexZPath =
+    hasPerVertexZ(points, holes, innerPoints) || hasInnerPoints;
 
   let geometry;
   if (!isPerVertexZPath) {
@@ -317,7 +253,10 @@ export default function extrudeClosedShape(points, height, material, holes, vert
       isoBandLevels: options.isoLines ? ISO_LEVELS : 0,
     });
     geometry = new BufferGeometry();
-    geometry.setAttribute("position", new Float32BufferAttribute(tri.positions, 3));
+    geometry.setAttribute(
+      "position",
+      new Float32BufferAttribute(tri.positions, 3)
+    );
     geometry.setIndex(Array.from(tri.indices));
     geometry.computeVertexNormals();
 
@@ -364,7 +303,11 @@ export default function extrudeClosedShape(points, height, material, holes, vert
   if (!isPerVertexZPath) {
     const edges = new LineSegments(
       new EdgesGeometry(geometry),
-      new LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })
+      new LineBasicMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: 0.5,
+      })
     );
     group.add(edges);
   }

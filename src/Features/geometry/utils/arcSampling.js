@@ -116,9 +116,7 @@ export function expandArcsInPathWithHiddenMap(
   // Walk the ORIGINAL path the same way expandArcsInPath does, building a
   // map from original-segment index → expanded-segment range (inclusive).
   const n = path.length;
-  const get = closeLine
-    ? (k) => path[((k % n) + n) % n]
-    : (k) => path[k];
+  const get = closeLine ? (k) => path[((k % n) + n) % n] : (k) => path[k];
   const range = new Array(closeLine ? n : Math.max(0, n - 1)).fill(null);
   let outSegIdx = 0;
   let i = 0;
@@ -184,9 +182,7 @@ export function expandArcsInPath(path, samples = 6, closeLine = false) {
   const n = path.length;
   if (n < 3) return path.map((p) => ({ ...p }));
 
-  const get = closeLine
-    ? (k) => path[((k % n) + n) % n]
-    : (k) => path[k];
+  const get = closeLine ? (k) => path[((k % n) + n) % n] : (k) => path[k];
   const out = [];
   let i = 0;
   let consumed = 0;
@@ -249,5 +245,94 @@ export function expandArcsInPath(path, samples = 6, closeLine = false) {
     consumed += 1;
   }
 
+  return out;
+}
+
+const lerp = (a, b, t) => a + (b - a) * t;
+
+/**
+ * Same geometry as `expandArcsInPath`, but also carries per-vertex
+ * `offsetTop` / `offsetBottom` onto the sampled arc points by linearly
+ * interpolating them along the arc (anchor points keep their own offsets).
+ *
+ * Used wherever a sloped/ramped contour must be triangulated directly (the
+ * 3D per-vertex-Z mesh and the developed-surface quantity), so a curved
+ * corner follows the ramp instead of collapsing onto the chord polygon of
+ * its control points. Single-sourced so the rendered mesh and the computed
+ * developed surface stay in sync.
+ */
+export function expandRingWithOffsets(ring, samples = 6, closeLine = false) {
+  const n = (ring || []).length;
+  if (n < 3) return (ring || []).map((p) => ({ ...p }));
+  const get = closeLine ? (k) => ring[((k % n) + n) % n] : (k) => ring[k];
+  const out = [];
+  let i = 0;
+  let consumed = 0;
+  while (consumed < n) {
+    const p0 = get(i);
+    const p1 = get(i + 1);
+    const p2 = get(i + 2);
+    const isArc =
+      p1 &&
+      p2 &&
+      typeOf(p0) !== "circle" &&
+      typeOf(p1) === "circle" &&
+      typeOf(p2) !== "circle";
+    if (isArc) {
+      const circ = circleFromThreePoints(p0, p1, p2);
+      if (circ && Number.isFinite(circ.r) && circ.r > 0) {
+        const cross =
+          (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
+        const isCW = cross > 0;
+        const t0 = p0.offsetTop ?? 0;
+        const b0 = p0.offsetBottom ?? 0;
+        const t1 = p1.offsetTop ?? 0;
+        const b1 = p1.offsetBottom ?? 0;
+        const t2 = p2.offsetTop ?? 0;
+        const b2 = p2.offsetBottom ?? 0;
+        out.push({ ...p0 });
+        const arc01 = sampleArcPoints(
+          p0,
+          p1,
+          circ.center,
+          circ.r,
+          isCW,
+          samples
+        );
+        arc01.forEach((s, k) => {
+          const f = (k + 1) / samples;
+          out.push({
+            x: s.x,
+            y: s.y,
+            offsetTop: lerp(t0, t1, f),
+            offsetBottom: lerp(b0, b1, f),
+          });
+        });
+        const arc12 = sampleArcPoints(
+          p1,
+          p2,
+          circ.center,
+          circ.r,
+          isCW,
+          samples
+        );
+        for (let k = 0; k < arc12.length - 1; k++) {
+          const f = (k + 1) / samples;
+          out.push({
+            x: arc12[k].x,
+            y: arc12[k].y,
+            offsetTop: lerp(t1, t2, f),
+            offsetBottom: lerp(b1, b2, f),
+          });
+        }
+        i += 2;
+        consumed += 2;
+        continue;
+      }
+    }
+    out.push({ ...p0 });
+    i += 1;
+    consumed += 1;
+  }
   return out;
 }
