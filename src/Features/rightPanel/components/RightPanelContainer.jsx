@@ -6,7 +6,7 @@ import VerticalMenu from "Features/layout/components/VerticalMenu";
 
 import { Download, Info, Visibility } from "@mui/icons-material";
 
-import { Box, Paper } from "@mui/material";
+import { Box, Paper, Slide } from "@mui/material";
 
 import PanelShower from "Features/shower/components/PanelShower";
 import PanelEditorExport from "Features/editorExport/components/PanelEditorExport";
@@ -49,17 +49,18 @@ export default function RightPanelContainer() {
   const openPanel = Boolean(selectedKey);
 
   return (
-    <Box sx={{ display: "flex", minHeight: 0, minWidth: 0 }}>
+    <Box sx={{ display: "flex", minHeight: 0, minWidth: 0, position: "relative" }}>
 
-
-      {openPanel && (
+      {/* Open panel renders as an overlay drawer (right: 100% anchors it flush to
+          the left of the band, floating over the viewer) so opening/closing it
+          never changes the viewer's pixel size — avoids zoom/pan jumps. */}
+      <Slide direction="left" in={openPanel} mountOnEnter unmountOnExit>
         <Box
           sx={{
-            //position: "absolute",
-            //right: 0,
-            //top: topBarHeight,
-            //bottom: 0,
-
+            position: "absolute",
+            right: "100%",
+            top: 0,
+            bottom: 0,
             width,
             minWidth: 0,
             bgcolor: "background.default",
@@ -67,7 +68,7 @@ export default function RightPanelContainer() {
             display: "flex",
             flexDirection: "column",
             borderLeft: (theme) => `1px solid ${theme.palette.divider}`,
-            ...(!openPanel & { transform: "translateX(100%)" }),
+            boxShadow: 3,
           }}
         >
           {selectedKey === "SHOWER" && <PanelShower />}
@@ -90,10 +91,14 @@ export default function RightPanelContainer() {
           {selectedKey === "ANNOTATIONS_AUTO" && <PanelAnnotationsAuto />}
           {selectedKey === "PRINT" && <PanelPrint />}
         </Box>
-      )}
+      </Slide>
 
+      {/* The band stays visually on top of the overlay drawer (which slides out
+          from behind it), so it needs a higher z-index than the panel above. */}
       <Box
         sx={{
+          position: "relative",
+          zIndex: 300,
           display: "flex",
           flexDirection: "column",
         }}

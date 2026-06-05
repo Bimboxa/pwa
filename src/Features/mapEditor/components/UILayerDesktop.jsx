@@ -25,6 +25,10 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
     const viewerKey = useSelector(s => s.viewers.selectedViewerKey);
     const showCalibration = useSelector(s => s.baseMapEditor.showCalibration);
 
+    const panelKey = useSelector(s => s.rightPanel.selectedMenuItemKey);
+    const panelWidth = useSelector(s => s.rightPanel.width);
+    const panelOpen = Boolean(panelKey);
+
     const { basePose } = useInteraction();
 
     const isBaseMapsViewer = viewerKey === "BASE_MAPS";
@@ -110,12 +114,13 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                 data-capture-hide
                 sx={{
                     position: "absolute",
-                    right: "16px",
+                    right: panelOpen ? `${panelWidth + 16}px` : "16px",
                     bottom: "16px",
                     zIndex: 1,
                     display: "flex",
                     alignItems: "center",
                     gap: 1,
+                    transition: "right 0.2s ease",
                 }}
             >
                 <SelectorOrthoSnap />
