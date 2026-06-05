@@ -36,7 +36,7 @@ export default function DocumentationOutline({headings, activeId, scrollRoot}) {
         variant="overline"
         sx={{color: "text.secondary", fontWeight: 600, display: "block", mb: 1}}
       >
-        On this page
+        Plan de la page
       </Typography>
       <Box component="ul" sx={{listStyle: "none", p: 0, m: 0}}>
         {headings.map((h) => {

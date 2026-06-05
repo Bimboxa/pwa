@@ -8,7 +8,7 @@ import {Box, Collapse, IconButton, List, ListItemButton, ListItemText, Typograph
 
 import {DOCUMENTATION_ROOT} from "../constants/documentationRoutes";
 
-function DocItem({id, title, currentPageId}) {
+function DocItem({id, title, wip, currentPageId}) {
   const selected = currentPageId === id;
   return (
     <ListItemButton
@@ -29,6 +29,16 @@ function DocItem({id, title, currentPageId}) {
           fontWeight: selected ? 600 : 400,
         }}
       />
+      {wip && (
+        <Box
+          component="span"
+          title="Page en construction"
+          aria-label="Page en construction"
+          sx={{ml: 1, fontSize: 14, lineHeight: 1, flexShrink: 0}}
+        >
+          🚧
+        </Box>
+      )}
     </ListItemButton>
   );
 }
@@ -77,6 +87,7 @@ function renderItem(item, i, currentPageId) {
         key={item.id ?? i}
         id={item.id}
         title={item.title ?? item.id}
+        wip={item.wip}
         currentPageId={currentPageId}
       />
     );

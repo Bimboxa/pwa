@@ -10,7 +10,17 @@ export default async function resolveDocImageSrc(src, {pageId, imageLoaders}) {
   // Strip a leading "./" and any leading "/"
   let cleaned = src.replace(/^\.\//, "").replace(/^\//, "");
 
-  // If src is relative to the current page folder, resolve against pageId's dir.
+  // Per-page scheme: pageId is the page folder (`<slug>`), so a `./images/x`
+  // reference lives at `<slug>/images/x`.
+  if (pageId) {
+    const direct = `${pageId}/${cleaned}`;
+    if (imageLoaders?.[direct]) {
+      return await imageLoaders[direct]();
+    }
+  }
+
+  // Legacy scheme: pageId is a path including the file (`concepts/krto`), so the
+  // image folder is the page's parent dir.
   if (pageId && pageId.includes("/")) {
     const pageDir = pageId.split("/").slice(0, -1).join("/");
     const candidate = `${pageDir}/${cleaned}`;
