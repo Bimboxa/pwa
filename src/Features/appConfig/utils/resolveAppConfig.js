@@ -229,14 +229,22 @@ export default async function resolveAppConfig(appConfig) {
         const pageLoaders = {};
         for (const [path, loader] of Object.entries(DOCUMENTATION_MD_LOADERS)) {
           if (!path.startsWith(docPrefix)) continue;
-          const id = path.slice(docPrefix.length).replace(/\.md$/, "");
+          // Per-page scheme: `pages/<slug>/index.md` -> page id `<slug>`.
+          // Legacy flat/category files (e.g. `intro.md`) keep their path-based id.
+          const id = path
+            .slice(docPrefix.length)
+            .replace(/\.md$/, "")
+            .replace(/^pages\//, "")
+            .replace(/\/index$/, "");
           pageLoaders[id] = loader;
         }
 
         const imageLoaders = {};
         for (const [path, loader] of Object.entries(DOCUMENTATION_IMAGE_LOADERS)) {
           if (!path.startsWith(docPrefix)) continue;
-          const relPath = path.slice(docPrefix.length);
+          // Per-page scheme: `pages/<slug>/images/x.gif` -> key `<slug>/images/x.gif`,
+          // so it resolves against the page id `<slug>` (see resolveDocImageSrc).
+          const relPath = path.slice(docPrefix.length).replace(/^pages\//, "");
           imageLoaders[relPath] = loader;
         }
 
