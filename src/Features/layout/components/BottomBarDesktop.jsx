@@ -66,7 +66,7 @@ export default function BottomBarDesktop() {
           minHeight: height,
           display: "flex",
           alignItems: "center",
-          zIndex: 100,
+          zIndex: 400,
           px: 0.5,
           position: "relative",
         }}
@@ -88,7 +88,7 @@ export default function BottomBarDesktop() {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        zIndex: 100,
+        zIndex: 400,
         pr: 0.5,
         position: "relative",
       }}

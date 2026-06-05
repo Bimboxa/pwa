@@ -44,7 +44,6 @@ export default function LayoutDesktop() {
   const isFullScreen = useSelector((s) => s.layout.isFullScreen);
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
-  const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
   // effects
 
@@ -65,7 +64,7 @@ export default function LayoutDesktop() {
           <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
             <SectionViewer />
           </Box>
-          {viewerKey !== "THREED" && <RightPanelContainer />}
+          <RightPanelContainer />
         </Box>
       </Box>
       <BottomBarDesktop />
