@@ -8,8 +8,7 @@ import {
   setObservationSign,
 } from "Features/elevation/elevationSlice";
 
-import { Box, Typography, IconButton, TextField, Tooltip } from "@mui/material";
-import { ArrowLeft } from "@mui/icons-material";
+import { Box, Typography } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PlanSelectorElevation from "./PlanSelectorElevation";
@@ -17,7 +16,6 @@ import ElevationEditor from "./ElevationEditor";
 
 import useElevationAnnotation from "Features/elevation/hooks/useElevationAnnotation";
 import getProjectableSegmentChain from "Features/elevation/utils/getProjectableSegmentChain";
-import setAnnotationOffsetZService from "Features/elevation/services/setAnnotationOffsetZService";
 
 export default function PanelElevation() {
   const dispatch = useDispatch();
@@ -50,11 +48,6 @@ export default function PanelElevation() {
     (s) => s.elevation.selectionAnnotationId
   );
 
-  // state
-
-  const [showOffsetInput, setShowOffsetInput] = useState(false);
-  const [offsetInput, setOffsetInput] = useState("");
-
   // effect - default selection = projectable chain of the first segment when
   // the selected annotation changes
 
@@ -70,12 +63,6 @@ export default function PanelElevation() {
     );
     dispatch(setHoveredSegmentIndex(null));
   }, [isPolyline, annotationId, points, selectionAnnotationId, dispatch]);
-
-  // effect - keep the offset input in sync with the annotation
-
-  useEffect(() => {
-    setOffsetInput(String(offsetZ ?? 0));
-  }, [offsetZ, annotationId]);
 
   // handlers
 
@@ -104,14 +91,6 @@ export default function PanelElevation() {
   // arrows on each side of the principal segment: pick the viewing side
   function handleSetObservation(sign) {
     dispatch(setObservationSign(sign));
-  }
-
-  function handleSubmitOffset() {
-    const value = parseFloat(offsetInput);
-    if (!Number.isNaN(value)) {
-      setAnnotationOffsetZService({ annotationId, offsetZ: value, dispatch });
-    }
-    setShowOffsetInput(false);
   }
 
   // render
@@ -164,43 +143,6 @@ export default function PanelElevation() {
           color={color}
           onSelectSegment={handleSelectEditedSegment}
         />
-
-        {/* bottom-left arrow → set the annotation offset (offsetZ) */}
-        <Box
-          sx={{
-            position: "absolute",
-            left: 8,
-            bottom: 8,
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-          }}
-        >
-          <Tooltip title="Définir l'offset (hauteur vs plan)">
-            <IconButton
-              size="small"
-              onClick={() => setShowOffsetInput((v) => !v)}
-              sx={{ bgcolor: "background.paper", boxShadow: 1 }}
-            >
-              <ArrowLeft />
-            </IconButton>
-          </Tooltip>
-          {showOffsetInput && (
-            <TextField
-              size="small"
-              type="number"
-              label="Offset (m)"
-              value={offsetInput}
-              autoFocus
-              onChange={(e) => setOffsetInput(e.target.value)}
-              onBlur={handleSubmitOffset}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSubmitOffset();
-              }}
-              sx={{ width: 120, bgcolor: "background.paper" }}
-            />
-          )}
-        </Box>
       </Box>
     </BoxFlexVStretch>
   );

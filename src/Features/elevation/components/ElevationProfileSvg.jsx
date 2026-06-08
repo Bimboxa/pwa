@@ -1,5 +1,9 @@
 import { useMemo } from "react";
 
+import { useTheme } from "@mui/material";
+
+import FieldElevationOffset from "./FieldElevationOffset";
+
 // Renders, inside the viewport's camera group (world = map pixels):
 //   - the "vue de dessus" recap (top): the whole chain projected, edited
 //     segment in the primary color, the rest in grey;
@@ -18,10 +22,17 @@ export default function ElevationProfileSvg({
   editedSegmentIndex,
   hoveredSegmentIndex,
   height,
+  meterByPx,
+  offsetZ = 0,
   color = "#c0392b",
   dragPreview,
   onHandleMouseDown,
+  onCommitOffset,
+  onCommitOffsetZ,
 }) {
+  const theme = useTheme();
+  const secondary = theme.palette.secondary.main;
+
   // preview-applied vertices (only affects the dragged handle)
   const verts = useMemo(() => {
     if (!dragPreview) return vertices;
@@ -53,7 +64,17 @@ export default function ElevationProfileSvg({
   const GAP = 40;
   const recapY = (planY) => eMinY - GAP - (pMax - planY);
   const gridTop = eMinY - GAP - recapHeight - 6;
-  const gridBottom = eMaxY + 6;
+  // the baseMap reference plane is Z = 0 → worldY = 0; keep the grid down to it
+  const gridBottom = Math.max(eMaxY, 0) + 6;
+
+  // full width (for the baseMap reference line)
+  let xMin = Infinity;
+  let xMax = -Infinity;
+  for (const v of vertices) {
+    xMin = Math.min(xMin, v.x);
+    xMax = Math.max(xMax, v.x);
+  }
+  const xPad = (xMax - xMin) * 0.08 + 10;
 
   // edited segment vertices (preview-applied for live drag)
   const selA = verts.find((v) => v.pointIndex === editedSegmentIndex);
@@ -62,6 +83,10 @@ export default function ElevationProfileSvg({
   const COUNTER_ZOOM = { transform: "scale(calc(1 / var(--map-zoom, 1)))" };
   const HALF = 5;
   const GREY = "#bdbdbd";
+
+  // live offset value (meters) from a vertex's screen Y
+  const offsetTopOf = (v) => -v.topY * meterByPx - height - offsetZ;
+  const offsetBottomOf = (v) => -v.bottomY * meterByPx - offsetZ;
 
   return (
     <g>
@@ -176,22 +201,35 @@ export default function ElevationProfileSvg({
         );
       })}
 
-      {/* height label on the edited segment */}
-      {selA && selB && height > 0 && (
-        <g transform={`translate(${selA.x}, ${selA.topY})`}>
-          <g style={COUNTER_ZOOM}>
-            <text
-              x={6}
-              y={-4}
-              fontSize={11}
-              fill={color}
-              style={{ userSelect: "none" }}
-            >
-              {`Ht. ${height} m`}
-            </text>
-          </g>
+      {/* baseMap reference plane (Z = 0): full-width grey dashed line — the
+          annotation offset (offsetZ) is measured from it */}
+      <line
+        x1={xMin - xPad}
+        y1={0}
+        x2={xMax + xPad}
+        y2={0}
+        stroke={secondary}
+        strokeWidth={1.25}
+        strokeDasharray="6 4"
+        vectorEffect="non-scaling-stroke"
+      />
+
+      {/* offset field, at the baseMap line level but shifted to the left of it
+          so it never overlaps the first vertex's offsetBottom field */}
+      <g transform={`translate(${xMin - xPad}, 0)`}>
+        <g style={COUNTER_ZOOM}>
+          <foreignObject x={-128} y={-11} width={124} height={24} style={{ overflow: "visible" }}>
+            <FieldElevationOffset
+              label="Offset"
+              value={offsetZ}
+              width={46}
+              accentColor={secondary}
+              noShadow
+              onCommit={(v) => onCommitOffsetZ?.(v)}
+            />
+          </foreignObject>
         </g>
-      )}
+      </g>
 
       {/* handles: only the edited segment's two vertices */}
       {selA &&
@@ -221,6 +259,42 @@ export default function ElevationProfileSvg({
                       onHandleMouseDown?.(e, v.pointIndex, edge)
                     }
                   />
+                </g>
+              </g>
+            );
+          })
+        )}
+
+      {/* offset fields: 4 minimalist inputs fixed to the edited segment's
+          vertices (top/bottom), constant screen size */}
+      {selA &&
+        selB &&
+        [selA, selB].map((v) =>
+          ["TOP", "BOTTOM"].map((edge) => {
+            const y = edge === "TOP" ? v.topY : v.bottomY;
+            const value = edge === "TOP" ? offsetTopOf(v) : offsetBottomOf(v);
+            const FW = 66;
+            const FH = 22;
+            return (
+              <g
+                key={`f-${v.pointIndex}-${edge}`}
+                transform={`translate(${v.x}, ${y})`}
+              >
+                <g style={COUNTER_ZOOM}>
+                  <foreignObject
+                    x={-FW / 2}
+                    y={edge === "TOP" ? -FH - 10 : 10}
+                    width={FW}
+                    height={FH}
+                    style={{ overflow: "visible" }}
+                  >
+                    <FieldElevationOffset
+                      value={value}
+                      onCommit={(val) =>
+                        onCommitOffset?.(v.pointIndex, edge, val)
+                      }
+                    />
+                  </foreignObject>
                 </g>
               </g>
             );
