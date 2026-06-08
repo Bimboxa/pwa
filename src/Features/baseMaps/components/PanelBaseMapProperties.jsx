@@ -23,10 +23,19 @@ import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 import db from "App/db/db";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 
-import { Box, Typography, IconButton, Menu, MenuItem, InputBase } from "@mui/material";
+import {
+  Box,
+  Typography,
+  IconButton,
+  Menu,
+  MenuItem,
+  InputBase,
+  ButtonBase,
+} from "@mui/material";
 import {
   MoreVert as MoreActionsIcon,
   ArrowBack as Back,
+  ChevronRight,
 } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -36,6 +45,7 @@ import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
 import FieldBaseMapVersions from "./FieldBaseMapVersions";
 import SectionVersionTransforms from "./SectionVersionTransforms";
+import PanelBaseMapPositionInMainRef from "./PanelBaseMapPositionInMainRef";
 
 export default function PanelBaseMapProperties() {
   const dispatch = useDispatch();
@@ -62,6 +72,7 @@ export default function PanelBaseMapProperties() {
   const [openDeleteVersion, setOpenDeleteVersion] = useState(false);
   const [nameValue, setNameValue] = useState(null);
   const [versionLabelValue, setVersionLabelValue] = useState(null);
+  const [view, setView] = useState("main"); // "main" | "position3d"
 
   // helpers
 
@@ -166,6 +177,15 @@ export default function PanelBaseMapProperties() {
 
   if (!baseMap) return null;
 
+  if (view === "position3d") {
+    return (
+      <PanelBaseMapPositionInMainRef
+        baseMap={baseMap}
+        onBack={() => setView("main")}
+      />
+    );
+  }
+
   const infoParts = [];
   if (aspectRatio) infoParts.push(`r:${aspectRatio}`);
   if (fileSizeS) infoParts.push(fileSizeS);
@@ -243,6 +263,23 @@ export default function PanelBaseMapProperties() {
 
         <WhiteSectionGeneric>
           <FieldBaseMapOpacity baseMap={baseMap} />
+        </WhiteSectionGeneric>
+
+        <WhiteSectionGeneric>
+          <ButtonBase
+            onClick={() => setView("position3d")}
+            sx={{
+              width: 1,
+              p: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              borderRadius: 1,
+            }}
+          >
+            <Typography variant="body2">Position 3D</Typography>
+            <ChevronRight color="action" />
+          </ButtonBase>
         </WhiteSectionGeneric>
 
         <FieldBaseMapVersions baseMap={baseMap} />

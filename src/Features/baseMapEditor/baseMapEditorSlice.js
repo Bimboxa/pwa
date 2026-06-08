@@ -25,6 +25,10 @@ const baseMapEditorInitialState = {
   // Per-version calibration target positions (relative to image, 0..1)
   // { [versionId]: { red: {x, y}, green: {x, y} } }
   calibrationTargetsByVersionId: {},
+  // Per-color target visibility, used by the "Position 3D" recalage panel to
+  // show/hide and select which targets (1 or 2) drive the recalage. Both true
+  // by default so the version-vs-version calibration UI is unaffected.
+  calibrationTargetVisible: { red: true, green: true },
 };
 
 export const baseMapEditorSlice = createSlice({
@@ -105,6 +109,11 @@ export const baseMapEditorSlice = createSlice({
       const { versionId, red, green } = action.payload;
       state.calibrationTargetsByVersionId[versionId] = { red, green };
     },
+    setCalibrationTargetVisible: (state, action) => {
+      // { color: "red" | "green", visible: boolean }
+      const { color, visible } = action.payload;
+      state.calibrationTargetVisible[color] = visible;
+    },
   },
 });
 
@@ -125,6 +134,7 @@ export const {
   setIsCalibrating,
   setShowCalibration,
   setCalibrationTargets,
+  setCalibrationTargetVisible,
 } = baseMapEditorSlice.actions;
 
 export default baseMapEditorSlice.reducer;
