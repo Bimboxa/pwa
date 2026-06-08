@@ -27,9 +27,49 @@ const DIM_MATERIAL = new MeshBasicMaterial({
   depthWrite: false,
 });
 
+const HOVER_COLOR = 0x00ff00;
+const DIM_COLOR = 0x888888;
+
 export const STATE_NONE = "none";
 export const STATE_HOVER = "hover";
 export const STATE_DIM = "dim";
+
+// Fat-line objects (Line2, e.g. the POINT height trait) render with a
+// LineMaterial; swapping in the MeshBasicMaterial singletons would break them
+// (the instanced LineGeometry needs the line shader). Instead, lazily clone the
+// original LineMaterial — preserving its linewidth/thickness, resolution,
+// worldUnits and depthTest — and just recolor it. Clones are cached on the
+// child so hover/dim transitions don't reallocate.
+function isLineObject(child) {
+  return (
+    child.isLine2 ||
+    child.isLineSegments2 ||
+    !!child.userData?.originalMaterial?.isLineMaterial
+  );
+}
+
+function lineStateMaterial(child, state) {
+  const orig = child.userData.originalMaterial;
+  if (state === STATE_HOVER) {
+    if (!child.userData.hoverLineMaterial) {
+      const m = orig.clone();
+      m.color.set(HOVER_COLOR);
+      child.userData.hoverLineMaterial = m;
+    }
+    return child.userData.hoverLineMaterial;
+  }
+  if (state === STATE_DIM) {
+    if (!child.userData.dimLineMaterial) {
+      const m = orig.clone();
+      m.color.set(DIM_COLOR);
+      m.transparent = true;
+      m.opacity = 0.3;
+      child.userData.dimLineMaterial = m;
+    }
+    return child.userData.dimLineMaterial;
+  }
+  return orig;
+}
 
 export default function applyAnnotationMaterialState(object3D, state) {
   if (!object3D) return;
@@ -39,6 +79,11 @@ export default function applyAnnotationMaterialState(object3D, state) {
     if (!child.userData) child.userData = {};
     if (!child.userData.originalMaterial) {
       child.userData.originalMaterial = child.material;
+    }
+
+    if (isLineObject(child)) {
+      child.material = lineStateMaterial(child, state);
+      return;
     }
 
     if (state === STATE_HOVER) {
