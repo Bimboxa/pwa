@@ -522,11 +522,12 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         resolution: options?.resolution, // Vector2 from AnnotationsManager
         worldUnits: false, // screen-space px thickness
         transparent: true,
-        depthTest: false, // always visible, like the drawing trait
+        // Respect the depth buffer so the trait is occluded by walls / other
+        // annotations standing in front of it (no more "always on top").
+        depthTest: true,
       });
       const line = new Line2(geom, lineMat);
       line.computeLineDistances();
-      line.renderOrder = 999;
       // Make the trait hover/click-pickable in 3D (select the POINT) without
       // three's fragile screen-space Line2 raycast — see attachPointTraitRaycast.
       attachPointTraitRaycast(
