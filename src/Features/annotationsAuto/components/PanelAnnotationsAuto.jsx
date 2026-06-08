@@ -180,12 +180,15 @@ export default function PanelAnnotationsAuto() {
         sourceListingId: hideSourceListing ? null : selectedSourceListingId,
         procedureKey: selectedProcedureKey,
       });
-      const count = result?.annotations?.length ?? 0;
-      if (count > 0) {
+      const created = result?.annotations?.length ?? 0;
+      const updated = result?.updatedAnnotations?.length ?? 0;
+      if (created > 0 || updated > 0) {
         fireFlash();
-        dispatch(
-          setToaster({ message: `${count} annotation(s) créée(s)` })
-        );
+        const message =
+          created > 0
+            ? `${created} annotation(s) créée(s)`
+            : `${updated} annotation(s) mise(s) à jour`;
+        dispatch(setToaster({ message }));
       } else {
         dispatch(
           setToaster({

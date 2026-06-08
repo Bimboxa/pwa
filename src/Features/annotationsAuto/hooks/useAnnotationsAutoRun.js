@@ -127,9 +127,36 @@ export default function useAnnotationsAutoRun() {
       );
     }
 
-    // fetch relAnnotationMappingCategory for source annotations
+    // fetch raw POINT annotations of the base map, each enriched with a resolved
+    // `point` (pixel coords) for geometry. The raw `point: {id}` reference is
+    // kept so procedures can persist updates without writing pixel coordinates.
 
-    const annotationIds = sourceAnnotations.map((a) => a.id);
+    const rawAllAnnotations = (
+      await db.annotations.where("baseMapId").equals(baseMapId).toArray()
+    ).filter((r) => !r.deletedAt);
+
+    const rawAllPoints = (
+      await db.points.where("baseMapId").equals(baseMapId).toArray()
+    ).filter((r) => !r.deletedAt);
+    const allPointsIndex = getItemsByKey(rawAllPoints, "id");
+
+    const pointAnnotations = rawAllAnnotations
+      .filter((a) => a.type === "POINT" && a.point?.id)
+      .map((a) => ({
+        ...a,
+        resolvedPoint: resolvePoints({
+          points: [a.point],
+          pointsIndex: allPointsIndex,
+          imageSize,
+        })[0],
+      }));
+
+    // fetch relAnnotationMappingCategory for source annotations + point annotations
+
+    const annotationIds = [
+      ...sourceAnnotations.map((a) => a.id),
+      ...pointAnnotations.map((a) => a.id),
+    ];
     const sourceRels = annotationIds.length
       ? await db.relAnnotationMappingCategory
           .where("annotationId")
@@ -186,6 +213,7 @@ export default function useAnnotationsAutoRun() {
     const result = procedureFn({
       sourceAnnotations,
       sourceRels,
+      pointAnnotations,
       templatesByListingId,
       imageSize,
       meterByPx,
