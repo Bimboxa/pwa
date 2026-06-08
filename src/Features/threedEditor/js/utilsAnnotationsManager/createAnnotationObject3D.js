@@ -1,9 +1,24 @@
-import { MeshLambertMaterial, Color, Group, Vector3 } from "three";
+import {
+  MeshLambertMaterial,
+  Color,
+  Group,
+  Vector3,
+  BufferGeometry,
+  Float32BufferAttribute,
+  Mesh,
+  DoubleSide,
+  LineSegments,
+  LineBasicMaterial,
+} from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
-import getStripePolygons from "Features/geometry/utils/getStripePolygons";
+import getStripePolygons, {
+  getStripChunks,
+  getStripDistancePx,
+} from "Features/geometry/utils/getStripePolygons";
+import buildSlopedStripMesh from "Features/geometry/utils/buildSlopedStripMesh";
 import wallToRectRing, {
   wallToHollowRings,
 } from "Features/geometry/utils/wallToRectRing";
@@ -195,6 +210,92 @@ function bboxToCorners(bbox) {
   ];
 }
 
+// Lift the white fold lines just above the surface to avoid z-fighting.
+const STRIP_FOLD_LINE_LIFT = 0.004;
+
+// True when a STRIP carries per-point elevation (offsetTop). Only then do we
+// take the sloped-nappe path; flat strips (all offsetTop = 0) keep the existing
+// polygon-clipping footprint path unchanged.
+function stripHasElevation(annotation) {
+  return (annotation.points || []).some((p) => (p?.offsetTop ?? 0) !== 0);
+}
+
+// Build a sloped single-surface ("nappe sans épaisseur") STRIP from per-point
+// offsetTop, as a quad-strip ribbon along the centerline (bypassing polygon-
+// clipping so the elevation survives and each station yields a real transverse
+// edge → clean horizontal↔slope junctions). Returns null for closed/annular
+// strips (out of scope v1) so the caller can fall back to the flat path.
+function buildSlopedStripGroup(annotation, baseMap, material, verticalLift) {
+  const { effectiveCloseLine, chunks } = getStripChunks(annotation);
+  if (effectiveCloseLine) return null; // annular elevated strip: out of scope v1
+  if (!chunks || chunks.length === 0) return null;
+
+  const distance = getStripDistancePx(annotation, baseMap.meterByPx);
+
+  const group = new Group();
+  const foldSegments = [];
+  // A sloped strip is a SURFACE (no volume): both faces must read with the SAME
+  // color, so drop the back-face darkening that makeMaterial bakes in for closed
+  // shells (gl_FrontFacing). A distinct cache key forces three to compile this
+  // un-darkened program separately from the shared annotation material.
+  const surfaceMaterial = material.clone();
+  surfaceMaterial.side = DoubleSide;
+  surfaceMaterial.onBeforeCompile = () => {};
+  surfaceMaterial.customProgramCacheKey = () => "annotationStripSurfaceNoDarken";
+  surfaceMaterial.needsUpdate = true;
+  chunks.forEach((chunkPoints) => {
+    const built = buildSlopedStripMesh({
+      chunkPoints,
+      distance,
+      baseMap,
+      verticalLift,
+    });
+    if (!built) return;
+    const geometry = new BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new Float32BufferAttribute(built.positions, 3)
+    );
+    geometry.setIndex(Array.from(built.indices));
+    geometry.computeVertexNormals();
+    const solidMesh = new Mesh(geometry, surfaceMaterial);
+    // Tag the solid so the CSG / subtraction pipeline can locate it.
+    solidMesh.userData = { role: "SOLID" };
+    group.add(solidMesh);
+    if (built.transverseSegments?.length) {
+      foldSegments.push(...built.transverseSegments);
+    }
+  });
+
+  if (group.children.length === 0) return null;
+
+  // White transverse lines marking the horizontal↔slope junctions.
+  if (foldSegments.length > 0) {
+    const lifted = [];
+    for (let i = 0; i < foldSegments.length; i += 3) {
+      lifted.push(
+        foldSegments[i],
+        foldSegments[i + 1],
+        foldSegments[i + 2] + STRIP_FOLD_LINE_LIFT
+      );
+    }
+    const g = new BufferGeometry();
+    g.setAttribute("position", new Float32BufferAttribute(lifted, 3));
+    group.add(
+      new LineSegments(
+        g,
+        new LineBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.9,
+        })
+      )
+    );
+  }
+
+  return group;
+}
+
 // Resolve a STRIP annotation into closed polygons and extrude each one.
 // Mirrors what NodeStripStatic does in 2D so the 3D matches the visible 2D
 // footprint (closeLine, hiddenSegmentsIdx, cuts).
@@ -205,6 +306,18 @@ function extrudeStripPolygons(
   material,
   verticalLift
 ) {
+  // Sloped single-surface strip when points carry offsetTop; otherwise fall
+  // through to the flat footprint path (zero behavior change for flat strips).
+  if (stripHasElevation(annotation)) {
+    const sloped = buildSlopedStripGroup(
+      annotation,
+      baseMap,
+      material,
+      verticalLift
+    );
+    if (sloped) return sloped;
+  }
+
   const polys = getStripePolygons(annotation, baseMap.meterByPx, true);
   if (!polys || polys.length === 0) return null;
   const group = new Group();

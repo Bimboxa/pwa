@@ -64,40 +64,50 @@ function getClosedStripPolygon(points, distance, cuts, applyCutsMath) {
 }
 
 /**
- * Calcule la géométrie finale des polygones d'un Strip.
- * @param {Object} annotation - L'objet annotation complet (points, cuts, props...)
- * @param {number} baseMapMeterByPx - Échelle de la carte
- * @param {boolean} [applyCutsMath=true] - Si true, calcule l'intersection réelle (modifie le contour ext).
- * Si false, retourne le contour offset et les cuts bruts (pour l'édition).
- * @returns {Array<{points: Array, cuts: Array}>} Un tableau de formes (une par tronçon visible).
+ * Signed offset distance (in PIXELS) of a strip's band, accounting for the
+ * CM↔PX unit and the strip orientation sign. Single-sourced so the 2D footprint
+ * path and the 3D sloped-strip builder use the exact same width.
+ * @param {Object} annotation
+ * @param {number} baseMapMeterByPx
+ * @returns {number}
  */
-export default function getStripePolygons(annotation, baseMapMeterByPx, applyCutsMath = true) {
+export function getStripDistancePx(annotation, baseMapMeterByPx) {
     const {
-        points = [],
-        cuts = [],
         strokeWidth = 20,
         strokeWidthUnit = "PX",
-        hiddenSegmentsIdx = [],
         stripOrientation = 1,
+    } = annotation || {};
+
+    const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx > 0;
+    if (isCmUnit) {
+        // CM -> meters -> pixels, then orientation sign.
+        return ((strokeWidth * 0.01) / baseMapMeterByPx) * stripOrientation;
+    }
+    // Raw pixels.
+    return strokeWidth * stripOrientation;
+}
+
+/**
+ * Resolve a strip's closure state and visible chunks. Detects implicit closure
+ * (last point == first point) and splits the (open) centerline into contiguous
+ * chunks at `hiddenSegmentsIdx`. Each chunk keeps the original point objects
+ * (so per-point offsetTop survives). Single-sourced so the 2D footprint path and
+ * the 3D sloped-strip builder decompose strips identically.
+ * @param {Object} annotation
+ * @returns {{effectiveCloseLine: boolean, effectivePoints: Array, chunks: Array<Array>}}
+ */
+export function getStripChunks(annotation) {
+    const {
+        points = [],
+        hiddenSegmentsIdx = [],
         closeLine = false,
     } = annotation || {};
 
-    // 1. Validation de base
-    if (!points || points.length < 2) return [];
-
-    // 2. Calcul de la distance d'offset (Largeur du strip)
-    const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx > 0;
-
-    let distance;
-    if (isCmUnit) {
-        // Conversion CM -> Mètres -> Pixels, puis application de l'orientation
-        distance = (strokeWidth * 0.01) / baseMapMeterByPx * stripOrientation;
-    } else {
-        // Pixels bruts
-        distance = strokeWidth * stripOrientation;
+    if (!points || points.length < 2) {
+        return { effectiveCloseLine: false, effectivePoints: [], chunks: [] };
     }
 
-    // 3. Detect implicit closure (last point equals first point)
+    // Detect implicit closure (last point equals first point).
     let effectiveCloseLine = closeLine;
     let effectivePoints = points;
     if (!effectiveCloseLine && points.length >= 4) {
@@ -109,16 +119,9 @@ export default function getStripePolygons(annotation, baseMapMeterByPx, applyCut
         }
     }
 
-    // 4. Closed strip: compute annular band directly
-    if (effectiveCloseLine && effectivePoints.length >= 3) {
-        const result = getClosedStripPolygon(effectivePoints, distance, cuts, applyCutsMath);
-        return result ? [result] : [];
-    }
-
-    // 5. Découpage en tronçons (Chunks) selon les segments cachés
+    // Découpage en tronçons (Chunks) selon les segments cachés.
     const chunks = [];
     let currentChunk = [effectivePoints[0]];
-
     for (let i = 0; i < effectivePoints.length - 1; i++) {
         if (hiddenSegmentsIdx.includes(i)) {
             if (currentChunk.length > 1) chunks.push(currentChunk);
@@ -128,6 +131,36 @@ export default function getStripePolygons(annotation, baseMapMeterByPx, applyCut
         }
     }
     if (currentChunk.length > 1) chunks.push(currentChunk);
+
+    return { effectiveCloseLine, effectivePoints, chunks };
+}
+
+/**
+ * Calcule la géométrie finale des polygones d'un Strip.
+ * @param {Object} annotation - L'objet annotation complet (points, cuts, props...)
+ * @param {number} baseMapMeterByPx - Échelle de la carte
+ * @param {boolean} [applyCutsMath=true] - Si true, calcule l'intersection réelle (modifie le contour ext).
+ * Si false, retourne le contour offset et les cuts bruts (pour l'édition).
+ * @returns {Array<{points: Array, cuts: Array}>} Un tableau de formes (une par tronçon visible).
+ */
+export default function getStripePolygons(annotation, baseMapMeterByPx, applyCutsMath = true) {
+    const { points = [], cuts = [] } = annotation || {};
+
+    // 1. Validation de base
+    if (!points || points.length < 2) return [];
+
+    // 2. Calcul de la distance d'offset (Largeur du strip)
+    const distance = getStripDistancePx(annotation, baseMapMeterByPx);
+
+    // 3. Résolution de la fermeture + découpage en tronçons
+    const { effectiveCloseLine, effectivePoints, chunks } =
+        getStripChunks(annotation);
+
+    // 4. Closed strip: compute annular band directly
+    if (effectiveCloseLine && effectivePoints.length >= 3) {
+        const result = getClosedStripPolygon(effectivePoints, distance, cuts, applyCutsMath);
+        return result ? [result] : [];
+    }
 
     // 5. Génération des polygones pour chaque chunk
     const polygons = chunks.map((chunkPoints) => {
