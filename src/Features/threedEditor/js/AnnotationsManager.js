@@ -170,6 +170,12 @@ export default class AnnotationsManager {
       }
 
       this.annotationsObjectsMap[annotation.id] = object;
+      // Remember the owning basemap so the display controller can tell main vs
+      // other-basemap annotations apart (per-basemap NORMAL/DIMMED rendering).
+      if (object) {
+        if (!object.userData) object.userData = {};
+        object.userData.baseMapId = annotation.baseMapId;
+      }
       // Attach to the basemap's group so transforms applied to the basemap
       // (translate/rotate from the BASEMAP_POSITION editor mode) propagate to
       // the annotations for free.

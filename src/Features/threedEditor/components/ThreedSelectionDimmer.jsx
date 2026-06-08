@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import applyAnnotationMaterialState, {
   STATE_DIM,
   STATE_HOVER,
@@ -25,11 +26,23 @@ import applyAnnotationMaterialState, {
 
 export default function ThreedSelectionDimmer({ threedEditorRef, hoveredIdRef }) {
   const selectedItems = useSelector((s) => s.selection.selectedItems);
+  const annotationsModeByBaseMapId = useSelector(
+    (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
+  );
+  const mainBaseMap = useMainBaseMap();
+  const mainBaseMapId = mainBaseMap?.id ?? null;
 
   const selectedIdsRef = useRef([]);
   selectedIdsRef.current = selectedItems
     .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
     .map((i) => i.nodeId || i.id);
+
+  // Read latest per-basemap modes / main id at apply time so the
+  // subscribe-on-ready path (async GLB loads) also picks up current settings.
+  const annotationsModeRef = useRef(annotationsModeByBaseMapId);
+  annotationsModeRef.current = annotationsModeByBaseMapId;
+  const mainBaseMapIdRef = useRef(mainBaseMapId);
+  mainBaseMapIdRef.current = mainBaseMapId;
 
   const computeAndApply = useCallback(
     (id) => {
@@ -41,9 +54,19 @@ export default function ThreedSelectionDimmer({ threedEditorRef, hoveredIdRef })
       if (!obj) return;
       const selectedIds = selectedIdsRef.current;
       const hoveredId = hoveredIdRef?.current ?? null;
+
+      // Annotations belonging to a non-main basemap set to "DIMMED" render
+      // grey-translucent regardless of the current selection.
+      const bmId = obj.userData?.baseMapId ?? null;
+      const isMain = bmId === mainBaseMapIdRef.current;
+      const mode = isMain
+        ? "NORMAL"
+        : annotationsModeRef.current?.[bmId] ?? "NONE";
+
       let state;
       if (selectedIds.includes(id)) state = STATE_NONE;
       else if (id === hoveredId) state = STATE_HOVER;
+      else if (!isMain && mode === "DIMMED") state = STATE_DIM;
       else if (selectedIds.length > 0) state = STATE_DIM;
       else state = STATE_NONE;
       applyAnnotationMaterialState(obj, state);
@@ -51,7 +74,8 @@ export default function ThreedSelectionDimmer({ threedEditorRef, hoveredIdRef })
     [threedEditorRef, hoveredIdRef]
   );
 
-  // Apply state to every existing annotation when the selection changes.
+  // Apply state to every existing annotation when the selection — or the
+  // per-basemap annotation mode / main basemap — changes.
   useEffect(() => {
     const editor = threedEditorRef.current;
     if (!editor) return;
@@ -60,7 +84,13 @@ export default function ThreedSelectionDimmer({ threedEditorRef, hoveredIdRef })
     const ids = Object.keys(manager.annotationsObjectsMap || {});
     ids.forEach(computeAndApply);
     editor.renderScene?.();
-  }, [selectedItems, computeAndApply, threedEditorRef]);
+  }, [
+    selectedItems,
+    annotationsModeByBaseMapId,
+    mainBaseMapId,
+    computeAndApply,
+    threedEditorRef,
+  ]);
 
   // Re-apply state to a single annotation when its 3D object is (re)created
   // or finishes its async GLB load. Without this, GLBs that load after a

@@ -44,9 +44,20 @@ export default class ImagesManager {
 
   // Toggle a cached basemap group's visibility without removing it from the
   // scene, so re-showing it later is a cheap flag flip (no texture reload).
+  // Note: the group hosts both the image (meshWrap) AND the annotations, so
+  // this gates everything for the basemap. Use `setBaseMapImageVisible` to
+  // toggle only the image while keeping annotations rendered.
   setBaseMapVisible(baseMapId, visible) {
     const group = this.imagesMap[baseMapId];
     if (group) group.visible = visible;
+  }
+
+  // Toggle only the basemap image (the meshWrap child) while leaving the
+  // group — and therefore its attached annotation objects — visible. Lets a
+  // basemap's annotations show in 3D even when its image is hidden.
+  setBaseMapImageVisible(baseMapId, visible) {
+    const meshWrap = this.imagesMap[baseMapId]?.userData?.meshWrap;
+    if (meshWrap) meshWrap.visible = visible;
   }
 
   // Look up a basemap's group (parent for annotations attached to that map).
