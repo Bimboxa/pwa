@@ -1,4 +1,5 @@
 import getStripePolygons from "Features/geometry/utils/getStripePolygons";
+import { computeSlopedStripQty } from "Features/geometry/utils/buildSlopedStripMesh";
 import triangulateAnnotationGeometry, {
   ISO_BAND_LEVELS,
 } from "Features/geometry/utils/triangulateAnnotationGeometry";
@@ -258,6 +259,20 @@ export default function getAnnotationQties({
           length,
           surface: profileLengthMeters * length,
         };
+      }
+
+      // Sloped single-surface strip (per-point offsetTop): report the DEVELOPED
+      // (3D) length and surface, computed from the same rails as the rendered
+      // nappe so quantities and the 3D mesh stay consistent.
+      if (hasPerVertexZOffsets(annotation)) {
+        const dev = computeSlopedStripQty({ annotation, meterByPx });
+        if (dev) {
+          return {
+            enabled: true,
+            length: dev.length,
+            surface: dev.surface,
+          };
+        }
       }
 
       // Default surface: from the offset polygons (the ribbon)

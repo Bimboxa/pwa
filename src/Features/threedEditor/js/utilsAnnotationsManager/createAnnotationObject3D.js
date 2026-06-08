@@ -15,10 +15,11 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import getStripePolygons, {
-  getStripChunks,
   getStripDistancePx,
 } from "Features/geometry/utils/getStripePolygons";
-import buildSlopedStripMesh from "Features/geometry/utils/buildSlopedStripMesh";
+import buildSlopedStripMesh, {
+  getSlopedStripRibbons,
+} from "Features/geometry/utils/buildSlopedStripMesh";
 import wallToRectRing, {
   wallToHollowRings,
 } from "Features/geometry/utils/wallToRectRing";
@@ -223,12 +224,11 @@ function stripHasElevation(annotation) {
 // Build a sloped single-surface ("nappe sans épaisseur") STRIP from per-point
 // offsetTop, as a quad-strip ribbon along the centerline (bypassing polygon-
 // clipping so the elevation survives and each station yields a real transverse
-// edge → clean horizontal↔slope junctions). Returns null for closed/annular
-// strips (out of scope v1) so the caller can fall back to the flat path.
+// edge → clean horizontal↔slope junctions). Handles closed strips as a wrapping
+// loop ribbon. Returns null when no ribbon can be built (caller falls back).
 function buildSlopedStripGroup(annotation, baseMap, material, verticalLift) {
-  const { effectiveCloseLine, chunks } = getStripChunks(annotation);
-  if (effectiveCloseLine) return null; // annular elevated strip: out of scope v1
-  if (!chunks || chunks.length === 0) return null;
+  const ribbons = getSlopedStripRibbons(annotation);
+  if (!ribbons.length) return null;
 
   const distance = getStripDistancePx(annotation, baseMap.meterByPx);
 
@@ -243,12 +243,13 @@ function buildSlopedStripGroup(annotation, baseMap, material, verticalLift) {
   surfaceMaterial.onBeforeCompile = () => {};
   surfaceMaterial.customProgramCacheKey = () => "annotationStripSurfaceNoDarken";
   surfaceMaterial.needsUpdate = true;
-  chunks.forEach((chunkPoints) => {
+  ribbons.forEach(({ points, closeLine }) => {
     const built = buildSlopedStripMesh({
-      chunkPoints,
+      points,
       distance,
       baseMap,
       verticalLift,
+      closeLine,
     });
     if (!built) return;
     const geometry = new BufferGeometry();
