@@ -1,4 +1,4 @@
-import { MeshLambertMaterial, Color, Group } from "three";
+import { MeshLambertMaterial, Color, Group, Vector3 } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -31,6 +31,44 @@ import createObject3DAnnotation from "./createObject3DAnnotation";
 // Screen-space thickness (px) of the vertical "trait" rendered for a POINT
 // annotation with a height — matches DrawingOverlayThreed's LINEWIDTH_TRAIT.
 const POINT_TRAIT_LINEWIDTH_PX = 3;
+
+// Picking tolerance for the POINT trait, as a fraction of the camera→hit
+// distance (≈0.008 rad ≈ a handful of screen px at the editor's FOV), with a
+// 2 cm floor so very near traits stay pickable.
+const POINT_TRAIT_PICK_ANGULAR = 0.008;
+const POINT_TRAIT_PICK_MIN_M = 0.02;
+
+// Reused temporaries for the POINT trait raycast (avoid per-call allocation).
+const _ptA = new Vector3();
+const _ptB = new Vector3();
+const _ptOnRay = new Vector3();
+const _ptOnSeg = new Vector3();
+
+// Give a POINT trait Line2 a custom raycast that does NOT rely on three's
+// screen-space LineSegments2.raycast: that path needs material.resolution +
+// raycaster.params.Line2.threshold to be usable (and historically threw when a
+// stale prebundle left resolution undefined, which broke ALL scene picking
+// since intersectObjects iterates every object). Here we measure the ray's
+// distance to the trait segment in world space and accept the hit within a
+// distance-scaled tolerance, pushing a Mesh-shaped intersection so the existing
+// `i.object.isMesh` hover/click filter keeps it (Line2 extends Mesh).
+function attachPointTraitRaycast(line, localStart, localEnd) {
+  line.raycast = function (raycaster, intersects) {
+    const ray = raycaster.ray;
+    _ptA.copy(localStart).applyMatrix4(this.matrixWorld);
+    _ptB.copy(localEnd).applyMatrix4(this.matrixWorld);
+    const distSq = ray.distanceSqToSegment(_ptA, _ptB, _ptOnRay, _ptOnSeg);
+    const dist = ray.origin.distanceTo(_ptOnSeg);
+    const threshold = Math.max(POINT_TRAIT_PICK_MIN_M, POINT_TRAIT_PICK_ANGULAR * dist);
+    if (distSq <= threshold * threshold) {
+      intersects.push({
+        distance: dist,
+        point: _ptOnSeg.clone(),
+        object: this,
+      });
+    }
+  };
+}
 
 // Reduce the rendered wall thickness slightly so its mesh doesn't z-fight
 // with overlay annotations laid on top of it later (e.g. wall coverings).
@@ -489,11 +527,13 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       const line = new Line2(geom, lineMat);
       line.computeLineDistances();
       line.renderOrder = 999;
-      // Exclude the trait from raycasting: Line2.raycast throws when its
-      // material.resolution is unset on the picking path, which would break
-      // ALL 3D hover/picking (intersectObjects iterates the whole scene). The
-      // POINT is selected in 2D, so the 3D trait doesn't need to be pickable.
-      line.raycast = () => {};
+      // Make the trait hover/click-pickable in 3D (select the POINT) without
+      // three's fragile screen-space Line2 raycast — see attachPointTraitRaycast.
+      attachPointTraitRaycast(
+        line,
+        new Vector3(local.x, local.y, z0),
+        new Vector3(local.x, local.y, z1)
+      );
       object = line;
       break;
     }
