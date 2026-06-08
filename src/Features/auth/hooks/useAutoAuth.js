@@ -43,7 +43,7 @@ export default function useAutoAuth() {
                 }
             }
             catch (error) {
-                console.log("[useAutoAuth] error", error);
+                console.log("[useAutoAuth] error", error, "url", url);
             }
         }
     }
