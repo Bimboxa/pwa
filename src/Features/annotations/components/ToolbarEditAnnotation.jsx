@@ -44,6 +44,8 @@ import {
   BugReport as BugReportIcon,
   RestartAlt as ResetIcon,
   Close as CloseIcon,
+  VerticalAlignTop as TopIcon,
+  VerticalAlignBottom as BottomIcon,
 } from "@mui/icons-material";
 
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
@@ -114,8 +116,12 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   const [selectedCloneType, setSelectedCloneType] = useState(
     selectedAnnotation?.type
   );
+  const [stripElevation, setStripElevation] = useState("TOP");
 
   // helpers
+
+  const showStripElevation =
+    selectedCloneType === "STRIP" && selectedAnnotation?.type === "POLYLINE";
 
   const cloneTypeOptions = getCloneTypeOptions(selectedAnnotation?.type, part);
   const isMixedPart = hasPart && part.kind === "MIXED";
@@ -286,6 +292,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     await cloneAnnotationAndEntity(selectedAnnotation, {
       newAnnotation,
       part: hasPart ? part : undefined,
+      ...(showStripElevation ? { stripElevation } : {}),
     });
     handleCloneClose();
   }
@@ -892,6 +899,21 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 onChange={(v) =>
                   setSelectedCloneType(v ?? selectedAnnotation?.type)
                 }
+              />
+            </Box>
+          )}
+          {showStripElevation && (
+            <Box sx={{ px: 2, py: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
+                Position de la bande
+              </Typography>
+              <ToggleSingleSelectorGeneric
+                selectedKey={stripElevation}
+                options={[
+                  { key: "TOP", label: "Haut", icon: <TopIcon /> },
+                  { key: "BOTTOM", label: "Bas", icon: <BottomIcon /> },
+                ]}
+                onChange={(v) => setStripElevation(v ?? "TOP")}
               />
             </Box>
           )}

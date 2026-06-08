@@ -6,6 +6,9 @@ import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation"
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 
 import getPolygonsPointsFromStripAnnotation from "Features/annotations/utils/getPolygonsPointsFromStripAnnotation";
+import applyStripElevation, {
+  getStripElevationOffsetZ,
+} from "Features/annotations/utils/applyStripElevation";
 
 // Compute signed area to determine polygon winding order.
 // Positive = counter-clockwise, negative = clockwise.
@@ -32,6 +35,7 @@ export default function useCloneAnnotationAndEntity() {
         // options
         const entityLabel = options?.entityLabel;
         const part = options?.part;
+        const stripElevation = options?.stripElevation;
         let newAnnotation = options?.newAnnotation;
 
         if (!newAnnotation) newAnnotation = _newAnnotation;
@@ -187,6 +191,26 @@ export default function useCloneAnnotationAndEntity() {
                     // CW (negative area) → right side is inside → orientation -1
                     clonedAnnotation.stripOrientation = signedArea >= 0 ? 1 : -1;
                 }
+            }
+
+            // Place the band's 3D surface at the TOP or BOTTOM of the source
+            // wall. Full clone only (part clones lack per-point offsets). Runs
+            // after the ...newAnnotation spread so the source wall's offsetZ
+            // overrides the template's.
+            if (
+                isToStrip &&
+                !hasPart &&
+                annotation.type === "POLYLINE" &&
+                (stripElevation === "TOP" || stripElevation === "BOTTOM")
+            ) {
+                clonedAnnotation.offsetZ = getStripElevationOffsetZ(
+                    annotation,
+                    stripElevation
+                );
+                clonedAnnotation.points = applyStripElevation(
+                    item.points,
+                    stripElevation
+                );
             }
 
             const _annotation = await createAnnotation(clonedAnnotation);
