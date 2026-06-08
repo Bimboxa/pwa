@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from "react";
+import { useDispatch } from "react-redux";
 
 import { Box, Typography } from "@mui/material";
 
@@ -7,6 +8,8 @@ import ElevationProfileSvg from "./ElevationProfileSvg";
 
 import useElevationProfile from "Features/elevation/hooks/useElevationProfile";
 import useElevationPointDrag from "Features/elevation/hooks/useElevationPointDrag";
+import commitElevationOffsetService from "Features/elevation/services/commitElevationOffsetService";
+import setAnnotationOffsetZService from "Features/elevation/services/setAnnotationOffsetZService";
 
 // Picks the segment whose projected X-band contains `x` (smallest band wins on
 // overlap from fold-backs); falls back to the nearest band. Returns the
@@ -57,8 +60,29 @@ export default function ElevationEditor({
   onSelectSegment,
 }) {
   const viewportRef = useRef(null);
+  const dispatch = useDispatch();
 
   const [hoveredSegmentIndex, setHoveredSegmentIndex] = useState(null);
+
+  const handleCommitOffset = useCallback(
+    (pointIndex, edge, value) => {
+      commitElevationOffsetService({
+        annotationId,
+        pointIndex,
+        edge,
+        value,
+        dispatch,
+      });
+    },
+    [annotationId, dispatch]
+  );
+
+  const handleCommitOffsetZ = useCallback(
+    (value) => {
+      setAnnotationOffsetZService({ annotationId, offsetZ: value, dispatch });
+    },
+    [annotationId, dispatch]
+  );
 
   // data
 
@@ -120,10 +144,13 @@ export default function ElevationEditor({
       }
       const profileH = Math.max(bbox.maxY - bbox.minY, 1);
       const profileW = Math.max(bbox.maxX - bbox.minX, 1);
-      // extend upward to keep the plan recap + labels in view
+      // extend upward to keep the plan recap + labels in view, and down to the
+      // baseMap reference plane (worldY = 0)
       const fitMinY = bbox.minY - profileH * 1.4 - 40;
-      const fitMaxY = bbox.maxY + profileH * 0.2 + 12;
-      const fitMinX = bbox.minX - profileW * 0.05 - 10;
+      const fitMaxY = Math.max(bbox.maxY, 0) + profileH * 0.2 + 24;
+      // extra left margin to keep the Offset field (left of the baseMap line)
+      // in view
+      const fitMinX = bbox.minX - profileW * 0.18 - 40;
       const fitMaxX = bbox.maxX + profileW * 0.05 + 10;
 
       const bw = Math.max(fitMaxX - fitMinX, 1);
@@ -176,9 +203,13 @@ export default function ElevationEditor({
           editedSegmentIndex={editedSegmentIndex}
           hoveredSegmentIndex={hoveredSegmentIndex}
           height={height}
+          meterByPx={meterByPx}
+          offsetZ={offsetZ}
           color={color}
           dragPreview={dragPreview}
           onHandleMouseDown={startHandleDrag}
+          onCommitOffset={handleCommitOffset}
+          onCommitOffsetZ={handleCommitOffsetZ}
         />
       </MapEditorViewport>
     </Box>
