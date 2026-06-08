@@ -1,14 +1,25 @@
 import { useSelector } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import { DEFAULT_RED, DEFAULT_GREEN } from "Features/mapEditor/utils/computeCalibrationTransform";
+import {
+  DEFAULT_RED,
+  DEFAULT_GREEN,
+} from "Features/mapEditor/utils/computeCalibrationTransform";
 
 const CALIBRATION_CLIP_ACTIVE_ID = "calibration-clip-active";
 const CALIBRATION_CLIP_REF_ID = "calibration-clip-ref";
 
 export { CALIBRATION_CLIP_ACTIVE_ID, CALIBRATION_CLIP_REF_ID };
 
-function CalibrationTarget({ cx, cy, color, containerK, targetColor, versionId, opacity = 1 }) {
+function CalibrationTarget({
+  cx,
+  cy,
+  color,
+  containerK,
+  targetColor,
+  versionId,
+  opacity = 1,
+}) {
   return (
     <g
       transform={`translate(${cx}, ${cy})`}
@@ -17,14 +28,27 @@ function CalibrationTarget({ cx, cy, color, containerK, targetColor, versionId, 
       data-version-id={versionId}
       style={{ cursor: "grab", opacity }}
     >
-      <g style={{
-        transform: `scale(calc(1 / (var(--map-zoom, 1) * ${containerK})))`,
-        transformOrigin: "0 0",
-      }}>
+      <g
+        style={{
+          transform: `scale(calc(1 / (var(--map-zoom, 1) * ${containerK})))`,
+          transformOrigin: "0 0",
+        }}
+      >
         {/* Outer colored circle */}
-        <circle r="18" fill="rgba(0,0,0,0.08)" stroke={color} strokeWidth="2.5" />
+        <circle
+          r="18"
+          fill="rgba(0,0,0,0.08)"
+          stroke={color}
+          strokeWidth="2.5"
+        />
         {/* Inner ring */}
-        <circle r="10" fill="none" stroke={color} strokeWidth="1" opacity="0.5" />
+        <circle
+          r="10"
+          fill="none"
+          stroke={color}
+          strokeWidth="1"
+          opacity="0.5"
+        />
         {/* White crosshair */}
         <line x1="-14" y1="0" x2="-4" y2="0" stroke="white" strokeWidth="2" />
         <line x1="4" y1="0" x2="14" y2="0" stroke="white" strokeWidth="2" />
@@ -37,30 +61,42 @@ function CalibrationTarget({ cx, cy, color, containerK, targetColor, versionId, 
   );
 }
 
-function TargetPair({ targets, width, height, containerK, versionId, opacity }) {
+function TargetPair({
+  targets,
+  width,
+  height,
+  containerK,
+  versionId,
+  opacity,
+  visible,
+}) {
   const redPos = { x: targets.red.x * width, y: targets.red.y * height };
   const greenPos = { x: targets.green.x * width, y: targets.green.y * height };
 
   return (
     <>
-      <CalibrationTarget
-        cx={redPos.x}
-        cy={redPos.y}
-        color="#e53935"
-        containerK={containerK}
-        targetColor="red"
-        versionId={versionId}
-        opacity={opacity}
-      />
-      <CalibrationTarget
-        cx={greenPos.x}
-        cy={greenPos.y}
-        color="#43a047"
-        containerK={containerK}
-        targetColor="green"
-        versionId={versionId}
-        opacity={opacity}
-      />
+      {visible.red && (
+        <CalibrationTarget
+          cx={redPos.x}
+          cy={redPos.y}
+          color="#e53935"
+          containerK={containerK}
+          targetColor="red"
+          versionId={versionId}
+          opacity={opacity}
+        />
+      )}
+      {visible.green && (
+        <CalibrationTarget
+          cx={greenPos.x}
+          cy={greenPos.y}
+          color="#43a047"
+          containerK={containerK}
+          targetColor="green"
+          versionId={versionId}
+          opacity={opacity}
+        />
+      )}
     </>
   );
 }
@@ -68,24 +104,17 @@ function TargetPair({ targets, width, height, containerK, versionId, opacity }) 
 export default function CalibrationLayer({ containerK }) {
   // data
 
-  const showCalibration = useSelector(
-    (s) => s.baseMapEditor.showCalibration
-  );
-  const isCalibrating = useSelector(
-    (s) => s.baseMapEditor.isCalibrating
-  );
+  const showCalibration = useSelector((s) => s.baseMapEditor.showCalibration);
+  const isCalibrating = useSelector((s) => s.baseMapEditor.isCalibrating);
   const calibrationTargetsByVersionId = useSelector(
     (s) => s.baseMapEditor.calibrationTargetsByVersionId
   );
-  const hiddenVersionIds = useSelector(
-    (s) => s.baseMapEditor.hiddenVersionIds
-  );
+  const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
   const versionCompareEnabled = useSelector(
     (s) => s.baseMapEditor.versionCompareEnabled
   );
-  const versionCompareId = useSelector(
-    (s) => s.baseMapEditor.versionCompareId
-  );
+  const versionCompareId = useSelector((s) => s.baseMapEditor.versionCompareId);
+  const visible = useSelector((s) => s.baseMapEditor.calibrationTargetVisible);
   const baseMap = useMainBaseMap();
 
   // helpers
@@ -99,7 +128,8 @@ export default function CalibrationLayer({ containerK }) {
   if (!imageSize) return null;
 
   const { width, height } = imageSize;
-  const isCompareCalibration = isCalibrating && versionCompareEnabled && versionCompareId;
+  const isCompareCalibration =
+    isCalibrating && versionCompareEnabled && versionCompareId;
 
   // Compare calibration mode: show targets for both versions with clip paths
   if (isCompareCalibration) {
@@ -117,10 +147,22 @@ export default function CalibrationLayer({ containerK }) {
         {/* Clip path definitions — rects updated by CompareVersionSlider */}
         <defs>
           <clipPath id={CALIBRATION_CLIP_ACTIVE_ID}>
-            <rect id={`${CALIBRATION_CLIP_ACTIVE_ID}-rect`} x={0} y={0} width={0} height={0} />
+            <rect
+              id={`${CALIBRATION_CLIP_ACTIVE_ID}-rect`}
+              x={0}
+              y={0}
+              width={0}
+              height={0}
+            />
           </clipPath>
           <clipPath id={CALIBRATION_CLIP_REF_ID}>
-            <rect id={`${CALIBRATION_CLIP_REF_ID}-rect`} x={0} y={0} width={0} height={0} />
+            <rect
+              id={`${CALIBRATION_CLIP_REF_ID}-rect`}
+              x={0}
+              y={0}
+              width={0}
+              height={0}
+            />
           </clipPath>
         </defs>
 
@@ -133,6 +175,7 @@ export default function CalibrationLayer({ containerK }) {
             containerK={containerK}
             versionId={versionCompareId}
             opacity={0.8}
+            visible={visible}
           />
         </g>
 
@@ -145,6 +188,7 @@ export default function CalibrationLayer({ containerK }) {
             containerK={containerK}
             versionId={activeVersion.id}
             opacity={1}
+            visible={visible}
           />
         </g>
       </g>
@@ -172,6 +216,7 @@ export default function CalibrationLayer({ containerK }) {
         containerK={containerK}
         versionId={activeVersion.id}
         opacity={1}
+        visible={visible}
       />
     </g>
   );
