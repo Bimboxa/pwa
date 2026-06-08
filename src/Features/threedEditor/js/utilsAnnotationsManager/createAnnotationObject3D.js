@@ -1,4 +1,7 @@
 import { MeshLambertMaterial, Color, Group } from "three";
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import getStripePolygons from "Features/geometry/utils/getStripePolygons";
 import wallToRectRing, {
@@ -24,6 +27,10 @@ import extrudePolylineWall from "./extrudePolylineWall";
 import buildRevolutionMesh from "./buildRevolutionMesh";
 import buildExtrudedProfileMesh from "./buildExtrudedProfileMesh";
 import createObject3DAnnotation from "./createObject3DAnnotation";
+
+// Screen-space thickness (px) of the vertical "trait" rendered for a POINT
+// annotation with a height — matches DrawingOverlayThreed's LINEWIDTH_TRAIT.
+const POINT_TRAIT_LINEWIDTH_PX = 3;
 
 // Reduce the rendered wall thickness slightly so its mesh doesn't z-fight
 // with overlay annotations laid on top of it later (e.g. wall coverings).
@@ -457,6 +464,32 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         material,
         verticalLift
       );
+      break;
+    }
+    case "POINT": {
+      // Render a POINT that carries a height as a thick vertical line standing
+      // up from the basemap plane (base at offsetZ, top at offsetZ + height),
+      // using the same screen-space fat-line technique as the 3D drawing trait.
+      const p = annotation.point;
+      if (!p) break;
+      if (height <= 0) break; // no height → nothing in 3D (unchanged behavior)
+      const local = pixelToWorld(p, baseMap); // { x, y } in basemap-local meters
+      const z0 = verticalLift; // base at offsetZ
+      const z1 = verticalLift + height; // top at offsetZ + height
+      const geom = new LineGeometry();
+      geom.setPositions([local.x, local.y, z0, local.x, local.y, z1]);
+      const lineMat = new LineMaterial({
+        color: normalizeHex(annotation.fillColor || "#2196f3"),
+        linewidth: POINT_TRAIT_LINEWIDTH_PX,
+        resolution: options?.resolution, // Vector2 from AnnotationsManager
+        worldUnits: false, // screen-space px thickness
+        transparent: true,
+        depthTest: false, // always visible, like the drawing trait
+      });
+      const line = new Line2(geom, lineMat);
+      line.computeLineDistances();
+      line.renderOrder = 999;
+      object = line;
       break;
     }
     case "OBJECT_3D": {
