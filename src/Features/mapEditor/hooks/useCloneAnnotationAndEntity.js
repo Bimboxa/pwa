@@ -209,7 +209,8 @@ export default function useCloneAnnotationAndEntity() {
                 );
                 clonedAnnotation.points = applyStripElevation(
                     item.points,
-                    stripElevation
+                    stripElevation,
+                    annotation
                 );
             }
 
