@@ -1,3 +1,5 @@
+import { Vector2 } from "three";
+
 import createAnnotationObject3D from "./utilsAnnotationsManager/createAnnotationObject3D";
 import subtractAnnotationGeometries from "./utilsAnnotationsManager/subtractAnnotationGeometries";
 import buildAnnotationSolidObjectsAsync from "./utilsAnnotationsManager/buildAnnotationSolidObjectsAsync";
@@ -37,6 +39,14 @@ export default class AnnotationsManager {
   createAnnotationsObjects(annotations, options) {
     if (!annotations) return;
 
+    // Canvas pixel size, needed by screen-space fat lines (LineMaterial) such as
+    // the POINT vertical "trait". Captured at build time, mirroring
+    // DrawingOverlayThreed.getCanvasResolution.
+    const dom = this.sceneManager.renderer?.domElement;
+    const resolution = dom
+      ? new Vector2(dom.clientWidth, dom.clientHeight)
+      : new Vector2(1, 1);
+
     annotations.forEach((annotation) => {
       const baseMap =
         this.sceneManager.imagesManager.baseMapsMap[annotation.baseMapId];
@@ -53,6 +63,7 @@ export default class AnnotationsManager {
 
       const object = createAnnotationObject3D(annotation, baseMapForRender, {
         ...options,
+        resolution,
         onAsyncLoaded: () => {
           this.sceneManager.renderScene();
           this._notifyAnnotationReady(annotation.id);
