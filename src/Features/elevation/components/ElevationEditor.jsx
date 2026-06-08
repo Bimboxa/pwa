@@ -150,15 +150,17 @@ export default function ElevationEditor({
         raf = requestAnimationFrame(fit);
         return;
       }
-      const profileH = Math.max(bbox.maxY - bbox.minY, 1);
+      // All margins are proportional to the developed width (meterByPx-
+      // independent), matching the recap/gap layout in ElevationProfileSvg, so
+      // the framing stays equally aerated whatever the map scale.
       const profileW = Math.max(bbox.maxX - bbox.minX, 1);
-      // extend upward to keep the plan recap + labels in view, and down to the
-      // baseMap reference plane (worldY = 0)
-      const fitMinY = bbox.minY - profileH * 1.4 - 40;
-      const fitMaxY = Math.max(bbox.maxY, 0) + profileH * 0.2 + 24;
+      // upward: recap band (GAP 0.45 + RECAP_PAD 0.18 of the width) + headroom
+      const fitMinY = bbox.minY - profileW * 0.8 - 16;
+      // down to the baseMap reference plane (worldY = 0)
+      const fitMaxY = Math.max(bbox.maxY, 0) + profileW * 0.12 + 16;
       // extra left margin to keep the Offset field (left of the baseMap line)
       // in view
-      const fitMinX = bbox.minX - profileW * 0.18 - 40;
+      const fitMinX = bbox.minX - profileW * 0.22 - 40;
       const fitMaxX = bbox.maxX + profileW * 0.05 + 10;
 
       const bw = Math.max(fitMaxX - fitMinX, 1);

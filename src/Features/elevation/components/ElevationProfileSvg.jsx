@@ -50,32 +50,39 @@ export default function ElevationProfileSvg({
 
   if (!vertices || vertices.length < 2) return null;
 
-  // --- vertical extents (stable: from non-preview vertices) ---
+  // --- extents (stable: from non-preview vertices) ---
   let eMinY = Infinity;
   let eMaxY = -Infinity;
   let pMin = Infinity;
   let pMax = -Infinity;
+  let xMin = Infinity;
+  let xMax = -Infinity;
   for (const v of vertices) {
     eMinY = Math.min(eMinY, v.topY, v.bottomY);
     eMaxY = Math.max(eMaxY, v.topY, v.bottomY);
     pMin = Math.min(pMin, v.planY);
     pMax = Math.max(pMax, v.planY);
-  }
-  const recapHeight = Math.max(pMax - pMin, 1);
-  const GAP = 40;
-  const recapY = (planY) => eMinY - GAP - (pMax - planY);
-  const gridTop = eMinY - GAP - recapHeight - 6;
-  // the baseMap reference plane is Z = 0 → worldY = 0; keep the grid down to it
-  const gridBottom = Math.max(eMaxY, 0) + 6;
-
-  // full width (for the baseMap reference line)
-  let xMin = Infinity;
-  let xMax = -Infinity;
-  for (const v of vertices) {
     xMin = Math.min(xMin, v.x);
     xMax = Math.max(xMax, v.x);
   }
-  const xPad = (xMax - xMin) * 0.08 + 10;
+
+  // All spacing is proportional to the developed width (image px, independent of
+  // meterByPx) so the layout stays equally "aéré" whatever the map scale.
+  const span = Math.max(xMax - xMin, 1);
+  const xPad = span * 0.08 + 10;
+
+  const recapHeight = Math.max(pMax - pMin, 1);
+  // gap between the "vue de dessus" recap and the elevation below it
+  const GAP = span * 0.45;
+  const recapY = (planY) => eMinY - GAP - (pMax - planY);
+  // white band around the recap (with vertical padding) to set it apart
+  const RECAP_PAD = span * 0.18;
+  const recapBandTop = eMinY - GAP - recapHeight - RECAP_PAD;
+  const recapBandBottom = eMinY - GAP + RECAP_PAD;
+  const recapBandCenter = (recapBandTop + recapBandBottom) / 2;
+  const gridTop = recapBandTop - 4;
+  // the baseMap reference plane is Z = 0 → worldY = 0; keep the grid down to it
+  const gridBottom = Math.max(eMaxY, 0) + 6;
 
   // edited segment vertices (preview-applied for live drag). The second vertex
   // is the next one along the chain — NOT pointIndex + 1, which is wrong for the
@@ -94,6 +101,32 @@ export default function ElevationProfileSvg({
 
   return (
     <g>
+      {/* white background band behind the "vue de dessus" recap */}
+      <rect
+        x={xMin - xPad}
+        y={recapBandTop}
+        width={xMax - xMin + xPad * 2}
+        height={recapBandBottom - recapBandTop}
+        fill="#ffffff"
+        stroke="none"
+      />
+
+      {/* "Vue de dessus" label, left side, vertically centered on the band */}
+      <g transform={`translate(${xMin - xPad}, ${recapBandCenter})`}>
+        <g style={COUNTER_ZOOM}>
+          <text
+            x={-128}
+            y={0}
+            fontSize={12}
+            fill="#666"
+            dominantBaseline="middle"
+            style={{ userSelect: "none" }}
+          >
+            Vue de dessus
+          </text>
+        </g>
+      </g>
+
       {/* vertical separations: grey (dashed) outside the surface, primary
           (dashed) across the surface */}
       {verts.map((v) => {
