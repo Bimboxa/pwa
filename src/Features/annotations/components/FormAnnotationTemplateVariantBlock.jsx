@@ -10,8 +10,8 @@ import FieldColorV2 from "Features/form/components/FieldColorV2";
 import FieldImageV2 from "Features/form/components/FieldImageV2";
 import FieldObject3D from "Features/object3D/components/FieldObject3D";
 import FieldIcon from "Features/form/components/FieldIcon";
-import FieldPointSize from "Features/form/components/FieldPointSize";
 import FieldAnnotationTemplateFill from "./FieldAnnotationTemplateFill";
+import FieldAnnotationTemplatePoint from "./FieldAnnotationTemplatePoint";
 import FieldAnnotationTemplateStroke from "./FieldAnnotationTemplateStroke";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
 import DRAWING_SHAPES from "Features/annotations/constants/drawingShapes.jsx";
@@ -119,8 +119,7 @@ export default function FormAnnotationTemplateVariantBlock({
     configurableProps.includes("strokeColor") ||
     configurableProps.includes("strokeWidth");
   const hasIcon = configurableProps.includes("iconKey");
-  const hasVariant = configurableProps.includes("variant");
-  const hasSize = configurableProps.includes("size");
+  const hasHeight = configurableProps.includes("height");
   const hasImage = configurableProps.includes("image");
   const hasObject3D = configurableProps.includes("object3D");
   const hasMeterByPx = configurableProps.includes("meterByPx");
@@ -211,10 +210,6 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handlePointChange(point) {
     onChange({ ...annotationTemplate, ...point });
-  }
-
-  function handlePointVariantChange(variant) {
-    onChange({ ...annotationTemplate, variant });
   }
 
   function handleDefaultToolChange(defaultTool) {
@@ -358,8 +353,8 @@ export default function FormAnnotationTemplateVariantBlock({
         />
       </WhiteSectionGeneric>
 
-      {/* Height (POLYLINE only) */}
-      {drawingShape === "POLYLINE" && (
+      {/* Height (POLYLINE, POINT) */}
+      {hasHeight && (
         <WhiteSectionGeneric>
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <OverrideToggle
@@ -376,8 +371,8 @@ export default function FormAnnotationTemplateVariantBlock({
         </WhiteSectionGeneric>
       )}
 
-      {/* Simple fill color (MARKER, LABEL, TEXT, POINT) */}
-      {useSimpleFillColor && (
+      {/* Simple fill color (MARKER, LABEL, TEXT) */}
+      {useSimpleFillColor && drawingShape !== "POINT" && (
         <Box sx={{ display: "flex", alignItems: "flex-start" }}>
           <OverrideToggle
             field="fillColor"
@@ -501,42 +496,15 @@ export default function FormAnnotationTemplateVariantBlock({
         </Box>
       )}
 
-      {/* Point variant selector (POINT) */}
-      {hasVariant && (
-        <Box sx={{ display: "flex", alignItems: "flex-start" }}>
-          <OverrideToggle
-            field="variant"
-            overrideFields={overrideFields}
-            onToggle={handleToggleOverride}
-          />
-          <Box sx={{ flex: 1 }}>
-            <FieldOptionKeyFromIconsVariantToolbar
-              label="Forme"
-              value={variant}
-              onChange={handlePointVariantChange}
-              valueOptions={pointVariants}
-              options={{ showAsSection: true, inline: true }}
-            />
-          </Box>
-        </Box>
-      )}
-
-      {/* Point size (POINT) */}
-      {hasSize && (
-        <Box sx={{ display: "flex", alignItems: "flex-start" }}>
-          <OverrideToggle
-            field="size"
-            overrideFields={overrideFields}
-            onToggle={handleToggleOverride}
-          />
-          <Box sx={{ flex: 1 }}>
-            <FieldPointSize
-              value={point}
-              onChange={handlePointChange}
-              label="Dimension"
-            />
-          </Box>
-        </Box>
+      {/* Point properties — color, variant, size grouped in one section (POINT) */}
+      {drawingShape === "POINT" && (
+        <FieldAnnotationTemplatePoint
+          value={point}
+          onChange={handlePointChange}
+          overrideFields={overrideFields}
+          onOverrideFieldsChange={handleOverrideFieldsChange}
+          variantOptions={pointVariants}
+        />
       )}
 
       {/* Image fields (IMAGE) */}

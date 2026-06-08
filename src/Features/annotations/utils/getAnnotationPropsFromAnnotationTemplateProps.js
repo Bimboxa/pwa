@@ -40,6 +40,16 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
     // edge case
 
     const sizeAllowed = !Array.isArray(overrideFields) || overrideFields.length === 0 || overrideFields.includes("size");
+
+    // sizeUnit is coupled to size: a numeric size is meaningless without its
+    // unit, so whenever size is overridden by the template we also push the
+    // template's sizeUnit. Otherwise an annotation keeps the unit it was created
+    // with and two annotations sharing the same template (and same size value)
+    // can render at completely different scales (e.g. 8 PX vs 8 CM).
+    if (sizeAllowed && annotationTemplateProps.sizeUnit !== null && annotationTemplateProps.sizeUnit !== undefined) {
+        result.sizeUnit = annotationTemplateProps.sizeUnit;
+    }
+
     if (sizeAllowed && annotationTemplateProps.size) {
         const { width, height } = annotationTemplateProps.size;
         const sizeUnit = annotationTemplateProps.sizeUnit;

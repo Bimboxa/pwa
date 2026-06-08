@@ -32,7 +32,7 @@ const DRAWING_SHAPE_CONFIG = {
     label: "Point",
     annotationType: "POINT",
     tools: ["ONE_CLICK"],
-    configurableProps: ["fillColor", "variant", "size", "sizeUnit"],
+    configurableProps: ["fillColor", "variant", "size", "sizeUnit", "height"],
     defaults: {
       fillColor: "#2196f3",
       variant: "CIRCLE",
@@ -88,6 +88,7 @@ const DRAWING_SHAPE_CONFIG = {
       "strokeOpacity",
       "strokeType",
       "strokeOffset",
+      "height",
     ],
     defaults: {
       strokeColor: secondary,
