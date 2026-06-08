@@ -13,19 +13,20 @@ export default function useElevationAnnotation() {
 
   const isPolyline = annotation?.type === "POLYLINE";
 
-  const points = isPolyline ? annotation?.points ?? [] : [];
+  const points = isPolyline ? (annotation?.points ?? []) : [];
+  const closeLine = isPolyline ? Boolean(annotation?.closeLine) : false;
   const meterByPx = baseMap?.getMeterByPx?.() ?? null;
   const height = parseFloat(annotation?.height) || 0;
   const offsetZ = Number(annotation?.offsetZ) || 0;
   // primary color = the polyline's own color
-  const color =
-    annotation?.strokeColor || annotation?.fillColor || "#c0392b";
+  const color = annotation?.strokeColor || annotation?.fillColor || "#c0392b";
 
   return {
     annotation: isPolyline ? annotation : null,
     annotationId: isPolyline ? annotation?.id : null,
     isPolyline,
     points,
+    closeLine,
     baseMap,
     meterByPx,
     height,

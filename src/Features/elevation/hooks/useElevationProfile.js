@@ -35,14 +35,16 @@ export default function useElevationProfile({
       return empty;
     }
 
-    // contiguous chain → ordered point indices [firstSeg .. lastSeg + 1]
-    const segs = [...selectedSegmentIndices].sort((a, b) => a - b);
-    const firstSeg = segs[0];
-    const lastSeg = segs[segs.length - 1];
-    const chainPointIndices = [];
-    for (let i = firstSeg; i <= lastSeg + 1; i++) {
-      if (points[i]) chainPointIndices.push(i);
-    }
+    // Ordered (possibly wrapping) chain of segments → ordered point indices.
+    // Each segment s connects points[s] -> points[(s + 1) % n]; consecutive
+    // segments share a vertex, so the point chain is the first segment's start
+    // followed by every segment's end vertex. Do NOT sort — a closed chain like
+    // [n-2, n-1, 0] would be reordered into a wrong contiguous range.
+    const n = points.length;
+    const segs = selectedSegmentIndices;
+    const chainPointIndices = [segs[0]];
+    for (const s of segs) chainPointIndices.push((s + 1) % n);
+    if (chainPointIndices.some((i) => !points[i])) return empty;
     if (chainPointIndices.length < 2) return empty;
 
     const pxPerMeter = 1 / meterByPx;
@@ -54,7 +56,11 @@ export default function useElevationProfile({
     const seedB = points[seedSegmentIndex + 1];
     let dx;
     let dy;
-    if (seedA && seedB && Math.hypot(seedB.x - seedA.x, seedB.y - seedA.y) > 1e-9) {
+    if (
+      seedA &&
+      seedB &&
+      Math.hypot(seedB.x - seedA.x, seedB.y - seedA.y) > 1e-9
+    ) {
       dx = seedB.x - seedA.x;
       dy = seedB.y - seedA.y;
     } else {

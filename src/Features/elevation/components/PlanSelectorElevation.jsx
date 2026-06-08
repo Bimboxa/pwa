@@ -7,6 +7,7 @@ import { Box } from "@mui/material";
 // (computed by the parent). The currently selected chain is drawn in bold pink.
 export default function PlanSelectorElevation({
   points,
+  closeLine = false,
   selectedSegmentIndices,
   seedSegmentIndex,
   hoveredSegmentIndex,
@@ -44,8 +45,9 @@ export default function PlanSelectorElevation({
   // projection line (droite) carried by the seed segment, extended to span the
   // whole view — this is the axis the elevation is projected onto
   const projectionLine = useMemo(() => {
+    const n = points?.length ?? 0;
     const a = points?.[seedSegmentIndex];
-    const b = points?.[seedSegmentIndex + 1];
+    const b = n > 0 ? points?.[(seedSegmentIndex + 1) % n] : null;
     if (!a || !b) return null;
     const dx = b.x - a.x;
     const dy = b.y - a.y;
@@ -66,8 +68,9 @@ export default function PlanSelectorElevation({
 
   // two arrows on each side of the seed segment → pick the viewing side
   const observationArrows = useMemo(() => {
+    const n = points?.length ?? 0;
     const a = points?.[seedSegmentIndex];
-    const b = points?.[seedSegmentIndex + 1];
+    const b = n > 0 ? points?.[(seedSegmentIndex + 1) % n] : null;
     if (!a || !b) return null;
     const dx = b.x - a.x;
     const dy = b.y - a.y;
@@ -103,7 +106,8 @@ export default function PlanSelectorElevation({
 
   // render
 
-  const nSegments = (points?.length ?? 0) - 1;
+  const n = points?.length ?? 0;
+  const nSegments = closeLine ? n : n - 1;
 
   return (
     <Box
@@ -136,15 +140,11 @@ export default function PlanSelectorElevation({
 
         {Array.from({ length: Math.max(0, nSegments) }).map((_, i) => {
           const a = points[i];
-          const b = points[i + 1];
+          const b = points[(i + 1) % n];
           if (!a || !b) return null;
           const isSeed = seedSegmentIndex === i;
           const isHovered = hoveredSegmentIndex === i;
-          const color = isSeed
-            ? "#76ff03"
-            : isHovered
-            ? "#2196f3"
-            : "#9e9e9e";
+          const color = isSeed ? "#76ff03" : isHovered ? "#2196f3" : "#9e9e9e";
           const width = isSeed ? 5 : isHovered ? 3 : 1.5;
           return (
             <g key={i}>

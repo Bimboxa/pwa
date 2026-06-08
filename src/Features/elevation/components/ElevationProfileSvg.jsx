@@ -76,9 +76,12 @@ export default function ElevationProfileSvg({
   }
   const xPad = (xMax - xMin) * 0.08 + 10;
 
-  // edited segment vertices (preview-applied for live drag)
-  const selA = verts.find((v) => v.pointIndex === editedSegmentIndex);
-  const selB = verts.find((v) => v.pointIndex === editedSegmentIndex + 1);
+  // edited segment vertices (preview-applied for live drag). The second vertex
+  // is the next one along the chain — NOT pointIndex + 1, which is wrong for the
+  // closing segment of a closed polyline (its far vertex is point 0, not n).
+  const selIdx = verts.findIndex((v) => v.pointIndex === editedSegmentIndex);
+  const selA = selIdx >= 0 ? verts[selIdx] : undefined;
+  const selB = selIdx >= 0 ? verts[selIdx + 1] : undefined;
 
   const COUNTER_ZOOM = { transform: "scale(calc(1 / var(--map-zoom, 1)))" };
   const HALF = 5;
@@ -218,7 +221,13 @@ export default function ElevationProfileSvg({
           so it never overlaps the first vertex's offsetBottom field */}
       <g transform={`translate(${xMin - xPad}, 0)`}>
         <g style={COUNTER_ZOOM}>
-          <foreignObject x={-128} y={-11} width={124} height={24} style={{ overflow: "visible" }}>
+          <foreignObject
+            x={-128}
+            y={-11}
+            width={124}
+            height={24}
+            style={{ overflow: "visible" }}
+          >
             <FieldElevationOffset
               label="Offset"
               value={offsetZ}

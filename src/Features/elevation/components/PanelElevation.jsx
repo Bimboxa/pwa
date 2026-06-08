@@ -27,6 +27,7 @@ export default function PanelElevation() {
     annotationId,
     isPolyline,
     points,
+    closeLine,
     meterByPx,
     height,
     offsetZ,
@@ -37,9 +38,7 @@ export default function PanelElevation() {
     (s) => s.elevation.selectedSegmentIndices
   );
   const seedSegmentIndex = useSelector((s) => s.elevation.seedSegmentIndex);
-  const editedSegmentIndex = useSelector(
-    (s) => s.elevation.editedSegmentIndex
-  );
+  const editedSegmentIndex = useSelector((s) => s.elevation.editedSegmentIndex);
   const hoveredSegmentIndex = useSelector(
     (s) => s.elevation.hoveredSegmentIndex
   );
@@ -56,13 +55,20 @@ export default function PanelElevation() {
     if (selectionAnnotationId === annotationId) return;
     dispatch(
       setSelectedSegmentIndices({
-        segmentIndices: getProjectableSegmentChain(points, 0),
+        segmentIndices: getProjectableSegmentChain(points, 0, { closeLine }),
         seedSegmentIndex: 0,
         annotationId,
       })
     );
     dispatch(setHoveredSegmentIndex(null));
-  }, [isPolyline, annotationId, points, selectionAnnotationId, dispatch]);
+  }, [
+    isPolyline,
+    annotationId,
+    points,
+    closeLine,
+    selectionAnnotationId,
+    dispatch,
+  ]);
 
   // handlers
 
@@ -75,7 +81,7 @@ export default function PanelElevation() {
   function handleSelectSeedSegment(i) {
     dispatch(
       setSelectedSegmentIndices({
-        segmentIndices: getProjectableSegmentChain(points, i),
+        segmentIndices: getProjectableSegmentChain(points, i, { closeLine }),
         seedSegmentIndex: i,
         annotationId,
       })
@@ -120,6 +126,7 @@ export default function PanelElevation() {
 
       <PlanSelectorElevation
         points={points}
+        closeLine={closeLine}
         selectedSegmentIndices={selectedSegmentIndices}
         seedSegmentIndex={seedSegmentIndex}
         hoveredSegmentIndex={hoveredSegmentIndex}
@@ -129,7 +136,14 @@ export default function PanelElevation() {
         onSetObservation={handleSetObservation}
       />
 
-      <Box sx={{ position: "relative", flexGrow: 1, minHeight: 0, display: "flex" }}>
+      <Box
+        sx={{
+          position: "relative",
+          flexGrow: 1,
+          minHeight: 0,
+          display: "flex",
+        }}
+      >
         <ElevationEditor
           annotationId={annotationId}
           points={points}
