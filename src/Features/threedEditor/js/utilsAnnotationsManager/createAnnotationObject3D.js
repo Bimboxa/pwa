@@ -489,6 +489,11 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       const line = new Line2(geom, lineMat);
       line.computeLineDistances();
       line.renderOrder = 999;
+      // Exclude the trait from raycasting: Line2.raycast throws when its
+      // material.resolution is unset on the picking path, which would break
+      // ALL 3D hover/picking (intersectObjects iterates the whole scene). The
+      // POINT is selected in 2D, so the 3D trait doesn't need to be pickable.
+      line.raycast = () => {};
       object = line;
       break;
     }
