@@ -12,6 +12,9 @@ import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import getPolygonsPointsFromStripAnnotation from "Features/annotations/utils/getPolygonsPointsFromStripAnnotation";
+import applyStripElevation, {
+  getStripElevationOffsetZ,
+} from "Features/annotations/utils/applyStripElevation";
 
 import db from "App/db/db";
 
@@ -46,6 +49,7 @@ export default function useCloneAnnotationsAndEntities() {
     if (!newAnnotation) newAnnotation = _newAnnotation;
 
     const entityLabel = options?.entityLabel;
+    const stripElevation = options?.stripElevation;
     const entityTable =
       selectedListing?.table ?? selectedListing?.entityModel?.defaultTable;
 
@@ -127,6 +131,24 @@ export default function useCloneAnnotationsAndEntities() {
             const signedArea = getSignedArea(item.points);
             clonedAnnotation.stripOrientation = signedArea >= 0 ? 1 : -1;
           }
+        }
+
+        // Place the band's 3D surface at the TOP or BOTTOM of the source wall.
+        // Runs AFTER the ...newAnnotation spread so the template's offsetZ is
+        // overridden by the source wall's offsetZ.
+        if (
+          isToStrip &&
+          annotation.type === "POLYLINE" &&
+          (stripElevation === "TOP" || stripElevation === "BOTTOM")
+        ) {
+          clonedAnnotation.offsetZ = getStripElevationOffsetZ(
+            annotation,
+            stripElevation
+          );
+          clonedAnnotation.points = applyStripElevation(
+            item.points,
+            stripElevation
+          );
         }
 
         allAnnotations.push(clonedAnnotation);

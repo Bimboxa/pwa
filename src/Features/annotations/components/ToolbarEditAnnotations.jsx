@@ -42,6 +42,8 @@ import {
   BugReport as BugReportIcon,
   CallMerge as MergeIcon,
   ArrowDropDown as ArrowDropDownIcon,
+  VerticalAlignTop as TopIcon,
+  VerticalAlignBottom as BottomIcon,
 } from "@mui/icons-material";
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
@@ -92,6 +94,7 @@ export default function ToolbarEditAnnotations({
   const [openDatagrid, setOpenDatagrid] = useState(false);
   const [cloneAnchorEl, setCloneAnchorEl] = useState(null);
   const [selectedCloneType, setSelectedCloneType] = useState(null);
+  const [stripElevation, setStripElevation] = useState("TOP");
   const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
 
   // helpers - selected annotations
@@ -205,6 +208,9 @@ export default function ToolbarEditAnnotations({
 
   const cloneTypeOptions = getCloneTypeOptions(firstAnnotation?.type);
 
+  const showStripElevation =
+    selectedCloneType === "STRIP" && firstAnnotation?.type === "POLYLINE";
+
   const filteredCloneCandidates = (() => {
     if (!cloneCandidates || !selectedCloneType) return cloneCandidates;
     if (selectedCloneType === "STRIP") return cloneCandidates;
@@ -239,7 +245,10 @@ export default function ToolbarEditAnnotations({
     if (resolvedType) newAnnotation.type = resolvedType;
     if (selectedCloneType) newAnnotation.type = selectedCloneType;
 
-    await cloneAnnotationsAndEntities(annotations, { newAnnotation });
+    await cloneAnnotationsAndEntities(annotations, {
+      newAnnotation,
+      ...(showStripElevation ? { stripElevation } : {}),
+    });
     handleCloneClose();
   }
 
@@ -515,6 +524,21 @@ export default function ToolbarEditAnnotations({
                 onChange={(v) =>
                   setSelectedCloneType(v ?? firstAnnotation?.type)
                 }
+              />
+            </Box>
+          )}
+          {showStripElevation && (
+            <Box sx={{ px: 2, py: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
+                Position de la bande
+              </Typography>
+              <ToggleSingleSelectorGeneric
+                selectedKey={stripElevation}
+                options={[
+                  { key: "TOP", label: "Haut", icon: <TopIcon /> },
+                  { key: "BOTTOM", label: "Bas", icon: <BottomIcon /> },
+                ]}
+                onChange={(v) => setStripElevation(v ?? "TOP")}
               />
             </Box>
           )}
