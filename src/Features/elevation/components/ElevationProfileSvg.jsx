@@ -29,6 +29,7 @@ export default function ElevationProfileSvg({
   onHandleMouseDown,
   onCommitOffset,
   onCommitOffsetZ,
+  onCommitHeight,
 }) {
   const theme = useTheme();
   const secondary = theme.palette.secondary.main;
@@ -216,6 +217,27 @@ export default function ElevationProfileSvg({
         strokeDasharray="6 4"
         vectorEffect="non-scaling-stroke"
       />
+
+      {/* height field, on the far left at mid-wall level (primary color) */}
+      <g transform={`translate(${xMin - xPad}, ${(eMinY + eMaxY) / 2})`}>
+        <g style={COUNTER_ZOOM}>
+          <foreignObject
+            x={-128}
+            y={-11}
+            width={124}
+            height={24}
+            style={{ overflow: "visible" }}
+          >
+            <FieldElevationOffset
+              label="Ht"
+              value={height}
+              width={46}
+              accentColor={color}
+              onCommit={(v) => onCommitHeight?.(v)}
+            />
+          </foreignObject>
+        </g>
+      </g>
 
       {/* offset field, at the baseMap line level but shifted to the left of it
           so it never overlaps the first vertex's offsetBottom field */}

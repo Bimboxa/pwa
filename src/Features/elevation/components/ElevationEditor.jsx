@@ -10,6 +10,7 @@ import useElevationProfile from "Features/elevation/hooks/useElevationProfile";
 import useElevationPointDrag from "Features/elevation/hooks/useElevationPointDrag";
 import commitElevationOffsetService from "Features/elevation/services/commitElevationOffsetService";
 import setAnnotationOffsetZService from "Features/elevation/services/setAnnotationOffsetZService";
+import setAnnotationHeightService from "Features/elevation/services/setAnnotationHeightService";
 
 // Picks the segment whose projected X-band contains `x` (smallest band wins on
 // overlap from fold-backs); falls back to the nearest band. Returns the
@@ -80,6 +81,13 @@ export default function ElevationEditor({
   const handleCommitOffsetZ = useCallback(
     (value) => {
       setAnnotationOffsetZService({ annotationId, offsetZ: value, dispatch });
+    },
+    [annotationId, dispatch]
+  );
+
+  const handleCommitHeight = useCallback(
+    (value) => {
+      setAnnotationHeightService({ annotationId, height: value, dispatch });
     },
     [annotationId, dispatch]
   );
@@ -210,6 +218,7 @@ export default function ElevationEditor({
           onHandleMouseDown={startHandleDrag}
           onCommitOffset={handleCommitOffset}
           onCommitOffsetZ={handleCommitOffsetZ}
+          onCommitHeight={handleCommitHeight}
         />
       </MapEditorViewport>
     </Box>
