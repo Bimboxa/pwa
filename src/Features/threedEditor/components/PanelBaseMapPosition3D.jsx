@@ -24,7 +24,9 @@ import {
   setDrawingOffset,
   setBaseMapOpacityIn3d,
   toggleBaseMapVisibleIn3d,
+  setBaseMapAnnotationsModeIn3d,
 } from "Features/threedEditor/threedEditorSlice";
+import { ANNOTATIONS_DISPLAY_MODE_OPTIONS } from "Features/threedEditor/constants/annotationsDisplayModeIn3d";
 
 import FieldMeasure from "./FieldMeasure";
 import { IconGizmoTranslate, IconGizmoRotate } from "./iconsGizmo";
@@ -137,6 +139,9 @@ export default function PanelBaseMapPosition3D() {
   const { value: projectBaseMaps = [] } = useBaseMaps();
   const visibleIds = useSelector(
     (s) => s.threedEditor.visibleBaseMapIdsIn3d
+  );
+  const annotationsModeByBaseMapId = useSelector(
+    (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
   );
 
   const drawingOffset = useSelector((s) => s.threedEditor.drawingOffset ?? 0);
@@ -457,18 +462,71 @@ export default function PanelBaseMapPosition3D() {
             {projectBaseMaps.map((map) => {
               const isMain = map.id === baseMapId;
               const isVisible = isMain || visibleIds.includes(map.id);
+              const annotationsMode =
+                annotationsModeByBaseMapId?.[map.id] ?? "NONE";
               return (
-                <ListItem
-                  key={map.id}
-                  disablePadding
-                  secondaryAction={
+                <ListItem key={map.id} disablePadding>
+                  <ListItemButton
+                    selected={isMain}
+                    onClick={() =>
+                      dispatch(setSelectedMainBaseMapId(map.id))
+                    }
+                    sx={{
+                      py: 0.25,
+                      borderRadius: 1,
+                      gap: 0.5,
+                    }}
+                  >
+                    <ListItemText
+                      primary={map.name}
+                      primaryTypographyProps={{
+                        variant: "body2",
+                        noWrap: true,
+                        fontWeight: isMain ? 700 : 400,
+                      }}
+                    />
+                    {/* Per-basemap annotation display mode. Hidden for the
+                        main basemap (its annotations are always shown and
+                        driven by the selection state). */}
+                    {!isMain && (
+                      <ToggleButtonGroup
+                        exclusive
+                        size="small"
+                        value={annotationsMode}
+                        onChange={(e, v) => {
+                          e.stopPropagation();
+                          if (v) {
+                            dispatch(
+                              setBaseMapAnnotationsModeIn3d({
+                                baseMapId: map.id,
+                                mode: v,
+                              })
+                            );
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {ANNOTATIONS_DISPLAY_MODE_OPTIONS.map(
+                          ({ mode, tooltip, Icon }) => (
+                            <Tooltip key={mode} title={tooltip}>
+                              <ToggleButton
+                                value={mode}
+                                sx={{ p: 0.4, border: "none" }}
+                              >
+                                <Icon sx={{ fontSize: 16 }} />
+                              </ToggleButton>
+                            </Tooltip>
+                          )
+                        )}
+                      </ToggleButtonGroup>
+                    )}
                     <Tooltip
                       title={
                         isMain
                           ? "Fond de plan sélectionné (toujours affiché en 3D)"
                           : isVisible
-                            ? "Masquer dans la vue 3D"
-                            : "Afficher dans la vue 3D"
+                            ? "Masquer l'image dans la vue 3D"
+                            : "Afficher l'image dans la vue 3D"
                       }
                     >
                       <span>
@@ -489,23 +547,6 @@ export default function PanelBaseMapPosition3D() {
                         </IconButton>
                       </span>
                     </Tooltip>
-                  }
-                >
-                  <ListItemButton
-                    selected={isMain}
-                    onClick={() =>
-                      dispatch(setSelectedMainBaseMapId(map.id))
-                    }
-                    sx={{ py: 0.25, borderRadius: 1 }}
-                  >
-                    <ListItemText
-                      primary={map.name}
-                      primaryTypographyProps={{
-                        variant: "body2",
-                        noWrap: true,
-                        fontWeight: isMain ? 700 : 400,
-                      }}
-                    />
                   </ListItemButton>
                 </ListItem>
               );

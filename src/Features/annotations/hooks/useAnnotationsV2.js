@@ -66,6 +66,13 @@ export default function useAnnotationsV2(options) {
         const filterByBaseMapId = options?.filterByBaseMapId;
         const filterByListingId = options?.filterByListingId;
 
+        // Additional base maps whose annotations should be loaded alongside the
+        // primary one (used by the 3D viewer to show other base maps'
+        // annotations). Each annotation is resolved against its own base map
+        // (via `baseMapById`) further down, so geometry stays correct.
+        const extraBaseMapIds = options?.extraBaseMapIds || [];
+        const extraBaseMapIdsKey = extraBaseMapIds.join("-");
+
 
         const filterBySelectedScope = options?.filterBySelectedScope;
         const filterByMainBaseMap = options?.filterByMainBaseMap;
@@ -150,8 +157,12 @@ export default function useAnnotationsV2(options) {
             let _annotations;
             let points;
             if (baseMapId) {
-                _annotations = (await db.annotations.where("baseMapId").equals(baseMapId).toArray()).filter(r => !r.deletedAt);
-                points = (await db.points.where("baseMapId").equals(baseMapId).toArray()).filter(r => !r.deletedAt);
+                // Primary base map + any extra base maps (3D viewer), deduped.
+                const queryBaseMapIds = [baseMapId, ...extraBaseMapIds].filter(
+                    (v, i, arr) => v && arr.indexOf(v) === i
+                );
+                _annotations = (await db.annotations.where("baseMapId").anyOf(queryBaseMapIds).toArray()).filter(r => !r.deletedAt);
+                points = (await db.points.where("baseMapId").anyOf(queryBaseMapIds).toArray()).filter(r => !r.deletedAt);
             }
 
             if (listingId) {
@@ -675,6 +686,7 @@ export default function useAnnotationsV2(options) {
             projectId,
             listingId,
             baseMapId,
+            extraBaseMapIdsKey,
             excludeListingsIds?.join("-"),
             excludeIsForBaseMapsListings,
             onlyIsForBaseMapsListings,

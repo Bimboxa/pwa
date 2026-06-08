@@ -26,6 +26,13 @@ const threedEditorInitialState = {
   // (selected) base map, which is always loaded. Session-only, resets on
   // every reload — same lifecycle as `baseMapOpacityIn3d`.
   visibleBaseMapIdsIn3d: [],
+  // Per-base-map annotation display mode in the 3D scene, keyed by baseMapId.
+  // Value "NORMAL" | "DIMMED"; a missing key means "NONE" (no annotations).
+  // Independent from `visibleBaseMapIdsIn3d` (the image-eye toggle): a base
+  // map's annotations can show even when its image is hidden. The main
+  // (selected) base map is not stored here — its annotations are always shown
+  // and driven by the selection dimmer. Session-only, resets on every reload.
+  annotationsModeByBaseMapIdIn3d: {},
   // Fire-and-forget cross-tab event: pan the 3D camera to a world-space
   // point. `triggeredAt` makes repeated clicks at the same spot still fire.
   // `baseMapId` is a guard: the consumer ignores the event when its current
@@ -115,6 +122,15 @@ export const threedEditorSlice = createSlice({
         state.visibleBaseMapIdsIn3d.push(id);
       } else {
         state.visibleBaseMapIdsIn3d.splice(i, 1);
+      }
+    },
+    setBaseMapAnnotationsModeIn3d: (state, action) => {
+      const { baseMapId, mode } = action.payload || {};
+      if (!baseMapId) return;
+      if (!mode || mode === "NONE") {
+        delete state.annotationsModeByBaseMapIdIn3d[baseMapId];
+      } else {
+        state.annotationsModeByBaseMapIdIn3d[baseMapId] = mode;
       }
     },
     setNavigateToWorldPoint: (state, action) => {
@@ -234,6 +250,7 @@ export const {
   setDrawingOffset,
   setBaseMapOpacityIn3d,
   toggleBaseMapVisibleIn3d,
+  setBaseMapAnnotationsModeIn3d,
   setNavigateToWorldPoint,
   setSelectAnnotationInThreed,
   setDrawingModeActive,
