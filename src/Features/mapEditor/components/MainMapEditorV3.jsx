@@ -25,6 +25,7 @@ import useAutoShowBgImage from "Features/bgImage/hooks/useAutoShowBgImage";
 import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgImageRawTextAnnotations";
 import useHandleCommitDrawing from "../hooks/useHandleCommitDrawing";
 import useHandleCommitGuideLine from "../hooks/useHandleCommitGuideLine";
+import useHandleCommitRamp from "../hooks/useHandleCommitRamp";
 import useDeleteGuideLine from "Features/annotations/hooks/useDeleteGuideLine";
 import useHandleSplitCommit from "../hooks/useHandleSplitCommit";
 import useHandleCompleteAnnotation from "../hooks/useHandleCompleteAnnotation";
@@ -395,6 +396,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline({ newEntity });
     const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick({ newEntity });
     const handleCommitGuideLine = useHandleCommitGuideLine();
+    const handleCommitRamp = useHandleCommitRamp({ newEntity });
     const deleteGuideLine = useDeleteGuideLine();
     const { handleCompleteAnnotationCommit } = useHandleCompleteAnnotation({ newEntity });
     const saveTempAnnotations = useSaveTempAnnotations();
@@ -1475,6 +1477,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onSplitPolylineReset={resetSplitPolyline}
                     onSplitPolylineClickPoint={handleSplitPolylineClickPoint}
                     onCommitGuideLine={handleCommitGuideLine}
+                    onCommitRamp={handleCommitRamp}
                     onProjectionSnapInsert={handleProjectionSnapInsert}
                     snappingEnabled={isSnappingEnabled}
                     baseMapMeterByPx={baseMap?.getMeterByPx()}

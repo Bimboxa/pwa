@@ -488,17 +488,32 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         .map((cut) => pointsToLocal(cut.points || [], baseMap))
         .filter((c) => c.length >= 3);
       const innerPts = pointsToLocal(annotation.innerPoints || [], baseMap);
+      const hasGuideLineRamp = !!annotation.guideLines?.some(
+        (g) => g?.points?.length >= 2
+      );
+      // A ramp/nappe POLYGON is a sloped SURFACE (no volume): both faces must
+      // read with the SAME color, so drop the back-face darkening that
+      // makeMaterial bakes in for closed shells (gl_FrontFacing). Mirrors
+      // buildSlopedStripGroup. A distinct cache key forces three to compile
+      // this un-darkened program separately from the shared material.
+      let polyMaterial = material;
+      if (hasGuideLineRamp && (!height || height <= 0)) {
+        polyMaterial = material.clone();
+        polyMaterial.side = DoubleSide;
+        polyMaterial.onBeforeCompile = () => {};
+        polyMaterial.customProgramCacheKey = () =>
+          "annotationPolygonSurfaceNoDarken";
+        polyMaterial.needsUpdate = true;
+      }
       object = extrudeClosedShape(
         pts,
         height,
-        material,
+        polyMaterial,
         cuts,
         verticalLift,
         innerPts,
         {
-          isoLines: !!annotation.guideLines?.some(
-            (g) => g?.points?.length >= 2
-          ),
+          isoLines: hasGuideLineRamp,
         }
       );
       break;

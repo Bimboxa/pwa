@@ -109,6 +109,7 @@ const DRAWING_SHAPE_CONFIG = {
       "SURFACE_DROP",
       "STRIP",
       "STRIP_SEGMENT",
+      "RAMP",
     ],
     configurableProps: ["fillColor", "fillOpacity", "fillType", "showSlope"],
     defaults: {
