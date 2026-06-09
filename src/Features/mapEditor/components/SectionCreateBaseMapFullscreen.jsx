@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useCreateBaseMapFromImage from "Features/baseMaps/hooks/useCreateBaseMapFromImage";
 
-import { Box, Typography, TextField } from "@mui/material";
+import { Box, Typography, TextField, Button } from "@mui/material";
 
 import BoxCenter from "Features/layout/components/BoxCenter";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
@@ -16,6 +16,8 @@ import SelectorImage from "Features/images/components/SelectorImage";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ButtonOpenSatelliteMapDialog from "Features/satelliteMap/components/ButtonOpenSatelliteMapDialog";
+import DialogCreateBlankBaseMap from "Features/baseMaps/components/DialogCreateBlankBaseMap";
+import { InsertDriveFileOutlined as PageIcon } from "@mui/icons-material";
 
 import a3_1_50 from "App/assets/a3_1_50.png";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
@@ -40,6 +42,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
   const [imageFile, setImageFile] = useState(null);
   const [name, setName] = useState("");
   const [meterByPx, setMeterByPx] = useState(null);
+  const [openBlank, setOpenBlank] = useState(false);
 
   // effect
 
@@ -155,10 +158,20 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
             width: 1,
             display: "flex",
             justifyContent: "flex-end",
+            gap: 1,
             px: 4,
             pb: 2,
           }}
         >
+          <Button
+            onClick={() => setOpenBlank(true)}
+            variant="outlined"
+            color="inherit"
+            size="small"
+            startIcon={<PageIcon />}
+          >
+            Ajouter une page blanche
+          </Button>
           <ButtonOpenSatelliteMapDialog
             listing={listingProp ?? projectBaseMapListings?.[0]}
             onCreated={onCreated}
@@ -189,6 +202,16 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
         <ImageGeneric url={selectedImageUrl} />
 
       </DialogGeneric>
+
+      <DialogCreateBlankBaseMap
+        open={openBlank}
+        onClose={() => setOpenBlank(false)}
+        listing={listingProp ?? projectBaseMapListings?.[0]}
+        onCreated={(entity) => {
+          onCreated?.(entity);
+          if (onClose) onClose();
+        }}
+      />
     </>
   );
 }
