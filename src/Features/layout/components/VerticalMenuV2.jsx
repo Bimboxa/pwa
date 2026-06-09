@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Box,
+  Chip,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
@@ -103,11 +104,23 @@ export default function VerticalMenu({
 
           return (
 
-            <StyledToggleButton value={item.key}>
+            <StyledToggleButton key={item.key} value={item.key}>
               {item.icon}
               <LabelTypography variant="caption">
                 {item.label}
               </LabelTypography>
+              {item.badge && (
+                <Chip
+                  label={item.badge}
+                  color="primary"
+                  size="small"
+                  sx={{
+                    mt: "2px",
+                    height: 14,
+                    "& .MuiChip-label": { px: "5px", fontSize: 9 },
+                  }}
+                />
+              )}
             </StyledToggleButton>
 
           );

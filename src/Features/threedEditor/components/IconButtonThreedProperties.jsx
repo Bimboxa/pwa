@@ -22,6 +22,7 @@ import {
   setShowGrid,
   setDisableOpacity,
   setAntiAliasingShrink,
+  setShowMeshCells,
 } from "Features/threedEditor/threedEditorSlice";
 import DialogExportPhotoreal from "Features/photorealRender/components/DialogExportPhotoreal";
 import exportSceneAsUsdzService from "Features/threedEditor/services/exportSceneAsUsdzService";
@@ -38,6 +39,7 @@ export default function IconButtonThreedProperties() {
   const antiAliasingShrink = useSelector(
     (s) => s.threedEditor.antiAliasingShrink
   );
+  const showMeshCells = useSelector((s) => s.threedEditor.showMeshCells);
 
   const open = Boolean(anchorEl);
 
@@ -138,6 +140,16 @@ export default function IconButtonThreedProperties() {
                   Réduire le crénelage des parements
                 </Typography>
               }
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={showMeshCells}
+                  onChange={(e) => dispatch(setShowMeshCells(e.target.checked))}
+                />
+              }
+              label={<Typography variant="body2">Afficher les mailles</Typography>}
             />
           </Box>
 

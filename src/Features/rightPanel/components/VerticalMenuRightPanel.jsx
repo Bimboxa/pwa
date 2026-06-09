@@ -23,6 +23,7 @@ import {
   AutoFixHigh,
   Print,
   Height,
+  GridOn,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -76,6 +77,10 @@ export default function VerticalMenuRightPanel() {
     ELEVATION: {
       label: "Élévation",
       icon: <Height />,
+    },
+    MESH: {
+      label: "Maillage",
+      icon: <GridOn />,
     },
     CHAT: {
       label: "Chat",

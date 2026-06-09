@@ -95,6 +95,14 @@ db.version(21).stores({
     "id, projectId, sourceAnnotationId, targetAnnotationId",
 });
 
+db.version(22).stores({
+  // {id, projectId, parentAnnotationId, meshCellAnnotationId}
+  // Mesh relation: links a parent annotation to a mesh cell annotation it was
+  // subdivided into ("maillage"). Soft-deleted when either annotation is deleted.
+  relAnnotationMeshCells:
+    "id, projectId, parentAnnotationId, meshCellAnnotationId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -125,6 +133,7 @@ const AUDIT_TABLES = [
   "baseMapVersions",
   "layers",
   "relAnnotationSubtractions",
+  "relAnnotationMeshCells",
 ];
 
 AUDIT_TABLES.forEach((tableName) => {
@@ -203,6 +212,7 @@ const SOFT_DELETE_TABLES = new Set([
   "baseMapVersions",
   "layers",
   "relAnnotationSubtractions",
+  "relAnnotationMeshCells",
 ]);
 
 let _skipSoftDelete = false;
