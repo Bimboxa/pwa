@@ -33,7 +33,7 @@ import IllustrationSlopeWallMax from "./IllustrationSlopeWallMax";
 const PROFILES = [
   {
     key: "CONSTANT",
-    label: "Hauteur constante avec limite",
+    label: "Hauteur constante",
     Illustration: IllustrationSlopeWallConstant,
   },
   { key: "MAX", label: "Hauteur max", Illustration: IllustrationSlopeWallMax },
@@ -142,12 +142,17 @@ function SideSection({
             />
           )}
           <TextField
-            label="Hauteur max"
+            label="Hauteur max (optionnel)"
             type="number"
             size="small"
             fullWidth
             value={state.maxHeight}
             onChange={(e) => patch({ maxHeight: e.target.value })}
+            helperText={
+              state.profileType === "MAX"
+                ? "Par défaut : point le plus haut de la pente"
+                : "Par défaut : hauteur conservée sur toute la pente"
+            }
             InputProps={{
               endAdornment: <InputAdornment position="end">m</InputAdornment>,
             }}
@@ -217,15 +222,26 @@ export default function DialogGenerateSlopeWalls({
 
   function buildSideConfig(side, state) {
     if (!state.enabled) return null;
-    const maxHeight = parseFloat(state.maxHeight);
-    const constantHeight = parseFloat(state.constantHeight);
-    if (!Number.isFinite(maxHeight) || maxHeight <= 0) return null;
     if (!state.annotationTemplateId) return null;
+    const maxHeightNum = parseFloat(state.maxHeight);
+    const constantHeightNum = parseFloat(state.constantHeight);
+    // Max height is optional: CONSTANT keeps its height all along the slope,
+    // MAX derives the ceiling from the highest ramp vertex.
+    const maxHeight =
+      Number.isFinite(maxHeightNum) && maxHeightNum > 0
+        ? maxHeightNum
+        : undefined;
+    // CONSTANT needs a positive height; MAX can build its ceiling on its own.
+    if (
+      state.profileType === "CONSTANT" &&
+      !(Number.isFinite(constantHeightNum) && constantHeightNum > 0)
+    )
+      return null;
     return {
       side,
       profileType: state.profileType,
       maxHeight,
-      constantHeight: Number.isFinite(constantHeight) ? constantHeight : 1,
+      constantHeight: Number.isFinite(constantHeightNum) ? constantHeightNum : 1,
       annotationTemplateId: state.annotationTemplateId,
       template: templates.find((t) => t.id === state.annotationTemplateId),
     };
