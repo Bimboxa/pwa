@@ -3,6 +3,12 @@ import polygonClipping from "polygon-clipping";
 import offsetPolylineAsPolygon from "Features/geometry/utils/offsetPolylineAsPolygon";
 import offsetPolygon from "Features/geometry/utils/offsetPolygon";
 import cutPolygonPoints from "Features/geometry/utils/cutPolygonPoints";
+import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
+
+// Tessellation count for square→circle→square arcs before offsetting the band.
+// Matches the strip drawing-preview / 3D paths so the rendered footprint, the
+// 3D mesh and the surface quantity stay in sync. No-op for arc-free strips.
+const ARC_SAMPLES = 16;
 
 // Build annular polygon (donut) from a closed strip.
 // Returns array of {points, cuts} like the open-strip path.
@@ -158,14 +164,21 @@ export default function getStripePolygons(annotation, baseMapMeterByPx, applyCut
 
     // 4. Closed strip: compute annular band directly
     if (effectiveCloseLine && effectivePoints.length >= 3) {
-        const result = getClosedStripPolygon(effectivePoints, distance, cuts, applyCutsMath);
+        // Tessellate S-C-S arcs so both the inner edge and the offset ring
+        // follow the curve instead of the chord.
+        const arcPoints = expandArcsInPath(effectivePoints, ARC_SAMPLES, true);
+        const result = getClosedStripPolygon(arcPoints, distance, cuts, applyCutsMath);
         return result ? [result] : [];
     }
 
     // 5. Génération des polygones pour chaque chunk
     const polygons = chunks.map((chunkPoints) => {
-        // A. Calcul de la forme de base (Offset)
-        const polyPoints = offsetPolylineAsPolygon(chunkPoints, distance);
+        // A. Calcul de la forme de base (Offset). Tessellate arcs first: each
+        // chunk has no internal hidden boundary, so a plain expand is safe.
+        const polyPoints = offsetPolylineAsPolygon(
+            expandArcsInPath(chunkPoints, ARC_SAMPLES, false),
+            distance
+        );
 
         if (!polyPoints || polyPoints.length === 0) return null;
 

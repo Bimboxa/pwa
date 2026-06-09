@@ -5,6 +5,7 @@ import theme from "Styles/theme";
 import NodeLabelStatic from "./NodeLabelStatic";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import getStripePolygons from "Features/geometry/utils/getStripePolygons";
+import { typeOf, circleFromThreePoints } from "Features/geometry/utils/arcSampling";
 
 const HATCHING_SPACING = 12;
 
@@ -115,25 +116,54 @@ export default function NodeStripStatic({
     const _closeLine = mergedAnnotation.closeLine;
     const directorSegments = useMemo(() => {
         if (!points || points.length < 2) return [];
+        const n = points.length;
+        const types = points.map(typeOf);
+
+        // Build the SVG `d` for the director segment points[i] → points[i+1].
+        // A square→circle→square (S-C-S) triplet renders as two arc halves so the
+        // centerline follows the curve (like NodePolylineStatic) instead of
+        // peaking at the control point. Each half keeps its own segment index, so
+        // selection / hover / hidden handling is unchanged.
+        const segPath = (i) => {
+            const a = points[i];
+            const b = points[i + 1];
+            const straight = `M ${a.x} ${a.y} L ${b.x} ${b.y}`;
+            let triplet = null;
+            if (types[i] === "square" && types[i + 1] === "circle" && types[i + 2] === "square") {
+                triplet = [a, b, points[i + 2]]; // first half: square → circle
+            } else if (types[i] === "circle" && types[i + 1] === "square" && types[i - 1] === "square") {
+                triplet = [points[i - 1], a, b]; // second half: circle → square
+            }
+            if (!triplet) return straight;
+            const circ = circleFromThreePoints(triplet[0], triplet[1], triplet[2]);
+            if (!circ || !Number.isFinite(circ.r) || circ.r <= 0 || circ.r > 100000) {
+                return straight; // collinear / quasi-flat → straight fallback
+            }
+            const [P0, P1, P2] = triplet;
+            // Same triplet for both halves → identical sweep → continuous arc.
+            const cross = (P1.x - P0.x) * (P2.y - P0.y) - (P1.y - P0.y) * (P2.x - P0.x);
+            const sweep = cross > 0 ? 1 : 0;
+            return `M ${a.x} ${a.y} A ${circ.r} ${circ.r} 0 0 ${sweep} ${b.x} ${b.y}`;
+        };
+
         const segs = [];
-        for (let i = 0; i < points.length - 1; i++) {
-            const p1 = points[i];
-            const p2 = points[i + 1];
+        for (let i = 0; i < n - 1; i++) {
             segs.push({
                 index: i,
-                d: `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`,
+                d: segPath(i),
                 isHidden: hiddenSegmentsIdx.includes(i)
             });
         }
-        // Add closing segment for closed strips
-        if (_closeLine && points.length >= 3) {
-            const last = points[points.length - 1];
+        // Add closing segment for closed strips (kept straight: a seam arc would
+        // need wrap-around triplet detection and is not a real use case here).
+        if (_closeLine && n >= 3) {
+            const last = points[n - 1];
             const first = points[0];
             if (last.x !== first.x || last.y !== first.y) {
                 segs.push({
-                    index: points.length - 1,
+                    index: n - 1,
                     d: `M ${last.x} ${last.y} L ${first.x} ${first.y}`,
-                    isHidden: hiddenSegmentsIdx.includes(points.length - 1)
+                    isHidden: hiddenSegmentsIdx.includes(n - 1)
                 });
             }
         }
@@ -214,6 +244,7 @@ export default function NodeStripStatic({
 
     const renderVertex = (pt) => {
         const isPointSelected = selectedPointId === pt.id || selectedPointIds.includes(pt.id);
+        const isCircle = pt.type === "circle";
         return (
             <g
                 key={pt.id}
@@ -224,12 +255,21 @@ export default function NodeStripStatic({
                 data-annotation-id={annotationId}
             >
                 <g style={{ transform: vertexScaleTransform }}>
-                    <rect
-                        x={-HALF_SIZE} y={-HALF_SIZE} width={POINT_SIZE} height={POINT_SIZE}
-                        fill={isPointSelected ? "#FF0000" : "#FFFFFF"}
-                        stroke="#2196f3"
-                        strokeWidth={1.5}
-                    />
+                    {isCircle ? (
+                        <circle
+                            cx={0} cy={0} r={HALF_SIZE}
+                            fill={isPointSelected ? "#FF0000" : "#FFFFFF"}
+                            stroke="#2196f3"
+                            strokeWidth={1.5}
+                        />
+                    ) : (
+                        <rect
+                            x={-HALF_SIZE} y={-HALF_SIZE} width={POINT_SIZE} height={POINT_SIZE}
+                            fill={isPointSelected ? "#FF0000" : "#FFFFFF"}
+                            stroke="#2196f3"
+                            strokeWidth={1.5}
+                        />
+                    )}
                 </g>
             </g>
         );
