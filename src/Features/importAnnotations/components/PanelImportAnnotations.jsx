@@ -48,6 +48,7 @@ export default function PanelImportAnnotations() {
   const [rawJson, setRawJson] = useState("");
   const [widthMeters, setWidthMeters] = useState("");
   const [targetListingId, setTargetListingId] = useState("");
+  const [excludedTemplateIds, setExcludedTemplateIds] = useState([]);
 
   // helpers
 
@@ -87,6 +88,14 @@ export default function PanelImportAnnotations() {
 
   // handlers
 
+  function handleToggleTemplate(templateId) {
+    setExcludedTemplateIds((prev) =>
+      prev.includes(templateId)
+        ? prev.filter((id) => id !== templateId)
+        : [...prev, templateId]
+    );
+  }
+
   async function handleImport() {
     if (!canImport) return;
     try {
@@ -96,7 +105,9 @@ export default function PanelImportAnnotations() {
         mainBaseMap,
         projectId,
         listingId: targetListingId,
+        excludedTemplateIds,
       });
+      if (!clipboard.items.length) return;
 
       if (templateRecords.length) {
         await db.annotationTemplates.bulkAdd(templateRecords);
@@ -186,10 +197,15 @@ export default function PanelImportAnnotations() {
               <ImportAnnotationsPreview
                 data={data}
                 widthMeters={widthMetersNum}
+                excludedTemplateIds={excludedTemplateIds}
               />
             </Box>
 
-            <ImportAnnotationsTemplateList templates={data.annotationTemplates} />
+            <ImportAnnotationsTemplateList
+              templates={data.annotationTemplates}
+              excludedTemplateIds={excludedTemplateIds}
+              onToggle={handleToggleTemplate}
+            />
           </>
         )}
       </Box>
@@ -202,7 +218,7 @@ export default function PanelImportAnnotations() {
           disabled={!canImport}
           onClick={handleImport}
         >
-          Importer dans la carte
+          Ajouter au fond de plan
         </Button>
       </Box>
     </BoxFlexVStretch>
