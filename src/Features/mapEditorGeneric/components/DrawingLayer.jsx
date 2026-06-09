@@ -11,6 +11,7 @@ import { getCircleFrom3Points } from "Features/geometry/utils/getPolylinePointsF
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
 import { useDrawingMetrics } from "App/contexts/DrawingMetricsContext";
 import { expandArcsInPath, typeOf } from "Features/geometry/utils/arcSampling";
+import getCenteredBandFromGuideLine from "Features/geometry/utils/getCenteredBandFromGuideLine";
 
 // Number of samples per arc segment — mirrors NodePolylineStatic so the live
 // preview matches the committed render.
@@ -86,6 +87,7 @@ const DrawingLayer = forwardRef(
       containerK,
       meterByPx,
       orthoSnapAngleOffset = 0,
+      rampWidthM = 1,
     },
     ref
   ) => {
@@ -96,6 +98,7 @@ const DrawingLayer = forwardRef(
     const previewRectRef = useRef(null); // <--- NOUVELLE REF
     const previewCircleRef = useRef(null);
     const previewStripRef = useRef(null);
+    const previewRampRef = useRef(null); // ramp band preview (centered on the median line)
     // Cote preview refs (offset dimension line + dashed extensions + value text)
     const previewCoteGroupRef = useRef(null);
     const previewCoteMainRef = useRef(null);
@@ -121,6 +124,9 @@ const DrawingLayer = forwardRef(
     const meterByPxRef = useRef(meterByPx);
     meterByPxRef.current = meterByPx;
 
+    const rampWidthMRef = useRef(rampWidthM);
+    rampWidthMRef.current = rampWidthM;
+
     const orthoSnapAngleOffsetRef = useRef(orthoSnapAngleOffset);
     orthoSnapAngleOffsetRef.current = orthoSnapAngleOffset;
 
@@ -139,6 +145,9 @@ const DrawingLayer = forwardRef(
     // contour color jumps the moment the user finalizes the shape.
     const effectiveStrokeColor = isPolygon ? fillColor : strokeColor;
     const isStrip = type === "STRIP";
+    // RAMP draws a POLYGON (type === "POLYGON") but previews a band centered on
+    // the drawn median line instead of the closed polygon-of-the-clicks.
+    const isRamp = enabledDrawingMode === "RAMP";
     const drawRectangle = [
       "RECTANGLE",
       "POLYLINE_RECTANGLE",
@@ -419,6 +428,52 @@ const DrawingLayer = forwardRef(
         }
 
         // ------------------------------------------------
+        // CAS 2c : RAMP (band centered on the median line)
+        // ------------------------------------------------
+        if (isRamp && previewRampRef.current) {
+          if (previewRectRef.current)
+            previewRectRef.current.style.display = "none";
+          if (previewFillRef.current)
+            previewFillRef.current.style.display = "none";
+
+          const mbp = meterByPxRef.current;
+          const widthPx = mbp > 0 ? (Number(rampWidthMRef.current) || 0) / mbp : 0;
+          // Centered band from the median CONTROL points (arcs kept as arcs),
+          // mirroring useHandleCommitRamp; expand only for the SVG path so the
+          // preview matches the committed geometry.
+          const ring = getCenteredBandFromGuideLine(
+            [...currentPoints, cursorPos],
+            widthPx
+          );
+          if (ring.length >= 3) {
+            const expandedRing = expandArcsInPath(ring, ARC_SAMPLES, true);
+            const d =
+              "M " +
+              expandedRing.map((p) => `${p.x} ${p.y}`).join(" L ") +
+              " Z";
+            previewRampRef.current.setAttribute("d", d);
+            previewRampRef.current.style.display = "block";
+          } else {
+            previewRampRef.current.style.display = "none";
+          }
+
+          // Elastic line from the last point to the cursor (hidden while the
+          // last point is an open arc — the band curve already conveys it).
+          const lastIsOpenCircle =
+            currentPoints.length >= 2 && typeOf(lastPoint) === "circle";
+          if (!lastIsOpenCircle && previewLineRef.current) {
+            previewLineRef.current.setAttribute("x1", lastPoint.x);
+            previewLineRef.current.setAttribute("y1", lastPoint.y);
+            previewLineRef.current.setAttribute("x2", cursorPos.x);
+            previewLineRef.current.setAttribute("y2", cursorPos.y);
+            previewLineRef.current.style.display = "block";
+          } else if (previewLineRef.current) {
+            previewLineRef.current.style.display = "none";
+          }
+          return;
+        }
+
+        // ------------------------------------------------
         // CAS 2 : POLYLINE / POLYGON / SEGMENT
         // ------------------------------------------------
 
@@ -487,6 +542,8 @@ const DrawingLayer = forwardRef(
           previewCircleRef.current.style.display = "none";
         if (previewStripRef.current)
           previewStripRef.current.style.display = "none";
+        if (previewRampRef.current)
+          previewRampRef.current.style.display = "none";
         if (previewCoteGroupRef.current)
           previewCoteGroupRef.current.style.display = "none";
       },
@@ -528,8 +585,19 @@ const DrawingLayer = forwardRef(
           />
         )}
 
-        {/* A. Dynamic Fill (Polygon) */}
-        {isPolygon && (
+        {/* A0b. Ramp band — dynamic preview centered on the median line */}
+        {isRamp && (
+          <path
+            ref={previewRampRef}
+            fill={fillColor || "rgba(92, 92, 236, 0.3)"}
+            fillOpacity={newAnnotation?.fillOpacity ?? 0.5}
+            stroke="none"
+            style={{ display: "none", pointerEvents: "none" }}
+          />
+        )}
+
+        {/* A. Dynamic Fill (Polygon) — suppressed for RAMP (band shown instead) */}
+        {isPolygon && !isRamp && (
           <path
             ref={previewFillRef}
             fill={fillColor || "rgba(0, 0, 255, 0.1)"}

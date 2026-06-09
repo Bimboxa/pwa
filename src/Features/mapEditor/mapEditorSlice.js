@@ -18,6 +18,10 @@ const mapEditorInitialState = {
   autoMergeOnCommit: true, // when true, a POLYGON drawn via RECTANGLE tool is auto-merged with overlapping same-template polygons on commit
   autoOffsetsOnCommit: false, // when true, a POLYGON drawn via CLICK tool inherits offsetZ/height + per-point offsetBottom/offsetTop from snapped neighbors so the 3D surface stays continuous
   avoidVisibleAnnotationsOnCommit: false, // when true, on commit of a POLYGON, visible annotations of a different annotationTemplateId are subtracted from the drawn polygon (outer carving + cuts)
+  // RAMP tool — transient params shown in the bottom drawing toolbar while the
+  // "Rampe" tool is active. Not persisted on the annotation/template.
+  rampWidthM: 1, // band width in meters, centered on the drawn median line
+  rampDeltaHM: 0, // vertical delta (meters) over the median line length → slopePct
   //
   showLayerScreenCursor: false,
   printModeEnabled: false,
@@ -203,6 +207,12 @@ export const mapEditorSlice = createSlice({
     },
     setAvoidVisibleAnnotationsOnCommit: (state, action) => {
       state.avoidVisibleAnnotationsOnCommit = action.payload;
+    },
+    setRampWidthM: (state, action) => {
+      state.rampWidthM = action.payload;
+    },
+    setRampDeltaHM: (state, action) => {
+      state.rampDeltaHM = action.payload;
     },
     setMapEditorMode: (state, action) => {
       state.mapEditorMode = action.payload;
@@ -595,6 +605,8 @@ export const {
   setAutoMergeOnCommit,
   setAutoOffsetsOnCommit,
   setAvoidVisibleAnnotationsOnCommit,
+  setRampWidthM,
+  setRampDeltaHM,
   setMapEditorMode,
   //
   setAnchorPositionScale,

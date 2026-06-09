@@ -229,6 +229,7 @@ const InteractionLayer = forwardRef(({
   newAnnotation,
   onCommitDrawing,
   onCommitGuideLine,
+  onCommitRamp,
   onCommitSplitAtVertex,
   onCommitPointsFromSurfaceDrop,
   onCommitSimilarStrips,
@@ -376,6 +377,7 @@ const InteractionLayer = forwardRef(({
   const mapEditorMode = useSelector((s) => s.mapEditor.mapEditorMode);
   const orthoSnapEnabled = useSelector((s) => s.mapEditor.orthoSnapEnabled);
   const orthoSnapAngleOffset = useSelector((s) => s.mapEditor.orthoSnapAngleOffset);
+  const rampWidthM = useSelector((s) => s.mapEditor.rampWidthM);
   const stripDetectionMultiple = useSelector((s) => s.mapEditor.stripDetectionMultiple);
   const smartDetectEnabled = useSelector((s) => s.mapEditor.smartDetectEnabled);
   const smartDetectMode = useSelector((s) => s.mapEditor.smartDetectMode);
@@ -1957,6 +1959,11 @@ const InteractionLayer = forwardRef(({
     onCommitGuideLineRef.current = onCommitGuideLine;
   }, [onCommitGuideLine]);
 
+  const onCommitRampRef = useRef(onCommitRamp);
+  useEffect(() => {
+    onCommitRampRef.current = onCommitRamp;
+  }, [onCommitRamp]);
+
   const onCommitSimilarStripsRef = useRef(onCommitSimilarStrips);
   useEffect(() => {
     onCommitSimilarStripsRef.current = onCommitSimilarStrips;
@@ -2032,6 +2039,34 @@ const InteractionLayer = forwardRef(({
         e.preventDefault();
         const pts = drawingPointsRef.current || [];
         if (pts.length >= 2) onCommitGuideLineRef.current?.(pts);
+        clear();
+        dispatch(setEnabledDrawingMode(null));
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        clear();
+        dispatch(setEnabledDrawingMode(null));
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [enabledDrawingMode, dispatch, setDrawingPoints, drawingPointsRef]);
+
+  // RAMP: self-contained multi-click capture of the median line (reuses the
+  // generic drawingPoints/DrawingLayer preview in local pixel space). Enter
+  // commits the median line → a centered band POLYGON + guideLine slope,
+  // Escape cancels.
+  useEffect(() => {
+    if (enabledDrawingMode !== "RAMP") return;
+    const clear = () => {
+      setDrawingPoints([]);
+      drawingPointsRef.current = [];
+      drawingLayerRef.current?.setPoints?.([]);
+    };
+    const onKey = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const pts = drawingPointsRef.current || [];
+        if (pts.length >= 2) onCommitRampRef.current?.(pts);
         clear();
         dispatch(setEnabledDrawingMode(null));
       } else if (e.key === "Escape") {
@@ -2966,6 +3001,7 @@ const InteractionLayer = forwardRef(({
               "STRIP",
               "CUT_CLICK",
               "ADD_GUIDE_LINE",
+              "RAMP",
             ].includes(mode)
           ) {
             const pts = drawingPointsRef.current || [];
@@ -3363,6 +3399,18 @@ const InteractionLayer = forwardRef(({
     // Each click appends a point (local pixel space); DrawingLayer renders
     // the in-progress polyline. Enter/Escape (keydown effect) finishes.
     if (enabledDrawingMode === "ADD_GUIDE_LINE") {
+      const local = toLocalCoords(worldPos);
+      const next = [...(drawingPointsRef.current || []), local];
+      setDrawingPoints(next);
+      drawingPointsRef.current = next;
+      drawingLayerRef.current?.setPoints?.(next);
+      return;
+    }
+
+    // --- RAMP: accumulate the median line (local pixel space). DrawingLayer
+    // renders the in-progress line; Enter/Escape (keydown effect) finishes,
+    // committing a centered band POLYGON + slope guideLine. ---
+    if (enabledDrawingMode === "RAMP") {
       const local = toLocalCoords(worldPos);
       const next = [...(drawingPointsRef.current || []), local];
       setDrawingPoints(next);
@@ -4493,7 +4541,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "RAMP"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -5717,6 +5765,7 @@ const InteractionLayer = forwardRef(({
               containerK={targetPose.k}
               meterByPx={baseMapMeterByPx}
               orthoSnapAngleOffset={orthoSnapAngleOffset}
+              rampWidthM={rampWidthM}
             />
           </g>
 

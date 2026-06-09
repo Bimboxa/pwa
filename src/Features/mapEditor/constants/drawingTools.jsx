@@ -10,6 +10,7 @@ import {
   AddLocationAlt as AddInnerPoint,
   Straighten,
   Timeline as GuideLineIcon,
+  NorthEast as RampIcon,
 } from "@mui/icons-material";
 
 import IconPolylineClick from "Features/icons/IconPolylineClick";
@@ -251,6 +252,17 @@ const DRAWING_TOOLS = [
     Icon: GuideLineIcon,
     annotationType: "GUIDE_LINE",
     behavior: "CLICK",
+  },
+  // RAMP tool (Rampe) — draw a median line, commit a centered band POLYGON
+  // whose slope is derived from a delta-H value. The drawn line is stored as a
+  // guideLine on the polygon so the slope renders in 2D and ramps in 3D.
+  // Kept last so it shows at the end of the POLYGON tool list.
+  {
+    key: "RAMP",
+    label: "Rampe",
+    Icon: RampIcon,
+    annotationType: "POLYGON",
+    behavior: "RAMP",
   },
 ];
 

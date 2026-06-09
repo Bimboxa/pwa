@@ -8,6 +8,8 @@ import { CompactPicker } from "react-color";
 import {
   setEnabledDrawingMode,
   setSelectedToolKeyForTemplate,
+  setRampWidthM,
+  setRampDeltaHM,
 } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
@@ -38,6 +40,8 @@ export default function ToolbarDrawingDraft() {
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const drawingShape = newAnnotation?.drawingShape;
+  const rampWidthM = useSelector((s) => s.mapEditor.rampWidthM);
+  const rampDeltaHM = useSelector((s) => s.mapEditor.rampDeltaHM);
 
   // helpers
 
@@ -58,14 +62,22 @@ export default function ToolbarDrawingDraft() {
   const isFieldOverridden = (field) =>
     Array.isArray(overrideFields) && overrideFields.includes(field);
 
+  // The Rampe tool drives its own geometry from two transient meter fields
+  // (largeur / delta H) stored in mapEditorSlice — it hides the generic
+  // height / offset / thickness fields, which don't apply to a ramp.
+  const isRampTool = enabledDrawingMode === "RAMP";
+
   const showColor = !isCuttingTool && !isFieldOverridden(colorField);
   const showThickness =
     !isCuttingTool &&
+    !isRampTool &&
     drawingShape === "POLYLINE" &&
     !isFieldOverridden("strokeWidth");
-  const showOffset = !isCuttingTool && !isFieldOverridden("offsetZ");
-  const showHeight = !isCuttingTool && !isFieldOverridden("height");
-  const showAnyField = showThickness || showOffset || showHeight;
+  const showOffset =
+    !isCuttingTool && !isRampTool && !isFieldOverridden("offsetZ");
+  const showHeight =
+    !isCuttingTool && !isRampTool && !isFieldOverridden("height");
+  const showAnyField = showThickness || showOffset || showHeight || isRampTool;
 
   const tools = isCuttingTool
     ? getDrawingToolsByType(toolType)
@@ -114,6 +126,14 @@ export default function ToolbarDrawingDraft() {
 
   function handleFieldChange(next) {
     dispatch(setNewAnnotation({ ...newAnnotation, ...next }));
+  }
+
+  function handleRampWidthChange(next) {
+    dispatch(setRampWidthM(next.rampWidthM));
+  }
+
+  function handleRampDeltaHChange(next) {
+    dispatch(setRampDeltaHM(next.rampDeltaHM));
   }
 
   // render
@@ -192,6 +212,22 @@ export default function ToolbarDrawingDraft() {
           annotation={newAnnotation}
           onChange={handleFieldChange}
         />
+      )}
+      {isRampTool && (
+        <>
+          <FieldAnnotationHeight
+            annotation={{ rampWidthM }}
+            onChange={handleRampWidthChange}
+            field="rampWidthM"
+            label="largeur"
+          />
+          <FieldAnnotationHeight
+            annotation={{ rampDeltaHM }}
+            onChange={handleRampDeltaHChange}
+            field="rampDeltaHM"
+            label="delta H"
+          />
+        </>
       )}
 
       <Popover
