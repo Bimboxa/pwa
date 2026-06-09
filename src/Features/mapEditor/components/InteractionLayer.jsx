@@ -3228,15 +3228,17 @@ const InteractionLayer = forwardRef(({
     // Pan/zoom remain available because they live in MapEditorViewport.
     if (imageModeEnabledRef.current) return;
 
-    // --- Paste mode: a click places a copy at the cursor and keeps the
-    // mode active so multiple copies can be placed. Esc exits.
+    // --- Paste mode: a click places a copy at the cursor. Normal copy/paste
+    // keeps the mode active so multiple copies can be placed (Esc exits); an
+    // import paste (`once`) places a single time then exits automatically.
     if (pasteClipboardRef.current) {
+      const clipboard = pasteClipboardRef.current;
       const targetCenter = toLocalCoords(worldPos);
       // Fire-and-forget so the click feels instant; service writes points +
       // annotation + mapping rows in a single Dexie transaction, then
       // dispatches one liveQuery refresh.
       pasteAnnotationService({
-        pasteClipboard: pasteClipboardRef.current,
+        pasteClipboard: clipboard,
         pasteTransform: pasteTransformRef.current,
         targetCenter,
         baseMap: calibrationBaseMap,
@@ -3250,6 +3252,10 @@ const InteractionLayer = forwardRef(({
           severity: "error",
         }));
       });
+      if (clipboard.once) {
+        dispatch(clearPasteClipboard());
+        pastePreviewLayerRef.current?.clearPreview();
+      }
       return;
     }
 

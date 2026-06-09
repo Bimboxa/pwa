@@ -30,6 +30,7 @@ import PanelAnnotationsAuto from "Features/annotationsAuto/components/PanelAnnot
 import PanelPrint from "Features/print/components/PanelPrint";
 import PanelElevation from "Features/elevation/components/PanelElevation";
 import PanelMesh from "Features/mesh/components/PanelMesh";
+import PanelImportAnnotations from "Features/importAnnotations/components/PanelImportAnnotations";
 
 export default function RightPanelContainer() {
 
@@ -143,6 +144,7 @@ export default function RightPanelContainer() {
           {selectedKey === "PRINT" && <PanelPrint />}
           {selectedKey === "ELEVATION" && <PanelElevation />}
           {selectedKey === "MESH" && <PanelMesh />}
+          {selectedKey === "IMPORT_ANNOTATIONS" && <PanelImportAnnotations />}
         </Box>
       </Slide>
 
