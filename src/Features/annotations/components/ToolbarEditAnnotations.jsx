@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -28,6 +28,7 @@ import getCloneTypeOptions from "../utils/getCloneTypeOptions";
 
 import {
   Box,
+  Button,
   Divider,
   IconButton,
   Menu,
@@ -47,6 +48,7 @@ import {
 } from "@mui/icons-material";
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
+import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
@@ -96,6 +98,7 @@ export default function ToolbarEditAnnotations({
   const [selectedCloneType, setSelectedCloneType] = useState(null);
   const [stripElevation, setStripElevation] = useState("TOP");
   const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
+  const [pendingHeight, setPendingHeight] = useState(null);
 
   // helpers - selected annotations
 
@@ -105,6 +108,26 @@ export default function ToolbarEditAnnotations({
 
   const count = annotations.length;
   const countLabel = `${count} annotation${count > 1 ? "s" : ""} sélectionnée${count > 1 ? "s" : ""}`;
+
+  // helpers - batch height
+
+  // Distinct heights among the current selection (undefined treated as a value)
+  const heightValues = [...new Set(annotations.map((a) => a.height))];
+  const heightsAreUniform = heightValues.length === 1;
+  const heightDisplayValue = heightsAreUniform
+    ? (heightValues[0] ?? "")
+    : "Hauteurs variables";
+
+  // Stable signature so the field remounts (resets its internal localValue)
+  // when the selection changes.
+  const selectionKey = annotations
+    .map((a) => a.id)
+    .sort()
+    .join(",");
+
+  // Only a finite number is a committable height.
+  const canApplyHeight =
+    typeof pendingHeight === "number" && Number.isFinite(pendingHeight);
 
   const hasStrips = annotations.some((a) => a.type === "STRIP");
 
@@ -194,6 +217,26 @@ export default function ToolbarEditAnnotations({
   }, [annotations, baseMap?.meterByPx]);
 
   // handlers
+
+  // Reset the pending value whenever the selection changes
+  useEffect(() => {
+    setPendingHeight(null);
+  }, [selectionKey]);
+
+  // Field onChange only stores the pending value; it does NOT persist.
+  function handleBatchHeightFieldChange(updated) {
+    setPendingHeight(updated?.height);
+  }
+
+  async function handleApplyBatchHeight() {
+    if (!canApplyHeight || annotations.length === 0) return;
+    const updates = annotations.map((a) => ({
+      id: a.id,
+      height: pendingHeight,
+    }));
+    await updateAnnotations(updates);
+    setPendingHeight(null);
+  }
 
   function handleRemoveTemplateFromSelection(annotationIds) {
     for (const annotationId of annotationIds) {
@@ -409,6 +452,35 @@ export default function ToolbarEditAnnotations({
               </IconButton>
             </Tooltip>
           </Box>
+        </Box>
+
+        <Divider />
+
+        {/* Batch height */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+            px: 1.25,
+            py: 0.75,
+          }}
+        >
+          <FieldAnnotationHeight
+            key={selectionKey}
+            annotation={{ id: "batch-height", height: heightDisplayValue }}
+            onChange={handleBatchHeightFieldChange}
+          />
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={!canApplyHeight}
+            onClick={handleApplyBatchHeight}
+            sx={{ flexShrink: 0 }}
+          >
+            Appliquer
+          </Button>
         </Box>
 
         <Divider />
