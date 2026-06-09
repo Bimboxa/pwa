@@ -20,6 +20,8 @@ import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
 import FormGenericV2 from "Features/form/components/FormGenericV2";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ButtonDialogCreateBaseMapFromJson from "./ButtonDialogCreateBaseMapFromJson";
+import DialogCreateBlankBaseMap from "./DialogCreateBlankBaseMap";
+import { InsertDriveFileOutlined as PageIcon } from "@mui/icons-material";
 
 import getImageSizeAsync from "Features/misc/utils/getImageSize";
 
@@ -44,6 +46,7 @@ export default function SectionCreateBaseMap({ onClose }) {
 
   const [item, setItem] = useState({});
   const [openAdvanced, setOpenAdvanced] = useState(false);
+  const [openBlank, setOpenBlank] = useState(false);
 
   // helper - max size
 
@@ -170,6 +173,26 @@ export default function SectionCreateBaseMap({ onClose }) {
           <ButtonDialogCreateBaseMapFromJson />
         </Box>
       </Box>
+
+      <Box sx={{ p: 2, pt: 0 }}>
+        <ButtonGeneric
+          label="Ajouter une page blanche"
+          onClick={() => setOpenBlank(true)}
+          variant="outlined"
+          fullWidth
+          startIcon={<PageIcon />}
+        />
+      </Box>
+
+      <DialogCreateBlankBaseMap
+        open={openBlank}
+        onClose={() => setOpenBlank(false)}
+        listing={listing}
+        onCreated={(entity) => {
+          if (entity?.id) dispatch(setSelectedEntityId(entity.id));
+          handleClose();
+        }}
+      />
     </BoxFlexVStretch>
   );
 }
