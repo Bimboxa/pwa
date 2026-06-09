@@ -73,6 +73,7 @@ import IconButtonCloseWallFootprint from "./IconButtonCloseWallFootprint";
 import IconButtonSlopeWalls from "./IconButtonSlopeWalls";
 import IconButtonContours from "./IconButtonContours";
 import IconButtonCloseEnvelope from "./IconButtonCloseEnvelope";
+import DialogDuplicateContourSegments from "./DialogDuplicateContourSegments";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
@@ -113,6 +114,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
 
   const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
   const [cloneAnchorEl, setCloneAnchorEl] = useState(null);
+  const [wallChooserOpen, setWallChooserOpen] = useState(false);
   const [selectedCloneType, setSelectedCloneType] = useState(
     selectedAnnotation?.type
   );
@@ -137,6 +139,19 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
       part.kind !== "SEGMENTS" &&
       (!part.pointRefs || part.pointRefs.length < 2)) ||
     (hasPart && part.kind === "SEGMENTS" && !segmentsHasChains);
+
+  // A sloped POLYGON with contour segments selected: "Dupliquer" offers the
+  // wall-generation chooser (mur droit / hauteur fixe / hauteur max) so the user
+  // can create bouts de parois — see DialogDuplicateContourSegments.
+  const isSlopedPolygon =
+    selectedAnnotation?.type === "POLYGON" &&
+    selectedAnnotation?.guideLines?.some(
+      (g) => g?.points?.length >= 2 && g?.slopePct
+    );
+  const offersWallChooser =
+    isSlopedPolygon &&
+    hasPart &&
+    (part.kind === "SEGMENTS" || part.kind === "SEGMENT");
 
   // Filter clone candidates based on selected clone type
   const filteredCloneCandidates = (() => {
@@ -235,6 +250,12 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
 
   function handleCloneClick(event) {
     if (cloneDisabled) return;
+    // Sloped polygon + segment selection → open the wall-piece chooser instead
+    // of the plain clone template menu (the chooser keeps "Copie simple" too).
+    if (offersWallChooser) {
+      setWallChooserOpen(true);
+      return;
+    }
     const defaultCloneType = hasPart
       ? part.targetAnnotationType || cloneTypeOptions?.[0]?.key
       : selectedAnnotation?.type;
@@ -927,6 +948,17 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           />
         </Menu>
       </Paper>
+
+      {/* Wall-piece chooser (sloped polygon + segments selected) */}
+      {wallChooserOpen && (
+        <DialogDuplicateContourSegments
+          open={wallChooserOpen}
+          onClose={() => setWallChooserOpen(false)}
+          annotation={selectedAnnotation}
+          part={part}
+          accentColor={accentColor}
+        />
+      )}
     </Box>
   );
 }

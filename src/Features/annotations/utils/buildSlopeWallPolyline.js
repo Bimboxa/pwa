@@ -1,5 +1,9 @@
-import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
+import {
+  expandArcsInPath,
+  expandRingWithOffsets,
+} from "Features/geometry/utils/arcSampling";
 import projectPointOnSegment from "Features/annotations/utils/projectPointOnSegment";
+import buildWallProfileFromChain from "Features/annotations/utils/buildWallProfileFromChain";
 
 // Builds the polyline of a slope side wall (paroi) from a resolved POLYGON
 // annotation that carries a guideLine ramp.
@@ -17,12 +21,15 @@ import projectPointOnSegment from "Features/annotations/utils/projectPointOnSegm
 // The caller writes these as offsetBottom (ground) / offsetTop (wallTop) on the
 // generated POLYLINE; extrudePolylineWall.js then extrudes the vertical band.
 //
-// Two profiles (see the toolbar SVG illustrations):
+// Two profiles (see the toolbar SVG illustrations). maxHeight is optional for
+// both (see buildWallProfileFromChain):
 //   - "MAX":      wallTop = maxHeight (flat ceiling). The wall height decreases
-//                 up-slope and ends where the ground reaches maxHeight.
+//                 up-slope and ends where the ground reaches maxHeight. Without
+//                 a maxHeight, the ceiling is the highest ramp vertex.
 //   - "CONSTANT": wallTop = min(ground + constantHeight, maxHeight). The wall
 //                 keeps a constant height above the slope, then is capped at the
 //                 absolute ceiling (break point where ground = maxHeight - H).
+//                 Without a maxHeight, the height is kept all along the slope.
 //
 // Heights are absolute, measured from the baseMap level (offset = 0), which is
 // also where the lowest ramp vertex sits (offsets are normalised so min = 0).
@@ -32,13 +39,16 @@ import projectPointOnSegment from "Features/annotations/utils/projectPointOnSegm
 //   - side:       "LEFT" | "RIGHT" (relative to walking up the slope)
 //   - profileType:"MAX" | "CONSTANT"
 //   - constantHeight: meters (used by CONSTANT only)
-//   - maxHeight:  meters (absolute ceiling)
+//   - maxHeight:  meters (optional absolute ceiling)
 //
 // Returns an ordered array [{ x, y, ground, wallTop }] (pixels + meters), or
 // null when no wall can be built (no guideLine, ceiling below the ground, ...).
 
 const EPS = 1e-6;
 const ARC_SAMPLES = 16;
+// expandRingWithOffsets emits 2 segments per sample-half, so 4 samples ≈ 8
+// straight segments per S-C-S arc in the polygon contour.
+const CONTOUR_ARC_SAMPLES = 4;
 
 function cross2(ux, uy, vx, vy) {
   return ux * vy - uy * vx;
@@ -108,37 +118,6 @@ function longestCyclicRun(sides, want) {
   return best;
 }
 
-// Inserts interpolated points wherever an edge crosses one of the ground
-// `levels`, so the wall top profile has a clean vertex at each transition.
-function insertGroundCrossings(chain, levels) {
-  const out = [chain[0]];
-  for (let i = 0; i < chain.length - 1; i++) {
-    const a = chain[i];
-    const b = chain[i + 1];
-    const dg = b.ground - a.ground;
-    const inserts = [];
-    if (Math.abs(dg) > EPS) {
-      for (const lvl of levels) {
-        const t = (lvl - a.ground) / dg;
-        if (t > EPS && t < 1 - EPS) {
-          inserts.push({
-            t,
-            x: a.x + t * (b.x - a.x),
-            y: a.y + t * (b.y - a.y),
-            ground: lvl,
-          });
-        }
-      }
-      inserts.sort((p, q) => p.t - q.t);
-    }
-    for (const ins of inserts) {
-      out.push({ x: ins.x, y: ins.y, ground: ins.ground });
-    }
-    out.push(b);
-  }
-  return out;
-}
-
 export default function buildSlopeWallPolyline({
   annotation,
   side,
@@ -146,9 +125,15 @@ export default function buildSlopeWallPolyline({
   constantHeight,
   maxHeight,
 }) {
-  const pts = Array.isArray(annotation?.points) ? annotation.points : [];
-  if (pts.length < 3) return null;
-  if (!Number.isFinite(maxHeight) || maxHeight <= 0) return null;
+  const rawPts = Array.isArray(annotation?.points) ? annotation.points : [];
+  if (rawPts.length < 3) return null;
+  // maxHeight is optional: buildWallProfileFromChain keeps a constant height all
+  // along the slope (CONSTANT) or caps at the highest ramp vertex (MAX).
+
+  // Expand contour arcs (S-C-S triplets) so the wall follows the curve instead
+  // of collapsing onto its 2 chord segments. The closed ring keeps offsetTop
+  // (the ramp ground height) interpolated along each sampled arc point.
+  const pts = expandRingWithOffsets(rawPts, CONTOUR_ARC_SAMPLES, true);
 
   const neutral = mergeGuideLines(annotation);
   if (!neutral) return null;
@@ -170,29 +155,9 @@ export default function buildSlopeWallPolyline({
     ground: Number.isFinite(pts[i].offsetTop) ? pts[i].offsetTop : 0,
   }));
 
-  // Ground levels where the wall top profile changes / ends.
-  const H = profileType === "CONSTANT" ? constantHeight : 0;
-  const levels = [];
-  if (profileType === "CONSTANT") {
-    const gBreak = maxHeight - H;
-    if (gBreak > EPS) levels.push(gBreak);
-  }
-  levels.push(maxHeight); // ceiling
-
-  const dense = insertGroundCrossings(chain, levels);
-
-  // Compute wallTop per point (clamped at the ceiling). Beyond-ceiling points
-  // keep their place in the polyline; extrudePolylineWall hides the negative
-  // (ground > wallTop) spans, so the visible wall tapers off at the ceiling.
-  let anyPositive = false;
-  const out = dense.map((p) => {
-    const g = p.ground;
-    const wallTop =
-      profileType === "CONSTANT" ? Math.min(g + H, maxHeight) : maxHeight;
-    if (wallTop - g > EPS) anyPositive = true;
-    return { x: p.x, y: p.y, ground: g, wallTop };
+  return buildWallProfileFromChain(chain, {
+    profileType,
+    height: constantHeight,
+    maxHeight,
   });
-
-  if (!anyPositive || out.length < 2) return null;
-  return out;
 }
