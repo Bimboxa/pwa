@@ -14,6 +14,7 @@ const STYLE_FIELDS = [
   "strokeWidth",
   "strokeWidthUnit",
   "strokeType",
+  "stripOrientation",
   "unit",
   "decimals",
   "fontSize",
@@ -36,7 +37,11 @@ function pickStyle(obj) {
  * to source pixel space and the SVG viewBox spans the full image frame, so each
  * shape sits at its relative position within the image.
  */
-export default function ImportAnnotationsPreview({ data, widthMeters }) {
+export default function ImportAnnotationsPreview({
+  data,
+  widthMeters,
+  excludedTemplateIds,
+}) {
   const { width, height } = data?.image ?? {};
 
   // meters/px in the source image — lets COTE labels show real lengths.
@@ -45,10 +50,13 @@ export default function ImportAnnotationsPreview({ data, widthMeters }) {
 
   const previewAnnotations = useMemo(() => {
     if (!width || !height) return [];
+    const excluded = new Set(excludedTemplateIds ?? []);
     const templatesById = new Map(
       (data.annotationTemplates || []).map((t) => [t.id, t])
     );
-    return (data.annotations || []).map((ann, idx) => {
+    return (data.annotations || [])
+      .filter((ann) => !excluded.has(ann.annotationTemplateId))
+      .map((ann, idx) => {
       const tpl = templatesById.get(ann.annotationTemplateId);
       const style = { ...pickStyle(tpl), ...pickStyle(ann) };
       return {
@@ -64,7 +72,7 @@ export default function ImportAnnotationsPreview({ data, widthMeters }) {
         })),
       };
     });
-  }, [data, width, height]);
+  }, [data, width, height, excludedTemplateIds]);
 
   if (!width || !height) return null;
 

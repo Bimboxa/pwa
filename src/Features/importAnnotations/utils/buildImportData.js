@@ -15,6 +15,8 @@ const STYLE_FIELDS = [
   "strokeWidth",
   "strokeWidthUnit",
   "strokeType",
+  // STRIP (band width is carried by strokeWidth/strokeWidthUnit)
+  "stripOrientation",
   // COTE
   "unit",
   "decimals",
@@ -54,6 +56,18 @@ function getPxPerNorm({ image, widthMeters, mbpxTarget }) {
   return { pxPerNormX: image.width, pxPerNormY: image.height, scaled: false };
 }
 
+// STRIP band half/full width in TARGET pixels, for the paste ghost. Mirrors
+// the live editor's getStripDistancePx: CM widths convert via target meterByPx;
+// PX widths are used as-is.
+function computeStripWidthPx(style, mbpxTarget) {
+  const strokeWidth = style.strokeWidth ?? 20;
+  const unit = style.strokeWidthUnit ?? "PX";
+  if (unit === "CM" && mbpxTarget > 0) {
+    return Math.abs((strokeWidth * 0.01) / mbpxTarget);
+  }
+  return Math.abs(strokeWidth);
+}
+
 /**
  * Turn parsed inline JSON into:
  *  - templateRecords: full db.annotationTemplates rows (with new ids), ready to bulkAdd
@@ -73,6 +87,7 @@ export default function buildImportData({
   mainBaseMap,
   projectId,
   listingId,
+  excludedTemplateIds,
 }) {
   const image = data.image;
   const mbpxTarget = mainBaseMap?.getMeterByPx?.() ?? null;
@@ -82,9 +97,14 @@ export default function buildImportData({
     mbpxTarget,
   });
 
+  const excluded = new Set(excludedTemplateIds ?? []);
+  const includedTemplates = (data.annotationTemplates || []).filter(
+    (t) => !excluded.has(t.id)
+  );
+
   // 1. New template ids + records (source local id → new db id)
   const templateIdMap = new Map();
-  const templateRecords = (data.annotationTemplates || []).map((tpl) => {
+  const templateRecords = includedTemplates.map((tpl) => {
     const id = nanoid();
     templateIdMap.set(tpl.id, id);
     const style = pickStyle(tpl);
@@ -110,6 +130,11 @@ export default function buildImportData({
   const allBasePoints = [];
 
   for (const ann of data.annotations) {
+    // Skip annotations whose template was excluded from the import.
+    if (ann.annotationTemplateId && excluded.has(ann.annotationTemplateId)) {
+      continue;
+    }
+
     const newTplId = ann.annotationTemplateId
       ? templateIdMap.get(ann.annotationTemplateId)
       : undefined;
@@ -142,7 +167,15 @@ export default function buildImportData({
       points: ann.points.map((p) => (p.type ? { type: p.type } : {})),
     };
 
-    items.push({ annotation, basePoints });
+    const item = { annotation, basePoints };
+
+    // STRIP ghost needs the band width (target px) + orientation.
+    if (ann.type === "STRIP") {
+      item.stripWidthPx = computeStripWidthPx(style, mbpxTarget);
+      item.stripOrientation = style.stripOrientation ?? 1;
+    }
+
+    items.push(item);
   }
 
   // 3. Group source center = bbox center of all basePoints

@@ -21,7 +21,7 @@
 // Returns { ok: true, data } or { ok: false, error } where error is a short
 // human-readable French message for the panel.
 
-const SUPPORTED_TYPES = ["POLYLINE", "POLYGON", "COTE"];
+const SUPPORTED_TYPES = ["POLYLINE", "POLYGON", "COTE", "STRIP"];
 
 export default function parseImportAnnotationsJson(text) {
   if (!text || !text.trim()) {
