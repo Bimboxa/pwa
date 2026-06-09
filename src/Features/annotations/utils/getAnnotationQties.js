@@ -58,14 +58,17 @@ function computeDevelopedPerimeter(
 }
 
 // Quantities of a vertical wall (paroi) POLYLINE whose points carry per-vertex
-// offsetBottom (ground) / offsetTop (wall top), in meters. Only the portion that
-// actually carries a wall (positive height) is counted — beyond-ceiling points
-// (height ≤ 0) contribute nothing (a ceiling crossing vertex is inserted at
-// build time, so no segment straddles zero).
+// offsetBottom (ground) / offsetTop (wall top), in meters. The wall span at a
+// vertex is `height + offsetTop - offsetBottom`, matching the data model
+// (Z_top = height + offsetTop, Z_bottom = offsetBottom) and the 3D mesh builder
+// `cornerSpan` in extrudePolylineWall.js. Only the portion that actually carries
+// a wall (positive span) is counted — non-physical points (span ≤ 0, i.e. the
+// bottom rising above the top) contribute nothing, mirroring how the mesh splits
+// / hides those segments.
 //   - length:  the bottom junction line between the ramp and the wall, in 3D
 //              (it climbs the ramp, so dz = the ground height difference).
 //   - surface: the wall's lateral area = Σ horizontalLength × meanHeight.
-function computeWallQty(points, meterByPx, hiddenSegmentsIdx = []) {
+function computeWallQty(points, meterByPx, hiddenSegmentsIdx = [], height = 0) {
   const pts = (points || []).filter((p) => p && typeof p.x === "number");
   const n = pts.length;
   let length = 0;
@@ -76,8 +79,8 @@ function computeWallQty(points, meterByPx, hiddenSegmentsIdx = []) {
     const b = pts[i + 1];
     const bottomA = a.offsetBottom ?? 0;
     const bottomB = b.offsetBottom ?? 0;
-    const hA = Math.max(0, (a.offsetTop ?? 0) - bottomA);
-    const hB = Math.max(0, (b.offsetTop ?? 0) - bottomB);
+    const hA = Math.max(0, height + (a.offsetTop ?? 0) - bottomA);
+    const hB = Math.max(0, height + (b.offsetTop ?? 0) - bottomB);
     if (hA < 1e-9 && hB < 1e-9) continue; // no wall on this segment
     const dx = (b.x - a.x) * meterByPx;
     const dy = (b.y - a.y) * meterByPx;
@@ -433,7 +436,8 @@ export default function getAnnotationQties({
         const wall = computeWallQty(
           points,
           meterByPx,
-          annotation.hiddenSegmentsIdx || []
+          annotation.hiddenSegmentsIdx || [],
+          parseFloat(annotation.height) || 0
         );
         return {
           enabled: true,
