@@ -24,6 +24,7 @@ import {
   Print,
   Height,
   GridOn,
+  Upload,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -85,6 +86,10 @@ export default function VerticalMenuRightPanel() {
     CHAT: {
       label: "Chat",
       icon: <Chat />,
+    },
+    IMPORT_ANNOTATIONS: {
+      label: "Importer annotations",
+      icon: <Upload />,
     },
   };
 

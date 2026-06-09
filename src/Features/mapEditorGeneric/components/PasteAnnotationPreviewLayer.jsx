@@ -97,6 +97,22 @@ function renderItem(item, key) {
     );
   }
 
+  if (type === "COTE" && item.basePoints?.length) {
+    return (
+      <polyline
+        key={key}
+        points={pointsToAttr(item.basePoints)}
+        fill="none"
+        stroke={strokeColor}
+        strokeWidth={2}
+        strokeDasharray="6 4"
+        vectorEffect="non-scaling-stroke"
+        opacity={0.9}
+        style={{ pointerEvents: "none" }}
+      />
+    );
+  }
+
   if (type === "POLYLINE" && item.basePoints?.length) {
     return (
       <polyline

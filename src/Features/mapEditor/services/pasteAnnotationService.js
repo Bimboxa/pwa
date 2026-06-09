@@ -15,7 +15,8 @@ import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTran
  * transform translates the entire group by one delta (relative positions
  * preserved) and rotates/flips it rigidly around the group center.
  *
- * Supported types per item: POLYGON (with cuts), POLYLINE, STRIP, POINT, MARKER.
+ * Supported types per item: POLYGON (with cuts), POLYLINE, STRIP, COTE, POINT,
+ * MARKER.
  *
  * @param {Object} params
  * @param {Object} params.pasteClipboard  - { sourceCenter, items[] } from mapEditorSlice
@@ -95,7 +96,12 @@ export default async function pasteAnnotationService({
       ...(activeLayerId ? { layerId: activeLayerId } : {}),
     };
 
-    if (type === "POLYGON" || type === "POLYLINE" || type === "STRIP") {
+    if (
+      type === "POLYGON" ||
+      type === "POLYLINE" ||
+      type === "STRIP" ||
+      type === "COTE"
+    ) {
       if (!item.basePoints?.length) continue;
       const transformed = applyPasteTransformToPoints(
         item.basePoints,
