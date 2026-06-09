@@ -46,6 +46,8 @@ export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { vi
     const qtiesById = annotations.reduce((acc, annotation) => {
       const templateId = annotation?.annotationTemplateId;
       if (!templateId) return acc;
+      // Mesh cells are children already represented by their parent — skip.
+      if (annotation?.isMeshCell) return acc;
 
       if (!acc[templateId]) {
         acc[templateId] = {

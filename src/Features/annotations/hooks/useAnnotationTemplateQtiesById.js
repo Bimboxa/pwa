@@ -37,6 +37,8 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
       if (filterByBaseMapId && annotation.baseMapId !== filterByBaseMapId) return acc;
       const templateId = annotation?.annotationTemplateId;
       if (!templateId) return acc;
+      // Mesh cells are children already represented by their parent — skip.
+      if (annotation?.isMeshCell) return acc;
 
       // 1. Initialisation de l'accumulateur pour ce template
       if (!acc[templateId]) {

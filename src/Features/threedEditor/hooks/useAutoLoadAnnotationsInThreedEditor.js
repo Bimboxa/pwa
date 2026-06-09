@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 
 export default function useAutoLoadAnnotationsInThreedEditor({
   threedEditor,
@@ -15,6 +16,8 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const antiAliasingShrink = useSelector(
     (s) => s.threedEditor.antiAliasingShrink
   );
+  const showMeshCells = useSelector((s) => s.threedEditor.showMeshCells);
+  const { parentIdSet } = useMeshCellRelations();
   const baseMapOpacityIn3d = useSelector(
     (s) => s.threedEditor.baseMapOpacityIn3d
   );
@@ -49,6 +52,16 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     excludeIsForBaseMapsListings: true,
   });
 
+  // "Afficher les mailles": ON → replace parents that have mesh cells by their
+  // cells (hide the parent, keep the cells); OFF → hide mesh cells, show parents.
+  const annotationsForThreed = useMemo(() => {
+    if (!annotations) return annotations;
+    if (showMeshCells) {
+      return annotations.filter((a) => !parentIdSet.has(a.id));
+    }
+    return annotations.filter((a) => !a.isMeshCell);
+  }, [annotations, showMeshCells, parentIdSet]);
+
   useEffect(() => {
     if (!threedEditor?.loadAnnotations || !rendererIsReady) return;
     // Ensure the extra base maps' groups exist before (re)creating annotation
@@ -62,13 +75,13 @@ export default function useAutoLoadAnnotationsInThreedEditor({
         }
       });
     }
-    threedEditor.loadAnnotations(annotations || [], {
+    threedEditor.loadAnnotations(annotationsForThreed || [], {
       disableOpacity,
       antiAliasingShrink,
     });
   }, [
     rendererIsReady,
-    annotations,
+    annotationsForThreed,
     threedEditor,
     disableOpacity,
     antiAliasingShrink,
@@ -77,5 +90,5 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     baseMapOpacityIn3d,
   ]);
 
-  return annotations;
+  return annotationsForThreed;
 }

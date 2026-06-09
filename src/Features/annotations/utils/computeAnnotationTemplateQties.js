@@ -22,6 +22,9 @@ export default function computeAnnotationTemplateQties(
   const qtiesById = annotations.reduce((acc, annotation) => {
     const templateId = annotation?.annotationTemplateId;
     if (!templateId) return acc;
+    // Mesh cells are children of a parent annotation that is already counted;
+    // skip them so the parent + its cells don't double-count quantities.
+    if (annotation?.isMeshCell) return acc;
 
     if (!acc[templateId]) {
       acc[templateId] = { count: 0, length: 0, surface: 0, unit: 0, mainQtyLabel: "-" };

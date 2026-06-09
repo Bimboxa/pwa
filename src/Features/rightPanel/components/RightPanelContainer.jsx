@@ -29,6 +29,7 @@ import PanelAdminEntity from "Features/adminEditor/components/PanelAdminEntity";
 import PanelAnnotationsAuto from "Features/annotationsAuto/components/PanelAnnotationsAuto";
 import PanelPrint from "Features/print/components/PanelPrint";
 import PanelElevation from "Features/elevation/components/PanelElevation";
+import PanelMesh from "Features/mesh/components/PanelMesh";
 
 export default function RightPanelContainer() {
 
@@ -40,8 +41,9 @@ export default function RightPanelContainer() {
   const fixedWidth = useSelector((s) => s.rightPanel.width);
   const elevationWidth = useSelector((s) => s.rightPanel.elevationWidth);
 
-  const isElevation = selectedKey === "ELEVATION";
-  const width = isElevation ? elevationWidth : fixedWidth;
+  // Elevation and Mesh share the same resizable width.
+  const isResizable = selectedKey === "ELEVATION" || selectedKey === "MESH";
+  const width = isResizable ? elevationWidth : fixedWidth;
 
   // handlers - resize (Elevation tool only; updates its own width, the other
   // tools keep their fixed width)
@@ -104,7 +106,7 @@ export default function RightPanelContainer() {
         >
           {/* resize handle on the left frontier — exposed for the Elevation
               tool; the resulting width is shared by all tools */}
-          {selectedKey === "ELEVATION" && (
+          {isResizable && (
             <Box
               onMouseDown={handleResizeMouseDown}
               sx={{
@@ -140,6 +142,7 @@ export default function RightPanelContainer() {
           {selectedKey === "ANNOTATIONS_AUTO" && <PanelAnnotationsAuto />}
           {selectedKey === "PRINT" && <PanelPrint />}
           {selectedKey === "ELEVATION" && <PanelElevation />}
+          {selectedKey === "MESH" && <PanelMesh />}
         </Box>
       </Slide>
 

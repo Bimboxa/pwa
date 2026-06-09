@@ -18,6 +18,46 @@ export default function useDeleteAnnotations() {
 
     const idsToDelete = validAnnotations.map((a) => a.id);
 
+    // 1a. Cascade to mesh cells: when a parent annotation is deleted, its mesh
+    // cells ("mailles") are deleted too. Pull the child cell annotations and
+    // fold them into the deletion set so the rest of the cleanup (listings,
+    // etc.) applies to them as well.
+    const meshRelsAsParent = await db.relAnnotationMeshCells
+      .where("parentAnnotationId")
+      .anyOf(idsToDelete)
+      .toArray();
+    const childCellIds = [
+      ...new Set(
+        meshRelsAsParent
+          .filter((r) => !r.deletedAt)
+          .map((r) => r.meshCellAnnotationId)
+          .filter((id) => !idsToDelete.includes(id))
+      ),
+    ];
+    if (childCellIds.length > 0) {
+      const childCells = (await db.annotations.bulkGet(childCellIds)).filter(
+        (a) => a && !a.deletedAt
+      );
+      for (const c of childCells) {
+        validAnnotations.push(c);
+        idsToDelete.push(c.id);
+      }
+    }
+
+    // 1a-bis. Collect mesh relations touching any deleted annotation (as parent
+    // or as cell) so the relation rows are soft-deleted too.
+    const meshRelsAsCell = await db.relAnnotationMeshCells
+      .where("meshCellAnnotationId")
+      .anyOf(idsToDelete)
+      .toArray();
+    const meshRelIds = [
+      ...new Set(
+        [...meshRelsAsParent, ...meshRelsAsCell]
+          .filter((r) => !r.deletedAt)
+          .map((r) => r.id)
+      ),
+    ];
+
     // 1b. Cascade: collect subtraction relations where a deleted annotation is
     // either the source (carved polygon) or the target (subtracted shape).
     const [relSrc, relTgt] = await Promise.all([
@@ -131,11 +171,21 @@ export default function useDeleteAnnotations() {
     // 5. Execute all writes in a single transaction
     await db.transaction(
       "rw",
-      [db.annotations, db.listings, db.relAnnotationSubtractions],
+      [
+        db.annotations,
+        db.listings,
+        db.relAnnotationSubtractions,
+        db.relAnnotationMeshCells,
+      ],
       async () => {
         // Cascade soft-delete subtraction relations
         if (subtractionRelIds.length > 0) {
           await db.relAnnotationSubtractions.bulkDelete(subtractionRelIds);
+        }
+
+        // Cascade soft-delete mesh relations
+        if (meshRelIds.length > 0) {
+          await db.relAnnotationMeshCells.bulkDelete(meshRelIds);
         }
 
         // Batch cuts-cleanup updates
