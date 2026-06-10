@@ -28,10 +28,54 @@ function pickStyle(annotation) {
   return style;
 }
 
+const labelNum = (label) => {
+  const m = /(\d+)/.exec(label || "");
+  return m ? parseInt(m[1], 10) : 0;
+};
+
+/**
+ * Renumber every (live) maille of a listing as M1, M2, M3… so the sequence stays
+ * gap-free and collision-free after a (re)mesh. Surfaces are ordered by creation
+ * time (createdAt, then id); within a surface the existing label order is kept
+ * (mailles were created in reading order). Runs inside the caller's transaction.
+ */
+async function relabelListingMeshCells(listingId, labelPrefix = "M") {
+  if (!listingId) return;
+  const cells = (
+    await db.annotations.where("listingId").equals(listingId).toArray()
+  ).filter((a) => a.isMeshCell && !a.deletedAt && a.parentAnnotationId);
+  if (!cells.length) return;
+
+  const parentIds = [...new Set(cells.map((c) => c.parentAnnotationId))];
+  const parents = await db.annotations.bulkGet(parentIds);
+  const createdAtById = {};
+  parents.forEach((p) => {
+    if (p) createdAtById[p.id] = p.createdAt || "";
+  });
+
+  cells.sort((a, b) => {
+    const ca = createdAtById[a.parentAnnotationId] || "";
+    const cb = createdAtById[b.parentAnnotationId] || "";
+    if (ca !== cb) return ca < cb ? -1 : 1;
+    if (a.parentAnnotationId !== b.parentAnnotationId)
+      return a.parentAnnotationId < b.parentAnnotationId ? -1 : 1;
+    return labelNum(a.label) - labelNum(b.label);
+  });
+
+  for (let i = 0; i < cells.length; i++) {
+    const label = `${labelPrefix}${i + 1}`;
+    if (cells[i].label !== label)
+      await db.annotations.update(cells[i].id, { label });
+  }
+}
+
 // Normalize a draft cut line (editor world space) for persistence on the parent.
 //   POLYGON  → [0..1] baseMap coords
 //   POLYLINE → elevation param space { u (0..1 along developed wall), z (m) }
-function normalizeMeshLine(line, { mode, imageSize, developedRange, meterByPx }) {
+function normalizeMeshLine(
+  line,
+  { mode, imageSize, developedRange, meterByPx }
+) {
   const norm = (p) => {
     if (mode === "POLYGON") {
       return { x: p.x / imageSize.width, y: p.y / imageSize.height };
@@ -137,7 +181,9 @@ export default async function saveMeshService({
       closeLine: type === "POLYGON" ? true : false,
       isMeshCell: true,
       parentAnnotationId,
-      label: `${parentAnnotation.label ?? parentAnnotation.templateLabel ?? "Maille"} ${index + 1}`,
+      // per-listing maille label (M1, M2, M3…); finalized by the listing-wide
+      // relabel below. cell.label already carries the per-listing offset.
+      label: cell.label ?? `M${index + 1}`,
       ...(type === "POLYLINE" && {
         height: parseFloat(parentAnnotation.height) || 0,
         offsetZ: Number(parentAnnotation.offsetZ) || 0,
@@ -193,6 +239,9 @@ export default async function saveMeshService({
       await db.annotations.update(parentAnnotationId, {
         meshLines: persistedMeshLines,
       });
+
+      // renumber the whole listing so the M1, M2, M3… sequence stays clean
+      await relabelListingMeshCells(listingId);
     }
   );
 

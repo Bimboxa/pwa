@@ -9,6 +9,7 @@ import useSelectedNodes from "Features/mapEditor/hooks/useSelectedNodes";
 import NodeSvgImage from "Features/mapEditorGeneric/components/NodeSvgImage";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
+import MeshSelectionHighlight from "Features/mapEditor/components/MeshSelectionHighlight";
 
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
 
@@ -344,6 +345,9 @@ function StaticMapContent({
                         />
                     </g>
                 })}
+
+                {/* maille group highlight when a maille is selected */}
+                <MeshSelectionHighlight annotations={annotations} />
 
             </g>
 

@@ -36,6 +36,7 @@ export default function PanelMesh() {
     offsetZ,
     color,
     meshLines,
+    selectedMailleLabel,
   } = useMeshAnnotation();
 
   const selectedSegmentIndices = useSelector(
@@ -137,6 +138,7 @@ export default function PanelMesh() {
           offsetZ={offsetZ}
           color={color}
           meshLines={meshLines}
+          selectedMailleLabel={selectedMailleLabel}
         />
       </Box>
     </BoxFlexVStretch>

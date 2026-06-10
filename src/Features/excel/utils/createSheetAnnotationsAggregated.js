@@ -5,6 +5,8 @@ export default function createSheetAnnotationsAggregated(workbook, annotations) 
     for (const annotation of annotations) {
         const templateId = annotation.annotationTemplateId;
         if (!templateId) continue;
+        // Skip mesh cells: their parent is already counted (avoid double-count).
+        if (annotation.isMeshCell) continue;
 
         if (!grouped[templateId]) {
             grouped[templateId] = {

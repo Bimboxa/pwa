@@ -18,6 +18,10 @@ export default function getEntityQties(entity, options) {
 
     } else {
         qties = annotations.reduce((acc, annotation) => {
+            // Skip mesh cells: the parent annotation already carries the
+            // quantity, so counting its cells too would double-count.
+            if (annotation?.isMeshCell) return acc;
+
             const { length, surface } = annotation?.qties ?? {}
 
             // length

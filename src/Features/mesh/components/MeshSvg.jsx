@@ -25,17 +25,12 @@ function fmtM2(v) {
 function buildBoundaries(lines, axis, lo, hi) {
   const mids = lines
     .map((l) => ({
-      scalar:
-        axis === "x" ? (l.p1.x + l.p2.x) / 2 : (l.p1.y + l.p2.y) / 2,
+      scalar: axis === "x" ? (l.p1.x + l.p2.x) / 2 : (l.p1.y + l.p2.y) / 2,
       lineId: l.id,
     }))
     .filter((b) => b.scalar > lo + 1e-6 && b.scalar < hi - 1e-6)
     .sort((a, b) => a.scalar - b.scalar);
-  return [
-    { scalar: lo, lineId: null },
-    ...mids,
-    { scalar: hi, lineId: null },
-  ];
+  return [{ scalar: lo, lineId: null }, ...mids, { scalar: hi, lineId: null }];
 }
 
 export default function MeshSvg({
@@ -56,12 +51,27 @@ export default function MeshSvg({
   // POLYLINE: restrict the X cotes to the selected band's developed range so
   // only that band shows its cotes; null = full width (POLYGON).
   coteXRange = null,
+  // live map zoom — used to keep the dimension-band spacing constant in screen
+  // pixels at any zoom (same idiom as MeshElevationBackdrop).
+  zoom = 1,
+  // highlight a cell by its M-label: selected (from map selection) / hovered
+  // (panel-local). Cells are correlated to maille annotations by label.
+  selectedCellLabel = null,
+  hoveredCellLabel = null,
+  onHoverCell,
+  onCellSelect,
 }) {
   const theme = useTheme();
   const cut = theme.palette.error.main;
 
   const span = Math.max(bbox.maxX - bbox.minX, 1);
-  const dimPad = span * 0.06 + 8;
+  // Dimension-band spacing is FIXED in screen pixels (divided by the live zoom →
+  // world units) so the gap stays visually constant whatever the zoom level —
+  // otherwise the constant-size value labels collide with the dimension line.
+  const dimPad = (span * 0.06 + 8) / zoom;
+  const tick = 4 / zoom; // tick half-length
+  const labelGapX = 16 / zoom; // bottom band: value below the line
+  const labelGapY = 34 / zoom; // left band: value left of the line
 
   const outlinePath = useMemo(() => {
     if (!outlinePoints?.length) return "";
@@ -96,22 +106,37 @@ export default function MeshSvg({
   return (
     <g>
       {/* cells */}
-      {cells?.map((cell) => (
-        <path
-          key={cell.id}
-          d={
-            cell.points
-              .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-              .join(" ") + " Z"
-          }
-          fill={color}
-          fillOpacity={cellFill ? 0.22 : 0}
-          stroke={color}
-          strokeWidth={1}
-          strokeOpacity={0.6}
-          vectorEffect="non-scaling-stroke"
-        />
-      ))}
+      {cells?.map((cell) => {
+        const isSelectedCell =
+          selectedCellLabel && cell.label === selectedCellLabel;
+        const isHoveredCell =
+          hoveredCellLabel && cell.label === hoveredCellLabel;
+        const baseFill = cellFill ? 0.22 : 0;
+        return (
+          <path
+            key={cell.id}
+            d={
+              cell.points
+                .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
+                .join(" ") + " Z"
+            }
+            fill={isSelectedCell || isHoveredCell ? cut : color}
+            fillOpacity={
+              isSelectedCell ? 0.45 : isHoveredCell ? 0.33 : baseFill
+            }
+            stroke={isSelectedCell ? cut : color}
+            strokeWidth={isSelectedCell ? 2.5 : 1}
+            strokeOpacity={isSelectedCell ? 1 : 0.6}
+            vectorEffect="non-scaling-stroke"
+            style={{
+              cursor: onHoverCell || onCellSelect ? "pointer" : undefined,
+            }}
+            onMouseEnter={() => onHoverCell?.(cell.label)}
+            onMouseLeave={() => onHoverCell?.(null)}
+            onClick={() => onCellSelect?.(cell.label)}
+          />
+        );
+      })}
 
       {/* base outline (POLYGON; for POLYLINE the elevation backdrop draws it) */}
       {showOutline && (
@@ -134,17 +159,33 @@ export default function MeshSvg({
             cell.centroid.x > coteXRange.max + 1e-6)
         )
           return null;
+        const isSelectedCell =
+          selectedCellLabel && cell.label === selectedCellLabel;
         return (
           <g
             key={`lbl-${cell.id}`}
             transform={`translate(${cell.centroid.x}, ${cell.centroid.y})`}
           >
             <g style={COUNTER_ZOOM}>
+              {cell.label && (
+                <text
+                  x={0}
+                  y={-8}
+                  fontSize={isSelectedCell ? 15 : 13}
+                  fontWeight={700}
+                  fill={cut}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  style={{ userSelect: "none" }}
+                >
+                  {cell.label}
+                </text>
+              )}
               <text
                 x={0}
-                y={0}
-                fontSize={13}
-                fontWeight={600}
+                y={cell.label ? 9 : 0}
+                fontSize={12}
+                fontWeight={500}
                 fill={cut}
                 textAnchor="middle"
                 dominantBaseline="middle"
@@ -194,10 +235,7 @@ export default function MeshSvg({
               ["P1", "P2"].map((which) => {
                 const p = which === "P1" ? line.p1 : line.p2;
                 return (
-                  <g
-                    key={which}
-                    transform={`translate(${p.x}, ${p.y})`}
-                  >
+                  <g key={which} transform={`translate(${p.x}, ${p.y})`}>
                     <g style={COUNTER_ZOOM}>
                       <rect
                         x={-HALF}
@@ -209,9 +247,7 @@ export default function MeshSvg({
                         strokeWidth={1.5}
                         data-mesh-handle="1"
                         style={{ cursor: "grab" }}
-                        onMouseDown={(e) =>
-                          onLineMouseDown?.(e, line, which)
-                        }
+                        onMouseDown={(e) => onLineMouseDown?.(e, line, which)}
                       />
                     </g>
                   </g>
@@ -237,9 +273,9 @@ export default function MeshSvg({
             <line
               key={`xtick-${i}`}
               x1={b.scalar}
-              y1={dimBandY - 4}
+              y1={dimBandY - tick}
               x2={b.scalar}
-              y2={dimBandY + 4}
+              y2={dimBandY + tick}
               stroke="#999"
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"
@@ -253,7 +289,7 @@ export default function MeshSvg({
             return (
               <g
                 key={`xdim-${i}`}
-                transform={`translate(${midX}, ${dimBandY + 14})`}
+                transform={`translate(${midX}, ${dimBandY + labelGapX})`}
               >
                 <g style={COUNTER_ZOOM}>
                   <foreignObject
@@ -307,9 +343,9 @@ export default function MeshSvg({
           {yBoundaries.map((b, i) => (
             <line
               key={`ytick-${i}`}
-              x1={dimBandX - 4}
+              x1={dimBandX - tick}
               y1={b.scalar}
-              x2={dimBandX + 4}
+              x2={dimBandX + tick}
               y2={b.scalar}
               stroke="#999"
               strokeWidth={1}
@@ -324,7 +360,7 @@ export default function MeshSvg({
             return (
               <g
                 key={`ydim-${i}`}
-                transform={`translate(${dimBandX - 34}, ${midY})`}
+                transform={`translate(${dimBandX - labelGapY}, ${midY})`}
               >
                 <g style={COUNTER_ZOOM}>
                   <foreignObject

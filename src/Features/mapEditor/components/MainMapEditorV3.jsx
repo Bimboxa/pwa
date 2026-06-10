@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { nanoid } from "@reduxjs/toolkit";
@@ -30,6 +30,7 @@ import useDeleteGuideLine from "Features/annotations/hooks/useDeleteGuideLine";
 import useHandleSplitCommit from "../hooks/useHandleSplitCommit";
 import useHandleCompleteAnnotation from "../hooks/useHandleCompleteAnnotation";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
+import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationType";
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
@@ -285,7 +286,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const hideBaseMapAnnotations = openedPanel !== "BASE_MAP_DETAIL";
 
     _track("newAnnotation", newAnnotation?.id);
-    const annotations = useAnnotationsV2({
+    const rawAnnotations = useAnnotationsV2({
         caller: "MainMapEditorV3",
         enabled: isActiveViewer,
         withEntity: true,
@@ -297,6 +298,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
         onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
     });
+
+    // "Maillage" toggle: ON → replace meshed parents by their mesh cells (keep
+    // cells + non-meshed annotations); OFF → hide mesh cells, show parents.
+    // Mirrors useAutoLoadAnnotationsInThreedEditor.
+    const showMeshCells = useSelector((s) => s.popperMapListings.showMeshCells);
+    const { parentIdSet } = useMeshCellRelations();
+    const annotations = useMemo(() => {
+        if (!rawAnnotations) return rawAnnotations;
+        return showMeshCells
+            ? rawAnnotations.filter((a) => !parentIdSet.has(a.id))
+            : rawAnnotations.filter((a) => !a.isMeshCell);
+    }, [rawAnnotations, showMeshCells, parentIdSet]);
 
     _track("annotations.length", annotations?.length);
 

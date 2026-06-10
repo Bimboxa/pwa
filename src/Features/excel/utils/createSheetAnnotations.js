@@ -2,8 +2,9 @@ import theme from "Styles/theme"
 
 export default function createSheetAnnotations(workbook, annotations) {
 
-    // 1. Data preparation
-    const items = annotations.map(annotation => {
+    // 1. Data preparation — skip mesh cells (their parent is already listed, so
+    // including them would double-count quantities).
+    const items = annotations.filter(a => !a.isMeshCell).map(annotation => {
         return {
             listingName: annotation.listingName ?? "-",
             baseMapName: annotation.baseMapName ?? "-",

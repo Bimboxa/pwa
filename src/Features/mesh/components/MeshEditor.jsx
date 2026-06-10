@@ -17,14 +17,17 @@ import {
 } from "Features/mesh/meshSlice";
 
 import { setEditedSegmentIndex } from "Features/elevation/elevationSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import MapEditorViewport from "Features/mapEditorGeneric/components/MapEditorViewport";
 import MeshSvg from "./MeshSvg";
 import MeshElevationBackdrop from "./MeshElevationBackdrop";
 import MeshToolbar from "./MeshToolbar";
 
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useElevationProfile from "Features/elevation/hooks/useElevationProfile";
 import useMeshCells from "Features/mesh/hooks/useMeshCells";
+import useMeshCellLabelOffset from "Features/mesh/hooks/useMeshCellLabelOffset";
 import useMeshLineDrag from "Features/mesh/hooks/useMeshLineDrag";
 
 import computeMeshCells from "Features/mesh/utils/computeMeshCells";
@@ -78,8 +81,12 @@ export default function MeshEditor({
   offsetZ,
   color,
   meshLines, // persisted (normalized)
+  selectedMailleLabel = null, // M-label of the selected maille (highlight it)
 }) {
   const dispatch = useDispatch();
+
+  // panel-local highlight of the hovered cell (by its M-label)
+  const [hoveredCellLabel, setHoveredCellLabel] = useState(null);
   const viewportRef = useRef(null);
 
   // live map zoom → keeps the elevation backdrop recap gap/margins constant in
@@ -102,9 +109,7 @@ export default function MeshEditor({
   );
   const seedSegmentIndex = useSelector((s) => s.elevation.seedSegmentIndex);
   const observationSign = useSelector((s) => s.elevation.observationSign);
-  const editedSegmentIndex = useSelector(
-    (s) => s.elevation.editedSegmentIndex
-  );
+  const editedSegmentIndex = useSelector((s) => s.elevation.editedSegmentIndex);
   const hoveredSegmentIndex = useSelector(
     (s) => s.elevation.hoveredSegmentIndex
   );
@@ -134,7 +139,9 @@ export default function MeshEditor({
     }
     if (mode === "POLYLINE" && vertices?.length >= 2) {
       const top = vertices.map((v) => ({ x: v.x, y: v.topY }));
-      const bottom = [...vertices].reverse().map((v) => ({ x: v.x, y: v.bottomY }));
+      const bottom = [...vertices]
+        .reverse()
+        .map((v) => ({ x: v.x, y: v.bottomY }));
       const xs = vertices.map((v) => v.x);
       return {
         outlinePoints: [...top, ...bottom],
@@ -180,11 +187,57 @@ export default function MeshEditor({
   );
   const linesForDisplay = editing ? draftMeshLines : persistedWorldLines;
 
+  // continue the per-listing maille numbering (M1, M2, M3…) after the mailles of
+  // surfaces created before this one
+  const labelOffset = useMeshCellLabelOffset({
+    listingId: annotation?.listingId,
+    parentAnnotationId: annotationId,
+    parentCreatedAt: annotation?.createdAt,
+  });
+
   const cells = useMeshCells({
     outlinePoints,
     meshLines: linesForDisplay,
     meterByPx,
+    labelOffset,
   });
+
+  // map each maille (by its M-label) to its persisted annotation, so clicking a
+  // cell in the panel selects that maille on the map (which then highlights the
+  // whole group — see MeshSelectionHighlight).
+  const allAnnotations = useAnnotationsV2({ caller: "MeshEditor" });
+  const mailleByLabel = useMemo(() => {
+    const map = new Map();
+    (allAnnotations ?? []).forEach((a) => {
+      if (a.isMeshCell && a.parentAnnotationId === annotationId && a.label)
+        map.set(a.label, a);
+    });
+    return map;
+  }, [allAnnotations, annotationId]);
+
+  const handleCellSelect = useCallback(
+    (label) => {
+      const m = mailleByLabel.get(label);
+      if (!m) return;
+      dispatch(
+        setSelectedItem({
+          id: m.id,
+          nodeId: m.id,
+          type: "NODE",
+          nodeType: "ANNOTATION",
+          annotationType: m.type,
+          entityId: m.entityId,
+          listingId: m.listingId,
+          annotationTemplateId: m.annotationTemplateId,
+          isMeshCell: true,
+          parentAnnotationId: m.parentAnnotationId,
+          partId: null,
+          partType: null,
+        })
+      );
+    },
+    [mailleByLabel, dispatch]
+  );
 
   const { startLineDrag } = useMeshLineDrag({ viewportRef });
 
@@ -271,6 +324,7 @@ export default function MeshEditor({
   const handleSave = useCallback(async () => {
     const computed = computeMeshCells(outlinePoints, draftMeshLines, {
       meterByPx,
+      labelOffset,
     });
     await saveMeshService({
       parentAnnotation: annotation,
@@ -287,6 +341,7 @@ export default function MeshEditor({
     outlinePoints,
     draftMeshLines,
     meterByPx,
+    labelOffset,
     annotation,
     mode,
     imageSize,
@@ -471,6 +526,11 @@ export default function MeshEditor({
             showOutline={mode !== "POLYLINE"}
             cellFill={mode !== "POLYLINE"}
             coteXRange={coteXRange}
+            zoom={zoom}
+            selectedCellLabel={selectedMailleLabel}
+            hoveredCellLabel={hoveredCellLabel}
+            onHoverCell={setHoveredCellLabel}
+            onCellSelect={handleCellSelect}
           />
         </MapEditorViewport>
 
