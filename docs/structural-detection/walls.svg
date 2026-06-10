@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     viewBox="0 0 2000 1100" width="2000" height="1100">
+  <!--
+    Structural elements (load-bearing walls + columns) traced from the pool
+    level plan extract (vestiaires / hall d'accueil zone).
+    Coordinate space: pixels of the source raster, assumed 2000 x 1100.
+    Each wall is ONE vector (a <line> on the wall centerline,
+    stroke-width = wall thickness). Columns are <rect>.
+    The background <image> layer expects the original raster to be saved
+    as "plan.png" next to this file (it is simply skipped if absent).
+  -->
+  <image id="base-plan" xlink:href="plan.png" href="plan.png"
+         x="0" y="0" width="2000" height="1100" preserveAspectRatio="none"/>
+
+  <g id="structural-walls" stroke="#ff0000" stroke-opacity="0.5"
+     stroke-width="20" stroke-linecap="butt" fill="none">
+
+    <!-- Exterior wall - north facade (openings = windows skipped) -->
+    <line id="ext-north-1" x1="45"   y1="68"  x2="272"  y2="68"/>
+    <line id="ext-north-2" x1="340"  y1="68"  x2="572"  y2="68"/>
+    <line id="ext-north-3" x1="640"  y1="68"  x2="1175" y2="68"/>
+    <line id="ext-north-4" x1="1245" y1="68"  x2="1893" y2="68"/>
+
+    <!-- Exterior wall - east facade (entrance door + windows skipped) -->
+    <line id="ext-east-1" x1="1903" y1="60"   x2="1903" y2="358"/>
+    <line id="ext-east-2" x1="1903" y1="400"  x2="1903" y2="460"/>
+    <line id="ext-east-3" x1="1903" y1="595"  x2="1903" y2="920"/>
+    <line id="ext-east-4" x1="1903" y1="1010" x2="1903" y2="1045"/>
+
+    <!-- West side : espace casiers / espace bebe -->
+    <line id="wall-01" x1="85"  y1="232" x2="85"  y2="620"/>
+    <line id="wall-02" x1="75"  y1="240" x2="195" y2="240"/>
+
+    <!-- Wall between casiers/cabines zone and vestiaires (door gap kept) -->
+    <line id="wall-03a" x1="297" y1="270" x2="735" y2="270"/>
+    <line id="wall-03b" x1="795" y1="270" x2="940" y2="270"/>
+    <line id="wall-04"  x1="815" y1="78"  x2="815" y2="270"/>
+
+    <!-- Espace cabines east boundary -->
+    <line id="wall-05" x1="705" y1="270" x2="705" y2="403"/>
+
+    <!-- Long wall between vestiaires collectifs and dechaussage zone -->
+    <line id="wall-06a" x1="705"  y1="403" x2="1175" y2="403"/>
+    <line id="wall-06b" x1="1245" y1="403" x2="1893" y2="403"/>
+
+    <!-- Separation between collective changing-room bays -->
+    <line id="wall-07" x1="1355" y1="78" x2="1355" y2="265"/>
+
+    <!-- Long south wall of the changing area (pool deck side) -->
+    <line id="wall-08" x1="0"   y1="622" x2="578" y2="622"/>
+    <line id="wall-09" x1="578" y1="622" x2="578" y2="648"/>
+    <line id="wall-10" x1="578" y1="648" x2="1030" y2="648"/>
+
+    <!-- Entretien bassins room -->
+    <line id="wall-11" x1="588" y1="648" x2="588" y2="818"/>
+    <line id="wall-12" x1="588" y1="820" x2="905" y2="820"/>
+    <line id="wall-13" x1="905" y1="648" x2="905" y2="820"/>
+
+    <!-- Spine wall between white (wet) zone and gray (hall) zone -->
+    <line id="wall-14" x1="1032" y1="403" x2="1032" y2="830"/>
+
+    <!-- Entretien vestiaires room -->
+    <line id="wall-15" x1="1040" y1="530" x2="1250" y2="530"/>
+    <line id="wall-16" x1="1250" y1="530" x2="1250" y2="830"/>
+    <line id="wall-17" x1="1040" y1="745" x2="1250" y2="745"/>
+
+    <!-- WC + local poussettes block -->
+    <line id="wall-18" x1="1250" y1="640" x2="1700" y2="640"/>
+    <line id="wall-19" x1="1385" y1="640" x2="1385" y2="830"/>
+    <line id="wall-20" x1="1700" y1="640" x2="1700" y2="830"/>
+    <line id="wall-21" x1="1040" y1="830" x2="1700" y2="830"/>
+
+    <!-- Hall d'accueil partition (thinner) -->
+    <line id="wall-22" x1="1037" y1="830" x2="1037" y2="1100" stroke-width="14"/>
+  </g>
+
+  <g id="structural-columns" fill="#ff0000" fill-opacity="0.5" stroke="none">
+    <!-- Pier at the jog of the long south wall -->
+    <rect id="column-01" x="433" y="622" width="35" height="40"/>
+  </g>
+</svg>
