@@ -142,7 +142,7 @@ function SideSection({
             />
           )}
           <TextField
-            label="Hauteur max (optionnel)"
+            label="Hauteur max"
             type="number"
             size="small"
             fullWidth
@@ -150,8 +150,8 @@ function SideSection({
             onChange={(e) => patch({ maxHeight: e.target.value })}
             helperText={
               state.profileType === "MAX"
-                ? "Par défaut : point le plus haut de la pente"
-                : "Par défaut : hauteur conservée sur toute la pente"
+                ? "Optionnel — par défaut : point le plus haut de la pente"
+                : "Optionnel — par défaut : hauteur conservée sur toute la pente"
             }
             InputProps={{
               endAdornment: <InputAdornment position="end">m</InputAdornment>,
