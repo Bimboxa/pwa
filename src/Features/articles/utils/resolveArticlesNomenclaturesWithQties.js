@@ -64,12 +64,16 @@ export default async function resolveArticlesNomenclaturesWithQties({
         return articlesNomenclatures ?? [];
     }
 
+    // Skip mesh cells: their parent annotation already carries the quantity, so
+    // counting the cells too would double-count.
+    const countedAnnotations = annotations.filter((a) => !a.isMeshCell);
+
     // ── Step 1 : build a fast lookup  annotationId → annotation ──────────────
     const annotationById = Object.fromEntries(
-        annotations.map((a) => [a.id, a])
+        countedAnnotations.map((a) => [a.id, a])
     );
 
-    const annotationIds = annotations.map((a) => a.id);
+    const annotationIds = countedAnnotations.map((a) => a.id);
 
     // ── Step 2 : load all relevant relations from the DB ─────────────────────
     // We fetch all relations whose annotationId is in our set (one query per id

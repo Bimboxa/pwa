@@ -355,10 +355,14 @@ const InteractionLayer = forwardRef(({
   const selectedPartIds = useSelector(selectSelectedPartIds);
   const selectedPointIds = useSelector(selectSelectedPointIds);
 
-  // PopperMapListings interaction mode (DRAW | EDIT | SELECT)
-  const interactionMode = useSelector(
+  // PopperMapListings interaction mode (DRAW | EDIT | SELECT). When the
+  // "Maillage" toggle is on, interactions behave exactly like SELECT (no
+  // geometry edit, snapping off), so derive the effective mode here once.
+  const rawInteractionMode = useSelector(
     (s) => s.popperMapListings.interactionMode
   );
+  const showMeshCells = useSelector((s) => s.popperMapListings.showMeshCells);
+  const interactionMode = showMeshCells ? "SELECT" : rawInteractionMode;
 
   // Computed selectedNode equivalent (first item)
   const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
@@ -4157,6 +4161,10 @@ const InteractionLayer = forwardRef(({
             listingId: hit.dataset.nodeListingId,
             annotationTemplateId: annotation?.annotationTemplateId,
             nodeContext: hit.dataset.nodeContext, // Optional but useful for EditedObjectLayer
+            // maille info → lets the map highlight the whole mesh group (see
+            // MeshSelectionHighlight); selection itself stays single.
+            isMeshCell: annotation?.isMeshCell ?? false,
+            parentAnnotationId: annotation?.parentAnnotationId ?? null,
             partId: null,
             partType: null
           };

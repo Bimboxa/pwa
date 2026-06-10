@@ -1,4 +1,5 @@
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 // Resolves the data the mesh tool needs from the currently selected annotation.
@@ -9,8 +10,20 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 //
 // `points` are already resolved to pixel space (x/y) by useAnnotationsV2.
 export default function useMeshAnnotation() {
-  const annotation = useSelectedAnnotation();
+  const selected = useSelectedAnnotation();
   const baseMap = useMainBaseMap();
+
+  // When a maille (mesh cell) is selected, mesh its PARENT annotation (the
+  // whole meshed surface) and remember which maille is selected so the mesh
+  // view can highlight it. Otherwise mesh the selected annotation directly.
+  const annotations = useAnnotationsV2({ caller: "useMeshAnnotation" });
+  const isMaille = Boolean(selected?.isMeshCell && selected?.parentAnnotationId);
+  const parent = isMaille
+    ? annotations?.find((a) => a.id === selected.parentAnnotationId)
+    : null;
+  const annotation = parent ?? selected;
+  const selectedMailleLabel = isMaille ? (selected?.label ?? null) : null;
+  const selectedMailleId = isMaille ? (selected?.id ?? null) : null;
 
   const type = annotation?.type;
   const mode =
@@ -39,5 +52,7 @@ export default function useMeshAnnotation() {
     offsetZ,
     color,
     meshLines: annotation?.meshLines ?? [],
+    selectedMailleLabel,
+    selectedMailleId,
   };
 }

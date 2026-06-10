@@ -271,6 +271,17 @@ export const selectSelectedPartId = (state) => {
   return item ? item.partId : null;
 };
 
+// Mesh (maille) selection: when the primary selected item is a maille, expose
+// its id and its parent annotation id so the map can highlight the whole group.
+export const selectSelectedMeshCellId = (state) => {
+  const item = state.selection.selectedItems[0];
+  return item?.isMeshCell ? item.id : null;
+};
+export const selectSelectedMeshParentId = (state) => {
+  const item = state.selection.selectedItems[0];
+  return item?.isMeshCell ? (item.parentAnnotationId ?? null) : null;
+};
+
 // Multi-point selection
 export const selectSelectedPointIds = (state) => state.selection.selectedPointIds;
 

@@ -81,6 +81,7 @@ import {
   setSoloListingId,
   setSoloMode,
   setInteractionMode,
+  setShowMeshCells,
   setCollapsed,
 } from "Features/popperMapListings/popperMapListingsSlice";
 import DrawIcon from "@mui/icons-material/Draw";
@@ -458,9 +459,13 @@ function AnnotationTemplateRow({
     (s) => s.popperMapListings.soloVisibleTemplateIds
   );
   const soloListingId = useSelector((s) => s.popperMapListings.soloListingId);
-  const interactionMode = useSelector(
+  // "Maillage" toggle forces SELECT-like interaction → use the effective mode
+  // for all behavior gating in this row.
+  const rawInteractionMode = useSelector(
     (s) => s.popperMapListings.interactionMode
   );
+  const showMeshCells = useSelector((s) => s.popperMapListings.showMeshCells);
+  const interactionMode = showMeshCells ? "SELECT" : rawInteractionMode;
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
   const isEditTarget =
     (interactionMode === "EDIT" || interactionMode === "SELECT") &&
@@ -1821,6 +1826,10 @@ export default function PopperMapListings() {
   const interactionMode = useSelector(
     (s) => s.popperMapListings.interactionMode
   );
+  // "Maillage" toggle: shows mesh cells instead of meshed parents and forces a
+  // SELECT-like (read-only) interaction. The mode toggle is disabled while on.
+  const showMeshCells = useSelector((s) => s.popperMapListings.showMeshCells);
+  const effectiveInteractionMode = showMeshCells ? "SELECT" : interactionMode;
   const collapsed = useSelector((s) => s.popperMapListings.collapsed);
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
 
@@ -1846,6 +1855,12 @@ export default function PopperMapListings() {
     excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
     onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
   });
+
+  // the "Maillage" toggle is only relevant when the baseMap has mesh cells
+  const hasMeshCells = useMemo(
+    () => Boolean(allAnnotations?.some((a) => a.isMeshCell)),
+    [allAnnotations]
+  );
 
   const annotationTemplates = useAnnotationTemplates();
   const annotationTemplateById = useMemo(
@@ -2171,6 +2186,7 @@ export default function PopperMapListings() {
             exclusive
             size="small"
             fullWidth
+            disabled={showMeshCells}
             onChange={handleInteractionModeChange}
           >
             <ToggleButton
@@ -2201,6 +2217,25 @@ export default function PopperMapListings() {
               </Typography>
             </ToggleButton>
           </ToggleButtonGroup>
+
+          {/* Maillage toggle — only when the baseMap contains mesh cells.
+              ON: meshed parents are replaced by their mailles and interactions
+              behave like Sélection (read-only). */}
+          {hasMeshCells && (
+            <FormControlLabel
+              sx={{ mt: 0.5, ml: 0 }}
+              control={
+                <Switch
+                  size="small"
+                  checked={showMeshCells}
+                  onChange={(e) =>
+                    dispatch(setShowMeshCells(e.target.checked))
+                  }
+                />
+              }
+              label={<Typography variant="body2">Maillage</Typography>}
+            />
+          )}
         </Box>
       }
 
@@ -2316,7 +2351,7 @@ export default function PopperMapListings() {
                 </>}
 
             {/* Outils section — only in DRAW mode */}
-            {interactionMode === "DRAW" && (
+            {effectiveInteractionMode === "DRAW" && (
               <>
                 <Box
                   sx={{
