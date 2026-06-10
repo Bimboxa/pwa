@@ -77,8 +77,10 @@ export default function MeshElevationBackdrop({
         </g>
       </g>
 
-      {/* vertical separations: grey outside the surface, primary across it */}
+      {/* vertical separations: grey outside the surface, primary across it.
+          Only on real anchors (sampled arc points would clutter the grid). */}
       {vertices.map((v) => {
+        if (v.pointIndex == null) return null;
         const top = Math.min(v.topY, v.bottomY);
         const bottom = Math.max(v.topY, v.bottomY);
         return (
@@ -111,11 +113,11 @@ export default function MeshElevationBackdrop({
       {vertices.slice(0, -1).map((v, j) => {
         const a = vertices[j];
         const b = vertices[j + 1];
-        const isEdited = a.pointIndex === editedSegmentIndex;
-        const isHovered = a.pointIndex === hoveredSegmentIndex;
+        const isEdited = a.segIndex === editedSegmentIndex;
+        const isHovered = a.segIndex === hoveredSegmentIndex;
         return (
           <line
-            key={`recap-${a.pointIndex}`}
+            key={`recap-${j}`}
             x1={a.x}
             y1={recapY(a.planY)}
             x2={b.x}
@@ -127,27 +129,29 @@ export default function MeshElevationBackdrop({
           />
         );
       })}
-      {vertices.map((v) => (
-        <circle
-          key={`recap-v-${v.pointIndex}`}
-          cx={v.x}
-          cy={recapY(v.planY)}
-          r={2.5}
-          fill="#fff"
-          stroke={GREY}
-          strokeWidth={1}
-          vectorEffect="non-scaling-stroke"
-        />
-      ))}
+      {vertices.map((v, j) =>
+        v.pointIndex == null ? null : (
+          <circle
+            key={`recap-v-${j}`}
+            cx={v.x}
+            cy={recapY(v.planY)}
+            r={2.5}
+            fill="#fff"
+            stroke={GREY}
+            strokeWidth={1}
+            vectorEffect="non-scaling-stroke"
+          />
+        )
+      )}
 
       {/* elevation bands per segment (edited band emphasized) */}
       {vertices.slice(0, -1).map((v, j) => {
         const a = vertices[j];
         const b = vertices[j + 1];
-        const isEdited = a.pointIndex === editedSegmentIndex;
-        const isHovered = a.pointIndex === hoveredSegmentIndex;
+        const isEdited = a.segIndex === editedSegmentIndex;
+        const isHovered = a.segIndex === hoveredSegmentIndex;
         return (
-          <g key={`elev-${a.pointIndex}`}>
+          <g key={`elev-${j}`}>
             <path
               d={`M ${a.x} ${a.topY} L ${b.x} ${b.topY} L ${b.x} ${b.bottomY} L ${a.x} ${a.bottomY} Z`}
               fill={color}

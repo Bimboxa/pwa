@@ -1,6 +1,50 @@
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Box } from "@mui/material";
+
+import {
+  typeOf,
+  circleFromThreePoints,
+} from "Features/geometry/utils/arcSampling";
+
+// SVG `d` for the visible stroke of segment i (a → b). If the segment is one
+// half of an S-C-S arc, draw the matching circular arc so the recap follows the
+// curve; otherwise a straight line. The straight hit-area is kept separately so
+// per-segment selection stays simple.
+function segmentPathD(points, i, n) {
+  const a = points[i];
+  const b = points[(i + 1) % n];
+  const straight = `M ${a.x} ${a.y} L ${b.x} ${b.y}`;
+  if (!a || !b) return straight;
+  const tA = typeOf(a);
+  const tB = typeOf(b);
+
+  let p0;
+  let p1;
+  let p2;
+  if (tA !== "circle" && tB === "circle") {
+    const c = points[(i + 2) % n];
+    if (!c || typeOf(c) === "circle") return straight;
+    p0 = a;
+    p1 = b;
+    p2 = c;
+  } else if (tA === "circle" && tB !== "circle") {
+    const prev = points[(i - 1 + n) % n];
+    if (!prev || typeOf(prev) === "circle") return straight;
+    p0 = prev;
+    p1 = a;
+    p2 = b;
+  } else {
+    return straight;
+  }
+
+  const circ = circleFromThreePoints(p0, p1, p2);
+  if (!circ || !Number.isFinite(circ.r) || circ.r <= 0) return straight;
+  const cross =
+    (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
+  const sweep = cross > 0 ? 1 : 0;
+  return `M ${a.x} ${a.y} A ${circ.r} ${circ.r} 0 0 ${sweep} ${b.x} ${b.y}`;
+}
 
 // Top recap: a fit-contain plan view of the full polyline. Hovering a segment
 // highlights it alone; clicking it selects the maximal projectable chain
@@ -34,13 +78,34 @@ export default function PlanSelectorElevation({
     return { minX, minY, maxX, maxY };
   }, [points]);
 
-  const viewBox = useMemo(() => {
+  const view = useMemo(() => {
     const { minX, minY, maxX, maxY } = bounds;
     const w = Math.max(maxX - minX, 1);
     const h = Math.max(maxY - minY, 1);
     const pad = Math.max(w, h) * 0.08 + 4;
-    return `${minX - pad} ${minY - pad} ${w + pad * 2} ${h + pad * 2}`;
+    return { x: minX - pad, y: minY - pad, w: w + pad * 2, h: h + pad * 2 };
   }, [bounds]);
+
+  const viewBox = `${view.x} ${view.y} ${view.w} ${view.h}`;
+
+  // measured on-screen size of the svg, so we can convert screen px → viewBox
+  // units (the viewBox is fit-contain, so its scale varies with the polyline
+  // bounds / orientation)
+  const svgRef = useRef(null);
+  const [svgSize, setSvgSize] = useState({ w: 0, h: 0 });
+
+  useLayoutEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      setSvgSize({ w: r.width, h: r.height });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // projection line (droite) carried by the seed segment, extended to span the
   // whole view — this is the axis the elevation is projected onto
@@ -79,10 +144,16 @@ export default function PlanSelectorElevation({
     const uy = dy / len;
     const nx = -uy;
     const ny = ux;
-    const { minX, minY, maxX, maxY } = bounds;
-    const diag = Math.hypot(maxX - minX, maxY - minY) || 1;
-    const dist = Math.max(len * 0.22, diag * 0.035);
-    const size = diag * 0.03;
+    // Convert fixed screen px to viewBox units so the arrows always render at
+    // the same on-screen size / distance, whatever the segment orientation.
+    // (uniform scale because preserveAspectRatio="…meet")
+    const scale = Math.min(svgSize.w / view.w, svgSize.h / view.h);
+    if (!Number.isFinite(scale) || scale <= 0) return null;
+    const pxToVb = 1 / scale;
+    const ARROW_PX = 32 / 3; // on-screen triangle extent
+    const GAP_PX = 8; // on-screen gap between the segment and the arrow tip
+    const size = (ARROW_PX / 1.4) * pxToVb; // triangle spans ~1.4 * size
+    const dist = size + GAP_PX * pxToVb; // tip sits GAP_PX away from segment
     const cx = (a.x + b.x) / 2;
     const cy = (a.y + b.y) / 2;
     const make = (s) => {
@@ -102,7 +173,7 @@ export default function PlanSelectorElevation({
       return { sign: s, points: `${tipx},${tipy} ${c1x},${c1y} ${c2x},${c2y}` };
     };
     return [make(1), make(-1)];
-  }, [points, seedSegmentIndex, bounds]);
+  }, [points, seedSegmentIndex, view, svgSize]);
 
   // render
 
@@ -119,6 +190,7 @@ export default function PlanSelectorElevation({
       }}
     >
       <svg
+        ref={svgRef}
         width="100%"
         height="100%"
         viewBox={viewBox}
@@ -148,11 +220,9 @@ export default function PlanSelectorElevation({
           const width = isSeed ? 5 : isHovered ? 3 : 1.5;
           return (
             <g key={i}>
-              <line
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
+              <path
+                d={segmentPathD(points, i, n)}
+                fill="none"
                 stroke={color}
                 strokeWidth={width}
                 strokeLinecap="round"

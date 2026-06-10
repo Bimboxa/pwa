@@ -1,5 +1,11 @@
 import { useMemo } from "react";
 
+import {
+  typeOf,
+  circleFromThreePoints,
+  sampleArcPoints,
+} from "Features/geometry/utils/arcSampling";
+
 // Builds the elevation geometry (in the editor's SVG world space) for the
 // selected projectable chain. Both axes are expressed in map pixels:
 //   - X = orthogonal projection of each chain point onto the line carried by
@@ -13,6 +19,21 @@ import { useMemo } from "react";
 // The plan recap echo (`planY`) carries each vertex's signed perpendicular
 // distance to the seed line, so the projected top-view reads above the
 // elevation.
+//
+// Arcs (square → circle → square, S-C-S): a chain segment that is one half of
+// an arc is sampled into intermediate points along the underlying circle, so
+// the developed elevation and the "vue de dessus" recap follow the curve
+// instead of collapsing onto the chord of its control points (same S-C-S model
+// as NodePolylineStatic). Each vertex carries:
+//   - `pointIndex`: original point index for real anchors, `null` for sampled
+//     intermediate points (so handles / offset fields / grid lines only attach
+//     to anchors).
+//   - `segIndex`: the original segment index (start anchor's point index) of
+//     the band STARTING at this vertex — used for band hover / selection /
+//     highlight; `null` on the last vertex.
+const ARC_SAMPLES = 12;
+const lerp = (a, b, t) => a + (b - a) * t;
+
 export default function useElevationProfile({
   points,
   selectedSegmentIndices,
@@ -77,33 +98,135 @@ export default function useElevationProfile({
 
     const origin = points[chainPointIndices[0]];
 
-    let rawXs = [];
-    let minRawX = Infinity;
-    const built = chainPointIndices.map((pointIndex) => {
-      const p = points[pointIndex];
-      // observationSign mirrors the along-line axis (which side we view from);
-      // the perpendicular planY is left unmirrored so it's a flip, not a rotation
-      const rawX =
-        observationSign * ((p.x - origin.x) * ux + (p.y - origin.y) * uy);
-      const planY = (p.x - origin.x) * nx + (p.y - origin.y) * ny;
-      rawXs.push(rawX);
-      minRawX = Math.min(minRawX, rawX);
+    // observationSign mirrors the along-line axis (which side we view from);
+    // the perpendicular planY is left unmirrored so it's a flip, not a rotation.
+    const projectX = (px, py) =>
+      observationSign * ((px - origin.x) * ux + (py - origin.y) * uy);
+    const projectPlanY = (px, py) =>
+      (px - origin.x) * nx + (py - origin.y) * ny;
 
-      const zTop = height + (p.offsetTop ?? 0) + offsetZ;
-      const zBottom = (p.offsetBottom ?? 0) + offsetZ;
+    const makeVertex = ({
+      px,
+      py,
+      offsetTop,
+      offsetBottom,
+      pointIndex,
+      segIndex,
+    }) => {
+      const zTop = height + (offsetTop ?? 0) + offsetZ;
+      const zBottom = (offsetBottom ?? 0) + offsetZ;
       return {
         pointIndex,
-        rawX,
+        segIndex,
+        px,
+        py,
+        rawX: projectX(px, py),
         topY: -zTop * pxPerMeter,
         bottomY: -zBottom * pxPerMeter,
-        planY,
+        planY: projectPlanY(px, py),
         zTop,
         zBottom,
       };
-    });
+    };
+
+    // If the chain segment ia → ib is one half of an S-C-S arc, return the
+    // underlying circle + winding so it can be sampled. ia / ib are adjacent
+    // original point indices (the chain is contiguous).
+    const arcForChainSegment = (ia, ib) => {
+      const A = points[ia];
+      const B = points[ib];
+      if (!A || !B) return null;
+      const tA = typeOf(A);
+      const tB = typeOf(B);
+
+      // first half: square A → circle B, followed by a square C
+      if (tA !== "circle" && tB === "circle") {
+        const C = points[(ib + 1) % n];
+        if (C && typeOf(C) !== "circle") {
+          const circ = circleFromThreePoints(A, B, C);
+          if (circ && Number.isFinite(circ.r) && circ.r > 0) {
+            const cross =
+              (B.x - A.x) * (C.y - A.y) - (B.y - A.y) * (C.x - A.x);
+            return { circ, isCW: cross > 0 };
+          }
+        }
+      }
+
+      // second half: circle A → square B, preceded by a square P0
+      if (tA === "circle" && tB !== "circle") {
+        const P0 = points[(ia - 1 + n) % n];
+        if (P0 && typeOf(P0) !== "circle") {
+          const circ = circleFromThreePoints(P0, A, B);
+          if (circ && Number.isFinite(circ.r) && circ.r > 0) {
+            const cross =
+              (A.x - P0.x) * (B.y - P0.y) - (A.y - P0.y) * (B.x - P0.x);
+            return { circ, isCW: cross > 0 };
+          }
+        }
+      }
+
+      return null;
+    };
+
+    const raw = [];
+    const L = chainPointIndices.length;
+    for (let m = 0; m < L; m++) {
+      const ia = chainPointIndices[m];
+      const A = points[ia];
+      const isLast = m === L - 1;
+      const segIndex = isLast ? null : ia;
+
+      raw.push(
+        makeVertex({
+          px: A.x,
+          py: A.y,
+          offsetTop: A.offsetTop,
+          offsetBottom: A.offsetBottom,
+          pointIndex: ia,
+          segIndex,
+        })
+      );
+
+      if (isLast) break;
+
+      const ib = chainPointIndices[m + 1];
+      const B = points[ib];
+      const arc = arcForChainSegment(ia, ib);
+      if (!arc) continue;
+
+      // sampleArcPoints returns ARC_SAMPLES points ending at B; drop the last
+      // (== B, which is pushed as the next anchor) and interpolate the offsets.
+      const samples = sampleArcPoints(
+        A,
+        B,
+        arc.circ.center,
+        arc.circ.r,
+        arc.isCW,
+        ARC_SAMPLES
+      );
+      const tA = A.offsetTop ?? 0;
+      const bA = A.offsetBottom ?? 0;
+      const tB = B.offsetTop ?? 0;
+      const bB = B.offsetBottom ?? 0;
+      for (let k = 0; k < samples.length - 1; k++) {
+        const f = (k + 1) / ARC_SAMPLES;
+        raw.push(
+          makeVertex({
+            px: samples[k].x,
+            py: samples[k].y,
+            offsetTop: lerp(tA, tB, f),
+            offsetBottom: lerp(bA, bB, f),
+            pointIndex: null,
+            segIndex,
+          })
+        );
+      }
+    }
 
     // shift so the left-most projected vertex sits at x = 0
-    const vertices = built.map((v) => ({ ...v, x: v.rawX - minRawX }));
+    let minRawX = Infinity;
+    for (const v of raw) minRawX = Math.min(minRawX, v.rawX);
+    const vertices = raw.map((v) => ({ ...v, x: v.rawX - minRawX }));
 
     // bbox over the elevation body (top/bottom), used for fit-contain
     let minX = Infinity;

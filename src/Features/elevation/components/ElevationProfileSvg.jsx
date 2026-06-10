@@ -84,12 +84,20 @@ export default function ElevationProfileSvg({
   // the baseMap reference plane is Z = 0 → worldY = 0; keep the grid down to it
   const gridBottom = Math.max(eMaxY, 0) + 6;
 
-  // edited segment vertices (preview-applied for live drag). The second vertex
-  // is the next one along the chain — NOT pointIndex + 1, which is wrong for the
-  // closing segment of a closed polyline (its far vertex is point 0, not n).
+  // edited segment vertices (preview-applied for live drag). selB is the next
+  // real anchor along the chain — NOT verts[selIdx + 1], which on an arc would
+  // be a sampled (curve) point rather than the segment's far endpoint.
   const selIdx = verts.findIndex((v) => v.pointIndex === editedSegmentIndex);
   const selA = selIdx >= 0 ? verts[selIdx] : undefined;
-  const selB = selIdx >= 0 ? verts[selIdx + 1] : undefined;
+  let selB;
+  if (selIdx >= 0) {
+    for (let k = selIdx + 1; k < verts.length; k++) {
+      if (verts[k].pointIndex != null) {
+        selB = verts[k];
+        break;
+      }
+    }
+  }
 
   const COUNTER_ZOOM = { transform: "scale(calc(1 / var(--map-zoom, 1)))" };
   const HALF = 5;
@@ -128,8 +136,10 @@ export default function ElevationProfileSvg({
       </g>
 
       {/* vertical separations: grey (dashed) outside the surface, primary
-          (dashed) across the surface */}
+          (dashed) across the surface. Only on real anchors — sampled arc
+          points would otherwise draw a separation at every curve sample. */}
       {verts.map((v) => {
+        if (v.pointIndex == null) return null;
         const top = Math.min(v.topY, v.bottomY);
         const bottom = Math.max(v.topY, v.bottomY);
         return (
@@ -172,11 +182,11 @@ export default function ElevationProfileSvg({
       {verts.slice(0, -1).map((v, j) => {
         const a = verts[j];
         const b = verts[j + 1];
-        const isEdited = a.pointIndex === editedSegmentIndex;
-        const isHovered = a.pointIndex === hoveredSegmentIndex;
+        const isEdited = a.segIndex === editedSegmentIndex;
+        const isHovered = a.segIndex === hoveredSegmentIndex;
         return (
           <line
-            key={`recap-${a.pointIndex}`}
+            key={`recap-${j}`}
             x1={a.x}
             y1={recapY(a.planY)}
             x2={b.x}
@@ -188,28 +198,30 @@ export default function ElevationProfileSvg({
           />
         );
       })}
-      {verts.map((v) => (
-        <circle
-          key={`recap-v-${v.pointIndex}`}
-          cx={v.x}
-          cy={recapY(v.planY)}
-          r={2.5}
-          fill="#fff"
-          stroke={GREY}
-          strokeWidth={1}
-          vectorEffect="non-scaling-stroke"
-        />
-      ))}
+      {verts.map((v, j) =>
+        v.pointIndex == null ? null : (
+          <circle
+            key={`recap-v-${j}`}
+            cx={v.x}
+            cy={recapY(v.planY)}
+            r={2.5}
+            fill="#fff"
+            stroke={GREY}
+            strokeWidth={1}
+            vectorEffect="non-scaling-stroke"
+          />
+        )
+      )}
 
       {/* elevation of the whole chain (per-segment quads): edited band in the
           primary color, neighbours clarified */}
       {verts.slice(0, -1).map((v, j) => {
         const a = verts[j];
         const b = verts[j + 1];
-        const isEdited = a.pointIndex === editedSegmentIndex;
-        const isHovered = a.pointIndex === hoveredSegmentIndex;
+        const isEdited = a.segIndex === editedSegmentIndex;
+        const isHovered = a.segIndex === hoveredSegmentIndex;
         return (
-          <g key={`elev-${a.pointIndex}`}>
+          <g key={`elev-${j}`}>
             <path
               d={`M ${a.x} ${a.topY} L ${b.x} ${b.topY} L ${b.x} ${b.bottomY} L ${a.x} ${a.bottomY} Z`}
               fill={color}
@@ -353,6 +365,7 @@ export default function ElevationProfileSvg({
                     style={{ overflow: "visible" }}
                   >
                     <FieldElevationOffset
+                      label="Δ"
                       value={value}
                       onCommit={(val) =>
                         onCommitOffset?.(v.pointIndex, edge, val)

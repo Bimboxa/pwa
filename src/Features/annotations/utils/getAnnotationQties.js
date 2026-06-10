@@ -3,7 +3,10 @@ import { computeSlopedStripQty } from "Features/geometry/utils/buildSlopedStripM
 import triangulateAnnotationGeometry, {
   ISO_BAND_LEVELS,
 } from "Features/geometry/utils/triangulateAnnotationGeometry";
-import { expandRingWithOffsets } from "Features/geometry/utils/arcSampling";
+import {
+  expandRingWithOffsets,
+  expandRingWithOffsetsAndHiddenMap,
+} from "Features/geometry/utils/arcSampling";
 
 // Match the ARC_SAMPLES used by the 3D mesh builder (extrudeClosedShape) so the
 // developed surface is triangulated on the SAME arc-expanded contour as the
@@ -433,10 +436,21 @@ export default function getAnnotationQties({
       // Length = the bottom junction line with the ramp (3D); surface = the
       // wall's lateral area. Takes precedence over the height-based surface.
       if (hasPerVertexZOffsets(annotation)) {
+        // Expand S-C-S arcs (interpolating offsets along the arc) so the wall
+        // surface / length follow the true curve and a moved arc-endpoint
+        // offset ramps across the whole arc — matching the 3D mesh
+        // (extrudePolylineWall on expandRingWithOffsetsAndHiddenMap).
+        const { points: wallPts, hiddenSegmentsIdx: wallHidden } =
+          expandRingWithOffsetsAndHiddenMap(
+            points,
+            ARC_SAMPLES,
+            annotation.hiddenSegmentsIdx || [],
+            !!closeLine
+          );
         const wall = computeWallQty(
-          points,
+          wallPts,
           meterByPx,
-          annotation.hiddenSegmentsIdx || [],
+          wallHidden,
           parseFloat(annotation.height) || 0
         );
         return {

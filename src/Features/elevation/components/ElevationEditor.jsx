@@ -14,7 +14,8 @@ import setAnnotationHeightService from "Features/elevation/services/setAnnotatio
 
 // Picks the segment whose projected X-band contains `x` (smallest band wins on
 // overlap from fold-backs); falls back to the nearest band. Returns the
-// segment index (the left vertex's pointIndex) or null.
+// original segment index (the band owner's `segIndex`, which maps an arc's
+// sampled sub-bands back to their parent segment) or null.
 function pickSegmentAtX(x, vertices) {
   if (!vertices || vertices.length < 2) return null;
   let best = null;
@@ -30,13 +31,13 @@ function pickSegmentAtX(x, vertices) {
       const w = hi - lo;
       if (w < bestWidth) {
         bestWidth = w;
-        best = a.pointIndex;
+        best = a.segIndex;
       }
     } else {
       const d = x < lo ? lo - x : x - hi;
       if (d < nearestDist) {
         nearestDist = d;
-        nearest = a.pointIndex;
+        nearest = a.segIndex;
       }
     }
   }

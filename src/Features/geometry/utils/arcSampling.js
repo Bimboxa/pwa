@@ -101,20 +101,21 @@ export function sampleArcPoints(
  * Returns `{ points, hiddenSegmentsIdx }` ready to feed to a downstream
  * sweep / extrusion routine that knows how to skip hidden expanded segments.
  */
-export function expandArcsInPathWithHiddenMap(
+// Translate an `hiddenSegmentsIdx` list from the original-segment indexing to
+// the expanded-segment indexing produced by `expandArcsInPath` /
+// `expandRingWithOffsets` (both emit the SAME geometry / segment count, so the
+// translation is shared). For an S-C-S triplet, segment `P0→P1` maps to the
+// first `samples` expanded segments and `P1→P2` to the next `samples`; non-arc
+// segments pass through 1:1.
+function translateHiddenSegments(
   path,
-  samples = 6,
-  hiddenSegmentsIdx = [],
-  closeLine = false
+  samples,
+  hiddenSegmentsIdx,
+  closeLine
 ) {
-  const expanded = expandArcsInPath(path, samples, closeLine);
   const hidden = new Set(hiddenSegmentsIdx ?? []);
-  if (hidden.size === 0) {
-    return { points: expanded, hiddenSegmentsIdx: [] };
-  }
+  if (hidden.size === 0) return [];
 
-  // Walk the ORIGINAL path the same way expandArcsInPath does, building a
-  // map from original-segment index → expanded-segment range (inclusive).
   const n = path.length;
   const get = closeLine ? (k) => path[((k % n) + n) % n] : (k) => path[k];
   const range = new Array(closeLine ? n : Math.max(0, n - 1)).fill(null);
@@ -160,7 +161,49 @@ export function expandArcsInPathWithHiddenMap(
     if (!r) continue;
     for (let s = r[0]; s <= r[1]; s++) newHidden.push(s);
   }
-  return { points: expanded, hiddenSegmentsIdx: newHidden };
+  return newHidden;
+}
+
+export function expandArcsInPathWithHiddenMap(
+  path,
+  samples = 6,
+  hiddenSegmentsIdx = [],
+  closeLine = false
+) {
+  return {
+    points: expandArcsInPath(path, samples, closeLine),
+    hiddenSegmentsIdx: translateHiddenSegments(
+      path,
+      samples,
+      hiddenSegmentsIdx,
+      closeLine
+    ),
+  };
+}
+
+/**
+ * Same as `expandArcsInPathWithHiddenMap`, but carries per-vertex
+ * `offsetTop` / `offsetBottom` onto the sampled arc points (linearly
+ * interpolated along the arc — see `expandRingWithOffsets`). Use this wherever
+ * a per-vertex-offset (ramp / slope) wall is sampled into segments so that
+ * moving one arc endpoint's offset ramps smoothly across the whole arc, instead
+ * of only affecting the single sub-segment adjacent to the anchor.
+ */
+export function expandRingWithOffsetsAndHiddenMap(
+  path,
+  samples = 6,
+  hiddenSegmentsIdx = [],
+  closeLine = false
+) {
+  return {
+    points: expandRingWithOffsets(path, samples, closeLine),
+    hiddenSegmentsIdx: translateHiddenSegments(
+      path,
+      samples,
+      hiddenSegmentsIdx,
+      closeLine
+    ),
+  };
 }
 
 /**

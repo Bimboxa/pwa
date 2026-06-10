@@ -26,6 +26,7 @@ import wallToRectRing, {
 import {
   expandArcsInPath,
   expandArcsInPathWithHiddenMap,
+  expandRingWithOffsetsAndHiddenMap,
 } from "Features/geometry/utils/arcSampling";
 import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
 
@@ -580,8 +581,11 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         );
         break;
       }
+      // Carry per-vertex offsets onto the sampled arc points (interpolated
+      // along the arc) so moving one arc endpoint's offset ramps the whole arc
+      // smoothly — not just the sub-segment next to the moved anchor.
       const { points: expanded, hiddenSegmentsIdx: expandedHidden } =
-        expandArcsInPathWithHiddenMap(
+        expandRingWithOffsetsAndHiddenMap(
           annotation.points || [],
           GUIDE_ARC_SAMPLES,
           annotation.hiddenSegmentsIdx || [],

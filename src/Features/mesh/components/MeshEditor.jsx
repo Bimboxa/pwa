@@ -51,13 +51,13 @@ function pickSegmentAtX(x, vertices) {
       const w = hi - lo;
       if (w < bestWidth) {
         bestWidth = w;
-        best = a.pointIndex;
+        best = a.segIndex;
       }
     } else {
       const d = x < lo ? lo - x : x - hi;
       if (d < nearestDist) {
         nearestDist = d;
-        nearest = a.pointIndex;
+        nearest = a.segIndex;
       }
     }
   }
@@ -131,7 +131,9 @@ export default function MeshEditor({
       const xs = vertices.map((v) => v.x);
       return {
         outlinePoints: [...top, ...bottom],
-        chain: vertices.map((v) => ({ x: v.x, plan: points[v.pointIndex] })),
+        // plan coords live on the vertex (px/py) so sampled arc points map back
+        // to their curve position, not to a missing points[null] anchor.
+        chain: vertices.map((v) => ({ x: v.x, plan: { x: v.px, y: v.py } })),
         developedRange: { xMin: Math.min(...xs), xMax: Math.max(...xs) },
       };
     }
@@ -145,11 +147,17 @@ export default function MeshEditor({
   const coteXRange = useMemo(() => {
     if (mode !== "POLYLINE" || !vertices?.length || editedSegmentIndex == null)
       return null;
-    const idx = vertices.findIndex((v) => v.pointIndex === editedSegmentIndex);
-    if (idx < 0 || idx >= vertices.length - 1) return null;
-    const a = vertices[idx].x;
-    const b = vertices[idx + 1].x;
-    return { min: Math.min(a, b), max: Math.max(a, b) };
+    // The edited band may be split into several sampled sub-bands (an arc): span
+    // every sub-band whose owner is editedSegmentIndex.
+    let min = Infinity;
+    let max = -Infinity;
+    for (let j = 0; j < vertices.length - 1; j++) {
+      if (vertices[j].segIndex !== editedSegmentIndex) continue;
+      min = Math.min(min, vertices[j].x, vertices[j + 1].x);
+      max = Math.max(max, vertices[j].x, vertices[j + 1].x);
+    }
+    if (min === Infinity) return null;
+    return { min, max };
   }, [mode, vertices, editedSegmentIndex]);
 
   // lines shown: draft while editing, else the persisted mesh (denormalized)
@@ -298,7 +306,14 @@ export default function MeshEditor({
   // segment edge of the developed elevation, so each band becomes a maille.
   const handleMeshByEdges = useCallback(() => {
     if (!vertices?.length) return;
-    const xs = [...new Set(vertices.map((v) => Math.round(v.x * 1000) / 1000))]
+    // Cut at real segment edges only (anchors), not at every sampled arc point.
+    const xs = [
+      ...new Set(
+        vertices
+          .filter((v) => v.pointIndex != null)
+          .map((v) => Math.round(v.x * 1000) / 1000)
+      ),
+    ]
       .sort((a, b) => a - b)
       .slice(1, -1); // exclude the two outer edges
     const newLines = xs
