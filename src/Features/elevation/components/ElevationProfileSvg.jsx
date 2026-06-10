@@ -2,6 +2,8 @@ import { useMemo } from "react";
 
 import { useTheme } from "@mui/material";
 
+import { GAP_PX, RECAP_PAD_PX } from "../elevationLayout";
+
 import FieldElevationOffset from "./FieldElevationOffset";
 
 // Renders, inside the viewport's camera group (world = map pixels):
@@ -25,6 +27,7 @@ export default function ElevationProfileSvg({
   meterByPx,
   offsetZ = 0,
   color = "#c0392b",
+  zoom = 1,
   dragPreview,
   onHandleMouseDown,
   onCommitOffset,
@@ -66,23 +69,24 @@ export default function ElevationProfileSvg({
     xMax = Math.max(xMax, v.x);
   }
 
-  // All spacing is proportional to the developed width (image px, independent of
-  // meterByPx) so the layout stays equally "aéré" whatever the map scale.
+  // Horizontal padding stays proportional to the developed width (image px,
+  // independent of meterByPx) so the layout is equally "aéré" at any map scale.
   const span = Math.max(xMax - xMin, 1);
   const xPad = span * 0.08 + 10;
 
   const recapHeight = Math.max(pMax - pMin, 1);
-  // gap between the "vue de dessus" recap and the elevation below it
-  const GAP = span * 0.45;
+  // Vertical spacing of the recap is FIXED in screen pixels: dividing by the
+  // live zoom converts it to world units so the gap/margins stay visually
+  // constant whatever the zoom level (only the recap geometry itself scales).
+  const RECAP_PAD = RECAP_PAD_PX / zoom; // white padding above & below the recap
+  const GAP = (GAP_PX + RECAP_PAD_PX) / zoom; // band bottom sits GAP_PX above the elevation
   const recapY = (planY) => eMinY - GAP - (pMax - planY);
-  // white band around the recap (with vertical padding) to set it apart
-  const RECAP_PAD = span * 0.18;
   const recapBandTop = eMinY - GAP - recapHeight - RECAP_PAD;
   const recapBandBottom = eMinY - GAP + RECAP_PAD;
   const recapBandCenter = (recapBandTop + recapBandBottom) / 2;
-  const gridTop = recapBandTop - 4;
+  const gridTop = recapBandTop - 4 / zoom;
   // the baseMap reference plane is Z = 0 → worldY = 0; keep the grid down to it
-  const gridBottom = Math.max(eMaxY, 0) + 6;
+  const gridBottom = Math.max(eMaxY, 0) + 6 / zoom;
 
   // edited segment vertices (preview-applied for live drag). selB is the next
   // real anchor along the chain — NOT verts[selIdx + 1], which on an arc would

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, useCallback } from "react";
+import { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
 
@@ -81,6 +81,13 @@ export default function MeshEditor({
 }) {
   const dispatch = useDispatch();
   const viewportRef = useRef(null);
+
+  // live map zoom → keeps the elevation backdrop recap gap/margins constant in
+  // screen pixels at any zoom level (see MeshElevationBackdrop)
+  const [zoom, setZoom] = useState(1);
+  const handleCameraChange = useCallback((m) => {
+    setZoom((z) => (z === m.k ? z : m.k));
+  }, []);
 
   // mesh slice state
   const editing = useSelector((s) => s.mesh.editing);
@@ -437,6 +444,7 @@ export default function MeshEditor({
           ref={viewportRef}
           shouldDisablePan={shouldDisablePan}
           onWorldClick={handleWorldClick}
+          onCameraChange={handleCameraChange}
         >
           {mode === "POLYLINE" && (
             <MeshElevationBackdrop
@@ -444,6 +452,7 @@ export default function MeshEditor({
               editedSegmentIndex={editedSegmentIndex}
               hoveredSegmentIndex={hoveredSegmentIndex}
               color={color}
+              zoom={zoom}
             />
           )}
           <MeshSvg

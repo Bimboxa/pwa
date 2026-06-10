@@ -1,5 +1,7 @@
 import { useTheme } from "@mui/material";
 
+import { GAP_PX, RECAP_PAD_PX } from "Features/elevation/elevationLayout";
+
 // Non-interactive elevation backdrop for the POLYLINE mesh view, adapted from
 // ElevationProfileSvg (recap "vue de dessus" + per-segment elevation bands +
 // vertical separations + baseMap reference line) WITHOUT the drag handles /
@@ -15,6 +17,7 @@ export default function MeshElevationBackdrop({
   editedSegmentIndex,
   hoveredSegmentIndex,
   color = "#1976d2",
+  zoom = 1,
 }) {
   const theme = useTheme();
   const secondary = theme.palette.secondary.main;
@@ -40,14 +43,16 @@ export default function MeshElevationBackdrop({
   const span = Math.max(xMax - xMin, 1);
   const xPad = span * 0.08 + 10;
   const recapHeight = Math.max(pMax - pMin, 1);
-  const GAP = span * 0.45;
+  // Vertical spacing is FIXED in screen pixels (divided by the live zoom → world
+  // units) so the gap/margins stay visually constant whatever the zoom level.
+  const RECAP_PAD = RECAP_PAD_PX / zoom;
+  const GAP = (GAP_PX + RECAP_PAD_PX) / zoom;
   const recapY = (planY) => eMinY - GAP - (pMax - planY);
-  const RECAP_PAD = span * 0.18;
   const recapBandTop = eMinY - GAP - recapHeight - RECAP_PAD;
   const recapBandBottom = eMinY - GAP + RECAP_PAD;
   const recapBandCenter = (recapBandTop + recapBandBottom) / 2;
-  const gridTop = recapBandTop - 4;
-  const gridBottom = Math.max(eMaxY, 0) + 6;
+  const gridTop = recapBandTop - 4 / zoom;
+  const gridBottom = Math.max(eMaxY, 0) + 6 / zoom;
 
   return (
     <g>

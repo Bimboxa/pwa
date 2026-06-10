@@ -65,6 +65,12 @@ export default function ElevationEditor({
   const dispatch = useDispatch();
 
   const [hoveredSegmentIndex, setHoveredSegmentIndex] = useState(null);
+  // live map zoom (read from the camera) → keeps the recap gap/margins constant
+  // in screen pixels at any zoom level (see ElevationProfileSvg)
+  const [zoom, setZoom] = useState(1);
+  const handleCameraChange = useCallback((m) => {
+    setZoom((z) => (z === m.k ? z : m.k));
+  }, []);
 
   const handleCommitOffset = useCallback(
     (pointIndex, edge, value) => {
@@ -151,11 +157,12 @@ export default function ElevationEditor({
         raf = requestAnimationFrame(fit);
         return;
       }
-      // All margins are proportional to the developed width (meterByPx-
-      // independent), matching the recap/gap layout in ElevationProfileSvg, so
-      // the framing stays equally aerated whatever the map scale.
+      // Margins are proportional to the developed width (meterByPx-independent)
+      // so the framing stays equally aerated whatever the map scale. The recap
+      // gap/margins themselves are now screen-fixed (see ElevationProfileSvg);
+      // this upward headroom is a generous allowance that comfortably contains
+      // them at the fitted zoom.
       const profileW = Math.max(bbox.maxX - bbox.minX, 1);
-      // upward: recap band (GAP 0.45 + RECAP_PAD 0.18 of the width) + headroom
       const fitMinY = bbox.minY - profileW * 0.8 - 16;
       // down to the baseMap reference plane (worldY = 0)
       const fitMaxY = Math.max(bbox.maxY, 0) + profileW * 0.12 + 16;
@@ -208,6 +215,7 @@ export default function ElevationEditor({
         shouldDisablePan={shouldDisablePan}
         onWorldMouseMove={handleWorldMouseMove}
         onWorldClick={handleWorldClick}
+        onCameraChange={handleCameraChange}
       >
         <ElevationProfileSvg
           vertices={vertices}
@@ -217,6 +225,7 @@ export default function ElevationEditor({
           meterByPx={meterByPx}
           offsetZ={offsetZ}
           color={color}
+          zoom={zoom}
           dragPreview={dragPreview}
           onHandleMouseDown={startHandleDrag}
           onCommitOffset={handleCommitOffset}
