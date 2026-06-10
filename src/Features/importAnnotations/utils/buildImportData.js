@@ -43,12 +43,36 @@ function pickStyle(obj) {
  *   px.x = norm.x * widthMeters / mbpxTarget
  *   px.y = norm.y * (image.height/image.width) * widthMeters / mbpxTarget
  *
+ * When `relativeToBaseMap` is set, the normalized [0..1] coordinates are mapped
+ * straight onto the target baseMap pixel space (norm * baseMap.{width,height}),
+ * ignoring real-world scale. This is the right mode when the drawing was traced
+ * from the very plan used as the baseMap: the outline then overlays the plan
+ * exactly. Falls back to source pixels if the baseMap image size is unknown.
+ *
  * When scale cannot be deduced (no widthMeters or uncalibrated baseMap), fall
  * back to source pixels (norm * image.{width,height}) — best effort, no real
  * scale.
  */
-function getPxPerNorm({ image, widthMeters, mbpxTarget }) {
+function getPxPerNorm({
+  image,
+  widthMeters,
+  mbpxTarget,
+  relativeToBaseMap,
+  baseMapImageSize,
+}) {
   const aspect = image.height / image.width;
+  if (
+    relativeToBaseMap &&
+    baseMapImageSize?.width > 0 &&
+    baseMapImageSize?.height > 0
+  ) {
+    return {
+      pxPerNormX: baseMapImageSize.width,
+      pxPerNormY: baseMapImageSize.height,
+      scaled: true,
+      relative: true,
+    };
+  }
   if (widthMeters > 0 && mbpxTarget > 0) {
     const pxPerNormX = widthMeters / mbpxTarget;
     return { pxPerNormX, pxPerNormY: pxPerNormX * aspect, scaled: true };
@@ -88,13 +112,18 @@ export default function buildImportData({
   projectId,
   listingId,
   excludedTemplateIds,
+  relativeToBaseMap,
 }) {
   const image = data.image;
   const mbpxTarget = mainBaseMap?.getMeterByPx?.() ?? null;
-  const { pxPerNormX, pxPerNormY, scaled } = getPxPerNorm({
+  const baseMapImageSize =
+    mainBaseMap?.getImageSize?.() || mainBaseMap?.image?.imageSize || null;
+  const { pxPerNormX, pxPerNormY, scaled, relative } = getPxPerNorm({
     image,
     widthMeters,
     mbpxTarget,
+    relativeToBaseMap,
+    baseMapImageSize,
   });
 
   const excluded = new Set(excludedTemplateIds ?? []);
@@ -193,5 +222,6 @@ export default function buildImportData({
     templateRecords,
     clipboard: { sourceCenter, items },
     scaled,
+    relative: Boolean(relative),
   };
 }

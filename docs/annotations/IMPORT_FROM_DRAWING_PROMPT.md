@@ -184,3 +184,61 @@ Le schéma est volontairement aligné sur le modèle `annotationTemplate` /
 >
 > Garde des `id` courts et uniques. Préfère des polylignes plus simples et moins
 > nombreuses à une multitude de petits segments.
+
+---
+
+## Variante — vectoriser un dessin technique déjà dessiné (CAO / PDF)
+
+À utiliser **à la place** du prompt ci-dessus quand l'entrée n'est pas un croquis
+à la main mais un **plan technique précis** (export CAO / PDF, type carnet de
+détails d'étanchéité). Ici on ne « devine » pas le tracé : on **vectorise
+fidèlement** un dessin déjà exact pour le reproduire en annotations dans
+l'application. Le même schéma de sortie s'applique (mêmes types, mêmes clés JSON,
+même JSON inline en texte brut).
+
+Différences clés avec le mode croquis :
+
+- **Fidélité, pas interprétation** : reproduis la géométrie telle qu'elle est
+  tracée. **Ne redresse PAS** les segments et n'aligne PAS sur les axes : le
+  dessin est déjà exact. La règle « alignement orthogonal » du mode croquis
+  **ne s'applique PAS ici** — l'appliquer casserait les **pentes volontaires** du
+  document (ex. une « Pente 1% », un fil d'eau, un dévers de relevé), qui doivent
+  rester obliques. Ce qui est oblique reste oblique, ce qui est orthogonal reste
+  orthogonal.
+- **Vectorise UNIQUEMENT le dessin** : la sortie ne doit contenir que les
+  annotations reproduisant la **coupe / le détail dessiné**. **N'émets AUCUNE
+  annotation** pour les tableaux de légende (`REP. | DESIGNATION | REFERENCE`),
+  le cartouche, ni les bulles de repère (`1, 2, 3…`, `A, B, C…`) et leurs lignes
+  de rappel. Ce ne sont pas des éléments à reproduire.
+- **Légende = aide au nommage seulement (optionnel)** : tu peux lire les bulles
+  de repère et le tableau pour donner un `label` parlant à chaque
+  `annotationTemplate` (par ex. « Isolant Thermique Verre Cellulaire ép. 170 mm »,
+  « Pare-vapeur… », « Mur béton existant »), mais ne te complique pas la vie : si
+  le rapprochement n'est pas évident, nomme le template par son matériau /
+  apparence. Le tableau lui-même n'apparaît jamais en annotation.
+- **Cartouche** : sert uniquement à lire l'échelle / les métadonnées, jamais à
+  produire de la géométrie.
+- **Échelle** : lis l'échelle dans le cartouche (`ECHELLE`, ex. `1/5`) et/ou les
+  lignes de cote pour renseigner `image.widthMeters`. **Attention** : sur ces
+  coupes, l'épaisseur dessinée des couches est souvent **volontairement
+  surdimensionnée** (une note du type « la représentation des couches
+  d'étanchéité est surdimensionnée » le signale). N'en déduis donc **jamais**
+  l'échelle à partir de l'épaisseur d'une couche : sers-toi des cotes réelles ou
+  de l'échelle annoncée.
+- **Épaisseurs réelles des STRIP** : quand la légende donne une épaisseur réelle
+  (`ép. 170 mm`, `ép. 25 mm`…), règle `strokeWidth` à cette **valeur réelle**
+  (avec `strokeWidthUnit:"MM"` ou `"CM"`), et **non** à l'épaisseur dessinée.
+  Quand aucune épaisseur n'est donnée, choisis une valeur plausible et faible.
+- **Couches → STRIP** : représente en **STRIP** chaque couche du complexe
+  (support béton, pare-vapeur, isolant, étanchéité, asphalte, drainante,
+  filtrante, relevé…), bande suivant sa ligne directrice ; couleur via
+  `strokeColor`. Scinde les coins orthogonaux (passage partie courante → relevé)
+  en STRIP distincts à 2 points, et fusionne les segments alignés (cf. règle
+  STRIP du mode croquis). Ne garde le POLYGON que pour une zone franchement
+  surfacique (ex. masse béton existante hachurée).
+- **Plusieurs détails par planche** : s'il y a plusieurs coupes/détails sur la
+  feuille, vectorise-les tous, en réutilisant les templates partagés.
+
+Procède ensuite exactement comme le prompt principal (mêmes coordonnées
+normalisées `[0..1]`, même gestion des courbes en triplet S-C-S, même schéma de
+sortie, **JSON inline en texte brut uniquement**).
