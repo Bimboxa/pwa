@@ -1656,6 +1656,14 @@ const InteractionLayer = forwardRef(({
     isActiveViewerRef.current = isActiveViewer;
   }, [isActiveViewer]);
 
+  // mesh editing is active → the Delete/Backspace handler must not delete the
+  // parent annotation (MeshEditor handles removing the selected cut line).
+  const meshEditing = useSelector((s) => s.mesh.editing);
+  const meshEditingRef = useRef(meshEditing);
+  useEffect(() => {
+    meshEditingRef.current = meshEditing;
+  }, [meshEditing]);
+
   const enabledDrawingModeRef = useRef(enabledDrawingMode);
   useEffect(() => {
     enabledDrawingModeRef.current = enabledDrawingMode;
@@ -3075,6 +3083,10 @@ const InteractionLayer = forwardRef(({
         case 'Backspace':
           // Don't intercept when user is typing in an input field
           if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) break;
+          // Don't intercept while the mesh tool is editing — MeshEditor removes
+          // the selected cut line; deleting the parent annotation here would be
+          // a destructive side-effect.
+          if (meshEditingRef.current) break;
           // Only the active viewer should react — this listener is window-scoped
           // and InteractionLayer stays mounted while other viewers (e.g. THREED)
           // are visible (PanelShowable just translates panels off-screen).

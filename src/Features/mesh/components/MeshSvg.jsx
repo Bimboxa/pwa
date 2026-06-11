@@ -41,6 +41,12 @@ export default function MeshSvg({
   cells,
   meshLines,
   editing,
+  // outline vertices drawn as fixed-screen-size snap dots (editing only)
+  vertexDots,
+  // temp bar following the cursor while a line tool is active ({p1, p2})
+  previewLine,
+  // the snapped target marker ({x, y}) — drawn solid red
+  snapPoint,
   selectedLineId,
   hoveredLineId,
   onLineMouseDown,
@@ -260,6 +266,40 @@ export default function MeshSvg({
           </g>
         );
       })}
+
+      {/* outline vertex dots — fixed 6px on screen (snap targets) */}
+      {editing &&
+        (vertexDots ?? []).map((p, i) => (
+          <g key={`vtx-${p.id ?? i}`} transform={`translate(${p.x}, ${p.y})`}>
+            <g style={COUNTER_ZOOM}>
+              <circle r={3} fill="#fff" stroke={cut} strokeWidth={1.5} />
+            </g>
+          </g>
+        ))}
+
+      {/* preview line following the cursor while a line tool is active */}
+      {previewLine && (
+        <line
+          x1={previewLine.p1.x}
+          y1={previewLine.p1.y}
+          x2={previewLine.p2.x}
+          y2={previewLine.p2.y}
+          stroke={cut}
+          strokeWidth={1.75}
+          strokeDasharray="6 4"
+          vectorEffect="non-scaling-stroke"
+          style={{ pointerEvents: "none" }}
+        />
+      )}
+
+      {/* snapped target marker (solid red) */}
+      {snapPoint && (
+        <g transform={`translate(${snapPoint.x}, ${snapPoint.y})`}>
+          <g style={COUNTER_ZOOM}>
+            <circle r={4} fill={cut} style={{ pointerEvents: "none" }} />
+          </g>
+        </g>
+      )}
 
       {/* bottom dimension band (X gaps) */}
       {xBoundaries.length > 1 && (

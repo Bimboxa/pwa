@@ -3,17 +3,24 @@ import { useDispatch } from "react-redux";
 
 import { updateMeshLine, setSelectedLineId } from "Features/mesh/meshSlice";
 
-import { segmentNormal } from "Features/mesh/utils/meshGeometry";
+import { segmentNormal, snapToCandidates } from "Features/mesh/utils/meshGeometry";
 
 // Drag interactions for a cut line, in the editor's world space:
 //   - mode "P1" / "P2": move a single endpoint freely (can make the line
-//     oblique).
+//     oblique). The endpoint snaps to the nearest snap target.
 //   - mode "BODY": translate the whole segment along its normal (the cursor
 //     delta is projected onto the line normal, so the line slides
-//     perpendicular to itself).
+//     perpendicular to itself). The offset snaps so the line passes through a
+//     snap target.
 //
+// `snapCandidates` are the shared snap targets (outline vertices, other cut-line
+// endpoints, intersections); `snapRadius` is the snap distance in world units.
 // Updates are dispatched live so the cell surfaces recompute in real time.
-export default function useMeshLineDrag({ viewportRef }) {
+export default function useMeshLineDrag({
+  viewportRef,
+  snapCandidates,
+  snapRadius = 0,
+}) {
   const dispatch = useDispatch();
   const dragRef = useRef(null);
 
@@ -22,16 +29,32 @@ export default function useMeshLineDrag({ viewportRef }) {
       const drag = dragRef.current;
       if (!drag || !viewportRef.current) return;
       const world = viewportRef.current.screenToWorld(e.clientX, e.clientY);
+      // never snap to the dragged line's own targets
+      const cands = (snapCandidates ?? []).filter(
+        (c) => !String(c.id).startsWith(drag.lineId + "-")
+      );
 
-      if (drag.mode === "P1") {
-        dispatch(updateMeshLine({ id: drag.lineId, p1: world }));
-      } else if (drag.mode === "P2") {
-        dispatch(updateMeshLine({ id: drag.lineId, p2: world }));
+      if (drag.mode === "P1" || drag.mode === "P2") {
+        const s = snapToCandidates(world, cands, snapRadius);
+        const p = s ? { x: s.x, y: s.y } : world;
+        dispatch(updateMeshLine({ id: drag.lineId, [drag.mode.toLowerCase()]: p }));
       } else {
-        // BODY: translate along the normal
+        // BODY: translate along the normal; snap the offset so the line passes
+        // through a candidate (projection of the candidate onto the normal).
         const dx = world.x - drag.startWorld.x;
         const dy = world.y - drag.startWorld.y;
-        const proj = dx * drag.normal.x + dy * drag.normal.y;
+        let proj = dx * drag.normal.x + dy * drag.normal.y;
+        let bestD = snapRadius;
+        for (const c of cands) {
+          const projC =
+            (c.x - drag.startP1.x) * drag.normal.x +
+            (c.y - drag.startP1.y) * drag.normal.y;
+          const d = Math.abs(proj - projC);
+          if (d <= bestD) {
+            bestD = d;
+            proj = projC;
+          }
+        }
         dispatch(
           updateMeshLine({
             id: drag.lineId,
@@ -47,7 +70,7 @@ export default function useMeshLineDrag({ viewportRef }) {
         );
       }
     },
-    [viewportRef, dispatch]
+    [viewportRef, dispatch, snapCandidates, snapRadius]
   );
 
   const handleWindowUp = useCallback(() => {

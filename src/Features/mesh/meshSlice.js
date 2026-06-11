@@ -24,6 +24,9 @@ const initialState = {
   selectionAnnotationId: null,
   // grid tool: target cell size in meters (width × height)
   gridCell: { width: 1, height: 1 },
+  // whether the current draft yields at least one cell (drives the header's
+  // "Enregistrer" disabled state — set by the editor as cells recompute)
+  canSave: false,
 };
 
 export const meshSlice = createSlice({
@@ -47,6 +50,7 @@ export const meshSlice = createSlice({
       state.activeTool = null;
       state.selectedLineId = null;
       state.hoveredLineId = null;
+      state.canSave = false;
     },
     setActiveTool: (state, action) => {
       state.activeTool = action.payload;
@@ -78,6 +82,9 @@ export const meshSlice = createSlice({
     setMeshGridCell: (state, action) => {
       state.gridCell = { ...state.gridCell, ...action.payload };
     },
+    setMeshCanSave: (state, action) => {
+      state.canSave = action.payload;
+    },
     setSelectedLineId: (state, action) => {
       state.selectedLineId = action.payload;
     },
@@ -97,6 +104,7 @@ export const {
   updateMeshLine,
   removeMeshLine,
   setMeshGridCell,
+  setMeshCanSave,
   setSelectedLineId,
   setHoveredLineId,
   resetMesh,

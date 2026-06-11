@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -10,7 +10,13 @@ import { resetMesh, startMeshEditing } from "Features/mesh/meshSlice";
 import { setElevationWidth } from "Features/rightPanel/rightPanelSlice";
 
 import { Box, Typography, IconButton, Button, Tooltip } from "@mui/material";
-import { Edit, OpenInFull, CloseFullscreen } from "@mui/icons-material";
+import {
+  Edit,
+  OpenInFull,
+  CloseFullscreen,
+  Save,
+  RestartAlt,
+} from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PlanSelectorElevation from "Features/elevation/components/PlanSelectorElevation";
@@ -53,7 +59,12 @@ export default function PanelMesh() {
     (s) => s.mesh.selectionAnnotationId
   );
   const editing = useSelector((s) => s.mesh.editing);
+  const canSave = useSelector((s) => s.mesh.canSave);
   const panelWidth = useSelector((s) => s.rightPanel.elevationWidth);
+
+  // imperative handle to the editor (it owns the save/reset geometry); the
+  // header action buttons call into it.
+  const meshEditorRef = useRef(null);
 
   // effect - reset mesh edition when the selected annotation changes
   useEffect(() => {
@@ -106,7 +117,37 @@ export default function PanelMesh() {
 
   // render
 
-  const header = (
+  // while editing, the first line becomes the mesh action bar
+  const header = editing ? (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 1,
+        px: 1,
+        py: 0.5,
+      }}
+    >
+      <Button
+        size="small"
+        variant="outlined"
+        startIcon={<RestartAlt />}
+        onClick={() => meshEditorRef.current?.reset()}
+      >
+        Réinitialiser
+      </Button>
+      <Button
+        size="small"
+        variant="contained"
+        startIcon={<Save />}
+        disabled={!canSave}
+        onClick={() => meshEditorRef.current?.save()}
+      >
+        Enregistrer
+      </Button>
+    </Box>
+  ) : (
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, pl: 0.5, pr: 1, py: 0.5 }}>
       <Tooltip
         title={isExpanded ? "Réduire le panneau" : "Élargir le panneau (demi-écran)"}
@@ -123,11 +164,9 @@ export default function PanelMesh() {
         Maillage
       </Typography>
       <Box sx={{ flexGrow: 1 }} />
-      {!editing && (
-        <Button size="small" startIcon={<Edit />} onClick={handleStartEdit}>
-          Editer
-        </Button>
-      )}
+      <Button size="small" startIcon={<Edit />} onClick={handleStartEdit}>
+        Editer
+      </Button>
     </Box>
   );
 
@@ -166,6 +205,7 @@ export default function PanelMesh() {
 
       <Box sx={{ position: "relative", flexGrow: 1, minHeight: 0, display: "flex" }}>
         <MeshEditor
+          ref={meshEditorRef}
           annotation={annotation}
           annotationId={annotationId}
           mode={mode}

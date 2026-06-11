@@ -5,11 +5,13 @@ import {
   useMemo,
   useState,
   useCallback,
+  forwardRef,
+  useImperativeHandle,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
 
-import { Box, Typography, Chip } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
 import {
   stopMeshEditing,
@@ -18,6 +20,8 @@ import {
   setMeshLines,
   updateMeshLine,
   removeMeshLine,
+  setMeshGridCell,
+  setMeshCanSave,
   setSelectedLineId,
   setHoveredLineId,
 } from "Features/mesh/meshSlice";
@@ -37,10 +41,18 @@ import useMeshCellLabelOffset from "Features/mesh/hooks/useMeshCellLabelOffset";
 import useMeshLineDrag from "Features/mesh/hooks/useMeshLineDrag";
 
 import computeMeshCells from "Features/mesh/utils/computeMeshCells";
-import gridMeshLines from "Features/mesh/utils/gridMeshLines";
 import denormalizeMeshLines from "Features/mesh/utils/denormalizeMeshLines";
-import { getBbox, lineForBbox } from "Features/mesh/utils/meshGeometry";
+import {
+  getBbox,
+  lineForBbox,
+  buildSnapCandidates,
+  snapToCandidates,
+} from "Features/mesh/utils/meshGeometry";
 import saveMeshService from "Features/mesh/services/saveMeshService";
+
+// snap radius for the line tools, in screen pixels (converted to world units
+// via the live zoom at use time)
+const SNAP_PX = 10;
 
 // Picks the elevation band (segment) whose projected X-band contains `x`
 // (smallest band wins on overlap); falls back to the nearest. Returns the
@@ -76,24 +88,41 @@ function pickSegmentAtX(x, vertices) {
 // Mesh edition canvas. Builds the outline to mesh (POLYGON → the polygon in map
 // pixels; POLYLINE → its developed elevation, reusing useElevationProfile), then
 // hosts the cut-line draw/drag flow and renders the live cells.
-export default function MeshEditor({
-  annotation,
-  annotationId,
-  mode,
-  points,
-  imageSize,
-  meterByPx,
-  height,
-  offsetZ,
-  color,
-  meshLines, // persisted (normalized)
-  selectedMailleLabel = null, // M-label of the selected maille (highlight it)
-}) {
+function MeshEditor(
+  {
+    annotation,
+    annotationId,
+    mode,
+    points,
+    imageSize,
+    meterByPx,
+    height,
+    offsetZ,
+    color,
+    meshLines, // persisted (normalized)
+    selectedMailleLabel = null, // M-label of the selected maille (highlight it)
+  },
+  ref
+) {
   const dispatch = useDispatch();
 
   // panel-local highlight of the hovered cell (by its M-label)
   const [hoveredCellLabel, setHoveredCellLabel] = useState(null);
   const viewportRef = useRef(null);
+
+  // line-tool drawing state (local — not persisted): the snapped cursor world
+  // position, the snapped target marker, and the first endpoint of a FREE line.
+  const [preview, setPreview] = useState(null);
+  const [snapPoint, setSnapPoint] = useState(null);
+  // FREE line first endpoint: kept in a ref (read synchronously in the click
+  // handler, which the viewport invokes from a deferred window listener) AND in
+  // state (for the preview render).
+  const [freeStart, setFreeStart] = useState(null);
+  const freeStartRef = useRef(null);
+  const setFree = useCallback((v) => {
+    freeStartRef.current = v;
+    setFreeStart(v);
+  }, []);
 
   // live map zoom → keeps the elevation backdrop recap gap/margins constant in
   // screen pixels at any zoom level (see MeshElevationBackdrop)
@@ -108,6 +137,7 @@ export default function MeshEditor({
   const draftMeshLines = useSelector((s) => s.mesh.draftMeshLines);
   const selectedLineId = useSelector((s) => s.mesh.selectedLineId);
   const hoveredLineId = useSelector((s) => s.mesh.hoveredLineId);
+  const gridCell = useSelector((s) => s.mesh.gridCell);
 
   // elevation slice state (POLYLINE only — reused from the Élévation tool)
   const selectedSegmentIndices = useSelector(
@@ -257,7 +287,48 @@ export default function MeshEditor({
     [mailleByLabel, dispatch]
   );
 
-  const { startLineDrag } = useMeshLineDrag({ viewportRef });
+  // snap targets for the line tools: outline vertices + interior cut-line
+  // endpoints + cut-line/outline-edge intersections.
+  const snapCandidates = useMemo(
+    () => buildSnapCandidates({ outlinePoints, meshLines: draftMeshLines }),
+    [outlinePoints, draftMeshLines]
+  );
+
+  // dragging a cut line snaps to the same targets
+  const { startLineDrag } = useMeshLineDrag({
+    viewportRef,
+    snapCandidates,
+    snapRadius: SNAP_PX / (zoom || 1),
+  });
+
+  const isPlacing =
+    activeTool === "ADD_VERTICAL" ||
+    activeTool === "ADD_HORIZONTAL" ||
+    activeTool === "ADD_FREE" ||
+    activeTool === "GRID";
+
+  // clear transient drawing state when leaving a placing tool
+  useEffect(() => {
+    if (activeTool !== "ADD_FREE") setFree(null);
+    if (!isPlacing) {
+      setPreview(null);
+      setSnapPoint(null);
+    }
+  }, [activeTool, isPlacing, setFree]);
+
+  // snap a world position to the nearest candidate (within SNAP_PX at the
+  // current zoom); returns { pos, snap }.
+  const snapWorld = useCallback(
+    (worldPos) => {
+      const snap = snapToCandidates(
+        worldPos,
+        snapCandidates,
+        SNAP_PX / (zoom || 1)
+      );
+      return { pos: snap ? { x: snap.x, y: snap.y } : worldPos, snap };
+    },
+    [snapCandidates, zoom]
+  );
 
   // --- fit-contain camera (refit when the outline/projection changes) ---
   const fitKey = `${annotationId}:${mode}:${seedSegmentIndex}:${observationSign}:${bbox.minX?.toFixed(
@@ -313,10 +384,6 @@ export default function MeshEditor({
 
   // --- handlers ---
 
-  const handleCancel = useCallback(() => {
-    dispatch(stopMeshEditing());
-  }, [dispatch]);
-
   const handleSave = useCallback(async () => {
     const computed = computeMeshCells(outlinePoints, draftMeshLines, {
       meterByPx,
@@ -346,18 +413,49 @@ export default function MeshEditor({
     dispatch,
   ]);
 
+  // toggle a drawing tool (ToggleButtonGroup passes null when toggling off)
   const handleSelectTool = useCallback(
     (value) => {
-      if (value === "GRID_2x2") {
-        dispatch(
-          setMeshLines(gridMeshLines({ outlinePoints, rows: 2, cols: 2 }))
-        );
-        dispatch(setActiveTool("SELECT"));
-        return;
-      }
-      dispatch(setActiveTool(value));
+      dispatch(setActiveTool(value ?? "SELECT"));
     },
-    [dispatch, outlinePoints]
+    [dispatch]
+  );
+
+  // Build the cut lines of a grid of `gridCell` (m) cells, anchored so that one
+  // line passes through `anchor`, repeating outward to the outline edges.
+  const buildAnchoredGrid = useCallback(
+    (anchor) => {
+      if (!meterByPx) return [];
+      const lines = [];
+      const stepX = gridCell.width / meterByPx;
+      const stepY = gridCell.height / meterByPx;
+      if (stepX > 1) {
+        let x0 = anchor.x;
+        while (x0 > bbox.minX) x0 -= stepX;
+        for (let x = x0; x < bbox.maxX && lines.length < 500; x += stepX) {
+          if (x <= bbox.minX + 1e-6) continue;
+          lines.push({
+            id: nanoid(),
+            orientation: "VERTICAL",
+            ...lineForBbox("VERTICAL", x, bbox),
+          });
+        }
+      }
+      if (stepY > 1) {
+        let y0 = anchor.y;
+        while (y0 > bbox.minY) y0 -= stepY;
+        for (let y = y0; y < bbox.maxY && lines.length < 1000; y += stepY) {
+          if (y <= bbox.minY + 1e-6) continue;
+          lines.push({
+            id: nanoid(),
+            orientation: "HORIZONTAL",
+            ...lineForBbox("HORIZONTAL", y, bbox),
+          });
+        }
+      }
+      return lines;
+    },
+    [gridCell, meterByPx, bbox]
   );
 
   // "Maillage par arête" (POLYLINE): add a vertical cut line at each interior
@@ -412,14 +510,51 @@ export default function MeshEditor({
     }
   }, [coteXRange, draftMeshLines, dispatch]);
 
+  // live preview of the line being placed (follows the snapped cursor)
+  const handleWorldMove = useCallback(
+    ({ worldPos }) => {
+      if (!isPlacing) return;
+      const { pos, snap } = snapWorld(worldPos);
+      setPreview(pos);
+      setSnapPoint(snap ? { x: snap.x, y: snap.y } : null);
+    },
+    [isPlacing, snapWorld]
+  );
+
   const handleWorldClick = useCallback(
     ({ worldPos }) => {
+      const { pos } = snapWorld(worldPos);
       if (activeTool === "ADD_VERTICAL") {
-        const seg = lineForBbox("VERTICAL", worldPos.x, bbox);
-        dispatch(addMeshLine({ orientation: "VERTICAL", ...seg }));
+        dispatch(
+          addMeshLine({
+            orientation: "VERTICAL",
+            ...lineForBbox("VERTICAL", pos.x, bbox),
+          })
+        );
       } else if (activeTool === "ADD_HORIZONTAL") {
-        const seg = lineForBbox("HORIZONTAL", worldPos.y, bbox);
-        dispatch(addMeshLine({ orientation: "HORIZONTAL", ...seg }));
+        dispatch(
+          addMeshLine({
+            orientation: "HORIZONTAL",
+            ...lineForBbox("HORIZONTAL", pos.y, bbox),
+          })
+        );
+      } else if (activeTool === "ADD_FREE") {
+        // first click sets the start point; second click closes the line. Read
+        // the start from the ref (the viewport calls this from a deferred window
+        // listener, so a state closure could be stale).
+        const start = freeStartRef.current;
+        if (!start) {
+          setFree(pos);
+        } else if (Math.hypot(pos.x - start.x, pos.y - start.y) < 1e-3) {
+          // ignore a degenerate second click on the same spot
+        } else {
+          dispatch(addMeshLine({ orientation: "FREE", p1: start, p2: pos }));
+          setFree(null);
+        }
+      } else if (activeTool === "GRID") {
+        const grid = buildAnchoredGrid(pos);
+        if (grid.length) dispatch(setMeshLines(grid));
+        dispatch(setActiveTool("SELECT"));
       } else {
         // SELECT: clicking the elevation picks the editable band (POLYLINE)
         if (mode === "POLYLINE" && vertices?.length >= 2) {
@@ -429,7 +564,7 @@ export default function MeshEditor({
         dispatch(setSelectedLineId(null));
       }
     },
-    [activeTool, bbox, dispatch, mode, vertices]
+    [activeTool, bbox, dispatch, mode, vertices, snapWorld, setFree, buildAnchoredGrid]
   );
 
   const handleCommitLinePosition = useCallback(
@@ -456,8 +591,28 @@ export default function MeshEditor({
 
   const shouldDisablePan = (e) => Boolean(e.target?.dataset?.meshHandle);
 
-  const isPlacing =
-    activeTool === "ADD_VERTICAL" || activeTool === "ADD_HORIZONTAL";
+  // the temp bar the cursor drags while a line tool is active
+  const previewLine = useMemo(() => {
+    if (!preview) return null;
+    if (activeTool === "ADD_VERTICAL")
+      return lineForBbox("VERTICAL", preview.x, bbox);
+    if (activeTool === "ADD_HORIZONTAL")
+      return lineForBbox("HORIZONTAL", preview.y, bbox);
+    if (activeTool === "ADD_FREE" && freeStart)
+      return { p1: freeStart, p2: preview };
+    return null;
+  }, [preview, activeTool, bbox, freeStart]);
+
+  // expose save / reset to the panel header (which hosts the action buttons)
+  useImperativeHandle(ref, () => ({ save: handleSave, reset: handleReset }), [
+    handleSave,
+    handleReset,
+  ]);
+
+  // report whether the draft yields cells → drives the header's "Enregistrer"
+  useEffect(() => {
+    dispatch(setMeshCanSave((cells?.length ?? 0) > 0));
+  }, [cells, dispatch]);
 
   // --- render ---
 
@@ -495,6 +650,7 @@ export default function MeshEditor({
           ref={viewportRef}
           shouldDisablePan={shouldDisablePan}
           onWorldClick={handleWorldClick}
+          onWorldMouseMove={handleWorldMove}
           onCameraChange={handleCameraChange}
         >
           {mode === "POLYLINE" && (
@@ -514,6 +670,9 @@ export default function MeshEditor({
             cells={cells}
             meshLines={linesForDisplay}
             editing={editing}
+            vertexDots={editing ? outlinePoints : null}
+            previewLine={previewLine}
+            snapPoint={snapPoint}
             selectedLineId={selectedLineId}
             hoveredLineId={hoveredLineId}
             onLineMouseDown={startLineDrag}
@@ -529,52 +688,20 @@ export default function MeshEditor({
             onCellSelect={handleCellSelect}
           />
         </MapEditorViewport>
-
-        {isPlacing && (
-          <Box
-            sx={{
-              position: "absolute",
-              bottom: 12,
-              left: "50%",
-              transform: "translateX(-50%)",
-              bgcolor: "rgba(0,0,0,0.8)",
-              color: "#fff",
-              borderRadius: 2,
-              px: 2,
-              py: 1,
-              display: "flex",
-              gap: 1.5,
-              alignItems: "center",
-            }}
-          >
-            <Typography variant="body2">
-              Cliquez sur le plan pour placer
-            </Typography>
-            <Chip
-              label="Annuler"
-              size="small"
-              onClick={() => dispatch(setActiveTool("SELECT"))}
-              sx={{ color: "warning.light", cursor: "pointer" }}
-              variant="outlined"
-            />
-          </Box>
-        )}
       </Box>
 
       <MeshToolbar
         editing={editing}
         activeTool={activeTool}
-        canSave={cells?.length > 0}
+        freeStartPlaced={Boolean(freeStart)}
         showMeshByEdges={mode === "POLYLINE"}
-        resetLabel={
-          coteXRange ? "Réinitialiser la bande" : "Réinitialiser le maillage"
-        }
-        onSave={handleSave}
-        onCancel={handleCancel}
+        gridCell={gridCell}
+        onChangeGridCell={(patch) => dispatch(setMeshGridCell(patch))}
         onSelectTool={handleSelectTool}
         onMeshByEdges={handleMeshByEdges}
-        onReset={handleReset}
       />
     </Box>
   );
 }
+
+export default forwardRef(MeshEditor);

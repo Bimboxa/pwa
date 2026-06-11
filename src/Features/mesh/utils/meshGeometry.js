@@ -94,3 +94,79 @@ export function lineForBbox(orientation, value, bbox, margin = 0) {
     p2: { x: value, y: bbox.maxY + margin },
   };
 }
+
+// Ray-casting point-in-polygon test. `polygon` is [{x, y}] (no explicit closing
+// point). Points exactly on an edge may report either side — fine for snapping.
+export function pointInPolygon(pt, polygon) {
+  if (!polygon || polygon.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[i];
+    const b = polygon[j];
+    const intersect =
+      a.y > pt.y !== b.y > pt.y &&
+      pt.x < ((b.x - a.x) * (pt.y - a.y)) / (b.y - a.y || 1e-12) + a.x;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// Intersection point of segment [a1, a2] with segment [b1, b2], or null if the
+// segments don't cross within their extents (parallel/collinear → null).
+export function segmentIntersection(a1, a2, b1, b2) {
+  const r = { x: a2.x - a1.x, y: a2.y - a1.y };
+  const s = { x: b2.x - b1.x, y: b2.y - b1.y };
+  const denom = r.x * s.y - r.y * s.x;
+  if (Math.abs(denom) < 1e-9) return null; // parallel
+  const qp = { x: b1.x - a1.x, y: b1.y - a1.y };
+  const t = (qp.x * s.y - qp.y * s.x) / denom;
+  const u = (qp.x * r.y - qp.y * r.x) / denom;
+  if (t < 0 || t > 1 || u < 0 || u > 1) return null;
+  return { x: a1.x + t * r.x, y: a1.y + t * r.y };
+}
+
+// Snap candidates (world space) for the line tools:
+//   - every outline vertex;
+//   - the endpoints of existing cut lines that lie inside the outline;
+//   - the intersections of every cut line with the outline edges.
+export function buildSnapCandidates({ outlinePoints, meshLines }) {
+  const candidates = [];
+  const poly = outlinePoints ?? [];
+  poly.forEach((p, i) => {
+    candidates.push({ id: p.id ?? `v-${i}`, x: p.x, y: p.y });
+  });
+
+  (meshLines ?? []).forEach((line) => {
+    if (!line?.p1 || !line?.p2) return;
+    // interior endpoints
+    for (const which of ["p1", "p2"]) {
+      const ep = line[which];
+      if (pointInPolygon(ep, poly))
+        candidates.push({ id: `${line.id}-${which}`, x: ep.x, y: ep.y });
+    }
+    // intersections with the outline edges
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i];
+      const b = poly[(i + 1) % poly.length];
+      const hit = segmentIntersection(line.p1, line.p2, a, b);
+      if (hit)
+        candidates.push({ id: `${line.id}-x${i}`, x: hit.x, y: hit.y });
+    }
+  });
+
+  return candidates;
+}
+
+// Nearest candidate to `worldPos` within `radius` (world units), else null.
+export function snapToCandidates(worldPos, candidates, radius) {
+  let best = null;
+  let bestD = radius;
+  for (const c of candidates ?? []) {
+    const d = Math.hypot(c.x - worldPos.x, c.y - worldPos.y);
+    if (d <= bestD) {
+      bestD = d;
+      best = c;
+    }
+  }
+  return best;
+}
