@@ -126,7 +126,9 @@ export default function MeshSvg({
             }
             stroke={isSelectedCell ? cut : color}
             strokeWidth={isSelectedCell ? 2.5 : 1}
-            strokeOpacity={isSelectedCell ? 1 : 0.6}
+            // outside edit mode the cell edges replace the (hidden) cut lines,
+            // so render them fully opaque to make the maille borders readable
+            strokeOpacity={isSelectedCell || !editing ? 1 : 0.6}
             vectorEffect="non-scaling-stroke"
             style={{
               cursor: onHoverCell || onCellSelect ? "pointer" : undefined,
@@ -198,8 +200,10 @@ export default function MeshSvg({
         );
       })}
 
-      {/* cut lines */}
-      {(meshLines ?? []).map((line) => {
+      {/* cut lines — only while editing; otherwise the maille edges (cell
+          strokes above) stand in for them */}
+      {editing &&
+        (meshLines ?? []).map((line) => {
         const isSel = line.id === selectedLineId;
         const isHov = line.id === hoveredLineId;
         return (

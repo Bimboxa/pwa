@@ -1,11 +1,17 @@
-import { useRef, useEffect, useMemo, useState, useCallback } from "react";
+import {
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useCallback,
+} from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
 
 import { Box, Typography, Chip } from "@mui/material";
 
 import {
-  startMeshEditing,
   stopMeshEditing,
   setActiveTool,
   addMeshLine,
@@ -187,6 +193,18 @@ export default function MeshEditor({
   );
   const linesForDisplay = editing ? draftMeshLines : persistedWorldLines;
 
+  // seed the draft from the persisted lines when entering edit mode. Editing is
+  // triggered from the panel header (which can't compute developedRange for
+  // POLYLINE), so the seed happens here where persistedWorldLines is available.
+  // useLayoutEffect runs before paint → no one-frame flicker of empty lines.
+  const wasEditing = useRef(false);
+  useLayoutEffect(() => {
+    if (editing && !wasEditing.current) {
+      dispatch(setMeshLines(persistedWorldLines));
+    }
+    wasEditing.current = editing;
+  }, [editing, persistedWorldLines, dispatch]);
+
   // continue the per-listing maille numbering (M1, M2, M3…) after the mailles of
   // surfaces created before this one
   const labelOffset = useMeshCellLabelOffset({
@@ -294,28 +312,6 @@ export default function MeshEditor({
   }, [editing, selectedLineId, dispatch]);
 
   // --- handlers ---
-
-  const handleStartEdit = useCallback(() => {
-    dispatch(
-      startMeshEditing({
-        annotationId,
-        meshLines: denormalizeMeshLines(meshLines, {
-          mode,
-          imageSize,
-          developedRange,
-          meterByPx,
-        }),
-      })
-    );
-  }, [
-    dispatch,
-    annotationId,
-    meshLines,
-    mode,
-    imageSize,
-    developedRange,
-    meterByPx,
-  ]);
 
   const handleCancel = useCallback(() => {
     dispatch(stopMeshEditing());
@@ -573,7 +569,6 @@ export default function MeshEditor({
         resetLabel={
           coteXRange ? "Réinitialiser la bande" : "Réinitialiser le maillage"
         }
-        onStartEdit={handleStartEdit}
         onSave={handleSave}
         onCancel={handleCancel}
         onSelectTool={handleSelectTool}

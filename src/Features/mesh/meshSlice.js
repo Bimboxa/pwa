@@ -11,8 +11,8 @@ import { createSlice, nanoid } from "@reduxjs/toolkit";
 const initialState = {
   // whether the mesh edition mode is active (cut lines are shown/editable)
   editing: false,
-  // active drawing tool: null | "ADD_VERTICAL" | "ADD_HORIZONTAL" | "GRID_2x2"
-  // | "SELECT"
+  // active drawing tool:
+  //   null | "SELECT" | "ADD_VERTICAL" | "ADD_HORIZONTAL" | "ADD_FREE" | "GRID"
   activeTool: null,
   // working copy of the cut lines (world space)
   draftMeshLines: [],
@@ -22,6 +22,8 @@ const initialState = {
   // id of the annotation the draft was loaded for — used to reset the draft
   // when the selected annotation changes
   selectionAnnotationId: null,
+  // grid tool: target cell size in meters (width × height)
+  gridCell: { width: 1, height: 1 },
 };
 
 export const meshSlice = createSlice({
@@ -32,7 +34,10 @@ export const meshSlice = createSlice({
       const { annotationId, meshLines } = action.payload;
       state.editing = true;
       state.activeTool = "SELECT";
-      state.draftMeshLines = meshLines ?? [];
+      // `meshLines` is optional: when provided (legacy callers) we seed the
+      // draft directly; otherwise MeshEditor seeds it from the persisted lines
+      // via a layout effect (it owns the developedRange needed for POLYLINE).
+      if (meshLines) state.draftMeshLines = meshLines;
       state.selectedLineId = null;
       state.hoveredLineId = null;
       state.selectionAnnotationId = annotationId ?? null;
@@ -70,6 +75,9 @@ export const meshSlice = createSlice({
       );
       if (state.selectedLineId === action.payload) state.selectedLineId = null;
     },
+    setMeshGridCell: (state, action) => {
+      state.gridCell = { ...state.gridCell, ...action.payload };
+    },
     setSelectedLineId: (state, action) => {
       state.selectedLineId = action.payload;
     },
@@ -88,6 +96,7 @@ export const {
   setMeshLines,
   updateMeshLine,
   removeMeshLine,
+  setMeshGridCell,
   setSelectedLineId,
   setHoveredLineId,
   resetMesh,

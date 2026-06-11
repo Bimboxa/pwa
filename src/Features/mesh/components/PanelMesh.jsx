@@ -6,9 +6,11 @@ import {
   setHoveredSegmentIndex,
   setObservationSign,
 } from "Features/elevation/elevationSlice";
-import { resetMesh } from "Features/mesh/meshSlice";
+import { resetMesh, startMeshEditing } from "Features/mesh/meshSlice";
+import { setElevationWidth } from "Features/rightPanel/rightPanelSlice";
 
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, IconButton, Button, Tooltip } from "@mui/material";
+import { Edit, OpenInFull, CloseFullscreen } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PlanSelectorElevation from "Features/elevation/components/PlanSelectorElevation";
@@ -50,6 +52,8 @@ export default function PanelMesh() {
   const meshSelectionAnnotationId = useSelector(
     (s) => s.mesh.selectionAnnotationId
   );
+  const editing = useSelector((s) => s.mesh.editing);
+  const panelWidth = useSelector((s) => s.rightPanel.elevationWidth);
 
   // effect - reset mesh edition when the selected annotation changes
   useEffect(() => {
@@ -87,7 +91,45 @@ export default function PanelMesh() {
     );
   }
 
+  // helpers - panel width toggle (half screen ↔ normal)
+
+  const halfScreen = Math.round(window.innerWidth / 2);
+  const isExpanded = panelWidth >= halfScreen - 8;
+
+  function handleToggleWidth() {
+    dispatch(setElevationWidth(isExpanded ? 400 : halfScreen));
+  }
+
+  function handleStartEdit() {
+    dispatch(startMeshEditing({ annotationId }));
+  }
+
   // render
+
+  const header = (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, pl: 0.5, pr: 1, py: 0.5 }}>
+      <Tooltip
+        title={isExpanded ? "Réduire le panneau" : "Élargir le panneau (demi-écran)"}
+      >
+        <IconButton size="small" onClick={handleToggleWidth}>
+          {isExpanded ? (
+            <CloseFullscreen fontSize="small" />
+          ) : (
+            <OpenInFull fontSize="small" />
+          )}
+        </IconButton>
+      </Tooltip>
+      <Typography variant="body2" noWrap>
+        Maillage
+      </Typography>
+      <Box sx={{ flexGrow: 1 }} />
+      {!editing && (
+        <Button size="small" startIcon={<Edit />} onClick={handleStartEdit}>
+          Editer
+        </Button>
+      )}
+    </Box>
+  );
 
   if (!mode) {
     return (
@@ -106,11 +148,7 @@ export default function PanelMesh() {
 
   return (
     <BoxFlexVStretch sx={{ height: 1 }}>
-      <Box sx={{ p: 0.5, pl: 2 }}>
-        <Typography variant="body2" noWrap>
-          {`Maillage — ${annotation?.label ?? annotation?.templateLabel ?? ""}`}
-        </Typography>
-      </Box>
+      {header}
 
       {mode === "POLYLINE" && (
         <PlanSelectorElevation

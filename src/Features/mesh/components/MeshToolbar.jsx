@@ -23,29 +23,22 @@ function HLineIcon() {
   );
 }
 
-// Bottom toolbar of the mesh panel: enter edit mode, pick a drawing tool, save.
+// Bottom toolbar of the mesh panel: pick a drawing tool, save. Editing is
+// entered from the panel header ("Editer" button), so when not editing the
+// toolbar renders nothing.
 export default function MeshToolbar({
   editing,
   activeTool,
   canSave,
   showMeshByEdges,
   resetLabel = "Réinitialiser le maillage",
-  onStartEdit,
   onSave,
   onCancel,
   onSelectTool,
   onMeshByEdges,
   onReset,
 }) {
-  if (!editing) {
-    return (
-      <Box sx={{ p: 1.5, display: "flex", justifyContent: "center" }}>
-        <Button variant="outlined" onClick={onStartEdit}>
-          Éditer le maillage
-        </Button>
-      </Box>
-    );
-  }
+  if (!editing) return null;
 
   return (
     <Box
