@@ -5884,6 +5884,10 @@ const InteractionLayer = forwardRef(({
               enabledDrawingMode={enabledDrawingMode}
               containerK={targetPose.k}
               meterByPx={baseMapMeterByPx}
+              baseMapImageScale={baseMapImageScale}
+              isForBaseMaps={
+                newAnnotation?.isForBaseMaps ?? activeContext === "BASE_MAP"
+              }
               orthoSnapAngleOffset={orthoSnapAngleOffset}
               rampWidthM={rampWidthM}
             />

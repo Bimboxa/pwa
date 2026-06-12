@@ -86,6 +86,8 @@ const DrawingLayer = forwardRef(
       enabledDrawingMode,
       containerK,
       meterByPx,
+      baseMapImageScale = 1,
+      isForBaseMaps = false,
       orthoSnapAngleOffset = 0,
       rampWidthM = 1,
     },
@@ -135,10 +137,47 @@ const DrawingLayer = forwardRef(
     const drawingMetrics = useDrawingMetrics();
     const rectMetricsRef = drawingMetrics?.rectMetricsRef;
 
-    const { strokeColor, fillColor, type } = newAnnotation || {};
+    const { strokeColor, fillColor, type, strokeWidth, strokeWidthUnit } =
+      newAnnotation || {};
 
     // Détection des types
     const isPolygon = type === "POLYGON";
+
+    // --- ÉPAISSEUR DE TRAIT (preview) ---
+    // Mirror NodePolylineStatic.computedStrokeWidth so the live preview matches
+    // the committed render (no width jump on finalize). When the width scales
+    // with zoom (CM / isForBaseMaps), drop vectorEffect so the SVG-space stroke
+    // grows with the zoom transform, exactly like the committed path.
+    //
+    // STRIP / RAMP excluded: there `strokeWidth` is the band width (already
+    // drawn by the dedicated strip/ramp band preview), so the rubber-band guide
+    // line must stay a thin fixed helper, not the full band width.
+    const previewUsesAnnotationWidth =
+      type !== "STRIP" && enabledDrawingMode !== "RAMP";
+    const previewIsCmUnit =
+      previewUsesAnnotationWidth && strokeWidthUnit === "CM" && meterByPx > 0;
+    const previewScalesWithZoom =
+      previewUsesAnnotationWidth && (previewIsCmUnit || isForBaseMaps);
+    const previewStrokeWidth = useMemo(() => {
+      if (!previewUsesAnnotationWidth) return 2;
+      if (type === "POLYGON") return 0.5;
+      const raw = strokeWidth ?? 2;
+      if (previewIsCmUnit) return (raw * 0.01) / meterByPx;
+      if (isForBaseMaps) return raw * (baseMapImageScale || 1);
+      // PX mode: raw value, vectorEffect="non-scaling-stroke" keeps it fixed.
+      return raw;
+    }, [
+      previewUsesAnnotationWidth,
+      type,
+      strokeWidth,
+      previewIsCmUnit,
+      meterByPx,
+      isForBaseMaps,
+      baseMapImageScale,
+    ]);
+    const previewVectorEffect = previewScalesWithZoom
+      ? undefined
+      : "non-scaling-stroke";
 
     // Mirror NodePolylineStatic: for POLYGON the visible stroke matches the
     // fillColor, so the live drawing preview must do the same — otherwise the
@@ -616,8 +655,8 @@ const DrawingLayer = forwardRef(
             {...(isPolygon && { fill: fillColor || "rgba(92, 92, 236, 0.1)" })}
             fillOpacity={newAnnotation?.fillOpacity ?? 0.8}
             stroke={effectiveStrokeColor || "#2196f3"}
-            strokeWidth={2}
-            vectorEffect="non-scaling-stroke"
+            strokeWidth={previewStrokeWidth}
+            vectorEffect={previewVectorEffect}
             style={{ display: "none", pointerEvents: "none" }}
           />
         )}
@@ -630,8 +669,8 @@ const DrawingLayer = forwardRef(
             {...(isPolygon && { fill: fillColor || "rgba(92, 92, 236, 0.1)" })}
             fillOpacity={newAnnotation?.fillOpacity ?? 0.8}
             stroke={effectiveStrokeColor || "#2196f3"}
-            strokeWidth={2}
-            vectorEffect="non-scaling-stroke"
+            strokeWidth={previewStrokeWidth}
+            vectorEffect={previewVectorEffect}
             style={{ display: "none", pointerEvents: "none" }}
           />
         )}
@@ -642,9 +681,9 @@ const DrawingLayer = forwardRef(
           <path
             d={staticPath}
             stroke={effectiveStrokeColor || "blue"}
-            strokeWidth={2}
+            strokeWidth={previewStrokeWidth}
             fill="none"
-            vectorEffect="non-scaling-stroke"
+            vectorEffect={previewVectorEffect}
           />
         )}
 
@@ -672,9 +711,9 @@ const DrawingLayer = forwardRef(
           <line
             ref={previewLineRef}
             stroke={effectiveStrokeColor || "blue"}
-            strokeWidth={2}
+            strokeWidth={previewStrokeWidth}
             strokeDasharray="5,5"
-            vectorEffect="non-scaling-stroke"
+            vectorEffect={previewVectorEffect}
             style={{ display: "none", pointerEvents: "none" }}
           />
         )}
@@ -686,9 +725,9 @@ const DrawingLayer = forwardRef(
             ref={previewArcPathRef}
             fill="none"
             stroke={effectiveStrokeColor || "blue"}
-            strokeWidth={2}
+            strokeWidth={previewStrokeWidth}
             strokeDasharray="5,5"
-            vectorEffect="non-scaling-stroke"
+            vectorEffect={previewVectorEffect}
             style={{ display: "none", pointerEvents: "none" }}
           />
         )}
