@@ -3,7 +3,24 @@
     "allow": [
       "Bash(gws *)",
       "Bash(gws *|*)",
-      "Bash(python3 /tmp/*)"
+      "Bash(python3 /tmp/*)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(rm -rf /tmp/krto-init)",
+      "Bash(python3 -m venv *)",
+      "Bash(.claude/skills/krto-init/.venv/bin/pip *)",
+      "Bash(.claude/skills/krto-init/.venv/bin/python *)",
+      "Bash(.claude/skills/structure-outline/.venv/bin/pip *)",
+      "Bash(.claude/skills/structure-outline/.venv/bin/python *)",
+      "Bash(/Users/FVA/Projets/Bimboxa/pwa/.claude/skills/structure-outline/.venv/bin/pip *)",
+      "Bash(/Users/FVA/Projets/Bimboxa/pwa/.claude/skills/structure-outline/.venv/bin/python *)",
+      "Bash(open *)",
+      "Bash(test *)",
+      "Bash(ls *)",
+      "Bash(unzip *)"
+    ],
+    "additionalDirectories": [
+      "/tmp/krto-init"
     ]
   }
 }
