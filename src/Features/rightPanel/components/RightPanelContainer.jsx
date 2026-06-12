@@ -31,6 +31,7 @@ import PanelPrint from "Features/print/components/PanelPrint";
 import PanelElevation from "Features/elevation/components/PanelElevation";
 import PanelMesh from "Features/mesh/components/PanelMesh";
 import PanelImportAnnotations from "Features/importAnnotations/components/PanelImportAnnotations";
+import PanelLocalLlm from "Features/localLlm/components/PanelLocalLlm";
 
 export default function RightPanelContainer() {
 
@@ -145,6 +146,7 @@ export default function RightPanelContainer() {
           {selectedKey === "ELEVATION" && <PanelElevation />}
           {selectedKey === "MESH" && <PanelMesh />}
           {selectedKey === "IMPORT_ANNOTATIONS" && <PanelImportAnnotations />}
+          {selectedKey === "LOCAL_LLM" && <PanelLocalLlm />}
         </Box>
       </Slide>
 
