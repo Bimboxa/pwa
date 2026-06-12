@@ -11,6 +11,7 @@ export default function getEditorImageFromBaseMap(map) {
     url: map.image?.imageUrlClient,
     widthInM: map.image?.imageSize.width * map.meterByPx,
     heightInM: map.image?.imageSize.height * map.meterByPx,
+    meterByPx: map.meterByPx,
     position: t.position,
     rotation,
     rotationOrder: BASE_MAP_ROTATION_ORDER,

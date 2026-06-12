@@ -8,6 +8,7 @@ import useSelectedBaseMap from "Features/baseMaps/hooks/useSelectedBaseMap";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
+import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
 import getBaseMapTransform, {
   DEFAULT_ANGLE_DEG,
   DEFAULT_ORIENTATION,
@@ -281,7 +282,9 @@ export default function PanelBaseMapPosition3D() {
           y: group.position.y,
           z: group.position.z,
         };
-        db.baseMaps.update(baseMapId, { angleDeg: ang, position });
+        db.baseMaps
+          .update(baseMapId, { angleDeg: ang, position })
+          .then(() => dispatch(triggerBaseMapsUpdate()));
       });
     } else if (gizmoMode === "offset") {
       const meshWrap = editor.sceneManager?.imagesManager?.getMeshWrap(baseMapId);
@@ -326,7 +329,9 @@ export default function PanelBaseMapPosition3D() {
     editingRef.current = false;
     setOrientation(value);
     applyTransformToGroup({ orientationOverride: value });
-    db.baseMaps.update(baseMapId, { orientation: value });
+    db.baseMaps
+      .update(baseMapId, { orientation: value })
+      .then(() => dispatch(triggerBaseMapsUpdate()));
   }
 
   function commitAngle(raw) {
@@ -334,7 +339,9 @@ export default function PanelBaseMapPosition3D() {
     const a = parseFloatSafe(raw ?? angleDeg);
     setAngleDegStr(roundFmt(a, 1));
     applyTransformToGroup({ angleDegOverride: a });
-    db.baseMaps.update(baseMapId, { angleDeg: a });
+    db.baseMaps
+      .update(baseMapId, { angleDeg: a })
+      .then(() => dispatch(triggerBaseMapsUpdate()));
   }
 
   function commitPosition() {
@@ -345,7 +352,9 @@ export default function PanelBaseMapPosition3D() {
       z: parseFloatSafe(posUser.z),
     });
     applyTransformToGroup({ positionOverride: p });
-    db.baseMaps.update(baseMapId, { position: p });
+    db.baseMaps
+      .update(baseMapId, { position: p })
+      .then(() => dispatch(triggerBaseMapsUpdate()));
   }
 
   function setPosField(axis, value) {
@@ -361,17 +370,21 @@ export default function PanelBaseMapPosition3D() {
       orientationOverride: DEFAULT_ORIENTATION,
       angleDegOverride: 0,
     });
-    db.baseMaps.update(baseMapId, {
-      orientation: DEFAULT_ORIENTATION,
-      angleDeg: DEFAULT_ANGLE_DEG,
-    });
+    db.baseMaps
+      .update(baseMapId, {
+        orientation: DEFAULT_ORIENTATION,
+        angleDeg: DEFAULT_ANGLE_DEG,
+      })
+      .then(() => dispatch(triggerBaseMapsUpdate()));
   }
 
   function resetTranslation() {
     editingRef.current = false;
     setPosUser({ x: "0", y: "0", z: "0" });
     applyTransformToGroup({ positionOverride: { ...DEFAULT_POSITION } });
-    db.baseMaps.update(baseMapId, { position: { ...DEFAULT_POSITION } });
+    db.baseMaps
+      .update(baseMapId, { position: { ...DEFAULT_POSITION } })
+      .then(() => dispatch(triggerBaseMapsUpdate()));
   }
 
   function resetOffset() {

@@ -7,6 +7,7 @@ import {
   setCalibrationTargetVisible,
 } from "Features/baseMapEditor/baseMapEditorSlice";
 import { setToaster } from "Features/layout/layoutSlice";
+import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
 
 import db from "App/db/db";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -77,6 +78,7 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
     await db.baseMaps.update(baseMap.id, {
       position: { ...t.position, y },
     });
+    dispatch(triggerBaseMapsUpdate());
   }
 
   async function handleRecaler() {
@@ -122,6 +124,7 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
     if (scaleChanged) update.meterByPx = result.meterByPx;
 
     await db.baseMaps.update(baseMap.id, update);
+    dispatch(triggerBaseMapsUpdate());
 
     dispatch(
       setToaster({
