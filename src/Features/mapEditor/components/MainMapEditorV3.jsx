@@ -35,6 +35,7 @@ import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationTyp
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
+import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
 import useAnnotationTemplateQtiesByIdForBaseMap from "Features/annotations/hooks/useAnnotationTemplateQtiesByIdForBaseMap";
@@ -302,13 +303,21 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // "Maillage" toggle: ON → replace meshed parents by their mesh cells (keep
     // cells + non-meshed annotations); OFF → hide mesh cells, show parents.
     // Mirrors useAutoLoadAnnotationsInThreedEditor.
-    const showMeshCells = useSelector((s) => s.popperMapListings.showMeshCells);
+    const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
     const { parentIdSet } = useMeshCellRelations();
     const annotations = useMemo(() => {
         if (!rawAnnotations) return rawAnnotations;
-        return showMeshCells
-            ? rawAnnotations.filter((a) => !parentIdSet.has(a.id))
-            : rawAnnotations.filter((a) => !a.isMeshCell);
+        if (!showMeshCells) return rawAnnotations.filter((a) => !a.isMeshCell);
+        // show the cells; shade adjacent ones (by meshCellIndex) so they're
+        // distinguishable while staying close to the parent's color.
+        return rawAnnotations
+            .filter((a) => !parentIdSet.has(a.id))
+            .map((a) => {
+                if (!a.isMeshCell) return a;
+                const base = a.strokeColor || a.fillColor;
+                const shaded = shadeMeshCellColor(base, a.label);
+                return { ...a, strokeColor: shaded, fillColor: shaded };
+            });
     }, [rawAnnotations, showMeshCells, parentIdSet]);
 
     _track("annotations.length", annotations?.length);

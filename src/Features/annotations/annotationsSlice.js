@@ -7,6 +7,12 @@ const annotationsInitialState = {
   annotationsUpdatedAt: null,
   annotationTemplatesUpdatedAt: null,
   //
+  // "Maillage": single shared flag for both the 2D map editor and the 3D
+  // viewer. When true, meshed parents are replaced by their mesh cells
+  // ("mailles" M1, M2…). Auto-reset to false when no mesh cells remain (the
+  // toggle is hidden in that case, so it couldn't be turned off by hand).
+  showMeshCells: false,
+  //
   selectedAnnotationTemplateId: null,
   //
   // Style defaults are now provided by DRAWING_SHAPE_CONFIG at template selection time.
@@ -43,6 +49,9 @@ export const annotationsSlice = createSlice({
     //
     triggerAnnotationsUpdate: (state) => {
       state.annotationsUpdatedAt = Date.now();
+    },
+    setShowMeshCells: (state, action) => {
+      state.showMeshCells = action.payload;
     },
     triggerAnnotationTemplatesUpdate: (state) => {
       state.annotationTemplatesUpdatedAt = Date.now();
@@ -94,6 +103,7 @@ export const {
   setSelectedAnnotationId,
   triggerAnnotationsUpdate,
   triggerAnnotationTemplatesUpdate,
+  setShowMeshCells,
   //
   createAnnotation,
   //

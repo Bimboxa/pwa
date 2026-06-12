@@ -16,7 +16,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const antiAliasingShrink = useSelector(
     (s) => s.threedEditor.antiAliasingShrink
   );
-  const showMeshCells = useSelector((s) => s.threedEditor.showMeshCells);
+  const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
   const { parentIdSet } = useMeshCellRelations();
   const baseMapOpacityIn3d = useSelector(
     (s) => s.threedEditor.baseMapOpacityIn3d

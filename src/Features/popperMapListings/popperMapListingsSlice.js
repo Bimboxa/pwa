@@ -8,10 +8,6 @@ const popperMapListingsSlice = createSlice({
     soloVisibleTemplateIds: null,
     soloListingId: null,
     interactionMode: "DRAW", // "DRAW" | "EDIT" | "SELECT"
-    // "Maillage": when true, meshed parents are replaced by their mesh cells on
-    // the 2D map and interactions behave like "SELECT" (see MainMapEditorV3 /
-    // InteractionLayer). Mirrors threedEditor.showMeshCells.
-    showMeshCells: false,
     collapsed: false,
   },
   reducers: {
@@ -37,9 +33,6 @@ const popperMapListingsSlice = createSlice({
     setInteractionMode(state, action) {
       state.interactionMode = action.payload;
     },
-    setShowMeshCells(state, action) {
-      state.showMeshCells = action.payload;
-    },
   },
 });
 
@@ -49,7 +42,6 @@ export const {
   setSoloVisibleTemplateIds,
   setSoloListingId,
   setInteractionMode,
-  setShowMeshCells,
   setCollapsed,
 } = popperMapListingsSlice.actions;
 

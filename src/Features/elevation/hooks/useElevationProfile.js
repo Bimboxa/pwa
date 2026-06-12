@@ -73,8 +73,12 @@ export default function useElevationProfile({
     // projection line = the line carried by the selected (seed) segment. The
     // chain points are projected orthogonally onto it, so the seed segment is
     // horizontal in the editor. Fall back to the chain's first→last direction.
+    // Wrap with % n so the CLOSURE segment (seedSegmentIndex === n-1, which
+    // connects points[n-1] → points[0]) resolves its end vertex correctly —
+    // otherwise points[n] is undefined and the seed direction silently falls
+    // back to the chain's first→last vector (closure segment not horizontal).
     const seedA = points[seedSegmentIndex];
-    const seedB = points[seedSegmentIndex + 1];
+    const seedB = points[(seedSegmentIndex + 1) % n];
     let dx;
     let dy;
     if (

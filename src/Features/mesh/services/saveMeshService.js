@@ -33,42 +33,6 @@ const labelNum = (label) => {
   return m ? parseInt(m[1], 10) : 0;
 };
 
-/**
- * Renumber every (live) maille of a listing as M1, M2, M3… so the sequence stays
- * gap-free and collision-free after a (re)mesh. Surfaces are ordered by creation
- * time (createdAt, then id); within a surface the existing label order is kept
- * (mailles were created in reading order). Runs inside the caller's transaction.
- */
-async function relabelListingMeshCells(listingId, labelPrefix = "M") {
-  if (!listingId) return;
-  const cells = (
-    await db.annotations.where("listingId").equals(listingId).toArray()
-  ).filter((a) => a.isMeshCell && !a.deletedAt && a.parentAnnotationId);
-  if (!cells.length) return;
-
-  const parentIds = [...new Set(cells.map((c) => c.parentAnnotationId))];
-  const parents = await db.annotations.bulkGet(parentIds);
-  const createdAtById = {};
-  parents.forEach((p) => {
-    if (p) createdAtById[p.id] = p.createdAt || "";
-  });
-
-  cells.sort((a, b) => {
-    const ca = createdAtById[a.parentAnnotationId] || "";
-    const cb = createdAtById[b.parentAnnotationId] || "";
-    if (ca !== cb) return ca < cb ? -1 : 1;
-    if (a.parentAnnotationId !== b.parentAnnotationId)
-      return a.parentAnnotationId < b.parentAnnotationId ? -1 : 1;
-    return labelNum(a.label) - labelNum(b.label);
-  });
-
-  for (let i = 0; i < cells.length; i++) {
-    const label = `${labelPrefix}${i + 1}`;
-    if (cells[i].label !== label)
-      await db.annotations.update(cells[i].id, { label });
-  }
-}
-
 // Normalize a draft cut line (editor world space) for persistence on the parent.
 //   POLYGON  → [0..1] baseMap coords
 //   POLYLINE → elevation param space { u (0..1 along developed wall), z (m) }
@@ -128,11 +92,22 @@ export default async function saveMeshService({
   const parentAnnotationId = parentAnnotation.id;
   const style = pickStyle(parentAnnotation);
 
+  // POLYLINE meshing is per developed-view (identified by its seed segment): the
+  // cut lines and the resulting cells belong to that segment only, so switching
+  // segments no longer shows / overwrites another segment's mesh. POLYGON has a
+  // single global mesh (seed = null).
+  const isPolyline = mode === "POLYLINE";
+  const seedSegmentIndex = isPolyline
+    ? Number.isInteger(elevation?.seedSegmentIndex)
+      ? elevation.seedSegmentIndex
+      : 0
+    : null;
+
   // --- build the new cells (annotations + normalized points) ---
   const newPoints = [];
   const newAnnotations = [];
 
-  cells.forEach((cell, index) => {
+  cells.forEach((cell) => {
     let cellPlanPoints; // [{ x, y, offsetBottom?, offsetTop? }] in pixel plan space
     let type;
 
@@ -169,6 +144,8 @@ export default async function saveMeshService({
       return ref;
     });
 
+    // label / meshCellNumber / meshCellIndex are assigned in the stable-number
+    // allocation pass below (after the previous cells are read).
     newAnnotations.push({
       id: nanoid(),
       projectId,
@@ -181,9 +158,6 @@ export default async function saveMeshService({
       closeLine: type === "POLYGON" ? true : false,
       isMeshCell: true,
       parentAnnotationId,
-      // per-listing maille label (M1, M2, M3…); finalized by the listing-wide
-      // relabel below. cell.label already carries the per-listing offset.
-      label: cell.label ?? `M${index + 1}`,
       ...(type === "POLYLINE" && {
         height: parseFloat(parentAnnotation.height) || 0,
         offsetZ: Number(parentAnnotation.offsetZ) || 0,
@@ -203,14 +177,61 @@ export default async function saveMeshService({
   );
 
   // --- previously generated cells to replace ---
+  // POLYGON: replace every cell. POLYLINE: replace only the current seed
+  // segment's cells, plus any legacy untagged cells (seedSegmentIndex == null,
+  // created before per-segment meshing) so a first re-save cleans them up —
+  // other segments' cells are preserved.
   const existingRels = (
     await db.relAnnotationMeshCells
       .where("parentAnnotationId")
       .equals(parentAnnotationId)
       .toArray()
   ).filter((r) => !r.deletedAt);
-  const oldCellIds = existingRels.map((r) => r.meshCellAnnotationId);
-  const oldRelIds = existingRels.map((r) => r.id);
+  const relsToReplace = existingRels.filter(
+    (r) =>
+      !isPolyline ||
+      r.seedSegmentIndex == null ||
+      r.seedSegmentIndex === seedSegmentIndex
+  );
+  const oldCellIds = relsToReplace.map((r) => r.meshCellAnnotationId);
+  const oldRelIds = relsToReplace.map((r) => r.id);
+
+  // --- stable maille numbers (persisted, never reshuffled) ---
+  // Cells being replaced (this segment), in reading order, so each new cell can
+  // inherit the number AND custom label of the cell that previously occupied
+  // its slot — re-meshing keeps existing numbers; only genuinely new cells get
+  // the next free number.
+  const prevCells = (await db.annotations.bulkGet(oldCellIds))
+    .filter(Boolean)
+    .sort(
+      (a, b) =>
+        (a.meshCellIndex ?? labelNum(a.label)) -
+        (b.meshCellIndex ?? labelNum(b.label))
+    );
+
+  // Next free number = max over EVERY live listing cell (including the ones
+  // being replaced, since their numbers get reused below — basing the max on
+  // the global max keeps extra cells from colliding with a reused number).
+  const allListingCells = (
+    await db.annotations.where("listingId").equals(listingId).toArray()
+  ).filter((a) => a.isMeshCell && !a.deletedAt);
+  let nextFree =
+    allListingCells.reduce(
+      (max, c) => Math.max(max, c.meshCellNumber ?? labelNum(c.label) ?? 0),
+      0
+    ) + 1;
+
+  newAnnotations.forEach((a, i) => {
+    const prev = prevCells[i];
+    if (prev) {
+      a.meshCellNumber = prev.meshCellNumber ?? labelNum(prev.label) ?? nextFree++;
+      a.label = prev.label ?? `M${a.meshCellNumber}`;
+    } else {
+      a.meshCellNumber = nextFree++;
+      a.label = `M${a.meshCellNumber}`;
+    }
+    a.meshCellIndex = i;
+  });
 
   await db.transaction(
     "rw",
@@ -226,26 +247,40 @@ export default async function saveMeshService({
       if (newAnnotations.length > 0)
         await db.annotations.bulkAdd(newAnnotations);
 
-      // link each cell to the parent
+      // link each cell to the parent (tag with the seed segment for POLYLINE so
+      // each segment's cells can be replaced independently on the next save)
       const rels = newAnnotations.map((a) => ({
         id: nanoid(),
         projectId,
         parentAnnotationId,
         meshCellAnnotationId: a.id,
+        ...(isPolyline && { seedSegmentIndex }),
       }));
       if (rels.length > 0) await db.relAnnotationMeshCells.bulkAdd(rels);
 
-      // persist the cut-line definition on the parent
-      await db.annotations.update(parentAnnotationId, {
-        meshLines: persistedMeshLines,
-      });
-
-      // renumber the whole listing so the M1, M2, M3… sequence stays clean
-      await relabelListingMeshCells(listingId);
+      // persist the cut-line definition on the parent — POLYGON: a single array;
+      // POLYLINE: keyed by seed segment so each developed view keeps its own.
+      if (isPolyline) {
+        const next = { ...(parentAnnotation.meshLinesBySegment ?? {}) };
+        next[seedSegmentIndex] = persistedMeshLines;
+        await db.annotations.update(parentAnnotationId, {
+          meshLinesBySegment: next,
+        });
+      } else {
+        await db.annotations.update(parentAnnotationId, {
+          meshLines: persistedMeshLines,
+        });
+      }
     }
   );
 
   dispatch?.(triggerAnnotationsUpdate());
 
-  return { createdIds: newAnnotations.map((a) => a.id) };
+  return {
+    createdIds: newAnnotations.map((a) => a.id),
+    // the created mesh-cell annotations (with their stable label) — lets the
+    // caller re-select the maille that was selected before the (destructive)
+    // re-save, which created it anew under a different id.
+    createdCells: newAnnotations,
+  };
 }

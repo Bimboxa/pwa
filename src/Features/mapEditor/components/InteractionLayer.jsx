@@ -361,7 +361,7 @@ const InteractionLayer = forwardRef(({
   const rawInteractionMode = useSelector(
     (s) => s.popperMapListings.interactionMode
   );
-  const showMeshCells = useSelector((s) => s.popperMapListings.showMeshCells);
+  const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
   const interactionMode = showMeshCells ? "SELECT" : rawInteractionMode;
 
   // Computed selectedNode equivalent (first item)

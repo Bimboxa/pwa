@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useTheme } from "@mui/material";
 
 import MeshDimensionField from "./MeshDimensionField";
+import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 
 // Renders, inside the viewport's camera group (world space = map pixels for
 // POLYGON, elevation pixels for POLYLINE):
@@ -66,6 +67,12 @@ export default function MeshSvg({
   hoveredCellLabel = null,
   onHoverCell,
   onCellSelect,
+  // inline rename of a maille label (view mode): the cell currently being
+  // renamed (by its mailleId) + the start/commit/cancel callbacks.
+  renamingMailleId = null,
+  onStartRename,
+  onCommitRename,
+  onCancelRename,
 }) {
   const theme = useTheme();
   const cut = theme.palette.error.main;
@@ -74,7 +81,8 @@ export default function MeshSvg({
   // Dimension-band spacing is FIXED in screen pixels (divided by the live zoom →
   // world units) so the gap stays visually constant whatever the zoom level —
   // otherwise the constant-size value labels collide with the dimension line.
-  const dimPad = (span * 0.06 + 8) / zoom;
+  // Halved so the cotes sit closer to the elevation edges.
+  const dimPad = (span * 0.06 + 8) / zoom / 2;
   const tick = 4 / zoom; // tick half-length
   const labelGapX = 16 / zoom; // bottom band: value below the line
   const labelGapY = 34 / zoom; // left band: value left of the line
@@ -105,9 +113,11 @@ export default function MeshSvg({
     bbox.maxY
   );
 
-  // bottom dimension band Y and left dimension band X
+  // bottom dimension band Y and left dimension band X. The vertical (height)
+  // cotes go to the left of the WHOLE chain (bbox.minX), not just the seed band
+  // (xLo) — otherwise they fall mid-chain and become unreadable.
   const dimBandY = bbox.maxY + dimPad;
-  const dimBandX = xLo - dimPad;
+  const dimBandX = bbox.minX - dimPad;
 
   return (
     <g>
@@ -117,7 +127,13 @@ export default function MeshSvg({
           selectedCellLabel && cell.label === selectedCellLabel;
         const isHoveredCell =
           hoveredCellLabel && cell.label === hoveredCellLabel;
-        const baseFill = cellFill ? 0.22 : 0;
+        // Always give cells a shaded fill so adjacent mailles are
+        // distinguishable — for POLYLINE this tints the (otherwise uniform)
+        // elevation backdrop per cell, where cellFill used to be 0.
+        const baseFill = 0.32;
+        // adjacent cells get a slightly different shade of the base color so
+        // they're distinguishable; keyed by label (same label → same color)
+        const cellColor = shadeMeshCellColor(color, cell.label);
         return (
           <path
             key={cell.id}
@@ -126,11 +142,11 @@ export default function MeshSvg({
                 .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
                 .join(" ") + " Z"
             }
-            fill={isSelectedCell || isHoveredCell ? cut : color}
+            fill={isSelectedCell || isHoveredCell ? cut : cellColor}
             fillOpacity={
               isSelectedCell ? 0.45 : isHoveredCell ? 0.33 : baseFill
             }
-            stroke={isSelectedCell ? cut : color}
+            stroke={isSelectedCell ? cut : cellColor}
             strokeWidth={isSelectedCell ? 2.5 : 1}
             // outside edit mode the cell edges replace the (hidden) cut lines,
             // so render them fully opaque to make the maille borders readable
@@ -169,25 +185,71 @@ export default function MeshSvg({
           return null;
         const isSelectedCell =
           selectedCellLabel && cell.label === selectedCellLabel;
+        const canRename = !editing && Boolean(cell.mailleId);
+        const isRenaming =
+          cell.mailleId && cell.mailleId === renamingMailleId;
         return (
           <g
             key={`lbl-${cell.id}`}
             transform={`translate(${cell.centroid.x}, ${cell.centroid.y})`}
           >
             <g style={COUNTER_ZOOM}>
-              {cell.label && (
-                <text
-                  x={0}
-                  y={-8}
-                  fontSize={isSelectedCell ? 15 : 13}
-                  fontWeight={700}
-                  fill={cut}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  style={{ userSelect: "none" }}
+              {isRenaming ? (
+                <foreignObject
+                  x={-55}
+                  y={-19}
+                  width={110}
+                  height={22}
+                  style={{ overflow: "visible" }}
                 >
-                  {cell.label}
-                </text>
+                  <input
+                    autoFocus
+                    defaultValue={cell.label}
+                    onFocus={(e) => e.target.select()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter")
+                        onCommitRename?.(cell.mailleId, e.target.value);
+                      else if (e.key === "Escape") onCancelRename?.();
+                    }}
+                    onBlur={(e) => onCommitRename?.(cell.mailleId, e.target.value)}
+                    style={{
+                      width: "100%",
+                      textAlign: "center",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      color: cut,
+                      border: `1px solid ${cut}`,
+                      borderRadius: 4,
+                      outline: "none",
+                      padding: "1px 2px",
+                      boxSizing: "border-box",
+                      background: "#fff",
+                    }}
+                  />
+                </foreignObject>
+              ) : (
+                cell.label && (
+                  <text
+                    x={0}
+                    y={-8}
+                    fontSize={isSelectedCell ? 15 : 13}
+                    fontWeight={700}
+                    fill={cut}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    onDoubleClick={
+                      canRename ? () => onStartRename?.(cell) : undefined
+                    }
+                    style={{
+                      userSelect: "none",
+                      cursor: canRename ? "text" : undefined,
+                    }}
+                  >
+                    {cell.label}
+                  </text>
+                )
               )}
               <text
                 x={0}

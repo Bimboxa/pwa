@@ -29,6 +29,7 @@ import {
   expandRingWithOffsetsAndHiddenMap,
 } from "Features/geometry/utils/arcSampling";
 import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
+import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 
 // Match the codebase convention used by other arc-aware paths.
 const GUIDE_ARC_SAMPLES = 6;
@@ -140,11 +141,16 @@ export function makeMaterial(annotation, options) {
   // and render fully opaque.
   const isStrokeDriven =
     annotation.type === "POLYLINE" || annotation.type === "STRIP";
-  const color = normalizeHex(
+  const rawColor = normalizeHex(
     isStrokeDriven
       ? annotation.strokeColor || annotation.fillColor || "#cccccc"
       : annotation.fillColor || annotation.strokeColor || "#cccccc"
   );
+  // adjacent mesh cells get a slightly different shade of the parent's color so
+  // they're distinguishable in 3D (keyed by label → same label → same color).
+  const color = annotation.isMeshCell
+    ? shadeMeshCellColor(rawColor, annotation.label)
+    : rawColor;
   const rawOpacity = isStrokeDriven
     ? (annotation.strokeOpacity ?? 1)
     : (annotation.fillOpacity ?? 1);

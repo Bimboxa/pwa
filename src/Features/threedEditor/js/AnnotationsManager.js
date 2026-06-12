@@ -1,6 +1,7 @@
 import { Vector2 } from "three";
 
 import createAnnotationObject3D from "./utilsAnnotationsManager/createAnnotationObject3D";
+import createMeshCellLabelSprite from "./utilsAnnotationsManager/createMeshCellLabelSprite";
 import subtractAnnotationGeometries from "./utilsAnnotationsManager/subtractAnnotationGeometries";
 import buildAnnotationSolidObjectsAsync from "./utilsAnnotationsManager/buildAnnotationSolidObjectsAsync";
 import buildResolvedSourceObjectAsync from "./utilsAnnotationsManager/buildResolvedSourceObjectAsync";
@@ -70,6 +71,17 @@ export default class AnnotationsManager {
         },
       });
       if (!object) return;
+
+      // Mesh cells carry an in-scene card (name + surface). Only cells reach
+      // this builder when "Afficher les mailles" is on, so keying off
+      // `isMeshCell` is enough — no extra toggle. Attached as a child of the
+      // cell object so it inherits the basemap group transform and is freed by
+      // the cleanup traverse in deleteAllAnnotationsObjects (texture disposed
+      // via the sprite's userData.dispose hook).
+      if (annotation.isMeshCell) {
+        const label = createMeshCellLabelSprite(annotation, baseMapForRender);
+        if (label) object.add(label);
+      }
 
       // 3D subtraction: carve the source mesh with each target's derived solid.
       // Targets come from `subtractionTargets` (resolved annotations attached by

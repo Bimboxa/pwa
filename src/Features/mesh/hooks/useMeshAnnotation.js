@@ -51,7 +51,12 @@ export default function useMeshAnnotation() {
     height,
     offsetZ,
     color,
+    // POLYGON: a single normalized cut-line array on the parent.
     meshLines: annotation?.meshLines ?? [],
+    // POLYLINE: cut lines are keyed by the developed view's seed segment index
+    // ({ [seedSegmentIndex]: normalizedLines[] }) so each segment keeps its own
+    // mesh. null when the parent has never been meshed per-segment.
+    meshLinesBySegment: annotation?.meshLinesBySegment ?? null,
     selectedMailleLabel,
     selectedMailleId,
   };

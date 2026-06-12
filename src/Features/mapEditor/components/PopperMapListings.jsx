@@ -81,9 +81,9 @@ import {
   setSoloListingId,
   setSoloMode,
   setInteractionMode,
-  setShowMeshCells,
   setCollapsed,
 } from "Features/popperMapListings/popperMapListingsSlice";
+import { setShowMeshCells } from "Features/annotations/annotationsSlice";
 import DrawIcon from "@mui/icons-material/Draw";
 import EditIcon from "@mui/icons-material/Edit";
 import IconPointer from "Features/icons/IconPointer";
@@ -464,7 +464,7 @@ function AnnotationTemplateRow({
   const rawInteractionMode = useSelector(
     (s) => s.popperMapListings.interactionMode
   );
-  const showMeshCells = useSelector((s) => s.popperMapListings.showMeshCells);
+  const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
   const interactionMode = showMeshCells ? "SELECT" : rawInteractionMode;
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
   const isEditTarget =
@@ -1828,7 +1828,7 @@ export default function PopperMapListings() {
   );
   // "Maillage" toggle: shows mesh cells instead of meshed parents and forces a
   // SELECT-like (read-only) interaction. The mode toggle is disabled while on.
-  const showMeshCells = useSelector((s) => s.popperMapListings.showMeshCells);
+  const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
   const effectiveInteractionMode = showMeshCells ? "SELECT" : interactionMode;
   const collapsed = useSelector((s) => s.popperMapListings.collapsed);
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);

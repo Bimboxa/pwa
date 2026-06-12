@@ -8,10 +8,6 @@ const threedEditorInitialState = {
   // When true, CM-width POLYLINE footprints are contracted by 5 mm before
   // extrusion to avoid coplanar-face aliasing when a parement abuts a wall.
   antiAliasingShrink: true,
-  // When true, annotations that have mesh cells ("mailles") are replaced in the
-  // 3D view by their cells; the parent is hidden. When false (default), parents
-  // render and mesh cells are hidden. Exposed as "Afficher les mailles".
-  showMeshCells: false,
   // "NAVIGATION" | "SELECTION" | "BASEMAP_POSITION".
   // - NAVIGATION: shift+drag = camera (OrbitControls).
   // - SELECTION: shift+drag = lasso selection.
@@ -106,9 +102,6 @@ export const threedEditorSlice = createSlice({
     },
     setDisableOpacity: (state, action) => {
       state.disableOpacity = action.payload;
-    },
-    setShowMeshCells: (state, action) => {
-      state.showMeshCells = action.payload;
     },
     setAntiAliasingShrink: (state, action) => {
       state.antiAliasingShrink = action.payload;
@@ -252,7 +245,6 @@ export const threedEditorSlice = createSlice({
 export const {
   setShowGrid,
   setDisableOpacity,
-  setShowMeshCells,
   setAntiAliasingShrink,
   setEditorMode,
   setDrawingOffset,
