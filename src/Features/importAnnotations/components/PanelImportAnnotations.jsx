@@ -16,12 +16,15 @@ import {
   FormControl,
   FormControlLabel,
   InputLabel,
+  List,
+  ListItem,
+  ListItemText,
   MenuItem,
   Select,
   TextField,
   Typography,
 } from "@mui/material";
-import { Upload } from "@mui/icons-material";
+import { ContentCopy, Upload } from "@mui/icons-material";
 
 import db from "App/db/db";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -31,8 +34,11 @@ import pasteAnnotationService from "Features/mapEditor/services/pasteAnnotationS
 
 import parseImportAnnotationsJson from "../utils/parseImportAnnotationsJson";
 import buildImportData from "../utils/buildImportData";
+import importMeshService from "../services/importMeshService";
 import ImportAnnotationsPreview from "./ImportAnnotationsPreview";
 import ImportAnnotationsTemplateList from "./ImportAnnotationsTemplateList";
+
+import meshImportPrompt from "../../../../docs/annotations/MESH_IMPORT_PROMPT.md?raw";
 
 export default function PanelImportAnnotations() {
   const dispatch = useDispatch();
@@ -55,6 +61,9 @@ export default function PanelImportAnnotations() {
   const [widthMeters, setWidthMeters] = useState("");
   const [targetListingId, setTargetListingId] = useState("");
   const [excludedTemplateIds, setExcludedTemplateIds] = useState([]);
+  // per-entry results of the last mesh import (MESH kind only)
+  const [meshResults, setMeshResults] = useState(null);
+  const [promptCopied, setPromptCopied] = useState(false);
   // When on, normalized coords map straight onto the baseMap pixel space and
   // the annotations are placed automatically at that relative position (no
   // manual click) — right when the drawing was traced from this very plan.
@@ -68,13 +77,15 @@ export default function PanelImportAnnotations() {
   );
   const data = parseResult.ok ? parseResult.data : null;
   const error = parseResult.error;
+  const isMesh = data?.kind === "MESH";
 
   const mbpxTarget = mainBaseMap?.getMeterByPx?.() ?? null;
   const widthMetersNum = parseFloat(widthMeters);
   const hasScale = widthMetersNum > 0 && mbpxTarget > 0;
 
+  // mesh: cells inherit the parent annotation's listing — no target needed
   const canImport = Boolean(
-    data && projectId && mainBaseMap?.id && targetListingId
+    data && mainBaseMap?.id && (isMesh || (projectId && targetListingId))
   );
 
   // effect - prefill the width field from the JSON when present
@@ -99,7 +110,19 @@ export default function PanelImportAnnotations() {
     }
   }, [listings, selectedListingId, targetListingId]);
 
+  // effect - clear the previous mesh results when the input changes
+
+  useEffect(() => {
+    setMeshResults(null);
+  }, [rawJson]);
+
   // handlers
+
+  async function handleCopyPrompt() {
+    await navigator.clipboard.writeText(meshImportPrompt);
+    setPromptCopied(true);
+    setTimeout(() => setPromptCopied(false), 2000);
+  }
 
   function handleToggleTemplate(templateId) {
     setExcludedTemplateIds((prev) =>
@@ -111,6 +134,21 @@ export default function PanelImportAnnotations() {
 
   async function handleImport() {
     if (!canImport) return;
+
+    if (isMesh) {
+      try {
+        const results = await importMeshService({
+          meshes: data.meshes,
+          baseMap: mainBaseMap,
+          dispatch,
+        });
+        setMeshResults(results);
+      } catch (err) {
+        console.error("[importAnnotations] mesh import failed", err);
+      }
+      return;
+    }
+
     try {
       const { templateRecords, clipboard, relative } = buildImportData({
         data,
@@ -162,7 +200,8 @@ export default function PanelImportAnnotations() {
           Importer des annotations
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Collez le JSON inline (taille image, templates, annotations).
+          Collez le JSON inline : annotations (taille image, templates,
+          annotations) ou maillage d’annotations existantes (kind « MESH »).
         </Typography>
 
         <TextField
@@ -187,7 +226,52 @@ export default function PanelImportAnnotations() {
           </Alert>
         )}
 
-        {data && (
+        {data && isMesh && (
+          <>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              L’import remplace le maillage existant des annotations ciblées.
+            </Alert>
+            <Typography variant="caption" color="text.secondary">
+              Maillages à créer
+            </Typography>
+            <List dense sx={{ mb: 1 }}>
+              {data.meshes.map((mesh) => {
+                const count =
+                  mesh.mode === "POLYGON"
+                    ? `${mesh.meshLines.length} ligne(s)`
+                    : `${Object.keys(mesh.meshLinesBySegment).length} segment(s)`;
+                return (
+                  <ListItem key={mesh.annotationId} disableGutters>
+                    <ListItemText
+                      primary={`${mesh.mode} — ${count}`}
+                      secondary={mesh.annotationId}
+                      slotProps={{
+                        primary: { variant: "body2" },
+                        secondary: {
+                          variant: "caption",
+                          sx: { fontFamily: "monospace" },
+                        },
+                      }}
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+            {meshResults?.map((r, i) => (
+              <Alert
+                key={`${r.annotationId}-${r.segIndex ?? "x"}-${i}`}
+                severity={r.ok ? "success" : r.skipped ? "info" : "error"}
+                sx={{ mb: 1 }}
+              >
+                {`${r.annotationId.slice(0, 8)}…${
+                  r.segIndex != null ? ` (segment ${r.segIndex})` : ""
+                } : ${r.ok ? `${r.cellsCount} maille(s) créée(s)` : r.error}`}
+              </Alert>
+            ))}
+          </>
+        )}
+
+        {data && !isMesh && (
           <>
             <FormControl fullWidth size="small" sx={{ mb: 2 }}>
               <InputLabel>Liste cible</InputLabel>
@@ -269,13 +353,23 @@ export default function PanelImportAnnotations() {
 
       <Box sx={{ p: 2, borderTop: (t) => `1px solid ${t.palette.divider}` }}>
         <Button
+          variant="outlined"
+          fullWidth
+          size="small"
+          startIcon={<ContentCopy />}
+          onClick={handleCopyPrompt}
+          sx={{ mb: 1 }}
+        >
+          {promptCopied ? "Prompt copié !" : "Copier le prompt maillage IA"}
+        </Button>
+        <Button
           variant="contained"
           fullWidth
           startIcon={<Upload />}
           disabled={!canImport}
           onClick={handleImport}
         >
-          Ajouter au fond de plan
+          {isMesh ? "Créer le maillage" : "Ajouter au fond de plan"}
         </Button>
       </Box>
     </BoxFlexVStretch>
