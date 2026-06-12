@@ -32,6 +32,26 @@ function cropImageData(src, win) {
   return { imageData: new ImageData(out, w, h), x, y };
 }
 
+// Existing annotations act as masks = zones invisible to detection: paint
+// their pixels white in the haystack so the template score collapses there
+// and no match can land on an already-annotated motif. `originX/Y` offset
+// mask lookups when the haystack is a window crop of the full image.
+function whitenMaskedPixels(imageData, mask, maskWidth, originX, originY) {
+  const { width, height, data } = imageData;
+  for (let row = 0; row < height; row++) {
+    const maskRowStart = (originY + row) * maskWidth + originX;
+    for (let col = 0; col < width; col++) {
+      if (mask[maskRowStart + col]) {
+        const i = (row * width + col) * 4;
+        data[i] = 255;
+        data[i + 1] = 255;
+        data[i + 2] = 255;
+        data[i + 3] = 255;
+      }
+    }
+  }
+}
+
 function buildPlacedGeometry(clipboard, pasteTransform, targetCenter) {
   // Pattern detection is single-template only (gated upstream to items.length===1).
   const item = clipboard.items?.[0];
@@ -97,6 +117,19 @@ export default async function runPatternDetection({
     haystack = crop.imageData;
     originX = crop.x;
     originY = crop.y;
+  }
+
+  if (exclusionMask && maskWidth && maskHeight) {
+    if (haystack === fullImageData) {
+      // GLOBAL: fullImageData is the caller's cached ImageData — whiten a
+      // copy, never the cache. The HOVER crop is already a fresh buffer.
+      haystack = new ImageData(
+        new Uint8ClampedArray(haystack.data),
+        haystack.width,
+        haystack.height,
+      );
+    }
+    whitenMaskedPixels(haystack, exclusionMask, maskWidth, originX, originY);
   }
 
   let res;

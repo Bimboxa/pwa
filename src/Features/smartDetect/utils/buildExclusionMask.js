@@ -8,7 +8,12 @@ import getPolylineContourPoints from "Features/geometry/utils/getPolylineContour
  * Annotations are converted to image-pixel coords using the base map
  * scale/offset. STRIP annotations use getStripePolygons to compute the
  * filled ribbon; POLYGON / closed POLYLINE are filled; open POLYLINE
- * is stroked using its strokeWidth.
+ * is stroked using its strokeWidth. POINT / MARKER annotations are
+ * rasterized as a filled disc of radius `pointRadiusImgPx` (skipped when
+ * the option is absent — they have no own area).
+ *
+ * `options` is either the legacy sourceAnnotationId string or
+ * { sourceAnnotationId, pointRadiusImgPx }.
  */
 export default function buildExclusionMask(
   annotations,
@@ -16,8 +21,12 @@ export default function buildExclusionMask(
   imageScale,
   imageOffset,
   meterByPx,
-  sourceAnnotationId
+  options
 ) {
+  const { sourceAnnotationId = null, pointRadiusImgPx = 0 } =
+    typeof options === "string"
+      ? { sourceAnnotationId: options }
+      : options || {};
   const { width, height } = imageSize;
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -26,13 +35,27 @@ export default function buildExclusionMask(
   ctx.fillStyle = "white";
 
   for (const ann of annotations) {
-    if (!ann.points || ann.points.length < 2) continue;
     if (ann.id === sourceAnnotationId) continue;
 
     const toImgPx = (p) => ({
       x: (p.x - imageOffset.x) / imageScale,
       y: (p.y - imageOffset.y) / imageScale,
     });
+
+    if (
+      pointRadiusImgPx > 0 &&
+      (ann.type === "POINT" || ann.type === "MARKER")
+    ) {
+      const p = ann.point || ann.targetPoint || ann.points?.[0];
+      if (!p) continue;
+      const ip = toImgPx(p);
+      ctx.beginPath();
+      ctx.arc(ip.x, ip.y, pointRadiusImgPx, 0, Math.PI * 2);
+      ctx.fill();
+      continue;
+    }
+
+    if (!ann.points || ann.points.length < 2) continue;
 
     if (ann.type === "STRIP") {
       const polys = getStripePolygons(ann, meterByPx);

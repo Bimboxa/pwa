@@ -991,45 +991,9 @@ const InteractionLayer = forwardRef(({
     };
   }, [pasteClipboard, pasteDetectionMode, sourceImageEl]);
 
-  // Visible annotations act as a "screen": rasterize them into an
-  // exclusion mask so detection skips already-covered areas. Rebuilt when
-  // the annotations change (annotationsUpdatedAt) — i.e. after every
-  // bulk commit — so each validated copy progressively masks the image.
-  // Reuses the same util/coords as STRIP detection (buildExclusionMask).
-  useEffect(() => {
-    if (
-      pasteClipboard?.items?.length !== 1 ||
-      !pasteDetectionMode ||
-      !sourceImageEl
-    ) {
-      patternExclusionMaskRef.current = null;
-      return;
-    }
-    let cancelled = false;
-    const build = () => {
-      if (cancelled) return;
-      try {
-        const w = sourceImageEl.naturalWidth || sourceImageEl.width;
-        const h = sourceImageEl.naturalHeight || sourceImageEl.height;
-        if (!w || !h) return;
-        patternExclusionMaskRef.current = buildExclusionMask(
-          annotationsRef.current || [],
-          { width: w, height: h },
-          baseMapImageScaleRef.current || 1,
-          baseMapImageOffsetRef.current || { x: 0, y: 0 },
-          meterByPxRef.current ?? 0,
-          pasteClipboard?.items?.[0]?.annotation?.id ?? null,
-        );
-      } catch (err) {
-        console.error("[patternDetection] failed to build exclusion mask:", err);
-      }
-    };
-    const id = setTimeout(build, 0);
-    return () => {
-      cancelled = true;
-      clearTimeout(id);
-    };
-  }, [pasteClipboard, pasteDetectionMode, sourceImageEl, annotationsUpdatedAt]);
+  // The pattern exclusion mask ("visible annotations act as a screen") is
+  // built lazily by ensureExclusionMask() and invalidated / pre-warmed by
+  // an effect further down, next to its definition.
 
   // baseMap - rotation
 
@@ -1762,6 +1726,67 @@ const InteractionLayer = forwardRef(({
     }
   }, []);
 
+  // Visible annotations act as a "screen": rasterize them into an
+  // exclusion mask so detection skips already-covered areas. Built lazily
+  // & cached (like ensureFullImageData) so the very first GLOBAL scan —
+  // triggered synchronously on the "A" keypress, before any setTimeout
+  // warm-up fires — already runs with the mask. POINT / MARKER copies are
+  // masked as a disc sized to the copied motif's patch.
+  const ensureExclusionMask = useCallback(() => {
+    if (patternExclusionMaskRef.current) return patternExclusionMaskRef.current;
+    const clipboard = pasteClipboardRef.current;
+    const sImg = sourceImageElRef.current;
+    if (!clipboard || !sImg) return null;
+    try {
+      const w = sImg.naturalWidth || sImg.width;
+      const h = sImg.naturalHeight || sImg.height;
+      if (!w || !h) return null;
+      const patch = computePatternPatch();
+      const pointRadiusImgPx = patch?.patternData
+        ? Math.max(patch.patternData.width, patch.patternData.height) / 2
+        : 0;
+      patternExclusionMaskRef.current = buildExclusionMask(
+        annotationsRef.current || [],
+        { width: w, height: h },
+        baseMapImageScaleRef.current || 1,
+        baseMapImageOffsetRef.current || { x: 0, y: 0 },
+        meterByPxRef.current ?? 0,
+        {
+          sourceAnnotationId: clipboard.items?.[0]?.annotation?.id ?? null,
+          pointRadiusImgPx,
+        },
+      );
+      return patternExclusionMaskRef.current;
+    } catch (err) {
+      console.error("[patternDetection] failed to build exclusion mask:", err);
+      return null;
+    }
+  }, [computePatternPatch]);
+
+  // Invalidate the mask whenever the annotations change
+  // (annotationsUpdatedAt fires after every bulk commit — each validated
+  // copy progressively masks the image) or the clipboard / sub-mode
+  // changes, then pre-warm it off the keypress path. A scan racing the
+  // warm-up rebuilds synchronously via ensureExclusionMask().
+  useEffect(() => {
+    patternExclusionMaskRef.current = null;
+    if (
+      pasteClipboard?.items?.length !== 1 ||
+      !pasteDetectionMode ||
+      !sourceImageEl
+    ) {
+      return;
+    }
+    const id = setTimeout(() => ensureExclusionMask(), 0);
+    return () => clearTimeout(id);
+  }, [
+    pasteClipboard,
+    pasteDetectionMode,
+    sourceImageEl,
+    annotationsUpdatedAt,
+    ensureExclusionMask,
+  ]);
+
   const runPatternDetect = useCallback(async ({ mode, cursorImgPx }) => {
     const clipboard = pasteClipboardRef.current;
     if (!clipboard) return;
@@ -1802,7 +1827,7 @@ const InteractionLayer = forwardRef(({
         imageScale: baseMapImageScaleRef.current || 1,
         imageOffset: baseMapImageOffsetRef.current || { x: 0, y: 0 },
         sourceImgBox: patch.bboxImgPx,
-        exclusionMask: patternExclusionMaskRef.current,
+        exclusionMask: ensureExclusionMask(),
         maskWidth: fullImageData.width,
         maskHeight: fullImageData.height,
       });
@@ -1826,7 +1851,7 @@ const InteractionLayer = forwardRef(({
     transientDetectedPatternRef.current?.updateMatches(matches);
     syncSmartDetectionPresent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [computePatternPatch, ensureFullImageData]);
+  }, [computePatternPatch, ensureFullImageData, ensureExclusionMask]);
 
   const runPatternDetectHover = useMemo(
     () =>
