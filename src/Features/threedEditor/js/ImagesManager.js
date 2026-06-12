@@ -1,3 +1,5 @@
+import { PlaneGeometry } from "three";
+
 import createImageObject from "./utilsImagesManager/createImageObject";
 
 export default class ImagesManager {
@@ -69,6 +71,28 @@ export default class ImagesManager {
   // along the plane's local normal. Annotations stay outside of it.
   getMeshWrap(baseMapId) {
     return this.imagesMap[baseMapId]?.userData?.meshWrap ?? null;
+  }
+
+  // Ids of the basemap groups currently in the scene. Used by the live
+  // transform-apply hook to only refresh maps that are actually loaded.
+  getLoadedBaseMapIds() {
+    return Object.keys(this.imagesMap);
+  }
+
+  // Rebuild a loaded basemap's plane geometry in place (after a `meterByPx`
+  // change). Disposes the old PlaneGeometry and swaps in a new one; the mesh,
+  // material/texture and the group transform are untouched.
+  updateBaseMapGeometry(baseMapId, { widthInM, heightInM }) {
+    const group = this.imagesMap[baseMapId];
+    if (!group || !Number.isFinite(widthInM) || !Number.isFinite(heightInM)) {
+      return;
+    }
+    group.traverse?.((child) => {
+      if (child.userData?.isBasemap) {
+        child.geometry?.dispose?.();
+        child.geometry = new PlaneGeometry(widthInM, heightInM);
+      }
+    });
   }
 
   deleteAllImagesObjects() {

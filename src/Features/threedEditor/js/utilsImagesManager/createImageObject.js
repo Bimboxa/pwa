@@ -20,6 +20,14 @@ export default function createImageObject(image) {
   group.rotation.set(image.rotation.x, image.rotation.y, image.rotation.z);
   group.userData.kind = "baseMap";
   group.userData.baseMapId = image.id;
+  // Remember the scale + plane size used to build this group so a later
+  // `meterByPx` change (e.g. a 2-target "Recaler") can resize the plane by
+  // ratio without re-resolving image sizes (works for legacy & versioned maps).
+  group.userData.meterByPx = image.meterByPx;
+  group.userData.sizeInM = {
+    widthInM: image.widthInM,
+    heightInM: image.heightInM,
+  };
 
   // Inner mesh wrapper used for the live "drawingOffset" visualisation: the
   // mesh slides along the basemap's local +Z (which becomes the plane normal
