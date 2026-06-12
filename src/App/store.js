@@ -45,6 +45,7 @@ import baseMapEditorReducer from "Features/baseMapEditor/baseMapEditorSlice";
 import remoteScopeConfigurationsReducer, { syncedVersionPersistMiddleware } from "Features/remoteScopeConfigurations/remoteScopeConfigurationsSlice";
 //
 import chatReducer from "Features/chat/chatSlice";
+import localLlmReducer from "Features/localLlm/localLlmSlice";
 import chronoReducer from "Features/chrono/chronoSlice";
 import showerReducer from "Features/shower/showerSlice";
 //
@@ -117,6 +118,7 @@ const store = configureStore({
     remoteScopeConfigurations: remoteScopeConfigurationsReducer,
     //
     chat: chatReducer,
+    localLlm: localLlmReducer,
     chrono: chronoReducer,
     shower: showerReducer,
     //

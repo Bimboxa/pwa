@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedMenuItemKey } from "../rightPanelSlice";
@@ -25,6 +26,7 @@ import {
   Height,
   GridOn,
   Upload,
+  AutoAwesome,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -91,6 +93,11 @@ export default function VerticalMenuRightPanel() {
       label: "Importer annotations",
       icon: <Upload />,
     },
+    LOCAL_LLM: {
+      label: "IA locale",
+      icon: <AutoAwesome />,
+      disabled: !advancedLayout,
+    },
   };
 
 
@@ -102,6 +109,14 @@ export default function VerticalMenuRightPanel() {
 
   // filter
   menuItems = menuItems.filter(t => !t.disabled);
+
+  // effect - close the LOCAL_LLM panel when advanced mode gets turned off
+
+  useEffect(() => {
+    if (selectedKey === "LOCAL_LLM" && !advancedLayout) {
+      dispatch(setSelectedMenuItemKey(null));
+    }
+  }, [selectedKey, advancedLayout]);
 
   // handlers
 
