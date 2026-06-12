@@ -142,7 +142,7 @@ const mapEditorInitialState = {
   smartDetectEnabled: false, // switch "Actif" — when true, active drawing tool triggers its auto-detection algorithm
   smartDetectionPresent: false, // true when a detection is currently available (flashes the Space shortcut badge)
   loupeAspect: "SQUARE", // "SQUARE" | "LANDSCAPE" | "PORTRAIT"
-  smartDetectMode: "HOVER", // "HOVER" (loupe-based, S) | "GLOBAL" (whole-plan, A)
+  smartDetectMode: "HOVER", // "HOVER" (loupe-based, S) | "GLOBAL" (whole-plan, A) | "VECTOR" (wall vectorization, V)
   globalDetectionRunning: false, // true while the mocked global-detection async run is in flight
 
   // strip detection multi-band (used by STRIP + smart, POLYLINE_CLICK + smart)

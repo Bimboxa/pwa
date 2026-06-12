@@ -43,7 +43,7 @@ const DEFAULT_DENSITY_THRESHOLD = 0.75;
 // interruption (door, perpendicular crossing).
 const DEFAULT_DENSITY_MIN_PASSING_SAMPLES = 2;
 
-function resolveTargetThicknessPx({
+export function resolveTargetThicknessPx({
   newAnnotation,
   meterByPx,
   imageScale,
@@ -84,7 +84,7 @@ function wallToFeature(wall, isHorizontal, imageScale, imageOffset, meterByPx) {
         { x: wall.x1 + half, y: wall.y1 },
       ];
   const polygonLocal = rectImg.map((p) =>
-    imageToLocal(p, imageScale, imageOffset),
+    imageToLocal(p, imageScale, imageOffset)
   );
   // Centerline in image-pixels — fed to the bulk-create hook which
   // normalizes by image size.
@@ -140,7 +140,7 @@ function pillarToFeature(pillar, imageScale, imageOffset, meterByPx) {
     { x: pillar.x - w, y: pillar.y + h },
   ];
   const polygonLocal = rectImg.map((p) =>
-    imageToLocal(p, imageScale, imageOffset),
+    imageToLocal(p, imageScale, imageOffset)
   );
 
   // Same whole-CM rounding as walls — see comment in wallToFeature.
@@ -186,10 +186,13 @@ export default async function runGlobalFloorPlanDetection({
     imageScale,
   });
 
-  const tolerance = Math.max(2, Math.round(targetThicknessPx * TOLERANCE_RATIO));
+  const tolerance = Math.max(
+    2,
+    Math.round(targetThicknessPx * TOLERANCE_RATIO)
+  );
   const minWallLength = Math.max(
     20,
-    Math.round(targetThicknessPx * MIN_WALL_LENGTH_RATIO),
+    Math.round(targetThicknessPx * MIN_WALL_LENGTH_RATIO)
   );
 
   // Build the exclusion mask from current annotations (same coords as the
@@ -200,7 +203,7 @@ export default async function runGlobalFloorPlanDetection({
     imageScale,
     imageOffset || { x: 0, y: 0 },
     meterByPx || 0,
-    null,
+    null
   );
 
   if (signal?.aborted) throw new DOMException("aborted", "AbortError");
@@ -230,17 +233,17 @@ export default async function runGlobalFloorPlanDetection({
   const features = [];
   for (const w of result.horizontalWalls || []) {
     features.push(
-      wallToFeature(w, true, safeImageScale, safeImageOffset, meterByPx || 0),
+      wallToFeature(w, true, safeImageScale, safeImageOffset, meterByPx || 0)
     );
   }
   for (const w of result.verticalWalls || []) {
     features.push(
-      wallToFeature(w, false, safeImageScale, safeImageOffset, meterByPx || 0),
+      wallToFeature(w, false, safeImageScale, safeImageOffset, meterByPx || 0)
     );
   }
   for (const p of result.pillars || []) {
     features.push(
-      pillarToFeature(p, safeImageScale, safeImageOffset, meterByPx || 0),
+      pillarToFeature(p, safeImageScale, safeImageOffset, meterByPx || 0)
     );
   }
 

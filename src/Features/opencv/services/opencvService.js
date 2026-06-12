@@ -292,6 +292,13 @@ class CV {
       timeout: 60000,
     });
   }
+  detectWallSegmentsAsync(payload) {
+    return this._dispatch({
+      msg: "detectWallSegmentsAsync",
+      payload,
+      timeout: 120000,
+    });
+  }
 }
 
 // Export the same instant everywhere

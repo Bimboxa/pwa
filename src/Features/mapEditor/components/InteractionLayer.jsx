@@ -109,6 +109,7 @@ import extractAnnotationImagePatch from 'Features/annotations/utils/extractAnnot
 import transformImageData from 'Features/annotations/utils/transformImageData';
 import runPatternDetection from 'Features/smartDetect/utils/runPatternDetection';
 import runGlobalFloorPlanDetection from 'Features/smartDetect/utils/runGlobalFloorPlanDetection';
+import runWallSegmentVectorization from 'Features/smartDetect/utils/runWallSegmentVectorization';
 import useCreateAnnotationsFromDetectedMatches from 'Features/annotations/hooks/useCreateAnnotationsFromDetectedMatches';
 import detectPolygonFromAnnotations from 'Features/smartDetect/utils/detectPolygonFromAnnotations';
 import detectStripFromLoupe from 'Features/smartDetect/utils/detectStripFromLoupe';
@@ -2955,6 +2956,74 @@ const InteractionLayer = forwardRef(({
               .catch((err) => {
                 if (err?.name === "AbortError") return;
                 console.warn("[smartDetect] global run failed", err);
+                screenCursorRef.current?.hideSpinner();
+                globalDetectionAbortRef.current = null;
+                dispatch(setGlobalDetectionRunning(false));
+              });
+          }
+          break;
+
+        case "v":
+          // VECTOR smart-detect: vectorizes the H / V black wall lines of
+          // the baseMap into 2-point segments (runWallSegmentVectorization,
+          // two-phase "global detection → local optimization" pipeline).
+          // Shares the GLOBAL plumbing: spinner + abort controller during
+          // the worker run, results flash green via
+          // transientDetectedStripsRef, Space commits them all as new
+          // POLYLINE annotations, Escape aborts. Polyline clic-clic only —
+          // matches the "Vectoriser" row visibility in CardSmartDetect.
+          if (enabledDrawingModeRef.current !== "POLYLINE_CLICK") break;
+          if (showSmartDetectRef.current && !globalDetectionRunningRef.current) {
+            e.preventDefault();
+            const meterByPx = meterByPxRef.current ?? 0;
+            const imageScale = baseMapImageScaleRef.current || 1;
+            const imageOffset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+            const baseMap = calibrationBaseMapRef.current;
+            const na = newAnnotationRef.current;
+            if (!baseMap || !(meterByPx > 0) || !na) {
+              console.warn(
+                "[smartDetect] vector run skipped — missing baseMap / scale / annotation template",
+              );
+              break;
+            }
+            dispatch(setSmartDetectMode("VECTOR"));
+            dispatch(setGlobalDetectionRunning(true));
+            screenCursorRef.current?.showSpinner();
+            const controller = new AbortController();
+            globalDetectionAbortRef.current = controller;
+            runWallSegmentVectorization({
+              signal: controller.signal,
+              baseMap,
+              annotations: annotationsRef.current || [],
+              newAnnotation: na,
+              imageScale,
+              imageOffset,
+              meterByPx,
+            })
+              .then(({ features }) => {
+                if (controller.signal.aborted) return;
+                screenCursorRef.current?.hideSpinner();
+                globalDetectionAbortRef.current = null;
+                dispatch(setGlobalDetectionRunning(false));
+                if (!features?.length) {
+                  console.log("[smartDetect] vector run: no segments detected");
+                  detectedGlobalFeaturesRef.current = null;
+                  transientDetectedStripsRef.current?.clear();
+                  syncSmartDetectionPresent();
+                  return;
+                }
+                detectedGlobalFeaturesRef.current = {
+                  features,
+                  sourceAnnotation: na,
+                };
+                transientDetectedStripsRef.current?.updateStrips(
+                  features.map((f) => ({ polygon: f.polygon })),
+                );
+                syncSmartDetectionPresent();
+              })
+              .catch((err) => {
+                if (err?.name === "AbortError") return;
+                console.warn("[smartDetect] vector run failed", err);
                 screenCursorRef.current?.hideSpinner();
                 globalDetectionAbortRef.current = null;
                 dispatch(setGlobalDetectionRunning(false));

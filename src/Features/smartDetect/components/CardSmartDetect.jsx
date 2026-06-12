@@ -6,12 +6,7 @@ import {
   setSmartDetectMode,
 } from "Features/mapEditor/mapEditorSlice";
 
-import {
-  Box,
-  Checkbox,
-  Paper,
-  Typography,
-} from "@mui/material";
+import { Box, Checkbox, Paper, Typography } from "@mui/material";
 import { keyframes } from "@emotion/react";
 
 import ShortcutBadge from "./ShortcutBadge";
@@ -26,15 +21,9 @@ export default function CardSmartDetect() {
   // data
 
   const dispatch = useDispatch();
-  const enabledDrawingMode = useSelector(
-    (s) => s.mapEditor.enabledDrawingMode
-  );
-  const smartDetectEnabled = useSelector(
-    (s) => s.mapEditor.smartDetectEnabled
-  );
-  const smartDetectMode = useSelector(
-    (s) => s.mapEditor.smartDetectMode
-  );
+  const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  const smartDetectEnabled = useSelector((s) => s.mapEditor.smartDetectEnabled);
+  const smartDetectMode = useSelector((s) => s.mapEditor.smartDetectMode);
   const stripDetectionMultiple = useSelector(
     (s) => s.mapEditor.stripDetectionMultiple
   );
@@ -44,12 +33,17 @@ export default function CardSmartDetect() {
 
   const hoverActive = smartDetectEnabled && smartDetectMode === "HOVER";
   const globalActive = smartDetectMode === "GLOBAL";
+  const vectorActive = smartDetectMode === "VECTOR";
 
   // Surface drawing (POLYGON_CLICK) only supports hover detection: it finds the
   // closed loop of segments around the cursor (detectPolygonFromAnnotations).
   // "Globale" (OpenCV wall/pillar detector) and "Détection multiple" (strip
   // detection) don't apply, so they are hidden here.
   const isSurfaceMode = enabledDrawingMode === "POLYGON_CLICK";
+
+  // "Vectoriser" (V) turns the H / V black wall lines into 2-point segments —
+  // only meaningful in clic-clic polyline mode.
+  const isPolylineClickMode = enabledDrawingMode === "POLYLINE_CLICK";
 
   // handlers
 
@@ -65,6 +59,13 @@ export default function CardSmartDetect() {
   const handleSelectHover = () => {
     dispatch(setSmartDetectMode("HOVER"));
     dispatch(setSmartDetectEnabled(true));
+  };
+
+  // "Vectoriser" — same pattern as "Globale": the row only arms the mode,
+  // the actual run is launched by pressing V on the map.
+  const handleSelectVector = () => {
+    dispatch(setSmartDetectMode("VECTOR"));
+    if (smartDetectEnabled) dispatch(setSmartDetectEnabled(false));
   };
 
   const handleMultipleChange = (_e, checked) => {
@@ -112,6 +113,15 @@ export default function CardSmartDetect() {
         active={hoverActive}
         onClick={handleSelectHover}
       />
+
+      {isPolylineClickMode && (
+        <ModeRow
+          label="Vectoriser"
+          shortcut="V"
+          active={vectorActive}
+          onClick={handleSelectVector}
+        />
+      )}
 
       {hoverActive && !isSurfaceMode && (
         <Box

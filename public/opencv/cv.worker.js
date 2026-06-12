@@ -32,6 +32,7 @@ self.importScripts("./handlers/traceOrthoPathsAsync.js");
 self.importScripts("./handlers/detectSimilarPolylinesAsync.js");
 self.importScripts("./handlers/vectoriseWallsAsync.js");
 self.importScripts("./handlers/detectFloorPlanFeaturesAsync.js");
+self.importScripts("./handlers/detectWallSegmentsAsync.js");
 /**
  * This exists to capture all the events that are thrown out of the worker
  * into the worker. Without this, there would be no communication possible
@@ -142,6 +143,9 @@ onmessage = function (e) {
 
     case "detectFloorPlanFeaturesAsync":
       return detectFloorPlanFeaturesAsync(e.data);
+
+    case "detectWallSegmentsAsync":
+      return detectWallSegmentsAsync(e.data);
 
     default:
       break;
