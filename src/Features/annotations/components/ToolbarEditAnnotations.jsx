@@ -388,7 +388,18 @@ export default function ToolbarEditAnnotations({
               onMouseDown={(e) => e.stopPropagation()}
               onClick={() => {
                 if (annotations?.length > 0) {
-                  const data = JSON.stringify(annotations, null, 2);
+                  // imageSize + meterByPx make the export self-contained for
+                  // the AI meshing prompt (docs/annotations/MESH_IMPORT_PROMPT.md)
+                  const data = JSON.stringify(
+                    {
+                      imageSize: baseMap?.getImageSize?.() ?? null,
+                      meterByPx:
+                        baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx ?? null,
+                      annotations,
+                    },
+                    null,
+                    2
+                  );
                   navigator.clipboard.writeText(data);
                 }
               }}
