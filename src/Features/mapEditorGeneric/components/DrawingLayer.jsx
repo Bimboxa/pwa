@@ -137,38 +137,44 @@ const DrawingLayer = forwardRef(
     const drawingMetrics = useDrawingMetrics();
     const rectMetricsRef = drawingMetrics?.rectMetricsRef;
 
-    const { strokeColor, fillColor, type, strokeWidth, strokeWidthUnit } =
-      newAnnotation || {};
+    const {
+      strokeColor,
+      fillColor,
+      type,
+      strokeWidth,
+      strokeWidthUnit,
+      strokeOpacity,
+      strokeType,
+    } = newAnnotation || {};
 
     // Détection des types
     const isPolygon = type === "POLYGON";
 
-    // --- ÉPAISSEUR DE TRAIT (preview) ---
-    // Mirror NodePolylineStatic.computedStrokeWidth so the live preview matches
-    // the committed render (no width jump on finalize). When the width scales
-    // with zoom (CM / isForBaseMaps), drop vectorEffect so the SVG-space stroke
-    // grows with the zoom transform, exactly like the committed path.
-    //
-    // STRIP / RAMP excluded: there `strokeWidth` is the band width (already
-    // drawn by the dedicated strip/ramp band preview), so the rubber-band guide
-    // line must stay a thin fixed helper, not the full band width.
-    const previewUsesAnnotationWidth =
-      type !== "STRIP" && enabledDrawingMode !== "RAMP";
+    // --- STYLE DE TRAIT (preview) ---
+    // POLYLINE / segment previews mirror the annotation's stroke (width,
+    // opacity, dash style) so the temporary trait looks like the final one and
+    // there is no jump on finalize. POLYGON / STRIP / RAMP keep the legacy
+    // fixed 2px dashed guide: for POLYGON the contour styling differs, and for
+    // STRIP/RAMP `strokeWidth` is the band width (already drawn by the dedicated
+    // band preview), so the rubber-band line must stay a thin fixed helper.
+    const previewUsesAnnotationStyle =
+      type !== "POLYGON" && type !== "STRIP" && enabledDrawingMode !== "RAMP";
     const previewIsCmUnit =
-      previewUsesAnnotationWidth && strokeWidthUnit === "CM" && meterByPx > 0;
+      previewUsesAnnotationStyle && strokeWidthUnit === "CM" && meterByPx > 0;
     const previewScalesWithZoom =
-      previewUsesAnnotationWidth && (previewIsCmUnit || isForBaseMaps);
+      previewUsesAnnotationStyle && (previewIsCmUnit || isForBaseMaps);
     const previewStrokeWidth = useMemo(() => {
-      if (!previewUsesAnnotationWidth) return 2;
-      if (type === "POLYGON") return 0.5;
+      if (!previewUsesAnnotationStyle) return 2;
       const raw = strokeWidth ?? 2;
+      // Mirror NodePolylineStatic.computedStrokeWidth. When the width scales
+      // with zoom (CM / isForBaseMaps), vectorEffect is dropped below so the
+      // SVG-space stroke grows with the zoom transform, like the committed path.
       if (previewIsCmUnit) return (raw * 0.01) / meterByPx;
       if (isForBaseMaps) return raw * (baseMapImageScale || 1);
       // PX mode: raw value, vectorEffect="non-scaling-stroke" keeps it fixed.
       return raw;
     }, [
-      previewUsesAnnotationWidth,
-      type,
+      previewUsesAnnotationStyle,
       strokeWidth,
       previewIsCmUnit,
       meterByPx,
@@ -178,6 +184,23 @@ const DrawingLayer = forwardRef(
     const previewVectorEffect = previewScalesWithZoom
       ? undefined
       : "non-scaling-stroke";
+    // Opacity of the temporary trait: mirror the annotation for POLYLINE /
+    // segment; undefined (→ 1) for POLYGON / STRIP / RAMP, as before.
+    const previewStrokeOpacity = previewUsesAnnotationStyle
+      ? strokeOpacity
+      : undefined;
+    // Dash pattern of the temporary trait (rubber band / arc):
+    // - POLYLINE / segment: solid, unless the annotation style is DASHED.
+    // - POLYGON / STRIP / RAMP: legacy "5,5" guide dashes.
+    const previewTempDashArray = previewUsesAnnotationStyle
+      ? strokeType === "DASHED"
+        ? "1 1"
+        : undefined
+      : "5,5";
+    // Dash pattern of the already-validated segments (static stroke): solid,
+    // unless the POLYLINE / segment annotation style is DASHED.
+    const previewStaticDashArray =
+      previewUsesAnnotationStyle && strokeType === "DASHED" ? "1 1" : undefined;
 
     // Mirror NodePolylineStatic: for POLYGON the visible stroke matches the
     // fillColor, so the live drawing preview must do the same — otherwise the
@@ -682,8 +705,12 @@ const DrawingLayer = forwardRef(
             d={staticPath}
             stroke={effectiveStrokeColor || "blue"}
             strokeWidth={previewStrokeWidth}
+            strokeOpacity={previewStrokeOpacity}
             fill="none"
             vectorEffect={previewVectorEffect}
+            {...(previewStaticDashArray && {
+              strokeDasharray: previewStaticDashArray,
+            })}
           />
         )}
 
@@ -712,8 +739,11 @@ const DrawingLayer = forwardRef(
             ref={previewLineRef}
             stroke={effectiveStrokeColor || "blue"}
             strokeWidth={previewStrokeWidth}
-            strokeDasharray="5,5"
+            strokeOpacity={previewStrokeOpacity}
             vectorEffect={previewVectorEffect}
+            {...(previewTempDashArray && {
+              strokeDasharray: previewTempDashArray,
+            })}
             style={{ display: "none", pointerEvents: "none" }}
           />
         )}
@@ -726,8 +756,11 @@ const DrawingLayer = forwardRef(
             fill="none"
             stroke={effectiveStrokeColor || "blue"}
             strokeWidth={previewStrokeWidth}
-            strokeDasharray="5,5"
+            strokeOpacity={previewStrokeOpacity}
             vectorEffect={previewVectorEffect}
+            {...(previewTempDashArray && {
+              strokeDasharray: previewTempDashArray,
+            })}
             style={{ display: "none", pointerEvents: "none" }}
           />
         )}
