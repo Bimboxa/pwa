@@ -1,4 +1,9 @@
-import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
+import {
+  expandArcsInPath,
+  typeOf,
+  circleFromThreePoints,
+} from "Features/geometry/utils/arcSampling";
+import collapseArcsInPolyline from "Features/geometry/utils/collapseArcsInPolyline";
 
 import findPolygonCandidates from "./findPolygonCandidates";
 
@@ -20,7 +25,11 @@ const MAX_SEGMENTS = 1500;
  * @param {Array<{x:number, y:number}>} params.drawingPoints - Current drawing points in progress
  * @param {{x:number, y:number}} params.mousePos - Mouse position in local coords
  * @param {number} [params.tolerance=5] - Endpoint merge tolerance in pixels
- * @returns {{ outerRing: Array<{x,y}>, cuts: Array<Array<{x,y}>> } | null}
+ * @returns {{ outerRing: Array<{x,y,type?}>, cuts: Array<Array<{x,y,type?}>> } | null}
+ *
+ * The returned rings carry per-point `type` ("circle" on arc midpoints,
+ * "square" otherwise): arcs from the source annotations are recovered on the
+ * generated contour instead of staying faceted (see `collapseRingToTypedPoints`).
  */
 export default function detectPolygonFromAnnotations({
   annotations,
@@ -30,8 +39,13 @@ export default function detectPolygonFromAnnotations({
 }) {
   if (!annotations || !mousePos) return null;
 
-  // Step 1: Decompose everything into independent segments
-  let segments = extractSegments(annotations, drawingPoints);
+  // Step 1: Decompose everything into independent segments. We also collect the
+  // source annotations' arc circles so the discretized contour can be collapsed
+  // back into S-C-S arcs at the end (concentric with the original arcs).
+  let { segments, sourceArcCircles } = extractSegments(
+    annotations,
+    drawingPoints
+  );
   if (segments.length === 0) return null;
   if (segments.length > MAX_SEGMENTS) {
     segments = keepClosestSegments(segments, mousePos, MAX_SEGMENTS);
@@ -61,7 +75,16 @@ export default function detectPolygonFromAnnotations({
       );
       if (innerEnvelope) {
         const innerCuts = findCutsFromCycles(candidates, innerEnvelope);
-        return { outerRing: innerEnvelope, cuts: innerCuts };
+        return {
+          outerRing: collapseRingToTypedPoints(
+            innerEnvelope,
+            sourceArcCircles,
+            tolerance
+          ),
+          cuts: innerCuts.map((c) =>
+            collapseRingToTypedPoints(c, sourceArcCircles, tolerance)
+          ),
+        };
       }
     }
     return null;
@@ -70,7 +93,12 @@ export default function detectPolygonFromAnnotations({
   // Step 4: Find cuts — other DFS cycles fully inside the envelope
   const cuts = findCutsFromCycles(candidates, envelope);
 
-  return { outerRing: envelope, cuts };
+  return {
+    outerRing: collapseRingToTypedPoints(envelope, sourceArcCircles, tolerance),
+    cuts: cuts.map((c) =>
+      collapseRingToTypedPoints(c, sourceArcCircles, tolerance)
+    ),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -79,11 +107,43 @@ export default function detectPolygonFromAnnotations({
 
 function extractSegments(annotations, drawingPoints) {
   const segments = [];
+  const sourceArcCircles = [];
+
+  // Collect the circle of every S-C-S (square→circle→square) arc in a typed
+  // path, so the discretized contour can later be collapsed back to arcs
+  // concentric with these source circles. Mirrors the wrap-around walk of
+  // `expandArcsInPath` so a closed path's seam arc is captured too.
+  const collectArcCircles = (typedPts, closed) => {
+    const n = typedPts.length;
+    if (n < 3) return;
+    const get = closed
+      ? (k) => typedPts[((k % n) + n) % n]
+      : (k) => typedPts[k];
+    const last = closed ? n - 1 : n - 3;
+    for (let i = 0; i <= last; i++) {
+      const p0 = get(i);
+      const p1 = get(i + 1);
+      const p2 = get(i + 2);
+      if (
+        p1 &&
+        p2 &&
+        typeOf(p0) !== "circle" &&
+        typeOf(p1) === "circle" &&
+        typeOf(p2) !== "circle"
+      ) {
+        const circ = circleFromThreePoints(p0, p1, p2);
+        if (circ && Number.isFinite(circ.r) && circ.r > 0) {
+          sourceArcCircles.push(circ);
+        }
+      }
+    }
+  };
 
   // Push every consecutive point pair of a (arc-expanded) path as its own
   // segment. `closed` adds the wrap-around segment back to the first point.
   const pushPath = (rawPts, closed) => {
     if (!rawPts || rawPts.length < 2) return;
+    collectArcCircles(rawPts, closed);
     const pts = expandArcsInPath(rawPts, 6);
     for (let i = 0; i < pts.length - 1; i++) {
       segments.push({
@@ -132,7 +192,111 @@ function extractSegments(annotations, drawingPoints) {
     );
   }
 
-  return segments;
+  return { segments, sourceArcCircles };
+}
+
+// ---------------------------------------------------------------------------
+// Arc recovery on the generated contour
+// ---------------------------------------------------------------------------
+
+// True when `p` lies (within `tol`) on the circumference of any source arc
+// circle — used to pick a seam vertex that is a real corner, not mid-arc.
+function pointOnAnySourceArc(p, sourceArcCircles, tol) {
+  for (const c of sourceArcCircles) {
+    if (!c || !c.center) continue;
+    const d = Math.abs(Math.hypot(p.x - c.center.x, p.y - c.center.y) - c.r);
+    if (d <= tol) return true;
+  }
+  return false;
+}
+
+/**
+ * Convert a closed ring of plain {x,y} (ring[last] === ring[0]) into a typed
+ * point array where arc midpoints carry `type:"circle"`. Straight runs and
+ * corners stay `type:"square"`.
+ *
+ * Discretized runs that lie on a source annotation arc circle are collapsed
+ * back into S-C-S arcs via `collapseArcsInPolyline` with `requireSourceMatch`
+ * (so only real source arcs are recovered — corners stay corners). When no
+ * source arcs exist the ring passes through as all-square points.
+ */
+function collapseRingToTypedPoints(ring, sourceArcCircles, tolerance) {
+  if (!ring || ring.length < 4) {
+    return (ring || []).map((p) => ({ x: p.x, y: p.y, type: "square" }));
+  }
+
+  // Strip the duplicate closing vertex → open list of distinct vertices.
+  let verts = ring.slice(0, ring.length - 1).map((p) => ({ x: p.x, y: p.y }));
+
+  if (!sourceArcCircles || sourceArcCircles.length === 0) {
+    return [...verts, { x: verts[0].x, y: verts[0].y }].map((p) => ({
+      x: p.x,
+      y: p.y,
+      type: "square",
+    }));
+  }
+
+  // Seam handling: rotate so the array starts at a real corner (a vertex NOT on
+  // any source arc), so no recovered arc straddles the array seam. If every
+  // vertex lies on a circle (fully-circular contour), keep index 0.
+  const seamTol = Math.max(2, tolerance);
+  let seam = verts.findIndex(
+    (p) => !pointOnAnySourceArc(p, sourceArcCircles, seamTol)
+  );
+  if (seam > 0) {
+    verts = verts.slice(seam).concat(verts.slice(0, seam));
+  }
+
+  // Run the collapse on the closed path (append the seam vertex so the
+  // wrap-around segment is considered).
+  const units = collapseArcsInPolyline(
+    [...verts, { x: verts[0].x, y: verts[0].y }],
+    {
+      thicknessPx: 2 * tolerance,
+      sourceArcCircles,
+      requireSourceMatch: true,
+    }
+  );
+
+  // Flatten units → typed points, deduping shared boundary vertices.
+  const out = [];
+  const push = (x, y, type) => {
+    const last = out[out.length - 1];
+    if (last && Math.abs(last.x - x) < 1e-6 && Math.abs(last.y - y) < 1e-6) {
+      return; // shared boundary vertex
+    }
+    out.push({ x, y, type });
+  };
+  if (units.length === 0) {
+    for (const p of verts) push(p.x, p.y, "square");
+  } else {
+    for (const unit of units) {
+      if (unit.kind === "arc") {
+        const [a, c, b] = unit.points; // [square, circle, square]
+        push(a.x, a.y, "square");
+        push(c.x, c.y, "circle");
+        push(b.x, b.y, "square");
+      } else {
+        for (const p of unit.points) push(p.x, p.y, "square");
+      }
+    }
+  }
+
+  // Re-close the ring (drop a trailing duplicate of the first vertex first, so
+  // the closing point is appended exactly once).
+  if (out.length >= 2) {
+    const first = out[0];
+    const last = out[out.length - 1];
+    if (
+      Math.abs(first.x - last.x) < 1e-6 &&
+      Math.abs(first.y - last.y) < 1e-6
+    ) {
+      out.pop();
+    }
+    out.push({ x: first.x, y: first.y, type: "square" });
+  }
+
+  return out;
 }
 
 // Keep the `limit` segments closest to `mousePos` (by min distance from the

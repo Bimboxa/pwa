@@ -499,7 +499,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                 const allCutPointsToSave = [];
                 for (const cutRing of detectedCuts) {
                     if (!cutRing || cutRing.length < 3) continue;
-                    const cutPointIds = [];
+                    const cutPoints = []; // { id, type? } — preserve arc types
                     for (const pt of cutRing) {
                         const newId = nanoid();
                         allCutPointsToSave.push({
@@ -510,10 +510,10 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                             projectId,
                             listingId,
                         });
-                        cutPointIds.push(newId);
+                        cutPoints.push({ id: newId, type: pt.type });
                     }
                     cutEntries.push({
-                        points: cutPointIds.map(id => ({ id })),
+                        points: cutPoints.map(({ id, type }) => (type ? { id, type } : { id })),
                     });
                 }
                 // Single bulk insert for all cut points
