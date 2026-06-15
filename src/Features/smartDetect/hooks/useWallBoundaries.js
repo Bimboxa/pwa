@@ -9,13 +9,24 @@ import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
-import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
+import {
+  circleFromThreePoints,
+  expandArcsInPath,
+  typeOf,
+} from "Features/geometry/utils/arcSampling";
+import collapseArcsInPolyline from "Features/geometry/utils/collapseArcsInPolyline";
 import wallToRectRing, {
   segNormal,
   wallToHollowRings,
 } from "Features/geometry/utils/wallToRectRing";
 
 import db from "App/db/db";
+
+// Number of straight samples each S-C-S arc is expanded into before the
+// offset + polygon-clipping union. Denser than the bare minimum so the
+// miter-joined offset vertices sit close to the true concentric circle and
+// collapseArcsInPolyline can re-fit the arc on the output.
+const ARC_SAMPLES = 16;
 
 /**
  * Classify an edge midpoint: find the nearest wall and determine side.
@@ -155,6 +166,13 @@ export default function useWallBoundaries() {
       const pointsById = {};
       for (const pt of pointRecords) if (pt) pointsById[pt.id] = pt;
 
+      // Circles of every S-C-S arc present in the SOURCE walls (px). A contour
+      // run whose fitted circle matches one of these came from an arc wall — a
+      // robust provenance hint passed to collapseArcsInPolyline so the arc is
+      // recovered on the output. maxThicknessPx is the collapse tolerance base.
+      const sourceArcCircles = [];
+      let maxThicknessPx = 0;
+
       const walls = [];
       for (const ann of wallAnnotations) {
         if (!ann.points || ann.points.length < 2) continue;
@@ -168,10 +186,22 @@ export default function useWallBoundaries() {
               pts.push({ x: rec.x * width, y: rec.y * height, type: p.type });
           }
         }
+        // Collect source arc circles from the original typed points, before the
+        // arcs are flattened by expandArcsInPath below.
+        for (let k = 0; k + 2 < pts.length; k++) {
+          if (
+            typeOf(pts[k]) !== "circle" &&
+            typeOf(pts[k + 1]) === "circle" &&
+            typeOf(pts[k + 2]) !== "circle"
+          ) {
+            const c = circleFromThreePoints(pts[k], pts[k + 1], pts[k + 2]);
+            if (c) sourceArcCircles.push(c);
+          }
+        }
         // Expand S-C-S arcs into straight sample segments before the offset
         // step, so the rest of the pipeline (polygon-clipping union, step
         // removal) continues to see only straight edges.
-        const expanded = expandArcsInPath(pts, 6);
+        const expanded = expandArcsInPath(pts, ARC_SAMPLES);
         // Filter degenerate zero-length segments
         const filtered = [expanded[0]];
         for (let i = 1; i < expanded.length; i++) {
@@ -186,6 +216,7 @@ export default function useWallBoundaries() {
         if (filtered.length < 2) continue;
 
         const thicknessPx = (ann.strokeWidth ?? 10) / (meterByPx * 100);
+        if (thicknessPx > maxThicknessPx) maxThicknessPx = thicknessPx;
         walls.push({
           points: filtered,
           halfWidth: thicknessPx / 2,
@@ -293,16 +324,51 @@ export default function useWallBoundaries() {
         const pts = group.points;
         if (!pts || pts.length < 2) continue;
 
+        // Recover arcs on the contour: a straight run that lies on a source
+        // wall's offset circle is collapsed back into an S-C-S arc, so curved
+        // walls produce curved contours instead of faceted segments. Straight
+        // contours stay straight (conservative gates inside collapseArcs...).
+        const units = collapseArcsInPolyline(
+          pts.map(([x, y]) => ({ x, y })),
+          {
+            thicknessPx: maxThicknessPx,
+            sourceArcCircles,
+            // A contour arc is always concentric with the wall arc it offsets;
+            // require that match so straight junction stubs / corners between
+            // merged walls are not mis-fitted as arcs.
+            requireSourceMatch: true,
+          }
+        );
+
+        const pointRefs = [];
+        const pushRef = (x, y, type) => {
+          const id = getOrCreatePoint(x, y);
+          const last = pointRefs[pointRefs.length - 1];
+          if (last && last.id === id) return; // shared boundary vertex
+          pointRefs.push({ id, type });
+        };
+        if (units.length === 0) {
+          // Degenerate fallback: keep the previous straight behavior.
+          for (const [x, y] of pts) pushRef(x, y, "square");
+        } else {
+          for (const unit of units) {
+            if (unit.kind === "arc") {
+              const [a, c, b] = unit.points; // [square, circle, square]
+              pushRef(a.x, a.y, "square");
+              pushRef(c.x, c.y, "circle");
+              pushRef(b.x, b.y, "square");
+            } else {
+              for (const p of unit.points) pushRef(p.x, p.y, "square");
+            }
+          }
+        }
+        if (pointRefs.length < 2) continue;
+
         let entityId;
         if (entityTable) {
           entityId = nanoid();
           allEntities.push({ id: entityId, listingId, projectId });
         }
-
-        const pointRefs = pts.map((coord) => ({
-          id: getOrCreatePoint(coord[0], coord[1]),
-          type: "square",
-        }));
 
         allAnnotations.push({
           id: nanoid(),
