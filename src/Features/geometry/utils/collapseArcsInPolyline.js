@@ -71,7 +71,7 @@ function matchesSourceArc(circle, sourceArcCircles, thicknessPx, baseTol) {
 
 // Fit + validate the inclusive run pts[s..e]. Returns { circle, midIdx } or
 // null when the run is not a clean circular arc.
-function fitRun(pts, s, e, thicknessPx, sourceArcCircles) {
+function fitRun(pts, s, e, thicknessPx, sourceArcCircles, requireSourceMatch) {
   const midIdx = (s + e) >> 1;
   const A = pts[s];
   const M = pts[midIdx];
@@ -88,6 +88,11 @@ function fitRun(pts, s, e, thicknessPx, sourceArcCircles) {
     thicknessPx,
     baseTol
   );
+  // When the caller only trusts arcs that are concentric with a known source
+  // arc (e.g. wall-contour offsets, which are always concentric with the wall
+  // arc), reject any run that does not match — keeps straight junction stubs
+  // and corners from being mis-fitted as arcs.
+  if (requireSourceMatch && !fromSource) return null;
   const tol = fromSource ? Math.max(baseTol, 0.6 * thicknessPx) : baseTol;
 
   for (let k = s; k <= e; k++) {
@@ -118,6 +123,7 @@ export default function collapseArcsInPolyline(pointsPx, opts = {}) {
 
   const thicknessPx = opts.thicknessPx || 0;
   const sourceArcCircles = opts.sourceArcCircles || [];
+  const requireSourceMatch = opts.requireSourceMatch || false;
 
   // 1. Greedy, maximal, non-overlapping arc intervals. Adjacent units share
   //    their boundary vertex (s = previous arc's end index).
@@ -125,13 +131,27 @@ export default function collapseArcsInPolyline(pointsPx, opts = {}) {
   let s = 0;
   while (s + MIN_ARC_POINTS - 1 < n) {
     let e = s + MIN_ARC_POINTS - 1;
-    let fit = fitRun(pts, s, e, thicknessPx, sourceArcCircles);
+    let fit = fitRun(
+      pts,
+      s,
+      e,
+      thicknessPx,
+      sourceArcCircles,
+      requireSourceMatch
+    );
     if (!fit) {
       s += 1;
       continue;
     }
     while (e + 1 < n) {
-      const next = fitRun(pts, s, e + 1, thicknessPx, sourceArcCircles);
+      const next = fitRun(
+        pts,
+        s,
+        e + 1,
+        thicknessPx,
+        sourceArcCircles,
+        requireSourceMatch
+      );
       if (!next) break;
       e += 1;
       fit = next;
