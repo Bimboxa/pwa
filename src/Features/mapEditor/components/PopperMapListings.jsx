@@ -61,7 +61,7 @@ import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
-import { StopCircle, Create, AddLocationAlt } from "@mui/icons-material";
+import { StopCircle, Create, AddLocationAlt, AutoFixHigh } from "@mui/icons-material";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import IconCutLine from "Features/icons/IconCutLine";
 import IconCutSurface from "Features/icons/IconCutSurface";
@@ -96,7 +96,10 @@ import {
   setAutoOffsetsOnCommit,
   setAvoidVisibleAnnotationsOnCommit,
   setPasteDetectionMode,
+  setRepairMode,
 } from "Features/mapEditor/mapEditorSlice";
+
+import { REPAIR_MODES } from "Features/localizedRepair/constants/repairShortcuts";
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 import { keyframes } from "@emotion/react";
 import WarningAmber from "@mui/icons-material/WarningAmber";
@@ -140,6 +143,7 @@ const TOOL_ITEMS = [
   { type: "COMPLETE_ANNOTATION", label: "Prolonger", Icon: Create },
   { type: "ADD_INNER_POINT", label: "Ajouter un point", Icon: AddLocationAlt },
   { type: "GUIDE_LINE", label: "Ajouter une ligne guide", Icon: Timeline },
+  { type: "LOCALIZED_REPAIR", label: "Réparation localisée", Icon: AutoFixHigh },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1348,6 +1352,66 @@ const SMART_DETECT_CAPABLE_MODES = [
   "SURFACE_DROP",
 ];
 
+// ---------------------------------------------------------------------------
+// SectionRepairModes — localized-repair type selector (Auto / L / T / Lissage),
+// one selectable line per mode with its keyboard shortcut at the end.
+// ---------------------------------------------------------------------------
+
+function SectionRepairModes() {
+  const dispatch = useDispatch();
+  const repairMode = useSelector((s) => s.mapEditor.repairMode);
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ px: 0.5 }}>
+        Type de réparation
+      </Typography>
+      {REPAIR_MODES.map(({ mode, label, shortcut }) => {
+        const selected = repairMode === mode;
+        return (
+          <Paper
+            key={mode}
+            elevation={0}
+            onClick={() => dispatch(setRepairMode(mode))}
+            sx={{
+              px: 1,
+              py: 0.5,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+              border: "1px solid",
+              borderColor: selected ? "primary.main" : "transparent",
+              bgcolor: selected ? "primary.main" : "background.default",
+              color: selected ? "primary.contrastText" : "text.secondary",
+              "&:hover": { bgcolor: selected ? "primary.main" : "action.hover" },
+            }}
+          >
+            <Typography variant="caption" sx={{ fontWeight: selected ? 600 : 400 }}>
+              {label}
+            </Typography>
+            <Box
+              sx={{
+                px: 0.5,
+                py: 0,
+                borderRadius: 0.5,
+                bgcolor: selected ? "rgba(255,255,255,0.25)" : "action.hover",
+                color: selected ? "primary.contrastText" : "text.secondary",
+                fontSize: "0.65rem",
+                fontWeight: 600,
+                lineHeight: 1.4,
+              }}
+            >
+              {shortcut}
+            </Box>
+          </Paper>
+        );
+      })}
+    </Box>
+  );
+}
+
 function PopperDrawingHelper() {
   const dispatch = useDispatch();
 
@@ -1441,7 +1505,10 @@ function PopperDrawingHelper() {
       </Box>
 
       <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
-        {!isSegmentSelectMode && enabledDrawingMode !== "REASSIGN_TEMPLATE" && <CardLoupe />}
+        {!isSegmentSelectMode &&
+          enabledDrawingMode !== "REASSIGN_TEMPLATE" &&
+          enabledDrawingMode !== "LOCALIZED_REPAIR" && <CardLoupe />}
+        {enabledDrawingMode === "LOCALIZED_REPAIR" && <SectionRepairModes />}
         {enabledDrawingMode === "REASSIGN_TEMPLATE" && (
           <Box
             sx={{

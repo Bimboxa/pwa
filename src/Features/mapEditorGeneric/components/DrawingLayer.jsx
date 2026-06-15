@@ -210,11 +210,13 @@ const DrawingLayer = forwardRef(
     // RAMP draws a POLYGON (type === "POLYGON") but previews a band centered on
     // the drawn median line instead of the closed polygon-of-the-clicks.
     const isRamp = enabledDrawingMode === "RAMP";
+    const isLocalizedRepair = enabledDrawingMode === "LOCALIZED_REPAIR";
     const drawRectangle = [
       "RECTANGLE",
       "POLYLINE_RECTANGLE",
       "POLYGON_RECTANGLE",
       "CUT_RECTANGLE",
+      "LOCALIZED_REPAIR",
     ].includes(enabledDrawingMode);
     const drawCircle = [
       "CIRCLE",
@@ -675,11 +677,12 @@ const DrawingLayer = forwardRef(
           <polygon
             ref={previewRectRef}
             fill="none"
-            {...(isPolygon && { fill: fillColor || "rgba(92, 92, 236, 0.1)" })}
+            {...(!isLocalizedRepair &&
+              isPolygon && { fill: fillColor || "rgba(92, 92, 236, 0.1)" })}
             fillOpacity={newAnnotation?.fillOpacity ?? 0.8}
-            stroke={effectiveStrokeColor || "#2196f3"}
-            strokeWidth={previewStrokeWidth}
-            vectorEffect={previewVectorEffect}
+            stroke={isLocalizedRepair ? "#00ff00" : effectiveStrokeColor || "#2196f3"}
+            strokeWidth={isLocalizedRepair ? 2 : previewStrokeWidth}
+            vectorEffect={isLocalizedRepair ? "non-scaling-stroke" : previewVectorEffect}
             style={{ display: "none", pointerEvents: "none" }}
           />
         )}

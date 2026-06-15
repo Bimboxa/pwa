@@ -9,10 +9,16 @@ export default function SectionShortcutHelpers() {
     const newAnnotationType = useSelector((s) => s.annotations.newAnnotation?.type);
     const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
     const isReassignMode = enabledDrawingMode === "REASSIGN_TEMPLATE";
+    const isLocalizedRepair = enabledDrawingMode === "LOCALIZED_REPAIR";
 
     // Note: loupe size / constraint-length shortcuts are shown inline inside
     // CardLoupe and SectionSegmentLength respectively — no longer here.
-    const shortcuts = [
+    const shortcuts = isLocalizedRepair
+        ? [
+            { key: "Espace", label: "Valider la réparation" },
+            { key: "Esc", label: "Annuler / Quitter" },
+          ]
+        : [
         ...(isReassignMode
             ? []
             : [{

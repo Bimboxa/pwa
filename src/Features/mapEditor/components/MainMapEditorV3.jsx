@@ -66,6 +66,7 @@ import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
 import useSaveTempAnnotations from "Features/mapEditor/hooks/useSaveTempAnnotations";
 import useCreateAnnotationsFromDetectedStrips from "Features/smartDetect/hooks/useCreateAnnotationsFromDetectedStrips";
 import useCreateAnnotationsFromDetectedFeatures from "Features/smartDetect/hooks/useCreateAnnotationsFromDetectedFeatures";
+import useCommitLocalizedRepair from "Features/localizedRepair/hooks/useCommitLocalizedRepair";
 import useSurfaceDropBarrierMask from "Features/smartDetect/hooks/useSurfaceDropBarrierMask";
 import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCreateAnnotationFromSurfaceDrop";
 import LayerSurfaceDropPreview from "./LayerSurfaceDropPreview";
@@ -424,6 +425,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const saveTempAnnotations = useSaveTempAnnotations();
     const createAnnotationsFromDetectedStrips = useCreateAnnotationsFromDetectedStrips();
     const createAnnotationsFromDetectedFeatures = useCreateAnnotationsFromDetectedFeatures();
+    const handleCommitLocalizedRepair = useCommitLocalizedRepair();
     const createAnnotationFromSurfaceDrop = useCreateAnnotationFromSurfaceDrop();
 
     const handleCommitDetectedFeatures = async ({ features, sourceAnnotation }) => {
@@ -1471,6 +1473,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onCommitPointsFromSurfaceDrop={handleCommitPointsFromSurfaceDrop}
                     onCommitSimilarStrips={handleCommitSimilarStrips}
                     onCommitDetectedFeatures={handleCommitDetectedFeatures}
+                    onCommitLocalizedRepair={handleCommitLocalizedRepair}
                     surfaceDropBarrierMask={surfaceDropBarrierMask}
                     baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
                     baseMapImageScale={baseMap?.getImageScale()}
