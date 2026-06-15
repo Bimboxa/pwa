@@ -11,6 +11,7 @@ import {
   Straighten,
   Timeline as GuideLineIcon,
   NorthEast as RampIcon,
+  AutoFixHigh as LocalizedRepairIcon,
 } from "@mui/icons-material";
 
 import IconPolylineClick from "Features/icons/IconPolylineClick";
@@ -264,6 +265,16 @@ const DRAWING_TOOLS = [
     annotationType: "POLYGON",
     behavior: "RAMP",
   },
+  // LOCALIZED_REPAIR tool — draw a selection rectangle (2 clicks) over a noisy
+  // L/T junction or zone; the algo proposes a repair (flashing green) committed
+  // with Space. See Features/localizedRepair.
+  {
+    key: "LOCALIZED_REPAIR",
+    label: "Réparation localisée",
+    Icon: LocalizedRepairIcon,
+    annotationType: "LOCALIZED_REPAIR",
+    behavior: "LOCALIZED_REPAIR",
+  },
 ];
 
 export const DRAWING_TOOLS_BY_TYPE = {
@@ -274,6 +285,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
   COMPLETE_ANNOTATION: ["COMPLETE_ANNOTATION"],
   ADD_INNER_POINT: ["ADD_INNER_POINT"],
   GUIDE_LINE: ["ADD_GUIDE_LINE"],
+  LOCALIZED_REPAIR: ["LOCALIZED_REPAIR"],
 };
 
 export function getDrawingToolsByShape(drawingShape) {

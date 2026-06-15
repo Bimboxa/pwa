@@ -15,6 +15,7 @@ const mapEditorInitialState = {
   //
   mapEditorMode: "SELECT", // "SELECT", "DRAW"
   enabledDrawingMode: null, // "CLICK", "RECTANGLE", "SURFACE_DROP",
+  repairMode: "AUTO", // localized-repair type override: "AUTO" | "L" | "T" | "SMOOTH"
   autoMergeOnCommit: true, // when true, a POLYGON drawn via RECTANGLE tool is auto-merged with overlapping same-template polygons on commit
   autoOffsetsOnCommit: false, // when true, a POLYGON drawn via CLICK tool inherits offsetZ/height + per-point offsetBottom/offsetTop from snapped neighbors so the 3D surface stays continuous
   avoidVisibleAnnotationsOnCommit: false, // when true, on commit of a POLYGON, visible annotations of a different annotationTemplateId are subtracted from the drawn polygon (outer carving + cuts)
@@ -198,6 +199,11 @@ export const mapEditorSlice = createSlice({
       const drawingMode = action.payload;
       state.enabledDrawingMode = drawingMode;
       state.showLayerScreenCursor = Boolean(drawingMode);
+      // Reset the localized-repair override whenever a tool is (re)selected.
+      state.repairMode = "AUTO";
+    },
+    setRepairMode: (state, action) => {
+      state.repairMode = action.payload;
     },
     setAutoMergeOnCommit: (state, action) => {
       state.autoMergeOnCommit = action.payload;
@@ -602,6 +608,7 @@ export const {
   //
   toggleShowMapListingsPanel,
   setEnabledDrawingMode,
+  setRepairMode,
   setAutoMergeOnCommit,
   setAutoOffsetsOnCommit,
   setAvoidVisibleAnnotationsOnCommit,

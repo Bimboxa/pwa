@@ -30,6 +30,7 @@ import {
   setSmartDetectMode,
   setGlobalDetectionRunning,
   setAutoOffsetsOnCommit,
+  setRepairMode,
 } from 'Features/mapEditor/mapEditorSlice';
 import { setColorToReplace } from 'Features/opencv/opencvSlice';
 import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
@@ -105,6 +106,9 @@ import TransientOrthoPathsLayer from 'Features/mapEditorGeneric/components/Trans
 import TransientDetectedStripsLayer from 'Features/mapEditorGeneric/components/TransientDetectedStripsLayer';
 import TransientDetectedPolygonLayer from 'Features/mapEditorGeneric/components/TransientDetectedPolygonLayer';
 import TransientDetectedPatternLayer from 'Features/mapEditorGeneric/components/TransientDetectedPatternLayer';
+import getConcernedAnnotationIds from 'Features/localizedRepair/utils/getConcernedAnnotationIds';
+import buildRepairProposal from 'Features/localizedRepair/utils/buildRepairProposal';
+import { REPAIR_KEY_TO_MODE } from 'Features/localizedRepair/constants/repairShortcuts';
 import extractAnnotationImagePatch from 'Features/annotations/utils/extractAnnotationImagePatch';
 import transformImageData from 'Features/annotations/utils/transformImageData';
 import runPatternDetection from 'Features/smartDetect/utils/runPatternDetection';
@@ -235,6 +239,7 @@ const InteractionLayer = forwardRef(({
   onCommitPointsFromSurfaceDrop,
   onCommitSimilarStrips,
   onCommitDetectedFeatures,
+  onCommitLocalizedRepair,
   onCommitImageDrop,
   onMapClickInSelectMode,
   basePose,
@@ -308,6 +313,10 @@ const InteractionLayer = forwardRef(({
   // Copy/paste pattern detection (Ctrl+C → A/S sub-modes).
   const transientDetectedPatternRef = useRef(null);
   const detectedPatternMatchesRef = useRef(null); // { matches, clipboard }
+  // Localized repair (LOCALIZED_REPAIR tool): selection + proposal holders.
+  const transientRepairProposalRef = useRef(null); // TransientDetectedPatternLayer
+  const repairSelectionRef = useRef(null); // { rect, concerned } — kept for recompute
+  const repairProposalRef = useRef(null); // { plan } — committed on Space
   const pasteDetectImageDataRef = useRef(null); // full source-image ImageData
   const patternPatchRef = useRef(null); // { clipboard, patch } cache
   // Uint8 mask (source-image px) of visible annotations — rebuilt after each
@@ -387,6 +396,7 @@ const InteractionLayer = forwardRef(({
   const smartDetectEnabled = useSelector((s) => s.mapEditor.smartDetectEnabled);
   const smartDetectMode = useSelector((s) => s.mapEditor.smartDetectMode);
   const globalDetectionRunning = useSelector((s) => s.mapEditor.globalDetectionRunning);
+  const repairMode = useSelector((s) => s.mapEditor.repairMode);
   const autoOffsetsOnCommit = useSelector((s) => s.mapEditor.autoOffsetsOnCommit);
   const loupeAspectRedux = useSelector((s) => s.mapEditor.loupeAspect);
   // Strip detection orientation is now derived from the loupe aspect (set via F):
@@ -465,12 +475,65 @@ const InteractionLayer = forwardRef(({
       detectedPolygonRef.current ||
       detectedSimilarStripsRef.current ||
       detectedGlobalFeaturesRef.current ||
-      detectedPatternMatchesRef.current
+      detectedPatternMatchesRef.current ||
+      repairProposalRef.current
     );
     if (present !== lastSmartDetectionPresentRef.current) {
       lastSmartDetectionPresentRef.current = present;
       dispatch(setSmartDetectionPresent(present));
     }
+  };
+
+  // Localized repair — keep the current repairMode readable synchronously from
+  // the (later-defined) event handlers.
+  const repairModeRef = useRef(repairMode);
+  useEffect(() => { repairModeRef.current = repairMode; }, [repairMode]);
+
+  // (Re)compute the repair proposal from the stored concerned set + current
+  // repairMode, then refresh the flashing-green preview. Called after the
+  // selection rectangle is drawn and after an A/L/T/S override.
+  const recomputeRepairProposal = () => {
+    const sel = repairSelectionRef.current;
+    if (!sel || !sel.concerned?.length) {
+      repairProposalRef.current = null;
+      transientRepairProposalRef.current?.clear();
+      syncSmartDetectionPresent();
+      return;
+    }
+    const { proposalMatches, plan } = buildRepairProposal({
+      annotations: sel.concerned,
+      repairMode: repairModeRef.current,
+      meterByPx: meterByPxRef.current,
+      rect: sel.rect,
+    });
+    repairProposalRef.current = plan ? { plan } : null;
+    transientRepairProposalRef.current?.updateMatches(proposalMatches || []);
+    syncSmartDetectionPresent();
+  };
+
+  const clearRepairProposal = () => {
+    repairSelectionRef.current = null;
+    repairProposalRef.current = null;
+    transientRepairProposalRef.current?.clear();
+    syncSmartDetectionPresent();
+  };
+
+  // Build the concerned-annotation set from the 2-click selection rectangle and
+  // compute the first proposal. Coordinates are local pixel space.
+  const handleLocalizedRepairRectangle = (twoPoints) => {
+    if (!twoPoints || twoPoints.length < 2) return;
+    const [p0, p1] = twoPoints;
+    const rect = {
+      x: Math.min(p0.x, p1.x),
+      y: Math.min(p0.y, p1.y),
+      width: Math.abs(p1.x - p0.x),
+      height: Math.abs(p1.y - p0.y),
+    };
+    const anns = annotationsRef.current || [];
+    const ids = new Set(getConcernedAnnotationIds(anns, rect));
+    const concerned = anns.filter((a) => ids.has(a.id));
+    repairSelectionRef.current = { rect, concerned };
+    recomputeRepairProposal();
   };
 
   // Listen for similar-strip detection results from toolbar button
@@ -2012,6 +2075,11 @@ const InteractionLayer = forwardRef(({
     onCommitDetectedFeaturesRef.current = onCommitDetectedFeatures;
   }, [onCommitDetectedFeatures]);
 
+  const onCommitLocalizedRepairRef = useRef(onCommitLocalizedRepair);
+  useEffect(() => {
+    onCommitLocalizedRepairRef.current = onCommitLocalizedRepair;
+  }, [onCommitLocalizedRepair]);
+
   const onCommitPointsFromSurfaceDropRef = useRef(onCommitPointsFromSurfaceDrop);
   useEffect(() => {
     onCommitPointsFromSurfaceDropRef.current = onCommitPointsFromSurfaceDrop;
@@ -2341,6 +2409,21 @@ const InteractionLayer = forwardRef(({
 
       if (e.repeat) return;
 
+      // --- LOCALIZED_REPAIR: A/L/T/S override the repair type. Handled before
+      // the generic switch so it doesn't collide with the global 'a'/'s' detect
+      // shortcuts. Recomputes the proposal on the current selection. ---
+      if (enabledDrawingModeRef.current === "LOCALIZED_REPAIR") {
+        const repairKey = e.key?.toLowerCase();
+        const nextRepairMode = REPAIR_KEY_TO_MODE[repairKey];
+        if (nextRepairMode) {
+          e.preventDefault();
+          dispatch(setRepairMode(nextRepairMode));
+          repairModeRef.current = nextRepairMode;
+          recomputeRepairProposal();
+          return;
+        }
+      }
+
       // Shift outside drawing starts a selection (lasso / shift+click). Hide
       // any visible snap helper so it can't intercept the next click.
       if (e.key === "Shift" && !enabledDrawingMode) {
@@ -2596,6 +2679,14 @@ const InteractionLayer = forwardRef(({
             return;
           }
 
+          // Dismiss a pending localized-repair proposal without leaving the
+          // tool (so the user can draw another selection rectangle).
+          if (repairProposalRef.current || repairSelectionRef.current) {
+            clearRepairProposal();
+            e.stopPropagation();
+            return;
+          }
+
           // Mid-drawing: if points have already been placed, reset just the
           // in-progress points and stay in the current drawing mode so the
           // user can restart the click cycle without re-picking the tool.
@@ -2647,6 +2738,10 @@ const InteractionLayer = forwardRef(({
           cachedDetectImageUrlRef.current = null;
           transientDetectedPolygonRef.current?.clear();
           detectedShapeRef.current = null;
+          // Clear localized-repair selection + proposal.
+          repairSelectionRef.current = null;
+          repairProposalRef.current = null;
+          transientRepairProposalRef.current?.clear();
           syncSmartDetectionPresent();
           break;
 
@@ -2666,6 +2761,16 @@ const InteractionLayer = forwardRef(({
           break;
 
         case ' ':
+          // --- LOCALIZED_REPAIR: commit the current repair proposal ---
+          if (repairProposalRef.current?.plan) {
+            e.preventDefault();
+            onCommitLocalizedRepairRef.current?.({
+              plan: repairProposalRef.current.plan,
+            });
+            clearRepairProposal();
+            return;
+          }
+
           // --- SURFACE_DROP smartDetect: commit the current flood-fill preview ---
           if (
             smartDetectEnabledRef.current &&
@@ -3707,7 +3812,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- CASE 3: MEASURE / SEGMENT (Auto-commit after 2 points) ---
-    else if (["MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "COTE_TWO_CLICK"].includes(enabledDrawingMode)) {
+    else if (["MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "COTE_TWO_CLICK", "LOCALIZED_REPAIR"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
       // Apply Angle Snap (Ortho) if Shift is held or ortho snap is enabled
@@ -3770,11 +3875,20 @@ const InteractionLayer = forwardRef(({
         // 1. Force Ref Update immediately (React state is too slow)
         drawingPointsRef.current = nextPoints;
 
-        // 2. Trigger Commit
-        // This will call onCommitDrawingRef.current(points) inside InteractionLayer
-        commitPolyline(event);
-        if (enabledDrawingMode === "MEASURE") dispatch(setEnabledDrawingMode(null));
-        if (isRectangleMode) clearRectBuffers();
+        // LOCALIZED_REPAIR: the rectangle is an ephemeral selection region, not
+        // an annotation. Compute the repair proposal and discard the drawn
+        // points (the flashing-green proposal replaces them; Space commits).
+        if (enabledDrawingMode === "LOCALIZED_REPAIR") {
+          handleLocalizedRepairRectangle(nextPoints);
+          setDrawingPoints([]);
+          drawingPointsRef.current = [];
+        } else {
+          // 2. Trigger Commit
+          // This will call onCommitDrawingRef.current(points) inside InteractionLayer
+          commitPolyline(event);
+          if (enabledDrawingMode === "MEASURE") dispatch(setEnabledDrawingMode(null));
+          if (isRectangleMode) clearRectBuffers();
+        }
       }
 
 
@@ -4661,7 +4775,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "RAMP"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "RAMP"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -5731,6 +5845,10 @@ const InteractionLayer = forwardRef(({
             ref={transientDetectedPatternRef}
             containerK={targetPose.k}
           />
+          <TransientDetectedPatternLayer
+            ref={transientRepairProposalRef}
+            containerK={targetPose.k}
+          />
         </g>
 
         {(dragState?.active || dragState?.frozen) && (
@@ -5885,9 +6003,7 @@ const InteractionLayer = forwardRef(({
               containerK={targetPose.k}
               meterByPx={baseMapMeterByPx}
               baseMapImageScale={baseMapImageScale}
-              isForBaseMaps={
-                newAnnotation?.isForBaseMaps ?? activeContext === "BASE_MAP"
-              }
+              isForBaseMaps={newAnnotation?.isForBaseMaps}
               orthoSnapAngleOffset={orthoSnapAngleOffset}
               rampWidthM={rampWidthM}
             />
