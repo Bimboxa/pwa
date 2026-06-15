@@ -107,12 +107,7 @@ export function sampleArcPoints(
 // translation is shared). For an S-C-S triplet, segment `P0→P1` maps to the
 // first `samples` expanded segments and `P1→P2` to the next `samples`; non-arc
 // segments pass through 1:1.
-function translateHiddenSegments(
-  path,
-  samples,
-  hiddenSegmentsIdx,
-  closeLine
-) {
+function translateHiddenSegments(path, samples, hiddenSegmentsIdx, closeLine) {
   const hidden = new Set(hiddenSegmentsIdx ?? []);
   if (hidden.size === 0) return [];
 
@@ -277,6 +272,82 @@ export function expandArcsInPath(path, samples = 6, closeLine = false) {
         continue;
       }
       // Degenerate: straight segments
+      out.push({ ...p0 });
+      i += 1;
+      consumed += 1;
+      continue;
+    }
+
+    out.push({ ...p0 });
+    i += 1;
+    consumed += 1;
+  }
+
+  return out;
+}
+
+/**
+ * Like `expandArcsInPath`, but the number of samples per arc half adapts to the
+ * arc size so each emitted chord stays close to `targetChordPx` (and never far
+ * below it). Use this when the sampled segments feed a planar arrangement whose
+ * node-merge tolerance would DROP sub-segments shorter than the tolerance —
+ * fixed dense sampling of a small arc produces sub-tolerance chords that get
+ * collapsed, breaking the loop (see detectPolygonFromAnnotations). Sampling by
+ * the straight chord under-samples curvy arcs, which is the safe direction here
+ * (longer chords, never shorter). Only topology matters downstream; the final
+ * geometry is recovered to true arcs elsewhere, so coarser sampling is fine.
+ */
+export function expandArcsInPathAdaptive(
+  path,
+  targetChordPx = 12,
+  closeLine = false
+) {
+  const n = path.length;
+  if (n < 3) return path.map((p) => ({ ...p }));
+
+  const target = Math.max(1, targetChordPx);
+  const MAX_SAMPLES = 24;
+  const get = closeLine ? (k) => path[((k % n) + n) % n] : (k) => path[k];
+  const out = [];
+  let i = 0;
+  let consumed = 0;
+  while (consumed < n) {
+    const p0 = get(i);
+    const p1 = get(i + 1);
+    const p2 = get(i + 2);
+
+    const isArc =
+      p1 &&
+      p2 &&
+      typeOf(p0) !== "circle" &&
+      typeOf(p1) === "circle" &&
+      typeOf(p2) !== "circle";
+
+    if (isArc) {
+      const circ = circleFromThreePoints(p0, p1, p2);
+      if (circ && Number.isFinite(circ.r) && circ.r > 0) {
+        const cross =
+          (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
+        const isCW = cross > 0;
+        const s01 = Math.min(
+          MAX_SAMPLES,
+          Math.max(1, Math.ceil(Math.hypot(p1.x - p0.x, p1.y - p0.y) / target))
+        );
+        const s12 = Math.min(
+          MAX_SAMPLES,
+          Math.max(1, Math.ceil(Math.hypot(p2.x - p1.x, p2.y - p1.y) / target))
+        );
+        out.push({ ...p0 });
+        const arc01 = sampleArcPoints(p0, p1, circ.center, circ.r, isCW, s01);
+        for (const s of arc01) out.push({ x: s.x, y: s.y });
+        const arc12 = sampleArcPoints(p1, p2, circ.center, circ.r, isCW, s12);
+        for (let k = 0; k < arc12.length - 1; k++) {
+          out.push({ x: arc12[k].x, y: arc12[k].y });
+        }
+        i += 2;
+        consumed += 2;
+        continue;
+      }
       out.push({ ...p0 });
       i += 1;
       consumed += 1;

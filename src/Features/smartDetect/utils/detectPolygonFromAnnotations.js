@@ -1,5 +1,5 @@
 import {
-  expandArcsInPath,
+  expandArcsInPathAdaptive,
   typeOf,
   circleFromThreePoints,
 } from "Features/geometry/utils/arcSampling";
@@ -44,7 +44,8 @@ export default function detectPolygonFromAnnotations({
   // back into S-C-S arcs at the end (concentric with the original arcs).
   let { segments, sourceArcCircles } = extractSegments(
     annotations,
-    drawingPoints
+    drawingPoints,
+    tolerance
   );
   if (segments.length === 0) return null;
   if (segments.length > MAX_SEGMENTS) {
@@ -105,9 +106,14 @@ export default function detectPolygonFromAnnotations({
 // Decompose annotations → independent segments
 // ---------------------------------------------------------------------------
 
-function extractSegments(annotations, drawingPoints) {
+function extractSegments(annotations, drawingPoints, tolerance = 5) {
   const segments = [];
   const sourceArcCircles = [];
+
+  // Sample arcs so each chord stays well above the planar-arrangement merge
+  // tolerance — otherwise a small arc's sub-tolerance sub-segments get dropped
+  // in findPolygonCandidates and the loop never closes.
+  const targetChordPx = Math.max(10, 2.4 * tolerance);
 
   // Collect the circle of every S-C-S (square→circle→square) arc in a typed
   // path, so the discretized contour can later be collapsed back to arcs
@@ -144,7 +150,7 @@ function extractSegments(annotations, drawingPoints) {
   const pushPath = (rawPts, closed) => {
     if (!rawPts || rawPts.length < 2) return;
     collectArcCircles(rawPts, closed);
-    const pts = expandArcsInPath(rawPts, 6);
+    const pts = expandArcsInPathAdaptive(rawPts, targetChordPx);
     for (let i = 0; i < pts.length - 1; i++) {
       segments.push({
         a: { x: pts[i].x, y: pts[i].y },
