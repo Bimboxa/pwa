@@ -201,6 +201,17 @@ export const mapEditorSlice = createSlice({
       state.showLayerScreenCursor = Boolean(drawingMode);
       // Reset the localized-repair override whenever a tool is (re)selected.
       state.repairMode = "AUTO";
+      // On quitting a drawing mode, reset the in-progress smartDetect session
+      // state so a subsequently relaunched tool starts clean (no inherited
+      // detection mode / flags). Persistent option preferences in
+      // smartDetectSlice are intentionally kept.
+      if (!drawingMode) {
+        state.smartDetectEnabled = false;
+        state.smartDetectMode = "HOVER";
+        state.smartDetectionPresent = false;
+        state.globalDetectionRunning = false;
+        state.stripDetectionMultiple = false;
+      }
     },
     setRepairMode: (state, action) => {
       state.repairMode = action.payload;
