@@ -6,10 +6,8 @@ import useListings from "Features/listings/hooks/useListings";
 import useWallBoundaries from "Features/smartDetect/hooks/useWallBoundaries";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { resolveDrawingShape } from "../constants/drawingShapeConfig";
-import {
-  getStripWidthPx,
-  stripEdgeToCenterline,
-} from "../utils/convertStripPolyline";
+import { getStripWidthPx } from "../utils/convertStripPolyline";
+import offsetControlPolyline from "Features/geometry/utils/offsetControlPolyline";
 
 import { CircularProgress, IconButton, Menu, Tooltip } from "@mui/material";
 
@@ -52,7 +50,13 @@ export default function IconButtonContours({ annotations, accentColor }) {
     const meterByPx = baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx;
     const Wpx = getStripWidthPx(a, meterByPx);
     const orientation = a.stripOrientation ?? 1;
-    const centerline = stripEdgeToCenterline(a.points ?? [], Wpx, orientation);
+    // Arc-aware offset (NOT the flat stripEdgeToCenterline) so an S-C-S arc on
+    // the strip edge survives as an S-C-S arc on the centerline — otherwise the
+    // contour hook sees no source arc and produces a faceted boundary.
+    const centerline = offsetControlPolyline(
+      a.points ?? [],
+      (orientation * Wpx) / 2
+    );
     return {
       ...a,
       type: "POLYLINE",
@@ -67,8 +71,12 @@ export default function IconButtonContours({ annotations, accentColor }) {
 
   // handlers
 
-  function handleOpen(event) { setAnchorEl(event.currentTarget); }
-  function handleClose() { setAnchorEl(null); }
+  function handleOpen(event) {
+    setAnchorEl(event.currentTarget);
+  }
+  function handleClose() {
+    setAnchorEl(null);
+  }
 
   async function handleTemplateChange(annotationTemplateId) {
     const template = allTemplates?.find((t) => t.id === annotationTemplateId);
@@ -103,7 +111,11 @@ export default function IconButtonContours({ annotations, accentColor }) {
               "&:hover": { color: accentColor, bgcolor: accentColor + "18" },
             }}
           >
-            {loading ? <CircularProgress size={18} /> : <IconContours fontSize="small" />}
+            {loading ? (
+              <CircularProgress size={18} />
+            ) : (
+              <IconContours fontSize="small" />
+            )}
           </IconButton>
         </span>
       </Tooltip>
