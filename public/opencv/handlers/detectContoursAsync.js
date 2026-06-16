@@ -13,6 +13,9 @@ async function detectContoursAsync({ msg, payload }) {
       floodWindowSize = 256,
       viewportBBox,
       boundaries,
+      exclusionMaskBuffer = null,
+      maskWidth = 0,
+      maskHeight = 0,
       skipApproxPoly = false,
     } = payload ?? {};
 
@@ -81,6 +84,22 @@ async function detectContoursAsync({ msg, payload }) {
     // --- 4b. DRAW EXISTING ANNOTATION BOUNDARIES AS BARRIERS ---
     if (boundaries?.length) {
       drawBoundariesOnBinary(processedBinary, boundaries, track);
+    }
+
+    // --- 4c. APPLY EXCLUSION MASK (footprint of all visible annotations) ---
+    // The mask is a full-image Uint8Array (1 = pixel covered by an existing
+    // annotation) built on the main thread via buildExclusionMask — same
+    // rasterizer used by smartDetect. Masked pixels are forced to 0 (black)
+    // so the flood fill cannot propagate through any annotation footprint
+    // (STRIP, open/closed POLYLINE, POLYGON, POINT). The ROI Mat is a view
+    // into processedBinary, so mutating processedBinary.data here takes effect.
+    if (exclusionMaskBuffer && maskWidth === imageWidth && maskHeight === imageHeight) {
+      const mask = new Uint8Array(exclusionMaskBuffer);
+      const bin = processedBinary.data;
+      const len = Math.min(mask.length, bin.length);
+      for (let i = 0; i < len; i++) {
+        if (mask[i]) bin[i] = 0;
+      }
     }
 
     // --- 5. DÉFINITION DE LA ROI ---

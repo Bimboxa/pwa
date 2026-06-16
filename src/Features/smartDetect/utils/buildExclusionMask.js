@@ -68,7 +68,8 @@ export default function buildExclusionMask(
         ctx.closePath();
         ctx.fill();
       }
-    } else if (ann.type === "POLYGON" || (ann.type === "POLYLINE" && ann.closeLine)) {
+    } else if (ann.type === "POLYGON") {
+      // Filled surface → its footprint is the enclosed area.
       const pts = ann.points.map(toImgPx);
       if (pts.length < 3) continue;
       ctx.beginPath();
@@ -77,6 +78,10 @@ export default function buildExclusionMask(
       ctx.closePath();
       ctx.fill();
     } else if (ann.type === "POLYLINE") {
+      // Line annotation (open OR closed) → its footprint is the STROKE band,
+      // NOT the enclosed area. A closed POLYLINE is a closed wall, so the
+      // interior must stay free (e.g. a SURFACE_DROP fill must be able to
+      // fill inside it and stop at the wall).
       const pts = ann.points.map(toImgPx);
       if (pts.length < 2) continue;
       const sw = ann.strokeWidth ?? 1;
@@ -84,20 +89,35 @@ export default function buildExclusionMask(
         ann.strokeWidthUnit === "CM" && meterByPx > 0
           ? Math.abs((sw * 0.01) / meterByPx / imageScale)
           : Math.abs(sw / imageScale);
-      // Fill the exact symmetric contour polygon (same algorithm as the
-      // "Contours" tool — see getPolylineContourPoints / useWallBoundaries)
-      // instead of ctx.stroke(). Avoids the anti-aliased fringe and
-      // line-cap artifacts of stroke() — the mask now matches the
-      // rendered polyline's geometry pixel-for-pixel.
-      const contour = getPolylineContourPoints(pts, swPx);
-      if (contour.length < 3) continue;
-      ctx.beginPath();
-      ctx.moveTo(contour[0].x, contour[0].y);
-      for (let i = 1; i < contour.length; i++) {
-        ctx.lineTo(contour[i].x, contour[i].y);
+      if (ann.closeLine && pts.length >= 3) {
+        // Closed loop: stroke the closed path so the wall band is continuous
+        // (proper joins at every corner, including the seam). The contour
+        // helper only miters intermediate vertices, so it would leave a gap
+        // at the start/end corner of a closed loop — stroke() avoids that.
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.closePath();
+        ctx.lineWidth = Math.max(swPx, 1.5);
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = "white";
+        ctx.stroke();
+      } else {
+        // Open polyline: fill the exact symmetric contour polygon (same
+        // algorithm as the "Contours" tool — getPolylineContourPoints /
+        // useWallBoundaries) instead of ctx.stroke(). Avoids the anti-aliased
+        // fringe and line-cap artifacts of stroke() — the mask matches the
+        // rendered polyline's geometry pixel-for-pixel.
+        const contour = getPolylineContourPoints(pts, swPx);
+        if (contour.length < 3) continue;
+        ctx.beginPath();
+        ctx.moveTo(contour[0].x, contour[0].y);
+        for (let i = 1; i < contour.length; i++) {
+          ctx.lineTo(contour[i].x, contour[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
       }
-      ctx.closePath();
-      ctx.fill();
     }
   }
 

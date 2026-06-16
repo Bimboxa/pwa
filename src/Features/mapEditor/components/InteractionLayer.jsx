@@ -3799,44 +3799,34 @@ const InteractionLayer = forwardRef(({
         };
       }
 
-      // Check if a POLYLINE is closed (closeLine flag or first point = last point).
-      const isClosedPolyline = (a) => {
-        if (a.type !== "POLYLINE") return false;
-        if (a.points?.length < 3) return false;
-        if (a.closeLine) return true;
-        const first = a.points[0];
-        const last = a.points[a.points.length - 1];
-        return first.x === last.x && first.y === last.y;
-      };
-
-      // Collect visible POLYGON + closed POLYLINE annotations as filled barriers
-      // (in source image pixel coords). Closed polylines are treated as solid
-      // polygons so the flood fill cannot leak through them.
-      const boundaries = (annotations || [])
-        .filter(a =>
-          (a.type === "POLYGON" && a.points?.length >= 3) ||
-          isClosedPolyline(a)
-        )
-        .map(a => ({
-          points: a.points.map(p => ({
-            x: (p.x - baseMapImageOffset.x) / baseMapImageScale,
-            y: (p.y - baseMapImageOffset.y) / baseMapImageScale,
-          })),
-          cuts: a.cuts?.map(cut => ({
-            ...cut,
-            points: cut.points.map(p => ({
-              x: (p.x - baseMapImageOffset.x) / baseMapImageScale,
-              y: (p.y - baseMapImageOffset.y) / baseMapImageScale,
-            })),
-          })),
-        }));
+      // Build the footprint mask of ALL visible annotations (STRIP, open/closed
+      // POLYLINE, POLYGON, POINT) so the flood fill is blocked by every existing
+      // annotation — same rasterizer used by the smartDetect detection algos.
+      // `annotations` is already visibility-filtered upstream (useAnnotationsV2).
+      const POINT_FOOTPRINT_RADIUS_PX = 4;
+      let exclusionMaskBuffer, maskWidth, maskHeight;
+      if (baseMapImageSize?.width > 0 && baseMapImageSize?.height > 0) {
+        const mask = buildExclusionMask(
+          annotations || [],
+          baseMapImageSize,
+          baseMapImageScale,
+          baseMapImageOffset,
+          baseMapMeterByPx || 0,
+          { pointRadiusImgPx: POINT_FOOTPRINT_RADIUS_PX }
+        );
+        exclusionMaskBuffer = mask.buffer;
+        maskWidth = baseMapImageSize.width;
+        maskHeight = baseMapImageSize.height;
+      }
 
       const { points, cuts } = await cv.detectContoursAsync({
         imageUrl: baseMapImageUrl,
         x: pixelX,
         y: pixelY,
         viewportBBox,
-        boundaries,
+        exclusionMaskBuffer,
+        maskWidth,
+        maskHeight,
         skipApproxPoly: rawDetection,
       });
 
