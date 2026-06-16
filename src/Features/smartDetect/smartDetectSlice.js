@@ -18,14 +18,6 @@ const smartDetectInitialState = {
   // cleanSegments on (detected strips + visible 2-point POLYLINEs) before
   // persisting. See docs/smartDetect/CLEAN_ON_COMMIT.md.
   cleanOnCommit: true,
-  //
-  // SURFACE_DROP smartDetect mode (loupe-bounded flood-fill).
-  // Pixel is considered a barrier when (r+g+b)/3 < surfaceDropDarknessThreshold.
-  surfaceDropDarknessThreshold: 100,
-  // Live preview polygon tracked on mouse move; committed on click.
-  // Shape: { points: [{x, y}], cuts?: [{points: [{x,y}]}] } in local map coords,
-  // or null when no preview is active.
-  surfaceDropPreview: null,
 };
 
 export const smartDetectSlice = createSlice({
@@ -59,12 +51,6 @@ export const smartDetectSlice = createSlice({
     setCleanOnCommit: (state, action) => {
       state.cleanOnCommit = action.payload;
     },
-    setSurfaceDropDarknessThreshold: (state, action) => {
-      state.surfaceDropDarknessThreshold = action.payload;
-    },
-    setSurfaceDropPreview: (state, action) => {
-      state.surfaceDropPreview = action.payload;
-    },
   },
 });
 
@@ -78,8 +64,6 @@ export const {
   setSimplifyPolynomial,
   setSimplifyOuterContour,
   setCleanOnCommit,
-  setSurfaceDropDarknessThreshold,
-  setSurfaceDropPreview,
 } = smartDetectSlice.actions;
 
 export default smartDetectSlice.reducer;
