@@ -23,6 +23,11 @@ const mapEditorInitialState = {
   // "Rampe" tool is active. Not persisted on the annotation/template.
   rampWidthM: 1, // band width in meters, centered on the drawn median line
   rampDeltaHM: 0, // vertical delta (meters) over the median line length → slopePct
+  // Opening (ouverture) tools drawn from a polyline/stripe centerline — last
+  // line width entered by the user, reused next time such a tool is activated.
+  // Defaults to 20 cm.
+  openingStrokeWidth: 20,
+  openingStrokeWidthUnit: "CM",
   //
   showLayerScreenCursor: false,
   printModeEnabled: false,
@@ -230,6 +235,12 @@ export const mapEditorSlice = createSlice({
     },
     setRampDeltaHM: (state, action) => {
       state.rampDeltaHM = action.payload;
+    },
+    // payload: { strokeWidth, strokeWidthUnit? }
+    setOpeningStrokeWidth: (state, action) => {
+      const { strokeWidth, strokeWidthUnit } = action.payload ?? {};
+      if (strokeWidth != null) state.openingStrokeWidth = strokeWidth;
+      if (strokeWidthUnit != null) state.openingStrokeWidthUnit = strokeWidthUnit;
     },
     setMapEditorMode: (state, action) => {
       state.mapEditorMode = action.payload;
@@ -625,6 +636,7 @@ export const {
   setAvoidVisibleAnnotationsOnCommit,
   setRampWidthM,
   setRampDeltaHM,
+  setOpeningStrokeWidth,
   setMapEditorMode,
   //
   setAnchorPositionScale,

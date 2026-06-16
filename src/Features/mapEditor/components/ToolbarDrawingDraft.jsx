@@ -10,6 +10,7 @@ import {
   setSelectedToolKeyForTemplate,
   setRampWidthM,
   setRampDeltaHM,
+  setOpeningStrokeWidth,
 } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
@@ -45,6 +46,10 @@ export default function ToolbarDrawingDraft() {
   const rampDeltaHM = useSelector((s) => s.mapEditor.rampDeltaHM);
   const selectedCutToolKey = useSelector(
     (s) => s.mapEditor.selectedToolKeyByTemplateId?.CUT
+  );
+  const openingStrokeWidth = useSelector((s) => s.mapEditor.openingStrokeWidth);
+  const openingStrokeWidthUnit = useSelector(
+    (s) => s.mapEditor.openingStrokeWidthUnit
   );
 
   // helpers
@@ -123,7 +128,14 @@ export default function ToolbarDrawingDraft() {
     // fall back to the key for regular tools.
     dispatch(setEnabledDrawingMode(tool?.drawingMode ?? mode));
     if (tool?.annotationType) {
-      dispatch(setNewAnnotation(buildToolDraft(newAnnotation, tool)));
+      dispatch(
+        setNewAnnotation(
+          buildToolDraft(newAnnotation, tool, {
+            strokeWidth: openingStrokeWidth,
+            strokeWidthUnit: openingStrokeWidthUnit,
+          })
+        )
+      );
     }
     // Keep the popper's per-tool active-mode highlight in sync when the mode is
     // switched from the toolbar (mirrors ToolRow.handleSelectTool).
@@ -149,6 +161,19 @@ export default function ToolbarDrawingDraft() {
 
   function handleFieldChange(next) {
     dispatch(setNewAnnotation({ ...newAnnotation, ...next }));
+    // Remember the last line width entered while drawing an opening so the next
+    // opening tool activation reuses it instead of resetting to the default.
+    if (
+      isOpeningBand &&
+      (next?.strokeWidth != null || next?.strokeWidthUnit != null)
+    ) {
+      dispatch(
+        setOpeningStrokeWidth({
+          strokeWidth: next.strokeWidth,
+          strokeWidthUnit: next.strokeWidthUnit,
+        })
+      );
+    }
   }
 
   function handleRampWidthChange(next) {

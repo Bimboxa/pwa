@@ -157,6 +157,14 @@ function ToolRow({ type, label, Icon }) {
   const selectedToolKey = useSelector(
     (s) => s.mapEditor.selectedToolKeyByTemplateId[type]
   );
+  const openingStrokeWidth = useSelector((s) => s.mapEditor.openingStrokeWidth);
+  const openingStrokeWidthUnit = useSelector(
+    (s) => s.mapEditor.openingStrokeWidthUnit
+  );
+  const openingDefaults = {
+    strokeWidth: openingStrokeWidth,
+    strokeWidthUnit: openingStrokeWidthUnit,
+  };
 
   // state
 
@@ -176,7 +184,9 @@ function ToolRow({ type, label, Icon }) {
   const handleRowClick = () => {
     if (!activeTool) return;
     dispatch(setEnabledDrawingMode(activeTool.drawingMode ?? activeTool.key));
-    dispatch(setNewAnnotation(buildToolDraft(newAnnotation, activeTool)));
+    dispatch(
+      setNewAnnotation(buildToolDraft(newAnnotation, activeTool, openingDefaults))
+    );
   };
 
   const handleToolBtnClick = (e) => {
@@ -189,7 +199,7 @@ function ToolRow({ type, label, Icon }) {
       setSelectedToolKeyForTemplate({ templateId: type, toolKey: tool.key })
     );
     dispatch(setEnabledDrawingMode(tool.drawingMode ?? tool.key));
-    dispatch(setNewAnnotation(buildToolDraft(newAnnotation, tool)));
+    dispatch(setNewAnnotation(buildToolDraft(newAnnotation, tool, openingDefaults)));
   };
 
   const handleMenuClose = () => {
