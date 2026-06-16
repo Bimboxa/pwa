@@ -60,6 +60,7 @@ import IconButtonConvertAnnotation from "./IconButtonConvertAnnotation";
 import IconButtonVectorisation from "./IconButtonVectorisation";
 import IconButtonContours from "./IconButtonContours";
 import IconButtonCloseEnvelope from "./IconButtonCloseEnvelope";
+import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "./DatagridAnnotations";
@@ -145,6 +146,11 @@ export default function ToolbarEditAnnotations({
   );
 
   const hasPolygons = annotations.some((a) => a.type === "POLYGON");
+
+  // Closed shapes can be dilated/contracted (same rule as the single-edit toolbar).
+  const closedShapeAnnotations = annotations.filter(
+    (a) => a.type === "POLYGON" || (a.type === "POLYLINE" && a.closeLine)
+  );
 
   // The "Clean segments" action accepts any POLYLINE selection (>=2 pts):
   // multi-point polylines are split into 2-pt segments by the hook before
@@ -573,6 +579,12 @@ export default function ToolbarEditAnnotations({
                   annotations={annotations.filter((a) =>
                     ["POLYLINE", "STRIP"].includes(a.type)
                   )}
+                  accentColor="#6366F1"
+                />
+              )}
+              {closedShapeAnnotations.length > 0 && (
+                <IconButtonDilateAnnotation
+                  annotations={closedShapeAnnotations}
                   accentColor="#6366F1"
                 />
               )}

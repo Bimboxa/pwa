@@ -9,7 +9,7 @@ import IconDilate from "./IconDilate";
 
 import db from "App/db/db";
 
-export default function IconButtonDilateAnnotation({ annotation, accentColor }) {
+export default function IconButtonDilateAnnotation({ annotations, accentColor }) {
   // data
 
   const baseMap = useMainBaseMap();
@@ -33,7 +33,8 @@ export default function IconButtonDilateAnnotation({ annotation, accentColor }) 
   }
 
   async function handleOffset(distance) {
-    if (!annotation?.points?.length) return;
+    const targets = (annotations ?? []).filter((a) => a?.points?.length);
+    if (targets.length === 0) return;
 
     // annotation.points are already in reference pixel coords (from useAnnotationsV2)
     const refImageSize = baseMap?.getImageSize?.();
@@ -46,25 +47,40 @@ export default function IconButtonDilateAnnotation({ annotation, accentColor }) 
     // Scale factor: 1 active pixel expressed in reference pixels
     const scale = refW / activeW;
 
-    // Apply offset in reference pixel space (distance * scale = 1 active px)
-    const offsetPoints = offsetPolygon(annotation.points, distance * scale);
-    if (!offsetPoints?.length) return;
+    // Accumulate per-annotation point updates and the flat list of db.points
+    // updates so the whole batch is written with a minimal number of queries.
+    const annotationUpdates = [];
+    const newPointsByAnnotationId = {};
 
-    // Convert to normalized ratios for DB storage
-    const newPoints = offsetPoints.map((p, i) => {
-      const original = annotation.points[i] || {};
-      return {
-        ...original,
-        x: p.x / refW,
-        y: p.y / refH,
-      };
-    });
+    for (const annotation of targets) {
+      // Apply offset in reference pixel space (distance * scale = 1 active px)
+      const offsetPoints = offsetPolygon(annotation.points, distance * scale);
+      if (!offsetPoints?.length) continue;
 
-    // Update annotation
-    await db.annotations.update(annotation.id, { points: newPoints });
+      // Convert to normalized ratios for DB storage
+      const newPoints = offsetPoints.map((p, i) => {
+        const original = annotation.points[i] || {};
+        return {
+          ...original,
+          x: p.x / refW,
+          y: p.y / refH,
+        };
+      });
+
+      annotationUpdates.push({ id: annotation.id, newPoints });
+      newPointsByAnnotationId[annotation.id] = newPoints;
+    }
+
+    if (annotationUpdates.length === 0) return;
+
+    // Update annotations
+    for (const { id, newPoints } of annotationUpdates) {
+      await db.annotations.update(id, { points: newPoints });
+    }
 
     // Also update db.points entries (resolvePoints prioritizes db.points)
-    const pointIds = newPoints.map((p) => p.id).filter(Boolean);
+    const allNewPoints = Object.values(newPointsByAnnotationId).flat();
+    const pointIds = allNewPoints.map((p) => p.id).filter(Boolean);
     if (pointIds.length > 0) {
       const existingDbPoints = await db.points
         .where("id")
@@ -74,7 +90,7 @@ export default function IconButtonDilateAnnotation({ annotation, accentColor }) 
         const dbPointsById = Object.fromEntries(
           existingDbPoints.map((p) => [p.id, p])
         );
-        const updates = newPoints
+        const updates = allNewPoints
           .filter((p) => dbPointsById[p.id])
           .map((p) => ({ ...dbPointsById[p.id], x: p.x, y: p.y }));
         await db.points.bulkPut(updates);

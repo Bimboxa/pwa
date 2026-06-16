@@ -792,7 +792,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 )}
                 {isClosedShape && (
                   <IconButtonDilateAnnotation
-                    annotation={selectedAnnotation}
+                    annotations={[selectedAnnotation]}
                     accentColor={accentColor}
                   />
                 )}
