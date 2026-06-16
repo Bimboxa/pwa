@@ -138,14 +138,22 @@ const DrawingLayer = forwardRef(
     const rectMetricsRef = drawingMetrics?.rectMetricsRef;
 
     const {
-      strokeColor,
-      fillColor,
+      strokeColor: rawStrokeColor,
+      fillColor: rawFillColor,
       type,
       strokeWidth,
       strokeWidthUnit,
       strokeOpacity,
       strokeType,
     } = newAnnotation || {};
+
+    // Openings (ouvertures) are drawn in red @ 0.8 opacity regardless of the
+    // draft's own colours. Gated strictly on the opening context so normal
+    // POLYLINE / STRIP drawing (and its strokeWidth) is left untouched.
+    const isOpening = Boolean(newAnnotation?.isOpening) || type === "CUT";
+    const OPENING_COLOR = "#ff0000";
+    const strokeColor = isOpening ? OPENING_COLOR : rawStrokeColor;
+    const fillColor = isOpening ? OPENING_COLOR : rawFillColor;
 
     // Détection des types
     const isPolygon = type === "POLYGON";
@@ -186,9 +194,11 @@ const DrawingLayer = forwardRef(
       : "non-scaling-stroke";
     // Opacity of the temporary trait: mirror the annotation for POLYLINE /
     // segment; undefined (→ 1) for POLYGON / STRIP / RAMP, as before.
-    const previewStrokeOpacity = previewUsesAnnotationStyle
-      ? strokeOpacity
-      : undefined;
+    const previewStrokeOpacity = isOpening
+      ? 0.8
+      : previewUsesAnnotationStyle
+        ? strokeOpacity
+        : undefined;
     // Dash pattern of the temporary trait (rubber band / arc):
     // - POLYLINE / segment: solid, unless the annotation style is DASHED.
     // - POLYGON / STRIP / RAMP: legacy "5,5" guide dashes.
@@ -643,7 +653,7 @@ const DrawingLayer = forwardRef(
           <path
             ref={previewStripRef}
             fill={strokeColor || fillColor || "rgba(92, 92, 236, 0.3)"}
-            opacity={0.25}
+            opacity={isOpening ? 0.8 : 0.25}
             stroke="none"
             style={{ display: "none", pointerEvents: "none" }}
           />

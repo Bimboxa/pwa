@@ -21,6 +21,7 @@ import {
 } from "../constants/drawingTools.jsx";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
+import buildToolDraft from "Features/mapEditor/utils/buildToolDraft";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
@@ -42,6 +43,9 @@ export default function ToolbarDrawingDraft() {
   const drawingShape = newAnnotation?.drawingShape;
   const rampWidthM = useSelector((s) => s.mapEditor.rampWidthM);
   const rampDeltaHM = useSelector((s) => s.mapEditor.rampDeltaHM);
+  const selectedCutToolKey = useSelector(
+    (s) => s.mapEditor.selectedToolKeyByTemplateId?.CUT
+  );
 
   // helpers
 
@@ -58,6 +62,17 @@ export default function ToolbarDrawingDraft() {
   const toolType = getDrawingToolTypeByKey(enabledDrawingMode);
   const isCuttingTool = Boolean(toolType);
 
+  // Opening (ouverture) tools drawn from a centerline reuse the POLYLINE / STRIP
+  // interaction modes, so `enabledDrawingMode` is not a CUT_* key — they're
+  // recognized via the draft's `isOpening` flag instead. We still surface the
+  // "Ouverture" variant toggle (group "CUT") and show the line-width field for
+  // them, while hiding the per-annotation colour (openings are forced red).
+  const isOpeningBand =
+    Boolean(newAnnotation?.isOpening) &&
+    (newAnnotation?.type === "POLYLINE" || newAnnotation?.type === "STRIP");
+  const isToolGroup = isCuttingTool || isOpeningBand;
+  const toolGroupType = isCuttingTool ? toolType : isOpeningBand ? "CUT" : null;
+
   const overrideFields = newAnnotation?.overrideFields;
   const isFieldOverridden = (field) =>
     Array.isArray(overrideFields) && overrideFields.includes(field);
@@ -67,29 +82,34 @@ export default function ToolbarDrawingDraft() {
   // height / offset / thickness fields, which don't apply to a ramp.
   const isRampTool = enabledDrawingMode === "RAMP";
 
-  const showColor = !isCuttingTool && !isFieldOverridden(colorField);
+  const showColor = !isToolGroup && !isFieldOverridden(colorField);
   const showThickness =
-    !isCuttingTool &&
     !isRampTool &&
-    drawingShape === "POLYLINE" &&
-    !isFieldOverridden("strokeWidth");
+    !isFieldOverridden("strokeWidth") &&
+    ((!isToolGroup && drawingShape === "POLYLINE") || isOpeningBand);
   const showOffset =
-    !isCuttingTool && !isRampTool && !isFieldOverridden("offsetZ");
+    !isToolGroup && !isRampTool && !isFieldOverridden("offsetZ");
   const showHeight =
-    !isCuttingTool && !isRampTool && !isFieldOverridden("height");
+    !isToolGroup && !isRampTool && !isFieldOverridden("height");
   const showAnyField = showThickness || showOffset || showHeight || isRampTool;
 
-  const tools = isCuttingTool
-    ? getDrawingToolsByType(toolType)
+  const tools = toolGroupType
+    ? getDrawingToolsByType(toolGroupType)
     : drawingShape
       ? getDrawingToolsByShape(drawingShape)
       : [];
   const options = tools.map(({ key, label, Icon }) => ({
     key,
     label,
-    icon: <Icon sx={isCuttingTool ? undefined : { color }} />,
+    icon: <Icon sx={isToolGroup ? undefined : { color }} />,
   }));
   const showShape = options.length > 0;
+  // Highlight the active variant: for centerline opening tools the enabled mode
+  // is POLYLINE_CLICK / STRIP / … so the toggle tracks the persisted CUT tool
+  // key instead.
+  const selectedToolKey = isOpeningBand
+    ? (selectedCutToolKey ?? enabledDrawingMode)
+    : enabledDrawingMode;
 
   const colorPopoverTitle = isStrokeColor
     ? "Couleur de tracé"
@@ -98,18 +118,21 @@ export default function ToolbarDrawingDraft() {
   // handlers
 
   function handleToolChange(mode) {
-    dispatch(setEnabledDrawingMode(mode));
     const tool = getDrawingToolByKey(mode);
+    // Opening tools reuse an underlying interaction mode (tool.drawingMode);
+    // fall back to the key for regular tools.
+    dispatch(setEnabledDrawingMode(tool?.drawingMode ?? mode));
     if (tool?.annotationType) {
-      dispatch(
-        setNewAnnotation({ ...newAnnotation, type: tool.annotationType })
-      );
+      dispatch(setNewAnnotation(buildToolDraft(newAnnotation, tool)));
     }
     // Keep the popper's per-tool active-mode highlight in sync when the mode is
     // switched from the toolbar (mirrors ToolRow.handleSelectTool).
-    if (isCuttingTool && mode) {
+    if (isToolGroup && mode) {
       dispatch(
-        setSelectedToolKeyForTemplate({ templateId: toolType, toolKey: mode })
+        setSelectedToolKeyForTemplate({
+          templateId: toolGroupType,
+          toolKey: tool?.key ?? mode,
+        })
       );
     }
   }
@@ -183,7 +206,7 @@ export default function ToolbarDrawingDraft() {
           )}
           <ToggleSingleSelectorGeneric
             options={options}
-            selectedKey={enabledDrawingMode}
+            selectedKey={selectedToolKey}
             onChange={handleToolChange}
           />
         </>

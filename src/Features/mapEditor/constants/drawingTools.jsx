@@ -141,8 +141,8 @@ const DRAWING_TOOLS = [
   // CUT tools (Ouverture)
   {
     key: "CUT_CLICK",
-    label: "Ligne",
-    Icon: IconPolylineClick,
+    label: "Polyligne fermée",
+    Icon: IconPolygonClick,
     annotationType: "CUT",
     behavior: "CLICK",
   },
@@ -159,6 +159,47 @@ const DRAWING_TOOLS = [
     Icon: IconPolylineCircle,
     annotationType: "CUT",
     behavior: "CIRCLE",
+  },
+  // CUT-from-centerline tools (Ouverture). They draw exactly like a normal
+  // POLYLINE / STRIP (so they reuse the existing interaction modes via
+  // `drawingMode`) and keep their real annotation `type` during drawing; the
+  // `isOpening` flag makes the commit polygonize the drawn centerline into a
+  // band contour and apply it as the opening polygon.
+  {
+    key: "CUT_POLYLINE",
+    label: "Polyligne",
+    Icon: IconPolylineClick,
+    annotationType: "POLYLINE",
+    behavior: "CLICK",
+    drawingMode: "POLYLINE_CLICK",
+    isOpening: true,
+  },
+  {
+    key: "CUT_POLYLINE_SEGMENT",
+    label: "Polyligne (2 clics)",
+    Icon: IconPolylineSegment,
+    annotationType: "POLYLINE",
+    behavior: "SEGMENT",
+    drawingMode: "POLYLINE_SEGMENT",
+    isOpening: true,
+  },
+  {
+    key: "CUT_STRIP",
+    label: "Bande",
+    Icon: IconStrip,
+    annotationType: "STRIP",
+    behavior: "STRIP",
+    drawingMode: "STRIP",
+    isOpening: true,
+  },
+  {
+    key: "CUT_STRIP_SEGMENT",
+    label: "Bande (2 clics)",
+    Icon: IconStripSegment,
+    annotationType: "STRIP",
+    behavior: "SEGMENT",
+    drawingMode: "STRIP_SEGMENT",
+    isOpening: true,
   },
   // SPLIT tools (Diviser)
   {
@@ -278,7 +319,15 @@ const DRAWING_TOOLS = [
 ];
 
 export const DRAWING_TOOLS_BY_TYPE = {
-  CUT: ["CUT_RECTANGLE", "CUT_CLICK", "CUT_CIRCLE"],
+  CUT: [
+    "CUT_CLICK",
+    "CUT_RECTANGLE",
+    "CUT_CIRCLE",
+    "CUT_POLYLINE",
+    "CUT_POLYLINE_SEGMENT",
+    "CUT_STRIP",
+    "CUT_STRIP_SEGMENT",
+  ],
   SPLIT_LINE: ["SPLIT_POLYLINE_CLICK", "CUT_SEGMENT", "SPLIT_POLYLINE"],
   SPLIT_SURFACE: ["SPLIT_CLICK"],
   TECHNICAL_RETURN: ["TECHNICAL_RETURN"],

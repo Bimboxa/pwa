@@ -118,6 +118,7 @@ import {
   getDrawingToolByKey,
 } from "Features/mapEditor/constants/drawingTools.jsx";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
+import buildToolDraft from "Features/mapEditor/utils/buildToolDraft";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
 import useListings from "Features/listings/hooks/useListings";
@@ -174,10 +175,8 @@ function ToolRow({ type, label, Icon }) {
 
   const handleRowClick = () => {
     if (!activeTool) return;
-    dispatch(setEnabledDrawingMode(activeTool.key));
-    dispatch(
-      setNewAnnotation({ ...newAnnotation, type: activeTool.annotationType })
-    );
+    dispatch(setEnabledDrawingMode(activeTool.drawingMode ?? activeTool.key));
+    dispatch(setNewAnnotation(buildToolDraft(newAnnotation, activeTool)));
   };
 
   const handleToolBtnClick = (e) => {
@@ -189,8 +188,8 @@ function ToolRow({ type, label, Icon }) {
     dispatch(
       setSelectedToolKeyForTemplate({ templateId: type, toolKey: tool.key })
     );
-    dispatch(setEnabledDrawingMode(tool.key));
-    dispatch(setNewAnnotation({ ...newAnnotation, type: tool.annotationType }));
+    dispatch(setEnabledDrawingMode(tool.drawingMode ?? tool.key));
+    dispatch(setNewAnnotation(buildToolDraft(newAnnotation, tool)));
   };
 
   const handleMenuClose = () => {

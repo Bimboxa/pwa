@@ -25,6 +25,7 @@ import mergePolygonAnnotationsService from "Features/annotations/services/mergeP
 import avoidVisibleAnnotationsService from "Features/annotations/services/avoidVisibleAnnotationsService";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
 import findCutHostAnnotationId from "Features/annotations/utils/findCutHostAnnotationId";
+import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 
 
 export default function useHandleCommitDrawing({ newEntity, annotations } = {}) {
@@ -104,7 +105,30 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
         // cuts
 
-        if (newAnnotation.type === "CUT") {
+        if (newAnnotation.type === "CUT" || newAnnotation.isOpening) {
+            // Opening-from-centerline tools (CUT_POLYLINE / CUT_STRIP …) draw a
+            // POLYLINE / STRIP centerline; polygonize it into the band contour
+            // (centered band for POLYLINE, one-sided offset band for STRIP) and
+            // use that as the opening polygon so the rest of the CUT pipeline
+            // (host detection, applyOpeningOnPolygon, inner-ring fallback) runs
+            // unchanged on the band.
+            if (newAnnotation.isOpening) {
+                const polys = getAnnotationAsPolygons(
+                    {
+                        type: newAnnotation.type,
+                        points: rawPoints,
+                        strokeWidth: newAnnotation.strokeWidth,
+                        strokeWidthUnit: newAnnotation.strokeWidthUnit,
+                        stripOrientation: newAnnotation.stripOrientation,
+                        closeLine,
+                    },
+                    { meterByPx: baseMap?.getMeterByPx?.() }
+                );
+                const contour = polys?.[0]?.points;
+                if (!contour || contour.length < 3) return;
+                rawPoints = contour.map((p) => ({ x: p.x, y: p.y }));
+            }
+
             // The host is normally captured by the first-click DOM hit-test in
             // InteractionLayer (cutHostId). When the user starts the rectangle
             // on the polygon border instead of inside it, that hit-test misses
