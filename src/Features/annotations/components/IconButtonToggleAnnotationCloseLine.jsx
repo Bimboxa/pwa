@@ -6,7 +6,10 @@ import {
 
 import db from "App/db/db";
 
-export default function IconButtonToggleAnnotationCloseLine({ annotation }) {
+export default function IconButtonToggleAnnotationCloseLine({
+  annotation,
+  accentColor,
+}) {
   // helpers
 
   const title = annotation.closeLine ? "Ouvrir la ligne" : "Fermer la ligne";
@@ -20,9 +23,27 @@ export default function IconButtonToggleAnnotationCloseLine({ annotation }) {
   };
 
   return (
-    <Tooltip title="Fermer la ligne">
-      <IconButton onClick={handleToggleCloseLine}>
-        {!annotation.closeLine ? <CloseLineIcon /> : <OpenLineIcon />}
+    <Tooltip title={title}>
+      <IconButton
+        size="small"
+        onClick={handleToggleCloseLine}
+        sx={
+          accentColor
+            ? {
+                color: "text.disabled",
+                "&:hover": {
+                  color: accentColor,
+                  bgcolor: accentColor + "18",
+                },
+              }
+            : undefined
+        }
+      >
+        {!annotation.closeLine ? (
+          <CloseLineIcon fontSize="small" />
+        ) : (
+          <OpenLineIcon fontSize="small" />
+        )}
       </IconButton>
     </Tooltip>
   );

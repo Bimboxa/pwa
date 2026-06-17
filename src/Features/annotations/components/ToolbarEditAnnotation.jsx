@@ -60,6 +60,7 @@ import Shape3DSelector from "./Shape3DSelector";
 import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
 import IconButtonFlipExtrusionAnnotation from "./IconButtonFlipExtrusionAnnotation";
 import IconButtonToggleStripType from "./IconButtonToggleStripType";
+import IconButtonToggleAnnotationCloseLine from "./IconButtonToggleAnnotationCloseLine";
 import IconButtonDetectSimilarStrips from "./IconButtonDetectSimilarStrips";
 import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
 import IconButtonSubtractAnnotation from "./IconButtonSubtractAnnotation";
@@ -772,6 +773,12 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                       accentColor={accentColor}
                     />
                   )}
+                {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
+                  <IconButtonToggleAnnotationCloseLine
+                    annotation={selectedAnnotation}
+                    accentColor={accentColor}
+                  />
+                )}
                 {selectedAnnotation?.type === "STRIP" && (
                   <IconButtonFlipStripAnnotation
                     annotation={selectedAnnotation}
