@@ -22,6 +22,7 @@ import { setShowCreateBaseMapSection, setSelectedMainBaseMapId } from "Features/
 
 import renderTempBaseMapImage from "../utils/renderTempBaseMapImage";
 import buildBaseMapNameForPage from "../utils/buildBaseMapNameForPage";
+import computeBaseMapsPlacements from "../utils/computeBaseMapsPlacements";
 
 export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
     const dispatch = useDispatch();
@@ -68,7 +69,7 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
             });
 
             dispatch(updateTempBaseMap({ id, updates: { imageFile, name, meterByPx } }));
-            temps.push({ id, name, imageFile, meterByPx });
+            temps.push({ id, name, imageFile, meterByPx, page, bboxInRatio: null, rotate: 0 });
             setProgress({ done: page, total });
         }
         return temps;
@@ -83,7 +84,20 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
                 ? await buildPerPageTempBaseMaps()
                 : tempBaseMaps;
 
-            const baseMaps = await createBaseMaps(baseMapsToCreate);
+            // Compute each baseMap's 3D placement from its crop on the PDF page
+            // (same page => first crop is the reference at the world origin),
+            // so the user does not have to position them manually afterwards.
+            const placements = await computeBaseMapsPlacements({
+                baseMaps: baseMapsToCreate,
+                pdfDocument,
+                blueprintScale,
+            });
+            const baseMapsWithPlacement = baseMapsToCreate.map((bm) => {
+                const placement = placements.get(bm.id);
+                return placement ? { ...bm, ...placement } : bm;
+            });
+
+            const baseMaps = await createBaseMaps(baseMapsWithPlacement);
 
             const baseMap0 = baseMaps?.[0];
             if (baseMap0) {

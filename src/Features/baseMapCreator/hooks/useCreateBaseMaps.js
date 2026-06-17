@@ -66,9 +66,19 @@ export default function useCreateBaseMaps() {
             if (_entity?.id) {
                 const record = await db.baseMaps.get(_entity.id);
                 if (record?.image?.imageSize) {
+                    // Persist the pre-computed 3D placement (same-page cuts) when
+                    // present, so the baseMap lands in the right spot in 3D.
+                    const placement = baseMap.position
+                        ? {
+                              orientation: baseMap.orientation,
+                              angleDeg: baseMap.angleDeg,
+                              position: baseMap.position,
+                          }
+                        : {};
                     await db.baseMaps.update(_entity.id, {
                         refWidth: record.image.imageSize.width,
                         refHeight: record.image.imageSize.height,
+                        ...placement,
                     });
                     await db.baseMapVersions.put({
                         id: nanoid(),

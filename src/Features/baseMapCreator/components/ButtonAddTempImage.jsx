@@ -55,7 +55,10 @@ export default function ButtonAddTempImage({ pdfFile, pdfDocument, blueprintScal
             blueprintScale,
             resolution: opt.resolution, // null => AUTO
         });
-        dispatch(updateTempBaseMap({ id, updates: { imageFile, name, meterByPx } }));
+        dispatch(updateTempBaseMap({
+            id,
+            updates: { imageFile, name, meterByPx, bboxInRatio, rotate, page: pageNumber },
+        }));
     }
     return <Box sx={{ display: "flex", alignItems: "center", width: 1 }}>
 
