@@ -569,7 +569,12 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           verticalLift,
           expandedHidden,
           annotation.extrusionOrientation,
-          !!annotation.closeLine
+          !!annotation.closeLine,
+          // Fired once the async (Dexie liveQuery) profile sweep is built and
+          // added to the placeholder — lets AnnotationsManager re-render and
+          // re-notify "annotation ready" so post-creation passes (clipping
+          // planes, selection dim) reach the freshly-added meshes.
+          options?.onAsyncLoaded
         );
         break;
       }
@@ -630,7 +635,12 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           verticalLift,
           expandedHidden,
           annotation.extrusionOrientation,
-          !!annotation.closeLine
+          !!annotation.closeLine,
+          // Fired once the async (Dexie liveQuery) profile sweep is built and
+          // added to the placeholder — lets AnnotationsManager re-render and
+          // re-notify "annotation ready" so post-creation passes (clipping
+          // planes, selection dim) reach the freshly-added meshes.
+          options?.onAsyncLoaded
         );
         break;
       }
